@@ -6,6 +6,6 @@
     <title>Document</title>
 </head>
 <body>
-    Hola ixtla, servicios web
+    Hola ixtla v1, servicios web
 </body>
 </html>
