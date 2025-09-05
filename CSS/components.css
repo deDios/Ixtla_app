@@ -1,0 +1,151 @@
+/* carrusel*/
+:root {
+    --ix-green: #63c37b;
+    --ix-muted: #777;
+    --ix-border: #e6e6e6;
+    --ix-bg-soft: #f6f5f4;
+    --ix-card-bg: #fff;
+    --ix-radius: 16px;
+}
+
+.ix-carousel {
+    background: var(--ix-bg-soft);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.ix-viewport {
+    overflow: hidden;
+}
+
+.ix-track {
+    display: flex;
+    will-change: transform;
+    transition: transform .45s ease;
+}
+
+.ix-slide {
+    min-width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.ix-card {
+    background: var(--ix-card-bg);
+    border-radius: var(--ix-radius);
+    box-shadow: var(--ix-shadow);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 18px;
+    align-items: center;
+}
+
+.ix-media img {
+    display: block;
+    width: 100%;
+    height: 260px;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.ix-content {
+    color: #333;
+    font-size: 0.98rem;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.ix-content p {
+    margin: 0;
+}
+
+.ix-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.ix-nav {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--ix-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ix-green);
+    cursor: pointer;
+    transition: transform .12s ease, background .12s ease, color .12s ease;
+}
+
+.ix-nav:hover {
+    transform: translateY(-1px);
+    background: #fafafa;
+}
+
+.ix-nav:active {
+    transform: translateY(0);
+}
+
+.ix-nav[disabled] {
+    opacity: .45;
+    pointer-events: none;
+}
+
+.ix-nav svg {
+    width: 20px;
+    height: 20px;
+}
+
+.ix-indicator {
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--ix-border);
+    font-weight: 600;
+    color: #333;
+}
+
+.ix-indicator .ix-sep {
+    color: var(--ix-muted);
+    font-weight: 400;
+    margin: 0 4px;
+}
+
+@media (max-width: 900px) {
+    .ix-media img {
+        height: 220px;
+    }
+}
+
+@media (max-width: 720px) {
+    .ix-card {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .ix-media img {
+        height: 200px;
+    }
+}
+
+@media (max-width: 420px) {
+    .ix-nav {
+        width: 36px;
+        height: 36px;
+    }
+
+    .ix-nav svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .ix-indicator {
+        font-size: .95rem;
+    }
+}
