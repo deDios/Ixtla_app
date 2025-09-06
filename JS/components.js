@@ -138,3 +138,24 @@
   });
 })();
 
+// --------------------------- toasts globales ---------------------------
+  (function ensureToastContainer() {
+    if (!document.querySelector(".gc-toast-container")) {
+      const cont = document.createElement("div");
+      cont.className = "gc-toast-container";
+      document.body.appendChild(cont);
+    }
+    window.gcToast = function (mensaje, tipo = "exito", duracion = 5000) {
+      const cont = document.querySelector(".gc-toast-container");
+      if (!cont) return;
+      const toast = document.createElement("div");
+      toast.className = `gc-toast ${tipo}`;
+      toast.textContent = mensaje;
+      cont.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add("mostrar"));
+      setTimeout(() => {
+        toast.classList.remove("mostrar");
+        setTimeout(() => toast.remove(), 400);
+      }, duracion);
+    };
+  })();

@@ -6,7 +6,7 @@
   // -------------------- helpers de paths --------------------
   const PATHS = window.GC_PATHS || {
     ASSETS: "/ASSETS",
-    VIEWS: "/VIEW",
+    VIEWS: "/VIEWS",
     ROUTES: { home: "../VIEW/Home.php", login: "/VIEW/Login.php" },
     DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
   };
@@ -168,28 +168,6 @@
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
   });
-
-  // --------------------------- toasts globales ---------------------------
-  (function ensureToastContainer() {
-    if (!document.querySelector(".gc-toast-container")) {
-      const cont = document.createElement("div");
-      cont.className = "gc-toast-container";
-      document.body.appendChild(cont);
-    }
-    window.gcToast = function (mensaje, tipo = "exito", duracion = 5000) {
-      const cont = document.querySelector(".gc-toast-container");
-      if (!cont) return;
-      const toast = document.createElement("div");
-      toast.className = `gc-toast ${tipo}`;
-      toast.textContent = mensaje;
-      cont.appendChild(toast);
-      requestAnimationFrame(() => toast.classList.add("mostrar"));
-      setTimeout(() => {
-        toast.classList.remove("mostrar");
-        setTimeout(() => toast.remove(), 400);
-      }, duracion);
-    };
-  })();
 
   // -------------------- Topbar (avatar, dropdown y mobile icon) --------------------
   document.addEventListener("DOMContentLoaded", () => {
@@ -464,7 +442,7 @@
       });
     }
 
-    // Redes: tomar primero window.NAV_SOCIAL (Ixtla), si no hay, no se adjunta click
+    
     const socialMap = Object.assign({}, window.NAV_SOCIAL || {});
     const socialIcons = document.querySelectorAll("#header .icon-mobile, #header .circle-icon");
     socialIcons.forEach((el) => {
@@ -513,75 +491,3 @@
   });
 })();
 
-//------------------------- js para rescribir el footer deshabilitada de momento
-/*
-(function () {
-  const DEFAULTS = {
-    selector: "footer",
-    createIfMissing: true,
-    extraClasses: "",
-
-    // ---- Contenido personalizable ----
-    contactTitle: "Contacto",
-    phoneLabel: "Teléfono:",
-    phone: "+52 1 33 1977 4088",
-    locationLabel: "Ubicación:",
-    location: "Francisco Madero 1C, Ixtlahuacán de los Membrillos",
-
-    hoursTitle: "Horarios de servicio",
-    hoursLines: ["Lunes a Viernes", "De 9:00AM a 9:00PM"],
-  };
-
-  const getConfig = () => Object.assign({}, DEFAULTS, window.GCFooterConfig || {});
-
-  function buildFooterInnerHTML(cfg) {
-    const telHref = "tel:" + String(cfg.phone || "").replace(/\s+/g, "");
-    return `
-      <div>
-        <strong>${cfg.contactTitle}</strong>
-        <small>${cfg.phoneLabel} <a>${cfg.phone}</a></small>
-        <small>${cfg.locationLabel} ${cfg.location}</small>
-      </div>
-      <div>
-        <strong>${cfg.hoursTitle}</strong>
-        ${cfg.hoursLines.map(l => `<small>${l}</small>`).join("")}
-      </div>
-    `;
-  }
-
-  function replaceFooter() {
-    const cfg = getConfig();
-    let footer = document.querySelector(cfg.selector);
-
-    if (!footer) {
-      if (!cfg.createIfMissing) return;
-      footer = document.createElement("footer");
-      document.body.appendChild(footer);
-    }
-
-    if (cfg.extraClasses) {
-      cfg.extraClasses.split(/\s+/).filter(Boolean).forEach(c => footer.classList.add(c));
-    }
-    footer.classList.add("gc-footer");
-
-    footer.innerHTML = buildFooterInnerHTML(cfg);
-  }
-
-  function init() {
-    replaceFooter();
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-
-  // window.updateGCFooter({ phone: "..." })
-  window.updateGCFooter = function (patch = {}) {
-    window.GCFooterConfig = Object.assign({}, window.GCFooterConfig || {}, patch);
-    replaceFooter();
-  };
-  
-})();
-*/

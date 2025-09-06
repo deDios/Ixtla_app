@@ -117,6 +117,17 @@
     margin: 0 4px;
 }
 
+.ix-meta{
+  grid-column: 1 / -1;   
+  text-align: center;
+  margin-top: 8px;
+}
+.ix-date{
+  font-size: .95rem;
+  color: var(--ix-muted, #777);
+  opacity: .95;
+}
+
 @media (max-width: 900px) {
     .ix-media img {
         height: 220px;
@@ -148,4 +159,4 @@
     .ix-indicator {
         font-size: .95rem;
     }
-}
+}/*-------------------------------------- fin del css para el component de carrusel -------------------*/

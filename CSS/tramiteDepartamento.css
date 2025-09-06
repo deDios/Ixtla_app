@@ -1,0 +1,231 @@
+/*------------------------- seccion 1 ---------------------------------*/
+.sr-only {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.ix-tramites {
+    --tram-accent: #4e86ff;
+    --tram-accent-hover: #3a6fe6;
+    --tram-gray: #dedede;
+    --tram-text-muted: #6e6e6e;
+    --tram-radius: 14px;
+}
+
+.ix-tramites .ix-form {
+    max-width: 780px;
+}
+
+.ix-tramites .ix-label {
+    display: inline-block;
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.ix-tramites .ix-input-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ix-tramites .ix-input-underline {
+    flex: 1 1 auto;
+    position: relative;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #b9b9b9;
+    max-width: 150px;
+}
+
+.ix-tramites .ix-input-underline input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: #222;
+}
+
+.ix-tramites .ix-input-underline:focus-within {
+    border-bottom-color: var(--tram-accent);
+    box-shadow: 0 3px 0 -1px var(--tram-accent);
+}
+
+.ix-tramites .ix-btn {
+    border: 0;
+    background: var(--tram-accent);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s ease, transform .06s ease;
+}
+
+.ix-tramites .ix-btn:hover {
+    background: var(--tram-accent-hover);
+}
+
+.ix-tramites .ix-btn:active {
+    transform: translateY(1px);
+}
+
+.ix-tramites .ix-result {
+    margin-top: 16px;
+    background: var(--tram-gray);
+    color: var(--tram-text-muted);
+    border-radius: var(--tram-radius);
+    padding: 18px 22px;
+    line-height: 1.45;
+}
+
+.ix-tramites .ix-result a {
+    color: inherit;
+    font-weight: 600;
+}
+
+.ix-tramites .is-error .ix-input-underline {
+    border-bottom-color: #e46a6a !important;
+    box-shadow: none;
+}
+
+.ix-tramites .is-ok .ix-input-underline {
+    border-bottom-color: #63c37b !important;
+    box-shadow: none;
+}
+
+@media (max-width: 680px) {
+    .ix-tramites .ix-input-row {
+        gap: 10px;
+    }
+
+    .ix-tramites .ix-btn {
+        padding: 8px 14px;
+    }
+}
+
+
+
+
+/*------------------------- seccion 2 ---------------------------------*/
+
+.ix-section {
+    padding: 40px 16px;
+    padding-top: 5rem;
+}
+
+.ix-section .ix-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.ix-section h2 {
+    text-align: center;
+    font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+    margin: 0 0 22px;
+    font-weight: 600;
+}
+
+.ix-deps .ix-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+    justify-items: stretch;
+}
+
+@media (max-width: 980px) {
+    .ix-deps .ix-grid {
+        grid-template-columns: repeat(2, minmax(240px, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .ix-deps .ix-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ix-deps .ix-tile {
+    flex: 0 1 340px;
+    max-width: 340px;
+    width: 100%;
+}
+
+.ix-deps .ix-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #222;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, .06);
+    padding: 18px 16px;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    max-width: 340px;
+    width: 100%;
+
+}
+
+
+.ix-deps .ix-tile:focus-visible {
+    outline: 3px solid #63c37b55;
+    outline-offset: 2px;
+}
+
+.ix-deps .ix-tile:hover {
+    transform: translateY(-2px);
+    border-color: #e5e5e5;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, .08);
+}
+
+.ix-deps .ix-logo {
+    height: 96px;
+    width: 100%;
+    display: grid;
+    place-items: center;
+    margin-bottom: 8px;
+}
+
+.ix-deps .ix-logo img {
+    max-height: 96px;
+    max-width: 90%;
+    object-fit: contain;
+    display: block;
+}
+
+.ix-deps h3 {
+    text-align: center;
+    font-size: 1.05rem;
+    line-height: 1.25;
+    margin: 6px 0 8px;
+    font-weight: 700;
+}
+
+.ix-deps p {
+    text-align: center;
+    color: #6f6f6f;
+    font-size: .92rem;
+    line-height: 1.35;
+    margin: 0;
+}
+
+.ix-deps .ix-note {
+    margin: 26px auto 0;
+    max-width: 920px;
+    text-align: center;
+    color: #6f6f6f;
+    font-size: .95rem;
+}
