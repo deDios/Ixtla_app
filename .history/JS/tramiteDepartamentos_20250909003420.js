@@ -126,15 +126,15 @@ document.addEventListener('DOMContentLoaded', () => {
           id: 'fuga-agua',
           title: 'Fuga de agua',
           desc: '¿Observaste una fuga de agua? Reporta ubicación y detalles; nos contactaremos para atenderla a la brevedad.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua.png',
-          photo: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua_card.png',
+          icon: '/ASSETS/tramites/samapa/fuga-agua.png',
+          photo: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua.png',
           sla: '24h'
         },
         {
           id: 'fuga-drenaje',
           title: 'Fuga de drenaje',
           desc: '¿Detectaste una fuga de drenaje? Informa ubicación y detalles; tu reporte será atendido a la brevedad.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-drenaje.png',
+          icon: '/ASSETS/tramites/samapa/fuga-drenaje.png',
           photo: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-drenaje_card.png',
           sla: '24h'
         },
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
           id: 'sin-agua',
           title: 'No disponemos de agua',
           desc: '¿No dispones de agua? Indícanos ubicación y detalles; daremos seguimiento para restablecer el servicio.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/sin-agua.png',
+          icon: '/ASSETS/tramites/samapa/sin-agua.png',
           photo: '/ASSETS/departamentos/modulosAssets/Simapa/sin-agua_card.png',
           sla: '24h'
         },
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
           id: 'baja-presion',
           title: 'Baja presión de agua',
           desc: '¿Experimentas baja presión? Indica ubicación y detalles; daremos seguimiento para mejorar el servicio.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/baja-presion.png',
+          icon: '/ASSETS/tramites/samapa/baja-presion.png',
           photo: '/ASSETS/departamentos/modulosAssets/Simapa/baja-presion_card.png',
           sla: '24h'
         },
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
           id: 'otros',
           title: 'Otros',
           desc: '¿Otro problema relacionado con el suministro? Compártenos ubicación y detalles para atenderlo.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/otros.png',
+          icon: '/ASSETS/tramites/samapa/otros.png',
           photo: '/ASSETS/departamentos/modulosAssets/Simapa/otros_card.png',
           sla: '24h'
         },

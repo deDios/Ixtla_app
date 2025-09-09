@@ -176,7 +176,7 @@
                     </a>
 
                     <!-- 4 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=alumbrado" aria-label="Gestión de alumbrado y energía urbana">
+                    <a class="ix-tile" href="#" aria-label="Gestión de alumbrado y energía urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/cfe_icon.png" alt="CFE"></div>
                         <h3>Gestión de alumbrado y energía urbana</h3>
                         <p>Revisión de luminarias y administración de energía en espacios urbanos para mayor seguridad.
@@ -184,7 +184,7 @@
                     </a>
 
                     <!-- 5 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=ambiental" aria-label="Gestión ambiental y ecología urbana">
+                    <a class="ix-tile" href="#" aria-label="Gestión ambiental y ecología urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/gestionAmbiental_icon.png"
                                 alt="Gestión Ambiental">
                         </div>

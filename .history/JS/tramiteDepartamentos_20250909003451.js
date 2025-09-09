@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
           title: 'Fuga de agua',
           desc: '¿Observaste una fuga de agua? Reporta ubicación y detalles; nos contactaremos para atenderla a la brevedad.',
           icon: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua.png',
-          photo: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua_card.png',
+          photo: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua.png',
           sla: '24h'
         },
         {

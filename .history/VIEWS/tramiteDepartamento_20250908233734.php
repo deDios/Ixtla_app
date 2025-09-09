@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/components.css">
-    <link rel="stylesheet" href="/CSS/index.css">
     <link rel="stylesheet" href="/CSS/plantilla.css">
+    <link rel="stylesheet" href="/CSS/tramiteDepartamento.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -51,8 +51,8 @@
         <!-- Subnav -- links a la izquierda, redes + avatar a la derecha -->
         <nav id="mobile-menu" class="subnav" aria-label="Navegación secundaria">
             <div class="nav-left">
-                <a href="/index.php" class="active">Inicio</a>
-                <a href="/VIEWS/tramiteDepartamento.php">Trámites y Seguimiento</a>
+                <a href="/index.php">Inicio</a>
+                <a href="/VIEWS/tramiteDepartamento.php" class="active">Trámites y Seguimiento</a>
             </div>
 
 
@@ -69,88 +69,47 @@
 
     <main>
         <!-------------------------- Seccion 1  --------------------------->
-        <section>
-            <!-- carrusel -->
-            <div class="ix-carousel" aria-label="Avisos del Ayuntamiento" data-loop="true" data-autoplay="0">
-                <div class="ix-viewport">
-                    <div class="ix-track">
-                        <!-- Slide 1 -->
-                        <article class="ix-slide" aria-roledescription="slide">
-                            <div class="ix-card">
-                                <figure class="ix-media">
-                                    <img src="/ASSETS/index/carrusel_index_img1.png"
-                                        alt="Equipo junto al Pozo 3 La Mora">
-                                </figure>
-                                <div class="ix-content">
-                                    <p>
-                                        <strong>¡Buenas noticias!</strong><br>
-                                        para Capilla del Refugio y Residencial La Capilla.<br><br>
-                                        Entregamos un nuevo pozo de agua que beneficiará a más de 6,000 habitantes,
-                                        abatiendo el rezago en el suministro del vital líquido.<br><br>
-                                        Seguimos trabajando con compromiso para llevar bienestar y
-                                        servicios dignos a todas las comunidades de Ixtlahuacán de los Membrillos.
-                                    </p>
-                                </div>
-                            </div>
-                        </article>
+        <section id="tramites-busqueda" class="ix-section ix-tramites" aria-labelledby="tramites-busqueda-title">
+            <div class="ix-wrap">
+                <h2 id="tramites-busqueda-title" class="sr-only">Búsqueda de trámite</h2>
 
-                        <!-- Slide 2 -->
-                        <article class="ix-slide" aria-roledescription="slide">
-                            <div class="ix-card">
-                                <figure class="ix-media">
-                                    <img src="/ASSETS/index/carrusel_index_img2.png"
-                                        alt="Equipo junto al Pozo 3 La Mora">
-                                </figure>
-                                <div class="ix-content">
-                                    <p>
-                                        <strong>Seguimos trabajando por tu seguridad</strong><br><br>
-                                        Estamos rehabilitando con asfalto las principales vialidades en la zona de la
-                                        carretera estatal a La Capilla del Refugio, así como en las colonias Valle de
-                                        los
-                                        Olivos, Sabinos y Girasoles.
-                                    </p>
-                                    <div class="ix-meta">
-                                        <time class="ix-date" datetime="2025-07-22">22 de julio del 2025</time>
-                                    </div>
-                                </div>
-                            </div>
-                        </article>
-                    </div>
-                </div>
+                <form id="form-tramite" class="ix-form" autocomplete="off" novalidate>
+                    <label for="folio" class="ix-label">N° del trámite</label>
 
-                <!-- controles -->
-                <div class="ix-controls">
-                    <button class="ix-nav ix-prev" type="button" aria-label="Anterior">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M14.5 4.5L7.5 12l7 7.5" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                    </button>
+                    <div class="ix-input-row">
+                        <div class="ix-input-underline">
+                            <input id="folio" name="folio" type="text" placeholder="ID00001"
+                                aria-describedby="folioHelp" maxlength="20" required />
+                        </div>
 
-                    <div class="ix-indicator" aria-live="polite" aria-atomic="true">
-                        <span class="ix-current">1</span>
-                        <span class="ix-sep">/</span>
-                        <span class="ix-total">2</span>
+                        <button class="ix-btn" type="submit">Buscar</button>
                     </div>
 
-                    <button class="ix-nav ix-next" type="button" aria-label="Siguiente">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M9.5 4.5L16.5 12l-7 7.5" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                    </button>
+                    <small id="folioHelp" class="ix-help sr-only">Formato sugerido: ID seguido de dígitos, ej.
+                        ID00001.</small>
+                </form>
+
+                <!-- Panel de texto/instrucciones -->
+                <div class="ix-result" role="status" aria-live="polite">
+                    <p>Una vez cargado el ID del trámite se verá reflejado en esta parte de la siguiente forma
+                        dependiendo del paso en el que se encuentre el reporte.</p>
+                    <p>Si no recuerdas tu ID comunícate al: <a href="tel:3333333333">33 3333 3333</a> o al correo:
+                        <a href="mailto:recuperarId@gmail.com">recuperarId@gmail.com</a>
+                    </p>
                 </div>
             </div>
         </section>
 
+
         <!-- seccion 2 -->
         <section id="tramites" class="ix-section ix-deps" aria-labelledby="deps-title">
             <div class="ix-wrap">
-                <h2 id="deps-title">Trámites / Departamentos</h2>
+                <h2 id="deps-title">Selecciona un Departamento</h2>
 
                 <div class="ix-grid">
                     <!-- 1 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=samapa" aria-label="SAMAPA - Solicitud de atención a fugas y servicio de agua">
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=samapa"
+                        aria-label="SAMAPA - Solicitud de atención a fugas y servicio de agua">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/samapa_icon.png" alt="SAMAPA"></div>
                         <h3>Solicitud de atención a fugas y servicio de agua</h3>
                         <p>Formulario para reportar fugas, baja presión o problemas de suministro, con folio de
@@ -158,7 +117,8 @@
                     </a>
 
                     <!-- 2 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=limpieza" aria-label="Servicios de recolección y limpieza">
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=limpieza"
+                        aria-label="Servicios de recolección y limpieza">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/recoleccionLimpieza_icon.png"
                                 alt="Ayuntamiento Ixtlahuacán"></div>
                         <h3>Servicios de recolección y limpieza</h3>
@@ -167,7 +127,8 @@
                     </a>
 
                     <!-- 3 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=obras" aria-label="Dirección de obras y servicios públicos">
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=obras"
+                        aria-label="Dirección de obras y servicios públicos">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/obraPublica_icon.png"
                                 alt="Infraestructura y Obra Pública"></div>
                         <h3>Dirección de obras y servicios públicos</h3>
@@ -176,7 +137,8 @@
                     </a>
 
                     <!-- 4 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=alumbrado" aria-label="Gestión de alumbrado y energía urbana">
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=alumbrado"
+                        aria-label="Gestión de alumbrado y energía urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/cfe_icon.png" alt="CFE"></div>
                         <h3>Gestión de alumbrado y energía urbana</h3>
                         <p>Revisión de luminarias y administración de energía en espacios urbanos para mayor seguridad.
@@ -184,7 +146,8 @@
                     </a>
 
                     <!-- 5 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=ambiental" aria-label="Gestión ambiental y ecología urbana">
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=ambiental"
+                        aria-label="Gestión ambiental y ecología urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/gestionAmbiental_icon.png"
                                 alt="Gestión Ambiental">
                         </div>
@@ -199,8 +162,6 @@
                 </p>
             </div>
         </section>
-
-
 
     </main>
 
@@ -233,7 +194,7 @@
     </footer>
 
     <script src="/JS/components.js"></script>
-    <script src="JS/JSglobal.js"></script>
+    <script src="/JS/JSglobal.js"></script>
 </body>
 
 </html>

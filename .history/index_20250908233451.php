@@ -158,7 +158,7 @@
                     </a>
 
                     <!-- 2 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=limpieza" aria-label="Servicios de recolección y limpieza">
+                    <a class="ix-tile" href="#" aria-label="Servicios de recolección y limpieza">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/recoleccionLimpieza_icon.png"
                                 alt="Ayuntamiento Ixtlahuacán"></div>
                         <h3>Servicios de recolección y limpieza</h3>
@@ -167,7 +167,7 @@
                     </a>
 
                     <!-- 3 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=obras" aria-label="Dirección de obras y servicios públicos">
+                    <a class="ix-tile" href="#" aria-label="Dirección de obras y servicios públicos">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/obraPublica_icon.png"
                                 alt="Infraestructura y Obra Pública"></div>
                         <h3>Dirección de obras y servicios públicos</h3>
@@ -176,7 +176,7 @@
                     </a>
 
                     <!-- 4 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=alumbrado" aria-label="Gestión de alumbrado y energía urbana">
+                    <a class="ix-tile" href="#" aria-label="Gestión de alumbrado y energía urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/cfe_icon.png" alt="CFE"></div>
                         <h3>Gestión de alumbrado y energía urbana</h3>
                         <p>Revisión de luminarias y administración de energía en espacios urbanos para mayor seguridad.
@@ -184,7 +184,7 @@
                     </a>
 
                     <!-- 5 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=ambiental" aria-label="Gestión ambiental y ecología urbana">
+                    <a class="ix-tile" href="#" aria-label="Gestión ambiental y ecología urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/gestionAmbiental_icon.png"
                                 alt="Gestión Ambiental">
                         </div>

@@ -126,40 +126,40 @@ document.addEventListener('DOMContentLoaded', () => {
           id: 'fuga-agua',
           title: 'Fuga de agua',
           desc: '¿Observaste una fuga de agua? Reporta ubicación y detalles; nos contactaremos para atenderla a la brevedad.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua.png',
-          photo: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua_card.png',
+          icon: '/ASSETS/tramites/samapa/fuga-agua.png',
+          photo: '/ASSETS/tramites/samapa/fuga-agua.jpg',
           sla: '24h'
         },
         {
           id: 'fuga-drenaje',
           title: 'Fuga de drenaje',
           desc: '¿Detectaste una fuga de drenaje? Informa ubicación y detalles; tu reporte será atendido a la brevedad.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-drenaje.png',
-          photo: '/ASSETS/departamentos/modulosAssets/Simapa/fuga-drenaje_card.png',
+          icon: '/ASSETS/tramites/samapa/fuga-drenaje.png',
+          photo: '/ASSETS/tramites/samapa/fuga-drenaje.jpg',
           sla: '24h'
         },
         {
           id: 'sin-agua',
           title: 'No disponemos de agua',
           desc: '¿No dispones de agua? Indícanos ubicación y detalles; daremos seguimiento para restablecer el servicio.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/sin-agua.png',
-          photo: '/ASSETS/departamentos/modulosAssets/Simapa/sin-agua_card.png',
+          icon: '/ASSETS/tramites/samapa/sin-agua.png',
+          photo: '/ASSETS/tramites/samapa/sin-agua.jpg',
           sla: '24h'
         },
         {
           id: 'baja-presion',
           title: 'Baja presión de agua',
           desc: '¿Experimentas baja presión? Indica ubicación y detalles; daremos seguimiento para mejorar el servicio.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/baja-presion.png',
-          photo: '/ASSETS/departamentos/modulosAssets/Simapa/baja-presion_card.png',
+          icon: '/ASSETS/tramites/samapa/baja-presion.png',
+          photo: '/ASSETS/tramites/samapa/baja-presion.jpg',
           sla: '24h'
         },
         {
           id: 'otros',
           title: 'Otros',
           desc: '¿Otro problema relacionado con el suministro? Compártenos ubicación y detalles para atenderlo.',
-          icon: '/ASSETS/departamentos/modulosAssets/Simapa/otros.png',
-          photo: '/ASSETS/departamentos/modulosAssets/Simapa/otros_card.png',
+          icon: '/ASSETS/tramites/samapa/otros.png',
+          photo: '/ASSETS/tramites/samapa/otros.jpg',
           sla: '24h'
         },
       ],
@@ -173,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Renderers ----------
   const plusSvg = `
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/>
       <path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     </svg>`.trim();
 

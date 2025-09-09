@@ -184,7 +184,7 @@
                     </a>
 
                     <!-- 5 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=ambiental" aria-label="Gestión ambiental y ecología urbana">
+                    <a class="ix-tile" href="#" aria-label="Gestión ambiental y ecología urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/gestionAmbiental_icon.png"
                                 alt="Gestión Ambiental">
                         </div>
