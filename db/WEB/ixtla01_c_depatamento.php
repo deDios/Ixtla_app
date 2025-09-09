@@ -37,7 +37,7 @@ if ($id) {
     $row = $st->get_result()->fetch_assoc();
     $st->close(); $con->close();
 
-    if (!$row) { echo json_encode(["ok"=>false,"error"=>"No encontrado"]); exit; }
+    if (!$row) { echo json_encode(["ok"=>false,"error"=>"No se encontrado"]); exit; }
     $row['id'] = (int)$row['id']; $row['status'] = (int)$row['status'];
     echo json_encode(["ok"=>true,"data"=>$row]); exit;
 }
