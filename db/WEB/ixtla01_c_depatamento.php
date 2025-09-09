@@ -3,7 +3,7 @@ header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
 
 $path = realpath("/home/site/wwwroot/db/conn/conexion.php");
-if ($path && file_exists($path)) { include $path; } 
+if ($path && file_exists($path)) { include $path; }
 else { http_response_code(500); die(json_encode(["ok"=>false,"error"=>"No se encontró conexion.php"])); }
 
 $input = json_decode(file_get_contents("php://input"), true) ?? [];
@@ -13,6 +13,7 @@ $q        = isset($input['q']) ? trim($input['q']) : null;
 $status   = isset($input['status']) ? (int)$input['status'] : null;
 $page     = isset($input['page']) ? max(1,(int)$input['page']) : 1;
 $per_page = isset($input['per_page']) ? min(200,max(1,(int)$input['per_page'])) : 50;
+$all      = isset($input['all']) ? (bool)$input['all'] : false;
 
 $con = conectar();
 if (!$con) die(json_encode(["ok"=>false,"error"=>"No se pudo conectar"]));
@@ -41,9 +42,9 @@ if ($id) {
     echo json_encode(["ok"=>true,"data"=>$row]); exit;
 }
 
-$where = [];
+$where  = [];
 $params = [];
-$types = "";
+$types  = "";
 
 if ($q !== null && $q !== "") {
     $where[] = "(d.nombre LIKE CONCAT('%',?,'%') OR d.descripcion LIKE CONCAT('%',?,'%'))";
@@ -54,15 +55,19 @@ if ($status !== null) {
     $params[] = $status; $types .= "i";
 }
 
-$sql = $baseSelect . (count($where) ? " WHERE ".implode(" AND ", $where) : "") .
-       " ORDER BY d.created_at DESC LIMIT ? OFFSET ?";
+$sql = $baseSelect . (count($where) ? " WHERE ".implode(" AND ", $where) : "") . " ORDER BY d.created_at DESC";
 
-$offset = ($page - 1) * $per_page;
-$params[] = $per_page; $types .= "i";
-$params[] = $offset;   $types .= "i";
+if (!$all) {
+    $offset = ($page - 1) * $per_page;
+    $sql   .= " LIMIT ? OFFSET ?";
+    $params[] = $per_page; $types .= "i";
+    $params[] = $offset;   $types .= "i";
+}
 
 $st = $con->prepare($sql);
-$st->bind_param($types, ...$params);
+if ($types !== "") {
+    $st->bind_param($types, ...$params);
+}
 $st->execute();
 $rs = $st->get_result();
 
@@ -74,10 +79,7 @@ while ($row = $rs->fetch_assoc()) {
 }
 $st->close(); $con->close();
 
-echo json_encode([
-    "ok"=>true,
-    "page"=>$page,
-    "per_page"=>$per_page,
-    "count"=>count($data),
-    "data"=>$data
-]);
+$resp = ["ok"=>true, "count"=>count($data), "data"=>$data];
+if (!$all) { $resp["page"] = $page; $resp["per_page"] = $per_page; }
+
+echo json_encode($resp);
