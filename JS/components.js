@@ -182,7 +182,7 @@
 
   // --- endpoint del backend
   const ENDPOINT =
-    "http://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php";
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php";
   const REQUEST_BODY = { status: 1 };
 
   // --- assets 
