@@ -896,7 +896,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // set texts
     subTitle.textContent = title;
     inpReq.value = title;
-    setToday();
     clearFeedback();
 
     // reset form rápido
