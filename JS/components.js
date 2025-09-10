@@ -180,7 +180,7 @@
       } catch {}
   };
 
-  // --- endpoint del backend
+  // --- endpoint
   const ENDPOINT =
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php";
   const REQUEST_BODY = { status: 1 };
@@ -191,12 +191,12 @@
   const TIMEOUT_MS = 10000;
 
   const COPY_BY_ID = {
-    // 4: { h3: "Alumbrado público", p: "Texto curado opcional..." },
+    // { h3: "Alumbrado público", p: "Texto curado opcional..." },
   };
 
   // ordenado por id asc.
   const ORDER_IDS = [
-    // 1, 2, 3, 4, 5
+
   ];
 
   // se arma la card con un falback al id de lo que llego desde el fetch
