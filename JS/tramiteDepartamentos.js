@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
     panel.dataset.dep = key;
 
     const depName = conf.name || key;
-    h2.textContent = `Trámites de ${depName}`;
+    h2.textContent = `${depName}`;
     panel.querySelector('.ix-dep-heading').textContent = conf.title || 'Trámites disponibles';
     document.title = `Trámites – ${depName}`;
 

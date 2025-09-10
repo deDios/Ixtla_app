@@ -27,7 +27,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
-    justify-content: center;    
+    justify-content: center;
     justify-items: stretch;
 }
 
@@ -43,10 +43,10 @@
     }
 }
 
-.ix-deps .ix-tile{
-  flex: 0 1 340px;    
-  max-width: 340px;
-  width: 100%;
+.ix-deps .ix-tile {
+    flex: 0 1 340px;
+    max-width: 340px;
+    width: 100%;
 }
 
 .ix-deps .ix-tile {
@@ -61,9 +61,9 @@
     box-shadow: 0 8px 18px rgba(0, 0, 0, .06);
     padding: 18px 16px;
     transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
-    max-width: 340px;           
+    max-width: 340px;
     width: 100%;
-    
+
 }
 
 
@@ -115,4 +115,20 @@
     text-align: center;
     color: #6f6f6f;
     font-size: .95rem;
+}
+
+/*--------------------------- css para el carrusel ------------------------------*/
+.ix-c-title {
+    text-align: center;
+    margin: 0 0 14px;
+    line-height: 1.2;
+    font-weight: 600;
+    font-size: clamp(2.5rem, 2.2vw, 1.6rem);
+}
+
+.limite-carrusel{
+  max-width: 900px;
+  width: 100%;
+  margin-inline: auto;     
+  box-sizing: border-box;
 }

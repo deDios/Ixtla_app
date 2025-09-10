@@ -57,12 +57,10 @@
 
 
             <div class="social-icons">
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
-                <!-- El JSglobal reemplaza este avatar cuando hay sesión -->
-                <div class="user-icon-mobile"><img src="ASSETS/usuario/usuarioImg/img_user1.png" alt="Usuario" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
             </div>
         </nav>
     </header>
@@ -72,49 +70,54 @@
         <section>
             <!-- carrusel -->
             <div class="ix-carousel" aria-label="Avisos del Ayuntamiento" data-loop="true" data-autoplay="0">
-                <div class="ix-viewport">
-                    <div class="ix-track">
-                        <!-- Slide 1 -->
-                        <article class="ix-slide" aria-roledescription="slide">
-                            <div class="ix-card">
-                                <figure class="ix-media">
-                                    <img src="/ASSETS/index/carrusel_index_img1.png"
-                                        alt="Equipo junto al Pozo 3 La Mora">
-                                </figure>
-                                <div class="ix-content">
-                                    <p>
-                                        <strong>¡Buenas noticias!</strong><br>
-                                        para Capilla del Refugio y Residencial La Capilla.<br><br>
-                                        Entregamos un nuevo pozo de agua que beneficiará a más de 6,000 habitantes,
-                                        abatiendo el rezago en el suministro del vital líquido.<br><br>
-                                        Seguimos trabajando con compromiso para llevar bienestar y
-                                        servicios dignos a todas las comunidades de Ixtlahuacán de los Membrillos.
-                                    </p>
-                                </div>
-                            </div>
-                        </article>
-
-                        <!-- Slide 2 -->
-                        <article class="ix-slide" aria-roledescription="slide">
-                            <div class="ix-card">
-                                <figure class="ix-media">
-                                    <img src="/ASSETS/index/carrusel_index_img2.png"
-                                        alt="Equipo junto al Pozo 3 La Mora">
-                                </figure>
-                                <div class="ix-content">
-                                    <p>
-                                        <strong>Seguimos trabajando por tu seguridad</strong><br><br>
-                                        Estamos rehabilitando con asfalto las principales vialidades en la zona de la
-                                        carretera estatal a La Capilla del Refugio, así como en las colonias Valle de
-                                        los
-                                        Olivos, Sabinos y Girasoles.
-                                    </p>
-                                    <div class="ix-meta">
-                                        <time class="ix-date" datetime="2025-07-22">22 de julio del 2025</time>
+                <h2 class="ix-c-title">Atención ciudadana</h2>
+                <div class="limite-carrusel">
+                    <div class="ix-viewport">
+                        <div class="ix-track">
+                            <!-- Slide 1 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/carrusel_index_img1.png"
+                                            alt="Equipo junto al Pozo 3 La Mora">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>¡Buenas noticias!</strong><br>
+                                            para Capilla del Refugio y Residencial La Capilla.<br><br>
+                                            Entregamos un nuevo pozo de agua que beneficiará a más de 6,000 habitantes,
+                                            abatiendo el rezago en el suministro del vital líquido.<br><br>
+                                            Seguimos trabajando con compromiso para llevar bienestar y
+                                            servicios dignos a todas las comunidades de Ixtlahuacán de los Membrillos.
+                                        </p>
                                     </div>
                                 </div>
-                            </div>
-                        </article>
+                            </article>
+
+                            <!-- Slide 2 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/carrusel_index_img2.png"
+                                            alt="Equipo junto al Pozo 3 La Mora">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>Seguimos trabajando por tu seguridad</strong><br><br>
+                                            Estamos rehabilitando con asfalto las principales vialidades en la zona de
+                                            la
+                                            carretera estatal a La Capilla del Refugio, así como en las colonias Valle
+                                            de
+                                            los
+                                            Olivos, Sabinos y Girasoles.
+                                        </p>
+                                        <div class="ix-meta">
+                                            <time class="ix-date" datetime="2025-07-22">22 de julio del 2025</time>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
                     </div>
                 </div>
 
@@ -150,15 +153,17 @@
 
                 <div class="ix-grid">
                     <!-- 1 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=samapa" aria-label="SAMAPA - Solicitud de atención a fugas y servicio de agua">
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=samapa"
+                        aria-label="SAMAPA - Solicitud de atención a fugas y servicio de agua">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/samapa_icon.png" alt="SAMAPA"></div>
                         <h3>Solicitud de atención a fugas y servicio de agua</h3>
                         <p>Formulario para reportar fugas, baja presión o problemas de suministro, con folio de
                             seguimiento.</p>
                     </a>
 
-                    <!-- 2 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=limpieza" aria-label="Servicios de recolección y limpieza">
+                    <!-- 2 
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=limpieza"
+                        aria-label="Servicios de recolección y limpieza">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/recoleccionLimpieza_icon.png"
                                 alt="Ayuntamiento Ixtlahuacán"></div>
                         <h3>Servicios de recolección y limpieza</h3>
@@ -166,8 +171,9 @@
                             ordenado.</p>
                     </a>
 
-                    <!-- 3 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=obras" aria-label="Dirección de obras y servicios públicos">
+                     3 
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=obras"
+                        aria-label="Dirección de obras y servicios públicos">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/obraPublica_icon.png"
                                 alt="Infraestructura y Obra Pública"></div>
                         <h3>Dirección de obras y servicios públicos</h3>
@@ -175,22 +181,25 @@
                         </p>
                     </a>
 
-                    <!-- 4 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=alumbrado" aria-label="Gestión de alumbrado y energía urbana">
+                     4 
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=alumbrado"
+                        aria-label="Gestión de alumbrado y energía urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/cfe_icon.png" alt="CFE"></div>
                         <h3>Gestión de alumbrado y energía urbana</h3>
                         <p>Revisión de luminarias y administración de energía en espacios urbanos para mayor seguridad.
                         </p>
                     </a>
 
-                    <!-- 5 -->
-                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=ambiental" aria-label="Gestión ambiental y ecología urbana">
+                     5 
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=ambiental"
+                        aria-label="Gestión ambiental y ecología urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/gestionAmbiental_icon.png"
                                 alt="Gestión Ambiental">
                         </div>
                         <h3>Gestión ambiental y ecología urbana</h3>
                         <p>Conservación del medio ambiente, áreas verdes y reducción de la contaminación.</p>
                     </a>
+                    -->
                 </div>
 
                 <p class="ix-note">

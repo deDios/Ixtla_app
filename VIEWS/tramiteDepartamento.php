@@ -57,12 +57,10 @@
 
 
             <div class="social-icons">
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
-                <!-- El JSglobal reemplaza este avatar cuando hay sesión -->
-                <div class="user-icon-mobile"><img src="ASSETS/usuario/usuarioImg/img_user1.png" alt="Usuario" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
             </div>
         </nav>
     </header>
