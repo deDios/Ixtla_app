@@ -121,6 +121,9 @@
     };
   };
 
+  // =======================
+  // render del panel (maqueta tipo tu imagen)
+  // =======================
   const renderTicket = (t) => {
     const descShort = t.descripcion.length > 280 ? t.descripcion.slice(0, 277) + "..." : t.descripcion;
 
@@ -167,7 +170,7 @@
   // Estado interno del simulador (para el ciclo)
   // =======================
   let currentTicket = null;  // ← último ticket pintado
-  let currentIndex  = null;  // ← índice del paso actual 
+  let currentIndex  = null;  // ← índice del paso actual (para ciclo)
   let cycleTimer    = null;  // ← handler del setInterval
 
   const stopCycle = () => {

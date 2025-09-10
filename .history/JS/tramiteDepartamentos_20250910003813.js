@@ -1,8 +1,7 @@
 (() => {
-
+  // --- true para ver logs
   if (typeof window.IX_DEBUG === "undefined") window.IX_DEBUG = true;
   const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch {} };
-
 
   const section = document.getElementById("tramites-busqueda");
   if (!section) { ixLog("No hay #tramites-busqueda, me salgo."); return; }
@@ -11,18 +10,11 @@
   const form  = section.querySelector("#form-tramite");
   const input = section.querySelector("#folio");
   const panel = section.querySelector(".ix-result"); 
+
   if (!form || !input || !panel) { ixLog("Faltan refs del formulario/panel, me salgo."); return; }
 
-  window.IX_SEGUIMIENTO = Object.assign({
-    steps: ["Solicitud", "Revisión", "Asignación", "En proceso", "Finalizado"], 
-    forceIndex: null,        
-    autoCycle: false,          
-    cycleMs: 2000,             
-    cycleResetTo: 0,            
-    persistLastFolio: true      
-  }, window.IX_SEGUIMIENTO || {});
-  const CFG = window.IX_SEGUIMIENTO;
-
+  // --- estados del flujo 
+  const STEPS = ["Solicitud", "Revisión", "Asignación", "En proceso", "Finalizado"];
 
   const REQS = [
     "Fuga de agua", "Alumbrado público", "Bache en calle",
@@ -34,10 +26,9 @@
   ];
   const SOLICITANTES = ["Juan Pablo", "María López", "Carlos Ramírez", "Ana Torres", "Luis García"];
 
-
   const toAMPM = (h, m) => {
     const ampm = h >= 12 ? "pm" : "am";
-    const hh = ((h + 11) % 12) + 1;
+    const hh = ((h + 11) % 12) + 1;              // 0→12, 13→1...
     const mm = String(m).padStart(2, "0");
     return `${hh}:${mm} ${ampm}`;
   };
@@ -45,59 +36,40 @@
   const fmtFecha = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`;
   const fmtHora  = (d) => toAMPM(d.getHours(), d.getMinutes());
 
-
-  const FOLIO_RE = /^ID\d{5,}$/; 
+  // --- validación del folio 
+  const FOLIO_RE = /^ID\d{5,}$/; // ID + 5 o más dígitos (ej: ID00001)
   const normalizaFolio = (s) => (s || "").toUpperCase().trim();
 
+  // --- “semilla” para la simulación a partir del folio (para que sea estable)
   const seedFromFolio = (folio) => {
+    // tomamos la parte numérica; si no hay, 0
     const nums = (folio.match(/\d+/)?.[0]) || "0";
     let seed = 0;
     for (let i = 0; i < nums.length; i++) seed = (seed * 31 + (nums.charCodeAt(i) - 48)) % 1_000_000;
     return seed;
   };
 
-  const clampIndex = (idx) => Math.max(0, Math.min(idx, CFG.steps.length - 1));
-
-  // override por folio (si defines un índice para un folio en específico)
-  const getOverrideIndexForFolio = (folio) => {
-    try {
-      const map = window.IX_STATUS_BY_FOLIO || null;
-      if (map && Object.prototype.hasOwnProperty.call(map, folio)) {
-        const n = Number(map[folio]);
-        if (Number.isFinite(n)) return clampIndex(n); // 0..steps.length-1
-      }
-    } catch {}
-    return null; // sin override
-  };
-
-  // decide el índice actual (prioridad: mapa por folio → forceIndex global → seed)
-  const computeIndex = (folio) => {
-    const ov = getOverrideIndexForFolio(folio);
-    if (ov !== null) return ov;                              // 1) mapping por folio
-    if (typeof CFG.forceIndex === "number" && Number.isFinite(CFG.forceIndex)) {
-      return clampIndex(CFG.forceIndex);                     // 2) forzado global
-    }
+  // --- genera un objeto “ticket” simulado (datos + estado + fechas) con base en la semilla
+  const simulaTicket = (folio) => {
     const seed = seedFromFolio(folio);
-    return clampIndex(seed % CFG.steps.length);              // 3) automático por seed
-  };
 
-  // genera ticket fake estable según folio (y el índice calculado)
-  const simulaTicket = (folio, forcedIdx = null) => {
-    const seed = seedFromFolio(folio);
-    const estadoIdx = (typeof forcedIdx === "number")
-      ? clampIndex(forcedIdx)
-      : computeIndex(folio);
+    // estado actual (0..STEPS.length-1); truquito: que rara vez caiga en "Finalizado"
+    const idx = seed % STEPS.length;                 // 0..4
+    const estadoIdx = Math.min(idx, STEPS.length - 1);
 
-    const req   = REQS[seed % REQS.length];
-    const calle = CALLES[(seed >> 3) % CALLES.length];
-    const col   = ["Centro", "Col. CP", "Barrio Alto", "San Juan", "Las Flores"][(seed >> 5) % 5];
-    const num   = (seed % 120) + 1;
-    const sol   = SOLICITANTES[(seed >> 7) % SOLICITANTES.length];
+    // requerimiento/dirección/solicitante “determinísticos” por seed (para que no cambien en refresh)
+    const req  = REQS[seed % REQS.length];
+    const calle= CALLES[(seed >> 3) % CALLES.length];
+    const col  = ["Centro", "Col. CP", "Barrio Alto", "San Juan", "Las Flores"][(seed >> 5) % 5];
+    const num  = (seed % 120) + 1;                   // #1..120
+    const sol  = SOLICITANTES[(seed >> 7) % SOLICITANTES.length];
 
+    // fecha de solicitud “fake” pero estable: 2025 con mes/día/hora/min en base al seed
     const d = new Date(2025, (seed % 12), ((seed % 27) + 1), (seed % 24), (seed % 60));
     const fechaTexto = fmtFecha(d);
     const horaTexto  = fmtHora(d);
 
+    // descripción base (una por requerimiento) + recorte elegante
     const DESCS = {
       "Fuga de agua": `Quiero reportar una fuga de agua que se encuentra en la calle ${calle}, justo frente al número #${num}. Desde hace aproximadamente 1 hora, se observa que el agua brota de la banqueta y la calle, formando un charco que corre hacia el drenaje. La fuga es constante y parece venir de una línea principal.`,
       "Alumbrado público": `Luminaria apagada cerca de ${calle}, ${col}. La zona queda muy oscura por la noche y representa un riesgo para peatones y vehículos. Solicito revisión y reposición del servicio.`,
@@ -111,7 +83,7 @@
     return {
       folio,
       estadoIdx,
-      estadoTxt: CFG.steps[estadoIdx],
+      estadoTxt: STEPS[estadoIdx],
       requerimiento: req,
       direccion: `${calle}, ${col}`,
       solicitante: sol,
@@ -121,10 +93,13 @@
     };
   };
 
+  // --- arma el HTML del panel tal cual tu mock (estructura clara + clases hook)
   const renderTicket = (t) => {
+    // recorte de descripción para que no se “coma” todo el panel (tú ajustas en CSS si quieres)
     const descShort = t.descripcion.length > 280 ? t.descripcion.slice(0, 277) + "..." : t.descripcion;
 
-    const stepsHtml = CFG.steps.map((label, i) => {
+    // stepper: marcamos done/current/pending según estadoIdx
+    const stepsHtml = STEPS.map((label, i) => {
       const status =
         i <  t.estadoIdx ? "done" :
         i === t.estadoIdx ? "current" : "pending";
@@ -160,111 +135,60 @@
     `;
   };
 
-  const renderMsg = (texto) => { panel.innerHTML = `<p>${texto}</p>`; };
-  const setLoading = (is) => { section.classList.toggle("is-loading", !!is); };
-
-  // =======================
-  // Estado interno del simulador (para el ciclo)
-  // =======================
-  let currentTicket = null;  // ← último ticket pintado
-  let currentIndex  = null;  // ← índice del paso actual 
-  let cycleTimer    = null;  // ← handler del setInterval
-
-  const stopCycle = () => {
-    if (cycleTimer) { clearInterval(cycleTimer); cycleTimer = null; }
-  };
-  const startCycle = () => {
-    if (!currentTicket) return;
-    stopCycle();
-    if (typeof currentIndex !== "number") currentIndex = currentTicket.estadoIdx;
-
-    cycleTimer = setInterval(() => {
-      currentIndex = currentIndex + 1;
-      if (currentIndex >= CFG.steps.length) {
-        currentIndex = clampIndex(CFG.cycleResetTo); // reinicio al índice que tú digas (0 por default)
-      }
-      const t2 = simulaTicket(currentTicket.folio, currentIndex);
-      renderTicket(t2);
-      currentTicket = t2; // guardamos el último estado pintado
-    }, Math.max(500, Number(CFG.cycleMs) || 2000)); // safety: mínimo 500ms para que se vea
+  // --- helpers de UI (cositas suaves para UX)
+  const setLoading = (is) => {
+    section.classList.toggle("is-loading", !!is);
+    // si quieres, aquí puedes cambiar el texto del botón o poner un spinner
   };
 
-  // =======================
-  // Hooks públicos (control manual desde consola)
-  // =======================
-  // - ixSegStart(): arranca el ciclo
-  // - ixSegStop(): detiene el ciclo
-  // - ixSegSet(n): fija el estado en n (0..steps-1) y pinta
-  // - ixSegNext(): avanza un paso (con wrap)
-  window.ixSegStart = () => { CFG.autoCycle = true; startCycle(); ixLog("autoCycle ON"); };
-  window.ixSegStop  = () => { CFG.autoCycle = false; stopCycle(); ixLog("autoCycle OFF"); };
-  window.ixSegSet   = (n) => {
-    stopCycle();
-    currentIndex = clampIndex(Number(n) || 0);
-    if (currentTicket) {
-      currentTicket = simulaTicket(currentTicket.folio, currentIndex);
-      renderTicket(currentTicket);
-    }
-    CFG.forceIndex = currentIndex; // si quieres que quede “forzado”
-    ixLog("set estadoIdx →", currentIndex);
+  const renderMsg = (texto) => {
+    panel.innerHTML = `<p>${texto}</p>`;
   };
-  window.ixSegNext  = () => window.ixSegSet((typeof currentIndex === "number" ? currentIndex : -1) + 1);
 
-  // =======================
-  // comportamiento del form
-  // =======================
+  // --- comportamiento del form
   form.addEventListener("submit", (ev) => {
     ev.preventDefault();
 
     const raw = input.value;
     const folio = normalizaFolio(raw);
-    if (folio !== raw) input.value = folio;
 
+    if (folio !== raw) input.value = folio; // normalizamos visualmente
     if (!FOLIO_RE.test(folio)) {
       renderMsg("El folio no es válido. Usa el formato: ID seguido de 5 o más dígitos, por ejemplo: ID00001.");
       return;
     }
 
+    // bloqueamos spam mínimo y “simulamos” una carga breve
     setLoading(true);
-    stopCycle(); // por si ya había un ciclo dando vueltas
     setTimeout(() => {
-      currentIndex  = computeIndex(folio);             // índice inicial (mapa/force/seed)
-      currentTicket = simulaTicket(folio, currentIndex);
-      renderTicket(currentTicket);
+      const t = simulaTicket(folio);
+      ixLog("ticket simulado:", t);
+      renderTicket(t);
       setLoading(false);
-      ixLog("ticket simulado:", currentTicket);
 
-      if (CFG.persistLastFolio) { try { sessionStorage.setItem("ix_last_folio", folio); } catch {} }
-      if (CFG.autoCycle) startCycle();                 // si pediste autoCycle, empieza aquí
-    }, 300);
+      // opcional: persistimos último folio por comodidad
+      try { sessionStorage.setItem("ix_last_folio", folio); } catch {}
+    }, 400);
   });
 
-  // UX: uppercase on-the-fly (opcional)
+  // --- calidad de vida: uppercase on-the-fly + limpiar panel si cambian el folio
   input.addEventListener("input", () => {
     const val = normalizaFolio(input.value);
     if (val !== input.value) input.value = val;
+    // si quieren, podemos limpiar resultados al editar:
+    // renderMsg("Ingresa el N° de trámite y presiona Buscar.");
   });
 
-  // rehidratar último folio (si existe) y, si autoCycle=true, arranca
+  // --- rehidratar último folio (si lo hay) para demo continua
   try {
-    const last = CFG.persistLastFolio ? sessionStorage.getItem("ix_last_folio") : null;
+    const last = sessionStorage.getItem("ix_last_folio");
     if (last && FOLIO_RE.test(last)) {
       input.value = last;
-      currentIndex  = computeIndex(last);
-      currentTicket = simulaTicket(last, currentIndex);
-      renderTicket(currentTicket);
-      if (CFG.autoCycle) startCycle();
+      const t = simulaTicket(last);
+      renderTicket(t);
     }
   } catch {}
-
-
-  window.IX_STATUS_BY_FOLIO = window.IX_STATUS_BY_FOLIO || {
-     "ID00001": 2,   // arrancará en el paso #3
-     "ID00077": 4    // arrancará en el paso #5
-  };
-})();
-
-//-------------------------------------------------- fin del bloque de seguimiento de tramites
+})();//-------------------------------------------------- fin del bloque de seguimiento de tramites
 
 
 //----------------------------- modulo de departamentos. 

@@ -167,7 +167,7 @@
   // Estado interno del simulador (para el ciclo)
   // =======================
   let currentTicket = null;  // ← último ticket pintado
-  let currentIndex  = null;  // ← índice del paso actual 
+  let currentIndex  = null;  // ← índice del paso actual (para ciclo)
   let cycleTimer    = null;  // ← handler del setInterval
 
   const stopCycle = () => {

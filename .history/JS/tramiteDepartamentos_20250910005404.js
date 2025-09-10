@@ -1,29 +1,41 @@
+// -----------------------------------------------------------
+// Ixtla | Simulador de seguimiento de trámite (frontend-only)
+// Vive en components. Solo corre si existe #tramites-busqueda.
+// -----------------------------------------------------------
 (() => {
-
+  // --- debug rapidito (pon en false si no quieres ruido)
   if (typeof window.IX_DEBUG === "undefined") window.IX_DEBUG = true;
   const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch {} };
 
-
+  // guard: si esta view no tiene el contenedor, me salgo tranqui
   const section = document.getElementById("tramites-busqueda");
   if (!section) { ixLog("No hay #tramites-busqueda, me salgo."); return; }
 
   // refs de la UI
   const form  = section.querySelector("#form-tramite");
   const input = section.querySelector("#folio");
-  const panel = section.querySelector(".ix-result"); 
+  const panel = section.querySelector(".ix-result"); // acá pintamos todo (aria-live="polite")
   if (!form || !input || !panel) { ixLog("Faltan refs del formulario/panel, me salgo."); return; }
 
+  // =======================
+  // 🔧 CONFIG EDITABLE (global)
+  // =======================
+  // puedes cambiar esto desde consola: window.IX_SEGUIMIENTO.steps = [...]; etc.
+  // forceIndex: si pones un número, obligas a ese estado (ignora seed del folio y mapa por folio)
+  // autoCycle: si true, se mueve solito cada cycleMs y al llegar al final, se reinicia a cycleResetTo
   window.IX_SEGUIMIENTO = Object.assign({
-    steps: ["Solicitud", "Revisión", "Asignación", "En proceso", "Finalizado"], 
-    forceIndex: null,        
-    autoCycle: false,          
-    cycleMs: 2000,             
-    cycleResetTo: 0,            
-    persistLastFolio: true      
+    steps: ["Solicitud", "Revisión", "Asignación", "En proceso", "Finalizado"], // ← cambia el flujo a tu gusto
+    forceIndex: null,           // ← pon 0..steps.length-1 para forzar un estado concreto; null = automático
+    autoCycle: false,           // ← si true, corre el ciclo automáticamente tras buscar
+    cycleMs: 2000,              // ← cada cuánto avanza (ms)
+    cycleResetTo: 0,            // ← a qué índice regresa cuando se pasa del último (normalmente 0)
+    persistLastFolio: true      // ← guarda último folio en sessionStorage para rehidratar
   }, window.IX_SEGUIMIENTO || {});
   const CFG = window.IX_SEGUIMIENTO;
 
-
+  // =======================
+  // datos fake para la simulación (texto, direcciones, etc)
+  // =======================
   const REQS = [
     "Fuga de agua", "Alumbrado público", "Bache en calle",
     "Recolección de residuos", "Árbol caído", "Drenaje tapado"
@@ -34,7 +46,9 @@
   ];
   const SOLICITANTES = ["Juan Pablo", "María López", "Carlos Ramírez", "Ana Torres", "Luis García"];
 
-
+  // =======================
+  // utils de formato
+  // =======================
   const toAMPM = (h, m) => {
     const ampm = h >= 12 ? "pm" : "am";
     const hh = ((h + 11) % 12) + 1;
@@ -45,10 +59,15 @@
   const fmtFecha = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`;
   const fmtHora  = (d) => toAMPM(d.getHours(), d.getMinutes());
 
-
-  const FOLIO_RE = /^ID\d{5,}$/; 
+  // =======================
+  // validación del folio
+  // =======================
+  const FOLIO_RE = /^ID\d{5,}$/; // ID + 5 o más dígitos (ej: ID00001)
   const normalizaFolio = (s) => (s || "").toUpperCase().trim();
 
+  // =======================
+  // seed → estado / datos fake
+  // =======================
   const seedFromFolio = (folio) => {
     const nums = (folio.match(/\d+/)?.[0]) || "0";
     let seed = 0;
@@ -121,6 +140,9 @@
     };
   };
 
+  // =======================
+  // render del panel (maqueta tipo tu imagen)
+  // =======================
   const renderTicket = (t) => {
     const descShort = t.descripcion.length > 280 ? t.descripcion.slice(0, 277) + "..." : t.descripcion;
 
@@ -167,7 +189,7 @@
   // Estado interno del simulador (para el ciclo)
   // =======================
   let currentTicket = null;  // ← último ticket pintado
-  let currentIndex  = null;  // ← índice del paso actual 
+  let currentIndex  = null;  // ← índice del paso actual (para ciclo)
   let cycleTimer    = null;  // ← handler del setInterval
 
   const stopCycle = () => {
@@ -257,7 +279,11 @@
     }
   } catch {}
 
-
+  // =======================
+  // ejemplo de override por folio (edítalo a tu antojo)
+  // =======================
+  // Índices basados en 0: 0=primer paso, 1=segundo, etc.
+  // Si no quieres defaults, comenta esto y define tu mapa aparte.
   window.IX_STATUS_BY_FOLIO = window.IX_STATUS_BY_FOLIO || {
      "ID00001": 2,   // arrancará en el paso #3
      "ID00077": 4    // arrancará en el paso #5
