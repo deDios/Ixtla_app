@@ -191,10 +191,6 @@
         </div>
     </footer>
 
-    <script src="/JS/components.js"></script>
-    <script src="/JS/tramiteDepartamentos.js"></script>
-    <script src="/JS/JSglobal.js"></script>
-
 
     <!-- ESPACIO PARA MODALES -->
     <div id="ix-report-modal" class="ix-modal" hidden aria-hidden="true">
@@ -355,6 +351,11 @@
             </div>
         </div>
     </div>
+
+    
+    <script src="/JS/components.js"></script>
+    <script src="/JS/tramiteDepartamentos.js"></script>
+    <script src="/JS/JSglobal.js"></script>
 
 </body>
 
