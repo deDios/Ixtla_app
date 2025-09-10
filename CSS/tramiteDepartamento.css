@@ -703,23 +703,54 @@
 }
 
 /*-------------------------------------- css para modal */
+/* =========================================================
+   Ixtla · Modal "Nuevo Reporte" (versión completa, formal)
+   Scope: #ix-report-modal
+   Sustituye el CSS anterior del modal por este bloque.
+   ========================================================= */
+
+/* --- Tokens (ajusta aquí) --- */
 #ix-report-modal {
   --z: 9999;
-  --overlay: rgba(0, 0, 0, .58);
-  --bg: #fff;
-  --ink: #2f2f2f;
-  --muted: #6a6a6a;
-  --line: #bdbdbd;
-  --accent: #3b82f6;
-  --accent-press: #326fe0;
-  --accent-ghost: #eef3ff;
-  --radius: 14px;
-  --shadow: 0 12px 30px rgba(0, 0, 0, .18);
-  --gap: 16px;
-  --field-pad-y: 6px;
-  --field-pad-x: 0;
-  --uploader-bg: #f6f6f6;
-  --uploader-line: #d9d9d9;
+
+  /* Paleta */
+  --bg: #ffffff;
+  --ink: #1f2937;
+  /* texto principal */
+  --muted: #667085;
+  /* texto secundario */
+  --line: #d7dbe1;
+  /* subrayados / separadores */
+
+  --accent: #2563eb;
+  /* azul botones/focus */
+  --accent-press: #1e4fd9;
+
+  --error: #d92d20;
+  --error-bg: #fef3f2;
+  --error-border: #ffd9d5;
+
+  /* Layout */
+  --radius: 16px;
+  --shadow: 0 18px 40px rgba(16, 24, 40, .16);
+  --dialog-max: 640px;
+  /* ancho máximo del modal */
+  --vpad: 6vh;
+  /* margen vertical respecto al viewport */
+
+  /* Spacing */
+  --gap: 20px;
+  /* gap general entre campos/columnas */
+  --field-pad-y: 10px;
+  --header-pad: 18px 22px 14px;
+  --body-pad: 18px 22px 20px;
+  --footer-pad: 14px 22px;
+  --footer-h: 64px;
+}
+
+#ix-report-modal,
+#ix-report-modal * {
+  box-sizing: border-box;
 }
 
 #ix-report-modal[hidden] {
@@ -729,20 +760,24 @@
 #ix-report-modal .ix-modal__overlay {
   position: fixed;
   inset: 0;
-  background: var(--overlay);
   z-index: var(--z);
+  background: rgba(0, 0, 0, .58);
 }
 
 #ix-report-modal .ix-modal__dialog {
   position: fixed;
-  inset: 50% auto auto 50%;
+  left: 50%;
+  top: 50%;
   transform: translate(-50%, -50%);
-  width: min(92vw, 520px);
-  max-height: min(92vh, 820px);
-  overflow: auto;
+  width: clamp(360px, 94vw, var(--dialog-max));
+  max-height: calc(100dvh - var(--vpad) * 2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bg);
   color: var(--ink);
   border-radius: var(--radius);
+  border: 1px solid #e6e8eb;
   box-shadow: var(--shadow);
   z-index: calc(var(--z) + 1);
   outline: none;
@@ -751,47 +786,55 @@
 #ix-report-modal .ix-modal__header {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
-  align-items: start;
-  column-gap: 14px;
+  align-items: center;
+  column-gap: 16px;
   row-gap: 6px;
-  padding: 14px 16px 10px 16px;
-  border-bottom: 1px solid #eee;
+  padding: var(--header-pad);
+  border-bottom: 1px solid #eceef2;
+
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  /* fijo */
+  background: var(--bg);
 }
 
 #ix-report-modal .ix-modal__brand img {
-  width: 72px;
+  width: 86px;
   height: auto;
   display: block;
 }
 
-#ix-report-modal .ix-modal__headings .ix-modal__title {
+#ix-report-modal .ix-modal__title {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: .1px;
   line-height: 1.2;
 }
 
 #ix-report-modal .ix-modal__subtitle {
   margin: 2px 0 0;
   color: var(--muted);
-  font-size: .95rem;
+  font-size: .98rem;
 }
 
 #ix-report-modal .ix-modal__meta {
   text-align: right;
   white-space: nowrap;
-  margin-right: 6px;
+  margin-right: 8px;
 }
 
 #ix-report-modal .ix-meta__label {
   font-weight: 700;
-  display: inline-block;
-  margin-bottom: 4px;
+  font-size: .92rem;
 }
 
 #ix-report-modal .ix-meta__value {
-  font-size: .92rem;
   color: var(--muted);
+  font-size: .95rem;
 }
 
 #ix-report-modal .mono {
@@ -804,15 +847,15 @@
   border: 0;
   background: transparent;
   color: #111;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
-  padding: 2px 6px;
+  padding: 4px 8px;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 #ix-report-modal .ix-modal__close:hover {
-  background: #f1f1f1;
+  background: #f5f6f7;
 }
 
 #ix-report-modal .ix-modal__close:focus-visible {
@@ -821,7 +864,38 @@
 }
 
 #ix-report-modal .ix-modal__body {
-  padding: 14px 16px 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--body-pad);
+  padding-bottom: calc(var(--footer-h) + 12px);
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
+}
+
+#ix-report-modal .ix-modal__body::-webkit-scrollbar {
+  width: 10px;
+}
+
+#ix-report-modal .ix-modal__body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+#ix-report-modal .ix-modal__body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+  border: 2px solid #f1f5f9;
+}
+
+#ix-report-modal .ix-modal__body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+#ix-report-modal .ix-modal__body {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
 #ix-report-modal .ix-form {
@@ -832,7 +906,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--gap);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 #ix-report-modal .ix-form__row .ix-field--full {
@@ -840,11 +914,7 @@
 }
 
 #ix-report-modal .ix-field--sm {
-  max-width: 160px;
-}
-
-#ix-report-modal .ix-field--compact input {
-  font-size: .95rem;
+  max-width: 220px;
 }
 
 #ix-report-modal .ix-form__row--consent {
@@ -854,18 +924,21 @@
 #ix-report-modal .ix-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 #ix-report-modal .ix-field__label {
   font-weight: 700;
-  font-size: 1rem;
+  color: #0f172a;
+  letter-spacing: .1px;
+  margin-bottom: 2px;
 }
 
 #ix-report-modal .ix-field__control {
   position: relative;
-  padding: var(--field-pad-y) var(--field-pad-x);
-  border-bottom: 1px solid var(--line);
+  padding: var(--field-pad-y) 0;
+  border-bottom: 2px solid var(--line);
+  transition: border-color .18s ease, box-shadow .18s ease;
 }
 
 #ix-report-modal input[type="text"],
@@ -880,97 +953,100 @@
   color: var(--ink);
 }
 
-#ix-report-modal textarea {
-  resize: vertical;
-  min-height: 90px;
-  padding: 8px 10px;
-  background: #f3f3f3;
-  border-radius: 8px;
-  border: 1px solid #ececec;
-}
-
 #ix-report-modal input::placeholder,
 #ix-report-modal textarea::placeholder {
-  color: #9a9a9a;
+  color: #9aa3af;
 }
 
 #ix-report-modal .ix-field__control:has(:focus-visible) {
   border-color: var(--accent);
-  box-shadow: 0 1px 0 0 var(--accent);
+  box-shadow: 0 2px 0 0 var(--accent);
 }
 
-#ix-report-modal .ix-field--error .ix-field__control {
-  border-color: #e5484d;
-  box-shadow: 0 1px 0 0 #e5484d;
-}
-
-#ix-report-modal .ix-field--error .ix-help {
-  display: block;
-  color: #b4232b;
-  font-size: .88rem;
+#ix-report-modal textarea {
+  background: #f8fafc;
+  border: 1px solid #e6e8eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-height: 120px;
 }
 
 #ix-report-modal .ix-counter {
   position: absolute;
-  right: 0;
-  bottom: -18px;
-  font-size: .82rem;
-  color: var(--muted);
+  right: 6px;
+  bottom: -20px;
+  font-size: .8rem;
+  color: #98a2b3;
+}
+
+#ix-report-modal .ix-field--error .ix-field__control {
+  border-color: var(--error);
+  box-shadow: 0 2px 0 0 var(--error);
+}
+
+#ix-report-modal .ix-field--error .ix-help {
+  display: block;
+  color: var(--error);
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  margin-top: 6px;
+  font-size: .92rem;
 }
 
 #ix-report-modal .ix-checkbox {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: .95rem;
+  gap: 10px;
+  align-items: flex-start;
   color: var(--muted);
+  font-size: .98rem;
 }
 
 #ix-report-modal .ix-checkbox input {
-  transform: translateY(1px);
+  transform: translateY(2px);
 }
 
 #ix-report-modal .ix-upload {
-  border: 1px dashed var(--uploader-line);
-  background: var(--uploader-bg);
-  border-radius: 8px;
-  padding: 10px;
+  border: 1px dashed #dfe4ee;
+  background: #f7f9fc;
+  border-radius: 10px;
+  padding: 12px;
 }
 
 #ix-report-modal .ix-upload__input {
   position: absolute;
   width: 1px;
   height: 1px;
-  overflow: hidden;
   clip: rect(0 0 0 0);
 }
 
 #ix-report-modal .ix-upload__hint {
-  font-size: .9rem;
-  color: var(--muted);
+  font-size: .92rem;
+  color: #7b8794;
   text-align: center;
-  padding: 6px 4px 10px;
+  padding: 6px 4px 12px;
 }
 
 #ix-report-modal .ix-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   gap: 10px;
 }
 
 #ix-report-modal .ix-gallery figure {
   margin: 0;
   position: relative;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #e5e5e5;
+  border: 1px solid #e6e8eb;
   background: #fff;
 }
 
 #ix-report-modal .ix-gallery img {
   display: block;
   width: 100%;
-  height: 84px;
+  height: 96px;
   object-fit: cover;
 }
 
@@ -981,38 +1057,37 @@
   border: 0;
   background: rgba(0, 0, 0, .6);
   color: #fff;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
-  line-height: 22px;
+  line-height: 24px;
   font-size: 14px;
   cursor: pointer;
-}
-
-#ix-report-modal .ix-form__feedback {
-  margin: 8px 2px 0;
-  font-size: .95rem;
-}
-
-#ix-report-modal .ix-form__feedback[aria-live]:not([hidden]) {
-  color: var(--muted);
 }
 
 #ix-report-modal .ix-form__footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding-top: 8px;
+  gap: 12px;
+  border-top: 1px solid #eceef2;
+  padding: var(--footer-pad);
+  background: var(--bg);
+  left: 0;
+  right: 0;
+  z-index: 2;
+  min-height: var(--footer-h);
 }
 
 #ix-report-modal .ix-btn {
   appearance: none;
   border: 0;
   cursor: pointer;
-  padding: 10px 16px;
+  padding: 11px 18px;
   border-radius: 999px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: .98rem;
+  letter-spacing: .2px;
+  transition: transform .04s ease, box-shadow .18s ease, background .18s ease, opacity .18s ease;
 }
 
 #ix-report-modal .ix-btn--ghost {
@@ -1021,58 +1096,28 @@
 }
 
 #ix-report-modal .ix-btn--ghost:hover {
-  background: #f3f3f3;
+  background: #f4f6f8;
 }
 
 #ix-report-modal .ix-btn--primary {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, .08);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .06);
 }
 
 #ix-report-modal .ix-btn--primary:hover {
   background: var(--accent-press);
 }
 
+#ix-report-modal .ix-btn--primary:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
 #ix-report-modal .ix-btn--primary:disabled {
   opacity: .55;
   cursor: not-allowed;
   box-shadow: none;
-}
-
-@media (max-width: 560px) {
-  #ix-report-modal .ix-modal__dialog {
-    width: min(96vw, 480px);
-  }
-
-  #ix-report-modal .ix-modal__header {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      "brand head close"
-      ".     meta .";
-  }
-
-  #ix-report-modal .ix-modal__brand {
-    grid-area: brand;
-  }
-
-  #ix-report-modal .ix-modal__headings {
-    grid-area: head;
-  }
-
-  #ix-report-modal .ix-modal__meta {
-    grid-area: meta;
-    text-align: left;
-    margin: 4px 0 0 0;
-  }
-
-  #ix-report-modal .ix-form__row {
-    grid-template-columns: 1fr;
-  }
-
-  #ix-report-modal .ix-field--sm {
-    max-width: none;
-  }
 }
 
 #ix-report-modal .sr-only {
@@ -1082,7 +1127,86 @@
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 1px, 1px);
+  clip: rect(0 0 1px 1px);
   white-space: nowrap;
   border: 0;
+}
+
+@media (max-width: 640px) {
+  #ix-report-modal .ix-modal__dialog {
+    width: min(96vw, var(--dialog-max));
+  }
+
+  #ix-report-modal .ix-modal__header {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "brand head close"
+      ".     meta  .";
+    row-gap: 8px;
+  }
+
+  #ix-report-modal .ix-form__row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  #ix-report-modal .ix-modal__meta {
+    text-align: left;
+    margin: 4px 0 0;
+  }
+}
+
+#ix-report-modal {
+  --dialog-max: 680px;
+  --gap: 24px;
+  --body-pad: 20px 24px 22px;
+  --footer-h: 72px;
+}
+
+#ix-report-modal .ix-modal__dialog {
+  overflow: hidden;
+}
+
+#ix-report-modal .ix-modal__body {
+  position: relative;
+  padding: var(--body-pad);
+  padding-bottom: calc(var(--footer-h) + 24px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable both-edges;
+}
+
+#ix-report-modal .ix-form__footer {
+  min-height: var(--footer-h);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 14px 22px;
+  background: var(--bg);
+  z-index: 2;
+}
+
+#ix-report-modal .ix-form__row {
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  margin-bottom: 20px;
+}
+
+#ix-report-modal .ix-field {
+  gap: 10px;
+}
+
+#ix-report-modal .ix-field__label {
+  margin-bottom: 4px;
+}
+
+#ix-report-modal .ix-field--error .ix-help {
+  margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  #ix-report-modal .ix-form__row {
+    grid-template-columns: 1fr;
+  }
 }

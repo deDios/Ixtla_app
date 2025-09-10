@@ -212,13 +212,6 @@
                     <p id="ix-report-desc" class="sr-only">Completa los campos para levantar un reporte a SAMAPA.</p>
                 </div>
 
-                <div class="ix-modal__meta">
-                    <strong class="ix-meta__label">Fecha</strong>
-                    <time id="ix-report-date" class="ix-meta__value" datetime="">
-                        02 de septiembre 2025<br><span class="mono">12:34 am</span>
-                    </time>
-                </div>
-
                 <button type="button" class="ix-modal__close" aria-label="Cerrar" data-ix-close>×</button>
             </header>
 
@@ -352,7 +345,7 @@
         </div>
     </div>
 
-    
+
     <script src="/JS/components.js"></script>
     <script src="/JS/tramiteDepartamentos.js"></script>
     <script src="/JS/JSglobal.js"></script>
