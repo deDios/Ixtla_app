@@ -15,7 +15,7 @@
 
   window.IX_SEGUIMIENTO = Object.assign({
     steps: ["Solicitud", "Revisión", "Asignación", "En proceso", "Finalizado"], 
-    forceIndex: 1,           //  pon 0..steps.length-1 para forzar un estado concreto; null = automático
+    forceIndex: null,           //  pon 0..steps.length-1 para forzar un estado concreto; null = automático
     autoCycle: false,           //  si true, corre el ciclo automáticamente tras buscar
     cycleMs: 2000,              //  cada cuánto avanza (ms)
     cycleResetTo: 0,            //  a qué índice regresa cuando se pasa del último (normalmente 0)
