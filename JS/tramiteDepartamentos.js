@@ -673,17 +673,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const hh = ((h + 11) % 12) + 1;
     return `${hh}:${pad2(m)} ${ampm}`;
   };
-  const setToday = () => {
-    const d = new Date();
-    const text = `${pad2(d.getDate())} de ${
-      months[d.getMonth()]
-    } ${d.getFullYear()} · ${fmtAMPM(d)}`;
-    timeMeta.dateTime = d.toISOString();
-    timeMeta.innerHTML = `${pad2(d.getDate())} de ${
-      months[d.getMonth()]
-    } ${d.getFullYear()}<br><span class="mono">${fmtAMPM(d)}</span>`;
-    inpFecha.value = text;
-  };
 
   // limpia feedback global
   const clearFeedback = () => {
