@@ -194,6 +194,168 @@
     <script src="/JS/components.js"></script>
     <script src="/JS/tramiteDepartamentos.js"></script>
     <script src="/JS/JSglobal.js"></script>
+
+
+    <!-- ESPACIO PARA MODALES -->
+    <div id="ix-report-modal" class="ix-modal" hidden aria-hidden="true">
+        <div class="ix-modal__overlay" data-ix-close></div>
+
+        <div class="ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-report-title"
+            aria-describedby="ix-report-desc">
+
+            <!-- header -->
+            <header class="ix-modal__header">
+                <div class="ix-modal__brand">
+                    <img src="/ASSETS/main_logo.png" alt="Ixtlahuacán de los Membrillos - Ayuntamiento"
+                        onerror="this.style.display='none'">
+                </div>
+
+                <div class="ix-modal__headings">
+                    <h2 id="ix-report-title" class="ix-modal__title">Nuevo Reporte</h2>
+                    <p id="ix-report-subtitle" class="ix-modal__subtitle">Fuga de agua</p>
+                    <p id="ix-report-desc" class="sr-only">Completa los campos para levantar un reporte a SAMAPA.</p>
+                </div>
+
+                <div class="ix-modal__meta">
+                    <strong class="ix-meta__label">Fecha</strong>
+                    <time id="ix-report-date" class="ix-meta__value" datetime="">
+                        02 de septiembre 2025<br><span class="mono">12:34 am</span>
+                    </time>
+                </div>
+
+                <button type="button" class="ix-modal__close" aria-label="Cerrar" data-ix-close>×</button>
+            </header>
+
+            <!-- body / form -->
+            <div class="ix-modal__body">
+                <form id="ix-report-form" class="ix-form" novalidate>
+                    <!-- contexto -->
+                    <input type="hidden" name="departamento_id" value="1">
+                    <input type="hidden" name="req_title" id="ix-report-req" value="Fuga de agua">
+
+                    <!-- nombre / fecha -->
+                    <div class="ix-form__row">
+                        <div class="ix-field">
+                            <label for="ix-nombre" class="ix-field__label">Nombre completo</label>
+                            <div class="ix-field__control">
+                                <input id="ix-nombre" name="nombre" type="text" placeholder="Juan Pablo García Casillas"
+                                    required>
+                            </div>
+                            <small class="ix-help" id="ix-err-nombre" hidden></small>
+                        </div>
+
+                        <div class="ix-field ix-field--compact">
+                            <label for="ix-fecha" class="ix-field__label">Fecha</label>
+                            <div class="ix-field__control">
+                                <input id="ix-fecha" name="fecha" type="text" readonly aria-readonly="true"
+                                    value="02 de septiembre 2025 · 12:34 am">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- domicilio / CP -->
+                    <div class="ix-form__row">
+                        <div class="ix-field">
+                            <label for="ix-domicilio" class="ix-field__label">Domicilio</label>
+                            <div class="ix-field__control">
+                                <input id="ix-domicilio" name="domicilio" type="text"
+                                    placeholder="Francisco I. Madero #2" required>
+                            </div>
+                            <small class="ix-help" id="ix-err-domicilio" hidden></small>
+                        </div>
+
+                        <div class="ix-field ix-field--sm">
+                            <label for="ix-cp" class="ix-field__label">C.P.</label>
+                            <div class="ix-field__control">
+                                <input id="ix-cp" name="cp" type="text" inputmode="numeric" pattern="\d{5}"
+                                    maxlength="5" placeholder="45850" required>
+                            </div>
+                            <small class="ix-help" id="ix-err-cp" hidden></small>
+                        </div>
+                    </div>
+
+                    <!-- colonia / telefono -->
+                    <div class="ix-form__row">
+                        <div class="ix-field">
+                            <label for="ix-colonia" class="ix-field__label">Colonia</label>
+                            <div class="ix-field__control">
+                                <input id="ix-colonia" name="colonia" type="text" placeholder="Centro" required>
+                            </div>
+                            <small class="ix-help" id="ix-err-colonia" hidden></small>
+                        </div>
+
+                        <div class="ix-field">
+                            <label for="ix-telefono" class="ix-field__label">Teléfono</label>
+                            <div class="ix-field__control">
+                                <input id="ix-telefono" name="telefono" type="tel" inputmode="numeric" pattern="\d{10}"
+                                    maxlength="10" placeholder="33 3333 3333" required>
+                            </div>
+                            <small class="ix-help" id="ix-err-telefono" hidden></small>
+                        </div>
+                    </div>
+
+                    <!-- correo -->
+                    <div class="ix-form__row">
+                        <div class="ix-field">
+                            <label for="ix-correo" class="ix-field__label">Correo electrónico</label>
+                            <div class="ix-field__control">
+                                <input id="ix-correo" name="correo" type="email" placeholder="correo@ejemplo.com">
+                            </div>
+                            <small class="ix-help" id="ix-err-correo" hidden></small>
+                        </div>
+                    </div>
+
+                    <!-- descripcion -->
+                    <div class="ix-form__row">
+                        <div class="ix-field ix-field--full">
+                            <label for="ix-descripcion" class="ix-field__label">Descripción</label>
+                            <div class="ix-field__control">
+                                <textarea id="ix-descripcion" name="descripcion" rows="4" maxlength="700"
+                                    placeholder="Describa lo mejor posible el motivo de su reporte" required></textarea>
+                                <div class="ix-counter" aria-live="polite">
+                                    <span id="ix-desc-count">0</span>/700
+                                </div>
+                            </div>
+                            <small class="ix-help" id="ix-err-descripcion" hidden></small>
+                        </div>
+                    </div>
+
+                    <!-- evidencia -->
+                    <div class="ix-form__row">
+                        <div class="ix-field ix-field--full">
+                            <label class="ix-field__label" for="ix-evidencia">Evidencia</label>
+                            <div class="ix-upload" data-js="upload">
+                                <input id="ix-evidencia" class="ix-upload__input" name="evidencia[]" type="file"
+                                    accept="image/jpeg,image/png" multiple>
+                                <div class="ix-upload__hint">Arrastra imágenes o haz click para seleccionar (JPG/PNG ·
+                                    máx 5 MB c/u · hasta 3)</div>
+                                <div class="ix-gallery" id="ix-evidencia-previews" aria-live="polite"></div>
+                            </div>
+                            <small class="ix-help" id="ix-err-evidencia" hidden></small>
+                        </div>
+                    </div>
+
+                    <div class="ix-form__row ix-form__row--consent">
+                        <label class="ix-checkbox">
+                            <input type="checkbox" id="ix-consent" name="consent" required>
+                            <span>Acepto el aviso de privacidad y el uso de mis datos para gestionar este
+                                reporte.</span>
+                        </label>
+                    </div>
+
+                    <div class="ix-form__feedback" id="ix-report-feedback" role="status" aria-live="polite" hidden>
+                    </div>
+
+                    <div class="ix-form__footer">
+                        <button type="button" class="ix-btn ix-btn--ghost" data-ix-close>Cancelar</button>
+                        <button type="submit" class="ix-btn ix-btn--primary" id="ix-submit" disabled>Mandar
+                            reporte</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

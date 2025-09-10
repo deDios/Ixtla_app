@@ -701,3 +701,388 @@
     font-size: 0.85rem;
   }
 }
+
+/*-------------------------------------- css para modal */
+#ix-report-modal {
+  --z: 9999;
+  --overlay: rgba(0, 0, 0, .58);
+  --bg: #fff;
+  --ink: #2f2f2f;
+  --muted: #6a6a6a;
+  --line: #bdbdbd;
+  --accent: #3b82f6;
+  --accent-press: #326fe0;
+  --accent-ghost: #eef3ff;
+  --radius: 14px;
+  --shadow: 0 12px 30px rgba(0, 0, 0, .18);
+  --gap: 16px;
+  --field-pad-y: 6px;
+  --field-pad-x: 0;
+  --uploader-bg: #f6f6f6;
+  --uploader-line: #d9d9d9;
+}
+
+#ix-report-modal[hidden] {
+  display: none !important;
+}
+
+#ix-report-modal .ix-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: var(--z);
+}
+
+#ix-report-modal .ix-modal__dialog {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 520px);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  z-index: calc(var(--z) + 1);
+  outline: none;
+}
+
+#ix-report-modal .ix-modal__header {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: start;
+  column-gap: 14px;
+  row-gap: 6px;
+  padding: 14px 16px 10px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+#ix-report-modal .ix-modal__brand img {
+  width: 72px;
+  height: auto;
+  display: block;
+}
+
+#ix-report-modal .ix-modal__headings .ix-modal__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+#ix-report-modal .ix-modal__subtitle {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: .95rem;
+}
+
+#ix-report-modal .ix-modal__meta {
+  text-align: right;
+  white-space: nowrap;
+  margin-right: 6px;
+}
+
+#ix-report-modal .ix-meta__label {
+  font-weight: 700;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+#ix-report-modal .ix-meta__value {
+  font-size: .92rem;
+  color: var(--muted);
+}
+
+#ix-report-modal .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: .02em;
+}
+
+#ix-report-modal .ix-modal__close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #111;
+  font-size: 22px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+#ix-report-modal .ix-modal__close:hover {
+  background: #f1f1f1;
+}
+
+#ix-report-modal .ix-modal__close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#ix-report-modal .ix-modal__body {
+  padding: 14px 16px 16px;
+}
+
+#ix-report-modal .ix-form {
+  display: block;
+}
+
+#ix-report-modal .ix-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  margin-bottom: 12px;
+}
+
+#ix-report-modal .ix-form__row .ix-field--full {
+  grid-column: 1 / -1;
+}
+
+#ix-report-modal .ix-field--sm {
+  max-width: 160px;
+}
+
+#ix-report-modal .ix-field--compact input {
+  font-size: .95rem;
+}
+
+#ix-report-modal .ix-form__row--consent {
+  grid-template-columns: 1fr;
+}
+
+#ix-report-modal .ix-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#ix-report-modal .ix-field__label {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+#ix-report-modal .ix-field__control {
+  position: relative;
+  padding: var(--field-pad-y) var(--field-pad-x);
+  border-bottom: 1px solid var(--line);
+}
+
+#ix-report-modal input[type="text"],
+#ix-report-modal input[type="tel"],
+#ix-report-modal input[type="email"],
+#ix-report-modal textarea {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+#ix-report-modal textarea {
+  resize: vertical;
+  min-height: 90px;
+  padding: 8px 10px;
+  background: #f3f3f3;
+  border-radius: 8px;
+  border: 1px solid #ececec;
+}
+
+#ix-report-modal input::placeholder,
+#ix-report-modal textarea::placeholder {
+  color: #9a9a9a;
+}
+
+#ix-report-modal .ix-field__control:has(:focus-visible) {
+  border-color: var(--accent);
+  box-shadow: 0 1px 0 0 var(--accent);
+}
+
+#ix-report-modal .ix-field--error .ix-field__control {
+  border-color: #e5484d;
+  box-shadow: 0 1px 0 0 #e5484d;
+}
+
+#ix-report-modal .ix-field--error .ix-help {
+  display: block;
+  color: #b4232b;
+  font-size: .88rem;
+}
+
+#ix-report-modal .ix-counter {
+  position: absolute;
+  right: 0;
+  bottom: -18px;
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+#ix-report-modal .ix-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .95rem;
+  color: var(--muted);
+}
+
+#ix-report-modal .ix-checkbox input {
+  transform: translateY(1px);
+}
+
+#ix-report-modal .ix-upload {
+  border: 1px dashed var(--uploader-line);
+  background: var(--uploader-bg);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+#ix-report-modal .ix-upload__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+#ix-report-modal .ix-upload__hint {
+  font-size: .9rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 6px 4px 10px;
+}
+
+#ix-report-modal .ix-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+#ix-report-modal .ix-gallery figure {
+  margin: 0;
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+}
+
+#ix-report-modal .ix-gallery img {
+  display: block;
+  width: 100%;
+  height: 84px;
+  object-fit: cover;
+}
+
+#ix-report-modal .ix-gallery button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: 0;
+  background: rgba(0, 0, 0, .6);
+  color: #fff;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  line-height: 22px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#ix-report-modal .ix-form__feedback {
+  margin: 8px 2px 0;
+  font-size: .95rem;
+}
+
+#ix-report-modal .ix-form__feedback[aria-live]:not([hidden]) {
+  color: var(--muted);
+}
+
+#ix-report-modal .ix-form__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+#ix-report-modal .ix-btn {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: .98rem;
+}
+
+#ix-report-modal .ix-btn--ghost {
+  background: transparent;
+  color: var(--ink);
+}
+
+#ix-report-modal .ix-btn--ghost:hover {
+  background: #f3f3f3;
+}
+
+#ix-report-modal .ix-btn--primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .08);
+}
+
+#ix-report-modal .ix-btn--primary:hover {
+  background: var(--accent-press);
+}
+
+#ix-report-modal .ix-btn--primary:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@media (max-width: 560px) {
+  #ix-report-modal .ix-modal__dialog {
+    width: min(96vw, 480px);
+  }
+
+  #ix-report-modal .ix-modal__header {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "brand head close"
+      ".     meta .";
+  }
+
+  #ix-report-modal .ix-modal__brand {
+    grid-area: brand;
+  }
+
+  #ix-report-modal .ix-modal__headings {
+    grid-area: head;
+  }
+
+  #ix-report-modal .ix-modal__meta {
+    grid-area: meta;
+    text-align: left;
+    margin: 4px 0 0 0;
+  }
+
+  #ix-report-modal .ix-form__row {
+    grid-template-columns: 1fr;
+  }
+
+  #ix-report-modal .ix-field--sm {
+    max-width: none;
+  }
+}
+
+#ix-report-modal .sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 1px, 1px);
+  white-space: nowrap;
+  border: 0;
+}
