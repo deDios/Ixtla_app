@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const alias = (v) => (v === 'simapa' ? 'samapa' : v);
 
   const DEPS = {
-    1: {
+    samapa: {
       name: 'SAMAPA',
       title: 'Trámites disponibles',
       inactive: false,
