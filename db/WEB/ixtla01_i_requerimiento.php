@@ -4,20 +4,34 @@ date_default_timezone_set('America/Mexico_City');
 
 $path = realpath("/home/site/wwwroot/db/conn/conexion.php");
 if ($path && file_exists($path)) { include $path; }
-else { http_response_code(500); die(json_encode(["ok"=>false,"error"=>"No se encontró conexion.php en $path"])); }
+else {
+  http_response_code(500);
+  die(json_encode(["ok"=>false,"error"=>"No se encontró conexion.php en $path"]));
+}
 
 $in = json_decode(file_get_contents("php://input"), true) ?? [];
 
-/* Requeridos mínimos */
-$required = ['departamento_id','tramite_id','asunto','descripcion','contacto_nombre'];
+/* Requeridos mínimos (folio ahora viene en el request) */
+$required = ['folio','departamento_id','tramite_id','asunto','descripcion','contacto_nombre'];
 foreach ($required as $k) {
-  if (!isset($in[$k]) || $in[$k] === '') {
+  if (!isset($in[$k]) || trim($in[$k]) === '') {
     http_response_code(400);
     die(json_encode(["ok"=>false,"error"=>"Falta parámetro obligatorio: $k"]));
   }
 }
 
 /* Inputs */
+$folio          = trim($in['folio']);                       // ahora obligatorio
+if (strlen($folio) > 32) {
+  http_response_code(400);
+  die(json_encode(["ok"=>false,"error"=>"El folio supera 32 caracteres"]));
+}
+// Si quieres forzar formato, descomenta y ajusta:
+// if (!preg_match('/^[A-Za-z0-9\-\_\.]+$/', $folio)) {
+//   http_response_code(400);
+//   die(json_encode(["ok"=>false,"error"=>"Folio con formato inválido"]));
+// }
+
 $departamento_id = (int)$in['departamento_id'];
 $tramite_id      = (int)$in['tramite_id'];
 $asignado_a      = isset($in['asignado_a']) ? (int)$in['asignado_a'] : null;
@@ -83,9 +97,7 @@ if ($asignado_a !== null) {
   $st->close();
 }
 
-/* Transacción: insert -> generar folio -> devolver registro */
-$con->begin_transaction();
-
+/* INSERT directo (folio viene en el request) */
 $sql = "INSERT INTO requerimiento (
           folio, departamento_id, tramite_id, asignado_a,
           asunto, descripcion, prioridad, estatus, canal,
@@ -93,12 +105,13 @@ $sql = "INSERT INTO requerimiento (
           contacto_calle, contacto_colonia, contacto_cp,
           fecha_limite, status, created_by
         ) VALUES (
-          '',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?
+          ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?
         )";
 
 $st = $con->prepare($sql);
 $st->bind_param(
-  "iiissiiissssssssi",
+  "siiissiiissssssssi",
+  $folio,
   $departamento_id, $tramite_id, $asignado_a,
   $asunto, $descripcion, $prioridad, $estatus, $canal,
   $contacto_nombre, $contacto_email, $contacto_telefono,
@@ -107,25 +120,18 @@ $st->bind_param(
 );
 
 if (!$st->execute()) {
-  $err = $st->error; $st->close(); $con->rollback(); $con->close();
+  $err = $st->error; $code = $st->errno;
+  $st->close(); $con->close();
+  if ($code == 1062) { // UNIQUE uk_requerimiento_folio
+    http_response_code(409);
+    die(json_encode(["ok"=>false,"error"=>"Folio duplicado"]));
+  }
   http_response_code(500);
   die(json_encode(["ok"=>false,"error"=>"Error al insertar: $err"]));
 }
 
 $new_id = $st->insert_id;
 $st->close();
-
-/* Folio amigable: REQ-0000000001 */
-$st = $con->prepare("UPDATE requerimiento SET folio = CONCAT('REQ-', LPAD(?,10,'0')) WHERE id=?");
-$st->bind_param("ii", $new_id, $new_id);
-if (!$st->execute()) {
-  $err = $st->error; $st->close(); $con->rollback(); $con->close();
-  http_response_code(500);
-  die(json_encode(["ok"=>false,"error"=>"Error al generar folio: $err"]));
-}
-$st->close();
-
-$con->commit();
 
 /* Recuperar registro enriquecido */
 $q = $con->prepare("
@@ -155,4 +161,5 @@ if ($row) {
   $row['status'] = (int)$row['status'];
 }
 
+http_response_code(201);
 echo json_encode(["ok"=>true,"data"=>$row]);
