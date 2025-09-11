@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const getView = () => sessionStorage.getItem(VIEW_KEY) || "list";
   const setView = (v) => sessionStorage.setItem(VIEW_KEY, v);
 
-  // ========= Panel del módulo  =========
+  // ========= Panel del módulo (si no existe, lo creo) =========
   let panel = wrap.querySelector(".ix-dep-panel");
   if (!panel) {
     panel = document.createElement("div");

@@ -1,5 +1,6 @@
-//----------------------------- módulo de departamentos 
+//----------------------------- módulo de departamentos (100% dinámico por API + filtros + placeholders)
 document.addEventListener("DOMContentLoaded", () => {
+  // si no estoy en la vista de trámites, me salgo y no ensucio consola
   const wrap = document.querySelector("#tramites .ix-wrap");
   if (!wrap) return;
 
@@ -17,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const getView = () => sessionStorage.getItem(VIEW_KEY) || "list";
   const setView = (v) => sessionStorage.setItem(VIEW_KEY, v);
 
-  // ========= Panel del módulo  =========
+  // ========= Panel del módulo (si no existe, lo creo) =========
   let panel = wrap.querySelector(".ix-dep-panel");
   if (!panel) {
     panel = document.createElement("div");
@@ -412,7 +413,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ========= Estado inicial por URL  =========
+  // ========= Estado inicial por URL (acepto depId o dep como comodín) =========
   const params = new URLSearchParams(window.location.search);
   const depParam = params.get("depId") || params.get("dep");
   depParam ? showDep(depParam) : showDefault();

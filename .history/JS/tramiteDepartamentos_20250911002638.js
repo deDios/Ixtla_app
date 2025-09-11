@@ -1,23 +1,23 @@
-//----------------------------- módulo de departamentos 
+//----------------------------- modulo de departamentos (catálogo vía API + placeholders)
 document.addEventListener("DOMContentLoaded", () => {
+  // checo que exista la vista de tramites; si no, me salgo sin ruido
   const wrap = document.querySelector("#tramites .ix-wrap");
   if (!wrap) return;
 
-  // --- mini debug
+  // --- debugcito opt-in
   if (typeof window.IX_DEBUG === "undefined") window.IX_DEBUG = true;
-  const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch {} };
+  const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch { } };
 
-  // refs base de la vista
   const grid = wrap.querySelector(".ix-grid");
   const note = wrap.querySelector(".ix-note");
-  const h2   = wrap.querySelector("#deps-title");
+  const h2 = wrap.querySelector("#deps-title");
 
-  // ========= Preferencia de vista (list/cards) =========
+  // ---------- Preferencia de vista (list/cards) ----------
   const VIEW_KEY = "ix_deps_view";
   const getView = () => sessionStorage.getItem(VIEW_KEY) || "list";
   const setView = (v) => sessionStorage.setItem(VIEW_KEY, v);
 
-  // ========= Panel del módulo  =========
+  // ---------- Panel del módulo (lo creo si no existe) ----------
   let panel = wrap.querySelector(".ix-dep-panel");
   if (!panel) {
     panel = document.createElement("div");
@@ -53,184 +53,137 @@ document.addEventListener("DOMContentLoaded", () => {
     wrap.appendChild(panel);
   }
 
-  const listEl  = panel.querySelector("#ix-dep-list");
+  const listEl = panel.querySelector("#ix-dep-list");
   const btnList = panel.querySelector(".ix-action--list");
   const btnGrid = panel.querySelector(".ix-action--grid");
 
-  // ========= Endpoints (HTTPS sí o sí para evitar mixed content) =========
-  const ENDPOINTS = {
-    deps:    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
-    tramite: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_tramite.php",
+  // ---------- Normalizaciones/constantes ----------
+  // alias → id numérico. Si mañana agregas más alias, solo extiende aquí.
+  const DEP_KEYMAP = {
+    samapa: "1", samapa: "1", "1": "1",
+    limpieza: "2", "2": "2",
+    obras: "3", "3": "3",
+    alumbrado: "4", "4": "4",
+    ambiental: "5", "5": "5",
+  };
+  const normDepKey = (raw) => DEP_KEYMAP[String(raw || "").toLowerCase()] || String(raw || "").toLowerCase();
+
+  // carpetas por departamento (cuidado con mayúsculas en server Linux)
+  const FOLDERS = { "1": "Simapa", "2": "Limpieza", "3": "Obras", "4": "Alumbrado", "5": "Ambiental" };
+
+  // donde viven los assets y los placeholders compartidos
+  const ASSETS_BASE = "/ASSETS/departamentos/modulosAssets";
+  const ICON_PLACEHOLDER = "/ASSETS/departamentos/placeholder_icon.png";
+  const CARD_PLACEHOLDER = "/ASSETS/departamentos/placeholder_card.png";
+
+  // helpers para rutas de assets por id
+  const iconSrcs = (depKey, id) => {
+    const folder = FOLDERS[depKey] || `dep-${depKey}`;
+    return [
+      `${ASSETS_BASE}/${folder}/req_icon${id}.png`,
+      `${ASSETS_BASE}/${folder}/req_icon${id}.jpg`,
+      ICON_PLACEHOLDER,
+    ];
+  };
+  const cardSrcs = (depKey, id) => {
+    const folder = FOLDERS[depKey] || `dep-${depKey}`;
+    return [
+      `${ASSETS_BASE}/${folder}/req_card${id}.png`,
+      `${ASSETS_BASE}/${folder}/req_card${id}.jpg`,
+      CARD_PLACEHOLDER,
+    ];
   };
 
-  // ========= Cache básico (sessionStorage con TTL) =========
-  const CACHE_TTL = 10 * 60 * 1000; // 10 min
+  // pega listeners de fallback de imagen (si falla png → jpg → placeholder)
+  function attachImgFallback(img, srcList, liForFlag) {
+    let idx = 0;
+    const setSrc = () => { img.src = srcList[idx]; };
+    img.addEventListener("error", () => {
+      if (idx < srcList.length - 1) {
+        idx++;
+        setSrc();
+      } else {
+        // ya caímos en el último (placeholder), marco para debug/estilos
+        if (liForFlag) {
+          liForFlag.classList.add("asset-missing");
+          liForFlag.dataset.missingAsset = "true";
+        }
+      }
+    }, { passive: true });
+    setSrc();
+  }
+
+  // ---------- API + cache ----------
+  const TIMEOUT_MS = 12000;             // me protejo de un back lento
+  const CACHE_TTL = 10 * 60 * 1000;    // 10 min
+
+  const API = {
+    url: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_tramite.php",
+    async fetchTramites(depKey) {
+      const depId = Number(depKey);
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      try {
+        const res = await fetch(API.url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify({ departamento_id: depId, all: true }), // igual filtro en cliente por si el back no respeta
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (e) {
+        clearTimeout(timer);
+        throw e;
+      }
+    }
+  };
+
+  const cacheKey = (depKey) => `ix_dep_catalog_${depKey}`;
   const cacheGet = (k) => {
     try {
       const raw = sessionStorage.getItem(k);
       if (!raw) return null;
       const obj = JSON.parse(raw);
-      if (!obj || (Date.now() - obj.t) > (obj.ttl ?? CACHE_TTL)) { sessionStorage.removeItem(k); return null; }
+      if (!obj || Date.now() - obj.t > (obj.ttl ?? CACHE_TTL)) { sessionStorage.removeItem(k); return null; }
       return obj.v;
     } catch { return null; }
   };
   const cacheSet = (k, v, ttl = CACHE_TTL) => {
-    try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v })); } catch {}
+    try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v })); } catch { }
   };
 
-  // ========= Config de assets (cero slugs, todo por ID) =========
-  // placeholders globales que TÚ colocarás en /ASSETS/departamentos/
-  const ICON_PLACEHOLDER = "/ASSETS/departamentos/placeholder_icon.png";
-  const CARD_PLACEHOLDER = "/ASSETS/departamentos/placeholder_card.png";
-  // assets por depId, p.ej.: /ASSETS/departamentos/modulosAssets/dep-1/req_icon4.png
-  const ASSETS_BASE = "/ASSETS/departamentos/modulosAssets";
-  const iconSrcs = (depId, reqId) => ([
-    `${ASSETS_BASE}/dep-${depId}/req_icon${reqId}.png`,
-    `${ASSETS_BASE}/dep-${depId}/req_icon${reqId}.jpg`,
-    ICON_PLACEHOLDER,
-  ]);
-  const cardSrcs = (depId, reqId) => ([
-    `${ASSETS_BASE}/dep-${depId}/req_card${reqId}.png`,
-    `${ASSETS_BASE}/dep-${depId}/req_card${reqId}.jpg`,
-    CARD_PLACEHOLDER,
-  ]);
-
-  // fallback de imagen: intenta srcs en orden y al final marca asset-missing
-  function attachImgFallback(img, srcList, liForFlag) {
-    let i = 0;
-    const set = () => { img.src = srcList[i]; };
-    img.addEventListener("error", () => {
-      if (i < srcList.length - 1) { i++; set(); }
-      else {
-        if (liForFlag) { liForFlag.classList.add("asset-missing"); liForFlag.dataset.missingAsset = "true"; }
-      }
-    }, { passive: true });
-    set();
-  }
-
-  // ========= Fetchers (con timeout) =========
-  const TIMEOUT_MS = 12000;
-  const withTimeout = async (promise, ms = TIMEOUT_MS) => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), ms);
-    try {
-      const res = await promise(ctrl.signal);
-      clearTimeout(t);
-      return res;
-    } catch (e) { clearTimeout(t); throw e; }
+  // ---------- Metadatos de deps (items llegan de API) ----------
+  const DEPS = {
+    "1": { name: "SAMAPA", title: "Trámites disponibles", inactive: false, items: null },
+    "2": { name: "Recolección y limpieza", inactive: true },
+    "3": { name: "Obras y servicios públicos", inactive: true },
+    "4": { name: "Alumbrado y energía urbana", inactive: true },
+    "5": { name: "Gestión ambiental y ecología", inactive: true },
   };
 
-  async function fetchDeps() {
-    // cache first
-    const CK = "ix_dep_meta";
-    const hit = cacheGet(CK);
-    if (hit) return hit;
+  // ---------- Adaptador API -> UI ----------
+  const adaptItem = (row, depKey) => {
+    const id = Number(row.id);
+    const title = String(row.nombre || "Trámite").trim();
+    const desc = String(row.descripcion || "").trim();
+    const sla = null; // si luego el back manda un campo SLA, lo mapeamos aquí
+    return { id: String(id), title, desc, sla, depKey };
+  };
 
-    // pido activos (status:1). Si mañana quieres todos, quitamos el filtro y listo.
-    const json = await withTimeout((signal) =>
-      fetch(ENDPOINTS.deps, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ status: 1 }),
-        signal
-      }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-    );
-
-    // normalizo a map por id: { [id]: { id, nombre, status } }
-    const data = Array.isArray(json?.data) ? json.data : [];
-    const meta = {};
-    for (const row of data) {
-      const id = Number(row?.id);
-      if (!id) continue;
-      meta[id] = {
-        id,
-        nombre: String(row?.nombre || `Departamento #${id}`),
-        status: Number(row?.status ?? 1)
-      };
-    }
-    cacheSet(CK, meta);
-    ixLog("dep meta desde API:", meta);
-    return meta;
-  }
-
-  async function fetchTramitesByDep(depId) {
-    // pido TODO (all:true), pero yo filtro duro en cliente por si el back se pone punk
-    const json = await withTimeout((signal) =>
-      fetch(ENDPOINTS.tramite, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ departamento_id: Number(depId), all: true }),
-        signal
-      }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-    );
-
-    // agarro arreglo tolerante
-    const raw = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-    // FILTRO DURO: solo trámites del dep y activos (si hay estatus)
-    const rows = raw.filter(r =>
-      Number(r?.departamento_id) === Number(depId) &&
-      (r?.estatus === undefined || Number(r?.estatus) === 1)
-    );
-
-    // adapto a mis items: id, title, desc, sla (si un día llega del back, lo mapeamos)
-    const items = rows.map(r => ({
-      id: String(Number(r.id)),                // id en string (para datasets)
-      depId: String(Number(depId)),           // dep actual
-      title: String(r?.nombre || "Trámite").trim(),
-      desc: String(r?.descripcion || "").trim(),
-      sla: null,                               // por ahora n/a
-    }))
-    // orden por id asc numérico (simple y estable)
-    .sort((a, b) => Number(a.id) - Number(b.id));
-
-    return items;
-  }
-
-  // ========= Render (lista/cards) =========
+  // ---------- UI helpers ----------
   const plusSvg = `
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       <path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     </svg>`.trim();
 
-  const el = (html) => { const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; };
-
-  function renderSkeleton(n = 4) {
-    listEl.innerHTML = "";
-    for (let i = 0; i < n; i++) {
-      listEl.appendChild(el(`
-        <li class="ix-dep-item ix-skel">
-          <div class="ix-dep-media"><span class="sk sk-ico"></span></div>
-          <div class="ix-dep-content">
-            <h3><span class="sk sk-title"></span></h3>
-            <p><span class="sk sk-text"></span></p>
-          </div>
-          <div class="sk sk-btn" aria-hidden="true"></div>
-        </li>
-      `));
-    }
-  }
-
-  function renderError(msg, onRetry) {
-    listEl.innerHTML = "";
-    const li = el(`
-      <li class="ix-dep-empty">
-        <p><strong>Error:</strong> ${msg || "No se pudieron cargar los trámites."}</p>
-        <p><button type="button" class="ix-btn ix-btn--retry">Reintentar</button></p>
-      </li>
-    `);
-    li.querySelector(".ix-btn--retry").addEventListener("click", onRetry);
-    listEl.appendChild(li);
-  }
-
-  function renderEmpty() {
-    listEl.innerHTML = `
-      <li class="ix-dep-empty">
-        <p>No hay trámites disponibles para este departamento.</p>
-      </li>
-    `;
-  }
+  const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
 
   function renderListItem(it) {
+    // armo el li “a mano” para poder inyectar imgs con fallback
     const li = el(`
       <li class="ix-dep-item">
         <div class="ix-dep-media"></div>
@@ -242,20 +195,20 @@ document.addEventListener("DOMContentLoaded", () => {
       </li>
     `);
 
-    // icono (png → jpg → placeholder)
+    // icon con fallback (png → jpg → placeholder)
     const img = document.createElement("img");
     img.alt = it.title;
-    attachImgFallback(img, iconSrcs(it.depId, it.id), li);
+    attachImgFallback(img, iconSrcs(it.depKey, it.id), li);
     li.querySelector(".ix-dep-media").appendChild(img);
 
-    // copy
+    // textos
     li.querySelector("h3").textContent = it.title;
     li.querySelector("p").textContent = it.desc || "Consulta detalles y levanta tu reporte.";
 
     // botón
     const btn = li.querySelector(".ix-dep-add");
     btn.innerHTML = plusSvg;
-    btn.dataset.dep = it.depId;
+    btn.dataset.dep = it.depKey;
     btn.dataset.id = it.id;
     btn.dataset.title = it.title;
     btn.setAttribute("aria-label", `Iniciar ${it.title}`);
@@ -278,11 +231,11 @@ document.addEventListener("DOMContentLoaded", () => {
       </li>
     `);
 
-    // imagen de card (png → jpg → placeholder)
+    // photo con fallback (png → jpg → placeholder)
     const img = document.createElement("img");
     img.alt = it.title;
     img.loading = "lazy";
-    attachImgFallback(img, cardSrcs(it.depId, it.id), li);
+    attachImgFallback(img, cardSrcs(it.depKey, it.id), li);
     li.querySelector(".ix-card-img").appendChild(img);
 
     // textos
@@ -292,7 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // botón
     const btn = li.querySelector(".ix-dep-add");
-    btn.dataset.dep = it.depId;
+    btn.dataset.dep = it.depKey;
     btn.dataset.id = it.id;
     btn.dataset.title = it.title;
     btn.setAttribute("aria-label", `Iniciar ${it.title}`);
@@ -300,21 +253,121 @@ document.addEventListener("DOMContentLoaded", () => {
     return li;
   }
 
-  function reRender(items) {
+  const renderInactive = (conf, key) => {
+    listEl.innerHTML = `
+      <li class="ix-dep-empty">
+        <p><strong>${conf.name || key}</strong>: Módulo inactivo.</p>
+        <p>Próximamente estará disponible esta sección.</p>
+      </li>
+    `;
+  };
+
+  const renderSkeleton = (n = 4) => {
     listEl.innerHTML = "";
-    if (!Array.isArray(items) || !items.length) return renderEmpty();
+    for (let i = 0; i < n; i++) {
+      listEl.appendChild(el(`
+        <li class="ix-dep-item ix-skel">
+          <div class="ix-dep-media"><span class="sk sk-ico"></span></div>
+          <div class="ix-dep-content">
+            <h3><span class="sk sk-title"></span></h3>
+            <p><span class="sk sk-text"></span></p>
+          </div>
+          <div class="sk sk-btn" aria-hidden="true"></div>
+        </li>
+      `));
+    }
+  };
+
+  const renderError = (msg, onRetry) => {
+    listEl.innerHTML = "";
+    const li = el(`
+      <li class="ix-dep-empty">
+        <p><strong>Error:</strong> ${msg || "No se pudieron cargar los trámites."}</p>
+        <p><button type="button" class="ix-btn ix-btn--retry">Reintentar</button></p>
+      </li>
+    `);
+    li.querySelector(".ix-btn--retry").addEventListener("click", onRetry);
+    listEl.appendChild(li);
+  };
+
+  function reRender(conf) {
+    listEl.innerHTML = "";
+    const items = conf.items || [];
+
+    if (!items.length) {
+      listEl.innerHTML = `
+        <li class="ix-dep-empty">
+          <p>No hay trámites disponibles para este departamento.</p>
+        </li>
+      `;
+      return;
+    }
 
     const v = getView();
-    panel.classList.toggle("view-list",  v === "list");
+    panel.classList.toggle("view-list", v === "list");
     panel.classList.toggle("view-cards", v === "cards");
     btnList.setAttribute("aria-pressed", String(v === "list"));
     btnGrid.setAttribute("aria-pressed", String(v === "cards"));
 
     const renderer = v === "cards" ? renderCardItem : renderListItem;
-    items.forEach(it => listEl.appendChild(renderer(it)));
+    items.forEach((it) => listEl.appendChild(renderer(it)));
   }
 
-  // ========= Estado de página =========
+  // ---------- Carga/filtrado desde API ----------
+  async function loadDepCatalog(depKey, { force = false } = {}) {
+    const conf = DEPS[depKey];
+    if (!conf || conf.inactive) return;
+
+    // cache first
+    if (!force) {
+      const hit = cacheGet(cacheKey(depKey));
+      if (hit && Array.isArray(hit)) {
+        conf.items = hit;
+        reRender(conf);
+        ixLog("catalogo desde cache", depKey, hit);
+        return;
+      }
+    }
+
+    renderSkeleton(4);
+
+    try {
+      const json = await API.fetchTramites(depKey);
+
+      const raw = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+
+      // FILTRO DURO: solo los del dep y activos 
+      const depId = Number(depKey);
+      const rows = raw.filter(r => Number(r?.departamento_id) === depId && Number(r?.estatus) === 1);
+
+      const items = rows.map(r => adaptItem(r, depKey))
+        .sort((a, b) => Number(a.id) - Number(b.id));
+
+      conf.items = items;
+      cacheSet(cacheKey(depKey), items);
+      reRender(conf);
+      ixLog("catalogo desde API", depKey, items);
+    } catch (err) {
+      ixLog("falló catalogo dep", depKey, err?.message || err);
+      renderError("No se pudo cargar el catálogo.", () => loadDepCatalog(depKey, { force: true }));
+    }
+  }
+
+  // ---------- Toolbar (cambiar list/cards) ----------
+  btnList.addEventListener("click", () => {
+    if (getView() === "list") return;
+    setView("list");
+    const conf = DEPS[panel.dataset.dep];
+    if (conf) reRender(conf);
+  });
+  btnGrid.addEventListener("click", () => {
+    if (getView() === "cards") return;
+    setView("cards");
+    const conf = DEPS[panel.dataset.dep];
+    if (conf) reRender(conf);
+  });
+
+  // ---------- Estados de página ----------
   function showDefault() {
     panel.hidden = true; listEl.innerHTML = "";
     note.hidden = false; grid.style.display = "";
@@ -322,88 +375,47 @@ document.addEventListener("DOMContentLoaded", () => {
     document.title = "Trámites / Departamentos";
   }
 
-  // parsea depId desde query (acepto alias de cortesía, pero la neta usamos números)
-  const ALIAS = { samapa: 1, simapa: 1, limpieza: 2, obras: 3, alumbrado: 4, ambiental: 5 };
-  const parseDepParam = (raw) => {
-    if (!raw) return null;
-    const s = String(raw).toLowerCase();
-    if (ALIAS[s]) return ALIAS[s];
-    const n = parseInt(s, 10);
-    return Number.isFinite(n) ? n : null;
-  };
+  async function showDep(rawKey) {
+    const key = normDepKey(rawKey);
+    const conf = DEPS[key];
+    if (!conf) return showDefault();
 
-  // ========= Carga del módulo =========
-  async function showDep(rawParam) {
-    const depId = parseDepParam(rawParam);
-    if (!depId) return showDefault();
-
-    // UI: mostrar panel, ocultar grid
     grid.style.display = "none";
     note.hidden = true;
     panel.hidden = false;
-    panel.dataset.dep = String(depId);
+    panel.dataset.dep = key;
 
-    // cargo meta de departamentos (para título bonito si existe)
-    let depMeta = {};
-    try { depMeta = await fetchDeps(); } catch (e) { ixLog("dep meta falló:", e?.message || e); }
+    const depName = conf.name || key;
+    h2.textContent = `${depName}`;
+    panel.querySelector(".ix-dep-heading").textContent = conf.title || "Trámites disponibles";
+    document.title = `Trámites – ${depName}`;
 
-    const nombreDep = depMeta[depId]?.nombre || `Departamento #${depId}`;
-    h2.textContent = `${nombreDep}`;
-    panel.querySelector(".ix-dep-heading").textContent = "Trámites disponibles";
-    document.title = `Trámites – ${nombreDep}`;
+    if (conf.inactive) { renderInactive(conf, key); return; }
 
-    // muestro skeleton mientras jalo la lista
-    renderSkeleton(4);
+    await loadDepCatalog(key);
 
-    try {
-      const items = await fetchTramitesByDep(depId);
-      reRender(items);
-
-      // deep-link: si viene ?req=<id>, abro el modal directo
-      const req = new URLSearchParams(location.search).get("req");
-      if (req && window.ixReportModal?.open) {
-        const it = items.find(x => String(x.id) === String(req));
-        if (it) ixReportModal.open({ title: it.title, depKey: String(depId), itemId: it.id, sla: it.sla || "-" });
+    // deep-link: si viene ?req=<id>, abro el modal directo
+    const reqParam = new URLSearchParams(location.search).get("req");
+    if (reqParam && Array.isArray(conf.items)) {
+      const it = conf.items.find(x => String(x.id) === String(reqParam));
+      if (it && window.ixReportModal?.open) {
+        ixReportModal.open({ title: it.title, depKey: key, itemId: it.id, sla: it.sla || "-" });
       }
-    } catch (err) {
-      ixLog("catalogo dep falló:", err?.message || err);
-      renderError("No se pudo cargar el catálogo.", () => showDep(depId)); // reintento simple
     }
   }
 
-  // ========= Toolbar: cambiar list/cards =========
-  btnList.addEventListener("click", () => {
-    if (getView() === "list") return;
-    setView("list");
-    // re-render con lo que haya en DOM (agarro items de botones… meh, más fácil volver a pintar leyendo datasets)
-    const depId = parseDepParam(panel.dataset.dep);
-    if (!depId) return;
-    // truco rápido: re-levanto modelos desde DOM (suficiente para conmutar vista sin refetch)
-    const items = [...listEl.querySelectorAll(".ix-dep-add")].map(btn => ({
-      id: btn.dataset.id, depId: String(depId), title: btn.dataset.title, desc: btn.closest(".ix-dep-item")?.querySelector(".ix-card-desc, .ix-dep-content p")?.textContent || "", sla: btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent || "-"
-    }));
-    reRender(items);
-  });
-  btnGrid.addEventListener("click", () => {
-    if (getView() === "cards") return;
-    setView("cards");
-    const depId = parseDepParam(panel.dataset.dep);
-    if (!depId) return;
-    const items = [...listEl.querySelectorAll(".ix-dep-add")].map(btn => ({
-      id: btn.dataset.id, depId: String(depId), title: btn.dataset.title, desc: btn.closest(".ix-dep-item")?.querySelector(".ix-dep-content p, .ix-card-desc")?.textContent || "", sla: btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent || "-"
-    }));
-    reRender(items);
-  });
-
-  // ========= Click en “Crear/+” → abre modal =========
+  // ---------- Click en “Crear/+” (abre modal) ----------
   panel.addEventListener("click", (e) => {
     const btn = e.target.closest(".ix-dep-add");
     if (!btn) return;
 
     const depKey = panel.dataset.dep;
-    const title  = btn.dataset.title || "Trámite";
+    const conf = DEPS[depKey];
     const itemId = btn.dataset.id;
-    const sla    = btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent || "-";
+    const item = (conf?.items || []).find(x => String(x.id) === String(itemId));
+
+    const title = btn.dataset.title || item?.title || "Trámite";
+    const sla = item?.sla || "-";
 
     if (window.ixReportModal?.open) {
       ixReportModal.open({ title, depKey, itemId, sla }, btn);
@@ -412,23 +424,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ========= Estado inicial por URL  =========
+  // ---------- Estado inicial por URL ----------
   const params = new URLSearchParams(window.location.search);
-  const depParam = params.get("depId") || params.get("dep");
+  const depParam = params.get("depId");   // soporta id o alias
   depParam ? showDep(depParam) : showDefault();
 
-  // back/forward
+  // back/forward (por si cambian manualmente la URL)
   window.addEventListener("popstate", () => {
-    const p = new URLSearchParams(window.location.search);
-    const q = p.get("depId") || p.get("dep");
-    q ? showDep(q) : showDefault();
+    const p = new URLSearchParams(window.location.search).get("depId");
+    p ? showDep(p) : showDefault();
   });
 
-  // estado visual inicial de los toggles
+  // estado visual inicial de los botones según preferencia guardada
   const v = getView();
   btnList.setAttribute("aria-pressed", String(v === "list"));
   btnGrid.setAttribute("aria-pressed", String(v === "cards"));
-  panel.classList.toggle("view-list",  v === "list");
+  panel.classList.toggle("view-list", v === "list");
   panel.classList.toggle("view-cards", v === "cards");
 });
 
