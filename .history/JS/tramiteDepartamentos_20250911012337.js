@@ -481,11 +481,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const CFG = { MAX_FILES: 3, MAX_MB: 5, TYPES: ["image/jpeg","image/png"] };
 
   // ---------- estado interno
-  let files = [];                   
-  let openerBtn = null;             
-  let trapHandler = null;           
-  let hasAttemptedSubmit = false;   
+  let files = [];                   // File[]
+  let openerBtn = null;             // para devolver foco
+  let trapHandler = null;           // focus trap
+  let hasAttemptedSubmit = false;   // no mostramos errores hasta primer submit
 
+  // ============= EJEMPLO: 3 CPs con 3 colonias cada uno =============
+  // Ojo: un CP puede tener varias colonias; cada colonia pertenece a un solo CP (1:N).
   const CP_CATALOG = {
     "45670": ["Centro", "La Loma", "San Miguel"],
     "45671": ["San Isidro", "El Fresno", "Arboledas"],
