@@ -1222,70 +1222,91 @@
 
 
 
+/* =========================
+   Layout y field fixes
+   ========================= */
 
-
+/* 2 columnas sólidas y sin recortes */
 .ix-modal .ix-row.ix-row--two {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 18px;
 }
 
+/* Evita cortes por ancho/overflow en fields */
 .ix-modal .ix-field { 
   min-width: 0; 
   margin-bottom: 14px;
 }
 
+/* Etiquetas consistentes */
 .ix-modal .ix-field .ix-label {
   display: block;
   margin-bottom: 8px;
 }
 
+/* Controles base: alto mínimo y box model coherente */
 .ix-modal .ix-field input,
 .ix-modal .ix-field select,
 .ix-modal .ix-field textarea {
   width: 100%;
   min-height: 42px;
   line-height: 1.3;
-  padding: 8px 0;              
+  padding: 8px 0;              /* sin padding lateral para el look limpio */
   box-sizing: border-box;
 }
 
+/* Si muestras mensajes de ayuda/errores, reserva altura para que no “salte” el layout */
 .ix-modal .ix-field .ix-help { 
   display: block; 
   min-height: 18px; 
 }
 
+/* =========================
+   Selects (CP / Colonia) DISCRETOS
+   ========================= */
+
+/* Quita cualquier borde/subrayado previo y deja caret sutil */
 .ix-modal #ix-cp,
 .ix-modal #ix-colonia {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
-  border: 0 !important;         
+  border: 0 !important;             /* fuerza quitar border/bottom previos */
   border-bottom: 0 !important;
   background: transparent;
-  padding-right: 22px;               
+  padding-right: 22px;               /* espacio para caret */
   cursor: pointer;
 
+  /* caret gris suave */
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%239aa3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
   background-repeat: no-repeat;
   background-position: right 2px center;
   background-size: 16px 16px;
 }
 
+/* Hover/focus ultra sutil (sin líneas extra) */
 .ix-modal #ix-cp:hover,
 .ix-modal #ix-colonia:hover { filter: brightness(0.98); }
 .ix-modal #ix-cp:focus,
 .ix-modal #ix-colonia:focus { outline: none; box-shadow: none; }
 
+/* Disabled */
 .ix-modal #ix-colonia:disabled { opacity: .6; cursor: not-allowed; }
 
+/* Error (si el field padre tiene clase) sólo colorea el texto para no agregar bordes */
 .ix-modal .ix-field.ix-field--error #ix-cp,
 .ix-modal .ix-field.ix-field--error #ix-colonia {
   color: #dc2626;
 }
 
+/* =========================
+   Evidencia: centrar botón + texto
+   ========================= */
+
+/* Centrar TODO el contenido dentro del uploader */
 .ix-modal .ix-upload {
-  display: flex !important;         
+  display: flex !important;         /* sobreescribe grid previo si lo había */
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -1298,6 +1319,7 @@
   border-radius: 12px;
 }
 
+/* Botón centrado y con look suave */
 .ix-modal .ix-upload-btn {
   align-self: center;
   height: 36px;
@@ -1314,6 +1336,7 @@
 .ix-modal .ix-upload-btn:hover { background: #dfe8ff; border-color: #bcd0ff; }
 .ix-modal .ix-upload-btn:active { transform: translateY(1px); }
 
+/* Copys dentro del uploader */
 .ix-modal .ix-upload p,
 .ix-modal .ix-upload small {
   margin: 0;
@@ -1321,6 +1344,7 @@
   color: #6b7280;
 }
 
+/* Previews si los muestras */
 .ix-modal #ix-evidencia-previews {
   display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px;
 }
@@ -1337,6 +1361,9 @@
 }
 .ix-modal #ix-evidencia-previews figure > button:hover { background: rgba(17,24,39,.9); }
 
+/* =========================
+   Responsivo sutil
+   ========================= */
 @media (min-width: 720px) {
   .ix-modal .ix-upload { padding: 22px; }
 }
