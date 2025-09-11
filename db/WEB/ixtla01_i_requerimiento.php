@@ -1,6 +1,5 @@
 <?php
 header('Content-Type: application/json');
-date_default_timezone_set('America/Mexico_City');
 
 $path = realpath("/home/site/wwwroot/db/conn/conexion.php");
 if ($path && file_exists($path)) { include $path; }
