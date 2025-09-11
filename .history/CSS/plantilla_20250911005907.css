@@ -22,7 +22,7 @@
   --ix-fg: #222;
   --ix-muted: #797777;
 
-  --ix-green: #859F8E;      
+  --ix-green: #008000;      
   --ix-green-soft: #f3f7f3;
   --ix-green-soft2:#f7fff9;
 
@@ -119,7 +119,7 @@ header.scrolled .subnav{
   padding:5px 12px; border-radius:20px;
   font-size:1rem; font-weight:bold; cursor:pointer;
   max-width:200px; min-height:40px;
-  background:#859F8E; border:none; color:#fff;
+  background:#318264; border:none; color:#fff;
 }
 .btn-outline{
   background:var(--ix-white);

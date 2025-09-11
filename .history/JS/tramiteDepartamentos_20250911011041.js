@@ -443,7 +443,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-//--------------------------------------------------- modal para SAMAPA 
+//--------------------------------------------------- modal para SAMAPA (parchado: CP select + colonia auto + botón subir + validación post-submit)
 (() => {
   const modal = document.getElementById("ix-report-modal");
   if (!modal) {
