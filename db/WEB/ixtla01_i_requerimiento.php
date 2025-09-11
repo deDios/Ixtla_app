@@ -49,7 +49,7 @@ if (!$con) die(json_encode(["ok"=>false, "error"=>"No se pudo conectar a la base
 $con->set_charset('utf8mb4');
 $con->query("SET time_zone='-06:00'");
 
-/* INSERT simple */
+/* INSERT simple (18 columnas/18 placeholders) */
 $sql = "INSERT INTO requerimiento (
   folio, departamento_id, tramite_id, asignado_a,
   asunto, descripcion, prioridad, estatus, canal,
@@ -59,13 +59,28 @@ $sql = "INSERT INTO requerimiento (
 ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
 $stmt = $con->prepare($sql);
+
+/* 18 tipos para 18 variables, en el mismo orden */
 $stmt->bind_param(
-  "siiissiiissssssssii",
-  $folio, $departamento_id, $tramite_id, $asignado_a,
-  $asunto, $descripcion, $prioridad, $estatus, $canal,
-  $contacto_nombre, $contacto_email, $contacto_tel,
-  $contacto_calle, $contacto_colonia, $contacto_cp,
-  $fecha_limite, $status, $created_by
+  "siiissiiisssssssii",
+  $folio,            // s
+  $departamento_id,  // i
+  $tramite_id,       // i
+  $asignado_a,       // i (puede ser NULL)
+  $asunto,           // s
+  $descripcion,      // s
+  $prioridad,        // i
+  $estatus,          // i
+  $canal,            // i
+  $contacto_nombre,  // s
+  $contacto_email,   // s
+  $contacto_tel,     // s
+  $contacto_calle,   // s
+  $contacto_colonia, // s
+  $contacto_cp,      // s
+  $fecha_limite,     // s
+  $status,           // i
+  $created_by        // i
 );
 
 if (!$stmt->execute()) {
