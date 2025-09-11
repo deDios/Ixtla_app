@@ -6,11 +6,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- debugcito opt-in
   if (typeof window.IX_DEBUG === "undefined") window.IX_DEBUG = true;
-  const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch { } };
+  const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch {} };
 
   const grid = wrap.querySelector(".ix-grid");
   const note = wrap.querySelector(".ix-note");
-  const h2 = wrap.querySelector("#deps-title");
+  const h2   = wrap.querySelector("#deps-title");
 
   // ---------- Preferencia de vista (list/cards) ----------
   const VIEW_KEY = "ix_deps_view";
@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
     wrap.appendChild(panel);
   }
 
-  const listEl = panel.querySelector("#ix-dep-list");
+  const listEl  = panel.querySelector("#ix-dep-list");
   const btnList = panel.querySelector(".ix-action--list");
   const btnGrid = panel.querySelector(".ix-action--grid");
 
@@ -72,9 +72,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const FOLDERS = { "1": "Simapa", "2": "Limpieza", "3": "Obras", "4": "Alumbrado", "5": "Ambiental" };
 
   // donde viven los assets y los placeholders compartidos
-  const ASSETS_BASE = "/ASSETS/departamentos/modulosAssets";
-  const ICON_PLACEHOLDER = "/ASSETS/departamentos/placeholder_icon.png";
-  const CARD_PLACEHOLDER = "/ASSETS/departamentos/placeholder_card.png";
+  const ASSETS_BASE       = "/ASSETS/departamentos/modulosAssets";
+  const ICON_PLACEHOLDER  = "/ASSETS/departamentos/placeholder_icon.png";
+  const CARD_PLACEHOLDER  = "/ASSETS/departamentos/placeholder_card.png";
 
   // helpers para rutas de assets por id
   const iconSrcs = (depKey, id) => {
@@ -115,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- API + cache ----------
   const TIMEOUT_MS = 12000;             // me protejo de un back lento
-  const CACHE_TTL = 10 * 60 * 1000;    // 10 min
+  const CACHE_TTL  = 10 * 60 * 1000;    // 10 min
 
   const API = {
     url: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_tramite.php",
@@ -153,24 +153,24 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch { return null; }
   };
   const cacheSet = (k, v, ttl = CACHE_TTL) => {
-    try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v })); } catch { }
+    try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v })); } catch {}
   };
 
   // ---------- Metadatos de deps (items llegan de API) ----------
   const DEPS = {
     "1": { name: "SAMAPA", title: "Trámites disponibles", inactive: false, items: null },
-    "2": { name: "Recolección y limpieza", inactive: true },
-    "3": { name: "Obras y servicios públicos", inactive: true },
-    "4": { name: "Alumbrado y energía urbana", inactive: true },
-    "5": { name: "Gestión ambiental y ecología", inactive: true },
+    "2": { name: "Recolección y limpieza",      inactive: true },
+    "3": { name: "Obras y servicios públicos",  inactive: true },
+    "4": { name: "Alumbrado y energía urbana",  inactive: true },
+    "5": { name: "Gestión ambiental y ecología",inactive: true },
   };
 
   // ---------- Adaptador API -> UI ----------
   const adaptItem = (row, depKey) => {
-    const id = Number(row.id);
+    const id    = Number(row.id);
     const title = String(row.nombre || "Trámite").trim();
-    const desc = String(row.descripcion || "").trim();
-    const sla = null; // si luego el back manda un campo SLA, lo mapeamos aquí
+    const desc  = String(row.descripcion || "").trim();
+    const sla   = null; // si luego el back manda un campo SLA, lo mapeamos aquí
     return { id: String(id), title, desc, sla, depKey };
   };
 
@@ -180,7 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     </svg>`.trim();
 
-  const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+  const el = (html) => { const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; };
 
   function renderListItem(it) {
     // armo el li “a mano” para poder inyectar imgs con fallback
@@ -304,7 +304,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const v = getView();
-    panel.classList.toggle("view-list", v === "list");
+    panel.classList.toggle("view-list",  v === "list");
     panel.classList.toggle("view-cards", v === "cards");
     btnList.setAttribute("aria-pressed", String(v === "list"));
     btnGrid.setAttribute("aria-pressed", String(v === "cards"));
@@ -329,19 +329,22 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    // skeleton mientras pido
     renderSkeleton(4);
 
     try {
       const json = await API.fetchTramites(depKey);
 
+      // tomo el array de forma tolerante
       const raw = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
 
-      // FILTRO DURO: solo los del dep y activos 
+      // FILTRO DURO: solo los del dep y activos (por si el back manda todo)
       const depId = Number(depKey);
       const rows = raw.filter(r => Number(r?.departamento_id) === depId && Number(r?.estatus) === 1);
 
+      // adapto a mi UI y ordeno por id asc (numérico)
       const items = rows.map(r => adaptItem(r, depKey))
-        .sort((a, b) => Number(a.id) - Number(b.id));
+                        .sort((a, b) => Number(a.id) - Number(b.id));
 
       conf.items = items;
       cacheSet(cacheKey(depKey), items);
@@ -410,12 +413,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!btn) return;
 
     const depKey = panel.dataset.dep;
-    const conf = DEPS[depKey];
+    const conf   = DEPS[depKey];
     const itemId = btn.dataset.id;
-    const item = (conf?.items || []).find(x => String(x.id) === String(itemId));
+    const item   = (conf?.items || []).find(x => String(x.id) === String(itemId));
 
     const title = btn.dataset.title || item?.title || "Trámite";
-    const sla = item?.sla || "-";
+    const sla   = item?.sla || "-";
 
     if (window.ixReportModal?.open) {
       ixReportModal.open({ title, depKey, itemId, sla }, btn);
@@ -425,7 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ---------- Estado inicial por URL ----------
-  const params = new URLSearchParams(window.location.search);
+  const params   = new URLSearchParams(window.location.search);
   const depParam = params.get("depId");   // soporta id o alias
   depParam ? showDep(depParam) : showDefault();
 
@@ -439,7 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const v = getView();
   btnList.setAttribute("aria-pressed", String(v === "list"));
   btnGrid.setAttribute("aria-pressed", String(v === "cards"));
-  panel.classList.toggle("view-list", v === "list");
+  panel.classList.toggle("view-list",  v === "list");
   panel.classList.toggle("view-cards", v === "cards");
 });
 

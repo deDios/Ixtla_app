@@ -1,23 +1,18 @@
-//----------------------------- modulo de departamentos (catálogo vía API + placeholders)
+//----------------------------- modulo de departamentos.
 document.addEventListener("DOMContentLoaded", () => {
-  // checo que exista la vista de tramites; si no, me salgo sin ruido
   const wrap = document.querySelector("#tramites .ix-wrap");
   if (!wrap) return;
-
-  // --- debugcito opt-in
-  if (typeof window.IX_DEBUG === "undefined") window.IX_DEBUG = true;
-  const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch { } };
 
   const grid = wrap.querySelector(".ix-grid");
   const note = wrap.querySelector(".ix-note");
   const h2 = wrap.querySelector("#deps-title");
 
-  // ---------- Preferencia de vista (list/cards) ----------
+  // ---------- Preferencia de vista ----------
   const VIEW_KEY = "ix_deps_view";
-  const getView = () => sessionStorage.getItem(VIEW_KEY) || "list";
+  const getView = () => sessionStorage.getItem(VIEW_KEY) || "list"; // 'list' | 'cards'
   const setView = (v) => sessionStorage.setItem(VIEW_KEY, v);
 
-  // ---------- Panel del módulo (lo creo si no existe) ----------
+  // Crea el panel si no existe
   let panel = wrap.querySelector(".ix-dep-panel");
   if (!panel) {
     panel = document.createElement("div");
@@ -47,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </button>
         </div>
       </div>
-      <ul class="ix-dep-list" id="ix-dep-list" aria-live="polite"></ul>
+      <ul class="ix-dep-list" id="ix-dep-list"></ul>
       <a class="ix-dep-back" href="/VIEWS/tramiteDepartamento.php">← Ver todos los departamentos</a>
     `;
     wrap.appendChild(panel);
@@ -57,326 +52,165 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnList = panel.querySelector(".ix-action--list");
   const btnGrid = panel.querySelector(".ix-action--grid");
 
-  // ---------- Normalizaciones/constantes ----------
-  // alias → id numérico. Si mañana agregas más alias, solo extiende aquí.
-  const DEP_KEYMAP = {
-    simapa: "1", samapa: "1", "1": "1",
-    limpieza: "2", "2": "2",
-    obras: "3", "3": "3",
-    alumbrado: "4", "4": "4",
-    ambiental: "5", "5": "5",
-  };
-  const normDepKey = (raw) => DEP_KEYMAP[String(raw || "").toLowerCase()] || String(raw || "").toLowerCase();
+  // ---------- Catálogo ----------
+  const alias = (v) => (v === "simapa" ? "samapa" : v);
 
-  // carpetas por departamento (cuidado con mayúsculas en server Linux)
-  const FOLDERS = { "1": "Simapa", "2": "Limpieza", "3": "Obras", "4": "Alumbrado", "5": "Ambiental" };
-
-  // donde viven los assets y los placeholders compartidos
-  const ASSETS_BASE = "/ASSETS/departamentos/modulosAssets";
-  const ICON_PLACEHOLDER = "/ASSETS/departamentos/placeholder_icon.png";
-  const CARD_PLACEHOLDER = "/ASSETS/departamentos/placeholder_card.png";
-
-  // helpers para rutas de assets por id
-  const iconSrcs = (depKey, id) => {
-    const folder = FOLDERS[depKey] || `dep-${depKey}`;
-    return [
-      `${ASSETS_BASE}/${folder}/req_icon${id}.png`,
-      `${ASSETS_BASE}/${folder}/req_icon${id}.jpg`,
-      ICON_PLACEHOLDER,
-    ];
-  };
-  const cardSrcs = (depKey, id) => {
-    const folder = FOLDERS[depKey] || `dep-${depKey}`;
-    return [
-      `${ASSETS_BASE}/${folder}/req_card${id}.png`,
-      `${ASSETS_BASE}/${folder}/req_card${id}.jpg`,
-      CARD_PLACEHOLDER,
-    ];
-  };
-
-  // pega listeners de fallback de imagen (si falla png → jpg → placeholder)
-  function attachImgFallback(img, srcList, liForFlag) {
-    let idx = 0;
-    const setSrc = () => { img.src = srcList[idx]; };
-    img.addEventListener("error", () => {
-      if (idx < srcList.length - 1) {
-        idx++;
-        setSrc();
-      } else {
-        // ya caímos en el último (placeholder), marco para debug/estilos
-        if (liForFlag) {
-          liForFlag.classList.add("asset-missing");
-          liForFlag.dataset.missingAsset = "true";
-        }
-      }
-    }, { passive: true });
-    setSrc();
-  }
-
-  // ---------- API + cache ----------
-  const TIMEOUT_MS = 12000;             // me protejo de un back lento
-  const CACHE_TTL = 10 * 60 * 1000;    // 10 min
-
-  const API = {
-    url: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_tramite.php",
-    async fetchTramites(depKey) {
-      const depId = Number(depKey);
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-      try {
-        const res = await fetch(API.url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
-          body: JSON.stringify({ departamento_id: depId, all: true }), // igual filtro en cliente por si el back no respeta
-          signal: controller.signal,
-        });
-        clearTimeout(timer);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-      } catch (e) {
-        clearTimeout(timer);
-        throw e;
-      }
-    }
-  };
-
-  const cacheKey = (depKey) => `ix_dep_catalog_${depKey}`;
-  const cacheGet = (k) => {
-    try {
-      const raw = sessionStorage.getItem(k);
-      if (!raw) return null;
-      const obj = JSON.parse(raw);
-      if (!obj || Date.now() - obj.t > (obj.ttl ?? CACHE_TTL)) { sessionStorage.removeItem(k); return null; }
-      return obj.v;
-    } catch { return null; }
-  };
-  const cacheSet = (k, v, ttl = CACHE_TTL) => {
-    try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v })); } catch { }
-  };
-
-  // ---------- Metadatos de deps (items llegan de API) ----------
   const DEPS = {
-    "1": { name: "SAMAPA", title: "Trámites disponibles", inactive: false, items: null },
-    "2": { name: "Recolección y limpieza", inactive: true },
-    "3": { name: "Obras y servicios públicos", inactive: true },
-    "4": { name: "Alumbrado y energía urbana", inactive: true },
-    "5": { name: "Gestión ambiental y ecología", inactive: true },
+    1: {
+      name: "SAMAPA",
+      title: "Trámites disponibles",
+      inactive: false,
+      items: [
+        {
+          id: "fuga-agua",
+          title: "Fuga de agua",
+          desc: "¿Observaste una fuga de agua? Reporta ubicación y detalles; nos contactaremos para atenderla a la brevedad.",
+          icon: "/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua.png",
+          photo:
+            "/ASSETS/departamentos/modulosAssets/Simapa/fuga-agua_card.png",
+          sla: "24h",
+        },
+        {
+          id: "fuga-drenaje",
+          title: "Fuga de drenaje",
+          desc: "¿Detectaste una fuga de drenaje? Informa ubicación y detalles; tu reporte será atendido a la brevedad.",
+          icon: "/ASSETS/departamentos/modulosAssets/Simapa/fuga-drenaje.png",
+          photo:
+            "/ASSETS/departamentos/modulosAssets/Simapa/fuga-drenaje_card.png",
+          sla: "24h",
+        },
+        {
+          id: "sin-agua",
+          title: "No disponemos de agua",
+          desc: "¿No dispones de agua? Indícanos ubicación y detalles; daremos seguimiento para restablecer el servicio.",
+          icon: "/ASSETS/departamentos/modulosAssets/Simapa/sin-agua.png",
+          photo: "/ASSETS/departamentos/modulosAssets/Simapa/sin-agua_card.png",
+          sla: "24h",
+        },
+        {
+          id: "baja-presion",
+          title: "Baja presión de agua",
+          desc: "¿Experimentas baja presión? Indica ubicación y detalles; daremos seguimiento para mejorar el servicio.",
+          icon: "/ASSETS/departamentos/modulosAssets/Simapa/baja-presion.png",
+          photo:
+            "/ASSETS/departamentos/modulosAssets/Simapa/baja-presion_card.png",
+          sla: "24h",
+        },
+        {
+          id: "otros",
+          title: "Otros",
+          desc: "¿Otro problema relacionado con el suministro? Compártenos ubicación y detalles para atenderlo.",
+          icon: "/ASSETS/departamentos/modulosAssets/Simapa/otros.png",
+          photo: "/ASSETS/departamentos/modulosAssets/Simapa/otros_card.png",
+          sla: "24h",
+        },
+      ],
+    },
+    limpieza: { name: "Recolección y limpieza", inactive: true },
+    obras: { name: "Obras y servicios públicos", inactive: true },
+    alumbrado: { name: "Alumbrado y energía urbana", inactive: true },
+    ambiental: { name: "Gestión ambiental y ecología", inactive: true },
   };
 
-  // ---------- Adaptador API -> UI ----------
-  const adaptItem = (row, depKey) => {
-    const id = Number(row.id);
-    const title = String(row.nombre || "Trámite").trim();
-    const desc = String(row.descripcion || "").trim();
-    const sla = null; // si luego el back manda un campo SLA, lo mapeamos aquí
-    return { id: String(id), title, desc, sla, depKey };
-  };
-
-  // ---------- UI helpers ----------
+  // ---------- Renderers ----------
   const plusSvg = `
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       <path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     </svg>`.trim();
 
-  const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
-
-  function renderListItem(it) {
-    // armo el li “a mano” para poder inyectar imgs con fallback
-    const li = el(`
-      <li class="ix-dep-item">
-        <div class="ix-dep-media"></div>
-        <div class="ix-dep-content">
-          <h3></h3>
-          <p></p>
-        </div>
-        <button type="button" class="ix-dep-add" aria-label=""></button>
-      </li>
-    `);
-
-    // icon con fallback (png → jpg → placeholder)
-    const img = document.createElement("img");
-    img.alt = it.title;
-    attachImgFallback(img, iconSrcs(it.depKey, it.id), li);
-    li.querySelector(".ix-dep-media").appendChild(img);
-
-    // textos
-    li.querySelector("h3").textContent = it.title;
-    li.querySelector("p").textContent = it.desc || "Consulta detalles y levanta tu reporte.";
-
-    // botón
-    const btn = li.querySelector(".ix-dep-add");
-    btn.innerHTML = plusSvg;
-    btn.dataset.dep = it.depKey;
-    btn.dataset.id = it.id;
-    btn.dataset.title = it.title;
-    btn.setAttribute("aria-label", `Iniciar ${it.title}`);
-
-    return li;
+  function el(html) {
+    const t = document.createElement("template");
+    t.innerHTML = html.trim();
+    return t.content.firstChild;
   }
 
-  function renderCardItem(it) {
-    const li = el(`
+  function renderListItem(depKey, it) {
+    return el(`
+      <li class="ix-dep-item">
+        <div class="ix-dep-media">${it.icon
+        ? `<img src="${it.icon}" alt="" onerror="this.style.display='none'">`
+        : ""
+      }</div>
+        <div class="ix-dep-content">
+          <h3>${it.title}</h3>
+          <p>${it.desc || ""}</p>
+        </div>
+        <button type="button" class="ix-dep-add" data-dep="${depKey}" data-id="${it.id
+      }" data-title="${it.title}" aria-label="Iniciar ${it.title}">
+          ${plusSvg}
+        </button>
+      </li>
+    `);
+  }
+
+  function renderCardItem(depKey, it) {
+    return el(`
       <li class="ix-dep-item ix-card">
-        <div class="ix-card-img"></div>
+        <div class="ix-card-img">${it.photo
+        ? `<img src="${it.photo}" alt="" onerror="this.parentNode.style.display='none'">`
+        : ""
+      }</div>
         <div class="ix-card-body">
-          <h3 class="ix-card-title"></h3>
-          <p class="ix-card-desc"></p>
+          <h3 class="ix-card-title">${it.title}</h3>
+          <p class="ix-card-desc">${it.desc || ""}</p>
           <div class="ix-card-meta">
-            <small>Tiempo aproximado: <span class="ix-sla"></span></small>
-            <button type="button" class="ix-dep-add ix-card-btn">Crear</button>
+            <small>Tiempo aproximado: ${it.sla || "-"}</small>
+            <button type="button" class="ix-dep-add ix-card-btn" data-dep="${depKey}" data-id="${it.id
+      }" data-title="${it.title}">Crear</button>
           </div>
         </div>
       </li>
     `);
-
-    // photo con fallback (png → jpg → placeholder)
-    const img = document.createElement("img");
-    img.alt = it.title;
-    img.loading = "lazy";
-    attachImgFallback(img, cardSrcs(it.depKey, it.id), li);
-    li.querySelector(".ix-card-img").appendChild(img);
-
-    // textos
-    li.querySelector(".ix-card-title").textContent = it.title;
-    li.querySelector(".ix-card-desc").textContent = it.desc || "Consulta detalles y levanta tu reporte.";
-    li.querySelector(".ix-sla").textContent = it.sla || "-";
-
-    // botón
-    const btn = li.querySelector(".ix-dep-add");
-    btn.dataset.dep = it.depKey;
-    btn.dataset.id = it.id;
-    btn.dataset.title = it.title;
-    btn.setAttribute("aria-label", `Iniciar ${it.title}`);
-
-    return li;
   }
 
-  const renderInactive = (conf, key) => {
+  function renderInactive(depKey, conf) {
     listEl.innerHTML = `
       <li class="ix-dep-empty">
-        <p><strong>${conf.name || key}</strong>: Módulo inactivo.</p>
+        <p><strong>${conf.name || depKey}</strong>: Módulo inactivo.</p>
         <p>Próximamente estará disponible esta sección.</p>
       </li>
     `;
-  };
-
-  const renderSkeleton = (n = 4) => {
-    listEl.innerHTML = "";
-    for (let i = 0; i < n; i++) {
-      listEl.appendChild(el(`
-        <li class="ix-dep-item ix-skel">
-          <div class="ix-dep-media"><span class="sk sk-ico"></span></div>
-          <div class="ix-dep-content">
-            <h3><span class="sk sk-title"></span></h3>
-            <p><span class="sk sk-text"></span></p>
-          </div>
-          <div class="sk sk-btn" aria-hidden="true"></div>
-        </li>
-      `));
-    }
-  };
-
-  const renderError = (msg, onRetry) => {
-    listEl.innerHTML = "";
-    const li = el(`
-      <li class="ix-dep-empty">
-        <p><strong>Error:</strong> ${msg || "No se pudieron cargar los trámites."}</p>
-        <p><button type="button" class="ix-btn ix-btn--retry">Reintentar</button></p>
-      </li>
-    `);
-    li.querySelector(".ix-btn--retry").addEventListener("click", onRetry);
-    listEl.appendChild(li);
-  };
+  }
 
   function reRender(conf) {
     listEl.innerHTML = "";
-    const items = conf.items || [];
+    const v = getView(); // 'list' | 'cards'
+    const renderer = v === "cards" ? renderCardItem : renderListItem;
+    (conf.items || []).forEach((it) =>
+      listEl.appendChild(renderer(panel.dataset.dep, it))
+    );
 
-    if (!items.length) {
-      listEl.innerHTML = `
-        <li class="ix-dep-empty">
-          <p>No hay trámites disponibles para este departamento.</p>
-        </li>
-      `;
-      return;
-    }
-
-    const v = getView();
+    // toggle clases y estado visual de botones
     panel.classList.toggle("view-list", v === "list");
     panel.classList.toggle("view-cards", v === "cards");
     btnList.setAttribute("aria-pressed", String(v === "list"));
     btnGrid.setAttribute("aria-pressed", String(v === "cards"));
-
-    const renderer = v === "cards" ? renderCardItem : renderListItem;
-    items.forEach((it) => listEl.appendChild(renderer(it)));
   }
 
-  // ---------- Carga/filtrado desde API ----------
-  async function loadDepCatalog(depKey, { force = false } = {}) {
-    const conf = DEPS[depKey];
-    if (!conf || conf.inactive) return;
-
-    // cache first
-    if (!force) {
-      const hit = cacheGet(cacheKey(depKey));
-      if (hit && Array.isArray(hit)) {
-        conf.items = hit;
-        reRender(conf);
-        ixLog("catalogo desde cache", depKey, hit);
-        return;
-      }
-    }
-
-    renderSkeleton(4);
-
-    try {
-      const json = await API.fetchTramites(depKey);
-
-      const raw = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-
-      // FILTRO DURO: solo los del dep y activos 
-      const depId = Number(depKey);
-      const rows = raw.filter(r => Number(r?.departamento_id) === depId && Number(r?.estatus) === 1);
-
-      const items = rows.map(r => adaptItem(r, depKey))
-        .sort((a, b) => Number(a.id) - Number(b.id));
-
-      conf.items = items;
-      cacheSet(cacheKey(depKey), items);
-      reRender(conf);
-      ixLog("catalogo desde API", depKey, items);
-    } catch (err) {
-      ixLog("falló catalogo dep", depKey, err?.message || err);
-      renderError("No se pudo cargar el catálogo.", () => loadDepCatalog(depKey, { force: true }));
-    }
-  }
-
-  // ---------- Toolbar (cambiar list/cards) ----------
+  // ---------- Navegación de vista (toolbar) ----------
   btnList.addEventListener("click", () => {
     if (getView() === "list") return;
     setView("list");
-    const conf = DEPS[panel.dataset.dep];
-    if (conf) reRender(conf);
+    reRender(DEPS[panel.dataset.dep]);
   });
   btnGrid.addEventListener("click", () => {
     if (getView() === "cards") return;
     setView("cards");
-    const conf = DEPS[panel.dataset.dep];
-    if (conf) reRender(conf);
+    reRender(DEPS[panel.dataset.dep]);
   });
 
   // ---------- Estados de página ----------
   function showDefault() {
-    panel.hidden = true; listEl.innerHTML = "";
-    note.hidden = false; grid.style.display = "";
+    panel.hidden = true;
+    listEl.innerHTML = "";
+    note.hidden = false;
+    grid.style.display = "";
     h2.textContent = "Selecciona un Departamento";
     document.title = "Trámites / Departamentos";
   }
 
-  async function showDep(rawKey) {
-    const key = normDepKey(rawKey);
+  function showDep(rawKey) {
+    const key = alias((rawKey || "").toLowerCase());
     const conf = DEPS[key];
     if (!conf) return showDefault();
 
@@ -387,62 +221,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const depName = conf.name || key;
     h2.textContent = `${depName}`;
-    panel.querySelector(".ix-dep-heading").textContent = conf.title || "Trámites disponibles";
+    panel.querySelector(".ix-dep-heading").textContent =
+      conf.title || "Trámites disponibles";
     document.title = `Trámites – ${depName}`;
 
-    if (conf.inactive) { renderInactive(conf, key); return; }
-
-    await loadDepCatalog(key);
-
-    // deep-link: si viene ?req=<id>, abro el modal directo
-    const reqParam = new URLSearchParams(location.search).get("req");
-    if (reqParam && Array.isArray(conf.items)) {
-      const it = conf.items.find(x => String(x.id) === String(reqParam));
-      if (it && window.ixReportModal?.open) {
-        ixReportModal.open({ title: it.title, depKey: key, itemId: it.id, sla: it.sla || "-" });
-      }
+    if (conf.inactive) {
+      renderInactive(key, conf);
+      return;
     }
+    reRender(conf);
   }
 
-  // ---------- Click en “Crear/+” (abre modal) ----------
+  // Click en “Crear” / “+” aca es donde ira cargando para cada modal
   panel.addEventListener("click", (e) => {
     const btn = e.target.closest(".ix-dep-add");
     if (!btn) return;
 
-    const depKey = panel.dataset.dep;
+    // Dep actual e item seleccionado
+    const depKey = panel.dataset.dep;             // ej. "1" (SAMAPA) o "samapa"
     const conf = DEPS[depKey];
-    const itemId = btn.dataset.id;
-    const item = (conf?.items || []).find(x => String(x.id) === String(itemId));
+    const itemId = btn.dataset.id;                // ej. "fuga-agua"
+    const item = (conf?.items || []).find(x => x.id === itemId);
 
     const title = btn.dataset.title || item?.title || "Trámite";
     const sla = item?.sla || "-";
 
+    // Abre el modal si está cargado; si no, fallback al toast
     if (window.ixReportModal?.open) {
       ixReportModal.open({ title, depKey, itemId, sla }, btn);
     } else {
-      window.gcToast ? gcToast(`Abrir formulario: ${title}`, "info", 2200) : alert(`Abrir formulario: ${title}`);
+      window.gcToast
+        ? gcToast(`Abrir formulario: ${title}`, "info", 2200)
+        : alert(`Abrir formulario: ${title}`);
     }
   });
 
-  // ---------- Estado inicial por URL ----------
+  // Estado inicial por URL
+  //depId=samapa
   const params = new URLSearchParams(window.location.search);
-  const depParam = params.get("depId");   // soporta id o alias
+  const depParam = params.get("depId");
   depParam ? showDep(depParam) : showDefault();
 
-  // back/forward (por si cambian manualmente la URL)
+  // back/forward (si cambian la URL)
   window.addEventListener("popstate", () => {
-    const p = new URLSearchParams(window.location.search).get("depId");
+    const p = new URLSearchParams(window.location.search).get("dep");
     p ? showDep(p) : showDefault();
   });
 
-  // estado visual inicial de los botones según preferencia guardada
+  // Ajusta estado visual inicial de los botones según preferencia guardada
   const v = getView();
   btnList.setAttribute("aria-pressed", String(v === "list"));
   btnGrid.setAttribute("aria-pressed", String(v === "cards"));
   panel.classList.toggle("view-list", v === "list");
   panel.classList.toggle("view-cards", v === "cards");
 });
-
 
 
 

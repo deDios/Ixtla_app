@@ -329,6 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    // skeleton mientras pido
     renderSkeleton(4);
 
     try {
