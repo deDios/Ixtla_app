@@ -776,6 +776,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+
   // ---------- Submit (simulado)
   form.addEventListener("submit", (e) => {
     e.preventDefault();

@@ -5,12 +5,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- mini debug
   if (typeof window.IX_DEBUG === "undefined") window.IX_DEBUG = true;
-  const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch { } };
+  const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch {} };
 
   // refs base de la vista
   const grid = wrap.querySelector(".ix-grid");
   const note = wrap.querySelector(".ix-note");
-  const h2 = wrap.querySelector("#deps-title");
+  const h2   = wrap.querySelector("#deps-title");
 
   // ========= Preferencia de vista (list/cards) =========
   const VIEW_KEY = "ix_deps_view";
@@ -53,13 +53,13 @@ document.addEventListener("DOMContentLoaded", () => {
     wrap.appendChild(panel);
   }
 
-  const listEl = panel.querySelector("#ix-dep-list");
+  const listEl  = panel.querySelector("#ix-dep-list");
   const btnList = panel.querySelector(".ix-action--list");
   const btnGrid = panel.querySelector(".ix-action--grid");
 
   // ========= Endpoints (HTTPS sí o sí para evitar mixed content) =========
   const ENDPOINTS = {
-    deps: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
+    deps:    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
     tramite: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_tramite.php",
   };
 
@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch { return null; }
   };
   const cacheSet = (k, v, ttl = CACHE_TTL) => {
-    try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v })); } catch { }
+    try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v })); } catch {}
   };
 
   // ========= Config de assets (cero slugs, todo por ID) =========
@@ -180,8 +180,8 @@ document.addEventListener("DOMContentLoaded", () => {
       desc: String(r?.descripcion || "").trim(),
       sla: null,                               // por ahora n/a
     }))
-      // orden por id asc numérico (simple y estable)
-      .sort((a, b) => Number(a.id) - Number(b.id));
+    // orden por id asc numérico (simple y estable)
+    .sort((a, b) => Number(a.id) - Number(b.id));
 
     return items;
   }
@@ -192,7 +192,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     </svg>`.trim();
 
-  const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+  const el = (html) => { const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; };
 
   function renderSkeleton(n = 4) {
     listEl.innerHTML = "";
@@ -305,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!Array.isArray(items) || !items.length) return renderEmpty();
 
     const v = getView();
-    panel.classList.toggle("view-list", v === "list");
+    panel.classList.toggle("view-list",  v === "list");
     panel.classList.toggle("view-cards", v === "cards");
     btnList.setAttribute("aria-pressed", String(v === "list"));
     btnGrid.setAttribute("aria-pressed", String(v === "cards"));
@@ -401,9 +401,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!btn) return;
 
     const depKey = panel.dataset.dep;
-    const title = btn.dataset.title || "Trámite";
+    const title  = btn.dataset.title || "Trámite";
     const itemId = btn.dataset.id;
-    const sla = btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent || "-";
+    const sla    = btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent || "-";
 
     if (window.ixReportModal?.open) {
       ixReportModal.open({ title, depKey, itemId, sla }, btn);
@@ -428,7 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const v = getView();
   btnList.setAttribute("aria-pressed", String(v === "list"));
   btnGrid.setAttribute("aria-pressed", String(v === "cards"));
-  panel.classList.toggle("view-list", v === "list");
+  panel.classList.toggle("view-list",  v === "list");
   panel.classList.toggle("view-cards", v === "cards");
 });
 
@@ -452,39 +452,39 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ---------- refs base
-  const overlay = modal.querySelector(".ix-modal__overlay");
-  const dialog = modal.querySelector(".ix-modal__dialog");
+  const overlay   = modal.querySelector(".ix-modal__overlay");
+  const dialog    = modal.querySelector(".ix-modal__dialog");
   const btnCloses = modal.querySelectorAll("[data-ix-close]");
-  const form = modal.querySelector("#ix-report-form");
-  const feedback = modal.querySelector("#ix-report-feedback");
+  const form      = modal.querySelector("#ix-report-form");
+  const feedback  = modal.querySelector("#ix-report-feedback");
 
-  const inpReq = modal.querySelector("#ix-report-req");
-  const subTitle = modal.querySelector("#ix-report-subtitle");
+  const inpReq    = modal.querySelector("#ix-report-req");
+  const subTitle  = modal.querySelector("#ix-report-subtitle");
 
   const inpNombre = modal.querySelector("#ix-nombre");
-  const inpDom = modal.querySelector("#ix-domicilio");
-  let inpCP = modal.querySelector("#ix-cp");
-  let inpCol = modal.querySelector("#ix-colonia");
+  const inpDom    = modal.querySelector("#ix-domicilio");
+  let   inpCP     = modal.querySelector("#ix-cp");       
+  let   inpCol    = modal.querySelector("#ix-colonia");  
 
-  const inpTel = modal.querySelector("#ix-telefono");
+  const inpTel    = modal.querySelector("#ix-telefono");
   const inpCorreo = modal.querySelector("#ix-correo");
-  const inpDesc = modal.querySelector("#ix-descripcion");
-  const cntDesc = modal.querySelector("#ix-desc-count");
-  const chkCons = modal.querySelector("#ix-consent");
-  const btnSend = modal.querySelector("#ix-submit");
+  const inpDesc   = modal.querySelector("#ix-descripcion");
+  const cntDesc   = modal.querySelector("#ix-desc-count");
+  const chkCons   = modal.querySelector("#ix-consent");
+  const btnSend   = modal.querySelector("#ix-submit");
 
-  const upWrap = modal.querySelector(".ix-upload");
-  const upInput = modal.querySelector("#ix-evidencia");
-  const previews = modal.querySelector("#ix-evidencia-previews");
+  const upWrap    = modal.querySelector(".ix-upload");
+  const upInput   = modal.querySelector("#ix-evidencia");
+  const previews  = modal.querySelector("#ix-evidencia-previews");
 
   // ---------- config uploader
-  const CFG = { MAX_FILES: 3, MAX_MB: 5, TYPES: ["image/jpeg", "image/png"] };
+  const CFG = { MAX_FILES: 3, MAX_MB: 5, TYPES: ["image/jpeg","image/png"] };
 
   // ---------- estado interno
-  let files = [];
-  let openerBtn = null;
-  let trapHandler = null;
-  let hasAttemptedSubmit = false;
+  let files = [];                   
+  let openerBtn = null;             
+  let trapHandler = null;           
+  let hasAttemptedSubmit = false;   
 
   const CP_CATALOG = {
     "45670": ["Centro", "La Loma", "San Miguel"],
@@ -495,15 +495,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const knownCP = (cp) => Object.prototype.hasOwnProperty.call(CP_CATALOG, cp);
 
   // ---------- utils
-  const digits = (s) => (s || "").replace(/\D+/g, "");
+  const digits  = (s) => (s || "").replace(/\D+/g, "");
   const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
   const clearFeedback = () => { feedback.hidden = true; feedback.textContent = ""; };
-  const showFeedback = (msg) => { feedback.hidden = false; feedback.textContent = msg; };
+  const showFeedback  = (msg) => { feedback.hidden = false; feedback.textContent = msg; };
 
   const setFieldError = (inputEl, msg = "") => {
     const field = inputEl?.closest?.(".ix-field");
-    const help = field?.querySelector(".ix-help");
+    const help  = field?.querySelector(".ix-help");
     if (!field) return;
     if (msg) {
       field.classList.add("ix-field--error");
@@ -517,7 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateDescCount = () => { const len = (inpDesc.value || "").length; cntDesc.textContent = String(len); };
 
   // ---------- helpers de SELECT
-  const makeOpt = (val, label, { disabled = false, selected = false } = {}) => {
+  const makeOpt = (val, label, {disabled=false, selected=false}={}) => {
     const o = document.createElement("option");
     o.value = val; o.textContent = label;
     if (disabled) o.disabled = true;
@@ -525,13 +525,13 @@ document.addEventListener("DOMContentLoaded", () => {
     return o;
   };
 
-  const ensureSelect = (el, { placeholder = "Selecciona…", nameFallback, idFallback } = {}) => {
+  const ensureSelect = (el, {placeholder="Selecciona…", nameFallback, idFallback} = {}) => {
     // si ya es select, regreso tal cual
     if (el && el.tagName === "SELECT") return el;
     // si no existe, lo creo
     let sel = document.createElement("select");
-    sel.id = el?.id || idFallback || "";
-    sel.name = el?.name || nameFallback || "";
+    sel.id   = el?.id   || idFallback  || "";
+    sel.name = el?.name || nameFallback|| "";
     sel.className = el?.className || "";
     sel.required = true;
     if (el) el.replaceWith(sel);
@@ -539,27 +539,27 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // fuerza CP y Colonia a SELECT
-  const ensureCpSelect = () => (inpCP = ensureSelect(inpCP, { placeholder: "Selecciona C.P.", nameFallback: "cp", idFallback: "ix-cp" }));
-  const ensureColSelect = () => (inpCol = ensureSelect(inpCol, { placeholder: "Selecciona colonia", nameFallback: "colonia", idFallback: "ix-colonia" }));
+  const ensureCpSelect  = () => (inpCP  = ensureSelect(inpCP,  {placeholder:"Selecciona C.P.", nameFallback:"cp",      idFallback:"ix-cp"}));
+  const ensureColSelect = () => (inpCol = ensureSelect(inpCol, {placeholder:"Selecciona colonia", nameFallback:"colonia", idFallback:"ix-colonia"}));
 
   const populateCpOptions = () => {
     ensureCpSelect();
     inpCP.innerHTML = "";
-    inpCP.appendChild(makeOpt("", "Selecciona C.P.", { disabled: true, selected: true }));
+    inpCP.appendChild(makeOpt("", "Selecciona C.P.", {disabled:true, selected:true}));
     CP_LIST.forEach(cp => inpCP.appendChild(makeOpt(cp, cp)));
   };
 
   const resetColonia = (msg = "Selecciona C.P. primero") => {
     ensureColSelect();
     inpCol.innerHTML = "";
-    inpCol.appendChild(makeOpt("", msg, { disabled: true, selected: true }));
+    inpCol.appendChild(makeOpt("", msg, {disabled:true, selected:true}));
     inpCol.disabled = true; // bloqueada hasta elegir CP
   };
 
   const populateColoniasForCP = (cp) => {
     ensureColSelect();
     inpCol.innerHTML = "";
-    inpCol.appendChild(makeOpt("", "Selecciona colonia", { disabled: true, selected: true }));
+    inpCol.appendChild(makeOpt("", "Selecciona colonia", {disabled:true, selected:true}));
     (CP_CATALOG[cp] || []).forEach(col => inpCol.appendChild(makeOpt(col, col)));
     inpCol.disabled = false;
   };
@@ -618,10 +618,10 @@ document.addEventListener("DOMContentLoaded", () => {
     upInput?.click();
   });
   upInput?.addEventListener("change", (e) => handleFiles(e.target.files));
-  ["dragenter", "dragover"].forEach((ev) =>
+  ["dragenter","dragover"].forEach((ev) =>
     upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.add("is-drag"); })
   );
-  ["dragleave", "drop"].forEach((ev) =>
+  ["dragleave","drop"].forEach((ev) =>
     upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.remove("is-drag"); })
   );
   upWrap?.addEventListener("drop", (e) => handleFiles(e.dataTransfer?.files || []));
@@ -680,18 +680,18 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => { inpNombre.focus(); }, 0);
 
     // evento público
-    try { document.dispatchEvent(new CustomEvent("ix:report:open", { detail: { depKey, itemId, title, sla } })); } catch { }
+    try { document.dispatchEvent(new CustomEvent("ix:report:open", { detail: { depKey, itemId, title, sla } })); } catch {}
   }
 
   function closeModal() {
-    document.removeEventListener("keydown", trapHandler || (() => { }));
+    document.removeEventListener("keydown", trapHandler || (() => {}));
     trapHandler = null;
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
     if (openerBtn && typeof openerBtn.focus === "function") openerBtn.focus();
     openerBtn = null;
-    try { document.dispatchEvent(new CustomEvent("ix:report:close")); } catch { }
+    try { document.dispatchEvent(new CustomEvent("ix:report:close")); } catch {}
   }
 
   // ---------- Validaciones (solo muestran después del 1er submit)
@@ -759,21 +759,36 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   modal.addEventListener("change", (e) => {
-    const t = e.target;
+  const t = e.target;
 
-    if (t && t.id === "ix-cp") {
-      const v = t.value || "";
-      if (!v || !knownCP(v)) {
-        resetColonia();             // deja colonia bloqueada
-      } else {
-        populateColoniasForCP(v);   // llena y habilita colonia
-      }
-      if (hasAttemptedSubmit) validateForm(true);
+  if (t && t.id === "ix-cp") {
+    const v = t.value || "";
+    if (!v || !knownCP(v)) {
+      resetColonia();             // deja colonia bloqueada
+    } else {
+      populateColoniasForCP(v);   // llena y habilita colonia
     }
+    if (hasAttemptedSubmit) validateForm(true);
+  }
 
-    if (t && t.id === "ix-colonia") {
-      if (hasAttemptedSubmit) validateForm(true);
-    }
+  if (t && t.id === "ix-colonia") {
+    if (hasAttemptedSubmit) validateForm(true);
+  }
+});
+
+  // cambio de CP → puebla colonias correspondientes
+  inpCP?.addEventListener("change", () => {
+    const v = inpCP.value || "";
+    if (!v || !knownCP(v)) { resetColonia(); }
+    else { populateColoniasForCP(v); }
+    if (!hasAttemptedSubmit) return;
+    validateForm(true);
+  });
+
+  // cambio de Colonia: solo revalido si ya intentó enviar
+  inpCol?.addEventListener("change", () => {
+    if (!hasAttemptedSubmit) return;
+    validateForm(true);
   });
 
   // ---------- Submit (simulado)
@@ -800,17 +815,17 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       const stamp = Date.now() % 1000000;
       const folio = "ID" + String(stamp).padStart(5, "0");
-      try { sessionStorage.setItem("ix_last_folio", folio); } catch { }
+      try { sessionStorage.setItem("ix_last_folio", folio); } catch {}
 
       const payload = Object.fromEntries(new FormData(form).entries());
       payload.telefono = digits(payload.telefono || "");
-      payload.cp = inpCP?.value || "";
-      payload.colonia = inpCol?.value || "";
-      payload.folio = folio;
+      payload.cp       = inpCP?.value || "";
+      payload.colonia  = inpCol?.value || "";
+      payload.folio    = folio;
       payload._filesCount = files.length;
 
-      try { document.dispatchEvent(new CustomEvent("ix:report:submit", { detail: payload })); } catch { }
-      try { document.dispatchEvent(new CustomEvent("ix:report:success", { detail: { folio } })); } catch { }
+      try { document.dispatchEvent(new CustomEvent("ix:report:submit", { detail: payload })); } catch {}
+      try { document.dispatchEvent(new CustomEvent("ix:report:success", { detail: { folio } })); } catch {}
 
       if (window.gcToast) gcToast(`Reporte creado: ${folio}`, "exito", 3000);
       else alert(`Reporte creado: ${folio}`);
