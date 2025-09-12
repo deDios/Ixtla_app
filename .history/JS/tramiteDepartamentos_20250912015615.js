@@ -957,7 +957,7 @@ document.addEventListener("DOMContentLoaded", () => {
       contacto_colonia: col,
       contacto_cp: cp,
       fecha_limite: null,
-      status: 1,
+      status: 0,
       created_by: 1
     };
 
