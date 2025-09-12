@@ -472,6 +472,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 //--------------------------------------------------- modal de reporte 
+//--------------------------------------------------- modal de reporte (SAMAPA y demás)
 (() => {
   const modal = document.getElementById("ix-report-modal");
   if (!modal) {
@@ -487,15 +488,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const feedback  = modal.querySelector("#ix-report-feedback");
 
   const subTitle  = modal.querySelector("#ix-report-subtitle");
-  const inpReq    = modal.querySelector("#ix-report-req");        
-  const inpFecha  = modal.querySelector("#ix-fecha");             
-  const timeMeta  = modal.querySelector("#ix-report-date");       
+  const inpReq    = modal.querySelector("#ix-report-req");        // nombre del trámite (contexto)
+  const inpFecha  = modal.querySelector("#ix-fecha");             // input de fecha (readonly)
+  const timeMeta  = modal.querySelector("#ix-report-date");       // <time> opcional (si lo tuvieras)
 
   // campos
   const inpNombre = modal.querySelector("#ix-nombre");
   const inpDom    = modal.querySelector("#ix-domicilio");
-  let   inpCP     = modal.querySelector("#ix-cp");                
-  let   inpCol    = modal.querySelector("#ix-colonia");           
+  let   inpCP     = modal.querySelector("#ix-cp");                // lo forzamos a <select> más abajo
+  let   inpCol    = modal.querySelector("#ix-colonia");           // lo forzamos a <select> más abajo
   const inpTel    = modal.querySelector("#ix-telefono");
   const inpCorreo = modal.querySelector("#ix-correo");
   const inpDesc   = modal.querySelector("#ix-descripcion");
