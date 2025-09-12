@@ -507,7 +507,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   //   API de CP/Colonia  
   const CP_API     = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php";
-  const CP_BODY    = { all: true }; 
+  const CP_BODY    = { all: true }; // si backend soporta estatus:1, se podría añadir
   const CP_TIMEOUT = 10000;
 
   const CP_CATALOG_FALLBACK = {

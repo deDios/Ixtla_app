@@ -505,13 +505,18 @@ document.addEventListener("DOMContentLoaded", () => {
   let hasAttemptedSubmit = false; 
   let lastInvalids = [];   
 
-  //   API de CP/Colonia  
+  // ===========================================================
+  //   API de CP/Colonia  (catálogo dinámico con fallback)
+  // ===========================================================
   const CP_API     = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php";
-  const CP_BODY    = { all: true }; 
+  const CP_BODY    = { all: true }; // si backend soporta estatus:1, se podría añadir
   const CP_TIMEOUT = 10000;
 
+  // fallback por si truena el API (así la UI no se queda muerta)
   const CP_CATALOG_FALLBACK = {
-    "00000": ["Fallback"],
+    "45670": ["Centro", "La Loma", "San Miguel"],
+    "45671": ["San Isidro", "El Fresno", "Arboledas"],
+    "45672": ["Barrancas", "El Mirador", "La Joya"],
   };
 
   // catálogo efectivo en memoria (inicia con fallback; si API trae datos, lo sobrescribimos)

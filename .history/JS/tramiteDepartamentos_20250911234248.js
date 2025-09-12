@@ -463,8 +463,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const inpNombre = modal.querySelector("#ix-nombre");
   const inpDom    = modal.querySelector("#ix-domicilio");
-  let   inpCP     = modal.querySelector("#ix-cp");       
-  let   inpCol    = modal.querySelector("#ix-colonia");  
+  let   inpCP     = modal.querySelector("#ix-cp");       // puede venir como input; lo convertimos a <select>
+  let   inpCol    = modal.querySelector("#ix-colonia");  // igual que arriba
 
   const inpTel    = modal.querySelector("#ix-telefono");
   const inpCorreo = modal.querySelector("#ix-correo");
@@ -477,11 +477,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const upInput   = modal.querySelector("#ix-evidencia");
   const previews  = modal.querySelector("#ix-evidencia-previews");
 
-  // ---------- preferimos manejar la validación nosotros 
+  // ---------- preferimos manejar la validación nosotros (sin bloqueo nativo)
   form?.setAttribute('novalidate','novalidate');
   feedback?.setAttribute('role','alert');
 
-  // ---------- limitew de imagenes, por si acaso queremos mas imagenes 
+  // ---------- límite de imágenes (puedes sobreescribir antes de cargar este script)
   const MAX_IMAGES = Number(window.IX_MAX_IMAGES ?? 3);
 
   // ---------- config uploader
@@ -498,20 +498,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ---------- estado interno
-  let files = [];          
-  let previewURLs = [];    
-  let openerBtn = null;    
-  let trapHandler = null;  
-  let hasAttemptedSubmit = false; 
-  let lastInvalids = [];   
+  let files = [];          // File[]
+  let previewURLs = [];    // para revocar ObjectURL y no dejar fugas
+  let openerBtn = null;    // quién abrió el modal (para devolverle el foco)
+  let trapHandler = null;  // keydown handler del focus trap
+  let hasAttemptedSubmit = false; // solo mostramos errores después del 1er submit
+  let lastInvalids = [];   // lista de campos con error del último submit
 
-  //   API de CP/Colonia  
+  // ===========================================================
+  //   API de CP/Colonia  (catálogo dinámico con fallback)
+  // ===========================================================
   const CP_API     = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php";
-  const CP_BODY    = { all: true }; 
+  const CP_BODY    = { all: true }; // si backend soporta estatus:1, se podría añadir
   const CP_TIMEOUT = 10000;
 
+  // fallback por si truena el API (así la UI no se queda muerta)
   const CP_CATALOG_FALLBACK = {
-    "00000": ["Fallback"],
+    "45670": ["Centro", "La Loma", "San Miguel"],
+    "45671": ["San Isidro", "El Fresno", "Arboledas"],
+    "45672": ["Barrancas", "El Mirador", "La Joya"],
   };
 
   // catálogo efectivo en memoria (inicia con fallback; si API trae datos, lo sobrescribimos)
