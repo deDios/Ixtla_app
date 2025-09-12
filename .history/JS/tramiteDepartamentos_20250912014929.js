@@ -471,7 +471,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-//------------------------------- modal de reporte 
+//------------------------------- modal de reporte (SAMAPA y demás)
 (() => {
   const modal = document.getElementById("ix-report-modal");
   if (!modal) { console.warn("[IX] No existe #ix-report-modal."); return; }
