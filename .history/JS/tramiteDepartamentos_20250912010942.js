@@ -963,7 +963,7 @@ document.addEventListener("DOMContentLoaded", () => {
     closeModal();
   });
 
-  // ===== API pública del modal 
+  // ===== API pública del modal (para que lo llame tu listado)
   window.ixReportModal = {
     open: (opts = {}, opener) => openModal(opts, opener),
     close: () => closeModal(),

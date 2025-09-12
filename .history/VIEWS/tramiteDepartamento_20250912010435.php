@@ -266,7 +266,7 @@
                     <small class="ix-help" hidden></small>
                 </div>
 
-                <!-- Bloque SOLO para Otros -->
+                <!-- Bloque SOLO para “Otros” -->
                 <fieldset id="ix-otros-block" class="ix-field" hidden>
                     <label for="ix-otros-detalle" class="ix-label">Detalle adicional (solo para “Otros”)</label>
                     <textarea id="ix-otros-detalle" name="otros_detalle" rows="3"

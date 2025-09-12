@@ -471,7 +471,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-//--------------------------------------------------- Modal 
+//--------------------------------------------------- Modal de Reporte (SAMAPA y demás)
 (() => {
   const modal = document.getElementById("ix-report-modal");
   if (!modal) { console.warn("[IX] No existe #ix-report-modal, me salgo."); return; }
@@ -963,8 +963,9 @@ document.addEventListener("DOMContentLoaded", () => {
     closeModal();
   });
 
-  // ===== API pública del modal 
+  // ===== API pública del modal (para que lo llame tu listado)
   window.ixReportModal = {
+    // Puedes pasar mode: 'otros' para forzar ese bloque
     open: (opts = {}, opener) => openModal(opts, opener),
     close: () => closeModal(),
   };

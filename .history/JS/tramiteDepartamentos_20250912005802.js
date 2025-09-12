@@ -471,12 +471,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-//--------------------------------------------------- Modal 
+//--------------------------------------------------- modal para SAMAPA 
 (() => {
   const modal = document.getElementById("ix-report-modal");
-  if (!modal) { console.warn("[IX] No existe #ix-report-modal, me salgo."); return; }
+  if (!modal) {
+    console.warn("[IX] No existe #ix-report-modal, me salgo.");
+    return;
+  }
 
-  // ===== refs base del DOM
+  // ---------- refs base
   const overlay   = modal.querySelector(".ix-modal__overlay");
   const dialog    = modal.querySelector(".ix-modal__dialog");
   const btnCloses = modal.querySelectorAll("[data-ix-close]");
@@ -486,70 +489,136 @@ document.addEventListener("DOMContentLoaded", () => {
   const inpReq    = modal.querySelector("#ix-report-req");
   const subTitle  = modal.querySelector("#ix-report-subtitle");
 
-  const inpDepId  = modal.querySelector("#ix-departamento-id");
-  const inpTraId  = modal.querySelector("#ix-tramite-id");
-
   const inpNombre = modal.querySelector("#ix-nombre");
   const inpDom    = modal.querySelector("#ix-domicilio");
-  const selCP     = modal.querySelector("#ix-cp");
-  const selCol    = modal.querySelector("#ix-colonia");
+  let   inpCP     = modal.querySelector("#ix-cp");       
+  let   inpCol    = modal.querySelector("#ix-colonia");  
+
   const inpTel    = modal.querySelector("#ix-telefono");
   const inpCorreo = modal.querySelector("#ix-correo");
   const inpDesc   = modal.querySelector("#ix-descripcion");
   const cntDesc   = modal.querySelector("#ix-desc-count");
-  const otrosBox  = modal.querySelector("#ix-otros-block");
-  const inpOtros  = modal.querySelector("#ix-otros-detalle");
   const chkCons   = modal.querySelector("#ix-consent");
   const btnSend   = modal.querySelector("#ix-submit");
 
-  const upWrap    = modal.querySelector("#ix-upload-zone");
-  const upBtn     = modal.querySelector("#ix-evidencia-cta");
+  const upWrap    = modal.querySelector(".ix-upload");
   const upInput   = modal.querySelector("#ix-evidencia");
   const previews  = modal.querySelector("#ix-evidencia-previews");
 
-  // ===== Configs (ajústale a gusto)
-  const CFG = {
-    // máximo de imágenes permitidas (lo pediste configurable)
-    MAX_FILES: 3,
-    MAX_MB: 5, // por archivo
-    TYPES: ["image/jpeg", "image/png"],
+  // ---------- preferimos manejar la validación nosotros 
+  form?.setAttribute('novalidate','novalidate');
+  feedback?.setAttribute('role','alert');
 
-    // endpoints (todo HTTPS para evitar mixed content)
-    ENDPOINTS: {
-      CP_COLONIA: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
-      INSERT:     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento.php",
-    },
+  // ---------- limitew de imagenes, por si acaso queremos mas imagenes 
+  const MAX_IMAGES = Number(window.IX_MAX_IMAGES ?? 3);
 
-    // payload base para el insert (puedes cambiar asignado_a/created_by si lo necesitas)
-    DEFAULTS: {
-      asignado_a: 1,
-      prioridad:  2,
-      estatus:    0,
-      canal:      1,
-      status:     1,
-      created_by: 1,
-    },
-
-    TIMEOUT_MS: 15000
+  // ---------- config uploader
+  const CFG = { 
+    MAX_FILES: MAX_IMAGES, 
+    MAX_MB: 5, 
+    TYPES: ["image/jpeg", "image/png"] 
   };
 
-  // ===== estado interno simple
-  let files = [];                 // File[] para previews (ojo: no se están subiendo aún)
-  let openerBtn = null;           // para devolver el foco al cerrar
-  let trapHandler = null;         // keydown handler focus-trap
-  let hasAttemptedSubmit = false; // para mostrar validaciones solo tras 1er submit
+  // habilita accept/multiple por si no viene en el HTML
+  if (upInput) {
+    upInput.setAttribute('accept', CFG.TYPES.join(','));
+    upInput.multiple = true;
+  }
 
-  // ===== mini helpers
+  // ---------- estado interno
+  let files = [];          
+  let previewURLs = [];    
+  let openerBtn = null;    
+  let trapHandler = null;  
+  let hasAttemptedSubmit = false; 
+  let lastInvalids = [];   
+
+  //   API de CP/Colonia  
+  const CP_API     = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php";
+  const CP_BODY    = { all: true }; 
+  const CP_TIMEOUT = 10000;
+
+  const CP_CATALOG_FALLBACK = {
+    "00000": ["Fallback"],
+  };
+
+  // catálogo efectivo en memoria (inicia con fallback; si API trae datos, lo sobrescribimos)
+  let CP_CATALOG = { ...CP_CATALOG_FALLBACK };
+  let CP_LOADED  = false; // carga perezosa
+
+  const getCpList = () => Object.keys(CP_CATALOG).sort();
+  const knownCP   = (cp) => Object.prototype.hasOwnProperty.call(CP_CATALOG, cp);
+
+  async function fetchWithTimeout(url, opts = {}, timeout = 10000) {
+    const controller = new AbortController();
+    const to = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(url, { ...opts, signal: controller.signal });
+      clearTimeout(to);
+      return res;
+    } catch (e) {
+      clearTimeout(to);
+      throw e;
+    }
+  }
+
+  async function loadCpCatalog() {
+    if (CP_LOADED) return true; // cache (si quieres TTL, acá lo puedes manejar)
+    try {
+      const res = await fetchWithTimeout(
+        CP_API,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(CP_BODY) },
+        CP_TIMEOUT
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json?.ok || !Array.isArray(json?.data)) throw new Error("Formato inesperado");
+
+      const map = {};
+      for (const row of json.data) {
+        const cp  = String(row?.cp || "").trim();
+        const col = String(row?.colonia || "").trim();
+        const active = row?.estatus == null || row?.estatus === 1 || row?.estatus === "1" || row?.estatus === true;
+        if (!cp || !col || !active) continue;
+        if (!map[cp]) map[cp] = [];
+        if (!map[cp].includes(col)) map[cp].push(col);
+      }
+      Object.keys(map).forEach(cp => map[cp].sort((a,b)=>a.localeCompare(b,"es",{sensitivity:"base"})));
+
+      if (Object.keys(map).length) CP_CATALOG = map; // usa API si trajo algo
+      CP_LOADED = true;
+      return true;
+    } catch (err) {
+      console.warn("[IX] CP API falló, usando fallback:", err);
+      CP_LOADED = true; // evitamos reintentos en bucle
+      return false;
+    }
+  }
+
+  // ===========================================================
+  //   Utils de UI / accesibilidad / selects / uploader
+  // ===========================================================
   const digits  = (s) => (s || "").replace(/\D+/g, "");
   const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
   const clearFeedback = () => { feedback.hidden = true; feedback.textContent = ""; };
-  const showFeedback  = (msg) => { feedback.hidden = false; feedback.textContent = msg; };
+  const showFeedback  = (msgHtml) => { feedback.hidden = false; feedback.innerHTML = msgHtml; };
+
+  const labelFor = (el) =>
+    el?.closest('.ix-field')?.querySelector('label')?.textContent?.trim() ||
+    el?.getAttribute?.('aria-label') ||
+    el?.name || el?.id || 'Campo';
 
   const setFieldError = (inputEl, msg = "") => {
-    const field = inputEl?.closest?.(".ix-field") || inputEl?.closest?.(".ix-consent");
+    const field = inputEl?.closest?.(".ix-field");
     const help  = field?.querySelector(".ix-help");
     if (!field) return;
+
+    // aria para lectores de pantalla
+    if (inputEl && 'setAttribute' in inputEl) {
+      inputEl.setAttribute('aria-invalid', msg ? 'true' : 'false');
+    }
+
     if (msg) {
       field.classList.add("ix-field--error");
       if (help) { help.hidden = false; help.textContent = msg; }
@@ -559,9 +628,165 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  const updateDescCount = () => { const len = (inpDesc.value || "").length; cntDesc.textContent = String(len); };
+  const clearAllFieldErrors = () => {
+    modal.querySelectorAll('.ix-field').forEach(f => {
+      f.classList.remove('ix-field--error');
+      const help = f.querySelector('.ix-help');
+      if (help) { help.hidden = true; help.textContent = ""; }
+    });
+    modal.querySelectorAll('input,select,textarea').forEach(el=>{
+      el.setAttribute('aria-invalid','false');
+    });
+  };
 
-  // ===== Focus trap del modal (pa’ que no se escape el tab)
+  const updateDescCount = () => {
+    const len = (inpDesc.value || "").length;
+    cntDesc.textContent = String(len);
+  };
+
+  // --- helpers de select
+  const makeOpt = (val, label, { disabled = false, selected = false } = {}) => {
+    const o = document.createElement("option");
+    o.value = val; o.textContent = label;
+    if (disabled) o.disabled = true;
+    if (selected) o.selected = true;
+    return o;
+  };
+
+  const ensureSelect = (el, { nameFallback, idFallback } = {}) => {
+    if (el && el.tagName === "SELECT") return el;
+    const sel = document.createElement("select");
+    sel.id   = el?.id   || idFallback   || "";
+    sel.name = el?.name || nameFallback || "";
+    sel.className = el?.className || "";
+    sel.required = true;
+    el?.replaceWith?.(sel);
+    return sel;
+  };
+
+  const ensureCpSelect  = () => (inpCP  = ensureSelect(inpCP,  { nameFallback: "cp",      idFallback: "ix-cp" }));
+  const ensureColSelect = () => (inpCol = ensureSelect(inpCol, { nameFallback: "colonia", idFallback: "ix-colonia" }));
+
+  function setCpLoading(loading) {
+    ensureCpSelect(); ensureColSelect();
+    inpCP.disabled  = loading;
+    inpCol.disabled = loading;
+    if (loading) {
+      inpCP.innerHTML  = ""; inpCP.appendChild(makeOpt("", "Cargando C.P.…", { disabled:true, selected:true }));
+      inpCol.innerHTML = ""; inpCol.appendChild(makeOpt("", "Cargando…",      { disabled:true, selected:true }));
+    }
+  }
+
+  function populateCpOptions() {
+    ensureCpSelect();
+    const list = getCpList();
+    inpCP.innerHTML = "";
+    if (!list.length) {
+      inpCP.appendChild(makeOpt("", "Sin C.P. disponibles", { disabled:true, selected:true }));
+      inpCP.disabled = true;
+      return;
+    }
+    inpCP.appendChild(makeOpt("", "Selecciona C.P.", { disabled:true, selected:true }));
+    list.forEach(cp => inpCP.appendChild(makeOpt(cp, cp)));
+    inpCP.disabled = false;
+  }
+
+  function resetColonia(msg = "Selecciona C.P. primero") {
+    ensureColSelect();
+    inpCol.innerHTML = "";
+    inpCol.appendChild(makeOpt("", msg, { disabled:true, selected:true }));
+    inpCol.disabled = true;
+  }
+
+  function populateColoniasForCP(cp) {
+    ensureColSelect();
+    const cols = CP_CATALOG[cp] || [];
+    inpCol.innerHTML = "";
+    if (!cols.length) {
+      inpCol.appendChild(makeOpt("", "Sin colonias para ese C.P.", { disabled:true, selected:true }));
+      inpCol.disabled = true;
+      return;
+    }
+    inpCol.appendChild(makeOpt("", "Selecciona colonia", { disabled:true, selected:true }));
+    cols.forEach(col => inpCol.appendChild(makeOpt(col, col)));
+    inpCol.disabled = false;
+  }
+
+  // --- Uploader (agregamos botón “Subir imágenes” para que sea obvio dónde dar click)
+  const ensureUploadButton = () => {
+    if (!upWrap) return;
+    let btn = upWrap.querySelector("#ix-evidencia-cta");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "ix-evidencia-cta";
+      btn.className = "ix-upload-btn";
+      btn.textContent = "Subir imágenes";
+      upWrap.prepend(btn);
+    }
+    btn.addEventListener("click", () => upInput?.click());
+  };
+
+  function refreshPreviews() {
+    // libera URLs previas para no fugar memoria
+    previewURLs.forEach(url => URL.revokeObjectURL(url));
+    previewURLs = [];
+
+    previews.innerHTML = "";
+    files.forEach((file, idx) => {
+      const fig = document.createElement("figure");
+      const img = document.createElement("img");
+      const btn = document.createElement("button");
+
+      const url = URL.createObjectURL(file);
+      previewURLs.push(url);
+
+      img.src = url;
+      img.alt = file.name;
+
+      btn.type = "button";
+      btn.textContent = "×";
+      btn.setAttribute("aria-label", "Eliminar imagen");
+      btn.addEventListener("click", () => {
+        files.splice(idx, 1);
+        refreshPreviews();
+        if (hasAttemptedSubmit) validateForm(true);
+      });
+
+      fig.appendChild(img);
+      fig.appendChild(btn);
+      previews.appendChild(fig);
+    });
+  }
+
+  function handleFiles(list) {
+    const incoming = Array.from(list || []);
+    for (const f of incoming) {
+      if (!CFG.TYPES.includes(f.type)) { showFeedback("Solo se permiten imágenes JPG o PNG."); continue; }
+      if (f.size > CFG.MAX_MB * 1024 * 1024) { showFeedback(`Cada archivo debe pesar ≤ ${CFG.MAX_MB} MB.`); continue; }
+      if (files.length >= CFG.MAX_FILES) { showFeedback(`Máximo ${CFG.MAX_FILES} imágenes.`); break; }
+      files.push(f);
+    }
+    refreshPreviews();
+  }
+
+  // click área y drag&drop
+  upWrap?.addEventListener("click", (e) => {
+    if (e.target instanceof HTMLElement && e.target.tagName === "BUTTON") return; // evita tapar el botón de eliminar
+    upInput?.click();
+  });
+  upInput?.addEventListener("change", (e) => handleFiles(e.target.files));
+  ["dragenter", "dragover"].forEach((ev) =>
+    upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.add("is-drag"); })
+  );
+  ["dragleave", "drop"].forEach((ev) =>
+    upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.remove("is-drag"); })
+  );
+  upWrap?.addEventListener("drop", (e) => handleFiles(e.dataTransfer?.files || []));
+
+  // ===========================================================
+  //   Focus trap + abrir/cerrar
+  // ===========================================================
   const getFocusable = () =>
     Array.from(dialog.querySelectorAll(
       'a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])'
@@ -578,265 +803,149 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ====== Cache CP/Colonia (client) para no pegarle cada vez
-  let CP_CACHE = null; // { [cp]: Set(colonias) }
-  async function fetchCpColonia() {
-    if (CP_CACHE) return CP_CACHE;
-
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), CFG.TIMEOUT_MS);
-
-    let json;
-    try {
-      const res = await fetch(CFG.ENDPOINTS.CP_COLONIA, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ all: true }),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      json = await res.json();
-    } catch (err) {
-      clearTimeout(t);
-      console.warn("[IX] Falló CP/Colonia:", err?.message || err);
-      showFeedback("No se pudo cargar el catálogo de C.P. y colonias.");
-      CP_CACHE = {}; // vacío para no volver a pegarle en esta sesión del modal
-      return CP_CACHE;
-    }
-
-    const arr = Array.isArray(json?.data) ? json.data : [];
-    const map = {};
-    for (const row of arr) {
-      const cp = String(row?.cp || "").trim();
-      const col = String(row?.colonia || "").trim();
-      if (!cp || !col) continue;
-      if (!map[cp]) map[cp] = new Set();
-      map[cp].add(col);
-    }
-    CP_CACHE = map;
-    return CP_CACHE;
-  }
-
-  // ====== UI: llenar selects CP/Colonia
-  function resetColonia(msg = "Selecciona C.P. primero") {
-    selCol.innerHTML = "";
-    const opt = document.createElement("option");
-    opt.value = ""; opt.textContent = msg; opt.disabled = true; opt.selected = true;
-    selCol.appendChild(opt);
-    selCol.disabled = true;
-  }
-
-  function populateCpOptions(map) {
-    selCP.innerHTML = "";
-    const opt = document.createElement("option");
-    opt.value = ""; opt.textContent = "Selecciona C.P."; opt.disabled = true; opt.selected = true;
-    selCP.appendChild(opt);
-    Object.keys(map).sort().forEach(cp => {
-      const o = document.createElement("option");
-      o.value = cp; o.textContent = cp;
-      selCP.appendChild(o);
-    });
-  }
-
-  function populateColoniasForCP(map, cp) {
-    const set = map[cp] || new Set();
-    const list = Array.from(set).sort();
-    selCol.innerHTML = "";
-    const base = document.createElement("option");
-    base.value = ""; base.textContent = "Selecciona colonia"; base.disabled = true; base.selected = true;
-    selCol.appendChild(base);
-    list.forEach(c => {
-      const o = document.createElement("option");
-      o.value = c; o.textContent = c;
-      selCol.appendChild(o);
-    });
-    selCol.disabled = false;
-  }
-
-  // ====== Uploader (solo previews, límite de archivos; NO se suben al endpoint aún)
-  function refreshPreviews() {
-    previews.innerHTML = "";
-    files.forEach((file, idx) => {
-      const fig = document.createElement("figure");
-      const img = document.createElement("img");
-      const btn = document.createElement("button");
-      img.src = URL.createObjectURL(file);
-      img.alt = file.name;
-      btn.type = "button";
-      btn.textContent = "×";
-      btn.setAttribute("aria-label", "Eliminar imagen");
-      btn.addEventListener("click", () => {
-        files.splice(idx, 1);
-        refreshPreviews();
-        if (hasAttemptedSubmit) validateForm(true);
-      });
-      fig.appendChild(img);
-      fig.appendChild(btn);
-      previews.appendChild(fig);
-    });
-  }
-
-  function handleFiles(list) {
-    const incoming = Array.from(list || []);
-    for (const f of incoming) {
-      if (!CFG.TYPES.includes(f.type)) {
-        showFeedback("Solo se permiten imágenes JPG o PNG.");
-        continue;
-      }
-      if (f.size > CFG.MAX_MB * 1024 * 1024) {
-        showFeedback(`Cada archivo debe pesar ≤ ${CFG.MAX_MB} MB.`);
-        continue;
-      }
-      if (files.length >= CFG.MAX_FILES) {
-        showFeedback(`Máximo ${CFG.MAX_FILES} imágenes.`);
-        break;
-      }
-      files.push(f);
-    }
-    refreshPreviews();
-  }
-
-  // eventos del uploader (click + drag & drop)
-  upBtn?.addEventListener("click", () => upInput?.click());
-  upWrap?.addEventListener("click", (e) => {
-    if (e.target === upBtn) return; // ya controlado arriba
-    // permitir click en el área para abrir selector (fuera del botón)
-    if (!(e.target instanceof HTMLButtonElement)) upInput?.click();
-  });
-  upInput?.addEventListener("change", (e) => handleFiles(e.target.files));
-  ["dragenter", "dragover"].forEach((ev) =>
-    upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.add("is-drag"); })
-  );
-  ["dragleave", "drop"].forEach((ev) =>
-    upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.remove("is-drag"); })
-  );
-  upWrap?.addEventListener("drop", (e) => handleFiles(e.dataTransfer?.files || []));
-
-  // ====== Abrir/Cerrar modal
-  async function openModal(
-    { title = "Reporte", depKey = "1", itemId = "", sla = "", mode } = {},
+  function openModal(
+    { title = "Reporte", depKey = "samapa", itemId = "", sla = "" } = {},
     opener = null
   ) {
     openerBtn = opener || document.activeElement;
 
-    // set títulos/hidden
+    // título + req
     subTitle.textContent = title;
-    inpReq.value = title ? `Reporte: ${title}` : "Reporte";
-    inpDepId.value = String(parseInt(depKey, 10) || depKey || "");
-    inpTraId.value = String(parseInt(itemId, 10) || itemId || "");
+    inpReq.value = title;
 
-    // “Otros”: si no lo pasan, infiero por título
-    const isOtros = (typeof mode === "string" && mode.toLowerCase() === "otros")
-      || /otro/i.test(title || "");
-    otrosBox.hidden = !isOtros;
-    if (otrosBox.hidden) { inpOtros.value = ""; }
-
-    // reset de estado
+    // reseteo general
     clearFeedback();
     hasAttemptedSubmit = false;
-    form.reset(); // cuidado: resetea selects → los repoblamos abajo
+    form.reset();
+    clearAllFieldErrors();
     files = [];
     refreshPreviews();
     updateDescCount();
 
-    // repongo lo que reset borró:
-    subTitle.textContent = title;
-    inpReq.value = title ? `Reporte: ${title}` : "Reporte";
-    inpDepId.value = String(parseInt(depKey, 10) || depKey || "");
-    inpTraId.value = String(parseInt(itemId, 10) || itemId || "");
-    otrosBox.hidden = !isOtros;
+    // guarda depKey/itemId en dataset para el payload del submit
+    form.dataset.depKey = depKey || "";
+    form.dataset.itemId = itemId || "";
 
-    // carga CP/Colonia y seteo selects
-    const map = await fetchCpColonia();
-    populateCpOptions(map);
-    resetColonia();
+    // CP/Colonia: deja “cargando…”, trae catálogo y puebla
+    setCpLoading(true);
+    loadCpCatalog().then(() => {
+      populateCpOptions();
+      resetColonia(); // colonia bloqueada hasta elegir CP
+      inpCP.value = ""; // placeholder visible siempre
+    });
 
-    // mostrar modal + trap
+    // muestra modal
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
+
+    // trap + esc + overlay
     trapHandler = (e) => { if (e.key === "Escape") closeModal(); else trap(e); };
     document.addEventListener("keydown", trapHandler);
     overlay?.addEventListener("click", closeModal, { once: true });
     btnCloses.forEach((b) => b.addEventListener("click", closeModal, { once: true }));
 
-    // submit visible y habilitado (solo se deshabilita mientras se envía)
-    btnSend.disabled = false;
-    btnSend.textContent = "Mandar reporte";
+    // foco inicial
+    setTimeout(() => { inpNombre?.focus(); }, 0);
 
-    // foco al primer campo
-    setTimeout(() => { inpNombre.focus(); }, 0);
-
-    // evento público por si quieres escuchar fuera
-    try { document.dispatchEvent(new CustomEvent("ix:report:open", { detail: { depKey, itemId, title, sla, mode: isOtros ? "otros" : "normal" } })); } catch {}
+    // evento público
+    try { document.dispatchEvent(new CustomEvent("ix:report:open", { detail: { depKey, itemId, title, sla } })); } catch { }
   }
 
   function closeModal() {
     document.removeEventListener("keydown", trapHandler || (() => {}));
     trapHandler = null;
+
+    // limpia previews + revoke URLs
+    previewURLs.forEach(url => URL.revokeObjectURL(url));
+    previewURLs = [];
+    previews.innerHTML = "";
+
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
-    // regresar foco
+
     if (openerBtn && typeof openerBtn.focus === "function") openerBtn.focus();
     openerBtn = null;
-    try { document.dispatchEvent(new CustomEvent("ix:report:close")); } catch {}
+
+    try { document.dispatchEvent(new CustomEvent("ix:report:close")); } catch { }
   }
 
-  // ====== Validación (solo muestra errores tras el 1er submit)
+  // ===========================================================
+  //   Validaciones (solo muestran después del 1er submit)
+  // ===========================================================
   function validateForm(showErrors = true) {
     let ok = true;
+    lastInvalids = [];
 
     // nombre
     const nombre = (inpNombre.value || "").trim();
     if (!(nombre.length >= 5 || nombre.split(/\s+/).length >= 2)) {
       ok = false; if (showErrors) setFieldError(inpNombre, "Ingresa tu nombre completo.");
+      lastInvalids.push({ el: inpNombre, msg: "Ingresa tu nombre completo.", label: labelFor(inpNombre) });
     } else setFieldError(inpNombre);
 
     // domicilio
     if (!(inpDom.value || "").trim()) {
       ok = false; if (showErrors) setFieldError(inpDom, "El domicilio es obligatorio.");
+      lastInvalids.push({ el: inpDom, msg: "El domicilio es obligatorio.", label: labelFor(inpDom) });
     } else setFieldError(inpDom);
 
-    // cp/colonia
-    const cpVal = selCP.value || "";
-    const colVal = selCol.value || "";
-    const cpBad  = !cpVal || !(CP_CACHE && CP_CACHE[cpVal]);
-    if (cpBad) { ok = false; if (showErrors) setFieldError(selCP, "Selecciona un C.P. válido."); }
-    else setFieldError(selCP);
+    // C.P.
+    const cpVal    = inpCP?.value || "";
+    const cpDigits = digits(cpVal);
+    const cpBad    = !cpVal || cpDigits.length !== 5 || !knownCP(cpVal);
+    if (cpBad) {
+      ok = false; if (showErrors) setFieldError(inpCP, "Selecciona un C.P. válido.");
+      lastInvalids.push({ el: inpCP, msg: "Selecciona un C.P. válido.", label: labelFor(inpCP) });
+    } else setFieldError(inpCP);
 
-    const validCols = (CP_CACHE && CP_CACHE[cpVal]) ? Array.from(CP_CACHE[cpVal]) : [];
-    const colBad = !colVal || !validCols.includes(colVal);
-    if (colBad) { ok = false; if (showErrors) setFieldError(selCol, "Selecciona una colonia válida."); }
-    else setFieldError(selCol);
+    // Colonia
+    const colVal   = inpCol?.value || "";
+    const validCols= CP_CATALOG[cpVal] || [];
+    const colBad   = !colVal || !validCols.includes(colVal);
+    if (colBad) {
+      ok = false; if (showErrors) setFieldError(inpCol, "Selecciona una colonia válida.");
+      lastInvalids.push({ el: inpCol, msg: "Selecciona una colonia válida.", label: labelFor(inpCol) });
+    } else setFieldError(inpCol);
 
-    // teléfono
+    // Teléfono
     const tel = digits(inpTel.value);
-    if (tel.length !== 10) { ok = false; if (showErrors) setFieldError(inpTel, "Teléfono a 10 dígitos."); }
-    else setFieldError(inpTel);
+    if (tel.length !== 10) {
+      ok = false; if (showErrors) setFieldError(inpTel, "Teléfono a 10 dígitos.");
+      lastInvalids.push({ el: inpTel, msg: "Teléfono a 10 dígitos.", label: labelFor(inpTel) });
+    } else setFieldError(inpTel);
 
-    // correo (opcional)
+    // Correo (opcional)
     const mail = (inpCorreo.value || "").trim();
-    if (mail && !isEmail(mail)) { ok = false; if (showErrors) setFieldError(inpCorreo, "Correo no válido."); }
-    else setFieldError(inpCorreo);
+    if (mail && !isEmail(mail)) {
+      ok = false; if (showErrors) setFieldError(inpCorreo, "Correo no válido.");
+      lastInvalids.push({ el: inpCorreo, msg: "Correo no válido.", label: labelFor(inpCorreo) });
+    } else setFieldError(inpCorreo);
 
-    // descripción
+    // Descripción
     const desc = (inpDesc.value || "").trim();
-    if (desc.length < 30) { ok = false; if (showErrors) setFieldError(inpDesc, "Describe con al menos 30 caracteres."); }
-    else setFieldError(inpDesc);
+    if (desc.length < 30) {
+      ok = false; if (showErrors) setFieldError(inpDesc, "Describe con al menos 30 caracteres.");
+      lastInvalids.push({ el: inpDesc, msg: "Describe con al menos 30 caracteres.", label: labelFor(inpDesc) });
+    } else setFieldError(inpDesc);
 
-    // consentimiento
-    if (!chkCons.checked) { ok = false; if (showErrors) setFieldError(chkCons, "Debes aceptar el consentimiento."); }
-    else setFieldError(chkCons);
+    // Consentimiento
+    if (!chkCons.checked) {
+      ok = false; if (showErrors) setFieldError(chkCons, "Debes aceptar el consentimiento.");
+      lastInvalids.push({ el: chkCons, msg: "Debes aceptar el consentimiento.", label: labelFor(chkCons) });
+    } else setFieldError(chkCons);
 
-    // archivos (solo límite)
-    if (files.length > CFG.MAX_FILES) { ok = false; if (showErrors) showFeedback(`Máximo ${CFG.MAX_FILES} imágenes.`); }
+    // Límite de archivos (duro)
+    if (files.length > CFG.MAX_FILES) {
+      ok = false;
+      showFeedback?.(`Máximo ${CFG.MAX_FILES} imágenes.`);
+    }
 
     return ok;
   }
 
-  // inputs cambian: solo limpio errores después del 1er submit
+  // inputs: después del 1er submit, si el user corrige, refrescamos errores
   [inpNombre, inpDom, inpTel, inpCorreo, inpDesc, chkCons].forEach((el) => {
     el?.addEventListener("input", () => {
       if (!hasAttemptedSubmit) return;
@@ -846,126 +955,94 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // selects: actualizar colonia cuando cambia CP
+  // selects: CP/Colonia
   modal.addEventListener("change", (e) => {
     const t = e.target;
-    if (t === selCP) {
-      const cp = selCP.value || "";
-      if (!cp || !(CP_CACHE && CP_CACHE[cp])) resetColonia();
-      else populateColoniasForCP(CP_CACHE, cp);
+
+    if (t && t.id === "ix-cp") {
+      const v = t.value || "";
+      if (!v || !knownCP(v)) {
+        resetColonia();             // deja colonia bloqueada
+      } else {
+        populateColoniasForCP(v);   // llena y habilita colonia
+      }
       if (hasAttemptedSubmit) validateForm(true);
     }
-    if (t === selCol) {
+
+    if (t && t.id === "ix-colonia") {
       if (hasAttemptedSubmit) validateForm(true);
     }
   });
 
-  // ====== Submit → POST al endpoint de insertar requerimiento
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  // ===========================================================
+  //   Submit (no bloquea; lista errores; éxito simulado)
+  // ===========================================================
+  form.addEventListener("submit", (e) => {
+    e.preventDefault(); // nos quedamos en la página siempre
     clearFeedback();
     hasAttemptedSubmit = true;
 
-    // validaciones (no deshabilitamos el botón previo; solo mostramos qué falta)
-    if (!validateForm(true)) {
-      showFeedback("Revisa los campos marcados y vuelve a intentar.");
-      const bad = modal.querySelector(
-        ".ix-field.ix-field--error select, .ix-field.ix-field--error input, .ix-field.ix-field--error textarea, .ix-consent.ix-field--error [type='checkbox']"
-      );
-      bad?.focus();
-      return; // no enviamos al back si está inválido
+    const ok = validateForm(true);
+    if (!ok) {
+      // arma lista de errores (amigable)
+      const items = lastInvalids.map(x => `<li><strong>${x.label}:</strong> ${x.msg}</li>`).join("");
+      showFeedback(`<strong>Faltan datos:</strong><ul>${items}</ul>`);
+
+      // enfoca y hace scroll al primero
+      const bad = lastInvalids[0]?.el;
+      if (bad) {
+        bad.focus({ preventScroll: true });
+        bad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return; // ojo: no deshabilitamos el botón; el user puede corregir y volver a enviar
     }
 
-    // juntar payload para el back
-    const depId = (inpDepId.value || "").trim();
-    const traId = (inpTraId.value || "").trim();
-    const asuntoText = inpReq.value || subTitle.textContent || "Reporte";
-    const nombre   = (inpNombre.value || "").trim();
-    const tel      = digits(inpTel.value);
-    const correo   = (inpCorreo.value || "").trim();
-    const calle    = (inpDom.value || "").trim();
-    const cp       = selCP.value || "";
-    const colonia  = selCol.value || "";
-    const baseDesc = (inpDesc.value || "").trim();
-
-    const isOtrosVisible = !otrosBox.hidden;
-    const extraOtros = (inpOtros.value || "").trim();
-    const descFinal = isOtrosVisible && extraOtros
-      ? `${baseDesc}\n\nOtros: ${extraOtros}`
-      : baseDesc;
-
-    // armamos JSON limpio (omito campos vacíos opcionales)
-    const payload = {
-      departamento_id: Number(depId) || 0,
-      tramite_id:      Number(traId) || 0,
-      asignado_a:      CFG.DEFAULTS.asignado_a,
-      asunto:          asuntoText,
-      descripcion:     descFinal,
-      prioridad:       CFG.DEFAULTS.prioridad,
-      estatus:         CFG.DEFAULTS.estatus,
-      canal:           CFG.DEFAULTS.canal,
-      contacto_nombre: nombre,
-      contacto_telefono: tel,
-      contacto_calle:  calle,
-      contacto_colonia: colonia,
-      contacto_cp:     cp,
-      status:          CFG.DEFAULTS.status,
-      created_by:      CFG.DEFAULTS.created_by,
-    };
-    if (correo) payload.contacto_email = correo;
-
-    // estado “enviando”: deshabilito solo mientras vuelo al back (esto sí se vale)
+    // --- flujo de éxito (simulado). Aquí sí bloqueamos para evitar doble envío
     btnSend.disabled = true;
-    const prevTxt = btnSend.textContent;
     btnSend.textContent = "Enviando…";
-    Array.from(form.elements).forEach((el) => { if (el !== btnSend) el.disabled = true; });
+    Array.from(form.elements).forEach((el) => (el.disabled = el === btnSend ? false : true));
 
-    // POST con timeout
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), CFG.TIMEOUT_MS);
-    let json;
-    try {
-      const res = await fetch(CFG.ENDPOINTS.INSERT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify(payload),
-        signal: ctrl.signal
-      });
-      clearTimeout(t);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      json = await res.json();
-    } catch (err) {
-      clearTimeout(t);
-      showFeedback("No se pudo crear el reporte. Intenta de nuevo.");
-      console.warn("[IX] Insert falló:", err?.message || err);
+    setTimeout(() => {
+      const stamp = Date.now() % 1000000;
+      const folio = "ID" + String(stamp).padStart(5, "0");
+      try { sessionStorage.setItem("ix_last_folio", folio); } catch {}
+
+      const fd = new FormData(form);
+      const payload = Object.fromEntries(fd.entries());
+      payload.telefono = digits(payload.telefono || "");
+      payload.cp       = inpCP?.value || "";
+      payload.colonia  = inpCol?.value || "";
+      payload.folio    = folio;
+      payload._filesCount = files.length;
+      payload.depKey   = form.dataset.depKey || "";
+      payload.itemId   = form.dataset.itemId || "";
+
+      try { document.dispatchEvent(new CustomEvent("ix:report:submit",  { detail: payload })); } catch {}
+      try { document.dispatchEvent(new CustomEvent("ix:report:success", { detail: { folio } })); } catch {}
+
+      if (window.gcToast) gcToast(`Reporte creado: ${folio}`, "exito", 3000);
+      else alert(`Reporte creado: ${folio}`);
+
+      // reset UI
       Array.from(form.elements).forEach((el) => (el.disabled = false));
-      btnSend.disabled = false;
-      btnSend.textContent = prevTxt;
-      return;
-    }
-
-    // éxito del back
-    const folio = json?.data?.folio || "";
-    try { sessionStorage.setItem("ix_last_folio", folio || ""); } catch {}
-    try { document.dispatchEvent(new CustomEvent("ix:report:success", { detail: { folio, payload } })); } catch {}
-
-    if (window.gcToast) gcToast(folio ? `Reporte creado: ${folio}` : "Reporte creado", "exito", 3200);
-    else alert(folio ? `Reporte creado: ${folio}` : "Reporte creado");
-
-    // reset visual y cerrar
-    Array.from(form.elements).forEach((el) => (el.disabled = false));
-    btnSend.disabled = false;
-    btnSend.textContent = "Mandar reporte";
-    form.reset();
-    files = [];
-    refreshPreviews();
-    updateDescCount();
-    closeModal();
+      btnSend.textContent = "Mandar reporte";
+      form.reset();
+      clearAllFieldErrors();
+      feedback.hidden = true; feedback.textContent = "";
+      files = [];
+      refreshPreviews();
+      updateDescCount();
+      closeModal();
+    }, 800);
   });
 
-  // ===== API pública del modal 
+  // ===========================================================
+  //   API pública + setup
+  // ===========================================================
   window.ixReportModal = {
-    open: (opts = {}, opener) => openModal(opts, opener),
+    open:  (opts = {}, opener) => openModal(opts, opener),
     close: () => closeModal(),
   };
+
+  ensureUploadButton();
 })();

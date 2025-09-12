@@ -194,112 +194,109 @@
 
     <!-- ESPACIO PARA MODALES -->
     <div id="ix-report-modal" class="ix-modal" role="dialog" aria-modal="true" aria-labelledby="ix-report-title" hidden>
-        <div class="ix-modal__overlay"></div>
-        <div class="ix-modal__dialog">
-            <header class="ix-modal__header">
-                <h3 id="ix-report-title">Levantar reporte</h3>
-                <p class="ix-report-sub" id="ix-report-subtitle">Título del trámite</p>
-                <button type="button" class="ix-modal__close" data-ix-close aria-label="Cerrar">×</button>
-            </header>
+  <div class="ix-modal__overlay"></div>
+  <div class="ix-modal__dialog">
+    <header class="ix-modal__header">
+      <h3 id="ix-report-title">Levantar reporte</h3>
+      <p class="ix-report-sub" id="ix-report-subtitle">Título del trámite</p>
+      <button type="button" class="ix-modal__close" data-ix-close aria-label="Cerrar">×</button>
+    </header>
 
-            <form id="ix-report-form" novalidate>
-                <!-- feedback global -->
-                <div id="ix-report-feedback" class="ix-feedback" role="alert" hidden></div>
+    <form id="ix-report-form" novalidate>
+      <!-- feedback global -->
+      <div id="ix-report-feedback" class="ix-feedback" role="alert" hidden></div>
 
-                <!-- hidden para back -->
-                <input type="hidden" id="ix-report-req" name="asunto">
-                <input type="hidden" id="ix-departamento-id" name="departamento_id">
-                <input type="hidden" id="ix-tramite-id" name="tramite_id">
-                <input type="hidden" name="prioridad" value="2">
-                <input type="hidden" name="estatus" value="0">
-                <input type="hidden" name="canal" value="1">
-                <input type="hidden" name="status" value="1">
+      <!-- hidden para back -->
+      <input type="hidden" id="ix-report-req" name="asunto">
+      <input type="hidden" id="ix-departamento-id" name="departamento_id">
+      <input type="hidden" id="ix-tramite-id" name="tramite_id">
+      <input type="hidden" name="prioridad" value="2">
+      <input type="hidden" name="estatus" value="0">
+      <input type="hidden" name="canal" value="1">
+      <input type="hidden" name="status" value="1">
 
-                <div class="ix-grid-2">
-                    <div class="ix-field">
-                        <label for="ix-nombre" class="ix-label">Nombre completo</label>
-                        <input id="ix-nombre" name="contacto_nombre" type="text" placeholder="Tu nombre">
-                        <small class="ix-help" hidden></small>
-                    </div>
-
-                    <div class="ix-field">
-                        <label for="ix-telefono" class="ix-label">Teléfono</label>
-                        <input id="ix-telefono" name="contacto_telefono" inputmode="numeric" maxlength="10"
-                            placeholder="3312345678">
-                        <small class="ix-help" hidden></small>
-                    </div>
-
-                    <div class="ix-field">
-                        <label for="ix-correo" class="ix-label">Correo (opcional)</label>
-                        <input id="ix-correo" name="contacto_email" type="email" placeholder="tucorreo@dominio.com">
-                        <small class="ix-help" hidden></small>
-                    </div>
-
-                    <div class="ix-field ix-col-span-2">
-                        <label for="ix-domicilio" class="ix-label">Calle y número</label>
-                        <input id="ix-domicilio" name="contacto_calle" type="text" placeholder="Av. Hidalgo 123">
-                        <small class="ix-help" hidden></small>
-                    </div>
-
-                    <div class="ix-field">
-                        <label for="ix-cp" class="ix-label">Código Postal</label>
-                        <select id="ix-cp" name="contacto_cp">
-                            <option value="" disabled selected>Selecciona C.P.</option>
-                        </select>
-                        <small class="ix-help" hidden></small>
-                    </div>
-
-                    <div class="ix-field">
-                        <label for="ix-colonia" class="ix-label">Colonia</label>
-                        <select id="ix-colonia" name="contacto_colonia" disabled>
-                            <option value="" disabled selected>Selecciona colonia</option>
-                        </select>
-                        <small class="ix-help" hidden></small>
-                    </div>
-                </div>
-
-                <div class="ix-field">
-                    <label for="ix-descripcion" class="ix-label">Descripción</label>
-                    <textarea id="ix-descripcion" name="descripcion" rows="4"
-                        placeholder="Describe el problema con detalles (min. 30 caracteres)"></textarea>
-                    <div class="ix-meta"><small><span id="ix-desc-count">0</span>/700</small></div>
-                    <small class="ix-help" hidden></small>
-                </div>
-
-                <!-- Bloque SOLO para Otros -->
-                <fieldset id="ix-otros-block" class="ix-field" hidden>
-                    <label for="ix-otros-detalle" class="ix-label">Detalle adicional (solo para “Otros”)</label>
-                    <textarea id="ix-otros-detalle" name="otros_detalle" rows="3"
-                        placeholder="Describe tu caso si no aparece en la lista…"></textarea>
-                    <small class="ix-help" hidden></small>
-                </fieldset>
-
-                <!-- Evidencia -->
-                <section class="ix-field">
-                    <label class="ix-label">Evidencia (opcional)</label>
-                    <div class="ix-upload" id="ix-upload-zone">
-                        <button type="button" id="ix-evidencia-cta" class="ix-upload-btn">Subir imágenes</button>
-                        <input id="ix-evidencia" type="file" accept="image/jpeg,image/png" multiple hidden>
-                        <p class="ix-upload-hint">JPG o PNG. Máx. 3 imágenes.</p>
-                        <div id="ix-evidencia-previews" class="ix-previews"></div>
-                    </div>
-                </section>
-
-                <div class="ix-consent">
-                    <label>
-                        <input id="ix-consent" type="checkbox">
-                        <span>Acepto el aviso de privacidad y términos.</span>
-                    </label>
-                    <small class="ix-help" hidden></small>
-                </div>
-
-                <footer class="ix-modal__footer">
-                    <button type="submit" id="ix-submit" class="ix-btn ix-btn--primary">Mandar reporte</button>
-                    <button type="button" class="ix-btn" data-ix-close>Cancelar</button>
-                </footer>
-            </form>
+      <div class="ix-grid-2">
+        <div class="ix-field">
+          <label for="ix-nombre" class="ix-label">Nombre completo</label>
+          <input id="ix-nombre" name="contacto_nombre" type="text" placeholder="Tu nombre">
+          <small class="ix-help" hidden></small>
         </div>
-    </div>
+
+        <div class="ix-field">
+          <label for="ix-telefono" class="ix-label">Teléfono</label>
+          <input id="ix-telefono" name="contacto_telefono" inputmode="numeric" maxlength="10" placeholder="3312345678">
+          <small class="ix-help" hidden></small>
+        </div>
+
+        <div class="ix-field">
+          <label for="ix-correo" class="ix-label">Correo (opcional)</label>
+          <input id="ix-correo" name="contacto_email" type="email" placeholder="tucorreo@dominio.com">
+          <small class="ix-help" hidden></small>
+        </div>
+
+        <div class="ix-field ix-col-span-2">
+          <label for="ix-domicilio" class="ix-label">Calle y número</label>
+          <input id="ix-domicilio" name="contacto_calle" type="text" placeholder="Av. Hidalgo 123">
+          <small class="ix-help" hidden></small>
+        </div>
+
+        <div class="ix-field">
+          <label for="ix-cp" class="ix-label">Código Postal</label>
+          <select id="ix-cp" name="contacto_cp">
+            <option value="" disabled selected>Selecciona C.P.</option>
+          </select>
+          <small class="ix-help" hidden></small>
+        </div>
+
+        <div class="ix-field">
+          <label for="ix-colonia" class="ix-label">Colonia</label>
+          <select id="ix-colonia" name="contacto_colonia" disabled>
+            <option value="" disabled selected>Selecciona colonia</option>
+          </select>
+          <small class="ix-help" hidden></small>
+        </div>
+      </div>
+
+      <div class="ix-field">
+        <label for="ix-descripcion" class="ix-label">Descripción</label>
+        <textarea id="ix-descripcion" name="descripcion" rows="4" placeholder="Describe el problema con detalles (min. 30 caracteres)"></textarea>
+        <div class="ix-meta"><small><span id="ix-desc-count">0</span>/700</small></div>
+        <small class="ix-help" hidden></small>
+      </div>
+
+      <!-- Bloque SOLO para “Otros” -->
+      <fieldset id="ix-otros-block" class="ix-field" hidden>
+        <label for="ix-otros-detalle" class="ix-label">Detalle adicional (solo para “Otros”)</label>
+        <textarea id="ix-otros-detalle" name="otros_detalle" rows="3" placeholder="Describe tu caso si no aparece en la lista…"></textarea>
+        <small class="ix-help" hidden></small>
+      </fieldset>
+
+      <!-- Evidencia -->
+      <section class="ix-field">
+        <label class="ix-label">Evidencia (opcional)</label>
+        <div class="ix-upload" id="ix-upload-zone">
+          <button type="button" id="ix-evidencia-cta" class="ix-upload-btn">Subir imágenes</button>
+          <input id="ix-evidencia" type="file" accept="image/jpeg,image/png" multiple hidden>
+          <p class="ix-upload-hint">JPG o PNG. Máx. 3 imágenes.</p>
+          <div id="ix-evidencia-previews" class="ix-previews"></div>
+        </div>
+      </section>
+
+      <div class="ix-consent">
+        <label>
+          <input id="ix-consent" type="checkbox">
+          <span>Acepto el aviso de privacidad y términos.</span>
+        </label>
+        <small class="ix-help" hidden></small>
+      </div>
+
+      <footer class="ix-modal__footer">
+        <button type="submit" id="ix-submit" class="ix-btn ix-btn--primary">Mandar reporte</button>
+        <button type="button" class="ix-btn" data-ix-close>Cancelar</button>
+      </footer>
+    </form>
+  </div>
+</div>
 
 
 
