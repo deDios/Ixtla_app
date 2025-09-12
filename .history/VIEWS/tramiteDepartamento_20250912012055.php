@@ -199,6 +199,7 @@
         <div class="ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-report-title"
             aria-describedby="ix-report-desc">
 
+            <!-- header -->
             <header class="ix-modal__header">
                 <div class="ix-modal__brand">
                     <img src="/ASSETS/main_logo.png" alt="Ixtlahuacán de los Membrillos - Ayuntamiento"
@@ -216,12 +217,15 @@
                 <button type="button" class="ix-modal__close" aria-label="Cerrar" data-ix-close>×</button>
             </header>
 
+            <!-- body / form -->
             <div class="ix-modal__body">
                 <form id="ix-report-form" class="ix-form" novalidate>
+                    <!-- contexto -->
                     <input type="hidden" id="ix-departamento-id" name="departamento_id" value="1">
                     <input type="hidden" name="req_title" id="ix-report-req" value="Fuga de agua">
                     <input type="hidden" name="tramite_id" id="ix-tramite-id" value="">
 
+                    <!-- fila 1: nombre / fecha (informativa) -->
                     <div class="ix-form__row">
                         <div class="ix-field">
                             <label for="ix-nombre" class="ix-field__label">Nombre completo</label>
@@ -241,6 +245,7 @@
                         </div>
                     </div>
 
+                    <!-- fila 2: domicilio / CP (select) -->
                     <div class="ix-form__row">
                         <div class="ix-field">
                             <label for="ix-domicilio" class="ix-field__label">Domicilio</label>
@@ -256,12 +261,14 @@
                             <div class="ix-field__control">
                                 <select id="ix-cp" name="contacto_cp" class="ix-select ix-select--quiet" required>
                                     <option value="" disabled selected>Selecciona C.P.</option>
+                                    <!-- opciones se inyectan por JS (catálogo CP/colonia) -->
                                 </select>
                             </div>
                             <small class="ix-help" id="ix-err-cp" hidden></small>
                         </div>
                     </div>
 
+                    <!-- fila 3: colonia (select) / teléfono -->
                     <div class="ix-form__row">
                         <div class="ix-field">
                             <label for="ix-colonia" class="ix-field__label">Colonia</label>
@@ -284,6 +291,7 @@
                         </div>
                     </div>
 
+                    <!-- fila 4: correo -->
                     <div class="ix-form__row">
                         <div class="ix-field">
                             <label for="ix-correo" class="ix-field__label">Correo electrónico (opcional)</label>
@@ -295,6 +303,7 @@
                         </div>
                     </div>
 
+                    <!-- fila 5: asunto/título solo para “Otros” -->
                     <div class="ix-form__row" id="ix-asunto-group" hidden>
                         <div class="ix-field ix-field--full">
                             <label for="ix-asunto" class="ix-field__label">Clasificación (Título)</label>
@@ -306,6 +315,7 @@
                         </div>
                     </div>
 
+                    <!-- fila 6: descripción -->
                     <div class="ix-form__row">
                         <div class="ix-field ix-field--full">
                             <label for="ix-descripcion" class="ix-field__label">Descripción</label>
@@ -320,6 +330,7 @@
                         </div>
                     </div>
 
+                    <!-- fila 7: evidencia (uploader con botón) -->
                     <div class="ix-form__row">
                         <div class="ix-field ix-field--full">
                             <label class="ix-field__label" for="ix-evidencia">Evidencia</label>
