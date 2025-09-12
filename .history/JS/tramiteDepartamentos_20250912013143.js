@@ -471,12 +471,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-//--------------------------------------------------- modal de reporte 
+//--------------------------------------------------- modal de reporte (SAMAPA y demás)
 (() => {
   const modal = document.getElementById("ix-report-modal");
   if (!modal) { console.warn("[IX] No existe #ix-report-modal, me salgo."); return; }
 
-  // ---------- refs base 
+  // ---------- refs base (todo null-safe)
   const overlay   = modal.querySelector(".ix-modal__overlay");
   const dialog    = modal.querySelector(".ix-modal__dialog");
   const btnCloses = modal.querySelectorAll("[data-ix-close]");
@@ -488,8 +488,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const inpNombre = modal.querySelector("#ix-nombre");
   const inpDom    = modal.querySelector("#ix-domicilio");
-  let   inpCP     = modal.querySelector("#ix-cp");      
-  let   inpCol    = modal.querySelector("#ix-colonia"); 
+  let   inpCP     = modal.querySelector("#ix-cp");      // puede ser <input> → lo haremos <select>
+  let   inpCol    = modal.querySelector("#ix-colonia"); // idem
 
   const inpTel    = modal.querySelector("#ix-telefono");
   const inpCorreo = modal.querySelector("#ix-correo");
