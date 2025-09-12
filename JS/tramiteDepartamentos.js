@@ -476,7 +476,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const modal = document.getElementById("ix-report-modal");
   if (!modal) { console.warn("[IX] No existe #ix-report-modal."); return; }
 
-  // ---------- refs base
   const overlay   = modal.querySelector(".ix-modal__overlay");
   const dialog    = modal.querySelector(".ix-modal__dialog");
   const btnCloses = modal.querySelectorAll("[data-ix-close]");
@@ -587,12 +586,49 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
+  const LAST_CP_KEY  = "ix_last_cp";
   function getCpCache() { try { return JSON.parse(sessionStorage.getItem(CP_CACHE_KEY) || "null"); } catch { return null; } }
   function setCpCache(data) { try { sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify(data)); } catch {} }
+  function getLastCP() { try { return sessionStorage.getItem(LAST_CP_KEY) || ""; } catch { return ""; } }
+  function setLastCP(cp) { try { sessionStorage.setItem(LAST_CP_KEY, String(cp || "")); } catch {} }
 
   let CP_MAP = {};
   let CP_LIST = [];
-  const knownCP = (cp) => Object.prototype.hasOwnProperty.call(CP_MAP, cp);
+  const knownCP = (cp) => Object.prototype.hasOwnProperty.call(CP_MAP, String(cp || ""));
+
+  // --- normalizador flexible: NO asumimos nombres exactos de llaves
+  function extractCpColoniaArray(json) {
+    // logs de inspección cruda
+    console.log("[IX] cpcolonia raw:", json);
+
+    const arr = Array.isArray(json?.data) ? json.data
+              : Array.isArray(json) ? json
+              : [];
+
+    if (!arr.length) {
+      console.warn("[IX] cpcolonia: respuesta sin arreglo de datos.");
+      return [];
+    }
+
+    const out = [];
+    for (const item of arr) {
+      if (!item || typeof item !== "object") continue;
+      // posibles alias de campos
+      const cp = String(
+        item.cp ?? item.CP ?? item.codigo_postal ?? item.codigoPostal ?? item.postal_code ?? item.postalCode ?? ""
+      ).trim();
+
+      const col = String(
+        item.colonia ?? item.Colonia ?? item.asentamiento ?? item.barrio ?? item.neighborhood ?? ""
+      ).trim();
+
+      if (!cp || !col) continue;
+      out.push({ cp, colonia: col });
+    }
+
+    console.log("[IX] cpcolonia normalizado (primeros 5):", out.slice(0, 5));
+    return out;
+  }
 
   async function fetchCpColonia() {
     const hit = getCpCache();
@@ -607,19 +643,40 @@ document.addEventListener("DOMContentLoaded", () => {
       }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     );
 
-    const rows = Array.isArray(json?.data) ? json.data : [];
+    const rows = extractCpColoniaArray(json);
+
+    // Construcción de mapa con unicidad case-insensitive de colonias
     const map = {};
     for (const r of rows) {
-      const cp  = String(r?.cp || "").trim();
-      const col = String(r?.colonia || "").trim();
-      if (!cp || !col) continue;
-      if (!map[cp]) map[cp] = [];
-      if (!map[cp].includes(col)) map[cp].push(col);
-    }
-    Object.keys(map).forEach(cp => map[cp].sort((a,b)=>a.localeCompare(b,"es")));
-    const list = Object.keys(map).sort();
+      const cp  = String(r.cp || "").trim();
+      const col = String(r.colonia || "").trim();
 
-    CP_MAP = map; CP_LIST = list; setCpCache({ map, list });
+      if (!cp || !col) continue;
+
+      if (!map[cp]) {
+        map[cp] = { order: [], seen: new Set() }; // seen en minúsculas
+      }
+      const key = col.toLocaleLowerCase("es");
+      if (!map[cp].seen.has(key)) {
+        map[cp].seen.add(key);
+        map[cp].order.push(col);
+      }
+    }
+
+    // ordenar por etiqueta visible y convertir a arrays finales
+    const finalMap = {};
+    Object.keys(map).forEach(cp => {
+      const sorted = map[cp].order.sort((a,b)=>a.localeCompare(b,"es"));
+      finalMap[cp] = sorted;
+    });
+
+    const list = Object.keys(finalMap).sort();
+
+    CP_MAP = finalMap; 
+    CP_LIST = list; 
+    setCpCache({ map: finalMap, list });
+
+    console.log("[IX] cpcolonia resumen:", { cps: CP_LIST.length, ejemploCP: CP_LIST[0], coloniasEjemplo: CP_MAP[CP_LIST[0]]?.slice(0,5) });
   }
 
   // ---------- helpers de SELECT
@@ -782,7 +839,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // CP/Colonia
     ensureCpSelect(); ensureColSelect(); resetColonia();
-    fetchCpColonia().then(() => { populateCpOptions(); resetColonia(); }).catch(()=>{});
+    fetchCpColonia()
+      .then(() => {
+        populateCpOptions();
+        // recordar último CP (si existe y es válido)
+        const last = getLastCP();
+        if (last && knownCP(last)) {
+          inpCP.value = last;
+          populateColoniasForCP(last);
+        } else {
+          resetColonia();
+        }
+      })
+      .catch((err) => {
+        console.warn("[IX] cpcolonia error:", err);
+        // mantenemos selects con placeholders por defecto
+      });
 
     // Mostrar modal
     modal.hidden = false;
@@ -899,8 +971,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const t = e.target;
     if (t && t.id === "ix-cp") {
       const v = t.value || "";
-      if (!v || !knownCP(v)) resetColonia();
-      else populateColoniasForCP(v);
+      if (!v || !knownCP(v)) {
+        resetColonia();
+      } else {
+        populateColoniasForCP(v);
+        setLastCP(v);
+      }
       if (hasAttemptedSubmit) validateForm(true);
     }
     if (t && t.id === "ix-colonia") {
