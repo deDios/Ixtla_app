@@ -2,10 +2,24 @@
 const ENDPOINT="https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_requerimiento.php",FETCH_TIMEOUT=12000,IX_DEBUG_TRACK=!0,CACHE_TTL_MS=60*1000;
 function getDepIdFromURL(){try{const s=new URLSearchParams(location.search),n=Number(s.get("depId"));return Number.isInteger(n)&&n>0?n:null}catch{return null}}
 const DEPARTAMENTO_ID=getDepIdFromURL(),CACHE_KEY=`ix_req_cache_dept_${DEPARTAMENTO_ID??"all"}`;
-/* Estado / textos (sin badges/subestatus) */
+/* Estado / textos */
 const NUM_STATUS_MAP={0:"solicitud",1:"revision",2:"asignacion",3:"proceso",4:"proceso",5:"proceso",6:"finalizado"},
-      STEP_BY_KEY={solicitud:1,revision:2,asignacion:3,proceso:4,finalizado:5},
-      MESSAGES={solicitud:"Tu trámite fue enviado y está registrado en el sistema.",revision:"Se revisa la información y evidencias proporcionadas.",asignacion:"Se asigna el caso al área o personal responsable.",proceso:"El equipo trabaja en la atención del requerimiento.",finalizado:"El requerimiento fue resuelto y el trámite ha concluido."};
+      STEP_BY_KEY=
+      {
+        solicitud:1,
+        revision:2,
+        asignacion:3,
+        proceso:4,
+        finalizado:5
+      },
+      MESSAGES=
+      {
+        solicitud:"Tu trámite fue enviado y está registrado en el sistema.",
+        revision:"Se revisa la información y evidencias proporcionadas.",
+        asignacion:"Se asigna el caso al área o personal responsable.",
+        proceso:"El equipo trabaja en la atención del requerimiento.",
+        finalizado:"El requerimiento fue resuelto y el trámite ha concluido."
+      };
 /* Utils */
 const $=(r,s)=>r?.querySelector?.(s)??null,$$=(r,s)=>Array.from(r?.querySelectorAll?.(s)??[]),
 log=(...a)=>{IX_DEBUG_TRACK&&console.log("[IX][track]",...a)},
@@ -46,7 +60,7 @@ function closeAllPopovers(exceptId=null){popBtns.forEach(b=>b.setAttribute("aria
 function handleStepBtnClick(e){const btn=e.currentTarget,id=btn.getAttribute("aria-controls"),pop=root.querySelector(`#${id}`);if(!pop)return;const willOpen=pop.hidden;closeAllPopovers(willOpen?id:null);btn.setAttribute("aria-expanded",String(willOpen));pop.hidden=!willOpen}
 function handleDocClick(e){if(!root.contains(e.target))return closeAllPopovers();const isBtn=e.target.closest?.(".ix-stepbtn"),isPop=e.target.closest?.(".ix-pop");!isBtn&&!isPop&&closeAllPopovers()}
 function handleEsc(e){"Escape"===e.key&&closeAllPopovers()}
-/* Data logic (sin subestatus) */
+/* Data logic */
 function statusKeyFromRow(row){if(row?.cerrado_en)return"finalizado";const raw=row?.estatus;if(raw===null||raw===undefined)return"proceso";if(typeof raw==="number")return NUM_STATUS_MAP[raw]||"proceso";if(typeof raw==="string"){const k=raw.trim().toLowerCase();if(k in STEP_BY_KEY)return k;if(k.includes("final"))return"finalizado";if(k.includes("rev"))return"revision";if(k.includes("asign"))return"asignacion";if(k.includes("sol"))return"solicitud";if(k.includes("proc"))return"proceso";return"proceso"}return"proceso"}
 const stepFromKey=k=>STEP_BY_KEY[k]||4;
 /* Render */
