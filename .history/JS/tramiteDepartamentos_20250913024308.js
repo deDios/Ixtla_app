@@ -184,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
       desc: String(r?.descripcion || "").trim(),
       sla: null,
     }))
-      .sort((a, b) => Number(a.id) - Number(b.id));
+    .sort((a, b) => Number(a.id) - Number(b.id));
 
     return items;
   }
@@ -476,48 +476,48 @@ document.addEventListener("DOMContentLoaded", () => {
   const modal = document.getElementById("ix-report-modal");
   if (!modal) { console.warn("[IX] No existe #ix-report-modal."); return; }
 
-  const overlay = modal.querySelector(".ix-modal__overlay");
-  const dialog = modal.querySelector(".ix-modal__dialog");
+  const overlay   = modal.querySelector(".ix-modal__overlay");
+  const dialog    = modal.querySelector(".ix-modal__dialog");
   const btnCloses = modal.querySelectorAll("[data-ix-close]");
-  const form = modal.querySelector("#ix-report-form");
-  const feedback = modal.querySelector("#ix-report-feedback");
+  const form      = modal.querySelector("#ix-report-form");
+  const feedback  = modal.querySelector("#ix-report-feedback");
 
-  const subTitle = modal.querySelector("#ix-report-subtitle");
-  const inpReq = modal.querySelector("#ix-report-req");
-  const inpFecha = modal.querySelector("#ix-fecha");
-  const timeMeta = modal.querySelector("#ix-report-date");
+  const subTitle  = modal.querySelector("#ix-report-subtitle");
+  const inpReq    = modal.querySelector("#ix-report-req");
+  const inpFecha  = modal.querySelector("#ix-fecha");
+  const timeMeta  = modal.querySelector("#ix-report-date"); 
 
   // campos
   const inpNombre = modal.querySelector("#ix-nombre");
-  const inpDom = modal.querySelector("#ix-domicilio");
-  let inpCP = modal.querySelector("#ix-cp");
-  let inpCol = modal.querySelector("#ix-colonia");
-  const inpTel = modal.querySelector("#ix-telefono");
+  const inpDom    = modal.querySelector("#ix-domicilio");
+  let   inpCP     = modal.querySelector("#ix-cp");       
+  let   inpCol    = modal.querySelector("#ix-colonia");  
+  const inpTel    = modal.querySelector("#ix-telefono");
   const inpCorreo = modal.querySelector("#ix-correo");
-  const inpDesc = modal.querySelector("#ix-descripcion");
-  const cntDesc = modal.querySelector("#ix-desc-count");
-  const chkCons = modal.querySelector("#ix-consent");
-  const btnSend = modal.querySelector("#ix-submit");
+  const inpDesc   = modal.querySelector("#ix-descripcion");
+  const cntDesc   = modal.querySelector("#ix-desc-count");
+  const chkCons   = modal.querySelector("#ix-consent");
+  const btnSend   = modal.querySelector("#ix-submit");
 
   // bloque solo para Otros
   const asuntoGroup = modal.querySelector("#ix-asunto-group");
-  const inpAsunto = modal.querySelector("#ix-asunto");
+  const inpAsunto   = modal.querySelector("#ix-asunto");
 
   // uploader
-  const upWrap = modal.querySelector(".ix-upload");
-  const upInput = modal.querySelector("#ix-evidencia");
+  const upWrap   = modal.querySelector(".ix-upload");
+  const upInput  = modal.querySelector("#ix-evidencia");
   const previews = modal.querySelector("#ix-evidencia-previews");
 
   // hidden opcionales
-  const inpDepId = modal.querySelector("input[name='departamento_id']");
+  const inpDepId     = modal.querySelector("input[name='departamento_id']");
   const inpTramiteId = modal.querySelector("input[name='tramite_id']");
 
   // ---------- endpoints
   const ENDPOINTS = {
-    cpcolonia: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
-    insertReq: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento.php",
+    cpcolonia : "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
+    insertReq : "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento.php",
     fsBootstrap: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_fs_bootstrap.php",
-    uploadImg: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento_img.php",
+    uploadImg : "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento_img.php",
   };
 
   // ---------- config
@@ -536,15 +536,15 @@ document.addEventListener("DOMContentLoaded", () => {
   let trapHandler = null;
   let hasAttemptedSubmit = false;
 
-  let currentDepId = "1";
+  let currentDepId  = "1";
   let currentItemId = "";
-  let currentTitle = "Reporte";
+  let currentTitle  = "Reporte";
 
   // ---------- utils
-  const digits = (s) => (s || "").replace(/\D+/g, "");
+  const digits  = (s) => (s || "").replace(/\D+/g, "");
   const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || "").trim());
 
-  const MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   const pad2 = (n) => String(n).padStart(2, "0");
   const fmtAMPM = (d) => {
     const h = d.getHours(), m = d.getMinutes();
@@ -555,16 +555,16 @@ document.addEventListener("DOMContentLoaded", () => {
   function setToday() {
     const d = new Date();
     const text = `${pad2(d.getDate())} de ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()} · ${fmtAMPM(d)}`;
-    if (inpFecha) inpFecha.value = text;     // set DESPUÉS de form.reset()
+    if (inpFecha)  inpFecha.value = text;     // set DESPUÉS de form.reset()
     if (timeMeta) { timeMeta.dateTime = d.toISOString(); timeMeta.textContent = text; }
   }
 
   const clearFeedback = () => { if (!feedback) return; feedback.hidden = true; feedback.textContent = ""; };
-  const showFeedback = (msg) => { if (!feedback) return; feedback.hidden = false; feedback.textContent = msg; };
+  const showFeedback  = (msg) => { if (!feedback) return; feedback.hidden = false; feedback.textContent = msg; };
 
   const setFieldError = (inputEl, msg = "") => {
     const field = inputEl?.closest?.(".ix-field");
-    const help = field?.querySelector(".ix-help");
+    const help  = field?.querySelector(".ix-help");
     if (!field) return;
     if (msg) {
       field.classList.add("ix-field--error");
@@ -590,11 +590,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
-  const LAST_CP_KEY = "ix_last_cp";
+  const LAST_CP_KEY  = "ix_last_cp";
   function getCpCache() { try { return JSON.parse(sessionStorage.getItem(CP_CACHE_KEY) || "null"); } catch { return null; } }
-  function setCpCache(data) { try { sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify(data)); } catch { } }
+  function setCpCache(data) { try { sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify(data)); } catch {} }
   function getLastCP() { try { return sessionStorage.getItem(LAST_CP_KEY) || ""; } catch { return ""; } }
-  function setLastCP(cp) { try { sessionStorage.setItem(LAST_CP_KEY, String(cp || "")); } catch { } }
+  function setLastCP(cp) { try { sessionStorage.setItem(LAST_CP_KEY, String(cp || "")); } catch {} }
 
   let CP_MAP = {};
   let CP_LIST = [];
@@ -603,8 +603,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function extractCpColoniaArray(json) {
     if (CFG.DEBUG) console.log("[IX] cpcolonia raw:", json);
     const arr = Array.isArray(json?.data) ? json.data
-      : Array.isArray(json) ? json
-        : [];
+              : Array.isArray(json) ? json
+              : [];
     if (!arr.length) {
       console.warn("[IX] cpcolonia: respuesta sin arreglo de datos.");
       return [];
@@ -628,7 +628,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const json = await withTimeout((signal) =>
       fetch(ENDPOINTS.cpcolonia, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        headers: { "Content-Type":"application/json", "Accept":"application/json" },
         body: JSON.stringify({ all: true }),
         signal
       }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
@@ -638,7 +638,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const map = {};
     for (const r of rows) {
-      const cp = String(r.cp || "").trim();
+      const cp  = String(r.cp || "").trim();
       const col = String(r.colonia || "").trim();
       if (!cp || !col) continue;
 
@@ -652,20 +652,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const finalMap = {};
     Object.keys(map).forEach(cp => {
-      const sorted = map[cp].order.sort((a, b) => a.localeCompare(b, "es"));
+      const sorted = map[cp].order.sort((a,b)=>a.localeCompare(b,"es"));
       finalMap[cp] = sorted;
     });
 
     const list = Object.keys(finalMap).sort();
-    CP_MAP = finalMap;
-    CP_LIST = list;
+    CP_MAP = finalMap; 
+    CP_LIST = list; 
     setCpCache({ map: finalMap, list });
 
-    if (CFG.DEBUG) console.log("[IX] cpcolonia resumen:", { cps: CP_LIST.length, ejemploCP: CP_LIST[0], coloniasEjemplo: CP_MAP[CP_LIST[0]]?.slice(0, 5) });
+    if (CFG.DEBUG) console.log("[IX] cpcolonia resumen:", { cps: CP_LIST.length, ejemploCP: CP_LIST[0], coloniasEjemplo: CP_MAP[CP_LIST[0]]?.slice(0,5) });
   }
 
   // ---------- helpers de SELECT
-  const makeOpt = (val, label, { disabled = false, selected = false } = {}) => {
+  const makeOpt = (val, label, { disabled=false, selected=false } = {}) => {
     const o = document.createElement("option");
     o.value = val; o.textContent = label;
     if (disabled) o.disabled = true;
@@ -684,27 +684,27 @@ document.addEventListener("DOMContentLoaded", () => {
     return sel;
   };
 
-  const ensureCpSelect = () => (inpCP = ensureSelect(inpCP, { nameFallback: "cp", idFallback: "ix-cp" }));
-  const ensureColSelect = () => (inpCol = ensureSelect(inpCol, { nameFallback: "colonia", idFallback: "ix-colonia" }));
+  const ensureCpSelect  = () => (inpCP  = ensureSelect(inpCP,  { nameFallback:"cp",      idFallback:"ix-cp" }));
+  const ensureColSelect = () => (inpCol = ensureSelect(inpCol, { nameFallback:"colonia", idFallback:"ix-colonia" }));
 
   const populateCpOptions = () => {
     ensureCpSelect();
     inpCP.innerHTML = "";
-    inpCP.appendChild(makeOpt("", "Selecciona C.P.", { disabled: true, selected: true }));
+    inpCP.appendChild(makeOpt("", "Selecciona C.P.", { disabled:true, selected:true }));
     CP_LIST.forEach(cp => inpCP.appendChild(makeOpt(cp, cp)));
   };
 
   const resetColonia = (msg = "Selecciona C.P. primero") => {
     ensureColSelect();
     inpCol.innerHTML = "";
-    inpCol.appendChild(makeOpt("", msg, { disabled: true, selected: true }));
+    inpCol.appendChild(makeOpt("", msg, { disabled:true, selected:true }));
     inpCol.disabled = true;
   };
 
   const populateColoniasForCP = (cp) => {
     ensureColSelect();
     inpCol.innerHTML = "";
-    inpCol.appendChild(makeOpt("", "Selecciona colonia", { disabled: true, selected: true }));
+    inpCol.appendChild(makeOpt("", "Selecciona colonia", { disabled:true, selected:true }));
     (CP_MAP[cp] || []).forEach(col => inpCol.appendChild(makeOpt(col, col)));
     inpCol.disabled = false;
   };
@@ -770,10 +770,10 @@ document.addEventListener("DOMContentLoaded", () => {
     upInput?.click();
   });
   upInput?.addEventListener("change", (e) => handleFiles(e.target.files));
-  ["dragenter", "dragover"].forEach(ev =>
+  ["dragenter","dragover"].forEach(ev =>
     upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.add("is-drag"); })
   );
-  ["dragleave", "drop"].forEach(ev =>
+  ["dragleave","drop"].forEach(ev =>
     upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.remove("is-drag"); })
   );
   upWrap?.addEventListener("drop", (e) => handleFiles(e.dataTransfer?.files || []));
@@ -789,7 +789,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const list = getFocusable(); if (!list.length) return;
     const first = list[0], last = list[list.length - 1];
     if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
-    else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+    else            { if (document.activeElement === last)  { e.preventDefault(); first.focus(); } }
   }
 
   function toggleAsuntoForOtros(isOtros) {
@@ -803,16 +803,16 @@ document.addEventListener("DOMContentLoaded", () => {
     { title = "Reporte", depKey = "1", itemId = "", sla = "" } = {},
     opener = null
   ) {
-    openerBtn = opener || document.activeElement;
-    currentDepId = String(depKey || "1");
+    openerBtn   = opener || document.activeElement;
+    currentDepId  = String(depKey || "1");
     currentItemId = String(itemId || "");
-    currentTitle = String(title || "Reporte");
+    currentTitle  = String(title || "Reporte");
 
     // Título / contexto
     if (subTitle) subTitle.textContent = currentTitle;
-    if (inpReq) inpReq.value = currentTitle;
+    if (inpReq)   inpReq.value = currentTitle;
     if (inpTramiteId) inpTramiteId.value = currentItemId;
-    if (inpDepId) inpDepId.value = currentDepId;
+    if (inpDepId)     inpDepId.value = currentDepId;
 
     // Reset UI
     clearFeedback();
@@ -852,8 +852,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     trapHandler = (e) => { if (e.key === "Escape") closeModal(); else trap(e); };
     document.addEventListener("keydown", trapHandler);
-    overlay?.addEventListener("click", closeModal, { once: true });
-    btnCloses.forEach(b => b.addEventListener("click", closeModal, { once: true }));
+    overlay?.addEventListener("click", closeModal, { once:true });
+    btnCloses.forEach(b => b.addEventListener("click", closeModal, { once:true }));
 
     // foco inicial
     setTimeout(() => { inpNombre?.focus(); }, 0);
@@ -862,18 +862,18 @@ document.addEventListener("DOMContentLoaded", () => {
       document.dispatchEvent(new CustomEvent("ix:report:open", {
         detail: { depKey: currentDepId, itemId: currentItemId, title: currentTitle, sla }
       }));
-    } catch { }
+    } catch {}
   }
 
   function closeModal() {
-    document.removeEventListener("keydown", trapHandler || (() => { }));
+    document.removeEventListener("keydown", trapHandler || (()=>{}));
     trapHandler = null;
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
     if (openerBtn && typeof openerBtn.focus === "function") openerBtn.focus();
     openerBtn = null;
-    try { document.dispatchEvent(new CustomEvent("ix:report:close")); } catch { }
+    try { document.dispatchEvent(new CustomEvent("ix:report:close")); } catch {}
   }
 
   // ---------- validaciones
@@ -931,7 +931,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (files.length < (CFG.MIN_FILES || 0)) {
       ok = false;
       if (showErrors) {
-        showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES > 1 ? "es" : ""} (JPG o PNG).`);
+        showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES>1?"es":""} (JPG o PNG).`);
         upWrap?.classList.add("ix-upload--error");
       }
     } else {
@@ -983,7 +983,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const json = await withTimeout((signal) =>
         fetch(ENDPOINTS.fsBootstrap, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          headers: { "Content-Type":"application/json", "Accept":"application/json" },
           body: JSON.stringify({ folio }),
           signal
         }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
@@ -998,30 +998,30 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function uploadEvidence(folio, status, fileList) {
-    if (!fileList?.length) return { ok: true, saved: [], failed: [] };
-    const fd = new FormData();
-    fd.append("folio", folio);
-    fd.append("status", String(status));
+  if (!fileList?.length) return { ok:true, saved:[], failed:[] };
+  const fd = new FormData();
+  fd.append("folio", folio);
+  fd.append("status", String(status));
 
-    // <-- AQUI el cambio importante: usar "files[]"
-    fileList.forEach(f => fd.append("files[]", f, f.name));
+  // <-- AQUI el cambio importante: usar "files[]"
+  fileList.forEach(f => fd.append("files[]", f, f.name));
 
-    if (CFG.DEBUG) {
-      console.log("[IX] preparando upload:", { count: fileList.length, names: fileList.map(f => f.name) });
-    }
-
-    try {
-      const json = await withTimeout((signal) =>
-        fetch(ENDPOINTS.uploadImg, { method: "POST", body: fd, signal })
-          .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      );
-      if (CFG.DEBUG) console.log("[IX] uploadImg:", json);
-      return json;
-    } catch (e) {
-      console.error("[IX] uploadImg fallo:", e?.message || e);
-      return { ok: false, saved: [], failed: [{ error: e?.message || String(e) }] };
-    }
+  if (CFG.DEBUG) {
+    console.log("[IX] preparando upload:", { count: fileList.length, names: fileList.map(f=>f.name) });
   }
+
+  try {
+    const json = await withTimeout((signal) =>
+      fetch(ENDPOINTS.uploadImg, { method: "POST", body: fd, signal })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    );
+    if (CFG.DEBUG) console.log("[IX] uploadImg:", json);
+    return json;
+  } catch (e) {
+    console.error("[IX] uploadImg fallo:", e?.message || e);
+    return { ok:false, saved:[], failed:[{ error: e?.message || String(e) }] };
+  }
+}
 
   // ---------- submit → inserción
   form?.addEventListener("submit", async (e) => {
@@ -1039,23 +1039,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // seguridad extra
     if (files.length < (CFG.MIN_FILES || 0)) {
-      showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES > 1 ? "es" : ""}.`);
+      showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES>1?"es":""}.`);
       upWrap?.classList.add("ix-upload--error");
       return;
     }
 
     // payload
-    const depId = Number(currentDepId || inpDepId?.value || 1);
-    const tramId = Number(currentItemId || inpTramiteId?.value || 0);
+    const depId   = Number(currentDepId || inpDepId?.value || 1);
+    const tramId  = Number(currentItemId || inpTramiteId?.value || 0);
     const isOtros = /\botr(os|o)\b/i.test(currentTitle);
 
     const nombre = (inpNombre?.value || "").trim();
-    const calle = (inpDom?.value || "").trim();
-    const cp = (inpCP?.value || "").trim();
-    const col = (inpCol?.value || "").trim();
-    const tel = digits(inpTel?.value || "");
+    const calle  = (inpDom?.value    || "").trim();
+    const cp     = (inpCP?.value     || "").trim();
+    const col    = (inpCol?.value    || "").trim();
+    const tel    = digits(inpTel?.value || "");
     const correo = (inpCorreo?.value || "").trim();
-    const desc = (inpDesc?.value || "").trim();
+    const desc   = (inpDesc?.value   || "").trim();
 
     let asunto = `Reporte ${currentTitle}`;
     if (isOtros && inpAsunto && inpAsunto.value.trim()) {
@@ -1096,15 +1096,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const json = await withTimeout((signal) =>
         fetch(ENDPOINTS.insertReq, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          headers: { "Content-Type":"application/json", "Accept":"application/json" },
           body: JSON.stringify(body),
           signal
         }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       );
 
       if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
-      const folio = json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
-      try { sessionStorage.setItem("ix_last_folio", folio); } catch { }
+      const folio = json.data.folio || `REQ-${String(Date.now()%1e10).padStart(10,"0")}`;
+      try { sessionStorage.setItem("ix_last_folio", folio); } catch {}
 
       if (CFG.DEBUG) console.log("[IX] insertReq OK, folio:", folio);
 
@@ -1121,8 +1121,8 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("[IX] Evidencias subidas:", upRes.saved?.length || 0);
       }
 
-      try { document.dispatchEvent(new CustomEvent("ix:report:submit", { detail: { ...body, folio } })); } catch { }
-      try { document.dispatchEvent(new CustomEvent("ix:report:success", { detail: { folio } })); } catch { }
+      try { document.dispatchEvent(new CustomEvent("ix:report:submit",  { detail: { ...body, folio } })); } catch {}
+      try { document.dispatchEvent(new CustomEvent("ix:report:success", { detail: { folio } })); } catch {}
 
       if (window.gcToast) gcToast(`Reporte creado: ${folio}`, "exito", 3200);
       else alert(`Reporte creado: ${folio}`);
