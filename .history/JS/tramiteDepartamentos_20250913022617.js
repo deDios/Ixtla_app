@@ -1141,6 +1141,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // ---------- API pública + setup
   window.ixReportModal = {
     open: (opts = {}, opener) => openModal(opts, opener),
     close: () => closeModal(),
