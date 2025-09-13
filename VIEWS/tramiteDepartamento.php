@@ -180,7 +180,6 @@
                                         <span class="ix-step-dot" aria-hidden="true"></span>
                                         <span class="ix-step-label">
                                             En proceso
-                                            <span id="ix-substatus" class="ix-badge" hidden>Pausado</span>
                                         </span>
                                     </button>
                                     <div id="ix-pop-4" class="ix-pop" role="tooltip" hidden>
