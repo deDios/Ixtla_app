@@ -78,14 +78,14 @@
                 <form id="form-tramite" class="ix-form" autocomplete="off" novalidate>
                     <div class="ix-input-row">
                         <div class="ix-input-underline">
-                            <input id="folio" name="folio" type="text" placeholder="ID00001"
+                            <input id="folio" name="folio" type="text" placeholder="REQ-0000000000"
                                 aria-describedby="folioHelp" maxlength="20" required />
                             <div class="ix-underline"></div>
                         </div>
                         <button class="ix-btn" id="btn-buscar" type="submit" aria-live="polite">Buscar</button>
                     </div>
                     <small id="folioHelp" class="ix-help sr-only">
-                        Ingresa el ID del trámite (ej. REQ-0000000005). Se normaliza automáticamente.
+                        Ingresa el ID del trámite (ej. REQ-0000000005).
                     </small>
                 </form>
 
