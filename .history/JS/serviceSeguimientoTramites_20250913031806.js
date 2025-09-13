@@ -174,5 +174,6 @@ $$(root,".ix-pop-close").forEach(b=>b.addEventListener("click",()=>closeAllPopov
 document.addEventListener("click",handleDocClick);
 document.addEventListener("keydown",handleEsc);
 
+/* ============= Autoload via ?folio= ============= */
 try{ const sp=new URLSearchParams(location.search), qf=sp.get("folio"); if(qf){ inpFolio.value=qf; handleSubmit(); } }catch{}
 })();
