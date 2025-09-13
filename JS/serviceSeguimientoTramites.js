@@ -1,6 +1,6 @@
 (() => {
   //  Config 
-  const ENDPOINT = "http://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_requerimiento.php";
+  const ENDPOINT = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_requerimiento.php";
   const FETCH_TIMEOUT = 12000;
   const IX_DEBUG_TRACK = true;          // recordar colocar false aqui cuando la pagina este liberada
   const CACHE_TTL_MS = 1 * 60 * 1000;   // 1 min
