@@ -3,7 +3,16 @@ const ENDPOINT="https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsi
 function getDepIdFromURL(){try{const s=new URLSearchParams(location.search),n=Number(s.get("depId"));return Number.isInteger(n)&&n>0?n:null}catch{return null}}
 const DEPARTAMENTO_ID=getDepIdFromURL(),CACHE_KEY=`ix_req_cache_dept_${DEPARTAMENTO_ID??"all"}`;
 /* Estado / textos */
-const NUM_STATUS_MAP={0:"solicitud",1:"revision",2:"asignacion",3:"proceso",4:"pausado",5:"cancelado",6:"finalizado"},
+const NUM_STATUS_MAP=
+{
+  0:"solicitud",
+  1:"revision",
+  2:"asignacion",
+  3:"proceso",
+  4:"pausado",
+  5:"cancelado",
+  6:"finalizado"
+},
       STEP_BY_KEY=
       {
         solicitud:0,
