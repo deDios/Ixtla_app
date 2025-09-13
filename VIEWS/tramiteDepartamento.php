@@ -118,7 +118,7 @@
                     <!-- RESULT -->
                     <article id="ix-track-result" class="ix-state" hidden data-folio="" data-updated-at="">
                         <!-- Encabezado -->
-                        <header class="ix-ticket-head">
+                        <div class="ix-ticket-head">
                             <div class="ix-ticket-left">
                                 <p><strong>ID:</strong> <span id="ix-meta-folio" class="mono">REQ-0000000005</span></p>
                                 <p><strong>Requerimiento:</strong> <span id="ix-meta-req">—</span></p>
@@ -130,7 +130,7 @@
                                 <p><strong>Fecha de solicitado:</strong></p>
                                 <p><span id="ix-meta-date">—</span><br><span id="ix-meta-time" class="mono">—</span></p>
                             </div>
-                        </header>
+                        </div>
 
                         <div class="ix-stepper" aria-label="Etapas del trámite">
                             <ul class="ix-steps" role="list">
