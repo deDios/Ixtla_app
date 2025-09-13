@@ -66,37 +66,158 @@
     </header>
 
     <main>
+
+
+
         <!-------------------------- Seccion 1  --------------------------->
         <section id="tramites-busqueda" class="ix-section ix-tramites" aria-labelledby="tramites-busqueda-title">
             <div class="ix-wrap">
-                <h2 id="tramites-busqueda-title" class="sr-only">Búsqueda de trámite</h2>
+                <h2 id="tramites-busqueda-title" class="ix-title">N° del trámite</h2>
 
+                <!-- Formulario -->
                 <form id="form-tramite" class="ix-form" autocomplete="off" novalidate>
-                    <label for="folio" class="ix-label">N° del trámite</label>
-
                     <div class="ix-input-row">
                         <div class="ix-input-underline">
                             <input id="folio" name="folio" type="text" placeholder="ID00001"
                                 aria-describedby="folioHelp" maxlength="20" required />
+                            <div class="ix-underline"></div>
                         </div>
-
-                        <button class="ix-btn" type="submit">Buscar</button>
+                        <button class="ix-btn" id="btn-buscar" type="submit" aria-live="polite">Buscar</button>
                     </div>
-
-                    <small id="folioHelp" class="ix-help sr-only">Formato sugerido: ID seguido de dígitos, ej.
-                        ID00001.</small>
+                    <small id="folioHelp" class="ix-help sr-only">
+                        Ingresa el ID del trámite (ej. REQ-0000000005). Se normaliza automáticamente.
+                    </small>
                 </form>
 
-                <!-- Panel de texto/instrucciones -->
-                <div class="ix-result" role="status" aria-live="polite">
-                    <p>Una vez cargado el ID del trámite se verá reflejado en esta parte de la siguiente forma
-                        dependiendo del paso en el que se encuentre el reporte.</p>
-                    <p>Si no recuerdas tu ID comunícate al: <a href="tel:3333333333">33 3333 3333</a> o al correo:
-                        <a href="mailto:recuperarId@gmail.com">recuperarId@gmail.com</a>
-                    </p>
+                <!-- Contenedor (reusa tu .ix-result) -->
+                <div class="ix-result" role="region" aria-live="polite" aria-label="Seguimiento del trámite">
+
+                    <!-- EMPTY -->
+                    <div id="ix-track-empty" class="ix-state is-visible" role="status">
+                        <p>Una vez ingresado el ID del trámite, el estado del reporte se mostrará en esta sección,
+                            de acuerdo con la etapa del proceso.</p>
+                        <p>Si no recuerdas tu ID comunícate al <a href="tel:3333333333">33 3333 3333</a>
+                            o escribe a <a href="mailto:recuperarId@gmail.com">recuperarId@gmail.com</a>.</p>
+                    </div>
+
+                    <!-- LOADING -->
+                    <div id="ix-track-loading" class="ix-state" role="status" aria-busy="true">
+                        <div class="ix-loading">
+                            <span class="ix-spinner" aria-hidden="true"></span>
+                            <span>Buscando información del trámite…</span>
+                        </div>
+                    </div>
+
+                    <!-- ERROR -->
+                    <div id="ix-track-error" class="ix-state" role="alert">
+                        <p><strong>No se encontró el trámite.</strong></p>
+                        <p>Verifica el número e inténtalo nuevamente.</p>
+                        <button class="ix-btn ghost" type="button" id="ix-reintentar">Reintentar</button>
+                    </div>
+
+                    <!-- RESULT -->
+                    <article id="ix-track-result" class="ix-state" hidden data-folio="" data-updated-at="">
+                        <!-- Encabezado -->
+                        <header class="ix-ticket-head">
+                            <div class="ix-ticket-left">
+                                <p><strong>ID:</strong> <span id="ix-meta-folio" class="mono">REQ-0000000005</span></p>
+                                <p><strong>Requerimiento:</strong> <span id="ix-meta-req">—</span></p>
+                                <p><strong>Dirección:</strong> <span id="ix-meta-dir">—</span></p>
+                                <p><strong>Solicitante:</strong> <span id="ix-meta-sol">—</span></p>
+                                <p><strong>Descripción:</strong> <span id="ix-meta-desc">—</span></p>
+                            </div>
+                            <div class="ix-ticket-right">
+                                <p><strong>Fecha de solicitado:</strong></p>
+                                <p><span id="ix-meta-date">—</span><br><span id="ix-meta-time" class="mono">—</span></p>
+                            </div>
+                        </header>
+
+                        <div class="ix-stepper" aria-label="Etapas del trámite">
+                            <ul class="ix-steps" role="list">
+                                <!-- 1: Solicitud -->
+                                <li class="ix-step pending" role="listitem" data-step="1">
+                                    <button class="ix-stepbtn" type="button"
+                                        aria-expanded="false" aria-controls="ix-pop-1">
+                                        <span class="ix-step-dot" aria-hidden="true"></span>
+                                        <span class="ix-step-label">Solicitud</span>
+                                    </button>
+                                    <div id="ix-pop-1" class="ix-pop" role="tooltip" hidden>
+                                        Tu trámite fue enviado y está registrado en el sistema.
+                                        <button class="ix-pop-close" type="button" aria-label="Cerrar">×</button>
+                                    </div>
+                                </li>
+
+                                <!-- 2: Revision -->
+                                <li class="ix-step pending" role="listitem" data-step="2">
+                                    <button class="ix-stepbtn" type="button"
+                                        aria-expanded="false" aria-controls="ix-pop-2">
+                                        <span class="ix-step-dot" aria-hidden="true"></span>
+                                        <span class="ix-step-label">Revisión</span>
+                                    </button>
+                                    <div id="ix-pop-2" class="ix-pop" role="tooltip" hidden>
+                                        Se revisa la información y evidencias proporcionadas.
+                                        <button class="ix-pop-close" type="button" aria-label="Cerrar">×</button>
+                                    </div>
+                                </li>
+
+                                <!-- 3: Asignacion -->
+                                <li class="ix-step pending" role="listitem" data-step="3">
+                                    <button class="ix-stepbtn" type="button"
+                                        aria-expanded="false" aria-controls="ix-pop-3">
+                                        <span class="ix-step-dot" aria-hidden="true"></span>
+                                        <span class="ix-step-label">Asignación</span>
+                                    </button>
+                                    <div id="ix-pop-3" class="ix-pop" role="tooltip" hidden>
+                                        Se asigna el caso al área o personal responsable.
+                                        <button class="ix-pop-close" type="button" aria-label="Cerrar">×</button>
+                                    </div>
+                                </li>
+
+                                <!-- 4: En proceso -->
+                                <li class="ix-step pending" role="listitem" data-step="4">
+                                    <button class="ix-stepbtn" type="button"
+                                        aria-expanded="false" aria-controls="ix-pop-4">
+                                        <span class="ix-step-dot" aria-hidden="true"></span>
+                                        <span class="ix-step-label">
+                                            En proceso
+                                            <span id="ix-substatus" class="ix-badge" hidden>Pausado</span>
+                                        </span>
+                                    </button>
+                                    <div id="ix-pop-4" class="ix-pop" role="tooltip" hidden>
+                                        El equipo trabaja en la atención del requerimiento.
+                                        <button class="ix-pop-close" type="button" aria-label="Cerrar">×</button>
+                                    </div>
+                                </li>
+
+                                <!-- 5: Finalizado -->
+                                <li class="ix-step pending" role="listitem" data-step="5">
+                                    <button class="ix-stepbtn" type="button"
+                                        aria-expanded="false" aria-controls="ix-pop-5">
+                                        <span class="ix-step-dot" aria-hidden="true"></span>
+                                        <span class="ix-step-label">Finalizado</span>
+                                    </button>
+                                    <div id="ix-pop-5" class="ix-pop" role="tooltip" hidden>
+                                        El requerimiento fue resuelto y el trámite ha concluido.
+                                        <button class="ix-pop-close" type="button" aria-label="Cerrar">×</button>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div id="ix-step-desc" class="ix-stepdesc" aria-live="polite">
+                            <p class="ix-stepdesc-text">—</p>
+                        </div>
+                    </article>
                 </div>
             </div>
         </section>
+
+
+
+
+
+
+
 
 
         <!-- seccion 2 -->

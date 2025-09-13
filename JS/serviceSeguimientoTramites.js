@@ -1,324 +1,274 @@
 (() => {
-  if (typeof window.IX_DEBUG === "undefined") window.IX_DEBUG = true;
-  const ixLog = (...a) => {
-    if (window.IX_DEBUG)
-      try {
-        console.log("[IX]", ...a);
-      } catch {}
-  };
+  //  Config 
+  const ENDPOINT = "http://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_requerimiento.php";
+  const FETCH_TIMEOUT = 12000;
+  const IX_DEBUG_TRACK = true;          // recordar colocar false aqui cuando la pagina este liberada
+  const CACHE_TTL_MS = 1 * 60 * 1000;   // 1 min
 
-  const section = document.getElementById("tramites-busqueda");
-  if (!section) {
-    ixLog("No hay #tramites-busqueda, me salgo.");
-    return;
-  }
-
-  // refs de la UI
-  const form = section.querySelector("#form-tramite");
-  const input = section.querySelector("#folio");
-  const panel = section.querySelector(".ix-result");
-  if (!form || !input || !panel) {
-    ixLog("Faltan refs del formulario/panel, me salgo.");
-    return;
-  }
-
-  window.IX_SEGUIMIENTO = Object.assign(
-    {
-      steps: [
-        "Solicitud",
-        "Revisión",
-        "Asignación",
-        "En proceso",
-        "Finalizado",
-      ],
-      forceIndex: 1, //  pon 0..steps.length-1 para forzar un estado concreto; null = automático
-      autoCycle: true, //  si true, corre el ciclo automáticamente tras buscar
-      cycleMs: 2000, //  cada cuánto avanza (ms)
-      cycleResetTo: 0, //  a qué índice regresa cuando se pasa del último (normalmente 0)
-      persistLastFolio: true, //  guarda último folio en sessionStorage para rehidratar
-    },
-    window.IX_SEGUIMIENTO || {}
-  );
-  const CFG = window.IX_SEGUIMIENTO;
-
-  const REQS = [
-    "Fuga de agua",
-    "Alumbrado público",
-    "Bache en calle",
-    "Recolección de residuos",
-    "Árbol caído",
-    "Drenaje tapado",
-  ];
-  const CALLES = [
-    "Francisco I. Madero",
-    "Av. Hidalgo",
-    "Juárez",
-    "Morelos",
-    "Independencia",
-    "Allende",
-    "Niños Héroes",
-  ];
-  const SOLICITANTES = [
-    "Juan Pablo",
-    "María López",
-    "Carlos Ramírez",
-    "Ana Torres",
-    "Luis García",
-  ];
-
-  const toAMPM = (h, m) => {
-    const ampm = h >= 12 ? "pm" : "am";
-    const hh = ((h + 11) % 12) + 1;
-    const mm = String(m).padStart(2, "0");
-    return `${hh}:${mm} ${ampm}`;
-  };
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const fmtFecha = (d) =>
-    `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
-  const fmtHora = (d) => toAMPM(d.getHours(), d.getMinutes());
-
-  const FOLIO_RE = /^ID\d{5,}$/;
-  const normalizaFolio = (s) => (s || "").toUpperCase().trim();
-
-  const seedFromFolio = (folio) => {
-    const nums = folio.match(/\d+/)?.[0] || "0";
-    let seed = 0;
-    for (let i = 0; i < nums.length; i++)
-      seed = (seed * 31 + (nums.charCodeAt(i) - 48)) % 1_000_000;
-    return seed;
-  };
-
-  const clampIndex = (idx) => Math.max(0, Math.min(idx, CFG.steps.length - 1));
-
-  // override por folio (si defines un índice para un folio en específico)
-  const getOverrideIndexForFolio = (folio) => {
+  function getDepIdFromURL() {
     try {
-      const map = window.IX_STATUS_BY_FOLIO || null;
-      if (map && Object.prototype.hasOwnProperty.call(map, folio)) {
-        const n = Number(map[folio]);
-        if (Number.isFinite(n)) return clampIndex(n); // 0..steps.length-1
+      const sp = new URLSearchParams(location.search);
+      const raw = sp.get("depId");
+      const n = Number(raw);
+      return Number.isInteger(n) && n > 0 ? n : null;
+    } catch { return null; }
+  }
+  const DEPARTAMENTO_ID = getDepIdFromURL(); 
+  const CACHE_KEY = `ix_req_cache_dept_${DEPARTAMENTO_ID ?? "all"}`;
+
+  //  Estado / textos 
+  const NUM_STATUS_MAP = { 0:"solicitud",1:"revision",2:"asignacion",3:"proceso",4:"pausado",5:"cancelado",6:"finalizado" };
+  const STEP_BY_KEY    = { solicitud:1, revision:2, asignacion:3, proceso:4, pausado:4, cancelado:4, finalizado:5 };
+  const SUBSTATUS_LABELS = { pausado:"Pausado", cancelado:"Cancelado" };
+  const MESSAGES = {
+    solicitud:"Tu trámite fue enviado y está registrado en el sistema.",
+    revision:"Se revisa la información y evidencias proporcionadas.",
+    asignacion:"Se asigna el caso al área o personal responsable.",
+    proceso:"El equipo trabaja en la atención del requerimiento.",
+    pausado:"El trámite se encuentra temporalmente pausado.",
+    cancelado:"El trámite fue cancelado por el área responsable.",
+    finalizado:"El requerimiento fue resuelto y el trámite ha concluido."
+  };
+
+  //  Utils 
+  const $ = (r,s) => (r?.querySelector?.(s) ?? null);
+  const $$ = (r,s) => Array.from(r?.querySelectorAll?.(s) ?? []);
+  const log = (...a)=>{ if(IX_DEBUG_TRACK) console.log("[IX][track]",...a); };
+  const warn= (...a)=>{ if(IX_DEBUG_TRACK) console.warn("[IX][track]",...a); };
+  const err = (...a)=>{ if(IX_DEBUG_TRACK) console.error("[IX][track]",...a); };
+
+  function withTimeout(promiseFactory, ms = FETCH_TIMEOUT) {
+    const ctrl = new AbortController(), t0 = performance.now();
+    const to = setTimeout(()=>ctrl.abort(), ms);
+    return promiseFactory(ctrl.signal)
+      .then(r => { clearTimeout(to); r.__ms=Math.round(performance.now()-t0); return r; })
+      .catch(e => { clearTimeout(to); e.__ms=Math.round(performance.now()-t0); throw e; });
+  }
+
+  function normalizeFolio(input){
+    const raw = String(input||"").toUpperCase().replace(/\s+/g,"");
+    const m = raw.match(/([A-Z]+)?-?(\d{1,})/);
+    if(!m) return "";
+    const digits = m[2].replace(/\D/g,"").slice(0,10).padStart(10,"0");
+    return `REQ-${digits}`;
+  }
+
+  function formatDateTime(sqlOrIso){
+    if(!sqlOrIso) return {date:"—",time:"—"};
+    const iso = sqlOrIso.includes("T") ? sqlOrIso : sqlOrIso.replace(" ","T");
+    const d = new Date(iso);
+    if(isNaN(d)) return {date:"—",time:"—"};
+    const meses=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    const dd=String(d.getDate()).padStart(2,"0");
+    const date=`${dd} de ${meses[d.getMonth()]} ${d.getFullYear()}`;
+    let h=d.getHours(), m=String(d.getMinutes()).padStart(2,"0");
+    const ampm=h>=12?"pm":"am"; h=((h+11)%12)+1;
+    return {date,time:`${h}:${m} ${ampm}`};
+  }
+
+  function setText(el, val){ if(el) el.textContent = (val ?? "—"); }
+
+  function getCache(key){ try{const r=sessionStorage.getItem(key); if(!r) return null; const o=JSON.parse(r); if(!o||Date.now()-o.t>(o.ttl??0))return null; return o.v;}catch{return null;} }
+  function setCache(key,v,ttl=CACHE_TTL_MS){ try{sessionStorage.setItem(key,JSON.stringify({v,t:Date.now(),ttl}))}catch{} }
+
+  //  DOM Refs 
+  const root = document.getElementById("tramites-busqueda"); if(!root) return;
+  const form = $("#tramites-busqueda","#form-tramite") || root.querySelector("#form-tramite");
+  const inpFolio = root.querySelector("#folio");
+  const btnBuscar= root.querySelector("#btn-buscar");
+
+  const pEmpty = root.querySelector("#ix-track-empty");
+  const pLoad  = root.querySelector("#ix-track-loading");
+  const pError = root.querySelector("#ix-track-error");
+  const pResult= root.querySelector("#ix-track-result");
+
+  const elFolio= root.querySelector("#ix-meta-folio");
+  const elReq  = root.querySelector("#ix-meta-req");
+  const elDir  = root.querySelector("#ix-meta-dir");
+  const elSol  = root.querySelector("#ix-meta-sol");
+  const elDesc = root.querySelector("#ix-meta-desc");
+  const elDate = root.querySelector("#ix-meta-date");
+  const elTime = root.querySelector("#ix-meta-time");
+
+  const steps   = root.querySelectorAll(".ix-stepper .ix-step");
+  const popBtns = root.querySelectorAll(".ix-stepper .ix-stepbtn");
+  const popovers= root.querySelectorAll(".ix-stepper .ix-pop");
+  const subBadge= root.querySelector("#ix-substatus");
+  const stepDescText = root.querySelector(".ix-stepdesc-text");
+
+  //  UI State 
+  function showPanel(which){
+    [pEmpty,pLoad,pError,pResult].forEach(p=>p?.classList.remove("is-visible"));
+    if(which){ which.hidden=false; which.classList.add("is-visible"); }
+  }
+  function setLoading(on){
+    root.classList.toggle("is-loading",!!on);
+    if(btnBuscar) btnBuscar.disabled=!!on;
+    if(inpFolio)  inpFolio.disabled =!!on;
+  }
+
+  function keyByStep(step, subKey){
+    if(subKey && (subKey==="pausado"||subKey==="cancelado")) return subKey;
+    return ({1:"solicitud",2:"revision",3:"asignacion",4:"proceso",5:"finalizado"})[step]||"proceso";
+  }
+  function setStepsActive(stepIndex, subKey=null){
+    steps.forEach(li=>{
+      const n=Number(li.getAttribute("data-step")||"0");
+      li.classList.remove("done","current","pending");
+      li.removeAttribute("aria-current");
+      if(n<stepIndex) li.classList.add("done");
+      else if(n===stepIndex){ li.classList.add("current"); li.setAttribute("aria-current","step"); }
+      else li.classList.add("pending");
+    });
+    if(subBadge){
+      if(subKey && SUBSTATUS_LABELS[subKey]){ subBadge.textContent=SUBSTATUS_LABELS[subKey]; subBadge.hidden=false; }
+      else subBadge.hidden=true;
+    }
+    const key = keyByStep(stepIndex, subKey);
+    if(stepDescText) stepDescText.textContent = MESSAGES[key] || "—";
+  }
+
+  function closeAllPopovers(exceptId=null){
+    popBtns.forEach(b=>b.setAttribute("aria-expanded","false"));
+    popovers.forEach(p=>{ if(exceptId && p.id===exceptId) return; p.hidden=true; });
+  }
+  function handleStepBtnClick(e){
+    const btn=e.currentTarget, id=btn.getAttribute("aria-controls");
+    const pop=root.querySelector(`#${id}`); if(!pop) return;
+    const willOpen=pop.hidden;
+    closeAllPopovers(willOpen? id : null);
+    btn.setAttribute("aria-expanded",String(willOpen));
+    pop.hidden=!willOpen;
+  }
+  function handleDocClick(e){
+    if(!root.contains(e.target)) return closeAllPopovers();
+    const isBtn=e.target.closest?.(".ix-stepbtn");
+    const isPop=e.target.closest?.(".ix-pop");
+    if(!isBtn && !isPop) closeAllPopovers();
+  }
+  function handleEsc(e){ if(e.key==="Escape") closeAllPopovers(); }
+
+  //  Data logic 
+  function statusKeyFromRow(row){
+    if(row?.cerrado_en) return "finalizado";
+    const raw=row?.estatus;
+    if(raw===null||raw===undefined) return "proceso";
+    if(typeof raw==="number"){ return NUM_STATUS_MAP[raw] || "proceso"; }
+    if(typeof raw==="string"){
+      const k=raw.trim().toLowerCase();
+      if(k in STEP_BY_KEY) return k;
+      if(k.includes("paus")) return "pausado";
+      if(k.includes("cancel")) return "cancelado";
+      if(k.includes("final")) return "finalizado";
+      if(k.includes("rev")) return "revision";
+      if(k.includes("asign")) return "asignacion";
+      if(k.includes("sol")) return "solicitud";
+      if(k.includes("proc")) return "proceso";
+      return "proceso";
+    }
+    return "proceso";
+  }
+  const stepFromKey = key => STEP_BY_KEY[key] || 4;
+  const subStatusFromKey = key => (key==="pausado"||key==="cancelado") ? key : null;
+
+  function renderResult(row){
+    setText(elFolio, row.folio || "—");
+    setText(elReq, row.tramite_nombre || row.asunto || "—");
+    const dir=[row.contacto_calle,row.contacto_colonia,row.contacto_cp].filter(Boolean).join(", ");
+    setText(elDir, dir || "—");
+    setText(elSol, row.contacto_nombre || "—");
+    setText(elDesc, row.descripcion || "—");
+    const {date,time}=formatDateTime(row.created_at);
+    setText(elDate, date); setText(elTime, time);
+
+    const key=statusKeyFromRow(row);
+    const step=stepFromKey(key);
+    const subK=subStatusFromKey(key);
+    setStepsActive(step, subK);
+
+    showPanel(pResult);
+  }
+  function renderNotFound(){ showPanel(pError); }
+
+  //  Fetch 
+  async function fetchJSON(body, signal){
+    const res=await fetch(ENDPOINT,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json","Accept":"application/json" },
+      body:JSON.stringify(body), signal
+    });
+    const http=res.status; if(!res.ok) throw new Error(`HTTP ${http}`);
+    const json=await res.json(); return { http, json };
+  }
+  const queryByFolio = (folio)=> withTimeout(sig=>fetchJSON({ folio }, sig));
+  const queryList    = (depId, opts={})=>{
+    // si depId es null/invalid, omitimos filtro para buscar en todos
+    const payload = {};
+    if(Number.isInteger(depId)) payload.departamento_id = depId;
+    if(opts.all === true){ payload.all = true; }
+    else { payload.page = opts.page || 1; payload.per_page = opts.per_page || 50; }
+    return withTimeout(sig=>fetchJSON(payload, sig));
+  };
+
+  //  Submit flow 
+  async function handleSubmit(e){
+    e?.preventDefault?.();
+    closeAllPopovers();
+
+    const folioNorm = normalizeFolio(inpFolio?.value || "");
+    if(!folioNorm){ renderNotFound(); return; }
+
+    setLoading(true); showPanel(pLoad);
+    log("Buscar folio:", folioNorm, "depId:", DEPARTAMENTO_ID ?? "(todos)");
+
+    // 1) Intento puntual por folio
+    try{
+      const r1=await queryByFolio(folioNorm);
+      log("Resp folio:", r1.http, r1.json?.ok ? "ok" : r1.json?.error, r1?.__ms ?? "?ms");
+      if(r1.json?.ok && r1.json?.data){ renderResult(r1.json.data); setLoading(false); return; }
+    }catch(ex){ warn("Fallo puntual por folio, voy a listado:", ex?.message || ex); }
+
+    // 2) Fallback listado (cache por dep)
+    try{
+      let list = getCache(CACHE_KEY);
+      if(!Array.isArray(list)){
+        const r2=await queryList(DEPARTAMENTO_ID, { all:true });
+        log("Resp listado:", r2.http, r2.json?.ok ? "ok" : r2.json?.error, r2?.__ms ?? "?ms");
+        if(!r2.json?.ok || !Array.isArray(r2.json?.data)) throw new Error("Respuesta de listado inválida");
+        list = r2.json.data; setCache(CACHE_KEY, list);
+      } else {
+        log("Usando cache listado:", list.length, "items");
       }
-    } catch {}
-    return null; // sin override
-  };
 
-  // decide el índice actual (prioridad: mapa por folio → forceIndex global → seed)
-  const computeIndex = (folio) => {
-    const ov = getOverrideIndexForFolio(folio);
-    if (ov !== null) return ov; // 1) mapping por folio
-    if (typeof CFG.forceIndex === "number" && Number.isFinite(CFG.forceIndex)) {
-      return clampIndex(CFG.forceIndex); // 2) forzado global
-    }
-    const seed = seedFromFolio(folio);
-    return clampIndex(seed % CFG.steps.length); // 3) automático por seed
-  };
-
-  // genera ticket fake estable según folio (y el índice calculado)
-  const simulaTicket = (folio, forcedIdx = null) => {
-    const seed = seedFromFolio(folio);
-    const estadoIdx =
-      typeof forcedIdx === "number"
-        ? clampIndex(forcedIdx)
-        : computeIndex(folio);
-
-    const req = REQS[seed % REQS.length];
-    const calle = CALLES[(seed >> 3) % CALLES.length];
-    const col = ["Centro", "Col. CP", "Barrio Alto", "San Juan", "Las Flores"][
-      (seed >> 5) % 5
-    ];
-    const num = (seed % 120) + 1;
-    const sol = SOLICITANTES[(seed >> 7) % SOLICITANTES.length];
-
-    const d = new Date(2025, seed % 12, (seed % 27) + 1, seed % 24, seed % 60);
-    const fechaTexto = fmtFecha(d);
-    const horaTexto = fmtHora(d);
-
-    const DESCS = {
-      "Fuga de agua": `Quiero reportar una fuga de agua que se encuentra en la calle ${calle}, justo frente al número #${num}. Desde hace aproximadamente 1 hora, se observa que el agua brota de la banqueta y la calle, formando un charco que corre hacia el drenaje. La fuga es constante y parece venir de una línea principal.`,
-      "Alumbrado público": `Luminaria apagada cerca de ${calle}, ${col}. La zona queda muy oscura por la noche y representa un riesgo para peatones y vehículos. Solicito revisión y reposición del servicio.`,
-      "Bache en calle": `Se reporta bache pronunciado en ${calle} #${num}, ${col}. Dificulta el paso de vehículos y puede causar accidentes. Se solicita reparación y señalización temporal.`,
-      "Recolección de residuos": `Retraso en la recolección de residuos en ${calle}, ${col}. Las bolsas llevan dos días sin ser levantadas. Se solicita apoyo para evitar acumulación y fauna nociva.`,
-      "Árbol caído": `Árbol caído/derramado en ${calle} #${num}, ${col}. Obstruye parcialmente la banqueta y pone en riesgo a peatones. Se solicita poda o retiro.`,
-      "Drenaje tapado": `Posible obstrucción de drenaje en ${calle}, ${col}. Se percibe mal olor y el agua se estanca cuando llueve. Se solicita inspección y desazolve.`,
-    };
-    const descLarga =
-      DESCS[req] || `Descripción del requerimiento en ${calle}, ${col}.`;
-
-    return {
-      folio,
-      estadoIdx,
-      estadoTxt: CFG.steps[estadoIdx],
-      requerimiento: req,
-      direccion: `${calle}, ${col}`,
-      solicitante: sol,
-      descripcion: descLarga,
-      fecha: fechaTexto,
-      hora: horaTexto,
-    };
-  };
-
-  const renderTicket = (t) => {
-    const descShort =
-      t.descripcion.length > 280
-        ? t.descripcion.slice(0, 277) + "..."
-        : t.descripcion;
-
-    const stepsHtml = CFG.steps
-      .map((label, i) => {
-        const status =
-          i < t.estadoIdx ? "done" : i === t.estadoIdx ? "current" : "pending";
-        return `
-        <li class="ix-step ${status}">
-          <span class="ix-step-dot" aria-hidden="true"></span>
-          <span class="ix-step-label">${label}</span>
-        </li>
-      `;
-      })
-      .join("");
-
-    panel.innerHTML = `
-      <div class="ix-ticket">
-        <div class="ix-ticket-head">
-          <div class="ix-ticket-left">
-            <p><strong>ID:</strong> <span class="mono">${t.folio}</span></p>
-            <p><strong>Requerimiento:</strong> ${t.requerimiento}</p>
-            <p><strong>Dirección:</strong> ${t.direccion}</p>
-            <p><strong>Solicitante:</strong> ${t.solicitante}</p>
-            <p><strong>Descripción:</strong> ${descShort}</p>
-          </div>
-          <div class="ix-ticket-right">
-            <p><strong>Fecha de solicitado:</strong><br>${t.fecha}<br><span class="mono">${t.hora}</span></p>
-          </div>
-        </div>
-
-        <div class="ix-stepper" aria-label="Progreso del trámite">
-          <ul class="ix-steps">
-            ${stepsHtml}
-          </ul>
-        </div>
-      </div>
-    `;
-  };
-
-  const renderMsg = (texto) => {
-    panel.innerHTML = `<p>${texto}</p>`;
-  };
-  const setLoading = (is) => {
-    section.classList.toggle("is-loading", !!is);
-  };
-
-  // =======================
-  // Estado interno del simulador (para el ciclo)
-  // =======================
-  let currentTicket = null; // ← último ticket pintado
-  let currentIndex = null; // ← índice del paso actual
-  let cycleTimer = null; // ← handler del setInterval
-
-  const stopCycle = () => {
-    if (cycleTimer) {
-      clearInterval(cycleTimer);
-      cycleTimer = null;
-    }
-  };
-  const startCycle = () => {
-    if (!currentTicket) return;
-    stopCycle();
-    if (typeof currentIndex !== "number")
-      currentIndex = currentTicket.estadoIdx;
-
-    cycleTimer = setInterval(() => {
-      currentIndex = currentIndex + 1;
-      if (currentIndex >= CFG.steps.length) {
-        currentIndex = clampIndex(CFG.cycleResetTo);
+      const target = list.find(row => String(row?.folio||"").toUpperCase() === folioNorm.toUpperCase());
+      if(target){
+        if(Number.isInteger(DEPARTAMENTO_ID) && Number(target.departamento_id)!==Number(DEPARTAMENTO_ID)){
+          warn(`Folio está en otro departamento (${target.departamento_id}) diferente a depId=${DEPARTAMENTO_ID}`);
+        }
+        renderResult(target);
+      } else {
+        renderNotFound();
       }
-      const t2 = simulaTicket(currentTicket.folio, currentIndex);
-      renderTicket(t2);
-      currentTicket = t2;
-    }, Math.max(500, Number(CFG.cycleMs) || 2000));
-  };
-
-  // Hooks públicos (control manual desde consola)              <<<<<----------------------------------------- IMPORTANTE PARA LA DEMO
-  // - ixSegStart(): arranca el ciclo
-  // - ixSegStop(): detiene el ciclo
-  // - ixSegSet(n): fija el estado en n (0..steps-1) y pinta
-  // - ixSegNext(): avanza un paso (con wrap)
-  window.ixSegStart = () => {
-    CFG.autoCycle = true;
-    startCycle();
-    ixLog("autoCycle ON");
-  };
-  window.ixSegStop = () => {
-    CFG.autoCycle = false;
-    stopCycle();
-    ixLog("autoCycle OFF");
-  };
-  window.ixSegSet = (n) => {
-    stopCycle();
-    currentIndex = clampIndex(Number(n) || 0);
-    if (currentTicket) {
-      currentTicket = simulaTicket(currentTicket.folio, currentIndex);
-      renderTicket(currentTicket);
-    }
-    CFG.forceIndex = currentIndex;
-    ixLog("set estadoIdx →", currentIndex);
-  };
-  window.ixSegNext = () =>
-    window.ixSegSet((typeof currentIndex === "number" ? currentIndex : -1) + 1);
-
-  form.addEventListener("submit", (ev) => {
-    ev.preventDefault();
-
-    const raw = input.value;
-    const folio = normalizaFolio(raw);
-    if (folio !== raw) input.value = folio;
-
-    if (!FOLIO_RE.test(folio)) {
-      renderMsg(
-        "El folio no es válido. Usa el formato: ID seguido de 5 o más dígitos, por ejemplo: ID00001."
-      );
-      return;
-    }
-
-    setLoading(true);
-    stopCycle(); // por si ya había un ciclo dando vueltas
-    setTimeout(() => {
-      currentIndex = computeIndex(folio);
-      currentTicket = simulaTicket(folio, currentIndex);
-      renderTicket(currentTicket);
+    }catch(ex){
+      err("Error en listado:", ex?.message || ex);
+      renderNotFound();
+    }finally{
       setLoading(false);
-      ixLog("ticket simulado:", currentTicket);
-
-      if (CFG.persistLastFolio) {
-        try {
-          sessionStorage.setItem("ix_last_folio", folio);
-        } catch {}
-      }
-      if (CFG.autoCycle) startCycle();
-    }, 300);
-  });
-
-  input.addEventListener("input", () => {
-    const val = normalizaFolio(input.value);
-    if (val !== input.value) input.value = val;
-  });
-
-  try {
-    const last = CFG.persistLastFolio
-      ? sessionStorage.getItem("ix_last_folio")
-      : null;
-    if (last && FOLIO_RE.test(last)) {
-      input.value = last;
-      currentIndex = computeIndex(last);
-      currentTicket = simulaTicket(last, currentIndex);
-      renderTicket(currentTicket);
-      if (CFG.autoCycle) startCycle();
     }
-  } catch {}
+  }
 
-  window.IX_STATUS_BY_FOLIO = window.IX_STATUS_BY_FOLIO || {
-    ID00001: 2, // arrancará en el paso #3
-    ID00002: 4, // arrancará en el paso #5
-  };
+  //  Events ==
+  form?.addEventListener("submit", handleSubmit);
+  popBtns.forEach(btn=>btn.addEventListener("click", handleStepBtnClick));
+  $$(root,".ix-pop-close").forEach(b=>b.addEventListener("click",()=>closeAllPopovers()));
+  document.addEventListener("click", handleDocClick);
+  document.addEventListener("keydown", handleEsc);
+
+  // Soporta ?folio=... en la URL (y ya tomamos depId automáticamente)
+  try{
+    const sp=new URLSearchParams(location.search);
+    const qf=sp.get("folio");
+    if(qf){ inpFolio.value=qf; handleSubmit(); }
+  }catch{}
+
 })();
-
-//-------------------------------------------------- fin del bloque de seguimiento de tramites

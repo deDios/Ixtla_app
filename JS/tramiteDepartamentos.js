@@ -596,9 +596,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let CP_LIST = [];
   const knownCP = (cp) => Object.prototype.hasOwnProperty.call(CP_MAP, String(cp || ""));
 
-  // --- normalizador flexible: NO asumimos nombres exactos de llaves
   function extractCpColoniaArray(json) {
-    // logs de inspección cruda
+    // logs para ver que viene del ednpoint de consola
     console.log("[IX] cpcolonia raw:", json);
 
     const arr = Array.isArray(json?.data) ? json.data
@@ -645,7 +644,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const rows = extractCpColoniaArray(json);
 
-    // Construcción de mapa con unicidad case-insensitive de colonias
     const map = {};
     for (const r of rows) {
       const cp  = String(r.cp || "").trim();
@@ -654,7 +652,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!cp || !col) continue;
 
       if (!map[cp]) {
-        map[cp] = { order: [], seen: new Set() }; // seen en minúsculas
+        map[cp] = { order: [], seen: new Set() }; 
       }
       const key = col.toLocaleLowerCase("es");
       if (!map[cp].seen.has(key)) {
@@ -663,7 +661,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // ordenar por etiqueta visible y convertir a arrays finales
     const finalMap = {};
     Object.keys(map).forEach(cp => {
       const sorted = map[cp].order.sort((a,b)=>a.localeCompare(b,"es"));
