@@ -161,9 +161,10 @@ $q->close();
 /* ---------- Envío de WhatsApp (no bloqueante) ---------- */
 function to_e164_mx($tel) {
   $d = preg_replace('/\D+/', '', (string)$tel);
-  if (preg_match('/^52\d{10}$/', $d)) return $d;        // ya viene con 52
-  if (preg_match('/^\d{10}$/', $d))   return '52'.$d;   // agrega 52
-  if (preg_match('/^\d{11,15}$/', $d)) return $d;       // otros países ya en E.164
+  $d = preg_replace('/^(?:044|045|01)/', '', $d); // limpia prefijos antiguos MX
+  if (preg_match('/^52\d{10}$/', $d)) return $d;  // ya con 52
+  if (preg_match('/^\d{10}$/', $d))   return '52'.$d; // agrega 52
+  if (preg_match('/^\d{11,15}$/', $d)) return $d; // otros países ya E.164
   return null;
 }
 
@@ -172,21 +173,22 @@ $wa = ["called" => false];
 if ($res && !empty($res['contacto_telefono'])) {
   $to = to_e164_mx($res['contacto_telefono']);
   if ($to) {
-    $waPayload = [
-      "to"       => $to,
-      "template" => "req_01",       // tu plantilla con {{1}}
-      "lang"     => "es_MX",
-      "params"   => [$res['folio']] // {{1}} = folio
-    ];
+    $tplName   = "req_01";                 // tu plantilla con {{1}}
+    $langCode  = "es_MX";
+    $paramsArr = [$res['folio']];          // {{1}} = folio
+    $paramsJson= json_encode($paramsArr, JSON_UNESCAPED_UNICODE);
 
+    // Llamada a tu sender
+    $waPayload = ["to"=>$to, "template"=>$tplName, "lang"=>$langCode, "params"=>$paramsArr];
     $waUrl = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/send_wapp_template_01.php";
+
     $ch = curl_init($waUrl);
     curl_setopt_array($ch, [
       CURLOPT_HTTPHEADER     => ["Content-Type: application/json"],
       CURLOPT_POST           => true,
       CURLOPT_POSTFIELDS     => json_encode($waPayload, JSON_UNESCAPED_UNICODE),
       CURLOPT_RETURNTRANSFER => true,
-      CURLOPT_CONNECTTIMEOUT => 2,   // no se quede colgado
+      CURLOPT_CONNECTTIMEOUT => 2,
       CURLOPT_TIMEOUT        => 5
     ]);
     $waResp = curl_exec($ch);
@@ -197,9 +199,96 @@ if ($res && !empty($res['contacto_telefono'])) {
     $wa["called"]    = true;
     $wa["http_code"] = $waCode ?: null;
     $wa["error"]     = $waErr ?: null;
-    // Opcional: parsea si tu sender responde JSON con success/message_id
     $waDecoded = json_decode($waResp, true);
     if (is_array($waDecoded)) $wa["response"] = $waDecoded;
+
+    /* ---------- Registrar SIEMPRE en wa_outbox + wa_log ---------- */
+    $ok       = is_array($waDecoded) && !empty($waDecoded['success']);
+    $httpCode = $waCode ?: ($waDecoded['http_code'] ?? 0);
+    $msgId    = $waDecoded['message_id'] ?? null;
+    $errTxt   = $waErr ?: ($waDecoded['error'] ?? null);
+    $provResp = is_array($waDecoded) ? json_encode($waDecoded, JSON_UNESCAPED_UNICODE) : null;
+
+    // Llave de deduplicación para evitar duplicados si el cliente reintenta
+    $dedupe = hash('sha256', implode('|', [
+      $res['id'] ?? '0', $to, $tplName, $paramsJson
+    ]));
+
+    // 1) UPSERT a wa_outbox
+    $status   = $ok ? 'sent' : 'queued';
+    $attempts = $ok ? 1 : 0;
+    $sentAt   = $ok ? date('Y-m-d H:i:s') : null;
+
+    $stmt = $con->prepare("
+      INSERT INTO wa_outbox
+        (req_id, to_phone, template_name, lang_code, params_json,
+         status, attempts, next_attempt_at, wa_message_id, last_error, dedupe_key, sent_at)
+      VALUES (?,?,?,?,?, ?,?, NOW(), ?,?,?, ?)
+      ON DUPLICATE KEY UPDATE
+        status       = VALUES(status),
+        wa_message_id= COALESCE(VALUES(wa_message_id), wa_outbox.wa_message_id),
+        last_error   = VALUES(last_error),
+        updated_at   = CURRENT_TIMESTAMP,
+        sent_at      = COALESCE(VALUES(sent_at), wa_outbox.sent_at)
+    ");
+    // tipos: i s s s s s i s s s s  (11 params)
+    $stmt->bind_param(
+      "isssssissss",
+      $res['id'], $to, $tplName, $langCode, $paramsJson,
+      $status, $attempts, $msgId, $errTxt, $dedupe, $sentAt
+    );
+    $stmt->execute();
+    $outboxId = $stmt->insert_id;
+    $stmt->close();
+
+    // Si hubo duplicado, obtener id existente por dedupe_key
+    if (!$outboxId) {
+      $g = $con->prepare("SELECT id FROM wa_outbox WHERE dedupe_key=? LIMIT 1");
+      $g->bind_param("s", $dedupe);
+      $g->execute();
+      $row = $g->get_result()->fetch_assoc();
+      $outboxId = $row['id'] ?? null;
+      $g->close();
+    }
+
+    // 2) Incrementar attempts porque hicimos un intento ahora
+    if ($outboxId) {
+      $upd = $con->prepare("UPDATE wa_outbox SET attempts = attempts + 1 WHERE id=?");
+      $upd->bind_param("i", $outboxId);
+      $upd->execute();
+      $upd->close();
+
+      // Leer attempts actuales para usar como try_no en el log
+      $g2 = $con->prepare("SELECT attempts FROM wa_outbox WHERE id=?");
+      $g2->bind_param("i", $outboxId);
+      $g2->execute();
+      $attemptRow = $g2->get_result()->fetch_assoc();
+      $g2->close();
+      $tryNo = (int)($attemptRow['attempts'] ?? 1);
+    } else {
+      $tryNo = 1;
+    }
+
+    // 3) Registrar intento en wa_log
+    $stmt = $con->prepare("
+      INSERT INTO wa_log (outbox_id, req_id, try_no, http_code, provider_message_id, provider_response, error_text)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    ");
+    $stmt->bind_param(
+      "isiisss",
+      $outboxId, $res['id'], $tryNo, $httpCode, $msgId, $provResp, $errTxt
+    );
+    $stmt->execute();
+    $stmt->close();
+
+    // 4) Si fue OK, asegurar status 'sent' y sent_at (por si hubo duplicado)
+    if ($ok && $outboxId) {
+      $stmt = $con->prepare("UPDATE wa_outbox SET status='sent', wa_message_id=COALESCE(?, wa_message_id), sent_at=COALESCE(?, sent_at) WHERE id=?");
+      $stmt->bind_param("ssi", $msgId, $sentAt, $outboxId);
+      $stmt->execute();
+      $stmt->close();
+    }
+
   } else {
     $wa["skipped"] = "Telefono no válido para E.164";
   }
