@@ -141,7 +141,7 @@ $st->close();
 
 $con->commit();
 
-/* ===== Devolver registro enriquecido ===== */
+/* ===== Recuperar registro para respuesta ===== */
 $q = $con->prepare("
   SELECT r.*,
          d.nombre AS departamento_nombre,
@@ -156,9 +156,58 @@ $q = $con->prepare("
 $q->bind_param("i", $new_id);
 $q->execute();
 $res = $q->get_result()->fetch_assoc();
-$q->close(); $con->close();
+$q->close();
 
-/* Cast a numéricos */
+/* ---------- Envío de WhatsApp (no bloqueante) ---------- */
+function to_e164_mx($tel) {
+  $d = preg_replace('/\D+/', '', (string)$tel);
+  if (preg_match('/^52\d{10}$/', $d)) return $d;        // ya viene con 52
+  if (preg_match('/^\d{10}$/', $d))   return '52'.$d;   // agrega 52
+  if (preg_match('/^\d{11,15}$/', $d)) return $d;       // otros países ya en E.164
+  return null;
+}
+
+$wa = ["called" => false];
+
+if ($res && !empty($res['contacto_telefono'])) {
+  $to = to_e164_mx($res['contacto_telefono']);
+  if ($to) {
+    $waPayload = [
+      "to"       => $to,
+      "template" => "req_01",       // tu plantilla con {{1}}
+      "lang"     => "es_MX",
+      "params"   => [$res['folio']] // {{1}} = folio
+    ];
+
+    $waUrl = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/send_wapp_template_01.php";
+    $ch = curl_init($waUrl);
+    curl_setopt_array($ch, [
+      CURLOPT_HTTPHEADER     => ["Content-Type: application/json"],
+      CURLOPT_POST           => true,
+      CURLOPT_POSTFIELDS     => json_encode($waPayload, JSON_UNESCAPED_UNICODE),
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_CONNECTTIMEOUT => 2,   // no se quede colgado
+      CURLOPT_TIMEOUT        => 5
+    ]);
+    $waResp = curl_exec($ch);
+    $waCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $waErr  = curl_error($ch);
+    curl_close($ch);
+
+    $wa["called"]    = true;
+    $wa["http_code"] = $waCode ?: null;
+    $wa["error"]     = $waErr ?: null;
+    // Opcional: parsea si tu sender responde JSON con success/message_id
+    $waDecoded = json_decode($waResp, true);
+    if (is_array($waDecoded)) $wa["response"] = $waDecoded;
+  } else {
+    $wa["skipped"] = "Telefono no válido para E.164";
+  }
+}
+
+$con->close();
+
+/* Cast numéricos para data */
 if ($res) {
   $res['id']              = (int)$res['id'];
   $res['departamento_id'] = (int)$res['departamento_id'];
@@ -171,4 +220,4 @@ if ($res) {
 }
 
 http_response_code(201);
-echo json_encode(["ok"=>true, "data"=>$res]);
+echo json_encode(["ok"=>true, "data"=>$res, "wa"=>$wa], JSON_UNESCAPED_UNICODE);
