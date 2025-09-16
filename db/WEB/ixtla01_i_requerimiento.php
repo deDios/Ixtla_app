@@ -158,13 +158,14 @@ $q->execute();
 $res = $q->get_result()->fetch_assoc();
 $q->close();
 
-/* ---------- Envío de WhatsApp (no bloqueante) ---------- */
+/* ---------- Envío de WhatsApp  ---------- */
+
 function to_e164_mx($tel) {
   $d = preg_replace('/\D+/', '', (string)$tel);
-  $d = preg_replace('/^(?:044|045|01)/', '', $d); // limpia prefijos antiguos MX
-  if (preg_match('/^52\d{10}$/', $d)) return $d;  // ya con 52
-  if (preg_match('/^\d{10}$/', $d))   return '52'.$d; // agrega 52
-  if (preg_match('/^\d{11,15}$/', $d)) return $d; // otros países ya E.164
+  $d = preg_replace('/^(?:044|045|01)/', '', $d); 
+  if (preg_match('/^52\d{10}$/', $d)) return $d;  
+  if (preg_match('/^\d{10}$/', $d))   return '52'.$d; 
+  if (preg_match('/^\d{11,15}$/', $d)) return $d; 
   return null;
 }
 
@@ -173,12 +174,11 @@ $wa = ["called" => false];
 if ($res && !empty($res['contacto_telefono'])) {
   $to = to_e164_mx($res['contacto_telefono']);
   if ($to) {
-    $tplName   = "req_01";                 // tu plantilla con {{1}}
+    $tplName   = "req_01";                 
     $langCode  = "es_MX";
-    $paramsArr = [$res['folio']];          // {{1}} = folio
+    $paramsArr = [$res['folio']];          // {{1}}
     $paramsJson= json_encode($paramsArr, JSON_UNESCAPED_UNICODE);
 
-    // Llamada a tu sender
     $waPayload = ["to"=>$to, "template"=>$tplName, "lang"=>$langCode, "params"=>$paramsArr];
     $waUrl = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/send_wapp_template_01.php";
 
@@ -202,19 +202,19 @@ if ($res && !empty($res['contacto_telefono'])) {
     $waDecoded = json_decode($waResp, true);
     if (is_array($waDecoded)) $wa["response"] = $waDecoded;
 
-    /* ---------- Registrar SIEMPRE en wa_outbox + wa_log ---------- */
+    /* ---------- wa_outbox + wa_log ---------- */
+
     $ok       = is_array($waDecoded) && !empty($waDecoded['success']);
     $httpCode = $waCode ?: ($waDecoded['http_code'] ?? 0);
     $msgId    = $waDecoded['message_id'] ?? null;
     $errTxt   = $waErr ?: ($waDecoded['error'] ?? null);
     $provResp = is_array($waDecoded) ? json_encode($waDecoded, JSON_UNESCAPED_UNICODE) : null;
 
-    // Llave de deduplicación para evitar duplicados si el cliente reintenta
     $dedupe = hash('sha256', implode('|', [
       $res['id'] ?? '0', $to, $tplName, $paramsJson
     ]));
 
-    // 1) UPSERT a wa_outbox
+
     $status   = $ok ? 'sent' : 'queued';
     $attempts = $ok ? 1 : 0;
     $sentAt   = $ok ? date('Y-m-d H:i:s') : null;
@@ -231,7 +231,7 @@ if ($res && !empty($res['contacto_telefono'])) {
         updated_at   = CURRENT_TIMESTAMP,
         sent_at      = COALESCE(VALUES(sent_at), wa_outbox.sent_at)
     ");
-    // tipos: i s s s s s i s s s s  (11 params)
+    // (11 params)
     $stmt->bind_param(
       "isssssissss",
       $res['id'], $to, $tplName, $langCode, $paramsJson,
@@ -281,7 +281,7 @@ if ($res && !empty($res['contacto_telefono'])) {
     $stmt->execute();
     $stmt->close();
 
-    // 4) Si fue OK, asegurar status 'sent' y sent_at (por si hubo duplicado)
+    // 4) Si fue OK, asegurar status 'sent' y sent_at 
     if ($ok && $outboxId) {
       $stmt = $con->prepare("UPDATE wa_outbox SET status='sent', wa_message_id=COALESCE(?, wa_message_id), sent_at=COALESCE(?, sent_at) WHERE id=?");
       $stmt->bind_param("ssi", $msgId, $sentAt, $outboxId);
