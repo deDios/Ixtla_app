@@ -20,8 +20,8 @@ if ($path && file_exists($path)) { include $path; }
 else { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"No se encontró conexion.php"]); exit; }
 
 /* ---------- Config ---------- */
-$MAX_FILES   = 3;                           // max. archivos por request
-$MAX_BYTES   = 30 * 1024 * 1024;            // 30 MB por archivo
+$MAX_FILES   = 3;                  // max. archivos por request
+$MAX_BYTES   = 30 * 1024 * 1024;   // 30 MB por archivo
 $ALLOWED_MIME = ['image/jpeg','image/png']; // alineado a tu front (solo JPG/PNG)
 $EXT_FOR_MIME = ['image/jpeg'=>'jpg','image/png'=>'png'];
 

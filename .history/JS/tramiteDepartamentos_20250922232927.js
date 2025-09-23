@@ -551,19 +551,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const hh = ((h + 11) % 12) + 1;
     return `${hh}:${pad2(m)} ${ampm}`;
   };
-
   function setToday() {
-    const inp = document.getElementById('ix-fecha');
-    const t = document.getElementById('ix-report-date');
-    const now = new Date();
-
-    const visible = now.toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
-      .replace(',', ' ·');
-    // ISO en UTC para datetime del <time>
-    const iso = now.toISOString();
-
-    if (inp) inp.value = visible;
-    if (t) { t.dateTime = iso; t.textContent = visible; }
+    const d = new Date();
+    const text = `${pad2(d.getDate())} de ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()} · ${fmtAMPM(d)}`;
+    if (inpFecha) inpFecha.value = text;     // set DESPUÉS de form.reset()
+    if (timeMeta) { timeMeta.dateTime = d.toISOString(); timeMeta.textContent = text; }
   }
 
   const clearFeedback = () => { if (!feedback) return; feedback.hidden = true; feedback.textContent = ""; };
@@ -1134,7 +1126,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.gcToast?.(`${upRes.failed.length} imagen(es) no se subieron. El reporte sí se creó.`, "alerta", 4800); // ajustar esto ya que este en produccion
       }
 
-      try { document.dispatchEvent(new CustomEvent("ix:report:submit", { detail: { ...body, folio } })); } catch { }
+      try { document.dispatchEvent(new CustomEvent("ix:report:submit", { detail: { ...body,  folio } })); } catch { }
       try { document.dispatchEvent(new CustomEvent("ix:report:success", { detail: { folio } })); } catch { }
 
       if (window.gcToast) gcToast(`Reporte creado: ${folio}`, "exito", 3200);

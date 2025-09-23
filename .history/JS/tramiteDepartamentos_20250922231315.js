@@ -59,8 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ========= Endpoints (HTTPS sí o sí para evitar mixed content) =========
   const ENDPOINTS = {
-    deps: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
-    tramite: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tramite.php",
+    deps: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
+    tramite: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_tramite.php",
   };
 
   // ========= helpers para detectar "Otros" =========
@@ -323,7 +323,7 @@ document.addEventListener("DOMContentLoaded", () => {
     items.forEach(it => listEl.appendChild(renderer(it)));
   }
 
-  // ========= Estado de pagina =========
+  // ========= Estado de página =========
   function showDefault() {
     panel.hidden = true; listEl.innerHTML = "";
     note.hidden = false; grid.style.display = "";
@@ -340,7 +340,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return Number.isFinite(n) ? n : null;
   };
 
-  // ========= Carga del modulo =========
+  // ========= Carga del módulo =========
   async function showDep(rawParam) {
     const depId = parseDepParam(rawParam);
     if (!depId) return showDefault();
@@ -370,6 +370,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (req && window.ixReportModal?.open) {
         const it = items.find(x => String(x.id) === String(req));
         if (it) {
+          // 👉 paso mode “otros” si aplica; así el modal cae en la variante correcta
           const mode = isOtros(it.title) ? "otros" : "normal";
           ixReportModal.open({
             title: it.title,
@@ -416,7 +417,7 @@ document.addEventListener("DOMContentLoaded", () => {
     reRender(items);
   });
 
-  // ========= Click en "Crear/+" → abre modal =========
+  // ========= Click en Crear/+ → abre modal =========
   panel.addEventListener("click", (e) => {
     const btn = e.target.closest(".ix-dep-add");
     if (!btn) return;
@@ -431,7 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (window.ixReportModal?.open) {
       ixReportModal.open(
-        { title, depKey, itemId, sla, mode }, // le pasamos todo, incluyendo "mode"
+        { title, depKey, itemId, sla, mode }, // le pasamos todo, incluyendo “mode”
         btn
       );
     } else {
@@ -515,7 +516,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const ENDPOINTS = {
     cpcolonia: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
     insertReq: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento.php",
-    fsBootstrap: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
+    fsBootstrap: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/xtla01_u_requerimiento_folders.php",
     uploadImg: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento_img.php",
   };
 
@@ -551,19 +552,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const hh = ((h + 11) % 12) + 1;
     return `${hh}:${pad2(m)} ${ampm}`;
   };
-
   function setToday() {
-    const inp = document.getElementById('ix-fecha');
-    const t = document.getElementById('ix-report-date');
-    const now = new Date();
-
-    const visible = now.toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
-      .replace(',', ' ·');
-    // ISO en UTC para datetime del <time>
-    const iso = now.toISOString();
-
-    if (inp) inp.value = visible;
-    if (t) { t.dateTime = iso; t.textContent = visible; }
+    const d = new Date();
+    const text = `${pad2(d.getDate())} de ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()} · ${fmtAMPM(d)}`;
+    if (inpFecha) inpFecha.value = text;     // set DESPUÉS de form.reset()
+    if (timeMeta) { timeMeta.dateTime = d.toISOString(); timeMeta.textContent = text; }
   }
 
   const clearFeedback = () => { if (!feedback) return; feedback.hidden = true; feedback.textContent = ""; };
@@ -807,10 +800,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function openModal(
-    { title = "Reporte", depKey = "1", itemId = "", sla = "", mode = "normal" } = {},
+    { title = "Reporte", depKey = "1", itemId = "", sla = "" } = {},
     opener = null
   ) {
-    modal.dataset.mode = mode;  //  guarda el modo para el submit
     openerBtn = opener || document.activeElement;
     currentDepId = String(depKey || "1");
     currentItemId = String(itemId || "");
@@ -831,11 +823,11 @@ document.addEventListener("DOMContentLoaded", () => {
     updateDescCount();                  // contador arranca en 0
     if (btnSend) btnSend.disabled = false;
 
-    // Fecha actual (IMPORTANTE: despues de reset)
+    // Fecha actual (IMPORTANTE: después de reset)
     setToday();
 
-    // Campo "Clasificación (Título)" SOLO para "Otros"
-    const isOtros = mode === "otros";
+    // Campo “Clasificación (Título)” SOLO para “Otros”
+    const isOtros = /\botr(os|o)\b/i.test(currentTitle);
     toggleAsuntoForOtros(isOtros);
 
     // CP/Colonia
@@ -1032,11 +1024,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ---------- submit → inserción
-  form?.addEventListener("input", () => {
-    const canSend = validateForm(false);
-    if (btnSend) btnSend.disabled = !canSend;
-  });
-
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     clearFeedback();
@@ -1060,7 +1047,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // payload
     const depId = Number(currentDepId || inpDepId?.value || 1);
     const tramId = Number(currentItemId || inpTramiteId?.value || 0);
-    const isOtros = (modal.dataset.mode === "otros");
+    const isOtros = /\botr(os|o)\b/i.test(currentTitle);
 
     const nombre = (inpNombre?.value || "").trim();
     const calle = (inpDom?.value || "").trim();
@@ -1124,14 +1111,14 @@ document.addEventListener("DOMContentLoaded", () => {
       // 2) Bootstrap FS (no bloqueante si falla)
       await bootstrapFS(folio);
 
-      // 3) Subir imágenes (mínimo 0 ya garantizado, ya no se ocupan imagenes obligatorias)
+      // 3) Subir imágenes (mínimo 1 ya garantizado)
       const upRes = await uploadEvidence(folio, initialStatus, files);
       if (!upRes?.ok) {
         const failedCnt = Array.isArray(upRes?.failed) ? upRes.failed.length : 0;
-        showFeedback(`Reporte creado (${folio}), pero falló la subida de imágenes (${failedCnt}).`);
-        window.gcToast?.(`Algunas imágenes fallaron al subir.`, "alerta", 4200);
-      } else if (Array.isArray(upRes.failed) && upRes.failed.length) {
-        window.gcToast?.(`${upRes.failed.length} imagen(es) no se subieron. El reporte sí se creó.`, "alerta", 4800); // ajustar esto ya que este en produccion
+        showFeedback(`Reporte creado (${folio}), pero algunas imágenes no se subieron (${failedCnt}).`);
+        if (window.gcToast) gcToast("Algunas imágenes fallaron al subir.", "alerta", 4200);
+      } else if (CFG.DEBUG) {
+        console.log("[IX] Evidencias subidas:", upRes.saved?.length || 0);
       }
 
       try { document.dispatchEvent(new CustomEvent("ix:report:submit", { detail: { ...body, folio } })); } catch { }

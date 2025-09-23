@@ -20,9 +20,9 @@ if ($path && file_exists($path)) { include $path; }
 else { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"No se encontró conexion.php"]); exit; }
 
 /* ---------- Config ---------- */
-$MAX_FILES   = 3;                           // max. archivos por request
-$MAX_BYTES   = 30 * 1024 * 1024;            // 30 MB por archivo
-$ALLOWED_MIME = ['image/jpeg','image/png']; // alineado a tu front (solo JPG/PNG)
+$MAX_FILES = 3;                 // max. archivos por request
+$MAX_BYTES = 30 * 1024 * 1024;   // 30 MB por archivo
+$ALLOWED_MIME = ['image/jpeg','image/png']; // alineado a tu front
 $EXT_FOR_MIME = ['image/jpeg'=>'jpg','image/png'=>'png'];
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -30,23 +30,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   echo json_encode(["ok"=>false,"error"=>"Método no permitido"]); exit;
 }
 
-$folio     = isset($_POST['folio'])  ? strtoupper(trim($_POST['folio'])) : null;
-$statusRaw = isset($_POST['status']) ? trim($_POST['status'])            : null;
+$folio  = isset($_POST['folio']) ? strtoupper(trim($_POST['folio'])) : null;
+$status = isset($_POST['status']) ? trim($_POST['status']) : null;
 
 if (!$folio || !preg_match('/^REQ-\d{10}$/', $folio)) {
   http_response_code(400);
   echo json_encode(["ok"=>false,"error"=>"Folio inválido. Formato esperado: REQ-0000000000"]); exit;
 }
 
-// ---- PATCH: Validar status 0..6 con cast a int (antes solo 0..4 con regex)
-if ($statusRaw === null || !preg_match('/^-?\d+$/', $statusRaw)) {
+if ($status === null || !preg_match('/^[0-4]$/', (string)$status)) {
   http_response_code(400);
-  echo json_encode(["ok"=>false,"error"=>"Status inválido. Debe ser un número entre 0 y 6."]); exit;
-}
-$status = (int)$statusRaw;
-if ($status < 0 || $status > 6) {
-  http_response_code(400);
-  echo json_encode(["ok"=>false,"error"=>"Status inválido. Usa 0,1,2,3,4,5,6"]); exit;
+  echo json_encode(["ok"=>false,"error"=>"Status inválido. Usa 0,1,2,3,4"]); exit;
 }
 
 function normalize_files_array($filesInput) {
@@ -69,8 +63,8 @@ function normalize_files_array($filesInput) {
 }
 
 $files = [];
-if (isset($_FILES['files'])) $files = array_merge($files, normalize_files_array($_FILES['files']));
-if (isset($_FILES['file']))  $files = array_merge($files, normalize_files_array($_FILES['file']));
+if (isset($_FILES['files']))       $files = array_merge($files, normalize_files_array($_FILES['files']));
+if (isset($_FILES['file']))        $files = array_merge($files, normalize_files_array($_FILES['file']));
 if (empty($files)) {
   http_response_code(400);
   echo json_encode(["ok"=>false,"error"=>"No se recibieron archivos. Usa campo 'files' (multiparte)."]); exit;
@@ -90,9 +84,7 @@ $stepDir    = $reqDir . DIRECTORY_SEPARATOR . (string)$status;
 
 function ensure_dir($path, $perm = 0775) {
   if (is_dir($path)) return ["created"=>false,"path"=>$path];
-  $old = umask(0);
-  $ok  = @mkdir($path, $perm, true);
-  umask($old);
+  $ok = @mkdir($path, $perm, true);
   if (!$ok && !is_dir($path)) throw new RuntimeException("No se pudo crear carpeta: $path");
   return ["created"=>true,"path"=>$path];
 }
@@ -113,15 +105,15 @@ try {
 $publicBase = 'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net';
 $baseUrl    = rtrim($publicBase, '/') . "/ASSETS/requerimientos/{$folio}/" . (string)$status . "/";
 
-$finfo  = new finfo(FILEINFO_MIME_TYPE);
-$saved  = [];
+$finfo = new finfo(FILEINFO_MIME_TYPE);
+$saved = [];
 $failed = [];
 
 foreach ($files as $idx => $f) {
-  $name = $f['name'] ?? '';
-  $size = $f['size'] ?? 0;
-  $tmp  = $f['tmp_name'] ?? '';
-  $err  = $f['error'] ?? UPLOAD_ERR_NO_FILE;
+  $name   = $f['name'] ?? '';
+  $size   = $f['size'] ?? 0;
+  $tmp    = $f['tmp_name'] ?? '';
+  $err    = $f['error'] ?? UPLOAD_ERR_NO_FILE;
 
   if ($err !== UPLOAD_ERR_OK) {
     $failed[] = ["name"=>$name, "error"=>"Error de carga (code $err)"];
@@ -144,8 +136,10 @@ foreach ($files as $idx => $f) {
     continue;
   }
 
-  $ext  = $EXT_FOR_MIME[$mime] ?? 'bin';
-  $base = sanitize_filename(pathinfo($name, PATHINFO_FILENAME));
+  $ext = $EXT_FOR_MIME[$mime] ?? 'bin';
+
+  $base = pathinfo($name, PATHINFO_FILENAME);
+  $base = sanitize_filename($base);
   $uniq = date('YmdHis')."_".bin2hex(random_bytes(4));
   $final = "{$base}_{$uniq}.{$ext}";
 

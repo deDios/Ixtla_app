@@ -59,8 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ========= Endpoints (HTTPS sí o sí para evitar mixed content) =========
   const ENDPOINTS = {
-    deps: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
-    tramite: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tramite.php",
+    deps: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
+    tramite: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_tramite.php",
   };
 
   // ========= helpers para detectar "Otros" =========
@@ -551,19 +551,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const hh = ((h + 11) % 12) + 1;
     return `${hh}:${pad2(m)} ${ampm}`;
   };
-
   function setToday() {
-    const inp = document.getElementById('ix-fecha');
-    const t = document.getElementById('ix-report-date');
-    const now = new Date();
-
-    const visible = now.toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
-      .replace(',', ' ·');
-    // ISO en UTC para datetime del <time>
-    const iso = now.toISOString();
-
-    if (inp) inp.value = visible;
-    if (t) { t.dateTime = iso; t.textContent = visible; }
+    const d = new Date();
+    const text = `${pad2(d.getDate())} de ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()} · ${fmtAMPM(d)}`;
+    if (inpFecha) inpFecha.value = text;     // set DESPUÉS de form.reset()
+    if (timeMeta) { timeMeta.dateTime = d.toISOString(); timeMeta.textContent = text; }
   }
 
   const clearFeedback = () => { if (!feedback) return; feedback.hidden = true; feedback.textContent = ""; };
@@ -1060,7 +1052,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // payload
     const depId = Number(currentDepId || inpDepId?.value || 1);
     const tramId = Number(currentItemId || inpTramiteId?.value || 0);
-    const isOtros = (modal.dataset.mode === "otros");
+    const isOtros = mode === "otros";
 
     const nombre = (inpNombre?.value || "").trim();
     const calle = (inpDom?.value || "").trim();
@@ -1134,7 +1126,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.gcToast?.(`${upRes.failed.length} imagen(es) no se subieron. El reporte sí se creó.`, "alerta", 4800); // ajustar esto ya que este en produccion
       }
 
-      try { document.dispatchEvent(new CustomEvent("ix:report:submit", { detail: { ...body, folio } })); } catch { }
+      try { document.dispatchEvent(new CustomEvent("ix:report:submit", { detail: { ...body,  folio } })); } catch { }
       try { document.dispatchEvent(new CustomEvent("ix:report:success", { detail: { folio } })); } catch { }
 
       if (window.gcToast) gcToast(`Reporte creado: ${folio}`, "exito", 3200);

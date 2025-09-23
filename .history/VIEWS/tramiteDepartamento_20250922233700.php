@@ -356,9 +356,9 @@
                             <label for="ix-fecha" class="ix-field__label">Fecha</label>
                             <div class="ix-field__control">
                                 <input id="ix-fecha" name="fecha" type="text" readonly aria-readonly="true"
-                                    aria-describedby="ix-fecha-help" placeholder="--/--/---- · --:--">
-                                <small id="ix-fecha-help" class="ix-help">
-                                    <time id="ix-report-date" datetime="" aria-live="polite"></time>
+                                    placeholder="--/--/---- · --:--">
+                                <small class="ix-help">
+                                    <time id="ix-report-date" datetime=""></time>
                                 </small>
                             </div>
                         </div>
