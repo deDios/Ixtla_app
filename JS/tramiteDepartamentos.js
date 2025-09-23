@@ -1,11 +1,16 @@
-//----------------------------- módulo de departamentos 
+//----------------------------- módulo de departamentos
 document.addEventListener("DOMContentLoaded", () => {
   const wrap = document.querySelector("#tramites .ix-wrap");
   if (!wrap) return;
 
   // --- mini debug
   if (typeof window.IX_DEBUG === "undefined") window.IX_DEBUG = true;
-  const ixLog = (...a) => { if (window.IX_DEBUG) try { console.log("[IX]", ...a); } catch { } };
+  const ixLog = (...a) => {
+    if (window.IX_DEBUG)
+      try {
+        console.log("[IX]", ...a);
+      } catch {}
+  };
 
   // refs base de la vista
   const grid = wrap.querySelector(".ix-grid");
@@ -60,17 +65,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // ========= Endpoints (HTTPS sí o sí para evitar mixed content) =========
   const ENDPOINTS = {
     deps: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
-    tramite: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tramite.php",
+    tramite:
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tramite.php",
   };
 
   // ========= helpers para detectar "Otros" =========
   // normalizo: sin acentos, lowercase, trim — para que “OTROS”, “Otro”, etc. hagan match igual
-  const norm = (s) => (s ?? "")
-    .toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
+  const norm = (s) =>
+    (s ?? "")
+      .toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
   const isOtros = (title) => {
     const n = norm(title);
     return n === "otros" || n === "otro";
@@ -83,39 +90,57 @@ document.addEventListener("DOMContentLoaded", () => {
       const raw = sessionStorage.getItem(k);
       if (!raw) return null;
       const obj = JSON.parse(raw);
-      if (!obj || (Date.now() - obj.t) > (obj.ttl ?? CACHE_TTL)) { sessionStorage.removeItem(k); return null; }
+      if (!obj || Date.now() - obj.t > (obj.ttl ?? CACHE_TTL)) {
+        sessionStorage.removeItem(k);
+        return null;
+      }
       return obj.v;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   };
   const cacheSet = (k, v, ttl = CACHE_TTL) => {
-    try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v })); } catch { }
+    try {
+      sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v }));
+    } catch {}
   };
 
   // ========= Config de assets (cero slugs, todo por ID) =========
   const ICON_PLACEHOLDER = "/ASSETS/departamentos/placeholder_icon.png";
   const CARD_PLACEHOLDER = "/ASSETS/departamentos/placeholder_card.png";
   const ASSETS_BASE = "/ASSETS/departamentos/modulosAssets";
-  const iconSrcs = (depId, reqId) => ([
+  const iconSrcs = (depId, reqId) => [
     `${ASSETS_BASE}/dep-${depId}/req_icon${reqId}.png`,
     `${ASSETS_BASE}/dep-${depId}/req_icon${reqId}.jpg`,
     ICON_PLACEHOLDER,
-  ]);
-  const cardSrcs = (depId, reqId) => ([
+  ];
+  const cardSrcs = (depId, reqId) => [
     `${ASSETS_BASE}/dep-${depId}/req_card${reqId}.png`,
     `${ASSETS_BASE}/dep-${depId}/req_card${reqId}.jpg`,
     CARD_PLACEHOLDER,
-  ]);
+  ];
 
   // fallback de imagen
   function attachImgFallback(img, srcList, liForFlag) {
     let i = 0;
-    const set = () => { img.src = srcList[i]; };
-    img.addEventListener("error", () => {
-      if (i < srcList.length - 1) { i++; set(); }
-      else {
-        if (liForFlag) { liForFlag.classList.add("asset-missing"); liForFlag.dataset.missingAsset = "true"; }
-      }
-    }, { passive: true });
+    const set = () => {
+      img.src = srcList[i];
+    };
+    img.addEventListener(
+      "error",
+      () => {
+        if (i < srcList.length - 1) {
+          i++;
+          set();
+        } else {
+          if (liForFlag) {
+            liForFlag.classList.add("asset-missing");
+            liForFlag.dataset.missingAsset = "true";
+          }
+        }
+      },
+      { passive: true }
+    );
     set();
   }
 
@@ -128,7 +153,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await promise(ctrl.signal);
       clearTimeout(t);
       return res;
-    } catch (e) { clearTimeout(t); throw e; }
+    } catch (e) {
+      clearTimeout(t);
+      throw e;
+    }
   };
 
   async function fetchDeps() {
@@ -139,10 +167,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const json = await withTimeout((signal) =>
       fetch(ENDPOINTS.deps, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({ status: 1 }),
-        signal
-      }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        signal,
+      }).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
     );
 
     const data = Array.isArray(json?.data) ? json.data : [];
@@ -153,7 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
       meta[id] = {
         id,
         nombre: String(row?.nombre || `Departamento #${id}`),
-        status: Number(row?.status ?? 1)
+        status: Number(row?.status ?? 1),
       };
     }
     cacheSet(CK, meta);
@@ -165,25 +199,37 @@ document.addEventListener("DOMContentLoaded", () => {
     const json = await withTimeout((signal) =>
       fetch(ENDPOINTS.tramite, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({ departamento_id: Number(depId), all: true }),
-        signal
-      }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        signal,
+      }).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
     );
 
-    const raw = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-    const rows = raw.filter(r =>
-      Number(r?.departamento_id) === Number(depId) &&
-      (r?.estatus === undefined || Number(r?.estatus) === 1)
+    const raw = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json)
+      ? json
+      : [];
+    const rows = raw.filter(
+      (r) =>
+        Number(r?.departamento_id) === Number(depId) &&
+        (r?.estatus === undefined || Number(r?.estatus) === 1)
     );
 
-    const items = rows.map(r => ({
-      id: String(Number(r.id)),
-      depId: String(Number(depId)),
-      title: String(r?.nombre || "Trámite").trim(),
-      desc: String(r?.descripcion || "").trim(),
-      sla: null,
-    }))
+    const items = rows
+      .map((r) => ({
+        id: String(Number(r.id)),
+        depId: String(Number(depId)),
+        title: String(r?.nombre || "Trámite").trim(),
+        desc: String(r?.descripcion || "").trim(),
+        sla: null,
+      }))
       .sort((a, b) => Number(a.id) - Number(b.id));
 
     return items;
@@ -195,12 +241,17 @@ document.addEventListener("DOMContentLoaded", () => {
       <path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     </svg>`.trim();
 
-  const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+  const el = (html) => {
+    const t = document.createElement("template");
+    t.innerHTML = html.trim();
+    return t.content.firstChild;
+  };
 
   function renderSkeleton(n = 4) {
     listEl.innerHTML = "";
     for (let i = 0; i < n; i++) {
-      listEl.appendChild(el(`
+      listEl.appendChild(
+        el(`
         <li class="ix-dep-item ix-skel">
           <div class="ix-dep-media"><span class="sk sk-ico"></span></div>
           <div class="ix-dep-content">
@@ -209,7 +260,8 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div class="sk sk-btn" aria-hidden="true"></div>
         </li>
-      `));
+      `)
+      );
     }
   }
 
@@ -217,7 +269,9 @@ document.addEventListener("DOMContentLoaded", () => {
     listEl.innerHTML = "";
     const li = el(`
       <li class="ix-dep-empty">
-        <p><strong>Error:</strong> ${msg || "No se pudieron cargar los trámites."}</p>
+        <p><strong>Error:</strong> ${
+          msg || "No se pudieron cargar los trámites."
+        }</p>
         <p><button type="button" class="ix-btn ix-btn--retry">Reintentar</button></p>
       </li>
     `);
@@ -253,7 +307,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // copy
     li.querySelector("h3").textContent = it.title;
-    li.querySelector("p").textContent = it.desc || "Consulta detalles y levanta tu reporte.";
+    li.querySelector("p").textContent =
+      it.desc || "Consulta detalles y levanta tu reporte.";
 
     // botón (+) con datasets
     const btn = li.querySelector(".ix-dep-add");
@@ -293,7 +348,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // textos
     li.querySelector(".ix-card-title").textContent = it.title;
-    li.querySelector(".ix-card-desc").textContent = it.desc || "Consulta detalles y levanta tu reporte.";
+    li.querySelector(".ix-card-desc").textContent =
+      it.desc || "Consulta detalles y levanta tu reporte.";
     li.querySelector(".ix-sla").textContent = it.sla || "-";
 
     // botón
@@ -320,18 +376,27 @@ document.addEventListener("DOMContentLoaded", () => {
     btnGrid.setAttribute("aria-pressed", String(v === "cards"));
 
     const renderer = v === "cards" ? renderCardItem : renderListItem;
-    items.forEach(it => listEl.appendChild(renderer(it)));
+    items.forEach((it) => listEl.appendChild(renderer(it)));
   }
 
   // ========= Estado de pagina =========
   function showDefault() {
-    panel.hidden = true; listEl.innerHTML = "";
-    note.hidden = false; grid.style.display = "";
+    panel.hidden = true;
+    listEl.innerHTML = "";
+    note.hidden = false;
+    grid.style.display = "";
     h2.textContent = "Selecciona un Departamento";
     document.title = "Trámites / Departamentos";
   }
 
-  const ALIAS = { samapa: 1, simapa: 1, limpieza: 2, obras: 3, alumbrado: 4, ambiental: 5 };
+  const ALIAS = {
+    samapa: 1,
+    simapa: 1,
+    limpieza: 2,
+    obras: 3,
+    alumbrado: 4,
+    ambiental: 5,
+  };
   const parseDepParam = (raw) => {
     if (!raw) return null;
     const s = String(raw).toLowerCase();
@@ -352,7 +417,11 @@ document.addEventListener("DOMContentLoaded", () => {
     panel.dataset.dep = String(depId);
 
     let depMeta = {};
-    try { depMeta = await fetchDeps(); } catch (e) { ixLog("dep meta falló:", e?.message || e); }
+    try {
+      depMeta = await fetchDeps();
+    } catch (e) {
+      ixLog("dep meta falló:", e?.message || e);
+    }
 
     const nombreDep = depMeta[depId]?.nombre || `Departamento #${depId}`;
     h2.textContent = `${nombreDep}`;
@@ -368,7 +437,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // deep-link: si viene ?req=<id>, abro el modal directo
       const req = new URLSearchParams(location.search).get("req");
       if (req && window.ixReportModal?.open) {
-        const it = items.find(x => String(x.id) === String(req));
+        const it = items.find((x) => String(x.id) === String(req));
         if (it) {
           const mode = isOtros(it.title) ? "otros" : "normal";
           ixReportModal.open({
@@ -376,7 +445,7 @@ document.addEventListener("DOMContentLoaded", () => {
             depKey: String(depId),
             itemId: it.id,
             sla: it.sla || "-",
-            mode
+            mode,
           });
         }
       }
@@ -392,12 +461,18 @@ document.addEventListener("DOMContentLoaded", () => {
     setView("list");
     const depId = parseDepParam(panel.dataset.dep);
     if (!depId) return;
-    const items = [...listEl.querySelectorAll(".ix-dep-add")].map(btn => ({
+    const items = [...listEl.querySelectorAll(".ix-dep-add")].map((btn) => ({
       id: btn.dataset.id,
       depId: String(depId),
       title: btn.dataset.title,
-      desc: btn.closest(".ix-dep-item")?.querySelector(".ix-card-desc, .ix-dep-content p")?.textContent || "",
-      sla: btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent || "-"
+      desc:
+        btn
+          .closest(".ix-dep-item")
+          ?.querySelector(".ix-card-desc, .ix-dep-content p")?.textContent ||
+        "",
+      sla:
+        btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent ||
+        "-",
     }));
     reRender(items);
   });
@@ -406,12 +481,18 @@ document.addEventListener("DOMContentLoaded", () => {
     setView("cards");
     const depId = parseDepParam(panel.dataset.dep);
     if (!depId) return;
-    const items = [...listEl.querySelectorAll(".ix-dep-add")].map(btn => ({
+    const items = [...listEl.querySelectorAll(".ix-dep-add")].map((btn) => ({
       id: btn.dataset.id,
       depId: String(depId),
       title: btn.dataset.title,
-      desc: btn.closest(".ix-dep-item")?.querySelector(".ix-dep-content p, .ix-card-desc")?.textContent || "",
-      sla: btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent || "-"
+      desc:
+        btn
+          .closest(".ix-dep-item")
+          ?.querySelector(".ix-dep-content p, .ix-card-desc")?.textContent ||
+        "",
+      sla:
+        btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent ||
+        "-",
     }));
     reRender(items);
   });
@@ -424,7 +505,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const depKey = panel.dataset.dep;
     const title = btn.dataset.title || "Trámite";
     const itemId = btn.dataset.id;
-    const sla = btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent || "-";
+    const sla =
+      btn.closest(".ix-dep-item")?.querySelector(".ix-sla")?.textContent || "-";
 
     // 👉 si ya venía marcado data-mode lo usamos; si no, inferimos por título
     const mode = btn.dataset.mode || (isOtros(title) ? "otros" : "normal");
@@ -435,7 +517,9 @@ document.addEventListener("DOMContentLoaded", () => {
         btn
       );
     } else {
-      window.gcToast ? gcToast(`Abrir formulario: ${title}`, "info", 2200) : alert(`Abrir formulario: ${title}`);
+      window.gcToast
+        ? gcToast(`Abrir formulario: ${title}`, "info", 2200)
+        : alert(`Abrir formulario: ${title}`);
     }
   });
 
@@ -459,21 +543,13 @@ document.addEventListener("DOMContentLoaded", () => {
   panel.classList.toggle("view-cards", v === "cards");
 });
 
-
-
-
-
-
-
-
-
-
-
-
-//------------------------------- modal de reporte 
+//------------------------------- modal de reporte
 (() => {
   const modal = document.getElementById("ix-report-modal");
-  if (!modal) { console.warn("[IX] No existe #ix-report-modal."); return; }
+  if (!modal) {
+    console.warn("[IX] No existe #ix-report-modal.");
+    return;
+  }
 
   const overlay = modal.querySelector(".ix-modal__overlay");
   const dialog = modal.querySelector(".ix-modal__dialog");
@@ -507,26 +583,44 @@ document.addEventListener("DOMContentLoaded", () => {
   const upInput = modal.querySelector("#ix-evidencia");
   const previews = modal.querySelector("#ix-evidencia-previews");
 
+  if (upInput && !upInput.hasAttribute("accept")) {
+    //pequeño parche para que tambien el el frontend acepte los tipos de archivos
+    upInput.setAttribute(
+      "accept",
+      ".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif"
+    );
+  }
+
   // hidden opcionales
   const inpDepId = modal.querySelector("input[name='departamento_id']");
   const inpTramiteId = modal.querySelector("input[name='tramite_id']");
 
   // ---------- endpoints
   const ENDPOINTS = {
-    cpcolonia: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
-    insertReq: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento.php",
-    fsBootstrap: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
-    uploadImg: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento_img.php",
+    cpcolonia:
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
+    insertReq:
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento.php",
+    fsBootstrap:
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
+    uploadImg:
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento_img.php",
   };
 
   // ---------- config
   const CFG = {
-    MAX_FILES: 3,
-    MIN_FILES: 0, // mínimo requerido
+    MAX_FILES: 3, // maximo de archivos por subida
+    MIN_FILES: 0, // minimo requerido
     MAX_MB: 30,
-    TYPES: ["image/jpeg", "image/png"],
+    TYPES: [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/heic",
+      "image/heif",
+    ],
     FETCH_TIMEOUT: 12000,
-    DEBUG: false,  // dejar en true para ver los console logs
+    DEBUG: false,
   };
 
   // ---------- estado
@@ -541,33 +635,61 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- utils
   const digits = (s) => (s || "").replace(/\D+/g, "");
-  const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || "").trim());
+  const isEmail = (s) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || "").trim());
 
-  const MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const MONTHS_ES = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
   const pad2 = (n) => String(n).padStart(2, "0");
   const fmtAMPM = (d) => {
-    const h = d.getHours(), m = d.getMinutes();
+    const h = d.getHours(),
+      m = d.getMinutes();
     const ampm = h >= 12 ? "pm" : "am";
     const hh = ((h + 11) % 12) + 1;
     return `${hh}:${pad2(m)} ${ampm}`;
   };
 
   function setToday({ showTimeHelp = false } = {}) {
-    const inp = document.getElementById('ix-fecha');
-    const help = document.getElementById('ix-fecha-help');        // <small>
-    const t = document.getElementById('ix-report-date');       // <time>
+    const inp = document.getElementById("ix-fecha");
+    const help = document.getElementById("ix-fecha-help"); // <small>
+    const t = document.getElementById("ix-report-date"); // <time>
     const now = new Date();
 
-    const visible = now.toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }).replace(',', ' ·');
+    const visible = now
+      .toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
+      .replace(",", " ·");
     const iso = now.toISOString();
 
     if (inp) inp.value = visible;
-    if (t) { t.dateTime = iso; t.textContent = showTimeHelp ? visible : ''; }
-    if (help) help.hidden = !showTimeHelp; // ← oculta el renglón de ayuda si no quieres duplicar
+    if (t) {
+      t.dateTime = iso;
+      t.textContent = showTimeHelp ? visible : "";
+    }
+    if (help) help.hidden = !showTimeHelp;
   }
 
-  const clearFeedback = () => { if (!feedback) return; feedback.hidden = true; feedback.textContent = ""; };
-  const showFeedback = (msg) => { if (!feedback) return; feedback.hidden = false; feedback.textContent = msg; };
+  const clearFeedback = () => {
+    if (!feedback) return;
+    feedback.hidden = true;
+    feedback.textContent = "";
+  };
+  const showFeedback = (msg) => {
+    if (!feedback) return;
+    feedback.hidden = false;
+    feedback.textContent = msg;
+  };
 
   const setFieldError = (inputEl, msg = "") => {
     const field = inputEl?.closest?.(".ix-field");
@@ -575,10 +697,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!field) return;
     if (msg) {
       field.classList.add("ix-field--error");
-      if (help) { help.hidden = false; help.textContent = msg; }
+      if (help) {
+        help.hidden = false;
+        help.textContent = msg;
+      }
     } else {
       field.classList.remove("ix-field--error");
-      if (help) { help.hidden = true; help.textContent = ""; }
+      if (help) {
+        help.hidden = true;
+        help.textContent = "";
+      }
     }
   };
 
@@ -592,26 +720,55 @@ document.addEventListener("DOMContentLoaded", () => {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), ms);
     return promiseFactory(ctrl.signal)
-      .then((r) => { clearTimeout(to); return r; })
-      .catch((e) => { clearTimeout(to); throw e; });
+      .then((r) => {
+        clearTimeout(to);
+        return r;
+      })
+      .catch((e) => {
+        clearTimeout(to);
+        throw e;
+      });
   }
 
   const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
   const LAST_CP_KEY = "ix_last_cp";
-  function getCpCache() { try { return JSON.parse(sessionStorage.getItem(CP_CACHE_KEY) || "null"); } catch { return null; } }
-  function setCpCache(data) { try { sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify(data)); } catch { } }
-  function getLastCP() { try { return sessionStorage.getItem(LAST_CP_KEY) || ""; } catch { return ""; } }
-  function setLastCP(cp) { try { sessionStorage.setItem(LAST_CP_KEY, String(cp || "")); } catch { } }
+  function getCpCache() {
+    try {
+      return JSON.parse(sessionStorage.getItem(CP_CACHE_KEY) || "null");
+    } catch {
+      return null;
+    }
+  }
+  function setCpCache(data) {
+    try {
+      sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify(data));
+    } catch {}
+  }
+  function getLastCP() {
+    try {
+      return sessionStorage.getItem(LAST_CP_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+  function setLastCP(cp) {
+    try {
+      sessionStorage.setItem(LAST_CP_KEY, String(cp || ""));
+    } catch {}
+  }
 
   let CP_MAP = {};
   let CP_LIST = [];
-  const knownCP = (cp) => Object.prototype.hasOwnProperty.call(CP_MAP, String(cp || ""));
+  const knownCP = (cp) =>
+    Object.prototype.hasOwnProperty.call(CP_MAP, String(cp || ""));
 
   function extractCpColoniaArray(json) {
     if (CFG.DEBUG) console.log("[IX] cpcolonia raw:", json);
-    const arr = Array.isArray(json?.data) ? json.data
-      : Array.isArray(json) ? json
-        : [];
+    const arr = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json)
+      ? json
+      : [];
     if (!arr.length) {
       console.warn("[IX] cpcolonia: respuesta sin arreglo de datos.");
       return [];
@@ -619,26 +776,52 @@ document.addEventListener("DOMContentLoaded", () => {
     const out = [];
     for (const item of arr) {
       if (!item || typeof item !== "object") continue;
-      const cp = String(item.cp ?? item.CP ?? item.codigo_postal ?? item.codigoPostal ?? item.postal_code ?? item.postalCode ?? "").trim();
-      const col = String(item.colonia ?? item.Colonia ?? item.asentamiento ?? item.barrio ?? item.neighborhood ?? "").trim();
+      const cp = String(
+        item.cp ??
+          item.CP ??
+          item.codigo_postal ??
+          item.codigoPostal ??
+          item.postal_code ??
+          item.postalCode ??
+          ""
+      ).trim();
+      const col = String(
+        item.colonia ??
+          item.Colonia ??
+          item.asentamiento ??
+          item.barrio ??
+          item.neighborhood ??
+          ""
+      ).trim();
       if (!cp || !col) continue;
       out.push({ cp, colonia: col });
     }
-    if (CFG.DEBUG) console.log("[IX] cpcolonia normalizado (primeros 5):", out.slice(0, 5));
+    if (CFG.DEBUG)
+      console.log("[IX] cpcolonia normalizado (primeros 5):", out.slice(0, 5));
     return out;
   }
 
   async function fetchCpColonia() {
     const hit = getCpCache();
-    if (hit?.map && hit?.list) { CP_MAP = hit.map; CP_LIST = hit.list; return; }
+    if (hit?.map && hit?.list) {
+      CP_MAP = hit.map;
+      CP_LIST = hit.list;
+      return;
+    }
 
     const json = await withTimeout((signal) =>
       fetch(ENDPOINTS.cpcolonia, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({ all: true }),
-        signal
-      }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        signal,
+      }).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
     );
 
     const rows = extractCpColoniaArray(json);
@@ -658,7 +841,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const finalMap = {};
-    Object.keys(map).forEach(cp => {
+    Object.keys(map).forEach((cp) => {
       const sorted = map[cp].order.sort((a, b) => a.localeCompare(b, "es"));
       finalMap[cp] = sorted;
     });
@@ -668,13 +851,19 @@ document.addEventListener("DOMContentLoaded", () => {
     CP_LIST = list;
     setCpCache({ map: finalMap, list });
 
-    if (CFG.DEBUG) console.log("[IX] cpcolonia resumen:", { cps: CP_LIST.length, ejemploCP: CP_LIST[0], coloniasEjemplo: CP_MAP[CP_LIST[0]]?.slice(0, 5) });
+    if (CFG.DEBUG)
+      console.log("[IX] cpcolonia resumen:", {
+        cps: CP_LIST.length,
+        ejemploCP: CP_LIST[0],
+        coloniasEjemplo: CP_MAP[CP_LIST[0]]?.slice(0, 5),
+      });
   }
 
   // ---------- helpers de SELECT
   const makeOpt = (val, label, { disabled = false, selected = false } = {}) => {
     const o = document.createElement("option");
-    o.value = val; o.textContent = label;
+    o.value = val;
+    o.textContent = label;
     if (disabled) o.disabled = true;
     if (selected) o.selected = true;
     return o;
@@ -691,14 +880,21 @@ document.addEventListener("DOMContentLoaded", () => {
     return sel;
   };
 
-  const ensureCpSelect = () => (inpCP = ensureSelect(inpCP, { nameFallback: "cp", idFallback: "ix-cp" }));
-  const ensureColSelect = () => (inpCol = ensureSelect(inpCol, { nameFallback: "colonia", idFallback: "ix-colonia" }));
+  const ensureCpSelect = () =>
+    (inpCP = ensureSelect(inpCP, { nameFallback: "cp", idFallback: "ix-cp" }));
+  const ensureColSelect = () =>
+    (inpCol = ensureSelect(inpCol, {
+      nameFallback: "colonia",
+      idFallback: "ix-colonia",
+    }));
 
   const populateCpOptions = () => {
     ensureCpSelect();
     inpCP.innerHTML = "";
-    inpCP.appendChild(makeOpt("", "Selecciona C.P.", { disabled: true, selected: true }));
-    CP_LIST.forEach(cp => inpCP.appendChild(makeOpt(cp, cp)));
+    inpCP.appendChild(
+      makeOpt("", "Selecciona C.P.", { disabled: true, selected: true })
+    );
+    CP_LIST.forEach((cp) => inpCP.appendChild(makeOpt(cp, cp)));
   };
 
   const resetColonia = (msg = "Selecciona C.P. primero") => {
@@ -711,8 +907,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const populateColoniasForCP = (cp) => {
     ensureColSelect();
     inpCol.innerHTML = "";
-    inpCol.appendChild(makeOpt("", "Selecciona colonia", { disabled: true, selected: true }));
-    (CP_MAP[cp] || []).forEach(col => inpCol.appendChild(makeOpt(col, col)));
+    inpCol.appendChild(
+      makeOpt("", "Selecciona colonia", { disabled: true, selected: true })
+    );
+    (CP_MAP[cp] || []).forEach((col) => inpCol.appendChild(makeOpt(col, col)));
     inpCol.disabled = false;
   };
 
@@ -737,8 +935,18 @@ document.addEventListener("DOMContentLoaded", () => {
       const fig = document.createElement("figure");
       const img = document.createElement("img");
       const btn = document.createElement("button");
-      img.src = URL.createObjectURL(file);
-      img.alt = file.name;
+
+      const canPreview = /^(image\/jpeg|image\/png|image\/webp)$/i.test(
+        file.type
+      );
+      img.src = canPreview
+        ? URL.createObjectURL(file)
+        : "/ASSETS/departamentos/placeholder_card.png";
+      img.alt = canPreview
+        ? file.name
+        : "Vista previa no disponible (HEIC/HEIF)";
+      img.loading = "lazy";
+
       btn.type = "button";
       btn.textContent = "×";
       btn.setAttribute("aria-label", "Eliminar imagen");
@@ -747,11 +955,12 @@ document.addEventListener("DOMContentLoaded", () => {
         refreshPreviews();
         if (hasAttemptedSubmit) validateForm(true);
       });
+
       fig.appendChild(img);
       fig.appendChild(btn);
       previews.appendChild(fig);
     });
-    // marca error visual si ya intentó enviar y no cumple mínimo
+
     if (hasAttemptedSubmit) {
       if (files.length < (CFG.MIN_FILES || 0)) {
         upWrap?.classList.add("ix-upload--error");
@@ -761,56 +970,115 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  const ALLOWED_EXT = new Set([
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".heic",
+    ".heif",
+  ]);
+  const extOf = (name = "") => {
+    const n = String(name).toLowerCase();
+    const i = n.lastIndexOf(".");
+    return i >= 0 ? n.slice(i) : "";
+  };
+  const hasAllowedExt = (file) => ALLOWED_EXT.has(extOf(file?.name));
+
   function handleFiles(list) {
     const incoming = Array.from(list || []);
     for (const f of incoming) {
-      if (!CFG.TYPES.includes(f.type)) { showFeedback("Solo JPG o PNG."); continue; }
-      if (f.size > CFG.MAX_MB * 1024 * 1024) { showFeedback(`Cada archivo ≤ ${CFG.MAX_MB} MB.`); continue; }
-      if (files.length >= CFG.MAX_FILES) { showFeedback(`Máximo ${CFG.MAX_FILES} imágenes.`); break; }
+      const okMime = CFG.TYPES.includes(f.type);
+      const okExt = hasAllowedExt(f);
+      if (!okMime && !okExt) {
+        showFeedback("Solo JPG/PNG/WebP/HEIC/HEIF.");
+        continue;
+      }
+      if (f.size > CFG.MAX_MB * 1024 * 1024) {
+        showFeedback(`Cada archivo ≤ ${CFG.MAX_MB} MB.`);
+        continue;
+      }
+      if (files.length >= CFG.MAX_FILES) {
+        showFeedback(`Máximo ${CFG.MAX_FILES} imágenes.`);
+        break;
+      }
       files.push(f);
     }
     refreshPreviews();
   }
 
   upWrap?.addEventListener("click", (e) => {
-    if (e.target instanceof HTMLElement && e.target.tagName === "BUTTON") return;
+    if (e.target instanceof HTMLElement && e.target.tagName === "BUTTON")
+      return;
     upInput?.click();
   });
   upInput?.addEventListener("change", (e) => handleFiles(e.target.files));
-  ["dragenter", "dragover"].forEach(ev =>
-    upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.add("is-drag"); })
+  ["dragenter", "dragover"].forEach((ev) =>
+    upWrap?.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      upWrap.classList.add("is-drag");
+    })
   );
-  ["dragleave", "drop"].forEach(ev =>
-    upWrap?.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.remove("is-drag"); })
+  ["dragleave", "drop"].forEach((ev) =>
+    upWrap?.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      upWrap.classList.remove("is-drag");
+    })
   );
-  upWrap?.addEventListener("drop", (e) => handleFiles(e.dataTransfer?.files || []));
+  upWrap?.addEventListener("drop", (e) =>
+    handleFiles(e.dataTransfer?.files || [])
+  );
 
   // ---------- focus trap + open/close
   const getFocusable = () =>
-    Array.from(dialog.querySelectorAll(
-      'a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])'
-    )).filter(el => el.offsetParent !== null);
+    Array.from(
+      dialog.querySelectorAll(
+        'a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => el.offsetParent !== null);
 
   function trap(e) {
     if (e.key !== "Tab") return;
-    const list = getFocusable(); if (!list.length) return;
-    const first = list[0], last = list[list.length - 1];
-    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
-    else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+    const list = getFocusable();
+    if (!list.length) return;
+    const first = list[0],
+      last = list[list.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
   }
 
   function toggleAsuntoForOtros(isOtros) {
     if (!asuntoGroup) return;
     asuntoGroup.hidden = !isOtros;
-    asuntoGroup.style.display = isOtros ? "" : "none";  // blindaje ante CSS externos
-    if (!isOtros && inpAsunto) { inpAsunto.value = ""; setFieldError(inpAsunto, ""); }
+    asuntoGroup.style.display = isOtros ? "" : "none"; // blindaje ante CSS externos
+    if (!isOtros && inpAsunto) {
+      inpAsunto.value = "";
+      setFieldError(inpAsunto, "");
+    }
   }
 
   function openModal(
-    { title = "Reporte", depKey = "1", itemId = "", sla = "", mode = "normal" } = {},
+    {
+      title = "Reporte",
+      depKey = "1",
+      itemId = "",
+      sla = "",
+      mode = "normal",
+    } = {},
     opener = null
   ) {
-    modal.dataset.mode = mode;  //  guarda el modo para el submit
+    modal.dataset.mode = mode; //  guarda el modo para el submit
     openerBtn = opener || document.activeElement;
     currentDepId = String(depKey || "1");
     currentItemId = String(itemId || "");
@@ -828,7 +1096,7 @@ document.addEventListener("DOMContentLoaded", () => {
     form?.reset();
     files = [];
     refreshPreviews();
-    updateDescCount();                  // contador arranca en 0
+    updateDescCount(); // contador arranca en 0
     if (btnSend) btnSend.disabled = false;
 
     // Fecha actual (IMPORTANTE: despues de reset)
@@ -839,7 +1107,9 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleAsuntoForOtros(isOtros);
 
     // CP/Colonia
-    ensureCpSelect(); ensureColSelect(); resetColonia();
+    ensureCpSelect();
+    ensureColSelect();
+    resetColonia();
     fetchCpColonia()
       .then(() => {
         populateCpOptions();
@@ -851,37 +1121,55 @@ document.addEventListener("DOMContentLoaded", () => {
           resetColonia();
         }
       })
-      .catch((err) => { console.warn("[IX] cpcolonia error:", err); });
+      .catch((err) => {
+        console.warn("[IX] cpcolonia error:", err);
+      });
 
     // Mostrar modal
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
 
-    trapHandler = (e) => { if (e.key === "Escape") closeModal(); else trap(e); };
+    trapHandler = (e) => {
+      if (e.key === "Escape") closeModal();
+      else trap(e);
+    };
     document.addEventListener("keydown", trapHandler);
     overlay?.addEventListener("click", closeModal, { once: true });
-    btnCloses.forEach(b => b.addEventListener("click", closeModal, { once: true }));
+    btnCloses.forEach((b) =>
+      b.addEventListener("click", closeModal, { once: true })
+    );
 
     // foco inicial
-    setTimeout(() => { inpNombre?.focus(); }, 0);
+    setTimeout(() => {
+      inpNombre?.focus();
+    }, 0);
 
     try {
-      document.dispatchEvent(new CustomEvent("ix:report:open", {
-        detail: { depKey: currentDepId, itemId: currentItemId, title: currentTitle, sla }
-      }));
-    } catch { }
+      document.dispatchEvent(
+        new CustomEvent("ix:report:open", {
+          detail: {
+            depKey: currentDepId,
+            itemId: currentItemId,
+            title: currentTitle,
+            sla,
+          },
+        })
+      );
+    } catch {}
   }
 
   function closeModal() {
-    document.removeEventListener("keydown", trapHandler || (() => { }));
+    document.removeEventListener("keydown", trapHandler || (() => {}));
     trapHandler = null;
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
     if (openerBtn && typeof openerBtn.focus === "function") openerBtn.focus();
     openerBtn = null;
-    try { document.dispatchEvent(new CustomEvent("ix:report:close")); } catch { }
+    try {
+      document.dispatchEvent(new CustomEvent("ix:report:close"));
+    } catch {}
   }
 
   // ---------- validaciones
@@ -891,45 +1179,61 @@ document.addEventListener("DOMContentLoaded", () => {
     // nombre
     const nombre = (inpNombre?.value || "").trim();
     if (!(nombre.length >= 5 || nombre.split(/\s+/).length >= 2)) {
-      ok = false; if (showErrors) setFieldError(inpNombre, "Ingresa tu nombre completo.");
+      ok = false;
+      if (showErrors) setFieldError(inpNombre, "Ingresa tu nombre completo.");
     } else setFieldError(inpNombre);
 
     // domicilio
-    if (!((inpDom?.value || "").trim())) {
-      ok = false; if (showErrors) setFieldError(inpDom, "El domicilio es obligatorio.");
+    if (!(inpDom?.value || "").trim()) {
+      ok = false;
+      if (showErrors) setFieldError(inpDom, "El domicilio es obligatorio.");
     } else setFieldError(inpDom);
 
     // cp
     const cpVal = inpCP?.value || "";
     const cpBad = !cpVal || !knownCP(cpVal);
-    if (cpBad) { ok = false; if (showErrors) setFieldError(inpCP, "Selecciona un C.P. válido."); }
-    else setFieldError(inpCP);
+    if (cpBad) {
+      ok = false;
+      if (showErrors) setFieldError(inpCP, "Selecciona un C.P. válido.");
+    } else setFieldError(inpCP);
 
     // colonia
     const colVal = inpCol?.value || "";
     const validCols = CP_MAP[cpVal] || [];
     const colBad = !colVal || !validCols.includes(colVal);
-    if (colBad) { ok = false; if (showErrors) setFieldError(inpCol, "Selecciona una colonia válida."); }
-    else setFieldError(inpCol);
+    if (colBad) {
+      ok = false;
+      if (showErrors) setFieldError(inpCol, "Selecciona una colonia válida.");
+    } else setFieldError(inpCol);
 
     // teléfono
     const tel = digits(inpTel?.value || "");
-    if (tel.length !== 10) { ok = false; if (showErrors) setFieldError(inpTel, "Teléfono a 10 dígitos."); }
-    else setFieldError(inpTel);
+    if (tel.length !== 10) {
+      ok = false;
+      if (showErrors) setFieldError(inpTel, "Teléfono a 10 dígitos.");
+    } else setFieldError(inpTel);
 
     // correo (opcional; si viene, validar)
     const mail = (inpCorreo?.value || "").trim();
-    if (mail && !isEmail(mail)) { ok = false; if (showErrors) setFieldError(inpCorreo, "Correo no válido."); }
-    else setFieldError(inpCorreo);
+    if (mail && !isEmail(mail)) {
+      ok = false;
+      if (showErrors) setFieldError(inpCorreo, "Correo no válido.");
+    } else setFieldError(inpCorreo);
 
     // descripción
     const desc = (inpDesc?.value || "").trim();
-    if (desc.length < 30) { ok = false; if (showErrors) setFieldError(inpDesc, "Describe con al menos 30 caracteres."); }
-    else setFieldError(inpDesc);
+    if (desc.length < 30) {
+      ok = false;
+      if (showErrors)
+        setFieldError(inpDesc, "Describe con al menos 30 caracteres.");
+    } else setFieldError(inpDesc);
 
     // consentimiento
-    if (!chkCons?.checked) { ok = false; if (showErrors) setFieldError(chkCons, "Debes aceptar el consentimiento."); }
-    else setFieldError(chkCons);
+    if (!chkCons?.checked) {
+      ok = false;
+      if (showErrors)
+        setFieldError(chkCons, "Debes aceptar el consentimiento.");
+    } else setFieldError(chkCons);
 
     // imágenes (mínimo y máximo)
     if (files.length > CFG.MAX_FILES) {
@@ -939,7 +1243,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (files.length < (CFG.MIN_FILES || 0)) {
       ok = false;
       if (showErrors) {
-        showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES > 1 ? "es" : ""} (JPG o PNG).`);
+        showFeedback(
+          `Adjunta al menos ${CFG.MIN_FILES} imagen${
+            CFG.MIN_FILES > 1 ? "es" : ""
+          } (JPG/PNG/WebP/HEIC/HEIF).`
+        );
         upWrap?.classList.add("ix-upload--error");
       }
     } else {
@@ -960,7 +1268,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!hasAttemptedSubmit) return;
       if (el === inpTel) el.value = digits(el.value).slice(0, 10);
       if (el === inpCorreo) {
-        if (el.value && !isEmail(el.value)) setFieldError(inpCorreo, "Correo no válido.");
+        if (el.value && !isEmail(el.value))
+          setFieldError(inpCorreo, "Correo no válido.");
         else setFieldError(inpCorreo, "");
       }
       validateForm(true);
@@ -991,10 +1300,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const json = await withTimeout((signal) =>
         fetch(ENDPOINTS.fsBootstrap, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
           body: JSON.stringify({ folio }),
-          signal
-        }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+          signal,
+        }).then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
       );
       if (CFG.DEBUG) console.log("[IX] fsBootstrap:", json);
       if (!json?.ok) throw new Error(json?.error || "fsBootstrap no OK");
@@ -1012,22 +1327,33 @@ document.addEventListener("DOMContentLoaded", () => {
     fd.append("status", String(status));
 
     // <-- AQUI el cambio importante: usar "files[]"
-    fileList.forEach(f => fd.append("files[]", f, f.name));
+    fileList.forEach((f) => fd.append("files[]", f, f.name));
 
     if (CFG.DEBUG) {
-      console.log("[IX] preparando upload:", { count: fileList.length, names: fileList.map(f => f.name) });
+      console.log("[IX] preparando upload:", {
+        count: fileList.length,
+        names: fileList.map((f) => f.name),
+      });
     }
 
     try {
       const json = await withTimeout((signal) =>
-        fetch(ENDPOINTS.uploadImg, { method: "POST", body: fd, signal })
-          .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        fetch(ENDPOINTS.uploadImg, { method: "POST", body: fd, signal }).then(
+          (r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          }
+        )
       );
       if (CFG.DEBUG) console.log("[IX] uploadImg:", json);
       return json;
     } catch (e) {
       console.error("[IX] uploadImg fallo:", e?.message || e);
-      return { ok: false, saved: [], failed: [{ error: e?.message || String(e) }] };
+      return {
+        ok: false,
+        saved: [],
+        failed: [{ error: e?.message || String(e) }],
+      };
     }
   }
 
@@ -1052,7 +1378,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // seguridad extra
     if (files.length < (CFG.MIN_FILES || 0)) {
-      showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES > 1 ? "es" : ""}.`);
+      showFeedback(
+        `Adjunta al menos ${CFG.MIN_FILES} imagen${
+          CFG.MIN_FILES > 1 ? "es" : ""
+        }.`
+      );
       upWrap?.classList.add("ix-upload--error");
       return;
     }
@@ -1060,7 +1390,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // payload
     const depId = Number(currentDepId || inpDepId?.value || 1);
     const tramId = Number(currentItemId || inpTramiteId?.value || 0);
-    const isOtros = (modal.dataset.mode === "otros");
+    const isOtros = modal.dataset.mode === "otros";
 
     const nombre = (inpNombre?.value || "").trim();
     const calle = (inpDom?.value || "").trim();
@@ -1095,29 +1425,41 @@ document.addEventListener("DOMContentLoaded", () => {
       contacto_cp: cp,
       fecha_limite: null,
       status: 1,
-      created_by: 1
+      created_by: 1,
     };
 
     // enviando
     btnSend.disabled = true;
     const oldTxt = btnSend.textContent;
     btnSend.textContent = "Enviando…";
-    Array.from(form.elements).forEach((el) => (el.disabled = el === btnSend ? false : true));
+    Array.from(form.elements).forEach(
+      (el) => (el.disabled = el === btnSend ? false : true)
+    );
 
     try {
       // 1) Insertar requerimiento
       const json = await withTimeout((signal) =>
         fetch(ENDPOINTS.insertReq, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
           body: JSON.stringify(body),
-          signal
-        }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+          signal,
+        }).then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
       );
 
-      if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
-      const folio = json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
-      try { sessionStorage.setItem("ix_last_folio", folio); } catch { }
+      if (!json?.ok || !json?.data)
+        throw new Error("Respuesta inesperada del servidor.");
+      const folio =
+        json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
+      try {
+        sessionStorage.setItem("ix_last_folio", folio);
+      } catch {}
 
       if (CFG.DEBUG) console.log("[IX] insertReq OK, folio:", folio);
 
@@ -1127,15 +1469,31 @@ document.addEventListener("DOMContentLoaded", () => {
       // 3) Subir imágenes (mínimo 0 ya garantizado, ya no se ocupan imagenes obligatorias)
       const upRes = await uploadEvidence(folio, initialStatus, files);
       if (!upRes?.ok) {
-        const failedCnt = Array.isArray(upRes?.failed) ? upRes.failed.length : 0;
-        showFeedback(`Reporte creado (${folio}), pero falló la subida de imágenes (${failedCnt}).`);
+        const failedCnt = Array.isArray(upRes?.failed)
+          ? upRes.failed.length
+          : 0;
+        showFeedback(
+          `Reporte creado (${folio}), pero falló la subida de imágenes (${failedCnt}).`
+        );
         window.gcToast?.(`Algunas imágenes fallaron al subir.`, "alerta", 4200);
       } else if (Array.isArray(upRes.failed) && upRes.failed.length) {
-        window.gcToast?.(`${upRes.failed.length} imagen(es) no se subieron. El reporte sí se creó.`, "alerta", 4800); // ajustar esto ya que este en produccion
+        window.gcToast?.(
+          `${upRes.failed.length} imagen(es) no se subieron. El reporte sí se creó.`,
+          "alerta",
+          4800
+        ); // ajustar esto ya que este en produccion
       }
 
-      try { document.dispatchEvent(new CustomEvent("ix:report:submit", { detail: { ...body, folio } })); } catch { }
-      try { document.dispatchEvent(new CustomEvent("ix:report:success", { detail: { folio } })); } catch { }
+      try {
+        document.dispatchEvent(
+          new CustomEvent("ix:report:submit", { detail: { ...body, folio } })
+        );
+      } catch {}
+      try {
+        document.dispatchEvent(
+          new CustomEvent("ix:report:success", { detail: { folio } })
+        );
+      } catch {}
 
       if (window.gcToast) gcToast(`Reporte creado: ${folio}`, "exito", 3200);
       else alert(`Reporte creado: ${folio}`);
@@ -1150,7 +1508,8 @@ document.addEventListener("DOMContentLoaded", () => {
       closeModal();
     } catch (err) {
       showFeedback(`No se pudo enviar el reporte. ${err?.message || err}`);
-      if (window.gcToast) gcToast("No se pudo enviar el reporte.", "error", 3200);
+      if (window.gcToast)
+        gcToast("No se pudo enviar el reporte.", "error", 3200);
       Array.from(form.elements).forEach((el) => (el.disabled = false));
       btnSend.textContent = oldTxt;
       btnSend.disabled = false;
