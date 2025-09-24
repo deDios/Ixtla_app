@@ -38,7 +38,7 @@
 
 
             <div class="actions">
-                <button class="btn btn-contacto" type="button">Contacto</button>
+                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button">Contacto</button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
@@ -225,7 +225,7 @@
                 <h2 id="deps-title">Selecciona un Departamento</h2>
 
                 <div class="ix-grid">
-                    <!-- 1 -->
+                    <!-- 1 
                     <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=samapa"
                         aria-label="SAMAPA - Solicitud de atención a fugas y servicio de agua">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/samapa_icon.png" alt="SAMAPA"></div>
@@ -234,7 +234,7 @@
                             seguimiento.</p>
                     </a>
 
-                    <!-- 2 -->
+                     2 
                     <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=limpieza"
                         aria-label="Servicios de recolección y limpieza">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/aseoPublico_icon.png"
@@ -244,7 +244,7 @@
                             ordenado.</p>
                     </a>
 
-                    <!-- 3 -->
+                     3 
                     <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=obras"
                         aria-label="Dirección de obras y servicios públicos">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/obrasPublicas_icon.png"
@@ -254,7 +254,7 @@
                         </p>
                     </a>
 
-                    <!-- 4 -->
+                     4 
                     <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=alumbrado"
                         aria-label="Gestión de alumbrado y energía urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/alumbrado_icon.png" alt="CFE"></div>
@@ -263,7 +263,7 @@
                         </p>
                     </a>
 
-                    <!-- 5 -->
+                    
                     <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=ambiental"
                         aria-label="Gestión ambiental y ecología urbana">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/ecologia_icon.png"
@@ -272,6 +272,8 @@
                         <h3>Gestión ambiental y ecología urbana</h3>
                         <p>Conservación del medio ambiente, áreas verdes y reducción de la contaminación.</p>
                     </a>
+                     5 -->
+                     
                 </div>
 
                 <p class="ix-note">

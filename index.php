@@ -38,7 +38,7 @@
 
 
             <div class="actions">
-                <button class="btn btn-contacto" type="button">Contacto</button>
+                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button">Contacto</button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
@@ -152,7 +152,7 @@
                 <h2 id="deps-title">Trámites / Departamentos</h2>
 
                 <div class="ix-grid">
-                    <!-- 1 -->
+                    <!-- 1 
                     <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=samapa"
                         aria-label="SAMAPA - Solicitud de atención a fugas y servicio de agua">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/samapa_icon.png" alt="SAMAPA"></div>
@@ -161,7 +161,7 @@
                             seguimiento.</p>
                     </a>
 
-                    <!-- 2 
+                     2 
                     <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=limpieza"
                         aria-label="Servicios de recolección y limpieza">
                         <div class="ix-logo"><img src="/ASSETS/departamentos/recoleccionLimpieza_icon.png"

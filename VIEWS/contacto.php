@@ -38,7 +38,7 @@
 
 
             <div class="actions">
-                <button class="btn btn-contacto" type="button">Contacto</button>
+                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button">Contacto</button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
