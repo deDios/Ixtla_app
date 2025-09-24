@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (window.IX_DEBUG)
       try {
         console.log("[IX]", ...a);
-      } catch { }
+      } catch {}
   };
 
   // refs base de la vista
@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const cacheSet = (k, v, ttl = CACHE_TTL) => {
     try {
       sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), ttl, v }));
-    } catch { }
+    } catch {}
   };
 
   // ========= Config de assets (cero slugs, todo por ID) =========
@@ -185,10 +185,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const id = Number(row?.id);
       if (!id) continue;
       meta[id] = {
-        id,
-        nombre: String(row?.nombre || `Departamento #${id}`), 
-        status: Number(row?.status ?? 1),
-      };
+  id,
+  nombre: String(row?.nombre || `Departamento #${id}`), // ← solo endpoint, fallback genérico
+  status: Number(row?.status ?? 1),
+};
     }
     cacheSet(CK, meta);
     ixLog("dep meta desde API:", meta);
@@ -214,8 +214,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const raw = Array.isArray(json?.data)
       ? json.data
       : Array.isArray(json)
-        ? json
-        : [];
+      ? json
+      : [];
     const rows = raw.filter(
       (r) =>
         Number(r?.departamento_id) === Number(depId) &&
@@ -269,8 +269,9 @@ document.addEventListener("DOMContentLoaded", () => {
     listEl.innerHTML = "";
     const li = el(`
       <li class="ix-dep-empty">
-        <p><strong>Error:</strong> ${msg || "No se pudieron cargar los trámites."
-      }</p>
+        <p><strong>Error:</strong> ${
+          msg || "No se pudieron cargar los trámites."
+        }</p>
         <p><button type="button" class="ix-btn ix-btn--retry">Reintentar</button></p>
       </li>
     `);
@@ -396,7 +397,6 @@ document.addEventListener("DOMContentLoaded", () => {
     alumbrado: 4,
     ambiental: 5,
   };
-  
   const parseDepParam = (raw) => {
     if (!raw) return null;
     const s = String(raw).toLowerCase();
@@ -742,7 +742,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function setCpCache(data) {
     try {
       sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify(data));
-    } catch { }
+    } catch {}
   }
   function getLastCP() {
     try {
@@ -754,7 +754,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function setLastCP(cp) {
     try {
       sessionStorage.setItem(LAST_CP_KEY, String(cp || ""));
-    } catch { }
+    } catch {}
   }
 
   let CP_MAP = {};
@@ -767,8 +767,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const arr = Array.isArray(json?.data)
       ? json.data
       : Array.isArray(json)
-        ? json
-        : [];
+      ? json
+      : [];
     if (!arr.length) {
       console.warn("[IX] cpcolonia: respuesta sin arreglo de datos.");
       return [];
@@ -778,20 +778,20 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!item || typeof item !== "object") continue;
       const cp = String(
         item.cp ??
-        item.CP ??
-        item.codigo_postal ??
-        item.codigoPostal ??
-        item.postal_code ??
-        item.postalCode ??
-        ""
+          item.CP ??
+          item.codigo_postal ??
+          item.codigoPostal ??
+          item.postal_code ??
+          item.postalCode ??
+          ""
       ).trim();
       const col = String(
         item.colonia ??
-        item.Colonia ??
-        item.asentamiento ??
-        item.barrio ??
-        item.neighborhood ??
-        ""
+          item.Colonia ??
+          item.asentamiento ??
+          item.barrio ??
+          item.neighborhood ??
+          ""
       ).trim();
       if (!cp || !col) continue;
       out.push({ cp, colonia: col });
@@ -883,10 +883,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const ensureCpSelect = () =>
     (inpCP = ensureSelect(inpCP, { nameFallback: "cp", idFallback: "ix-cp" }));
   const ensureColSelect = () =>
-  (inpCol = ensureSelect(inpCol, {
-    nameFallback: "colonia",
-    idFallback: "ix-colonia",
-  }));
+    (inpCol = ensureSelect(inpCol, {
+      nameFallback: "colonia",
+      idFallback: "ix-colonia",
+    }));
 
   const populateCpOptions = () => {
     ensureCpSelect();
@@ -1156,11 +1156,11 @@ document.addEventListener("DOMContentLoaded", () => {
           },
         })
       );
-    } catch { }
+    } catch {}
   }
 
   function closeModal() {
-    document.removeEventListener("keydown", trapHandler || (() => { }));
+    document.removeEventListener("keydown", trapHandler || (() => {}));
     trapHandler = null;
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
@@ -1169,7 +1169,7 @@ document.addEventListener("DOMContentLoaded", () => {
     openerBtn = null;
     try {
       document.dispatchEvent(new CustomEvent("ix:report:close"));
-    } catch { }
+    } catch {}
   }
 
   // ---------- validaciones
@@ -1244,7 +1244,8 @@ document.addEventListener("DOMContentLoaded", () => {
       ok = false;
       if (showErrors) {
         showFeedback(
-          `Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES > 1 ? "es" : ""
+          `Adjunta al menos ${CFG.MIN_FILES} imagen${
+            CFG.MIN_FILES > 1 ? "es" : ""
           } (JPG/PNG/WebP/HEIC/HEIF).`
         );
         upWrap?.classList.add("ix-upload--error");
@@ -1378,7 +1379,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // seguridad extra
     if (files.length < (CFG.MIN_FILES || 0)) {
       showFeedback(
-        `Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES > 1 ? "es" : ""
+        `Adjunta al menos ${CFG.MIN_FILES} imagen${
+          CFG.MIN_FILES > 1 ? "es" : ""
         }.`
       );
       upWrap?.classList.add("ix-upload--error");
@@ -1457,7 +1459,7 @@ document.addEventListener("DOMContentLoaded", () => {
         json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
       try {
         sessionStorage.setItem("ix_last_folio", folio);
-      } catch { }
+      } catch {}
 
       if (CFG.DEBUG) console.log("[IX] insertReq OK, folio:", folio);
 
@@ -1486,12 +1488,12 @@ document.addEventListener("DOMContentLoaded", () => {
         document.dispatchEvent(
           new CustomEvent("ix:report:submit", { detail: { ...body, folio } })
         );
-      } catch { }
+      } catch {}
       try {
         document.dispatchEvent(
           new CustomEvent("ix:report:success", { detail: { folio } })
         );
-      } catch { }
+      } catch {}
 
       if (window.gcToast) gcToast(`Reporte creado: ${folio}`, "exito", 3200);
       else alert(`Reporte creado: ${folio}`);

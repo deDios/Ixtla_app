@@ -396,7 +396,6 @@ document.addEventListener("DOMContentLoaded", () => {
     alumbrado: 4,
     ambiental: 5,
   };
-  
   const parseDepParam = (raw) => {
     if (!raw) return null;
     const s = String(raw).toLowerCase();
