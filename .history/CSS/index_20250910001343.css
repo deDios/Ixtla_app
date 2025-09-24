@@ -79,7 +79,7 @@
 }
 
 .ix-deps .ix-logo {
-    height: 220px;
+    height: 96px;
     width: 100%;
     display: grid;
     place-items: center;
@@ -87,7 +87,7 @@
 }
 
 .ix-deps .ix-logo img {
-    max-height: 290px;
+    max-height: 96px;
     max-width: 90%;
     object-fit: contain;
     display: block;
