@@ -75,7 +75,7 @@
 
                     <!-- Imagen única -->
                     <div class="auth-photos">
-                        <img src="/ASSETS/portadaLogin.png" alt="Ixtlahuacán de los Membrillos">
+                        <img src="/ASSETS/login/portadaLogin.png" alt="Ixtlahuacán de los Membrillos">
                     </div>
 
                     <!-- Panel / Formulario -->

@@ -1,0 +1,251 @@
+#login {
+    padding: clamp(24px, 4vw, 48px) 16px;
+    padding-top: 5rem;
+}
+
+#login .login-wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+}
+
+#login *,
+#login *::before,
+#login *::after {
+    box-sizing: border-box;
+}
+
+#login .login-card {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    /* ~60/40 */
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, .08);
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, .06);
+}
+
+#login .login-form {
+    padding: clamp(20px, 3vw, 32px);
+    border-right: 1px solid rgba(0, 0, 0, .06);
+}
+
+#login .form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+    /* 2 cols robustas */
+    gap: 20px;
+    align-items: start;
+    min-width: 0;
+}
+
+#login .form .grid-2 {
+    display: contents;
+}
+
+#login .field {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+#login .field>span {
+    font-size: 14px;
+    color: #2b2b2b;
+    font-weight: 600;
+}
+
+#login input,
+#login textarea {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 15px;
+    color: #111;
+    transition: border-color .18s, box-shadow .18s, background .18s;
+}
+
+#login input {
+    height: 48px;
+}
+
+#login input::placeholder,
+#login textarea::placeholder {
+    color: #b8c0cc;
+}
+
+#login input:hover,
+#login textarea:hover {
+    border-color: #d2d6dc;
+}
+
+#login input:focus,
+#login textarea:focus {
+    background: #fff;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .16);
+    outline: none;
+}
+
+#login textarea {
+    min-height: 160px;
+    max-height: 240px;
+    resize: none;
+    overflow-y: auto;
+    line-height: 1.45;
+}
+
+#login .form>.field:has(textarea) {
+    grid-column: 1 / -1;
+}
+
+@supports not (selector(:has(*))) {
+    #login .form>.field.field-textarea {
+        grid-column: 1 / -1;
+    }
+}
+
+#login .btn-enviar {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 48px;
+    border: 0;
+    background: #1f6fff;
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: .2px;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 12px 22px rgba(31, 111, 255, .22);
+    transition: transform .04s, box-shadow .18s, background .18s;
+}
+
+#login .btn-enviar:hover {
+    background: #1b63e4;
+    box-shadow: 0 14px 26px rgba(27, 99, 228, .26);
+}
+
+#login .btn-enviar:active {
+    transform: translateY(1px);
+}
+
+#login .contact-panel {
+    position: relative;
+    background: linear-gradient(180deg, #2d7e5f 0%, #247854 100%);
+    color: #fff;
+    display: grid;
+    align-content: stretch;
+}
+
+#login .contact-inner {
+    padding: clamp(22px, 3.2vw, 32px);
+    display: grid;
+    gap: 18px;
+}
+
+#login .contact-inner h2 {
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: .2px;
+}
+
+#login .contact-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 18px;
+}
+
+#login .contact-list li {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    /* celda para icono + texto */
+    gap: 12px;
+    align-items: start;
+    line-height: 1.35;
+}
+
+#login .contact-list a {
+    color: #e9fff5;
+    text-decoration: underline;
+}
+
+#login .contact-list .address {
+    opacity: .98;
+}
+
+#login .contact-list .icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #fff;
+    border: 2.4px solid #111;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+#login .contact-list .icon img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+    display: block;
+}
+
+#login .panel-accent {
+    position: absolute;
+    right: -4%;
+    bottom: -12%;
+    width: 75%;
+    height: 55%;
+    background: rgba(255, 255, 255, .08);
+    transform: skew(-18deg) rotate(-8deg);
+    border-radius: 24px;
+    pointer-events: none;
+}
+
+#login .login-note {
+    max-width: 920px;
+    margin: 18px auto 0;
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+}
+
+#login .visually-hidden {
+    position: absolute !important;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    clip: rect(1px, 1px, 1px, 1px);
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    #login .login-card {
+        grid-template-columns: 1fr;
+    }
+
+    #login .login-form {
+        border-right: 0;
+    }
+
+    #login .form {
+        grid-template-columns: 1fr;
+    }
+
+    #login .form .grid-2 {
+        grid-template-columns: 1fr;
+    }
+
+    #login .btn-enviar {
+        width: 100%;
+    }
+
+    #login .panel-accent {
+        display: none;
+    }
+}

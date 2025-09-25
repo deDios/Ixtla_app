@@ -70,52 +70,56 @@
     <main>
         <!-------------------------- Seccion 1, login  --------------------------->
         <section id="auth-login" aria-labelledby="auth-title">
-            <div class="auth-wrap">
-                <div class="auth-grid">
+  <div class="auth-wrap">
+    <div class="auth-grid">
 
-                    <!-- Imagen única -->
-                    <div class="auth-photos">
-                        <img src="/ASSETS/portadaLogin.png" alt="Ixtlahuacán de los Membrillos">
-                    </div>
+      <!-- Bloque de imagen (UNA sola imagen tipo collage) -->
+      <!-- Ajusta la ruta a tu archivo -->
+      <div class="auth-photos sprite" style="--hero: url('/ASSETS/login/portadaLogin.png');">
+        <!-- La tarjeta central es un div; los laterales se dibujan con ::before/::after -->
+        <div class="photo photo-center" aria-hidden="true"></div>
+      </div>
 
-                    <!-- Panel / Formulario -->
-                    <div class="auth-panel">
-                        <h2 id="auth-title">
-                            <span>Atención ciudadana</span><br>
-                            <strong>Ixtlahuacan de los membrillos</strong>
-                        </h2>
+      <!-- Panel / Formulario -->
+      <div class="auth-panel">
+        <h2 id="auth-title">
+          <span>Atención ciudadana</span><br>
+          <strong>Ixtlahuacan de los membrillos</strong>
+        </h2>
 
-                        <form class="auth-form" action="#" method="post" novalidate>
-                            <label class="field">
-                                <input type="text" name="usuario" autocomplete="username"
-                                    placeholder="Teléfono, usuario o correo electrónico">
-                            </label>
+        <form class="auth-form" action="#" method="post" novalidate>
+          <label class="field">
+            <span class="vh">Usuario</span>
+            <input type="text" name="usuario" autocomplete="username"
+                   placeholder="Teléfono, usuario o correo electrónico">
+          </label>
 
-                            <label class="field">
-                                <input type="password" name="password" autocomplete="current-password"
-                                    placeholder="Contraseña">
-                            </label>
+          <label class="field">
+            <span class="vh">Contraseña</span>
+            <input type="password" name="password" autocomplete="current-password"
+                   placeholder="Contraseña">
+          </label>
 
-                            <button type="submit" class="btn-login">Iniciar sesión</button>
+          <button type="submit" class="btn-login">Iniciar sesión</button>
 
-                            <div class="auth-divider" role="separator" aria-label="o">
-                                <span class="line"></span><span class="dot"></span><span class="line"></span>
-                            </div>
+          <div class="auth-divider" role="separator" aria-label="o">
+            <span class="line"></span><span class="dot"></span><span class="line"></span>
+          </div>
 
-                            <a href="/VIEWS/recover.php" class="forgot-link">¿Olvidaste tu contraseña?</a>
-                        </form>
-                    </div>
-                </div>
+          <a href="/VIEWS/recover.php" class="forgot-link">¿Olvidaste tu contraseña?</a>
+        </form>
+      </div>
+    </div>
 
-                <nav class="auth-mini-nav" aria-label="Enlaces informativos">
-                    <a href="#">Ubicación</a>
-                    <a href="#">Galería</a>
-                    <a href="#">Información</a>
-                </nav>
-                <p class="auth-copy">©2025 Municipio Ixtlahuacan de los membrillos</p>
-            </div>
-        </section>
-
+    <!-- Mini footer como en el mockup -->
+    <nav class="auth-mini-nav" aria-label="Enlaces informativos">
+      <a href="#">Ubicación</a>
+      <a href="#">Galería</a>
+      <a href="#">Información</a>
+    </nav>
+    <p class="auth-copy">©2025 Municipio Ixtlahuacan de los membrillos</p>
+  </div>
+</section>
 
 
     </main>

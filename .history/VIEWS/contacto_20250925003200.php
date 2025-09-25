@@ -7,7 +7,7 @@
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/contacto.css">
+    <link rel="stylesheet" href="/CSS/tramiteDepartamento.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -38,10 +38,7 @@
 
 
             <div class="actions">
-                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
-                    onclick="window.location.href=this.getAttribute('href')">
-                    Contacto
-                </button>
+                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button">Contacto</button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
@@ -95,7 +92,7 @@
                             <div class="grid-2">
                                 <label class="field">
                                     <span>Email</span>
-                                    <input type="email" name="email" placeholder="Many5@gmail.com" inputmode="email"
+                                    <input type="email" name="email" placeholder="Mani06@gmail.com" inputmode="email"
                                         autocomplete="email">
                                 </label>
 
@@ -169,6 +166,108 @@
                 </p>
             </div>
         </section>
+
+        <section id="login" aria-labelledby="login-title">
+            <div class="login-wrap">
+                <div class="login-card" role="region" aria-label="Formulario de contacto y acceso">
+
+                    <!-- Columna izquierda: formulario simple para login -->
+                    <div class="login-form">
+                        <h1 id="login-title" class="visually-hidden">Acceso y contacto</h1>
+
+                        <form class="form" action="#" method="post" novalidate>
+                            <div class="grid-2">
+                                <label class="field">
+                                    <span>Nombre</span>
+                                    <input type="text" name="nombre" placeholder="Juan Pablo" autocomplete="given-name">
+                                </label>
+
+                                <label class="field">
+                                    <span>Apellidos</span>
+                                    <input type="text" name="apellidos" placeholder="Garcia Casillas"
+                                        autocomplete="family-name">
+                                </label>
+                            </div>
+
+                            <div class="grid-2">
+                                <label class="field">
+                                    <span>Email</span>
+                                    <input type="email" name="email" placeholder="Mani06@gmail.com" inputmode="email"
+                                        autocomplete="email">
+                                </label>
+
+                                <label class="field">
+                                    <span>Número telefónico</span>
+                                    <input type="tel" name="telefono" placeholder="+52 33 1381 2235" inputmode="tel"
+                                        autocomplete="tel">
+                                </label>
+                            </div>
+
+                            <label class="field">
+                                <span>¿Cómo podemos ayudarte?</span>
+                                <textarea name="mensaje" rows="4" placeholder="Hola, me gustaría saber...."></textarea>
+                            </label>
+
+                            <button type="submit" class="btn-enviar">Enviar</button>
+                        </form>
+                    </div>
+
+                    <!-- Columna derecha: el recuadro verde -->
+                    <aside class="contact-panel" aria-label="Contacta con nosotros">
+                        <div class="contact-inner">
+                            <h2>Contacta con nosotros</h2>
+
+                            <ul class="contact-list">
+                                <!-- Correo -->
+                                <li>
+                                    <span class="icon">
+                                        <img src="/ASSETS/icons/mail.png" alt="Correo">
+                                    </span>
+                                    <a href="mailto:atencionciudadana@gmail.gob.mx">atencionciudadana@gmail.gob.mx</a>
+                                </li>
+
+                                <!-- Teléfono fijo -->
+                                <li>
+                                    <span class="icon">
+                                        <img src="/ASSETS/icons/phone.png" alt="Teléfono">
+                                    </span>
+                                    7676-2001
+                                </li>
+
+                                <!-- WhatsApp / Teléfono móvil -->
+                                <li>
+                                    <span class="icon">
+                                        <img src="/ASSETS/icons/whatsapp.png" alt="WhatsApp">
+                                    </span>
+                                    +52 33 3333 3333
+                                </li>
+
+                                <!-- Ubicación -->
+                                <li class="address">
+                                    <span class="icon">
+                                        <img src="/ASSETS/icons/location-pin.png" alt="Ubicación">
+                                    </span>
+                                    Jardín, Ixtlahuacán de Los Membrillos Centro, 2 Jardín,
+                                    45850 Ixtlahuacán de los Membrillos, Jal.
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="panel-accent" aria-hidden="true"></div>
+                    </aside>
+
+                </div>
+
+                <!-- Nota inferior -->
+                <p class="login-note">
+                    Estamos para servirte Para cualquier duda, reporte o trámite, comunícate con nosotros a través de
+                    los medios oficiales.
+                    Tu participación es importante para mejorar nuestra comunidad.
+                </p>
+            </div>
+        </section>
+
+
 
     </main>
 

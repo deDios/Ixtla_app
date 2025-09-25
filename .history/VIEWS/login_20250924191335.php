@@ -5,9 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
-    <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/contacto.css">
+    <link rel="stylesheet" href="/CSS/login.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -38,10 +37,7 @@
 
 
             <div class="actions">
-                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
-                    onclick="window.location.href=this.getAttribute('href')">
-                    Contacto
-                </button>
+                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button">Contacto</button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
@@ -69,7 +65,7 @@
     </header>
 
     <main>
-        <!-------------------------- Seccion 1  --------------------------->
+        <!-------------------------- Seccion 1, login  --------------------------->
         <section id="login" aria-labelledby="login-title">
             <div class="login-wrap">
                 <div class="login-card" role="region" aria-label="Formulario de contacto y acceso">
@@ -95,7 +91,7 @@
                             <div class="grid-2">
                                 <label class="field">
                                     <span>Email</span>
-                                    <input type="email" name="email" placeholder="Many5@gmail.com" inputmode="email"
+                                    <input type="email" name="email" placeholder="Mani06@gmail.com" inputmode="email"
                                         autocomplete="email">
                                 </label>
 
@@ -119,43 +115,41 @@
                     <aside class="contact-panel" aria-label="Contacta con nosotros">
                         <div class="contact-inner">
                             <h2>Contacta con nosotros</h2>
-
                             <ul class="contact-list">
-                                <!-- Correo -->
                                 <li>
-                                    <span class="icon">
-                                        <img src="/ASSETS/icons/mail.png" alt="Correo">
-                                    </span>
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <rect x="3" y="4.5" width="18" height="15" rx="2.5" class="fill-white" />
+                                        <path d="M4 7l8 5 8-5" class="fill-none" />
+                                    </svg>
                                     <a href="mailto:atencionciudadana@gmail.gob.mx">atencionciudadana@gmail.gob.mx</a>
                                 </li>
-
-                                <!-- Teléfono fijo -->
                                 <li>
-                                    <span class="icon">
-                                        <img src="/ASSETS/icons/phone.png" alt="Teléfono">
-                                    </span>
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path class="fill-none"
+                                            d="M6.6 10.2a15.5 15.5 0 0 0 7.2 7.2l2.4-2.4a1.4 1.4 0 0 1 1.4-.35c1.3.4 2.6.6 4 .6a1.4 1.4 0 0 1 1.4 1.4V20a2.5 2.5 0 0 1-2.5 2.5A18.5 18.5 0 0 1 1.5 7.5 2.5 2.5 0 0 1 4 5h3.4a1.4 1.4 0 0 1 1.4 1.1c.2 1.4.5 2.7.9 4a1.4 1.4 0 0 1-.35 1.4L6.6 10.2Z" />
+                                    </svg>
                                     7676-2001
                                 </li>
-
-                                <!-- WhatsApp / Teléfono móvil -->
                                 <li>
-                                    <span class="icon">
-                                        <img src="/ASSETS/icons/whatsapp.png" alt="WhatsApp">
-                                    </span>
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path class="fill-white"
+                                            d="M12 3.5a8.5 8.5 0 0 0-7.5 12.4L3 21l5.3-1.4A8.5 8.5 0 1 0 12 3.5Z" />
+                                        <path class="fill-none"
+                                            d="M9.2 8.8c.2-.5.4-.5.7-.5h.5c.2 0 .4 0 .5.3.2.6.7 1.5 1.1 1.8.2.2.2.4 0 .6-.1.2-.3.5-.4.6s-.2.4 0 .6c.5.6 1.2 1.1 2 1.4.2.1.4 0 .6-.2l.5-.6c.2-.2.4-.2.6 0 .4.1.9.3 1.2.4.4.2.4.9.3 1.3-.1.4-.9.9-1.4 1-1 .1-2.9-.2-4.6-1.7-1.6-1.4-2.3-3-2.6-4-.1-.6.2-1.2 .4-1.6Z" />
+                                    </svg>
                                     +52 33 3333 3333
                                 </li>
-
-                                <!-- Ubicación -->
                                 <li class="address">
-                                    <span class="icon">
-                                        <img src="/ASSETS/icons/location-pin.png" alt="Ubicación">
-                                    </span>
-                                    Jardín, Ixtlahuacán de Los Membrillos Centro, 2 Jardín,
-                                    45850 Ixtlahuacán de los Membrillos, Jal.
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path class="fill-none"
+                                            d="M12 2.8a6.2 6.2 0 0 0-6.2 6.2c0 4.7 6.2 11.7 6.2 11.7s6.2-7 6.2-11.7A6.2 6.2 0 0 0 12 2.8Z" />
+                                        <circle cx="12" cy="9" r="2.6" class="fill-white" />
+                                    </svg>
+                                    Jardín, Ixtlahuacán de Los Membrillos Centro, 2 Jardín, 45850 Ixtlahuacán de los
+                                    Membrillos, Jal.
                                 </li>
                             </ul>
                         </div>
-
                         <div class="panel-accent" aria-hidden="true"></div>
                     </aside>
 
@@ -169,6 +163,7 @@
                 </p>
             </div>
         </section>
+
 
     </main>
 

@@ -72,13 +72,12 @@
         <section id="auth-login" aria-labelledby="auth-title">
             <div class="auth-wrap">
                 <div class="auth-grid">
-
-                    <!-- Imagen única -->
-                    <div class="auth-photos">
-                        <img src="/ASSETS/portadaLogin.png" alt="Ixtlahuacán de los Membrillos">
+                    <!-- imagen de portada -->
+                    <div class="auth-photos one-asset" style="--hero: url('/ASSETS/login/tu-foto.jpg');">
+                        <img class="photo photo-center" src="/ASSETS/login/tu-foto.jpg" alt="">
                     </div>
 
-                    <!-- Panel / Formulario -->
+                    <!-- formulario -->
                     <div class="auth-panel">
                         <h2 id="auth-title">
                             <span>Atención ciudadana</span><br>
@@ -107,6 +106,7 @@
                     </div>
                 </div>
 
+                <!-- footer del login -->
                 <nav class="auth-mini-nav" aria-label="Enlaces informativos">
                     <a href="#">Ubicación</a>
                     <a href="#">Galería</a>
@@ -115,8 +115,6 @@
                 <p class="auth-copy">©2025 Municipio Ixtlahuacan de los membrillos</p>
             </div>
         </section>
-
-
 
     </main>
 

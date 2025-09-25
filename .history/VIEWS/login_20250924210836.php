@@ -5,9 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
-    <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/contacto.css">
+    <link rel="stylesheet" href="/CSS/login.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -38,10 +37,7 @@
 
 
             <div class="actions">
-                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
-                    onclick="window.location.href=this.getAttribute('href')">
-                    Contacto
-                </button>
+                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button">Contacto</button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
@@ -69,7 +65,7 @@
     </header>
 
     <main>
-        <!-------------------------- Seccion 1  --------------------------->
+        <!-------------------------- Seccion 1, login  --------------------------->
         <section id="login" aria-labelledby="login-title">
             <div class="login-wrap">
                 <div class="login-card" role="region" aria-label="Formulario de contacto y acceso">
@@ -95,7 +91,7 @@
                             <div class="grid-2">
                                 <label class="field">
                                     <span>Email</span>
-                                    <input type="email" name="email" placeholder="Many5@gmail.com" inputmode="email"
+                                    <input type="email" name="email" placeholder="Mani06@gmail.com" inputmode="email"
                                         autocomplete="email">
                                 </label>
 
@@ -169,6 +165,7 @@
                 </p>
             </div>
         </section>
+
 
     </main>
 

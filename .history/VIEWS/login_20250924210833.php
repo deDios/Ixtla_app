@@ -37,10 +37,7 @@
 
 
             <div class="actions">
-                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
-                    onclick="window.location.href=this.getAttribute('href')">
-                    Contacto
-                </button>
+                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button">Contacto</button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
@@ -69,53 +66,105 @@
 
     <main>
         <!-------------------------- Seccion 1, login  --------------------------->
-        <section id="auth-login" aria-labelledby="auth-title">
-            <div class="auth-wrap">
-                <div class="auth-grid">
+        <section id="login" aria-labelledby="login-title">
+            <div class="login-wrap">
+                <div class="login-card" role="region" aria-label="Formulario de contacto y acceso">
 
-                    <!-- Imagen única -->
-                    <div class="auth-photos">
-                        <img src="/ASSETS/portadaLogin.png" alt="Ixtlahuacán de los Membrillos">
-                    </div>
+                    <!-- Columna izquierda: formulario simple para login -->
+                    <div class="login-form">
+                        <h1 id="login-title" class="visually-hidden">Acceso y contacto</h1>
 
-                    <!-- Panel / Formulario -->
-                    <div class="auth-panel">
-                        <h2 id="auth-title">
-                            <span>Atención ciudadana</span><br>
-                            <strong>Ixtlahuacan de los membrillos</strong>
-                        </h2>
+                        <form class="form" action="#" method="post" novalidate>
+                            <div class="grid-2">
+                                <label class="field">
+                                    <span>Nombre</span>
+                                    <input type="text" name="nombre" placeholder="Juan Pablo" autocomplete="given-name">
+                                </label>
 
-                        <form class="auth-form" action="#" method="post" novalidate>
-                            <label class="field">
-                                <input type="text" name="usuario" autocomplete="username"
-                                    placeholder="Teléfono, usuario o correo electrónico">
-                            </label>
-
-                            <label class="field">
-                                <input type="password" name="password" autocomplete="current-password"
-                                    placeholder="Contraseña">
-                            </label>
-
-                            <button type="submit" class="btn-login">Iniciar sesión</button>
-
-                            <div class="auth-divider" role="separator" aria-label="o">
-                                <span class="line"></span><span class="dot"></span><span class="line"></span>
+                                <label class="field">
+                                    <span>Apellidos</span>
+                                    <input type="text" name="apellidos" placeholder="Garcia Casillas"
+                                        autocomplete="family-name">
+                                </label>
                             </div>
 
-                            <a href="/VIEWS/recover.php" class="forgot-link">¿Olvidaste tu contraseña?</a>
+                            <div class="grid-2">
+                                <label class="field">
+                                    <span>Email</span>
+                                    <input type="email" name="email" placeholder="Mani06@gmail.com" inputmode="email"
+                                        autocomplete="email">
+                                </label>
+
+                                <label class="field">
+                                    <span>Número telefónico</span>
+                                    <input type="tel" name="telefono" placeholder="+52 33 1381 2235" inputmode="tel"
+                                        autocomplete="tel">
+                                </label>
+                            </div>
+
+                            <label class="field">
+                                <span>¿Cómo podemos ayudarte?</span>
+                                <textarea name="mensaje" rows="4" placeholder="Hola, me gustaría saber...."></textarea>
+                            </label>
+
+                            <button type="submit" class="btn-enviar">Enviar</button>
                         </form>
                     </div>
+
+                    <!-- Columna derecha: el recuadro verde -->
+                    <aside class="contact-panel" aria-label="Contacta con nosotros">
+  <div class="contact-inner">
+    <h2>Contacta con nosotros</h2>
+
+    <ul class="contact-list">
+      <!-- Correo -->
+      <li>
+        <span class="icon">
+          <img src="/ASSETS/icons/mail.png" alt="Correo">
+        </span>
+        <a href="mailto:atencionciudadana@gmail.gob.mx">atencionciudadana@gmail.gob.mx</a>
+      </li>
+
+      <!-- Teléfono fijo -->
+      <li>
+        <span class="icon">
+          <img src="/ASSETS/icons/phone.png" alt="Teléfono">
+        </span>
+        7676-2001
+      </li>
+
+      <!-- WhatsApp / Teléfono móvil -->
+      <li>
+        <span class="icon">
+          <img src="/ASSETS/icons/whatsapp.png" alt="WhatsApp">
+        </span>
+        +52 33 3333 3333
+      </li>
+
+      <!-- Ubicación -->
+      <li class="address">
+        <span class="icon">
+          <img src="/ASSETS/icons/location-pin.png" alt="Ubicación">
+        </span>
+        Jardín, Ixtlahuacán de Los Membrillos Centro, 2 Jardín,
+        45850 Ixtlahuacán de los Membrillos, Jal.
+      </li>
+    </ul>
+  </div>
+
+  <div class="panel-accent" aria-hidden="true"></div>
+</aside>
+
                 </div>
 
-                <nav class="auth-mini-nav" aria-label="Enlaces informativos">
-                    <a href="#">Ubicación</a>
-                    <a href="#">Galería</a>
-                    <a href="#">Información</a>
-                </nav>
-                <p class="auth-copy">©2025 Municipio Ixtlahuacan de los membrillos</p>
+                <!-- Nota inferior -->
+                <p class="login-note">
+                    Estamos para servirte Para cualquier duda, reporte o trámite, comunícate con nosotros a través de
+                    los medios oficiales.
+                    Tu participación es importante para mejorar nuestra comunidad.
+                </p>
             </div>
         </section>
-
 
 
     </main>
