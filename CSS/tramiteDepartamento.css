@@ -19,7 +19,7 @@
 #tramites-busqueda.is-loading .ix-result{opacity:.78;transition:opacity .2s ease}
 /* estados + utilidades nuevas */
 #tramites-busqueda .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
-#tramites-busqueda .ix-title{margin:0 0 10px;font-size:1.6rem;color:var(--ix-ink)}
+#tramites-busqueda .ix-title{text-align: start;margin:0 0 10px;font-size:1.6rem;color:var(--ix-ink)}
 #tramites-busqueda .ix-form{margin-bottom:10px}
 #tramites-busqueda .ix-input-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
 #tramites-busqueda .ix-input-underline{position:relative;min-width:260px}

@@ -331,7 +331,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <h3 class="ix-card-title"></h3>
           <p class="ix-card-desc"></p>
           <div class="ix-card-meta">
-            <small>Tiempo aproximado: <span class="ix-sla"></span></small>
+            <small>Tiempo aproximado: <span class="ix-sla"> </span></small>
             <button type="button" class="ix-dep-add ix-card-btn">Crear</button>
           </div>
         </div>
@@ -349,7 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
     li.querySelector(".ix-card-title").textContent = it.title;
     li.querySelector(".ix-card-desc").textContent =
       it.desc || "Consulta detalles y levanta tu reporte.";
-    li.querySelector(".ix-sla").textContent = it.sla || "-";
+    li.querySelector(".ix-sla").textContent = it.sla || "24h";
 
     // botón
     const btn = li.querySelector(".ix-dep-add");
@@ -358,7 +358,6 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.dataset.title = it.title;
     btn.setAttribute("aria-label", `Iniciar ${it.title}`);
 
-    // 👉 idem: marquito “Otros” para el modal
     if (isOtros(it.title)) btn.dataset.mode = "otros";
 
     return li;
@@ -608,7 +607,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- config
   const CFG = {
-    MAX_FILES: 3, // maximo de archivos por subida
+    MAX_FILES: 6, // maximo de archivos por subida
     MIN_FILES: 0, // minimo requerido
     MAX_MB: 30,
     TYPES: [

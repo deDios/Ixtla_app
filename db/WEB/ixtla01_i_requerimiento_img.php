@@ -30,7 +30,7 @@ if ($path && file_exists($path)) {
 }
 
 /* ---------- Config ---------- */
-$MAX_FILES    = 3;                  // max. archivos por subida
+$MAX_FILES    = 6;                  // max. archivos por subida
 $MAX_BYTES    = 30 * 1024 * 1024;   // 30 MB por archivo
 
 $ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];

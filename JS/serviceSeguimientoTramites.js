@@ -1,14 +1,14 @@
 (()=>{"use strict";
 /* ============= Config ============= */
 const ENDPOINT="https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_requerimiento.php";
-const FETCH_TIMEOUT=12000, IX_DEBUG_TRACK=true; // pon false en producción
+const FETCH_TIMEOUT=12000, IX_DEBUG_TRACK=true; // colocar false antes del sabado
 
 /* ============= Helpers ============= */
 function getDepIdFromURL(){try{const p=new URLSearchParams(location.search),n=Number(p.get("depId"));return Number.isInteger(n)&&n>0?n:null}catch{return null}}
 const DEPARTAMENTO_ID=getDepIdFromURL();
 
 const NUM_STATUS_MAP={0:"solicitud",1:"revision",2:"asignacion",3:"proceso",4:"pausado",5:"cancelado",6:"finalizado"};
-// pasos 1..5 como en tu HTML
+
 const STEP_BY_KEY={solicitud:1,revision:2,asignacion:3,proceso:4,pausado:4,cancelado:4,finalizado:5};
 const MESSAGES={
   solicitud:"Tu trámite fue enviado y está registrado en el sistema.",
@@ -40,13 +40,12 @@ function showPanel(which){[pEmpty,pLoad,pError,pResult].forEach(p=>p?.classList.
 function setLoading(on){root.classList.toggle("is-loading",!!on); if(btnBuscar)btnBuscar.disabled=!!on; if(inpFolio)inpFolio.disabled=!!on}
 function keyByStep(step){return({1:"solicitud",2:"revision",3:"asignacion",4:"proceso",5:"finalizado"})[step]||"proceso"}
 
-// limpia clases de estilo en el mensaje (neutral)
 function resetStepDescClasses(){
   if(!stepDescText) return;
   stepDescText.classList.remove("ix-stepdesc--warning","ix-stepdesc--danger");
 }
 
-// pinta el stepper normal (1..5)
+// pintar stepper (1..5)
 function setStepsActive(stepIndex){
   steps.forEach(li=>{
     const n=Number(li.getAttribute("data-step")||"0");
@@ -61,7 +60,7 @@ function setStepsActive(stepIndex){
   if(stepDescText) stepDescText.textContent = MESSAGES[k] || "—";
 }
 
-// subestados: apaga todo y solo muestra mensaje con estilo
+// subestados (los comentarios que estan abajo)
 const isSubStatus = (k)=> k==="pausado" || k==="cancelado";
 function setSubStatusOnly(subKey){
   steps.forEach(li=>{
@@ -71,7 +70,6 @@ function setSubStatusOnly(subKey){
   });
   if(stepDescText){
     stepDescText.textContent = MESSAGES[subKey] || "—";
-    // aplica estilo suave por tipo
     resetStepDescClasses();
     if(subKey==="pausado")   stepDescText.classList.add("ix-stepdesc--warning");
     if(subKey==="cancelado") stepDescText.classList.add("ix-stepdesc--danger");
@@ -91,8 +89,8 @@ function statusKeyFromRow(row) {
     case 1: return "revision";
     case 2: return "asignacion";
     case 3: return "proceso";
-    case 4: return "pausado";    // sin punto encendido
-    case 5: return "cancelado";  // sin punto encendido
+    case 4: return "pausado";    // no tiene status visible solo el mensaje abajo
+    case 5: return "cancelado";  // lo mismo tambien
     case 6: return "finalizado";
     default: return "proceso";
   }
@@ -111,7 +109,7 @@ function renderResult(row){
 
   const key = statusKeyFromRow(row);
   if (isSubStatus(key)) {
-    setSubStatusOnly(key); // ← no enciende ningún punto, aplica clase suave
+    setSubStatusOnly(key);
   } else {
     const step = stepFromKey(key);
     setStepsActive(step);
@@ -121,7 +119,7 @@ function renderResult(row){
 }
 function renderNotFound(){showPanel(pError)}
 
-/* ============= Fetch ============= */
+/* ============= fetch ============= */
 async function fetchJSON(body,signal){
   const res=await fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(body),signal});
   const http=res.status; if(!res.ok) throw new Error(`HTTP ${http}`);
@@ -143,14 +141,14 @@ async function handleSubmit(e){
   setLoading(true); showPanel(pLoad);
   log("Buscar folio:",folioNorm,"depId:",DEPARTAMENTO_ID??"(todos)");
 
-  // 1) puntual por folio
+  // puntual por folio
   try{
     const r1=await queryByFolio(folioNorm);
     log("Resp folio:",r1.http,r1.json?.ok?"ok":r1.json?.error,r1?.__ms??"?ms");
     if(r1.json?.ok && r1.json?.data){ renderResult(r1.json.data); setLoading(false); return; }
   }catch(ex){ warn("Fallo puntual por folio, voy a listado:",ex?.message||ex); }
 
-  // 2) fallback listado
+  // fallback listado
   try{
     const r2=await queryList(DEPARTAMENTO_ID,{all:true});
     log("Resp listado:",r2.http,r2.json?.ok?"ok":r2.json?.error,r2?.__ms??"?ms");
