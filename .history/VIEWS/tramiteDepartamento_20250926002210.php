@@ -487,7 +487,7 @@
 
 
 
-    <!-- modal informativo del requerimiento -->
+    <!-- Modal informativo: éxito al crear reporte -->
     <div id="ix-done-modal" class="ix-modal ix-modal--done" hidden aria-hidden="true">
         <div class="ix-modal__overlay" data-close></div>
 

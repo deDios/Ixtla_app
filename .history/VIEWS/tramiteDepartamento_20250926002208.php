@@ -51,7 +51,7 @@
         </div>
 
 
-        <!-- Subnav -- links a la izquierda, redes + avatar a la derecha -->
+        <!-- Subnav -- links a la izquierda, redes + avatar a la derecha --> 
         <nav id="mobile-menu" class="subnav" aria-label="Navegación secundaria">
             <div class="nav-left">
                 <a href="/index.php">Inicio</a>
@@ -487,46 +487,45 @@
 
 
 
-    <!-- modal informativo del requerimiento -->
-    <div id="ix-done-modal" class="ix-modal ix-modal--done" hidden aria-hidden="true">
-        <div class="ix-modal__overlay" data-close></div>
+    <!-- Modal informativo: éxito al crear reporte -->
+<div id="ix-done-modal" class="ix-modal ix-modal--done" hidden aria-hidden="true">
+  <div class="ix-modal__overlay" data-close></div>
 
-        <div class="ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-done-title">
-            <header class="ix-modal__header">
-                <div class="ix-modal__brand">
-                    <img src="/ASSETS/main_logo.png" alt="Ixtlahuacán de los Membrillos - Ayuntamiento"
-                        onerror="this.style.display='none'">
-                </div>
+  <div class="ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-done-title">
+    <header class="ix-modal__header">
+      <div class="ix-modal__brand">
+        <img src="/ASSETS/main_logo.png" alt="Ixtlahuacán de los Membrillos - Ayuntamiento" onerror="this.style.display='none'">
+      </div>
 
-                <div class="ix-modal__headings">
-                    <h2 id="ix-done-title" class="ix-modal__title">Nuevo Reporte</h2>
-                    <p class="ix-modal__subtitle"><span id="ix-done-subtitle">—</span></p>
-                </div>
+      <div class="ix-modal__headings">
+        <h2 id="ix-done-title" class="ix-modal__title">Nuevo Reporte</h2>
+        <p class="ix-modal__subtitle"><span id="ix-done-subtitle">—</span></p>
+      </div>
 
-                <button type="button" class="ix-modal__close" aria-label="Cerrar" data-close>×</button>
-            </header>
+      <button type="button" class="ix-modal__close" aria-label="Cerrar" data-close>×</button>
+    </header>
 
-            <div class="ix-modal__body">
-                <div class="ix-done-copy">
-                    <p>Gracias por contribuir a mejorar la zona. Pronto se dará seguimiento.</p>
+    <div class="ix-modal__body">
+      <div class="ix-done-copy">
+        <p>Gracias por contribuir a mejorar la zona. Pronto se dará seguimiento.</p>
 
-                    <p class="ix-done-mid">
-                        Lo atenderemos lo más rápido posible.<br>
-                        El N° de tu reporte es: <strong id="ix-done-folio">—</strong>.<br>
-                        Recuerda guardar este número para darle seguimiento.
-                    </p>
+        <p class="ix-done-mid">
+          Lo atenderemos lo más rápido posible.<br>
+          El N° de tu reporte es: <strong id="ix-done-folio">—</strong>.<br>
+          Recuerda guardar este número para darle seguimiento.
+        </p>
 
-                    <p>Para cualquier otra duda comunícate al <a href="tel:3333333333">33 3333 3333</a>
-                        o envía un correo a <a href="mailto:recuperarId@gmail.com">recuperarId@gmail.com</a>.
-                    </p>
-                </div>
-            </div>
-
-            <footer class="ix-modal__footer">
-                <button type="button" class="ix-btn ix-btn--primary" id="ix-done-ok" data-close>Finalizar</button>
-            </footer>
-        </div>
+        <p>Para cualquier otra duda comunícate al <a href="tel:3333333333">33 3333 3333</a>
+          o envía un correo a <a href="mailto:recuperarId@gmail.com">recuperarId@gmail.com</a>.
+        </p>
+      </div>
     </div>
+
+    <footer class="ix-modal__footer">
+      <button type="button" class="ix-btn ix-btn--primary" id="ix-done-ok" data-close>Finalizar</button>
+    </footer>
+  </div>
+</div>
 
 
 

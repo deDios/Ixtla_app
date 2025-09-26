@@ -381,33 +381,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+<script>
 /* ==================== Modulo Levantamiento de Requerimientos ==================== */
 (() => {
   /* ---------- Config ---------- */
@@ -988,3 +962,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 })();
+</script>

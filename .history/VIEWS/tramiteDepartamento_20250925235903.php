@@ -487,44 +487,34 @@
 
 
 
-    <!-- modal informativo del requerimiento -->
+    <!-- modal de que se levanto bien el requerimiento y informacion de este -->
     <div id="ix-done-modal" class="ix-modal ix-modal--done" hidden aria-hidden="true">
-        <div class="ix-modal__overlay" data-close></div>
+        <div class="ix-modal__overlay" data-ix-close></div>
 
-        <div class="ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-done-title">
+        <div class="ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-done-title"
+            aria-describedby="ix-done-desc">
             <header class="ix-modal__header">
                 <div class="ix-modal__brand">
                     <img src="/ASSETS/main_logo.png" alt="Ixtlahuacán de los Membrillos - Ayuntamiento"
                         onerror="this.style.display='none'">
                 </div>
-
                 <div class="ix-modal__headings">
-                    <h2 id="ix-done-title" class="ix-modal__title">Nuevo Reporte</h2>
-                    <p class="ix-modal__subtitle"><span id="ix-done-subtitle">—</span></p>
+                    <h2 id="ix-done-title" class="ix-modal__title">Solicitud enviada</h2>
+                    <p id="ix-done-desc" class="ix-modal__subtitle">Tu requerimiento fue generado correctamente.</p>
                 </div>
-
-                <button type="button" class="ix-modal__close" aria-label="Cerrar" data-close>×</button>
+                <button type="button" class="ix-modal__close" aria-label="Cerrar" data-ix-close>×</button>
             </header>
 
-            <div class="ix-modal__body">
-                <div class="ix-done-copy">
-                    <p>Gracias por contribuir a mejorar la zona. Pronto se dará seguimiento.</p>
+            <div class="ix-modal__body ix-done__body">
+                <p class="ix-done__lead">Guarda tu número de seguimiento:</p>
+                <p class="ix-done__folio mono" id="ix-done-folio">REQ-0000000000</p>
 
-                    <p class="ix-done-mid">
-                        Lo atenderemos lo más rápido posible.<br>
-                        El N° de tu reporte es: <strong id="ix-done-folio">—</strong>.<br>
-                        Recuerda guardar este número para darle seguimiento.
-                    </p>
-
-                    <p>Para cualquier otra duda comunícate al <a href="tel:3333333333">33 3333 3333</a>
-                        o envía un correo a <a href="mailto:recuperarId@gmail.com">recuperarId@gmail.com</a>.
-                    </p>
+                <div class="ix-done__actions">
+                    <a id="ix-done-follow" class="ix-btn ix-btn--primary" href="/VIEWS/tramiteDepartamento.php">Ver
+                        seguimiento</a>
+                    <button type="button" class="ix-btn ix-btn--ghost" data-ix-close>Cerrar</button>
                 </div>
             </div>
-
-            <footer class="ix-modal__footer">
-                <button type="button" class="ix-btn ix-btn--primary" id="ix-done-ok" data-close>Finalizar</button>
-            </footer>
         </div>
     </div>
 

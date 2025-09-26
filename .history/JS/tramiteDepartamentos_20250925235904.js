@@ -381,84 +381,31 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* ==================== Modulo Levantamiento de Requerimientos ==================== */
+/* ==================== módulo Levantamiento de Requerimientos ==================== */
 (() => {
-  /* ---------- Config ---------- */
-  const CFG = Object.assign({
-    NAME_MIN_CHARS: 5,
-    DESC_MIN_CHARS: 30,
-    PHONE_DIGITS: 10,
-    MAX_FILES: 3,
-    MIN_FILES: 0,
-    MAX_MB: 20,
-    ACCEPT_MIME: ["image/jpeg","image/png","image/webp","image/heic","image/heif"],
-    ACCEPT_EXT: [".jpg",".jpeg",".png",".webp",".heic",".heif"],
-    ENDPOINTS: {
-      cpcolonia:  "/db/WEB/ixtla01_c_cpcolonia.php",
-      insertReq:  "/db/WEB/ixtla01_i_requerimiento.php",
-      fsBootstrap:"/db/WEB/ixtla01_u_requerimiento_folders.php",
-      uploadImg:  "/db/WEB/ixtla01_i_requerimiento_img.php",
-    },
-    FETCH_TIMEOUT: 12000,
-    DEBUG: false,
-  }, window.IX_CFG_REQ || {});
-  const ACCEPT_ALL = window.IX_CFG_REQ_ACCEPT || [...CFG.ACCEPT_MIME, ...CFG.ACCEPT_EXT].join(",");
+  const CFG        = window.IX_CFG_REQ || {};
+  const ACCEPT_ALL = window.IX_CFG_REQ_ACCEPT || "";
 
-  const log = (...a) => { if (CFG.DEBUG) try { console.log("[REQ]", ...a); } catch {} };
-
-  /* ---------- Helpers de control de tiempo / abort ---------- */
-  function anySignal(signals = []) {
-    const c = new AbortController();
-    const onAbort = () => c.abort();
-    signals.filter(Boolean).forEach(s => s.addEventListener("abort", onAbort, { once: true }));
-    return c.signal;
-  }
-  function withTimeout(factory, ms = CFG.FETCH_TIMEOUT, extSignal) {
-    const tCtrl = new AbortController();
-    const timer = setTimeout(() => tCtrl.abort(), ms);
+  // helpers abort/timeout
+  const anySignal   = (signals=[]) => { const c=new AbortController(); const onAbort=()=>c.abort(); signals.filter(Boolean).forEach(s=>s.addEventListener("abort",onAbort,{once:true})); return c.signal; };
+  const withTimeout = (factory, ms=CFG.FETCH_TIMEOUT, extSignal) => {
+    const tCtrl=new AbortController(); const timer=setTimeout(()=>tCtrl.abort(),ms);
     const signal = extSignal ? anySignal([tCtrl.signal, extSignal]) : tCtrl.signal;
-    return Promise.resolve().then(() => factory(signal)).finally(() => clearTimeout(timer));
-  }
+    return Promise.resolve().then(()=>factory(signal)).finally(()=>clearTimeout(timer));
+  };
 
-  /* ---------- Estado ---------- */
+  // estado
   let files = [];
   let isSubmitting = false;
   let hasAttemptedSubmit = false;
-
+ 
   let currentDepId = "1";
   let currentItemId = "";
-  let currentTitle = "Reporte";
+  let currentTitle  = "Reporte";
 
-  /* ---------- DOM ---------- */
+  // DOM
   const modal = document.getElementById("ix-report-modal");
-  if (!modal) { console.warn("[REQ] No existe #ix-report-modal"); return; }
+  if(!modal){ console.warn("[REQ] No existe #ix-report-modal"); return; }
 
   const overlay  = modal.querySelector(".ix-modal__overlay");
   const dialog   = modal.querySelector(".ix-modal__dialog");
@@ -492,498 +439,436 @@ document.addEventListener("DOMContentLoaded", () => {
   const upCTA    = modal.querySelector("#ix-evidencia-cta");
   const previews = modal.querySelector("#ix-evidencia-previews");
 
-  // fecha visible
+  // fecha
   const inpFecha = modal.querySelector("#ix-fecha");
   const timeMeta = modal.querySelector("#ix-report-date");
 
-  /* ---------- Utils ---------- */
-  const digits = (s) => (s || "").replace(/\D+/g, "");
-  const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || "").trim());
-  const extOf = (name="") => { const n=String(name).toLowerCase(); const i=n.lastIndexOf("."); return i>=0?n.slice(i):""; };
-  const hasAllowedExt  = (f) => (CFG.ACCEPT_EXT || []).includes(extOf(f?.name));
-  const hasAllowedMime = (f) => (CFG.ACCEPT_MIME|| []).includes(f?.type);
-  const norm   = (s) => (s ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
-  const isOtros = (title) => norm(title) === "otro";
+  // utils
+  const digits=(s)=>(s||"").replace(/\D+/g,"");
+  const isEmail=(s)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s||"").trim());
+  const extOf=(name="")=>{ const n=String(name).toLowerCase(); const i=n.lastIndexOf("."); return i>=0?n.slice(i):""; };
+  const hasAllowedExt  =(f)=> (CFG.ACCEPT_EXT  || []).includes(extOf(f?.name));
+  const hasAllowedMime =(f)=> (CFG.ACCEPT_MIME || []).includes(f?.type);
+  const norm=(s)=>(s??"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+  const isOtros=(title)=> norm(title)==="otro";
+  const log=(...a)=>{ if(CFG.DEBUG) try{ console.log("[REQ]",...a); }catch{} };
 
-  function clearFeedback(){ if (feedback) { feedback.hidden = true; feedback.textContent=""; } }
-  function showFeedback(msg){ if (feedback) { feedback.hidden = false; feedback.textContent=msg; } }
+  const clearFeedback=()=>{ if(feedback){ feedback.hidden=true; feedback.textContent=""; } };
+  const showFeedback =(m)=>{ if(feedback){ feedback.hidden=false; feedback.textContent=m; } };
 
-  function setToday() {
-    if (!inpFecha) return;
-    const now = new Date();
+  const setToday=()=>{
+    if(!inpFecha) return;
+    const now=new Date();
     const visible = now.toLocaleString("es-MX",{dateStyle:"short", timeStyle:"short"}).replace(",", " ·");
-    inpFecha.value = visible;
-    if (timeMeta) { timeMeta.dateTime = now.toISOString(); timeMeta.textContent=""; }
-  }
+    inpFecha.value=visible;
+    if(timeMeta){ timeMeta.dateTime = now.toISOString(); timeMeta.textContent=""; }
+  };
 
-  function setFieldError(inputEl, msg = "") {
-    // consentimiento viene fuera de .ix-field
-    if (inputEl === chkCons) {
-      const row = chkCons.closest(".ix-form__row--consent");
-      row?.classList.toggle("ix-field--error", !!msg);
+  function setFieldError(inputEl, msg=""){
+    // consentimiento (no está dentro de .ix-field)
+    if(inputEl===chkCons){
+      const row=chkCons.closest(".ix-form__row--consent");
+      if(row) row.classList.toggle("ix-field--error", !!msg);
       return;
     }
-    const field = inputEl?.closest?.(".ix-field");
-    const help  = field?.querySelector?.(".ix-help");
-    if (!field) return;
-    field.classList.toggle("ix-field--error", !!msg);
-    if (msg) inputEl?.setAttribute?.("aria-invalid","true"); else inputEl?.removeAttribute?.("aria-invalid");
-    if (help) { help.hidden = !msg; help.textContent = msg || ""; }
+    const field=inputEl?.closest?.(".ix-field");
+    const help = field?.querySelector?.(".ix-help");
+    if(!field) return;
+    if(msg){
+      field.classList.add("ix-field--error");
+      inputEl?.setAttribute?.("aria-invalid","true");
+      if(help){ help.hidden=false; help.textContent=msg; }
+    }else{
+      field.classList.remove("ix-field--error");
+      inputEl?.removeAttribute?.("aria-invalid");
+      if(help){ help.hidden=true; help.textContent=""; }
+    }
   }
 
-  function updateDescCount(){ if (cntDesc && inpDesc) cntDesc.textContent = String((inpDesc.value || "").length); }
+  const updateDescCount=()=>{ if(cntDesc&&inpDesc) cntDesc.textContent=String((inpDesc.value||"").length); };
 
-  /* ---------- Selects CP / Colonia ---------- */
-  const makeOpt = (v, label, o={}) => {
-    const el = document.createElement("option");
-    el.value = v; el.textContent = label;
-    if (o.disabled) el.disabled = true;
-    if (o.selected) el.selected = true;
-    return el;
-  };
-  const ensureSelect = (el, { nameFallback, idFallback } = {}) => {
-    if (el && el.tagName === "SELECT") return el;
-    const sel = document.createElement("select");
-    sel.id = el?.id || idFallback || "";
-    sel.name = el?.name || nameFallback || "";
-    sel.className = el?.className || "ix-select ix-select--quiet";
-    sel.required = true;
-    if (el) el.replaceWith(sel);
+  // select helpers
+  const makeOpt=(v,label,o={})=>{ const el=document.createElement("option"); el.value=v; el.textContent=label; if(o.disabled) el.disabled=true; if(o.selected) el.selected=true; return el; };
+  const ensureSelect=(el,{nameFallback,idFallback}={})=>{
+    if(el && el.tagName==="SELECT") return el;
+    const sel=document.createElement("select");
+    sel.id=el?.id||idFallback||""; sel.name=el?.name||nameFallback||"";
+    sel.className=el?.className || "ix-select ix-select--quiet"; sel.required=true;
+    if(el) el.replaceWith(sel);
     return sel;
   };
-  const ensureCpSelect  = () => (inpCP  = ensureSelect(inpCP,  { idFallback:"ix-cp",      nameFallback:"contacto_cp" }));
-  const ensureColSelect = () => (inpCol = ensureSelect(inpCol, { idFallback:"ix-colonia", nameFallback:"contacto_colonia" }));
+  const ensureCpSelect  = ()=> (inpCP  = ensureSelect(inpCP,  { idFallback:"ix-cp",      nameFallback:"contacto_cp" }));
+  const ensureColSelect = ()=> (inpCol = ensureSelect(inpCol, { idFallback:"ix-colonia", nameFallback:"contacto_colonia" }));
 
-  const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
-  let CP_MAP = {}; let CP_LIST = [];
-  const getCpCache = () => { try { return JSON.parse(sessionStorage.getItem(CP_CACHE_KEY) || "null"); } catch { return null; } };
-  const setCpCache = (data) => { try { sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify(data)); } catch {} };
-  const knownCP = (cp) => Object.prototype.hasOwnProperty.call(CP_MAP, String(cp || ""));
+  // CP/colonia cache
+  const CP_CACHE_KEY="ix_cpcolonia_cache_v1";
+  let CP_MAP={}; let CP_LIST=[];
+  const getCpCache=()=>{ try{ return JSON.parse(sessionStorage.getItem(CP_CACHE_KEY)||"null"); }catch{ return null; } };
+  const setCpCache=(data)=>{ try{ sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify(data)); }catch{} };
+  const knownCP=(cp)=> Object.prototype.hasOwnProperty.call(CP_MAP, String(cp||""));
 
-  function extractCpColoniaArray(json) {
-    const arr = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-    const out = [];
-    for (const item of arr) {
+  const extractCpColoniaArray=(json)=>{
+    const arr = Array.isArray(json?.data)?json.data:(Array.isArray(json)?json:[]);
+    const out=[]; for(const item of arr){
       const cp = String(item.cp ?? item.CP ?? item.codigo_postal ?? item.codigoPostal ?? "").trim();
       const col= String(item.colonia ?? item.Colonia ?? item.asentamiento ?? item.neighborhood ?? "").trim();
-      if (cp && col) out.push({ cp, colonia: col });
-    }
-    return out;
-  }
-  async function fetchCpColonia() {
-    const hit = getCpCache();
-    if (hit?.map && hit?.list) { CP_MAP = hit.map; CP_LIST = hit.list; return; }
-    const json = await withTimeout((signal) =>
-      fetch(CFG.ENDPOINTS.cpcolonia, {
-        method: "POST",
-        headers: { "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify({ all: true }),
-        signal,
-      }).then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      if(cp && col) out.push({cp, colonia:col});
+    } return out;
+  };
+
+  async function fetchCpColonia(){
+    const hit=getCpCache();
+    if(hit?.map && hit?.list){ CP_MAP=hit.map; CP_LIST=hit.list; return; }
+    const json = await withTimeout((signal)=>
+      fetch(CFG.ENDPOINTS.cpcolonia,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({all:true}),signal})
+        .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     );
-    const rows = extractCpColoniaArray(json);
-    const tmp = {};
-    for (const r of rows) {
-      const cp = String(r.cp).trim(), col = String(r.colonia).trim();
-      if (!tmp[cp]) tmp[cp] = new Set();
-      tmp[cp].add(col);
+    const rows=extractCpColoniaArray(json);
+    const tmp={};
+    for(const r of rows){ const cp=String(r.cp).trim(), col=String(r.colonia).trim();
+      if(!tmp[cp]) tmp[cp]=new Set(); tmp[cp].add(col);
     }
-    CP_MAP = Object.fromEntries(Object.entries(tmp).map(([k,v]) => [k, [...v].sort((a,b)=>a.localeCompare(b,"es"))]));
+    CP_MAP = Object.fromEntries(Object.entries(tmp).map(([k,v])=>[k,[...v].sort((a,b)=>a.localeCompare(b,"es"))]));
     CP_LIST = Object.keys(CP_MAP).sort();
-    setCpCache({ map: CP_MAP, list: CP_LIST });
+    setCpCache({ map:CP_MAP, list:CP_LIST });
   }
-  function populateCpOptions() {
+
+  function populateCpOptions(){
     ensureCpSelect();
-    inpCP.innerHTML = "";
-    inpCP.appendChild(makeOpt("", "Selecciona C.P.", { disabled:true, selected:true }));
-    CP_LIST.forEach((cp) => inpCP.appendChild(makeOpt(cp, cp)));
+    inpCP.innerHTML=""; inpCP.appendChild(makeOpt("", "Selecciona C.P.", {disabled:true, selected:true}));
+    CP_LIST.forEach(cp => inpCP.appendChild(makeOpt(cp,cp)));
   }
-  function resetColonia(msg="Selecciona C.P. primero") {
-    ensureColSelect();
-    inpCol.innerHTML = "";
-    inpCol.appendChild(makeOpt("", msg, { disabled:true, selected:true }));
+  function resetColonia(msg="Selecciona C.P. primero"){
+    ensureColSelect(); inpCol.innerHTML="";
+    inpCol.appendChild(makeOpt("", msg, {disabled:true, selected:true}));
     inpCol.disabled = true;
   }
-  function populateColoniasForCP(cp) {
+  function populateColoniasForCP(cp){
     ensureColSelect();
     const prev = inpCol.value || "";
     const list = CP_MAP[cp] || [];
     inpCol.innerHTML = "";
     const ph = makeOpt("", "Selecciona colonia", { disabled:true });
     inpCol.appendChild(ph);
-    list.forEach(col => inpCol.appendChild(makeOpt(col, col)));
-    inpCol.disabled = false;
-    if (prev && list.includes(prev)) inpCol.value = prev; else ph.selected = true;
+    list.forEach(col => inpCol.appendChild(makeOpt(col,col)));
+    inpCol.disabled=false;
+    if(prev && list.includes(prev)){ inpCol.value=prev; } else { ph.selected=true; }
   }
 
-  /* ---------- Uploader ---------- */
-  function toggleUploadCTA() {
-    if (!upCTA) return;
+  // uploader
+  function toggleUploadCTA(){
+    if(!upCTA) return;
     const atLimit = files.length >= CFG.MAX_FILES;
     upCTA.disabled = atLimit;
-    const tip = atLimit
-      ? `Límite alcanzado (${files.length}/${CFG.MAX_FILES}).`
-      : `Subir imágenes (${files.length}/${CFG.MAX_FILES}).`;
-    upCTA.title = tip;
-    upCTA.setAttribute("aria-label", tip);
-    if (atLimit) window.ixToast?.warn(tip, 3600);
+    const tip = atLimit ? `Límite alcanzado (${files.length}/${CFG.MAX_FILES}).`
+                        : `Subir imágenes (${files.length}/${CFG.MAX_FILES}).`;
+    upCTA.title = tip; upCTA.setAttribute("aria-label", tip);
+    if(atLimit) window.ixToast?.warn(tip, 3600);
   }
-  function refreshPreviews() {
-    if (!previews) return;
-    previews.innerHTML = "";
-    files.forEach((file, idx) => {
-      const fig = document.createElement("figure");
-      const img = document.createElement("img");
-      const btn = document.createElement("button");
+  function refreshPreviews(){
+    if(!previews) return;
+    previews.innerHTML="";
+    files.forEach((file,idx)=>{
+      const fig=document.createElement("figure");
+      const img=document.createElement("img");
+      const btn=document.createElement("button");
 
-      const canPreview = /^(image\/jpeg|image\/png|image\/webp)$/i.test(file.type);
+      const canPreview=/^(image\/jpeg|image\/png|image\/webp)$/i.test(file.type);
       const url = canPreview ? URL.createObjectURL(file) : "/ASSETS/departamentos/placeholder_card.png";
-      file._url = url;
+      file._url=url;
 
-      img.src = url;
-      img.alt = canPreview ? file.name : "Vista previa no disponible";
-      img.loading = "lazy";
-      img.decoding = "async";
-      img.onload = () => { try { URL.revokeObjectURL(url); } catch {} };
+      img.src=url; img.alt=canPreview?file.name:"Vista previa no disponible"; img.loading="lazy"; img.decoding="async";
+      img.onload=()=>{ try{ URL.revokeObjectURL(url); }catch{} };
 
-      btn.type = "button";
-      btn.textContent = "×";
-      btn.setAttribute("aria-label", "Eliminar imagen");
-      btn.addEventListener("click", () => {
-        const f = files.splice(idx, 1)[0];
-        if (f?._url) { try { URL.revokeObjectURL(f._url); } catch {} }
-        refreshPreviews();
-        toggleUploadCTA();
-        if (hasAttemptedSubmit) validateForm(true);
+      btn.type="button"; btn.textContent="×"; btn.setAttribute("aria-label","Eliminar imagen");
+      btn.addEventListener("click",()=>{
+        const f=files.splice(idx,1)[0]; if(f?._url){ try{ URL.revokeObjectURL(f._url); }catch{} }
+        refreshPreviews(); toggleUploadCTA(); if(hasAttemptedSubmit) validateForm(true);
       });
 
-      fig.appendChild(img);
-      fig.appendChild(btn);
-      previews.appendChild(fig);
+      fig.appendChild(img); fig.appendChild(btn); previews.appendChild(fig);
     });
 
-    if (hasAttemptedSubmit) {
-      if (files.length < (CFG.MIN_FILES || 0)) upWrap?.classList.add("ix-upload--error");
+    if(hasAttemptedSubmit){
+      if(files.length < (CFG.MIN_FILES||0)) upWrap?.classList.add("ix-upload--error");
       else upWrap?.classList.remove("ix-upload--error");
     }
     toggleUploadCTA();
   }
-  function handleFiles(list) {
-    const inc = Array.from(list || []);
-    for (const f of inc) {
-      const okMime = hasAllowedMime(f);
-      const okExt  = hasAllowedExt(f);
-      if (!okMime && !okExt) { window.ixToast?.warn("Solo JPG/PNG/WebP/HEIC/HEIF."); continue; }
-      if (f.size > CFG.MAX_MB * 1024 * 1024) { window.ixToast?.warn(`Cada archivo ≤ ${CFG.MAX_MB} MB.`); continue; }
-      if (files.length >= CFG.MAX_FILES) { window.ixToast?.warn(`Máximo ${CFG.MAX_FILES} imágenes.`); break; }
+  function handleFiles(list){
+    const inc=Array.from(list||[]);
+    for(const f of inc){
+      const okMime=hasAllowedMime(f), okExt=hasAllowedExt(f);
+      if(!okMime && !okExt){ window.ixToast?.warn("Solo JPG/PNG/WebP/HEIC/HEIF."); continue; }
+      if(f.size > CFG.MAX_MB*1024*1024){ window.ixToast?.warn(`Cada archivo ≤ ${CFG.MAX_MB} MB.`); continue; }
+      if(files.length >= CFG.MAX_FILES){ window.ixToast?.warn(`Máximo ${CFG.MAX_FILES} imágenes.`); break; }
       files.push(f);
     }
     refreshPreviews();
   }
-  function ensureUploadButton() {
-    if (upInput) upInput.setAttribute("accept", ACCEPT_ALL);
-    upCTA?.addEventListener("click", () => upInput?.click());
-    upInput?.addEventListener("change", (e) => handleFiles(e.target.files));
-    if (upWrap) {
-      ["dragenter","dragover"].forEach(ev => upWrap.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.add("is-drag"); }));
-      ["dragleave","drop"].forEach(ev => upWrap.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); upWrap.classList.remove("is-drag"); }));
-      upWrap.addEventListener("drop", (e) => handleFiles(e.dataTransfer?.files || []));
+  function ensureUploadButton(){
+    if(upInput) upInput.setAttribute("accept", ACCEPT_ALL);
+    if(upCTA)   upCTA.addEventListener("click", ()=>upInput?.click());
+    if(upInput) upInput.addEventListener("change",(e)=>handleFiles(e.target.files));
+    if(upWrap){
+      ["dragenter","dragover"].forEach(ev=>upWrap.addEventListener(ev,(e)=>{e.preventDefault();e.stopPropagation();upWrap.classList.add("is-drag");}));
+      ["dragleave","drop"].forEach(ev=>upWrap.addEventListener(ev,(e)=>{e.preventDefault();e.stopPropagation();upWrap.classList.remove("is-drag");}));
+      upWrap.addEventListener("drop",(e)=>handleFiles(e.dataTransfer?.files||[]));
     }
     toggleUploadCTA();
   }
 
-  /* ---------- Validación ---------- */
-  function validateField(key, showErrors) {
-    let ok = true, msg = "";
-    switch (key) {
+  // validación
+  function validateField(key, showErrors){
+    let ok=true, msg="";
+    switch(key){
       case "nombre": {
-        const v = (inpNombre?.value || "").trim();
-        ok = v.length >= CFG.NAME_MIN_CHARS || v.split(/\s+/).length >= 2;
-        msg = ok ? "" : "Ingresa tu nombre completo.";
-        setFieldError(inpNombre, showErrors ? msg : ""); break;
+        const v=(inpNombre?.value||"").trim();
+        ok = v.length>=CFG.NAME_MIN_CHARS || v.split(/\s+/).length>=2;
+        msg = ok?"":"Ingresa tu nombre completo."; setFieldError(inpNombre, showErrors?msg:""); break;
       }
       case "dom": {
-        ok = !!(inpDom?.value || "").trim();
-        msg = ok ? "" : "El domicilio es obligatorio.";
-        setFieldError(inpDom, showErrors ? msg : ""); break;
+        ok=!!(inpDom?.value||"").trim(); msg = ok?"":"El domicilio es obligatorio.";
+        setFieldError(inpDom, showErrors?msg:""); break;
       }
       case "cp": {
-        const cp = inpCP?.value || "";
-        ok = !!cp && knownCP(cp);
-        msg = ok ? "" : "Selecciona un C.P. válido.";
-        setFieldError(inpCP, showErrors ? msg : "");
-        if (ok) populateColoniasForCP(cp);
-        break;
+        const cp=inpCP?.value||""; ok=!!cp && knownCP(cp); msg=ok?"":"Selecciona un C.P. válido.";
+        setFieldError(inpCP, showErrors?msg:""); if(ok) populateColoniasForCP(cp); break;
       }
       case "col": {
-        const cp  = inpCP?.value || "";
-        const col = inpCol?.value || "";
-        const list = CP_MAP[cp] || [];
-        ok = !!col && list.includes(col);
-        msg = ok ? "" : "Selecciona una colonia válida.";
-        setFieldError(inpCol, showErrors ? msg : ""); break;
+        const cp=inpCP?.value||"", col=inpCol?.value||"", list=CP_MAP[cp]||[];
+        ok=!!col && list.includes(col); msg=ok?"":"Selecciona una colonia válida.";
+        setFieldError(inpCol, showErrors?msg:""); break;
       }
       case "tel": {
-        if (inpTel) inpTel.value = digits(inpTel.value).slice(0, CFG.PHONE_DIGITS);
-        const tel = digits(inpTel?.value || "");
-        ok = tel.length === CFG.PHONE_DIGITS;
-        msg = ok ? "" : `Teléfono a ${CFG.PHONE_DIGITS} dígitos.`;
-        setFieldError(inpTel, showErrors ? msg : ""); break;
+        if(inpTel) inpTel.value = digits(inpTel.value).slice(0, CFG.PHONE_DIGITS);
+        const tel=digits(inpTel?.value||""); ok=(tel.length===CFG.PHONE_DIGITS);
+        msg=ok?"":`Teléfono a ${CFG.PHONE_DIGITS} dígitos.`; setFieldError(inpTel, showErrors?msg:""); break;
       }
       case "correo": {
-        const mail = (inpCorreo?.value || "").trim();
-        ok = !mail || isEmail(mail);
-        msg = ok ? "" : "Correo no válido.";
-        setFieldError(inpCorreo, showErrors ? msg : ""); break;
+        const mail=(inpCorreo?.value||"").trim(); ok=!mail || isEmail(mail);
+        msg=ok?"":"Correo no válido."; setFieldError(inpCorreo, showErrors?msg:""); break;
       }
       case "desc": {
-        const d = (inpDesc?.value || "").trim();
-        ok = d.length >= CFG.DESC_MIN_CHARS;
-        msg = ok ? "" : `Describe con al menos ${CFG.DESC_MIN_CHARS} caracteres.`;
-        setFieldError(inpDesc, showErrors ? msg : ""); break;
+        const d=(inpDesc?.value||"").trim(); ok = d.length>=CFG.DESC_MIN_CHARS;
+        msg=ok?"":`Describe con al menos ${CFG.DESC_MIN_CHARS} caracteres.`; setFieldError(inpDesc, showErrors?msg:""); break;
       }
       case "consent": {
-        ok = !!chkCons?.checked;
-        msg = ok ? "" : "Debes aceptar el consentimiento.";
-        setFieldError(chkCons, showErrors ? msg : ""); break;
+        ok=!!chkCons?.checked; msg=ok?"":"Debes aceptar el consentimiento.";
+        setFieldError(chkCons, showErrors?msg:""); break;
       }
       case "asunto": {
-        if (!asuntoGroup || asuntoGroup.hidden) { ok = true; break; }
-        const v = (inpAsunto?.value || "").trim();
-        ok = !!v;
-        msg = ok ? "" : "Indica una clasificación.";
-        setFieldError(inpAsunto, showErrors ? msg : ""); break;
+        if(!asuntoGroup || asuntoGroup.hidden){ ok=true; break; }
+        const v=(inpAsunto?.value||"").trim(); ok=!!v; msg=ok?"":"Indica una clasificación.";
+        setFieldError(inpAsunto, showErrors?msg:""); break;
       }
     }
     return ok;
   }
-  function validateForm(showErrors) {
-    const keys = ["nombre","dom","cp","col","tel","correo","desc","consent","asunto"];
-    let firstBad = null; let allOk = true;
-    for (const k of keys) {
-      const ok = validateField(k, showErrors);
-      if (!ok) { allOk = false; if (!firstBad) firstBad = k; }
-    }
-    if (files.length > CFG.MAX_FILES) { allOk = false; showFeedback(`Máximo ${CFG.MAX_FILES} imágenes.`); }
-    if (files.length < (CFG.MIN_FILES || 0)) {
-      allOk = false;
-      showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES>1?"es":""}.`);
+  function validateForm(showErrors){
+    const keys=["nombre","dom","cp","col","tel","correo","desc","consent","asunto"];
+    let firstBad=null; let allOk=true;
+    for(const k of keys){ const ok=validateField(k, showErrors); if(!ok){ allOk=false; if(!firstBad) firstBad=k; } }
+    if(files.length > (CFG.MAX_FILES||Infinity)){ allOk=false; showFeedback(`Máximo ${CFG.MAX_FILES} imágenes.`); }
+    if(files.length < (CFG.MIN_FILES||0)){
+      allOk=false; showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES>1?"es":""}.`);
       upWrap?.classList.add("ix-upload--error");
-    } else {
-      upWrap?.classList.remove("ix-upload--error");
-    }
-    return { ok: allOk, firstBad };
+    } else { upWrap?.classList.remove("ix-upload--error"); }
+    return { ok:allOk, firstBad };
   }
 
-  /* ---------- Apertura / cierre del modal de formulario ---------- */
-  function trap(e) {
-    if (e.key !== "Tab") return;
-    const focusables = Array.from(dialog.querySelectorAll(
-      'a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])'
-    )).filter(el => el.offsetParent !== null);
-    if (!focusables.length) return;
-    const first = focusables[0], last = focusables[focusables.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  // focus trap
+  function trap(e){
+    if(e.key!=="Tab") return;
+    const f = Array.from(dialog.querySelectorAll('a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])')).filter(el=>el.offsetParent!==null);
+    if(!f.length) return;
+    const first=f[0], last=f[f.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
   }
-  function toggleAsuntoForOtros(visible) {
-    if (!asuntoGroup) return;
+
+  // otros (mostrar campo asunto)
+  const toggleAsuntoForOtros = (visible)=>{
+    if(!asuntoGroup) return;
     asuntoGroup.hidden = !visible;
     asuntoGroup.style.display = visible ? "" : "none";
-    if (!visible && inpAsunto) { inpAsunto.value = ""; setFieldError(inpAsunto, ""); }
-  }
-  function openModal({ title="Reporte", depKey="1", itemId="", sla="", mode="normal" } = {}, opener=null) {
-    currentDepId  = String(depKey || "1");
-    currentItemId = String(itemId || "");
-    currentTitle  = String(title || "Reporte");
-    modal.dataset.mode = mode;
-
-    subTitle && (subTitle.textContent = currentTitle);
-    inpReq   && (inpReq.value   = currentTitle);
-    inpDepId && (inpDepId.value = currentDepId);
-    inpTram  && (inpTram.value  = currentItemId);
-
-    clearFeedback();
-    hasAttemptedSubmit = false;
-    isSubmitting = false;
-    form?.reset();
-    files = [];
-    refreshPreviews();
-    updateDescCount();
-    setToday();
-    btnSend && (btnSend.disabled = false);
-
-    toggleAsuntoForOtros(mode === "otros");
-
-    ensureCpSelect(); ensureColSelect(); resetColonia();
-    fetchCpColonia().then(() => populateCpOptions()).catch(()=>{});
-
-    modal.hidden = false;
-    modal.setAttribute("aria-hidden","false");
-    document.body.style.overflow = "hidden";
-
-    const onKey = (e) => { if (e.key === "Escape") closeModal(); else trap(e); };
-    document.addEventListener("keydown", onKey, { passive: false });
-    overlay?.addEventListener("click", closeModal, { once: true });
-    btnClose.forEach(b => b.addEventListener("click", closeModal, { once: true }));
-    setTimeout(() => inpNombre?.focus(), 0);
-    modal._onKey = onKey;
-  }
-  function closeModal() {
-    document.removeEventListener("keydown", modal._onKey || (()=>{}));
-    modal.hidden = true;
-    modal.setAttribute("aria-hidden","true");
-    document.body.style.overflow = "";
-  }
-  window.ixReportModal = {
-    open: (opts={}, opener) => openModal({ ...opts, mode: opts.mode || (isOtros(opts.title) ? "otros" : "normal") }, opener),
-    close: () => closeModal(),
+    if(!visible && inpAsunto){ inpAsunto.value=""; setFieldError(inpAsunto,""); }
   };
 
-  /* ---------- Listeners ---------- */
-  inpDesc?.addEventListener("input", () => { updateDescCount(); if (hasAttemptedSubmit) validateField("desc", true); });
-  [
-    ["nombre", inpNombre], ["dom", inpDom], ["tel", inpTel],
-    ["correo", inpCorreo], ["consent", chkCons], ["asunto", inpAsunto],
-  ].forEach(([k, el]) => el?.addEventListener("input", () => { if (hasAttemptedSubmit) validateField(k, true); }));
+  // open/close modal
+  function openModal({ title="Reporte", depKey="1", itemId="", sla="", mode="normal" }={}, opener=null){
+    currentDepId  = String(depKey||"1");
+    currentItemId = String(itemId||"");
+    currentTitle  = String(title||"Reporte");
+    modal.dataset.mode = mode;
 
-  modal.addEventListener("change", (e) => {
-    const t = e.target;
-    if (t?.id === "ix-cp") {
-      const cp = t.value || "";
-      if (knownCP(cp)) { setFieldError(inpCP, ""); populateColoniasForCP(cp); }
-      else { setFieldError(inpCP, "Selecciona un C.P. válido."); resetColonia(); }
+    if(subTitle) subTitle.textContent = currentTitle;
+    if(inpReq)   inpReq.value = currentTitle;
+    if(inpDepId) inpDepId.value = currentDepId;
+    if(inpTram)  inpTram.value  = currentItemId;
+
+    clearFeedback();
+    hasAttemptedSubmit=false; isSubmitting=false;
+    form?.reset(); files=[]; refreshPreviews(); updateDescCount(); setToday();
+    if(btnSend) btnSend.disabled=false;
+
+    toggleAsuntoForOtros(mode==="otros");
+
+    ensureCpSelect(); ensureColSelect(); resetColonia();
+    fetchCpColonia().then(()=>populateCpOptions()).catch(()=>{});
+
+    modal.hidden=false; modal.setAttribute("aria-hidden","false");
+    document.body.style.overflow="hidden";
+
+    const onKey=(e)=>{ if(e.key==="Escape") closeModal(); else trap(e); };
+    document.addEventListener("keydown", onKey, { passive:false });
+    overlay?.addEventListener("click", closeModal, { once:true });
+    btnClose.forEach(b=>b.addEventListener("click", closeModal, { once:true }));
+    setTimeout(()=>inpNombre?.focus(), 0);
+    modal._onKey=onKey;
+  }
+  function closeModal(){
+    document.removeEventListener("keydown", modal._onKey||(()=>{}));
+    modal.hidden=true; modal.setAttribute("aria-hidden","true");
+    document.body.style.overflow="";
+  }
+  window.ixReportModal = {
+    open: (opts={}, opener)=> openModal({ ...opts, mode: opts.mode || (isOtros(opts.title)?"otros":"normal") }, opener),
+    close: ()=> closeModal(),
+  };
+
+  // listeners
+  inpDesc?.addEventListener("input", ()=>{ updateDescCount(); if(hasAttemptedSubmit) validateField("desc", true); });
+  [["nombre",inpNombre],["dom",inpDom],["tel",inpTel],["correo",inpCorreo],["consent",chkCons],["asunto",inpAsunto]]
+    .forEach(([k,el])=> el?.addEventListener("input", ()=>{ if(hasAttemptedSubmit) validateField(k,true); }));
+
+  modal.addEventListener("change",(e)=>{
+    const t=e.target;
+    if(t?.id==="ix-cp"){
+      const cp=t.value||"";
+      if(knownCP(cp)){ setFieldError(inpCP,""); populateColoniasForCP(cp); }
+      else { setFieldError(inpCP,"Selecciona un C.P. válido."); resetColonia(); }
     }
-    if (t?.id === "ix-colonia") {
-      const val = t.value || "";
-      inpCol.value = val; // asegura que quede seteado
-      const ok = !!val && (CP_MAP[inpCP?.value] || []).includes(val);
-      setFieldError(inpCol, ok ? "" : "Selecciona una colonia válida.");
+    if(t?.id==="ix-colonia"){
+      const val=t.value||""; inpCol.value=val;
+      const ok = !!val && (CP_MAP[inpCP?.value]||[]).includes(val);
+      setFieldError(inpCol, ok?"":"Selecciona una colonia válida.");
     }
   });
 
   ensureUploadButton();
 
-  form?.addEventListener("input", () => {
-    const { ok } = validateForm(false);
-    btnSend.disabled = !ok;
-  });
+  form?.addEventListener("input", ()=>{ const {ok}=validateForm(false); btnSend.disabled=!ok; });
 
-  /* ---------- Submit ---------- */
-  form?.addEventListener("submit", async (e) => {
+  // SUBMIT corregido (folio se usa DESPUÉS de insert OK)
+  form?.addEventListener("submit", async (e)=>{
     e.preventDefault();
-    if (isSubmitting) return;
+    if(isSubmitting) return;
 
     clearFeedback();
-    hasAttemptedSubmit = true;
+    hasAttemptedSubmit=true;
 
-    const res = validateForm(true);
-    if (!res.ok) {
-      const sel = {
+    const res=validateForm(true);
+    if(!res.ok){
+      const sel={
         nombre:"#ix-nombre", dom:"#ix-domicilio", cp:"#ix-cp", col:"#ix-colonia",
         tel:"#ix-telefono", correo:"#ix-correo", desc:"#ix-descripcion",
         consent:"#ix-consent", asunto:"#ix-asunto",
       }[res.firstBad];
-      sel && modal.querySelector(sel)?.focus?.();
+      modal.querySelector(sel)?.focus?.();
       return;
     }
 
-    // payload listo
-    const depId = Number(currentDepId || inpDepId?.value || 1);
-    const tramId = Number(currentItemId || inpTram?.value || 0);
-    const modoOtros = modal.dataset.mode === "otros";
+    // payload
+    const depId   = Number(currentDepId || inpDepId?.value || 1);
+    const tramId  = Number(currentItemId || inpTram?.value || 0);
+    const esOtros = modal.dataset.mode==="otros";
 
     const body = {
       departamento_id: depId,
       tramite_id: tramId || null,
       asignado_a: 1,
-      asunto: (modoOtros && inpAsunto?.value.trim()) ? inpAsunto.value.trim() : `Reporte ${currentTitle}`,
-      descripcion: (inpDesc?.value || "").trim(),
+      asunto: (esOtros && inpAsunto?.value.trim()) ? inpAsunto.value.trim() : `Reporte ${currentTitle}`,
+      descripcion: (inpDesc?.value||"").trim(),
       prioridad: 2,
-      estatus: 0, // solicitud
+      estatus: 0,
       canal: 1,
-      contacto_nombre: (inpNombre?.value || "").trim(),
-      contacto_email: (inpCorreo?.value || "").trim() || null,
-      contacto_telefono: digits(inpTel?.value || ""),
-      contacto_calle: (inpDom?.value || "").trim(),
-      contacto_colonia: (inpCol?.value || "").trim(),
-      contacto_cp: (inpCP?.value || "").trim(),
+      contacto_nombre: (inpNombre?.value||"").trim(),
+      contacto_email:  (inpCorreo?.value||"").trim() || null,
+      contacto_telefono: digits(inpTel?.value||""),
+      contacto_calle: (inpDom?.value||"").trim(),
+      contacto_colonia: (inpCol?.value||"").trim(),
+      contacto_cp: (inpCP?.value||"").trim(),
       fecha_limite: null,
       status: 1,
       created_by: 1,
     };
 
-    // UI “enviando…”
-    isSubmitting = true;
-    form.setAttribute("aria-busy", "true");
-    const oldTxt = btnSend.textContent;
-    btnSend.textContent = "Enviando…";
-    Array.from(form.elements).forEach(el => (el.disabled = true));
+    // bloquear UI
+    isSubmitting=true; form.setAttribute("aria-busy","true");
+    const oldTxt=btnSend.textContent; btnSend.textContent="Enviando…";
+    Array.from(form.elements).forEach(el => (el.disabled=true));
 
-    try {
-      // 1) Insertar requerimiento
-      const json = await withTimeout((signal) =>
-        fetch(CFG.ENDPOINTS.insertReq, {
-          method: "POST",
-          headers: { "Content-Type":"application/json", "Accept":"application/json" },
-          body: JSON.stringify(body),
-          signal,
-        }).then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    try{
+      // 1) INSERT
+      const json = await withTimeout((signal)=>
+        fetch(CFG.ENDPOINTS.insertReq,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(body),signal})
+          .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       );
-      if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
+      if(!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
+      const folio = json.data.folio || `REQ-${String(Date.now()%1e10).padStart(10,"0")}`;
 
-      const folio = json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10,"0")}`;
-
-      // 2) Preparar FS (no bloqueante si falla)
-      try {
-        await withTimeout((signal) =>
-          fetch(CFG.ENDPOINTS.fsBootstrap, {
-            method: "POST",
-            headers: { "Content-Type":"application/json", "Accept":"application/json" },
-            body: JSON.stringify({ folio }),
-            signal,
-          }).then(r=>r.json())
+      // 2) bootstrap FS (best effort)
+      try{
+        await withTimeout((signal)=>
+          fetch(CFG.ENDPOINTS.fsBootstrap,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({folio}),signal})
+            .then(r=>r.json())
         );
-      } catch {}
+      }catch{}
 
-      // 3) Subir imágenes (si hay)
-      if (files.length) {
-        const fd = new FormData();
-        fd.append("folio", folio);
-        fd.append("status", "0");
-        files.forEach((f) => fd.append("files[]", f, f.name));
-        try {
-          await withTimeout((signal) =>
-            fetch(CFG.ENDPOINTS.uploadImg, { method: "POST", body: fd, signal })
-              .then(r=>r.json())
+      // 3) subir imágenes (si hay)
+      if(files.length){
+        try{
+          const fd=new FormData();
+          fd.append("folio", folio);
+          fd.append("status","0");
+          files.forEach(f => fd.append("files[]", f, f.name));
+          const upRes = await withTimeout((signal)=>
+            fetch(CFG.ENDPOINTS.uploadImg,{method:"POST",body:fd,signal}).then(r=>r.json())
           );
-        } catch {
+          if(!upRes?.ok || (Array.isArray(upRes?.failed)&&upRes.failed.length)){
+            window.ixToast?.warn("El reporte se creó, pero algunas imágenes no se subieron.");
+            showFeedback("El reporte se creó, pero algunas imágenes no se subieron.");
+          }
+        }catch{
           window.ixToast?.warn("El reporte se creó, pero algunas imágenes no se subieron.");
           showFeedback("El reporte se creó, pero algunas imágenes no se subieron.");
         }
       }
 
-      // 4) Fin: cerrar formulario + modal informativo + toast
-      closeModal(); // cierra el form
-      window.ixToast?.ok(`Reporte creado: ${folio}`, 3200);
-      window.ixDoneModal?.open({ folio, title: currentTitle });
-
-      // Reset UI
-      Array.from(form.elements).forEach(el => (el.disabled = false));
-      btnSend.textContent = oldTxt;
+      // 4) éxito → restaurar, limpiar, cerrar y mostrar confirmación
+      Array.from(form.elements).forEach(el => (el.disabled=false));
+      btnSend.textContent=oldTxt;
       form.reset();
-      files.forEach(f => { if (f?._url) try { URL.revokeObjectURL(f._url); } catch {} });
-      files = [];
-      refreshPreviews();
-      updateDescCount();
-    } catch (err) {
+      files.forEach(f=>{ if(f?._url){ try{ URL.revokeObjectURL(f._url); }catch{} }});
+      files=[]; refreshPreviews(); updateDescCount();
+      closeModal();
+
+      // toast exitoso
+      window.ixToast?.ok(`Nuevo requerimiento. folio: ${folio}`, 5200);
+
+      // modal informativo final
+      if(window.ixDoneModal?.open) window.ixDoneModal.open({ folio, title: currentTitle });
+      else window.ixToast?.info(`Folio: ${folio}`, 3200);
+
+    }catch(err){
       window.ixToast?.err("No se pudo enviar el reporte.");
       showFeedback(`No se pudo enviar el reporte. ${err?.message || err}`);
-      Array.from(form.elements).forEach(el => (el.disabled = false));
-      btnSend.textContent = oldTxt;
-      btnSend.disabled = false;
-    } finally {
-      isSubmitting = false;
+      Array.from(form.elements).forEach(el => (el.disabled=false));
+      btnSend.textContent=oldTxt;
+      btnSend.disabled=false;
+    }finally{
+      isSubmitting=false;
       form.removeAttribute("aria-busy");
     }
   });
