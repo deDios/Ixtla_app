@@ -1,4 +1,4 @@
-/* ===== CONFIG: Catálogo/Render de Departamentos ===== */
+/* ===== CONFIG para el render de departamenots, cards, items ===== */
 (function (w) {
   w.IX_CFG_DEPS = {
     DEBUG: Boolean(w.IX_DEBUG),
@@ -8,7 +8,7 @@
     SKELETON_COUNT: 4,
 
     TIMEOUT_MS: 12000,
-    CACHE_TTL: 10 * 60 * 1000, // 10 min (sube/baja según necesidad)
+    CACHE_TTL: 10 * 60 * 1000, 
 
     ENDPOINTS: {
       deps:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
@@ -48,7 +48,7 @@
 })(window);
 
 
-/* ===== CONFIG: Levantamiento de Requerimientos (modal/form) ===== */
+/* ===== CONFIG: Levantamiento de Requerimientos el form y el modal ===== */
 (function (w) {
   w.IX_CFG_REQ = {
     // validaciones
@@ -56,7 +56,7 @@
     DESC_MIN_CHARS: 30,
     PHONE_DIGITS: 10,
 
-    // subida de imágenes
+    // subida de imagenes
     MAX_FILES: 3,
     MIN_FILES: 0,
     MAX_MB: 20,
@@ -84,7 +84,6 @@
     DEBUG: true,
   };
 
-  // helper: string de accept listo para <input type="file">
   w.IX_CFG_REQ_ACCEPT = [...w.IX_CFG_REQ.ACCEPT_MIME, ...w.IX_CFG_REQ.ACCEPT_EXT].join(",");
 })(window);
 
@@ -99,7 +98,7 @@
 
 
 
-/* ==================== Módulo: Departamentos / Catálogo ==================== */
+/* ==================== modulo Departamentos  ==================== */
 document.addEventListener("DOMContentLoaded", () => {
   const CFG = window.IX_CFG_DEPS || {};
   const wrap = document.querySelector("#tramites .ix-wrap");
@@ -107,13 +106,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const log = (...a) => { if (CFG.DEBUG) try { console.log("[DEPS]", ...a); } catch {} };
 
-  /* ---------- helpers: anySignal + withTimeout (fusión de abort + timeout) ---------- */
+  /* ---------- helpers ---------- */
   function anySignal(signals = []) {
     const c = new AbortController();
     const onAbort = () => c.abort();
     signals.filter(Boolean).forEach(s => s.addEventListener("abort", onAbort, { once: true }));
     return c.signal;
   }
+
   function withTimeout(factory, ms = CFG.TIMEOUT_MS, extSignal) {
     const tCtrl = new AbortController();
     const timer = setTimeout(() => tCtrl.abort(), ms);
@@ -150,7 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------- utils ---------- */
   const norm = (s) => (s ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
-  const isOtro = (title) => norm(title) === "otro"; // 👈 “otro” solamente (pedido)
+  const isOtro = (title) => norm(title) === "otro";
 
   const parseDepParam = (raw) => {
     if (!raw) return null;
@@ -380,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
     img.alt = it.title;
     img.loading = "lazy";
     img.decoding = "async";
-    img.width = 560; img.height = 315; // ayuda a evitar CLS; ajusta según tu layout
+    img.width = 560; img.height = 315; 
     img.style.objectFit = "cover";
     attachImgFallback(img, CFG.ASSETS.cardSrcs(it.depId, it.id), li);
     li.querySelector(".ix-card-img").appendChild(img);
@@ -483,7 +483,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /* ---------- toolbar list/cards ---------- */
+  /* ---------- toolbar list/cards (los botones) ---------- */
   btnList.addEventListener("click", () => {
     if (getView() === "list") return;
     setView("list");
@@ -560,7 +560,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-/* ==================== Módulo: Levantamiento de Requerimientos ==================== */
+/* ==================== Modulo Levantamiento de Requerimientos ==================== */
 (() => {
   const CFG = window.IX_CFG_REQ || {};
   const ACCEPT_ALL = window.IX_CFG_REQ_ACCEPT || "";
@@ -765,12 +765,29 @@ document.addEventListener("DOMContentLoaded", () => {
     inpCol.disabled = true;
   }
   function populateColoniasForCP(cp) {
-    ensureColSelect();
-    inpCol.innerHTML = "";
-    inpCol.appendChild(makeOpt("", "Selecciona colonia", { disabled:true, selected:true }));
-    (CP_MAP[cp] || []).forEach((col) => inpCol.appendChild(makeOpt(col, col)));
-    inpCol.disabled = false;
+  ensureColSelect();
+
+  const prev = inpCol.value || "";             
+  const list = CP_MAP[cp] || [];
+
+  inpCol.innerHTML = "";
+  const ph = makeOpt("", "Selecciona colonia", { disabled: true });
+  inpCol.appendChild(ph);
+
+  list.forEach((col) => {
+    const o = makeOpt(col, col);
+    inpCol.appendChild(o);
+  });
+
+  inpCol.disabled = false;
+
+  if (prev && list.includes(prev)) {
+    inpCol.value = prev;
+  } else {
+    ph.selected = true;
   }
+}
+
 
   /* ---------- uploader ---------- */
   function toggleUploadCTA() {
@@ -1041,15 +1058,29 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   modal.addEventListener("change", (e) => {
-    const t = e.target;
-    if (t && t.id === "ix-cp") {
-      resetColonia();
-      validateField("cp", true); // repuebla si es válido
+  const t = e.target;
+
+  if (t?.id === "ix-cp") {
+    const cp = t.value || "";
+    if (knownCP(cp)) {
+      setFieldError(inpCP, "");
+      populateColoniasForCP(cp);       
+    } else {
+      setFieldError(inpCP, "Selecciona un C.P. válido.");
+      resetColonia();                      
     }
-    if (t && t.id === "ix-colonia") {
-      if (hasAttemptedSubmit) validateField("col", true);
-    }
-  });
+  }
+
+  if (t?.id === "ix-colonia") {
+    const val = t.value || "";
+    inpCol.value = val;
+
+    const ok = !!val && (CP_MAP[inpCP?.value] || []).includes(val);
+    setFieldError(inpCol, ok ? "" : "Selecciona una colonia válida.");
+  }
+});
+
+
 
   ensureUploadButton();
 
