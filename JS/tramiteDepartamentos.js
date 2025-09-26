@@ -48,7 +48,7 @@
 })(window);
 
 
-/* ===== CONFIG: Levantamiento de Requerimientos el form y el modal ===== */
+/* ===== CONFIG Levantamiento de Requerimientos el form y el modal ===== */
 (function (w) {
   w.IX_CFG_REQ = {
     // validaciones
@@ -791,15 +791,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------- uploader ---------- */
   function toggleUploadCTA() {
-    if (!upCTA) return;
-    const atLimit = files.length >= CFG.MAX_FILES;
-    upCTA.disabled = atLimit;
-    upCTA.setAttribute("aria-disabled", String(atLimit));
-    const tip = atLimit
-      ? `Límite alcanzado (${files.length}/${CFG.MAX_FILES}).`
-      : `Subir imágenes (${files.length}/${CFG.MAX_FILES}).`;
-    upCTA.title = tip;
-    upCTA.setAttribute("aria-label", tip);
+  if (!upCTA) return;
+  const atLimit = files.length >= CFG.MAX_FILES;
+  upCTA.disabled = atLimit;
+  const tip = atLimit
+    ? `Límite alcanzado (${files.length}/${CFG.MAX_FILES}).`
+    : `Subir imágenes (${files.length}/${CFG.MAX_FILES}).`;
+  upCTA.title = tip;
+  upCTA.setAttribute("aria-label", tip);
+  if (atLimit) window.ixToast?.warn(tip, 3600);
   }
 
   function refreshPreviews() {
@@ -851,9 +851,9 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const f of inc) {
       const okMime = hasAllowedMime(f);
       const okExt  = hasAllowedExt(f);
-      if (!okMime && !okExt) { showFeedback("Solo JPG/PNG/WebP/HEIC/HEIF."); continue; }
-      if (f.size > CFG.MAX_MB * 1024 * 1024) { showFeedback(`Cada archivo ≤ ${CFG.MAX_MB} MB.`); continue; }
-      if (files.length >= CFG.MAX_FILES) { showFeedback(`Máximo ${CFG.MAX_FILES} imágenes.`); break; }
+      if (!okMime && !okExt) { window.ixToast?.warn("Solo JPG/PNG/WebP/HEIC/HEIF."); continue; }
+      if (f.size > CFG.MAX_MB * 1024 * 1024) { window.ixToast?.warn(`Cada archivo ≤ ${CFG.MAX_MB} MB.`); continue; } 
+      if (files.length >= CFG.MAX_FILES) { window.ixToast?.warn(`Máximo ${CFG.MAX_FILES} imágenes.`); break; } 
       files.push(f);
     }
     refreshPreviews();
@@ -1139,6 +1139,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const oldTxt = btnSend.textContent;
     btnSend.textContent = "Enviando…";
     Array.from(form.elements).forEach(el => (el.disabled = true));
+    btnSend.textContent = oldTxt;
+    form.reset();
+    files = [];
+    refreshPreviews();
+    updateDescCount();
+    closeModal();
+
+    // TOAST de éxito
+    window.ixToast?.ok(`Reporte creado: ${folio}`, 3200);
+
+    // Modal informativo final
+    window.ixDoneModal?.open({ folio, title: currentTitle });
 
     try {
       const json = await withTimeout((signal) =>
@@ -1153,7 +1165,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const folio = json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10,"0")}`;
 
-      // bootstrap FS (no bloqueante si falla)
       try {
         await withTimeout((signal) =>
           fetch(CFG.ENDPOINTS.fsBootstrap, {
@@ -1165,7 +1176,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       } catch {}
 
-      // subir imágenes si hay
+      // subir imagenes si hay
       if (files.length) {
         const fd = new FormData();
         fd.append("folio", folio);
@@ -1191,7 +1202,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateDescCount();
       closeModal();
 
-      // modal informativo (si está cargado)
+      // modal informativo 
       if (window.ixDoneModal?.open) window.ixDoneModal.open({ folio, title: currentTitle });
     } catch (err) {
       showFeedback(`No se pudo enviar el reporte. ${err?.message || err}`);
@@ -1204,3 +1215,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 })();
+
+//bloque para las toast
+window.ixToast = {
+    ok(msg, ms=3200){ return window.gcToast ? gcToast(msg, "exito", ms) : alert(msg); },
+    info(msg, ms=2200){ return window.gcToast ? gcToast(msg, "info", ms) : alert(msg); },
+    warn(msg, ms=4200){ return window.gcToast ? gcToast(msg, "alerta", ms) : alert(msg); },
+    err(msg, ms=4200){ return window.gcToast ? gcToast(msg, "error", ms) : alert(msg); },
+  };
