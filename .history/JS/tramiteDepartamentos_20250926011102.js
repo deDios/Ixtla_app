@@ -553,7 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-
+  
   function setFieldError(inputEl, msg = "") {
     // consentimiento viene fuera de .ix-field
     if (inputEl === chkCons) {
@@ -909,120 +909,120 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------- Submit ---------- */
   form?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (isSubmitting) return;
+    e.preventDefault();
+    if (isSubmitting) return;
 
-  clearFeedback();
-  hasAttemptedSubmit = true;
+    clearFeedback();
+    hasAttemptedSubmit = true;
 
-  const res = validateForm(true);
-  if (!res.ok) {
-    const sel = {
-      nombre:"#ix-nombre", dom:"#ix-domicilio", cp:"#ix-cp", col:"#ix-colonia",
-      tel:"#ix-telefono", correo:"#ix-correo", desc:"#ix-descripcion",
-      consent:"#ix-consent", asunto:"#ix-asunto",
-    }[res.firstBad];
-    modal.querySelector(sel || "")?.focus?.();
-    return;
-  }
-
-  // build payload
-  const depId  = Number(currentDepId  || inpDepId?.value || 1);
-  const tramId = Number(currentItemId || inpTram?.value  || 0);
-  const modoOtros = modal.dataset.mode === "otros";
-
-  const body = {
-    departamento_id: depId,
-    tramite_id: tramId || null,
-    asignado_a: 1,
-    asunto: (modoOtros && inpAsunto?.value.trim()) ? inpAsunto.value.trim() : `Reporte ${currentTitle}`,
-    descripcion: (inpDesc?.value || "").trim(),
-    prioridad: 2,
-    estatus: 0,     // 0 = solicitud
-    canal: 1,
-    contacto_nombre: (inpNombre?.value || "").trim(),
-    contacto_email: (inpCorreo?.value || "").trim() || null,
-    contacto_telefono: digits(inpTel?.value || ""),
-    contacto_calle: (inpDom?.value || "").trim(),
-    contacto_colonia: (inpCol?.value || "").trim(),
-    contacto_cp: (inpCP?.value || "").trim(),
-    fecha_limite: null,
-    status: 1,
-    created_by: 1,
-  };
-
-  // estado UI
-  isSubmitting = true;
-  form.setAttribute("aria-busy","true");
-  const oldTxt = btnSend.textContent;
-  btnSend.disabled = true;
-  btnSend.textContent = "Enviando…";
-
-  try {
-    // 1) crear requerimiento
-    const json = await withTimeout((signal) =>
-      fetch(CFG.ENDPOINTS.insertReq, {
-        method: "POST",
-        headers: { "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify(body),
-        signal,
-      }).then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-    );
-
-    if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
-    const folio = json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10,"0")}`;
-
-    // 2) preparar folders (best-effort)
-    try {
-      await withTimeout((signal) =>
-        fetch(CFG.ENDPOINTS.fsBootstrap, {
-          method: "POST",
-          headers: { "Content-Type":"application/json", "Accept":"application/json" },
-          body: JSON.stringify({ folio }),
-          signal,
-        }).then(r=>r.json())
-      );
-    } catch {}
-
-    // 3) subir evidencias (si hay)
-    if (files.length) {
-      const fd = new FormData();
-      fd.append("folio", folio);
-      fd.append("status", "0");
-      files.forEach(f => fd.append("files[]", f, f.name));
-      try {
-        await withTimeout((signal) =>
-          fetch(CFG.ENDPOINTS.uploadImg, { method:"POST", body: fd, signal })
-            .then(r => r.json())
-        );
-      } catch {
-        window.ixToast?.warn("El reporte se creó, pero algunas imágenes no se subieron.");
-      }
+    const res = validateForm(true);
+    if (!res.ok) {
+      const sel = {
+        nombre:"#ix-nombre", dom:"#ix-domicilio", cp:"#ix-cp", col:"#ix-colonia",
+        tel:"#ix-telefono", correo:"#ix-correo", desc:"#ix-descripcion",
+        consent:"#ix-consent", asunto:"#ix-asunto",
+      }[res.firstBad];
+      sel && modal.querySelector(sel)?.focus?.();
+      return;
     }
 
-    // 4) reset + cerrar formulario + abrir modal informativo
-    window.ixToast?.ok(`Reporte creado: ${folio}`, 3200);
+    // payload listo
+    const depId = Number(currentDepId || inpDepId?.value || 1);
+    const tramId = Number(currentItemId || inpTram?.value || 0);
+    const modoOtros = modal.dataset.mode === "otros";
 
-    Array.from(form.elements).forEach(el => (el.disabled = false));
-    btnSend.textContent = oldTxt;
-    form.reset();
-    files.forEach(f => { if (f?._url) { try { URL.revokeObjectURL(f._url); } catch {} } });
-    files = [];
-    refreshPreviews();
-    updateDescCount();
-    closeModal();
+    const body = {
+      departamento_id: depId,
+      tramite_id: tramId || null,
+      asignado_a: 1,
+      asunto: (modoOtros && inpAsunto?.value.trim()) ? inpAsunto.value.trim() : `Reporte ${currentTitle}`,
+      descripcion: (inpDesc?.value || "").trim(),
+      prioridad: 2,
+      estatus: 0, // solicitud
+      canal: 1,
+      contacto_nombre: (inpNombre?.value || "").trim(),
+      contacto_email: (inpCorreo?.value || "").trim() || null,
+      contacto_telefono: digits(inpTel?.value || ""),
+      contacto_calle: (inpDom?.value || "").trim(),
+      contacto_colonia: (inpCol?.value || "").trim(),
+      contacto_cp: (inpCP?.value || "").trim(),
+      fecha_limite: null,
+      status: 1,
+      created_by: 1,
+    };
 
-    // mostrar modal informativo con título y folio
-    window.ixDoneModal?.open({ folio, title: currentTitle });
+    // UI “enviando…”
+    isSubmitting = true;
+    form.setAttribute("aria-busy", "true");
+    const oldTxt = btnSend.textContent;
+    btnSend.textContent = "Enviando…";
+    Array.from(form.elements).forEach(el => (el.disabled = true));
 
-  } catch (err) {
-    window.ixToast?.err("No se pudo enviar el reporte.");
-    showFeedback(`No se pudo enviar el reporte. ${err?.message || err}`);
-  } finally {
-    isSubmitting = false;
-    form.removeAttribute("aria-busy");
-    btnSend.textContent = oldTxt;
-    btnSend.disabled = false;
-  }
+    try {
+      // 1) Insertar requerimiento
+      const json = await withTimeout((signal) =>
+        fetch(CFG.ENDPOINTS.insertReq, {
+          method: "POST",
+          headers: { "Content-Type":"application/json", "Accept":"application/json" },
+          body: JSON.stringify(body),
+          signal,
+        }).then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      );
+      if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
+
+      const folio = json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10,"0")}`;
+
+      // 2) Preparar FS (no bloqueante si falla)
+      try {
+        await withTimeout((signal) =>
+          fetch(CFG.ENDPOINTS.fsBootstrap, {
+            method: "POST",
+            headers: { "Content-Type":"application/json", "Accept":"application/json" },
+            body: JSON.stringify({ folio }),
+            signal,
+          }).then(r=>r.json())
+        );
+      } catch {}
+
+      // 3) Subir imágenes (si hay)
+      if (files.length) {
+        const fd = new FormData();
+        fd.append("folio", folio);
+        fd.append("status", "0");
+        files.forEach((f) => fd.append("files[]", f, f.name));
+        try {
+          await withTimeout((signal) =>
+            fetch(CFG.ENDPOINTS.uploadImg, { method: "POST", body: fd, signal })
+              .then(r=>r.json())
+          );
+        } catch {
+          window.ixToast?.warn("El reporte se creó, pero algunas imágenes no se subieron.");
+          showFeedback("El reporte se creó, pero algunas imágenes no se subieron.");
+        }
+      }
+
+      // 4) Fin: cerrar formulario + modal informativo + toast
+      closeModal(); // cierra el form
+      window.ixToast?.ok(`Reporte creado: ${folio}`, 3200);
+      window.ixDoneModal?.open({ folio, title: currentTitle });
+
+      // Reset UI
+      Array.from(form.elements).forEach(el => (el.disabled = false));
+      btnSend.textContent = oldTxt;
+      form.reset();
+      files.forEach(f => { if (f?._url) try { URL.revokeObjectURL(f._url); } catch {} });
+      files = [];
+      refreshPreviews();
+      updateDescCount();
+    } catch (err) {
+      window.ixToast?.err("No se pudo enviar el reporte.");
+      showFeedback(`No se pudo enviar el reporte. ${err?.message || err}`);
+      Array.from(form.elements).forEach(el => (el.disabled = false));
+      btnSend.textContent = oldTxt;
+      btnSend.disabled = false;
+    } finally {
+      isSubmitting = false;
+      form.removeAttribute("aria-busy");
+    }
   });
 })();

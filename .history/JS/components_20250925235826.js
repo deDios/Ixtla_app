@@ -359,3 +359,47 @@
 })();
 
 
+
+//------------------ modal informativo de levantamiento de requerimiento
+(() => {
+  const root = document.getElementById("ix-done-modal");
+  if (!root) return;
+
+  const overlay = root.querySelector(".ix-modal__overlay");
+  const btnCloses = root.querySelectorAll("[data-ix-close]");
+  const folioEl = root.querySelector("#ix-done-folio");
+  const followA = root.querySelector("#ix-done-follow");
+  const titleEl = root.querySelector("#ix-done-title");
+
+  function open({ folio = "", title = "Reporte" } = {}) {
+    // setea textos/destino
+    if (folioEl) folioEl.textContent = folio || "—";
+    if (titleEl) titleEl.textContent = "Solicitud enviada";
+    if (followA) {
+      // envía a la sección de búsqueda con el folio precargado en query
+      const url = new URL(followA.getAttribute("href"), location.origin);
+      url.searchParams.set("track", folio);
+      followA.setAttribute("href", url.toString());
+    }
+
+    root.hidden = false;
+    root.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    root._onKey = onKey;
+    document.addEventListener("keydown", onKey);
+
+    overlay?.addEventListener("click", close, { once:true });
+    btnCloses.forEach(b => b.addEventListener("click", close, { once:true }));
+  }
+
+  function close() {
+    document.removeEventListener("keydown", root._onKey || (()=>{}));
+    root.hidden = true;
+    root.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  window.ixDoneModal = { open, close };
+})();
