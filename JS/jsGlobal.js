@@ -421,10 +421,10 @@
 
     // --- links de redes sociales
     const socialDefaults = {
-      facebook: "https://www.facebook.com/profile.php?id=61578204608103",
-      instagram: "https://www.instagram.com/god_code_mx/",
-      youtube: "https://www.youtube.com/",
-      x: "https://twitter.com/",
+      facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
+      instagram: "https://www.instagram.com/imembrillosgob/ ",
+      youtube: "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
+      x: "https://twitter.com",
     };
     const socialMap = Object.assign(
       {},

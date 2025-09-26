@@ -207,6 +207,7 @@
 
 
     <script src="/JS/JSglobal.js"></script>
+    <script src="/JS/contacto.js"></script>
 
 </body>
 

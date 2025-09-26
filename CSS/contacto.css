@@ -158,12 +158,12 @@
     padding: 0;
     display: grid;
     gap: 18px;
+    padding-bottom: 180px;
 }
 
 #login .contact-list li {
     display: grid;
-    grid-template-columns: 32px 1fr;
-    /* celda para icono + texto */
+    grid-template-columns: 32px .9fr;
     gap: 12px;
     align-items: start;
     line-height: 1.35;

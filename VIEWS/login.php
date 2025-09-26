@@ -88,7 +88,7 @@
                         <form class="auth-form" action="#" method="post" novalidate>
                             <label class="field">
                                 <input type="text" name="usuario" autocomplete="username"
-                                    placeholder="Teléfono, usuario o correo electrónico">
+                                    placeholder="Teléfono o correo electrónico">
                             </label>
 
                             <label class="field">
@@ -101,16 +101,15 @@
                             <div class="auth-divider" role="separator" aria-label="o">
                                 <span class="line"></span><span class="dot"></span><span class="line"></span>
                             </div>
-
-                            <a href="/VIEWS/recover.php" class="forgot-link">¿Olvidaste tu contraseña?</a>
+                            <!-- <a href="/VIEWS/recover.php" class="forgot-link">¿Olvidaste tu contraseña?</a>  -->
                         </form>
                     </div>
                 </div>
 
                 <nav class="auth-mini-nav" aria-label="Enlaces informativos">
-                    <a href="#">Ubicación</a>
-                    <a href="#">Galería</a>
-                    <a href="#">Información</a>
+                    <a href="https://maps.app.goo.gl/LZD6t8JeazxKa5wn9">Ubicación</a>
+                    <a href="https://www.instagram.com/imembrillosgob/">Galería</a>
+                    <!-- <a href="#">Información</a> -->
                 </nav>
                 <p class="auth-copy">©2025 Municipio Ixtlahuacan de los membrillos</p>
             </div>
