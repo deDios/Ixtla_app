@@ -47,7 +47,7 @@
   w.IX_CFG_REQ = {
     // Validaciones
     NAME_MIN_CHARS: 5,
-    DESC_MIN_CHARS: 30,
+    DESC_MIN_CHARS: 10,
     PHONE_DIGITS: 10,
 
     // Subida de imágenes

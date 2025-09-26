@@ -99,8 +99,8 @@
                     <div id="ix-track-empty" class="ix-state is-visible" role="status">
                         <p>Una vez ingresado el ID del trámite, el estado del reporte se mostrará en esta sección,
                             de acuerdo con la etapa del proceso.</p>
-                        <p>Si no recuerdas tu ID comunícate al <a href="tel:3333333333">33 3333 3333</a>
-                            o escribe a <a href="mailto:recuperarId@gmail.com">recuperarId@gmail.com</a>.</p>
+                        <p>Si no recuerdas tu ID comunícate al <a href="tel:33 1297 7799">33 1297 7799</a>
+                            o escribe a <a href="mailto:aciudadana98@gmail.com">aciudadana98@gmail.com</a>.</p>
                     </div>
 
                     <!-- LOADING -->
@@ -516,8 +516,8 @@
                         Recuerda guardar este número para darle seguimiento.
                     </p>
 
-                    <p>Para cualquier otra duda comunícate al <a href="tel:3333333333">33 3333 3333</a>
-                        o envía un correo a <a href="mailto:recuperarId@gmail.com">recuperarId@gmail.com</a>.
+                    <p>Para cualquier otra duda comunícate al <a href="tel:33 1297 7799">33 1297 7799</a>
+                        o envía un correo a <a href="mailto:aciudadana98@gmail.com">aciudadana98@gmail.com</a>.
                     </p>
                 </div>
             </div>

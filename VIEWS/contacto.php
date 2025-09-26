@@ -95,13 +95,13 @@
                             <div class="grid-2">
                                 <label class="field">
                                     <span>Email</span>
-                                    <input type="email" name="email" placeholder="Many5@gmail.com" inputmode="email"
+                                    <input type="email" name="email" placeholder="Many@gmail.com" inputmode="email"
                                         autocomplete="email">
                                 </label>
 
                                 <label class="field">
                                     <span>Número telefónico</span>
-                                    <input type="tel" name="telefono" placeholder="+52 33 1381 2235" inputmode="tel"
+                                    <input type="tel" name="telefono" placeholder="33 1297 7799" inputmode="tel"
                                         autocomplete="tel">
                                 </label>
                             </div>
@@ -115,7 +115,7 @@
                         </form>
                     </div>
 
-                    <!-- Columna derecha: el recuadro verde -->
+                    <!-- Columna derecha, el recuadro verde -->
                     <aside class="contact-panel" aria-label="Contacta con nosotros">
                         <div class="contact-inner">
                             <h2>Contacta con nosotros</h2>
@@ -126,26 +126,26 @@
                                     <span class="icon">
                                         <img src="/ASSETS/icons/mail.png" alt="Correo">
                                     </span>
-                                    <a href="mailto:atencionciudadana@gmail.gob.mx">atencionciudadana@gmail.gob.mx</a>
+                                    <a href="mailto:aciudadana98@gmail.com">aciudadana98@gmail.com</a>
                                 </li>
 
-                                <!-- Teléfono fijo -->
+                                <!-- telefono -->
                                 <li>
                                     <span class="icon">
                                         <img src="/ASSETS/icons/phone.png" alt="Teléfono">
                                     </span>
-                                    7676-2001
+                                    33 1297 7799
                                 </li>
 
-                                <!-- WhatsApp / Teléfono móvil -->
+                                <!-- whatsApp -->
                                 <li>
                                     <span class="icon">
                                         <img src="/ASSETS/icons/whatsapp.png" alt="WhatsApp">
                                     </span>
-                                    +52 33 3333 3333
+                                    33 1297 7799
                                 </li>
 
-                                <!-- Ubicación -->
+                                <!-- ubicacion -->
                                 <li class="address">
                                     <span class="icon">
                                         <img src="/ASSETS/icons/location-pin.png" alt="Ubicación">
@@ -161,7 +161,7 @@
 
                 </div>
 
-                <!-- Nota inferior -->
+                <!-- nota inferior -->
                 <p class="login-note">
                     Estamos para servirte Para cualquier duda, reporte o trámite, comunícate con nosotros a través de
                     los medios oficiales.
@@ -172,7 +172,7 @@
 
     </main>
 
-    <!-- Pie de pagina -->
+    <!-- pie de pagina -->
     <footer id="site-footer">
         <div class="limite">
             <div class="footer-brand">
