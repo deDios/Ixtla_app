@@ -487,6 +487,46 @@
 
 
 
+    <!-- modal de que se levanto bien el requerimiento y informacion de este -->
+    <div id="ix-done-modal" class="ix-done" hidden aria-hidden="true">
+        <div class="ix-done__overlay" data-done-close></div>
+
+        <div class="ix-done__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-done-title"
+            aria-describedby="ix-done-desc">
+            <header class="ix-done__header">
+                <img class="ix-done__brand" src="/ASSETS/main_logo.png"
+                    alt="Ixtlahuacán de los Membrillos - Ayuntamiento" onerror="this.style.display='none'">
+                <div class="ix-done__headings">
+                    <h2 id="ix-done-title" class="ix-done__title">Nuevo Reporte</h2>
+                    <p id="ix-done-sub" class="ix-done__subtitle">—</p>
+                </div>
+                <button type="button" class="ix-done__close" aria-label="Cerrar" data-done-close>×</button>
+            </header>
+
+            <div class="ix-done__body" id="ix-done-desc">
+                <p>Gracias por contribuir a mejorar la zona. Pronto se dará seguimiento.</p>
+                <p>
+                    Lo atenderemos lo más rápido posible.<br>
+                    El N° de tu reporte es: <strong id="ix-done-folio">—</strong>.<br>
+                    Recuerda guardar este número para darle seguimiento.
+                </p>
+                <p>
+                    Para cualquier otra duda comunícate al
+                    <a href="tel:3333333333">33 3333 3333</a>
+                    o envía un correo a
+                    <a href="mailto:recuperarId@gmail.com">recuperarId@gmail.com</a>.
+                </p>
+            </div>
+
+            <footer class="ix-done__footer">
+                <button type="button" class="ix-done__ok" data-done-close>Finalizar</button>
+            </footer>
+        </div>
+    </div>
+
+
+
+
     <script src="/JS/serviceSeguimientoTramites.js"></script>
     <script src="/JS/components.js"></script>
     <script src="/JS/tramiteDepartamentos.js"></script>

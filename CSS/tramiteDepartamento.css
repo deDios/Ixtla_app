@@ -1180,3 +1180,83 @@
   .ix-modal .ix-upload { padding: 22px; }
 }
 
+
+
+/*------------- parche css para el modal de levantamiento de requerimeinto -------------*/
+.ix-done[hidden]{ display:none !important; }
+
+.ix-done__overlay{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.48);
+  backdrop-filter: blur(2px);
+  animation: ixDoneFade .18s ease-out;
+}
+
+.ix-done__dialog{
+  position: fixed; left:50%; top:50%; transform: translate(-50%,-50%);
+  width: min(540px, 92vw); background: #f4f5f7; border-radius: 12px;
+  box-shadow: 0 30px 60px rgba(0,0,0,.25); overflow: hidden;
+  animation: ixDonePop .18s ease-out;
+}
+
+.ix-done__header{
+  display: grid; grid-template-columns: auto 1fr auto;
+  gap: 12px; align-items: center;
+  padding: 14px 16px; background: #ffffff;
+  border-bottom: 1px solid #e6e9ef;
+}
+.ix-done__brand{ width: 64px; height: auto; object-fit: contain; }
+.ix-done__title{ margin: 0; font-size: 22px; font-weight: 900; color:#0f172a; }
+.ix-done__subtitle{ margin: 2px 0 0; color:#334155; font-weight: 700; }
+.ix-done__close{
+  border: 0; background: transparent; font-size: 22px; line-height: 1;
+  color:#6b7280; cursor: pointer; padding: 4px 6px; border-radius: 8px;
+}
+.ix-done__close:hover{ background: #f1f5f9; }
+
+.ix-done__body{
+  padding: 18px 16px; color:#374151; line-height: 1.5; text-align: center;
+}
+.ix-done__body p{ margin: 0 0 12px; }
+.ix-done__body strong{ font-weight: 900; }
+
+.ix-done__footer{
+  display: flex; justify-content: center;
+  padding: 12px 16px 16px; background:#ffffff; border-top: 1px solid #e6e9ef;
+}
+.ix-done__ok{
+  height: 40px; padding: 0 18px; border-radius: 999px; border: 0;
+  background: #467bd0; color: #fff; font-weight: 800; cursor: pointer;
+  box-shadow: 0 10px 22px rgba(70,123,208,.28);
+  transition: background .18s, transform .04s;
+}
+.ix-done__ok:hover{ background: #3f6fbc; }
+.ix-done__ok:active{ transform: translateY(1px); }
+
+.ix-done__ok:focus-visible,
+.ix-done__close:focus-visible{
+  outline: 2px solid #2d7e5f; outline-offset: 2px;
+}
+
+@keyframes ixDoneFade { from{opacity:0} to{opacity:1} }
+@keyframes ixDonePop  { from{transform:translate(-50%,-48%) scale(.98); opacity:.9}
+                        to  {transform:translate(-50%,-50%) scale(1);   opacity:1} }
+
+
+/* pequeño parche para el area de texto de descripcion del formulario */
+#ix-report-modal #ix-descripcion {
+  resize: none;          
+  overflow-y: auto;     
+  min-height: 140px;
+  max-height: 260px;   
+}
+
+#ix-report-modal .ix-upload-btn[disabled] {
+  cursor: not-allowed;
+  opacity: .55;
+  filter: grayscale(.15);
+}
+
+#ix-report-modal .ix-field--error .ix-help {
+  display: block !important;
+}

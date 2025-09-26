@@ -30,8 +30,8 @@ if ($path && file_exists($path)) {
 }
 
 /* ---------- Config ---------- */
-$MAX_FILES    = 6;                  // max. archivos por subida
-$MAX_BYTES    = 30 * 1024 * 1024;   // 30 MB por archivo
+$MAX_FILES    = 3;                  // max. archivos por subida
+$MAX_BYTES    = 10 * 1024 * 1024;   // 10 MB por archivo
 
 $ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 $EXT_FOR_MIME = [ //ya deberia aceptar los archivos de iphone y android sin problemas

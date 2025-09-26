@@ -54,7 +54,7 @@
         <nav id="mobile-menu" class="subnav" aria-label="Navegación secundaria">
             <div class="nav-left">
                 <a href="/index.php">Inicio</a>
-                <a href="/VIEWS/tramiteDepartamento.php" class="active">Trámites y Seguimiento</a>
+                <a href="/VIEWS/tramiteDepartamento.php">Trámites y Seguimiento</a>
             </div>
 
 
