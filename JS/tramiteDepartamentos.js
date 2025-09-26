@@ -854,8 +854,8 @@ document.addEventListener("DOMContentLoaded", () => {
       files=[]; refreshPreviews(); updateDescCount();
       closeModal();
 
-      // toast “como antes”: título + folio
-      window.ixToast?.ok(`Se generó el requerimiento “${currentTitle}”. ID: ${folio}`, 4200);
+      // toast exitoso
+      window.ixToast?.ok(`Nuevo requerimiento. folio: ${folio}`, 5200);
 
       // modal informativo final
       if(window.ixDoneModal?.open) window.ixDoneModal.open({ folio, title: currentTitle });
