@@ -208,6 +208,7 @@
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/contacto.js"></script>
+    <script src="/JS/components.js"></script>
 
 </body>
 

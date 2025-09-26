@@ -479,17 +479,4 @@
       });
     }
   }); // -------------------- fin subnav --------------------
-
-  // -------------------- cotizar deshabilitado --------------------
-  document.addEventListener("DOMContentLoaded", () => {
-    const cotizarBtn = document.querySelector(".actions .btn-outline");
-    if (!cotizarBtn) return;
-    cotizarBtn.removeAttribute("onclick");
-    cotizarBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      window.gcToast
-        ? gcToast("Función deshabilitada", "warning", 4000)
-        : alert("Función deshabilitada");
-    });
-  });
 })();
