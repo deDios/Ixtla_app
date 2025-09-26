@@ -1,154 +1,139 @@
 (() => {
   "use strict";
-  const TAG = "[Cotizar]";
 
-  // ------------------ Config ------------------
-  const MIN_DESC = 10;        
-  const MOCK_LATENCY = 1200;  
+  const TAG = "[Contacto]";
 
-  const _tipoMap = {
-    success: "exito",
-    warning: "advertencia",
-    warn:    "advertencia",
-    error:   "error",
-    info:    "info",
-    exito:   "exito",
-  };
-  
-  const gcToastSafe = (msg, type = "success", dur = 3200) => {
-    const fn = window.gcToast;
-    const tipoES = _tipoMap[type] || type || "exito";
-    if (typeof fn === "function") return fn(msg, tipoES, dur);
-    alert(msg);
+  // ------ Utils ------
+  const hasToast = typeof window.gcToast === "object" && window.gcToast;
+  const toast = {
+    ok: (msg) => hasToast ? gcToast.success(msg) : alert(msg),
+    warn: (msg) => hasToast ? gcToast.warn(msg) : alert(msg),
+    err: (msg) => hasToast ? gcToast.error(msg) : alert(msg),
   };
 
-  // ------------------ Selectores base ------------------
-  const root = document.getElementById("cotizar") || document;
-  const form = root.querySelector(".form") || root.querySelector("[data-cotizar-form]");
-  if (!form) return console.warn(TAG, "No se encontró el formulario de cotizar.");
+  const byName = (form, name) => form.querySelector(`[name="${name}"]`);
 
-  const btn  = form.querySelector(".btn-enviar");
-
-  const el = {
-    nombre:   form.elements["nombre"]    || null,
-    apellidos:form.elements["apellidos"] || null,
-    email:    form.elements["email"]     || null,
-    telefono: form.elements["telefono"]  || null,
-    servicio: form.elements["servicio"]  || form.elements["asunto"] || null, // select o input
-    mensaje:  form.elements["mensaje"]   || null,
-  };
-
-  // ------------------ Region viva ------------------
-  let live = document.getElementById("cotizar-live");
-  if (!live) {
-    live = document.createElement("div");
-    live.id = "cotizar-live";
-    live.setAttribute("aria-live", "polite");
-    live.className = "visually-hidden";
-    form.appendChild(live);
+  function normalizePhone(raw) {
+    if (!raw) return "";
+    let s = String(raw).trim();
+    const keepPlus = s.startsWith("+");
+    s = s.replace(/[^\d]/g, ""); 
+    if (keepPlus) s = "+" + s;
+    return s;
   }
 
-  // ------------------ Utils ------------------
-  const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
-  const telOk   = (v) => String(v || "").replace(/\D+/g, "").length >= 10;
+  function isEmail(str) {
+    if (!str) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(str.trim());
+  }
 
-  const setLoading = (on) => {
-    if (!btn) return;
-    btn.disabled = !!on;
-    btn.classList.toggle("is-loading", !!on);
-    btn.textContent = on ? "Enviando..." : "Enviar";
-  };
+  function minLen(str, n) {
+    return (str || "").trim().length >= n;
+  }
 
-  const getData = () => {
-    const fd = new FormData(form);
-    const d = {
-      nombre:    (fd.get("nombre")    || "").toString().trim(),
-      apellidos: (fd.get("apellidos") || "").toString().trim(),
-      email:     (fd.get("email")     || "").toString().trim(),
-      telefono:  (fd.get("telefono")  || "").toString().trim(),
-      servicio:  (fd.get("servicio")  || fd.get("asunto") || "").toString().trim(),
-      mensaje:   (fd.get("mensaje")   || "").toString().trim(),
-    };
-    return d;
-  };
+  // ------ Envio ------
+  async function sendContacto(payload) {
+    const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_contacto.php";
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json;charset=utf-8" },
+      body: JSON.stringify(payload),
+    });
+    const text = await resp.text();
+    try {
+      const json = text ? JSON.parse(text) : {};
+      if (!resp.ok) {
+        const msg = json?.message || json?.error || `Error ${resp.status}`;
+        throw new Error(msg);
+      }
+      return json;
+    } catch (e) {
+      if (!resp.ok) throw new Error(text || `Error ${resp.status}`);
+      return { ok: true, raw: text };
+    }
+  }
 
-  const validate = () => {
-    const d = getData();
-    if (!d.nombre || d.nombre.length < 2)     return { ok:false, msg:"Escribe tu nombre." };
-    if (!emailOk(d.email))                    return { ok:false, msg:"Escribe un correo válido." };
-    if (!telOk(d.telefono))                   return { ok:false, msg:"Escribe un teléfono válido (10 dígitos)." };
-    if (el.servicio && !d.servicio)           return { ok:false, msg:"Selecciona o escribe el servicio/asunto." };
-    if (!d.mensaje || d.mensaje.length < MIN_DESC)
-                                              return { ok:false, msg:`El mensaje debe tener al menos ${MIN_DESC} caracteres.` };
-    return { ok:true, data: d };
-  };
-
-  // ------------------ Contador de caracteres ------------------
-  const outCounter =
-    root.querySelector("#contador-descripcion") ||
-    root.querySelector('.char-counter[data-cc-for="mensaje"]') ||
-    null;
-
-  const updateDescCount = () => {
-    if (!el.mensaje || !outCounter) return;
-    const len = (el.mensaje.value || "").length;
-    const max = el.mensaje.maxLength > 0 ? el.mensaje.maxLength : null;
-    outCounter.textContent = max
-      ? `${len}/${max} — mínimo ${MIN_DESC} caracteres`
-      : `${len} — mínimo ${MIN_DESC} caracteres`;
-  };
-
-  // ------------------ Habilitar boton si los campos ya estan validos ------------------
-  const updateBtnState = () => {
-    if (!btn) return;
-    const d = getData();
-    const ready =
-      (!!d.nombre && d.nombre.length >= 2) &&
-      emailOk(d.email) &&
-      telOk(d.telefono) &&
-      (!el.servicio || !!d.servicio) &&
-      (!!d.mensaje && d.mensaje.length >= MIN_DESC);
-    btn.disabled = !ready;
-  };
-
-  // ------------------ Submit ------------------
-  form.addEventListener("submit", (ev) => {
-    ev.preventDefault();
-    const v = validate();
-    if (!v.ok) {
-      gcToastSafe(v.msg, "warning", 3600);
-      live.textContent = v.msg;
-      if (v.msg.includes("nombre"))        el.nombre?.focus();
-      else if (v.msg.includes("correo"))   el.email?.focus();
-      else if (v.msg.includes("teléfono")) el.telefono?.focus();
-      else if (v.msg.includes("servicio")) el.servicio?.focus();
-      else                                  el.mensaje?.focus();
+  // ------ Main ------
+  window.addEventListener("DOMContentLoaded", () => {
+    const form = document.querySelector("form.form");
+    if (!form) {
+      console.warn(`${TAG} No se encontró el formulario .form`);
       return;
     }
 
-    setLoading(true);
-    live.textContent = "Enviando…";
-    setTimeout(() => {
-      console.log(TAG, "Payload simulado:", v.data);
-      gcToastSafe("¡Gracias! Tu solicitud de cotización fue enviada.", "success", 3600);
-      live.textContent = "Cotización enviada correctamente.";
-      form.reset();
-      updateDescCount();
-      updateBtnState();
-      setLoading(false);
-    }, MOCK_LATENCY);
-  });
+    const btn = form.querySelector(".btn-enviar");
+    const nombreEl = byName(form, "nombre");
+    const apellidosEl = byName(form, "apellidos");
+    const emailEl = byName(form, "email");
+    const telefonoEl = byName(form, "telefono");
+    const mensajeEl = byName(form, "mensaje");
 
-  // ------------------ Listeners ------------------
-  form.addEventListener("input", () => {
-    updateDescCount();
-    updateBtnState();
-  });
-  form.addEventListener("change", () => {
-    updateDescCount();
-    updateBtnState();
-  });
+    let sending = false;
 
-  updateDescCount();
-  updateBtnState();
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      if (sending) return;
+
+      const nombre = (nombreEl?.value || "").trim();
+      const apellidos = (apellidosEl?.value || "").trim();
+      const email = (emailEl?.value || "").trim();
+      const telefono = normalizePhone(telefonoEl?.value || "");
+      const mensaje = (mensajeEl?.value || "").trim();
+
+      if (!minLen(nombre, 2)) return toast.warn("Escribe tu nombre.");
+      if (!minLen(apellidos, 2)) return toast.warn("Escribe tus apellidos.");
+      if (!isEmail(email)) return toast.warn("Escribe un correo válido.");
+      if (telefono && telefono.replace(/\D/g, "").length < 10) {
+        return toast.warn("El número telefónico parece incompleto.");
+      }
+      if (!minLen(mensaje, 10)) return toast.warn("Cuéntanos más en el mensaje (mínimo 10 caracteres).");
+
+      // payload
+      const payload = {
+        nombre,
+        apellidos,
+        email,
+        telefono,
+        asunto: "Contacto desde sitio web",
+        mensaje,
+        estatus: 0,   // deberia ser el "pendiente"
+        canal: 1,     // 1 web
+        status: 1,    // activo
+        created_by: 1 // luego que tengamos usuarios cambiamos esto
+      };
+
+      // Bloquear UI
+      sending = true;
+      if (btn) {
+        btn.disabled = true;
+        btn.dataset._oldText = btn.textContent;
+        btn.textContent = "Enviando…";
+      }
+
+      try {
+        const res = await sendContacto(payload);
+        console.log(TAG, "Respuesta:", res);
+
+        toast.ok("¡Gracias! Tu mensaje fue enviado correctamente.");
+        // Reset de formulario 
+        form.reset();
+      } catch (err) {
+        console.error(TAG, err);
+        toast.err(err?.message || "No se pudo enviar tu mensaje. Intenta de nuevo.");
+      } finally {
+        sending = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = btn.dataset._oldText || "Enviar";
+        }
+      }
+    });
+
+    mensajeEl?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        form.requestSubmit?.();
+      }
+    });
+  });
 })();
+
