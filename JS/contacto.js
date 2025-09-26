@@ -6,9 +6,9 @@
   // ------ Utils ------
   const hasToast = typeof window.gcToast === "object" && window.gcToast;
   const toast = {
-    ok: (msg) => hasToast ? gcToast.success(msg) : alert(msg),
-    warn: (msg) => hasToast ? gcToast.warn(msg) : alert(msg),
-    err: (msg) => hasToast ? gcToast.error(msg) : alert(msg),
+    ok:   (msg) => hasToast ? gcToast.success(msg) : console.log(TAG, "(ok)", msg),
+    warn: (msg) => hasToast ? gcToast.warn(msg)    : console.warn(TAG, "(warn)", msg),
+    err:  (msg) => hasToast ? gcToast.error(msg)   : console.error(TAG, "(err)", msg),
   };
 
   const byName = (form, name) => form.querySelector(`[name="${name}"]`);
@@ -31,7 +31,7 @@
     return (str || "").trim().length >= n;
   }
 
-  // ------ Envio ------
+  // ------ Envío ------
   async function sendContacto(payload) {
     const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_contacto.php";
     const resp = await fetch(url, {
@@ -88,18 +88,17 @@
       }
       if (!minLen(mensaje, 10)) return toast.warn("Cuéntanos más en el mensaje (mínimo 10 caracteres).");
 
-      // payload
       const payload = {
         nombre,
         apellidos,
         email,
         telefono,
-        asunto: "Contacto desde sitio web",
+        asunto: "Consulta general", // pendiente
         mensaje,
-        estatus: 0,   // deberia ser el "pendiente"
-        canal: 1,     // 1 web
+        estatus: 0,   // pendiente
+        canal: 1,     // Web
         status: 1,    // activo
-        created_by: 1 // luego que tengamos usuarios cambiamos esto
+        created_by: 1 // ajustar cuando manejemos usuarios
       };
 
       // Bloquear UI
@@ -113,9 +112,7 @@
       try {
         const res = await sendContacto(payload);
         console.log(TAG, "Respuesta:", res);
-
         toast.ok("¡Gracias! Tu mensaje fue enviado correctamente.");
-        // Reset de formulario 
         form.reset();
       } catch (err) {
         console.error(TAG, err);
@@ -136,4 +133,3 @@
     });
   });
 })();
-
