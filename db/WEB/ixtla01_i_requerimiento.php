@@ -176,7 +176,7 @@ if ($res && !empty($res['contacto_telefono'])) {
   if ($to) {
     $tplName   = "req_01";                 
     $langCode  = "es_MX";
-    $paramsArr = [$res['folio']];          // {{1}}
+    $paramsArr = [$res['folio']];          // {{1}} parametro del folio
     $paramsJson= json_encode($paramsArr, JSON_UNESCAPED_UNICODE);
 
     $waPayload = ["to"=>$to, "template"=>$tplName, "lang"=>$langCode, "params"=>$paramsArr];
