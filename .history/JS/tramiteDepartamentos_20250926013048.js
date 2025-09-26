@@ -70,6 +70,7 @@
 
   w.IX_CFG_REQ_ACCEPT = [...w.IX_CFG_REQ.ACCEPT_MIME, ...w.IX_CFG_REQ.ACCEPT_EXT].join(",");
 
+  // Toast wrapper (si no existe, crea uno simple basado en gcToast/alert)
   w.ixToast = w.ixToast || {
     ok  (m,ms=3200){ return w.gcToast ? gcToast(m,"exito",ms)  : alert(m); },
     info(m,ms=2200){ return w.gcToast ? gcToast(m,"info",ms)   : alert(m); },

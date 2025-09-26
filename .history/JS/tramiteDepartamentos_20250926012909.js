@@ -1,4 +1,4 @@
-//----------------------------------------- RENDERS DE CARDS Y ITEMS DE DEPARTAMENTOPS
+//-----------------------------------------
 (function (w) {
   w.IX_CFG_DEPS = {
     DEBUG: Boolean(w.IX_DEBUG),
@@ -42,7 +42,7 @@
 })(window);
 
 
-//------------------------------------- LEVANTAMIENTO DE REQUERIMIENTOS
+//-------------------------------------
 (function (w) {
   w.IX_CFG_REQ = {
     // Validaciones
@@ -53,7 +53,7 @@
     // Subida de imágenes
     MAX_FILES: 3,
     MIN_FILES: 0,
-    MAX_MB: 1, 
+    MAX_MB: 20, // ajusta aquí el peso máximo por archivo (MB)
     ACCEPT_MIME: ["image/jpeg","image/png","image/webp","image/heic","image/heif"],
     ACCEPT_EXT:  [".jpg",".jpeg",".png",".webp",".heic",".heif"],
 
@@ -70,6 +70,7 @@
 
   w.IX_CFG_REQ_ACCEPT = [...w.IX_CFG_REQ.ACCEPT_MIME, ...w.IX_CFG_REQ.ACCEPT_EXT].join(",");
 
+  // Toast wrapper (si no existe, crea uno simple basado en gcToast/alert)
   w.ixToast = w.ixToast || {
     ok  (m,ms=3200){ return w.gcToast ? gcToast(m,"exito",ms)  : alert(m); },
     info(m,ms=2200){ return w.gcToast ? gcToast(m,"info",ms)   : alert(m); },
