@@ -568,7 +568,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (help) { help.hidden = !msg; help.textContent = msg || ""; }
   }
 
-  function updateDescCount(){ if (cntDesc && inpDesc) cntDesc.textContent = `mínimo 10 caracteres -${(inpDesc.value || "").length} `; }
+  function updateDescCount(){ if (cntDesc && inpDesc) cntDesc.textContent = `mínimo 10 caracteres - ${(inpDesc.value || "").length} `; }
 
   /* ---------- Selects CP / Colonia ---------- */
   const makeOpt = (v, label, o={}) => {
