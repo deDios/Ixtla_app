@@ -174,8 +174,8 @@ $wa = ["called" => false];
 if ($res && !empty($res['contacto_telefono'])) {
   $to = to_e164_mx($res['contacto_telefono']);
   if ($to) {
-    $tplName   = "hello_world";  //req_01             
-    $langCode  = "en_US"; //es_MX
+    $tplName   = "req_01";  //     hello_world        
+    $langCode  = "es_MX"; // en_US
     $paramsArr = [$res['folio']];          // {{1}} parametro del folio
     $paramsJson= json_encode($paramsArr, JSON_UNESCAPED_UNICODE);
 
