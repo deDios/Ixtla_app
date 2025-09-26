@@ -1,5 +1,16 @@
 <?php
 
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
+  header("Access-Control-Allow-Origin: $origin");
+  header("Vary: Origin");
+}
+header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Max-Age: 86400");
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+
+
 const WHATSAPP_TOKEN = 'EAAJkMnC6uM0BPRno6FCIX5qa02D434WAZA8RgWUHf7t1Ue5D6bmMNEI1zShDUfk9JEPrWRd6adPIdqUfJGkyOz8l9yDOZBdMDJFMR5WmLGQRe8z4e2ZCPKgxzbMt2oZAQSxasnzTngkh7MOLn8cAPOrw7ibN4zptaXeB86xMomKyqgfzXiudgIKCHlH2UAZDZD';
 const WHATSAPP_PHONE_NUMBER_ID = '782524058283433'; 
 
