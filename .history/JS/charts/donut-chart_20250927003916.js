@@ -72,29 +72,4 @@ export function DonutChart(canvas) {
     ctx.fillText("Total del mes", cx, cy + 14);
     ctx.restore();
 
-    // etiquetas % (pequeñas)
-    ang = -Math.PI / 2;
-    ctx.save();
-    ctx.fillStyle = "#111827";
-    ctx.font = "11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-    ctx.textAlign = "center";
-    data.forEach(d => {
-      if (!d.value) return;
-      const frac = d.value / total;
-      const aMid = ang + frac * Math.PI * 2 / 2;
-      const rx = cx + Math.cos(aMid) * (inner + (r - inner) * 0.6);
-      const ry = cy + Math.sin(aMid) * (inner + (r - inner) * 0.6);
-      const pct = Math.round(frac * 100) + "%";
-      ctx.fillText(pct, rx, ry + 3);
-      ang += frac * Math.PI * 2;
-    });
-    ctx.restore();
-  }
-
-  function mount(opts) { data = opts?.data || []; attach(); }
-  function update(opts) { data = opts?.data || data; draw(); }
-  function destroy() { detach(); }
-
-  return { mount, update, destroy };
-}
-
+    //

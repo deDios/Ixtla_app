@@ -133,13 +133,6 @@ async function loadRequerimientos() {
     $("#tbl-total").textContent = String(count ?? rows.length);
     $("#tbl-status-label").textContent = "Todos los status";
 
-    // ===== Charts =====
-    const seriesAnual = computeSeriesAnual(rows);      // [12]
-    window.__ixCharts?.lc?.update({ data: seriesAnual });
-
-    const donutMes = computeDonutMes(rows);            // [{label,value,color}]
-    window.__ixCharts?.dc?.update({ data: donutMes });
-
   } catch (err) {
     console.error(TAG, "loadRequerimientos()", err);
     gcToast("Hubo un error, inténtalo más tarde.", "warning");
@@ -222,55 +215,6 @@ function applyAndRenderTable(table) {
 
   renderCounts(); // mantiene sidebar al día
 }
-
-function computeSeriesAnual(rows = []) {
-  // Cuenta por mes del año actual (1..12)
-  const now = new Date();
-  const year = now.getFullYear();
-  const counts = new Array(12).fill(0);
-  rows.forEach(r => {
-    const d = new Date(String(r.created_at).replace(" ", "T"));
-    if (!isNaN(d) && d.getFullYear() === year) {
-      const m = d.getMonth(); // 0..11
-      counts[m] += 1;
-    }
-  });
-  return counts;
-}
-
-function computeDonutMes(rows = []) {
-  // Distribución por estatus en el MES actual
-  const now = new Date();
-  const y = now.getFullYear(), m0 = now.getMonth();
-  const acc = {}; // clave -> count
-  rows.forEach(r => {
-    const d = new Date(String(r.created_at).replace(" ", "T"));
-    if (isNaN(d)) return;
-    if (d.getFullYear() !== y || d.getMonth() !== m0) return;
-    const clave = ESTATUS[Number(r.estatus)]?.clave;
-    if (!clave) return;
-    acc[clave] = (acc[clave] || 0) + 1;
-  });
-
-  // construir arreglo para el donut
-  const out = [];
-  for (const k of Object.keys(acc)) {
-    out.push({
-      label: ESTATUS_BY_CLAVE(k)?.nombre || k,
-      value: acc[k],
-      color: STATUS_COLORS[k] || "#4f6b95"
-    });
-  }
-  // ordenar por valor desc (opcional)
-  out.sort((a, b) => b.value - a.value);
-  return out;
-}
-
-function ESTATUS_BY_CLAVE(clave) {
-  const id = Object.keys(ESTATUS).find(k => ESTATUS[k].clave === clave);
-  return id ? ESTATUS[id] : null;
-}
-
 
 // Si luego filtras en servidor:
 function mapStatusFilter(key) {

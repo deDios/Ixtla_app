@@ -262,7 +262,7 @@ function computeDonutMes(rows = []) {
     });
   }
   // ordenar por valor desc (opcional)
-  out.sort((a, b) => b.value - a.value);
+  out.sort((a,b) => b.value - a.value);
   return out;
 }
 
