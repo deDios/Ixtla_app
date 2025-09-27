@@ -10,7 +10,6 @@ const URL_UPDATE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurew
  * @param {{departamento_id:number,page?:number,per_page?:number}} params
  * @returns {Promise<{ok:boolean, rows:any[], count:number}>}
  */
-
 export async function fetchRequerimientos(params = {}) {
     const body = {
         departamento_id: Number(params.departamento_id ?? 1),
