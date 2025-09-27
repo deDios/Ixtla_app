@@ -33,7 +33,7 @@
 
   // ------ Envío ------
   async function sendContacto(payload) {
-    const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_contacto.php";
+    const API_URL = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_i_contacto.php";
     const resp = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json;charset=utf-8" },
