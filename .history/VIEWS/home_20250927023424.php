@@ -7,8 +7,6 @@
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="stylesheet" href="/CSS/home.css">
-    <link rel="stylesheet" href="/CSS/components.css">
-    
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -418,9 +416,7 @@
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>
-    <script src="/JS/ui/table.js" type="module"></script>
-    <script src="/JS/ui/drawer.js" type="module"></script>
-    <script src="/JS/views/home.js" type="module"></script>
+    <script type="module" src="/JS/home.js"></script>
 
 </body>
 
