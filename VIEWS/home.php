@@ -70,7 +70,7 @@
 
 
 
-    
+
     <main id="home" class="ix-home" aria-labelledby="home-title">
         <div class="ix-wrap">
             <h1 id="home-title" class="visually-hidden">Panel principal</h1>
@@ -200,6 +200,7 @@
 
 
     <script src="/JS/JSglobal.js"></script>
+    <script src="/JS/home.js"></script>
 
 </body>
 
