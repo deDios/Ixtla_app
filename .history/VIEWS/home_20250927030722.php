@@ -226,7 +226,8 @@
     <!-- Drawer de requerimientos -->
     <div class="ix-drawer-overlay" data-drawer="overlay" hidden></div>
 
-    <!-- Overlay  -->
+    <!-- Panel -->
+    <!-- Overlay (opcional, puro estilo) -->
     <div class="ix-drawer-overlay" id="drawer-overlay" hidden></div>
 
     <!-- Drawer -->
