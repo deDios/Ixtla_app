@@ -84,9 +84,9 @@ async function init() {
       {
         key: "status", title: "Status", sortable: true, accessor: r => r.statusKey || "",
         render: (val, row) => {
+          // badge simple; usa el nombre visible
           const name = row.status || val || "—";
-          const k = row.statusKey || "";
-          return `<span class="badge-status" data-k="${k}">${escapeHtml(name)}</span>`;
+          return `<span class="badge badge-status">${escapeHtml(name)}</span>`;
         }
       }
     ]
@@ -98,8 +98,6 @@ async function init() {
   // Pintar UI
   renderCounts();
   applyAndRenderTable(table);
-  document.documentElement.classList.add("is-loaded");
-
 
   // Filtros sidebar
   document.querySelectorAll(".status-item").forEach(btn => {
@@ -207,18 +205,9 @@ function applyAndRenderTable(table) {
   // Busqueda (tramite_nombre/asunto + nombre de estatus)
   if (search) {
     filtered = filtered.filter(r => {
+      const tramite = (r.tramite_nombre || r.asunto || "").toLowerCase();
       const estNom = (ESTATUS[Number(r.estatus)]?.nombre || "").toLowerCase();
-      const folio = (r.folio || "").toLowerCase();
-      const nom = (r.contacto_nombre || "").toLowerCase();
-      const tel = (r.contacto_telefono || "").toLowerCase();
-      const dep = (r.departamento_nombre || "").toLowerCase();
-      return (
-        estNom.includes(search) ||
-        folio.includes(search) ||
-        nom.includes(search) ||
-        tel.includes(search) ||
-        dep.includes(search)
-      );
+      return tramite.includes(search) || estNom.includes(search);
     });
   }
 

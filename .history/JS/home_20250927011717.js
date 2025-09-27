@@ -75,22 +75,21 @@ async function init() {
 
   // Tabla
   const table = createTable({
-    pageSize: S.get().pageSize,
-    columns: [
-      { key: "folio", title: "Requerimiento", sortable: true, accessor: r => r.folio || "—" },
-      { key: "contacto", title: "Contacto", sortable: true, accessor: r => r.contacto || "—" },
-      { key: "telefono", title: "Teléfono", sortable: true, accessor: r => r.telefono || "—" },
-      { key: "departamento", title: "Departamento", sortable: true, accessor: r => r.departamento || "—" },
-      {
-        key: "status", title: "Status", sortable: true, accessor: r => r.statusKey || "",
-        render: (val, row) => {
-          const name = row.status || val || "—";
-          const k = row.statusKey || "";
-          return `<span class="badge-status" data-k="${k}">${escapeHtml(name)}</span>`;
-        }
+  pageSize: S.get().pageSize,
+  columns: [
+    { key: "folio",        title: "Requerimiento", sortable: true, accessor: r => r.folio || "—" },
+    { key: "contacto",     title: "Contacto",      sortable: true, accessor: r => r.contacto || "—" },
+    { key: "telefono",     title: "Teléfono",      sortable: true, accessor: r => r.telefono || "—" },
+    { key: "departamento", title: "Departamento",  sortable: true, accessor: r => r.departamento || "—" },
+    { key: "status",       title: "Status",        sortable: true, accessor: r => r.statusKey || "" ,
+      render: (val, row) => {
+        // badge simple; usa el nombre visible
+        const name = row.status || val || "—";
+        return `<span class="badge badge-status">${escapeHtml(name)}</span>`;
       }
-    ]
-  });
+    }
+  ]
+});
 
   // Cargar datos
   await loadRequerimientos();
@@ -98,8 +97,6 @@ async function init() {
   // Pintar UI
   renderCounts();
   applyAndRenderTable(table);
-  document.documentElement.classList.add("is-loaded");
-
 
   // Filtros sidebar
   document.querySelectorAll(".status-item").forEach(btn => {
@@ -207,32 +204,18 @@ function applyAndRenderTable(table) {
   // Busqueda (tramite_nombre/asunto + nombre de estatus)
   if (search) {
     filtered = filtered.filter(r => {
+      const tramite = (r.tramite_nombre || r.asunto || "").toLowerCase();
       const estNom = (ESTATUS[Number(r.estatus)]?.nombre || "").toLowerCase();
-      const folio = (r.folio || "").toLowerCase();
-      const nom = (r.contacto_nombre || "").toLowerCase();
-      const tel = (r.contacto_telefono || "").toLowerCase();
-      const dep = (r.departamento_nombre || "").toLowerCase();
-      return (
-        estNom.includes(search) ||
-        folio.includes(search) ||
-        nom.includes(search) ||
-        tel.includes(search) ||
-        dep.includes(search)
-      );
+      return tramite.includes(search) || estNom.includes(search);
     });
   }
 
-  const rows = filtered.map(r => {
-    const est = ESTATUS[Number(r.estatus)];
-    return {
-      folio: r.folio || "—",
-      contacto: r.contacto_nombre || "—",
-      telefono: r.contacto_telefono || "—",
-      departamento: r.departamento_nombre || "—",
-      status: est?.nombre || String(r.estatus ?? "—"),
-      statusKey: est?.clave || ""
-    };
-  });
+  const rows = filtered.map(r => ({
+    tramite: r.tramite_nombre || r.asunto || "—",
+    asignado: r.asignado_nombre_completo || "—",
+    fecha: fmtDateISOtoMX(r.created_at),
+    status: ESTATUS[Number(r.estatus)]?.nombre || String(r.estatus ?? "—")
+  }));
 
   if (!rows.length) {
     table.setData([]);

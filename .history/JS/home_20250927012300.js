@@ -230,7 +230,7 @@ function applyAndRenderTable(table) {
       telefono: r.contacto_telefono || "—",
       departamento: r.departamento_nombre || "—",
       status: est?.nombre || String(r.estatus ?? "—"),
-      statusKey: est?.clave || ""
+  statusKey: est?.clave || ""
     };
   });
 

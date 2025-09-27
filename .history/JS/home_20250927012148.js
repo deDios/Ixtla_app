@@ -84,10 +84,10 @@ async function init() {
       {
         key: "status", title: "Status", sortable: true, accessor: r => r.statusKey || "",
         render: (val, row) => {
-          const name = row.status || val || "—";
-          const k = row.statusKey || "";
-          return `<span class="badge-status" data-k="${k}">${escapeHtml(name)}</span>`;
-        }
+  const name = row.status || val || "—";
+  const k = row.statusKey || "";
+  return `<span class="badge-status" data-k="${k}">${escapeHtml(name)}</span>`;
+}
       }
     ]
   });

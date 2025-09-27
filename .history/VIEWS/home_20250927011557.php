@@ -99,7 +99,7 @@
 
                         <button class="status-item" data-status="asignacion">Asignación <span id="cnt-asignacion"
                                 class="count">(0)</span></button>
-
+                                
                         <button class="status-item" data-status="enProceso">En proceso <span id="cnt-enProceso"
                                 class="count">(0)</span></button>
 
@@ -157,14 +157,14 @@
                         <div class="table-wrap" id="tbl-wrap" hidden>
                             <table class="gc-table" aria-describedby="tbl-title">
                                 <thead>
-                                    <tr>
-                                        <th>Requerimiento</th>
-                                        <th>Contacto</th>
-                                        <th>Teléfono</th>
-                                        <th>Departamento</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
+  <tr>
+    <th>Requerimiento</th>
+    <th>Contacto</th>
+    <th>Teléfono</th>
+    <th>Departamento</th>
+    <th>Status</th>
+  </tr>
+</thead>
                                 <tbody id="tbl-body"></tbody>
                             </table>
                             <div class="pagination" id="tbl-pag"></div>

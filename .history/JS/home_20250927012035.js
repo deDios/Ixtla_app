@@ -84,9 +84,9 @@ async function init() {
       {
         key: "status", title: "Status", sortable: true, accessor: r => r.statusKey || "",
         render: (val, row) => {
+          // badge simple; usa el nombre visible
           const name = row.status || val || "—";
-          const k = row.statusKey || "";
-          return `<span class="badge-status" data-k="${k}">${escapeHtml(name)}</span>`;
+          return `<span class="badge badge-status">${escapeHtml(name)}</span>`;
         }
       }
     ]

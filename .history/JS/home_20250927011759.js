@@ -84,9 +84,9 @@ async function init() {
       {
         key: "status", title: "Status", sortable: true, accessor: r => r.statusKey || "",
         render: (val, row) => {
+          // badge simple; usa el nombre visible
           const name = row.status || val || "—";
-          const k = row.statusKey || "";
-          return `<span class="badge-status" data-k="${k}">${escapeHtml(name)}</span>`;
+          return `<span class="badge badge-status">${escapeHtml(name)}</span>`;
         }
       }
     ]
@@ -98,8 +98,6 @@ async function init() {
   // Pintar UI
   renderCounts();
   applyAndRenderTable(table);
-  document.documentElement.classList.add("is-loaded");
-
 
   // Filtros sidebar
   document.querySelectorAll(".status-item").forEach(btn => {
