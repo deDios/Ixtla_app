@@ -91,13 +91,13 @@
       const telefono = normalizePhone(telefonoEl?.value || "");
       const mensaje = (mensajeEl?.value || "").trim();
 
-      if (!minLen(nombre, 2)) return gcToast("Escribe tu nombre.", "advertencia");
-      if (!minLen(apellidos, 2)) return gcToast("Escribe tus apellidos.", "advertencia");
-      if (!isEmail(email)) return gcToast("Escribe un correo válido.", "advertencia");
+      if (!minLen(nombre, 2)) return gcToast("Escribe tu nombre.", "warning");
+      if (!minLen(apellidos, 2)) return gcToast("Escribe tus apellidos.", "warning");
+      if (!isEmail(email)) return gcToast("Escribe un correo válido.", "warning");
       if (telefono && telefono.replace(/\D/g, "").length < 10)
-        return gcToast("El número telefónico parece incompleto.", "advertencia");
+        return gcToast("El número telefónico parece incompleto.", "warning");
       if (!minLen(mensaje, 10))
-        return gcToast("Cuéntanos más en el mensaje (mínimo 10 caracteres).", "advertencia");
+        return gcToast("Cuéntanos más en el mensaje (mínimo 10 caracteres).", "warning");
 
       // Payload 
       const payload = {
@@ -133,7 +133,7 @@
 
         if (!resp.ok) {
           console.error(`${TAG} Error HTTP`, resp.status, raw);
-          gcToast("Hubo un error, inténtalo más tarde.", "advertencia");
+          gcToast("Hubo un error, inténtalo más tarde.", "warning");
           return;
         }
 
@@ -149,7 +149,7 @@
         form.reset();
       } catch (err) {
         console.error(`${TAG} Excepción`, err);
-        gcToast("Hubo un error, inténtalo más tarde.", "advertencia");
+        gcToast("Hubo un error, inténtalo más tarde.", "warning");
       } finally {
         sending = false;
         if (btn) {

@@ -250,9 +250,9 @@ header.scrolled .subnav{
   display:flex; align-items:flex-start; justify-content:space-between; gap:2rem;
 }
 #site-footer .footer-cols .col{ flex:1 1 0; min-width:280px; }
-#site-footer .left-inner{ display:block; } /* se convierte en fila en <=768px */
+#site-footer .left-inner{ display:block; } 
 #site-footer .footer-crest{
-  display:none; height:48px; width:auto; flex:0 0 auto; /* visible solo en mobile */
+  display:none; height:48px; width:auto; flex:0 0 auto; 
 }
 #site-footer .copyright, #site-footer .location{
   margin:0; color:var(--ix-muted); line-height:1.45; font-size:.98rem;
