@@ -155,7 +155,7 @@
 
     <script src="/JS/JSglobal.js"></script>
     <script type="module" src="/JS/auth/session.js"></script>
-    <script type="module" src="/JS/views/login.js"></script>
+    <script type="module" src="/JS/login.js"></script>
 
 </body>
 
