@@ -207,24 +207,11 @@
     </footer>
 
 
-
-
-
-
-
-
-
-
-
-
     <!-- ESPACIO PARA MODALES -->
-
-
-
-    <!-- Drawer de requerimientos -->
+    <!-- Drawer Overlay -->
     <div class="ix-drawer-overlay" data-drawer="overlay" hidden></div>
 
-    <!-- Panel -->
+    <!-- Drawer Panel -->
     <aside class="ix-drawer" role="dialog" aria-modal="true" aria-labelledby="ix-drw-title" data-drawer="panel" hidden>
         <header class="ix-drawer__header">
             <div class="left">
@@ -388,12 +375,7 @@
         </footer>
     </aside>
 
-
-
-
-
-
-    <!-- Modal confirm delete -->
+    <!-- Modal confirm delete (2 pasos) -->
     <div class="ix-modal" data-modal="delete" hidden aria-modal="true" role="dialog" aria-labelledby="del-title">
         <div class="ix-modal__card">
             <h4 id="del-title">¿Eliminar (soft delete)?</h4>
@@ -405,11 +387,6 @@
             </div>
         </div>
     </div>
-
-
-
-
-
 
 
 

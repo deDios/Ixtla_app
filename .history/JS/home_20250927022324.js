@@ -12,7 +12,7 @@ const TAG = "[Home]";
 /** ===== Estatus (num -> clave/nombre) ===== */
 const ESTATUS = {
   0: { clave: "solicitud",  nombre: "Solicitud"  },
-  1: { clave: "Revisión",   nombre: "Revisión"   }, 
+  1: { clave: "revicion",   nombre: "Revición"   }, // si prefieres "Revisión", avísame y lo alineamos
   2: { clave: "asignacion", nombre: "Asignación" },
   3: { clave: "enProceso",  nombre: "En proceso" },
   4: { clave: "pausado",    nombre: "Pausado"    },

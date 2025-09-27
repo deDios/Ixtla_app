@@ -12,7 +12,7 @@ const TAG = "[Home]";
 /** ===== Estatus (num -> clave/nombre) ===== */
 const ESTATUS = {
   0: { clave: "solicitud",  nombre: "Solicitud"  },
-  1: { clave: "Revisión",   nombre: "Revisión"   }, 
+  1: { clave: "revicion",   nombre: "Revición"   }, // si prefieres "Revisión", avísame y lo alineamos
   2: { clave: "asignacion", nombre: "Asignación" },
   3: { clave: "enProceso",  nombre: "En proceso" },
   4: { clave: "pausado",    nombre: "Pausado"    },
@@ -341,3 +341,11 @@ function ESTATUS_BY_CLAVE(clave) {
   const id = Object.keys(ESTATUS).find(k => ESTATUS[k].clave === clave);
   return id ? ESTATUS[id] : null;
 }
+
+/** Si luego filtras en servidor:
+function mapStatusFilter(key) {
+  if (!key || key === "todos") return null;
+  const reverse = { solicitud:0, revicion:1, asignacion:2, enProceso:3, pausado:4, cancelado:5, finalizado:6 };
+  return reverse[key] ?? null;
+}
+*/

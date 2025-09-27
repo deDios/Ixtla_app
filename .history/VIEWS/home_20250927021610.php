@@ -214,7 +214,7 @@
 
 
 
-
+    
 
 
     <!-- ESPACIO PARA MODALES -->
@@ -388,12 +388,7 @@
         </footer>
     </aside>
 
-
-
-
-
-
-    <!-- Modal confirm delete -->
+    <!-- Modal confirm delete (2 pasos) -->
     <div class="ix-modal" data-modal="delete" hidden aria-modal="true" role="dialog" aria-labelledby="del-title">
         <div class="ix-modal__card">
             <h4 id="del-title">¿Eliminar (soft delete)?</h4>
@@ -405,11 +400,6 @@
             </div>
         </div>
     </div>
-
-
-
-
-
 
 
 
