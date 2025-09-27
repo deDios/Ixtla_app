@@ -119,21 +119,3 @@ function renderGallery(j) {
     wrap.appendChild(div);
   });
 }
-
- (function(){
-    const overlay = document.getElementById("drawer-overlay");
-    const drawer  = document.getElementById("drawer-req");
-    const btnClose= document.getElementById("d-close");
-    if (!overlay || !drawer || !btnClose) return;
-
-    // Mostrar overlay cuando el drawer esté visible
-    const observer = new MutationObserver(() => {
-      const open = drawer.getAttribute("aria-hidden") === "false";
-      overlay.hidden = !open;
-      requestAnimationFrame(() => overlay.classList.toggle("open", open));
-    });
-    observer.observe(drawer, { attributes:true, attributeFilter:["aria-hidden"] });
-
-    overlay.addEventListener("click", () => drawer.setAttribute("aria-hidden","true"));
-    btnClose.addEventListener("click", () => drawer.setAttribute("aria-hidden","true"));
-  })();
