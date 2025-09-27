@@ -1,4 +1,4 @@
-import { setSession } from "/JS/auth/session";
+import { setSession } from "/JS/auth/session.js";
 
 (() => {
   "use strict";
