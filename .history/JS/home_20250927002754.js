@@ -1,5 +1,5 @@
 // /JS/views/home.js
-import { $, mountSkeletonList, toggle, fmtDateISOtoMX } from "../core/dom.js";
+import { $, mountSkeletonList, toggle, escapeHtml, fmtDateISOtoMX } from "../core/dom.js";
 import { createStore } from "../core/store.js";
 import { LineChart } from "../charts/line-chart.js";
 import { DonutChart } from "../charts/donut-chart.js";
@@ -8,91 +8,78 @@ import { createTable } from "../ui/table.js";
 
 const TAG = "[Home]";
 
-// ===== Estatus (num -> clave/nombre) =====
+// Mapa de estatus numérico -> nombre/clave para UI
 const ESTATUS = {
-  0: { clave: "solicitud", nombre: "Solicitud" },
-  1: { clave: "revicion", nombre: "Revición" },
-  2: { clave: "asignacion", nombre: "Asignación" },
-  3: { clave: "enProceso", nombre: "En proceso" },
-  4: { clave: "pausado", nombre: "Pausado" },
-  5: { clave: "cancelado", nombre: "Cancelado" },
-  6: { clave: "finalizado", nombre: "Finalizado" }
+  0: { clave: "pendiente",  nombre: "Pendiente"  },
+  1: { clave: "proceso",    nombre: "En proceso" },
+  2: { clave: "terminado",  nombre: "Terminado"  },
+  3: { clave: "cancelado",  nombre: "Cancelado"  },
+  4: { clave: "pausado",    nombre: "Pausado"    }
 };
 
 const sess = window.__ixSession || null;
 const departamentoActivo = Number(sess?.departamento_id ?? 1);
 
-// ===== Store =====
 const S = createStore({
   user: {
     nombre: (sess?.nombre || "") + (sess?.apellidos ? " " + sess.apellidos : ""),
     dep: departamentoActivo
   },
-  filtros: { status: "todos", search: "" },
-  requerimientos: [],
-  counts: {
-    todos: 0,
-    solicitud: 0,
-    revicion: 0,
-    asignacion: 0,
-    enProceso: 0,
-    pausado: 0,
-    cancelado: 0,
-    finalizado: 0
+  filtros: {
+    status: "todos",   // "todos" | "pendiente" | "proceso" | "terminado" | "cancelado" | "pausado"
+    search: ""
   },
+  // Datos crudos traídos del endpoint (una página "grande" para paginar en cliente)
+  requerimientos: [],
+  // Derivados para UI
+  counts: { todos: 0, pendiente: 0, proceso: 0, terminado: 0, cancelado: 0, pausado: 0 },
   pageSize: 7
 });
 
-// ===== Utils =====
-function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+// Debounce helper
+function debounce(fn, ms=300){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; }
 
 window.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   console.log(`${TAG} init (dep: ${S.get().user.dep})`);
 
-  // Perfil lateral
+  // Header lateral
   $("#h-user-nombre").textContent = S.get().user.nombre || "—";
   $("#h-user-dep").textContent = String(S.get().user.dep);
 
-  // Skeleton tabla
+  // Skeletons
   mountSkeletonList($("#tbl-skeleton"), 7);
 
   // Charts (stubs por ahora)
-  const lc = LineChart($("#chart-year")); lc.mount({ data: [] });
+  const lc = LineChart($("#chart-year"));  lc.mount({ data: [] });
   const dc = DonutChart($("#chart-month")); dc.mount({ data: [] });
 
   // Tabla
-  const table = createTable({
-    pageSize: S.get().pageSize,
-    columns: [
-      { key: "tramite", title: "Trámites", sortable: true, accessor: r => (r.tramite || "").toLowerCase() },
-      { key: "asignado", title: "Asignado", sortable: true, accessor: r => (r.asignado || "").toLowerCase() },
-      { key: "fecha", title: "Fecha de solicitado", sortable: true },
-      { key: "status", title: "Status", sortable: true, accessor: r => (r.status || "").toLowerCase() }
-    ]
-  });
+  const table = createTable({ pageSize: S.get().pageSize });
 
-  // Cargar datos
+  // Cargar datos iniciales
   await loadRequerimientos();
 
-  // Pintar UI
+  // Rellenar UI inicial
   renderCounts();
   applyAndRenderTable(table);
 
-  // Filtros sidebar
+  // Filtros por estatus
   document.querySelectorAll(".status-item").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".status-item").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
+
       const statusKey = btn.dataset.status || "todos";
       S.set({ filtros: { ...S.get().filtros, status: statusKey } });
       $("#tbl-status-label").textContent = statusKey === "todos" ? "Todos los status" : statusKey;
+
       applyAndRenderTable(table);
     });
   });
 
-  // Busqueda (cliente)
+  // Búsqueda con debounce (servidor opcional en Fase futura; por ahora filtramos en cliente)
   $("#tbl-search")?.addEventListener("input", debounce((e) => {
     const q = (e.target.value || "").trim().toLowerCase();
     S.set({ filtros: { ...S.get().filtros, search: q } });
@@ -109,26 +96,26 @@ async function loadRequerimientos() {
     const { ok, rows, count } = await fetchRequerimientos({
       departamento_id: S.get().user.dep,
       page: 1,
-      per_page: 50
+      per_page: 50,                  // de momento traemos "todo" para paginar en cliente
+      // Podemos enviar estatus/search al servidor si prefieres server-side:
+      // estatus: mapStatusFilter(S.get().filtros.status),
+      // search: S.get().filtros.search,
     });
 
     if (!ok) throw new Error("Respuesta no OK");
     S.set({ requerimientos: rows });
 
-    // Totales por estatus
+    // Actualizamos conteos
     computeCounts(rows);
 
-    // Leyenda
+    // Leyenda superior
     $("#tbl-total").textContent = String(count ?? rows.length);
     $("#tbl-status-label").textContent = "Todos los status";
 
   } catch (err) {
     console.error(TAG, "loadRequerimientos()", err);
     gcToast("Hubo un error, inténtalo más tarde.", "warning");
-    S.set({
-      requerimientos: [],
-      counts: { todos: 0, solicitud: 0, revicion: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 }
-    });
+    S.set({ requerimientos: [], counts: { todos: 0, pendiente: 0, proceso: 0, terminado: 0, cancelado: 0, pausado: 0 } });
   } finally {
     toggle($("#tbl-skeleton"), false);
     toggle($("#tbl-wrap"), true);
@@ -136,19 +123,11 @@ async function loadRequerimientos() {
 }
 
 function computeCounts(rows = []) {
-  const counts = {
-    todos: rows.length,
-    solicitud: 0,
-    revicion: 0,
-    asignacion: 0,
-    enProceso: 0,
-    pausado: 0,
-    cancelado: 0,
-    finalizado: 0
-  };
+  const counts = { todos: rows.length, pendiente: 0, proceso: 0, terminado: 0, cancelado: 0, pausado: 0 };
   rows.forEach(r => {
-    const k = ESTATUS[Number(r.estatus)]?.clave;
-    if (k && counts.hasOwnProperty(k)) counts[k]++;
+    const e = Number(r.estatus);
+    const clave = ESTATUS[e]?.clave;
+    if (clave && counts.hasOwnProperty(clave)) counts[clave]++;
   });
   S.set({ counts });
 }
@@ -156,27 +135,26 @@ function computeCounts(rows = []) {
 function renderCounts() {
   const c = S.get().counts;
   $("#cnt-todos").textContent = `(${c.todos})`;
-  $("#cnt-solicitud").textContent = `(${c.solicitud})`;
-  $("#cnt-revicion").textContent = `(${c.revicion})`;
-  $("#cnt-asignacion").textContent = `(${c.asignacion})`;
-  $("#cnt-enProceso").textContent = `(${c.enProceso})`;
-  $("#cnt-pausado").textContent = `(${c.pausado})`;
-  $("#cnt-cancelado").textContent = `(${c.cancelado})`;
-  $("#cnt-finalizado").textContent = `(${c.finalizado})`;
+  $("#cnt-pend").textContent = `(${c.pendiente})`;
+  $("#cnt-proc").textContent = `(${c.proceso})`;
+  $("#cnt-term").textContent = `(${c.terminado})`;
+  $("#cnt-canc").textContent = `(${c.cancelado})`;
+  $("#cnt-paus").textContent = `(${c.pausado})`;
 }
 
+// Aplica filtro + búsqueda en cliente y llena la tabla (con paginación cliente del módulo)
 function applyAndRenderTable(table) {
   const { status, search } = S.get().filtros;
   const base = S.get().requerimientos;
 
   let filtered = base;
 
-  // Filtro por estatus 
+  // Filtro por estatus
   if (status !== "todos") {
     filtered = filtered.filter(r => ESTATUS[Number(r.estatus)]?.clave === status);
   }
 
-  // Busqueda (tramite_nombre/asunto + nombre de estatus)
+  // Filtro por búsqueda (tramite_nombre, asunto, estatus nombre)
   if (search) {
     filtered = filtered.filter(r => {
       const tramite = (r.tramite_nombre || r.asunto || "").toLowerCase();
@@ -185,6 +163,7 @@ function applyAndRenderTable(table) {
     });
   }
 
+  // Mapeo de filas para la tabla
   const rows = filtered.map(r => ({
     tramite: r.tramite_nombre || r.asunto || "—",
     asignado: r.asignado_nombre_completo || "—",
@@ -192,6 +171,7 @@ function applyAndRenderTable(table) {
     status: ESTATUS[Number(r.estatus)]?.nombre || String(r.estatus ?? "—")
   }));
 
+  // Pintar
   if (!rows.length) {
     table.setData([]);
     toggle($("#tbl-empty"), true);
@@ -199,18 +179,20 @@ function applyAndRenderTable(table) {
   } else {
     table.setData(rows);
     toggle($("#tbl-empty"), false);
-    $("#tbl-total").textContent = String(rows.length); // total del conjunto filtrado
+    // Mostramos el total del conjunto filtrado en la leyenda
+    $("#tbl-total").textContent = String(rows.length);
   }
 
-  renderCounts(); // mantiene sidebar al día
+  // actualizar conteos del sidebar 
+  renderCounts();
 }
 
-// Si luego filtras en servidor:
+// (Para server-side filtering, pero todavia no esta aplicado)
 function mapStatusFilter(key) {
   if (!key || key === "todos") return null;
+  // clave -> id 
   const reverse = {
-    solicitud: 0, revicion: 1, asignacion: 2,
-    enProceso: 3, pausado: 4, cancelado: 5, finalizado: 6
+    pendiente: 0, proceso: 1, terminado: 2, cancelado: 3, pausado: 4
   };
   return reverse[key] ?? null;
 }

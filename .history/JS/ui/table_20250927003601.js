@@ -16,17 +16,18 @@ export function createTable({
   const empty = $(emptySel);
   const pag = $(pagSel);
 
+  // Detecta thead si quieres pintar indicadores ▲▼ (opcional)
   const thead = body?.closest("table")?.querySelector("thead");
 
-  let raw = [];      // data completa 
+  let raw = [];      // data completa (rows listos para pintar)
   let page = 1;
   let sort = { key: null, dir: 1 }; // 1 asc, -1 desc
 
-  // renderizar encabezados con listeners de sort
+  // Renderiza encabezados con listeners de sort
   function initHeader() {
     if (!thead) return;
     const ths = Array.from(thead.querySelectorAll("th"));
-    // orden con columns
+    // Emparejamos en orden con columns
     ths.forEach((th, idx) => {
       const col = columns[idx];
       if (!col || !col.sortable) return;

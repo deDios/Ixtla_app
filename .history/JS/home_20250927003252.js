@@ -8,14 +8,14 @@ import { createTable } from "../ui/table.js";
 
 const TAG = "[Home]";
 
-// ===== Estatus (num -> clave/nombre) =====
+// ===== Estatus (numérico -> clave/nombre) =====
 const ESTATUS = {
-  0: { clave: "solicitud", nombre: "Solicitud" },
-  1: { clave: "revicion", nombre: "Revición" },
+  0: { clave: "solicitud",  nombre: "Solicitud"  },
+  1: { clave: "revicion",   nombre: "Revición"   },
   2: { clave: "asignacion", nombre: "Asignación" },
-  3: { clave: "enProceso", nombre: "En proceso" },
-  4: { clave: "pausado", nombre: "Pausado" },
-  5: { clave: "cancelado", nombre: "Cancelado" },
+  3: { clave: "enProceso",  nombre: "En proceso" },
+  4: { clave: "pausado",    nombre: "Pausado"    },
+  5: { clave: "cancelado",  nombre: "Cancelado"  },
   6: { clave: "finalizado", nombre: "Finalizado" }
 };
 
@@ -59,19 +59,11 @@ async function init() {
   mountSkeletonList($("#tbl-skeleton"), 7);
 
   // Charts (stubs por ahora)
-  const lc = LineChart($("#chart-year")); lc.mount({ data: [] });
+  const lc = LineChart($("#chart-year"));  lc.mount({ data: [] });
   const dc = DonutChart($("#chart-month")); dc.mount({ data: [] });
 
   // Tabla
-  const table = createTable({
-    pageSize: S.get().pageSize,
-    columns: [
-      { key: "tramite", title: "Trámites", sortable: true, accessor: r => (r.tramite || "").toLowerCase() },
-      { key: "asignado", title: "Asignado", sortable: true, accessor: r => (r.asignado || "").toLowerCase() },
-      { key: "fecha", title: "Fecha de solicitado", sortable: true },
-      { key: "status", title: "Status", sortable: true, accessor: r => (r.status || "").toLowerCase() }
-    ]
-  });
+  const table = createTable({ pageSize: S.get().pageSize });
 
   // Cargar datos
   await loadRequerimientos();
@@ -92,7 +84,7 @@ async function init() {
     });
   });
 
-  // Busqueda (cliente)
+  // Búsqueda (cliente)
   $("#tbl-search")?.addEventListener("input", debounce((e) => {
     const q = (e.target.value || "").trim().toLowerCase();
     S.set({ filtros: { ...S.get().filtros, search: q } });
@@ -110,6 +102,9 @@ async function loadRequerimientos() {
       departamento_id: S.get().user.dep,
       page: 1,
       per_page: 50
+      // Si quieres filtrar en servidor:
+      // estatus: mapStatusFilter(S.get().filtros.status),
+      // search: S.get().filtros.search
     });
 
     if (!ok) throw new Error("Respuesta no OK");
@@ -127,7 +122,7 @@ async function loadRequerimientos() {
     gcToast("Hubo un error, inténtalo más tarde.", "warning");
     S.set({
       requerimientos: [],
-      counts: { todos: 0, solicitud: 0, revicion: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 }
+      counts: { todos: 0, solicitud:0, revicion:0, asignacion:0, enProceso:0, pausado:0, cancelado:0, finalizado:0 }
     });
   } finally {
     toggle($("#tbl-skeleton"), false);
@@ -155,13 +150,13 @@ function computeCounts(rows = []) {
 
 function renderCounts() {
   const c = S.get().counts;
-  $("#cnt-todos").textContent = `(${c.todos})`;
-  $("#cnt-solicitud").textContent = `(${c.solicitud})`;
-  $("#cnt-revicion").textContent = `(${c.revicion})`;
+  $("#cnt-todos").textContent      = `(${c.todos})`;
+  $("#cnt-solicitud").textContent  = `(${c.solicitud})`;
+  $("#cnt-revicion").textContent   = `(${c.revicion})`;
   $("#cnt-asignacion").textContent = `(${c.asignacion})`;
-  $("#cnt-enProceso").textContent = `(${c.enProceso})`;
-  $("#cnt-pausado").textContent = `(${c.pausado})`;
-  $("#cnt-cancelado").textContent = `(${c.cancelado})`;
+  $("#cnt-enProceso").textContent  = `(${c.enProceso})`;
+  $("#cnt-pausado").textContent    = `(${c.pausado})`;
+  $("#cnt-cancelado").textContent  = `(${c.cancelado})`;
   $("#cnt-finalizado").textContent = `(${c.finalizado})`;
 }
 
@@ -171,16 +166,16 @@ function applyAndRenderTable(table) {
 
   let filtered = base;
 
-  // Filtro por estatus 
+  // Filtro por estatus (cliente)
   if (status !== "todos") {
     filtered = filtered.filter(r => ESTATUS[Number(r.estatus)]?.clave === status);
   }
 
-  // Busqueda (tramite_nombre/asunto + nombre de estatus)
+  // Búsqueda (tramite_nombre/asunto + nombre de estatus)
   if (search) {
     filtered = filtered.filter(r => {
       const tramite = (r.tramite_nombre || r.asunto || "").toLowerCase();
-      const estNom = (ESTATUS[Number(r.estatus)]?.nombre || "").toLowerCase();
+      const estNom  = (ESTATUS[Number(r.estatus)]?.nombre || "").toLowerCase();
       return tramite.includes(search) || estNom.includes(search);
     });
   }

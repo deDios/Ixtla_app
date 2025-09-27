@@ -90,28 +90,16 @@
                     <nav class="status-nav" aria-label="Filtros por estado">
                         <button class="status-item active" data-status="todos">Todos <span id="cnt-todos"
                                 class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="solicitud">Solicitud <span id="cnt-solicitud"
+                        <button class="status-item" data-status="pendiente">Pendientes <span id="cnt-pend"
                                 class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="revicion">Revición <span id="cnt-revicion"
+                        <button class="status-item" data-status="proceso">En proceso <span id="cnt-proc"
                                 class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="asignacion">Asignación <span id="cnt-asignacion"
+                        <button class="status-item" data-status="terminado">Terminados <span id="cnt-term"
                                 class="count">(0)</span></button>
-                                
-                        <button class="status-item" data-status="enProceso">En proceso <span id="cnt-enProceso"
+                        <button class="status-item" data-status="cancelado">Cancelados <span id="cnt-canc"
                                 class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="pausado">Pausado <span id="cnt-pausado"
+                        <button class="status-item" data-status="pausado">Pausados <span id="cnt-paus"
                                 class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="cancelado">Cancelado <span id="cnt-cancelado"
-                                class="count">(0)</span></button>
-                                
-                        <button class="status-item" data-status="finalizado">Finalizado <span id="cnt-finalizado"
-                                class="count">(0)</span></button>
-
                     </nav>
                 </aside>
 

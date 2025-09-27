@@ -16,9 +16,10 @@ export function createTable({
   const empty = $(emptySel);
   const pag = $(pagSel);
 
+  // Detecta thead si quieres pintar indicadores ▲▼ (opcional)
   const thead = body?.closest("table")?.querySelector("thead");
 
-  let raw = [];      // data completa 
+  let raw = [];      // data completa (rows listos para pintar)
   let page = 1;
   let sort = { key: null, dir: 1 }; // 1 asc, -1 desc
 

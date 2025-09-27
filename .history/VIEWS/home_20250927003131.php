@@ -88,29 +88,14 @@
                     </div>
 
                     <nav class="status-nav" aria-label="Filtros por estado">
-                        <button class="status-item active" data-status="todos">Todos <span id="cnt-todos"
-                                class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="solicitud">Solicitud <span id="cnt-solicitud"
-                                class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="revicion">Revición <span id="cnt-revicion"
-                                class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="asignacion">Asignación <span id="cnt-asignacion"
-                                class="count">(0)</span></button>
-                                
-                        <button class="status-item" data-status="enProceso">En proceso <span id="cnt-enProceso"
-                                class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="pausado">Pausado <span id="cnt-pausado"
-                                class="count">(0)</span></button>
-
-                        <button class="status-item" data-status="cancelado">Cancelado <span id="cnt-cancelado"
-                                class="count">(0)</span></button>
-                                
-                        <button class="status-item" data-status="finalizado">Finalizado <span id="cnt-finalizado"
-                                class="count">(0)</span></button>
+                        <button class="status-item active" data-status="todos">Todos <span id="cnt-todos" class="count">(0)</span></button>
+<button class="status-item" data-status="solicitud">Solicitud <span id="cnt-solicitud" class="count">(0)</span></button>
+<button class="status-item" data-status="revicion">Revición <span id="cnt-revicion" class="count">(0)</span></button>
+<button class="status-item" data-status="asignacion">Asignación <span id="cnt-asignacion" class="count">(0)</span></button>
+<button class="status-item" data-status="enProceso">En proceso <span id="cnt-enProceso" class="count">(0)</span></button>
+<button class="status-item" data-status="pausado">Pausado <span id="cnt-pausado" class="count">(0)</span></button>
+<button class="status-item" data-status="cancelado">Cancelado <span id="cnt-cancelado" class="count">(0)</span></button>
+<button class="status-item" data-status="finalizado">Finalizado <span id="cnt-finalizado" class="count">(0)</span></button>
 
                     </nav>
                 </aside>

@@ -16,17 +16,18 @@ export function createTable({
   const empty = $(emptySel);
   const pag = $(pagSel);
 
+  // Detecta thead si quieres pintar indicadores ▲▼ (opcional)
   const thead = body?.closest("table")?.querySelector("thead");
 
-  let raw = [];      // data completa 
+  let raw = [];      // data completa (rows listos para pintar)
   let page = 1;
   let sort = { key: null, dir: 1 }; // 1 asc, -1 desc
 
-  // renderizar encabezados con listeners de sort
+  // Renderiza encabezados con listeners de sort
   function initHeader() {
     if (!thead) return;
     const ths = Array.from(thead.querySelectorAll("th"));
-    // orden con columns
+    // Emparejamos en orden con columns
     ths.forEach((th, idx) => {
       const col = columns[idx];
       if (!col || !col.sortable) return;
@@ -45,7 +46,7 @@ export function createTable({
     });
   }
 
-  // API publica
+  // API pública
   function setData(rows = []) {
     raw = Array.isArray(rows) ? rows.slice() : [];
     page = 1;
@@ -69,6 +70,7 @@ export function createTable({
     const col = columns.find(c => c.key === sort.key);
     if (!col) return raw;
 
+    // construimos pares [value, index, row] para un sort estable
     const acc = col.accessor || ((r) => r[sort.key]);
     const cmp = col.compare || defaultCompare;
 
@@ -82,7 +84,7 @@ export function createTable({
   }
 
   function render() {
-    // Estado vacio
+    // Estado vacío
     if (!raw.length) {
       toggle(wrap, false); toggle(empty, true);
       if (pag) pag.innerHTML = "";
@@ -152,7 +154,7 @@ export function createTable({
 
 // Comparador por defecto (strings/nums/fechas en ISO o DD/MM/YYYY)
 function defaultCompare(a, b) {
-  // normalizar
+  // normalizamos
   const A = normalize(a);
   const B = normalize(b);
   if (A < B) return -1;
@@ -169,5 +171,6 @@ function normalize(v) {
   const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (m) s = `${m[3]}-${m[2]}-${m[1]}`;
 
+  // si parece ISO, lo dejamos tal cual (comparación lexicográfica sirve)
   return s.toLowerCase();
 }
