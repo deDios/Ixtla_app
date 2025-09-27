@@ -154,6 +154,7 @@
     cont.className = "gc-toast-container";
     document.body.appendChild(cont);
   }
+
   window.gcToast = function (mensaje, tipo = "exito", duracion = 5000) {
     const cont = document.querySelector(".gc-toast-container");
     if (!cont) return;
@@ -167,6 +168,7 @@
       setTimeout(() => toast.remove(), 400);
     }, duracion);
   };
+  
 })();
 
 //----------------------------------------------------- componente para las cards de departamentos

@@ -3,10 +3,11 @@
 
   const TAG = "[Contacto]";
 
-  // Endpoint (con mayúsculas correctas)
-  const API_URL = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_i_contacto.php";
+  // endpoint
+  const API_URL =
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_i_contacto.php";
 
-  // ---------- Helpers ----------
+  // -------- Helpers --------
   const byName = (form, name) => form.querySelector(`[name="${name}"]`);
   const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((s || "").trim());
   const minLen = (s, n) => (s || "").trim().length >= n;
@@ -16,10 +17,9 @@
     let s = String(raw).trim();
     const keepPlus = s.startsWith("+");
     s = s.replace(/[^\d]/g, "");
-    return keepPlus ? ("+" + s) : s;
+    return keepPlus ? "+" + s : s;
   }
 
-  // Envía como JSON
   async function postJSON(url, payload) {
     console.log(`${TAG} → POST JSON`, url, payload);
     const resp = await fetch(url, {
@@ -32,7 +32,6 @@
     return { resp, raw };
   }
 
-  // Envía como FormData
   async function postForm(url, payload) {
     const fd = new FormData();
     Object.entries(payload).forEach(([k, v]) => fd.append(k, v ?? ""));
@@ -43,33 +42,27 @@
     return { resp, raw };
   }
 
-  // Intenta JSON y, si parece que el backend solo acepta $_POST, reintenta con FormData
   async function sendContacto(payload) {
-    // 1) Intento JSON
     let { resp, raw } = await postJSON(API_URL, payload);
-
-    // Éxito directo
     if (resp.ok) return { resp, raw, mode: "json" };
 
-    // Heurística: si el cuerpo indica parámetros faltantes típicos de $_POST vacío, probamos FormData
     const msg = (raw || "").toLowerCase();
     const looksLikeMissingParam =
-      msg.includes("falta parámetro") || msg.includes("falta parametro") ||
-      msg.includes("parametro obligatorio") || msg.includes("par\u00E1metro obligatorio");
+      msg.includes("falta parámetro") ||
+      msg.includes("falta parametro") ||
+      msg.includes("par\u00E1metro obligatorio") ||
+      resp.status === 400;
 
-    if (looksLikeMissingParam || resp.status === 400) {
+    if (looksLikeMissingParam) {
       console.warn(`${TAG} Backend no aceptó JSON (status ${resp.status}). Reintentando con FormData...`);
       const retry = await postForm(API_URL, payload);
       if (retry.resp.ok) return { resp: retry.resp, raw: retry.raw, mode: "form" };
-      // Si también falla, devolvemos ese último intento
       return { resp: retry.resp, raw: retry.raw, mode: "form" };
     }
-
-    // Si no es el caso típico, devolvemos el primer resultado
     return { resp, raw, mode: "json" };
   }
 
-  // ---------- Main ----------
+  // -------- Main --------
   window.addEventListener("DOMContentLoaded", () => {
     const form = document.querySelector("form.form");
     if (!form) {
@@ -78,11 +71,13 @@
     }
 
     const btn = form.querySelector(".btn-enviar");
-    const nombreEl    = byName(form, "nombre");
+    const nombreEl = byName(form, "nombre");
     const apellidosEl = byName(form, "apellidos");
-    const emailEl     = byName(form, "email");
-    const telefonoEl  = byName(form, "telefono");
-    const mensajeEl   = byName(form, "mensaje");
+    const emailEl = byName(form, "email");
+    const telefonoEl = byName(form, "telefono");
+    const mensajeEl = byName(form, "mensaje");
+
+    console.log(`${TAG} API_URL configurada:`, API_URL);
 
     let sending = false;
 
@@ -90,31 +85,34 @@
       ev.preventDefault();
       if (sending) return;
 
-      const nombre    = (nombreEl?.value || "").trim();
+      const nombre = (nombreEl?.value || "").trim();
       const apellidos = (apellidosEl?.value || "").trim();
-      const email     = (emailEl?.value || "").trim();
-      const telefono  = normalizePhone(telefonoEl?.value || "");
-      const mensaje   = (mensajeEl?.value || "").trim();
+      const email = (emailEl?.value || "").trim();
+      const telefono = normalizePhone(telefonoEl?.value || "");
+      const mensaje = (mensajeEl?.value || "").trim();
 
-      // Validaciones mínimas
-      if (!minLen(nombre, 2)) { gcToast.warn("Escribe tu nombre."); return; }
-      if (!minLen(apellidos, 2)) { gcToast.warn("Escribe tus apellidos."); return; }
-      if (!isEmail(email)) { gcToast.warn("Escribe un correo válido."); return; }
-      if (telefono && telefono.replace(/\D/g, "").length < 10) { gcToast.warn("El número telefónico parece incompleto."); return; }
-      if (!minLen(mensaje, 10)) { gcToast.warn("Cuéntanos más en el mensaje (mínimo 10 caracteres)."); return; }
+      if (!minLen(nombre, 2)) return gcToast("Escribe tu nombre.", "advertencia");
+      if (!minLen(apellidos, 2)) return gcToast("Escribe tus apellidos.", "advertencia");
+      if (!isEmail(email)) return gcToast("Escribe un correo válido.", "advertencia");
+      if (telefono && telefono.replace(/\D/g, "").length < 10)
+        return gcToast("El número telefónico parece incompleto.", "advertencia");
+      if (!minLen(mensaje, 10))
+        return gcToast("Cuéntanos más en el mensaje (mínimo 10 caracteres).", "advertencia");
 
-      // Payload (asunto fijo mientras no exista en HTML)
+      // Payload 
       const payload = {
-        nombre, apellidos, email, telefono,
+        nombre,
+        apellidos,
+        email,
+        telefono,
         asunto: "Consulta general",
         mensaje,
         estatus: 0,
         canal: 1,
         status: 1,
-        created_by: 1
+        created_by: 1,
       };
 
-      // Bloquear UI
       sending = true;
       if (btn) {
         btn.disabled = true;
@@ -125,30 +123,33 @@
       try {
         const { resp, raw, mode } = await sendContacto(payload);
 
-        // Log detallado de resultado y URL real
-        console.log(`${TAG} Resultado`, { status: resp.status, ok: resp.ok, mode, resolvedURL: resp.url, raw });
+        console.log(`${TAG} Resultado`, {
+          status: resp.status,
+          ok: resp.ok,
+          modoEnvio: mode,
+          resolvedURL: resp.url,
+          raw,
+        });
 
         if (!resp.ok) {
-          // Log a consola + toast warning pedido
           console.error(`${TAG} Error HTTP`, resp.status, raw);
-          gcToast.warn("Hubo un error, inténtalo más tarde.");
+          gcToast("Hubo un error, inténtalo más tarde.", "advertencia");
           return;
         }
 
-        // Intentamos parsear JSON de éxito
         let json;
-        try { json = raw ? JSON.parse(raw) : { ok: true }; }
-        catch { json = { ok: true, raw }; }
+        try {
+          json = raw ? JSON.parse(raw) : { ok: true };
+        } catch {
+          json = { ok: true, raw };
+        }
 
         console.log(`${TAG} Éxito`, json);
-        gcToast.success("¡Gracias! Tu mensaje fue enviado correctamente.");
+        gcToast("¡Gracias! Tu mensaje fue enviado correctamente.", "exito");
         form.reset();
-
       } catch (err) {
-        // Error de red/parseo/etc.
         console.error(`${TAG} Excepción`, err);
-        gcToast.warn("Hubo un error, inténtalo más tarde.");
-
+        gcToast("Hubo un error, inténtalo más tarde.", "advertencia");
       } finally {
         sending = false;
         if (btn) {
@@ -161,7 +162,5 @@
     mensajeEl?.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) form.requestSubmit?.();
     });
-
-    console.log(`${TAG} API_URL configurada:`, API_URL);
   });
 })();
