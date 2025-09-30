@@ -59,9 +59,7 @@ const S = createStore({
 function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
 /** ===== Init ===== */
-window.addEventListener("DOMContentLoaded", () => {
-  Drawer.init(".ix-drawer");   
-});
+window.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   console.log(`${TAG} init (dep: ${S.get().user.dep})`);
