@@ -442,12 +442,9 @@ main {padding-top: 4rem;}
   gap: var(--ix-space);
   grid-template-columns: minmax(0,1fr);     /* <— minmax(0, 1fr) es clave */
 }
-
-/*
 @media (min-width: 768px){
   .ix-drawer .ixd-grid2{ grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
 }
-*/
 
 /* Field wrapper */
 .ix-drawer .ixd-field{
