@@ -229,159 +229,157 @@
 
     <!-- Drawer -->
     <section aria-label="Panel de trámite">
-        <aside class="ix-drawer" role="dialog" aria-modal="true" aria-labelledby="ix-drw-title" data-drawer="panel"
-            hidden>
+  <aside class="ix-drawer" role="dialog" aria-modal="true" aria-labelledby="ix-drw-title" data-drawer="panel" hidden>
 
-            <!-- Header compacto -->
-            <header class="ixd-head">
-                <h3 id="ix-drw-title" class="ixd-folio" data-field="folio">REQ-0000000000</h3>
-                <button class="ixd-close" data-drawer="close" aria-label="Cerrar">Cerrar</button>
-            </header>
+    <!-- Header compacto -->
+    <header class="ixd-head">
+      <h3 id="ix-drw-title" class="ixd-folio" data-field="folio">REQ-0000000000</h3>
+      <button class="ixd-close" data-drawer="close" aria-label="Cerrar">Cerrar</button>
+    </header>
 
-            <!-- Meta mini -->
-            <div class="ixd-meta">
-                <div><strong>Trámite:</strong> <span data-field="tramite_nombre">—</span></div>
-                <div><strong>Depto:</strong> <span data-field="departamento_nombre">—</span></div>
-                <div><strong>Asignado a:</strong> <span data-field="asignado_nombre_completo">—</span></div>
-                <div><strong>Creado:</strong> <span data-field="created_at">—</span></div>
-            </div>
+    <!-- Meta mini -->
+    <div class="ixd-meta">
+      <div><strong>Trámite:</strong> <span data-field="tramite_nombre">—</span></div>
+      <div><strong>Depto:</strong> <span data-field="departamento_nombre">—</span></div>
+      <div><strong>Asignado a:</strong> <span data-field="asignado_nombre_completo">—</span></div>
+      <div><strong>Creado:</strong> <span data-field="created_at">—</span></div>
+    </div>
 
-            <!-- Acciones (top) -->
-            <div class="ixd-actions">
-                <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
-                <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
-                <button class="btn primary ixd-save" data-action="guardar" type="button" disabled>Guardar</button>
-            </div>
+    <!-- Acciones (top) -->
+    <div class="ixd-actions">
+      <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
+      <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
+      <button class="btn primary ixd-save" data-action="guardar" type="button" disabled>Guardar</button>
+    </div>
 
-            <!-- Contenido con scroll -->
-            <div class="ixd-body">
+    <!-- Contenido con scroll -->
+    <div class="ixd-body">
 
-                <!-- FORM: importante para el JS -->
-                <form class="ix-drawer__form" data-drawer="form" novalidate>
+      <!-- FORM: importante para el JS -->
+      <form class="ix-drawer__form" data-drawer="form" novalidate>
 
-                    <!-- Campos (solo lectura y edición en el mismo bloque) -->
-                    <div class="ixd-field">
-                        <label>Departamento</label>
-                        <p data-field="departamento_nombre">—</p>
-                        <!-- (No editable desde aquí, se muestra solo lectura) -->
-                    </div>
+        <!-- Campos (solo lectura y edición en el mismo bloque) -->
+        <div class="ixd-field">
+          <label>Departamento</label>
+          <p data-field="departamento_nombre">—</p>
+          <!-- (No editable desde aquí, se muestra solo lectura) -->
+        </div>
 
-                    <div class="ixd-field">
-                        <label>Asunto</label>
-                        <p data-field="asunto">—</p>
-                        <input class="ixd-input" name="asunto" type="text" data-edit hidden>
-                    </div>
+        <div class="ixd-field">
+          <label>Asunto</label>
+          <p data-field="asunto">—</p>
+          <input class="ixd-input" name="asunto" type="text" data-edit hidden>
+        </div>
 
-                    <div class="ixd-field">
-                        <label>Descripción</label>
-                        <p data-field="descripcion">—</p>
-                        <textarea class="ixd-input" name="descripcion" rows="4" data-edit hidden></textarea>
-                    </div>
+        <div class="ixd-field">
+          <label>Descripción</label>
+          <p data-field="descripcion">—</p>
+          <textarea class="ixd-input" name="descripcion" rows="4" data-edit hidden></textarea>
+        </div>
 
-                    <div class="ixd-grid2">
-                        <div class="ixd-field">
-                            <label>Prioridad</label>
-                            <p data-field="prioridad">—</p>
-                            <select class="ixd-input" name="prioridad" data-edit hidden>
-                                <option value="1">Baja</option>
-                                <option value="2">Media</option>
-                                <option value="3">Alta</option>
-                            </select>
-                        </div>
-                        <div class="ixd-field">
-                            <label>Canal</label>
-                            <p data-field="canal">—</p>
-                            <input class="ixd-input" name="canal" type="number" data-edit hidden>
-                        </div>
-                    </div>
+        <div class="ixd-grid2">
+          <div class="ixd-field">
+            <label>Prioridad</label>
+            <p data-field="prioridad">—</p>
+            <select class="ixd-input" name="prioridad" data-edit hidden>
+              <option value="1">Baja</option>
+              <option value="2">Media</option>
+              <option value="3">Alta</option>
+            </select>
+          </div>
+          <div class="ixd-field">
+            <label>Canal</label>
+            <p data-field="canal">—</p>
+            <input class="ixd-input" name="canal" type="number" data-edit hidden>
+          </div>
+        </div>
 
-                    <h4 class="ixd-sub">Contacto</h4>
+        <h4 class="ixd-sub">Contacto</h4>
 
-                    <div class="ixd-grid2">
-                        <div class="ixd-field">
-                            <label>Nombre</label>
-                            <p data-field="contacto_nombre">—</p>
-                            <input class="ixd-input" name="contacto_nombre" type="text" data-edit hidden>
-                        </div>
-                        <div class="ixd-field">
-                            <label>Teléfono</label>
-                            <p data-field="contacto_telefono">—</p>
-                            <input class="ixd-input" name="contacto_telefono" type="tel" data-edit hidden>
-                        </div>
-                    </div>
+        <div class="ixd-grid2">
+          <div class="ixd-field">
+            <label>Nombre</label>
+            <p data-field="contacto_nombre">—</p>
+            <input class="ixd-input" name="contacto_nombre" type="text" data-edit hidden>
+          </div>
+          <div class="ixd-field">
+            <label>Teléfono</label>
+            <p data-field="contacto_telefono">—</p>
+            <input class="ixd-input" name="contacto_telefono" type="tel" data-edit hidden>
+          </div>
+        </div>
 
-                    <div class="ixd-grid2">
-                        <div class="ixd-field">
-                            <label>Email</label>
-                            <p data-field="contacto_email">—</p>
-                            <input class="ixd-input" name="contacto_email" type="email" data-edit hidden>
-                        </div>
-                        <div class="ixd-field">
-                            <label>Código Postal</label>
-                            <p data-field="contacto_cp">—</p>
-                            <input class="ixd-input" name="contacto_cp" type="text" data-edit hidden>
-                        </div>
-                    </div>
+        <div class="ixd-grid2">
+          <div class="ixd-field">
+            <label>Email</label>
+            <p data-field="contacto_email">—</p>
+            <input class="ixd-input" name="contacto_email" type="email" data-edit hidden>
+          </div>
+          <div class="ixd-field">
+            <label>Código Postal</label>
+            <p data-field="contacto_cp">—</p>
+            <input class="ixd-input" name="contacto_cp" type="text" data-edit hidden>
+          </div>
+        </div>
 
-                    <div class="ixd-field">
-                        <label>Calle</label>
-                        <p data-field="contacto_calle">—</p>
-                        <input class="ixd-input" name="contacto_calle" type="text" data-edit hidden>
-                    </div>
+        <div class="ixd-field">
+          <label>Calle</label>
+          <p data-field="contacto_calle">—</p>
+          <input class="ixd-input" name="contacto_calle" type="text" data-edit hidden>
+        </div>
 
-                    <div class="ixd-field">
-                        <label>Colonia</label>
-                        <p data-field="contacto_colonia">—</p>
-                        <input class="ixd-input" name="contacto_colonia" type="text" data-edit hidden>
-                    </div>
+        <div class="ixd-field">
+          <label>Colonia</label>
+          <p data-field="contacto_colonia">—</p>
+          <input class="ixd-input" name="contacto_colonia" type="text" data-edit hidden>
+        </div>
 
-                    <!-- Galería / Evidencia -->
-                    <h4 class="ixd-sub">Galería</h4>
+        <!-- Galería / Evidencia -->
+        <h4 class="ixd-sub">Galería</h4>
 
-                    <!-- Imagen destacada con overlay de lápiz cuando está en modo edición -->
-                    <div class="ixd-imgBlock">
-                        <img data-img="hero" src="" alt="Evidencia" loading="lazy">
-                        <button class="ixd-pencil" type="button" data-img="pick" title="Cambiar imagen"
-                            aria-label="Cambiar imagen">✎</button>
-                        <input type="file" accept="image/*" data-img="file" hidden>
-                    </div>
+        <!-- Imagen destacada con overlay de lápiz cuando está en modo edición -->
+        <div class="ixd-imgBlock">
+          <img data-img="hero" src="" alt="Evidencia" loading="lazy">
+          <button class="ixd-pencil" type="button" data-img="pick" title="Cambiar imagen" aria-label="Cambiar imagen">✎</button>
+          <input type="file" accept="image/*" data-img="file" hidden>
+        </div>
 
-                    <!-- Previews locales (antes de subir) -->
-                    <div class="ixd-previews" data-img="previews" aria-live="polite" aria-atomic="true"></div>
+        <!-- Previews locales (antes de subir) -->
+        <div class="ixd-previews" data-img="previews" aria-live="polite" aria-atomic="true"></div>
 
-                    <!-- Uploader simple -->
-                    <div class="ixd-uploadRow">
-                        <label>Subir a estado:
-                            <select data-img="uploadStatus">
-                                <option value="0">Solicitud</option>
-                                <option value="1">Revisión</option>
-                                <option value="2">Asignación</option>
-                                <option value="3">En proceso</option>
-                                <option value="4">Pausado</option>
-                                <option value="5">Cancelado</option>
-                                <option value="6">Finalizado</option>
-                            </select>
-                        </label>
-                        <button class="btn" data-img="uploadBtn" type="button" disabled>Subir</button>
-                    </div>
+        <!-- Uploader simple -->
+        <div class="ixd-uploadRow">
+          <label>Subir a estado:
+            <select data-img="uploadStatus">
+              <option value="0">Solicitud</option>
+              <option value="1">Revisión</option>
+              <option value="2">Asignación</option>
+              <option value="3">En proceso</option>
+              <option value="4">Pausado</option>
+              <option value="5">Cancelado</option>
+              <option value="6">Finalizado</option>
+            </select>
+          </label>
+          <button class="btn" data-img="uploadBtn" type="button" disabled>Subir</button>
+        </div>
 
-                    <!-- Hidden para update -->
-                    <input type="hidden" name="id" data-field="id" value="">
-                    <input type="hidden" name="updated_by" value="0">
+        <!-- Hidden para update -->
+        <input type="hidden" name="id" data-field="id" value="">
+        <input type="hidden" name="updated_by" value="0">
 
-                </form>
-                <!-- /form -->
-            </div>
+      </form>
+      <!-- /form -->
+    </div>
 
-            <!-- Footer (acciones) -->
-            <footer class="ixd-actions ixd-actions--footer">
-                <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
-                <button class="btn primary ixd-save" data-action="guardar" type="button" disabled>Guardar</button>
-                <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
-            </footer>
+    <!-- Footer (acciones) -->
+    <footer class="ixd-actions ixd-actions--footer">
+      <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
+      <button class="btn primary ixd-save" data-action="guardar" type="button" disabled>Guardar</button>
+      <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
+    </footer>
 
-        </aside>
-    </section>
+  </aside>
+</section>
 
 
 
