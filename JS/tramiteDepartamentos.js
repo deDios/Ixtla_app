@@ -427,6 +427,10 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     FETCH_TIMEOUT: 12000,
     DEBUG: false,
+
+    // 🔐 reCAPTCHA Enterprise
+    RECAPTCHA_SITE_KEY: "TU_SITE_KEY",   // <-- pon aquí tu site key
+    RECAPTCHA_ACTION:   "crear_requerimiento"
   }, window.IX_CFG_REQ || {});
   const ACCEPT_ALL = window.IX_CFG_REQ_ACCEPT || [...CFG.ACCEPT_MIME, ...CFG.ACCEPT_EXT].join(",");
 
@@ -515,46 +519,35 @@ document.addEventListener("DOMContentLoaded", () => {
     if (timeMeta) { timeMeta.dateTime = now.toISOString(); timeMeta.textContent=""; }
   }
 
-
-
-
-
+  // Modal "done"
   (function () {
-  const root = document.getElementById("ix-done-modal");
-  if (!root) return console.warn("[DONE] No existe #ix-done-modal");
-
-  const overlay = root.querySelector("[data-close]");
-  const closes  = root.querySelectorAll("[data-close]");
-  const subEl   = root.querySelector("#ix-done-subtitle");
-  const folioEl = root.querySelector("#ix-done-folio");
-
-  function open({ folio = "—", title = "—" } = {}) {
-    if (subEl)   subEl.textContent   = title || "—";
-    if (folioEl) folioEl.textContent = folio || "—";
-    root.hidden = false;
-    root.setAttribute("aria-hidden","false");
-    document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", onKey);
-  }
-  function close() {
-    root.hidden = true;
-    root.setAttribute("aria-hidden","true");
-    document.body.style.overflow = "";
-    document.removeEventListener("keydown", onKey);
-  }
-  function onKey(e){ if (e.key === "Escape") close(); }
-
-  overlay?.addEventListener("click", close);
-  closes.forEach(b=> b.addEventListener("click", close));
-
-  window.ixDoneModal = { open, close };
+    const root = document.getElementById("ix-done-modal");
+    if (!root) return;
+    const overlay = root.querySelector("[data-close]");
+    const closes  = root.querySelectorAll("[data-close]");
+    const subEl   = root.querySelector("#ix-done-subtitle");
+    const folioEl = root.querySelector("#ix-done-folio");
+    function open({ folio = "—", title = "—" } = {}) {
+      if (subEl)   subEl.textContent   = title || "—";
+      if (folioEl) folioEl.textContent = folio || "—";
+      root.hidden = false;
+      root.setAttribute("aria-hidden","false");
+      document.body.style.overflow = "hidden";
+      document.addEventListener("keydown", onKey);
+    }
+    function close() {
+      root.hidden = true;
+      root.setAttribute("aria-hidden","true");
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", onKey);
+    }
+    function onKey(e){ if (e.key === "Escape") close(); }
+    overlay?.addEventListener("click", close);
+    closes.forEach(b=> b.addEventListener("click", close));
+    window.ixDoneModal = { open, close };
   })();
 
-
-
-
   function setFieldError(inputEl, msg = "") {
-    // consentimiento viene fuera de .ix-field
     if (inputEl === chkCons) {
       const row = chkCons.closest(".ix-form__row--consent");
       row?.classList.toggle("ix-field--error", !!msg);
@@ -567,27 +560,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (msg) inputEl?.setAttribute?.("aria-invalid","true"); else inputEl?.removeAttribute?.("aria-invalid");
     if (help) { help.hidden = !msg; help.textContent = msg || ""; }
   }
+  function updateDescCount(){ if (cntDesc && inpDesc) cntDesc.textContent = `${(inpDesc.value || "").length}`; }
 
-  function updateDescCount(){ if (cntDesc && inpDesc) cntDesc.textContent = `mínimo 10 caracteres - ${(inpDesc.value || "").length} `; }
-
-  /* ---------- Selects CP / Colonia ---------- */
-  const makeOpt = (v, label, o={}) => {
-    const el = document.createElement("option");
-    el.value = v; el.textContent = label;
-    if (o.disabled) el.disabled = true;
-    if (o.selected) el.selected = true;
-    return el;
-  };
-  const ensureSelect = (el, { nameFallback, idFallback } = {}) => {
-    if (el && el.tagName === "SELECT") return el;
-    const sel = document.createElement("select");
-    sel.id = el?.id || idFallback || "";
-    sel.name = el?.name || nameFallback || "";
-    sel.className = el?.className || "ix-select ix-select--quiet";
-    sel.required = true;
-    if (el) el.replaceWith(sel);
-    return sel;
-  };
+  /* ---------- CP/Colonia ---------- */
+  const makeOpt = (v, label, o={}) => { const el=document.createElement("option"); el.value=v; el.textContent=label; if(o.disabled)el.disabled=true; if(o.selected)el.selected=true; return el; };
+  const ensureSelect = (el, { nameFallback, idFallback } = {}) => { if(el && el.tagName==="SELECT") return el; const sel=document.createElement("select"); sel.id=el?.id||idFallback||""; sel.name=el?.name||nameFallback||""; sel.className=el?.className||"ix-select ix-select--quiet"; sel.required=true; if(el) el.replaceWith(sel); return sel; };
   const ensureCpSelect  = () => (inpCP  = ensureSelect(inpCP,  { idFallback:"ix-cp",      nameFallback:"contacto_cp" }));
   const ensureColSelect = () => (inpCol = ensureSelect(inpCol, { idFallback:"ix-colonia", nameFallback:"contacto_colonia" }));
 
@@ -663,7 +640,6 @@ document.addEventListener("DOMContentLoaded", () => {
       : `Subir imágenes (${files.length}/${CFG.MAX_FILES}).`;
     upCTA.title = tip;
     upCTA.setAttribute("aria-label", tip);
-    if (atLimit) window.ixToast?.warn(tip, 3600);
   }
   function refreshPreviews() {
     if (!previews) return;
@@ -672,37 +648,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const fig = document.createElement("figure");
       const img = document.createElement("img");
       const btn = document.createElement("button");
-
       const canPreview = /^(image\/jpeg|image\/png|image\/webp)$/i.test(file.type);
       const url = canPreview ? URL.createObjectURL(file) : "/ASSETS/departamentos/placeholder_card.png";
       file._url = url;
-
-      img.src = url;
-      img.alt = canPreview ? file.name : "Vista previa no disponible";
-      img.loading = "lazy";
-      img.decoding = "async";
+      img.src = url; img.alt = canPreview ? file.name : "Vista previa no disponible";
+      img.loading = "lazy"; img.decoding = "async";
       img.onload = () => { try { URL.revokeObjectURL(url); } catch {} };
-
-      btn.type = "button";
-      btn.textContent = "×";
-      btn.setAttribute("aria-label", "Eliminar imagen");
+      btn.type = "button"; btn.textContent = "×"; btn.setAttribute("aria-label", "Eliminar imagen");
       btn.addEventListener("click", () => {
         const f = files.splice(idx, 1)[0];
         if (f?._url) { try { URL.revokeObjectURL(f._url); } catch {} }
-        refreshPreviews();
-        toggleUploadCTA();
+        refreshPreviews(); toggleUploadCTA();
         if (hasAttemptedSubmit) validateForm(true);
       });
-
-      fig.appendChild(img);
-      fig.appendChild(btn);
-      previews.appendChild(fig);
+      fig.appendChild(img); fig.appendChild(btn); previews.appendChild(fig);
     });
-
-    if (hasAttemptedSubmit) {
-      if (files.length < (CFG.MIN_FILES || 0)) upWrap?.classList.add("ix-upload--error");
-      else upWrap?.classList.remove("ix-upload--error");
-    }
     toggleUploadCTA();
   }
   function handleFiles(list) {
@@ -730,6 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ---------- Validación ---------- */
+  function setFieldOK(el){ setFieldError(el, ""); }
   function validateField(key, showErrors) {
     let ok = true, msg = "";
     switch (key) {
@@ -803,12 +764,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (files.length > CFG.MAX_FILES) { allOk = false; showFeedback(`Máximo ${CFG.MAX_FILES} imágenes.`); }
     if (files.length < (CFG.MIN_FILES || 0)) {
-      allOk = false;
-      showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES>1?"es":""}.`);
+      allOk = false; showFeedback(`Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES>1?"es":""}.`);
       upWrap?.classList.add("ix-upload--error");
-    } else {
-      upWrap?.classList.remove("ix-upload--error");
-    }
+    } else { upWrap?.classList.remove("ix-upload--error"); }
     return { ok: allOk, firstBad };
   }
 
@@ -834,31 +792,18 @@ document.addEventListener("DOMContentLoaded", () => {
     currentItemId = String(itemId || "");
     currentTitle  = String(title || "Reporte");
     modal.dataset.mode = mode;
-
     subTitle && (subTitle.textContent = currentTitle);
     inpReq   && (inpReq.value   = currentTitle);
     inpDepId && (inpDepId.value = currentDepId);
     inpTram  && (inpTram.value  = currentItemId);
-
-    clearFeedback();
-    hasAttemptedSubmit = false;
-    isSubmitting = false;
-    form?.reset();
-    files = [];
-    refreshPreviews();
-    updateDescCount();
-    setToday();
+    clearFeedback(); hasAttemptedSubmit = false; isSubmitting = false;
+    form?.reset(); files = []; refreshPreviews(); updateDescCount(); setToday();
     btnSend && (btnSend.disabled = false);
-
     toggleAsuntoForOtros(mode === "otros");
-
     ensureCpSelect(); ensureColSelect(); resetColonia();
     fetchCpColonia().then(() => populateCpOptions()).catch(()=>{});
-
-    modal.hidden = false;
-    modal.setAttribute("aria-hidden","false");
+    modal.hidden = false; modal.setAttribute("aria-hidden","false");
     document.body.style.overflow = "hidden";
-
     const onKey = (e) => { if (e.key === "Escape") closeModal(); else trap(e); };
     document.addEventListener("keydown", onKey, { passive: false });
     overlay?.addEventListener("click", closeModal, { once: true });
@@ -868,8 +813,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   function closeModal() {
     document.removeEventListener("keydown", modal._onKey || (()=>{}));
-    modal.hidden = true;
-    modal.setAttribute("aria-hidden","true");
+    modal.hidden = true; modal.setAttribute("aria-hidden","true");
     document.body.style.overflow = "";
   }
   window.ixReportModal = {
@@ -893,7 +837,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (t?.id === "ix-colonia") {
       const val = t.value || "";
-      inpCol.value = val; // asegura que quede seteado
+      inpCol.value = val;
       const ok = !!val && (CP_MAP[inpCP?.value] || []).includes(val);
       setFieldError(inpCol, ok ? "" : "Selecciona una colonia válida.");
     }
@@ -908,120 +852,128 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---------- Submit ---------- */
   form?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (isSubmitting) return;
+    e.preventDefault();
+    if (isSubmitting) return;
 
-  clearFeedback();
-  hasAttemptedSubmit = true;
+    clearFeedback();
+    hasAttemptedSubmit = true;
 
-  const res = validateForm(true);
-  if (!res.ok) {
-    const sel = {
-      nombre:"#ix-nombre", dom:"#ix-domicilio", cp:"#ix-cp", col:"#ix-colonia",
-      tel:"#ix-telefono", correo:"#ix-correo", desc:"#ix-descripcion",
-      consent:"#ix-consent", asunto:"#ix-asunto",
-    }[res.firstBad];
-    modal.querySelector(sel || "")?.focus?.();
-    return;
-  }
-
-  // build payload
-  const depId  = Number(currentDepId  || inpDepId?.value || 1);
-  const tramId = Number(currentItemId || inpTram?.value  || 0);
-  const modoOtros = modal.dataset.mode === "otros";
-
-  const body = {
-    departamento_id: depId,
-    tramite_id: tramId || null,
-    asignado_a: 1,
-    asunto: (modoOtros && inpAsunto?.value.trim()) ? inpAsunto.value.trim() : `Reporte ${currentTitle}`,
-    descripcion: (inpDesc?.value || "").trim(),
-    prioridad: 2,
-    estatus: 0,     // 0 = solicitud
-    canal: 1,
-    contacto_nombre: (inpNombre?.value || "").trim(),
-    contacto_email: (inpCorreo?.value || "").trim() || null,
-    contacto_telefono: digits(inpTel?.value || ""),
-    contacto_calle: (inpDom?.value || "").trim(),
-    contacto_colonia: (inpCol?.value || "").trim(),
-    contacto_cp: (inpCP?.value || "").trim(),
-    fecha_limite: null,
-    status: 1,
-    created_by: 1,
-  };
-
-  // estado UI
-  isSubmitting = true;
-  form.setAttribute("aria-busy","true");
-  const oldTxt = btnSend.textContent;
-  btnSend.disabled = true;
-  btnSend.textContent = "Enviando…";
-
-  try {
-    // 1) crear requerimiento
-    const json = await withTimeout((signal) =>
-      fetch(CFG.ENDPOINTS.insertReq, {
-        method: "POST",
-        headers: { "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify(body),
-        signal,
-      }).then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-    );
-
-    if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
-    const folio = json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10,"0")}`;
-
-    // 2) preparar folders (best-effort)
-    try {
-      await withTimeout((signal) =>
-        fetch(CFG.ENDPOINTS.fsBootstrap, {
-          method: "POST",
-          headers: { "Content-Type":"application/json", "Accept":"application/json" },
-          body: JSON.stringify({ folio }),
-          signal,
-        }).then(r=>r.json())
-      );
-    } catch {}
-
-    // 3) subir evidencias (si hay)
-    if (files.length) {
-      const fd = new FormData();
-      fd.append("folio", folio);
-      fd.append("status", "0");
-      files.forEach(f => fd.append("files[]", f, f.name));
-      try {
-        await withTimeout((signal) =>
-          fetch(CFG.ENDPOINTS.uploadImg, { method:"POST", body: fd, signal })
-            .then(r => r.json())
-        );
-      } catch {
-        window.ixToast?.warn("El reporte se creó, pero algunas imágenes no se subieron.");
-      }
+    const res = validateForm(true);
+    if (!res.ok) {
+      const sel = {
+        nombre:"#ix-nombre", dom:"#ix-domicilio", cp:"#ix-cp", col:"#ix-colonia",
+        tel:"#ix-telefono", correo:"#ix-correo", desc:"#ix-descripcion",
+        consent:"#ix-consent", asunto:"#ix-asunto",
+      }[res.firstBad];
+      modal.querySelector(sel || "")?.focus?.();
+      return;
     }
 
-    // 4) reset + cerrar formulario + abrir modal informativo
-    window.ixToast?.ok(`Reporte creado: ${folio}`, 3200);
+    // reCAPTCHA Enterprise
+    let captchaToken = "";
+    try {
+      await grecaptcha.enterprise.ready();
+      captchaToken = await grecaptcha.enterprise.execute(CFG.RECAPTCHA_SITE_KEY, { action: CFG.RECAPTCHA_ACTION });
+    } catch (e) {
+      window.ixToast?.err("No se pudo verificar el captcha.");
+      showFeedback("No se pudo verificar el captcha.");
+      return;
+    }
 
-    Array.from(form.elements).forEach(el => (el.disabled = false));
-    btnSend.textContent = oldTxt;
-    form.reset();
-    files.forEach(f => { if (f?._url) { try { URL.revokeObjectURL(f._url); } catch {} } });
-    files = [];
-    refreshPreviews();
-    updateDescCount();
-    closeModal();
+    // build payload (SIN campos sensibles)
+    const depId  = Number(currentDepId  || inpDepId?.value || 1);
+    const tramId = Number(currentItemId || inpTram?.value  || 0);
+    const modoOtros = modal.dataset.mode === "otros";
 
-    // mostrar modal informativo con título y folio
-    window.ixDoneModal?.open({ folio, title: currentTitle });
+    const body = {
+      departamento_id: depId,
+      tramite_id: tramId || null,
+      asunto: (modoOtros && inpAsunto?.value.trim()) ? inpAsunto.value.trim() : `Reporte ${currentTitle}`,
+      descripcion: (inpDesc?.value || "").trim(),
+      contacto_nombre: (inpNombre?.value || "").trim(),
+      contacto_email: (inpCorreo?.value || "").trim() || null,
+      contacto_telefono: digits(inpTel?.value || ""),
+      contacto_calle: (inpDom?.value || "").trim(),
+      contacto_colonia: (inpCol?.value || "").trim(),
+      contacto_cp: (inpCP?.value || "").trim(),
+      captcha_token: captchaToken
+    };
 
-  } catch (err) {
-    window.ixToast?.err("No se pudo enviar el reporte.");
-    showFeedback(`No se pudo enviar el reporte. ${err?.message || err}`);
-  } finally {
-    isSubmitting = false;
-    form.removeAttribute("aria-busy");
-    btnSend.textContent = oldTxt;
-    btnSend.disabled = false;
-  }
+    // UI
+    isSubmitting = true;
+    form.setAttribute("aria-busy","true");
+    const oldTxt = btnSend.textContent;
+    btnSend.disabled = true;
+    btnSend.textContent = "Enviando…";
+
+    // Idempotencia
+    const idempKey = (crypto?.randomUUID && crypto.randomUUID()) 
+                  || (`idemp-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+    try {
+      // 1) crear requerimiento
+      const json = await withTimeout((signal) =>
+        fetch(CFG.ENDPOINTS.insertReq, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            "Idempotency-Key": idempKey
+          },
+          body: JSON.stringify(body),
+          signal,
+        }).then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      );
+
+      if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
+      const folio = json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10,"0")}`;
+
+      // 2) preparar folders (best-effort)
+      try {
+        await withTimeout((signal) =>
+          fetch(CFG.ENDPOINTS.fsBootstrap, {
+            method: "POST",
+            headers: { "Content-Type":"application/json", "Accept":"application/json" },
+            body: JSON.stringify({ folio }),
+            signal,
+          }).then(r=>r.json())
+        );
+      } catch {}
+
+      // 3) subir evidencias (si hay)
+      if (files.length) {
+        const fd = new FormData();
+        fd.append("folio", folio);
+        fd.append("status", "0");
+        files.forEach(f => fd.append("files[]", f, f.name));
+        try {
+          await withTimeout((signal) =>
+            fetch(CFG.ENDPOINTS.uploadImg, { method:"POST", body: fd, signal })
+              .then(r => r.json())
+          );
+        } catch {
+          window.ixToast?.warn("El reporte se creó, pero algunas imágenes no se subieron.");
+        }
+      }
+
+      window.ixToast?.ok(`Reporte creado: ${folio}`, 3200);
+      Array.from(form.elements).forEach(el => (el.disabled = false));
+      btnSend.textContent = oldTxt;
+      form.reset();
+      files.forEach(f => { if (f?._url) { try { URL.revokeObjectURL(f._url); } catch {} } });
+      files = []; refreshPreviews(); updateDescCount();
+      window.ixDoneModal?.open({ folio, title: currentTitle });
+      (window.ixReportModal?.close || (()=>{}))();
+
+    } catch (err) {
+      window.ixToast?.err("No se pudo enviar el reporte.");
+      showFeedback(`No se pudo enviar el reporte. ${err?.message || err}`);
+    } finally {
+      isSubmitting = false;
+      form.removeAttribute("aria-busy");
+      btnSend.textContent = oldTxt;
+      btnSend.disabled = false;
+    }
   });
 })();
