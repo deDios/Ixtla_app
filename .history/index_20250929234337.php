@@ -119,7 +119,7 @@
                                 </div>
                             </article>
 
-                            <!-- Slide 3 
+                            <!-- Slide 3 -->
                             <article class="ix-slide" aria-roledescription="slide">
                                 <div class="ix-card">
                                     <figure class="ix-media">
@@ -138,7 +138,7 @@
                                 </div>
                             </article>
 
-                             Slide 4 
+                            <!-- Slide 4 -->
                             <article class="ix-slide" aria-roledescription="slide">
                                 <div class="ix-card">
                                     <figure class="ix-media">
@@ -157,7 +157,7 @@
                                 </div>
                             </article>
 
-                            Slide 5 
+                            <!-- Slide 5 -->
                             <article class="ix-slide" aria-roledescription="slide">
                                 <div class="ix-card">
                                     <figure class="ix-media">
@@ -176,7 +176,7 @@
                                 </div>
                             </article>
 
-                             Slide 6 
+                            <!-- Slide 6 -->
                             <article class="ix-slide" aria-roledescription="slide">
                                 <div class="ix-card">
                                     <figure class="ix-media">
@@ -195,7 +195,7 @@
                                 </div>
                             </article>
 
-                             Slide 7 
+                            <!-- Slide 7 -->
                             <article class="ix-slide" aria-roledescription="slide">
                                 <div class="ix-card">
                                     <figure class="ix-media">
@@ -214,7 +214,7 @@
                                 </div>
                             </article>
 
-                             Slide 8 
+                            <!-- Slide 8 -->
                             <article class="ix-slide" aria-roledescription="slide">
                                 <div class="ix-card">
                                     <figure class="ix-media">
@@ -232,7 +232,7 @@
                                     </div>
                                 </div>
                             </article>
-                            -->
+
                         </div>
                     </div>
                 </div>
