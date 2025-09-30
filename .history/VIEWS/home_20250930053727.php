@@ -332,7 +332,7 @@
                 <!-- Galería / Evidencia -->
                 <h4 class="ixd-sub">Galería</h4>
 
-                <!-- Imagen principal  -->
+                <!-- Imagen principal + lápiz (solo visible en modo edición) -->
                 <div class="ixd-imgBlock">
                     <img data-img="hero" src="" alt="Evidencia" loading="lazy">
                     <button class="ixd-pencil" type="button" data-img="pick" title="Cambiar imagen"
@@ -340,7 +340,7 @@
                     <input type="file" accept="image/*" data-img="file" hidden>
                 </div>
 
-                <!-- Previews locales  -->
+                <!-- Previews locales (antes de subir) -->
                 <div class="ixd-previews" data-img="previews" aria-live="polite" aria-atomic="true"></div>
 
                 <!-- Uploader simple (evidencia por estatus) -->
@@ -365,7 +365,7 @@
 
             </div>
 
-            <!-- Footer -->
+            <!-- Footer fijo (únicas acciones) -->
             <footer class="ixd-actions ixd-actions--footer">
                 <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
                 <button class="btn primary ixd-save" data-action="guardar" type="button" disabled>Guardar</button>
@@ -379,6 +379,7 @@
 
 
     <script type="module">
+    /* Drawer overlay para edición + evidencias por estatus */
     (function() {
         const panel = document.querySelector('[data-drawer="panel"]');
         if (!panel) return;
@@ -393,6 +394,7 @@
             qsa('[data-edit]').forEach(el => el.hidden = !on);
             qsa('.ixd-field p').forEach(el => el.hidden = !!on);
             qs('.ixd-save').disabled = !on;
+            // el lápiz solo visible en edición (CSS ya lo maneja)
         }
 
         function fillFields(row) {
@@ -427,10 +429,12 @@
             if (hero) hero.src = row.hero_url || "";
         }
 
+        /* ======= GALERÍA (listar) ======= */
         async function listMedia({
             folio,
             status
         }) {
+            // Endpoint de listado (el que usarás en backend):
             const url = '/db/WEB/ixtla01_c_requerimiento_media.php';
             try {
                 const res = await fetch(url, {
@@ -445,7 +449,7 @@
                 }).then(r => r.json());
 
                 if (!res?.ok) throw new Error(res?.error || 'Error list media');
-                return res.items || res.saved || []; 
+                return res.items || res.saved || []; // tolerante al shape
             } catch (e) {
                 console.error('[Drawer] list media', e);
                 return [];
@@ -487,6 +491,7 @@
             grid.appendChild(frag);
         }
 
+        /* ======= HOOK Drawer.open ======= */
         const oldOpen = window.Drawer?.open;
         if (typeof oldOpen === "function") {
             window.Drawer.open = function(row, callbacks = {}) {
@@ -495,12 +500,14 @@
                 fillFields(row);
                 setEditing(false);
 
+                // estado inicial de galería: select puesto al estatus actual y carga
                 const selView = qs('[data-img="viewStatus"]');
                 if (selView) {
                     selView.value = String(row.estatus ?? 0);
                 }
                 loadGallery();
 
+                // limpiar buffers
                 filesBuf = [];
                 const prevWrap = qs('[data-img="previews"]');
                 if (prevWrap) prevWrap.innerHTML = "";
@@ -512,6 +519,7 @@
             };
         }
 
+        /* ======= Acciones principales ======= */
         qs('[data-action="editar"]').addEventListener('click', () => setEditing(true));
 
         qs('[data-action="guardar"]').addEventListener('click', async () => {
@@ -576,6 +584,7 @@
             }
         });
 
+        /* ======= Imagen: lápiz + previews y subida ======= */
         const fileInput = qs('[data-img="file"]');
         qs('[data-img="pick"]').addEventListener('click', () => {
             if (!panel.classList.contains('editing')) return;
@@ -604,6 +613,7 @@
             if (upBtn) upBtn.disabled = filesBuf.length === 0;
         });
 
+        // Cambiar de estatus en el selector de vista → recargar
         qs('[data-img="viewStatus"]')?.addEventListener('change', loadGallery);
 
         qs('[data-img="uploadBtn"]').addEventListener('click', async () => {
@@ -612,6 +622,7 @@
 
             const status = Number(qs('[data-img="uploadStatus"]').value || 0);
 
+            // Asegura carpetas
             try {
                 await fetch('/db/WEB/ixtla01_u_requerimiento_folders.php', {
                     method: 'POST',
@@ -624,6 +635,7 @@
                 });
             } catch (_) {}
 
+            // Subir
             const fd = new FormData();
             fd.append('folio', r.folio);
             fd.append('status', String(status));
@@ -636,12 +648,14 @@
                 }).then(r => r.json());
                 if (!up?.ok) throw new Error(up?.error || 'Upload failed');
 
+                // limpiar previews y refrescar la galería respecto a lo que se está visualizando
                 filesBuf = [];
                 const wrap = qs('[data-img="previews"]');
                 if (wrap) wrap.innerHTML = "";
                 const upBtn = qs('[data-img="uploadBtn"]');
                 if (upBtn) upBtn.disabled = true;
 
+                // si el estatus que estoy *viendo* es justo al que subí → recargar
                 const vSel = qs('[data-img="viewStatus"]');
                 const viewing = Number(vSel?.value || 0);
                 if (viewing === status) loadGallery();

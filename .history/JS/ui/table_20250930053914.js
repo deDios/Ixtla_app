@@ -45,7 +45,7 @@ export function createTable({
   // ---- API publica ----
   function setData(rows = []) {
     raw = Array.isArray(rows) ? rows.slice() : [];
-    _rawRows = raw.slice();    
+    _rawRows = raw.slice();     // copia por conveniencia
     page = 1;
     render();
   }

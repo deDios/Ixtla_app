@@ -45,7 +45,7 @@ export function createTable({
   // ---- API publica ----
   function setData(rows = []) {
     raw = Array.isArray(rows) ? rows.slice() : [];
-    _rawRows = raw.slice();    
+    _rawRows = raw.slice();     // copia por conveniencia
     page = 1;
     render();
   }
@@ -53,8 +53,10 @@ export function createTable({
   function setSort(key, dir = 1) { sort = { key, dir: dir >= 0 ? 1 : -1 }; render(); }
   function getSort() { return { ...sort }; }
   function setPageSize(n) { pageSize = Math.max(1, parseInt(n, 10) || pageSize); page = 1; render(); }
-  
+
+  // Devuelve los objetos crudos de la PÁGINA ACTUAL (para que coincidan con los <tr> pintados)
   function getPageRawRows() { return _pageRawRows.slice(); }
+  // Alias que estás usando en Home:
   const getRawRows = getPageRawRows;
 
   // ---- Ordenamiento ----
