@@ -1,4 +1,9 @@
 // /JS/ui/drawer.js
+// Drawer para requerimientos (mockup estilo GodCode)
+// - Valida folio REQ-0000000000
+// - Centraliza endpoints y logs
+// - Toggle edición con .mode-edit
+// - Fallback si no existe listado de media
 
 const API_BASE = 'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/';
 
