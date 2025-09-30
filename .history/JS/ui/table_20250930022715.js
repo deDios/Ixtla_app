@@ -8,6 +8,7 @@ export function createTable({
   pagSel = "#tbl-pag",
   pageSize = 8,
   columns = [
+    // { key, title, sortable?, accessor?: (row)=>any, render?: (val,row)=>string, compare?: (a,b)=>number }
   ]
 } = {}) {
   const body = $(bodySel);
@@ -18,7 +19,7 @@ export function createTable({
 
   // ---- Estado interno ----
   let raw = [];                 // filas "visibles" (obj de vista)
-  let _pageRawRows = [];        // objetos crudos (.__raw || row) de la pagina 
+  let _pageRawRows = [];        // objetos crudos (.__raw || row) de la página ACTUAL
   let page = 1;
   let sort = { key: null, dir: 1 };
 

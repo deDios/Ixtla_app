@@ -8,6 +8,7 @@ export function createTable({
   pagSel = "#tbl-pag",
   pageSize = 8,
   columns = [
+    // { key, title, sortable?, accessor?: (row)=>any, render?: (val,row)=>string, compare?: (a,b)=>number }
   ]
 } = {}) {
   const body = $(bodySel);
@@ -18,7 +19,7 @@ export function createTable({
 
   // ---- Estado interno ----
   let raw = [];                 // filas "visibles" (obj de vista)
-  let _pageRawRows = [];        // objetos crudos (.__raw || row) de la pagina 
+  let _pageRawRows = [];        // objetos crudos (.__raw || row) de la página ACTUAL
   let page = 1;
   let sort = { key: null, dir: 1 };
 
@@ -72,13 +73,14 @@ export function createTable({
 
   // ---- Render de fila (string) con data-row-idx ----
   function renderRow(r, iInPage) {
-    return `<tr data-row-idx="${iInPage}">${columns.map(col => {
-      const acc = col.accessor || (row => row[col.key]);
-      const val = acc(r);
-      const html = col.render ? col.render(val, r) : escapeHtml(val ?? "—");
-      return `<td>${html}</td>`;
-    }).join("")
-      }</tr>`;
+    return `<tr data-row-idx="${iInPage}">${
+      columns.map(col => {
+        const acc = col.accessor || (row => row[col.key]);
+        const val = acc(r);
+        const html = col.render ? col.render(val, r) : escapeHtml(val ?? "—");
+        return `<td>${html}</td>`;
+      }).join("")
+    }</tr>`;
   }
 
   // ---- Render completo ----
@@ -142,7 +144,7 @@ export function createTable({
     });
   }
 
-  function destroy() { }
+  function destroy() {}
 
   initHeader();
   return {

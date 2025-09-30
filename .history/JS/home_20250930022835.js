@@ -149,13 +149,13 @@ async function init() {
   const tbody = document.querySelector("#tbl-wrap tbody");
   if (tbody) {
     tbody.addEventListener("click", (e) => {
-      const tr = e.target.closest("tr");
-      if (!tr) return;
-      const idx = Number(tr.dataset.rowIdx);
-      const raw = table.getRawRows()?.[idx];
-      if (!raw) return;
-      Drawer.open(raw);
-    });
+  const tr = e.target.closest("tr");
+  if (!tr) return;
+  const idx = Number(tr.dataset.rowIdx);
+  const raw = table.getRawRows()?.[idx];   // objeto original del renglón visible
+  if (!raw) return;
+  Drawer.open(raw);
+});
 
   }
 }
@@ -226,7 +226,7 @@ function renderCounts() {
   const c = S.get().counts;
   $("#cnt-todos").textContent = `(${c.todos})`;
   $("#cnt-solicitud").textContent = `(${c.solicitud})`;
-  $("#cnt-revision").textContent = `(${c.revision})`;
+  $("#cnt-revision").textContent   = `(${c.revision})`;
   $("#cnt-asignacion").textContent = `(${c.asignacion})`;
   $("#cnt-enProceso").textContent = `(${c.enProceso})`;
   $("#cnt-pausado").textContent = `(${c.pausado})`;

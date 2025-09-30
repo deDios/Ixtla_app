@@ -18,7 +18,7 @@ export function createTable({
 
   // ---- Estado interno ----
   let raw = [];                 // filas "visibles" (obj de vista)
-  let _pageRawRows = [];        // objetos crudos (.__raw || row) de la pagina 
+  let _pageRawRows = [];        // objetos crudos (.__raw || row) de la página ACTUAL
   let page = 1;
   let sort = { key: null, dir: 1 };
 

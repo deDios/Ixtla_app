@@ -12,21 +12,21 @@ const TAG = "[Home]";
 /** ===== Estatus (num -> clave/nombre) ===== */
 const ESTATUS = {
   0: { clave: "solicitud", nombre: "Solicitud" },
-  1: { clave: "revision", nombre: "Revisión" },
+  1: { clave: "revision",  nombre: "Revisión" },
   2: { clave: "asignacion", nombre: "Asignación" },
-  3: { clave: "enProceso", nombre: "En proceso" },
-  4: { clave: "pausado", nombre: "Pausado" },
-  5: { clave: "cancelado", nombre: "Cancelado" },
+  3: { clave: "enProceso",  nombre: "En proceso" },
+  4: { clave: "pausado",    nombre: "Pausado" },
+  5: { clave: "cancelado",  nombre: "Cancelado" },
   6: { clave: "finalizado", nombre: "Finalizado" }
 };
 
 const STATUS_COLORS = {
-  solicitud: "#a5b4fc",
-  revision: "#93c5fd",
+  solicitud:  "#a5b4fc",
+  revision:   "#93c5fd",
   asignacion: "#6ee7b7",
-  enProceso: "#60a5fa",
-  pausado: "#fbbf24",
-  cancelado: "#f87171",
+  enProceso:  "#60a5fa",
+  pausado:    "#fbbf24",
+  cancelado:  "#f87171",
   finalizado: "#34d399"
 };
 
@@ -45,7 +45,7 @@ const S = createStore({
   counts: {
     todos: 0,
     solicitud: 0,
-    revision: 0,
+    revicion: 0,
     asignacion: 0,
     enProceso: 0,
     pausado: 0,
@@ -61,7 +61,6 @@ function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t =
 /** ===== Init ===== */
 window.addEventListener("DOMContentLoaded", () => {
   Drawer.init(".ix-drawer");
-  init();
 });
 
 async function init() {
@@ -150,13 +149,9 @@ async function init() {
   if (tbody) {
     tbody.addEventListener("click", (e) => {
       const tr = e.target.closest("tr");
-      if (!tr) return;
-      const idx = Number(tr.dataset.rowIdx);
-      const raw = table.getRawRows()?.[idx];
-      if (!raw) return;
-      Drawer.open(raw);
+      if (!tr || !tr._rowData) return;   
+      Drawer.open(tr._rowData);
     });
-
   }
 }
 
@@ -226,7 +221,7 @@ function renderCounts() {
   const c = S.get().counts;
   $("#cnt-todos").textContent = `(${c.todos})`;
   $("#cnt-solicitud").textContent = `(${c.solicitud})`;
-  $("#cnt-revision").textContent = `(${c.revision})`;
+  $("#cnt-revicion").textContent = `(${c.revicion})`;
   $("#cnt-asignacion").textContent = `(${c.asignacion})`;
   $("#cnt-enProceso").textContent = `(${c.enProceso})`;
   $("#cnt-pausado").textContent = `(${c.pausado})`;
@@ -268,7 +263,7 @@ function applyAndRenderTable(table) {
   const rows = filtered.map(r => {
     const est = ESTATUS[Number(r.estatus)];
     return {
-      __raw: r,
+      __id: r.id, // útil para data-id en tr si tu table.js lo soporta
       folio: r.folio || "—",
       contacto: r.contacto_nombre || "—",
       telefono: r.contacto_telefono || "—",
@@ -277,7 +272,6 @@ function applyAndRenderTable(table) {
       statusKey: est?.clave || ""
     };
   });
-
 
   if (!rows.length) {
     table.setData([]);

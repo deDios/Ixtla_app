@@ -11,18 +11,18 @@ const TAG = "[Home]";
 
 /** ===== Estatus (num -> clave/nombre) ===== */
 const ESTATUS = {
-  0: { clave: "solicitud", nombre: "Solicitud" },
-  1: { clave: "revision", nombre: "Revisión" },
+  0: { clave: "solicitud",  nombre: "Solicitud"  },
+  1: { clave: "Revisión",   nombre: "Revisión"   }, 
   2: { clave: "asignacion", nombre: "Asignación" },
-  3: { clave: "enProceso", nombre: "En proceso" },
-  4: { clave: "pausado", nombre: "Pausado" },
-  5: { clave: "cancelado", nombre: "Cancelado" },
+  3: { clave: "enProceso",  nombre: "En proceso" },
+  4: { clave: "pausado",    nombre: "Pausado"    },
+  5: { clave: "cancelado",  nombre: "Cancelado"  },
   6: { clave: "finalizado", nombre: "Finalizado" }
 };
 
 const STATUS_COLORS = {
   solicitud: "#a5b4fc",
-  revision: "#93c5fd",
+  revicion: "#93c5fd",
   asignacion: "#6ee7b7",
   enProceso: "#60a5fa",
   pausado: "#fbbf24",
@@ -45,7 +45,7 @@ const S = createStore({
   counts: {
     todos: 0,
     solicitud: 0,
-    revision: 0,
+    revicion: 0,
     asignacion: 0,
     enProceso: 0,
     pausado: 0,
@@ -60,8 +60,7 @@ function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t =
 
 /** ===== Init ===== */
 window.addEventListener("DOMContentLoaded", () => {
-  Drawer.init(".ix-drawer");
-  init();
+  Drawer.init(".ix-drawer");   
 });
 
 async function init() {
@@ -75,7 +74,7 @@ async function init() {
   mountSkeletonList($("#tbl-skeleton"), 7);
 
   // Charts
-  const lc = LineChart($("#chart-year")); lc.mount({ data: [] });
+  const lc = LineChart($("#chart-year"));  lc.mount({ data: [] });
   const dc = DonutChart($("#chart-month")); dc.mount({ data: [] });
   window.__ixCharts = { lc, dc };
 
@@ -86,10 +85,10 @@ async function init() {
      *  Requerimiento (folio), Contacto nombre, Contacto teléfono, Departamento, Status
      */
     columns: [
-      { key: "folio", title: "Requerimiento", sortable: true, accessor: r => r.folio || "—" },
-      { key: "contacto", title: "Contacto", sortable: true, accessor: r => r.contacto || "—" },
-      { key: "telefono", title: "Teléfono", sortable: true, accessor: r => r.telefono || "—" },
-      { key: "departamento", title: "Departamento", sortable: true, accessor: r => r.departamento || "—" },
+      { key: "folio",        title: "Requerimiento",     sortable: true, accessor: r => r.folio || "—" },
+      { key: "contacto",     title: "Contacto",          sortable: true, accessor: r => r.contacto || "—" },
+      { key: "telefono",     title: "Teléfono",          sortable: true, accessor: r => r.telefono || "—" },
+      { key: "departamento", title: "Departamento",      sortable: true, accessor: r => r.departamento || "—" },
       {
         key: "status", title: "Status", sortable: true, accessor: r => r.statusKey || "",
         render: (val, row) => {
@@ -149,14 +148,10 @@ async function init() {
   const tbody = document.querySelector("#tbl-wrap tbody");
   if (tbody) {
     tbody.addEventListener("click", (e) => {
-      const tr = e.target.closest("tr");
-      if (!tr) return;
-      const idx = Number(tr.dataset.rowIdx);
-      const raw = table.getRawRows()?.[idx];
-      if (!raw) return;
-      Drawer.open(raw);
-    });
-
+  const tr = e.target.closest("tr");
+  if (!tr || !tr._rowData) return;   // _rowData debe contener el objeto del req
+  Drawer.open(tr._rowData);
+});
   }
 }
 
@@ -226,7 +221,7 @@ function renderCounts() {
   const c = S.get().counts;
   $("#cnt-todos").textContent = `(${c.todos})`;
   $("#cnt-solicitud").textContent = `(${c.solicitud})`;
-  $("#cnt-revision").textContent = `(${c.revision})`;
+  $("#cnt-revicion").textContent = `(${c.revicion})`;
   $("#cnt-asignacion").textContent = `(${c.asignacion})`;
   $("#cnt-enProceso").textContent = `(${c.enProceso})`;
   $("#cnt-pausado").textContent = `(${c.pausado})`;
@@ -268,7 +263,7 @@ function applyAndRenderTable(table) {
   const rows = filtered.map(r => {
     const est = ESTATUS[Number(r.estatus)];
     return {
-      __raw: r,
+      __id: r.id, // útil para data-id en tr si tu table.js lo soporta
       folio: r.folio || "—",
       contacto: r.contacto_nombre || "—",
       telefono: r.contacto_telefono || "—",
@@ -277,7 +272,6 @@ function applyAndRenderTable(table) {
       statusKey: est?.clave || ""
     };
   });
-
 
   if (!rows.length) {
     table.setData([]);

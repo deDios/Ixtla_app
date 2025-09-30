@@ -61,7 +61,6 @@ function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t =
 /** ===== Init ===== */
 window.addEventListener("DOMContentLoaded", () => {
   Drawer.init(".ix-drawer");
-  init();
 });
 
 async function init() {
@@ -150,13 +149,9 @@ async function init() {
   if (tbody) {
     tbody.addEventListener("click", (e) => {
       const tr = e.target.closest("tr");
-      if (!tr) return;
-      const idx = Number(tr.dataset.rowIdx);
-      const raw = table.getRawRows()?.[idx];
-      if (!raw) return;
-      Drawer.open(raw);
+      if (!tr || !tr._rowData) return;
+      Drawer.open(tr._rowData);
     });
-
   }
 }
 
@@ -226,7 +221,7 @@ function renderCounts() {
   const c = S.get().counts;
   $("#cnt-todos").textContent = `(${c.todos})`;
   $("#cnt-solicitud").textContent = `(${c.solicitud})`;
-  $("#cnt-revision").textContent = `(${c.revision})`;
+  $("#cnt-revicion").textContent = `(${c.revicion})`;
   $("#cnt-asignacion").textContent = `(${c.asignacion})`;
   $("#cnt-enProceso").textContent = `(${c.enProceso})`;
   $("#cnt-pausado").textContent = `(${c.pausado})`;
@@ -268,7 +263,7 @@ function applyAndRenderTable(table) {
   const rows = filtered.map(r => {
     const est = ESTATUS[Number(r.estatus)];
     return {
-      __raw: r,
+      __id: r.id, // útil para data-id en tr si tu table.js lo soporta
       folio: r.folio || "—",
       contacto: r.contacto_nombre || "—",
       telefono: r.contacto_telefono || "—",
@@ -277,7 +272,6 @@ function applyAndRenderTable(table) {
       statusKey: est?.clave || ""
     };
   });
-
 
   if (!rows.length) {
     table.setData([]);
