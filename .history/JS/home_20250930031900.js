@@ -134,9 +134,9 @@ async function init() {
     tbody.addEventListener("click", (e) => {
       const tr = e.target.closest("tr");
       if (!tr || !tbody.contains(tr)) return;
-      const idx = Number(tr.dataset.rowIdx);
-      const raw = table.getRawRows?.()?.[idx];
-      if (!raw) return;;
+      const idx = parseInt(tr.dataset.rowIdx, 10);
+      const raw = table.getRawRows()?.[idx];
+      if (!raw) return;
       Drawer.open(raw, {
         // Si el drawer necesita saber quién actualiza:
         getSessionUserId: () => (window.__ixSession?.id_usuario ?? 1),
