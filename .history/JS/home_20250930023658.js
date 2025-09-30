@@ -152,10 +152,11 @@ async function init() {
       const tr = e.target.closest("tr");
       if (!tr) return;
       const idx = Number(tr.dataset.rowIdx);
-      const raw = table.getRawRows?.()[idx];
+      const raw = table.getRawRows()?.[idx];
       if (!raw) return;
       Drawer.open(raw);
     });
+
   }
 }
 
@@ -221,20 +222,20 @@ function computeCounts(rows = []) {
   S.set({ counts });
 }
 
-function setTextSafe(sel, txt) {
+function setTextSafe(sel, txt){
   const el = document.querySelector(sel);
   if (el) el.textContent = txt;
 }
 
 function renderCounts() {
   const c = S.get().counts;
-  setTextSafe("#cnt-todos", `(${c.todos})`);
-  setTextSafe("#cnt-solicitud", `(${c.solicitud})`);
-  setTextSafe("#cnt-revision", `(${c.revision})`);     // clave sin acento
+  setTextSafe("#cnt-todos",      `(${c.todos})`);
+  setTextSafe("#cnt-solicitud",  `(${c.solicitud})`);
+  setTextSafe("#cnt-revision",   `(${c.revision})`);     // clave sin acento
   setTextSafe("#cnt-asignacion", `(${c.asignacion})`);
-  setTextSafe("#cnt-enProceso", `(${c.enProceso})`);
-  setTextSafe("#cnt-pausado", `(${c.pausado})`);
-  setTextSafe("#cnt-cancelado", `(${c.cancelado})`);
+  setTextSafe("#cnt-enProceso",  `(${c.enProceso})`);
+  setTextSafe("#cnt-pausado",    `(${c.pausado})`);
+  setTextSafe("#cnt-cancelado",  `(${c.cancelado})`);
   setTextSafe("#cnt-finalizado", `(${c.finalizado})`);
 }
 

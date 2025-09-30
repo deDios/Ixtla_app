@@ -96,8 +96,9 @@
                         <button class="status-item" data-status="solicitud">Solicitud <span id="cnt-solicitud"
                                 class="count">(0)</span></button>
 
-                        <button class="status-item" data-status="revision"> Revisión <span id="cnt-revision"
-                                class="count">(0)</span></button>
+                        <button class="status-item" data-status="revision">
+  Revisión <span id="cnt-revision" class="count">(0)</span>
+</button>
 
 
                         <button class="status-item" data-status="asignacion">Asignación <span id="cnt-asignacion"
