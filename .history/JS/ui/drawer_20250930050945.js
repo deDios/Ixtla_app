@@ -3,16 +3,16 @@
 const API_BASE = 'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/';
 
 // Endpoints
-const EP_UPDATE = API_BASE + 'ixtla01_u_requerimiento.php';
-const EP_FOLDERS = API_BASE + 'ixtla01_u_requerimiento_folders.php';
-const EP_MEDIA_LIST = API_BASE + 'ixtla01_c_requerimiento_media.php';    // si no existe, se ignora 404
+const EP_UPDATE       = API_BASE + 'ixtla01_u_requerimiento.php';
+const EP_FOLDERS      = API_BASE + 'ixtla01_u_requerimiento_folders.php';
+const EP_MEDIA_LIST   = API_BASE + 'ixtla01_c_requerimiento_media.php';    // si no existe, se ignora 404
 const EP_MEDIA_UPLOAD = API_BASE + 'ixtla01_u_requerimiento_media.php';
 
 // Regex folio
 const FOLIO_RX = /^REQ-\d{10}$/;
 
-function $(sel, root = document) { return root.querySelector(sel); }
-function $all(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
+function $(sel, root=document) { return root.querySelector(sel); }
+function $all(sel, root=document) { return Array.from(root.querySelectorAll(sel)); }
 
 function setText(el, txt) { if (el) el.textContent = (txt ?? '—'); }
 function setVal(el, val) { if (el) el.value = (val ?? ''); }
@@ -53,19 +53,19 @@ function setEditMode(panel, on) {
 async function ensureFolders(folio) {
   if (!FOLIO_RX.test(String(folio))) {
     console.warn('[Drawer] ensureFolders: folio inválido →', folio);
-    return { ok: false, skipped: true };
+    return { ok:false, skipped:true };
   }
   const body = { folio, create_status_txt: true };
   console.log('[Drawer] FOLDERS →', EP_FOLDERS, body);
   const res = await fetch(EP_FOLDERS, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type':'application/json' },
     body: JSON.stringify(body)
   });
   const txt = await res.text();
   console.log('[Drawer] FOLDERS ←', res.status, txt);
   if (!res.ok) throw new Error(`folders ${res.status}`);
-  try { return JSON.parse(txt); } catch { return { ok: false, raw: txt }; }
+  try { return JSON.parse(txt); } catch { return { ok:false, raw:txt }; }
 }
 
 async function listMedia(folio, status) {
@@ -76,8 +76,8 @@ async function listMedia(folio, status) {
   const body = { folio, status: Number(status) };
   console.log('[Drawer] LIST MEDIA →', EP_MEDIA_LIST, body);
   const res = await fetch(EP_MEDIA_LIST, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify(body)
   });
   const txt = await res.text();
@@ -87,7 +87,7 @@ async function listMedia(folio, status) {
     return { ok: true, data: [] };
   }
   if (!res.ok) throw new Error(`list media ${res.status}`);
-  try { return JSON.parse(txt); } catch (e) { console.error(e); return { ok: false, raw: txt }; }
+  try { return JSON.parse(txt); } catch(e){ console.error(e); return { ok:false, raw:txt }; }
 }
 
 async function uploadMedia({ folio, status, files }) {
@@ -100,7 +100,7 @@ async function uploadMedia({ folio, status, files }) {
   [...files].forEach(f => fd.append('files[]', f));
 
   console.log('[Drawer] UPLOAD →', EP_MEDIA_UPLOAD, { folio, status, files: files.length });
-  const res = await fetch(EP_MEDIA_UPLOAD, { method: 'POST', body: fd });
+  const res = await fetch(EP_MEDIA_UPLOAD, { method:'POST', body: fd });
   const txt = await res.text();
   console.log('[Drawer] UPLOAD ←', res.status, txt);
   if (!res.ok) throw new Error(`upload ${res.status}`);
@@ -110,8 +110,8 @@ async function uploadMedia({ folio, status, files }) {
 async function updateRequerimiento(payload) {
   console.log('[Drawer] UPDATE →', EP_UPDATE, payload);
   const res = await fetch(EP_UPDATE, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify(payload)
   });
   const txt = await res.text();
@@ -150,29 +150,29 @@ export const Drawer = (() => {
 
   function init(selector = '.ix-drawer') {
     el = document.querySelector(selector);
-    if (!el) { console.warn('[Drawer] no se encontró', selector); return; }
+  if (!el) { console.warn('[Drawer] no se encontró', selector); return; }
 
-    if (el.__inited) {
-      console.warn('[Drawer] init ignorado (ya inicializado)');
-      return;
-    }
-    el.__inited = true;
+  if (el.__inited) {                // 👈 evita enganchar listeners 2 veces
+    console.warn('[Drawer] init ignorado (ya inicializado)');
+    return;
+  }
+  el.__inited = true;
 
-    bodyEl = $('.ixd-body', el) || el;
-    formRoot = el;
-    heroImg = $('[data-img="hero"]', el);
-    pickBtn = $('[data-img="pick"]', el);
-    fileInput = $('[data-img="file"]', el);
-    previewsBox = $('[data-img="previews"]', el);
-    uploadBtn = $('[data-img="uploadBtn"]', el);
+    bodyEl       = $('.ixd-body', el) || el;
+    formRoot     = el;
+    heroImg      = $('[data-img="hero"]', el);
+    pickBtn      = $('[data-img="pick"]', el);
+    fileInput    = $('[data-img="file"]', el);
+    previewsBox  = $('[data-img="previews"]', el);
+    uploadBtn    = $('[data-img="uploadBtn"]', el);
     uploadStatus = $('[data-img="uploadStatus"]', el);
 
     // Cerrar
     $all('[data-drawer="close"]', el).forEach(b => b.addEventListener('click', close));
 
     // Acciones (sólo footer)
-    const btnEdit = el.querySelector('[data-action="editar"]');
-    const btnSave = el.querySelector('[data-action="guardar"]');
+    const btnEdit   = el.querySelector('[data-action="editar"]');
+    const btnSave   = el.querySelector('[data-action="guardar"]');
     const btnDelete = el.querySelector('[data-action="eliminar"]');
     btnEdit?.addEventListener('click', () => setEditMode(el, true));
     btnSave?.addEventListener('click', onSave);
@@ -218,7 +218,7 @@ export const Drawer = (() => {
     console.log('[Drawer] init OK');
   }
 
-  function open(row, callbacks = {}) {
+  function open(row, callbacks={}) {
     if (!el) return console.warn('[Drawer] init() primero');
     console.log('[Drawer] open(row) →', row);
 
@@ -275,147 +275,64 @@ export const Drawer = (() => {
     if (previewsBox) previewsBox.innerHTML = '';
     if (fileInput) fileInput.value = '';
     if (uploadBtn) uploadBtn.disabled = true;
-    try { el._callbacks?.onClose?.(); } catch (e) { console.error(e); }
+    try { el._callbacks?.onClose?.(); } catch(e){ console.error(e); }
   }
 
   async function onSave(ev) {
     ev?.preventDefault?.();
-
-    if (saving) {
-      console.warn('[Drawer] save() ignorado: ya hay una operación en curso');
-      return;
-    }
+    if (saving) { console.warn('[Drawer] save ignorado: saving en curso'); return; }
     saving = true;
 
     const btnSave = el.querySelector('[data-action="guardar"]');
     if (btnSave) btnSave.disabled = true;
 
-    // helpers para leer y normalizar
-    const getStr = (name) => {
-      const v = $(`[name="${name}"][data-edit]`, el)?.value;
-      const t = (v ?? '').trim();
-      return t === '' ? null : t;
-    };
-    const getNum = (name) => {
-      const raw = $(`[name="${name}"][data-edit]`, el)?.value;
-      const n = Number(raw);
-      return Number.isFinite(n) && n !== 0 ? n : (n === 0 ? 0 : null);
-    };
-
     try {
-      const id = Number($('input[name="id"]', el)?.value || NaN);
+      const idVal = $('input[name="id"]', el)?.value;
+      const id = Number(idVal || NaN);
       if (!id) throw new Error('Falta parámetro obligatorio: id');
 
       const payload = {
         id,
-        asunto: getStr('asunto'),
-        descripcion: getStr('descripcion'),
-        prioridad: getNum('prioridad'),
-        canal: getNum('canal'),
-
-        contacto_nombre: getStr('contacto_nombre'),
-        contacto_telefono: getStr('contacto_telefono'),
-        contacto_email: getStr('contacto_email'),
-        contacto_cp: getStr('contacto_cp'),
-        contacto_calle: getStr('contacto_calle'),
-        contacto_colonia: getStr('contacto_colonia'),
-
-        // estatus: getNum('estatus'),
-
-        updated_by: Number($('input[name="updated_by"]', el)?.value || (window.__ixSession?.id_usuario ?? 1)) || 1,
+        asunto: $('[name="asunto"][data-edit]', el)?.value?.trim() || null,
+        descripcion: $('[name="descripcion"][data-edit]', el)?.value?.trim() || null,
+        prioridad: Number($('[name="prioridad"][data-edit]', el)?.value || 0) || null,
+        canal: Number($('[name="canal"][data-edit]', el)?.value || 0) || null,
+        contacto_nombre: $('[name="contacto_nombre"][data-edit]', el)?.value?.trim() || null,
+        contacto_telefono: $('[name="contacto_telefono"][data-edit]', el)?.value?.trim() || null,
+        contacto_email: $('[name="contacto_email"][data-edit]', el)?.value?.trim() || null,
+        contacto_cp: $('[name="contacto_cp"][data-edit]', el)?.value?.trim() || null,
+        contacto_calle: $('[name="contacto_calle"][data-edit]', el)?.value?.trim() || null,
+        contacto_colonia: $('[name="contacto_colonia"][data-edit]', el)?.value?.trim() || null,
+        updated_by: Number($('input[name="updated_by"]', el)?.value || 0) || null,
       };
 
       console.log('[Drawer] save() payload →', payload);
 
       const updated = await updateRequerimiento(payload);
 
+      // Reflejar en UI
       mapToFields(el, updated);
       mapToForm(el, updated);
       setEditMode(el, false);
 
-      try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
+      // callback hacia Home para refrescar tabla
+      try { el._callbacks?.onUpdated?.(updated); } catch(e){ console.error(e); }
 
     } catch (err) {
       console.error('[Drawer] save() error:', err);
-      try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
+      try { el._callbacks?.onError?.(err); } catch(e){ console.error(e); }
     } finally {
       saving = false;
       if (btnSave) btnSave.disabled = !el.classList.contains('mode-edit');
     }
   }
 
-
-  let deleting = false;
-  let deleteConfirmTO = null;
-
-  async function onDelete(ev) {
-    ev?.preventDefault?.();
-    if (!el) return;
-
-    const btn = el.querySelector('[data-action="eliminar"]');
-    if (!btn) return;
-
-    if (!btn.dataset.confirm) {
-      btn.dataset.confirm = "1";
-      const originalTxt = btn.textContent;
-      btn.dataset.original = originalTxt;
-      btn.textContent = "¿Confirmar borrado?";
-      btn.classList.add("danger"); 
-
-      clearTimeout(deleteConfirmTO);
-      deleteConfirmTO = setTimeout(() => {
-        if (!btn) return;
-        btn.textContent = btn.dataset.original || "Eliminar";
-        btn.removeAttribute("data-confirm");
-        btn.removeAttribute("data-original");
-      }, 5000);
-      return; 
-    }
-
-    if (deleting) {
-      console.warn("[Drawer] delete() ignorado: operación en curso");
-      return;
-    }
-    deleting = true;
-    btn.disabled = true;
-
-    // Limpia confirmación visual
-    clearTimeout(deleteConfirmTO);
-    btn.textContent = btn.dataset.original || "Eliminar";
-    btn.removeAttribute("data-confirm");
-    btn.removeAttribute("data-original");
-
-    try {
-      const id = Number(el.querySelector('input[name="id"]')?.value || NaN);
-      if (!id) throw new Error("Falta parámetro obligatorio: id");
-
-      const updated_by =
-        Number(el.querySelector('input[name="updated_by"]')?.value ||
-          (window.__ixSession?.id_usuario ?? 1)) || 1;
-
-      const payload = {
-        id,
-        status: 0,        //  activo(1) → inactivo(0)
-        updated_by
-      };
-
-      console.log("[Drawer] soft delete →", payload);
-
-      const updated = await updateRequerimiento(payload);
-
-      try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
-      close();
-
-    } catch (err) {
-      console.error("[Drawer] delete() error:", err);
-      try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
-    } finally {
-      deleting = false;
-      if (btn) btn.disabled = false;
-    }
+  function onDelete() {
+    // Soft delete pendiente de endpoint (aún no definido)
+    console.warn('[Drawer] eliminar: pendiente de implementar endpoint soft-delete');
   }
 
-
+  // (Opcional) Si luego implementas la galería remota:
   function paintGallery(resp) {
     const grid = $('[data-img="grid"]', el);
     const empty = $('[data-img="empty"]', el);

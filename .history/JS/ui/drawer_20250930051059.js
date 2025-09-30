@@ -152,7 +152,7 @@ export const Drawer = (() => {
     el = document.querySelector(selector);
     if (!el) { console.warn('[Drawer] no se encontró', selector); return; }
 
-    if (el.__inited) {
+    if (el.__inited) {               
       console.warn('[Drawer] init ignorado (ya inicializado)');
       return;
     }
@@ -278,143 +278,11 @@ export const Drawer = (() => {
     try { el._callbacks?.onClose?.(); } catch (e) { console.error(e); }
   }
 
-  async function onSave(ev) {
-    ev?.preventDefault?.();
+  
 
-    if (saving) {
-      console.warn('[Drawer] save() ignorado: ya hay una operación en curso');
-      return;
-    }
-    saving = true;
-
-    const btnSave = el.querySelector('[data-action="guardar"]');
-    if (btnSave) btnSave.disabled = true;
-
-    // helpers para leer y normalizar
-    const getStr = (name) => {
-      const v = $(`[name="${name}"][data-edit]`, el)?.value;
-      const t = (v ?? '').trim();
-      return t === '' ? null : t;
-    };
-    const getNum = (name) => {
-      const raw = $(`[name="${name}"][data-edit]`, el)?.value;
-      const n = Number(raw);
-      return Number.isFinite(n) && n !== 0 ? n : (n === 0 ? 0 : null);
-    };
-
-    try {
-      const id = Number($('input[name="id"]', el)?.value || NaN);
-      if (!id) throw new Error('Falta parámetro obligatorio: id');
-
-      const payload = {
-        id,
-        asunto: getStr('asunto'),
-        descripcion: getStr('descripcion'),
-        prioridad: getNum('prioridad'),
-        canal: getNum('canal'),
-
-        contacto_nombre: getStr('contacto_nombre'),
-        contacto_telefono: getStr('contacto_telefono'),
-        contacto_email: getStr('contacto_email'),
-        contacto_cp: getStr('contacto_cp'),
-        contacto_calle: getStr('contacto_calle'),
-        contacto_colonia: getStr('contacto_colonia'),
-
-        // estatus: getNum('estatus'),
-
-        updated_by: Number($('input[name="updated_by"]', el)?.value || (window.__ixSession?.id_usuario ?? 1)) || 1,
-      };
-
-      console.log('[Drawer] save() payload →', payload);
-
-      const updated = await updateRequerimiento(payload);
-
-      mapToFields(el, updated);
-      mapToForm(el, updated);
-      setEditMode(el, false);
-
-      try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
-
-    } catch (err) {
-      console.error('[Drawer] save() error:', err);
-      try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
-    } finally {
-      saving = false;
-      if (btnSave) btnSave.disabled = !el.classList.contains('mode-edit');
-    }
+  function onDelete() {
+    console.warn('[Drawer] eliminar: pendiente de implementar endpoint soft-delete');
   }
-
-
-  let deleting = false;
-  let deleteConfirmTO = null;
-
-  async function onDelete(ev) {
-    ev?.preventDefault?.();
-    if (!el) return;
-
-    const btn = el.querySelector('[data-action="eliminar"]');
-    if (!btn) return;
-
-    if (!btn.dataset.confirm) {
-      btn.dataset.confirm = "1";
-      const originalTxt = btn.textContent;
-      btn.dataset.original = originalTxt;
-      btn.textContent = "¿Confirmar borrado?";
-      btn.classList.add("danger"); 
-
-      clearTimeout(deleteConfirmTO);
-      deleteConfirmTO = setTimeout(() => {
-        if (!btn) return;
-        btn.textContent = btn.dataset.original || "Eliminar";
-        btn.removeAttribute("data-confirm");
-        btn.removeAttribute("data-original");
-      }, 5000);
-      return; 
-    }
-
-    if (deleting) {
-      console.warn("[Drawer] delete() ignorado: operación en curso");
-      return;
-    }
-    deleting = true;
-    btn.disabled = true;
-
-    // Limpia confirmación visual
-    clearTimeout(deleteConfirmTO);
-    btn.textContent = btn.dataset.original || "Eliminar";
-    btn.removeAttribute("data-confirm");
-    btn.removeAttribute("data-original");
-
-    try {
-      const id = Number(el.querySelector('input[name="id"]')?.value || NaN);
-      if (!id) throw new Error("Falta parámetro obligatorio: id");
-
-      const updated_by =
-        Number(el.querySelector('input[name="updated_by"]')?.value ||
-          (window.__ixSession?.id_usuario ?? 1)) || 1;
-
-      const payload = {
-        id,
-        status: 0,        //  activo(1) → inactivo(0)
-        updated_by
-      };
-
-      console.log("[Drawer] soft delete →", payload);
-
-      const updated = await updateRequerimiento(payload);
-
-      try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
-      close();
-
-    } catch (err) {
-      console.error("[Drawer] delete() error:", err);
-      try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
-    } finally {
-      deleting = false;
-      if (btn) btn.disabled = false;
-    }
-  }
-
 
   function paintGallery(resp) {
     const grid = $('[data-img="grid"]', el);

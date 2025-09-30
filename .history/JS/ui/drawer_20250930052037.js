@@ -345,6 +345,7 @@ export const Drawer = (() => {
   }
 
 
+  // Candado y temporizador para confirmación
   let deleting = false;
   let deleteConfirmTO = null;
 
@@ -355,13 +356,15 @@ export const Drawer = (() => {
     const btn = el.querySelector('[data-action="eliminar"]');
     if (!btn) return;
 
+    // Paso 1: pedir confirmación (toggle)
     if (!btn.dataset.confirm) {
       btn.dataset.confirm = "1";
       const originalTxt = btn.textContent;
       btn.dataset.original = originalTxt;
       btn.textContent = "¿Confirmar borrado?";
-      btn.classList.add("danger"); 
+      btn.classList.add("danger"); // ya la tiene, pero reforzamos intención
 
+      // auto-cancelar confirmación después de 5s
       clearTimeout(deleteConfirmTO);
       deleteConfirmTO = setTimeout(() => {
         if (!btn) return;
@@ -369,9 +372,10 @@ export const Drawer = (() => {
         btn.removeAttribute("data-confirm");
         btn.removeAttribute("data-original");
       }, 5000);
-      return; 
+      return; // aún no borres
     }
 
+    // Paso 2: ejecutar soft delete
     if (deleting) {
       console.warn("[Drawer] delete() ignorado: operación en curso");
       return;
@@ -403,6 +407,7 @@ export const Drawer = (() => {
 
       const updated = await updateRequerimiento(payload);
 
+      // Notifica a Home y cierra el drawer
       try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
       close();
 

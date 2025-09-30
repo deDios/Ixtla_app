@@ -278,6 +278,9 @@ export const Drawer = (() => {
     try { el._callbacks?.onClose?.(); } catch (e) { console.error(e); }
   }
 
+  // fuera de la función (en el módulo) asegúrate de tener:
+  let saving = false;
+
   async function onSave(ev) {
     ev?.preventDefault?.();
 
@@ -320,6 +323,7 @@ export const Drawer = (() => {
         contacto_calle: getStr('contacto_calle'),
         contacto_colonia: getStr('contacto_colonia'),
 
+        // si editas estatus en este drawer, descomenta:
         // estatus: getNum('estatus'),
 
         updated_by: Number($('input[name="updated_by"]', el)?.value || (window.__ixSession?.id_usuario ?? 1)) || 1,
@@ -329,10 +333,12 @@ export const Drawer = (() => {
 
       const updated = await updateRequerimiento(payload);
 
+      // Refresca UI con la respuesta del backend
       mapToFields(el, updated);
       mapToForm(el, updated);
       setEditMode(el, false);
 
+      // callback hacia Home para refrescar tabla/contadores
       try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
 
     } catch (err) {
@@ -340,81 +346,15 @@ export const Drawer = (() => {
       try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
     } finally {
       saving = false;
+      // Habilita el botón sólo si sigues en modo edición
       if (btnSave) btnSave.disabled = !el.classList.contains('mode-edit');
     }
   }
 
 
-  let deleting = false;
-  let deleteConfirmTO = null;
-
-  async function onDelete(ev) {
-    ev?.preventDefault?.();
-    if (!el) return;
-
-    const btn = el.querySelector('[data-action="eliminar"]');
-    if (!btn) return;
-
-    if (!btn.dataset.confirm) {
-      btn.dataset.confirm = "1";
-      const originalTxt = btn.textContent;
-      btn.dataset.original = originalTxt;
-      btn.textContent = "¿Confirmar borrado?";
-      btn.classList.add("danger"); 
-
-      clearTimeout(deleteConfirmTO);
-      deleteConfirmTO = setTimeout(() => {
-        if (!btn) return;
-        btn.textContent = btn.dataset.original || "Eliminar";
-        btn.removeAttribute("data-confirm");
-        btn.removeAttribute("data-original");
-      }, 5000);
-      return; 
-    }
-
-    if (deleting) {
-      console.warn("[Drawer] delete() ignorado: operación en curso");
-      return;
-    }
-    deleting = true;
-    btn.disabled = true;
-
-    // Limpia confirmación visual
-    clearTimeout(deleteConfirmTO);
-    btn.textContent = btn.dataset.original || "Eliminar";
-    btn.removeAttribute("data-confirm");
-    btn.removeAttribute("data-original");
-
-    try {
-      const id = Number(el.querySelector('input[name="id"]')?.value || NaN);
-      if (!id) throw new Error("Falta parámetro obligatorio: id");
-
-      const updated_by =
-        Number(el.querySelector('input[name="updated_by"]')?.value ||
-          (window.__ixSession?.id_usuario ?? 1)) || 1;
-
-      const payload = {
-        id,
-        status: 0,        //  activo(1) → inactivo(0)
-        updated_by
-      };
-
-      console.log("[Drawer] soft delete →", payload);
-
-      const updated = await updateRequerimiento(payload);
-
-      try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
-      close();
-
-    } catch (err) {
-      console.error("[Drawer] delete() error:", err);
-      try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
-    } finally {
-      deleting = false;
-      if (btn) btn.disabled = false;
-    }
+  function onDelete() {
+    console.warn('[Drawer] eliminar: pendiente de implementar endpoint soft-delete');
   }
-
 
   function paintGallery(resp) {
     const grid = $('[data-img="grid"]', el);
