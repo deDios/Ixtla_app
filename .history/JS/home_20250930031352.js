@@ -135,40 +135,40 @@ async function init() {
       const tr = e.target.closest("tr");
       if (!tr) return;
       const idx = parseInt(tr.dataset.rowIdx, 10);
-      const raw = table.getRawRows()?.[idx];
+      const raw = table.getRawRows()?.[idx];   
       if (!raw) return;
       Drawer.open(raw, {
-        // Si el drawer necesita saber quién actualiza:
-        getSessionUserId: () => (window.__ixSession?.id_usuario ?? 1),
+  // Si el drawer necesita saber quién actualiza:
+  getSessionUserId: () => (window.__ixSession?.id_usuario ?? 1),
 
-        // Cuando el requerimiento se actualiza correctamente desde el drawer:
-        onUpdated: (updated) => {
-          try {
-            const arr = S.get().requerimientos.slice();
-            const i = arr.findIndex(r => r.id === updated.id);
-            if (i >= 0) {
-              arr[i] = updated;
-              S.set({ requerimientos: arr });
-            }
-            applyAndRenderTable(table);
-            renderCounts();
-            gcToast("Requerimiento actualizado.", "exito");
-          } catch (e) {
-            console.error("[Home] onUpdated error:", e);
-          }
-        },
+  // Cuando el requerimiento se actualiza correctamente desde el drawer:
+  onUpdated: (updated) => {
+    try {
+      const arr = S.get().requerimientos.slice();
+      const i = arr.findIndex(r => r.id === updated.id);
+      if (i >= 0) {
+        arr[i] = updated;
+        S.set({ requerimientos: arr });
+      }
+      applyAndRenderTable(table);
+      renderCounts();
+      gcToast("Requerimiento actualizado.", "exito");
+    } catch (e) {
+      console.error("[Home] onUpdated error:", e);
+    }
+  },
 
-        // Si ocurre un error dentro del drawer (fetch, validación, etc.):
-        onError: (err) => {
-          console.error("[Drawer] error:", err);
-          gcToast("Ocurrió un error. Inténtalo más tarde.", "warning");
-        },
+  // Si ocurre un error dentro del drawer (fetch, validación, etc.):
+  onError: (err) => {
+    console.error("[Drawer] error:", err);
+    gcToast("Ocurrió un error. Inténtalo más tarde.", "warning");
+  },
 
-        // Opcional: cuando se cierra el drawer (para limpiar estados, etc.)
-        onClose: () => {
-          // console.log("Drawer cerrado");
-        }
-      });
+  // Opcional: cuando se cierra el drawer (para limpiar estados, etc.)
+  onClose: () => {
+    // console.log("Drawer cerrado");
+  }
+});
 
     });
   }
