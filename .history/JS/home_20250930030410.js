@@ -129,43 +129,46 @@ async function init() {
   }, 250));
 
   /** Click en filas → abrir drawer */
-  const tbody = document.querySelector("#tbl-body");
-  if (tbody) {
-    tbody.addEventListener("click", (e) => {
-      const tr = e.target.closest("tr");
-      if (!tr) return;
+  // Sustituye todo tu bloque de "Delegación: abrir drawer al hacer click en una fila" por este:
+const tbody = document.querySelector("#tbl-body");
+if (tbody) {
+  tbody.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr");
+    if (!tr) return;
 
-      const idxAttr = tr.dataset.rowIdx;
-      let idx = Number.isFinite(+idxAttr) ? +idxAttr : Array.from(tr.parentNode.children).indexOf(tr);
+    // lee índice absoluto si viene en data-row-idx; si no, lo calculamos
+    const idxAttr = tr.dataset.rowIdx;
+    let idx = Number.isFinite(+idxAttr) ? +idxAttr : Array.from(tr.parentNode.children).indexOf(tr);
 
-      const rawRows = typeof table.getRawRows === "function" ? table.getRawRows() : null;
-      const raw = rawRows && rawRows[idx] ? rawRows[idx] : tr.__raw || tr._rowData || null;
+    // toma el arreglo RAW desde table.js (ver paso 2)
+    const rawRows = typeof table.getRawRows === "function" ? table.getRawRows() : null;
+    const raw = rawRows && rawRows[idx] ? rawRows[idx] : tr.__raw || tr._rowData || null;
 
-      if (!raw) {
-        console.warn("[Home] No se encontró el objeto de la fila para idx:", idx);
-        return;
-      }
+    if (!raw) {
+      console.warn("[Home] No se encontró el objeto de la fila para idx:", idx);
+      return;
+    }
 
-      if (typeof Drawer?.open !== "function") {
-        console.error("[Home] Drawer.open no está disponible");
-        return;
-      }
+    if (typeof Drawer?.open !== "function") {
+      console.error("[Home] Drawer.open no está disponible");
+      return;
+    }
 
-      Drawer.open(raw, {
-        getSessionUserId: () => (window.__ixSession?.id_usuario ?? 1),
-        onUpdated: (updated) => {
-          const arr = S.get().requerimientos.slice();
-          const i = arr.findIndex(r => r.id === updated.id);
-          if (i >= 0) {
-            arr[i] = updated;
-            S.set({ requerimientos: arr });
-            applyAndRenderTable(table);
-            renderCounts();
-          }
+    Drawer.open(raw, {
+      getSessionUserId: () => (window.__ixSession?.id_usuario ?? 1),
+      onUpdated: (updated) => {
+        const arr = S.get().requerimientos.slice();
+        const i = arr.findIndex(r => r.id === updated.id);
+        if (i >= 0) {
+          arr[i] = updated;
+          S.set({ requerimientos: arr });
+          applyAndRenderTable(table);
+          renderCounts();
         }
-      });
+      }
     });
-  }
+  });
+}
 
 }
 
