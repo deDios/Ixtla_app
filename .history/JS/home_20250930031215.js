@@ -130,16 +130,16 @@ async function init() {
 
   /** Click en filas → abrir drawer */
   const tbody = document.querySelector("#tbl-body");
-  if (tbody) {
-    tbody.addEventListener("click", (e) => {
-      const tr = e.target.closest("tr");
-      if (!tr) return;
-      const idx = parseInt(tr.dataset.rowIdx, 10);
-      const raw = table.getRawRows()?.[idx];   
-      if (!raw) return;
-      Drawer.open(raw, {  });
-    });
-  }
+if (tbody) {
+  tbody.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr");
+    if (!tr) return;
+    const idx = parseInt(tr.dataset.rowIdx, 10);
+    const raw = table.getRawRows()?.[idx];   // <- objeto crudo alineado a la página
+    if (!raw) return;
+    Drawer.open(raw, { /* ...callbacks... */ });
+  });
+}
 
 }
 

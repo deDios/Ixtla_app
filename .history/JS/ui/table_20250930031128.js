@@ -9,10 +9,10 @@ export function createTable({
   pageSize = 8,
   columns = []
 } = {}) {
-  const body = $(bodySel);
-  const wrap = $(wrapSel);
+  const body  = $(bodySel);
+  const wrap  = $(wrapSel);
   const empty = $(emptySel);
-  const pag = $(pagSel);
+  const pag   = $(pagSel);
   const thead = body?.closest("table")?.querySelector("thead");
 
   // ---- Estado interno ----
@@ -49,10 +49,10 @@ export function createTable({
     page = 1;
     render();
   }
-  function setPage(p) { page = Math.max(1, p | 0 || 1); render(); }
+  function setPage(p)            { page = Math.max(1, p | 0 || 1); render(); }
   function setSort(key, dir = 1) { sort = { key, dir: dir >= 0 ? 1 : -1 }; render(); }
-  function getSort() { return { ...sort }; }
-  function setPageSize(n) { pageSize = Math.max(1, parseInt(n, 10) || pageSize); page = 1; render(); }
+  function getSort()             { return { ...sort }; }
+  function setPageSize(n)        { pageSize = Math.max(1, parseInt(n, 10) || pageSize); page = 1; render(); }
 
   // Devuelve los objetos crudos de la PÁGINA ACTUAL (para que coincidan con los <tr> pintados)
   function getPageRawRows() { return _pageRawRows.slice(); }
@@ -65,7 +65,7 @@ export function createTable({
     const col = columns.find(c => c.key === sort.key);
     if (!col) return raw;
     const acc = col.accessor || (r => r[sort.key]);
-    const cmp = col.compare || defaultCompare;
+    const cmp = col.compare  || defaultCompare;
     const arr = raw.map((r, i) => [acc(r, i, r), i, r]);
     arr.sort((A, B) => {
       const res = cmp(A[0], B[0]);
@@ -78,8 +78,8 @@ export function createTable({
   // ---- Render de fila ----
   function renderRow(r, iInPage) {
     const tds = columns.map(col => {
-      const acc = col.accessor || (row => row[col.key]);
-      const val = acc(r);
+      const acc  = col.accessor || (row => row[col.key]);
+      const val  = acc(r);
       const html = col.render ? col.render(val, r) : escapeHtml(val ?? "—");
       return `<td>${html}</td>`;
     }).join("");
@@ -101,11 +101,11 @@ export function createTable({
     toggle(empty, false);
     toggle(wrap, true);
 
-    const data = sortedData();
+    const data  = sortedData();
     const pages = Math.max(1, Math.ceil(data.length / pageSize));
     if (page > pages) page = pages;
 
-    const start = (page - 1) * pageSize;
+    const start     = (page - 1) * pageSize;
     const pageItems = data.slice(start, start + pageSize);
 
     // Cache de objetos crudos de esta página (.__raw si existe, si no el row ya mapeado)
@@ -150,7 +150,7 @@ export function createTable({
     });
   }
 
-  function destroy() { }
+  function destroy() {}
 
   initHeader();
   return {

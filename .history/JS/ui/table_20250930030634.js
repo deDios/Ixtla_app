@@ -7,7 +7,8 @@ export function createTable({
   emptySel = "#tbl-empty",
   pagSel = "#tbl-pag",
   pageSize = 8,
-  columns = []
+  columns = [
+  ]
 } = {}) {
   const body = $(bodySel);
   const wrap = $(wrapSel);
@@ -16,9 +17,9 @@ export function createTable({
   const thead = body?.closest("table")?.querySelector("thead");
 
   // ---- Estado interno ----
-  let _rawRows = [];        // copia completa de las filas de vista (por si se requiere)
-  let raw = [];             // filas "visibles" (obj de vista)
-  let _pageRawRows = [];    // objetos crudos (.__raw || row) de la página actual
+  let _rawRows = [];
+  let raw = [];                 // filas "visibles" (obj de vista)
+  let _pageRawRows = [];        // objetos crudos (.__raw || row) de la pagina 
   let page = 1;
   let sort = { key: null, dir: 1 };
 
@@ -42,10 +43,10 @@ export function createTable({
     });
   }
 
-  // ---- API pública ----
+  // ---- API pública básica ----
   function setData(rows = []) {
     raw = Array.isArray(rows) ? rows.slice() : [];
-    _rawRows = raw.slice();     // copia por conveniencia
+    _rawRows = raw.slice();       // <- guarda copia para que Home la consulte
     page = 1;
     render();
   }
@@ -54,9 +55,9 @@ export function createTable({
   function getSort() { return { ...sort }; }
   function setPageSize(n) { pageSize = Math.max(1, parseInt(n, 10) || pageSize); page = 1; render(); }
 
-  // Devuelve los objetos crudos de la PÁGINA ACTUAL (para que coincidan con los <tr> pintados)
+  // Devuelve los objetos crudos de la PÁGINA ACTUAL (para que coincidan con los <tr> renderizados)
   function getPageRawRows() { return _pageRawRows.slice(); }
-  // Alias que estás usando en Home:
+  // Alias solicitado por Home
   const getRawRows = getPageRawRows;
 
   // ---- Ordenamiento ----
@@ -75,15 +76,15 @@ export function createTable({
     return arr.map(x => x[2]);
   }
 
-  // ---- Render de fila ----
+  // ---- Render de fila (string) con data-row-idx ----
   function renderRow(r, iInPage) {
-    const tds = columns.map(col => {
+    return `<tr data-row-idx="${iInPage}">${columns.map(col => {
       const acc = col.accessor || (row => row[col.key]);
       const val = acc(r);
       const html = col.render ? col.render(val, r) : escapeHtml(val ?? "—");
       return `<td>${html}</td>`;
-    }).join("");
-    return `<tr data-row-idx="${iInPage}">${tds}</tr>`;
+    }).join("")
+      }</tr>`;
   }
 
   // ---- Render completo ----
@@ -92,12 +93,12 @@ export function createTable({
       toggle(wrap, false);
       toggle(empty, true);
       if (pag) pag.innerHTML = "";
-      _pageRawRows = [];
-      if (body) body.innerHTML = "";
       paintSortIndicators();
+      // vacío: también resetea el cache de página
+      _pageRawRows = [];
+      body.innerHTML = "";
       return;
     }
-
     toggle(empty, false);
     toggle(wrap, true);
 
@@ -108,13 +109,11 @@ export function createTable({
     const start = (page - 1) * pageSize;
     const pageItems = data.slice(start, start + pageSize);
 
-    // Cache de objetos crudos de esta página (.__raw si existe, si no el row ya mapeado)
+    // Cache de objetos crudos de la página actual (.__raw || row)
     _pageRawRows = pageItems.map(r => r?.__raw ?? r);
 
-    // Pintar body
-    if (body) {
-      body.innerHTML = pageItems.map((r, i) => renderRow(r, i)).join("");
-    }
+    // Pintar body con data-row-idx local a la página
+    body.innerHTML = pageItems.map((r, i) => renderRow(r, i)).join("");
 
     // Paginación
     if (pag) {
@@ -127,7 +126,6 @@ export function createTable({
         b.addEventListener("click", () => setPage(parseInt(b.dataset.p, 10)))
       );
     }
-
     paintSortIndicators();
   }
 
@@ -137,7 +135,7 @@ export function createTable({
     const ths = Array.from(thead.querySelectorAll("th"));
     ths.forEach((th, idx) => {
       const col = columns[idx];
-      if (!col || !col.sortable) { th.dataset.sort = ""; th.title = ""; th.innerHTML = escapeHtml(col?.title || th.textContent || ""); return; }
+      if (!col || !col.sortable) { th.dataset.sort = ""; th.title = ""; return; }
       if (sort.key === col.key) {
         th.dataset.sort = sort.dir === 1 ? "asc" : "desc";
         th.title = `Ordenado ${sort.dir === 1 ? "ascendente" : "descendente"}`;
