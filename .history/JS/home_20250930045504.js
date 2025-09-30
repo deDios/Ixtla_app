@@ -11,22 +11,22 @@ const TAG = "[Home]";
 
 /** ===== Estatus (num -> clave/nombre) ===== */
 const ESTATUS = {
-  0: { clave: "solicitud", nombre: "Solicitud" },
-  1: { clave: "revision", nombre: "Revisión" },
+  0: { clave: "solicitud",  nombre: "Solicitud"  },
+  1: { clave: "revision",   nombre: "Revisión"   },
   2: { clave: "asignacion", nombre: "Asignación" },
-  3: { clave: "enProceso", nombre: "En proceso" },
-  4: { clave: "pausado", nombre: "Pausado" },
-  5: { clave: "cancelado", nombre: "Cancelado" },
+  3: { clave: "enProceso",  nombre: "En proceso" },
+  4: { clave: "pausado",    nombre: "Pausado"    },
+  5: { clave: "cancelado",  nombre: "Cancelado"  },
   6: { clave: "finalizado", nombre: "Finalizado" }
 };
 
 const STATUS_COLORS = {
-  solicitud: "#a5b4fc",
-  revision: "#93c5fd",
+  solicitud:  "#a5b4fc",
+  revision:   "#93c5fd",
   asignacion: "#6ee7b7",
-  enProceso: "#60a5fa",
-  pausado: "#fbbf24",
-  cancelado: "#f87171",
+  enProceso:  "#60a5fa",
+  pausado:    "#fbbf24",
+  cancelado:  "#f87171",
   finalizado: "#34d399"
 };
 
@@ -76,7 +76,7 @@ async function init() {
   mountSkeletonList($("#tbl-skeleton"), 7);
 
   // Charts
-  const lc = LineChart($("#chart-year")); lc.mount({ data: [] });
+  const lc = LineChart($("#chart-year"));  lc.mount({ data: [] });
   const dc = DonutChart($("#chart-month")); dc.mount({ data: [] });
   window.__ixCharts = { lc, dc };
 
@@ -84,10 +84,10 @@ async function init() {
   const table = createTable({
     pageSize: S.get().pageSize,
     columns: [
-      { key: "folio", title: "Requerimiento", sortable: true, accessor: r => r.folio || "—" },
-      { key: "contacto", title: "Contacto", sortable: true, accessor: r => r.contacto || "—" },
-      { key: "telefono", title: "Teléfono", sortable: true, accessor: r => r.telefono || "—" },
-      { key: "departamento", title: "Departamento", sortable: true, accessor: r => r.departamento || "—" },
+      { key: "folio",         title: "Requerimiento", sortable: true, accessor: r => r.folio || "—" },
+      { key: "contacto",      title: "Contacto",      sortable: true, accessor: r => r.contacto || "—" },
+      { key: "telefono",      title: "Teléfono",      sortable: true, accessor: r => r.telefono || "—" },
+      { key: "departamento",  title: "Departamento",  sortable: true, accessor: r => r.departamento || "—" },
       {
         key: "status", title: "Status", sortable: true, accessor: r => r.statusKey || "",
         render: (val, row) => {
@@ -226,13 +226,13 @@ function computeCounts(rows = []) {
 
 function renderCounts() {
   const c = S.get().counts;
-  setTextSafe("#cnt-todos", `(${c.todos})`);
-  setTextSafe("#cnt-solicitud", `(${c.solicitud})`);
-  setTextSafe("#cnt-revision", `(${c.revision})`);
+  setTextSafe("#cnt-todos",      `(${c.todos})`);
+  setTextSafe("#cnt-solicitud",  `(${c.solicitud})`);
+  setTextSafe("#cnt-revision",   `(${c.revision})`);
   setTextSafe("#cnt-asignacion", `(${c.asignacion})`);
-  setTextSafe("#cnt-enProceso", `(${c.enProceso})`);
-  setTextSafe("#cnt-pausado", `(${c.pausado})`);
-  setTextSafe("#cnt-cancelado", `(${c.cancelado})`);
+  setTextSafe("#cnt-enProceso",  `(${c.enProceso})`);
+  setTextSafe("#cnt-pausado",    `(${c.pausado})`);
+  setTextSafe("#cnt-cancelado",  `(${c.cancelado})`);
   setTextSafe("#cnt-finalizado", `(${c.finalizado})`);
 }
 
@@ -250,15 +250,15 @@ function applyAndRenderTable(table) {
   if (search) {
     filtered = filtered.filter(r => {
       const estNom = (ESTATUS[Number(r.estatus)]?.nombre || "").toLowerCase();
-      const folio = (r.folio || "").toLowerCase();
-      const nom = (r.contacto_nombre || "").toLowerCase();
-      const tel = (r.contacto_telefono || "").toLowerCase();
-      const dep = (r.departamento_nombre || "").toLowerCase();
+      const folio  = (r.folio || "").toLowerCase();
+      const nom    = (r.contacto_nombre || "").toLowerCase();
+      const tel    = (r.contacto_telefono || "").toLowerCase();
+      const dep    = (r.departamento_nombre || "").toLowerCase();
       return (
         estNom.includes(search) ||
-        folio.includes(search) ||
-        nom.includes(search) ||
-        tel.includes(search) ||
+        folio.includes(search)  ||
+        nom.includes(search)    ||
+        tel.includes(search)    ||
         dep.includes(search)
       );
     });
