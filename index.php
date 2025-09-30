@@ -69,9 +69,8 @@
     </header>
 
     <main>
-        <!-------------------------- Seccion 1  --------------------------->
-        <section>
-            <!-- carrusel -->
+        <!-- ================== Sección Carrusel ================== -->
+        <section id="ix-carrusel-atencion">
             <div class="ix-carousel" aria-label="Avisos del Ayuntamiento" data-loop="true" data-autoplay="0">
                 <h2 class="ix-c-title">Atención ciudadana</h2>
                 <div class="limite-carrusel">
@@ -81,8 +80,8 @@
                             <article class="ix-slide" aria-roledescription="slide">
                                 <div class="ix-card">
                                     <figure class="ix-media">
-                                        <img src="/ASSETS/index/carrusel_index_img1.png"
-                                            alt="Equipo junto al Pozo 3 La Mora">
+                                        <img src="/ASSETS/index/img1.png"
+                                            alt="Equipo junto al Pozo 3 La Mora" loading="lazy">
                                     </figure>
                                     <div class="ix-content">
                                         <p>
@@ -101,8 +100,8 @@
                             <article class="ix-slide" aria-roledescription="slide">
                                 <div class="ix-card">
                                     <figure class="ix-media">
-                                        <img src="/ASSETS/index/carrusel_index_img2.png"
-                                            alt="Equipo junto al Pozo 3 La Mora">
+                                        <img src="/ASSETS/index/img2.png"
+                                            alt="Rehabilitación con asfalto en vialidades principales" loading="lazy">
                                     </figure>
                                     <div class="ix-content">
                                         <p>
@@ -111,15 +110,129 @@
                                             la
                                             carretera estatal a La Capilla del Refugio, así como en las colonias Valle
                                             de
-                                            los
-                                            Olivos, Sabinos y Girasoles.
+                                            los Olivos, Sabinos y Girasoles.
                                         </p>
                                         <div class="ix-meta">
-                                            <time class="ix-date" datetime="2025-07-22">22 de julio del 2025</time>
+                                            <time class="ix-date" datetime="2025-07-22">22 de Julio del 2025</time>
                                         </div>
                                     </div>
                                 </div>
                             </article>
+
+                            <!-- Slide 3 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/infoImg1.jpg" alt="4º informe de gobierno"
+                                            loading="lazy">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>4º informe de gobierno</strong><br><br>
+                                            “Un paso más al frente“.
+                                        </p>
+                                        <div class="ix-meta">
+                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <!-- Slide 4 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/infoImg2.jpg"
+                                            alt="4º informe de gobierno - imagen 2" loading="lazy">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>4º informe de gobierno</strong><br><br>
+                                            “Un paso más al frente“.
+                                        </p>
+                                        <div class="ix-meta">
+                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <!-- Slide 5 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/infoImg3.jpg"
+                                            alt="4º informe de gobierno - imagen 3" loading="lazy">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>4º informe de gobierno</strong><br><br>
+                                            “Un paso más al frente“.
+                                        </p>
+                                        <div class="ix-meta">
+                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <!-- Slide 6 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/infoImg4.jpg"
+                                            alt="4º informe de gobierno - imagen 4" loading="lazy">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>4º informe de gobierno</strong><br><br>
+                                            “Un paso más al frente“.
+                                        </p>
+                                        <div class="ix-meta">
+                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <!-- Slide 7 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/infoImg5.jpg"
+                                            alt="4º informe de gobierno - imagen 5" loading="lazy">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>4º informe de gobierno</strong><br><br>
+                                            “Un paso más al frente“.
+                                        </p>
+                                        <div class="ix-meta">
+                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <!-- Slide 8 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/infoImg6.jpg"
+                                            alt="4º informe de gobierno - imagen 6" loading="lazy">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>4º informe de gobierno</strong><br><br>
+                                            “Un paso más al frente“.
+                                        </p>
+                                        <div class="ix-meta">
+                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
                         </div>
                     </div>
                 </div>
@@ -136,7 +249,7 @@
                     <div class="ix-indicator" aria-live="polite" aria-atomic="true">
                         <span class="ix-current">1</span>
                         <span class="ix-sep">/</span>
-                        <span class="ix-total">2</span>
+                        <span class="ix-total">8</span>
                     </div>
 
                     <button class="ix-nav ix-next" type="button" aria-label="Siguiente">
@@ -148,6 +261,11 @@
                 </div>
             </div>
         </section>
+
+
+
+
+
 
         <!-- seccion 2 -->
         <section id="tramites" class="ix-section ix-deps" aria-labelledby="deps-title">

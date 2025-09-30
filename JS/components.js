@@ -20,9 +20,35 @@
       this.autoplay = parseInt(root.dataset.autoplay || "0", 10);
       this.timer = null;
 
+      this._classifyImages(); // update, verifica si es una infografia o solo una imagen
       this._bind();
       this._update();
       if (this.autoplay > 0) this._startAutoplay();
+    }
+
+    // Clasifica imagenes segun su nombre de archivo
+    _classifyImages() {
+      this.slides.forEach((slide, idx) => {
+        const fig = slide.querySelector(".ix-media");
+        const img = fig?.querySelector("img");
+        if (!fig || !img) return;
+
+        const src = (img.getAttribute("src") || "").toLowerCase();
+        if (/\/?infoimg\d+\.(jpg|jpeg|png|webp|gif|svg)$/i.test(src)) { //por si acaso
+          fig.classList.add("infografia");
+          fig.classList.remove("foto");
+        } else {
+          fig.classList.add("foto");
+          fig.classList.remove("infografia");
+        }
+
+        // Accesibilidad
+        slide.setAttribute("aria-label", `Slide ${idx + 1} de ${this.total}`);
+        slide.setAttribute("role", "region");
+      });
+
+      if (this.indTot) this.indTot.textContent = String(this.total);
+      if (this.indCur) this.indCur.textContent = this.total > 0 ? "1" : "0";
     }
 
     _bind() {
@@ -79,10 +105,6 @@
 
       this.indTot && (this.indTot.textContent = String(this.total));
       this.indCur && (this.indCur.textContent = String(this.index + 1));
-
-      this.slides.forEach((s, i) => {
-        s.setAttribute("aria-label", `${i + 1} de ${this.total}`);
-      });
 
       if (!this.loop) {
         this.prevBtn && (this.prevBtn.disabled = this.index <= 0);
@@ -146,6 +168,7 @@
     });
   });
 })();
+
 
 // --------------------------- toasts globales ---------------------------
 (function ensureToastContainer() {

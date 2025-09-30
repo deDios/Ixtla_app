@@ -33,7 +33,6 @@
 .ix-card {
     background: var(--ix-card-bg);
     border-radius: var(--ix-radius);
-    box-shadow: var(--ix-shadow);
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
@@ -159,4 +158,30 @@
     .ix-indicator {
         font-size: .95rem;
     }
-}/*-------------------------------------- fin del css para el component de carrusel -------------------*/
+}
+
+
+.ix-media.infografia img{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9; 
+  border-radius: 12px;
+}
+
+.ix-media img{
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ix-media.foto img{
+  object-fit: cover;
+}
+
+.ix-media.infografia img{
+  object-fit: contain;
+  background: #fff;         
+}
+
+
+/*-------------------------------------- fin del css para el component de carrusel -------------------*/
