@@ -121,8 +121,8 @@ $__skip_rl = isset($_SERVER[$RL_BYPASS_HEADER]) && hash_equals($RL_BYPASS_SECRET
 if (!$__skip_rl) {
   rate_limit_or_die(
     bucket: 'requerimiento_api',
-    windowSec: 15,   // ventana de 10 seg
-    maxHits: 10,     // 2 req/min antes de ban
+    windowSec: 10,   // ventana de 10 seg
+    maxHits: 2,     // 2 req/min antes de ban
     banSec: 3600,     // ban de 1 hr
     whitelist: $RL_WHITELIST
   );
