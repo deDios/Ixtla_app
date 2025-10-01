@@ -86,8 +86,8 @@ function rate_limit_or_die(
 /* → Aplica límite ANTES de leer body/validar content-type */
 rate_limit_or_die(
   bucket: 'requerimiento_api',
-  windowSec: 30,      // ventana 1 min
-  maxHits: 5,         // 5 intentos
+  windowSec: 10,      // ventana 1 min
+  maxHits: 2,         // 5 intentos
   banSec: 3600,       // ban 30 min
   whitelist: []       // NO pongas 127.0.0.1 aquí
 );

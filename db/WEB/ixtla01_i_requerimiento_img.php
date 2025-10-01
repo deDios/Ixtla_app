@@ -81,14 +81,14 @@ function rate_limit_or_die(string $bucket, int $windowSec=60, int $maxHits=3, in
 /* → Aplica límite lo antes posible */
 rate_limit_or_die(
   bucket: 'requerimiento_img',
-  windowSec: 30,     // 1 minuto
-  maxHits: 5,        // 3 intentos por minuto (ajústalo si quieres)
+  windowSec: 10,     // 1 minuto
+  maxHits: 2,        // 3 intentos por minuto (ajústalo si quieres)
   banSec: 3600,      // 30 minutos
   whitelist: []      // agrega IPs de confianza si hace falta
 );
 
 /* ---------- Conexión a BD ---------- */
-$path = realpath("/home/site/wwwroot/db/conn/conexion.php");
+$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
 if ($path && file_exists($path)) { include $path; }
 else { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"No se encontró conexion.php"]); exit; }
 $con = conectar();
