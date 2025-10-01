@@ -1,38 +1,35 @@
 <?php
-/* ===== CORS ===== */
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
-  header("Access-Control-Allow-Origin: $origin");
-  header("Vary: Origin");
-}
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Idempotency-Key");
-header("Access-Control-Max-Age: 86400");
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
-
 /* ===== Content-Type y tamaño ===== */
 header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
 
+/* Método permitido */
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
   http_response_code(405);
   die(json_encode(["ok"=>false,"error"=>"Método no permitido"]));
 }
-$ct = $_SERVER['CONTENT_TYPE'] ?? '';
-if (stripos($ct, 'application/json') === false) {
-  http_response_code(415);
-  die(json_encode(["ok"=>false,"error"=>"Content-Type debe ser application/json"]));
-}
-$raw = file_get_contents("php://input", false, null, 0, 64*1024 + 1);
-if ($raw === false || strlen($raw) === 0) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Body vacío"])); }
-if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>false,"error"=>"Payload demasiado grande"])); }
 
 /* ====== RATE LIMIT por IP (5/min, ban 30 min) ====== */
-function __rl_ip(): string {
-  $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
-  if ($xff) { $parts = explode(',', $xff); return trim($parts[0]); }
-  return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+/* IP helper: usa XFF solo si el remoto es proxy de confianza */
+function __ip_in_cidr(string $ip, string $cidr): bool {
+  [$subnet, $mask] = explode('/', $cidr) + [null, null];
+  if ($mask === null) return $ip === $subnet;
+  $mask = (int)$mask;
+  return (ip2long($ip) & ~((1 << (32 - $mask)) - 1)) === (ip2long($subnet) & ~((1 << (32 - $mask)) - 1));
 }
+function __rl_ip(): string {
+  $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+  $trusted = ['127.0.0.1/32','10.0.0.0/8','172.16.0.0/12','192.168.0.0/16']; // proxies internos
+  $isTrusted = false;
+  foreach ($trusted as $cidr) { if (__ip_in_cidr($remote, $cidr)) { $isTrusted = true; break; } }
+  $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+  if ($isTrusted && $xff) {
+    $parts = array_map('trim', explode(',', $xff));
+    if (!empty($parts[0])) return $parts[0];
+  }
+  return $remote;
+}
+
 function __rl_get(string $key) {
   if (function_exists('apcu_enabled') && apcu_enabled()) {
     $ok=false; $v=apcu_fetch($key,$ok); return $ok ? $v : null;
@@ -59,7 +56,6 @@ function rate_limit_or_die(
   $now=time(); $winId=intdiv($now,$windowSec); $key="rl:$bucket:$ip";
   $d=__rl_get($key) ?: ['win'=>$winId,'cnt'=>0,'ban_until'=>0];
 
-  // ¿baneado?
   if(!empty($d['ban_until']) && $d['ban_until']>$now){
     $retry=$d['ban_until']-$now;
     header('Retry-After: '.$retry);
@@ -68,9 +64,7 @@ function rate_limit_or_die(
     exit;
   }
 
-  // rotar ventana
   if($d['win']!==$winId){ $d['win']=$winId; $d['cnt']=0; }
-
   $d['cnt']++;
 
   header('X-RateLimit-Limit: '.$maxHits);
@@ -78,7 +72,6 @@ function rate_limit_or_die(
   header('X-RateLimit-Reset: '.(($winId+1)*$windowSec));
 
   if($d['cnt']>$maxHits){
-    // ban inmediato por 30 min
     $d['ban_until']=$now+$banSec;
     __rl_set($key,$d,max($windowSec,$banSec));
     header('Retry-After: '.$banSec);
@@ -90,14 +83,24 @@ function rate_limit_or_die(
   __rl_set($key,$d,max($windowSec,$banSec));
 }
 
-/* → Aplica límite ahora */
+/* → Aplica límite ANTES de leer body/validar content-type */
 rate_limit_or_die(
   bucket: 'requerimiento_api',
   windowSec: 60,      // ventana 1 min
   maxHits: 5,         // 5 intentos
   banSec: 1800,       // ban 30 min
-  whitelist: [] // si quieres excluir IPs internas
+  whitelist: []       // NO pongas 127.0.0.1 aquí
 );
+
+/* Ahora sí valida Content-Type y body */
+$ct = $_SERVER['CONTENT_TYPE'] ?? '';
+if (stripos($ct, 'application/json') === false) {
+  http_response_code(415);
+  die(json_encode(["ok"=>false,"error"=>"Content-Type debe ser application/json"]));
+}
+$raw = file_get_contents("php://input", false, null, 0, 64*1024 + 1);
+if ($raw === false || strlen($raw) === 0) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Body vacío"])); }
+if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>false,"error"=>"Payload demasiado grande"])); }
 
 $in = json_decode($raw, true) ?? [];
 
