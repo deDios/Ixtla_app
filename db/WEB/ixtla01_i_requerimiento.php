@@ -1,13 +1,26 @@
 <?php
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
+/* ===== CORS (poner literalmente al inicio del archivo) ===== */
+$origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
+$ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
+$originOK = $origin && in_array($origin, $ALLOWED, true);
+
+if ($originOK) {
   header("Access-Control-Allow-Origin: $origin");
   header("Vary: Origin");
+  // headers que el front podrá LEER en la respuesta del POST
+  header("Access-Control-Expose-Headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After");
 }
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X_TRACE_LABEL, X_Trace_Label");
-header("Access-Control-Max-Age: 86400");
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+  if ($originOK) {
+    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    // Debe incluir EXACTAMENTE los headers que enviará tu fetch()
+    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-Trace-Label, X_TRACE_LABEL, X_Trace_Label');
+    header('Access-Control-Max-Age: 86400');
+  }
+  http_response_code(204);
+  exit;
+}
 
 /* ===== Content-Type y tamaño ===== */
 header('Content-Type: application/json');
