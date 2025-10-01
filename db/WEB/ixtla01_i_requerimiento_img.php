@@ -1,35 +1,35 @@
 <?php
-/* ===== CORS ===== */
-header('Content-Type: application/json; charset=utf-8');
+/* ===== Content-Type y tamaño ===== */
+header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
 
-$allowlist = [
-  'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net',
-  'https://ixtla-app.com',
-  'https://www.ixtla-app.com',
-];
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowlist, true)) {
-  header("Access-Control-Allow-Origin: $origin");
-  header("Vary: Origin");
-}
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('Access-Control-Max-Age: 600');
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
-
+/* Método permitido */
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
   http_response_code(405);
-  echo json_encode(["ok"=>false,"error"=>"Método no permitido"]); exit;
+  die(json_encode(["ok"=>false,"error"=>"Método no permitido"]));
 }
 
-/* ====== RATE LIMIT por IP (3/min, ban 30 min) ====== */
-/* -> si quieres 5/min, cambia maxHits a 5 */
-function __rl_ip(): string {
-  $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
-  if ($xff) { $parts = explode(',', $xff); return trim($parts[0]); }
-  return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+/* ====== RATE LIMIT por IP (5/min, ban 30 min) ====== */
+/* IP helper: usa XFF solo si el remoto es proxy de confianza */
+function __ip_in_cidr(string $ip, string $cidr): bool {
+  [$subnet, $mask] = explode('/', $cidr) + [null, null];
+  if ($mask === null) return $ip === $subnet;
+  $mask = (int)$mask;
+  return (ip2long($ip) & ~((1 << (32 - $mask)) - 1)) === (ip2long($subnet) & ~((1 << (32 - $mask)) - 1));
 }
+function __rl_ip(): string {
+  $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+  $trusted = ['127.0.0.1/32','10.0.0.0/8','172.16.0.0/12','192.168.0.0/16']; // proxies internos
+  $isTrusted = false;
+  foreach ($trusted as $cidr) { if (__ip_in_cidr($remote, $cidr)) { $isTrusted = true; break; } }
+  $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+  if ($isTrusted && $xff) {
+    $parts = array_map('trim', explode(',', $xff));
+    if (!empty($parts[0])) return $parts[0];
+  }
+  return $remote;
+}
+
 function __rl_get(string $key) {
   if (function_exists('apcu_enabled') && apcu_enabled()) {
     $ok=false; $v=apcu_fetch($key,$ok); return $ok ? $v : null;
@@ -46,7 +46,10 @@ function __rl_set(string $key, $val, int $ttl): void {
   $f="/tmp/rl_".hash('sha256',$key); $val['_exp']=time()+$ttl;
   @file_put_contents($f,json_encode($val),LOCK_EX);
 }
-function rate_limit_or_die(string $bucket, int $windowSec=60, int $maxHits=3, int $banSec=1800, array $whitelist=[]): void {
+function rate_limit_or_die(
+  string $bucket, int $windowSec=60, int $maxHits=5,
+  int $banSec=1800, array $whitelist=[]
+): void {
   $ip = __rl_ip();
   if (in_array($ip,$whitelist,true)) return;
 
@@ -60,6 +63,7 @@ function rate_limit_or_die(string $bucket, int $windowSec=60, int $maxHits=3, in
     echo json_encode(['ok'=>false,'error'=>'Too Many Requests','retry_after'=>$retry],JSON_UNESCAPED_UNICODE);
     exit;
   }
+
   if($d['win']!==$winId){ $d['win']=$winId; $d['cnt']=0; }
   $d['cnt']++;
 
@@ -75,17 +79,30 @@ function rate_limit_or_die(string $bucket, int $windowSec=60, int $maxHits=3, in
     echo json_encode(['ok'=>false,'error'=>'Too Many Requests','retry_after'=>$banSec],JSON_UNESCAPED_UNICODE);
     exit;
   }
+
   __rl_set($key,$d,max($windowSec,$banSec));
 }
 
-/* → Aplica límite lo antes posible */
+/* → Aplica límite ANTES de leer body/validar content-type */
 rate_limit_or_die(
-  bucket: 'requerimiento_img',
-  windowSec: 10,     // 1 minuto
-  maxHits: 2,        // 3 intentos por minuto (ajústalo si quieres)
-  banSec: 3600,      // 30 minutos
-  whitelist: []      // agrega IPs de confianza si hace falta
+  bucket: 'requerimiento_api',
+  windowSec: 10,      // ventana 1 min
+  maxHits: 2,         // 5 intentos
+  banSec: 3600,       // ban 30 min
+  whitelist: []       // NO pongas 127.0.0.1 aquí
 );
+
+/* Ahora sí valida Content-Type y body */
+$ct = $_SERVER['CONTENT_TYPE'] ?? '';
+if (stripos($ct, 'application/json') === false) {
+  http_response_code(415);
+  die(json_encode(["ok"=>false,"error"=>"Content-Type debe ser application/json"]));
+}
+$raw = file_get_contents("php://input", false, null, 0, 64*1024 + 1);
+if ($raw === false || strlen($raw) === 0) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Body vacío"])); }
+if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>false,"error"=>"Payload demasiado grande"])); }
+
+$in = json_decode($raw, true) ?? [];
 
 /* ---------- Conexión a BD ---------- */
 $path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
