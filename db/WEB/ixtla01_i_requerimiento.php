@@ -1,4 +1,26 @@
 <?php
+/* ===== CORS (poner literalmente al inicio del archivo) ===== */
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
+
+if ($origin && in_array($origin, $ALLOWED, true)) {
+  header("Access-Control-Allow-Origin: $origin");
+  header("Vary: Origin");
+  // Para que el front pueda leer estos headers en la respuesta POST:
+  header("Access-Control-Expose-Headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After");
+}
+
+/* Preflight */
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+  if ($origin && in_array($origin, $ALLOWED, true)) {
+    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-Trace-Label, X-TRACE-LABEL');
+    header('Access-Control-Max-Age: 86400');
+  }
+  http_response_code(204);
+  exit;
+}
+
 /* ===== Content-Type y tamaño ===== */
 header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
@@ -90,7 +112,7 @@ $RL_WHITELIST = [
 ];
 
 /* ② (Opcional) Bypass con header secreto para Postman/frontend confiable */
-$RL_BYPASS_HEADER = 'HTTP_X-Trace-Label';
+$RL_BYPASS_HEADER = 'HTTP_X_TRACE_LABEL';
 $RL_BYPASS_SECRET = 'Zf7wL2qH9tM4vC1xR8yN3pK6dT0aB5uJ2mG7eS4rV9cQ1nX5kD8hP3wL6yT0sA5mG2eR8vC1'; // cámbialo por uno fuerte
 
 $__skip_rl = isset($_SERVER[$RL_BYPASS_HEADER]) && hash_equals($RL_BYPASS_SECRET, $_SERVER[$RL_BYPASS_HEADER]);
