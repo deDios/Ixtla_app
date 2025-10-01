@@ -111,8 +111,8 @@ $RL_WHITELIST = [
 ];
 
 /* ② (Opcional) Bypass con header secreto para Postman/frontend confiable */
-$RL_BYPASS_HEADER = 'HTTP_X-RL-BS';
-$RL_BYPASS_SECRET = 'r0K2z-F6iG-9vP9wP'; // cámbialo por uno fuerte
+$RL_BYPASS_HEADER = 'HTTP_X-RL-BSS';
+$RL_BYPASS_SECRET = 'r0K2z-P6iG-9vP9wP'; // cámbialo por uno fuerte
 
 $__skip_rl = isset($_SERVER[$RL_BYPASS_HEADER]) && hash_equals($RL_BYPASS_SECRET, $_SERVER[$RL_BYPASS_HEADER]);
 
