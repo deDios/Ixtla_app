@@ -19,6 +19,7 @@ else { http_response_code(500); die(json_encode(["ok"=>false,"error"=>"No se enc
 
 $in = json_decode(file_get_contents("php://input"), true) ?? [];
 
+
 /* ----- Requeridos ----- */
 $required = ['nombre','apellidos','email','puesto','username','password','roles'];
 foreach ($required as $k) {

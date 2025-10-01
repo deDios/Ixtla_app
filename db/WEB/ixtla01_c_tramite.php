@@ -19,6 +19,7 @@ else { http_response_code(500); die(json_encode(["ok"=>false,"error"=>"No se enc
 
 $input = json_decode(file_get_contents("php://input"), true) ?? [];
 
+
 $id             = isset($input['id']) ? (int)$input['id'] : null;
 $q              = isset($input['q']) ? trim($input['q']) : null;
 $estatus        = isset($input['estatus']) ? (int)$input['estatus'] : null;

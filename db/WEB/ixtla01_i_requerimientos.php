@@ -27,6 +27,7 @@ $raw = file_get_contents("php://input", false, null, 0, 64*1024 + 1);
 if ($raw === false || strlen($raw) === 0) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Body vacío"])); }
 if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>false,"error"=>"Payload demasiado grande"])); }
 
+
 $in = json_decode($raw, true) ?? [];
 
 /* ===== Conexión ===== */

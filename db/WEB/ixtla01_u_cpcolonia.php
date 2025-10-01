@@ -26,6 +26,7 @@ $colonia    = array_key_exists('colonia',$in) ? trim($in['colonia']) : null;
 $estatus    = array_key_exists('estatus',$in) ? (int)$in['estatus'] : null;
 $updated_by = array_key_exists('updated_by',$in) ? (int)$in['updated_by'] : null;
 
+
 $con = conectar();
 if (!$con) die(json_encode(["ok"=>false,"error"=>"No se pudo conectar a la base de datos"]));
 $con->set_charset('utf8mb4');

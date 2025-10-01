@@ -28,6 +28,7 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Max-Age: 600');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
+
 /* ---------- Proyecto ---------- */
 $path = realpath("/home/site/wwwroot/db/conn/conexion.php");
 if ($path && file_exists($path)) { include $path; }

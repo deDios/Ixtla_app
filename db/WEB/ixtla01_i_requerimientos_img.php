@@ -144,6 +144,7 @@ if (count($files) > $MAX_FILES) {
   exit;
 }
 
+
 /* ---------- Paths ---------- */
 $webroot = realpath("/home/site/wwwroot");
 if (!$webroot) {

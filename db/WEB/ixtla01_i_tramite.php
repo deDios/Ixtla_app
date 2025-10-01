@@ -28,6 +28,7 @@ foreach ($required as $k) {
   }
 }
 
+
 $departamento_id = (int)$input['departamento_id'];
 $nombre          = trim($input['nombre']);
 $descripcion     = trim($input['descripcion']);

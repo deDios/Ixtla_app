@@ -25,6 +25,7 @@ $template = trim($input["template"] ?? "");
 $lang     = trim($input["lang"] ?? "es_MX");
 $params   = $input["params"] ?? []; 
 
+
 $errors = [];
 
 if (!WHATSAPP_TOKEN) {

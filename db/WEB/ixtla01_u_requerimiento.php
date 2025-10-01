@@ -25,6 +25,7 @@ if (!isset($in['id'])) {
 
 $id  = (int)$in['id'];
 
+
 /* Inputs opcionales */
 $departamento_id = array_key_exists('departamento_id',$in) ? (int)$in['departamento_id'] : null;
 $tramite_id      = array_key_exists('tramite_id',$in)      ? (int)$in['tramite_id']      : null;

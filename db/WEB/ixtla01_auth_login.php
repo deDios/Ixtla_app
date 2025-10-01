@@ -13,6 +13,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204);
 header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
 
+
 // --- Config de seguridad (puedes ajustar)
 const MAX_INTENTOS = 5;         // intentos antes de bloqueo
 const BLOQUEO_MIN  = 15;        // minutos de bloqueo

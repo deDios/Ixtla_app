@@ -22,6 +22,7 @@ if (!isset($in['id']) || (int)$in['id']<=0) {
   http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Falta parámetro obligatorio: id"]));
 }
 
+
 $id           = (int)$in['id'];
 $titulo       = array_key_exists('titulo',$in) ? trim($in['titulo']) : null;
 $descripcion  = array_key_exists('descripcion',$in) ? trim($in['descripcion']) : null;

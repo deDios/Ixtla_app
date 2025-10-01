@@ -76,6 +76,7 @@ $reqDir     = $baseAssets . DIRECTORY_SEPARATOR . $folio;
 $publicBase = 'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net';
 $baseUrl    = rtrim($publicBase, '/') . "/ASSETS/requerimientos/{$folio}/";
 
+
 if (! is_dir($reqDir)) {
     // Si la carpeta no existe, no hay evidencias aún
     json_out(["ok" => true, "folio" => $folio, "status" => $status, "count" => 0, "data" => []]);

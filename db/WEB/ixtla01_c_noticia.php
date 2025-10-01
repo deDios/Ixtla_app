@@ -17,6 +17,7 @@ $path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
 if ($path && file_exists($path)) { include $path; }
 else { http_response_code(500); die(json_encode(["ok"=>false,"error"=>"No se encontró conexion.php en $path"])); }
 
+
 $in = json_decode(file_get_contents("php://input"), true) ?? [];
 
 $id        = isset($in['id']) ? (int)$in['id'] : null;

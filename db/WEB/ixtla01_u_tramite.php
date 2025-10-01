@@ -23,6 +23,7 @@ if (!isset($input['id'])) {
   die(json_encode(["ok"=>false,"error"=>"Falta parámetro obligatorio: id"]));
 }
 
+
 $id              = (int)$input['id'];
 $departamento_id = isset($input['departamento_id']) ? (int)$input['departamento_id'] : null;
 $nombre          = $input['nombre']        ?? null;

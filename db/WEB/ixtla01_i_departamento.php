@@ -21,6 +21,7 @@ if ($path && file_exists($path)) {
     die(json_encode(["ok"=>false, "error"=>"No se encontró conexion.php en $path"]));
 }
 
+
 $input = json_decode(file_get_contents("php://input"), true) ?? [];
 
 $required = ['nombre','descripcion','director','primera_linea'];

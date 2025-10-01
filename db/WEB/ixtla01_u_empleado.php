@@ -24,6 +24,7 @@ if (!isset($in['id']) || (int)$in['id']<=0) {
 
 $id = (int)$in['id'];
 
+
 $emp_nombre   = array_key_exists('nombre',$in) ? trim($in['nombre']) : null;
 $emp_apellidos= array_key_exists('apellidos',$in) ? trim($in['apellidos']) : null;
 $emp_email    = array_key_exists('email',$in) ? trim($in['email']) : null;
