@@ -27,6 +27,77 @@ $raw = file_get_contents("php://input", false, null, 0, 64*1024 + 1);
 if ($raw === false || strlen($raw) === 0) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Body vacío"])); }
 if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>false,"error"=>"Payload demasiado grande"])); }
 
+/* ====== RATE LIMIT por IP (5/min, ban 30 min) ====== */
+function __rl_ip(): string {
+  $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+  if ($xff) { $parts = explode(',', $xff); return trim($parts[0]); }
+  return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
+function __rl_get(string $key) {
+  if (function_exists('apcu_enabled') && apcu_enabled()) {
+    $ok=false; $v=apcu_fetch($key,$ok); return $ok ? $v : null;
+  }
+  $f="/tmp/rl_".hash('sha256',$key);
+  if(!is_file($f)) return null;
+  $raw=@file_get_contents($f); if($raw===false) return null;
+  $row=@json_decode($raw,true); if(!is_array($row)) return null;
+  if(!empty($row['_exp']) && $row['_exp']<time()){ @unlink($f); return null; }
+  return $row;
+}
+function __rl_set(string $key, $val, int $ttl): void {
+  if (function_exists('apcu_enabled') && apcu_enabled()) { apcu_store($key,$val,$ttl); return; }
+  $f="/tmp/rl_".hash('sha256',$key); $val['_exp']=time()+$ttl;
+  @file_put_contents($f,json_encode($val),LOCK_EX);
+}
+function rate_limit_or_die(
+  string $bucket, int $windowSec=60, int $maxHits=5,
+  int $banSec=1800, array $whitelist=[]
+): void {
+  $ip = __rl_ip();
+  if (in_array($ip,$whitelist,true)) return;
+
+  $now=time(); $winId=intdiv($now,$windowSec); $key="rl:$bucket:$ip";
+  $d=__rl_get($key) ?: ['win'=>$winId,'cnt'=>0,'ban_until'=>0];
+
+  // ¿baneado?
+  if(!empty($d['ban_until']) && $d['ban_until']>$now){
+    $retry=$d['ban_until']-$now;
+    header('Retry-After: '.$retry);
+    http_response_code(429);
+    echo json_encode(['ok'=>false,'error'=>'Too Many Requests','retry_after'=>$retry],JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
+  // rotar ventana
+  if($d['win']!==$winId){ $d['win']=$winId; $d['cnt']=0; }
+
+  $d['cnt']++;
+
+  header('X-RateLimit-Limit: '.$maxHits);
+  header('X-RateLimit-Remaining: '.max(0,$maxHits-$d['cnt']));
+  header('X-RateLimit-Reset: '.(($winId+1)*$windowSec));
+
+  if($d['cnt']>$maxHits){
+    // ban inmediato por 30 min
+    $d['ban_until']=$now+$banSec;
+    __rl_set($key,$d,max($windowSec,$banSec));
+    header('Retry-After: '.$banSec);
+    http_response_code(429);
+    echo json_encode(['ok'=>false,'error'=>'Too Many Requests','retry_after'=>$banSec],JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
+  __rl_set($key,$d,max($windowSec,$banSec));
+}
+
+/* → Aplica límite ahora */
+rate_limit_or_die(
+  bucket: 'requerimiento_api',
+  windowSec: 60,      // ventana 1 min
+  maxHits: 5,         // 5 intentos
+  banSec: 1800,       // ban 30 min
+  whitelist: [] // si quieres excluir IPs internas
+);
 
 $in = json_decode($raw, true) ?? [];
 
@@ -134,13 +205,8 @@ $contacto_colonia = isset($in['contacto_colonia']) ? trim((string)$in['contacto_
 $contacto_cp      = isset($in['contacto_cp']) ? trim((string)$in['contacto_cp']) : null;
 
 /* Defaults sensibles SOLO en servidor */
-$prioridad  = 2;   // 1-3
-$estatus    = 0;   // 0-4
-$canal      = 1;   // 1-4
-$status     = 1;
-$asignado_a = null;
-$created_by = null;
-$fecha_limite = null;
+$prioridad  = 2; $estatus = 0; $canal = 1; $status = 1;
+$asignado_a = null; $created_by = null; $fecha_limite = null;
 
 /* Saneos básicos */
 if (mb_strlen($asunto) > 200)       $asunto = mb_substr($asunto, 0, 200);
@@ -234,13 +300,13 @@ $q->execute();
 $res = $q->get_result()->fetch_assoc();
 $q->close();
 
-/* ---------- Envío de WhatsApp (tu lógica original) ---------- */
+/* ---------- Envío de WhatsApp (igual que tenías) ---------- */
 function to_e164_mx($tel) {
   $d = preg_replace('/\D+/', '', (string)$tel);
-  $d = preg_replace('/^(?:044|045|01)/', '', $d); 
-  if (preg_match('/^52\d{10}$/', $d)) return $d;  
-  if (preg_match('/^\d{10}$/', $d))   return '52'.$d; 
-  if (preg_match('/^\d{11,15}$/', $d)) return $d; 
+  $d = preg_replace('/^(?:044|045|01)/', '', $d);
+  if (preg_match('/^52\d{10}$/', $d)) return $d;
+  if (preg_match('/^\d{10}$/', $d))   return '52'.$d;
+  if (preg_match('/^\d{11,15}$/', $d)) return $d;
   return null;
 }
 $wa = ["called" => false];
