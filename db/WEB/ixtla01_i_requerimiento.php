@@ -90,18 +90,17 @@ $RL_WHITELIST = [
 ];
 
 /* ② (Opcional) Bypass con header secreto para Postman/frontend confiable */
-$RL_BYPASS_HEADER = 'HTTP_X_RL_BYPASS';
-$RL_BYPASS_SECRET = 'tu-secreto-largo-y-unico'; // cámbialo por uno fuerte
+$RL_BYPASS_HEADER = 'HTTP_X-Trace-Label';
+$RL_BYPASS_SECRET = 'Zf7wL2qH9tM4vC1xR8yN3pK6dT0aB5uJ2mG7eS4rV9cQ1nX5kD8hP3wL6yT0sA5mG2eR8vC1'; // cámbialo por uno fuerte
 
 $__skip_rl = isset($_SERVER[$RL_BYPASS_HEADER]) && hash_equals($RL_BYPASS_SECRET, $_SERVER[$RL_BYPASS_HEADER]);
 
 if (!$__skip_rl) {
   rate_limit_or_die(
     bucket: 'requerimiento_api',
-    /* valores menos agresivos para desarrollo */
-    windowSec: 10,   // ventana de 1 min
-    maxHits: 2,     // 10 req/min antes de ban
-    banSec: 3600,     // ban corto de 2 min (ajústalo)
+    windowSec: 10,   // ventana de 10 seg
+    maxHits: 2,     // 2 req/min antes de ban
+    banSec: 3600,     // ban de 1 hr
     whitelist: $RL_WHITELIST
   );
 }
