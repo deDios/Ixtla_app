@@ -12,7 +12,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204);
 header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
 
-$path = realpath("/home/site/wwwroot/db/conn/conexion.php");
+$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
 if ($path && file_exists($path)) { include $path; }
 else { http_response_code(500); die(json_encode(["ok"=>false,"error"=>"No se encontró conexion.php en $path"])); }
 

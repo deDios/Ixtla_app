@@ -30,7 +30,7 @@ if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>fa
 $in = json_decode($raw, true) ?? [];
 
 /* ===== Conexión ===== */
-$path = realpath("/home/site/wwwroot/db/conn/conexion.php");
+$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
 if ($path && file_exists($path)) { include $path; }
 else { http_response_code(500); die(json_encode(["ok"=>false, "error"=>"No se encontró conexion.php en $path"])); }
 $con = conectar();
