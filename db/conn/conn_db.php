@@ -7,7 +7,7 @@ function conectar() {
         $con,
         "mobilitysolutions-server.mysql.database.azure.com",
         "btdonyajwn",
-        "Lla4855797'?",
+        "Llaverito_4855797'?",
         "ixtla01_dep01",
         3306,
         NULL,
@@ -16,6 +16,6 @@ function conectar() {
         return null; // Retorna null si falla
     }
     return $con;
-    
+
 }
 ?>
