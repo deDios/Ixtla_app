@@ -126,60 +126,11 @@ if ($idemp) {
   if ($aff === 0) { http_response_code(208); die(json_encode(["ok"=>true,"warning"=>"Idempotencia: ya procesado"])); }
 }
 
-/* ===== reCAPTCHA Enterprise ===== */
-$captchaToken = $in['captcha_token'] ?? '';
-if (!$captchaToken) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Falta captcha_token"])); }
-
-$SITE_KEY  = getenv('RECAPTCHA_ENT_SITE_KEY') ?: '';
-$PROJECT   = getenv('RECAPTCHA_ENT_PROJECT')  ?: '';
-$API_KEY   = getenv('RECAPTCHA_ENT_API_KEY')  ?: '';
-if (!$SITE_KEY || !$PROJECT || !$API_KEY) {
-  http_response_code(500);
-  die(json_encode(["ok"=>false,"error"=>"Falta configuración de reCAPTCHA Enterprise"]));
-}
-
-$assessUrl = "https://recaptchaenterprise.googleapis.com/v1/projects/{$PROJECT}/assessments?key={$API_KEY}";
-$event = [
-  "token"           => $captchaToken,
-  "siteKey"         => $SITE_KEY,
-  "expectedAction"  => "crear_requerimiento",
-  "userAgent"       => $_SERVER['HTTP_USER_AGENT'] ?? null,
-  "userIpAddress"   => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? null),
-];
-$reqBody = json_encode([ "event" => $event ], JSON_UNESCAPED_UNICODE);
-
-$ch = curl_init($assessUrl);
-curl_setopt_array($ch, [
-  CURLOPT_POST => true,
-  CURLOPT_HTTPHEADER => ["Content-Type: application/json"],
-  CURLOPT_POSTFIELDS => $reqBody,
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_CONNECTTIMEOUT => 3,
-  CURLOPT_TIMEOUT => 6
-]);
-$resp = curl_exec($ch);
-$http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$errc = curl_error($ch);
-curl_close($ch);
-
-if ($resp === false || $http >= 400) {
-  http_response_code(502);
-  die(json_encode(["ok"=>false,"error"=>"No se pudo validar captcha","detail"=>$errc,"http"=>$http]));
-}
-$ver = json_decode($resp, true) ?: [];
-$score = (float)($ver['riskAnalysis']['score'] ?? 0);
-$action = (string)($ver['tokenProperties']['action'] ?? '');
-$valid  = (bool)($ver['tokenProperties']['valid'] ?? false);
-if (!$valid || $action !== 'crear_requerimiento' || $score < 0.5) {
-  http_response_code(403);
-  die(json_encode(["ok"=>false,"error"=>"Captcha inválido o bajo score","score"=>$score,"action"=>$action]));
-}
-
 /* ===== Allowlist de parámetros & requeridos ===== */
 $allowed = [
   'departamento_id','tramite_id','asunto','descripcion',
   'contacto_nombre','contacto_email','contacto_telefono',
-  'contacto_calle','contacto_colonia','contacto_cp','captcha_token'
+  'contacto_calle','contacto_colonia','contacto_cp'
 ];
 foreach ($in as $k=>$v) {
   if (!in_array($k, $allowed, true)) {
