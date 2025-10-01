@@ -904,7 +904,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "Accept": "application/json",
             "X-Requested-With": "XMLHttpRequest",
             "Idempotency-Key": idempKey,
-            "X-Trace-Label": "01234-ppdg-280215"
+            "X-Trace-Label": "r8K2z-F3qG-9vP6wH"
           },
           body: JSON.stringify(body),
           signal,
