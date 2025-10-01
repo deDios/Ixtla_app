@@ -10,8 +10,6 @@
     <link rel="stylesheet" href="/CSS/tramiteDepartamento.css">
     <link rel="icon" href="/favicon.ico">
 
-    <!-- 🔐 reCAPTCHA Enterprise (usa tu SITE KEY) -->
-    <script src="https://www.google.com/recaptcha/enterprise.js?render=TU_SITE_KEY"></script>
 </head>
 
 <body>

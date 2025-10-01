@@ -426,11 +426,7 @@ document.addEventListener("DOMContentLoaded", () => {
       uploadImg:  "/db/WEB/ixtla01_i_requerimiento_img.php",
     },
     FETCH_TIMEOUT: 12000,
-    DEBUG: false,
-
-    // 🔐 reCAPTCHA Enterprise
-    RECAPTCHA_SITE_KEY: "TU_SITE_KEY",   // <-- pon aquí tu site key
-    RECAPTCHA_ACTION:   "crear_requerimiento"
+    DEBUG: false
   }, window.IX_CFG_REQ || {});
   const ACCEPT_ALL = window.IX_CFG_REQ_ACCEPT || [...CFG.ACCEPT_MIME, ...CFG.ACCEPT_EXT].join(",");
 
@@ -524,7 +520,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const root = document.getElementById("ix-done-modal");
     if (!root) return;
     const overlay = root.querySelector("[data-close]");
-    const closes  = root.querySelectorAll("[data-close]");
+    theCloses  = root.querySelectorAll("[data-close]");
     const subEl   = root.querySelector("#ix-done-subtitle");
     const folioEl = root.querySelector("#ix-done-folio");
     function open({ folio = "—", title = "—" } = {}) {
@@ -543,7 +539,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     function onKey(e){ if (e.key === "Escape") close(); }
     overlay?.addEventListener("click", close);
-    closes.forEach(b=> b.addEventListener("click", close));
+    theCloses.forEach(b=> b.addEventListener("click", close));
     window.ixDoneModal = { open, close };
   })();
 
@@ -869,18 +865,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // reCAPTCHA Enterprise
-    let captchaToken = "";
-    try {
-      await grecaptcha.enterprise.ready();
-      captchaToken = await grecaptcha.enterprise.execute(CFG.RECAPTCHA_SITE_KEY, { action: CFG.RECAPTCHA_ACTION });
-    } catch (e) {
-      window.ixToast?.err("No se pudo verificar el captcha.");
-      showFeedback("No se pudo verificar el captcha.");
-      return;
-    }
-
-    // build payload (SIN campos sensibles)
+    // build payload (SIN captcha)
     const depId  = Number(currentDepId  || inpDepId?.value || 1);
     const tramId = Number(currentItemId || inpTram?.value  || 0);
     const modoOtros = modal.dataset.mode === "otros";
@@ -895,8 +880,7 @@ document.addEventListener("DOMContentLoaded", () => {
       contacto_telefono: digits(inpTel?.value || ""),
       contacto_calle: (inpDom?.value || "").trim(),
       contacto_colonia: (inpCol?.value || "").trim(),
-      contacto_cp: (inpCP?.value || "").trim(),
-      captcha_token: captchaToken
+      contacto_cp: (inpCP?.value || "").trim()
     };
 
     // UI
@@ -907,7 +891,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnSend.textContent = "Enviando…";
 
     // Idempotencia
-    const idempKey = (crypto?.randomUUID && crypto.randomUUID()) 
+    const idempKey = (crypto?.randomUUID && crypto.randomUUID())
                   || (`idemp-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
     try {
@@ -977,3 +961,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 })();
+
