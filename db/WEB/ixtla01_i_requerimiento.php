@@ -13,7 +13,7 @@ if ($originOK) {
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   if ($originOK) {
     header('Access-Control-Allow-Methods: POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-RL-BS');
+    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-RL-BSS');
     header('Access-Control-Max-Age: 86400');
   }
   http_response_code(204);
