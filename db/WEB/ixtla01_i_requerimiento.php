@@ -7,15 +7,13 @@ $originOK = $origin && in_array($origin, $ALLOWED, true);
 if ($originOK) {
   header("Access-Control-Allow-Origin: $origin");
   header("Vary: Origin");
-  // headers que el front podrá LEER en la respuesta del POST
   header("Access-Control-Expose-Headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After");
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   if ($originOK) {
     header('Access-Control-Allow-Methods: POST, OPTIONS');
-    // Debe incluir EXACTAMENTE los headers que enviará tu fetch()
-    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-Trace-Label, X_TRACE_LABEL, X_Trace_Label');
+    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-RL-BS');
     header('Access-Control-Max-Age: 86400');
   }
   http_response_code(204);
