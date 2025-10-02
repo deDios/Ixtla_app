@@ -4,9 +4,9 @@ import { getSession, clearSession } from "/JS/auth/session.js";
 /**
  * Guardia
  * @param {Object} options
- * @param {boolean} [options.requireLogin=true]            Requiere sesión válida.
+ * @param {boolean} [options.requireLogin=true]            Requiere sesión valida (la cookie).
  * @param {number[]} [options.allowIds]                    Lista blanca de id_usuario permitidos.
- * @param {string[]} [options.allowRoles]                  Lista blanca de roles (códigos o nombres) permitidos.
+ * @param {string[]} [options.allowRoles]                  Lista blanca de roles (ids o nombres) permitidos.
  * @param {number} [options.maxAgeMs]                      Si se define, invalida sesiones muy antiguas (comparado con payload.ts).
  * @param {boolean} [options.stealth=true]                 Si true, muestra falso error NGINX en lugar de redirigir.
  * @param {"404"|"403"} [options.stealthCode="404"]        Codigo a presentar.

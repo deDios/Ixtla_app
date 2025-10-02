@@ -18,9 +18,9 @@
     import {
         guardPage
     } from "/JS/auth/guard.js";
-    guardPage();
     guardPage({
-        stealthCode: "plain"
+        stealth: true,
+        stealthTheme: "plain" // debe pintar un "file not found"
     });
     </script>
 
