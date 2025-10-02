@@ -13,6 +13,17 @@
 </head>
 
 <body>
+
+    <script type="module">
+    import {
+        guardPage
+    } from "/JS/auth/guard.js";
+    guardPage();
+    guardPage({
+        stealthCode: "403"
+    });
+    </script>
+
     <!-- Tope de pagina -->
     <header id="header" data-link-home="/index.php">
         <div class="social-bar-mobile">
@@ -374,15 +385,6 @@
 
         </aside>
     </section>
-
-
-
-
-    <script type="module">
-    import { guardPage } from "/JS/auth/guard.js";
-    guardPage();
-    guardPage({ stealthCode: "403" });
-    </script>
 
 
 

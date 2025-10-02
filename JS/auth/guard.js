@@ -1,4 +1,4 @@
-// /JS/auth/routeGuard.js
+// /JS/auth/guard.js
 import { getSession, clearSession } from "/JS/auth/session.js";
 
 /**
