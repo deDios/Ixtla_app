@@ -2,8 +2,8 @@
 const TAG = "[API:Requerimientos]";
 
 // Endpoints 
-const URL_LIST = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_requerimiento.php";
-const URL_UPDATE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento.php";
+const URL_LIST = "requerimiento select colocar aqui";
+const URL_UPDATE = "requerimiento update colocar aqui";
 
 /**
  * Lista requerimientos por departamento (cliente)
