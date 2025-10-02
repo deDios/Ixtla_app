@@ -109,7 +109,7 @@
                 <nav class="auth-mini-nav" aria-label="Enlaces informativos">
                     <a href="https://maps.app.goo.gl/LZD6t8JeazxKa5wn9">Ubicación</a>
                     <a href="https://www.instagram.com/imembrillosgob/">Galería</a>
-                    <!-- <a href="#">Información</a> -->
+                    <!-- <a href="#">Información</a> este esta pendiente-->
                 </nav>
                 <p class="auth-copy">©2025 Municipio Ixtlahuacan de los membrillos</p>
             </div>

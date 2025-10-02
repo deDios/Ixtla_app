@@ -1,5 +1,5 @@
 const COOKIE_NAME = "ix_emp";
-const COOKIE_DAYS = 7;
+const COOKIE_DAYS = 1;
 
 function b64e(json) { return btoa(unescape(encodeURIComponent(JSON.stringify(json)))); }
 function b64d(str)  { try { return JSON.parse(decodeURIComponent(escape(atob(str)))); } catch { return null; } }
