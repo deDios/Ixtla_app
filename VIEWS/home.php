@@ -12,7 +12,7 @@
     <link rel="icon" href="/favicon.ico">
 
 
-    <!-- guardiaBonus -->
+    <!-- guardiaBonus
     <style>
         html.ix-guard-pending {
             visibility: hidden
@@ -42,6 +42,8 @@
         });
     </script>
 
+     -->
+    
 </head>
 
 <body>
