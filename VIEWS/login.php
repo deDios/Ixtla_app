@@ -88,7 +88,7 @@
                         <form class="auth-form" action="#" method="post" novalidate>
                             <label class="field">
                                 <input type="text" name="usuario" autocomplete="username"
-                                    placeholder="Teléfono o correo electrónico">
+                                    placeholder="Usuario">
                             </label>
 
                             <label class="field">

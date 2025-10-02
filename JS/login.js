@@ -6,12 +6,12 @@ import { setSession } from "/JS/auth/session.js";
 
   /* ===================== CONFIG ===================== */
   const ENDPOINT = "/DB/WEB/ixtla01_auth_login.php";
-  const REDIRECT_OK = "/Home.php";
+  const REDIRECT_OK = "/VIEWS/home.php";
 
   // dentro de estas urls no se usara el usuario DEV, solo por si acaso
   const PROD_HOSTS = new Set(["ixtla-app.com", "www.ixtla-app.com"]);
 
-  let DEV_MODE = true; // APAGAR
+  let DEV_MODE = false; // APAGAR
 
   const TEST_LOGIN = {
     username: "many5@gmail.com",
@@ -140,7 +140,7 @@ import { setSession } from "/JS/auth/session.js";
     const password = inputPwd?.value || "";
 
     if (!validarUsuario(username)) {
-      toast("Ingresa un usuario, teléfono o correo válido.", "advertencia");
+      toast("Usuario válido.", "advertencia");
       inputUser?.focus();
       return;
     }
