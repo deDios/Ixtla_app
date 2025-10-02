@@ -40,7 +40,7 @@ export async function fetchRequerimientos(params = {}) {
 
 /**
  * Actualiza un requerimiento (estatus, campos, etc.)
- * @param {object} payload  // mínimo: { id, updated_by, ... }
+ * @param {object} payload  // minimo: { id, updated_by, ... }
  * @returns {Promise<any>}  // devuelve el objeto actualizado (json.data)
  */
 export async function updateRequerimiento(payload) {

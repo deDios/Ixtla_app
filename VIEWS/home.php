@@ -252,7 +252,7 @@
                     <p data-field="departamento_nombre">—</p>
                 </div>
                 -->
-                
+
                 <!-- Asunto -->
                 <div class="ixd-field">
                     <label>Asunto</label>
@@ -379,6 +379,15 @@
 
 
     <script type="module">
+    import { guardPage } from "/JS/guards/routeGuard.js";
+    guardPage();
+    guardPage({ stealthCode: "403" });
+    </script>
+
+
+
+
+    <script type="module">
     (function() {
         const panel = document.querySelector('[data-drawer="panel"]');
         if (!panel) return;
@@ -445,7 +454,7 @@
                 }).then(r => r.json());
 
                 if (!res?.ok) throw new Error(res?.error || 'Error list media');
-                return res.items || res.saved || []; 
+                return res.items || res.saved || [];
             } catch (e) {
                 console.error('[Drawer] list media', e);
                 return [];
