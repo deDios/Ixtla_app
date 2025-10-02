@@ -2,11 +2,11 @@
 const TAG = "[API:Requerimientos]";
 
 // Endpoints 
-const URL_LIST = "requerimiento select colocar aqui";
-const URL_UPDATE = "requerimiento update colocar aqui";
+const URL_LIST = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_requerimiento.php";
+const URL_UPDATE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento.php";
 
 /**
- * Lista requerimientos por departamento (cliente)
+ * Lista requerimientos por departamento (segun el usuario)
  * @param {{departamento_id:number,page?:number,per_page?:number}} params
  * @returns {Promise<{ok:boolean, rows:any[], count:number}>}
  */
