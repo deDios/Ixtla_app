@@ -208,13 +208,13 @@
             <ul>
               <li role="menuitem" tabindex="-1">
                 <img src="${asset(
-                  "/ASSETS/user/userMenu/homebtn.png"
+                  "/user/userMenu/homebtn.png"
                 )}" alt="" aria-hidden="true" />
                 Ir a Home
               </li>
               <li id="logout-btn" role="menuitem" tabindex="-1">
                 <img src="${asset(
-                  "/ASSETS/user/userMenu/logoutbtn.png"
+                  "/user/userMenu/logoutbtn.png"
                 )}" alt="" aria-hidden="true" />
                 Logout
               </li>
@@ -311,13 +311,13 @@
           <ul>
             <li>
               <img src="${asset(
-                "/ASSETS/user/userMenu/homebtn.png"
+                "/user/userMenu/homebtn.png"
               )}" alt="" aria-hidden="true" />
               Ir a Home
             </li>
             <li id="logout-btn-mobile">
               <img src="${asset(
-                "/ASSETS/user/userMenu/logoutbtn.png"
+                "/user/userMenu/logoutbtn.png"
               )}" alt="" aria-hidden="true" />
               Logout
             </li>
