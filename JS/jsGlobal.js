@@ -1,13 +1,14 @@
-//------------------------------------------------------------ js global -----------------------------------------------------
+//------------------------------------------------------------ JS Global -----------------------------------------------------
 (() => {
+  "use strict";
   if (window.__gcGlobalInit) return;
   window.__gcGlobalInit = true;
 
-  // -------------------- helpers de paths --------------------
+  /* ===================== RUTAS ===================== */
   const PATHS = window.GC_PATHS || {
     ASSETS: "/ASSETS",
     VIEWS: "/VIEWS",
-    ROUTES: { home: "../VIEW/Home.php", login: "/VIEWS/Login.php" },
+    ROUTES: { home: "/index.php", login: "/VIEWS/login.php" },
     DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
   };
 
@@ -25,35 +26,39 @@
   const view = (sub) => abs(join(PATHS.VIEWS, sub));
   const routeHome = PATHS.ROUTES?.home
     ? abs(PATHS.ROUTES.home)
-    : view("Home.php");
+    : view("home.php");
   const routeLogin = PATHS.ROUTES?.login
     ? abs(PATHS.ROUTES.login)
-    : view("Login.php");
+    : view("login.php");
   const DEFAULT_AVATAR = abs(
-    PATHS.DEFAULT_AVATAR || "/ASSETS/usuario/usuarioImg/img_user1.png"
+    PATHS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png"
   );
 
-  // -------------------- funcion para obtener el usuario desde la cookie --------------------
-  function getUsuarioFromCookie() {
+  /* ===================== SESION ===================== */
+  // Lee la cookie ix_emp 
+  function getIxSession() {
     try {
-      const m = document.cookie.match(/(?:^|;\s*)usuario=([^;]+)/);
-      return m ? JSON.parse(decodeURIComponent(m[1])) : null;
+      const m = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("ix_emp="));
+      if (!m) return null;
+      const raw = decodeURIComponent(m.split("=")[1] || "");
+      return JSON.parse(decodeURIComponent(escape(atob(raw))));
     } catch {
       return null;
     }
   }
 
-  function setUsuarioCookie(patch) {
-    const prev = getUsuarioFromCookie() || {};
-    const next = { ...prev, ...patch };
+  // Limpia ix_emp 
+  function clearIxSession() {
     document.cookie =
-      "usuario=" +
-      encodeURIComponent(JSON.stringify(next)) +
-      "; path=/; max-age=86400; samesite=lax";
-    return next;
+      "ix_emp=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    document.cookie =
+      "usuario=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
   }
 
-  function withBust(url) {
+  /* ===================== UTILS ===================== */
+  const withBust = (url) => {
     try {
       const u = new URL(url, window.location.origin);
       u.searchParams.set("v", Date.now().toString());
@@ -61,8 +66,9 @@
     } catch {
       return url + (url.includes("?") ? "&" : "?") + "v=" + Date.now();
     }
-  }
+  };
 
+  // Intenta varias rutas/formatos de imagen, con fallback
   function setImgWithExtFallback(
     imgEl,
     bases,
@@ -76,11 +82,8 @@
 
     baseArr.forEach((b) => {
       if (!b) return;
-      if (hasExt(b)) {
-        queue.push(b);
-      } else {
-        extOrder.forEach((ext) => queue.push(`${b}.${ext}`));
-      }
+      if (hasExt(b)) queue.push(b);
+      else extOrder.forEach((ext) => queue.push(`${b}.${ext}`));
     });
 
     let i = 0;
@@ -105,35 +108,33 @@
     tryNext();
   }
 
-  function setAvatarSrc(imgEl, usuario) {
+  function setAvatarSrc(imgEl, session) {
     const ASSETS_BASE = "/ASSETS/usuario/usuarioImg";
     const DEFAULT_URL = DEFAULT_AVATAR;
 
-    const cookieUrl = usuario?.avatarUrl || usuario?.avatar || null;
-    const id = usuario?.id != null ? String(usuario.id).trim() : null;
+    const cookieUrl = session?.avatarUrl || session?.avatar || null;
+    const id =
+      session?.id_usuario != null ? String(session.id_usuario).trim() : null;
 
     const basesSinExt = id
       ? [`${ASSETS_BASE}/user_${id}`, `${ASSETS_BASE}/img_user${id}`]
       : [];
-
-    const primary = cookieUrl
-      ? /\.[a-zA-Z0-9]{2,5}(\?|#|$)/.test(cookieUrl)
-        ? [cookieUrl]
-        : [cookieUrl]
-      : [];
-
+    const primary = cookieUrl ? [cookieUrl] : [];
     const candidates = [...primary, ...basesSinExt, DEFAULT_URL];
 
     setImgWithExtFallback(imgEl, candidates, {
-      extOrder: ["png", "jpg"], // si luego se necesitan mas formatos se agrega
+      extOrder: ["png", "jpg"],
       placeholder: DEFAULT_URL,
       cacheBust: true,
     });
 
-    imgEl.alt = usuario?.nombre || "Avatar";
+    imgEl.alt = session?.nombre
+      ? `${session.nombre} ${session?.apellidos || ""}`.trim()
+      : "Avatar";
     imgEl.loading = "lazy";
   }
 
+  // CSS var --vh para layouts móviles
   const applyVH = () =>
     document.documentElement.style.setProperty(
       "--vh",
@@ -142,7 +143,7 @@
   applyVH();
   window.addEventListener("resize", applyVH);
 
-  // -------------------- animacion (.animado) (de momento solo hay un tipo de animacion)--------------------
+  /* ===================== ANIMACIONES (.animado) ===================== */
   document.addEventListener("DOMContentLoaded", () => {
     const animados = document.querySelectorAll(".animado");
     if (!animados.length) return;
@@ -160,7 +161,7 @@
     animados.forEach((el) => io.observe(el));
   });
 
-  // -------------------- menu hamburguesa --------------------
+  /* ===================== MENÚ HAMBURGUESA ===================== */
   window.toggleMenu = function toggleMenu() {
     const menu = document.getElementById("mobile-menu");
     if (!menu) return;
@@ -170,7 +171,7 @@
     if (burger) burger.setAttribute("aria-expanded", String(isOpen));
   };
 
-  // -------------------- header sticky --------------------
+  /* ===================== HEADER STICKY ===================== */
   document.addEventListener("DOMContentLoaded", () => {
     const header = document.getElementById("header");
     if (!header) return;
@@ -182,25 +183,18 @@
     window.addEventListener("scroll", onScroll, { passive: true });
   });
 
-  // -------------------- Topbar (avatar, dropdown y mobile icon) --------------------
+  /* ===================== TOPBAR (avatar, dropdown, móvil) ===================== */
   document.addEventListener("DOMContentLoaded", () => {
-    const usuario = getUsuarioFromCookie();
-    const isLogged = !!(usuario?.correo || usuario?.nombre);
+    const session = getIxSession();
+    const isLogged = !!(session?.email || session?.nombre);
 
-    // refs del topbar (version desktop)
+    // --- Desktop ---
     const actions = document.querySelector(".actions");
     if (actions) {
-      // limpieza para evitar duplicados
       actions.querySelector(".user-icon")?.remove();
 
-      // boton de registrarse (si hay sesion, se elimina)
-      const btnPrimary = actions.querySelector(".btn-primary");
-      if (isLogged && btnPrimary) btnPrimary.remove();
-
-      const email = usuario?.correo || "Usuario";
-
-      // Construcción del bloque desktop
       if (isLogged) {
+        const emailShown = session.email || "Usuario";
         const wrap = document.createElement("div");
         wrap.className = "user-icon";
         wrap.setAttribute("role", "button");
@@ -208,32 +202,30 @@
         wrap.setAttribute("aria-haspopup", "true");
         wrap.setAttribute("aria-expanded", "false");
         wrap.innerHTML = `
-          <span class="user-email">${email}</span>
+          <span class="user-email">${emailShown}</span>
           <img alt="Perfil" title="Perfil" class="img-perfil" />
           <div class="dropdown-menu" id="user-dropdown" role="menu" aria-hidden="true">
             <ul>
               <li role="menuitem" tabindex="-1">
                 <img src="${asset(
-                  "usuario/usuarioSubmenu/homebtn.png"
+                  "/ASSETS/user/userMenu/homebtn.png"
                 )}" alt="" aria-hidden="true" />
                 Ir a Home
               </li>
               <li id="logout-btn" role="menuitem" tabindex="-1">
                 <img src="${asset(
-                  "usuario/usuarioSubmenu/logoutbtn.png"
+                  "/ASSETS/user/userMenu/logoutbtn.png"
                 )}" alt="" aria-hidden="true" />
                 Logout
               </li>
             </ul>
-          </div>
-        `;
+          </div>`;
         actions.appendChild(wrap);
         actions.classList.add("mostrar");
 
         const img = wrap.querySelector("img.img-perfil");
-        if (img) setAvatarSrc(img, usuario);
+        if (img) setAvatarSrc(img, session);
 
-        // dropdown
         const dd = wrap.querySelector("#user-dropdown");
         const open = (flag) => {
           dd.classList.toggle("active", flag);
@@ -255,27 +247,26 @@
         });
         document.addEventListener("click", () => open(false));
 
-        // acciones del menu
         dd.querySelector("li:nth-child(1)")?.addEventListener("click", () => {
           window.location.href = routeHome;
         });
         dd.querySelector("#logout-btn")?.addEventListener("click", () => {
-          document.cookie =
-            "usuario=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+          clearIxSession();
           sessionStorage.removeItem("bienvenidaMostrada");
           window.location.href = routeLogin;
         });
 
-        // bienvenida (una vez por sesion)
         if (!sessionStorage.getItem("bienvenidaMostrada")) {
-          window.gcToast?.(
-            `Bienvenido, ${usuario.nombre || "usuario"}`,
-            "exito"
-          );
+          try {
+            window.gcToast?.(
+              `Bienvenido, ${session.nombre || "usuario"}`,
+              "exito"
+            );
+          } catch {}
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
-        // no logueado = un solo icono que redirige a login
+        // No logueado → icono clicable a login
         const loginIcon = document.createElement("div");
         loginIcon.className = "user-icon";
         loginIcon.innerHTML = `
@@ -292,7 +283,7 @@
       }
     }
 
-    // header mobile
+    // --- mobile ---
     const socialIconsContainer =
       document.querySelector("#header .social-bar-mobile .social-icons") ||
       document.querySelector("#header .subnav .social-icons") ||
@@ -307,7 +298,6 @@
         DEFAULT_AVATAR
       )}" />`;
       socialIconsContainer.appendChild(mob);
-
       const mobImg = mob.querySelector("img");
 
       if (isLogged) {
@@ -331,8 +321,7 @@
               )}" alt="" aria-hidden="true" />
               Logout
             </li>
-          </ul>
-        `;
+          </ul>`;
         document.body.appendChild(dropdownMobile);
 
         const reposition = () => {
@@ -345,7 +334,6 @@
           dropdownMobile.style.left = `${left + window.scrollX}px`;
         };
 
-        // toggle del dropdown
         mobImg?.addEventListener("click", (e) => {
           e.stopPropagation();
           const willOpen = !dropdownMobile.classList.contains("active");
@@ -360,7 +348,6 @@
           if (e.key === "Escape") dropdownMobile.classList.remove("active");
         });
 
-        // Reposicionar cuando está abierto
         const onRepositionIfOpen = () => {
           if (dropdownMobile.classList.contains("active")) reposition();
         };
@@ -377,17 +364,16 @@
             e.stopPropagation();
             window.location.href = routeHome;
           });
-
         dropdownMobile
           .querySelector("#logout-btn-mobile")
           ?.addEventListener("click", () => {
-            document.cookie =
-              "usuario=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+            clearIxSession();
             sessionStorage.removeItem("bienvenidaMostrada");
             window.location.href = routeLogin;
           });
+
+        setAvatarSrc(mobImg, session);
       } else {
-        // no login = default y un click lleva a Login
         mob.addEventListener(
           "click",
           () => (window.location.href = routeLogin)
@@ -396,34 +382,21 @@
     }
   });
 
-  // -------------------- subnav --------------------
+  /* ===================== SUBNAV + REDES ===================== */
   document.addEventListener("DOMContentLoaded", () => {
     const header = document.getElementById("header");
     if (!header) return;
-
     if (header.dataset.subnavInit === "1") return;
     header.dataset.subnavInit = "1";
 
     const nav = header.querySelector(".subnav");
 
-    // Helpers locales
-    const normalizePath = (u) => {
-      try {
-        const p = new URL(u, window.location.origin).pathname.toLowerCase();
-        return p === "/" ? "/index.php" : p;
-      } catch {
-        const s = String(u || "").toLowerCase();
-        return s === "/" ? "/index.php" : s;
-      }
-    };
-
-    const homeHref = header.dataset.linkHome || "/index.php";
-
-    // --- links de redes sociales
+    // Enlaces por defecto de redes 
     const socialDefaults = {
       facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
-      instagram: "https://www.instagram.com/imembrillosgob/ ",
-      youtube: "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
+      instagram: "https://www.instagram.com/imembrillosgob/",
+      youtube:
+        "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
       x: "https://twitter.com",
     };
     const socialMap = Object.assign(
@@ -435,7 +408,7 @@
     const attachSocialClicks = (root) => {
       if (!root) return;
       root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
-        if (el.dataset.socialBound === "1") return; 
+        if (el.dataset.socialBound === "1") return;
         const img = el.querySelector("img") || el;
         const key = (img.alt || "").trim().toLowerCase(); // "facebook", "instagram", "youtube", "x"
         const url = socialMap[key];
@@ -465,11 +438,11 @@
     attachSocialClicks(nav);
     attachSocialClicks(header.querySelector(".social-bar-mobile"));
 
-    // Logo a Home 
+    // Logo → Home
     const logoBtn = document.getElementById("logo-btn");
     if (logoBtn) {
       logoBtn.style.cursor = "pointer";
-      const goHome = () => (window.location.href = homeHref);
+      const goHome = () => (window.location.href = routeHome);
       logoBtn.addEventListener("click", goHome);
       logoBtn.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -478,5 +451,5 @@
         }
       });
     }
-  }); // -------------------- fin subnav --------------------
+  });
 })();
