@@ -707,7 +707,7 @@
 
     <script type="module">
         import {guardPage} from "/JS/auth/guard.js?v=2";
-        guardPage();
+        guardPage({ stealth: false, redirectTo: "/VIEWS/Login.php" });
     </script>
 </body>
 
