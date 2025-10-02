@@ -22,16 +22,23 @@
         document.documentElement.classList.add('ix-guard-pending');
     </script>
 
-    <link rel="modulepreload" href="/JS/auth/session.js">
-    <link rel="modulepreload" href="/JS/auth/guard.js">
+    <link rel="modulepreload" href="/JS/auth/session.js?v=2">
+    <link rel="modulepreload" href="/JS/auth/guard.js?v=2">
+
+    <script type="module">
+        import {
+            getSession
+        } from "/JS/auth/session.js";
+        window.__ixSession = getSession();
+    </script>
 
     <script type="module">
         import {
             guardPage
-        } from "/JS/auth/guard.js";
+        } from "/JS/auth/guard.js?v=2";
         guardPage({
             stealth: true,
-            stealthTheme: "plain" // debe pintar un "file not found"
+            stealthTheme: "plain"
         });
     </script>
 
@@ -48,7 +55,7 @@
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
                 <!-- El JSglobal reemplaza este avatar cuando hay sesión -->
-                <div class="user-icon-mobile" onclick="window.location.href='VIEW/Login.php'">
+                <div class="user-icon-mobile" onclick="window.location.href='/VIEWS/login.php'">
                     <img src="/ASSETS/user/img_user1.png" alt="Usuario" />
                 </div>
             </div>
