@@ -59,9 +59,9 @@
 
     ENDPOINTS: {
       cpcolonia:  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
-      insertReq:  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento.php",
+      insertReq:  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_ins_requerimiento.php",
       fsBootstrap:"https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
-      uploadImg:  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento_img.php",
+      uploadImg:  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_ins_requerimiento_img.php",
     },
 
     FETCH_TIMEOUT: 12000,
@@ -421,9 +421,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ACCEPT_EXT: [".jpg",".jpeg",".png",".webp",".heic",".heif"],
     ENDPOINTS: {
       cpcolonia:  "/db/WEB/ixtla01_c_cpcolonia.php",
-      insertReq:  "/db/WEB/ixtla01_i_requerimiento.php",
+      insertReq:  "/db/WEB/ixtla01_ins_requerimiento.php",
       fsBootstrap:"/db/WEB/ixtla01_u_requerimiento_folders.php",
-      uploadImg:  "/db/WEB/ixtla01_i_requerimiento_img.php",
+      uploadImg:  "/db/WEB/ixtla01_ins_requerimiento_img.php",
     },
     FETCH_TIMEOUT: 12000,
     DEBUG: false
