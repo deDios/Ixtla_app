@@ -15,6 +15,7 @@
       tramite:"https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tramite.php",
       
     },
+    
 
     ASSETS: {
       BASE: "/ASSETS/departamentos/modulosAssets",

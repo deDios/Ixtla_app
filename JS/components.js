@@ -194,6 +194,7 @@
   
 })();
 
+
 //----------------------------------------------------- componente para las cards de departamentos
 (() => {
   // --- debug

@@ -21,6 +21,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 }
 
 
+
 header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
 
