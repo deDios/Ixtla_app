@@ -38,7 +38,7 @@ import { setSession } from "/JS/auth/session.js";
     timeoutMs: 1200,
   };
 
-  /* ====== recuerda colocar en false cuando ya no se valla a usar ====== */
+  /* ====== recuerdar colocar en false cuando ya no se valla a usar ====== */
   if (PROD_HOSTS.has(location.hostname)) DEV_MODE = true;
 
   /* ==================== HELPERS ==================== */
