@@ -167,6 +167,13 @@ function renderStealth(
   }
 }
 
+if (ok) {
+  log("acceso permitido");
+  document.documentElement.classList.remove("ix-guard-pending");
+  document.documentElement.style.visibility = "";
+  return;
+}
+
 //manera de usarlo
 
 //<script type="module">

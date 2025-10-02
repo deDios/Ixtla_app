@@ -10,19 +10,34 @@
     <link rel="stylesheet" href="/CSS/components.css">
 
     <link rel="icon" href="/favicon.ico">
+
+
+    <!-- guardiaBonus -->
+    <style>
+        html.ix-guard-pending {
+            visibility: hidden
+        }
+    </style>
+    <script>
+        document.documentElement.classList.add('ix-guard-pending');
+    </script>
+
+    <link rel="modulepreload" href="/JS/auth/session.js">
+    <link rel="modulepreload" href="/JS/auth/guard.js">
+
+    <script type="module">
+        import {
+            guardPage
+        } from "/JS/auth/guard.js";
+        guardPage({
+            stealth: true,
+            stealthTheme: "plain" // debe pintar un "file not found"
+        });
+    </script>
+
 </head>
 
 <body>
-
-    <script type="module">
-    import {
-        guardPage
-    } from "/JS/auth/guard.js";
-    guardPage({
-        stealth: true,
-        stealthTheme: "plain" // debe pintar un "file not found"
-    });
-    </script>
 
     <!-- Tope de pagina -->
     <header id="header" data-link-home="/index.php">
@@ -390,280 +405,280 @@
 
 
     <script type="module">
-    (function() {
-        const panel = document.querySelector('[data-drawer="panel"]');
-        if (!panel) return;
+        (function() {
+            const panel = document.querySelector('[data-drawer="panel"]');
+            if (!panel) return;
 
-        const qs = sel => panel.querySelector(sel);
-        const qsa = sel => Array.from(panel.querySelectorAll(sel));
+            const qs = sel => panel.querySelector(sel);
+            const qsa = sel => Array.from(panel.querySelectorAll(sel));
 
-        let filesBuf = [];
+            let filesBuf = [];
 
-        function setEditing(on) {
-            panel.classList.toggle('editing', !!on);
-            qsa('[data-edit]').forEach(el => el.hidden = !on);
-            qsa('.ixd-field p').forEach(el => el.hidden = !!on);
-            qs('.ixd-save').disabled = !on;
-        }
-
-        function fillFields(row) {
-            const map = {
-                folio: row.folio,
-                tramite_nombre: row.tramite_nombre,
-                departamento_nombre: row.departamento_nombre,
-                asignado_nombre_completo: row.asignado_nombre_completo,
-                created_at: row.created_at,
-
-                asunto: row.asunto,
-                descripcion: row.descripcion,
-                prioridad: row.prioridad,
-                canal: row.canal,
-
-                contacto_nombre: row.contacto_nombre,
-                contacto_telefono: row.contacto_telefono,
-                contacto_email: row.contacto_email,
-                contacto_cp: row.contacto_cp,
-                contacto_calle: row.contacto_calle,
-                contacto_colonia: row.contacto_colonia,
-
-                id: row.id
-            };
-            Object.entries(map).forEach(([k, v]) => {
-                const p = qs(`[data-field="${k}"]`);
-                if (p) p.textContent = v ?? "—";
-                const i = qs(`.ixd-input[name="${k}"]`);
-                if (i) i.value = v ?? "";
-            });
-            const hero = qs('[data-img="hero"]');
-            if (hero) hero.src = row.hero_url || "";
-        }
-
-        async function listMedia({
-            folio,
-            status
-        }) {
-            const url = '/db/WEB/ixtla01_c_requerimiento_media.php';
-            try {
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        folio,
-                        status
-                    })
-                }).then(r => r.json());
-
-                if (!res?.ok) throw new Error(res?.error || 'Error list media');
-                return res.items || res.saved || [];
-            } catch (e) {
-                console.error('[Drawer] list media', e);
-                return [];
+            function setEditing(on) {
+                panel.classList.toggle('editing', !!on);
+                qsa('[data-edit]').forEach(el => el.hidden = !on);
+                qsa('.ixd-field p').forEach(el => el.hidden = !!on);
+                qs('.ixd-save').disabled = !on;
             }
-        }
 
-        async function loadGallery() {
-            const r = panel._row || {};
-            const grid = qs('[data-img="grid"]');
-            const empty = qs('[data-img="empty"]');
-            if (!grid) return;
+            function fillFields(row) {
+                const map = {
+                    folio: row.folio,
+                    tramite_nombre: row.tramite_nombre,
+                    departamento_nombre: row.departamento_nombre,
+                    asignado_nombre_completo: row.asignado_nombre_completo,
+                    created_at: row.created_at,
 
-            const status = Number(qs('[data-img="viewStatus"]')?.value || r.estatus || 0);
-            const items = await listMedia({
-                folio: r.folio,
+                    asunto: row.asunto,
+                    descripcion: row.descripcion,
+                    prioridad: row.prioridad,
+                    canal: row.canal,
+
+                    contacto_nombre: row.contacto_nombre,
+                    contacto_telefono: row.contacto_telefono,
+                    contacto_email: row.contacto_email,
+                    contacto_cp: row.contacto_cp,
+                    contacto_calle: row.contacto_calle,
+                    contacto_colonia: row.contacto_colonia,
+
+                    id: row.id
+                };
+                Object.entries(map).forEach(([k, v]) => {
+                    const p = qs(`[data-field="${k}"]`);
+                    if (p) p.textContent = v ?? "—";
+                    const i = qs(`.ixd-input[name="${k}"]`);
+                    if (i) i.value = v ?? "";
+                });
+                const hero = qs('[data-img="hero"]');
+                if (hero) hero.src = row.hero_url || "";
+            }
+
+            async function listMedia({
+                folio,
                 status
-            });
+            }) {
+                const url = '/db/WEB/ixtla01_c_requerimiento_media.php';
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            folio,
+                            status
+                        })
+                    }).then(r => r.json());
 
-            grid.innerHTML = "";
-            if (!items.length) {
-                if (empty) empty.hidden = false;
-                return;
+                    if (!res?.ok) throw new Error(res?.error || 'Error list media');
+                    return res.items || res.saved || [];
+                } catch (e) {
+                    console.error('[Drawer] list media', e);
+                    return [];
+                }
             }
-            if (empty) empty.hidden = true;
 
-            const frag = document.createDocumentFragment();
-            items.forEach(it => {
-                const card = document.createElement('a');
-                card.className = 'ixd-card';
-                card.href = it.url || it.href || '#';
-                card.target = '_blank';
-                card.rel = 'noopener';
-                card.innerHTML = `
+            async function loadGallery() {
+                const r = panel._row || {};
+                const grid = qs('[data-img="grid"]');
+                const empty = qs('[data-img="empty"]');
+                if (!grid) return;
+
+                const status = Number(qs('[data-img="viewStatus"]')?.value || r.estatus || 0);
+                const items = await listMedia({
+                    folio: r.folio,
+                    status
+                });
+
+                grid.innerHTML = "";
+                if (!items.length) {
+                    if (empty) empty.hidden = false;
+                    return;
+                }
+                if (empty) empty.hidden = true;
+
+                const frag = document.createDocumentFragment();
+                items.forEach(it => {
+                    const card = document.createElement('a');
+                    card.className = 'ixd-card';
+                    card.href = it.url || it.href || '#';
+                    card.target = '_blank';
+                    card.rel = 'noopener';
+                    card.innerHTML = `
         <img src="${it.url || it.href || ''}" alt="${(it.name||'evidencia')}">
         <div class="nm" title="${it.name||''}">${it.name || ''}</div>
       `;
-                frag.appendChild(card);
-            });
-            grid.appendChild(frag);
-        }
+                    frag.appendChild(card);
+                });
+                grid.appendChild(frag);
+            }
 
-        const oldOpen = window.Drawer?.open;
-        if (typeof oldOpen === "function") {
-            window.Drawer.open = function(row, callbacks = {}) {
-                oldOpen.call(window.Drawer, row, callbacks);
+            const oldOpen = window.Drawer?.open;
+            if (typeof oldOpen === "function") {
+                window.Drawer.open = function(row, callbacks = {}) {
+                    oldOpen.call(window.Drawer, row, callbacks);
 
-                fillFields(row);
-                setEditing(false);
+                    fillFields(row);
+                    setEditing(false);
 
-                const selView = qs('[data-img="viewStatus"]');
-                if (selView) {
-                    selView.value = String(row.estatus ?? 0);
+                    const selView = qs('[data-img="viewStatus"]');
+                    if (selView) {
+                        selView.value = String(row.estatus ?? 0);
+                    }
+                    loadGallery();
+
+                    filesBuf = [];
+                    const prevWrap = qs('[data-img="previews"]');
+                    if (prevWrap) prevWrap.innerHTML = "";
+                    const upBtn = qs('[data-img="uploadBtn"]');
+                    if (upBtn) upBtn.disabled = true;
+
+                    panel._row = row;
+                    panel._callbacks = callbacks || {};
+                };
+            }
+
+            qs('[data-action="editar"]').addEventListener('click', () => setEditing(true));
+
+            qs('[data-action="guardar"]').addEventListener('click', async () => {
+                const r = panel._row || {};
+                const payload = {
+                    id: r.id,
+                    asunto: qs('input[name="asunto"]').value.trim(),
+                    descripcion: qs('textarea[name="descripcion"]').value.trim(),
+                    prioridad: Number(qs('select[name="prioridad"]').value || r.prioridad),
+                    canal: Number(qs('input[name="canal"]').value || r.canal),
+
+                    contacto_nombre: qs('input[name="contacto_nombre"]').value.trim(),
+                    contacto_telefono: qs('input[name="contacto_telefono"]').value.trim(),
+                    contacto_email: qs('input[name="contacto_email"]').value.trim(),
+                    contacto_cp: qs('input[name="contacto_cp"]').value.trim(),
+                    contacto_calle: qs('input[name="contacto_calle"]').value.trim(),
+                    contacto_colonia: qs('input[name="contacto_colonia"]').value.trim(),
+
+                    updated_by: (window.__ixSession?.id_usuario ?? 1)
+                };
+
+                try {
+                    const res = await fetch('/db/WEB/ixtla01_u_requerimiento.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    }).then(r => r.json());
+
+                    if (!res?.ok) throw new Error(res?.error || 'Update failed');
+                    fillFields(res.data);
+                    setEditing(false);
+                    if (panel._callbacks?.onUpdated) panel._callbacks.onUpdated(res.data);
+                } catch (e) {
+                    console.error('[Drawer] guardar error', e);
+                    if (panel._callbacks?.onError) panel._callbacks.onError(e);
                 }
-                loadGallery();
-
-                filesBuf = [];
-                const prevWrap = qs('[data-img="previews"]');
-                if (prevWrap) prevWrap.innerHTML = "";
-                const upBtn = qs('[data-img="uploadBtn"]');
-                if (upBtn) upBtn.disabled = true;
-
-                panel._row = row;
-                panel._callbacks = callbacks || {};
-            };
-        }
-
-        qs('[data-action="editar"]').addEventListener('click', () => setEditing(true));
-
-        qs('[data-action="guardar"]').addEventListener('click', async () => {
-            const r = panel._row || {};
-            const payload = {
-                id: r.id,
-                asunto: qs('input[name="asunto"]').value.trim(),
-                descripcion: qs('textarea[name="descripcion"]').value.trim(),
-                prioridad: Number(qs('select[name="prioridad"]').value || r.prioridad),
-                canal: Number(qs('input[name="canal"]').value || r.canal),
-
-                contacto_nombre: qs('input[name="contacto_nombre"]').value.trim(),
-                contacto_telefono: qs('input[name="contacto_telefono"]').value.trim(),
-                contacto_email: qs('input[name="contacto_email"]').value.trim(),
-                contacto_cp: qs('input[name="contacto_cp"]').value.trim(),
-                contacto_calle: qs('input[name="contacto_calle"]').value.trim(),
-                contacto_colonia: qs('input[name="contacto_colonia"]').value.trim(),
-
-                updated_by: (window.__ixSession?.id_usuario ?? 1)
-            };
-
-            try {
-                const res = await fetch('/db/WEB/ixtla01_u_requerimiento.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                }).then(r => r.json());
-
-                if (!res?.ok) throw new Error(res?.error || 'Update failed');
-                fillFields(res.data);
-                setEditing(false);
-                if (panel._callbacks?.onUpdated) panel._callbacks.onUpdated(res.data);
-            } catch (e) {
-                console.error('[Drawer] guardar error', e);
-                if (panel._callbacks?.onError) panel._callbacks.onError(e);
-            }
-        });
-
-        qs('[data-action="eliminar"]').addEventListener('click', async () => {
-            const r = panel._row || {};
-            if (!confirm('¿Eliminar (soft delete)?')) return;
-            try {
-                const res = await fetch('/db/WEB/ixtla01_u_requerimiento.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        id: r.id,
-                        _soft_delete: true,
-                        updated_by: (window.__ixSession?.id_usuario ?? 1)
-                    })
-                }).then(r => r.json());
-                if (!res?.ok) throw new Error(res?.error || 'Delete failed');
-                if (panel._callbacks?.onUpdated) panel._callbacks.onUpdated(res.data);
-                document.querySelector('.ix-drawer')?.classList.remove('open');
-            } catch (e) {
-                console.error('[Drawer] eliminar error', e);
-                if (panel._callbacks?.onError) panel._callbacks.onError(e);
-            }
-        });
-
-        const fileInput = qs('[data-img="file"]');
-        qs('[data-img="pick"]').addEventListener('click', () => {
-            if (!panel.classList.contains('editing')) return;
-            fileInput?.click();
-        });
-
-        fileInput.addEventListener('change', () => {
-            const list = Array.from(fileInput.files || []);
-            filesBuf = list;
-            const wrap = qs('[data-img="previews"]');
-            const upBtn = qs('[data-img="uploadBtn"]');
-            if (wrap) wrap.innerHTML = "";
-            list.forEach((f, i) => {
-                const url = URL.createObjectURL(f);
-                const card = document.createElement('div');
-                card.className = 'thumb';
-                card.innerHTML =
-                    `<img src="${url}" alt="preview"><button class="rm" type="button">Quitar</button>`;
-                card.querySelector('.rm').addEventListener('click', () => {
-                    filesBuf.splice(i, 1);
-                    card.remove();
-                    if (upBtn) upBtn.disabled = filesBuf.length === 0;
-                });
-                wrap.appendChild(card);
             });
-            if (upBtn) upBtn.disabled = filesBuf.length === 0;
-        });
 
-        qs('[data-img="viewStatus"]')?.addEventListener('change', loadGallery);
+            qs('[data-action="eliminar"]').addEventListener('click', async () => {
+                const r = panel._row || {};
+                if (!confirm('¿Eliminar (soft delete)?')) return;
+                try {
+                    const res = await fetch('/db/WEB/ixtla01_u_requerimiento.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            id: r.id,
+                            _soft_delete: true,
+                            updated_by: (window.__ixSession?.id_usuario ?? 1)
+                        })
+                    }).then(r => r.json());
+                    if (!res?.ok) throw new Error(res?.error || 'Delete failed');
+                    if (panel._callbacks?.onUpdated) panel._callbacks.onUpdated(res.data);
+                    document.querySelector('.ix-drawer')?.classList.remove('open');
+                } catch (e) {
+                    console.error('[Drawer] eliminar error', e);
+                    if (panel._callbacks?.onError) panel._callbacks.onError(e);
+                }
+            });
 
-        qs('[data-img="uploadBtn"]').addEventListener('click', async () => {
-            const r = panel._row || {};
-            if (!filesBuf.length) return;
+            const fileInput = qs('[data-img="file"]');
+            qs('[data-img="pick"]').addEventListener('click', () => {
+                if (!panel.classList.contains('editing')) return;
+                fileInput?.click();
+            });
 
-            const status = Number(qs('[data-img="uploadStatus"]').value || 0);
-
-            try {
-                await fetch('/db/WEB/ixtla01_u_requerimiento_folders.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        folio: r.folio
-                    })
-                });
-            } catch (_) {}
-
-            const fd = new FormData();
-            fd.append('folio', r.folio);
-            fd.append('status', String(status));
-            filesBuf.forEach(f => fd.append('files[]', f, f.name));
-
-            try {
-                const up = await fetch('/db/WEB/ixtla01_c_requerimiento_media.php', {
-                    method: 'POST',
-                    body: fd
-                }).then(r => r.json());
-                if (!up?.ok) throw new Error(up?.error || 'Upload failed');
-
-                filesBuf = [];
+            fileInput.addEventListener('change', () => {
+                const list = Array.from(fileInput.files || []);
+                filesBuf = list;
                 const wrap = qs('[data-img="previews"]');
-                if (wrap) wrap.innerHTML = "";
                 const upBtn = qs('[data-img="uploadBtn"]');
-                if (upBtn) upBtn.disabled = true;
+                if (wrap) wrap.innerHTML = "";
+                list.forEach((f, i) => {
+                    const url = URL.createObjectURL(f);
+                    const card = document.createElement('div');
+                    card.className = 'thumb';
+                    card.innerHTML =
+                        `<img src="${url}" alt="preview"><button class="rm" type="button">Quitar</button>`;
+                    card.querySelector('.rm').addEventListener('click', () => {
+                        filesBuf.splice(i, 1);
+                        card.remove();
+                        if (upBtn) upBtn.disabled = filesBuf.length === 0;
+                    });
+                    wrap.appendChild(card);
+                });
+                if (upBtn) upBtn.disabled = filesBuf.length === 0;
+            });
 
-                const vSel = qs('[data-img="viewStatus"]');
-                const viewing = Number(vSel?.value || 0);
-                if (viewing === status) loadGallery();
+            qs('[data-img="viewStatus"]')?.addEventListener('change', loadGallery);
 
-            } catch (e) {
-                console.error('[Drawer] upload error', e);
-                if (panel._callbacks?.onError) panel._callbacks.onError(e);
-            }
-        });
+            qs('[data-img="uploadBtn"]').addEventListener('click', async () => {
+                const r = panel._row || {};
+                if (!filesBuf.length) return;
 
-    })();
+                const status = Number(qs('[data-img="uploadStatus"]').value || 0);
+
+                try {
+                    await fetch('/db/WEB/ixtla01_u_requerimiento_folders.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            folio: r.folio
+                        })
+                    });
+                } catch (_) {}
+
+                const fd = new FormData();
+                fd.append('folio', r.folio);
+                fd.append('status', String(status));
+                filesBuf.forEach(f => fd.append('files[]', f, f.name));
+
+                try {
+                    const up = await fetch('/db/WEB/ixtla01_c_requerimiento_media.php', {
+                        method: 'POST',
+                        body: fd
+                    }).then(r => r.json());
+                    if (!up?.ok) throw new Error(up?.error || 'Upload failed');
+
+                    filesBuf = [];
+                    const wrap = qs('[data-img="previews"]');
+                    if (wrap) wrap.innerHTML = "";
+                    const upBtn = qs('[data-img="uploadBtn"]');
+                    if (upBtn) upBtn.disabled = true;
+
+                    const vSel = qs('[data-img="viewStatus"]');
+                    const viewing = Number(vSel?.value || 0);
+                    if (viewing === status) loadGallery();
+
+                } catch (e) {
+                    console.error('[Drawer] upload error', e);
+                    if (panel._callbacks?.onError) panel._callbacks.onError(e);
+                }
+            });
+
+        })();
     </script>
 
 
