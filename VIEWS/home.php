@@ -20,7 +20,7 @@
     } from "/JS/auth/guard.js";
     guardPage();
     guardPage({
-        stealthCode: "403"
+        stealthCode: "plain"
     });
     </script>
 
