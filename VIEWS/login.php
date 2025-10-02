@@ -87,8 +87,7 @@
 
                         <form class="auth-form" action="#" method="post" novalidate>
                             <label class="field">
-                                <input type="text" name="usuario" autocomplete="username"
-                                    placeholder="Usuario">
+                                <input type="text" name="usuario" autocomplete="username" placeholder="Usuario">
                             </label>
 
                             <label class="field">
@@ -150,7 +149,10 @@
 
     <!-- ESPACIO PARA MODALES -->
 
-
+    <script src="/JS/JSglobal.js"></script>
+    <script src="/JS/components.js"></script>
+    <script type="module" src="/JS/auth/session.js"></script>
+    <script type="module" src="/JS/login.js"></script>
 
 </body>
 

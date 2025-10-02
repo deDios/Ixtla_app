@@ -4,30 +4,19 @@ import { setSession } from "/JS/auth/session.js";
 (() => {
   "use strict";
 
-  /* ===================== CONFIG ===================== */
-  const ENDPOINT = "/DB/WEB/ixtla01_auth_login.php";
+  /* -------------- CON -------------- */
+  const ENDPOINT = "/DB/WEB/ixtla01_auth_login.php"; 
   const REDIRECT_OK = "/VIEWS/home.php";
 
-  // dentro de estas urls no se usara el usuario DEV, solo por si acaso
-  const PROD_HOSTS = new Set(["ixtla-app.com", "www.ixtla-app.com"]);
-
-  let DEV_MODE = false; // APAGAR
-
-  const TEST_LOGIN = {
-    username: "many5@gmail.com",
-    password: "12345678",
-  };
-
-  // --- recaptcha ---
+  // --- reCAPTCHA (de momento no esta activo) ---
   const RECAPTCHA = {
-    enabled: false, //cuando este listo colocar la key y el true
-    siteKey: "TU_SITE_KEY",
+    enabled: false, 
+    siteKey: "TU_SITE_KEY", 
     action: "ixtla_login",
   };
 
-  // algo de "seguridad" nomas para molestar a algun bot de ui
-  const MIN_FILL_MS = 900;
-  const RL_MAX_PER_MIN = 6;
+  const MIN_FILL_MS = 900; 
+  const RL_MAX_PER_MIN = 6; 
   const RL_WINDOW_SEC = 60;
   const RL_STORAGE_KEY = "ix_login_rl";
 
@@ -37,9 +26,6 @@ import { setSession } from "/JS/auth/session.js";
     bitsMobile: 16,
     timeoutMs: 1200,
   };
-
-  /* ====== recuerdar colocar en false cuando ya no se valla a usar ====== */
-  if (PROD_HOSTS.has(location.hostname)) DEV_MODE = true;
 
   /* ==================== HELPERS ==================== */
   const form = document.querySelector(".auth-form");
@@ -64,9 +50,9 @@ import { setSession } from "/JS/auth/session.js";
   function validarUsuario(u) {
     if (!u) return false;
     const v = u.trim();
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return true; // email
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return true; // email, que no se usa pero por si acaso
     if (/^\+?\d{10,15}$/.test(v.replace(/\D/g, ""))) return true; // telefono
-    return v.length >= 3; // usuario simple
+    return v.length >= 3; // username simple
   }
 
   function clientThrottleCheck(max, windowSec, storageKey) {
@@ -140,7 +126,10 @@ import { setSession } from "/JS/auth/session.js";
     const password = inputPwd?.value || "";
 
     if (!validarUsuario(username)) {
-      toast("Usuario válido.", "advertencia");
+      toast(
+        "Ingresa un usuario válido (email, teléfono o usuario).",
+        "advertencia"
+      );
       inputUser?.focus();
       return;
     }
@@ -172,41 +161,10 @@ import { setSession } from "/JS/auth/session.js";
       return;
     }
 
-    if (
-      DEV_MODE &&
-      username === TEST_LOGIN.username &&
-      password === TEST_LOGIN.password
-    ) {
-      setLoading(true);
-      try {
-        const bits = isMobile() ? POW.bitsMobile : POW.bitsDesktop;
-        await doPoW(bits, 400, `${location.hostname}|devlogin`);
-      } catch {}
-      // el usuario dummy
-      setSession({
-        id_usuario: 1052,
-        nombre: "Juan Pablo",
-        apellidos: "García",
-        email: TEST_LOGIN.username,
-        telefono: "3322578320",
-        puesto: "Dev",
-        departamento_id: 1,
-        roles: ["DEV"],
-        status_empleado: 1,
-        status_cuenta: 1,
-        created_by: 1,
-        username: TEST_LOGIN.username,
-      });
-      setTimeout(() => {
-        toast("Bienvenido (DEV)", "exito");
-        window.location.href = REDIRECT_OK;
-      }, 400);
-      return;
-    }
-
     setLoading(true);
 
     try {
+      // PoW opcional
       let pow = null;
       if (POW.enabled) {
         const bits = isMobile() ? POW.bitsMobile : POW.bitsDesktop;
@@ -217,7 +175,7 @@ import { setSession } from "/JS/auth/session.js";
         );
       }
 
-      // reCAPTCHA (cuando este activo)
+      // reCAPTCHA opcional
       const recaptchaToken = await getRecaptchaToken();
 
       const resp = await fetch(ENDPOINT, {
@@ -254,7 +212,7 @@ import { setSession } from "/JS/auth/session.js";
           : [];
 
         setSession({
-          id_usuario: acc.id ?? emp.id ?? 0, //tiene preferencia a id de cuenta
+          id_usuario: acc.id ?? emp.id ?? 0, // preferir id de cuenta
           nombre: emp.nombre || "",
           apellidos: emp.apellidos || "",
           email: emp.email || "",
@@ -282,7 +240,7 @@ import { setSession } from "/JS/auth/session.js";
       }
       if (status === 423) {
         toast(
-          `Cuenta temporalmente bloqueada. Intenta más tarde.`,
+          "Cuenta temporalmente bloqueada. Intenta más tarde.",
           "advertencia"
         );
         setLoading(false);
@@ -315,5 +273,4 @@ import { setSession } from "/JS/auth/session.js";
       setLoading(false);
     }
   });
-
 })();
