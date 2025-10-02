@@ -16,6 +16,7 @@ import { getSession, clearSession } from "/JS/auth/session.js";
  * @param {boolean} [options.devLog=false]                 Logs en consola para depurar.
  * hasta abajo viene la forma de importarlo
  */
+
 export function guardPage(options = {}) {
   const cfg = {
     requireLogin: true,
@@ -32,9 +33,17 @@ export function guardPage(options = {}) {
     ...options,
   };
 
-  // evita ejecutar dos veces si el modulo se importa repetido
-  if (window.__IX_ROUTE_GUARD_ACTIVE__) return;
-  window.__IX_ROUTE_GUARD_ACTIVE__ = true;
+  // evita ejecutar dos veces si el modulo se importa repetido (sello por ruta)
+  const SENT_KEY = "__IX_ROUTE_GUARD_ACTIVE__:" + location.pathname;
+  if (window[SENT_KEY]) {
+    // si ya corrió, por si acaso quita el cloak para no dejar la pantalla oculta
+    try {
+      document.documentElement.classList.remove("ix-guard-pending");
+      document.documentElement.style.visibility = "";
+    } catch {}
+    return;
+  }
+  window[SENT_KEY] = true;
 
   const log = (...a) => {
     if (cfg.devLog)
@@ -84,7 +93,12 @@ export function guardPage(options = {}) {
 
   if (ok) {
     log("acceso permitido");
-    return; //acceso exitoso
+    // REVELA el documento oculto por el cloak:
+    try {
+      document.documentElement.classList.remove("ix-guard-pending");
+      document.documentElement.style.visibility = "";
+    } catch {}
+    return; // acceso exitoso
   }
 
   log("acceso denegado, fuera de aqui");
@@ -95,7 +109,7 @@ export function guardPage(options = {}) {
   } catch {}
 
   if (cfg.stealth) {
-    // Renderizar error
+    // Renderizar error (un pequeño jitter para realismo)
     const delayMs = 120 + Math.floor(Math.random() * 360);
     setTimeout(
       () =>
@@ -122,7 +136,7 @@ function renderStealth(
 ) {
   if (theme === "plain") {
     try {
-      document.open(); 
+      document.open();
       document.write("File not found.");
       document.close();
       try {
@@ -167,20 +181,13 @@ function renderStealth(
   }
 }
 
-if (ok) {
-  log("acceso permitido");
-  document.documentElement.classList.remove("ix-guard-pending");
-  document.documentElement.style.visibility = "";
-  return;
-}
-
 //manera de usarlo
 
 //<script type="module">
-//import { guardPage } from "/JS/guards/routeGuard.js";
+//import { guardPage } from "/JS/auth/guard.js";
 
 // Caso 1: solo exige sesión valida (cualquier usuario logueado)
-//guardPage();
+// guardPage();
 
 // Caso 2: exige sesion + SOLO ciertos IDs
 // guardPage({ allowIds: [1, 2, 9999] });
