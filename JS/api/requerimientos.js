@@ -43,6 +43,7 @@ export async function fetchRequerimientos(params = {}) {
  * @param {object} payload  // minimo: { id, updated_by, ... }
  * @returns {Promise<any>}  // devuelve el objeto actualizado (json.data)
  */
+
 export async function updateRequerimiento(payload) {
     const resp = await fetch(URL_UPDATE, {
         method: "POST",

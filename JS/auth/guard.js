@@ -203,4 +203,11 @@ function renderStealth(
 
 // Caso 6: invalidar sesiones con demasiada antigüedad (ej: 7 días)
 // guardPage({ maxAgeMs: 7*24*60*60*1000 });
+
+
+
+    //<script src="/JS/JSglobal.js"></script>
+    //<script src="/JS/components.js"></script>    
+   // <script type="module" src="/JS/auth/session.js"></script>
+    //<script type="module" src="/JS/login.js"></script>
 //</script>
