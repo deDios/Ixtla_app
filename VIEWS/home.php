@@ -43,7 +43,7 @@
     </script>
 
      -->
-    
+
 </head>
 
 <body>
@@ -700,15 +700,19 @@
 
 
 
+    <script type="module">
+        import {
+            guardPage
+        } from "/JS/auth/guard.js?v=2";
+        guardPage({
+            stealth: false,
+            redirectTo: "/VIEWS/Login.php"
+        });
+    </script>
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>
     <script type="module" src="/JS/home.js"></script>
-
-    <script type="module">
-        import {guardPage} from "/JS/auth/guard.js?v=2";
-        guardPage({ stealth: false, redirectTo: "/VIEWS/Login.php" });
-    </script>
 </body>
 
 </html>
