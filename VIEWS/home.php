@@ -705,6 +705,10 @@
     <script src="/JS/components.js"></script>
     <script type="module" src="/JS/home.js"></script>
 
+    <script type="module">
+        import {guardPage} from "/JS/auth/guard.js?v=2";
+        guardPage();
+    </script>
 </body>
 
 </html>
