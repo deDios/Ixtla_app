@@ -311,13 +311,13 @@
           <ul>
             <li>
               <img src="${asset(
-                "usuario/usuarioSubmenu/homebtn.png"
+                "/ASSETS/user/userMenu/homebtn.png"
               )}" alt="" aria-hidden="true" />
               Ir a Home
             </li>
             <li id="logout-btn-mobile">
               <img src="${asset(
-                "usuario/usuarioSubmenu/logoutbtn.png"
+                "/ASSETS/user/userMenu/logoutbtn.png"
               )}" alt="" aria-hidden="true" />
               Logout
             </li>
