@@ -379,7 +379,7 @@
 
 
     <script type="module">
-    import { guardPage } from "/JS/ui/routeGuard.js";
+    import { guardPage } from "/JS/auth/guard.js";
     guardPage();
     guardPage({ stealthCode: "403" });
     </script>
