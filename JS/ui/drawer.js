@@ -1,8 +1,9 @@
-// /JS/ui/drawer.js  
+// /JS/ui/drawer.js
+
 import { updateRequerimiento } from "/JS/api/requerimientos.js";
 import { listMedia, uploadMedia } from "/JS/api/media.js";
 
-/*  Constantes de UI  */
+/*  ui  */
 const ESTATUS = {
   0: { clave: "solicitud", nombre: "Solicitud" },
   1: { clave: "revision", nombre: "Revisión" },
@@ -14,7 +15,7 @@ const ESTATUS = {
 };
 const PRIORIDAD = { 1: "Baja", 2: "Media", 3: "Alta" };
 
-// CP/Colonia endpoint 
+// CP/Colonia endpoint
 const CP_EP =
   window.IX_CFG_REQ?.ENDPOINTS?.cpcolonia ||
   window.IX_CFG_DEPS?.ENDPOINTS?.cpcolonia ||
@@ -33,6 +34,16 @@ const setVal = (el, val) => {
   if (el) el.value = val ?? "";
 };
 const getSessUserId = () => window.__ixSession?.id_usuario ?? 1;
+const fmtDate = (str) => {
+  if (!str) return "—";
+  try {
+    const d =
+      str instanceof Date ? str : new Date(String(str).replace(" ", "T"));
+    return Number.isNaN(d.getTime()) ? String(str) : d.toLocaleString();
+  } catch {
+    return String(str);
+  }
+};
 
 // crea elemento desde HTML
 function htm(html) {
@@ -42,7 +53,7 @@ function htm(html) {
 }
 
 /*  CP/Colonia catálogo  */
-let CP_MAP = null; // { "45850": ["Col A", "Col B"] } o asi deberia de ser
+let CP_MAP = null; // { "45850": ["Col A", "Col B"] }
 let CP_LIST = null;
 
 function cpCacheGet() {
@@ -122,15 +133,19 @@ function makeOpt(v, label, o = {}) {
   return el;
 }
 
-/*  Drawer módulo  */
+/*  Drawer  */
 export const Drawer = (() => {
-  let el; // <aside class="ix-drawer">
-  let bodyEl; // .ixd-body
-  let btnEdit, btnSave, btnDelete, btnCancel, btnPause; // footer buttons
-  let heroImg, pickBtn, fileInput, previewsBox, uploadBtn, uploadStatus;
-  let galleryGrid, galleryEmpty; // galería
-  let statusFieldP, statusFieldSel; // p y select del estatus
-  let cpInputSel, colInputSel; // selects en edición
+  let el;
+  let bodyEl;
+  let btnEdit, btnSave, btnDelete, btnCancel, btnPause;
+  let heroImg, pickBtn, fileInput, previewsBox, uploadBtn;
+  let galleryGrid, galleryEmpty;
+  let statusFieldP, statusFieldSel; // <- FIX: quitar `s` sobrante
+  let cpInputSel, colInputSel;
+  let galleryStatusSel; // único select para ver y subir según estado
+
+  // tokens anti-race
+  let galleryToken = 0;
 
   let saving = false;
   let deleting = false;
@@ -142,7 +157,7 @@ export const Drawer = (() => {
       console.warn("[Drawer] no se encontró", selector);
       return;
     }
-    if (el.__inited) return; // evita listeners duplicados
+    if (el.__inited) return;
     el.__inited = true;
 
     bodyEl = $(".ixd-body", el) || el;
@@ -151,6 +166,10 @@ export const Drawer = (() => {
     $$('[data-drawer="close"]', el).forEach((btn) =>
       btn.addEventListener("click", close)
     );
+    // Esc para cerrar
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") close();
+    });
 
     // ====== Footer buttons
     btnEdit = $('[data-action="editar"]', el);
@@ -188,73 +207,39 @@ export const Drawer = (() => {
     fileInput = $('[data-img="file"]', el);
     previewsBox = $('[data-img="previews"]', el);
     uploadBtn = $('[data-img="uploadBtn"]', el);
-    uploadStatus = $('[data-img="uploadStatus"]', el);
 
-    // Habilitamos el botón "Subir" para poder probarlo aunque no haya files aún
+    // Selector ÚNICO de estado para galería (soporta varias marcas antiguas)
+    galleryStatusSel =
+      $('[data-img="galleryStatus"]', el) ||
+      $('[data-img="viewStatus"]', el) ||
+      $('[data-img="uploadStatus"]', el) ||
+      $('[name="gallery_status"]', el) ||
+      $('[name="estatus_galeria"]', el);
+
+    // Si había dos selects (view + upload), ocultamos el de upload
+    const dupUpload = $('[data-img="uploadStatus"]', el);
+    if (dupUpload && dupUpload !== galleryStatusSel) dupUpload.remove();
+
+    // Habilitamos el botón "Subir"
     if (uploadBtn) uploadBtn.disabled = false;
 
     // pick -> input type file
     if (pickBtn && fileInput) {
       pickBtn.addEventListener("click", () => fileInput.click());
-      fileInput.addEventListener("change", () => {
-        if (!previewsBox) return;
-        previewsBox.innerHTML = "";
-        const files = fileInput.files || [];
-        [...files].forEach((f) => {
-          const url = URL.createObjectURL(f);
-          const fig = htm(
-            `<div class="thumb"><img src="${url}" alt="${f.name}"><button class="rm" type="button">Quitar</button></div>`
-          );
-          fig.querySelector(".rm").addEventListener("click", () => {
-            // quitar f
-            const arr = Array.from(fileInput.files || []);
-            const idx = arr.indexOf(f);
-            const dt = new DataTransfer();
-            arr.forEach((it, i) => {
-              if (i !== idx) dt.items.add(it);
-            });
-            fileInput.files = dt.files;
-            fig.remove();
-          });
-          previewsBox.appendChild(fig);
-        });
-      });
+      fileInput.addEventListener("change", buildPreviews);
     }
 
-    // Subir → endpoint
+    // Subir → endpoint usando el estado seleccionado en galería
     if (uploadBtn) {
-      uploadBtn.addEventListener("click", async () => {
-        if (uploading) return;
-        try {
-          const folio = String($(".ixd-folio", el)?.textContent || "").trim();
-          if (!/^REQ-\d{10}$/.test(folio)) return;
-          const files = fileInput?.files || [];
-          const status = Number(uploadStatus?.value || 0);
-          uploading = true;
-          el.setAttribute("aria-busy", "true");
-          await uploadMedia({ folio, status, files });
-          // limpiar previews
-          if (previewsBox) previewsBox.innerHTML = "";
-          if (fileInput) fileInput.value = "";
-          // refrescar galería
-          await refreshGallery(folio, status);
-        } catch (e) {
-          console.error("[Drawer] upload error", e);
-          window.gcToast?.("No se pudieron subir las imágenes", "alerta");
-        } finally {
-          uploading = false;
-          el.removeAttribute("aria-busy");
-        }
-      });
+      uploadBtn.addEventListener("click", doUpload);
     }
 
     // Crear galería si no existe
     galleryGrid = $('[data-img="grid"]', el);
     if (!galleryGrid) {
-      const gWrap = htm(`
-        <div class="ixd-viewRow">
-          <div class="ixd-gallery" data-img="grid"></div>
-        </div>`);
+      const gWrap = htm(
+        `<div class="ixd-viewRow"><div class="ixd-gallery" data-img="grid"></div></div>`
+      );
       bodyEl.appendChild(gWrap);
       galleryGrid = $('[data-img="grid"]', el);
     }
@@ -266,10 +251,10 @@ export const Drawer = (() => {
       galleryGrid.parentElement.insertBefore(galleryEmpty, galleryGrid);
     }
 
-    // Cambiar estado del selector de subida → refresca lista
-    uploadStatus?.addEventListener("change", async () => {
-      const fol = String($(".ixd-folio", el)?.textContent || "").trim();
-      const st = Number(uploadStatus?.value || 0);
+    // Cambiar estado del selector de galería → refresca lista
+    galleryStatusSel?.addEventListener("change", async () => {
+      const fol = getFolio();
+      const st = getSelectedGalleryStatus();
       if (/^REQ-\d{10}$/.test(fol)) await refreshGallery(fol, st);
     });
 
@@ -277,23 +262,91 @@ export const Drawer = (() => {
     ensureStatusField();
 
     // Guardar oculto by default si NO estás editando
-    toggleSave(false);
-    // aseguramos que la clase visual coincida
-    el.classList.remove("editing", "mode-edit");
+    resetModeToRead();
 
     console.log("[Drawer] init OK");
   }
 
-  /* ====== Status field ====== */
+  function getFolio() {
+    return String($(".ixd-folio", el)?.textContent || "").trim();
+  }
+  function getSelectedGalleryStatus() {
+    return (
+      Number(
+        galleryStatusSel?.value ?? $('[name="estatus"]', el)?.value ?? 0
+      ) || 0
+    );
+  }
+
+  function buildPreviews() {
+    if (!previewsBox) return;
+    // limpiar previews + revocar urls anteriores
+    if (el._previewURLs) {
+      el._previewURLs.forEach((u) => URL.revokeObjectURL(u));
+    }
+    el._previewURLs = [];
+    previewsBox.innerHTML = "";
+    const files = fileInput?.files || [];
+    [...files].forEach((f) => {
+      const url = URL.createObjectURL(f);
+      el._previewURLs.push(url);
+      const fig = htm(
+        `<div class="thumb"><img src="${url}" alt="${f.name}"><button class="rm" type="button">Quitar</button></div>`
+      );
+      fig.querySelector(".rm").addEventListener("click", () => {
+        // quitar f del FileList
+        const arr = Array.from(fileInput.files || []);
+        const idx = arr.indexOf(f);
+        const dt = new DataTransfer();
+        arr.forEach((it, i) => {
+          if (i !== idx) dt.items.add(it);
+        });
+        fileInput.files = dt.files;
+        URL.revokeObjectURL(url);
+        fig.remove();
+      });
+      previewsBox.appendChild(fig);
+    });
+  }
+
+  async function doUpload() {
+    if (uploading) return;
+    const folio = getFolio();
+    if (!/^REQ-\d{10}$/.test(folio)) return;
+    const files = fileInput?.files || [];
+    const status = getSelectedGalleryStatus();
+    try {
+      uploading = true;
+      el.setAttribute("aria-busy", "true");
+      await uploadMedia({ folio, status, files });
+      // limpiar previews
+      if (previewsBox) previewsBox.innerHTML = "";
+      if (fileInput) fileInput.value = "";
+      if (el._previewURLs) {
+        el._previewURLs.forEach((u) => URL.revokeObjectURL(u));
+        el._previewURLs = [];
+      }
+      // refrescar galería
+      await refreshGallery(folio, status);
+      window.gcToast?.("Archivo(s) subido(s)", "exito");
+    } catch (e) {
+      console.error("[Drawer] upload error", e);
+      window.gcToast?.("No se pudieron subir las imágenes", "alerta");
+    } finally {
+      uploading = false;
+      el.removeAttribute("aria-busy");
+    }
+  }
+
+  // ====== Status field ======
   function ensureStatusField() {
     statusFieldP = $('[data-field="estatus_txt"]', el);
     statusFieldSel = $('[name="estatus"][data-edit]', el);
 
     if (!statusFieldP || !statusFieldSel) {
-      const anchor =
-        $('.ixd-field label + p + .ixd-input[name="asunto"]', el)?.closest(
-          ".ixd-field"
-        ) || $(".ixd-field", el);
+      const asuntoField = $('.ixd-input[name="asunto"]', el)?.closest(
+        ".ixd-field"
+      );
       const block = htm(`
         <div class="ixd-field">
           <label>Estatus</label>
@@ -308,11 +361,10 @@ export const Drawer = (() => {
             <option value="6">Finalizado</option>
           </select>
         </div>`);
-      if (anchor?.parentElement) {
-        anchor.parentElement.insertBefore(block, anchor);
-      } else {
-        bodyEl.insertBefore(block, bodyEl.firstChild);
-      }
+      (asuntoField?.parentElement || bodyEl).insertBefore(
+        block,
+        asuntoField || bodyEl.firstChild
+      );
       statusFieldP = $('[data-field="estatus_txt"]', el);
       statusFieldSel = $('[name="estatus"][data-edit]', el);
     }
@@ -338,6 +390,31 @@ export const Drawer = (() => {
       heroImg.src = data.hero_url || "";
       heroImg.alt = data.folio || "Evidencia";
     }
+    // Header meta
+    paintHeaderMeta(data);
+  }
+
+  function paintHeaderMeta(row = {}) {
+    setText(
+      $('[data-meta="tramite"]', el),
+      row.tramite_nombre ?? row.tramite ?? row.tipo_tramite ?? "—"
+    );
+    setText(
+      $('[data-meta="depto"]', el),
+      row.departamento_nombre ??
+        row.depto_nombre ??
+        row.depto ??
+        row.departamento ??
+        "—"
+    );
+    setText(
+      $('[data-meta="asignado"]', el),
+      row.asignado_nombre ?? row.asignado_a ?? row.responsable_nombre ?? "—"
+    );
+    setText(
+      $('[data-meta="creado"]', el),
+      fmtDate(row.created_at ?? row.fecha_creacion ?? row.creado)
+    );
   }
 
   function mapToForm(data = {}) {
@@ -350,12 +427,10 @@ export const Drawer = (() => {
     // prioridad select: asegura 1..3
     const pr = $('[name="prioridad"][data-edit]', el);
     if (pr && !pr.value) pr.value = String(data.prioridad ?? 2);
-
     // estatus select
     if (statusFieldSel) {
       statusFieldSel.value = String(data.estatus ?? 0);
     }
-
     // Hidden necesarios
     const hidId = $('input[name="id"]', el);
     if (hidId && data.id != null) hidId.value = data.id;
@@ -368,7 +443,7 @@ export const Drawer = (() => {
     // Reemplazamos input text por <select> SOLO en edición; mantenemos <p> para vista
     // CP
     const cpInput = $('.ixd-input[name="contacto_cp"]', el);
-    if (cpInput?.tagName !== "SELECT") {
+    if (cpInput && cpInput.tagName !== "SELECT") {
       const sel = htm(
         `<select class="ixd-input" name="contacto_cp" data-edit hidden></select>`
       );
@@ -376,7 +451,7 @@ export const Drawer = (() => {
     }
     // Colonia
     const colInput = $('.ixd-input[name="contacto_colonia"]', el);
-    if (colInput?.tagName !== "SELECT") {
+    if (colInput && colInput.tagName !== "SELECT") {
       const sel = htm(
         `<select class="ixd-input" name="contacto_colonia" data-edit hidden></select>`
       );
@@ -386,27 +461,22 @@ export const Drawer = (() => {
     colInputSel = $('.ixd-input[name="contacto_colonia"]', el);
 
     // Popular CP
-    cpInputSel.innerHTML = "";
-    cpInputSel.appendChild(
-      makeOpt("", "Selecciona C.P.", { disabled: true, selected: true })
-    );
-    (CP_LIST || []).forEach((cp) => cpInputSel.appendChild(makeOpt(cp, cp)));
-
-    // Si el registro trae un CP no listado, agregamos opción temporal
-    const cpVal = String(row.contacto_cp ?? "").trim();
-    if (cpVal && !CP_MAP[cpVal]) {
-      cpInputSel.appendChild(makeOpt(cpVal, cpVal));
+    if (cpInputSel) {
+      cpInputSel.innerHTML = "";
+      cpInputSel.appendChild(
+        makeOpt("", "Selecciona C.P.", { disabled: true, selected: true })
+      );
+      (CP_LIST || []).forEach((cp) => cpInputSel.appendChild(makeOpt(cp, cp)));
+      const cpVal = String(row.contacto_cp ?? "").trim();
+      if (cpVal && !CP_MAP?.[cpVal])
+        cpInputSel.appendChild(makeOpt(cpVal, cpVal));
+      if (cpVal) cpInputSel.value = cpVal;
+      // Colonias para CP
+      populateColoniasForCP(cpVal, row.contacto_colonia);
+      // Listener
+      cpInputSel.onchange = () => populateColoniasForCP(cpInputSel.value, null);
     }
-    if (cpVal) cpInputSel.value = cpVal;
-
-    // Colonias para CP
-    populateColoniasForCP(cpVal, row.contacto_colonia);
-    // Listeners
-    cpInputSel.onchange = () => {
-      populateColoniasForCP(cpInputSel.value, null);
-    };
   }
-
   function populateColoniasForCP(cp, selectedCol) {
     if (!colInputSel) return;
     colInputSel.innerHTML = "";
@@ -429,13 +499,19 @@ export const Drawer = (() => {
     }
   }
   function toggleDelete(show) {
-    if (btnDelete) btnDelete.hidden = !show;
+    if (btnDelete) {
+      btnDelete.hidden = !show;
+    }
   }
   function toggleCancel(show) {
-    if (btnCancel) btnCancel.hidden = !show;
+    if (btnCancel) {
+      btnCancel.hidden = !show;
+    }
   }
   function togglePause(show) {
-    if (btnPause) btnPause.hidden = !show;
+    if (btnPause) {
+      btnPause.hidden = !show;
+    }
   }
 
   function setEditMode(on) {
@@ -445,18 +521,22 @@ export const Drawer = (() => {
     toggleCancel(on);
     toggleDelete(!on);
     togglePause(!on);
-    // Mostrar/ocultar inputs vs p (lo hace el CSS con .editing)
     if (on) {
-      // Asegurar selects CP/Colonia con catálogo ya cargado
       ensureCpCatalog()
         .then(() => ensureCpColoniaInputs(el._row || {}))
         .catch(() => {});
-      // Foco primer campo editable visible
       setTimeout(() => {
         const first = $("[data-edit]:not([hidden])", el);
         first?.focus?.();
       }, 0);
     }
+  }
+  function resetModeToRead() {
+    el.classList.remove("editing", "mode-edit");
+    toggleSave(false);
+    toggleCancel(false);
+    toggleDelete(true);
+    togglePause(true);
   }
 
   /* ====== Open/Close ====== */
@@ -470,24 +550,27 @@ export const Drawer = (() => {
     // Pinta lectura
     mapToFields(row);
     mapToForm(row);
-
-    // Estado botones (pausa/reanuda)
     paintPauseButton(row?.estatus);
 
     // Abre panel
     el.classList.add("open");
-    setEditMode(false);
+    resetModeToRead();
 
-    // Carga galería del estado seleccionado (por defecto usa uploadStatus o el actual del req)
-    const st = Number(uploadStatus?.value ?? row?.estatus ?? 0);
+    // token anti-race para galería
+    galleryToken++;
+    const myTok = galleryToken;
+
+    // Carga galería del estado seleccionado (por defecto usa select o el actual del req)
+    const st = getSelectedGalleryStatus() || Number(row?.estatus ?? 0);
     const fol = row?.folio || "";
-    if (/^REQ-\d{10}$/.test(fol)) refreshGallery(fol, st);
+    if (/^REQ-\d{10}$/.test(fol)) refreshGallery(fol, st, myTok);
   }
 
-  async function refreshGallery(folio, status) {
+  async function refreshGallery(folio, status, myTok = galleryToken) {
     try {
       el.setAttribute("aria-busy", "true");
       const resp = await listMedia(folio, status, 1, 100);
+      if (myTok !== galleryToken) return; // llegó tarde; ignorar
       const list = Array.isArray(resp?.data) ? resp.data : [];
       galleryGrid.innerHTML = "";
       if (!list.length) {
@@ -497,13 +580,13 @@ export const Drawer = (() => {
       galleryEmpty.hidden = true;
       const frag = document.createDocumentFragment();
       list.forEach((it) => {
-        const card = htm(`
-          <div class="ixd-card">
-            <img src="${it.url}" loading="lazy" alt="${it.name || ""}">
-            <div class="ixd-name" style="padding:6px 8px; font-size:.85rem; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${
-              it.name || ""
-            }</div>
-          </div>`);
+        const card = htm(
+          `<div class="ixd-card"><img src="${it.url}" loading="lazy" alt="${
+            it.name || ""
+          }"><div class="ixd-name" style="padding:6px 8px; font-size:.85rem; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${
+            it.name || ""
+          }</div></div>`
+        );
         frag.appendChild(card);
       });
       galleryGrid.appendChild(frag);
@@ -519,14 +602,17 @@ export const Drawer = (() => {
   function close() {
     if (!el) return;
     el.classList.remove("open");
-    el.classList.remove("editing", "mode-edit");
-    toggleSave(false);
-    toggleCancel(false);
-    toggleDelete(true);
-    togglePause(true);
-    // limpia previews
+    resetModeToRead();
+    // limpia previews + revoca urls
     if (previewsBox) previewsBox.innerHTML = "";
     if (fileInput) fileInput.value = "";
+    if (el._previewURLs) {
+      el._previewURLs.forEach((u) => URL.revokeObjectURL(u));
+      el._previewURLs = [];
+    }
+    // limpiar header/meta para evitar "fantasmas"
+    setText($(".ixd-folio", el), "REQ-0000000000");
+    $$("[data-meta]", el).forEach((n) => setText(n, "—"));
     try {
       el._callbacks?.onClose?.();
     } catch {}
@@ -553,37 +639,30 @@ export const Drawer = (() => {
     try {
       const id = Number($('input[name="id"]', el)?.value || NaN);
       if (!id) throw new Error("Falta id");
-
       const payload = {
         id,
         asunto: getStr("asunto"),
         descripcion: getStr("descripcion"),
         prioridad: getNum("prioridad"),
         canal: getNum("canal"),
-
         contacto_nombre: getStr("contacto_nombre"),
         contacto_telefono: getStr("contacto_telefono"),
         contacto_email: getStr("contacto_email"),
         contacto_cp: getStr("contacto_cp"),
         contacto_calle: getStr("contacto_calle"),
         contacto_colonia: getStr("contacto_colonia"),
-
         estatus: getNum("estatus"),
-
         updated_by:
           Number($('input[name="updated_by"]', el)?.value || getSessUserId()) ||
           getSessUserId(),
       };
-
       const updated = await updateRequerimiento(payload);
       el._row = updated;
       el._orig = JSON.parse(JSON.stringify(updated));
-
       mapToFields(updated);
       mapToForm(updated);
       paintPauseButton(updated?.estatus);
       setEditMode(false);
-
       try {
         el._callbacks?.onUpdated?.(updated);
       } catch {}
@@ -601,7 +680,6 @@ export const Drawer = (() => {
   }
 
   function onCancel() {
-    // revertir al original
     const row = el._orig || {};
     mapToFields(row);
     mapToForm(row);
@@ -654,7 +732,6 @@ export const Drawer = (() => {
     if (!id) return;
     const mode = btnPause?.dataset.mode || "pause";
     const next = mode === "pause" ? 4 : 0; // 4=Pausado, 0=Solicitud
-
     try {
       btnPause.disabled = true;
       const updated = await updateRequerimiento({
