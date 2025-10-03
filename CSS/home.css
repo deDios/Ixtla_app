@@ -7,9 +7,6 @@ main {padding-top: 4rem;}
 .ix-home .home-sidebar{ display:flex; flex-direction:column; gap:14px; }
 
 .ix-home .profile-card{
-  background:#fff;
-  border:1px solid #eee;
-  border-radius:16px;
   padding:18px 16px;
   display:flex;
   flex-direction:column;
@@ -65,9 +62,6 @@ main {padding-top: 4rem;}
 }
 
 .ix-home .profile-card{
-  background:#fff;
-  border: 1px solid #eef2f7;
-  border-radius: 18px;        
   padding: 18px 16px;
 }
 .ix-home .profile-dash{
