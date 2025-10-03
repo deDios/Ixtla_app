@@ -1,4 +1,4 @@
-// /JS/ui/drawer.js — Ixtla
+// /JS/ui/drawer.js
 
 import { updateRequerimiento } from "/JS/api/requerimientos.js";
 import { listMedia, uploadMedia } from "/JS/api/media.js";
@@ -48,7 +48,7 @@ function makeOpt(v,l,o={}){ const el=document.createElement("option"); el.value=
 
 /* ====== Drawer ====== */
 export const Drawer = (() => {
-  let el; let bodyEl;
+  let el, overlayEl; let bodyEl;
   let btnEdit, btnSave, btnDelete, btnCancel, btnPause;
   let heroImg, pickBtn, fileInput, previewsBox, uploadBtn;
   let galleryGrid, galleryEmpty, galleryStatusSel; // único select
@@ -61,6 +61,7 @@ export const Drawer = (() => {
 
   function init(selector = ".ix-drawer"){
     el = document.querySelector(selector);
+    overlayEl = document.querySelector('[data-drawer="overlay"]');
     if (!el) { console.warn("[Drawer] no se encontró", selector); return; }
     if (el.__inited) return; el.__inited = true;
 
@@ -69,6 +70,7 @@ export const Drawer = (() => {
     // Cerrar
     $$('[data-drawer="close"]', el).forEach(b => b.addEventListener('click', close));
     el.addEventListener('keydown', (ev)=>{ if(ev.key==='Escape') close(); });
+    overlayEl?.addEventListener('click', close);
 
     // Footer
     btnEdit   = $('[data-action="editar"]', el);
@@ -103,21 +105,34 @@ export const Drawer = (() => {
     if (pickBtn && fileInput){ pickBtn.addEventListener('click', ()=> fileInput.click()); }
 
     // build previews + auto-upload si se abrió picker desde el botón "Subir"
-    if (fileInput){ fileInput.addEventListener('change', ()=>{ buildPreviews(); if (el._intentUploadAfterPick){ el._intentUploadAfterPick=false; doUpload(); } }); }
-
-    if (uploadBtn){ uploadBtn.disabled = false; uploadBtn.addEventListener('click', ()=>{
-      const hasFiles = (fileInput?.files?.length || 0) > 0;
-      if (!hasFiles){ el._intentUploadAfterPick = true; fileInput?.click(); return; }
-      doUpload();
+    if (fileInput){ fileInput.addEventListener('change', ()=>{
+      buildPreviews();
+      if (el._intentUploadAfterPick){ el._intentUploadAfterPick=false; doUpload(); }
     }); }
+
+    if (uploadBtn){
+      uploadBtn.disabled = false;
+      uploadBtn.addEventListener('click', ()=>{
+        const hasFiles = (fileInput?.files?.length || 0) > 0;
+        if (!hasFiles){ el._intentUploadAfterPick = true; fileInput?.click(); return; }
+        doUpload();
+      });
+    }
 
     // Galería
     galleryGrid = $('[data-img="grid"]', el);
-    if (!galleryGrid){ const wrap = htm('<div class="ixd-viewRow"><div class="ixd-gallery" data-img="grid"></div></div>'); bodyEl.appendChild(wrap); galleryGrid = $('[data-img="grid"]', el); }
+    if (!galleryGrid){
+      const wrap = htm('<div class="ixd-viewRow"><div class="ixd-gallery" data-img="grid"></div></div>');
+      bodyEl.appendChild(wrap);
+      galleryGrid = $('[data-img="grid"]', el);
+    }
     galleryEmpty = $('[data-img="empty"]', el) || htm('<p class="muted" data-img="empty" hidden>No hay imágenes para este estado.</p>');
     if (!galleryEmpty.isConnected) galleryGrid.parentElement.insertBefore(galleryEmpty, galleryGrid);
 
-    galleryStatusSel?.addEventListener('change', ()=>{ const fol = getFolio(); const st=getSelectedGalleryStatus(); if (/^REQ-\d{10}$/.test(fol)) refreshGallery(fol, st); });
+    galleryStatusSel?.addEventListener('change', ()=>{
+      const fol = getFolio(); const st=getSelectedGalleryStatus();
+      if (/^REQ-\d{10}$/.test(fol)) refreshGallery(fol, st);
+    });
 
     resetModeToRead();
   }
@@ -149,9 +164,17 @@ export const Drawer = (() => {
     const files = fileInput?.files || []; const status = getSelectedGalleryStatus();
     try{
       uploading = true; el.setAttribute('aria-busy','true');
-      await uploadMedia({ folio, status, files });
+      const res = await uploadMedia({ folio, status, files });
+      if (!res?.ok){
+        const detail = (res?._clientRejected?.length)
+          ? "\n" + res._clientRejected.map(r => `• ${r.name}: ${r.reason}`).join("\n")
+          : "";
+        window.gcToast?.(`No se pudo subir: ${res?.error || "error"}` + detail, "alerta");
+        return;
+      }
       // limpiar previews y file input
-      if (previewsBox) previewsBox.innerHTML = ""; if (fileInput) fileInput.value = "";
+      if (previewsBox) previewsBox.innerHTML = "";
+      if (fileInput) fileInput.value = "";
       if (el._previewURLs){ el._previewURLs.forEach(u=>URL.revokeObjectURL(u)); el._previewURLs = []; }
       await refreshGallery(folio, status);
       window.gcToast?.("Archivo(s) subido(s)", "exito");
@@ -242,7 +265,12 @@ export const Drawer = (() => {
 
     mapToFields(row); mapToForm(row); paintPauseButton(row?.estatus);
 
-    el.classList.add('open'); resetModeToRead();
+    // forzar el selector de galería al estatus del req abierto (evita arrastre de otro req)
+    if (galleryStatusSel) galleryStatusSel.value = String(row?.estatus ?? 0);
+
+    el.classList.add('open');
+    overlayEl?.removeAttribute('hidden');
+    resetModeToRead();
 
     galleryToken++; const myTok = galleryToken;
     const st = getSelectedGalleryStatus() || Number(row?.estatus ?? 0);
@@ -253,9 +281,9 @@ export const Drawer = (() => {
   async function refreshGallery(folio, status, myTok=galleryToken){
     try{
       el.setAttribute('aria-busy','true');
-      const resp = await listMedia(folio, status, 1, 100);
+      const { ok, data } = await listMedia(folio, status, 1, 100);
       if (myTok !== galleryToken) return; // respuesta tardía → ignorar
-      const list = Array.isArray(resp?.data) ? resp.data : [];
+      const list = ok && Array.isArray(data) ? data : [];
       galleryGrid.innerHTML = '';
       if (!list.length){ galleryEmpty.hidden = false; return; }
       galleryEmpty.hidden = true;
@@ -270,7 +298,8 @@ export const Drawer = (() => {
   }
 
   function close(){
-    if (!el) return; el.classList.remove('open'); resetModeToRead();
+    if (!el) return; el.classList.remove('open'); overlayEl?.setAttribute('hidden','');
+    resetModeToRead();
     if (previewsBox) previewsBox.innerHTML = '';
     if (fileInput) fileInput.value = '';
     if (el._previewURLs){ el._previewURLs.forEach(u=>URL.revokeObjectURL(u)); el._previewURLs = []; }
@@ -339,4 +368,3 @@ export const Drawer = (() => {
   // API pública
   return { init, open, close, setEditMode };
 })();
-
