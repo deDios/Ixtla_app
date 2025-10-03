@@ -276,21 +276,20 @@
 
 
     <!-- ESPACIO PARA MODALES -->
-
-
-
-    <!-- Drawer de requerimientos -->
+    <!-- Overlay -->
     <div class="ix-drawer-overlay" data-drawer="overlay" hidden></div>
 
     <!-- Drawer -->
     <section aria-label="Panel de trámite">
         <aside class="ix-drawer" role="dialog" aria-modal="true" aria-labelledby="ix-drw-title" data-drawer="panel">
 
+            <!-- Header -->
             <header class="ixd-head">
                 <h3 id="ix-drw-title" class="ixd-folio" data-field="folio">REQ-0000000000</h3>
                 <button class="ixd-close" data-drawer="close" aria-label="Cerrar">Cerrar</button>
             </header>
 
+            <!-- Meta del requerimiento -->
             <div class="ixd-meta">
                 <div><strong>Trámite:</strong> <span data-field="tramite_nombre">—</span></div>
                 <div><strong>Depto:</strong> <span data-field="departamento_nombre">—</span></div>
@@ -298,14 +297,13 @@
                 <div><strong>Creado:</strong> <span data-field="created_at">—</span></div>
             </div>
 
-            <!-- Contenido con scroll -->
+            <!-- Cuerpo -->
             <div class="ixd-body">
-
                 <!-- Asunto -->
                 <div class="ixd-field">
                     <label>Asunto</label>
                     <p data-field="asunto">—</p>
-                    <input class="ixd-input" name="asunto" type="text" data-edit hidden>
+                    <input class="ixd-input" name="asunto" type="text" data-edit hidden />
                 </div>
 
                 <!-- Descripción -->
@@ -344,7 +342,7 @@
                     <div class="ixd-field">
                         <label>Canal</label>
                         <p data-field="canal">—</p>
-                        <input class="ixd-input" name="canal" type="number" data-edit hidden>
+                        <input class="ixd-input" name="canal" type="number" data-edit hidden />
                     </div>
                 </div>
 
@@ -355,12 +353,12 @@
                     <div class="ixd-field">
                         <label>Nombre</label>
                         <p data-field="contacto_nombre">—</p>
-                        <input class="ixd-input" name="contacto_nombre" type="text" data-edit hidden>
+                        <input class="ixd-input" name="contacto_nombre" type="text" data-edit hidden />
                     </div>
                     <div class="ixd-field">
                         <label>Teléfono</label>
                         <p data-field="contacto_telefono">—</p>
-                        <input class="ixd-input" name="contacto_telefono" type="tel" data-edit hidden>
+                        <input class="ixd-input" name="contacto_telefono" type="tel" data-edit hidden />
                     </div>
                 </div>
 
@@ -369,36 +367,35 @@
                     <div class="ixd-field">
                         <label>Email</label>
                         <p data-field="contacto_email">—</p>
-                        <input class="ixd-input" name="contacto_email" type="email" data-edit hidden>
+                        <input class="ixd-input" name="contacto_email" type="email" data-edit hidden />
                     </div>
                     <div class="ixd-field">
                         <label>Código Postal</label>
                         <p data-field="contacto_cp">—</p>
-                        <!-- combo CP (select) en edición -->
+                        <!-- Select CP (cargado por JS en edición) -->
                         <select class="ixd-input" name="contacto_cp" data-edit hidden></select>
                     </div>
-
                 </div>
 
                 <!-- Contacto: calle -->
                 <div class="ixd-field">
                     <label>Calle</label>
                     <p data-field="contacto_calle">—</p>
-                    <input class="ixd-input" name="contacto_calle" type="text" data-edit hidden>
+                    <input class="ixd-input" name="contacto_calle" type="text" data-edit hidden />
                 </div>
 
                 <!-- Contacto: colonia -->
                 <div class="ixd-field">
                     <label>Colonia</label>
                     <p data-field="contacto_colonia">—</p>
-                    <!-- combo Colonia (select) dependiente de CP en edición -->
+                    <!-- Select Colonia dependiente de CP (JS en edición) -->
                     <select class="ixd-input" name="contacto_colonia" data-edit hidden></select>
                 </div>
 
                 <!-- Galería / Evidencia -->
                 <h4 class="ixd-sub">Galería</h4>
 
-                <!-- Filtro de visualización por estatus de evidencia -->
+                <!-- ÚNICO select: Ver evidencia de estado -->
                 <div class="ixd-uploadRow">
                     <label>Ver evidencia de estado:
                         <select data-img="viewStatus">
@@ -413,31 +410,20 @@
                     </label>
                 </div>
 
-                <!-- Imagen principal  -->
+                <!-- Imagen principal -->
                 <div class="ixd-imgBlock">
-                    <img data-img="hero" src="" alt="Evidencia" loading="lazy">
+                    <img data-img="hero" src="" alt="Evidencia" loading="lazy" />
                     <button class="ixd-pencil" type="button" data-img="pick" title="Cambiar imagen"
                         aria-label="Cambiar imagen">✎</button>
-                    <input type="file" accept="image/*" data-img="file" hidden>
+                    <input type="file" accept="image/*" data-img="file" hidden />
                 </div>
 
-                <!-- Previews locales  -->
+                <!-- Previews locales -->
                 <div class="ixd-previews" data-img="previews" aria-live="polite" aria-atomic="true"></div>
 
-                <!-- Uploader simple (evidencia por estatus) -->
+                <!-- Botón Subir (sin segundo select) -->
                 <div class="ixd-uploadRow">
-                    <label>Subir a estado:
-                        <select data-img="uploadStatus">
-                            <option value="0">Solicitud</option>
-                            <option value="1">Revisión</option>
-                            <option value="2">Asignación</option>
-                            <option value="3">En proceso</option>
-                            <option value="4">Pausado</option>
-                            <option value="5">Cancelado</option>
-                            <option value="6">Finalizado</option>
-                        </select>
-                    </label>
-                    <button class="btn" data-img="uploadBtn" type="button" disabled>Subir</button>
+                    <button class="btn" data-img="uploadBtn" type="button">Subir</button>
                 </div>
 
                 <!-- Grid de evidencias -->
@@ -446,25 +432,24 @@
                     <p class="muted" data-img="empty" hidden>No hay imágenes para este estado.</p>
                 </div>
 
-                <!-- Hidden obligatorios para update -->
-                <input type="hidden" name="id" data-field="id" value="">
-                <input type="hidden" name="updated_by" value="0">
-
+                <!-- Hidden para update -->
+                <input type="hidden" name="id" data-field="id" value="" />
+                <input type="hidden" name="updated_by" value="0" />
             </div>
 
             <!-- Footer -->
             <footer class="ixd-actions ixd-actions--footer">
                 <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
-                <button class="btn primary ixd-save" data-action="guardar" type="button" style="display:none"
+                <button class="btn primary ixd-save" data-action="guardar" type="button" hidden style="display:none"
                     disabled>Guardar</button>
-                <button class="btn ixd-cancel" data-action="cancelar" type="button"
+                <button class="btn ixd-cancel" data-action="cancelar" type="button" hidden
                     style="display:none">Cancelar</button>
                 <button class="btn warning ixd-pause" data-action="pausar" type="button">Pausar</button>
                 <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
             </footer>
-
         </aside>
     </section>
+
 
     <script type="module">
     import {
