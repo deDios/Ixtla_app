@@ -158,10 +158,10 @@ header.scrolled .subnav{
   background:#fff; border:1px solid #ddd; border-radius:8px;
   box-shadow:0 4px 12px rgba(0,0,0,.15);
   width:180px; padding:.5rem 0;
-  opacity:0; transform:translateY(-6px); pointer-events:none;
+  opacity:0; transform:translateY(-43px); pointer-events:none;
   transition:opacity .25s ease, transform .25s ease; z-index:1000;
 }
-.dropdown-menu.active{ opacity:1; transform:translateY(0); pointer-events:auto; }
+.dropdown-menu.active{opacity:1;transform: translate(-43px, -44px);pointer-events:auto;}
 .dropdown-menu ul{ list-style:none; padding:0; margin:0; }
 .dropdown-menu li{
   padding:.5rem 1rem; display:flex; align-items:center; gap:.75rem;
@@ -169,6 +169,7 @@ header.scrolled .subnav{
 }
 .dropdown-menu li:hover{ background:#f0f0f0; }
 .dropdown-menu img{ width:20px; height:20px; }
+
 
 /* ============== 7) Hamburguesa =========================== */
 .hamburger{
