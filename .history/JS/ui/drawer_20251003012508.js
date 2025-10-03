@@ -4,7 +4,7 @@ const API_BASE =
   'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/';
 
 // Endpoints
-const EP_UPDATE_NEW     = API_BASE + 'ixtla01_upd_requerimiento.php';
+const EP_UPDATE_NEW     = API_BASE + 'ixtla01_upd_req.php';
 const EP_UPDATE_LEGACY  = API_BASE + 'ixtla01_u_requerimiento.php';
 const EP_MEDIA_LIST     = API_BASE + 'ixtla01_c_requerimiento_img.php';
 const EP_MEDIA_UPLOAD   = API_BASE + 'ixtla01_ins_requerimiento_img.php';
