@@ -13,7 +13,7 @@ const URL_UPDATE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurew
 
 export async function fetchRequerimientos(params = {}) {
     const body = {
-        departamento_id: Number(params.departamento_id ?? 1),
+        //departamento_id: Number(params.departamento_id ?? 1),
         page: Number(params.page ?? 1),
         per_page: Number(params.per_page ?? 50)
     };
