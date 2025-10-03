@@ -100,8 +100,7 @@ async function resolveDepartamentoNombre(depId) {
     return direct;
   }
 
-  // Fallback: intentar endpoints conocidos
-  const endpoints = ["ixtla01_c_departamento.php", "c_departamento.php"];
+  const endpoints = ["ixtla01_c_departamento.php"];
   for (const ep of endpoints) {
     try {
       const u = new URL(API_BASE + ep, location.origin);
@@ -118,7 +117,6 @@ async function resolveDepartamentoNombre(depId) {
         return found.nombre;
       }
     } catch (e) {
-      // continúa con siguiente endpoint
     }
   }
   const fallback = `Departamento ${depId}`;
@@ -313,7 +311,7 @@ async function loadRequerimientos() {
 
   try {
     const { ok, rows, count } = await fetchRequerimientos({
-      departamento_id: S.get().user.dep,
+      //departamento_id: S.get().user.dep,
       page: 1,
       per_page: 50,
     });
