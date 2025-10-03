@@ -1,5 +1,5 @@
 // /JS/views/home.js — Ixtla Home (sidebar + table)
-// ESM
+
 import { $, mountSkeletonList, toggle, escapeHtml } from "/JS/core/dom.js";
 import { createStore } from "/JS/core/store.js";
 import { LineChart } from "/JS/charts/line-chart.js";
@@ -10,7 +10,7 @@ import { Drawer } from "/JS/ui/drawer.js";
 
 const TAG = "[Home]";
 
-/** ===== Estatus (num -> clave/nombre) ===== */
+/**  Estatus (num -> clave/nombre)  */
 const ESTATUS = {
   0: { clave: "solicitud",  nombre: "Solicitud"   },
   1: { clave: "revision",   nombre: "Revisión"    },
@@ -31,12 +31,12 @@ const STATUS_COLORS = {
   finalizado: "#34d399",
 };
 
-/** ===== Sesión / Departamento activo ===== */
+/**  Sesión / Departamento activo  */
 const sess  = window.__ixSession || null;
 const userId = sess?.id_usuario ?? sess?.id ?? null;
 const departamentoActivo = Number(sess?.departamento_id ?? 1);
 
-/** ===== Store ===== */
+/**  Store  */
 const S = createStore({
   user: {
     nombre: (sess?.nombre || "") + (sess?.apellidos ? " " + sess.apellidos : ""),
@@ -57,7 +57,7 @@ const S = createStore({
   pageSize: 7,
 });
 
-/** ===== Utils ===== */
+/**  Utils  */
 const $one = (sel, root=document) => root.querySelector(sel);
 function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 function setTextSafe(sel, txt) { const el = document.querySelector(sel); if (el) el.textContent = txt; }
@@ -95,7 +95,7 @@ function initStatusDom(){
   });
 }
 
-/** ===== Dependencias (resolver nombre por id) ===== */
+/**  Dependencias (resolver nombre por id)  */
 const deptCache = new Map();
 async function resolveDepartamentoNombre(depId) {
   if (!depId) return "Sin dependencia";
@@ -126,7 +126,7 @@ async function resolveDepartamentoNombre(depId) {
   return fallback;
 }
 
-/** ===== Init ===== */
+/**  Init  */
 window.addEventListener("DOMContentLoaded", () => {
   Drawer.init(".ix-drawer");
   init();
@@ -277,7 +277,7 @@ async function init() {
   }
 }
 
-/** ====== Data load ====== */
+/** = Data load = */
 async function loadRequerimientos() {
   toggle($("#tbl-wrap"), false);
   toggle($("#tbl-skeleton"), true);
@@ -321,7 +321,7 @@ async function loadRequerimientos() {
   }
 }
 
-/** ====== Conteos ====== */
+/** = Conteos = */
 function computeCounts(rows = []) {
   const counts = {
     todos: rows.length,
@@ -351,7 +351,7 @@ function renderCounts() {
   setCount("finalizado", c.finalizado);
 }
 
-/** ====== Tabla: filtros + render ====== */
+/** = Tabla: filtros + render = */
 function applyAndRenderTable(table) {
   const { status, search } = S.get().filtros;
   const base = S.get().requerimientos;
@@ -400,7 +400,7 @@ function applyAndRenderTable(table) {
   renderCounts();
 }
 
-/** ====== Charts helpers ====== */
+/** = Charts helpers = */
 function computeSeriesAnual(rows = []) {
   const now = new Date();
   const year = now.getFullYear();
