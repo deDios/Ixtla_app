@@ -116,7 +116,7 @@ $con->query("SET time_zone='-06:00'");
 
 /* ---------- Config ---------- */
 $MAX_FILES    = 3;                  // max. archivos por subida
-$MAX_BYTES    = 1 * 1024 * 1024;   // 1 MB por archivo
+$MAX_BYTES    = 1 * 1024 * 1024;   // 10 MB por archivo
 $ALLOWED_MIME = ['image/jpeg','image/png','image/webp','image/heic','image/heif'];
 $EXT_FOR_MIME = [
   'image/jpeg' => 'jpg',

@@ -1,5 +1,4 @@
 <?php
-//db\WEB\ixtla01_upd_requerimiento.php
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
   header("Access-Control-Allow-Origin: $origin");

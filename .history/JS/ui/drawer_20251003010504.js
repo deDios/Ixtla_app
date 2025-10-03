@@ -7,8 +7,8 @@
 const API_BASE = 'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/';
 
 // Endpoints
-const EP_UPDATE = API_BASE + 'ixtla01_u_requerimiento.php';          // (asumimos igual)
-const EP_MEDIA_LIST = API_BASE + 'ixtla01_c_requerimiento_img.php';
+const EP_UPDATE       = API_BASE + 'ixtla01_u_requerimiento.php';          // (asumimos igual)
+const EP_MEDIA_LIST   = API_BASE + 'ixtla01_c_requerimiento_img.php';
 const EP_MEDIA_UPLOAD = API_BASE + 'ixtla01_ins_requerimiento_img.php';
 
 // Regex folio
@@ -17,7 +17,7 @@ const FOLIO_RX = /^REQ-\d{10}$/;
 // Límites cliente (validación previa)
 const MAX_FILES_CLIENT = 3;
 const MAX_BYTES_CLIENT = 1 * 1024 * 1024; // 1 MB por archivo
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+const ALLOWED_MIME = ['image/jpeg','image/png','image/webp','image/heic','image/heif'];
 
 // Utils DOM
 function $(sel, root = document) { return root.querySelector(sel); }
@@ -104,7 +104,7 @@ async function uploadMedia({ folio, status, files }) {
 
   if (res.status === 429) {
     let retry = 0;
-    try { retry = (JSON.parse(txt)?.retry_after) || 0; } catch (_) { }
+    try { retry = (JSON.parse(txt)?.retry_after) || 0; } catch (_) {}
     throw new Error(`Rate limit: espera ${retry}s`);
   }
   if (!res.ok) throw new Error(`upload ${res.status} ${txt}`);
@@ -171,8 +171,8 @@ function paintGallery(root, resp) {
     a.target = '_blank';
     a.rel = 'noopener';
     a.innerHTML = `
-      <img src="${it.url}" loading="lazy" alt="${(it.name || 'evidencia')}">
-      <div class="nm" title="${it.name || ''}">${it.name || ''}</div>
+      <img src="${it.url}" loading="lazy" alt="${(it.name||'evidencia')}">
+      <div class="nm" title="${it.name||''}">${it.name || ''}</div>
     `;
     frag.appendChild(a);
   });
@@ -214,11 +214,11 @@ export const Drawer = (() => {
     if (el.__inited) { return; }
     el.__inited = true;
 
-    heroImg = $('[data-img="hero"]', el);
-    pickBtn = $('[data-img="pick"]', el);
-    fileInput = $('[data-img="file"]', el);
-    previewsBox = $('[data-img="previews"]', el);
-    uploadBtn = $('[data-img="uploadBtn"]', el);
+    heroImg      = $('[data-img="hero"]', el);
+    pickBtn      = $('[data-img="pick"]', el);
+    fileInput    = $('[data-img="file"]', el);
+    previewsBox  = $('[data-img="previews"]', el);
+    uploadBtn    = $('[data-img="uploadBtn"]', el);
     uploadStatus = $('[data-img="uploadStatus"]', el);
 
     // Cerrar
@@ -238,8 +238,8 @@ export const Drawer = (() => {
       cancelBtn = btn;
     }
 
-    const btnEdit = el.querySelector('[data-action="editar"]');
-    const btnSave = el.querySelector('[data-action="guardar"]');
+    const btnEdit   = el.querySelector('[data-action="editar"]');
+    const btnSave   = el.querySelector('[data-action="guardar"]');
     const btnDelete = el.querySelector('[data-action="eliminar"]');
 
     btnEdit?.addEventListener('click', () => setEditMode(true));
@@ -322,10 +322,10 @@ export const Drawer = (() => {
     el.classList.toggle('editing', !!on); // compat con tu CSS
     toggleEditFields(el, !!on);
 
-    const btnSave = el.querySelector('[data-action="guardar"]');
+    const btnSave   = el.querySelector('[data-action="guardar"]');
     const btnDelete = el.querySelector('[data-action="eliminar"]');
 
-    if (btnSave) btnSave.disabled = !on;
+    if (btnSave)   btnSave.disabled = !on;
     if (btnDelete) btnDelete.style.display = on ? 'none' : '';
     if (cancelBtn) cancelBtn.style.display = on ? '' : 'none';
   }
@@ -348,7 +348,7 @@ export const Drawer = (() => {
 
     files.forEach(f => {
       if (f.size > MAX_BYTES_CLIENT) {
-        errors.push(`"${f.name}": excede ${Math.round(MAX_BYTES_CLIENT / 1024)} KB`);
+        errors.push(`"${f.name}": excede ${Math.round(MAX_BYTES_CLIENT/1024)} KB`);
         return;
       }
       // Intentar detectar MIME real con extension+type (en cliente es limitado)
