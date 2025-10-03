@@ -1,26 +1,18 @@
 // /JS/ui/drawer.js
-// Drawer de Requerimientos (actualizado)
-// - Lista evidencias:   ixtla01_c_requerimiento_img.php (POST JSON)
-// - Sube evidencias:    ixtla01_ins_requerimiento_img.php (multipart/form-data)
-// - Update:             ixtla01_upd_req.php (fallback: ixtla01_u_requerimiento.php)
-// - Soft delete:        status -> 0
 
-const API_BASE =
-  'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/';
+const API_BASE = 'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/';
 
 // Endpoints
-const EP_UPDATE_NEW     = API_BASE + 'ixtla01_upd_req.php';
-const EP_UPDATE_LEGACY  = API_BASE + 'ixtla01_u_requerimiento.php';
-const EP_MEDIA_LIST     = API_BASE + 'ixtla01_c_requerimiento_img.php';
-const EP_MEDIA_UPLOAD   = API_BASE + 'ixtla01_ins_requerimiento_img.php';
+const EP_UPDATE = API_BASE + 'ixtla01_u_requerimiento.php';         
+const EP_MEDIA_LIST = API_BASE + 'ixtla01_c_requerimiento_img.php';
+const EP_MEDIA_UPLOAD = API_BASE + 'ixtla01_ins_requerimiento_img.php';
 
 // Regex folio
 const FOLIO_RX = /^REQ-\d{10}$/;
 
-// Límites cliente (validación previa)
 const MAX_FILES_CLIENT = 3;
 const MAX_BYTES_CLIENT = 1 * 1024 * 1024; // 1 MB por archivo
-const ALLOWED_MIME = ['image/jpeg','image/png','image/webp','image/heic','image/heif'];
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
 // Utils DOM
 function $(sel, root = document) { return root.querySelector(sel); }
@@ -55,16 +47,28 @@ function mapToForm(root, data = {}) {
   if (hidUb) hidUb.value = (window.__ixSession?.id_usuario ?? 1);
 }
 
-function setBusy(panel, on) { panel.classList.toggle('is-busy', !!on); }
+function toggleEditFields(root, on) {
+  // Mostrar/ocultar los inputs que vienen con atributo hidden
+  $all('[data-edit]', root).forEach(el => {
+    el.hidden = !on; // en tu HTML vienen con hidden; aquí lo gestionamos
+  });
+}
 
-function toast(msg, type = 'info') {
+function setBusy(panel, on) {
+  panel.classList.toggle('is-busy', !!on);
+}
+
+function makeToast(msg, type = 'info') {
   try { if (typeof window.gcToast === 'function') window.gcToast(msg, type); }
-  catch (_) {}
+  catch (_) { /* no-op */ }
 }
 
 // ======= API helpers =======
 async function listMedia({ folio, status, page = 1, per_page = 60 }) {
-  if (!FOLIO_RX.test(String(folio))) return { ok: true, data: [], count: 0 };
+  if (!FOLIO_RX.test(String(folio))) {
+    console.warn('[Drawer] listMedia: folio inválido →', folio);
+    return { ok: true, data: [], count: 0 };
+  }
   const body = { folio, status: (status ?? null), page, per_page };
   try {
     const res = await fetch(EP_MEDIA_LIST, {
@@ -89,59 +93,48 @@ async function uploadMedia({ folio, status, files }) {
   fd.append('status', String(status));
   [...files].forEach(f => fd.append('files[]', f, f.name));
 
+  // NO seteamos Content-Type: el navegador define boundary
   const res = await fetch(EP_MEDIA_UPLOAD, { method: 'POST', body: fd });
   const txt = await res.text();
 
   if (res.status === 429) {
     let retry = 0;
-    try { retry = (JSON.parse(txt)?.retry_after) || 0; } catch (_) {}
+    try { retry = (JSON.parse(txt)?.retry_after) || 0; } catch (_) { }
     throw new Error(`Rate limit: espera ${retry}s`);
   }
   if (!res.ok) throw new Error(`upload ${res.status} ${txt}`);
 
   const json = JSON.parse(txt);
-  if (!json?.ok && (!json.saved || !json.saved.length)) {
-    throw new Error(json?.error || 'Upload no OK');
+  if (!json.ok && (!json.saved || !json.saved.length)) {
+    throw new Error(json.error || 'Upload no OK');
   }
   return json;
 }
 
 async function updateRequerimiento(payload) {
-  // 1) endpoint nuevo
-  try {
-    const r = await fetch(EP_UPDATE_NEW, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const txt = await r.text();
-    if (!r.ok) throw new Error(`${r.status} ${txt}`);
-    const json = JSON.parse(txt);
-    if (!json?.ok) throw new Error(json?.error || 'Update no OK');
-    return json.data;
-  } catch (e) {
-    // 2) fallback legacy
-    const r2 = await fetch(EP_UPDATE_LEGACY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const txt2 = await r2.text();
-    if (!r2.ok) throw new Error(`${r2.status} ${txt2}`);
-    const json2 = JSON.parse(txt2);
-    if (!json2?.ok) throw new Error(json2?.error || 'Update no OK');
-    return json2.data;
-  }
+  // Mantengo endpoint de update (si cambia me dices y ajusto)
+  const res = await fetch(EP_UPDATE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const txt = await res.text();
+  if (!res.ok) throw new Error(`update ${res.status} ${txt}`);
+  const json = JSON.parse(txt);
+  if (!json.ok) throw new Error(json.error || 'Update no OK');
+  return json.data;
 }
 
 // ======= Render galería =======
 function ensureGalleryDom(root) {
+  // si no existen, crea contenedores mínimos
   let grid = $('[data-img="grid"]', root);
   let empty = $('[data-img="empty"]', root);
   if (!grid) {
     grid = document.createElement('div');
     grid.className = 'ixd-gallery';
     grid.setAttribute('data-img', 'grid');
+    // insertamos después de la fila de upload si existe
     const upRow = $('[data-img="uploadBtn"]', root)?.closest('.ixd-uploadRow') || $('.ixd-body', root) || root;
     upRow.insertAdjacentElement('afterend', grid);
   }
@@ -160,7 +153,10 @@ function paintGallery(root, resp) {
   const { grid, empty } = ensureGalleryDom(root);
   grid.innerHTML = '';
   const list = (resp?.data || []).filter(Boolean);
-  if (!list.length) { empty.hidden = false; return; }
+  if (!list.length) {
+    empty.hidden = false;
+    return;
+  }
   empty.hidden = true;
   const frag = document.createDocumentFragment();
   list.forEach(it => {
@@ -170,8 +166,8 @@ function paintGallery(root, resp) {
     a.target = '_blank';
     a.rel = 'noopener';
     a.innerHTML = `
-      <img src="${it.url}" loading="lazy" alt="${(it.name||'evidencia')}">
-      <div class="nm" title="${it.name||''}">${it.name || ''}</div>
+      <img src="${it.url}" loading="lazy" alt="${(it.name || 'evidencia')}">
+      <div class="nm" title="${it.name || ''}">${it.name || ''}</div>
     `;
     frag.appendChild(a);
   });
@@ -202,9 +198,6 @@ export const Drawer = (() => {
   let previewsBox;  // [data-img="previews"]
   let uploadBtn;    // [data-img="uploadBtn"]
   let uploadStatus; // [data-img="uploadStatus"]
-  let btnSave;      // [data-action="guardar"]
-  let btnDelete;    // [data-action="eliminar"]
-  let btnEdit;      // [data-action="editar"]
   let cancelBtn;    // [data-action="cancelar"]
   let saving = false;
   let deleting = false;
@@ -216,16 +209,15 @@ export const Drawer = (() => {
     if (el.__inited) { return; }
     el.__inited = true;
 
-    heroImg      = $('[data-img="hero"]', el);
-    pickBtn      = $('[data-img="pick"]', el);
-    fileInput    = $('[data-img="file"]', el);
-    previewsBox  = $('[data-img="previews"]', el);
-    uploadBtn    = $('[data-img="uploadBtn"]', el);
+    heroImg = $('[data-img="hero"]', el);
+    pickBtn = $('[data-img="pick"]', el);
+    fileInput = $('[data-img="file"]', el);
+    previewsBox = $('[data-img="previews"]', el);
+    uploadBtn = $('[data-img="uploadBtn"]', el);
     uploadStatus = $('[data-img="uploadStatus"]', el);
 
-    btnSave   = el.querySelector('[data-action="guardar"]');
-    btnDelete = el.querySelector('[data-action="eliminar"]');
-    btnEdit   = el.querySelector('[data-action="editar"]');
+    // Cerrar
+    $all('[data-drawer="close"]', el).forEach(b => b.addEventListener('click', close));
 
     // Inyectar botón Cancelar si no existe
     cancelBtn = el.querySelector('[data-action="cancelar"]');
@@ -237,10 +229,13 @@ export const Drawer = (() => {
       btn.type = 'button';
       btn.textContent = 'Cancelar';
       btn.style.display = 'none';
-      // insertarlo antes de Guardar si existe
       footer.insertBefore(btn, footer.querySelector('[data-action="guardar"]') || null);
       cancelBtn = btn;
     }
+
+    const btnEdit = el.querySelector('[data-action="editar"]');
+    const btnSave = el.querySelector('[data-action="guardar"]');
+    const btnDelete = el.querySelector('[data-action="eliminar"]');
 
     btnEdit?.addEventListener('click', () => setEditMode(true));
     btnSave?.addEventListener('click', onSave);
@@ -273,31 +268,11 @@ export const Drawer = (() => {
       }
     });
 
-    // baseline lectura al iniciar
-    forceReadMode();
-
     console.log('[Drawer] init OK');
-  }
-
-  function forceReadMode() {
-    // mostrar <p> y ocultar inputs
-    $all('.ixd-field p', el).forEach(p => p.hidden = false);
-    $all('[data-edit]', el).forEach(inp => inp.hidden = true);
-
-    // botones
-    if (btnSave)   { btnSave.style.display = 'none'; btnSave.disabled = true; btnSave.setAttribute('aria-hidden','true'); btnSave.tabIndex = -1; }
-    if (btnDelete) { btnDelete.style.display = ''; }
-    if (cancelBtn) { cancelBtn.style.display = 'none'; }
-
-    el.classList.remove('editing', 'mode-edit');
   }
 
   function open(row, callbacks = {}) {
     if (!el) return console.warn('[Drawer] init() primero');
-
-    // baseline lectura para evitar que campos queden ocultos por estados previos
-    forceReadMode();
-
     el._row = row || {};
     el._callbacks = callbacks || {};
 
@@ -315,10 +290,13 @@ export const Drawer = (() => {
       heroImg.alt = row?.folio || 'Evidencia';
     }
 
+    // Estado inicial: lectura
+    setEditMode(false);
+
     // Abre panel
     el.classList.add('open');
 
-    // Cargar galería del estatus actual
+    // Cargar galería del estatus actual (si hay contenedores)
     const folio = row?.folio || '';
     const st = Number(row?.estatus ?? 0);
     if (FOLIO_RX.test(folio)) {
@@ -329,25 +307,20 @@ export const Drawer = (() => {
   function close() {
     if (!el) return;
     el.classList.remove('open');
+    setEditMode(false);
     clearPreviews();
-    forceReadMode();
     try { el._callbacks?.onClose?.(); } catch (e) { console.error(e); }
   }
 
   function setEditMode(on) {
     el.classList.toggle('mode-edit', !!on);
-    el.classList.toggle('editing',  !!on);
-    // alternar campos
-    $all('.ixd-field p', el).forEach(p => p.hidden = !!on);
-    $all('[data-edit]', el).forEach(inp => inp.hidden = !on);
+    el.classList.toggle('editing', !!on); // compat con tu CSS
+    toggleEditFields(el, !!on);
 
-    // alternar botones
-    if (btnSave) {
-      btnSave.style.display = on ? '' : 'none';
-      btnSave.disabled = !on;
-      btnSave.setAttribute('aria-hidden', on ? 'false' : 'true');
-      btnSave.tabIndex = on ? 0 : -1;
-    }
+    const btnSave = el.querySelector('[data-action="guardar"]');
+    const btnDelete = el.querySelector('[data-action="eliminar"]');
+
+    if (btnSave) btnSave.disabled = !on;
     if (btnDelete) btnDelete.style.display = on ? 'none' : '';
     if (cancelBtn) cancelBtn.style.display = on ? '' : 'none';
   }
@@ -370,9 +343,10 @@ export const Drawer = (() => {
 
     files.forEach(f => {
       if (f.size > MAX_BYTES_CLIENT) {
-        errors.push(`"${f.name}": excede 1 MB`);
+        errors.push(`"${f.name}": excede ${Math.round(MAX_BYTES_CLIENT / 1024)} KB`);
         return;
       }
+      // Intentar detectar MIME real con extension+type (en cliente es limitado)
       const typeOk = ALLOWED_MIME.includes(f.type);
       if (!typeOk) {
         errors.push(`"${f.name}": tipo no permitido (${f.type || 'desconocido'})`);
@@ -383,13 +357,18 @@ export const Drawer = (() => {
 
     if (valid.length > MAX_FILES_CLIENT) {
       errors.push(`Se permiten máx ${MAX_FILES_CLIENT} archivos por subida`);
-      valid.splice(MAX_FILES_CLIENT);
+      valid.splice(MAX_FILES_CLIENT); // limitar
     }
 
     valid.forEach(f => buildPreview(f, previewsBox));
-    if (errors.length) toast(errors.join('\n'), 'warning');
+
+    if (errors.length) {
+      makeToast(errors.join('\n'), 'warning');
+    }
 
     if (uploadBtn) uploadBtn.disabled = valid.length === 0;
+    // Reescribir FileList no es trivial; dejamos el input tal cual,
+    // pero validaremos otra vez justo antes de subir.
   }
 
   async function onUpload() {
@@ -401,7 +380,7 @@ export const Drawer = (() => {
       if (!FOLIO_RX.test(folio)) throw new Error('Folio inválido');
       if (!files.length) return;
 
-      // Validación cliente final
+      // Validación cliente
       const invalid = [];
       const valid = [];
       for (const f of files) {
@@ -409,18 +388,18 @@ export const Drawer = (() => {
         if (!ALLOWED_MIME.includes(f.type)) { invalid.push(`"${f.name}" tipo ${f.type || 'desconocido'}`); continue; }
         valid.push(f);
       }
-      if (!valid.length) {
-        toast(invalid.join('\n') || 'Archivos no válidos', 'warning');
+      if (valid.length === 0) {
+        makeToast(invalid.join('\n') || 'Archivos no válidos', 'warning');
         return;
       }
       if (valid.length > MAX_FILES_CLIENT) {
-        toast(`Máximo ${MAX_FILES_CLIENT} archivos por subida`, 'warning');
+        makeToast(`Máximo ${MAX_FILES_CLIENT} archivos por subida`, 'warning');
         valid.splice(MAX_FILES_CLIENT);
       }
 
       setBusy(el, true);
       const r = await uploadMedia({ folio, status, files: valid });
-      toast(`Subida: ${r.saved?.length || 0} ok, ${r.failed?.length || 0} con error`, 'exito');
+      makeToast(`Subida completa: ${r.saved?.length || 0} ok, ${r.failed?.length || 0} con error`, 'exito');
 
       clearPreviews();
 
@@ -431,7 +410,7 @@ export const Drawer = (() => {
 
     } catch (err) {
       console.error('[Drawer] upload error', err);
-      toast(String(err?.message || err), 'warning');
+      makeToast(String(err?.message || err), 'warning');
     } finally {
       setBusy(el, false);
     }
@@ -444,6 +423,7 @@ export const Drawer = (() => {
     saving = true;
     setBusy(el, true);
 
+    const btnSave = el.querySelector('[data-action="guardar"]');
     if (btnSave) btnSave.disabled = true;
 
     // helpers para leer
@@ -493,12 +473,12 @@ export const Drawer = (() => {
 
       setEditMode(false);
       try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
-      toast('Requerimiento actualizado', 'exito');
+      makeToast('Requerimiento actualizado', 'exito');
 
     } catch (err) {
       console.error('[Drawer] save error:', err);
       try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
-      toast(String(err?.message || err), 'warning');
+      makeToast(String(err?.message || err), 'warning');
     } finally {
       saving = false;
       setBusy(el, false);
@@ -509,26 +489,28 @@ export const Drawer = (() => {
   async function onDelete(ev) {
     ev?.preventDefault?.();
     if (!el || deleting) return;
-    if (!btnDelete) return;
+
+    const btn = el.querySelector('[data-action="eliminar"]');
+    if (!btn) return;
 
     // Confirmación de 2 pasos
-    if (!btnDelete.dataset.confirm) {
-      btnDelete.dataset.confirm = "1";
-      const originalTxt = btnDelete.textContent;
-      btnDelete.dataset.original = originalTxt;
-      btnDelete.textContent = "¿Confirmar borrado?";
-      btnDelete.classList.add("danger");
+    if (!btn.dataset.confirm) {
+      btn.dataset.confirm = "1";
+      const originalTxt = btn.textContent;
+      btn.dataset.original = originalTxt;
+      btn.textContent = "¿Confirmar borrado?";
+      btn.classList.add("danger");
       setTimeout(() => {
-        if (!btnDelete) return;
-        btnDelete.textContent = btnDelete.dataset.original || "Eliminar";
-        btnDelete.removeAttribute("data-confirm");
-        btnDelete.removeAttribute("data-original");
+        if (!btn) return;
+        btn.textContent = btn.dataset.original || "Eliminar";
+        btn.removeAttribute("data-confirm");
+        btn.removeAttribute("data-original");
       }, 5000);
       return;
     }
 
     deleting = true;
-    btnDelete.disabled = true;
+    btn.disabled = true;
     setBusy(el, true);
 
     try {
@@ -539,36 +521,38 @@ export const Drawer = (() => {
         Number(el.querySelector('input[name="updated_by"]')?.value ||
           (window.__ixSession?.id_usuario ?? 1)) || 1;
 
-      // Soft delete: status -> 0
-      const payload = { id, status: 0, updated_by };
+      const payload = { id, status: 0, updated_by }; // soft delete
       const updated = await updateRequerimiento(payload);
 
       try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
       close();
-      toast('Requerimiento eliminado', 'exito');
+      makeToast('Requerimiento eliminado', 'exito');
 
     } catch (err) {
       console.error("[Drawer] delete error:", err);
       try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
-      toast(String(err?.message || err), 'warning');
+      makeToast(String(err?.message || err), 'warning');
     } finally {
       deleting = false;
       setBusy(el, false);
-      if (btnDelete) btnDelete.disabled = false;
+      if (btn) btn.disabled = false;
     }
   }
 
   function onCancel() {
-    const ok = confirm('¿Descartar cambios?');
-    if (!ok) return;
-
+    const hasChanges = true; // simple: asumimos cambios al entrar en edición
+    if (hasChanges) {
+      const ok = confirm('¿Descartar cambios?');
+      if (!ok) return;
+    }
+    // Revertir a snapshot
     if (snapshot) {
       mapToFields(el, snapshot);
       mapToForm(el, snapshot);
       el._row = snapshot;
     }
     clearPreviews();
-    forceReadMode();
+    setEditMode(false);
   }
 
   return { init, open, close, setEditMode };
