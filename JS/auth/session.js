@@ -1,6 +1,6 @@
 // /JS/auth/session.js
 const COOKIE_NAME = "ix_emp";
-const COOKIE_TTL_MS = 1 * 60 * 1000; // 10 minutos
+const COOKIE_TTL_MS = 10 * 60 * 1000; // 10 minutos
 
 function b64e(json) { return btoa(unescape(encodeURIComponent(JSON.stringify(json)))); }
 function b64d(str)  { try { return JSON.parse(decodeURIComponent(escape(atob(str)))); } catch { return null; } }
