@@ -313,21 +313,6 @@
                     <textarea class="ixd-input" name="descripcion" rows="4" data-edit hidden></textarea>
                 </div>
 
-                <!-- Estatus -->
-                <div class="ixd-field">
-                    <label>Estatus</label>
-                    <p data-field="estatus">—</p>
-                    <select class="ixd-input" name="estatus" data-edit hidden>
-                        <option value="0">Solicitud</option>
-                        <option value="1">Revisión</option>
-                        <option value="2">Asignación</option>
-                        <option value="3">En proceso</option>
-                        <option value="4">Pausado</option>
-                        <option value="5">Cancelado</option>
-                        <option value="6">Finalizado</option>
-                    </select>
-                </div>
-
                 <!-- Prioridad / Canal -->
                 <div class="ixd-grid2">
                     <div class="ixd-field">
@@ -390,6 +375,21 @@
                     <p data-field="contacto_colonia">—</p>
                     <!-- Select Colonia dependiente de CP (JS en edición) -->
                     <select class="ixd-input" name="contacto_colonia" data-edit hidden></select>
+                </div>
+
+                <!-- Estatus -->
+                <div class="ixd-field">
+                    <label>Estatus</label>
+                    <p data-field="estatus">—</p>
+                    <select class="ixd-input" name="estatus" data-edit hidden>
+                        <option value="0">Solicitud</option>
+                        <option value="1">Revisión</option>
+                        <option value="2">Asignación</option>
+                        <option value="3">En proceso</option>
+                        <option value="4">Pausado</option>
+                        <option value="5">Cancelado</option>
+                        <option value="6">Finalizado</option>
+                    </select>
                 </div>
 
                 <!-- Galería / Evidencia -->
