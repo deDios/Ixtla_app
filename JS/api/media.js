@@ -34,7 +34,7 @@ export async function uploadMedia({ folio, status, files }) {
   const fd = new FormData();
   fd.append("folio", folio);
   fd.append("status", String(status));
-  // el endpoint acepta 'files' o 'file' — usamos 'files'
+  // el endpoint acepta 'files' o 'file', por lo general se usa: 'files'
   [...files].forEach(f => fd.append("files[]", f));
 
   const r = await fetch(URL_UPLOAD, { method: "POST", body: fd });

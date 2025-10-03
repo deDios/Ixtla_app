@@ -2,11 +2,8 @@
 
 // CON
 const CFG = (() => {
-  const API_BASE =
-    window.IX_CFG_DEPS?.ENDPOINTS?.deps?.split("/db/WEB/")[0] + "/db/WEB/" ||
-    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
 
-  const REQ = window.IX_CFG_REQ || {};
+  const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/";
 
   return {
     MAX_MB: 1,

@@ -301,13 +301,6 @@
             <!-- Contenido con scroll -->
             <div class="ixd-body">
 
-                <!-- Departamento
-                <div class="ixd-field">
-                    <label>Departamento</label>
-                    <p data-field="departamento_nombre">—</p>
-                </div>
-                -->
-
                 <!-- Asunto -->
                 <div class="ixd-field">
                     <label>Asunto</label>
@@ -320,6 +313,21 @@
                     <label>Descripción</label>
                     <p data-field="descripcion">—</p>
                     <textarea class="ixd-input" name="descripcion" rows="4" data-edit hidden></textarea>
+                </div>
+
+                <!-- Estatus -->
+                <div class="ixd-field">
+                    <label>Estatus</label>
+                    <p data-field="estatus">—</p>
+                    <select class="ixd-input" name="estatus" data-edit hidden>
+                        <option value="0">Solicitud</option>
+                        <option value="1">Revisión</option>
+                        <option value="2">Asignación</option>
+                        <option value="3">En proceso</option>
+                        <option value="4">Pausado</option>
+                        <option value="5">Cancelado</option>
+                        <option value="6">Finalizado</option>
+                    </select>
                 </div>
 
                 <!-- Prioridad / Canal -->
@@ -366,7 +374,8 @@
                     <div class="ixd-field">
                         <label>Código Postal</label>
                         <p data-field="contacto_cp">—</p>
-                        <input class="ixd-input" name="contacto_cp" type="text" data-edit hidden>
+                        <!-- combo CP (select) en edición -->
+                        <select class="ixd-input" name="contacto_cp" data-edit hidden></select>
                     </div>
                 </div>
 
@@ -381,11 +390,27 @@
                 <div class="ixd-field">
                     <label>Colonia</label>
                     <p data-field="contacto_colonia">—</p>
-                    <input class="ixd-input" name="contacto_colonia" type="text" data-edit hidden>
+                    <!-- combo Colonia (select) dependiente de CP en edición -->
+                    <select class="ixd-input" name="contacto_colonia" data-edit hidden></select>
                 </div>
 
                 <!-- Galería / Evidencia -->
                 <h4 class="ixd-sub">Galería</h4>
+
+                <!-- Filtro de visualización por estatus de evidencia -->
+                <div class="ixd-uploadRow">
+                    <label>Ver evidencia de estado:
+                        <select data-img="viewStatus">
+                            <option value="0">Solicitud</option>
+                            <option value="1">Revisión</option>
+                            <option value="2">Asignación</option>
+                            <option value="3">En proceso</option>
+                            <option value="4">Pausado</option>
+                            <option value="5">Cancelado</option>
+                            <option value="6">Finalizado</option>
+                        </select>
+                    </label>
+                </div>
 
                 <!-- Imagen principal  -->
                 <div class="ixd-imgBlock">
@@ -414,6 +439,12 @@
                     <button class="btn" data-img="uploadBtn" type="button" disabled>Subir</button>
                 </div>
 
+                <!-- Grid de evidencias -->
+                <div class="ixd-gallery">
+                    <div class="ixd-grid" data-img="grid"></div>
+                    <p class="muted" data-img="empty" hidden>No hay imágenes para este estado.</p>
+                </div>
+
                 <!-- Hidden obligatorios para update -->
                 <input type="hidden" name="id" data-field="id" value="">
                 <input type="hidden" name="updated_by" value="0">
@@ -423,12 +454,17 @@
             <!-- Footer -->
             <footer class="ixd-actions ixd-actions--footer">
                 <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
-                <button class="btn primary ixd-save" data-action="guardar" type="button" disabled>Guardar</button>
+                <button class="btn primary ixd-save" data-action="guardar" type="button" style="display:none"
+                    disabled>Guardar</button>
+                <button class="btn ixd-cancel" data-action="cancelar" type="button"
+                    style="display:none">Cancelar</button>
+                <button class="btn warning ixd-pause" data-action="pausar" type="button">Pausar</button>
                 <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
             </footer>
 
         </aside>
     </section>
+
 
 
 
