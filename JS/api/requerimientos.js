@@ -13,12 +13,13 @@ const URL_UPDATE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurew
 
 export async function fetchRequerimientos(params = {}) {
     const body = {
-        //departamento_id: Number(params.departamento_id ?? 1),
+        //departamento_id: Number(params.departamento_id ?? 1), 
+        //este queda pendiente para el futuro pero si funciona bien
         page: Number(params.page ?? 1),
         per_page: Number(params.per_page ?? 50)
     };
 
-    const resp = await fetch(URL_LIST, {
+    const resp = await fetch(URL_LIST, { 
         method: "POST",
         headers: { "Content-Type": "application/json;charset=utf-8" },
         body: JSON.stringify(body),

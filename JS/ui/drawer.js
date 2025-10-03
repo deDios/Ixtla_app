@@ -1,451 +1,518 @@
 // /JS/ui/drawer.js
 
-const API_BASE =
-  'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/';
+// CON
+const CFG = (() => {
+  const API_BASE =
+    window.IX_CFG_DEPS?.ENDPOINTS?.deps?.split("/db/WEB/")[0] + "/db/WEB/" ||
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
 
-// Endpoints
-const EP_UPDATE_NEW     = API_BASE + 'ixtla01_upd_requerimiento.php';
-const EP_UPDATE_LEGACY  = API_BASE + 'ixtla01_u_requerimiento.php';
-const EP_MEDIA_LIST     = API_BASE + 'ixtla01_c_requerimiento_img.php';
-const EP_MEDIA_UPLOAD   = API_BASE + 'ixtla01_ins_requerimiento_img.php';
+  const REQ = window.IX_CFG_REQ || {};
 
-// Regex folio
+  return {
+    MAX_MB: 1,
+    ACCEPT_MIME: [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/heic",
+      "image/heif",
+    ],
+    ACCEPT_EXT: [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"],
+
+    ENDPOINTS: {
+      updateReq: API_BASE + "ixtla01_upd_requerimiento.php",
+
+      // imagenes, deberia tener consulta y subida:
+      mediaList: API_BASE + "ixtla01_c_requerimiento_img.php",
+      mediaUpload: API_BASE + "ixtla01_ins_requerimiento_img.php",
+
+      // CP/Colonia
+      cpcolonia: API_BASE + "ixtla01_c_cpcolonia.php",
+    },
+  };
+})();
+
+// utils
+function $(sel, root = document) {
+  return root.querySelector(sel);
+}
+function $all(sel, root = document) {
+  return Array.from(root.querySelectorAll(sel));
+}
+
+function setText(el, txt) {
+  if (el) el.textContent = txt ?? "—";
+}
+function setVal(el, val) {
+  if (el) el.value = val ?? "";
+}
+const digits = (s) => (s || "").replace(/\D+/g, "");
+
 const FOLIO_RX = /^REQ-\d{10}$/;
 
-// Límites cliente (validación previa)
-const MAX_FILES_CLIENT = 3;
-const MAX_BYTES_CLIENT = 1 * 1024 * 1024; // 1 MB por archivo
-const ALLOWED_MIME = ['image/jpeg','image/png','image/webp','image/heic','image/heif'];
-
-// Utils DOM
-function $(sel, root = document) { return root.querySelector(sel); }
-function $all(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
-
-function setText(el, txt) { if (el) el.textContent = (txt ?? '—'); }
-function setVal(el, val) { if (el) el.value = (val ?? ''); }
-
-// Mapear campos visibles (p[data-field]) y hidden id
+// ================== Mapeo ==================
 function mapToFields(root, data = {}) {
-  $all('[data-field]', root).forEach(el => {
-    const key = el.getAttribute('data-field');
+  $all("[data-field]", root).forEach((el) => {
+    const key = el.getAttribute("data-field");
     if (!key) return;
-    setText(el, data[key] ?? '—');
+    setText(el, data[key] ?? "—");
   });
   const hidId = root.querySelector('input[name="id"][data-field="id"]');
   if (hidId && data.id != null) hidId.value = data.id;
 }
 
-// Mapear valores a inputs de edición (tienen [data-edit] y name=...)
 function mapToForm(root, data = {}) {
-  $all('[data-edit][name]', root).forEach(el => {
-    const key = el.getAttribute('name');
+  $all("[data-edit][name]", root).forEach((el) => {
+    const key = el.getAttribute("name");
     const v = data[key];
-    if (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-      setVal(el, v ?? '');
+    if (
+      el.tagName === "SELECT" ||
+      el.tagName === "INPUT" ||
+      el.tagName === "TEXTAREA"
+    ) {
+      setVal(el, v ?? "");
     }
   });
   const hidId = root.querySelector('input[name="id"]');
   const hidUb = root.querySelector('input[name="updated_by"]');
   if (hidId && data.id != null) hidId.value = data.id;
-  if (hidUb) hidUb.value = (window.__ixSession?.id_usuario ?? 1);
+  if (hidUb) hidUb.value = window.__ixSession?.id_usuario ?? 1;
 }
 
-function setBusy(panel, on) { panel.classList.toggle('is-busy', !!on); }
-
-function toast(msg, type = 'info') {
-  try { if (typeof window.gcToast === 'function') window.gcToast(msg, type); }
-  catch (_) {}
-}
-
-// ======= API helpers =======
-async function listMedia({ folio, status, page = 1, per_page = 60 }) {
-  if (!FOLIO_RX.test(String(folio))) return { ok: true, data: [], count: 0 };
-  const body = { folio, status: (status ?? null), page, per_page };
-  try {
-    const res = await fetch(EP_MEDIA_LIST, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const txt = await res.text();
-    if (!res.ok) throw new Error(`list ${res.status} ${txt}`);
-    const json = JSON.parse(txt);
-    return { ok: !!json.ok, data: json.data || [], count: json.count || 0, page: json.page, per_page: json.per_page };
-  } catch (e) {
-    console.error('[Drawer] listMedia error:', e);
-    return { ok: false, data: [], count: 0 };
-  }
-}
-
-async function uploadMedia({ folio, status, files }) {
-  if (!FOLIO_RX.test(String(folio))) throw new Error('folio inválido en upload');
-  const fd = new FormData();
-  fd.append('folio', folio);
-  fd.append('status', String(status));
-  [...files].forEach(f => fd.append('files[]', f, f.name));
-
-  const res = await fetch(EP_MEDIA_UPLOAD, { method: 'POST', body: fd });
+// ================== Requests ==================
+async function updateRequerimiento(payload) {
+  const url = CFG.ENDPOINTS.updateReq;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
   const txt = await res.text();
-
-  if (res.status === 429) {
-    let retry = 0;
-    try { retry = (JSON.parse(txt)?.retry_after) || 0; } catch (_) {}
-    throw new Error(`Rate limit: espera ${retry}s`);
-  }
-  if (!res.ok) throw new Error(`upload ${res.status} ${txt}`);
-
+  if (!res.ok) throw new Error(`update HTTP ${res.status}`);
   const json = JSON.parse(txt);
-  if (!json?.ok && (!json.saved || !json.saved.length)) {
-    throw new Error(json?.error || 'Upload no OK');
-  }
+  if (!json?.ok) throw new Error(json?.error || "Update no OK");
+  return json.data;
+}
+
+async function listMedia({ folio, status, page = 1, per_page = 100 }) {
+  const url = CFG.ENDPOINTS.mediaList;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ folio, status, page, per_page }),
+  });
+  const txt = await res.text();
+  if (!res.ok) throw new Error(`list media HTTP ${res.status}`);
+  const json = JSON.parse(txt);
+  if (!json?.ok) return { ok: false, data: [] };
   return json;
 }
 
-async function updateRequerimiento(payload) {
-  // 1) endpoint nuevo
+async function uploadMedia({ folio, status, files }) {
+  if (!FOLIO_RX.test(String(folio))) throw new Error("folio inválido");
+  const fd = new FormData();
+  fd.append("folio", folio);
+  fd.append("status", String(status));
+  [...files].forEach((f) => fd.append("files[]", f, f.name));
+
+  const res = await fetch(CFG.ENDPOINTS.mediaUpload, {
+    method: "POST",
+    body: fd,
+  });
+  const txt = await res.text();
+  if (!res.ok) throw new Error(`upload HTTP ${res.status}`);
+  const json = JSON.parse(txt);
+  if (!json?.ok) throw new Error(json?.error || "Upload no OK");
+  return json;
+}
+
+// ================== CP / Colonia (combos dependientes) ==================
+const CP_DATA = { map: {}, list: [], loaded: false, loading: false };
+
+async function fetchCpColonia() {
+  if (CP_DATA.loaded || CP_DATA.loading) return;
+  CP_DATA.loading = true;
   try {
-    const r = await fetch(EP_UPDATE_NEW, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload)
+    const res = await fetch(CFG.ENDPOINTS.cpcolonia, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ all: true }),
     });
-    const txt = await r.text();
-    if (!r.ok) throw new Error(`${r.status} ${txt}`);
-    const json = JSON.parse(txt);
-    if (!json?.ok) throw new Error(json?.error || 'Update no OK');
-    return json.data;
+    const json = await res.json();
+    const rows = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json)
+      ? json
+      : [];
+    const tmp = {};
+    for (const item of rows) {
+      const cp = String(item.cp ?? item.CP ?? item.codigo_postal ?? "").trim();
+      const col = String(
+        item.colonia ?? item.Colonia ?? item.asentamiento ?? ""
+      ).trim();
+      if (!cp || !col) continue;
+      if (!tmp[cp]) tmp[cp] = new Set();
+      tmp[cp].add(col);
+    }
+    CP_DATA.map = Object.fromEntries(
+      Object.entries(tmp).map(([k, v]) => [
+        k,
+        [...v].sort((a, b) => a.localeCompare(b, "es")),
+      ])
+    );
+    CP_DATA.list = Object.keys(CP_DATA.map).sort();
+    CP_DATA.loaded = true;
   } catch (e) {
-    // 2) fallback legacy
-    const r2 = await fetch(EP_UPDATE_LEGACY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const txt2 = await r2.text();
-    if (!r2.ok) throw new Error(`${r2.status} ${txt2}`);
-    const json2 = JSON.parse(txt2);
-    if (!json2?.ok) throw new Error(json2?.error || 'Update no OK');
-    return json2.data;
+    console.warn("[Drawer] cp/colonia fetch error:", e);
+  } finally {
+    CP_DATA.loading = false;
   }
 }
 
-// ======= Render galería =======
-function ensureGalleryDom(root) {
-  let grid = $('[data-img="grid"]', root);
-  let empty = $('[data-img="empty"]', root);
-  if (!grid) {
-    grid = document.createElement('div');
-    grid.className = 'ixd-gallery';
-    grid.setAttribute('data-img', 'grid');
-    const upRow = $('[data-img="uploadBtn"]', root)?.closest('.ixd-uploadRow') || $('.ixd-body', root) || root;
-    upRow.insertAdjacentElement('afterend', grid);
-  }
-  if (!empty) {
-    empty = document.createElement('div');
-    empty.setAttribute('data-img', 'empty');
-    empty.textContent = 'Sin evidencia para este estado.';
-    empty.style.margin = '10px 0 0';
-    empty.style.color = '#6b7280';
-    grid.insertAdjacentElement('beforebegin', empty);
-  }
-  return { grid, empty };
+function ensureSelectFromInput(inputEl, { id, name }) {
+  if (!inputEl) return null;
+  if (inputEl.tagName === "SELECT") return inputEl;
+  const sel = document.createElement("select");
+  sel.className = inputEl.className || "ixd-input";
+  sel.name = name || inputEl.name;
+  sel.id = id || inputEl.id || "";
+  sel.setAttribute("data-edit", "");
+  sel.hidden = inputEl.hidden; // respeta visibilidad por modo edición
+  inputEl.replaceWith(sel);
+  return sel;
 }
 
+function fillCpOptions(selCp) {
+  if (!selCp) return;
+  selCp.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = "Selecciona C.P.";
+  ph.disabled = true;
+  ph.selected = true;
+  selCp.appendChild(ph);
+  CP_DATA.list.forEach((cp) => {
+    const o = document.createElement("option");
+    o.value = cp;
+    o.textContent = cp;
+    selCp.appendChild(o);
+  });
+}
+
+function fillColoniasFor(selCol, cp) {
+  if (!selCol) return;
+  selCol.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = cp ? "Selecciona colonia" : "Selecciona C.P.";
+  ph.disabled = true;
+  ph.selected = true;
+  selCol.appendChild(ph);
+  const list = CP_DATA.map[cp] || [];
+  list.forEach((c) => {
+    const o = document.createElement("option");
+    o.value = c;
+    o.textContent = c;
+    selCol.appendChild(o);
+  });
+  selCol.disabled = list.length === 0;
+}
+
+// ================== Pintado de galería ==================
 function paintGallery(root, resp) {
-  const { grid, empty } = ensureGalleryDom(root);
-  grid.innerHTML = '';
+  const grid = $('[data-img="grid"]', root);
+  const empty = $('[data-img="empty"]', root);
+  if (!grid) return; // si no existe, saltamos silenciosamente
+  grid.innerHTML = "";
   const list = (resp?.data || []).filter(Boolean);
-  if (!list.length) { empty.hidden = false; return; }
-  empty.hidden = true;
+  if (!list.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+
   const frag = document.createDocumentFragment();
-  list.forEach(it => {
-    const a = document.createElement('a');
-    a.className = 'ixd-card';
-    a.href = it.url || '#';
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.innerHTML = `
-      <img src="${it.url}" loading="lazy" alt="${(it.name||'evidencia')}">
-      <div class="nm" title="${it.name||''}">${it.name || ''}</div>
-    `;
-    frag.appendChild(a);
+  list.forEach((it) => {
+    const card = document.createElement("a");
+    card.className = "ixd-card";
+    card.href = it.url || "#";
+    card.target = "_blank";
+    card.rel = "noopener";
+    card.innerHTML = `
+      <img src="${it.url}" alt="${it.name || "evidencia"}">
+      <div class="nm" title="${it.name || ""}">${it.name || ""}</div>
+    `.trim();
+    frag.appendChild(card);
   });
   grid.appendChild(frag);
 }
 
-// Previews locales (selección del usuario antes de subir)
-function buildPreview(file, container) {
-  const url = URL.createObjectURL(file);
-  const wrap = document.createElement('div');
-  wrap.className = 'ixd-prevItem';
-  const img = document.createElement('img');
-  img.src = url; img.alt = file.name; img.loading = 'lazy';
-  const name = document.createElement('div');
-  name.className = 'ixd-prevName';
-  name.textContent = file.name;
-  wrap.appendChild(img);
-  wrap.appendChild(name);
-  container.appendChild(wrap);
-}
-
-// ======= Drawer =======
+// ================== Drawer módulo ==================
 export const Drawer = (() => {
-  let el;           // <aside class="ix-drawer">
-  let heroImg;      // [data-img="hero"]
-  let pickBtn;      // [data-img="pick"]
-  let fileInput;    // [data-img="file"]
-  let previewsBox;  // [data-img="previews"]
-  let uploadBtn;    // [data-img="uploadBtn"]
+  let el; // <aside class="ix-drawer" data-drawer="panel">
+  let overlay; // [data-drawer="overlay"]
+  let heroImg; // [data-img="hero"]
+  let pickBtn; // [data-img="pick"]
+  let fileInput; // [data-img="file"]
+  let previewsBox; // [data-img="previews"]
+  let uploadBtn; // [data-img="uploadBtn"]
   let uploadStatus; // [data-img="uploadStatus"]
-  let btnSave;      // [data-action="guardar"]
-  let btnDelete;    // [data-action="eliminar"]
-  let btnEdit;      // [data-action="editar"]
-  let cancelBtn;    // [data-action="cancelar"]
+  let viewStatusSel; // [data-img="viewStatus"] (opcional; si no existe usamos uploadStatus)
+  let btnEdit, btnSave, btnDelete, btnCancel, btnPause; // acciones
+  let formRoot; // raíz para inputs (el mismo drawer)
   let saving = false;
   let deleting = false;
-  let snapshot = null;  // estado original para cancelar
 
-  function init(selector = '.ix-drawer') {
-    el = document.querySelector(selector);
-    if (!el) { console.warn('[Drawer] no se encontró', selector); return; }
-    if (el.__inited) { return; }
-    el.__inited = true;
-
-    heroImg      = $('[data-img="hero"]', el);
-    pickBtn      = $('[data-img="pick"]', el);
-    fileInput    = $('[data-img="file"]', el);
-    previewsBox  = $('[data-img="previews"]', el);
-    uploadBtn    = $('[data-img="uploadBtn"]', el);
-    uploadStatus = $('[data-img="uploadStatus"]', el);
-
-    btnSave   = el.querySelector('[data-action="guardar"]');
-    btnDelete = el.querySelector('[data-action="eliminar"]');
-    btnEdit   = el.querySelector('[data-action="editar"]');
-
-    // Inyectar botón Cancelar si no existe
-    cancelBtn = el.querySelector('[data-action="cancelar"]');
-    if (!cancelBtn) {
-      const footer = el.querySelector('.ixd-actions--footer') || el.querySelector('.ixd-actions') || el;
-      const btn = document.createElement('button');
-      btn.className = 'btn ghost ixd-cancel';
-      btn.setAttribute('data-action', 'cancelar');
-      btn.type = 'button';
-      btn.textContent = 'Cancelar';
-      btn.style.display = 'none';
-      // insertarlo antes de Guardar si existe
-      footer.insertBefore(btn, footer.querySelector('[data-action="guardar"]') || null);
-      cancelBtn = btn;
-    }
-
-    btnEdit?.addEventListener('click', () => setEditMode(true));
-    btnSave?.addEventListener('click', onSave);
-    cancelBtn?.addEventListener('click', onCancel);
-    btnDelete?.addEventListener('click', onDelete);
-
-    // Imagen: solo permitir elección en edición
-    if (pickBtn && fileInput) {
-      pickBtn.addEventListener('click', () => {
-        if (!el.classList.contains('editing') && !el.classList.contains('mode-edit')) return;
-        fileInput.click();
-      });
-      fileInput.addEventListener('change', onFilesPicked);
-    }
-
-    // Subida
-    if (uploadBtn) {
-      uploadBtn.addEventListener('click', onUpload);
-      uploadBtn.disabled = true;
-    }
-
-    // Atajos
-    el.addEventListener('keydown', (ev) => {
-      const isEditing = el.classList.contains('editing') || el.classList.contains('mode-edit');
-      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') {
-        if (isEditing) { ev.preventDefault(); onSave(); }
-      } else if (ev.key === 'Escape') {
-        if (isEditing) { onCancel(); }
-        else { close(); }
-      }
-    });
-
-    // baseline lectura al iniciar
-    forceReadMode();
-
-    console.log('[Drawer] init OK');
-  }
-
-  function forceReadMode() {
-    // mostrar <p> y ocultar inputs
-    $all('.ixd-field p', el).forEach(p => p.hidden = false);
-    $all('[data-edit]', el).forEach(inp => inp.hidden = true);
-
-    // botones
-    if (btnSave)   { btnSave.style.display = 'none'; btnSave.disabled = true; btnSave.setAttribute('aria-hidden','true'); btnSave.tabIndex = -1; }
-    if (btnDelete) { btnDelete.style.display = ''; }
-    if (cancelBtn) { cancelBtn.style.display = 'none'; }
-
-    el.classList.remove('editing', 'mode-edit');
-  }
-
-  function open(row, callbacks = {}) {
-    if (!el) return console.warn('[Drawer] init() primero');
-
-    // baseline lectura para evitar que campos queden ocultos por estados previos
-    forceReadMode();
-
-    el._row = row || {};
-    el._callbacks = callbacks || {};
-
-    mapToFields(el, row || {});
-    mapToForm(el, row || {});
-    snapshot = structuredClone ? structuredClone(row || {}) : JSON.parse(JSON.stringify(row || {}));
-
-    // Folio visible
-    const folioEl = $('.ixd-folio', el);
-    if (folioEl) setText(folioEl, row?.folio || 'REQ-0000000000');
-
-    // Hero
-    if (heroImg) {
-      heroImg.src = row?.hero_url || '';
-      heroImg.alt = row?.folio || 'Evidencia';
-    }
-
-    // Abre panel
-    el.classList.add('open');
-
-    // Cargar galería del estatus actual
-    const folio = row?.folio || '';
-    const st = Number(row?.estatus ?? 0);
-    if (FOLIO_RX.test(folio)) {
-      listMedia({ folio, status: st }).then(resp => paintGallery(el, resp));
-    }
-  }
-
-  function close() {
-    if (!el) return;
-    el.classList.remove('open');
-    clearPreviews();
-    forceReadMode();
-    try { el._callbacks?.onClose?.(); } catch (e) { console.error(e); }
-  }
+  // Campos CP/Colonia (selects dependientes)
+  let selCP, selCol;
 
   function setEditMode(on) {
-    el.classList.toggle('mode-edit', !!on);
-    el.classList.toggle('editing',  !!on);
-    // alternar campos
-    $all('.ixd-field p', el).forEach(p => p.hidden = !!on);
-    $all('[data-edit]', el).forEach(inp => inp.hidden = !on);
+    el.classList.toggle("mode-edit", !!on);
 
-    // alternar botones
-    if (btnSave) {
-      btnSave.style.display = on ? '' : 'none';
-      btnSave.disabled = !on;
-      btnSave.setAttribute('aria-hidden', on ? 'false' : 'true');
-      btnSave.tabIndex = on ? 0 : -1;
+    // Guardar: visible en edición
+    if (btnSave) btnSave.style.display = on ? "" : "none";
+
+    // Eliminar se oculta en edición; Cancel aparece en edición
+    if (btnDelete) btnDelete.style.display = on ? "none" : "";
+    if (btnCancel) btnCancel.style.display = on ? "" : "none";
+
+    // Pausar/Reanudar solo en lectura
+    if (btnPause) btnPause.style.display = on ? "none" : "";
+
+    // Habilita/deshabilita guardado
+    if (btnSave) btnSave.disabled = !on;
+
+    // Mostrar/ocultar inputs vs <p> (ya controlado por CSS del proyecto)
+    $all(".ixd-field p", el).forEach((p) => (p.hidden = !!on));
+    $all(".ixd-input[data-edit]", el).forEach((i) => (i.hidden = !on));
+  }
+
+  function setPauseButtonByStatus(est) {
+    // 4 = pausado → mostrar "Reanudar" (success)
+    if (!btnPause) return;
+    const isPausado = Number(est) === 4;
+    btnPause.textContent = isPausado ? "Reanudar" : "Pausar";
+    btnPause.classList.remove("warning", "success");
+    btnPause.classList.add(isPausado ? "success" : "warning");
+    // Ocultar si cancelado/finalizado
+    const hide = Number(est) === 5 || Number(est) === 6;
+    btnPause.style.display = hide ? "none" : "";
+  }
+
+  async function loadGalleryFor(status) {
+    const folio = String($(".ixd-folio", el)?.textContent || "").trim();
+    if (!FOLIO_RX.test(folio)) return;
+    try {
+      const resp = await listMedia({ folio, status: Number(status) });
+      paintGallery(el, resp);
+    } catch (e) {
+      console.warn("[Drawer] loadGallery error:", e);
     }
-    if (btnDelete) btnDelete.style.display = on ? 'none' : '';
-    if (cancelBtn) cancelBtn.style.display = on ? '' : 'none';
   }
 
-  function clearPreviews() {
-    if (previewsBox) previewsBox.innerHTML = '';
-    if (fileInput) fileInput.value = '';
-    if (uploadBtn) uploadBtn.disabled = true;
+  function onPickFiles() {
+    fileInput?.click();
   }
 
-  // ===== Files picked =====
-  function onFilesPicked() {
+  function handleFileInputChange() {
     if (!previewsBox || !fileInput) return;
+    previewsBox.innerHTML = "";
+    const files = fileInput.files || [];
+    const maxBytes = CFG.MAX_MB * 1024 * 1024;
 
-    previewsBox.innerHTML = '';
-    const files = Array.from(fileInput.files || []);
-
-    const valid = [];
-    const errors = [];
-
-    files.forEach(f => {
-      if (f.size > MAX_BYTES_CLIENT) {
-        errors.push(`"${f.name}": excede 1 MB`);
+    Array.from(files).forEach((f) => {
+      // Validaciones locales
+      const okMime = CFG.ACCEPT_MIME.includes(f.type);
+      const okExt = CFG.ACCEPT_EXT.some((ext) =>
+        f.name.toLowerCase().endsWith(ext)
+      );
+      if (!okMime && !okExt) {
+        console.warn("Archivo omitido por tipo:", f.name);
         return;
       }
-      const typeOk = ALLOWED_MIME.includes(f.type);
-      if (!typeOk) {
-        errors.push(`"${f.name}": tipo no permitido (${f.type || 'desconocido'})`);
+      if (f.size > maxBytes) {
+        console.warn("Archivo excede límite:", f.name);
         return;
       }
-      valid.push(f);
+      const url = URL.createObjectURL(f);
+      const card = document.createElement("div");
+      card.className = "thumb";
+      card.innerHTML = `<img src="${url}" alt="preview"><button class="rm" type="button">Quitar</button>`;
+      card.querySelector(".rm").addEventListener("click", () => {
+        // quitar del FileList (no es trivial) → recreamos selection
+        const keep = Array.from(fileInput.files).filter((x) => x !== f);
+        const dt = new DataTransfer();
+        keep.forEach((x) => dt.items.add(x));
+        fileInput.files = dt.files;
+        card.remove();
+        if (uploadBtn) uploadBtn.disabled = fileInput.files.length === 0;
+      });
+      previewsBox.appendChild(card);
     });
 
-    if (valid.length > MAX_FILES_CLIENT) {
-      errors.push(`Se permiten máx ${MAX_FILES_CLIENT} archivos por subida`);
-      valid.splice(MAX_FILES_CLIENT);
-    }
-
-    valid.forEach(f => buildPreview(f, previewsBox));
-    if (errors.length) toast(errors.join('\n'), 'warning');
-
-    if (uploadBtn) uploadBtn.disabled = valid.length === 0;
+    if (uploadBtn) uploadBtn.disabled = fileInput.files.length === 0;
   }
 
-  async function onUpload() {
+  async function doUpload() {
     try {
-      const folio = String($('.ixd-folio', el)?.textContent || '').trim();
-      const status = Number(uploadStatus?.value || el._row?.estatus || 0);
-      const files = Array.from(fileInput?.files || []);
+      const folio = String($(".ixd-folio", el)?.textContent || "").trim();
+      const status = Number(uploadStatus?.value || 0);
+      const files = fileInput?.files || [];
 
-      if (!FOLIO_RX.test(folio)) throw new Error('Folio inválido');
-      if (!files.length) return;
+      if (!FOLIO_RX.test(folio)) throw new Error("Folio inválido");
+      if (!files?.length) return;
 
-      // Validación cliente final
-      const invalid = [];
-      const valid = [];
-      for (const f of files) {
-        if (f.size > MAX_BYTES_CLIENT) { invalid.push(`"${f.name}" > 1 MB`); continue; }
-        if (!ALLOWED_MIME.includes(f.type)) { invalid.push(`"${f.name}" tipo ${f.type || 'desconocido'}`); continue; }
-        valid.push(f);
-      }
-      if (!valid.length) {
-        toast(invalid.join('\n') || 'Archivos no válidos', 'warning');
-        return;
-      }
-      if (valid.length > MAX_FILES_CLIENT) {
-        toast(`Máximo ${MAX_FILES_CLIENT} archivos por subida`, 'warning');
-        valid.splice(MAX_FILES_CLIENT);
-      }
+      uploadBtn.disabled = true;
+      await uploadMedia({ folio, status, files });
 
-      setBusy(el, true);
-      const r = await uploadMedia({ folio, status, files: valid });
-      toast(`Subida: ${r.saved?.length || 0} ok, ${r.failed?.length || 0} con error`, 'exito');
+      // Limpia previews y file input
+      if (previewsBox) previewsBox.innerHTML = "";
+      if (fileInput) fileInput.value = "";
+      uploadBtn.disabled = true;
 
-      clearPreviews();
+      // Refresca galería del status actual (si usamos uploadStatus como "view")
+      const viewSt = viewStatusSel ? Number(viewStatusSel.value) : status;
+      await loadGalleryFor(viewSt);
 
-      // Refrescar galería del status visible
-      const viewSt = Number(uploadStatus?.value || el._row?.estatus || 0);
-      const resp = await listMedia({ folio, status: viewSt });
-      paintGallery(el, resp);
-
-    } catch (err) {
-      console.error('[Drawer] upload error', err);
-      toast(String(err?.message || err), 'warning');
+      if (window.gcToast) gcToast("Imágenes subidas.", "exito");
+    } catch (e) {
+      console.error("[Drawer] upload error:", e);
+      if (window.gcToast)
+        gcToast("No se pudieron subir las imágenes.", "warning");
     } finally {
-      setBusy(el, false);
+      if (uploadBtn) uploadBtn.disabled = false;
     }
   }
 
+  function buildCancelButton() {
+    // Si ya existe, no dupliques
+    let btn = el.querySelector('[data-action="cancelar"]');
+    if (btn) return btn;
+    btn = document.createElement("button");
+    btn.className = "btn ixd-cancel";
+    btn.setAttribute("data-action", "cancelar");
+    btn.type = "button";
+    btn.textContent = "Cancelar";
+    // Insertar antes del guardar (pie)
+    const footer =
+      el.querySelector(".ixd-actions--footer") ||
+      el.querySelector(".ixd-actions");
+    if (footer)
+      footer.insertBefore(btn, el.querySelector('[data-action="guardar"]'));
+    return btn;
+  }
+
+  function buildPauseButton() {
+    let btn = el.querySelector('[data-action="pausar"]');
+    if (btn) return btn;
+    btn = document.createElement("button");
+    btn.className = "btn warning ixd-pause";
+    btn.setAttribute("data-action", "pausar");
+    btn.type = "button";
+    btn.textContent = "Pausar";
+    const footer =
+      el.querySelector(".ixd-actions--footer") ||
+      el.querySelector(".ixd-actions");
+    if (footer)
+      footer.insertBefore(btn, footer.lastElementChild /* antes de eliminar */);
+    return btn;
+  }
+
+  function bindBasicButtons() {
+    // Cerrar (botón y overlay)
+    $all('[data-drawer="close"]', el).forEach((b) =>
+      b.addEventListener("click", close)
+    );
+    if (overlay) {
+      overlay.addEventListener("click", close);
+    }
+
+    // Editar / Guardar / Eliminar
+    btnEdit = el.querySelector('[data-action="editar"]');
+    btnSave = el.querySelector('[data-action="guardar"]');
+    btnDelete = el.querySelector('[data-action="eliminar"]');
+
+    // Cancelar (dinámico)
+    btnCancel = buildCancelButton();
+    btnPause = buildPauseButton();
+
+    btnEdit?.addEventListener("click", () => setEditMode(true));
+    btnCancel?.addEventListener("click", onCancel);
+    btnSave?.addEventListener("click", onSave);
+    btnDelete?.addEventListener("click", onDelete);
+    btnPause?.addEventListener("click", onPauseToggle);
+  }
+
+  function ensureCpColoniaSelects() {
+    // Reemplaza inputs por selects en modo edición
+    selCP = ensureSelectFromInput(
+      el.querySelector(
+        'input[name="contacto_cp"].ixd-input, select[name="contacto_cp"].ixd-input'
+      ),
+      { name: "contacto_cp" }
+    );
+    selCol = ensureSelectFromInput(
+      el.querySelector(
+        'input[name="contacto_colonia"].ixd-input, select[name="contacto_colonia"].ixd-input'
+      ),
+      { name: "contacto_colonia" }
+    );
+    if (selCP) selCP.hidden = true; // por defecto oculto (modo lectura)
+    if (selCol) selCol.hidden = true;
+
+    selCol && (selCol.disabled = true);
+
+    selCP?.addEventListener("change", () => {
+      fillColoniasFor(selCol, selCP.value || "");
+      if (selCol) selCol.value = "";
+    });
+  }
+
+  function showCpColoniaInEdit(row) {
+    if (!selCP || !selCol) return;
+    // Mostrar selects
+    selCP.hidden = false;
+    selCol.hidden = false;
+
+    // Popular opciones
+    if (CP_DATA.loaded) {
+      fillCpOptions(selCP);
+      const cp = String(row?.contacto_cp || "").trim();
+      if (cp && CP_DATA.list.includes(cp)) {
+        selCP.value = cp;
+        fillColoniasFor(selCol, cp);
+        const col = String(row?.contacto_colonia || "").trim();
+        if (col && (CP_DATA.map[cp] || []).includes(col)) selCol.value = col;
+      } else {
+        selCP.value = "";
+        fillColoniasFor(selCol, "");
+      }
+    } else {
+      // En cuanto cargue, intentamos setear los valores
+      fetchCpColonia().then(() => showCpColoniaInEdit(row));
+    }
+  }
+
+  function hideCpColoniaInView() {
+    if (!selCP || !selCol) return;
+    selCP.hidden = true;
+    selCol.hidden = true;
+  }
+
+  // --------- Acciones ---------
   async function onSave(ev) {
     ev?.preventDefault?.();
-
     if (saving) return;
     saving = true;
-    setBusy(el, true);
+    btnSave.disabled = true;
 
-    if (btnSave) btnSave.disabled = true;
-
-    // helpers para leer
     const getStr = (name) => {
       const v = $(`[name="${name}"][data-edit]`, el)?.value;
-      const t = (v ?? '').trim();
-      return t === '' ? null : t;
+      const t = (v ?? "").trim();
+      return t === "" ? null : t;
     };
     const getNum = (name) => {
       const raw = $(`[name="${name}"][data-edit]`, el)?.value;
@@ -454,116 +521,300 @@ export const Drawer = (() => {
     };
 
     try {
-      const id = Number($('input[name="id"]', el)?.value || NaN);
-      if (!id) throw new Error('Falta parámetro obligatorio: id');
-
-      // Validaciones mínimas
-      const asunto = getStr('asunto');
-      const descripcion = getStr('descripcion');
-      if (!asunto) throw new Error('Asunto es requerido');
-      if ((descripcion || '').length < 5) throw new Error('Descripción muy corta');
+      const id = Number(el.querySelector('input[name="id"]')?.value || NaN);
+      if (!id) throw new Error("Falta id");
 
       const payload = {
         id,
-        asunto,
-        descripcion,
-        prioridad: getNum('prioridad'),
-        canal: getNum('canal'),
-        contacto_nombre: getStr('contacto_nombre'),
-        contacto_telefono: getStr('contacto_telefono'),
-        contacto_email: getStr('contacto_email'),
-        contacto_cp: getStr('contacto_cp'),
-        contacto_calle: getStr('contacto_calle'),
-        contacto_colonia: getStr('contacto_colonia'),
-        updated_by: Number($('input[name="updated_by"]', el)?.value || (window.__ixSession?.id_usuario ?? 1)) || 1,
+        asunto: getStr("asunto"),
+        descripcion: getStr("descripcion"),
+        prioridad: getNum("prioridad"),
+        canal: getNum("canal"),
+
+        contacto_nombre: getStr("contacto_nombre"),
+        contacto_telefono: getStr("contacto_telefono")
+          ? digits(getStr("contacto_telefono"))
+          : null,
+        contacto_email: getStr("contacto_email"),
+        contacto_cp: selCP ? selCP.value || null : getStr("contacto_cp"),
+        contacto_colonia: selCol
+          ? selCol.value || null
+          : getStr("contacto_colonia"),
+        contacto_calle: getStr("contacto_calle"),
+
+        estatus: getNum("estatus"),
+
+        updated_by:
+          Number(
+            el.querySelector('input[name="updated_by"]')?.value ||
+              (window.__ixSession?.id_usuario ?? 1)
+          ) || 1,
       };
 
       const updated = await updateRequerimiento(payload);
 
-      // Remapear UI con respuesta
+      // Sincroniza UI y snapshot
       mapToFields(el, updated);
       mapToForm(el, updated);
-      el._row = updated;
-      snapshot = structuredClone ? structuredClone(updated) : JSON.parse(JSON.stringify(updated));
+      setPauseButtonByStatus(updated.estatus);
+
+      // actualiza raw-snapshot para cancelar futuro
+      el._row = { ...(el._row || {}), ...updated };
+      el._rowOriginal = { ...el._row };
 
       setEditMode(false);
-      try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
-      toast('Requerimiento actualizado', 'exito');
+      hideCpColoniaInView();
 
+      try {
+        el._callbacks?.onUpdated?.(updated);
+      } catch (e) {
+        console.error(e);
+      }
+      if (window.gcToast) gcToast("Cambios guardados.", "exito");
     } catch (err) {
-      console.error('[Drawer] save error:', err);
-      try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
-      toast(String(err?.message || err), 'warning');
+      console.error("[Drawer] save() error:", err);
+      try {
+        el._callbacks?.onError?.(err);
+      } catch (e) {
+        console.error(e);
+      }
+      if (window.gcToast) gcToast("No se pudo guardar.", "warning");
     } finally {
       saving = false;
-      setBusy(el, false);
-      if (btnSave) btnSave.disabled = !(el.classList.contains('editing') || el.classList.contains('mode-edit'));
+      btnSave.disabled = true; // queda deshabilitado fuera de edición
     }
   }
 
   async function onDelete(ev) {
     ev?.preventDefault?.();
-    if (!el || deleting) return;
-    if (!btnDelete) return;
+    if (deleting) return;
 
-    // Confirmación de 2 pasos
-    if (!btnDelete.dataset.confirm) {
-      btnDelete.dataset.confirm = "1";
-      const originalTxt = btnDelete.textContent;
-      btnDelete.dataset.original = originalTxt;
-      btnDelete.textContent = "¿Confirmar borrado?";
-      btnDelete.classList.add("danger");
+    const btn = btnDelete;
+    if (!btn) return;
+
+    // confirmación simple
+    if (!btn.dataset.confirm) {
+      btn.dataset.confirm = "1";
+      const originalTxt = btn.textContent;
+      btn.dataset.original = originalTxt;
+      btn.textContent = "¿Confirmar borrado?";
       setTimeout(() => {
-        if (!btnDelete) return;
-        btnDelete.textContent = btnDelete.dataset.original || "Eliminar";
-        btnDelete.removeAttribute("data-confirm");
-        btnDelete.removeAttribute("data-original");
-      }, 5000);
+        if (!btn) return;
+        btn.textContent = btn.dataset.original || "Eliminar";
+        btn.removeAttribute("data-confirm");
+        btn.removeAttribute("data-original");
+      }, 4500);
       return;
     }
 
     deleting = true;
-    btnDelete.disabled = true;
-    setBusy(el, true);
+    btn.disabled = true;
 
     try {
       const id = Number(el.querySelector('input[name="id"]')?.value || NaN);
-      if (!id) throw new Error("Falta parámetro obligatorio: id");
+      if (!id) throw new Error("Falta id");
 
-      const updated_by =
-        Number(el.querySelector('input[name="updated_by"]')?.value ||
-          (window.__ixSession?.id_usuario ?? 1)) || 1;
+      const payload = {
+        id,
+        status: 0, // Soft delete (1 → 0)
+        updated_by:
+          Number(
+            el.querySelector('input[name="updated_by"]')?.value ||
+              (window.__ixSession?.id_usuario ?? 1)
+          ) || 1,
+      };
 
-      // Soft delete: status -> 0
-      const payload = { id, status: 0, updated_by };
       const updated = await updateRequerimiento(payload);
-
-      try { el._callbacks?.onUpdated?.(updated); } catch (e) { console.error(e); }
+      try {
+        el._callbacks?.onUpdated?.(updated);
+      } catch (e) {
+        console.error(e);
+      }
       close();
-      toast('Requerimiento eliminado', 'exito');
-
+      if (window.gcToast) gcToast("Requerimiento desactivado.", "info");
     } catch (err) {
-      console.error("[Drawer] delete error:", err);
-      try { el._callbacks?.onError?.(err); } catch (e) { console.error(e); }
-      toast(String(err?.message || err), 'warning');
+      console.error("[Drawer] delete() error:", err);
+      try {
+        el._callbacks?.onError?.(err);
+      } catch (e) {
+        console.error(e);
+      }
+      if (window.gcToast) gcToast("No se pudo eliminar.", "warning");
     } finally {
       deleting = false;
-      setBusy(el, false);
-      if (btnDelete) btnDelete.disabled = false;
+      btn.disabled = false;
+      btn.textContent = btn.dataset.original || "Eliminar";
+      btn.removeAttribute("data-confirm");
+      btn.removeAttribute("data-original");
+    }
+  }
+
+  async function onPauseToggle() {
+    // Toggle: pausado(4) <-> solicitud(0)
+    const row = el._row || {};
+    const next = Number(row.estatus) === 4 ? 0 : 4;
+
+    try {
+      btnPause.disabled = true;
+      const id = Number(el.querySelector('input[name="id"]')?.value || NaN);
+      const updated_by =
+        Number(
+          el.querySelector('input[name="updated_by"]')?.value ||
+            (window.__ixSession?.id_usuario ?? 1)
+        ) || 1;
+      const updated = await updateRequerimiento({
+        id,
+        estatus: next,
+        updated_by,
+      });
+
+      // Repinta UI
+      mapToFields(el, updated);
+      mapToForm(el, updated);
+      setPauseButtonByStatus(updated.estatus);
+
+      // Actualiza snapshot
+      el._row = { ...row, ...updated };
+      el._rowOriginal = { ...el._row };
+
+      try {
+        el._callbacks?.onUpdated?.(updated);
+      } catch (e) {
+        console.error(e);
+      }
+      if (window.gcToast)
+        gcToast(
+          next === 4 ? "Requerimiento pausado." : "Requerimiento reanudado.",
+          "info"
+        );
+    } catch (e) {
+      console.error("[Drawer] pause toggle error:", e);
+      if (window.gcToast) gcToast("No se pudo cambiar el estatus.", "warning");
+    } finally {
+      btnPause.disabled = false;
     }
   }
 
   function onCancel() {
-    const ok = confirm('¿Descartar cambios?');
-    if (!ok) return;
+    // Revertir a snapshot original
+    const orig = el._rowOriginal || el._row || {};
+    mapToFields(el, orig);
+    mapToForm(el, orig);
+    setPauseButtonByStatus(orig.estatus);
+    setEditMode(false);
+    hideCpColoniaInView();
+  }
 
-    if (snapshot) {
-      mapToFields(el, snapshot);
-      mapToForm(el, snapshot);
-      el._row = snapshot;
+  // --------- API pública ---------
+  function init(selector = ".ix-drawer") {
+    el = document.querySelector(selector);
+    if (!el) {
+      console.warn("[Drawer] no se encontró", selector);
+      return;
     }
-    clearPreviews();
-    forceReadMode();
+    if (el.__inited) return;
+    el.__inited = true;
+
+    overlay = document.querySelector('[data-drawer="overlay"]');
+
+    formRoot = el;
+    heroImg = $('[data-img="hero"]', el);
+    pickBtn = $('[data-img="pick"]', el);
+    fileInput = $('[data-img="file"]', el);
+    previewsBox = $('[data-img="previews"]', el);
+    uploadBtn = $('[data-img="uploadBtn"]', el);
+    uploadStatus = $('[data-img="uploadStatus"]', el);
+    viewStatusSel = $('[data-img="viewStatus"]', el); // opcional (si no, usamos uploadStatus)
+
+    bindBasicButtons();
+    ensureCpColoniaSelects();
+
+    // Imagen: elegir archivo
+    if (pickBtn && fileInput) {
+      pickBtn.addEventListener("click", onPickFiles);
+      fileInput.addEventListener("change", handleFileInputChange);
+    }
+    // Subir
+    if (uploadBtn) {
+      uploadBtn.disabled = true; // hasta que haya archivos
+      uploadBtn.addEventListener("click", doUpload);
+    }
+
+    // View status (si existe) → Galería
+    if (viewStatusSel) {
+      viewStatusSel.addEventListener("change", () =>
+        loadGalleryFor(Number(viewStatusSel.value || 0))
+      );
+    } else if (uploadStatus) {
+      // Usar el mismo de subida como filtro de galería
+      uploadStatus.addEventListener("change", () =>
+        loadGalleryFor(Number(uploadStatus.value || 0))
+      );
+    }
+
+    console.log("[Drawer] init OK");
+  }
+
+  function open(row, callbacks = {}) {
+    if (!el) return console.warn("[Drawer] init() primero");
+
+    // Snapshot
+    el._row = { ...(row || {}) };
+    el._rowOriginal = { ...(row || {}) };
+    el._callbacks = callbacks || {};
+
+    // Mapear
+    mapToFields(el, row || {});
+    mapToForm(el, row || {});
+
+    // Folio visible
+    const folioEl = $(".ixd-folio", el);
+    if (folioEl) setText(folioEl, row?.folio || "REQ-0000000000");
+
+    // Imagen hero (opcional)
+    if (heroImg) {
+      heroImg.src = row?.hero_url || "";
+      heroImg.alt = row?.folio || "Evidencia";
+    }
+
+    // Estado UI
+    setEditMode(false);
+    setPauseButtonByStatus(row?.estatus);
+
+    // Subida/galería: set default status
+    const st = Number(row?.estatus ?? 0);
+    if (uploadStatus) uploadStatus.value = String(st);
+    if (viewStatusSel) viewStatusSel.value = String(st);
+
+    // Cargar galería del estatus actual
+    const v = viewStatusSel
+      ? Number(viewStatusSel.value)
+      : Number(uploadStatus?.value || st);
+    loadGalleryFor(v);
+
+    // CP/Colonia combos: precarga catálogo (best-effort)
+    fetchCpColonia().catch(() => {});
+
+    // Abrir + overlay
+    el.classList.add("open");
+    if (overlay) {
+      overlay.hidden = false;
+    }
+
+    console.log("[Drawer] open →", row?.id, row?.folio);
+  }
+
+  function close() {
+    if (!el) return;
+    el.classList.remove("open");
+    if (overlay) overlay.hidden = true;
+
+    // limpiar archivo/previews
+    if (previewsBox) previewsBox.innerHTML = "";
+    if (fileInput) fileInput.value = "";
+    if (uploadBtn) uploadBtn.disabled = true;
+
+    setEditMode(false);
   }
 
   return { init, open, close, setEditMode };
