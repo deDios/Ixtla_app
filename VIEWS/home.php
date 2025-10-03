@@ -117,14 +117,13 @@
                     <section class="profile-card">
                         <img class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
 
-                        <a class="profile-link" href="#perfil">Administrar perfil ›</a>
+                        <a class="profile-link" href="#perfil">Administrar perfil ></a>
 
-                        <!-- línea corta del mockup -->
                         <span class="profile-dash" aria-hidden="true"></span>
 
-                        <!-- “SAMAPA” como chip -->
+                        <!-- chip de departamento -->
                         <button type="button" class="profile-dep badge" aria-label="Dependencia actual">
-                            SAMAPA
+                            Departamento
                         </button>
                     </section>
 

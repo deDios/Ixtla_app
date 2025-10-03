@@ -2,6 +2,7 @@
 @media (max-width: 992px){.ix-home .home-grid{grid-template-columns:1fr}}
 
 main {padding-top: 4rem;}
+
 /*---------------- sidebar ---------------------------*/
 .ix-home .home-sidebar{ display:flex; flex-direction:column; gap:14px; }
 
@@ -38,11 +39,43 @@ main {padding-top: 4rem;}
 }
 
 .ix-home .profile-dep.badge{
-  display:inline-block; background:#6aa995; color:#fff;
-  border-radius:8px; padding:6px 14px;
-  font-size:.85rem; font-weight:700; letter-spacing:.2px;
-  box-shadow:0 2px 0 rgba(0,0,0,.08);
+  border: 0 !important;
+  outline: none;
+  background: #6aa995 !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+  font-size: .85rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .2px;
+  box-shadow: 0 1px 0 rgba(0,0,0,.10) !important; 
 }
+
+.ix-home .profile-dep.badge:focus-visible{
+  outline: 2px solid #93c5fd !important;
+  outline-offset: 2px;
+}
+
+@media (min-width: 993px){
+  .ix-home .home-sidebar{
+    border-right: 1px solid #e5e7eb;  
+    padding-right: 16px;              
+    margin-right: 16px;              
+  }
+}
+
+.ix-home .profile-card{
+  background:#fff;
+  border: 1px solid #eef2f7;
+  border-radius: 18px;        
+  padding: 18px 16px;
+}
+.ix-home .profile-dash{
+  width: 28px; height: 2px; border-radius: 2px;
+  background:#d4dbe4;       
+  margin: 2px 0 6px;
+}
+
 
 /*---------------- lista de status del sidebar -----------------------------*/
 .ix-home .status-block{ background:transparent; }
@@ -63,10 +96,10 @@ main {padding-top: 4rem;}
 }
 
 .ix-home .status-nav .status-item .label{ font-weight:500; }
-.ix-home .status-nav .status-item .count{ color:#94a3b8; }
+.ix-home .status-nav .status-item .count{ color:#2e7d32 !important; }
 
 .ix-home .status-nav .status-item:hover{
-  background:#f5f7fb;      
+  background:#f6f8fb;
 }
 
 .ix-home .status-nav .status-item.active{
@@ -85,13 +118,6 @@ main {padding-top: 4rem;}
   color:#9ca3af; cursor:default;
 }
 
-@media (min-width: 993px){
-  .ix-home .home-sidebar{
-    position: sticky;
-    top: 96px;      
-    align-self: start;
-  }
-}
 /*------------------ fin del sidebar ---------------*/
 
 .ix-home .home-main{display:flex;flex-direction:column;gap:20px}
