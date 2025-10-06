@@ -8,6 +8,65 @@ const MAX_FILES_CLIENT  = 3;
 const MAX_BYTES_CLIENT  = 1 * 1024 * 1024; // 1 MB
 const ALLOWED_MIME = ["image/jpeg","image/png","image/webp","image/heic","image/heif"];
 
+/* ====== CP/Colonia (catálogo + cache) ====== */
+const CP_EP =
+  window.IX_CFG_REQ?.ENDPOINTS?.cpcolonia ||
+  window.IX_CFG_DEPS?.ENDPOINTS?.cpcolonia ||
+  "/db/WEB/ixtla01_c_cpcolonia.php";
+
+const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
+const CP_CACHE_TTL = 10 * 60 * 1000; // 10 min
+let CP_MAP = null;   // { "45850": ["Centro","X","Y"] }
+let CP_LIST = null;
+
+function cpCacheGet(){
+  try{
+    const raw = sessionStorage.getItem(CP_CACHE_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || Date.now()-obj.t > (obj.ttl||CP_CACHE_TTL)) {
+      sessionStorage.removeItem(CP_CACHE_KEY);
+      return null;
+    }
+    return obj;
+  } catch { return null; }
+}
+function cpCacheSet(map,list){
+  try{
+    sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify({t:Date.now(), ttl:CP_CACHE_TTL, map, list}));
+  } catch {}
+}
+function cpExtract(json){
+  const arr = Array.isArray(json?.data) ? json.data :
+              (Array.isArray(json) ? json : []);
+  const tmp = {};
+  for (const it of arr){
+    const cp  = String(it.cp ?? it.CP ?? it.codigo_postal ?? it.codigoPostal ?? "").trim();
+    const col = String(it.colonia ?? it.Colonia ?? it.asentamiento ?? it.neighborhood ?? "").trim();
+    if (!cp || !col) continue;
+    if (!tmp[cp]) tmp[cp] = new Set();
+    tmp[cp].add(col);
+  }
+  const map = Object.fromEntries(Object.entries(tmp).map(([k,v]) => [k, [...v].sort((a,b)=>a.localeCompare(b,'es'))]));
+  const list = Object.keys(map).sort();
+  return { map, list };
+}
+async function ensureCpCatalog(){
+  if (CP_MAP && CP_LIST) return;
+  const hit = cpCacheGet();
+  if (hit?.map && hit?.list){ CP_MAP = hit.map; CP_LIST = hit.list; return; }
+  const r = await fetch(CP_EP, {
+    method: "POST",
+    headers: { "Content-Type":"application/json", "Accept":"application/json" },
+    body: JSON.stringify({ all: true })
+  });
+  const j = await r.json().catch(()=>null);
+  const { map, list } = cpExtract(j || {});
+  CP_MAP = map; CP_LIST = list;
+  cpCacheSet(CP_MAP, CP_LIST);
+}
+function makeOpt(v,l,o={}){ const el=document.createElement("option"); el.value=v; el.textContent=l; if(o.disabled)el.disabled=true; if(o.selected)el.selected=true; return el; }
+
 /* ====== DOM utils ====== */
 const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
@@ -95,13 +154,16 @@ function buildPreview(file, container) {
 /* ====== Drawer ====== */
 export const Drawer = (() => {
   let el;                 // panel <aside class="ix-drawer">
-  let overlayEl;          // overlay [data-drawer="overlay"] (vive fuera del aside)
+  let overlayEl;          // overlay [data-drawer="overlay"]
   let closeBtn;           // botón cerrar [data-drawer="close"]
 
   let heroImg, pickBtn, fileInput, previewsBox, uploadBtn;
-  let statusSelView; // [data-img="viewStatus"] (preferido)
-  let statusSelUp;   // [data-img="uploadStatus"] (soporte legado)
+  let statusSelView; // [data-img="viewStatus"]
+  let statusSelUp;   // [data-img="uploadStatus"]
   let btnSave, btnDelete, btnEdit, btnCancel;
+
+  // CP/Colonia selects (en edición)
+  let cpInputSel, colInputSel;
 
   let saving=false, deleting=false, snapshot=null;
 
@@ -119,6 +181,9 @@ export const Drawer = (() => {
     if (!el) { console.warn("[Drawer] no se encontró", selector); return; }
     if (el.__inited) return; el.__inited = true;
 
+    // A11y: hacer focuseable el dialog
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex","-1");
+
     closeBtn    = $('[data-drawer="close"]', el);
     heroImg     = $('[data-img="hero"]', el);
     pickBtn     = $('[data-img="pick"]', el);
@@ -135,7 +200,7 @@ export const Drawer = (() => {
     btnEdit   = $('[data-action="editar"]', el);
     btnCancel = $('[data-action="cancelar"]', el);
 
-    // Insertar Cancelar si falta (según tu HTML ya existe, pero por si acaso)
+    // Insertar Cancelar si falta
     if (!btnCancel) {
       const footer = $(".ixd-actions--footer", el) || el;
       btnCancel = document.createElement("button");
@@ -199,6 +264,34 @@ export const Drawer = (() => {
     if (btnCancel) { btnCancel.hidden = true; btnCancel.style.display = "none"; }
     el.classList.remove("editing","mode-edit");
   }
+
+  function ensureCpColoniaInputs(row={}){
+    cpInputSel  = el.querySelector('.ixd-input[name="contacto_cp"][data-edit]');
+    colInputSel = el.querySelector('.ixd-input[name="contacto_colonia"][data-edit]');
+    if (!cpInputSel || !colInputSel) return;
+
+    // poblar CPs
+    cpInputSel.innerHTML = "";
+    cpInputSel.appendChild(makeOpt("", "Selecciona C.P.", {disabled:true, selected:true}));
+    (CP_LIST || []).forEach(cp => cpInputSel.appendChild(makeOpt(cp, cp)));
+
+    const cpVal = String(row.contacto_cp ?? "").trim();
+    if (cpVal && !CP_MAP?.[cpVal]) cpInputSel.appendChild(makeOpt(cpVal, cpVal));
+    if (cpVal) cpInputSel.value = cpVal;
+
+    populateColoniasForCP(cpVal, row.contacto_colonia);
+    cpInputSel.onchange = () => populateColoniasForCP(cpInputSel.value, null);
+  }
+  function populateColoniasForCP(cp, selectedCol){
+    if (!colInputSel) return;
+    const list = CP_MAP?.[String(cp)] || [];
+    colInputSel.innerHTML = "";
+    colInputSel.appendChild(makeOpt("", "Selecciona colonia", {disabled:true, selected:true}));
+    list.forEach(c => colInputSel.appendChild(makeOpt(c, c)));
+    colInputSel.disabled = list.length === 0;
+    if (selectedCol && list.includes(selectedCol)) colInputSel.value = selectedCol;
+  }
+
   function setEditMode(on) {
     el.classList.toggle("editing", !!on);
     el.classList.toggle("mode-edit", !!on);
@@ -207,6 +300,13 @@ export const Drawer = (() => {
     if (btnSave)   { btnSave.hidden = !on; btnSave.style.display = on ? "" : "none"; btnSave.disabled = !on; }
     if (btnDelete) btnDelete.style.display = on ? "none" : "";
     if (btnCancel) { btnCancel.hidden = !on; btnCancel.style.display = on ? "" : "none"; }
+
+    // Cargar catálogo CP/Colonia y encadenar selects al entrar a edición
+    if (on) {
+      ensureCpCatalog()
+        .then(() => ensureCpColoniaInputs(el._row || {}))
+        .catch(() => {/* silencioso */});
+    }
   }
 
   function open(row={}, callbacks={}) {
@@ -255,6 +355,13 @@ export const Drawer = (() => {
     showOverlay(false);
     clearPreviews();
     forceReadMode();
+    // Reset de confirmación de borrado (por si se quedó en 2do paso)
+    if (btnDelete) {
+      btnDelete.textContent = btnDelete.dataset.original || btnDelete.textContent || "Eliminar";
+      btnDelete.classList.remove("danger");
+      btnDelete.removeAttribute("data-confirm");
+      btnDelete.removeAttribute("data-original");
+    }
     try { el._callbacks?.onClose?.(); } catch {}
   }
 
@@ -289,7 +396,7 @@ export const Drawer = (() => {
   async function onUpload() {
     const folio = String($(".ixd-folio", el)?.textContent || "").trim();
     const status = Number((statusSelUp || statusSelView)?.value || el._row?.estatus || 0);
-    const files = Array.from(fileInput?.files || []);
+    const files = Array.from(fileInput?.files || []); // eslint-disable-line no-undef
 
     if (!FOLIO_RX.test(folio)) { toast("Folio inválido", "warning"); return; }
     if (!files.length) return;
@@ -307,7 +414,7 @@ export const Drawer = (() => {
     setBusy(el, true);
     try {
       // Preparar carpetas (best-effort, sin romper si falla)
-      try { await setupMedia(folio, { create_status_txt: true }); } catch {}
+      try { await setupMedia(folio); } catch {}
 
       const r = await uploadMedia({ folio, status, files: valid });
       const ok = r.ok && (r.saved?.length || 0) > 0;
