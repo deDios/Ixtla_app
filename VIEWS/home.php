@@ -80,16 +80,18 @@
             <div class="home-grid">
                 <!-- Sidebar -->
                 <aside class="home-sidebar">
-                    <section class="profile-card">
+                    <section class="profile-card" aria-label="Perfil">
                         <img class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
 
                         <a class="profile-link" href="#perfil">Administrar perfil ></a>
 
+                        <!-- Nombre del empleado -->
+                        <h3 id="h-user-nombre" class="profile-name">—</h3>
+
                         <span class="profile-dash" aria-hidden="true"></span>
 
-                        <!-- chip de departamento -->
+                        <!-- badge de departamento -->
                         <button type="button" class="profile-dep badge" aria-label="Dependencia actual">
-                            Departamento
                         </button>
                     </section>
 

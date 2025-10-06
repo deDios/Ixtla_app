@@ -39,14 +39,12 @@ const CFG = {
   },
   TABLE: { pageSize: 7, reqFetchPerPage: 200 },
   FEATURES: {
-    preHydrateFromCookie: true,     // pinta nombre/avatar rápido mientras llega el API
-    deptChipToggleEnabled: true,    // chip de depto = filtro opcional (por defecto: TODOS)
+    preHydrateFromCookie: true,     
+    deptChipToggleEnabled: true,    
   },
 };
 
-// ============================================================================
 // Estatus y colores
-// ============================================================================
 const ESTATUS = {
   0: { clave: "solicitud",  nombre: "Solicitud"   },
   1: { clave: "revision",   nombre: "Revisión"    },
@@ -73,9 +71,7 @@ function humanStatusLabel(key) {
   return ESTATUS_BY_CLAVE(key)?.nombre ?? (key === "todos" ? "Todos los status" : key);
 }
 
-// ============================================================================
-// Session boot (solo para identificar; los datos oficiales vienen del API)
-// ============================================================================
+// Session
 function readIxSession() {
   if (window.__ixSession && typeof window.__ixSession === "object") return window.__ixSession;
   if (window.Session?.get) {
@@ -103,9 +99,7 @@ const SessIDs = {
     : [],
 };
 
-// ============================================================================
 // DOM helpers
-// ============================================================================
 const $one = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const bindOnce = (el, ev, fn) => { if (!el || el.dataset.binded === "1") return; el.addEventListener(ev, fn); el.dataset.binded = "1"; };
@@ -133,9 +127,7 @@ function setCount(key, val) {
   if (byDs) byDs.textContent = `(${val})`;
 }
 
-// ============================================================================
-// Resolver nombre de departamento (cache)
-// ============================================================================
+// Resolver nombre de departamento 
 const deptCache = new Map();
 async function resolveDepartamentoNombre(depId) {
   if (!depId) return "Sin dependencia";
@@ -156,9 +148,7 @@ async function resolveDepartamentoNombre(depId) {
   return fallback;
 }
 
-// ============================================================================
 // API Empleado
-// ============================================================================
 async function empleadoById(idEmpleado) {
   if (!idEmpleado) return null;
   try {
@@ -187,9 +177,7 @@ async function empleadoByUsername(username) {
   } catch { return null; }
 }
 
-// ============================================================================
 // Store
-// ============================================================================
 const S = createStore({
   user: {
     idEmpleado: null,
@@ -202,16 +190,14 @@ const S = createStore({
   filtros: {
     status: "todos",
     search: "",
-    depto: null, // null -> TODOS los deptos
+    depto: null, 
   },
   requerimientos: [],
   counts: { todos: 0, solicitud: 0, revision: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 },
   pageSize: CFG.TABLE.pageSize,
 });
 
-// ============================================================================
-// Pre-hydrate (opcional) para evitar parpadeo inicial
-// ============================================================================
+// Pre-hydrate
 (function preHydrateSidebar() {
   if (!CFG.FEATURES.preHydrateFromCookie) return;
   const fullName = S.get().user.nombre || "";
