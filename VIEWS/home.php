@@ -8,41 +8,7 @@
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/components.css">
-
     <link rel="icon" href="/favicon.ico">
-
-
-    <!-- guardiaBonus
-    <style>
-        html.ix-guard-pending {
-            visibility: hidden
-        }
-    </style>
-    <script>
-        document.documentElement.classList.add('ix-guard-pending');
-    </script>
-
-    <link rel="modulepreload" href="/JS/auth/session.js?v=2">
-    <link rel="modulepreload" href="/JS/auth/guard.js?v=2">
-
-    <script type="module">
-        import {
-            getSession
-        } from "/JS/auth/session.js";
-        window.__ixSession = getSession();
-    </script>
-
-    <script type="module">
-        import {
-            guardPage
-        } from "/JS/auth/guard.js?v=2";
-        guardPage({
-            stealth: true,
-            stealthTheme: "plain"
-        });
-    </script>
-
-     -->
 
 </head>
 
@@ -421,7 +387,7 @@
                 <!-- Previews locales -->
                 <div class="ixd-previews" data-img="previews" aria-live="polite" aria-atomic="true"></div>
 
-                <!-- Botón Subir (sin segundo select) -->
+                <!-- Boton Subir -->
                 <div class="ixd-uploadRow">
                     <button class="btn" data-img="uploadBtn" type="button">Subir</button>
                 </div>
