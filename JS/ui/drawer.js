@@ -2,23 +2,21 @@
 import { setupMedia, listMedia, uploadMedia } from "/JS/api/media.js";
 import { updateRequerimiento } from "/JS/api/requerimientos.js";
 
-/* ========= Constantes ========= */
+/* ====== Const ====== */
 const FOLIO_RX = /^REQ-\d{10}$/;
-const MAX_FILES_CLIENT = 3;
-const MAX_BYTES_CLIENT = 1 * 1024 * 1024; // 1 MB
-const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+const MAX_FILES_CLIENT  = 3;
+const MAX_BYTES_CLIENT  = 1 * 1024 * 1024; // 1 MB
+const ALLOWED_MIME = ["image/jpeg","image/png","image/webp","image/heic","image/heif"];
 
-/* ========= Utils del DOM ========= */
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+/* ====== DOM utils ====== */
+const $  = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const setText = (el, txt) => { if (el) el.textContent = (txt ?? "—"); };
-const setVal = (el, val) => { if (el) el.value = (val ?? ""); };
-const toast = (m, t = "info") => { try { window.gcToast?.(m, t); } catch { } };
-const setBusy = (root, on) => root.classList.toggle("is-busy", !!on);
-const clone = (o) => (window.structuredClone ? structuredClone(o) : JSON.parse(JSON.stringify(o)));
-const setVisible = (el, show) => { if (!el) return; el.hidden = !show; el.style.display = show ? "" : "none"; };
+const setVal  = (el, val) => { if (el) el.value = (val ?? ""); };
+const toast = (m,t="info") => { try{ window.gcToast?.(m,t); }catch{} };
+const setBusy = (root,on) => root.classList.toggle("is-busy", !!on);
 
-/* ========= UI ========= */
+/* ====== Map data → UI ====== */
 function mapToFields(root, data = {}) {
   $$("[data-field]", root).forEach(el => {
     const key = el.getAttribute("data-field");
@@ -40,11 +38,28 @@ function mapToForm(root, data = {}) {
   if (hidUb) hidUb.value = (window.__ixSession?.id_usuario ?? 1);
 }
 
-/* ========= Galería ========= */
+/* ====== Galería ====== */
+function ensureGalleryDom(root) {
+  let grid  = $('[data-img="grid"]', root);
+  let empty = $('[data-img="empty"]', root);
+  if (!grid) {
+    grid = document.createElement("div");
+    grid.className = "ixd-gallery";
+    grid.setAttribute("data-img","grid");
+    ($(".ixd-body", root) || root).appendChild(grid);
+  }
+  if (!empty) {
+    empty = document.createElement("p");
+    empty.className = "muted";
+    empty.setAttribute("data-img","empty");
+    empty.hidden = true;
+    empty.textContent = "No hay imágenes para este estado.";
+    grid.parentElement.insertBefore(empty, grid);
+  }
+  return { grid, empty };
+}
 function paintGallery(root, resp) {
-  const grid = $('[data-img="grid"]', root);
-  const empty = $('[data-img="empty"]', root);
-  if (!grid || !empty) return;
+  const { grid, empty } = ensureGalleryDom(root);
   grid.innerHTML = "";
   const list = (resp?.data || []).filter(Boolean);
   if (!list.length) { empty.hidden = false; return; }
@@ -53,21 +68,21 @@ function paintGallery(root, resp) {
   list.forEach(it => {
     const a = document.createElement("a");
     a.className = "ixd-card";
-    a.href = it.url || "#";
+    a.href   = it.url || "#";
     a.target = "_blank";
-    a.rel = "noopener";
+    a.rel    = "noopener";
     a.innerHTML = `
-      <img src="${it.url}" loading="lazy" alt="${(it.name || 'evidencia')}">
-      <div class="nm" title="${it.name || ''}">${it.name || ''}</div>
+      <img src="${it.url}" loading="lazy" alt="${(it.name||'evidencia')}">
+      <div class="nm" title="${it.name||''}">${it.name || ''}</div>
     `;
     frag.appendChild(a);
   });
   grid.appendChild(frag);
 }
 
-/* ========= Previews locales ========= */
+/* ====== Previews locales ====== */
 function buildPreview(file, container) {
-  const url = URL.createObjectURL(file);
+  const url  = URL.createObjectURL(file);
   const wrap = document.createElement("div");
   wrap.className = "ixd-prevItem";
   wrap.innerHTML = `
@@ -77,64 +92,73 @@ function buildPreview(file, container) {
   container.appendChild(wrap);
 }
 
-/* ========= Drawer ========= */
-export const Drawer = (() => { //clases para no jerrarle
-  let panel;                  // <aside class="ix-drawer" data-drawer="panel">
-  let overlay;                // .ix-drawer-overlay [data-drawer="overlay"]
+/* ====== Drawer ====== */
+export const Drawer = (() => {
+  let el;                 // panel <aside class="ix-drawer">
+  let overlayEl;          // overlay [data-drawer="overlay"] (vive fuera del aside)
+  let closeBtn;           // botón cerrar [data-drawer="close"]
 
-  let btnClose;               // [data-drawer="close"]
-  let btnEdit;                // [data-action="editar"]
-  let btnSave;                // [data-action="guardar"]
-  let btnCancel;              // [data-action="cancelar"]
-  let btnPause;               // [data-action="pausar"]
-  let btnDelete;              // [data-action="eliminar"]
+  let heroImg, pickBtn, fileInput, previewsBox, uploadBtn;
+  let statusSelView; // [data-img="viewStatus"] (preferido)
+  let statusSelUp;   // [data-img="uploadStatus"] (soporte legado)
+  let btnSave, btnDelete, btnEdit, btnCancel;
 
-  let heroImg;                // [data-img="hero"]
-  let pickBtn;                // [data-img="pick"]
-  let fileInput;              // [data-img="file"]
-  let previewsBox;            // [data-img="previews"]
-  let uploadBtn;              // [data-img="uploadBtn"]
-  let viewStatusSel;          // [data-img="viewStatus"] 
+  let saving=false, deleting=false, snapshot=null;
 
-  let escHandlerBound = null;
-  let snapshot = null;
-  let saving = false, deleting = false;
+  function showOverlay(flag){
+    if (!overlayEl) return;
+    overlayEl.hidden = !flag;
+    overlayEl.classList.toggle("open", !!flag);
+    overlayEl.setAttribute("aria-hidden", String(!flag));
+    document.body.style.overflow = flag ? "hidden" : "";
+  }
 
-  /* ----- init ----- */
   function init(selector = ".ix-drawer") {
-    panel = $(selector);
-    overlay = $('[data-drawer="overlay"]') || $(".ix-drawer-overlay");
+    el = document.querySelector(selector);
+    overlayEl = document.querySelector('[data-drawer="overlay"]');
+    if (!el) { console.warn("[Drawer] no se encontró", selector); return; }
+    if (el.__inited) return; el.__inited = true;
 
-    if (!panel) { console.warn("[Drawer] no se encontró", selector); return; }
-    if (panel.__inited) return;
-    panel.__inited = true;
+    closeBtn    = $('[data-drawer="close"]', el);
+    heroImg     = $('[data-img="hero"]', el);
+    pickBtn     = $('[data-img="pick"]', el);
+    fileInput   = $('[data-img="file"]', el);
+    previewsBox = $('[data-img="previews"]', el);
+    uploadBtn   = $('[data-img="uploadBtn"]', el);
 
-    // grab DOM
-    btnClose = $('[data-drawer="close"]', panel);
-    btnEdit = $('[data-action="editar"]', panel);
-    btnSave = $('[data-action="guardar"]', panel);
-    btnCancel = $('[data-action="cancelar"]', panel);
-    btnPause = $('[data-action="pausar"]', panel);
-    btnDelete = $('[data-action="eliminar"]', panel);
+    // selects de estatus (preferimos "viewStatus")
+    statusSelView = $('[data-img="viewStatus"]', el);
+    statusSelUp   = $('[data-img="uploadStatus"]', el);
 
-    heroImg = $('[data-img="hero"]', panel);
-    pickBtn = $('[data-img="pick"]', panel);
-    fileInput = $('[data-img="file"]', panel);
-    previewsBox = $('[data-img="previews"]', panel);
-    uploadBtn = $('[data-img="uploadBtn"]', panel);
-    viewStatusSel = $('[data-img="viewStatus"]', panel);
+    btnSave   = $('[data-action="guardar"]', el);
+    btnDelete = $('[data-action="eliminar"]', el);
+    btnEdit   = $('[data-action="editar"]', el);
+    btnCancel = $('[data-action="cancelar"]', el);
 
-    // listeners UI principales
-    btnClose?.addEventListener("click", close);
-    overlay?.addEventListener("click", close);
+    // Insertar Cancelar si falta (según tu HTML ya existe, pero por si acaso)
+    if (!btnCancel) {
+      const footer = $(".ixd-actions--footer", el) || el;
+      btnCancel = document.createElement("button");
+      btnCancel.className = "btn ixd-cancel";
+      btnCancel.type = "button";
+      btnCancel.dataset.action = "cancelar";
+      btnCancel.textContent = "Cancelar";
+      btnCancel.hidden = true;
+      btnCancel.style.display = "none";
+      footer.insertBefore(btnCancel, btnDelete || null);
+    }
 
+    // Eventos de cerrar
+    closeBtn?.addEventListener("click", close);
+    overlayEl?.addEventListener("click", close);
+
+    // Botonera
     btnEdit?.addEventListener("click", () => setEditMode(true));
     btnSave?.addEventListener("click", onSave);
     btnCancel?.addEventListener("click", onCancel);
-    btnPause?.addEventListener("click", onPauseToggle);
     btnDelete?.addEventListener("click", onDelete);
 
-    // imagenes
+    // Picker/Files
     if (pickBtn && fileInput) {
       pickBtn.addEventListener("click", () => fileInput.click());
       fileInput.addEventListener("change", onFilesPicked);
@@ -144,115 +168,96 @@ export const Drawer = (() => { //clases para no jerrarle
       uploadBtn.addEventListener("click", onUpload);
     }
 
-    // ver galeria por estatus
-    viewStatusSel?.addEventListener("change", async () => {
-      const folio = String($(".ixd-folio", panel)?.textContent || "").trim();
+    // Cambio de estatus de vista → recarga galería
+    (statusSelView || statusSelUp)?.addEventListener("change", async () => {
+      const folio = String($(".ixd-folio", el)?.textContent || "").trim();
       if (!FOLIO_RX.test(folio)) return;
-      const st = Number(viewStatusSel.value || panel._row?.estatus || 0);
-      setBusy(panel, true);
-      try { const resp = await listMedia(folio, st, 1, 100); paintGallery(panel, resp); }
-      finally { setBusy(panel, false); }
+      const st = Number((statusSelView || statusSelUp).value || el._row?.estatus || 0);
+      setBusy(el, true);
+      try { const resp = await listMedia(folio, st, 1, 100); paintGallery(el, resp); }
+      finally { setBusy(el, false); }
     });
 
-    // lectura por default
-    forceReadMode();
-  }
-
-  /* ----- modos ----- */
-  function forceReadMode() {
-    // mostrar textos, ocultar inputs
-    $$(".ixd-field p", panel).forEach(p => p.hidden = false);
-    $$("[data-edit]", panel).forEach(i => i.hidden = true);
-
-    // botones
-    setVisible(btnSave, false); btnSave && (btnSave.disabled = true);
-    setVisible(btnCancel, false);
-    setVisible(btnDelete, true);
-    setVisible(btnPause, true);
-
-    panel.classList.remove("editing", "mode-edit");
-  }
-  function setEditMode(on) {
-    panel.classList.toggle("editing", !!on);
-    panel.classList.toggle("mode-edit", !!on);
-
-    $$(".ixd-field p", panel).forEach(p => p.hidden = !!on);
-    $$("[data-edit]", panel).forEach(i => i.hidden = !on);
-
-    setVisible(btnSave, on); if (btnSave) btnSave.disabled = !on;
-    setVisible(btnCancel, on);
-    setVisible(btnDelete, !on);
-    setVisible(btnPause, !on);
-  }
-
-  /* ----- abrir / cerrar ----- */
-  function bindEsc() {
-    if (escHandlerBound) return;
-    escHandlerBound = (e) => {
-      if (e.key === "Escape") {
-        const isEditing = panel.classList.contains("editing") || panel.classList.contains("mode-edit");
+    // Atajos (incluye Escape para cerrar)
+    el.addEventListener("keydown", (ev) => {
+      const isEditing = el.classList.contains("editing") || el.classList.contains("mode-edit");
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "s") {
+        if (isEditing) { ev.preventDefault(); onSave(); }
+      } else if (ev.key === "Escape") {
         if (isEditing) onCancel(); else close();
       }
-    };
-    document.addEventListener("keydown", escHandlerBound);
-  }
-  function unbindEsc() {
-    if (!escHandlerBound) return;
-    document.removeEventListener("keydown", escHandlerBound);
-    escHandlerBound = null;
+    });
+
+    forceReadMode();
   }
 
-  function open(row = {}, callbacks = {}) {
-    if (!panel) { console.warn("[Drawer] init() primero"); return; }
+  function forceReadMode() {
+    $$(".ixd-field p", el).forEach(p => p.hidden = false);
+    $$("[data-edit]", el).forEach(i => i.hidden = true);
+    if (btnSave)   { btnSave.hidden = true; btnSave.style.display = "none"; btnSave.disabled = true; }
+    if (btnDelete) btnDelete.style.display = "";
+    if (btnCancel) { btnCancel.hidden = true; btnCancel.style.display = "none"; }
+    el.classList.remove("editing","mode-edit");
+  }
+  function setEditMode(on) {
+    el.classList.toggle("editing", !!on);
+    el.classList.toggle("mode-edit", !!on);
+    $$(".ixd-field p", el).forEach(p => p.hidden = !!on);
+    $$("[data-edit]", el).forEach(i => i.hidden = !on);
+    if (btnSave)   { btnSave.hidden = !on; btnSave.style.display = on ? "" : "none"; btnSave.disabled = !on; }
+    if (btnDelete) btnDelete.style.display = on ? "none" : "";
+    if (btnCancel) { btnCancel.hidden = !on; btnCancel.style.display = on ? "" : "none"; }
+  }
+
+  function open(row={}, callbacks={}) {
+    if (!el) return console.warn("[Drawer] init() primero");
     forceReadMode();
 
-    panel._row = row; panel._callbacks = callbacks;
-    snapshot = clone(row);
+    el._row = row; el._callbacks = callbacks;
+    snapshot = JSON.parse(JSON.stringify(row));
 
-    // header/meta
-    const folioEl = $(".ixd-folio", panel);
+    // Header/Meta
+    const folioEl = $(".ixd-folio", el);
     setText(folioEl, row.folio || "REQ-0000000000");
-    mapToFields(panel, row);
-    mapToForm(panel, row);
+    mapToFields(el, row);
+    mapToForm(el, row);
 
     // Hero
     if (heroImg) { heroImg.src = row.hero_url || ""; heroImg.alt = row.folio || "Evidencia"; }
 
-    // Estatus select inicial (único select)
+    // Estatus select inicial
     const st = Number(row.estatus ?? 0);
-    if (viewStatusSel) viewStatusSel.value = String(st);
+    if (statusSelView) statusSelView.value = String(st);
+    if (statusSelUp)   statusSelUp.value   = String(st);
 
-    // mostrar panel + overlay
-    panel.classList.add("open");
-    if (overlay) { overlay.hidden = false; overlay.classList.add("open"); }
+    // Abre panel + overlay
+    el.classList.add("open");
+    el.setAttribute("aria-hidden","false");
+    showOverlay(true);
 
-    // foco mínimo
-    try { $('[data-action="editar"]', panel)?.focus(); } catch { }
-
-    // Esc global
-    bindEsc();
-
-    // cargar galeria
+    // Cargar galería
     const folio = row.folio || "";
     if (FOLIO_RX.test(folio)) {
-      setBusy(panel, true);
+      setBusy(el, true);
       listMedia(folio, st, 1, 100)
-        .then(resp => paintGallery(panel, resp))
-        .finally(() => setBusy(panel, false));
+        .then(resp => paintGallery(el, resp))
+        .finally(() => setBusy(el, false));
     }
+
+    // Asegurar foco accesible
+    try { el.focus?.(); } catch {}
   }
 
   function close() {
-    if (!panel) return;
-    panel.classList.remove("open");
-    if (overlay) { overlay.classList.remove("open"); overlay.hidden = true; }
+    if (!el) return;
+    el.classList.remove("open");
+    el.setAttribute("aria-hidden","true");
+    showOverlay(false);
     clearPreviews();
     forceReadMode();
-    unbindEsc();
-    try { panel._callbacks?.onClose?.(); } catch { }
+    try { el._callbacks?.onClose?.(); } catch {}
   }
 
-  /* ----- archivos ----- */
   function onFilesPicked() {
     if (!previewsBox || !fileInput) return;
     previewsBox.innerHTML = "";
@@ -263,7 +268,7 @@ export const Drawer = (() => { //clases para no jerrarle
 
     all.forEach(f => {
       if (f.size > MAX_BYTES_CLIENT) { errors.push(`"${f.name}" excede 1 MB`); return; }
-      if (!ALLOWED_MIME.includes(f.type)) { errors.push(`"${f.name}" tipo no permitido (${f.type || "?"})`); return; }
+      if (!ALLOWED_MIME.includes(f.type)) { errors.push(`"${f.name}" tipo no permitido (${f.type||"?"})`); return; }
       valid.push(f);
     });
     if (valid.length > MAX_FILES_CLIENT) {
@@ -282,8 +287,8 @@ export const Drawer = (() => { //clases para no jerrarle
   }
 
   async function onUpload() {
-    const folio = String($(".ixd-folio", panel)?.textContent || "").trim();
-    const status = Number(viewStatusSel?.value || panel._row?.estatus || 0);
+    const folio = String($(".ixd-folio", el)?.textContent || "").trim();
+    const status = Number((statusSelUp || statusSelView)?.value || el._row?.estatus || 0);
     const files = Array.from(fileInput?.files || []);
 
     if (!FOLIO_RX.test(folio)) { toast("Folio inválido", "warning"); return; }
@@ -294,55 +299,54 @@ export const Drawer = (() => { //clases para no jerrarle
     const invalid = [];
     for (const f of files) {
       if (f.size > MAX_BYTES_CLIENT) { invalid.push(`"${f.name}" > 1 MB`); continue; }
-      if (!ALLOWED_MIME.includes(f.type)) { invalid.push(`"${f.name}" tipo ${f.type || "?"}`); continue; }
+      if (!ALLOWED_MIME.includes(f.type)) { invalid.push(`"${f.name}" tipo ${f.type||"?"}`); continue; }
       valid.push(f);
     }
     if (!valid.length) { toast(invalid.join("\n") || "Archivos no válidos", "warning"); return; }
 
-    setBusy(panel, true);
+    setBusy(el, true);
     try {
-      // preparar carpetas (best-effort)
-      try { await setupMedia(folio); } catch { }
+      // Preparar carpetas (best-effort, sin romper si falla)
+      try { await setupMedia(folio, { create_status_txt: true }); } catch {}
 
       const r = await uploadMedia({ folio, status, files: valid });
       const ok = r.ok && (r.saved?.length || 0) > 0;
-      toast(`Subida: ${r.saved?.length || 0} ok, ${r.failed?.length || 0} error${r.skipped?.length ? `, ${r.skipped.length} omitido(s)` : ""}`, ok ? "exito" : "warning");
+      toast(`Subida: ${r.saved?.length||0} ok, ${r.failed?.length||0} error${r.skipped?.length?`, ${r.skipped.length} omitido(s)`:""}`, ok ? "exito" : "warning");
 
       clearPreviews();
 
-      // refrescar galería del estado visible
-      const viewSt = Number(viewStatusSel?.value || status || 0);
+      // refrescar galería según estatus visible
+      const viewSt = Number((statusSelView || statusSelUp)?.value || status || 0);
       const resp = await listMedia(folio, viewSt, 1, 100);
-      paintGallery(panel, resp);
+      paintGallery(el, resp);
     } catch (err) {
       console.error("[Drawer] upload error:", err);
       toast(String(err?.message || err), "warning");
     } finally {
-      setBusy(panel, false);
+      setBusy(el, false);
     }
   }
 
-  /* ----- guardar / cancelar / eliminar / pausar ----- */
   async function onSave(ev) {
     ev?.preventDefault?.();
     if (saving) return;
     saving = true;
-    setBusy(panel, true);
+    setBusy(el, true);
     if (btnSave) btnSave.disabled = true;
 
     const getStr = (name) => {
-      const v = $(`[name="${name}"][data-edit]`, panel)?.value ?? "";
+      const v = $(`[name="${name}"][data-edit]`, el)?.value ?? "";
       const t = v.trim();
       return t === "" ? null : t;
     };
     const getNum = (name) => {
-      const raw = $(`[name="${name}"][data-edit]`, panel)?.value;
+      const raw = $(`[name="${name}"][data-edit]`, el)?.value;
       const n = Number(raw);
       return Number.isFinite(n) ? n : null;
     };
 
     try {
-      const id = Number($('input[name="id"]', panel)?.value || NaN);
+      const id = Number($('input[name="id"]', el)?.value || NaN);
       if (!id) throw new Error("Falta id");
 
       const asunto = getStr("asunto");
@@ -363,42 +367,31 @@ export const Drawer = (() => { //clases para no jerrarle
         contacto_calle: getStr("contacto_calle"),
         contacto_colonia: getStr("contacto_colonia"),
         estatus: getNum("estatus"),
-        updated_by: Number($('input[name="updated_by"]', panel)?.value || (window.__ixSession?.id_usuario ?? 1)) || 1,
+        updated_by: Number($('input[name="updated_by"]', el)?.value || (window.__ixSession?.id_usuario ?? 1)) || 1,
       };
 
       const updated = await updateRequerimiento(payload);
-      mapToFields(panel, updated);
-      mapToForm(panel, updated);
-      panel._row = updated;
-      snapshot = clone(updated);
+      mapToFields(el, updated);
+      mapToForm(el, updated);
+      el._row = updated;
+      snapshot = JSON.parse(JSON.stringify(updated));
       setEditMode(false);
-      try { panel._callbacks?.onUpdated?.(updated); } catch { }
+      try { el._callbacks?.onUpdated?.(updated); } catch {}
       toast("Requerimiento actualizado", "exito");
     } catch (err) {
       console.error("[Drawer] save error:", err);
-      try { panel._callbacks?.onError?.(err); } catch { }
+      try { el._callbacks?.onError?.(err); } catch {}
       toast(String(err?.message || err), "warning");
     } finally {
       saving = false;
-      setBusy(panel, false);
-      if (btnSave) btnSave.disabled = !(panel.classList.contains("editing") || panel.classList.contains("mode-edit"));
+      setBusy(el, false);
+      if (btnSave) btnSave.disabled = !(el.classList.contains("editing") || el.classList.contains("mode-edit"));
     }
-  }
-
-  function onCancel() {
-    if (!confirm("¿Descartar cambios?")) return;
-    if (snapshot) {
-      mapToFields(panel, snapshot);
-      mapToForm(panel, snapshot);
-      panel._row = snapshot;
-    }
-    clearPreviews();
-    setEditMode(false);
   }
 
   async function onDelete(ev) {
     ev?.preventDefault?.();
-    if (!panel || deleting) return;
+    if (!el || deleting) return;
     if (!btnDelete) return;
 
     // confirmación 2 pasos
@@ -418,69 +411,38 @@ export const Drawer = (() => { //clases para no jerrarle
 
     deleting = true;
     btnDelete.disabled = true;
-    setBusy(panel, true);
+    setBusy(el, true);
 
     try {
-      const id = Number($('input[name="id"]', panel)?.value || NaN);
+      const id = Number($('input[name="id"]', el)?.value || NaN);
       if (!id) throw new Error("Falta id");
-      const updated_by = Number($('input[name="updated_by"]', panel)?.value || (window.__ixSession?.id_usuario ?? 1)) || 1;
+      const updated_by = Number($('input[name="updated_by"]', el)?.value || (window.__ixSession?.id_usuario ?? 1)) || 1;
 
       const updated = await updateRequerimiento({ id, status: 0, updated_by }); // soft delete
-      try { panel._callbacks?.onUpdated?.(updated); } catch { }
+      try { el._callbacks?.onUpdated?.(updated); } catch {}
       close();
       toast("Requerimiento eliminado", "exito");
     } catch (err) {
       console.error("[Drawer] delete error:", err);
-      try { panel._callbacks?.onError?.(err); } catch { }
+      try { el._callbacks?.onError?.(err); } catch {}
       toast(String(err?.message || err), "warning");
     } finally {
       deleting = false;
-      setBusy(panel, false);
+      setBusy(el, false);
       btnDelete.disabled = false;
     }
   }
 
-  function paintPauseButton(estatus) {
-    if (!btnPause) return;
-    const st = Number(estatus ?? panel._row?.estatus ?? 0);
-    if (st === 4) { // Pausado
-      btnPause.textContent = "Reanudar";
-      btnPause.classList.remove("warning");
-      btnPause.classList.add("success");
-      btnPause.dataset.mode = "resume";
-    } else {
-      btnPause.textContent = "Pausar";
-      btnPause.classList.remove("success");
-      btnPause.classList.add("warning");
-      btnPause.dataset.mode = "pause";
+  function onCancel() {
+    if (!confirm("¿Descartar cambios?")) return;
+    if (snapshot) {
+      mapToFields(el, snapshot);
+      mapToForm(el, snapshot);
+      el._row = snapshot;
     }
+    clearPreviews();
+    forceReadMode();
   }
 
-  async function onPauseToggle() {
-    if (!btnPause) return;
-    const row = panel._row || {};
-    const id = Number(row.id || 0);
-    if (!id) return;
-
-    const mode = btnPause.dataset.mode || "pause";
-    const next = (mode === "pause") ? 4 : 0; // 4 = Pausado, 0 = Solicitud (ajusta si quieres otro flujo)
-
-    try {
-      btnPause.disabled = true;
-      const updated = await updateRequerimiento({ id, estatus: next, updated_by: (window.__ixSession?.id_usuario ?? 1) });
-      panel._row = updated;
-      mapToFields(panel, updated);
-      mapToForm(panel, updated);
-      paintPauseButton(updated?.estatus);
-      toast("Estatus actualizado", "info");
-    } catch (e) {
-      console.error("[Drawer] pause/resume error:", e);
-      toast("No se pudo actualizar estatus", "warning");
-    } finally {
-      btnPause.disabled = false;
-    }
-  }
-
-  // expone API
-  return { init, open, close, setEditMode, paintPauseButton };
+  return { init, open, close, setEditMode };
 })();

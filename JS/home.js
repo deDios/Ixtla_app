@@ -31,7 +31,7 @@ const STATUS_COLORS = {
   finalizado: "#34d399",
 };
 
-/**  Sesión / Departamento activo  */
+/**  Sesion / Departamento activo  */
 const sess  = window.__ixSession || null;
 const userId = sess?.id_usuario ?? sess?.id ?? null;
 const departamentoActivo = Number(sess?.departamento_id ?? 1);
