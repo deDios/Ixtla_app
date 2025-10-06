@@ -13,7 +13,7 @@ const TAG = "[Home]";
 // CON
 const CFG = {
   ENDPOINTS: {
-    empleadoDetalle: "/DB/WEB/ixtla01_c_empleado.php",
+    empleado: "/DB/WEB/ixtla01_c_empleado.php", 
     departamentos: [
       "/db/WEB/ixtla01_c_departamento.php",
       "/db/WEB/c_departamento.php",
@@ -37,17 +37,16 @@ const CFG = {
     chartYear: "#chart-year",
     chartMonth: "#chart-month",
   },
-  TABLE: {
-    pageSize: 7,
-    reqFetchPerPage: 200,
-  },
+  TABLE: { pageSize: 7, reqFetchPerPage: 200 },
   FEATURES: {
-    deptChipToggleEnabled: true, 
-    preHydrateSidebar: true,     
+    preHydrateFromCookie: true,     // pinta nombre/avatar rápido mientras llega el API
+    deptChipToggleEnabled: true,    // chip de depto = filtro opcional (por defecto: TODOS)
   },
 };
 
-// STATUS 
+// ============================================================================
+// Estatus y colores
+// ============================================================================
 const ESTATUS = {
   0: { clave: "solicitud",  nombre: "Solicitud"   },
   1: { clave: "revision",   nombre: "Revisión"    },
@@ -75,31 +74,34 @@ function humanStatusLabel(key) {
 }
 
 // ============================================================================
-// Session (cookie) utils – prefer global from guard; else Session.get()
+// Session boot (solo para identificar; los datos oficiales vienen del API)
 // ============================================================================
-const __sess = (window.__ixSession) || (window.Session?.get?.() ?? null);
-function getUserFromSession(sess) {
-  if (!sess) return {
-    idUsuario: null,
-    nombre: "",
-    apellidos: "",
-    departamento_id: 1,
-    roles: [],
-    departamento_nombre: null,
-  };
-  const roles = Array.isArray(sess.roles)
-    ? sess.roles.map(r => (typeof r === "string" ? r : (r?.codigo ?? r?.name ?? ""))).filter(Boolean)
-    : [];
-  return {
-    idUsuario: sess.id_usuario ?? sess.id ?? null,
-    nombre: sess.nombre ?? "",
-    apellidos: sess.apellidos ?? "",
-    departamento_id: Number(sess.departamento_id ?? 1),
-    roles,
-    departamento_nombre: sess.departamento_nombre ?? sess.dependencia ?? null,
-  };
+function readIxSession() {
+  if (window.__ixSession && typeof window.__ixSession === "object") return window.__ixSession;
+  if (window.Session?.get) {
+    const s = window.Session.get();
+    if (s) return s;
+  }
+  try {
+    const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
+    if (pair) {
+      const raw = decodeURIComponent(pair.split("=")[1] || "");
+      return JSON.parse(decodeURIComponent(escape(atob(raw))));
+    }
+  } catch {}
+  return null;
 }
-const UserFromSess = getUserFromSession(__sess);
+const __sess = readIxSession();
+const SessIDs = {
+  idUsuario: __sess?.id_usuario ?? __sess?.id ?? null,
+  username: __sess?.username ?? null,
+  depId: Number(__sess?.departamento_id ?? 1),
+  nombre: __sess?.nombre ?? "",
+  apellidos: __sess?.apellidos ?? "",
+  roles: Array.isArray(__sess?.roles)
+    ? __sess.roles.map(r => (typeof r === "string" ? r : r?.codigo)).filter(Boolean)
+    : [],
+};
 
 // ============================================================================
 // DOM helpers
@@ -111,8 +113,7 @@ function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t =
 function setTextSafe(sel, txt) { const el = document.querySelector(sel); if (el) el.textContent = txt; }
 function normalizeLabelToKey(label){
   if (!label) return null;
-  const s = String(label)
-    .toLowerCase()
+  const s = String(label).toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .replace(/\s+/g,'');
   if (s === 'todos') return 'todos';
@@ -133,17 +134,12 @@ function setCount(key, val) {
 }
 
 // ============================================================================
-// Department name resolver (with cache)
+// Resolver nombre de departamento (cache)
 // ============================================================================
 const deptCache = new Map();
 async function resolveDepartamentoNombre(depId) {
   if (!depId) return "Sin dependencia";
   if (deptCache.has(depId)) return deptCache.get(depId);
-
-  if (UserFromSess.departamento_nombre) {
-    deptCache.set(depId, UserFromSess.departamento_nombre);
-    return UserFromSess.departamento_nombre;
-  }
   for (const url of CFG.ENDPOINTS.departamentos) {
     try {
       const u = new URL(url, location.origin);
@@ -153,7 +149,7 @@ async function resolveDepartamentoNombre(depId) {
       const arr = json?.data ?? json?.rows ?? [];
       const found = arr.find(d => Number(d.id) === Number(depId));
       if (found?.nombre) { deptCache.set(depId, found.nombre); return found.nombre; }
-    } catch (_) {}
+    } catch {}
   }
   const fallback = `Departamento ${depId}`;
   deptCache.set(depId, fallback);
@@ -161,12 +157,12 @@ async function resolveDepartamentoNombre(depId) {
 }
 
 // ============================================================================
-// Employee endpoint
+// API Empleado
 // ============================================================================
-async function fetchEmpleadoDetalleById(idEmpleado) {
+async function empleadoById(idEmpleado) {
   if (!idEmpleado) return null;
   try {
-    const res = await fetch(CFG.ENDPOINTS.empleadoDetalle, {
+    const res = await fetch(CFG.ENDPOINTS.empleado, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ id: Number(idEmpleado) })
@@ -175,73 +171,108 @@ async function fetchEmpleadoDetalleById(idEmpleado) {
     return (json && json.ok) ? (json.data || null) : null;
   } catch { return null; }
 }
+async function empleadoByUsername(username) {
+  if (!username) return null;
+  try {
+    const res = await fetch(CFG.ENDPOINTS.empleado, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ q: String(username), page: 1, page_size: 5 })
+    });
+    const json = await res.json().catch(() => null);
+    if (!(json && json.ok)) return null;
+    const arr = json.data || [];
+    if (!Array.isArray(arr) || !arr.length) return null;
+    return arr.find(e => (e.cuenta?.username||"") === username) || arr[0] || null;
+  } catch { return null; }
+}
 
 // ============================================================================
-// Store (single source of truth)
+// Store
 // ============================================================================
 const S = createStore({
   user: {
-    id: UserFromSess.idUsuario,
-    nombre: (UserFromSess.nombre || "") + (UserFromSess.apellidos ? " " + UserFromSess.apellidos : ""),
-    dep: UserFromSess.departamento_id,
-    roles: UserFromSess.roles,
+    idEmpleado: null,
+    idCuenta: SessIDs.idUsuario ?? null,
+    username: SessIDs.username ?? "",
+    nombre: `${SessIDs.nombre ?? ""}${SessIDs.apellidos ? " " + SessIDs.apellidos : ""}`.trim(),
+    dep: SessIDs.depId,
+    roles: SessIDs.roles,
   },
   filtros: {
-    status: "todos",  // 'todos' | 'solicitud' | 'revision' | 'asignacion' | 'enProceso' | 'pausado' | 'cancelado' | 'finalizado'
+    status: "todos",
     search: "",
-    depto: null,       // null => ALL departments; number => filter by that dept id
+    depto: null, // null -> TODOS los deptos
   },
   requerimientos: [],
-  counts: {
-    todos: 0,
-    solicitud: 0,
-    revision: 0,
-    asignacion: 0,
-    enProceso: 0,
-    pausado: 0,
-    cancelado: 0,
-    finalizado: 0,
-  },
+  counts: { todos: 0, solicitud: 0, revision: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 },
   pageSize: CFG.TABLE.pageSize,
 });
 
 // ============================================================================
-// Pre-hydrate Sidebar (avoid FOUC)
+// Pre-hydrate (opcional) para evitar parpadeo inicial
 // ============================================================================
 (function preHydrateSidebar() {
-  if (!CFG.FEATURES.preHydrateSidebar) return;
-  const fullName = S.get().user.nombre || "—";
+  if (!CFG.FEATURES.preHydrateFromCookie) return;
+  const fullName = S.get().user.nombre || "";
+  if (fullName) setTextSafe(CFG.SELECTORS.profileName, fullName);
 
-  // Name under profile link
-  if (!$one(CFG.SELECTORS.profileName)){
-    const link = $one(CFG.SELECTORS.profileLink);
-    const dash = $one(".profile-dash");
-    const h = document.createElement("h3");
-    h.id = CFG.SELECTORS.profileName.replace('#','');
-    h.className = "profile-name";
-    h.textContent = fullName;
-    if (link && dash) link.insertAdjacentElement("afterend", h);
-    else $one(".profile-card")?.appendChild(h);
-  } else {
-    setTextSafe(CFG.SELECTORS.profileName, fullName);
-  }
-
-  // Avatar alt + fallback
   const avatarEl = $one(CFG.SELECTORS.avatar);
   if (avatarEl) {
+    const idForAvatar = S.get().user.idEmpleado || S.get().user.idCuenta;
     const fallback = "/ASSETS/user/img_user1.png";
-    const candidate = S.get().user.id ? `/ASSETS/user/img_user${S.get().user.id}.png` : fallback;
+    const candidate = idForAvatar ? `/ASSETS/user/img_user${idForAvatar}.png` : fallback;
     avatarEl.alt = fullName || "Avatar";
     avatarEl.src = candidate;
     avatarEl.onerror = () => (avatarEl.src = fallback);
   }
-
-  // Profile link href (if missing)
   const linkPerfil = $one(CFG.SELECTORS.profileLink);
-  if (linkPerfil && !linkPerfil.getAttribute("href")) {
-    linkPerfil.setAttribute("href", "/VIEWS/perfil.php");
-  }
+  if (linkPerfil && !linkPerfil.getAttribute("href")) linkPerfil.setAttribute("href", "/VIEWS/perfil.php");
 })();
+
+// ============================================================================
+// Bootstrap empleado (API-first) -> nombre + depto confiables
+// ============================================================================
+async function bootstrapEmployee() {
+  let emp = null;
+
+  // 1) Intento por idUsuario (si coincide con empleado.id)
+  if (SessIDs.idUsuario) emp = await empleadoById(SessIDs.idUsuario);
+
+  // 2) Fallback: por username exacto (cuenta.username)
+  if (!emp && SessIDs.username) emp = await empleadoByUsername(SessIDs.username);
+
+  // 3) Fallback: por nombre completo (menos preciso, pero útil)
+  if (!emp && S.get().user.nombre) emp = await empleadoByUsername(S.get().user.nombre);
+
+  if (!emp) return null;
+
+  const full = `${emp.nombre ?? ""}${emp.apellidos ? " " + emp.apellidos : ""}`.trim() || "—";
+  const roles = Array.isArray(emp.cuenta?.roles) ? emp.cuenta.roles.map(r => r.codigo).filter(Boolean) : [];
+
+  S.set({
+    user: {
+      ...S.get().user,
+      idEmpleado: emp.id,
+      idCuenta: emp.cuenta?.id ?? S.get().user.idCuenta ?? null,
+      username: emp.cuenta?.username || S.get().user.username,
+      nombre: full,
+      dep: Number(emp.departamento_id ?? S.get().user.dep),
+      roles,
+    }
+  });
+
+  setTextSafe(CFG.SELECTORS.profileName, full);
+
+  const depEl = $one(CFG.SELECTORS.profileBadge);
+  if (depEl) {
+    const depName = await resolveDepartamentoNombre(S.get().user.dep);
+    depEl.textContent = depName || "Sin dependencia";
+  }
+
+  window.__ixEmployee = emp; // útil para futuros módulos
+  return emp;
+}
 
 // ============================================================================
 // Init
@@ -252,41 +283,37 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 async function init() {
-  console.log(`${TAG} init (dep: ${S.get().user.dep}, roles: ${S.get().user.roles?.join(",") || "-"})`);
+  console.log(`${TAG} init – empleado desde API…`);
 
-  // Badge (department name) and chip behavior (optional filter for everyone)
+  // 1) Primero resolvemos el empleado (evita placeholders incorrectos)
+  await bootstrapEmployee();
+
+  // 2) Chip de departamento como filtro opcional (por defecto TODOS)
   const depEl = $one(CFG.SELECTORS.profileBadge);
-  if (depEl) {
-    const depName = await resolveDepartamentoNombre(S.get().user.dep);
-    depEl.textContent = depName || "Sin dependencia";
-
-    // Chip as optional toggle (default: ALL departments)
-    if (CFG.FEATURES.deptChipToggleEnabled) {
-      depEl.setAttribute("role", "button");
-      depEl.setAttribute("aria-pressed", "false");
-      depEl.classList.remove("active");
-      depEl.dataset.departamento = String(S.get().user.dep);
-
-      bindOnce(depEl, "click", () => {
-        const active = S.get().filtros.depto != null;
-        const next = active ? null : S.get().user.dep;
-        S.set({ filtros: { ...S.get().filtros, depto: next } });
-        depEl.classList.toggle("active", !!next);
-        depEl.setAttribute("aria-pressed", String(!!next));
-        applyPipelineAndRender();
-      });
-    }
+  if (depEl && CFG.FEATURES.deptChipToggleEnabled) {
+    depEl.setAttribute("role", "button");
+    depEl.setAttribute("aria-pressed", "false");
+    depEl.classList.remove("active");
+    depEl.dataset.departamento = String(S.get().user.dep);
+    bindOnce(depEl, "click", () => {
+      const active = S.get().filtros.depto != null;
+      const next = active ? null : S.get().user.dep;
+      S.set({ filtros: { ...S.get().filtros, depto: next } });
+      depEl.classList.toggle("active", !!next);
+      depEl.setAttribute("aria-pressed", String(!!next));
+      applyPipelineAndRender();
+    });
   }
 
-  // Skeleton
+  // 3) Skeleton tabla
   mountSkeletonList($(CFG.SELECTORS.tableSkeleton), 7);
 
-  // Charts
+  // 4) Charts
   const lc = LineChart($(CFG.SELECTORS.chartYear));   lc.mount({ data: [] });
   const dc = DonutChart($(CFG.SELECTORS.chartMonth)); dc.mount({ data: [] });
   window.__ixCharts = { lc, dc };
 
-  // Table
+  // 5) Tabla
   const table = createTable({
     pageSize: S.get().pageSize,
     columns: [
@@ -306,45 +333,35 @@ async function init() {
   });
   window.__tableInstance = table;
 
-  // Load data
+  // 6) Datos
   await loadRequerimientos();
 
-  // Sidebar data-status + ARIA radiogroup
+  // 7) Sidebar accesible
   initStatusDom();
   makeStatusRadiogroup();
 
-  // First render
+  // 8) Primer render
   applyPipelineAndRender(table);
 
-  // Hide skeletons
+  // 9) Oculta skeletons
   document.documentElement.classList.add("is-loaded");
 
-  // Wire events
+  // 10) Eventos
   wireSidebarEvents(table);
   wireSearch();
   wireRowClick(table);
 
-  // Mark "todos" active
+  // 11) Marca “todos”
   const allBtn = document.querySelector(`${CFG.SELECTORS.statusItems}[data-status="todos"]`);
   if (allBtn) {
     $$(CFG.SELECTORS.statusItems).forEach(b => b.classList.remove("active"));
     allBtn.classList.add("active");
     allBtn.setAttribute("aria-checked", "true");
   }
-
-  // Try to refresh the full name from employee endpoint (best-effort)
-  try {
-    const emp = await fetchEmpleadoDetalleById(S.get().user.id);
-    if (emp?.nombre) {
-      const full = `${emp.nombre ?? ""}${emp.apellidos ? " " + emp.apellidos : ""}`.trim() || "—";
-      S.set({ user: { ...S.get().user, nombre: full }});
-      setTextSafe(CFG.SELECTORS.profileName, full);
-    }
-  } catch {}
 }
 
 // ============================================================================
-// Data load
+// Data load (requerimientos)
 // ============================================================================
 async function loadRequerimientos() {
   toggle($(CFG.SELECTORS.tableWrap), false);
@@ -352,20 +369,16 @@ async function loadRequerimientos() {
   toggle($(CFG.SELECTORS.tableEmpty), false);
 
   try {
-    const { ok, rows, data, count } = await fetchRequerimientos({
-      page: 1,
-      per_page: CFG.TABLE.reqFetchPerPage,
-    });
-
+    const { ok, rows, data, count } = await fetchRequerimientos({ page: 1, per_page: CFG.TABLE.reqFetchPerPage });
     if (!ok) throw new Error("Respuesta no OK");
+
     const list = Array.isArray(rows) ? rows : (Array.isArray(data) ? data : []);
     S.set({ requerimientos: list });
 
-    // Charts (from full universe)
+    // Charts a partir del universo completo
     window.__ixCharts?.lc?.update({ data: computeSeriesAnual(list) });
     window.__ixCharts?.dc?.update({ data: computeDonutMes(list) });
 
-    // Legend total (updated again after pipeline)
     setTextSafe(CFG.SELECTORS.tableTotal, String(count ?? list.length));
     setTextSafe(CFG.SELECTORS.tableStatusLabel, "Todos los status");
 
@@ -383,7 +396,7 @@ async function loadRequerimientos() {
 }
 
 // ============================================================================
-// Sidebar helpers (status DOM + ARIA)
+// Sidebar (status DOM + ARIA)
 // ============================================================================
 function initStatusDom(){
   $$(CFG.SELECTORS.statusItems).forEach(btn => {
@@ -416,7 +429,7 @@ function makeStatusRadiogroup() {
 }
 
 // ============================================================================
-// Wiring (sidebar clicks, search, row click)
+// Wiring (sidebar clicks, búsqueda, click fila)
 // ============================================================================
 function wireSidebarEvents(table) {
   $$(CFG.SELECTORS.statusItems).forEach(btn => {
@@ -452,7 +465,7 @@ function wireRowClick(table) {
     if (!raw) return;
 
     Drawer.open(raw, {
-      getSessionUserId: () => (window.__ixSession?.id_usuario ?? 1),
+      getSessionUserId: () => (window.__ixSession?.id_usuario ?? SessIDs.idUsuario ?? 1),
       onUpdated: (updated) => {
         try {
           const arr = S.get().requerimientos.slice();
@@ -472,21 +485,21 @@ function wireRowClick(table) {
 }
 
 // ============================================================================
-// Pipeline: depto + search -> counts -> status -> table
+// Pipeline: depto + búsqueda -> conteos -> estatus -> tabla
 // ============================================================================
 function applyPipelineAndRender(tableInstance) {
   const t = tableInstance || window.__tableInstance;
   const { status, search, depto } = S.get().filtros;
   const base = S.get().requerimientos || [];
 
-  // (1) Department filter (optional). Default: null => ALL departments
-  const deptFilterId = depto; // *** IMPORTANT: default ALL ***
+  // (1) Filtro por depto (opcional). Por defecto: null => TODOS
+  const deptFilterId = depto;
   let filtered = base;
   if (deptFilterId != null) {
     filtered = filtered.filter(r => Number(r.departamento_id ?? r.departamento) === Number(deptFilterId));
   }
 
-  // (2) Search filter
+  // (2) Búsqueda
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter(r => {
@@ -499,17 +512,17 @@ function applyPipelineAndRender(tableInstance) {
     });
   }
 
-  // (3) Counts on pre-status universe
+  // (3) Conteos (previos al filtro de estatus)
   computeCounts(filtered);
   renderCounts();
 
-  // (4) Status filter for the table
+  // (4) Filtro por estatus para la tabla
   let forTable = filtered;
   if (status !== "todos") {
     forTable = filtered.filter(r => ESTATUS[Number(r.estatus)]?.clave === status);
   }
 
-  // (5) Map to table rows
+  // (5) Mapeo a filas de tabla
   const rows = forTable.map(r => {
     const est = ESTATUS[Number(r.estatus)];
     return {
@@ -523,7 +536,7 @@ function applyPipelineAndRender(tableInstance) {
     };
   });
 
-  // (6) Render table
+  // (6) Render tabla
   const table = t || createTable({ pageSize: S.get().pageSize, columns: [] });
   window.__tableInstance = table;
 
@@ -537,28 +550,16 @@ function applyPipelineAndRender(tableInstance) {
     setTextSafe(CFG.SELECTORS.tableTotal, String(rows.length));
   }
 
-  // (7) Human status label
+  // (7) Etiqueta humana de estatus
   setTextSafe(CFG.SELECTORS.tableStatusLabel, humanStatusLabel(status));
 }
 
 // ============================================================================
-// Counts
+// Conteos
 // ============================================================================
 function computeCounts(rows = []) {
-  const counts = {
-    todos: rows.length,
-    solicitud: 0,
-    revision: 0,
-    asignacion: 0,
-    enProceso: 0,
-    pausado: 0,
-    cancelado: 0,
-    finalizado: 0,
-  };
-  rows.forEach(r => {
-    const k = ESTATUS[Number(r.estatus)]?.clave;
-    if (k && Object.prototype.hasOwnProperty.call(counts, k)) counts[k]++;
-  });
+  const counts = { todos: rows.length, solicitud: 0, revision: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 };
+  rows.forEach(r => { const k = ESTATUS[Number(r.estatus)]?.clave; if (k && Object.prototype.hasOwnProperty.call(counts, k)) counts[k]++; });
   S.set({ counts });
 }
 function renderCounts() {
