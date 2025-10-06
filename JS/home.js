@@ -10,6 +10,44 @@ import { Drawer } from "/JS/ui/drawer.js";
 
 const TAG = "[Home]";
 
+// CON
+const CFG = {
+  ENDPOINTS: {
+    empleadoDetalle: "/DB/WEB/ixtla01_c_empleado.php",
+    departamentos: [
+      "/db/WEB/ixtla01_c_departamento.php",
+      "/db/WEB/c_departamento.php",
+    ],
+  },
+  SELECTORS: {
+    profileName: "#h-user-nombre",
+    profileBadge: ".profile-dep.badge",
+    profileLink: ".profile-link",
+    avatar: ".profile-card .avatar",
+    statusGroup: ".status-block",
+    statusItems: ".status-nav .status-item",
+    statusNav: ".status-nav",
+    searchInput: "#tbl-search",
+    tableSkeleton: "#tbl-skeleton",
+    tableWrap: "#tbl-wrap",
+    tableEmpty: "#tbl-empty",
+    tableBody: "#tbl-body",
+    tableTotal: "#tbl-total",
+    tableStatusLabel: "#tbl-status-label",
+    chartYear: "#chart-year",
+    chartMonth: "#chart-month",
+  },
+  TABLE: {
+    pageSize: 7,
+    reqFetchPerPage: 200,
+  },
+  FEATURES: {
+    deptChipToggleEnabled: true, 
+    preHydrateSidebar: true,     
+  },
+};
+
+// STATUS 
 const ESTATUS = {
   0: { clave: "solicitud",  nombre: "Solicitud"   },
   1: { clave: "revision",   nombre: "Revisión"    },
@@ -19,7 +57,6 @@ const ESTATUS = {
   5: { clave: "cancelado",  nombre: "Cancelado"   },
   6: { clave: "finalizado", nombre: "Finalizado"  },
 };
-
 const STATUS_COLORS = {
   solicitud:  "#a5b4fc",
   revision:   "#93c5fd",
@@ -29,16 +66,18 @@ const STATUS_COLORS = {
   cancelado:  "#f87171",
   finalizado: "#34d399",
 };
-
 function ESTATUS_BY_CLAVE(clave) {
   const id = Object.keys(ESTATUS).find(k => ESTATUS[k].clave === clave);
   return id ? ESTATUS[id] : null;
 }
+function humanStatusLabel(key) {
+  return ESTATUS_BY_CLAVE(key)?.nombre ?? (key === "todos" ? "Todos los status" : key);
+}
 
-// rescatar la cookie
+// ============================================================================
+// Session (cookie) utils – prefer global from guard; else Session.get()
+// ============================================================================
 const __sess = (window.__ixSession) || (window.Session?.get?.() ?? null);
-
-// Derivar IDs y roles
 function getUserFromSession(sess) {
   if (!sess) return {
     idUsuario: null,
@@ -46,6 +85,7 @@ function getUserFromSession(sess) {
     apellidos: "",
     departamento_id: 1,
     roles: [],
+    departamento_nombre: null,
   };
   const roles = Array.isArray(sess.roles)
     ? sess.roles.map(r => (typeof r === "string" ? r : (r?.codigo ?? r?.name ?? ""))).filter(Boolean)
@@ -56,21 +96,17 @@ function getUserFromSession(sess) {
     apellidos: sess.apellidos ?? "",
     departamento_id: Number(sess.departamento_id ?? 1),
     roles,
-    // por si luego se usa (NO ESTA EN LA COOKIE LUEGO AGREGARLOS)
-    departamento_nombre: sess.departamento_nombre ?? sess.dependencia ?? sess.departamento_nombre ?? null,
+    departamento_nombre: sess.departamento_nombre ?? sess.dependencia ?? null,
   };
 }
 const UserFromSess = getUserFromSession(__sess);
-const isAdmin = UserFromSess.roles.includes("ADMIN");
 
-// Helpers DOM
+// ============================================================================
+// DOM helpers
+// ============================================================================
 const $one = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-const bindOnce = (el, ev, fn) => {
-  if (!el || el.dataset.binded === "1") return;
-  el.addEventListener(ev, fn);
-  el.dataset.binded = "1";
-};
+const bindOnce = (el, ev, fn) => { if (!el || el.dataset.binded === "1") return; el.addEventListener(ev, fn); el.dataset.binded = "1"; };
 function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 function setTextSafe(sel, txt) { const el = document.querySelector(sel); if (el) el.textContent = txt; }
 function normalizeLabelToKey(label){
@@ -89,8 +125,6 @@ function normalizeLabelToKey(label){
   if (s === 'finalizado') return 'finalizado';
   return null;
 }
-function humanStatusLabel(key) { return ESTATUS_BY_CLAVE(key)?.nombre ?? (key === "todos" ? "Todos los status" : key); }
-
 function setCount(key, val) {
   const byId = document.querySelector(`#cnt-${key}`);
   if (byId) { byId.textContent = `(${val})`; return; }
@@ -98,7 +132,9 @@ function setCount(key, val) {
   if (byDs) byDs.textContent = `(${val})`;
 }
 
-/* nombre de departamento */
+// ============================================================================
+// Department name resolver (with cache)
+// ============================================================================
 const deptCache = new Map();
 async function resolveDepartamentoNombre(depId) {
   if (!depId) return "Sin dependencia";
@@ -108,13 +144,7 @@ async function resolveDepartamentoNombre(depId) {
     deptCache.set(depId, UserFromSess.departamento_nombre);
     return UserFromSess.departamento_nombre;
   }
-
-  const endpoints = [
-    "/db/WEB/ixtla01_c_departamento.php",
-    "/db/WEB/c_departamento.php",
-  ];
-
-  for (const url of endpoints) {
+  for (const url of CFG.ENDPOINTS.departamentos) {
     try {
       const u = new URL(url, location.origin);
       u.searchParams.set("status", 1);
@@ -130,7 +160,25 @@ async function resolveDepartamentoNombre(depId) {
   return fallback;
 }
 
-/* Store */
+// ============================================================================
+// Employee endpoint
+// ============================================================================
+async function fetchEmpleadoDetalleById(idEmpleado) {
+  if (!idEmpleado) return null;
+  try {
+    const res = await fetch(CFG.ENDPOINTS.empleadoDetalle, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ id: Number(idEmpleado) })
+    });
+    const json = await res.json().catch(() => null);
+    return (json && json.ok) ? (json.data || null) : null;
+  } catch { return null; }
+}
+
+// ============================================================================
+// Store (single source of truth)
+// ============================================================================
 const S = createStore({
   user: {
     id: UserFromSess.idUsuario,
@@ -139,9 +187,9 @@ const S = createStore({
     roles: UserFromSess.roles,
   },
   filtros: {
-    status: "todos",   // 'todos' | claves de ESTATUS
+    status: "todos",  // 'todos' | 'solicitud' | 'revision' | 'asignacion' | 'enProceso' | 'pausado' | 'cancelado' | 'finalizado'
     search: "",
-    depto: null,       // id de departamento si chip activo (admin) o forzado (no admin)
+    depto: null,       // null => ALL departments; number => filter by that dept id
   },
   requerimientos: [],
   counts: {
@@ -154,27 +202,32 @@ const S = createStore({
     cancelado: 0,
     finalizado: 0,
   },
-  pageSize: 7,
+  pageSize: CFG.TABLE.pageSize,
 });
 
-/* Sidebar */
+// ============================================================================
+// Pre-hydrate Sidebar (avoid FOUC)
+// ============================================================================
 (function preHydrateSidebar() {
+  if (!CFG.FEATURES.preHydrateSidebar) return;
   const fullName = S.get().user.nombre || "—";
-  if (!$one("#h-user-nombre")){
-    const link = $one(".profile-link");
+
+  // Name under profile link
+  if (!$one(CFG.SELECTORS.profileName)){
+    const link = $one(CFG.SELECTORS.profileLink);
     const dash = $one(".profile-dash");
     const h = document.createElement("h3");
-    h.id = "h-user-nombre";
+    h.id = CFG.SELECTORS.profileName.replace('#','');
     h.className = "profile-name";
     h.textContent = fullName;
     if (link && dash) link.insertAdjacentElement("afterend", h);
     else $one(".profile-card")?.appendChild(h);
   } else {
-    setTextSafe("#h-user-nombre", fullName);
+    setTextSafe(CFG.SELECTORS.profileName, fullName);
   }
 
   // Avatar alt + fallback
-  const avatarEl = $one(".profile-card .avatar");
+  const avatarEl = $one(CFG.SELECTORS.avatar);
   if (avatarEl) {
     const fallback = "/ASSETS/user/img_user1.png";
     const candidate = S.get().user.id ? `/ASSETS/user/img_user${S.get().user.id}.png` : fallback;
@@ -183,16 +236,16 @@ const S = createStore({
     avatarEl.onerror = () => (avatarEl.src = fallback);
   }
 
-  // Link perfil (si falta href)
-  const linkPerfil = $one(".profile-link");
+  // Profile link href (if missing)
+  const linkPerfil = $one(CFG.SELECTORS.profileLink);
   if (linkPerfil && !linkPerfil.getAttribute("href")) {
     linkPerfil.setAttribute("href", "/VIEWS/perfil.php");
   }
 })();
 
-/* ============================================================
- *  Inicialización
- * ========================================================== */
+// ============================================================================
+// Init
+// ============================================================================
 window.addEventListener("DOMContentLoaded", () => {
   Drawer.init(".ix-drawer");
   init();
@@ -201,41 +254,39 @@ window.addEventListener("DOMContentLoaded", () => {
 async function init() {
   console.log(`${TAG} init (dep: ${S.get().user.dep}, roles: ${S.get().user.roles?.join(",") || "-"})`);
 
-  // --- Badge de departamento (nombre real)
-  const depEl = $one(".profile-dep.badge");
+  // Badge (department name) and chip behavior (optional filter for everyone)
+  const depEl = $one(CFG.SELECTORS.profileBadge);
   if (depEl) {
     const depName = await resolveDepartamentoNombre(S.get().user.dep);
     depEl.textContent = depName || "Sin dependencia";
-    // Chip: admin => toggle; no-admin => fijo
-    if (isAdmin) {
+
+    // Chip as optional toggle (default: ALL departments)
+    if (CFG.FEATURES.deptChipToggleEnabled) {
       depEl.setAttribute("role", "button");
       depEl.setAttribute("aria-pressed", "false");
+      depEl.classList.remove("active");
       depEl.dataset.departamento = String(S.get().user.dep);
+
       bindOnce(depEl, "click", () => {
         const active = S.get().filtros.depto != null;
         const next = active ? null : S.get().user.dep;
         S.set({ filtros: { ...S.get().filtros, depto: next } });
         depEl.classList.toggle("active", !!next);
         depEl.setAttribute("aria-pressed", String(!!next));
-        applyPipelineAndRender(); // actualiza conteos + tabla
+        applyPipelineAndRender();
       });
-    } else {
-      // No admin: forzado al depto del usuario
-      S.set({ filtros: { ...S.get().filtros, depto: S.get().user.dep } });
-      depEl.setAttribute("aria-pressed", "true");
-      depEl.classList.add("active");
     }
   }
 
-  // Skeleton tabla
-  mountSkeletonList($("#tbl-skeleton"), 7);
+  // Skeleton
+  mountSkeletonList($(CFG.SELECTORS.tableSkeleton), 7);
 
   // Charts
-  const lc = LineChart($("#chart-year"));   lc.mount({ data: [] });
-  const dc = DonutChart($("#chart-month")); dc.mount({ data: [] });
+  const lc = LineChart($(CFG.SELECTORS.chartYear));   lc.mount({ data: [] });
+  const dc = DonutChart($(CFG.SELECTORS.chartMonth)); dc.mount({ data: [] });
   window.__ixCharts = { lc, dc };
 
-  // Tabla
+  // Table
   const table = createTable({
     pageSize: S.get().pageSize,
     columns: [
@@ -253,59 +304,70 @@ async function init() {
       }
     ]
   });
+  window.__tableInstance = table;
 
-  // Cargar datos
+  // Load data
   await loadRequerimientos();
 
-  // Sidebar: preparar data-status si faltan, y ARIA del radiogroup
+  // Sidebar data-status + ARIA radiogroup
   initStatusDom();
   makeStatusRadiogroup();
 
-  // Pintar UI
+  // First render
   applyPipelineAndRender(table);
 
-  // Ocultar skeletons
+  // Hide skeletons
   document.documentElement.classList.add("is-loaded");
 
-  // Eventos
+  // Wire events
   wireSidebarEvents(table);
   wireSearch();
   wireRowClick(table);
 
-  // Marcar "todos" activo
-  const allBtn = document.querySelector(`.status-item[data-status="todos"]`);
+  // Mark "todos" active
+  const allBtn = document.querySelector(`${CFG.SELECTORS.statusItems}[data-status="todos"]`);
   if (allBtn) {
-    $$(".status-item").forEach(b => b.classList.remove("active"));
+    $$(CFG.SELECTORS.statusItems).forEach(b => b.classList.remove("active"));
     allBtn.classList.add("active");
     allBtn.setAttribute("aria-checked", "true");
   }
+
+  // Try to refresh the full name from employee endpoint (best-effort)
+  try {
+    const emp = await fetchEmpleadoDetalleById(S.get().user.id);
+    if (emp?.nombre) {
+      const full = `${emp.nombre ?? ""}${emp.apellidos ? " " + emp.apellidos : ""}`.trim() || "—";
+      S.set({ user: { ...S.get().user, nombre: full }});
+      setTextSafe(CFG.SELECTORS.profileName, full);
+    }
+  } catch {}
 }
 
-/* ============================================================
- *  Data load
- * ========================================================== */
+// ============================================================================
+// Data load
+// ============================================================================
 async function loadRequerimientos() {
-  toggle($("#tbl-wrap"), false);
-  toggle($("#tbl-skeleton"), true);
-  toggle($("#tbl-empty"), false);
+  toggle($(CFG.SELECTORS.tableWrap), false);
+  toggle($(CFG.SELECTORS.tableSkeleton), true);
+  toggle($(CFG.SELECTORS.tableEmpty), false);
 
   try {
     const { ok, rows, data, count } = await fetchRequerimientos({
       page: 1,
-      per_page: 200, // margen para cliente
+      per_page: CFG.TABLE.reqFetchPerPage,
     });
 
     if (!ok) throw new Error("Respuesta no OK");
     const list = Array.isArray(rows) ? rows : (Array.isArray(data) ? data : []);
     S.set({ requerimientos: list });
 
-    // Charts con el universo completo
+    // Charts (from full universe)
     window.__ixCharts?.lc?.update({ data: computeSeriesAnual(list) });
     window.__ixCharts?.dc?.update({ data: computeDonutMes(list) });
 
-    // Leyenda total inicial (se actualizará tras pipeline)
-    setTextSafe("#tbl-total", String(count ?? list.length));
-    setTextSafe("#tbl-status-label", "Todos los status");
+    // Legend total (updated again after pipeline)
+    setTextSafe(CFG.SELECTORS.tableTotal, String(count ?? list.length));
+    setTextSafe(CFG.SELECTORS.tableStatusLabel, "Todos los status");
 
   } catch (err) {
     console.error(TAG, "loadRequerimientos()", err);
@@ -315,17 +377,16 @@ async function loadRequerimientos() {
       counts: { todos: 0, solicitud: 0, revision: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 }
     });
   } finally {
-    toggle($("#tbl-skeleton"), false);
-    toggle($("#tbl-wrap"), true);
+    toggle($(CFG.SELECTORS.tableSkeleton), false);
+    toggle($(CFG.SELECTORS.tableWrap), true);
   }
 }
 
-/* ============================================================
- *  Sidebar helpers (estatus)
- * ========================================================== */
+// ============================================================================
+// Sidebar helpers (status DOM + ARIA)
+// ============================================================================
 function initStatusDom(){
-  // Asignar data-status a partir del texto visible si aún no existe
-  $$(".status-nav .status-item").forEach(btn => {
+  $$(CFG.SELECTORS.statusItems).forEach(btn => {
     if (!btn.dataset.status){
       const label = btn.querySelector('.label')?.textContent?.trim();
       const key = normalizeLabelToKey(label);
@@ -334,70 +395,54 @@ function initStatusDom(){
   });
 }
 function makeStatusRadiogroup() {
-  const nav = $one(".status-block");
+  const nav = $one(CFG.SELECTORS.statusGroup);
   if (nav) nav.setAttribute("role", "radiogroup");
-  $$(".status-nav .status-item").forEach((btn, idx) => {
+  $$(CFG.SELECTORS.statusItems).forEach((btn, idx) => {
     btn.setAttribute("role", "radio");
     btn.setAttribute("tabindex", idx === 0 ? "0" : "-1");
     btn.setAttribute("aria-checked", btn.classList.contains("active") ? "true" : "false");
   });
-
-  // Navegación por teclado
-  bindOnce($one(".status-nav"), "keydown", (e) => {
-    const items = $$(".status-nav .status-item");
+  bindOnce($one(CFG.SELECTORS.statusNav), "keydown", (e) => {
+    const items = $$(CFG.SELECTORS.statusItems);
     if (!items.length) return;
     const current = document.activeElement.closest(".status-item");
     const idx = Math.max(0, items.indexOf(current));
     let nextIdx = idx;
-
     if (e.key === "ArrowDown" || e.key === "ArrowRight") nextIdx = (idx + 1) % items.length;
     if (e.key === "ArrowUp" || e.key === "ArrowLeft") nextIdx = (idx - 1 + items.length) % items.length;
-
-    if (nextIdx !== idx) {
-      items[nextIdx].focus();
-      e.preventDefault();
-    }
-    if (e.key === " " || e.key === "Enter") {
-      items[nextIdx].click();
-      e.preventDefault();
-    }
+    if (nextIdx !== idx) { items[nextIdx].focus(); e.preventDefault(); }
+    if (e.key === " " || e.key === "Enter") { items[nextIdx].click(); e.preventDefault(); }
   });
 }
 
-/* ============================================================
- *  Eventos (sidebar, búsqueda, filas)
- * ========================================================== */
+// ============================================================================
+// Wiring (sidebar clicks, search, row click)
+// ============================================================================
 function wireSidebarEvents(table) {
-  // Click en chips de estatus
-  $$(".status-item").forEach(btn => {
+  $$(CFG.SELECTORS.statusItems).forEach(btn => {
     bindOnce(btn, "click", () => {
-      $$(".status-item").forEach(b => {
-        b.classList.remove("active");
-        b.setAttribute("aria-checked", "false");
-      });
+      $$(CFG.SELECTORS.statusItems).forEach(b => { b.classList.remove("active"); b.setAttribute("aria-checked", "false"); });
       btn.classList.add("active");
       btn.setAttribute("aria-checked", "true");
 
       const statusKey = btn.dataset.status || normalizeLabelToKey(btn.querySelector(".label")?.textContent) || "todos";
       S.set({ filtros: { ...S.get().filtros, status: statusKey } });
 
-      setTextSafe("#tbl-status-label", humanStatusLabel(statusKey));
+      setTextSafe(CFG.SELECTORS.tableStatusLabel, humanStatusLabel(statusKey));
       applyPipelineAndRender(table);
-      $("#tbl-search")?.focus();
+      $(CFG.SELECTORS.searchInput)?.focus();
     });
   });
 }
-
 function wireSearch() {
-  $("#tbl-search")?.addEventListener("input", debounce((e) => {
+  $(CFG.SELECTORS.searchInput)?.addEventListener("input", debounce((e) => {
     const q = (e.target.value || "").trim().toLowerCase();
     S.set({ filtros: { ...S.get().filtros, search: q } });
     applyPipelineAndRender();
   }, 250));
 }
-
 function wireRowClick(table) {
-  const tbody = document.querySelector("#tbl-body");
+  const tbody = document.querySelector(CFG.SELECTORS.tableBody);
   if (!tbody) return;
   bindOnce(tbody, "click", (e) => {
     const tr = e.target.closest("tr");
@@ -416,9 +461,7 @@ function wireRowClick(table) {
           S.set({ requerimientos: arr });
           applyPipelineAndRender(table);
           if (typeof gcToast === "function") gcToast("Requerimiento actualizado.", "exito");
-        } catch (err) {
-          console.error("[Home] onUpdated error:", err);
-        }
+        } catch (err) { console.error("[Home] onUpdated error:", err); }
       },
       onError: (err) => {
         console.error("[Drawer] error:", err);
@@ -428,22 +471,22 @@ function wireRowClick(table) {
   });
 }
 
-/* ============================================================
- *  Pipeline: depto + búsqueda -> conteos -> status -> tabla
- * ========================================================== */
+// ============================================================================
+// Pipeline: depto + search -> counts -> status -> table
+// ============================================================================
 function applyPipelineAndRender(tableInstance) {
   const t = tableInstance || window.__tableInstance;
   const { status, search, depto } = S.get().filtros;
   const base = S.get().requerimientos || [];
 
-  // 1) Filtro por departamento (no admin = forzado)
-  const deptFilterId = (!isAdmin ? S.get().user.dep : depto);
+  // (1) Department filter (optional). Default: null => ALL departments
+  const deptFilterId = depto; // *** IMPORTANT: default ALL ***
   let filtered = base;
   if (deptFilterId != null) {
     filtered = filtered.filter(r => Number(r.departamento_id ?? r.departamento) === Number(deptFilterId));
   }
 
-  // 2) Búsqueda
+  // (2) Search filter
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter(r => {
@@ -456,17 +499,17 @@ function applyPipelineAndRender(tableInstance) {
     });
   }
 
-  // 3) Conteos sobre el universo filtrado (pre-estatus)
+  // (3) Counts on pre-status universe
   computeCounts(filtered);
   renderCounts();
 
-  // 4) Filtrar por estatus seleccionado
+  // (4) Status filter for the table
   let forTable = filtered;
   if (status !== "todos") {
     forTable = filtered.filter(r => ESTATUS[Number(r.estatus)]?.clave === status);
   }
 
-  // 5) Mapear filas a la tabla
+  // (5) Map to table rows
   const rows = forTable.map(r => {
     const est = ESTATUS[Number(r.estatus)];
     return {
@@ -476,31 +519,31 @@ function applyPipelineAndRender(tableInstance) {
       telefono:     r.contacto_telefono || "—",
       departamento: r.departamento_nombre || "—",
       status:       est?.nombre || String(r.estatus ?? "—"),
-      statusKey:    est?.clave  || ""
+      statusKey:    est?.clave  || "",
     };
   });
 
-  // 6) Render tabla
+  // (6) Render table
   const table = t || createTable({ pageSize: S.get().pageSize, columns: [] });
   window.__tableInstance = table;
 
   if (!rows.length) {
     table.setData([]);
-    toggle($("#tbl-empty"), true);
-    setTextSafe("#tbl-total", "0");
+    toggle($(CFG.SELECTORS.tableEmpty), true);
+    setTextSafe(CFG.SELECTORS.tableTotal, "0");
   } else {
     table.setData(rows);
-    toggle($("#tbl-empty"), false);
-    setTextSafe("#tbl-total", String(rows.length));
+    toggle($(CFG.SELECTORS.tableEmpty), false);
+    setTextSafe(CFG.SELECTORS.tableTotal, String(rows.length));
   }
 
-  // 7) Leyenda status legible
-  setTextSafe("#tbl-status-label", humanStatusLabel(status));
+  // (7) Human status label
+  setTextSafe(CFG.SELECTORS.tableStatusLabel, humanStatusLabel(status));
 }
 
-/* ============================================================
- *  Conteos
- * ========================================================== */
+// ============================================================================
+// Counts
+// ============================================================================
 function computeCounts(rows = []) {
   const counts = {
     todos: rows.length,
@@ -510,7 +553,7 @@ function computeCounts(rows = []) {
     enProceso: 0,
     pausado: 0,
     cancelado: 0,
-    finalizado: 0
+    finalizado: 0,
   };
   rows.forEach(r => {
     const k = ESTATUS[Number(r.estatus)]?.clave;
@@ -530,9 +573,9 @@ function renderCounts() {
   setCount("finalizado", c.finalizado);
 }
 
-/* ============================================================
- *  Charts helpers
- * ========================================================== */
+// ============================================================================
+// Charts helpers
+// ============================================================================
 function computeSeriesAnual(rows = []) {
   const now = new Date();
   const year = now.getFullYear();
