@@ -1,17 +1,32 @@
 <?php
-//db\WEB\ixtla01_ins_requerimiento_img.php
-/* ===== Content-Type y tamaño ===== */
-header('Content-Type: application/json');
+// db/WEB/ixtla01_ins_requerimiento_img.php
+
+header('Content-Type: application/json; charset=utf-8');
 date_default_timezone_set('America/Mexico_City');
 
-/* Método permitido */
+/* ===== CORS ===== */
+$allowlist = [
+  'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net',
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com',
+];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowlist, true)) {
+  header("Access-Control-Allow-Origin: $origin");
+  header("Vary: Origin");
+}
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Trace-Label');
+header('Access-Control-Max-Age: 600');
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+
+/* ===== Método ===== */
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
   http_response_code(405);
-  die(json_encode(["ok"=>false,"error"=>"Método no permitido"]));
+  echo json_encode(["ok"=>false,"error"=>"Método no permitido"]); exit;
 }
 
-/* ====== RATE LIMIT por IP (5/min, ban 30 min) ====== */
-/* IP helper: usa XFF solo si el remoto es proxy de confianza */
+/* ===== Rate limit (5 por minuto, ban 30 min) ===== */
 function __ip_in_cidr(string $ip, string $cidr): bool {
   [$subnet, $mask] = explode('/', $cidr) + [null, null];
   if ($mask === null) return $ip === $subnet;
@@ -20,7 +35,7 @@ function __ip_in_cidr(string $ip, string $cidr): bool {
 }
 function __rl_ip(): string {
   $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-  $trusted = ['127.0.0.1/32','10.0.0.0/8','172.16.0.0/12','192.168.0.0/16']; // proxies internos
+  $trusted = ['127.0.0.1/32','10.0.0.0/8','172.16.0.0/12','192.168.0.0/16'];
   $isTrusted = false;
   foreach ($trusted as $cidr) { if (__ip_in_cidr($remote, $cidr)) { $isTrusted = true; break; } }
   $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
@@ -30,11 +45,8 @@ function __rl_ip(): string {
   }
   return $remote;
 }
-
 function __rl_get(string $key) {
-  if (function_exists('apcu_enabled') && apcu_enabled()) {
-    $ok=false; $v=apcu_fetch($key,$ok); return $ok ? $v : null;
-  }
+  if (function_exists('apcu_enabled') && apcu_enabled()) { $ok=false; $v=apcu_fetch($key,$ok); return $ok?$v:null; }
   $f="/tmp/rl_".hash('sha256',$key);
   if(!is_file($f)) return null;
   $raw=@file_get_contents($f); if($raw===false) return null;
@@ -47,10 +59,7 @@ function __rl_set(string $key, $val, int $ttl): void {
   $f="/tmp/rl_".hash('sha256',$key); $val['_exp']=time()+$ttl;
   @file_put_contents($f,json_encode($val),LOCK_EX);
 }
-function rate_limit_or_die(
-  string $bucket, int $windowSec=60, int $maxHits=5,
-  int $banSec=1800, array $whitelist=[]
-): void {
+function rate_limit_or_die(string $bucket, int $windowSec=60, int $maxHits=5, int $banSec=1800, array $whitelist=[]): void {
   $ip = __rl_ip();
   if (in_array($ip,$whitelist,true)) return;
 
@@ -83,40 +92,27 @@ function rate_limit_or_die(
 
   __rl_set($key,$d,max($windowSec,$banSec));
 }
+rate_limit_or_die('requerimiento_upload');
 
-/* → Aplica límite ANTES de leer body/validar content-type */
-rate_limit_or_die(
-  bucket: 'requerimiento_api',
-  windowSec: 10,      // ventana 1 min
-  maxHits: 2,         // 5 intentos
-  banSec: 3600,       // ban 30 min
-  whitelist: []       // NO pongas 127.0.0.1 aquí
-);
-
-/* Ahora sí valida Content-Type y body */
+/* ===== Content-Type: multipart/form-data ===== */
 $ct = $_SERVER['CONTENT_TYPE'] ?? '';
-if (stripos($ct, 'application/json') === false) {
+if (stripos($ct, 'multipart/form-data') === false) {
   http_response_code(415);
-  die(json_encode(["ok"=>false,"error"=>"Content-Type debe ser application/json"]));
+  echo json_encode(["ok"=>false,"error"=>"Content-Type debe ser multipart/form-data"]); exit;
 }
-$raw = file_get_contents("php://input", false, null, 0, 64*1024 + 1);
-if ($raw === false || strlen($raw) === 0) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Body vacío"])); }
-if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>false,"error"=>"Payload demasiado grande"])); }
 
-$in = json_decode($raw, true) ?? [];
-
-/* ---------- Conexión a BD ---------- */
+/* ===== Conexión BD ===== */
 $path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
 if ($path && file_exists($path)) { include $path; }
-else { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"No se encontró conexion.php"]); exit; }
+else { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"No se encontró conn_db.php"]); exit; }
 $con = conectar();
 if(!$con){ http_response_code(500); echo json_encode(["ok"=>false,"error"=>"No se pudo conectar BD"]); exit; }
 $con->set_charset('utf8mb4');
-$con->query("SET time_zone='-06:00'");
+@$con->query("SET time_zone='-06:00'");
 
-/* ---------- Config ---------- */
-$MAX_FILES    = 3;                  // max. archivos por subida
-$MAX_BYTES    = 1 * 1024 * 1024;   // 1 MB por archivo
+/* ===== Config ===== */
+$MAX_FILES    = 3;
+$MAX_BYTES    = 1 * 1024 * 1024; // 1 MB por archivo
 $ALLOWED_MIME = ['image/jpeg','image/png','image/webp','image/heic','image/heif'];
 $EXT_FOR_MIME = [
   'image/jpeg' => 'jpg',
@@ -126,33 +122,30 @@ $EXT_FOR_MIME = [
   'image/heif' => 'heif',
 ];
 
-/* ---------- Entrada ---------- */
+/* ===== Entrada ===== */
 $folio     = isset($_POST['folio'])  ? strtoupper(trim($_POST['folio'])) : null;
 $statusRaw = isset($_POST['status']) ? trim($_POST['status'])            : null;
 
 if (!$folio || !preg_match('/^REQ-\d{10}$/', $folio)) {
-  http_response_code(400);
-  echo json_encode(["ok"=>false,"error"=>"Folio inválido. Formato: REQ-0000000000"]); exit;
+  http_response_code(400); echo json_encode(["ok"=>false,"error"=>"Folio inválido. Formato: REQ-0000000000"]); exit;
 }
 if ($statusRaw === null || !preg_match('/^-?\d+$/', $statusRaw)) {
-  http_response_code(400);
-  echo json_encode(["ok"=>false,"error"=>"Status inválido (0..6)."]); exit;
+  http_response_code(400); echo json_encode(["ok"=>false,"error"=>"Status inválido (0..6)."]); exit;
 }
 $status = (int)$statusRaw;
 if ($status < 0 || $status > 6) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"Status inválido (0..6)."]); exit; }
 
-/* --------- Verificar que el folio exista --------- */
+/* ===== Validar folio en BD ===== */
 $st = $con->prepare("SELECT id FROM requerimiento WHERE folio=? LIMIT 1");
 $st->bind_param("s",$folio);
 $st->execute();
 $exists = $st->get_result()->fetch_row();
 $st->close();
 if(!$exists){
-  http_response_code(404);
-  echo json_encode(["ok"=>false,"error"=>"Folio no encontrado"]); exit;
+  http_response_code(404); echo json_encode(["ok"=>false,"error"=>"Folio no encontrado"]); exit;
 }
 
-/* ---------- Helpers ---------- */
+/* ===== Helpers ===== */
 function php_upload_err_msg($code){
   return match((int)$code){
     UPLOAD_ERR_INI_SIZE   => 'El archivo excede upload_max_filesize del servidor.',
@@ -190,14 +183,14 @@ function sanitize_filename($name){
   return trim($n,'._-') ?: 'file';
 }
 
-/* ---------- Archivos ---------- */
+/* ===== Archivos ===== */
 $files=[];
 if (isset($_FILES['files'])) $files=array_merge($files, normalize_files_array($_FILES['files']));
 if (isset($_FILES['file']))  $files=array_merge($files, normalize_files_array($_FILES['file']));
 if (empty($files)) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"No se recibieron archivos. Usa 'files' o 'file' (multipart/form-data)."]); exit; }
 if (count($files) > $MAX_FILES) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"Máximo {$MAX_FILES} archivos por solicitud."]); exit; }
 
-/* ---------- Paths ---------- */
+/* ===== Paths ===== */
 $webroot = realpath("/home/site/wwwroot");
 if (!$webroot) { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"No se pudo resolver webroot"]); exit; }
 $baseAssets = $webroot . DIRECTORY_SEPARATOR . "ASSETS" . DIRECTORY_SEPARATOR . "requerimientos";
@@ -210,7 +203,7 @@ catch(Throwable $e){ http_response_code(500); echo json_encode(["ok"=>false,"err
 $publicBase = 'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net';
 $baseUrl    = rtrim($publicBase,'/')."/ASSETS/requerimientos/{$folio}/".(string)$status."/";
 
-/* ---------- Proceso ---------- */
+/* ===== Proceso ===== */
 $finfo  = new finfo(FILEINFO_MIME_TYPE);
 $saved  = [];
 $failed = [];
@@ -242,9 +235,17 @@ foreach ($files as $f) {
   $saved[] = ["name"=>$final,"url"=>$destUrl,"path"=>$destPath,"size"=>$size,"mime"=>$mime,"status_dir"=>(string)$status];
 }
 
-/* ---------- Respuesta ---------- */
+/* ===== Respuesta ===== */
 $ok = count($saved) > 0;
-http_response_code($ok ? 200 : 400);
+if (!$ok) {
+  // Si todos fallaron por tamaño → 413; si no, 400.
+  $hasSize = false;
+  foreach ($failed as $ff) { if (str_contains($ff['error'] ?? '', 'Tamaño inválido')) { $hasSize = true; break; } }
+  http_response_code($hasSize ? 413 : 400);
+} else {
+  http_response_code(200);
+}
+
 echo json_encode([
   "ok"     => $ok,
   "folio"  => $folio,

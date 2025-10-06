@@ -1,46 +1,75 @@
-//------------------------------------------------------------ JS Global -----------------------------------------------------
+// JS Global (bien estructurado + bloque de configuración)
 (() => {
   "use strict";
   if (window.__gcGlobalInit) return;
   window.__gcGlobalInit = true;
 
-  /* ===================== RUTAS ===================== */
-  const PATHS = window.GC_PATHS || {
-    ASSETS: "/ASSETS",
-    VIEWS: "/VIEWS",
-    ROUTES: { home: "/index.php", login: "/VIEWS/login.php" },
-    DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
+  /* ===================== CONFIG ===================== */
+  const GC_DEFAULT_CONFIG = {
+    PATHS: {
+      ASSETS: "/ASSETS",
+      VIEWS:  "/VIEWS",
+    },
+    ROUTES: {
+      publicHome: "/index.php",        // ← redireccion de a index (logo)
+      appHome:    "/VIEWS/home.php",   // ← Home para usuarios logeados ("Ir a Home")
+      login:      "/VIEWS/login.php",
+    },
+    ASSETS: {
+      DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
+      // Avatares por ID: intentará /ASSETS/usuario/usuarioImg/user_<id>.{png|jpg}
+      AVATAR_BASE: "/ASSETS/usuario/usuarioImg",
+    },
+    SOCIAL: {
+      facebook:  "https://www.facebook.com/GobIxtlahuacanMembrillos/",
+      instagram: "https://www.instagram.com/imembrillosgob/",
+      youtube:   "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
+      x:         "https://twitter.com",
+    },
+    FLAGS: {
+      stickyHeaderOffset: 50,   // px para activar header "scrolled"
+      animateOnView: true,      // aplicar IO a .animado
+    }
   };
 
-  const abs = (p) => new URL(p, window.location.origin).pathname;
-  const join = (...parts) =>
-    parts
-      .filter(Boolean)
-      .map((s, i) =>
-        i === 0 ? s.replace(/\/+$/g, "") : s.replace(/^\/+|\/+$/g, "")
-      )
-      .join("/")
-      .replace(/\/{2,}/g, "/");
+  const CFG = (function merge(base, ext) {
+    const out = structuredClone ? structuredClone(base) : JSON.parse(JSON.stringify(base));
+    const src = window.GC_CONFIG || {};
+    function deepMerge(target, from) {
+      for (const k of Object.keys(from || {})) {
+        if (from[k] && typeof from[k] === "object" && !Array.isArray(from[k])) {
+          target[k] = target[k] && typeof target[k] === "object" ? target[k] : {};
+          deepMerge(target[k], from[k]);
+        } else {
+          target[k] = from[k];
+        }
+      }
+    }
+    deepMerge(out, src);
+    return out;
+  })(GC_DEFAULT_CONFIG, window.GC_CONFIG);
 
-  const asset = (sub) => abs(join(PATHS.ASSETS, sub));
-  const view = (sub) => abs(join(PATHS.VIEWS, sub));
-  const routeHome = PATHS.ROUTES?.home
-    ? abs(PATHS.ROUTES.home)
-    : view("home.php");
-  const routeLogin = PATHS.ROUTES?.login
-    ? abs(PATHS.ROUTES.login)
-    : view("login.php");
-  const DEFAULT_AVATAR = abs(
-    PATHS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png"
-  );
+  /* ===== Helpers de rutas/paths ===== */
+  const abs   = (p) => new URL(p, window.location.origin).pathname;
+  const join  = (...parts) => parts.filter(Boolean)
+    .map((s,i)=> i===0 ? s.replace(/\/+$/g,"") : s.replace(/^\/+|\/+$/g,""))
+    .join("/").replace(/\/{2,}/g,"/");
 
-  /* ===================== SESION ===================== */
-  // Lee la cookie ix_emp 
+  const asset = (sub) => abs(join(CFG.PATHS.ASSETS, sub));
+  const view  = (sub) => abs(join(CFG.PATHS.VIEWS,  sub));
+
+  const routePublicHome = CFG.ROUTES?.publicHome ? abs(CFG.ROUTES.publicHome) : abs("/index.php");
+  const routeAppHome    = CFG.ROUTES?.appHome    ? abs(CFG.ROUTES.appHome)    : view("home.php");
+  const routeLogin      = CFG.ROUTES?.login      ? abs(CFG.ROUTES.login)      : view("login.php");
+
+  const DEFAULT_AVATAR  = abs(CFG.ASSETS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png");
+  const AVATAR_BASE     = abs(CFG.ASSETS.AVATAR_BASE || "/ASSETS/usuario/usuarioImg");
+
+  /* ===================== SESIÓN ===================== */
+  // Lee cookie ix_emp (JSON base64)
   function getIxSession() {
     try {
-      const m = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("ix_emp="));
+      const m = document.cookie.split("; ").find((c) => c.startsWith("ix_emp="));
       if (!m) return null;
       const raw = decodeURIComponent(m.split("=")[1] || "");
       return JSON.parse(decodeURIComponent(escape(atob(raw))));
@@ -48,13 +77,10 @@
       return null;
     }
   }
-
-  // Limpia ix_emp 
+  // Limpia ix_emp + usuario
   function clearIxSession() {
-    document.cookie =
-      "ix_emp=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
-    document.cookie =
-      "usuario=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    document.cookie = "ix_emp=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    document.cookie = "usuario=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
   }
 
   /* ===================== UTILS ===================== */
@@ -69,17 +95,12 @@
   };
 
   // Intenta varias rutas/formatos de imagen, con fallback
-  function setImgWithExtFallback(
-    imgEl,
-    bases,
-    { extOrder = ["png", "jpg"], placeholder, cacheBust = true } = {}
-  ) {
+  function setImgWithExtFallback(imgEl, bases, { extOrder = ["png","jpg"], placeholder, cacheBust = true } = {}) {
     const isAbsolute = (u) => /^https?:\/\//i.test(u) || u.startsWith("/");
-    const hasExt = (u) => /\.[a-zA-Z0-9]{2,5}(\?|#|$)/.test(u);
+    const hasExt     = (u) => /\.[a-zA-Z0-9]{2,5}(\?|#|$)/.test(u);
 
     const queue = [];
     const baseArr = Array.isArray(bases) ? bases : [bases];
-
     baseArr.forEach((b) => {
       if (!b) return;
       if (hasExt(b)) queue.push(b);
@@ -97,10 +118,7 @@
       }
       const url = queue[i++];
       imgEl.onerror = tryNext;
-      imgEl.onload = () => {
-        imgEl.dataset.srcResolved = url;
-        imgEl.onerror = null;
-      };
+      imgEl.onload  = () => { imgEl.dataset.srcResolved = url; imgEl.onerror = null; };
       const finalUrl = cacheBust && isAbsolute(url) ? withBust(url) : url;
       imgEl.src = finalUrl;
     };
@@ -109,22 +127,15 @@
   }
 
   function setAvatarSrc(imgEl, session) {
-    const ASSETS_BASE = "/ASSETS/usuario/usuarioImg";
-    const DEFAULT_URL = DEFAULT_AVATAR;
-
     const cookieUrl = session?.avatarUrl || session?.avatar || null;
-    const id =
-      session?.id_usuario != null ? String(session.id_usuario).trim() : null;
-
-    const basesSinExt = id
-      ? [`${ASSETS_BASE}/user_${id}`, `${ASSETS_BASE}/img_user${id}`]
-      : [];
+    const id = session?.id_usuario != null ? String(session.id_usuario).trim() : null;
+    const basesSinExt = id ? [`${AVATAR_BASE}/user_${id}`, `${AVATAR_BASE}/img_user${id}`] : [];
     const primary = cookieUrl ? [cookieUrl] : [];
-    const candidates = [...primary, ...basesSinExt, DEFAULT_URL];
+    const candidates = [...primary, ...basesSinExt, DEFAULT_AVATAR];
 
     setImgWithExtFallback(imgEl, candidates, {
-      extOrder: ["png", "jpg"],
-      placeholder: DEFAULT_URL,
+      extOrder: ["png","jpg"],
+      placeholder: DEFAULT_AVATAR,
       cacheBust: true,
     });
 
@@ -135,27 +146,17 @@
   }
 
   // CSS var --vh para layouts móviles
-  const applyVH = () =>
-    document.documentElement.style.setProperty(
-      "--vh",
-      `${window.innerHeight * 0.01}px`
-    );
+  const applyVH = () => document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
   applyVH();
   window.addEventListener("resize", applyVH);
 
   /* ===================== ANIMACIONES (.animado) ===================== */
   document.addEventListener("DOMContentLoaded", () => {
+    if (!CFG.FLAGS.animateOnView) return;
     const animados = document.querySelectorAll(".animado");
     if (!animados.length) return;
     const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("visible");
-            io.unobserve(e.target);
-          }
-        });
-      },
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("visible"); io.unobserve(e.target); } }),
       { threshold: 0.2 }
     );
     animados.forEach((el) => io.observe(el));
@@ -176,7 +177,7 @@
     const header = document.getElementById("header");
     if (!header) return;
     const onScroll = () =>
-      window.scrollY > 50
+      window.scrollY > (CFG.FLAGS.stickyHeaderOffset || 50)
         ? header.classList.add("scrolled")
         : header.classList.remove("scrolled");
     onScroll();
@@ -185,7 +186,7 @@
 
   /* ===================== TOPBAR (avatar, dropdown, móvil) ===================== */
   document.addEventListener("DOMContentLoaded", () => {
-    const session = getIxSession();
+    const session  = getIxSession();
     const isLogged = !!(session?.email || session?.nombre);
 
     // --- Desktop ---
@@ -207,15 +208,11 @@
           <div class="dropdown-menu" id="user-dropdown" role="menu" aria-hidden="true">
             <ul>
               <li role="menuitem" tabindex="-1">
-                <img src="${asset(
-                  "/user/userMenu/homebtn.png"
-                )}" alt="" aria-hidden="true" />
+                <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
                 Ir a Home
               </li>
               <li id="logout-btn" role="menuitem" tabindex="-1">
-                <img src="${asset(
-                  "/user/userMenu/logoutbtn.png"
-                )}" alt="" aria-hidden="true" />
+                <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
                 Logout
               </li>
             </ul>
@@ -232,23 +229,18 @@
           dd.setAttribute("aria-hidden", String(!flag));
           wrap.setAttribute("aria-expanded", String(!!flag));
         };
-        const toggle = (e) => {
-          e?.stopPropagation();
-          open(!dd.classList.contains("active"));
-        };
+        const toggle = (e) => { e?.stopPropagation(); open(!dd.classList.contains("active")); };
 
         wrap.addEventListener("click", toggle);
         wrap.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            toggle(e);
-          }
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(e); }
           if (e.key === "Escape") open(false);
         });
         document.addEventListener("click", () => open(false));
 
+        // Desktop dropdown: “Ir a Home” → /VIEWS/home.php
         dd.querySelector("li:nth-child(1)")?.addEventListener("click", () => {
-          window.location.href = routeHome;
+          window.location.href = routeAppHome;
         });
         dd.querySelector("#logout-btn")?.addEventListener("click", () => {
           clearIxSession();
@@ -257,33 +249,21 @@
         });
 
         if (!sessionStorage.getItem("bienvenidaMostrada")) {
-          try {
-            window.gcToast?.(
-              `Bienvenido, ${session.nombre || "usuario"}`,
-              "exito"
-            );
-          } catch {}
+          try { window.gcToast?.(`Bienvenido, ${session.nombre || "usuario"}`, "exito"); } catch {}
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
         // No logueado → icono clicable a login
         const loginIcon = document.createElement("div");
         loginIcon.className = "user-icon";
-        loginIcon.innerHTML = `
-          <img src="${withBust(
-            DEFAULT_AVATAR
-          )}" alt="Usuario" title="Iniciar sesión" class="img-perfil" />
-        `;
-        loginIcon.addEventListener(
-          "click",
-          () => (window.location.href = routeLogin)
-        );
+        loginIcon.innerHTML = `<img src="${withBust(DEFAULT_AVATAR)}" alt="Usuario" title="Iniciar sesión" class="img-perfil" />`;
+        loginIcon.addEventListener("click", () => (window.location.href = routeLogin));
         actions.appendChild(loginIcon);
         actions.classList.add("mostrar");
       }
     }
 
-    // --- mobile ---
+    // --- Mobile ---
     const socialIconsContainer =
       document.querySelector("#header .social-bar-mobile .social-icons") ||
       document.querySelector("#header .subnav .social-icons") ||
@@ -294,9 +274,7 @@
 
       const mob = document.createElement("div");
       mob.className = "user-icon-mobile";
-      mob.innerHTML = `<img alt="Perfil" title="Perfil" src="${withBust(
-        DEFAULT_AVATAR
-      )}" />`;
+      mob.innerHTML = `<img alt="Perfil" title="Perfil" src="${withBust(DEFAULT_AVATAR)}" />`;
       socialIconsContainer.appendChild(mob);
       const mobImg = mob.querySelector("img");
 
@@ -310,15 +288,11 @@
         dropdownMobile.innerHTML = `
           <ul>
             <li>
-              <img src="${asset(
-                "/user/userMenu/homebtn.png"
-              )}" alt="" aria-hidden="true" />
+              <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
               Ir a Home
             </li>
             <li id="logout-btn-mobile">
-              <img src="${asset(
-                "/user/userMenu/logoutbtn.png"
-              )}" alt="" aria-hidden="true" />
+              <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
               Logout
             </li>
           </ul>`;
@@ -326,11 +300,8 @@
 
         const reposition = () => {
           const rect = mob.getBoundingClientRect();
-          dropdownMobile.style.top = `${rect.bottom + window.scrollY}px`;
-          const left = Math.max(
-            8,
-            rect.right - (dropdownMobile.offsetWidth || 180)
-          );
+          dropdownMobile.style.top  = `${rect.bottom + window.scrollY}px`;
+          const left = Math.max(8, rect.right - (dropdownMobile.offsetWidth || 180));
           dropdownMobile.style.left = `${left + window.scrollX}px`;
         };
 
@@ -341,43 +312,26 @@
           dropdownMobile.classList.toggle("active", willOpen);
         });
 
-        document.addEventListener("click", () =>
-          dropdownMobile.classList.remove("active")
-        );
-        document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape") dropdownMobile.classList.remove("active");
-        });
+        document.addEventListener("click", () => dropdownMobile.classList.remove("active"));
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape") dropdownMobile.classList.remove("active"); });
+        const onRepositionIfOpen = () => { if (dropdownMobile.classList.contains("active")) reposition(); };
+        window.addEventListener("resize", onRepositionIfOpen, { passive: true });
+        window.addEventListener("scroll", onRepositionIfOpen, { passive: true });
 
-        const onRepositionIfOpen = () => {
-          if (dropdownMobile.classList.contains("active")) reposition();
-        };
-        window.addEventListener("resize", onRepositionIfOpen, {
-          passive: true,
+        // Mobile dropdown: “Ir a Home” → /VIEWS/home.php
+        dropdownMobile.querySelector("li:first-child")?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.location.href = routeAppHome;
         });
-        window.addEventListener("scroll", onRepositionIfOpen, {
-          passive: true,
+        dropdownMobile.querySelector("#logout-btn-mobile")?.addEventListener("click", () => {
+          clearIxSession();
+          sessionStorage.removeItem("bienvenidaMostrada");
+          window.location.href = routeLogin;
         });
-
-        dropdownMobile
-          .querySelector("li:first-child")
-          ?.addEventListener("click", (e) => {
-            e.stopPropagation();
-            window.location.href = routeHome;
-          });
-        dropdownMobile
-          .querySelector("#logout-btn-mobile")
-          ?.addEventListener("click", () => {
-            clearIxSession();
-            sessionStorage.removeItem("bienvenidaMostrada");
-            window.location.href = routeLogin;
-          });
 
         setAvatarSrc(mobImg, session);
       } else {
-        mob.addEventListener(
-          "click",
-          () => (window.location.href = routeLogin)
-        );
+        mob.addEventListener("click", () => (window.location.href = routeLogin));
       }
     }
   });
@@ -391,20 +345,8 @@
 
     const nav = header.querySelector(".subnav");
 
-    // Enlaces por defecto de redes 
-    const socialDefaults = {
-      facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
-      instagram: "https://www.instagram.com/imembrillosgob/",
-      youtube:
-        "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
-      x: "https://twitter.com",
-    };
-    const socialMap = Object.assign(
-      {},
-      socialDefaults,
-      window.NAV_SOCIAL || {}
-    );
-
+    // Enlaza redes en subnav (desktop) y en la barra móvil superior
+    const socialMap = Object.assign({}, CFG.SOCIAL, window.NAV_SOCIAL || {});
     const attachSocialClicks = (root) => {
       if (!root) return;
       root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
@@ -434,21 +376,17 @@
       });
     };
 
-    // Enlaza redes en subnav (desktop) y en la barra móvil superior
     attachSocialClicks(nav);
     attachSocialClicks(header.querySelector(".social-bar-mobile"));
 
-    // Logo → Home
+    // Logo → Home público (/index.php)
     const logoBtn = document.getElementById("logo-btn");
     if (logoBtn) {
       logoBtn.style.cursor = "pointer";
-      const goHome = () => (window.location.href = routeHome);
-      logoBtn.addEventListener("click", goHome);
+      const goPublicHome = () => (window.location.href = routePublicHome);
+      logoBtn.addEventListener("click", goPublicHome);
       logoBtn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          goHome();
-        }
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goPublicHome(); }
       });
     }
   });

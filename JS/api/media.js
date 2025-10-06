@@ -1,98 +1,130 @@
-// /JS/api/media.js 
-
-const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/";
-const ENDPOINTS = {
-  mediaList:   API_BASE + "ixtla01_c_requerimiento_img.php",    // POST (listar)
-  mediaUpload: API_BASE + "ixtla01_ins_requerimiento_img.php",  // POST (subir)
-};
-
-// Reglas de validacion
-const MAX_MB = 1;
-const ACCEPT_MIME = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
-const ACCEPT_EXT  = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
-
+// /JS/api/media.js
 const TAG = "[API:Media]";
 
-function toMB(bytes){ return bytes / (1024*1024); }
-function hasAcceptedExt(name){
-  const i = name?.lastIndexOf("."); if (i < 0) return false;
-  return ACCEPT_EXT.includes(name.slice(i).toLowerCase());
-}
-function hasAcceptedMime(m){ return ACCEPT_MIME.includes(String(m || "").toLowerCase()); }
-function validateFiles(files){
-  const accepted = [], rejected = [];
-  for (const f of Array.from(files || [])){
-    const sizeMb = toMB(f.size || 0);
-    const mimeOk = hasAcceptedMime(f.type);
-    const extOk  = hasAcceptedExt(f.name);
-    if (sizeMb > MAX_MB){ rejected.push({ name:f.name, size:f.size, mime:f.type, reason:`Excede ${MAX_MB} MB` }); continue; }
-    if (!(mimeOk || extOk)){ rejected.push({ name:f.name, size:f.size, mime:f.type, reason:`Tipo no permitido` }); continue; }
-    accepted.push(f);
-  }
-  return { accepted, rejected };
+/* ====== Config ====== */
+const HOST = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
+const ENDPOINTS = {
+  setup:  `${HOST}/db/WEB/ixtla01_u_requerimiento_folders.php`, // crea /ASSETS/requerimientos/<folio>/{0..6}
+  list:   `${HOST}/db/WEB/ixtla01_c_requerimiento_img.php`,      // lista imágenes por folio/estatus
+  upload: `${HOST}/db/WEB/ixtla01_ins_requerimiento_img.php`,    // subida (multipart/form-data)
+};
+
+const FETCH_TIMEOUT = 15000;
+const MAX_MB       = 1; // límite del servidor
+const ACCEPT_MIME  = ["image/jpeg","image/png","image/webp","image/heic","image/heif"];
+
+/* ====== Helpers ====== */
+function withTimeout(ms = FETCH_TIMEOUT) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return { signal: ctrl.signal, done: () => clearTimeout(t) };
 }
 
-class MediaAPI {
-  /** Consultar/listar evidencias por folio + estatus */
-  async c({ folio, status=0, page=1, per_page=50, signal } = {}){
-    if (!folio || !/^REQ-\d{10}$/.test(String(folio))) {
-      return { ok:false, count:0, data:[], error:"Folio inválido" };
-    }
-    try {
-      const resp = await fetch(ENDPOINTS.mediaList, {
-        method: "POST",
-        headers: { "Content-Type": "application/json;charset=utf-8", Accept: "application/json" },
-        body: JSON.stringify({ folio, status, page, per_page }),
-        signal,
+async function postJSON(url, body, { signal } = {}) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json;charset=utf-8", "Accept": "application/json" },
+    body: JSON.stringify(body || {}),
+    signal,
+  });
+  // intenta parsear JSON incluso en HTTP no-OK para rescatar mensaje de error del backend
+  let json = null;
+  try { json = await res.json(); } catch {}
+  if (!res.ok || json?.ok === false) {
+    const msg = json?.error || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return json || {};
+}
+
+function toArray(files) {
+  if (!files) return [];
+  return (files instanceof FileList) ? Array.from(files) : Array.from(files);
+}
+
+/* ====== API ====== */
+
+/**
+ * Crea (si no existen) las carpetas del folio: 0..6 y status.txt.
+ */
+export async function setupMedia(folio, { create_status_txt = true, force_status_txt = false } = {}) {
+  if (!/^REQ-\d{10}$/.test(String(folio || ""))) throw new Error("Folio inválido");
+  const { signal, done } = withTimeout();
+  try {
+    return await postJSON(ENDPOINTS.setup, { folio, create_status_txt, force_status_txt }, { signal });
+  } finally { done(); }
+}
+
+/**
+ * Lista imágenes del folio; si pasas status, filtra por estado.
+ * Devuelve el JSON del backend (esperado: { ok, data:[{name,url,...}], ... }).
+ */
+export async function listMedia(folio, status = null, page = 1, per_page = 100) {
+  if (!/^REQ-\d{10}$/.test(String(folio || ""))) throw new Error("Folio inválido");
+  const payload = { folio, page, per_page };
+  if (status !== null && status !== undefined) payload.status = Number(status);
+
+  const { signal, done } = withTimeout();
+  try {
+    return await postJSON(ENDPOINTS.list, payload, { signal });
+  } finally { done(); }
+}
+
+/**
+ * Sube imágenes al folio/estatus. Hace validación local (≤1MB y MIME permitido).
+ * Acepta FileList o Array<File>.
+ * Retorna el JSON del backend con un campo extra "skipped" para archivos descartados localmente.
+ */
+export async function uploadMedia({ folio, status = 0, files }) {
+  if (!/^REQ-\d{10}$/.test(String(folio || ""))) throw new Error("Folio inválido");
+  const st = Number(status);
+  if (!Number.isInteger(st) || st < 0 || st > 6) throw new Error("Status inválido (0..6)");
+
+  const arr = toArray(files);
+  if (!arr.length) throw new Error("Sin archivos a subir");
+
+  // filtro local (evita 413 del servidor)
+  const skipped = [];
+  const send = [];
+  for (const f of arr) {
+    const tooBig = f.size > MAX_MB * 1024 * 1024;
+    const badMime = !ACCEPT_MIME.includes(f.type);
+    if (tooBig || badMime) {
+      skipped.push({
+        name: f.name,
+        error: tooBig ? `Excede ${MAX_MB} MB` : `Tipo no permitido (${f.type || "desconocido"})`
       });
-      const j = await resp.json().catch(() => ({}));
-      if (!resp.ok || !j?.ok){
-        const err = j?.error || `HTTP ${resp.status}`;
-        return { ok:false, count:0, data:[], error: err };
-      }
-      const list = Array.isArray(j.data) ? j.data : (Array.isArray(j.items) ? j.items : []);
-      const count = Number(j.count ?? list.length);
-      return { ok:true, count, data:list };
-    } catch (e) {
-      console.error(TAG, "list error:", e);
-      return { ok:false, count:0, data:[], error:String(e?.message || e) };
+    } else {
+      send.push(f);
     }
   }
+  if (!send.length) return { ok: false, folio, status: st, saved: [], failed: [], skipped };
 
-  /** Insertar/subir evidencias (multipart/form-data) */
-  async i({ folio, status=0, files, signal } = {}){
-    if (!folio || !/^REQ-\d{10}$/.test(String(folio))) {
-      return { ok:false, error:"Folio inválido" };
+  // multipart
+  const fd = new FormData();
+  fd.append("folio", folio);
+  fd.append("status", String(st));
+  send.forEach(f => fd.append("files[]", f, f.name));
+
+  const { signal, done } = withTimeout();
+  try {
+    const res = await fetch(ENDPOINTS.upload, { method: "POST", body: fd, signal });
+    let json = null;
+    try { json = await res.json(); } catch {}
+
+    // arma respuesta consistente
+    const saved  = json?.saved  || [];
+    const failed = json?.failed || [];
+
+    const ok = (json?.ok === true) || (saved.length > 0 && res.ok);
+    if (!ok) {
+      const msg = json?.error || `Error upload (HTTP ${res.status})`;
+      console.warn(TAG, msg, { json });
     }
-    const { accepted, rejected } = validateFiles(files);
-    if (!accepted.length){
-      return { ok:false, error:"No hay archivos válidos para subir", _clientRejected: rejected };
-    }
-    try {
-      const fd = new FormData();
-      fd.append("folio", folio);
-      fd.append("status", String(status));
-      accepted.forEach(f => fd.append("files[]", f, f.name));
-      const resp = await fetch(ENDPOINTS.mediaUpload, { method:"POST", body: fd, signal });
-      const raw = await resp.text();
-      let j; try { j = JSON.parse(raw); } catch { j = { ok:false, error: raw?.slice(0,200) || `HTTP ${resp.status}` }; }
-      if (!resp.ok || !j?.ok){
-        const err = j?.error || `HTTP ${resp.status}`;
-        j.ok = false; j.error = err; j._clientRejected = rejected;
-        return j;
-      }
-      j._clientRejected = rejected;
-      return j;
-    } catch (e) {
-      console.error(TAG, "upload error:", e);
-      return { ok:false, error:String(e?.message || e) };
-    }
-  }
+
+    return { ok, folio, status: st, saved, failed, skipped, httpStatus: res.status };
+  } finally { done(); }
 }
 
-export const media = new MediaAPI();
-export default media;
-
-// Aliases 
-export const listMedia   = (folio, status=0, page=1, per_page=50) => media.c({ folio, status, page, per_page });
-export const uploadMedia = ({ folio, status=0, files }) => media.i({ folio, status, files });
+export const Media = { setupMedia, listMedia, uploadMedia };
+export default Media;

@@ -55,15 +55,15 @@
     // Subida de imágenes
     MAX_FILES: 3,
     MIN_FILES: 0,
-    MAX_MB: 1, 
+    MAX_MB: 1, // límite del servidor
     ACCEPT_MIME: ["image/jpeg","image/png","image/webp","image/heic","image/heif"],
     ACCEPT_EXT:  [".jpg",".jpeg",".png",".webp",".heic",".heif"],
 
     ENDPOINTS: {
-      cpcolonia:  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
-      insertReq:  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_ins_requerimiento.php",
-      fsBootstrap:"https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
-      uploadImg:  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_ins_requerimiento_img.php",
+      cpcolonia:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
+      insertReq:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_ins_requerimiento.php",
+      fsBootstrap: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
+      uploadImg:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_ins_requerimiento_img.php",
     },
 
     FETCH_TIMEOUT: 12000,
@@ -414,27 +414,26 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ---------- Config ---------- */
   const CFG = Object.assign({
     NAME_MIN_CHARS: 5,
-    DESC_MIN_CHARS: 30,
+    DESC_MIN_CHARS: 10,
     PHONE_DIGITS: 10,
     MAX_FILES: 3,
     MIN_FILES: 0,
-    MAX_MB: 20,
+    MAX_MB: 1, // 1 MB por archivo
     ACCEPT_MIME: ["image/jpeg","image/png","image/webp","image/heic","image/heif"],
     ACCEPT_EXT: [".jpg",".jpeg",".png",".webp",".heic",".heif"],
     ENDPOINTS: {
-      cpcolonia:  "/db/WEB/ixtla01_c_cpcolonia.php",
-      insertReq:  "/db/WEB/ixtla01_ins_requerimiento.php",
-      fsBootstrap:"/db/WEB/ixtla01_u_requerimiento_folders.php",
-      uploadImg:  "/db/WEB/ixtla01_ins_requerimiento_img.php",
+      cpcolonia:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
+      insertReq:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_ins_requerimiento.php",
+      fsBootstrap: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
+      uploadImg:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_ins_requerimiento_img.php",
     },
     FETCH_TIMEOUT: 12000,
     DEBUG: false
   }, window.IX_CFG_REQ || {});
   const ACCEPT_ALL = window.IX_CFG_REQ_ACCEPT || [...CFG.ACCEPT_MIME, ...CFG.ACCEPT_EXT].join(",");
-
   const log = (...a) => { if (CFG.DEBUG) try { console.log("[REQ]", ...a); } catch {} };
 
-  /* ---------- Helpers de control de tiempo / abort ---------- */
+  /* ---------- Helpers timeout/abort ---------- */
   function anySignal(signals = []) {
     const c = new AbortController();
     const onAbort = () => c.abort();
@@ -522,7 +521,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const root = document.getElementById("ix-done-modal");
     if (!root) return;
     const overlay = root.querySelector("[data-close]");
-    theCloses  = root.querySelectorAll("[data-close]");
+    const theCloses  = root.querySelectorAll("[data-close]");
     const subEl   = root.querySelector("#ix-done-subtitle");
     const folioEl = root.querySelector("#ix-done-folio");
     function open({ folio = "—", title = "—" } = {}) {
@@ -768,7 +767,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return { ok: allOk, firstBad };
   }
 
-  /* ---------- Apertura / cierre del modal de formulario ---------- */
+  /* ---------- Apertura / cierre ---------- */
   function trap(e) {
     if (e.key !== "Tab") return;
     const focusables = Array.from(dialog.querySelectorAll(
@@ -897,7 +896,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   || (`idemp-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
     try {
-      // 1) crear requerimiento
+      // 1) crear requerimiento (JSON)
       const json = await withTimeout((signal) =>
         fetch(CFG.ENDPOINTS.insertReq, {
           method: "POST",
@@ -916,31 +915,34 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
       const folio = json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10,"0")}`;
 
-      // 2) preparar folders (best-effort)
+      // 2) preparar folders (best-effort; JSON)
       try {
         await withTimeout((signal) =>
           fetch(CFG.ENDPOINTS.fsBootstrap, {
             method: "POST",
             headers: { "Content-Type":"application/json", "Accept":"application/json" },
-            body: JSON.stringify({ folio }),
+            body: JSON.stringify({ folio, create_status_txt: true, force_status_txt: false }),
             signal,
           }).then(r=>r.json())
         );
-      } catch {}
+      } catch (e) { log("fsBootstrap falló (no bloqueante):", e); }
 
-      // 3) subir evidencias (si hay)
+      // 3) subir evidencias (multipart) al estado 0
       if (files.length) {
         const fd = new FormData();
         fd.append("folio", folio);
         fd.append("status", "0");
         files.forEach(f => fd.append("files[]", f, f.name));
-        try {
-          await withTimeout((signal) =>
-            fetch(CFG.ENDPOINTS.uploadImg, { method:"POST", body: fd, signal })
-              .then(r => r.json())
-          );
-        } catch {
-          window.ixToast?.warn("El reporte se creó, pero algunas imágenes no se subieron.");
+
+        const upRes = await withTimeout((signal) =>
+          fetch(CFG.ENDPOINTS.uploadImg, { method:"POST", body: fd, signal })
+        );
+
+        let upJson = null;
+        try { upJson = await upRes.json(); } catch {}
+        if (!upRes.ok || !upJson?.ok) {
+          const msg = upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`;
+          window.ixToast?.warn(msg);
         }
       }
 
@@ -964,4 +966,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 })();
-
