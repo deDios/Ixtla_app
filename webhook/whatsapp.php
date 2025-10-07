@@ -19,46 +19,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 header('Content-Type: application/json; charset=utf-8');
 
-// (opcional) Límite de tamaño del body (ej. 256 KB)
+// ---- Logging sencillo (cambia la ruta si no tienes permisos en /tmp)
+$LOG = '/tmp/wa_webhook.log';
+function wlog($msg) {
+  global $LOG;
+  @file_put_contents($LOG, date('c').' '.$msg.PHP_EOL, FILE_APPEND);
+}
+
+// Límite de tamaño (256 KB)
 $maxBytes = 256 * 1024;
 $raw = file_get_contents('php://input', false, null, 0, $maxBytes+1);
 if ($raw === false || strlen($raw) > $maxBytes) {
-  http_response_code(413); // Payload Too Large
+  http_response_code(413);
   echo json_encode(["ok"=>false, "error"=>"Body too large"]);
+  wlog('ERROR: body too large or unreadable');
   exit;
 }
+wlog('RAW: '.$raw);
 
-// (opcional recomendado) Validar firma HMAC de Meta
+// (Opcional) Validación HMAC — descomentarlo cuando configures APP_SECRET
 // $appSecret = getenv('APP_SECRET') ?: '';
 // $sigHeader = $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '';
 // if ($appSecret && $sigHeader) {
-//   if (!preg_match('/^sha256=([a-f0-9]{64})$/i', $sigHeader, $m)) {
-//     http_response_code(401); echo json_encode(["ok"=>false,"error"=>"Bad signature format"]); exit;
-//   }
+//   if (!preg_match('/^sha256=([a-f0-9]{64})$/i', $sigHeader, $m)) { http_response_code(401); echo json_encode(["ok"=>false,"error"=>"Bad signature"]); wlog('ERROR: bad signature header'); exit; }
 //   $expected = 'sha256=' . hash_hmac('sha256', $raw, $appSecret);
-//   if (!hash_equals($expected, $sigHeader)) {
-//     http_response_code(401); echo json_encode(["ok"=>false,"error"=>"Invalid signature"]); exit;
-//   }
+//   if (!hash_equals($expected, $sigHeader)) { http_response_code(401); echo json_encode(["ok"=>false,"error"=>"Invalid signature"]); wlog('ERROR: invalid signature'); exit; }
 // }
 
 $body = json_decode($raw, true);
 if (json_last_error() !== JSON_ERROR_NONE) {
   http_response_code(400);
   echo json_encode(["ok"=>false, "error"=>"Invalid JSON"]);
+  wlog('ERROR: invalid json: '.json_last_error_msg());
   exit;
+}
+
+// *** Normalización importante ***
+// Si el panel envía solo {field, value} (sin entry/changes), lo convertimos:
+if (!isset($body['entry']) && isset($body['field'], $body['value'])) {
+  $body = [ "entry" => [ [ "changes" => [ [ "field" => $body['field'], "value" => $body['value'] ] ] ] ] ];
+  wlog('INFO: normalized mock payload to entry/changes');
 }
 
 // 3) Conecta a DB
 include_once __DIR__ . '/../db/conn/conexion.php';
 $con = conectar();
-if (!$con) { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"DB down"]); exit; }
+if (!$con) { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"DB down"]); wlog('ERROR: DB down'); exit; }
 $con->set_charset('utf8mb4');
 
 // Helpers
 function upsert_contact(mysqli $con, string $wa_phone, ?string $name) : int {
   $s = $con->prepare("SELECT id FROM contacts WHERE wa_phone=? LIMIT 1");
   $s->bind_param('s', $wa_phone);
-  $s->execute();
+  if (!$s->execute()) { wlog('SQL ERR upsert_contact SELECT: '.$s->error); }
   $id = $s->get_result()->fetch_assoc()['id'] ?? null;
   $s->close();
 
@@ -66,7 +79,7 @@ function upsert_contact(mysqli $con, string $wa_phone, ?string $name) : int {
 
   $s = $con->prepare("INSERT INTO contacts(wa_phone,name) VALUES(?,?)");
   $s->bind_param('ss', $wa_phone, $name);
-  $s->execute();
+  if (!$s->execute()) { wlog('SQL ERR upsert_contact INSERT: '.$s->error); }
   $new_id = (int)$s->insert_id;
   $s->close();
   return $new_id;
@@ -75,7 +88,7 @@ function upsert_contact(mysqli $con, string $wa_phone, ?string $name) : int {
 function get_or_open_conversation(mysqli $con, int $contact_id) : int {
   $s = $con->prepare("SELECT id FROM conversations WHERE contact_id=? AND status!='closed' LIMIT 1");
   $s->bind_param('i', $contact_id);
-  $s->execute();
+  if (!$s->execute()) { wlog('SQL ERR get_or_open SELECT: '.$s->error); }
   $row = $s->get_result()->fetch_assoc();
   $s->close();
 
@@ -83,7 +96,7 @@ function get_or_open_conversation(mysqli $con, int $contact_id) : int {
 
   $s = $con->prepare("INSERT INTO conversations(contact_id,status) VALUES(?, 'open')");
   $s->bind_param('i', $contact_id);
-  $s->execute();
+  if (!$s->execute()) { wlog('SQL ERR get_or_open INSERT: '.$s->error); }
   $cid = (int)$s->insert_id;
   $s->close();
   return $cid;
@@ -91,6 +104,8 @@ function get_or_open_conversation(mysqli $con, int $contact_id) : int {
 
 // 4) Procesa entries/changes (maneja múltiples eventos en un POST)
 $entries = $body['entry'] ?? [];
+$inserted = 0;
+
 foreach ($entries as $entry) {
   $changes = $entry['changes'] ?? [];
   foreach ($changes as $change) {
@@ -103,7 +118,7 @@ foreach ($entries as $entry) {
     foreach ($messages as $idx => $m) {
       $type = $m['type'] ?? '';
       $from = $m['from'] ?? null; // E.164 sin '+'
-      if (!$from) continue;
+      if (!$from) { wlog('WARN: message without from'); continue; }
 
       $name = $contacts[$idx]['profile']['name'] ?? ($contacts[0]['profile']['name'] ?? null);
 
@@ -116,12 +131,13 @@ foreach ($entries as $entry) {
       switch ($type) {
         case 'text':
           $text = $m['text']['body'] ?? '';
-          // Idempotencia por wa_message_id único (usa INSERT IGNORE)
           $sql = "INSERT IGNORE INTO messages(conversation_id, direction, wa_message_id, msg_type, text, raw_json)
                   VALUES(?, 'in', ?, 'text', ?, ?)";
           $s = $con->prepare($sql);
           $s->bind_param('isss', $conv_id, $waid, $text, $raw_msg);
-          $s->execute(); $s->close();
+          if (!$s->execute()) { wlog('SQL ERR insert message text: '.$s->error); }
+          else { $inserted += $s->affected_rows; }
+          $s->close();
           break;
 
         default:
@@ -130,25 +146,24 @@ foreach ($entries as $entry) {
                   VALUES(?, 'in', ?, 'text', ?, ?)";
           $s = $con->prepare($sql);
           $s->bind_param('isss', $conv_id, $waid, $genericText, $raw_msg);
-          $s->execute(); $s->close();
+          if (!$s->execute()) { wlog('SQL ERR insert message default: '.$s->error); }
+          else { $inserted += $s->affected_rows; }
+          $s->close();
           break;
       }
 
-      // Actualiza último entrante
       $s = $con->prepare("UPDATE conversations SET last_incoming_at=NOW(), updated_at=NOW() WHERE id=?");
       $s->bind_param('i', $conv_id);
-      $s->execute(); $s->close();
+      if (!$s->execute()) { wlog('SQL ERR update conversation: '.$s->error); }
+      $s->close();
     }
 
-    // B) ESTADOS (delivered/read/etc) — opcional
-    $statuses = $value['statuses'] ?? [];
-    foreach ($statuses as $st) {
-      // Aquí podrías insertar en una tabla de estados si decides llevar tracking granular.
-      // Ejemplo: $st['status'], $st['id'] (wa_message_id), $st['timestamp'], $st['recipient_id']...
-    }
+    // B) ESTADOS — si quieres loguearlos, agrégalos aquí
+    // $statuses = $value['statuses'] ?? [];
   }
 }
 
 $con->close();
+wlog("DONE inserted_rows=$inserted");
 http_response_code(200);
-echo json_encode(["ok" => true]);
+echo json_encode(["ok" => true, "inserted" => $inserted]);
