@@ -2,7 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 
 // Pega tus credenciales reales:
-const TOKEN = 'EAAJkMnC6uM0BPRno6FCIX5qa02D434WAZA8RgWUHf7t1Ue5D6bmMNEI1zShDUfk9JEPrWRd6adPIdqUfJGkyOz8l9yDOZBdMDJFMR5WmLGQRe8z4e2ZCPKgxzbMt2oZAQSxasnzTngkh7MOLn8cAPOrw7ibN4zptaXeB86xMomKyqgfzXiudgIKCHlH2UAZDZD';
+const TOKEN = 'EAAJkMnC6uM0BPqQCodL4nN6rzpdfZBQrALZAtgZAWWLoa1RfDvCAnWw3oO44bSpCUzijKQiIPlpu4ecbY0uRxlfO8BTJs1PBPvBhLGP4RVZCt07YZCMAcahYL1Yiaw2gCRdZBb1og7YzDa4cG9BBFQj5XBd05MzQ8jiLaAOyWhVRBxUZCSW9IuvYyjfReKUAgZDZD';
 const PHONE_NUMBER_ID = '782524058283433';
 
 
