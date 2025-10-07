@@ -1,4 +1,4 @@
-// JS Global (bien estructurado + bloque de configuración)
+// JS Global
 (() => {
   "use strict";
   if (window.__gcGlobalInit) return;
@@ -483,102 +483,81 @@
     }
   });
 
-  // ===== Subnav Operativo =====
+  // ------------------------------------- Subnav Operativo (estilo GodCode, adaptado Ixtla)
   (() => {
     const header = document.getElementById("header");
     if (!header) return;
     const nav = header.querySelector(".subnav");
     if (!nav) return;
 
-    if (!nav.dataset.originalHtml) {
-      nav.dataset.originalHtml = nav.innerHTML;
+    if (!nav.dataset.originalHtml) nav.dataset.originalHtml = nav.innerHTML;
+
+    const operativeViews = ["home.php"].map((s) => s.toLowerCase());
+    const pathL = (window.location.pathname || "").toLowerCase();
+    const currentPage = (pathL.split("/").pop() || "").toLowerCase();
+    const hrefL = (window.location.href || "").toLowerCase();
+
+    const isOperative =
+      hrefL.includes("home.php") || operativeViews.includes(currentPage);
+
+    const socialEl = nav.querySelector(".social-icons");
+    const socialMarkup = socialEl
+      ? socialEl.outerHTML
+      : `
+    <div class="social-icons">
+      <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
+      <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
+      <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
+      <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
+    </div>
+  `;
+
+    const LINKS = {
+      home:
+        typeof routeAppHome !== "undefined" ? routeAppHome : "/VIEWS/home.php",
+      chat: "#", 
+    };
+
+    function isActive(href) {
+      try {
+        const norm = (u) =>
+          new URL(u, window.location.origin).pathname
+            .toLowerCase()
+            .replace(/\/+$/, "");
+        const navPath = norm(href);
+        const curPath = norm(window.location.pathname);
+        if ((href || "").toLowerCase().includes("home.php")) {
+          return hrefL.includes("home.php");
+        }
+        return navPath === curPath;
+      } catch {
+        return false;
+      }
     }
 
-    const SUBNAV_OPS = Object.assign(
-      {
-        detect: {
-          byBodyData: true, // <body data-operativa="1">
-          byPath: [/\/VIEWS\/home\.php$/i], // rutas operativas (de momento solo home.php)
-        },
-        items: [
-          {
-            text: "Home",
-            href:
-              typeof routeAppHome !== "undefined"
-                ? routeAppHome
-                : "/VIEWS/home.php",
-          },
-          { text: "Chat", href: "#" }, // pendiente
-        ],
-        cta: null, // ej: { text: "Reportar", href: "/VIEWS/tramitar.php", attrs: { "data-cta":"1" } }
-      },
-      window.SUBNAV_OPS || {}
-    );
+    if (isOperative) {
+      const mk = (label, href) => {
+        const active = isActive(href) ? "active" : "";
+        return `<a href="${href}" class="${active}">${label}</a>`;
+      };
 
-    const normalize = (p) => {
-      try {
-        return new URL(p, window.location.origin).pathname.replace(/\/+$/, "");
-      } catch {
-        return String(p || "")
-          .replace(/^[^/]/, "/")
-          .replace(/\/+$/, "");
-      }
-    };
-
-    const isOperationalView = () => {
-      if (
-        SUBNAV_OPS.detect.byBodyData &&
-        document.body?.dataset?.operativa === "1"
-      )
-        return true;
-      const path = window.location.pathname;
-      return (SUBNAV_OPS.detect.byPath || []).some((rx) =>
-        typeof rx === "string" ? path.endsWith(rx) : rx.test(path)
-      );
-    };
-
-    const buildOpsHTML = () => {
-      const current = normalize(window.location.pathname);
-      const listHTML = (SUBNAV_OPS.items || [])
-        .map((it) => {
-          const href = normalize(it.href || "#");
-          const isActive =
-            it.href && it.href !== "#" ? current === href : false;
-          const activeAttr = isActive ? ' class="active"' : "";
-          const attrs = Object.entries(it.attrs || {})
-            .map(([k, v]) => `${k}="${String(v)}"`)
-            .join(" ");
-          return `<li><a href="${it.href || "#"}"${activeAttr}${
-            attrs ? " " + attrs : ""
-          }>${it.text}</a></li>`;
-        })
-        .join("");
-
-      const ctaHTML = SUBNAV_OPS.cta
-        ? (() => {
-            const a = SUBNAV_OPS.cta;
-            const attrs = Object.entries(a.attrs || {})
-              .map(([k, v]) => `${k}="${String(v)}"`)
-              .join(" ");
-            return `<a class="btn-cta" href="${a.href}" ${attrs}>${a.text}</a>`;
-          })()
-        : "";
-
-      return `
-      <div class="subnav-inner">
-        <ul class="nav-links">${listHTML}</ul>
-        <div class="nav-right">${ctaHTML}</div>
+      const markup = `
+      <div class="nav-left">
+        ${mk("Home", LINKS.home)}
+        ${mk("Chat", LINKS.chat)}
       </div>
+      ${socialMarkup}
     `;
-    };
 
-    const rebindSocialLinks = (root) => {
+      nav.innerHTML = markup;
+
       const socialMap = Object.assign(
         {},
         window.GC_CONFIG?.SOCIAL || {},
-        window.NAV_SOCIAL || {}
+        window.NAV_SOCIAL || {},
+        window.CFG?.SOCIAL || {}
       );
-      root?.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
+      nav.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
         if (el.dataset.socialBound === "1") return;
         const img = el.querySelector("img") || el;
         const key = (img.alt || "").trim().toLowerCase(); // "facebook" | "instagram" | "youtube" | "x"
@@ -590,42 +569,11 @@
           e.stopPropagation();
           window.open(url, "_blank", "noopener");
         });
-
-        if (!/^(a|button)$/i.test(el.tagName)) {
-          el.tabIndex = 0;
-          el.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              window.open(url, "_blank", "noopener");
-            }
-          });
-        }
         el.dataset.socialBound = "1";
       });
-    };
-
-    const socialOriginal = nav.querySelector(".social-icons");
-    const cloneSocial = () =>
-      socialOriginal ? socialOriginal.cloneNode(true) : null;
-
-    const makeOperational = () => {
-      if (nav.dataset.opsApplied === "1") return;
-      nav.innerHTML = buildOpsHTML();
-      const socialClone = cloneSocial();
-      if (socialClone) nav.appendChild(socialClone);
-      nav.dataset.opsApplied = "1";
-      nav.setAttribute("role", "navigation");
-      rebindSocialLinks(nav);
-    };
-
-    const restoreOriginal = () => {
-      if (nav.dataset.opsApplied !== "1") return;
-      nav.innerHTML = nav.dataset.originalHtml || nav.innerHTML;
-      delete nav.dataset.opsApplied;
-    };
-
-    // 6) Ejecutar
-    if (isOperationalView()) makeOperational();
-    else restoreOriginal();
+    } else {
+      nav.innerHTML = nav.dataset.originalHtml;
+    }
   })();
+  // ------------------------------------- fin subnav operativo
 })();
