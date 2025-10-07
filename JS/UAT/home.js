@@ -1,4 +1,5 @@
 // /JS/UAT/home.js  
+window.__IX_DEBUG_HOME = true;
 
 import { $, mountSkeletonList, toggle, escapeHtml } from "/JS/UAT/core/dom.js";
 import { createStore } from "/JS/UAT/core/store.js";
