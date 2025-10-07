@@ -7,7 +7,7 @@
   <style>
     :root { --bg:#0b1220; --panel:#121a2b; --muted:#808aa5; --text:#e9eefc; --accent:#8ab4ff; --danger:#ff6b6b; }
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif}
-    .app{display:grid;grid-template-columns:320px 1fr;height:100vh}
+    .app{display:grid;grid-template-columns:420px 1fr;height:100vh}
     .sidebar{border-right:1px solid #1e2a45;background:var(--panel);display:flex;flex-direction:column}
     .side-head{padding:14px;border-bottom:1px solid #1e2a45;display:flex;gap:8px}
     .side-head input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #263657;background:#0d1526;color:var(--text)}
