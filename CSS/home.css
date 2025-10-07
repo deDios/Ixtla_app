@@ -636,3 +636,13 @@ main {padding-top: 4rem;}
 .ix-drawer .ixd-imgBlock img{ display:block; width:100%; height:auto; }
 .ix-drawer .ixd-pencil{ position:absolute; top:10px; right:10px; width:36px; height:36px; display:none; border:0; border-radius:10px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); cursor:pointer; }
 .ix-drawer.editing .ixd-pencil{ display:inline-grid; place-items:center; }
+
+
+
+/* Subnav operativo */
+.subnav .subnav-inner{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.subnav .nav-links{display:flex;flex-wrap:wrap;gap:1rem;list-style:none;margin:0;padding:0}
+.subnav .nav-links a{display:inline-block;text-decoration:none}
+.subnav .nav-links a.active{font-weight:600;text-decoration:underline}
+.subnav .nav-right{display:flex;align-items:center;gap:.5rem}
+.subnav .btn-cta{padding:.4rem .8rem;border-radius:.4rem}

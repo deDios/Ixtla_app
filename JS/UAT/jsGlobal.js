@@ -483,7 +483,7 @@
     }
   });
 
-  // ===== Subnav para vistas operatias =====
+  // ===== Subnav Operativo =====
   (() => {
     const header = document.getElementById("header");
     if (!header) return;
@@ -496,62 +496,61 @@
 
     const SUBNAV_OPS = Object.assign(
       {
-        detectByPath: [ //lista de vistas operativas
-          /\/VIEWS\/home\.php$/i, 
-        ],
+        detect: {
+          byBodyData: true, // <body data-operativa="1">
+          byPath: [/\/VIEWS\/home\.php$/i], // rutas operativas (de momento solo home.php)
+        },
         items: [
-          { text: "Home", href: "/VIEWS/UAT/home.php" }, // luego quitar el UAT
+          {
+            text: "Home",
+            href:
+              typeof routeAppHome !== "undefined"
+                ? routeAppHome
+                : "/VIEWS/home.php",
+          },
           { text: "Chat", href: "#" }, // pendiente
         ],
-        cta: null, // base para proximas secciones { text: "Reportar", href: "/VIEWS/reportes.php" }
+        cta: null, // ej: { text: "Reportar", href: "/VIEWS/tramitar.php", attrs: { "data-cta":"1" } }
       },
       window.SUBNAV_OPS || {}
     );
 
-    const rebindSocialLinks = (root) => {
-      const socialMap = Object.assign(
-        {},
-        window.GC_CONFIG?.SOCIAL || {},
-        window.NAV_SOCIAL || {}
-      );
-      root?.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
-        if (el.dataset.socialBound === "1") return;
-        const img = el.querySelector("img") || el;
-        const key = (img.alt || "").trim().toLowerCase();
-        const url = socialMap[key];
-        if (!url) return;
-        el.style.cursor = "pointer";
-        el.addEventListener("click", (e) => {
-          e.stopPropagation();
-          window.open(url, "_blank", "noopener");
-        });
-        if (!/^(a|button)$/i.test(el.tagName)) {
-          el.tabIndex = 0;
-          el.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              window.open(url, "_blank", "noopener");
-            }
-          });
-        }
-        el.dataset.socialBound = "1";
-      });
+    const normalize = (p) => {
+      try {
+        return new URL(p, window.location.origin).pathname.replace(/\/+$/, "");
+      } catch {
+        return String(p || "")
+          .replace(/^[^/]/, "/")
+          .replace(/\/+$/, "");
+      }
     };
 
-    const isOperational = () => {
-      const p = window.location.pathname;
-      return (SUBNAV_OPS.detectByPath || []).some((rx) =>
-        typeof rx === "string" ? p.endsWith(rx) : rx.test(p)
+    const isOperationalView = () => {
+      if (
+        SUBNAV_OPS.detect.byBodyData &&
+        document.body?.dataset?.operativa === "1"
+      )
+        return true;
+      const path = window.location.pathname;
+      return (SUBNAV_OPS.detect.byPath || []).some((rx) =>
+        typeof rx === "string" ? path.endsWith(rx) : rx.test(path)
       );
     };
 
     const buildOpsHTML = () => {
+      const current = normalize(window.location.pathname);
       const listHTML = (SUBNAV_OPS.items || [])
         .map((it) => {
+          const href = normalize(it.href || "#");
+          const isActive =
+            it.href && it.href !== "#" ? current === href : false;
+          const activeAttr = isActive ? ' class="active"' : "";
           const attrs = Object.entries(it.attrs || {})
             .map(([k, v]) => `${k}="${String(v)}"`)
             .join(" ");
-          return `<li><a href="${it.href}" ${attrs}>${it.text}</a></li>`;
+          return `<li><a href="${it.href || "#"}"${activeAttr}${
+            attrs ? " " + attrs : ""
+          }>${it.text}</a></li>`;
         })
         .join("");
 
@@ -571,6 +570,38 @@
         <div class="nav-right">${ctaHTML}</div>
       </div>
     `;
+    };
+
+    const rebindSocialLinks = (root) => {
+      const socialMap = Object.assign(
+        {},
+        window.GC_CONFIG?.SOCIAL || {},
+        window.NAV_SOCIAL || {}
+      );
+      root?.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
+        if (el.dataset.socialBound === "1") return;
+        const img = el.querySelector("img") || el;
+        const key = (img.alt || "").trim().toLowerCase(); // "facebook" | "instagram" | "youtube" | "x"
+        const url = socialMap[key];
+        if (!url) return;
+
+        el.style.cursor = "pointer";
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.open(url, "_blank", "noopener");
+        });
+
+        if (!/^(a|button)$/i.test(el.tagName)) {
+          el.tabIndex = 0;
+          el.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              window.open(url, "_blank", "noopener");
+            }
+          });
+        }
+        el.dataset.socialBound = "1";
+      });
     };
 
     const socialOriginal = nav.querySelector(".social-icons");
@@ -593,7 +624,8 @@
       delete nav.dataset.opsApplied;
     };
 
-    if (isOperational()) makeOperational();
+    // 6) Ejecutar
+    if (isOperationalView()) makeOperational();
     else restoreOriginal();
   })();
 })();
