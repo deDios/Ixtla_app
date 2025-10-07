@@ -1,5 +1,5 @@
 // /JS/ui/table.js
-import { $, toggle, escapeHtml } from "/UAT/JS/core/dom.js";
+import { $, toggle, escapeHtml } from "/JS/UAT/core/dom.js";
 
 export function createTable({
   bodySel = "#tbl-body",

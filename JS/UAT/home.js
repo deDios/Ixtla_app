@@ -1,12 +1,12 @@
 // /JS/views/home.js
 
-import { $, mountSkeletonList, toggle, escapeHtml } from "/UAT/JS/core/dom.js";
-import { createStore } from "/UAT/JS/core/store.js";
-import { LineChart } from "/UAT/JS/charts/line-chart.js";
-import { DonutChart } from "/UAT/JS/charts/donut-chart.js";
-import { fetchRequerimientos } from "/UAT/JS/api/requerimientos.js";
-import { createTable } from "/UAT/JS/ui/table.js";
-import { Drawer } from "/UAT/JS/ui/drawer.js";
+import { $, mountSkeletonList, toggle, escapeHtml } from "/JS/UAT/core/dom.js";
+import { createStore } from "/JS/UAT/core/store.js";
+import { LineChart } from "/JS/UAT/charts/line-chart.js";
+import { DonutChart } from "/JS/UAT/charts/donut-chart.js";
+import { fetchRequerimientos } from "/JS/UAT/api/requerimientos.js";
+import { createTable } from "/JS/UAT/ui/table.js";
+import { Drawer } from "/JS/UAT/ui/drawer.js";
 
 const TAG = "[Home]";
 

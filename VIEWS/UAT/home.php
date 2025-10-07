@@ -429,8 +429,8 @@
     });
     </script>
 
-    <script src="/UAT/JS/JSglobal.js"></script>
-    <script type="module" src="/UAT/JS/home.js"></script>
+    <script src="/JS/UAT/JSglobal.js"></script>
+    <script type="module" src="/JS/UAT/home.js"></script>
 </body>
 
 </html>
