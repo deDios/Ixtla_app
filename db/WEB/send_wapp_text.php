@@ -6,7 +6,7 @@
 //  B) {"to":"52XXXXXXXXXX","type":"text","text":{"body":"Hola!","preview_url":false}, "reply_to":"wamid...."}
 
 // === Configuración (reemplaza por la tuya) ===
-const WHATSAPP_TOKEN = 'EAAJkMnC6uM0BPqQCodL4nN6rzpdfZBQrALZAtgZAWWLoa1RfDvCAnWw3oO44bSpCUzijKQiIPlpu4ecbY0uRxlfO8BTJs1PBPvBhLGP4RVZCt07YZCMAcahYL1Yiaw2gCRdZBb1og7YzDa4cG9BBFQj5XBd05MzQ8jiLaAOyWhVRBxUZCSW9IuvYyjfReKUAgZDZD';
+const WHATSAPP_TOKEN = 'EAAJkMnC6uM0BPt4PJyZBBLzp47PMRhRlKa6zvbvIH5fIPWLwfGysAeTbR0XVqN2SPP2ImmerKXE3kvQos9IJZA4IM8oyENM1MgB0iIbTHZAB1UFeGJs6K35EmFZA4zHHUt788Q2zntuFC84PeyzTgeMO0tVbSpQCBHeizsueV4eXDtZBzUtkMDxZBiWLMUvAZDZD';
 const WHATSAPP_PHONE_NUMBER_ID = '782524058283433'; 
 
 // ----------------- utilidades -----------------
