@@ -429,7 +429,7 @@
     });
     </script>
 
-    <script src="/JS/UAT/JSglobal.js"></script>
+    <script src="/JS/UAT/jsGlobal.js"></script>
     <script type="module" src="/JS/UAT/home.js"></script>
 </body>
 

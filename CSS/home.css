@@ -97,14 +97,14 @@ main {padding-top: 4rem;}
 }
 
 .ix-home .status-nav .status-item.active{
-  color:#2e7d32 !important;
+  color:#82978A !important;
   font-weight:700;
   background:transparent !important;
   box-shadow:none !important;
   border:none !important;
 }
 .ix-home .status-nav .status-item.active .count{
-  color:#2e7d32; opacity:.95;
+  color:#82978A; opacity:.95;
 }
 
 .ix-home .status-nav .status-item[aria-disabled="true"],

@@ -514,7 +514,7 @@
 
     const LINKS = {
       home:
-        typeof routeAppHome !== "undefined" ? routeAppHome : "/VIEWS/home.php",
+        typeof routeAppHome !== "undefined" ? routeAppHome : "/VIEWS/UAT/home.php",
       chat: "#", 
     };
 
@@ -526,6 +526,7 @@
             .replace(/\/+$/, "");
         const navPath = norm(href);
         const curPath = norm(window.location.pathname);
+
         if ((href || "").toLowerCase().includes("home.php")) {
           return hrefL.includes("home.php");
         }

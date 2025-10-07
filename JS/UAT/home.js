@@ -1,4 +1,4 @@
-// /JS/views/home.js
+// /JS/UAT/home.js  
 
 import { $, mountSkeletonList, toggle, escapeHtml } from "/JS/UAT/core/dom.js";
 import { createStore } from "/JS/UAT/core/store.js";
@@ -9,11 +9,21 @@ import { createTable } from "/JS/UAT/ui/table.js";
 import { Drawer } from "/JS/UAT/ui/drawer.js";
 
 const TAG = "[Home]";
+const DEBUG = Boolean(window.__IX_DEBUG_HOME);
+
+const dbg = {
+  log:  (...a) => DEBUG && console.log(TAG, ...a),
+  info: (...a) => DEBUG && console.info(TAG, ...a),
+  warn: (...a) => DEBUG && console.warn(TAG, ...a),
+  error:(...a) => DEBUG && console.error(TAG, ...a),
+  group:(label) => DEBUG && console.group(`${TAG} ${label}`),
+  groupEnd:() => DEBUG && console.groupEnd()
+};
 
 // CON
 const CFG = {
   ENDPOINTS: {
-    empleado: "/DB/WEB/ixtla01_c_empleado.php", 
+    empleado: "/DB/WEB/ixtla01_c_empleado.php",
     departamentos: [
       "/db/WEB/ixtla01_c_departamento.php",
       "/db/WEB/c_departamento.php",
@@ -39,8 +49,8 @@ const CFG = {
   },
   TABLE: { pageSize: 7, reqFetchPerPage: 200 },
   FEATURES: {
-    preHydrateFromCookie: true,     
-    deptChipToggleEnabled: true,    
+    preHydrateFromCookie: true,
+    deptChipToggleEnabled: true,
   },
 };
 
@@ -73,20 +83,68 @@ function humanStatusLabel(key) {
 
 // Session
 function readIxSession() {
-  if (window.__ixSession && typeof window.__ixSession === "object") return window.__ixSession;
-  if (window.Session?.get) {
-    const s = window.Session.get();
-    if (s) return s;
+  if (window.__ixSession && typeof window.__ixSession === "object") {
+    dbg.log("readIxSession(): usando window.__ixSession", window.__ixSession);
+    return window.__ixSession;
   }
-  try {
-    const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
-    if (pair) {
-      const raw = decodeURIComponent(pair.split("=")[1] || "");
-      return JSON.parse(decodeURIComponent(escape(atob(raw))));
+  if (window.Session?.get) {
+    try {
+      const s = window.Session.get();
+      if (s) {
+        dbg.log("readIxSession(): usando window.Session.get()", s);
+        return s;
+      }
+    } catch (e) {
+      dbg.warn("readIxSession(): error en Session.get()", e);
     }
-  } catch {}
-  return null;
+  }
+
+  try {
+    dbg.group("readIxSession(): cookie ix_emp");
+    dbg.log("document.cookie =", document.cookie);
+
+    const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
+    if (!pair) {
+      dbg.warn("No se encontró cookie ix_emp");
+      dbg.groupEnd();
+      return null;
+    }
+
+    const rawEnc = pair.split("=")[1] || "";
+    const rawDecUri = decodeURIComponent(rawEnc);
+    dbg.log("rawEnc (encoded) =", rawEnc);
+    dbg.log("rawDecUri (decodedURIComponent) =", rawDecUri);
+
+    // Base64 → binario → texto (más robusto que escape/unescape)
+    let jsonObj = null;
+    try {
+      const bin = atob(rawDecUri);
+      const bytes = new Uint8Array([...bin].map(c => c.charCodeAt(0)));
+      const text = new TextDecoder("utf-8").decode(bytes);
+      dbg.log("cookie base64 → texto =", text);
+      jsonObj = JSON.parse(text);
+      dbg.log("cookie JSON parse =", jsonObj);
+      dbg.groupEnd();
+      return jsonObj;
+    } catch (e2) {
+      dbg.warn("Fallo TextDecoder/atob JSON. Intentando fallback escape/unescape", e2);
+      try {
+        const legacy = JSON.parse(decodeURIComponent(escape(atob(rawDecUri))));
+        dbg.log("cookie JSON (fallback legacy) =", legacy);
+        dbg.groupEnd();
+        return legacy;
+      } catch (e3) {
+        dbg.error("readIxSession(): no se pudo decodificar la cookie ix_emp", e3);
+        dbg.groupEnd();
+        return null;
+      }
+    }
+  } catch (err) {
+    dbg.error("readIxSession(): error inesperado", err);
+    return null;
+  }
 }
+
 const __sess = readIxSession();
 const SessIDs = {
   idUsuario: __sess?.id_usuario ?? __sess?.id ?? null,
@@ -98,11 +156,24 @@ const SessIDs = {
     ? __sess.roles.map(r => (typeof r === "string" ? r : r?.codigo)).filter(Boolean)
     : [],
 };
+dbg.group("SessIDs derivados de cookie");
+dbg.log(SessIDs);
+dbg.groupEnd();
 
+// ------------------------------------------------------------
 // DOM helpers
+// ------------------------------------------------------------
 const $one = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-const bindOnce = (el, ev, fn) => { if (!el || el.dataset.binded === "1") return; el.addEventListener(ev, fn); el.dataset.binded = "1"; };
+
+const bindOnce = (el, ev, fn, key = "") => {
+  if (!el) return;
+  const flag = `binded_${ev}${key ? `_${key}` : ""}`;
+  if (el.dataset[flag] === "1") return;
+  el.addEventListener(ev, fn);
+  el.dataset[flag] = "1";
+};
+
 function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 function setTextSafe(sel, txt) { const el = document.querySelector(sel); if (el) el.textContent = txt; }
 function normalizeLabelToKey(label){
@@ -127,7 +198,9 @@ function setCount(key, val) {
   if (byDs) byDs.textContent = `(${val})`;
 }
 
-// Resolver nombre de departamento 
+// ------------------------------------------------------------
+// Resolver nombre de departamento
+// ------------------------------------------------------------
 const deptCache = new Map();
 async function resolveDepartamentoNombre(depId) {
   if (!depId) return "Sin dependencia";
@@ -136,48 +209,58 @@ async function resolveDepartamentoNombre(depId) {
     try {
       const u = new URL(url, location.origin);
       u.searchParams.set("status", 1);
+      dbg.log("resolveDepartamentoNombre(): fetch", u.toString());
       const res = await fetch(u.toString(), { headers: { Accept: "application/json" } });
       const json = await res.json().catch(() => null);
       const arr = json?.data ?? json?.rows ?? [];
       const found = arr.find(d => Number(d.id) === Number(depId));
-      if (found?.nombre) { deptCache.set(depId, found.nombre); return found.nombre; }
-    } catch {}
+      if (found?.nombre) { deptCache.set(depId, found.nombre); dbg.log("depId", depId, "→", found.nombre); return found.nombre; }
+    } catch (e) { dbg.warn("resolveDepartamentoNombre error", e); }
   }
   const fallback = `Departamento ${depId}`;
   deptCache.set(depId, fallback);
+  dbg.warn("resolveDepartamentoNombre(): fallback", fallback);
   return fallback;
 }
 
-// API Empleado
+// ------------------------------------------------------------
+// API Empleado (con logs)
+// ------------------------------------------------------------
 async function empleadoById(idEmpleado) {
   if (!idEmpleado) return null;
   try {
+    dbg.log("empleadoById(): POST", CFG.ENDPOINTS.empleado, { id: Number(idEmpleado) });
     const res = await fetch(CFG.ENDPOINTS.empleado, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ id: Number(idEmpleado) })
     });
     const json = await res.json().catch(() => null);
+    dbg.log("empleadoById(): respuesta", json);
     return (json && json.ok) ? (json.data || null) : null;
-  } catch { return null; }
+  } catch (e) { dbg.warn("empleadoById error", e); return null; }
 }
 async function empleadoByUsername(username) {
   if (!username) return null;
   try {
+    dbg.log("empleadoByUsername(): POST", CFG.ENDPOINTS.empleado, { q: String(username) });
     const res = await fetch(CFG.ENDPOINTS.empleado, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ q: String(username), page: 1, page_size: 5 })
     });
     const json = await res.json().catch(() => null);
+    dbg.log("empleadoByUsername(): respuesta", json);
     if (!(json && json.ok)) return null;
     const arr = json.data || [];
     if (!Array.isArray(arr) || !arr.length) return null;
     return arr.find(e => (e.cuenta?.username||"") === username) || arr[0] || null;
-  } catch { return null; }
+  } catch (e) { dbg.warn("empleadoByUsername error", e); return null; }
 }
 
+// ------------------------------------------------------------
 // Store
+// ------------------------------------------------------------
 const S = createStore({
   user: {
     idEmpleado: null,
@@ -190,17 +273,21 @@ const S = createStore({
   filtros: {
     status: "todos",
     search: "",
-    depto: null, 
+    depto: null,
   },
   requerimientos: [],
   counts: { todos: 0, solicitud: 0, revision: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 },
   pageSize: CFG.TABLE.pageSize,
 });
+DEBUG && (window.__dbgStore = S);
 
+// ------------------------------------------------------------
 // Pre-hydrate
+// ------------------------------------------------------------
 (function preHydrateSidebar() {
   if (!CFG.FEATURES.preHydrateFromCookie) return;
   const fullName = S.get().user.nombre || "";
+  dbg.log("preHydrateSidebar(): nombre desde cookie =", fullName);
   if (fullName) setTextSafe(CFG.SELECTORS.profileName, fullName);
 
   const avatarEl = $one(CFG.SELECTORS.avatar);
@@ -208,33 +295,49 @@ const S = createStore({
     const idForAvatar = S.get().user.idEmpleado || S.get().user.idCuenta;
     const fallback = "/ASSETS/user/img_user1.png";
     const candidate = idForAvatar ? `/ASSETS/user/img_user${idForAvatar}.png` : fallback;
+    dbg.log("preHydrateSidebar(): avatar candidato =", candidate, "fallback =", fallback);
     avatarEl.alt = fullName || "Avatar";
     avatarEl.src = candidate;
     avatarEl.onerror = () => (avatarEl.src = fallback);
   }
   const linkPerfil = $one(CFG.SELECTORS.profileLink);
-  if (linkPerfil && !linkPerfil.getAttribute("href")) linkPerfil.setAttribute("href", "/VIEWS/perfil.php");
+  if (linkPerfil && !linkPerfil.getAttribute("href")) {
+    linkPerfil.setAttribute("href", "/VIEWS/perfil.php");
+    dbg.log("preHydrateSidebar(): set profile link → /VIEWS/perfil.php");
+  }
 })();
 
-// ============================================================================
-// Bootstrap empleado (API-first) -> nombre + depto confiables
-// ============================================================================
+// ------------------------------------------------------------
+// Bootstrap empleado (API-first)
+// ------------------------------------------------------------
 async function bootstrapEmployee() {
+  dbg.group("bootstrapEmployee()");
   let emp = null;
 
-  // 1) Intento por idUsuario (si coincide con empleado.id)
-  if (SessIDs.idUsuario) emp = await empleadoById(SessIDs.idUsuario);
+  if (SessIDs.idUsuario) {
+    dbg.log("Intento 1: por idUsuario =", SessIDs.idUsuario);
+    emp = await empleadoById(SessIDs.idUsuario);
+  }
 
-  // 2) Fallback: por username exacto (cuenta.username)
-  if (!emp && SessIDs.username) emp = await empleadoByUsername(SessIDs.username);
+  if (!emp && SessIDs.username) {
+    dbg.log("Intento 2: por username =", SessIDs.username);
+    emp = await empleadoByUsername(SessIDs.username);
+  }
 
-  // 3) Fallback: por nombre completo (menos preciso, pero útil)
-  if (!emp && S.get().user.nombre) emp = await empleadoByUsername(S.get().user.nombre);
+  if (!emp && S.get().user.nombre) {
+    dbg.log("Intento 3: por nombre completo =", S.get().user.nombre);
+    emp = await empleadoByUsername(S.get().user.nombre);
+  }
 
-  if (!emp) return null;
+  if (!emp) {
+    dbg.warn("bootstrapEmployee(): no se encontró empleado");
+    dbg.groupEnd();
+    return null;
+  }
 
   const full = `${emp.nombre ?? ""}${emp.apellidos ? " " + emp.apellidos : ""}`.trim() || "—";
   const roles = Array.isArray(emp.cuenta?.roles) ? emp.cuenta.roles.map(r => r.codigo).filter(Boolean) : [];
+  dbg.log("Empleado resuelto =", { id: emp.id, username: emp.cuenta?.username, dep: emp.departamento_id, roles });
 
   S.set({
     user: {
@@ -254,27 +357,28 @@ async function bootstrapEmployee() {
   if (depEl) {
     const depName = await resolveDepartamentoNombre(S.get().user.dep);
     depEl.textContent = depName || "Sin dependencia";
+    dbg.log("Badge dep =", depName);
   }
 
-  window.__ixEmployee = emp; // útil para futuros módulos
+  window.__ixEmployee = emp;
+  dbg.groupEnd();
   return emp;
 }
 
-// ============================================================================
+// ------------------------------------------------------------
 // Init
-// ============================================================================
+// ------------------------------------------------------------
 window.addEventListener("DOMContentLoaded", () => {
+  DEBUG && console.time(`${TAG} init`);
   Drawer.init(".ix-drawer");
-  init();
+  init().finally(() => { DEBUG && console.timeEnd(`${TAG} init`); });
 });
 
 async function init() {
-  console.log(`${TAG} init – empleado desde API…`);
-
-  // 1) Primero resolvemos el empleado (evita placeholders incorrectos)
+  dbg.info("init(): empleado desde API…");
   await bootstrapEmployee();
 
-  // 2) Chip de departamento como filtro opcional (por defecto TODOS)
+  // Chip depto
   const depEl = $one(CFG.SELECTORS.profileBadge);
   if (depEl && CFG.FEATURES.deptChipToggleEnabled) {
     depEl.setAttribute("role", "button");
@@ -284,6 +388,7 @@ async function init() {
     bindOnce(depEl, "click", () => {
       const active = S.get().filtros.depto != null;
       const next = active ? null : S.get().user.dep;
+      dbg.log("Dept chip click: active?", active, "→ next depto =", next);
       S.set({ filtros: { ...S.get().filtros, depto: next } });
       depEl.classList.toggle("active", !!next);
       depEl.setAttribute("aria-pressed", String(!!next));
@@ -291,15 +396,16 @@ async function init() {
     });
   }
 
-  // 3) Skeleton tabla
+  // Skeleton
   mountSkeletonList($(CFG.SELECTORS.tableSkeleton), 7);
 
-  // 4) Charts
+  // Charts
   const lc = LineChart($(CFG.SELECTORS.chartYear));   lc.mount({ data: [] });
   const dc = DonutChart($(CFG.SELECTORS.chartMonth)); dc.mount({ data: [] });
   window.__ixCharts = { lc, dc };
+  dbg.log("Charts montados:", window.__ixCharts);
 
-  // 5) Tabla
+  // Tabla
   const table = createTable({
     pageSize: S.get().pageSize,
     columns: [
@@ -318,58 +424,56 @@ async function init() {
     ]
   });
   window.__tableInstance = table;
+  dbg.log("Tabla creada:", table);
 
-  // 6) Datos
   await loadRequerimientos();
 
-  // 7) Sidebar accesible
   initStatusDom();
   makeStatusRadiogroup();
 
-  // 8) Primer render
   applyPipelineAndRender(table);
 
-  // 9) Oculta skeletons
   document.documentElement.classList.add("is-loaded");
 
-  // 10) Eventos
   wireSidebarEvents(table);
   wireSearch();
   wireRowClick(table);
 
-  // 11) Marca “todos”
   const allBtn = document.querySelector(`${CFG.SELECTORS.statusItems}[data-status="todos"]`);
   if (allBtn) {
     $$(CFG.SELECTORS.statusItems).forEach(b => b.classList.remove("active"));
     allBtn.classList.add("active");
     allBtn.setAttribute("aria-checked", "true");
+    dbg.log("Marcado inicial: TODOS");
   }
 }
 
-// ============================================================================
+// ------------------------------------------------------------
 // Data load (requerimientos)
-// ============================================================================
+// ------------------------------------------------------------
 async function loadRequerimientos() {
   toggle($(CFG.SELECTORS.tableWrap), false);
   toggle($(CFG.SELECTORS.tableSkeleton), true);
   toggle($(CFG.SELECTORS.tableEmpty), false);
 
   try {
+    dbg.group("fetchRequerimientos");
     const { ok, rows, data, count } = await fetchRequerimientos({ page: 1, per_page: CFG.TABLE.reqFetchPerPage });
+    dbg.log("Respuesta:", { ok, count, rowsLen: rows?.length, dataLen: data?.length });
     if (!ok) throw new Error("Respuesta no OK");
 
     const list = Array.isArray(rows) ? rows : (Array.isArray(data) ? data : []);
     S.set({ requerimientos: list });
+    dbg.log("Total requerimientos en store:", list.length);
 
-    // Charts a partir del universo completo
     window.__ixCharts?.lc?.update({ data: computeSeriesAnual(list) });
     window.__ixCharts?.dc?.update({ data: computeDonutMes(list) });
 
     setTextSafe(CFG.SELECTORS.tableTotal, String(count ?? list.length));
     setTextSafe(CFG.SELECTORS.tableStatusLabel, "Todos los status");
-
+    dbg.groupEnd();
   } catch (err) {
-    console.error(TAG, "loadRequerimientos()", err);
+    dbg.error("loadRequerimientos() error:", err);
     if (typeof gcToast === "function") gcToast("Hubo un error, inténtalo más tarde.", "warning");
     S.set({
       requerimientos: [],
@@ -381,15 +485,16 @@ async function loadRequerimientos() {
   }
 }
 
-// ============================================================================
+// ------------------------------------------------------------
 // Sidebar (status DOM + ARIA)
-// ============================================================================
+// ------------------------------------------------------------
 function initStatusDom(){
   $$(CFG.SELECTORS.statusItems).forEach(btn => {
     if (!btn.dataset.status){
       const label = btn.querySelector('.label')?.textContent?.trim();
       const key = normalizeLabelToKey(label);
       if (key) btn.dataset.status = key;
+      dbg.log("initStatusDom(): mapeado", label, "→", key);
     }
   });
 }
@@ -414,9 +519,9 @@ function makeStatusRadiogroup() {
   });
 }
 
-// ============================================================================
+// ------------------------------------------------------------
 // Wiring (sidebar clicks, búsqueda, click fila)
-// ============================================================================
+// ------------------------------------------------------------
 function wireSidebarEvents(table) {
   $$(CFG.SELECTORS.statusItems).forEach(btn => {
     bindOnce(btn, "click", () => {
@@ -425,6 +530,7 @@ function wireSidebarEvents(table) {
       btn.setAttribute("aria-checked", "true");
 
       const statusKey = btn.dataset.status || normalizeLabelToKey(btn.querySelector(".label")?.textContent) || "todos";
+      dbg.log("Filtro status →", statusKey);
       S.set({ filtros: { ...S.get().filtros, status: statusKey } });
 
       setTextSafe(CFG.SELECTORS.tableStatusLabel, humanStatusLabel(statusKey));
@@ -436,6 +542,7 @@ function wireSidebarEvents(table) {
 function wireSearch() {
   $(CFG.SELECTORS.searchInput)?.addEventListener("input", debounce((e) => {
     const q = (e.target.value || "").trim().toLowerCase();
+    dbg.log("Búsqueda =", q);
     S.set({ filtros: { ...S.get().filtros, search: q } });
     applyPipelineAndRender();
   }, 250));
@@ -448,6 +555,7 @@ function wireRowClick(table) {
     if (!tr || !tbody.contains(tr)) return;
     const idx = Number(tr.dataset.rowIdx);
     const raw = table.getRawRows?.()?.[idx];
+    dbg.log("Row click idx =", idx, "raw =", raw);
     if (!raw) return;
 
     Drawer.open(raw, {
@@ -458,6 +566,7 @@ function wireRowClick(table) {
           const i = arr.findIndex(r => r.id === updated.id);
           if (i >= 0) arr[i] = updated;
           S.set({ requerimientos: arr });
+          dbg.log("Drawer onUpdated(): updated id =", updated?.id);
           applyPipelineAndRender(table);
           if (typeof gcToast === "function") gcToast("Requerimiento actualizado.", "exito");
         } catch (err) { console.error("[Home] onUpdated error:", err); }
@@ -470,22 +579,20 @@ function wireRowClick(table) {
   });
 }
 
-// ============================================================================
+// ------------------------------------------------------------
 // Pipeline: depto + búsqueda -> conteos -> estatus -> tabla
-// ============================================================================
+// ------------------------------------------------------------
 function applyPipelineAndRender(tableInstance) {
   const t = tableInstance || window.__tableInstance;
   const { status, search, depto } = S.get().filtros;
   const base = S.get().requerimientos || [];
 
-  // (1) Filtro por depto (opcional). Por defecto: null => TODOS
   const deptFilterId = depto;
   let filtered = base;
   if (deptFilterId != null) {
     filtered = filtered.filter(r => Number(r.departamento_id ?? r.departamento) === Number(deptFilterId));
   }
 
-  // (2) Búsqueda
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter(r => {
@@ -498,17 +605,14 @@ function applyPipelineAndRender(tableInstance) {
     });
   }
 
-  // (3) Conteos (previos al filtro de estatus)
   computeCounts(filtered);
   renderCounts();
 
-  // (4) Filtro por estatus para la tabla
   let forTable = filtered;
   if (status !== "todos") {
     forTable = filtered.filter(r => ESTATUS[Number(r.estatus)]?.clave === status);
   }
 
-  // (5) Mapeo a filas de tabla
   const rows = forTable.map(r => {
     const est = ESTATUS[Number(r.estatus)];
     return {
@@ -522,7 +626,6 @@ function applyPipelineAndRender(tableInstance) {
     };
   });
 
-  // (6) Render tabla
   const table = t || createTable({ pageSize: S.get().pageSize, columns: [] });
   window.__tableInstance = table;
 
@@ -536,17 +639,24 @@ function applyPipelineAndRender(tableInstance) {
     setTextSafe(CFG.SELECTORS.tableTotal, String(rows.length));
   }
 
-  // (7) Etiqueta humana de estatus
   setTextSafe(CFG.SELECTORS.tableStatusLabel, humanStatusLabel(status));
+
+  dbg.log("Pipeline:", {
+    filtros: { status, search, depto },
+    baseLen: base.length,
+    filteredLen: filtered.length,
+    tableRows: rows.length
+  });
 }
 
-// ============================================================================
+// ------------------------------------------------------------
 // Conteos
-// ============================================================================
+// ------------------------------------------------------------
 function computeCounts(rows = []) {
   const counts = { todos: rows.length, solicitud: 0, revision: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 };
   rows.forEach(r => { const k = ESTATUS[Number(r.estatus)]?.clave; if (k && Object.prototype.hasOwnProperty.call(counts, k)) counts[k]++; });
   S.set({ counts });
+  dbg.log("Counts:", counts);
 }
 function renderCounts() {
   const c = S.get().counts;
@@ -560,9 +670,9 @@ function renderCounts() {
   setCount("finalizado", c.finalizado);
 }
 
-// ============================================================================
+// ------------------------------------------------------------
 // Charts helpers
-// ============================================================================
+// ------------------------------------------------------------
 function computeSeriesAnual(rows = []) {
   const now = new Date();
   const year = now.getFullYear();
