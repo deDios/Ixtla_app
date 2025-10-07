@@ -62,7 +62,10 @@ if (!isset($body['entry']) && isset($body['field'], $body['value'])) {
 }
 
 // 3) Conecta a DB
-include_once __DIR__ . '../db/conn/conn_db.php.php';
+$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
+if ($path && file_exists($path)) { include $path; }
+else { http_response_code(500); die(json_encode(["ok"=>false,"error"=>"No se encontró conexion.php en $path"])); }
+
 $con = conectar();
 if (!$con) { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"DB down"]); wlog('ERROR: DB down'); exit; }
 $con->set_charset('utf8mb4');
