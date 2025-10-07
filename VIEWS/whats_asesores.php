@@ -6,34 +6,65 @@
   <title>Consola de Asesores – WhatsApp</title>
   <style>
     :root { --bg:#0b1220; --panel:#121a2b; --muted:#808aa5; --text:#e9eefc; --accent:#8ab4ff; --danger:#ff6b6b; }
-    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif}
-    .app{display:grid;grid-template-columns:420px 1fr;height:100vh}
-    .sidebar{border-right:1px solid #1e2a45;background:var(--panel);display:flex;flex-direction:column}
-    .side-head{padding:14px;border-bottom:1px solid #1e2a45;display:flex;gap:8px}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif}
+    .app{display:grid;grid-template-columns:420px 1fr;height:100vh;min-height:0;} /* ★ min-height:0 */
+
+    /* ==== Sidebar (lista de conversaciones) ==== */
+    .sidebar{
+      border-right:1px solid #1e2a45;background:var(--panel);
+      display:flex;flex-direction:column;min-height:0; /* ★ min-height:0 permite scroll interno */
+    }
+    .side-head{
+      padding:14px;border-bottom:1px solid #1e2a45;display:flex;gap:8px;
+      position:sticky;top:0;background:var(--panel);z-index:2; /* ★ fijo arriba */
+    }
     .side-head input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #263657;background:#0d1526;color:var(--text)}
-    .tabs{display:flex;gap:6px;padding:10px;border-bottom:1px solid #1e2a45}
+    .tabs{
+      display:flex;gap:6px;padding:10px;border-bottom:1px solid #1e2a45;
+      position:sticky;top:58px;background:var(--panel);z-index:2; /* ★ fijo bajo la barra de búsqueda */
+    }
     .tab{padding:6px 10px;border-radius:20px;cursor:pointer;color:var(--muted);border:1px solid #263657}
     .tab.active{color:var(--text);border-color:#35507a;background:#0f1a31}
-    .conv-list{overflow:auto;padding:8px}
+    .conv-list{flex:1;min-height:0;overflow:auto;padding:8px} /* ★ scroll independiente */
     .conv{padding:10px;border:1px solid #223357;margin:8px 0;border-radius:12px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:6px;background:#0e172b}
     .conv:hover{border-color:#35507a}
     .conv .title{font-weight:600}
     .conv .meta{color:var(--muted);font-size:12px}
-    .main{display:grid;grid-template-rows:auto 1fr auto;}
-    .header{padding:14px;border-bottom:1px solid #1e2a45;background:var(--panel);display:flex;justify-content:space-between;align-items:center}
+
+    /* ==== Main (mensajes) ==== */
+    .main{display:grid;grid-template-rows:auto 1fr auto;min-height:0;} /* ★ min-height:0 */
+    .header{
+      padding:14px;border-bottom:1px solid #1e2a45;background:var(--panel);
+      display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:3; /* opcional fijo arriba */
+    }
     .header .title{font-weight:700}
     .header .sub{color:var(--muted);font-size:12px}
-    .messages{padding:16px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+
+    /* panel SCROLL de mensajes */
+    .messages{
+      min-height:0;overflow:auto; /* ★ clave para que scrollee */
+      padding:16px;display:flex;flex-direction:column;gap:10px;
+      scroll-behavior:smooth;overscroll-behavior:contain; /* ★ suavidad */
+    }
     .bubble{max-width:70%;padding:10px 12px;border-radius:14px;border:1px solid #223357;background:#0f1930}
     .in{align-self:flex-start;border-top-left-radius:4px}
     .out{align-self:flex-end;border-top-right-radius:4px;background:#0d2244;border-color:#2c4b84}
     .bubble .time{color:var(--muted);font-size:11px;margin-top:6px}
-    .composer{display:flex;gap:8px;padding:12px;border-top:1px solid #1e2a45;background:var(--panel)}
-    .composer textarea{flex:1;min-height:44px;max-height:120px;padding:10px;border-radius:10px;border:1px solid #263657;background:#0d1526;color:var(--text);resize:vertical}
+
+    /* composer pegado abajo */
+    .composer{
+      display:flex;gap:8px;padding:12px;border-top:1px solid #1e2a45;background:var(--panel);
+      position:sticky;bottom:0;z-index:5; /* ★ fijo abajo */
+    }
+    .composer textarea{
+      flex:1;min-height:44px;max-height:120px;padding:10px;border-radius:10px;border:1px solid #263657;background:#0d1526;color:var(--text);resize:vertical
+    }
     .btn{border:none;border-radius:10px;padding:10px 14px;background:#1a2b4d;color:#cfe2ff;cursor:pointer}
     .btn:hover{background:#223a6b}
     .btn.secondary{background:#20314f;color:#b9c8e6}
     .btn.danger{background:#4b1d1d;color:#ffd7d7}
+
     .empty{color:var(--muted);text-align:center;margin-top:20vh}
     .toast{position:fixed;right:16px;bottom:16px;background:#0c1a35;color:#dfe8ff;border:1px solid #26467d;border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:none}
     .row{display:flex;gap:8px;align-items:center}
@@ -108,11 +139,11 @@
 
   <script>
   // === CONFIG ===
-  const API_BASE = 'https://ixtla-app.com/db/WEB'; // Cambia si lo sirves bajo otro path
+  const API_BASE = 'https://ixtla-app.com/db/WEB';
   const ENDPOINTS = {
     conversations: API_BASE + '/z_conversations.php',
     messages:      API_BASE + '/z_messages.php',
-    sendText:      API_BASE + '/z_send_text.php',        // wrapper por conversation_id
+    sendText:      API_BASE + '/z_send_text.php',
     reopen:        API_BASE + '/z_reopen_with_template.php',
     markRead:      API_BASE + '/z_mark_read.php'
   };
@@ -134,6 +165,13 @@
   function toast(msg, ms=2500){ const t=qs('#toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>{t.style.display='none'}, ms); }
   function fmtDate(s){ if(!s) return '—'; const d=new Date(s.replace(' ','T')+'Z'); return d.toLocaleString(); }
   function within24h(lastIncoming){ if(!lastIncoming) return false; const t = new Date(lastIncoming.replace(' ','T')+'Z'); return (Date.now()-t.getTime()) <= 24*3600*1000; }
+
+  // ★ autoscroll inteligente
+  function scrollToBottom(force=false){
+    const box = qs('#messages');
+    const nearBottom = (box.scrollTop + box.clientHeight) >= (box.scrollHeight - 80);
+    if (force || nearBottom) box.scrollTop = box.scrollHeight;
+  }
 
   // === Cargar conversaciones ===
   async function loadConversations(){
@@ -199,25 +237,32 @@
       `;
       box.appendChild(li);
     });
-    box.scrollTop = box.scrollHeight;
+    scrollToBottom(); /* ★ en lugar de forzar siempre */
     // Habilitar mark read si hay último entrante
     const lastIn = [...state.messages].reverse().find(m=>m.direction==='in');
     qs('#btnMarkRead').disabled = !lastIn;
     qs('#btnMarkRead').dataset.wamid = lastIn ? lastIn.wa_message_id : '';
   }
 
-  function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+  }
 
   // === Envío de texto ===
   async function sendText(){
     if (!state.current) return; const txt = qs('#composer').value.trim(); if (!txt) return;
     qs('#btnSend').disabled = true;
     try{
-      const r = await fetch(ENDPOINTS.sendText,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id: state.current.id, text: txt})});
-      if (r.status===409){ const j = await r.json(); openTplModal(); return; }
+      const r = await fetch(ENDPOINTS.sendText,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({conversation_id: state.current.id, text: txt})
+      });
+      if (r.status===409){ await r.json(); openTplModal(); return; }
       const j = await r.json();
       if (!j.ok) throw new Error(j.error||'Fallo al enviar');
-      qs('#composer').value=''; toast('Enviado');
+      qs('#composer').value='';
+      toast('Enviado');
+      scrollToBottom(true); /* ★ baja siempre tras enviar */
       await loadMessages(state.current.id);
     }catch(e){ toast('Error: '+e.message); }
     finally{ qs('#btnSend').disabled = false; }
@@ -226,7 +271,6 @@
   // === Reabrir con plantilla ===
   function openTplModal(){
     const m = qs('#tplModal'); m.style.display='flex';
-    // limpia params
     qs('#paramWrap').innerHTML=''; addParam();
     qs('#tplName').focus();
   }
@@ -236,11 +280,13 @@
     if (!state.current) return; const name = qs('#tplName').value.trim()||'req_01';
     const params = Array.from(qs('#paramWrap').querySelectorAll('input')).map(i=>i.value).filter(Boolean);
     try{
-      const r = await fetch(ENDPOINTS.reopen,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id: state.current.id, template: name, params})});
+      const r = await fetch(ENDPOINTS.reopen,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({conversation_id: state.current.id, template: name, params})
+      });
       const j = await r.json(); if(!j.ok) throw new Error(j.error||'Fallo plantilla');
       toast('Plantilla enviada'); closeTplModal();
-      // Tras reabrir, habilita input y reintenta si había texto pendiente (opcional)
-      state.current.last_incoming_at = new Date().toISOString().slice(0,19).replace('T',' '); // trucazo para mostrar activa
+      state.current.last_incoming_at = new Date().toISOString().slice(0,19).replace('T',' ');
       qs('#composer').disabled = false; qs('#btnSend').disabled = false; qs('#pillWindow').textContent = 'Ventana 24h: activa';
     }catch(e){ toast('Error: '+e.message); }
   }
@@ -248,7 +294,11 @@
   // === Mark read ===
   async function markRead(){
     const id = qs('#btnMarkRead').dataset.wamid; if(!id) return;
-    try{ const r = await fetch(ENDPOINTS.markRead,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wa_message_id:id})}); const j=await r.json(); if(!j.ok) throw new Error('No se pudo marcar'); toast('Marcado como leído'); }catch(e){ toast('Error: '+e.message); }
+    try{
+      const r = await fetch(ENDPOINTS.markRead,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wa_message_id:id})});
+      const j=await r.json(); if(!j.ok) throw new Error('No se pudo marcar');
+      toast('Marcado como leído');
+    }catch(e){ toast('Error: '+e.message); }
   }
 
   // === Polling ===
@@ -256,7 +306,10 @@
   function stopPolling(){ if(state.poll){ clearInterval(state.poll); state.poll=null; } }
 
   // === Eventos UI ===
-  qsa('.tab').forEach(t=> t.onclick = ()=>{ qsa('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); state.status=t.dataset.status; state.page=1; loadConversations(); });
+  qsa('.tab').forEach(t=> t.onclick = ()=>{
+    qsa('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active'); state.status=t.dataset.status; state.page=1; loadConversations();
+  });
   qs('#search').addEventListener('input', debounce(()=>{ state.page=1; loadConversations(); }, 400));
   qs('#btnSend').onclick = sendText;
   qs('#btnReopen').onclick = openTplModal;
