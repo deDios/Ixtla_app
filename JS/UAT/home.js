@@ -1,5 +1,4 @@
-// /JS/UAT/home.js  
-window.__IX_DEBUG_HOME = true;
+// /JS/UAT/home.js
 
 import { $, mountSkeletonList, toggle, escapeHtml } from "/JS/UAT/core/dom.js";
 import { createStore } from "/JS/UAT/core/store.js";
@@ -10,18 +9,12 @@ import { createTable } from "/JS/UAT/ui/table.js";
 import { Drawer } from "/JS/UAT/ui/drawer.js";
 
 const TAG = "[Home]";
-const DEBUG = Boolean(window.__IX_DEBUG_HOME);
+const DEBUG = true; // ← ponlo en false en producción
+const LOG = (...a) => { if (DEBUG) console.log(...a); };
+const WARN = (...a) => { if (DEBUG) console.warn(...a); };
+const ERR = (...a) => { console.error(...a); };
 
-const dbg = {
-  log:  (...a) => DEBUG && console.log(TAG, ...a),
-  info: (...a) => DEBUG && console.info(TAG, ...a),
-  warn: (...a) => DEBUG && console.warn(TAG, ...a),
-  error:(...a) => DEBUG && console.error(TAG, ...a),
-  group:(label) => DEBUG && console.group(`${TAG} ${label}`),
-  groupEnd:() => DEBUG && console.groupEnd()
-};
-
-// CON
+// ------------------------------ CFG
 const CFG = {
   ENDPOINTS: {
     empleado: "/DB/WEB/ixtla01_c_empleado.php",
@@ -55,7 +48,7 @@ const CFG = {
   },
 };
 
-// Estatus y colores
+// ------------------------------ Estatus y colores
 const ESTATUS = {
   0: { clave: "solicitud",  nombre: "Solicitud"   },
   1: { clave: "revision",   nombre: "Revisión"    },
@@ -82,91 +75,42 @@ function humanStatusLabel(key) {
   return ESTATUS_BY_CLAVE(key)?.nombre ?? (key === "todos" ? "Todos los status" : key);
 }
 
-// Session
+// ------------------------------ Sesión (cookie ix_emp)
 function readIxSession() {
-  if (window.__ixSession && typeof window.__ixSession === "object") {
-    dbg.log("readIxSession(): usando window.__ixSession", window.__ixSession);
-    return window.__ixSession;
-  }
-  if (window.Session?.get) {
-    try {
-      const s = window.Session.get();
-      if (s) {
-        dbg.log("readIxSession(): usando window.Session.get()", s);
-        return s;
-      }
-    } catch (e) {
-      dbg.warn("readIxSession(): error en Session.get()", e);
-    }
-  }
-
   try {
-    dbg.group("readIxSession(): cookie ix_emp");
-    dbg.log("document.cookie =", document.cookie);
-
+    LOG(TAG, "readIxSession(): cookie ix_emp");
     const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
-    if (!pair) {
-      dbg.warn("No se encontró cookie ix_emp");
-      dbg.groupEnd();
-      return null;
-    }
-
-    const rawEnc = pair.split("=")[1] || "";
-    const rawDecUri = decodeURIComponent(rawEnc);
-    dbg.log("rawEnc (encoded) =", rawEnc);
-    dbg.log("rawDecUri (decodedURIComponent) =", rawDecUri);
-
-    // Base64 → binario → texto (más robusto que escape/unescape)
-    let jsonObj = null;
-    try {
-      const bin = atob(rawDecUri);
-      const bytes = new Uint8Array([...bin].map(c => c.charCodeAt(0)));
-      const text = new TextDecoder("utf-8").decode(bytes);
-      dbg.log("cookie base64 → texto =", text);
-      jsonObj = JSON.parse(text);
-      dbg.log("cookie JSON parse =", jsonObj);
-      dbg.groupEnd();
-      return jsonObj;
-    } catch (e2) {
-      dbg.warn("Fallo TextDecoder/atob JSON. Intentando fallback escape/unescape", e2);
-      try {
-        const legacy = JSON.parse(decodeURIComponent(escape(atob(rawDecUri))));
-        dbg.log("cookie JSON (fallback legacy) =", legacy);
-        dbg.groupEnd();
-        return legacy;
-      } catch (e3) {
-        dbg.error("readIxSession(): no se pudo decodificar la cookie ix_emp", e3);
-        dbg.groupEnd();
-        return null;
-      }
-    }
-  } catch (err) {
-    dbg.error("readIxSession(): error inesperado", err);
+    if (!pair) return null;
+    const rawEnc = decodeURIComponent(pair.split("=")[1] || "");
+    LOG(TAG, "rawEnc (encoded) =", rawEnc);
+    const rawDec = decodeURIComponent(escape(atob(rawEnc)));
+    LOG(TAG, "cookie base64 → texto =", rawDec);
+    const json = JSON.parse(rawDec);
+    LOG(TAG, "cookie JSON parse =", json);
+    return json;
+  } catch (e) {
+    ERR(TAG, "readIxSession() error:", e);
     return null;
   }
 }
-
-const __sess = readIxSession();
+const __sess = readIxSession() || {};
+// Ahora derivamos IDs de manera determinista:
 const SessIDs = {
-  idUsuario: __sess?.id_usuario ?? __sess?.id ?? null,
-  username: __sess?.username ?? null,
-  depId: Number(__sess?.departamento_id ?? 1),
-  nombre: __sess?.nombre ?? "",
-  apellidos: __sess?.apellidos ?? "",
+  empleadoId:  __sess?.empleado_id ?? null,                  // ← prioridad
+  cuentaId:    __sess?.cuenta_id ?? __sess?.id_usuario ?? null, // compat con payload legacy
+  username:    __sess?.username ?? null,
+  depId:       Number(__sess?.departamento_id ?? 1),
+  nombre:      __sess?.nombre ?? "",
+  apellidos:   __sess?.apellidos ?? "",
   roles: Array.isArray(__sess?.roles)
     ? __sess.roles.map(r => (typeof r === "string" ? r : r?.codigo)).filter(Boolean)
     : [],
 };
-dbg.group("SessIDs derivados de cookie");
-dbg.log(SessIDs);
-dbg.groupEnd();
+LOG(TAG, "SessIDs derivados de cookie", SessIDs);
 
-// ------------------------------------------------------------
-// DOM helpers
-// ------------------------------------------------------------
+// ------------------------------ DOM helpers
 const $one = (sel, root=document) => root.querySelector(sel);
-const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-
+const $$   = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const bindOnce = (el, ev, fn, key = "") => {
   if (!el) return;
   const flag = `binded_${ev}${key ? `_${key}` : ""}`;
@@ -174,14 +118,11 @@ const bindOnce = (el, ev, fn, key = "") => {
   el.addEventListener(ev, fn);
   el.dataset[flag] = "1";
 };
-
 function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 function setTextSafe(sel, txt) { const el = document.querySelector(sel); if (el) el.textContent = txt; }
 function normalizeLabelToKey(label){
   if (!label) return null;
-  const s = String(label).toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/\s+/g,'');
+  const s = String(label).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');
   if (s === 'todos') return 'todos';
   if (s === 'solicitud') return 'solicitud';
   if (s === 'revision') return 'revision';
@@ -199,156 +140,135 @@ function setCount(key, val) {
   if (byDs) byDs.textContent = `(${val})`;
 }
 
-// ------------------------------------------------------------
-// Resolver nombre de departamento
-// ------------------------------------------------------------
+// ------------------------------ Resolver nombre de departamento
 const deptCache = new Map();
 async function resolveDepartamentoNombre(depId) {
   if (!depId) return "Sin dependencia";
   if (deptCache.has(depId)) return deptCache.get(depId);
   for (const url of CFG.ENDPOINTS.departamentos) {
     try {
+      LOG(TAG, "resolveDepartamentoNombre(): fetch", url);
       const u = new URL(url, location.origin);
       u.searchParams.set("status", 1);
-      dbg.log("resolveDepartamentoNombre(): fetch", u.toString());
       const res = await fetch(u.toString(), { headers: { Accept: "application/json" } });
       const json = await res.json().catch(() => null);
       const arr = json?.data ?? json?.rows ?? [];
       const found = arr.find(d => Number(d.id) === Number(depId));
-      if (found?.nombre) { deptCache.set(depId, found.nombre); dbg.log("depId", depId, "→", found.nombre); return found.nombre; }
-    } catch (e) { dbg.warn("resolveDepartamentoNombre error", e); }
+      if (found?.nombre) { deptCache.set(depId, found.nombre); LOG(TAG, "depId", depId, "→", found.nombre); return found.nombre; }
+    } catch (e) { WARN(TAG, "resolveDepartamentoNombre() err", e); }
   }
   const fallback = `Departamento ${depId}`;
   deptCache.set(depId, fallback);
-  dbg.warn("resolveDepartamentoNombre(): fallback", fallback);
   return fallback;
 }
 
-// ------------------------------------------------------------
-// API Empleado (con logs)
-// ------------------------------------------------------------
+// ------------------------------ API Empleado
 async function empleadoById(idEmpleado) {
   if (!idEmpleado) return null;
   try {
-    dbg.log("empleadoById(): POST", CFG.ENDPOINTS.empleado, { id: Number(idEmpleado) });
+    LOG(TAG, "empleadoById(): POST", CFG.ENDPOINTS.empleado, { id: Number(idEmpleado) });
     const res = await fetch(CFG.ENDPOINTS.empleado, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ id: Number(idEmpleado) })
     });
     const json = await res.json().catch(() => null);
-    dbg.log("empleadoById(): respuesta", json);
+    LOG(TAG, "empleadoById(): respuesta", json);
     return (json && json.ok) ? (json.data || null) : null;
-  } catch (e) { dbg.warn("empleadoById error", e); return null; }
+  } catch (e) { ERR(TAG, "empleadoById() error", e); return null; }
 }
 async function empleadoByUsername(username) {
   if (!username) return null;
   try {
-    dbg.log("empleadoByUsername(): POST", CFG.ENDPOINTS.empleado, { q: String(username) });
+    LOG(TAG, "empleadoByUsername():", username);
     const res = await fetch(CFG.ENDPOINTS.empleado, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({ q: String(username), page: 1, page_size: 5 })
     });
     const json = await res.json().catch(() => null);
-    dbg.log("empleadoByUsername(): respuesta", json);
     if (!(json && json.ok)) return null;
     const arr = json.data || [];
-    if (!Array.isArray(arr) || !arr.length) return null;
-    return arr.find(e => (e.cuenta?.username||"") === username) || arr[0] || null;
-  } catch (e) { dbg.warn("empleadoByUsername error", e); return null; }
+    const emp = arr.find(e => (e.cuenta?.username||"") === username) || arr[0] || null;
+    LOG(TAG, "empleadoByUsername() →", emp);
+    return emp;
+  } catch (e) { ERR(TAG, "empleadoByUsername() error", e); return null; }
 }
 
-// ------------------------------------------------------------
-// Store
-// --------------------------------------------------------
+// ------------------------------ Store
 const S = createStore({
   user: {
     idEmpleado: null,
-    idCuenta: SessIDs.idUsuario ?? null,
-    username: SessIDs.username ?? "",
-    nombre: `${SessIDs.nombre ?? ""}${SessIDs.apellidos ? " " + SessIDs.apellidos : ""}`.trim(),
-    dep: SessIDs.depId,
-    roles: SessIDs.roles,
+    idCuenta:   SessIDs.cuentaId ?? null,
+    username:   SessIDs.username ?? "",
+    nombre:     `${SessIDs.nombre ?? ""}${SessIDs.apellidos ? " " + SessIDs.apellidos : ""}`.trim(),
+    dep:        SessIDs.depId,
+    roles:      SessIDs.roles,
   },
-  filtros: {
-    status: "todos",
-    search: "",
-    depto: null,
-  },
+  filtros: { status: "todos", search: "", depto: null },
   requerimientos: [],
   counts: { todos: 0, solicitud: 0, revision: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 },
   pageSize: CFG.TABLE.pageSize,
 });
-DEBUG && (window.__dbgStore = S);
 
-// ------------------------------------------------------------
-// Pre-hydrate
-// ------------------------------------------------------------
+// ------------------------------ Pre-hydrate (sidebar con cookie)
 (function preHydrateSidebar() {
   if (!CFG.FEATURES.preHydrateFromCookie) return;
   const fullName = S.get().user.nombre || "";
-  dbg.log("preHydrateSidebar(): nombre desde cookie =", fullName);
+  LOG(TAG, "preHydrateSidebar(): nombre desde cookie =", fullName);
   if (fullName) setTextSafe(CFG.SELECTORS.profileName, fullName);
 
   const avatarEl = $one(CFG.SELECTORS.avatar);
   if (avatarEl) {
-    const idForAvatar = S.get().user.idEmpleado || S.get().user.idCuenta;
+    const idForAvatar = SessIDs.empleadoId || S.get().user.idEmpleado || S.get().user.idCuenta;
     const fallback = "/ASSETS/user/img_user1.png";
     const candidate = idForAvatar ? `/ASSETS/user/img_user${idForAvatar}.png` : fallback;
-    dbg.log("preHydrateSidebar(): avatar candidato =", candidate, "fallback =", fallback);
+    LOG(TAG, "preHydrateSidebar(): avatar candidato =", candidate, "fallback =", fallback);
     avatarEl.alt = fullName || "Avatar";
     avatarEl.src = candidate;
     avatarEl.onerror = () => (avatarEl.src = fallback);
   }
   const linkPerfil = $one(CFG.SELECTORS.profileLink);
-  if (linkPerfil && !linkPerfil.getAttribute("href")) {
-    linkPerfil.setAttribute("href", "/VIEWS/perfil.php");
-    dbg.log("preHydrateSidebar(): set profile link → /VIEWS/perfil.php");
-  }
+  if (linkPerfil && !linkPerfil.getAttribute("href")) linkPerfil.setAttribute("href", "/VIEWS/perfil.php");
 })();
 
-// ------------------------------------------------------------
-// Bootstrap empleado (API-first)
-// ------------------------------------------------------------
+// ------------------------------ Bootstrap empleado (API-first)
 async function bootstrapEmployee() {
-  dbg.group("bootstrapEmployee()");
+  LOG(TAG, "bootstrapEmployee()");
   let emp = null;
 
-  if (SessIDs.idUsuario) {
-    dbg.log("Intento 1: por idUsuario =", SessIDs.idUsuario);
-    emp = await empleadoById(SessIDs.idUsuario);
+  // 1) Prioridad: empleado_id de la cookie
+  if (SessIDs.empleadoId) {
+    LOG(TAG, "Intento 1: por empleadoId =", SessIDs.empleadoId);
+    emp = await empleadoById(SessIDs.empleadoId);
   }
 
+  // 2) Fallback: username exacto
   if (!emp && SessIDs.username) {
-    dbg.log("Intento 2: por username =", SessIDs.username);
+    LOG(TAG, "Intento 2: por username =", SessIDs.username);
     emp = await empleadoByUsername(SessIDs.username);
   }
 
+  // 3) Fallback: por nombre completo (menos preciso)
   if (!emp && S.get().user.nombre) {
-    dbg.log("Intento 3: por nombre completo =", S.get().user.nombre);
+    LOG(TAG, "Intento 3: por nombre =", S.get().user.nombre);
     emp = await empleadoByUsername(S.get().user.nombre);
   }
 
-  if (!emp) {
-    dbg.warn("bootstrapEmployee(): no se encontró empleado");
-    dbg.groupEnd();
-    return null;
-  }
+  if (!emp) { WARN(TAG, "No se pudo resolver empleado desde API"); return null; }
 
   const full = `${emp.nombre ?? ""}${emp.apellidos ? " " + emp.apellidos : ""}`.trim() || "—";
   const roles = Array.isArray(emp.cuenta?.roles) ? emp.cuenta.roles.map(r => r.codigo).filter(Boolean) : [];
-  dbg.log("Empleado resuelto =", { id: emp.id, username: emp.cuenta?.username, dep: emp.departamento_id, roles });
 
   S.set({
     user: {
       ...S.get().user,
       idEmpleado: emp.id,
-      idCuenta: emp.cuenta?.id ?? S.get().user.idCuenta ?? null,
+      idCuenta: emp.cuenta?.id ?? S.get().user.idCuenta ?? SessIDs.cuentaId ?? null,
       username: emp.cuenta?.username || S.get().user.username,
       nombre: full,
       dep: Number(emp.departamento_id ?? S.get().user.dep),
-      roles,
+      roles: roles.length ? roles : S.get().user.roles,
     }
   });
 
@@ -358,28 +278,30 @@ async function bootstrapEmployee() {
   if (depEl) {
     const depName = await resolveDepartamentoNombre(S.get().user.dep);
     depEl.textContent = depName || "Sin dependencia";
-    dbg.log("Badge dep =", depName);
+    LOG(TAG, "Badge dep =", depName);
   }
 
   window.__ixEmployee = emp;
-  dbg.groupEnd();
+  LOG(TAG, "Empleado resuelto =", {
+    id: emp.id,
+    username: S.get().user.username,
+    dep: S.get().user.dep,
+    roles: S.get().user.roles
+  });
   return emp;
 }
 
-// ------------------------------------------------------------
-// Init
-// ------------------------------------------------------------
+// ------------------------------ Init
 window.addEventListener("DOMContentLoaded", () => {
-  DEBUG && console.time(`${TAG} init`);
   Drawer.init(".ix-drawer");
-  init().finally(() => { DEBUG && console.timeEnd(`${TAG} init`); });
+  init();
 });
 
 async function init() {
-  dbg.info("init(): empleado desde API…");
+  LOG(TAG, "init(): empleado desde API…");
+
   await bootstrapEmployee();
 
-  // Chip depto
   const depEl = $one(CFG.SELECTORS.profileBadge);
   if (depEl && CFG.FEATURES.deptChipToggleEnabled) {
     depEl.setAttribute("role", "button");
@@ -389,24 +311,20 @@ async function init() {
     bindOnce(depEl, "click", () => {
       const active = S.get().filtros.depto != null;
       const next = active ? null : S.get().user.dep;
-      dbg.log("Dept chip click: active?", active, "→ next depto =", next);
       S.set({ filtros: { ...S.get().filtros, depto: next } });
       depEl.classList.toggle("active", !!next);
       depEl.setAttribute("aria-pressed", String(!!next));
       applyPipelineAndRender();
-    });
+    }, "depChip");
   }
 
-  // Skeleton
   mountSkeletonList($(CFG.SELECTORS.tableSkeleton), 7);
 
-  // Charts
   const lc = LineChart($(CFG.SELECTORS.chartYear));   lc.mount({ data: [] });
   const dc = DonutChart($(CFG.SELECTORS.chartMonth)); dc.mount({ data: [] });
   window.__ixCharts = { lc, dc };
-  dbg.log("Charts montados:", window.__ixCharts);
+  LOG(TAG, "Charts montados:", window.__ixCharts);
 
-  // Tabla
   const table = createTable({
     pageSize: S.get().pageSize,
     columns: [
@@ -425,7 +343,7 @@ async function init() {
     ]
   });
   window.__tableInstance = table;
-  dbg.log("Tabla creada:", table);
+  LOG(TAG, "Tabla creada:", table);
 
   await loadRequerimientos();
 
@@ -445,36 +363,36 @@ async function init() {
     $$(CFG.SELECTORS.statusItems).forEach(b => b.classList.remove("active"));
     allBtn.classList.add("active");
     allBtn.setAttribute("aria-checked", "true");
-    dbg.log("Marcado inicial: TODOS");
   }
+
+  LOG(TAG, "init: listo");
 }
 
-// ------------------------------------------------------------
-// Data load (requerimientos)
-// ------------------------------------------------------------
+// ------------------------------ Data load (requerimientos)
 async function loadRequerimientos() {
   toggle($(CFG.SELECTORS.tableWrap), false);
   toggle($(CFG.SELECTORS.tableSkeleton), true);
   toggle($(CFG.SELECTORS.tableEmpty), false);
 
   try {
-    dbg.group("fetchRequerimientos");
+    LOG(TAG, "fetchRequerimientos");
     const { ok, rows, data, count } = await fetchRequerimientos({ page: 1, per_page: CFG.TABLE.reqFetchPerPage });
-    dbg.log("Respuesta:", { ok, count, rowsLen: rows?.length, dataLen: data?.length });
     if (!ok) throw new Error("Respuesta no OK");
 
     const list = Array.isArray(rows) ? rows : (Array.isArray(data) ? data : []);
     S.set({ requerimientos: list });
-    dbg.log("Total requerimientos en store:", list.length);
 
+    // Charts
     window.__ixCharts?.lc?.update({ data: computeSeriesAnual(list) });
     window.__ixCharts?.dc?.update({ data: computeDonutMes(list) });
 
     setTextSafe(CFG.SELECTORS.tableTotal, String(count ?? list.length));
     setTextSafe(CFG.SELECTORS.tableStatusLabel, "Todos los status");
-    dbg.groupEnd();
+
+    LOG(TAG, "Respuesta:", { ok, count: count ?? list.length, rowsLen: list.length, dataLen: Array.isArray(data) ? data.length : undefined });
+    LOG(TAG, "Total requerimientos en store:", list.length);
   } catch (err) {
-    dbg.error("loadRequerimientos() error:", err);
+    ERR(TAG, "loadRequerimientos()", err);
     if (typeof gcToast === "function") gcToast("Hubo un error, inténtalo más tarde.", "warning");
     S.set({
       requerimientos: [],
@@ -486,16 +404,13 @@ async function loadRequerimientos() {
   }
 }
 
-// ------------------------------------------------------------
-// Sidebar (status DOM + ARIA)
-// ------------------------------------------------------------
+// ------------------------------ Sidebar (status DOM + ARIA)
 function initStatusDom(){
   $$(CFG.SELECTORS.statusItems).forEach(btn => {
     if (!btn.dataset.status){
       const label = btn.querySelector('.label')?.textContent?.trim();
       const key = normalizeLabelToKey(label);
-      if (key) btn.dataset.status = key;
-      dbg.log("initStatusDom(): mapeado", label, "→", key);
+      if (key) { btn.dataset.status = key; LOG(TAG, "initStatusDom(): mapeado", label, "→", key); }
     }
   });
 }
@@ -517,12 +432,10 @@ function makeStatusRadiogroup() {
     if (e.key === "ArrowUp" || e.key === "ArrowLeft") nextIdx = (idx - 1 + items.length) % items.length;
     if (nextIdx !== idx) { items[nextIdx].focus(); e.preventDefault(); }
     if (e.key === " " || e.key === "Enter") { items[nextIdx].click(); e.preventDefault(); }
-  });
+  }, "statusNavKeys");
 }
 
-// ------------------------------------------------------------
-// Wiring (sidebar clicks, búsqueda, click fila)
-// ------------------------------------------------------------
+// ------------------------------ Wiring (sidebar, búsqueda, fila)
 function wireSidebarEvents(table) {
   $$(CFG.SELECTORS.statusItems).forEach(btn => {
     bindOnce(btn, "click", () => {
@@ -531,19 +444,17 @@ function wireSidebarEvents(table) {
       btn.setAttribute("aria-checked", "true");
 
       const statusKey = btn.dataset.status || normalizeLabelToKey(btn.querySelector(".label")?.textContent) || "todos";
-      dbg.log("Filtro status →", statusKey);
       S.set({ filtros: { ...S.get().filtros, status: statusKey } });
 
       setTextSafe(CFG.SELECTORS.tableStatusLabel, humanStatusLabel(statusKey));
       applyPipelineAndRender(table);
       $(CFG.SELECTORS.searchInput)?.focus();
-    });
+    }, "statusClick");
   });
 }
 function wireSearch() {
   $(CFG.SELECTORS.searchInput)?.addEventListener("input", debounce((e) => {
     const q = (e.target.value || "").trim().toLowerCase();
-    dbg.log("Búsqueda =", q);
     S.set({ filtros: { ...S.get().filtros, search: q } });
     applyPipelineAndRender();
   }, 250));
@@ -556,44 +467,43 @@ function wireRowClick(table) {
     if (!tr || !tbody.contains(tr)) return;
     const idx = Number(tr.dataset.rowIdx);
     const raw = table.getRawRows?.()?.[idx];
-    dbg.log("Row click idx =", idx, "raw =", raw);
     if (!raw) return;
 
     Drawer.open(raw, {
-      getSessionUserId: () => (window.__ixSession?.id_usuario ?? SessIDs.idUsuario ?? 1),
+      // Para acciones del servidor, conviene el ID de CUENTA (quien hace el update)
+      getSessionUserId: () => (window.__ixSession?.cuenta_id ?? SessIDs.cuentaId ?? 1),
       onUpdated: (updated) => {
         try {
           const arr = S.get().requerimientos.slice();
           const i = arr.findIndex(r => r.id === updated.id);
           if (i >= 0) arr[i] = updated;
           S.set({ requerimientos: arr });
-          dbg.log("Drawer onUpdated(): updated id =", updated?.id);
           applyPipelineAndRender(table);
           if (typeof gcToast === "function") gcToast("Requerimiento actualizado.", "exito");
-        } catch (err) { console.error("[Home] onUpdated error:", err); }
+        } catch (err) { ERR("[Home] onUpdated error:", err); }
       },
       onError: (err) => {
-        console.error("[Drawer] error:", err);
+        ERR("[Drawer] error:", err);
         if (typeof gcToast === "function") gcToast("Ocurrió un error. Inténtalo más tarde.", "warning");
       }
     });
-  });
+  }, "rowClick");
 }
 
-// ------------------------------------------------------------
-// Pipeline: depto + búsqueda -> conteos -> estatus -> tabla
-// ------------------------------------------------------------
+// ------------------------------ Pipeline y render
 function applyPipelineAndRender(tableInstance) {
   const t = tableInstance || window.__tableInstance;
   const { status, search, depto } = S.get().filtros;
   const base = S.get().requerimientos || [];
 
+  // Depto
   const deptFilterId = depto;
   let filtered = base;
   if (deptFilterId != null) {
     filtered = filtered.filter(r => Number(r.departamento_id ?? r.departamento) === Number(deptFilterId));
   }
 
+  // Búsqueda
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter(r => {
@@ -606,14 +516,17 @@ function applyPipelineAndRender(tableInstance) {
     });
   }
 
+  // Conteos
   computeCounts(filtered);
   renderCounts();
 
+  // Filtro estatus para tabla
   let forTable = filtered;
   if (status !== "todos") {
     forTable = filtered.filter(r => ESTATUS[Number(r.estatus)]?.clave === status);
   }
 
+  // Mapeo a filas
   const rows = forTable.map(r => {
     const est = ESTATUS[Number(r.estatus)];
     return {
@@ -627,6 +540,7 @@ function applyPipelineAndRender(tableInstance) {
     };
   });
 
+  // Render tabla
   const table = t || createTable({ pageSize: S.get().pageSize, columns: [] });
   window.__tableInstance = table;
 
@@ -640,24 +554,19 @@ function applyPipelineAndRender(tableInstance) {
     setTextSafe(CFG.SELECTORS.tableTotal, String(rows.length));
   }
 
+  // Etiqueta humana
   setTextSafe(CFG.SELECTORS.tableStatusLabel, humanStatusLabel(status));
 
-  dbg.log("Pipeline:", {
-    filtros: { status, search, depto },
-    baseLen: base.length,
-    filteredLen: filtered.length,
-    tableRows: rows.length
+  LOG(TAG, "Pipeline:", {
+    filtros: S.get().filtros, baseLen: base.length, filteredLen: filtered.length, tableRows: rows.length
   });
 }
 
-// ------------------------------------------------------------
-// Conteos
-// ------------------------------------------------------------
+// ------------------------------ Conteos
 function computeCounts(rows = []) {
   const counts = { todos: rows.length, solicitud: 0, revision: 0, asignacion: 0, enProceso: 0, pausado: 0, cancelado: 0, finalizado: 0 };
   rows.forEach(r => { const k = ESTATUS[Number(r.estatus)]?.clave; if (k && Object.prototype.hasOwnProperty.call(counts, k)) counts[k]++; });
   S.set({ counts });
-  dbg.log("Counts:", counts);
 }
 function renderCounts() {
   const c = S.get().counts;
@@ -671,9 +580,7 @@ function renderCounts() {
   setCount("finalizado", c.finalizado);
 }
 
-// ------------------------------------------------------------
-// Charts helpers
-// ------------------------------------------------------------
+// ------------------------------ Charts helpers
 function computeSeriesAnual(rows = []) {
   const now = new Date();
   const year = now.getFullYear();
