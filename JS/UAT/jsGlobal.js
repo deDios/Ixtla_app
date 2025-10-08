@@ -483,7 +483,7 @@
     }
   });
 
-  // ------------------------------------- Subnav Operativo (estilo GodCode, adaptado Ixtla)
+  // ------------------------------------- Subnav Operativo
   (() => {
     const header = document.getElementById("header");
     if (!header) return;
