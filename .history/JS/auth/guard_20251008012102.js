@@ -57,12 +57,12 @@ export function guardPage(options = {}) {
     try {
       document.documentElement.classList.remove("ix-guard-pending");
       document.documentElement.style.visibility = "";
-    } catch { }
+    } catch {}
     return;
   }
   window[SENT_KEY] = true;
 
-  const log = (...a) => { if (cfg.devLog) try { console.log("[guard]", ...a); } catch { } };
+  const log = (...a) => { if (cfg.devLog) try { console.log("[guard]", ...a); } catch {} };
 
   // Helpers de ruta/URL
   const normalizePath = (p) => {
@@ -76,7 +76,7 @@ export function guardPage(options = {}) {
 
   const isHomeLike = () => {
     const hrefL = (location.href || "").toLowerCase();
-    const last = (location.pathname.split("/").pop() || "").toLowerCase();
+    const last  = (location.pathname.split("/").pop() || "").toLowerCase();
     return hrefL.includes("home.php") || last === "home.php";
   };
 
@@ -108,17 +108,17 @@ export function guardPage(options = {}) {
   const normalizeRoles = (r) =>
     Array.isArray(r)
       ? r
-        .map((x) => (typeof x === "string" ? x : (x?.codigo || x?.nombre || "")))
-        .filter(Boolean)
-        .map((s) => String(s).toUpperCase())
+          .map((x) => (typeof x === "string" ? x : (x?.codigo || x?.nombre || "")))
+          .filter(Boolean)
+          .map((s) => String(s).toUpperCase())
       : [];
 
   const getIds = (s) => {
     // De acuerdo al schema "ix-1" guardamos:
     //   empleado_id, cuenta_id, id_usuario (compat)
-    const empId = Number(s?.empleado_id ?? s?.id_empleado ?? NaN);
-    const acctId = Number(s?.cuenta_id ?? NaN);
-    const userId = Number(s?.id_usuario ?? s?.id ?? acctId ?? NaN); // compat
+    const empId    = Number(s?.empleado_id ?? s?.id_empleado ?? NaN);
+    const acctId   = Number(s?.cuenta_id ?? NaN);
+    const userId   = Number(s?.id_usuario ?? s?.id ?? acctId ?? NaN); // compat
     const username = (s?.username || "").toString();
     return {
       empId: Number.isFinite(empId) ? empId : null,
@@ -188,11 +188,11 @@ export function guardPage(options = {}) {
   if (ok) ok = ageAllowed(sess);
 
   if (ok) {
-    try { window.__ixSession = sess; } catch { }
+    try { window.__ixSession = sess; } catch {}
     try {
       document.documentElement.classList.remove("ix-guard-pending");
       document.documentElement.style.visibility = "";
-    } catch { }
+    } catch {}
     log("acceso permitido ✓");
     cfg.onOk?.(sess);
     return;
@@ -200,7 +200,7 @@ export function guardPage(options = {}) {
 
   // Acceso denegado
   log("acceso denegado; limpiando y redirigiendo/renderizando");
-  try { clearSession(); } catch { }
+  try { clearSession(); } catch {}
   cfg.onFail?.("DENY");
 
   if (cfg.stealth) {
@@ -219,7 +219,7 @@ function renderStealth(code = "404", server = "nginx", version = "1.24.0", theme
   if (theme === "plain") {
     try {
       document.open(); document.write("File not found."); document.close();
-      try { document.title = "File not found."; } catch { }
+      try { document.title = "File not found."; } catch {}
     } catch { document.body.textContent = "File not found."; }
     return;
   }

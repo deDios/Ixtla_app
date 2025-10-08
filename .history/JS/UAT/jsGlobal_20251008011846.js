@@ -630,6 +630,7 @@
       navs.forEach((navLeft) => {
         if (!navLeft) return;
 
+        // Evitar duplicado
         let a = navLeft.querySelector("#link-chat");
         if (!a) {
           a = document.createElement("a");
@@ -641,6 +642,7 @@
           navLeft.appendChild(a);
         }
 
+        // Abrir en popup centrado
         a.onclick = (e) => {
           e.preventDefault();
           openPopup(CHAT_URL);

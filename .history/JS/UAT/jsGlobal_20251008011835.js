@@ -630,6 +630,7 @@
       navs.forEach((navLeft) => {
         if (!navLeft) return;
 
+        // Evitar duplicado
         let a = navLeft.querySelector("#link-chat");
         if (!a) {
           a = document.createElement("a");
@@ -641,6 +642,7 @@
           navLeft.appendChild(a);
         }
 
+        // Abrir en popup centrado
         a.onclick = (e) => {
           e.preventDefault();
           openPopup(CHAT_URL);
@@ -654,6 +656,7 @@
       });
     }
 
+    // -------- Gate de autorización por empleado_id
     const sess = getIxSession();
     const empId = getEmpleadoId(sess);
 
@@ -664,14 +667,16 @@
       (!ONLY_IN_HOME || isOperativePage());
 
     if (!authorized) {
+      // Seguridad: si por algún motivo ya existía, lo removemos.
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", removeChatLinksIfAny, { once: true });
       } else {
         removeChatLinksIfAny();
       }
-      return; 
+      return; // No insertar
     }
 
+    // Insertar si está autorizado
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", addChatLink, { once: true });
     } else {
