@@ -580,7 +580,7 @@
   // Botón "Chat" controlado por IDs 
   (function () {
     const ALLOWED_IDS = [6,5,4,2];
-    const CHAT_URL = "/VIEWS/whats_asesores.php";
+    const CHAT_URL = "/VIEWS/chat.php";
 
     function getIxSession() {
       try {

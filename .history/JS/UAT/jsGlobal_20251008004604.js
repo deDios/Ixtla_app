@@ -252,14 +252,14 @@
             <ul>
               <li role="menuitem" tabindex="-1">
                 <img src="${asset(
-          "/user/userMenu/homebtn.png"
-        )}" alt="" aria-hidden="true" />
+                  "/user/userMenu/homebtn.png"
+                )}" alt="" aria-hidden="true" />
                 Ir a Home
               </li>
               <li id="logout-btn" role="menuitem" tabindex="-1">
                 <img src="${asset(
-          "/user/userMenu/logoutbtn.png"
-        )}" alt="" aria-hidden="true" />
+                  "/user/userMenu/logoutbtn.png"
+                )}" alt="" aria-hidden="true" />
                 Logout
               </li>
             </ul>
@@ -307,7 +307,7 @@
               `Bienvenido, ${session.nombre || "usuario"}`,
               "exito"
             );
-          } catch { }
+          } catch {}
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
@@ -354,14 +354,14 @@
           <ul>
             <li>
               <img src="${asset(
-          "/user/userMenu/homebtn.png"
-        )}" alt="" aria-hidden="true" />
+                "/user/userMenu/homebtn.png"
+              )}" alt="" aria-hidden="true" />
               Ir a Home
             </li>
             <li id="logout-btn-mobile">
               <img src="${asset(
-          "/user/userMenu/logoutbtn.png"
-        )}" alt="" aria-hidden="true" />
+                "/user/userMenu/logoutbtn.png"
+              )}" alt="" aria-hidden="true" />
               Logout
             </li>
           </ul>`;
@@ -515,6 +515,7 @@
     const LINKS = {
       home:
         typeof routeAppHome !== "undefined" ? routeAppHome : "/VIEWS/UAT/home.php",
+      chat: "#", 
     };
 
     function isActive(href) {
@@ -544,6 +545,7 @@
       const markup = `
       <div class="nav-left">
         ${mk("Home", LINKS.home)}
+        ${mk("Chat", LINKS.chat)}
       </div>
       ${socialMarkup}
     `;
@@ -577,59 +579,59 @@
 
 
 
-  // Botón "Chat" controlado por IDs 
-  (function () {
-    const ALLOWED_IDS = [6,5,4,2];
-    const CHAT_URL = "/VIEWS/whats_asesores.php";
+  // Botón "Chat" controlado por IDs (versión simple, sin módulos)
+(function () {
+  const ALLOWED_IDS = [2, 7, 10];      // <-- IDs que SÍ verán el Chat
+  const CHAT_URL = "/VIEWS/chat.php";  // <-- tu URL de chat
 
-    function getIxSession() {
-      try {
-        const m = document.cookie.split("; ").find((c) => c.startsWith("ix_emp="));
-        if (!m) return null;
-        const raw = decodeURIComponent(m.split("=")[1] || "");
-        return JSON.parse(decodeURIComponent(escape(atob(raw))));
-      } catch {
-        return null;
+  function getIxSession() {
+    try {
+      const m = document.cookie.split("; ").find((c) => c.startsWith("ix_emp="));
+      if (!m) return null;
+      const raw = decodeURIComponent(m.split("=")[1] || "");
+      return JSON.parse(decodeURIComponent(escape(atob(raw))));
+    } catch {
+      return null;
+    }
+  }
+
+  function openPopup(url) {
+    const w = 1040, h = 720;
+    const left = Math.max(0, Math.floor((screen.width - w) / 2));
+    const top  = Math.max(0, Math.floor((screen.height - h) / 2));
+    const spec = `width=${w},height=${h},left=${left},top=${top},resizable,scrollbars`;
+    window.open(url, "_blank", spec);
+  }
+
+  function addChatLink() {
+    const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
+    navs.forEach((navLeft) => {
+      if (!navLeft) return;
+      let a = navLeft.querySelector("#link-chat");
+      if (!a) {
+        a = document.createElement("a");
+        a.id = "link-chat";
+        a.href = CHAT_URL;
+        a.textContent = "Chat";
+        navLeft.appendChild(a);
       }
-    }
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        openPopup(CHAT_URL);
+      }, { once: true });
+    });
+  }
 
-    function openPopup(url) {
-      const w = 1040, h = 720;
-      const left = Math.max(0, Math.floor((screen.width - w) / 2));
-      const top = Math.max(0, Math.floor((screen.height - h) / 2));
-      const spec = `width=${w},height=${h},left=${left},top=${top},resizable,scrollbars`;
-      window.open(url, "_blank", spec);
-    }
+  const sess = getIxSession();
+  const idu = Number(sess?.id_usuario ?? sess?.id ?? NaN);
+  if (!CHAT_URL || !Number.isFinite(idu) || !ALLOWED_IDS.includes(idu)) return;
 
-    function addChatLink() {
-      const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
-      navs.forEach((navLeft) => {
-        if (!navLeft) return;
-        let a = navLeft.querySelector("#link-chat");
-        if (!a) {
-          a = document.createElement("a");
-          a.id = "link-chat";
-          a.href = CHAT_URL;
-          a.textContent = "Chat";
-          navLeft.appendChild(a);
-        }
-        a.addEventListener("click", (e) => {
-          e.preventDefault();
-          openPopup(CHAT_URL);
-        }, { once: true });
-      });
-    }
-
-    const sess = getIxSession();
-    const idu = Number(sess?.id_usuario ?? sess?.id ?? NaN);
-    if (!CHAT_URL || !Number.isFinite(idu) || !ALLOWED_IDS.includes(idu)) return;
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", addChatLink, { once: true });
-    } else {
-      addChatLink();
-    }
-  })();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", addChatLink, { once: true });
+  } else {
+    addChatLink();
+  }
+})();
 
   // ------------------------------------- fin subnav operativo
 })();

@@ -192,13 +192,17 @@ main {padding-top: 4rem;}
 }
 
 .is-loaded .chart-skeleton { display: none !important; }
+/* luego seguimos trabajando con las graficas */
 .charts-row {
   display: none !important;
 }
 
+/* ================== (aquí terminaba el CSS inicial del home) ================== */
 
 
+/* ========================================================================== */
 /* ======================== DRAWER (ACTUALIZADO) ============================ */
+/* ========================================================================== */
 
 /* Overlay */
 .ix-drawer-overlay[hidden]{ display:none !important; }
