@@ -1,4 +1,4 @@
-/* ===================== HOME (scopeado a main.ix-home) ===================== */
+/* ===================== HOME ===================== */
 
 main.ix-home { padding-top: 4rem; }
 
@@ -127,34 +127,54 @@ html.is-loaded main.ix-home #tbl-wrap{ display:block!important; }
 main.ix-home .chart-skeleton{ display:none!important; }
 main.ix-home .charts-row{ display:none!important; }
 
-/* ======================== DRAWER (scopeado) ============================ */
+/* ======================== DRAWER (RESTRUCT) ============================ */
+
+/* Bloquear scroll del body al abrir el drawer */
+/* AJUSTE */
+body.ix-drawer-open { overflow: hidden; }
 
 /* Overlay por encima del header */
 .ix-drawer-overlay[hidden]{ display:none!important; }
 .ix-drawer-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:11000; }
 
-/* Panel */
+/* Contenedor fijo (sin scroll) — RESTRUCT */
 .ix-drawer{
-  position:fixed; top:0; right:0; bottom:0; width:min(560px,100%);
+  position:fixed; inset:0; z-index:11010;
+  display:flex; justify-content:flex-end;
+  background:transparent;
+  pointer-events:none; /* clics pasan al overlay si está visible */
+}
+
+/* Hoja interna animada — RESTRUCT */
+.ixd-sheet{
+  width:min(560px,100%); height:100%;
   background:#fff; box-shadow:-12px 0 30px rgba(0,0,0,.15);
   transform:translateX(100%); transition:transform .25s ease;
-  z-index:11010;
+  pointer-events:auto;
+  display:flex; flex-direction:column; /* header/meta arriba, body scrolleable, footer dentro */
 }
-.ix-drawer.open{ transform:translateX(0); }
+.ix-drawer.open .ixd-sheet{ transform:translateX(0); }
 
 /* Header / Meta */
-.ixd-head{ display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #eef2f7; }
+.ixd-head{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:12px 16px; border-bottom:1px solid #eef2f7; flex:0 0 auto;
+}
 .ixd-folio{ margin:0; font-size:1.05rem; font-weight:700; }
 .ixd-close{ border:1px solid #e5e7eb; background:#f8fafc; border-radius:10px; padding:6px 10px; cursor:pointer; }
 
 .ixd-meta{
   display:grid; grid-template-columns:1fr 1fr; gap:6px 14px;
-  padding:10px 16px; border-bottom:1px solid #eef2f7; font-size:.90rem; color:#374151;
+  padding:10px 16px; border-bottom:1px solid #eef2f7; font-size:.90rem; color:#374151; flex:0 0 auto;
 }
 .ixd-meta strong{ font-weight:600; }
 
-/* Body */
-.ixd-body{ padding:14px 16px; overflow:auto; height:calc(100vh - 56px - 52px - 64px); }
+/* ÚNICO scroller — RESTRUCT */
+.ixd-body{
+  flex:1 1 auto; overflow:auto; padding:14px 16px;
+  overscroll-behavior: contain; scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* Campos */
 .ixd-field{ display:grid; gap:6px; margin:10px 0; }
@@ -175,9 +195,11 @@ textarea.ixd-input{ min-height:120px; resize:none; overflow:auto; }
 .ixd-grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 @media (max-width:520px){ .ixd-grid2{ grid-template-columns:1fr; } }
 
-/* Footer */
-.ixd-actions{ display:flex; gap:8px; align-items:center; justify-content:flex-start; padding:10px 16px; border-top:1px solid #eef2f7; background:#fff; }
-.ixd-actions--footer{/* z-index:2; */}
+/* Footer dentro del flujo (SIN sticky) — RESTRUCT */
+.ixd-actions{
+  display:flex; gap:8px; align-items:center; justify-content:flex-start;
+  padding:10px 16px; border-top:1px solid #eef2f7; background:#fff; flex:0 0 auto;
+}
 
 /* ---------- Botones (scopeados, NO afectan header) ---------- */
 
@@ -231,7 +253,10 @@ main.ix-home .btn[disabled]{ opacity:.6; pointer-events:none; }
 
 /* Imagen principal + galería */
 .ixd-imgBlock{ position:relative; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; background:#f3f4f6; }
-.ixd-imgBlock img{ display:block; width:100%; height:auto; }
+.ixd-imgBlock img{
+  display:block; width:100%; height:auto;
+  aspect-ratio: 16 / 9; /* AJUSTE: reservar espacio para evitar saltos al cargar */
+}
 .ixd-pencil{
   position:absolute; top:10px; right:10px; background:#fff; border:1px solid #e5e7eb; border-radius:10px;
   padding:6px 8px; box-shadow:0 2px 8px rgba(0,0,0,.12); display:none;
@@ -252,3 +277,9 @@ main.ix-home .btn[disabled]{ opacity:.6; pointer-events:none; }
 .ixd-card img{ display:block; width:100%; height:120px; object-fit:cover; }
 .ixd-card .nm{ font-size:.85rem; padding:6px 8px; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 [data-img="empty"]{ margin:10px 0 0; color:#6b7280; font-style:italic; }
+
+/* ====== Alternativa SIN transform (si lo prefieres) ====== */
+/*
+.ixd-sheet{ transform:none; right:-100vw; position:relative; transition:right .25s ease; }
+.ix-drawer.open .ixd-sheet{ right:0; }
+*/
