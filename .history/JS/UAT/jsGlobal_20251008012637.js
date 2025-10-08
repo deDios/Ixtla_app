@@ -585,9 +585,10 @@
 
   // ----------------------------- Botón "Chat" controlado por IDs (empleado_id)
   (function () {
-    const ALLOWED_EMP_IDS = [6, 5, 4, 2];         
-    const CHAT_URL = "/VIEWS/whats_asesores.php";
-    const ONLY_IN_HOME = true;           
+    // 👉 Ajusta esta lista según tus necesidades (IDs de EMPLEADO)
+    const ALLOWED_EMP_IDS = [5];             // solo el empleado 5 verá el botón
+    const CHAT_URL        = "/VIEWS/whats_asesores.php";
+    const ONLY_IN_HOME    = true;            // solo mostrarlo en home.php
 
     function getIxSession() {
       try {
@@ -602,7 +603,7 @@
 
     function isHomeLike() {
       const hrefL = (location.href || "").toLowerCase();
-      const last = (location.pathname.split("/").pop() || "").toLowerCase();
+      const last  = (location.pathname.split("/").pop() || "").toLowerCase();
       return hrefL.includes("home.php") || last === "home.php";
     }
 
@@ -616,13 +617,13 @@
         a.id = "link-chat";
         a.href = CHAT_URL;
         a.textContent = "Chat";
-        a.target = "_blank";
-        a.rel = "noopener";
+        a.target = "_blank";           
+        a.rel = "noopener";            
         navLeft.appendChild(a);
       });
     }
 
-    const sess = getIxSession();
+    const sess  = getIxSession();
     const empId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
 
     // Permisos + ubicación

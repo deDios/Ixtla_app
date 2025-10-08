@@ -585,13 +585,13 @@
 
   // ----------------------------- Botón "Chat" controlado por IDs (empleado_id)
   (function () {
-    const ALLOWED_EMP_IDS = [6, 5, 4, 2];         
+    const ALLOWED_EMP_IDS = [6, 5, 4, 2];     // ← IDs de EMPLEADO permitidos
     const CHAT_URL = "/VIEWS/whats_asesores.php";
-    const ONLY_IN_HOME = true;           
+    const ONLY_IN_HOME = true;             // solo en home
 
     function getIxSession() {
       try {
-        const m = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
+        const m = document.cookie.split("; ").find((c) => c.startsWith("ix_emp="));
         if (!m) return null;
         const raw = decodeURIComponent(m.split("=")[1] || "");
         return JSON.parse(decodeURIComponent(escape(atob(raw))));
@@ -600,34 +600,76 @@
       }
     }
 
-    function isHomeLike() {
-      const hrefL = (location.href || "").toLowerCase();
-      const last = (location.pathname.split("/").pop() || "").toLowerCase();
+    function getEmpleadoId(sess) {
+      const empId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
+      return Number.isFinite(empId) ? empId : null;
+    }
+
+    function isOperativePage() {
+      const hrefL = (window.location.href || "").toLowerCase();
+      const pathL = (window.location.pathname || "").toLowerCase();
+      const last = (pathL.split("/").pop() || "").toLowerCase();
       return hrefL.includes("home.php") || last === "home.php";
+    }
+
+    function openPopup(url) {
+      const w = 1040, h = 720;
+      const left = Math.max(0, Math.floor((screen.width - w) / 2));
+      const top = Math.max(0, Math.floor((screen.height - h) / 2));
+      const spec = `width=${w},height=${h},left=${left},top=${top},resizable,scrollbars`;
+      window.open(url, "_blank", spec);
+    }
+
+    function removeChatLinksIfAny() {
+      document.querySelectorAll("#link-chat").forEach((a) => a.remove());
     }
 
     function addChatLink() {
       const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
       navs.forEach((navLeft) => {
         if (!navLeft) return;
-        if (navLeft.querySelector("#link-chat")) return; // evitar duplicado
 
-        const a = document.createElement("a");
-        a.id = "link-chat";
-        a.href = CHAT_URL;
-        a.textContent = "Chat";
-        a.target = "_blank";
-        a.rel = "noopener";
-        navLeft.appendChild(a);
+        let a = navLeft.querySelector("#link-chat");
+        if (!a) {
+          a = document.createElement("a");
+          a.id = "link-chat";
+          a.href = CHAT_URL;
+          a.textContent = "Chat";
+          a.rel = "noopener";
+          a.role = "button";
+          navLeft.appendChild(a);
+        }
+
+        a.onclick = (e) => {
+          e.preventDefault();
+          openPopup(CHAT_URL);
+        };
+        a.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openPopup(CHAT_URL);
+          }
+        });
       });
     }
 
     const sess = getIxSession();
-    const empId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
+    const empId = getEmpleadoId(sess);
 
-    // Permisos + ubicación
-    if (!CHAT_URL || !Number.isFinite(empId) || !ALLOWED_EMP_IDS.includes(empId)) return;
-    if (ONLY_IN_HOME && !isHomeLike()) return;
+    const authorized =
+      !!CHAT_URL &&
+      empId != null &&
+      ALLOWED_EMP_IDS.includes(empId) &&
+      (!ONLY_IN_HOME || isOperativePage());
+
+    if (!authorized) {
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", removeChatLinksIfAny, { once: true });
+      } else {
+        removeChatLinksIfAny();
+      }
+      return; 
+    }
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", addChatLink, { once: true });
@@ -635,7 +677,6 @@
       addChatLink();
     }
   })();
-
 
   // ------------------------------------- fin subnav operativo
 

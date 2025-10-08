@@ -585,9 +585,10 @@
 
   // ----------------------------- Botón "Chat" controlado por IDs (empleado_id)
   (function () {
-    const ALLOWED_EMP_IDS = [6, 5, 4, 2];         
+    // 👉 Ajusta esta lista según tus necesidades (IDs de EMPLEADO)
+    const ALLOWED_EMP_IDS = [5];             // solo el empleado 5 verá el botón
     const CHAT_URL = "/VIEWS/whats_asesores.php";
-    const ONLY_IN_HOME = true;           
+    const ONLY_IN_HOME = true;            // solo mostrarlo en home.php
 
     function getIxSession() {
       try {
