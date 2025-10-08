@@ -297,12 +297,6 @@
             </label>
           </div>
 
-          <div class="ixd-imgBlock">
-            <img data-img="hero" src="" alt="Evidencia" loading="lazy" />
-            <button class="ixd-pencil" type="button" data-img="pick" title="Cambiar imagen" aria-label="Cambiar imagen">✎</button>
-            <input type="file" accept="image/*" data-img="file" hidden />
-          </div>
-
           <div class="ixd-previews" data-img="previews" aria-live="polite" aria-atomic="true"></div>
 
           <div class="ixd-uploadRow">
