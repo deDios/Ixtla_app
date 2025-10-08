@@ -315,7 +315,7 @@
             <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
             <button class="btn primary ixd-save" data-action="guardar" type="button" style="display:none" disabled>Guardar</button>
             <button class="btn ixd-cancel" data-action="cancelar" type="button" style="display:none">Cancelar</button>
-            <button class="btn warning ixd-pause" data-action="pausar" type="button">Pausar</button>
+            <!--<button class="btn warning ixd-pause" data-action="pausar" type="button">Pausar</button> -->
             <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
           </footer>
         </div>
