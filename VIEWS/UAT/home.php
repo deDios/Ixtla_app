@@ -83,42 +83,42 @@
             <nav class="status-block" aria-label="Estados">
               <div class="status-nav">
                 <button class="status-item active" data-status="todos" role="radio" aria-checked="true">
-                  <span class="label"><span class="dot" aria-hidden="true"></span>Todos</span>
+                  <span class="label"></span>Todos</span>
                   <span class="count" id="cnt-todos">(50)</span>
                 </button>
 
                 <button class="status-item" data-status="solicitud" role="radio" aria-checked="false">
-                  <span class="label"><span class="dot" aria-hidden="true"></span>Solicitud</span>
+                  <span class="label"></span>Solicitud</span>
                   <span class="count" id="cnt-solicitud">(0)</span>
                 </button>
 
                 <button class="status-item" data-status="revision" role="radio" aria-checked="false">
-                  <span class="label"><span class="dot" aria-hidden="true"></span>Revisión</span>
+                  <span class="label"></span>Revisión</span>
                   <span class="count" id="cnt-revision">(0)</span>
                 </button>
 
                 <button class="status-item" data-status="asignacion" role="radio" aria-checked="false">
-                  <span class="label"><span class="dot" aria-hidden="true"></span>Asignación</span>
+                  <span class="label"></span>Asignación</span>
                   <span class="count" id="cnt-asignacion">(0)</span>
                 </button>
 
                 <button class="status-item" data-status="enProceso" role="radio" aria-checked="false">
-                  <span class="label"><span class="dot" aria-hidden="true"></span>En proceso</span>
+                  <span class="label"></span>En proceso</span>
                   <span class="count" id="cnt-enProceso">(0)</span>
                 </button>
 
                 <button class="status-item" data-status="pausado" role="radio" aria-checked="false">
-                  <span class="label"><span class="dot" aria-hidden="true"></span>Pausado</span>
+                  <span class="label"></span>Pausado</span>
                   <span class="count" id="cnt-pausado">(0)</span>
                 </button>
 
                 <button class="status-item" data-status="cancelado" role="radio" aria-checked="false">
-                  <span class="label"><span class="dot" aria-hidden="true"></span>Cancelado</span>
+                  <span class="label"></span>Cancelado</span>
                   <span class="count" id="cnt-cancelado">(0)</span>
                 </button>
 
                 <button class="status-item" data-status="finalizado" role="radio" aria-checked="false">
-                  <span class="label"><span class="dot" aria-hidden="true"></span>Finalizado</span>
+                  <span class="label"></span>Finalizado</span>
                   <span class="count" id="cnt-finalizado">(0)</span>
                 </button>
               </div>
