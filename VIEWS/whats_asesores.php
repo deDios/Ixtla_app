@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Consola de Asesores – WhatsApp</title>
+  <title>Ixtla-app.com</title>
   <style>
     :root { --bg:#0b1220; --panel:#121a2b; --muted:#808aa5; --text:#e9eefc; --accent:#8ab4ff; --danger:#ff6b6b; }
     *{box-sizing:border-box}
