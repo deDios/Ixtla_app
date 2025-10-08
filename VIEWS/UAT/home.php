@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,9 +10,10 @@
   <link rel="stylesheet" href="/CSS/components.css">
   <link rel="icon" href="/favicon.ico">
 </head>
+
 <body>
 
-  <!-- Header/topbar propios (no se tocan desde este CSS) -->
+  <!-- Header/topbar propios -->
   <header id="header" data-link-home="/index.php">
     <div class="social-bar-mobile">
       <div class="social-icons">
@@ -32,11 +34,11 @@
 
       <div class="actions">
         <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
-                onclick="window.location.href=this.getAttribute('href')">
+          onclick="window.location.href=this.getAttribute('href')">
           Contacto
         </button>
         <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
-                onclick="toggleMenu()">
+          onclick="toggleMenu()">
           <span></span><span></span><span></span>
         </button>
         <!-- JS global inyecta avatar si hay sesión -->
@@ -128,13 +130,13 @@
             <div class="table-wrap" id="tbl-wrap" hidden>
               <table class="gc-table" aria-describedby="tbl-title">
                 <thead>
-                <tr>
-                  <th>Requerimiento</th>
-                  <th>Contacto</th>
-                  <th>Teléfono</th>
-                  <th>Departamento</th>
-                  <th>Status</th>
-                </tr>
+                  <tr>
+                    <th>Requerimiento</th>
+                    <th>Contacto</th>
+                    <th>Teléfono</th>
+                    <th>Departamento</th>
+                    <th>Status</th>
+                  </tr>
                 </thead>
                 <tbody id="tbl-body"></tbody>
               </table>
@@ -152,7 +154,7 @@
     <div class="limite">
       <div class="footer-brand">
         <img class="brand-lockup" src="/ASSETS/main_logo_al_frente.png"
-             alt="Ixtlahuacán de los Membrillos - Ayuntamiento">
+          alt="Ixtlahuacán de los Membrillos - Ayuntamiento">
       </div>
 
       <div class="footer-cols">
@@ -298,7 +300,7 @@
         <div class="ixd-imgBlock">
           <img data-img="hero" src="" alt="Evidencia" loading="lazy" />
           <button class="ixd-pencil" type="button" data-img="pick" title="Cambiar imagen"
-                  aria-label="Cambiar imagen">✎</button>
+            aria-label="Cambiar imagen">✎</button>
           <input type="file" accept="image/*" data-img="file" hidden />
         </div>
 
@@ -315,24 +317,31 @@
 
         <input type="hidden" name="id" data-field="id" value="" />
         <input type="hidden" name="updated_by" value="0" />
-      </div>
 
-      <footer class="ixd-actions ixd-actions--footer">
-        <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
-        <button class="btn primary ixd-save" data-action="guardar" type="button" style="display:none" disabled>Guardar</button>
-        <button class="btn ixd-cancel" data-action="cancelar" type="button" style="display:none">Cancelar</button>
-        <button class="btn warning ixd-pause" data-action="pausar" type="button">Pausar</button>
-        <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
-      </footer>
+        <footer class="ixd-actions ixd-actions--footer">
+          <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
+          <button class="btn primary ixd-save" data-action="guardar" type="button" style="display:none" disabled>Guardar</button>
+          <button class="btn ixd-cancel" data-action="cancelar" type="button" style="display:none">Cancelar</button>
+          <button class="btn warning ixd-pause" data-action="pausar" type="button">Pausar</button>
+          <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
+        </footer>
+      </div>
+      
     </aside>
   </section>
 
   <script type="module">
-    import { guardPage } from "/JS/auth/guard.js?v=2";
-    guardPage({ stealth: false, redirectTo: "/VIEWS/Login.php" });
+    import {
+      guardPage
+    } from "/JS/auth/guard.js?v=2";
+    guardPage({
+      stealth: false,
+      redirectTo: "/VIEWS/Login.php"
+    });
   </script>
 
   <script src="/JS/UAT/jsGlobal.js"></script>
   <script type="module" src="/JS/UAT/home.js"></script>
 </body>
+
 </html>

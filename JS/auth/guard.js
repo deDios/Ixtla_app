@@ -5,26 +5,26 @@ import { getSession, clearSession } from "/JS/auth/session.js";
  * Guardia de acceso por cookie de sesión (ix_emp)
  *
  * @param {Object} options
- * @param {boolean} [options.requireLogin=true]             Requiere sesión válida y activa.
- * @param {number[]} [options.allowEmpIds]                  Lista blanca por empleado_id (recomendado).
- * @param {number[]} [options.allowAccountIds]              Lista blanca por cuenta_id (id de empleado_cuenta).
- * @param {number[]} [options.allowIds]                     Back-compat: por id_usuario/cuenta_id.
- * @param {string[]} [options.allowUsernames]               Lista blanca por username (case-insensitive).
- * @param {string[]} [options.allowRoles]                   Lista blanca por roles (códigos o nombres).
- * @param {number} [options.maxAgeMs]                       Invalida sesiones muy antiguas comparado con payload.ts.
- * @param {boolean} [options.requireActive=true]            Verifica status_empleado===1 y status_cuenta===1.
- * @param {boolean} [options.stealth=true]                  Pinta “404/403 nginx” en vez de redirigir.
- * @param {"404"|"403"} [options.stealthCode="404"]         Código en modo stealth.
- * @param {string} [options.stealthServer="nginx"]          Nombre del servidor a mostrar.
- * @param {string} [options.stealthVersion="1.24.0"]        Versión que se imprime.
- * @param {string} [options.stealthTheme="nginx"]           Tema a usar en stealth ("nginx"|"plain").
- * @param {string} [options.redirectTo="/VIEWS/Login.php"]  Destino cuando stealth=false.
- * @param {"replace"|"assign"} [options.redirectMode="replace"]  Método de redirección.
- * @param {boolean} [options.devLog=false]                  Logs en consola para depurar.
- * @param {"home"|null} [options.onlyIn=null]               Si "home", solo aplica en home.php.
- * @param {boolean} [options.skipOnLogin=true]              No aplicar guard si ya estamos en la página de login.
- * @param {(sess:Object)=>void} [options.onOk]              Callback en acceso permitido.
- * @param {(reason:string)=>void} [options.onFail]          Callback en acceso denegado.
+ * @param {boolean} [options.requireLogin=true]             Requiere sesión válida y activa
+ * @param {number[]} [options.allowEmpIds]                  Lista blanca por empleado_id
+ * @param {number[]} [options.allowAccountIds]              Lista blanca por cuenta_id (id de empleado_cuenta)
+ * @param {number[]} [options.allowIds]                     Back-compat: por id_usuario/cuenta_id
+ * @param {string[]} [options.allowUsernames]               Lista blanca por username (case-insensitive)
+ * @param {string[]} [options.allowRoles]                   Lista blanca por roles (códigos o nombres)
+ * @param {number} [options.maxAgeMs]                       Invalida sesiones muy antiguas comparado con payload.ts
+ * @param {boolean} [options.requireActive=true]            Verifica status_empleado===1 y status_cuenta===1
+ * @param {boolean} [options.stealth=true]                  Pinta “404/403 nginx” en vez de redirigir
+ * @param {"404"|"403"} [options.stealthCode="404"]         Código en modo stealth
+ * @param {string} [options.stealthServer="nginx"]          Nombre del servidor a mostrar
+ * @param {string} [options.stealthVersion="1.24.0"]        Versión que se imprime
+ * @param {string} [options.stealthTheme="nginx"]           Tema a usar en stealth ("nginx"|"plain")
+ * @param {string} [options.redirectTo="/VIEWS/Login.php"]  Destino cuando stealth=false
+ * @param {"replace"|"assign"} [options.redirectMode="replace"] Metodo de redireccion
+ * @param {boolean} [options.devLog=false]                  Logs en consola para depurar
+ * @param {"home"|null} [options.onlyIn=null]               Si "home", solo aplica en home.php
+ * @param {boolean} [options.skipOnLogin=true]              No aplicar guard si ya estamos en la página de login
+ * @param {(sess:Object)=>void} [options.onOk]              Callback en acceso permitido
+ * @param {(reason:string)=>void} [options.onFail]          Callback en acceso denegado
  */
 export function guardPage(options = {}) {
   const cfg = {
@@ -118,7 +118,7 @@ export function guardPage(options = {}) {
     //   empleado_id, cuenta_id, id_usuario (compat)
     const empId = Number(s?.empleado_id ?? s?.id_empleado ?? NaN);
     const acctId = Number(s?.cuenta_id ?? NaN);
-    const userId = Number(s?.id_usuario ?? s?.id ?? acctId ?? NaN); // compat
+    const userId = Number(s?.id_usuario ?? s?.id ?? acctId ?? NaN); 
     const username = (s?.username || "").toString();
     return {
       empId: Number.isFinite(empId) ? empId : null,
