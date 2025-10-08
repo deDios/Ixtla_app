@@ -325,6 +325,7 @@
           <button class="btn warning ixd-pause" data-action="pausar" type="button">Pausar</button>
           <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
         </footer>
+        
       </div>
 
     </aside>

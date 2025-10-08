@@ -1,14 +1,10 @@
-/* ===================== HOME ===================== */
+/* ===================== HOME (scopeado a main.ix-home) ===================== */
 
 main.ix-home { padding-top: 4rem; }
 
 /* Grid principal */
-main.ix-home .home-grid{
-  display:grid; grid-template-columns:280px 1fr; gap:20px;
-}
-@media (max-width: 992px){
-  main.ix-home .home-grid{ grid-template-columns:1fr; }
-}
+main.ix-home .home-grid{ display:grid; grid-template-columns:280px 1fr; gap:20px; }
+@media (max-width: 992px){ main.ix-home .home-grid{ grid-template-columns:1fr; } }
 
 /* ---------------- Sidebar ---------------- */
 main.ix-home .home-sidebar{ display:flex; flex-direction:column; gap:14px; }
@@ -17,27 +13,20 @@ main.ix-home .profile-card{
   padding:18px 16px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px;
 }
 main.ix-home .profile-card .avatar{
-  width:88px; height:88px; border-radius:50%;
-  background:#e9edf1; object-fit:cover; display:block;
+  width:88px; height:88px; border-radius:50%; background:#e9edf1; object-fit:cover; display:block;
   box-shadow: inset 0 1px 0 rgba(0,0,0,.06);
 }
-main.ix-home .profile-link{
-  font-size:.8rem; color:#4f6b95; text-decoration:none; line-height:1; margin-top:6px;
-}
-main.ix-home .profile-name{
-  margin:.25rem 0 .25rem; font-size:1rem; font-weight:600; color:#111827;
-}
-main.ix-home .profile-dash{
-  display:inline-block; width:28px; height:2px; border-radius:2px; background:#d4dbe4; margin:2px 0 6px;
-}
+main.ix-home .profile-link{ font-size:.8rem; color:#4f6b95; text-decoration:none; line-height:1; margin-top:6px; }
+main.ix-home .profile-name{ margin:.25rem 0 .25rem; font-size:1rem; font-weight:600; color:#111827; }
+main.ix-home .profile-dash{ display:inline-block; width:28px; height:2px; border-radius:2px; background:#d4dbe4; margin:2px 0 6px; }
+
 main.ix-home .profile-dep.badge{
-  border:0 !important; outline:none; background:#6aa995 !important; color:#fff !important;
-  border-radius:8px !important; padding:6px 14px !important; font-size:.85rem !important; font-weight:700 !important;
-  letter-spacing:.2px; box-shadow:0 1px 0 rgba(0,0,0,.10) !important;
+  border:0!important; outline:none; background:#6aa995!important; color:#fff!important;
+  border-radius:8px!important; padding:6px 14px!important; font-size:.85rem!important; font-weight:700!important;
+  letter-spacing:.2px; box-shadow:0 1px 0 rgba(0,0,0,.10)!important;
 }
-main.ix-home .profile-dep.badge:focus-visible{
-  outline:2px solid #93c5fd !important; outline-offset:2px;
-}
+main.ix-home .profile-dep.badge:focus-visible{ outline:2px solid #93c5fd!important; outline-offset:2px; }
+
 @media (min-width: 993px){
   main.ix-home .home-sidebar{ border-right:1px solid #e5e7eb; padding-right:16px; margin-right:16px; }
 }
@@ -47,13 +36,13 @@ main.ix-home .status-block{ background:transparent; }
 main.ix-home .status-nav{ display:flex; flex-direction:column; gap:2px; }
 main.ix-home .status-nav .status-item{
   all:unset; display:flex; justify-content:space-between; align-items:center; width:100%;
-  padding:10px; border-radius:10px; cursor:pointer; background:transparent !important; border:none !important;
+  padding:10px; border-radius:10px; cursor:pointer; background:transparent!important; border:none!important;
   color:#334155; font-size:.96rem; line-height:1.35;
 }
 main.ix-home .status-nav .status-item .label{ font-weight:500; }
-main.ix-home .status-nav .status-item .count{ color:#2e7d32 !important; }
+main.ix-home .status-nav .status-item .count{ color:#2e7d32!important; }
 main.ix-home .status-nav .status-item:hover{ background:#f6f8fb; }
-main.ix-home .status-nav .status-item.active{ color:#82978A !important; font-weight:700; }
+main.ix-home .status-nav .status-item.active{ color:#82978A!important; font-weight:700; }
 main.ix-home .status-nav .status-item.active .count{ color:#82978A; opacity:.95; }
 main.ix-home .status-nav .status-item[aria-disabled="true"],
 main.ix-home .status-nav .status-item.disabled{ color:#9ca3af; cursor:default; }
@@ -61,30 +50,22 @@ main.ix-home .status-nav .status-item.disabled{ color:#9ca3af; cursor:default; }
 /* ---------------- Main ---------------- */
 main.ix-home .home-main{ display:flex; flex-direction:column; gap:20px; }
 
-main.ix-home .charts-row{
-  display:grid; grid-template-columns:1fr 420px; gap:20px; align-items:start;
-}
-@media (max-width: 1200px){
-  main.ix-home .charts-row{ grid-template-columns:1fr; }
-}
+main.ix-home .charts-row{ display:grid; grid-template-columns:1fr 420px; gap:20px; align-items:start; }
+@media (max-width: 1200px){ main.ix-home .charts-row{ grid-template-columns:1fr; } }
 
-main.ix-home .chart-card,
-main.ix-home .table-card{
+main.ix-home .chart-card, main.ix-home .table-card{
   background:#fff; border:1px solid #eee; border-radius:12px; padding:14px;
 }
-main.ix-home .chart-card h3,
-main.ix-home .table-card h3{ margin:0 0 8px; }
+main.ix-home .chart-card h3, main.ix-home .table-card h3{ margin:0 0 8px; }
 
 main.ix-home .chart-wrap{ position:relative; min-height:260px; overflow:hidden; }
 
 /* Charts (placeholder) */
-main.ix-home #chart-year,
-main.ix-home #chart-month{ width:100%; height:240px; display:block; }
+main.ix-home #chart-year, main.ix-home #chart-month{ width:100%; height:240px; display:block; }
 main.ix-home .card-chart{ padding:12px 14px 10px; overflow:hidden; }
 
 /* Skeletons */
-main.ix-home .chart-skeleton,
-main.ix-home .skeleton-list > div{
+main.ix-home .chart-skeleton, main.ix-home .skeleton-list > div{
   background:linear-gradient(90deg,#eee 25%,#f5f5f5 37%,#eee 63%); background-size:400% 100%;
   animation:shimmer 1.1s ease-in-out infinite; border-radius:10px;
 }
@@ -92,9 +73,7 @@ main.ix-home .chart-skeleton{ position:absolute; inset:0; }
 main.ix-home .skeleton-list{ display:grid; gap:10px; margin-top:6px; }
 main.ix-home .skeleton-list > div{ height:46px; }
 @keyframes shimmer{ 0%{background-position:100% 0} 100%{background-position:-100% 0} }
-@media (prefers-reduced-motion: reduce){
-  main.ix-home .chart-skeleton, main.ix-home .skeleton-list > div{ animation:none; }
-}
+@media (prefers-reduced-motion: reduce){ main.ix-home .chart-skeleton, main.ix-home .skeleton-list > div{ animation:none; } }
 
 /* Tabla */
 main.ix-home .table-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
@@ -107,14 +86,12 @@ main.ix-home .table-wrap thead th{
   position:sticky; top:0; z-index:1; background:#fff; border-bottom:1px solid #e5e7eb;
   padding:10px 12px; font-weight:600; text-align:left; white-space:nowrap;
 }
-main.ix-home .table-wrap tbody td{
-  padding:10px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle;
-}
-main.ix-home th:nth-child(1), main.ix-home td:nth-child(1){ min-width:170px; }  /* Folio */
-main.ix-home th:nth-child(2), main.ix-home td:nth-child(2){ min-width:200px; }  /* Contacto */
+main.ix-home .table-wrap tbody td{ padding:10px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+main.ix-home th:nth-child(1), main.ix-home td:nth-child(1){ min-width:170px; } /* Folio */
+main.ix-home th:nth-child(2), main.ix-home td:nth-child(2){ min-width:200px; } /* Contacto */
 main.ix-home th:nth-child(3), main.ix-home td:nth-child(3){ min-width:140px; white-space:nowrap; } /* Teléfono */
-main.ix-home th:nth-child(4), main.ix-home td:nth-child(4){ min-width:180px; }  /* Departamento */
-main.ix-home th:nth-child(5), main.ix-home td:nth-child(5){ min-width:130px; }  /* Status */
+main.ix-home th:nth-child(4), main.ix-home td:nth-child(4){ min-width:180px; } /* Departamento */
+main.ix-home th:nth-child(5), main.ix-home td:nth-child(5){ min-width:130px; } /* Status */
 
 main.ix-home .table-wrap tbody tr:nth-child(even){ background:#fafafa; }
 main.ix-home .table-wrap tbody tr:hover{ background:#f3f4f6; }
@@ -124,14 +101,11 @@ main.ix-home .pagination{ display:flex; gap:8px; margin-top:10px; }
 main.ix-home .pagination .btn{
   padding:6px 10px; border:1px solid #eee; border-radius:8px; background:#fff; cursor:pointer; color:#111;
 }
-main.ix-home .pagination .btn.primary{
-  background:#4f6b95; color:#fff; border-color:#4f6b95;
-}
+main.ix-home .pagination .btn.primary{ background:#4f6b95; color:#fff; border-color:#4f6b95; }
 
 /* Badges de status (tabla) */
 main.ix-home .badge-status{
-  display:inline-block; padding:.25rem .6rem; border-radius:999px;
-  background:#eef2ff; color:#334155; font-size:.85rem; line-height:1;
+  display:inline-block; padding:.25rem .6rem; border-radius:999px; background:#eef2ff; color:#334155; font-size:.85rem; line-height:1;
 }
 main.ix-home .badge-status[data-k="solicitud"] { background:#e9eafe; }
 main.ix-home .badge-status[data-k="revision"],
@@ -143,29 +117,25 @@ main.ix-home .badge-status[data-k="cancelado"] { background:#ffe4e6; }
 main.ix-home .badge-status[data-k="finalizado"]{ background:#e7fff4; }
 
 /* Switch skeleton->contenido (SOLO Home) */
-html.is-loaded main.ix-home #tbl-skeleton{ display:none !important; }
-html.is-loaded main.ix-home #tbl-wrap{ display:block !important; }
+html.is-loaded main.ix-home #tbl-skeleton{ display:none!important; }
+html.is-loaded main.ix-home #tbl-wrap{ display:block!important; }
 
 /* Responsive tabla */
-@media (max-width: 768px){
-  main.ix-home .table-wrap{ max-height:none; }
-}
+@media (max-width: 768px){ main.ix-home .table-wrap{ max-height:none; } }
 
 /* Charts ocultos por ahora */
-main.ix-home .chart-skeleton{ display:none !important; }
-main.ix-home .charts-row{ display:none !important; }
+main.ix-home .chart-skeleton{ display:none!important; }
+main.ix-home .charts-row{ display:none!important; }
 
-/* ======================== DRAWER (Encapsulado) ============================ */
+/* ======================== DRAWER (scopeado) ============================ */
 
-/* Overlay */
-.ix-drawer-overlay[hidden]{ display:none !important; }
-.ix-drawer-overlay{
-  position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:11000;
-}
+/* Overlay por encima del header */
+.ix-drawer-overlay[hidden]{ display:none!important; }
+.ix-drawer-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:11000; }
 
 /* Panel */
 .ix-drawer{
-  position:fixed; top:0; right:0; bottom:0; width:min(560px, 100%);
+  position:fixed; top:0; right:0; bottom:0; width:min(560px,100%);
   background:#fff; box-shadow:-12px 0 30px rgba(0,0,0,.15);
   transform:translateX(100%); transition:transform .25s ease;
   z-index:11010;
@@ -173,25 +143,18 @@ main.ix-home .charts-row{ display:none !important; }
 .ix-drawer.open{ transform:translateX(0); }
 
 /* Header / Meta */
-.ixd-head{
-  display:flex; justify-content:space-between; align-items:center;
-  padding:12px 16px; border-bottom:1px solid #eef2f7;
-}
+.ixd-head{ display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #eef2f7; }
 .ixd-folio{ margin:0; font-size:1.05rem; font-weight:700; }
 .ixd-close{ border:1px solid #e5e7eb; background:#f8fafc; border-radius:10px; padding:6px 10px; cursor:pointer; }
 
 .ixd-meta{
   display:grid; grid-template-columns:1fr 1fr; gap:6px 14px;
-  padding:10px 16px; border-bottom:1px solid #eef2f7;
-  font-size:.90rem; color:#374151;
+  padding:10px 16px; border-bottom:1px solid #eef2f7; font-size:.90rem; color:#374151;
 }
 .ixd-meta strong{ font-weight:600; }
 
 /* Body */
-.ixd-body{
-  padding:14px 16px; overflow:auto;
-  height:calc(100vh - 56px - 52px - 64px); /* aprox header+meta+footer */
-}
+.ixd-body{ padding:14px 16px; overflow:auto; height:calc(100vh - 56px - 52px - 64px); }
 
 /* Campos */
 .ixd-field{ display:grid; gap:6px; margin:10px 0; }
@@ -203,10 +166,8 @@ main.ix-home .charts-row{ display:none !important; }
 
 /* Inputs */
 .ixd-input{
-  width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px;
-  background:#fff; color:#111827; font-size:.95rem;
-  transition:border-color .15s ease, box-shadow .15s ease;
-  box-sizing:border-box !important; max-width:100% !important; margin:0 !important;
+  width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#111827; font-size:.95rem;
+  transition:border-color .15s ease, box-shadow .15s ease; box-sizing:border-box!important; max-width:100%!important; margin:0!important;
 }
 .ixd-input:focus{ outline:none; border-color:#93c5fd; box-shadow:0 0 0 3px rgba(147,197,253,.35); }
 textarea.ixd-input{ min-height:120px; resize:none; overflow:auto; }
@@ -215,40 +176,37 @@ textarea.ixd-input{ min-height:120px; resize:none; overflow:auto; }
 @media (max-width:520px){ .ixd-grid2{ grid-template-columns:1fr; } }
 
 /* Footer */
-.ixd-actions{
-  display:flex; gap:8px; align-items:center; justify-content:flex-start;
-  padding:10px 16px; border-top:1px solid #eef2f7; background:#fff;
-}
-.ixd-actions--footer{/* position:sticky; *//* bottom:0; */z-index:2;}
+.ixd-actions{ display:flex; gap:8px; align-items:center; justify-content:flex-start; padding:10px 16px; border-top:1px solid #eef2f7; background:#fff; }
+.ixd-actions--footer{/* z-index:2; */}
 
-/* ---------- Botones (scopeados) ---------- */
+/* ---------- Botones (scopeados, NO afectan header) ---------- */
 
-/* Paleta del drawer (solo drawer) */
+/* Paleta del drawer */
 .ix-drawer{
   --ix-btn-bg:#f8fafc; --ix-btn-border:#e5e7eb;
-  --ix-primary:#4f6b95;      /* primario app (azul gris) */
-  --ix-success:#22c55e;      /* Guardar */
+  --ix-primary:#4f6b95;      /* primario app */
+  --ix-success:#22c55e;      /* Guardar (verde) */
   --ix-success-600:#16a34a;
-  --ix-danger:#ef4444;       /* Eliminar */
+  --ix-danger:#ef4444;       /* Eliminar (rojo) */
   --ix-danger-600:#dc2626;
-  --ix-warning:#fde68a;      /* Pausar */
+  --ix-warning:#fde68a;      /* Pausar (amarillo) */
   --ix-warning-600:#f59e0b;
 }
 
-/* Base home/drawer (no afecta header) */
+/* Base para botones en Home y Drawer */
 main.ix-home .btn,
 .ix-drawer .btn{
   border:1px solid #e5e7eb; background:#f8fafc; border-radius:12px;
   padding:8px 12px; cursor:pointer; color:#111; font-weight:600;
 }
 
-/* Variantes globales para home (por si las usas en tabla) */
+/* Variantes Home (si usas botones dentro del main) */
 main.ix-home .btn.primary{ background:#4f6b95; color:#fff; border-color:#4f6b95; }
 main.ix-home .btn.danger{  background:#ef4444; color:#fff; border-color:#ef4444; }
 main.ix-home .btn.warning{ background:#fde68a; color:#111; border-color:#fcd34d; }
 main.ix-home .btn[disabled]{ opacity:.6; pointer-events:none; }
 
-/* Variantes dentro del drawer (con variables) */
+/* Variantes dentro del Drawer (usando variables locales) */
 .ix-drawer .btn.primary{/* background:var(--ix-primary); *//* border-color:var(--ix-primary); */color:#fff;}
 .ix-drawer .btn.success{ background:var(--ix-success); border-color:var(--ix-success); color:#fff; }
 .ix-drawer .btn.warning{/* background:var(--ix-warning); *//* border-color:var(--ix-warning-600); */color:#111;}
@@ -262,22 +220,17 @@ main.ix-home .btn[disabled]{ opacity:.6; pointer-events:none; }
 .ix-drawer .btn.danger:hover{  background:var(--ix-danger-600); }
 
 /* Forzar “Guardar” verde aunque lleve otra clase en el HTML */
-.ix-drawer .ixd-save{
-  background:var(--ix-success); border-color:var(--ix-success); color:#fff;
-}
+.ix-drawer .ixd-save{ background:var(--ix-success); border-color:var(--ix-success); color:#fff; }
 .ix-drawer .ixd-save:hover{ background:var(--ix-success-600); }
 
-/* (Opcional) visibilidad por estado de edición:
-   Cuando el drawer tenga .editing, oculta Editar/Pausar y muestra Guardar/Cancelar */
+/* Visibilidad por estado de edición */
 .ix-drawer:not(.editing) .ixd-save,
-.ix-drawer:not(.editing) .ixd-cancel{ display:none !important; }
+.ix-drawer:not(.editing) .ixd-cancel{ display:none!important; }
 .ix-drawer.editing .ixd-edit,
-.ix-drawer.editing .ixd-pause{ display:none !important; }
+.ix-drawer.editing .ixd-pause{ display:none!important; }
 
 /* Imagen principal + galería */
-.ixd-imgBlock{
-  position:relative; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; background:#f3f4f6;
-}
+.ixd-imgBlock{ position:relative; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; background:#f3f4f6; }
 .ixd-imgBlock img{ display:block; width:100%; height:auto; }
 .ixd-pencil{
   position:absolute; top:10px; right:10px; background:#fff; border:1px solid #e5e7eb; border-radius:10px;
@@ -286,21 +239,15 @@ main.ix-home .btn[disabled]{ opacity:.6; pointer-events:none; }
 .ix-drawer.editing .ixd-pencil{ display:inline-flex; }
 
 .ixd-previews{
-  display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
-  gap:8px; margin-top:8px;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; margin-top:8px;
 }
 .ixd-previews .thumb{ position:relative; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; background:#fafafa; }
 .ixd-previews img{ display:block; width:100%; height:96px; object-fit:cover; }
-.ixd-previews .rm{
-  position:absolute; top:6px; right:6px; background:#fff; border:1px solid #e5e7eb; border-radius:8px;
-  font-size:.8rem; padding:2px 6px; cursor:pointer;
-}
+.ixd-previews .rm{ position:absolute; top:6px; right:6px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; font-size:.8rem; padding:2px 6px; cursor:pointer; }
 
 .ixd-uploadRow{ display:flex; gap:10px; align-items:center; margin-top:8px; }
 .ixd-gallery{ display:grid; gap:10px; margin-top:8px; }
-.ixd-grid{
-  display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px;
-}
+.ixd-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; }
 .ixd-card{ border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; background:#fff; }
 .ixd-card img{ display:block; width:100%; height:120px; object-fit:cover; }
 .ixd-card .nm{ font-size:.85rem; padding:6px 8px; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
