@@ -340,9 +340,9 @@
       redirectTo: "/VIEWS/Login.php"
     });
   </script>
-  
-  <script src="/JS/components.js"></script>
+
   <script src="/JS/UAT/jsGlobal.js"></script>
+  <script src="/JS/components.js"></script>
   <script type="module" src="/JS/UAT/home.js"></script>
 
 </body>
