@@ -115,7 +115,42 @@ header.scrolled .subnav{
 .subnav .social-icons img:hover{ transform:scale(1.1); }
 
 /* ============== 5) Botones & acciones de usuario ========= */
+.btn{
+  padding:5px 12px; border-radius:20px;
+  font-size:1rem; font-weight:bold; cursor:pointer;
+  max-width:200px; min-height:40px;
+  background:#859F8E; border:none; color:#fff;
+}
+.btn-outline{
+  background:var(--ix-white);
+  border:1px solid #0a61d0; color:#0a61d0;
+}
+.btn-primary{
+  background:#0a61d0; color:#fff; border:1px solid #0a61d0;
+}
+.btn-outline:hover{ background:#0a61d0; color:#fff; transition:.3s ease; }
+.btn-primary:hover{ background:#094bb0; transition:.3s ease; }
 
+.actions{
+  display:flex; align-items:center; gap:1rem;
+  flex-shrink:0; visibility:hidden; opacity:0; transition:opacity .3s ease;
+}
+.actions.mostrar{ visibility:visible; opacity:1; }
+
+.actions .user-icon{
+  display:flex; align-items:center; gap:.5rem;
+  background:#f4f4f4; padding:.3rem 1rem; border-radius:999px;
+  cursor:pointer; transition:background-color .2s;
+}
+.actions .user-icon:hover{ background:#e8e8e8; }
+.actions .user-icon .user-email{
+  font-size:.9rem; font-weight:500; color:#333;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.img-perfil{
+  width:34px; height:34px; border-radius:50%;
+  border:1px solid #ccc; object-fit:cover;
+}
 
 /* ============== 6) Dropdown (usuario) ==================== */
 .dropdown-menu{
