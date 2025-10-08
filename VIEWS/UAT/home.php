@@ -326,7 +326,7 @@
           <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
         </footer>
       </div>
-      
+
     </aside>
   </section>
 
@@ -341,7 +341,9 @@
   </script>
 
   <script src="/JS/UAT/jsGlobal.js"></script>
+  <script src="/JS/components.js"></script>
   <script type="module" src="/JS/UAT/home.js"></script>
+
 </body>
 
 </html>
