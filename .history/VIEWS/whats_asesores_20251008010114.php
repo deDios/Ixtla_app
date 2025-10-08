@@ -325,7 +325,6 @@
   </script>
 
   <script type="module">
-    //js para que solo esos ids puedan acceder a esta view o usuarios logeados
   import { guardPage } from "/JS/auth/guard.js";
   guardPage({
     allowIds: [6, 5, 4, 2],

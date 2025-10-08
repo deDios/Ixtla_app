@@ -147,7 +147,7 @@ export function guardPage(options = {}) {
   cfg.onFail?.("DENY");
 
   if (cfg.stealth) {
-    const delayMs = 120 + Math.floor(Math.random() * 360); 
+    const delayMs = 120 + Math.floor(Math.random() * 360); // un poco de jitter
     setTimeout(
       () => renderStealth(cfg.stealthCode, cfg.stealthServer, cfg.stealthVersion, cfg.stealthTheme),
       delayMs

@@ -81,11 +81,13 @@ export function guardPage(options = {}) {
     return;
   }
 
+  // Evitar bucle si ya estamos en redirectTo (login)
   if (cfg.skipOnLogin && samePath(location.pathname, cfg.redirectTo)) {
     log("estamos en la página de login; no se aplica guard");
     return;
   }
 
+  // Leer sesión (session.js ya invalida por exp y limpia si caducó)
   const sess = getSession();
   log("session:", sess);
 
@@ -147,7 +149,7 @@ export function guardPage(options = {}) {
   cfg.onFail?.("DENY");
 
   if (cfg.stealth) {
-    const delayMs = 120 + Math.floor(Math.random() * 360); 
+    const delayMs = 120 + Math.floor(Math.random() * 360); // un poco de jitter
     setTimeout(
       () => renderStealth(cfg.stealthCode, cfg.stealthServer, cfg.stealthVersion, cfg.stealthTheme),
       delayMs
