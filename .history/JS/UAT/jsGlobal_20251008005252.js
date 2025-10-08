@@ -583,10 +583,11 @@
 })();
 
 
+// Botón "Chat" controlado por IDs (versión simple)
 (function () {
   const ALLOWED_IDS = [6, 5, 4, 2];           // <-- IDs permitidos
-  const CHAT_URL    = "/VIEWS/whats_asesores.php"; 
-  const ONLY_IN_HOME = true;                   
+  const CHAT_URL    = "/VIEWS/whats_asesores.php"; // <-- tu URL
+  const ONLY_IN_HOME = true;                   // <-- pon false si quieres mostrarlo en todas las vistas
 
   function getIxSession() {
     try {
@@ -629,6 +630,7 @@
         navLeft.appendChild(a);
       }
 
+      // Reasignar (por si se reconstruyó la subnav)
       a.onclick = (e) => {
         e.preventDefault();
         openPopup(CHAT_URL);

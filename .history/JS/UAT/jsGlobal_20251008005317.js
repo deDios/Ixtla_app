@@ -583,6 +583,7 @@
 })();
 
 
+// Botón "Chat" controlado por IDs (versión simple)
 (function () {
   const ALLOWED_IDS = [6, 5, 4, 2];           // <-- IDs permitidos
   const CHAT_URL    = "/VIEWS/whats_asesores.php"; 
