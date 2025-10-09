@@ -73,6 +73,7 @@ function __rl_set(string $key, $val, int $ttl): void {
   $f="/tmp/rl_".hash('sha256',$key); $val['_exp']=time()+$ttl;
   @file_put_contents($f,json_encode($val),LOCK_EX);
 }
+
 function rate_limit_or_die(
   string $bucket, int $windowSec=60, int $maxHits=5,
   int $banSec=1800, array $whitelist=[]
@@ -83,7 +84,10 @@ function rate_limit_or_die(
   $now=time(); $winId=intdiv($now,$windowSec); $key="rl:$bucket:$ip";
   $d=__rl_get($key) ?: ['win'=>$winId,'cnt'=>0,'ban_until'=>0];
 
+  // --- 429 por ban activo ---
   if(!empty($d['ban_until']) && $d['ban_until']>$now){
+    if (!function_exists('api_log')) { @include __DIR__.'/_logger.php'; }
+    api_log('429','rate_limit_exceeded', ['bucket'=>$bucket,'ip'=>$ip,'reason'=>'ban_active']);
     $retry=$d['ban_until']-$now;
     header('Retry-After: '.$retry);
     http_response_code(429);
@@ -98,9 +102,12 @@ function rate_limit_or_die(
   header('X-RateLimit-Remaining: '.max(0,$maxHits-$d['cnt']));
   header('X-RateLimit-Reset: '.(($winId+1)*$windowSec));
 
+  // --- 429 por exceder hits en la ventana ---
   if($d['cnt']>$maxHits){
     $d['ban_until']=$now+$banSec;
     __rl_set($key,$d,max($windowSec,$banSec));
+    if (!function_exists('api_log')) { @include __DIR__.'/_logger.php'; }
+    api_log('429','rate_limit_exceeded', ['bucket'=>$bucket,'ip'=>$ip,'reason'=>'over_limit','cnt'=>$d['cnt'],'limit'=>$maxHits]);
     header('Retry-After: '.$banSec);
     http_response_code(429);
     echo json_encode(['ok'=>false,'error'=>'Too Many Requests','retry_after'=>$banSec],JSON_UNESCAPED_UNICODE);
@@ -109,6 +116,7 @@ function rate_limit_or_die(
 
   __rl_set($key,$d,max($windowSec,$banSec));
 }
+
 
 /* → Aplica límite ANTES de leer body/validar content-type */
 
