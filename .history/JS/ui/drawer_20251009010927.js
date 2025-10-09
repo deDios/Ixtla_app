@@ -2,12 +2,24 @@
 import { setupMedia, listMedia, uploadMedia } from "/JS/api/media.js";
 import { updateRequerimiento } from "/JS/api/requerimientos.js";
 
-/* ========================= Constantes ========================= */
+/* ====== Const ====== */
 const FOLIO_RX = /^REQ-\d{10}$/;
 const MAX_FILES_CLIENT = 3;
 const MAX_BYTES_CLIENT = 1 * 1024 * 1024; // 1 MB
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
+/* ====== Catálogo CP/Colonia ====== */
+const CP_EP =
+  window.IX_CFG_REQ?.ENDPOINTS?.cpcolonia ||
+  window.IX_CFG_DEPS?.ENDPOINTS?.cpcolonia ||
+  "/DB/WEB/ixtla01_c_cpcolonia.php";
+
+const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
+const CP_CACHE_TTL = 10 * 60 * 1000; // 10 min
+let CP_MAP = null;   // { "45850": ["Centro","X","Y"] }
+let CP_LIST = null;
+
+/* ====== Etiquetas de status ====== */
 const STATUS_LABELS = {
   0: "Solicitud",
   1: "Revisión",
@@ -18,18 +30,7 @@ const STATUS_LABELS = {
   6: "Finalizado",
 };
 
-/* ====================== CP/Colonia (catálogo) ====================== */
-const CP_EP =
-  window.IX_CFG_REQ?.ENDPOINTS?.cpcolonia ||
-  window.IX_CFG_DEPS?.ENDPOINTS?.cpcolonia ||
-  "/DB/WEB/ixtla01_c_cpcolonia.php"; // <- path correcto
-
-const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
-const CP_CACHE_TTL = 10 * 60 * 1000; // 10 min
-
-let CP_MAP = null;  // { "45850": ["Centro", ...] }
-let CP_LIST = null; // ["45850", "45860", ...]
-
+/* ---------- cache helpers ---------- */
 function cpCacheGet() {
   try {
     const raw = sessionStorage.getItem(CP_CACHE_KEY);
@@ -45,7 +46,7 @@ function cpCacheGet() {
 function cpCacheSet(map, list) {
   try {
     sessionStorage.setItem(CP_CACHE_KEY, JSON.stringify({ t: Date.now(), ttl: CP_CACHE_TTL, map, list }));
-  } catch {}
+  } catch { }
 }
 function cpExtract(json) {
   const arr = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
@@ -70,7 +71,7 @@ async function ensureCpCatalog() {
   const r = await fetch(CP_EP, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify({ all: true }),
+    body: JSON.stringify({ all: true })
   }).catch(() => null);
   const j = await r?.json?.().catch(() => null);
   const { map, list } = cpExtract(j || {});
@@ -85,36 +86,34 @@ function makeOpt(v, l, o = {}) {
   return el;
 }
 
-/* ============================ Utils ============================ */
-const $  = (sel, root = document) => root.querySelector(sel);
+/* ====== DOM utils ====== */
+const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-const toast  = (m, t = "info") => { try { window.gcToast?.(m, t); } catch {} };
+const toast = (m, t = "info") => { try { window.gcToast?.(m, t); } catch { } };
 const setBusy = (root, on) => root?.classList?.toggle("is-busy", !!on);
 
-/* ---- status helpers ---- */
-const getStatusValue = (src) => {
-  const v = (src && (src.estatus ?? src.status)) ?? src;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
-const paintStatusReadLabel = (root, from) => {
-  const p = root.querySelector('p[data-field="estatus"]');
-  if (!p) return;
-  const n = getStatusValue(from);
-  p.textContent = (n != null && STATUS_LABELS[n] != null) ? STATUS_LABELS[n] : "—";
+/* ====== formateo de campos (READ-ONLY) ====== */
+const formatFieldValue = (key, val) => {
+  if (key === "estatus") {
+    const n = Number(val);
+    return Object.prototype.hasOwnProperty.call(STATUS_LABELS, n) ? STATUS_LABELS[n] : String(val ?? "—");
+  }
+  return val ?? "—";
 };
 
-/* ===================== Map data → UI ===================== */
+/* ====== Map data → UI ====== */
 function mapToFields(root, data = {}) {
-  $$("[data-field]", root).forEach(el => {
+  root.querySelectorAll("[data-field]").forEach(el => {
     const key = el.getAttribute("data-field");
     if (!key) return;
+
     if (key === "estatus") {
-      paintStatusReadLabel(root, data); // etiqueta legible
+      paintStatusReadLabel(root, data); // usa etiquetas
     } else {
       el.textContent = (data[key] ?? "—");
     }
   });
+
   const hidId = root.querySelector('input[name="id"][data-field="id"]');
   if (hidId && data.id != null) hidId.value = data.id;
 }
@@ -122,8 +121,11 @@ function mapToForm(root, data = {}) {
   $$("[data-edit][name]", root).forEach(el => {
     const key = el.getAttribute("name");
     const v = data[key];
-    if (el.type === "checkbox") el.checked = !!v;
-    else el.value = v ?? "";
+    if (el.type === "checkbox") {
+      el.checked = !!v;
+    } else {
+      el.value = v ?? "";
+    }
   });
   const hidId = root.querySelector('input[name="id"]');
   const hidUb = root.querySelector('input[name="updated_by"]');
@@ -131,9 +133,9 @@ function mapToForm(root, data = {}) {
   if (hidUb) hidUb.value = (window.__ixSession?.id_usuario ?? 1);
 }
 
-/* ============================ Galería ============================ */
+/* ====== Galería ====== */
 function ensureGalleryDom(root) {
-  let grid  = $('[data-img="grid"]', root);
+  let grid = $('[data-img="grid"]', root);
   let empty = $('[data-img="empty"]', root);
   if (!grid) {
     grid = document.createElement("div");
@@ -157,7 +159,6 @@ function paintGallery(root, resp) {
   const list = (resp?.data || []).filter(Boolean);
   if (!list.length) { empty.hidden = false; return; }
   empty.hidden = true;
-
   const frag = document.createDocumentFragment();
   list.forEach(it => {
     const a = document.createElement("a");
@@ -174,7 +175,7 @@ function paintGallery(root, resp) {
   grid.appendChild(frag);
 }
 
-/* ======================= Previews locales ======================= */
+/* ====== Previews locales ====== */
 function buildPreview(file, container) {
   const url = URL.createObjectURL(file);
   const wrap = document.createElement("div");
@@ -185,29 +186,29 @@ function buildPreview(file, container) {
   `;
   container.appendChild(wrap);
 }
+function clearPreviews() {
+  const previewsBox = $('[data-img="previews"]');
+  const fileInput = $('[data-img="file"]');
+  if (previewsBox) previewsBox.innerHTML = "";
+  if (fileInput) fileInput.value = "";
+}
 
-/* ============================ Drawer ============================ */
+/* ====== Drawer API ====== */
 export const Drawer = (() => {
   let el;                 // <aside class="ix-drawer">
   let overlayEl;          // [data-drawer="overlay"]
   let closeBtn;           // [data-drawer="close"]
 
-  // imágenes/archivos (en tu HTML actual no hay hero, manejamos null)
   let heroImg, pickBtn, fileInput, previewsBox, uploadBtn;
-
-  // selects de galería / estatus
   let statusSelView; // [data-img="viewStatus"]
-  let statusSelUp;   // [data-img="uploadStatus"] (no existe en tu HTML actual)
-
-  // botones de acciones
+  let statusSelUp;   // [data-img="uploadStatus"]
   let btnSave, btnDelete, btnEdit, btnCancel;
 
-  // CP/Colonia (en edición)
+  // CP/Colonia selects (en edición)
   let cpInputSel, colInputSel;
 
   let saving = false, deleting = false, snapshot = null;
 
-  /* ---- overlay/body lock ---- */
   function lockBody(flag) {
     document.documentElement?.classList?.toggle("ix-drawer-open", !!flag);
     document.body?.classList?.toggle("ix-drawer-open", !!flag);
@@ -220,31 +221,31 @@ export const Drawer = (() => {
     lockBody(flag);
   }
 
-  /* ---- init ---- */
   function init(selector = ".ix-drawer") {
     el = document.querySelector(selector);
     overlayEl = document.querySelector('[data-drawer="overlay"]');
     if (!el) { console.warn("[Drawer] no se encontró", selector); return; }
     if (el.__inited) return; el.__inited = true;
 
+    // A11y: foco
     if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
 
-    closeBtn    = $('[data-drawer="close"]', el);
-    heroImg     = $('[data-img="hero"]', el);             // puede ser null en HTML actual
-    pickBtn     = $('[data-img="pick"]', el);             // no está en tu HTML actual
-    fileInput   = $('[data-img="file"]', el);             // no está en tu HTML actual
+    closeBtn = $('[data-drawer="close"]', el);
+    heroImg = $('[data-img="hero"]', el);
+    pickBtn = $('[data-img="pick"]', el);
+    fileInput = $('[data-img="file"]', el);
     previewsBox = $('[data-img="previews"]', el);
-    uploadBtn   = $('[data-img="uploadBtn"]', el);
+    uploadBtn = $('[data-img="uploadBtn"]', el);
 
     statusSelView = $('[data-img="viewStatus"]', el);
-    statusSelUp   = $('[data-img="uploadStatus"]', el);   // no existe en tu HTML actual
+    statusSelUp = $('[data-img="uploadStatus"]', el);
 
-    btnSave   = $('[data-action="guardar"]', el);
+    btnSave = $('[data-action="guardar"]', el);
     btnDelete = $('[data-action="eliminar"]', el);
-    btnEdit   = $('[data-action="editar"]', el);
+    btnEdit = $('[data-action="editar"]', el);
     btnCancel = $('[data-action="cancelar"]', el);
 
-    // Insertar Cancelar si no está
+    // Insertar "Cancelar" si falta
     if (!btnCancel) {
       const footer = $(".ixd-actions--footer", el) || el;
       btnCancel = document.createElement("button");
@@ -257,7 +258,7 @@ export const Drawer = (() => {
       footer.insertBefore(btnCancel, btnDelete || null);
     }
 
-    // Eventos cerrar
+    // Cerrar
     closeBtn?.addEventListener("click", close);
     overlayEl?.addEventListener("click", close);
 
@@ -267,7 +268,7 @@ export const Drawer = (() => {
     btnCancel?.addEventListener("click", onCancel);
     btnDelete?.addEventListener("click", onDelete);
 
-    // Files (tu HTML actual no tiene pick/file, dejamos defensivo)
+    // Picker/Files
     if (pickBtn && fileInput) {
       pickBtn.addEventListener("click", () => fileInput.click());
       fileInput.addEventListener("change", onFilesPicked);
@@ -277,7 +278,7 @@ export const Drawer = (() => {
       uploadBtn.addEventListener("click", onUpload);
     }
 
-    // Cambio de estatus visible → recarga galería
+    // Cambiar estatus (vista) → recargar galería
     (statusSelView || statusSelUp)?.addEventListener("change", async () => {
       const folio = String($(".ixd-folio", el)?.textContent || "").trim();
       if (!FOLIO_RX.test(folio)) return;
@@ -307,15 +308,15 @@ export const Drawer = (() => {
   function forceReadMode() {
     $$(".ixd-field p", el).forEach(p => p.hidden = false);
     $$("[data-edit]", el).forEach(i => i.hidden = true);
-    if (btnSave)   { btnSave.hidden = true; btnSave.style.display = "none"; btnSave.disabled = true; }
+    if (btnSave) { btnSave.hidden = true; btnSave.style.display = "none"; btnSave.disabled = true; }
     if (btnDelete) btnDelete.style.display = "";
     if (btnCancel) { btnCancel.hidden = true; btnCancel.style.display = "none"; }
     el.classList.remove("editing", "mode-edit");
   }
 
-  /* ---- CP/Colonia encadenados ---- */
+  /* ---------- CP/Colonia selects ---------- */
   function ensureCpColoniaInputs(row = {}) {
-    cpInputSel  = el.querySelector('.ixd-input[name="contacto_cp"][data-edit]');
+    cpInputSel = el.querySelector('.ixd-input[name="contacto_cp"][data-edit]');
     colInputSel = el.querySelector('.ixd-input[name="contacto_colonia"][data-edit]');
     if (!cpInputSel || !colInputSel) return;
 
@@ -341,27 +342,24 @@ export const Drawer = (() => {
     if (selectedCol && list.includes(selectedCol)) colInputSel.value = selectedCol;
   }
 
-  /* ---- Modo edición ---- */
+  /* ---------- Modo edición ---------- */
   function setEditMode(on) {
     el.classList.toggle("editing", !!on);
     el.classList.toggle("mode-edit", !!on);
     $$(".ixd-field p", el).forEach(p => p.hidden = !!on);
     $$("[data-edit]", el).forEach(i => i.hidden = !on);
-    if (btnSave)   { btnSave.hidden = !on; btnSave.style.display = on ? "" : "none"; btnSave.disabled = !on; }
+    if (btnSave) { btnSave.hidden = !on; btnSave.style.display = on ? "" : "none"; btnSave.disabled = !on; }
     if (btnDelete) btnDelete.style.display = on ? "none" : "";
     if (btnCancel) { btnCancel.hidden = !on; btnCancel.style.display = on ? "" : "none"; }
 
     if (on) {
       ensureCpCatalog()
         .then(() => ensureCpColoniaInputs(el._row || {}))
-        .catch(() => {});
-      // sincroniza etiqueta de status al cambiar el select
-      const sel = el.querySelector('select[name="estatus"][data-edit]');
-      if (sel) sel.onchange = () => paintStatusReadLabel(el, { estatus: sel.value });
+        .catch(() => { /* noop */ });
     }
   }
 
-  /* ---- Abrir / Cerrar ---- */
+  /* ---------- Abrir / Cerrar ---------- */
   function open(row = {}, callbacks = {}) {
     if (!el) return console.warn("[Drawer] init() primero");
     forceReadMode();
@@ -375,16 +373,13 @@ export const Drawer = (() => {
     mapToFields(el, row);
     mapToForm(el, row);
 
-    // Hero (si existiera en otra vista)
+    // Hero
     if (heroImg) { heroImg.src = row.hero_url || ""; heroImg.alt = row.folio || "Evidencia"; }
 
-    // Estatus en selects
-    const st = Number(getStatusValue(row) ?? 0);
+    // Estatus select
+    const st = Number(row.estatus ?? 0);
     if (statusSelView) statusSelView.value = String(st);
-    if (statusSelUp)   statusSelUp.value   = String(st);
-
-    // Etiqueta legible de status en solo-lectura
-    paintStatusReadLabel(el, row);
+    if (statusSelUp) statusSelUp.value = String(st);
 
     // Mostrar
     el.classList.add("open");
@@ -400,7 +395,8 @@ export const Drawer = (() => {
         .finally(() => setBusy(el, false));
     }
 
-    try { el.focus?.(); } catch {}
+    // Foco
+    try { el.focus?.(); } catch { }
   }
 
   function close() {
@@ -411,17 +407,17 @@ export const Drawer = (() => {
     clearPreviews();
     forceReadMode();
 
-    // reset confirm delete
+    // Reset confirm delete
     if (btnDelete) {
       btnDelete.textContent = btnDelete.dataset.original || btnDelete.textContent || "Eliminar";
       btnDelete.classList.remove("danger");
       btnDelete.removeAttribute("data-confirm");
       btnDelete.removeAttribute("data-original");
     }
-    try { el._callbacks?.onClose?.(); } catch {}
+    try { el._callbacks?.onClose?.(); } catch { }
   }
 
-  /* ---- Archivos / Upload ---- */
+  /* ---------- Files ---------- */
   function onFilesPicked() {
     if (!previewsBox || !fileInput) return;
     previewsBox.innerHTML = "";
@@ -452,7 +448,7 @@ export const Drawer = (() => {
     if (!FOLIO_RX.test(folio)) { toast("Folio inválido", "warning"); return; }
     if (!files.length) return;
 
-    // Validación final
+    // Validación
     const valid = [], invalid = [];
     for (const f of files) {
       if (f.size > MAX_BYTES_CLIENT) { invalid.push(`"${f.name}" > 1 MB`); continue; }
@@ -463,19 +459,12 @@ export const Drawer = (() => {
 
     setBusy(el, true);
     try {
-      try { await setupMedia(folio); } catch {}
+      try { await setupMedia(folio); } catch { }
       const r = await uploadMedia({ folio, status, files: valid });
       const ok = r.ok && (r.saved?.length || 0) > 0;
-      toast(
-        `Subida: ${r.saved?.length || 0} ok, ${r.failed?.length || 0} error${r.skipped?.length ? `, ${r.skipped.length} omitido(s)` : ""}`,
-        ok ? "exito" : "warning"
-      );
+      toast(`Subida: ${r.saved?.length || 0} ok, ${r.failed?.length || 0} error${r.skipped?.length ? `, ${r.skipped.length} omitido(s)` : ""}`, ok ? "exito" : "warning");
 
-      // refrescar
-      if (previewsBox) previewsBox.innerHTML = "";
-      if (fileInput) fileInput.value = "";
-      if (uploadBtn) uploadBtn.disabled = true;
-
+      clearPreviews();
       const viewSt = Number((statusSelView || statusSelUp)?.value || status || 0);
       const resp = await listMedia(folio, viewSt, 1, 100);
       paintGallery(el, resp);
@@ -487,7 +476,23 @@ export const Drawer = (() => {
     }
   }
 
-  /* ---- Guardar / Eliminar / Cancelar ---- */
+  // Normaliza desde record (estatus|status) o desde un valor suelto
+  const getStatusValue = (src) => {
+    const v = (src && (src.estatus ?? src.status)) ?? src;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // Pinta la etiqueta legible en el <p data-field="estatus">
+  const paintStatusReadLabel = (root, from) => {
+    const p = root.querySelector('p[data-field="estatus"]');
+    if (!p) return;
+    const n = getStatusValue(from);
+    p.textContent = (n != null && STATUS_LABELS[n] != null) ? STATUS_LABELS[n] : "—";
+  };
+
+
+  /* ---------- Guardar / Eliminar / Cancelar ---------- */
   async function onSave(ev) {
     ev?.preventDefault?.();
     if (saving) return;
@@ -534,15 +539,14 @@ export const Drawer = (() => {
       const updated = await updateRequerimiento(payload);
       mapToFields(el, updated);
       mapToForm(el, updated);
-      paintStatusReadLabel(el, updated); // <- asegura etiqueta
       el._row = updated;
       snapshot = JSON.parse(JSON.stringify(updated));
       setEditMode(false);
-      try { el._callbacks?.onUpdated?.(updated); } catch {}
+      try { el._callbacks?.onUpdated?.(updated); } catch { }
       toast("Requerimiento actualizado", "exito");
     } catch (err) {
       console.error("[Drawer] save error:", err);
-      try { el._callbacks?.onError?.(err); } catch {}
+      try { el._callbacks?.onError?.(err); } catch { }
       toast(String(err?.message || err), "warning");
     } finally {
       saving = false;
@@ -556,7 +560,7 @@ export const Drawer = (() => {
     if (!el || deleting) return;
     if (!btnDelete) return;
 
-    // confirmación 2 pasos
+    // Confirmación 2 pasos
     if (!btnDelete.dataset.confirm) {
       btnDelete.dataset.confirm = "1";
       const og = btnDelete.textContent;
@@ -581,12 +585,12 @@ export const Drawer = (() => {
       const updated_by = Number($('input[name="updated_by"]', el)?.value || (window.__ixSession?.id_usuario ?? 1)) || 1;
 
       const updated = await updateRequerimiento({ id, status: 0, updated_by }); // soft delete
-      try { el._callbacks?.onUpdated?.(updated); } catch {}
+      try { el._callbacks?.onUpdated?.(updated); } catch { }
       close();
       toast("Requerimiento eliminado", "exito");
     } catch (err) {
       console.error("[Drawer] delete error:", err);
-      try { el._callbacks?.onError?.(err); } catch {}
+      try { el._callbacks?.onError?.(err); } catch { }
       toast(String(err?.message || err), "warning");
     } finally {
       deleting = false;
@@ -600,18 +604,13 @@ export const Drawer = (() => {
     if (snapshot) {
       mapToFields(el, snapshot);
       mapToForm(el, snapshot);
-      paintStatusReadLabel(el, snapshot); // <- asegura etiqueta
       el._row = snapshot;
     }
-    // limpiar previews si los hubiera
-    if (previewsBox) previewsBox.innerHTML = "";
-    if (fileInput) fileInput.value = "";
-    if (uploadBtn) uploadBtn.disabled = true;
-
+    clearPreviews();
     forceReadMode();
   }
 
-  /* ---- Files change (si existen inputs) ---- */
+  /* ---------- Local: files picked ---------- */
   function onFilesPicked() {
     if (!previewsBox || !fileInput) return;
     previewsBox.innerHTML = "";
