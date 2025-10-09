@@ -12,16 +12,15 @@ const STATUS_LABELS = {
   0:"Solicitud", 1:"Revisión", 2:"Asignación",
   3:"En proceso", 4:"Pausado", 5:"Cancelado", 6:"Finalizado",
 };
-const PRIORIDAD_LABELS = { 1:"Baja", 2:"Media", 3:"Alta" };
 
 /* ====================== CP/Colonia (catálogo) ====================== */
 const CP_EP =
   window.IX_CFG_REQ?.ENDPOINTS?.cpcolonia ||
   window.IX_CFG_DEPS?.ENDPOINTS?.cpcolonia ||
-  "/db/WEB/ixtla01_c_cpcolonia.php";   
+  "/DB/WEB/ixtla01_c_cpcolonia.php";
 
 const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
-const CP_CACHE_TTL = 10 * 60 * 1000; // 10 min
+const CP_CACHE_TTL = 60 * 60 * 1000; // 10 min
 
 let CP_MAP = null;  // { "45850": ["Centro", ...] }
 let CP_LIST = null; // ["45850", "45860", ...]
@@ -32,7 +31,8 @@ function cpCacheGet(){
     if(!raw) return null;
     const obj = JSON.parse(raw);
     if(!obj || Date.now()-obj.t > (obj.ttl||CP_CACHE_TTL)){
-      sessionStorage.removeItem(CP_CACHE_KEY); return null;
+      sessionStorage.removeItem(CP_CACHE_KEY);
+      return null;
     }
     return obj;
   }catch{ return null; }
@@ -85,31 +85,26 @@ const toast  = (m,t="info") => { try{ window.gcToast?.(m,t); }catch{} };
 const setBusy = (root,on) => root?.classList?.toggle("is-busy", !!on);
 
 /* ========================= Adapter / Modelo ========================= */
-// Unifica estatus/status y prioridad, y agrega etiquetas legibles
+// Unifica estatus/status y agrega etiqueta legible
 function adaptReq(row = {}){
-  const est = Number(row.estatus ?? row.status ?? 0);
-  const estatus = Number.isFinite(est) ? est : 0;
-  const pri = Number(row.prioridad ?? 0);
-  const prioridad = Number.isFinite(pri) ? pri : null;
-  return {
-    ...row,
-    estatus,
-    estatus_label: STATUS_LABELS[estatus] ?? "—",
-    prioridad,
-    prioridad_label: PRIORIDAD_LABELS[prioridad] ?? "—",
-  };
+  const n = Number(row.estatus ?? row.status ?? 0);
+  const estatus = Number.isFinite(n) ? n : 0;
+  const estatus_label = row.estatus_label ?? STATUS_LABELS[estatus] ?? "—";
+  return { ...row, estatus, estatus_label };
 }
 
 /* ======================== Pintado declarativo ======================== */
+// Formatters por clave (sin tocar tu HTML)
 const KEY_FORMATTERS = {
-  estatus:   (_v, row) => row.estatus_label ?? "—",
-  prioridad: (_v, row) => row.prioridad_label ?? "—",
+  estatus: (_v, row) => row?.estatus_label ?? "—",
+  // ejemplo extra: prioridad: v => ({1:"Baja",2:"Media",3:"Alta"}[Number(v)] ?? "—"),
 };
 const FMT_TEXT = (v) => (v ?? "—");
 
 function mapToFields(root, row = {}){
   $$("[data-field]", root).forEach(el => {
     const key = el.getAttribute("data-field");
+    if(!key) return;
     const fmt = KEY_FORMATTERS[key] || FMT_TEXT;
     el.textContent = fmt(row[key], row);
   });
@@ -117,9 +112,11 @@ function mapToFields(root, row = {}){
   const hidId = root.querySelector('input[name="id"][data-field="id"]');
   if(hidId && row.id != null) hidId.value = row.id;
 }
+
 function mapToForm(root, row = {}){
   $$("[data-edit][name]", root).forEach(el => {
-    el.value = row?.[el.name] ?? "";
+    const k = el.name;
+    el.value = row?.[k] ?? "";
   });
   const hidId = root.querySelector('input[name="id"]');
   const hidUb = root.querySelector('input[name="updated_by"]');
@@ -203,6 +200,7 @@ export const Drawer = (() => {
   // estado
   let saving = false, deleting = false, snapshot = null;
 
+  /* ---- overlay/body lock ---- */
   function lockBody(flag) {
     document.documentElement?.classList?.toggle("ix-drawer-open", !!flag);
     document.body?.classList?.toggle("ix-drawer-open", !!flag);
@@ -288,10 +286,10 @@ export const Drawer = (() => {
     statusSelView?.addEventListener("change", async () => {
       const folio = String($(".ixd-folio", el)?.textContent || "").trim();
       if (!FOLIO_RX.test(folio)) return;
-      const st = Number(statusSelView.value ?? (el._row?.estatus ?? 0));
+      const st = Number(el._row?.estatus ?? 0);
       setBusy(el, true);
       try {
-        const resp = await listMedia(folio, st, 1, 100);
+        const resp = await listMedia(folio, Number(statusSelView.value ?? st), 1, 100);
         paintGallery(el, resp);
       } finally {
         setBusy(el, false);
@@ -359,22 +357,15 @@ export const Drawer = (() => {
 
     if (on) {
       ensureCpCatalog().then(() => ensureCpColoniaInputs(el._row || {})).catch(()=>{});
-      // sincroniza etiquetas al cambiar los selects
-      const selEst = el.querySelector('select[name="estatus"][data-edit]');
-      const selPri = el.querySelector('select[name="prioridad"][data-edit]');
-      if (selEst && !selEst.__bound) {
-        selEst.addEventListener("change", () => {
-          el._row = adaptReq({ ...el._row, estatus: Number(selEst.value) });
-          mapToFields(el, el._row);
+      // sincroniza etiqueta al cambiar el select de estatus en edición
+      const sel = el.querySelector('select[name="estatus"][data-edit]');
+      if (sel && !sel.__ixBound) {
+        sel.addEventListener("change", () => {
+          const next = adaptReq({ ...el._row, estatus: Number(sel.value) });
+          el._row = next;
+          mapToFields(el, next);
         });
-        selEst.__bound = true;
-      }
-      if (selPri && !selPri.__bound) {
-        selPri.addEventListener("change", () => {
-          el._row = adaptReq({ ...el._row, prioridad: Number(selPri.value) });
-          mapToFields(el, el._row);
-        });
-        selPri.__bound = true;
+        sel.__ixBound = true;
       }
     }
   }
@@ -557,7 +548,7 @@ export const Drawer = (() => {
       };
 
       const updatedRaw = await updateRequerimiento(payload);
-      const updated    = adaptReq(updatedRaw);
+      const updated = adaptReq(updatedRaw);
 
       mapToFields(el, updated);
       mapToForm(el, updated);

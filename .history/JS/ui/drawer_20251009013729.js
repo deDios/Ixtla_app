@@ -18,7 +18,7 @@ const PRIORIDAD_LABELS = { 1:"Baja", 2:"Media", 3:"Alta" };
 const CP_EP =
   window.IX_CFG_REQ?.ENDPOINTS?.cpcolonia ||
   window.IX_CFG_DEPS?.ENDPOINTS?.cpcolonia ||
-  "/db/WEB/ixtla01_c_cpcolonia.php";   
+  "/db/WEB/ixtla01_c_cpcolonia.php";   // ruta que me pasaste
 
 const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
 const CP_CACHE_TTL = 10 * 60 * 1000; // 10 min
