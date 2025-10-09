@@ -8,11 +8,11 @@ const MAX_FILES_CLIENT = 3;
 const MAX_BYTES_CLIENT = 1 * 1024 * 1024; // 1 MB
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
-/* ====== Catálogo CP/Colonia ====== */
+/* ====== Catálogo CP/Colonia (cache) ====== */
 const CP_EP =
   window.IX_CFG_REQ?.ENDPOINTS?.cpcolonia ||
   window.IX_CFG_DEPS?.ENDPOINTS?.cpcolonia ||
-  "/DB/WEB/ixtla01_c_cpcolonia.php";
+  "/db/WEB/ixtla01_c_cpcolonia.php";
 
 const CP_CACHE_KEY = "ix_cpcolonia_cache_v1";
 const CP_CACHE_TTL = 10 * 60 * 1000; // 10 min
