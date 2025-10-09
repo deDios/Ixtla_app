@@ -1,4 +1,10 @@
 <?php
+require_once __DIR__.'/_logger.php';
+$__t0 = microtime(true);
+api_log('start', 'ixtla01_in_requerimiento', [
+  "content_type" => $_SERVER['CONTENT_TYPE'] ?? null
+]);
+
 /* ===== CORS (poner literalmente al inicio del archivo) ===== */
 $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
 $ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
@@ -410,6 +416,12 @@ if ($res) {
   $res['canal']           = (int)$res['canal'];
   $res['status']          = (int)$res['status'];
 }
+
+api_log('ok', 'requerimiento_creado', [
+  "elapsed_ms" => round((microtime(true) - $__t0) * 1000),
+  "req_id"     => $new_id ?? null,
+  "folio"      => $res['folio'] ?? null
+]);
 
 http_response_code(201);
 echo json_encode(["ok"=>true, "data"=>$res, "wa"=>$wa], JSON_UNESCAPED_UNICODE); 
