@@ -6,125 +6,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ixtla-app.com</title>
   <style>
-    /* ==================== THEME: LIGHT ==================== */
     :root{
-      --bg:#f6f8fb;
-      --panel:#ffffff;
-      --panel-alt:#f1f3f7;
-      --border:#e5e7ef;
-      --text:#1f2937;
-      --muted:#6b7280;
-      --accent:#2b6fff;
-      --accent-600:#1f5bff;
-      --accent-50:#edf2ff;
-      --danger:#e11d48;
-      --bubble-in:#ffffff;
-      --bubble-out:#2b6fff;
-      --bubble-out-text:#ffffff;
+      --bg:#f6f8fb; --panel:#ffffff; --panel-alt:#f1f3f7; --border:#e5e7ef;
+      --text:#1f2937; --muted:#6b7280; --accent:#2b6fff; --accent-600:#1f5bff;
+      --accent-50:#edf2ff; --danger:#e11d48; --bubble-in:#ffffff;
+      --bubble-out:#2b6fff; --bubble-out-text:#ffffff;
     }
-
     *{box-sizing:border-box}
-    body{
-      margin:0;background:var(--bg);color:var(--text);
-      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-    }
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
     .app{display:grid;grid-template-columns:420px 1fr;height:100vh;min-height:0;}
-
-    /* ==================== Sidebar (lista) ==================== */
-    .sidebar{
-      border-right:1px solid var(--border);
-      background:var(--panel);
-      display:flex;flex-direction:column;min-height:0;
-    }
-    .side-head{
-      padding:14px;border-bottom:1px solid var(--border);
-      display:flex;gap:8px;position:sticky;top:0;background:var(--panel);z-index:2;
-    }
-    .side-head input{
-      flex:1;padding:10px 12px;border-radius:10px;
-      border:1px solid var(--border);background:#fff;color:var(--text)
-    }
+    .sidebar{border-right:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;min-height:0;}
+    .side-head{padding:14px;border-bottom:1px solid var(--border);display:flex;gap:8px;position:sticky;top:0;background:var(--panel);z-index:2;}
+    .side-head input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text)}
     .side-head input::placeholder{color:#a0a6b3}
-
-    .tabs{
-      display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--border);
-      position:sticky;top:58px;background:var(--panel);z-index:2;
-    }
-    .tab{
-      padding:6px 10px;border-radius:20px;cursor:pointer;
-      color:var(--muted);border:1px solid var(--border);background:#fff;
-    }
+    .tabs{display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--border);position:sticky;top:58px;background:var(--panel);z-index:2;}
+    .tab{padding:6px 10px;border-radius:20px;cursor:pointer;color:var(--muted);border:1px solid var(--border);background:#fff;}
     .tab:hover{background:var(--accent-50);border-color:#cdd8ff;color:#3653a5}
     .tab.active{color:#0f172a;border-color:#cdd8ff;background:var(--accent-50)}
-
     .conv-list{flex:1;min-height:0;overflow:auto;padding:8px;background:var(--panel)}
-    .conv{
-      padding:10px;border:1px solid var(--border);margin:8px 0;border-radius:12px;
-      cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:6px;background:#fff;
-      transition:border-color .15s, box-shadow .15s, background .15s;
-    }
+    .conv{padding:10px;border:1px solid var(--border);margin:8px 0;border-radius:12px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:6px;background:#fff;transition:border-color .15s, box-shadow .15s, background .15s;}
     .conv:hover{border-color:#cdd8ff;background:#fff;box-shadow:0 1px 0 rgba(20,28,55,.04)}
     .conv .title{font-weight:600;display:flex;align-items:center;gap:6px}
     .conv .meta{color:var(--muted);font-size:12px}
-    .pill{
-      font-size:11px;padding:3px 8px;border:1px solid #d7defa;border-radius:999px;
-      color:#3b5bcc;background:#eef2ff
-    }
-
-    /* ==================== Main (mensajes) ==================== */
+    .pill{font-size:11px;padding:3px 8px;border:1px solid #d7defa;border-radius:999px;color:#3b5bcc;background:#eef2ff}
     .main{display:grid;grid-template-rows:auto 1fr auto;min-height:0;background:var(--panel-alt)}
-    .header{
-      padding:14px;border-bottom:1px solid var(--border);background:var(--panel);
-      display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:3;
-    }
+    .header{padding:14px;border-bottom:1px solid var(--border);background:var(--panel);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:3;}
     .header .title{font-weight:700}
     .header .sub{color:var(--muted);font-size:12px}
-
-    .messages{
-      min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;
-      scroll-behavior:smooth;overscroll-behavior:contain;
-    }
-    .bubble{
-      max-width:70%;padding:10px 12px;border-radius:14px;border:1px solid var(--border);
-      background:#fff;color:var(--text);
-    }
-    .in{
-      align-self:flex-start;border-top-left-radius:4px;background:var(--bubble-in);
-      border-color:var(--border);color:var(--text);
-    }
-    .out{
-      align-self:flex-end;border-top-right-radius:4px;background:var(--bubble-out);
-      border-color:var(--bubble-out);color:var(--bubble-out-text);
-    }
+    .messages{min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;overscroll-behavior:contain;}
+    .bubble{max-width:70%;padding:10px 12px;border-radius:14px;border:1px solid var(--border);background:#fff;color:var(--text);}
+    .in{align-self:flex-start;border-top-left-radius:4px;background:var(--bubble-in);border-color:var(--border);color:var(--text);}
+    .out{align-self:flex-end;border-top-right-radius:4px;background:var(--bubble-out);border-color:var(--bubble-out);color:var(--bubble-out-text);}
     .bubble .time{color:var(--muted);font-size:11px;margin-top:6px}
     .out .time{color:#e7ecff}
-
-    .composer{
-      display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);
-      background:var(--panel);position:sticky;bottom:0;z-index:5;
-    }
-    .composer textarea{
-      flex:1;min-height:44px;max-height:120px;padding:10px;border-radius:10px;
-      border:1px solid var(--border);background:#fff;color:var(--text);resize:vertical
-    }
-    .btn{
-      border:1px solid transparent;border-radius:10px;padding:10px 14px;background:var(--accent);
-      color:#fff;cursor:pointer;transition:filter .15s, background .15s
-    }
+    .composer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);background:var(--panel);position:sticky;bottom:0;z-index:5;}
+    .composer textarea{flex:1;min-height:44px;max-height:120px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);resize:vertical}
+    .btn{border:1px solid transparent;border-radius:10px;padding:10px 14px;background:var(--accent);color:#fff;cursor:pointer;transition:filter .15s, background .15s}
     .btn:hover{background:var(--accent-600)}
     .btn.secondary{background:#eef2ff;color:#2643a0;border-color:#d7defa}
     .btn.secondary:hover{background:#e6ecff}
     .btn.danger{background:#fee2e2;color:#991b1b;border-color:#fecaca}
     .btn.danger:hover{background:#ffdada}
-
     .empty{color:var(--muted);text-align:center;margin-top:20vh}
-    .toast{
-      position:fixed;right:16px;bottom:16px;background:#ffffff;color:#0f172a;
-      border:1px solid var(--border);border-radius:12px;padding:10px 12px;
-      box-shadow:0 10px 30px rgba(0,0,0,.12);display:none
-    }
+    .toast{position:fixed;right:16px;bottom:16px;background:#ffffff;color:#0f172a;border:1px solid var(--border);border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.12);display:none}
     .row{display:flex;gap:8px;align-items:center}
-
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35)}
     .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;min-width:320px;max-width:96vw}
     .card h3{margin:0 0 8px 0}
@@ -141,13 +66,11 @@
       <div class="side-head">
         <input id="search" placeholder="Buscar nombre o teléfono…"/>
       </div>
-
       <div class="tabs">
         <div class="tab active" data-status="open">Abiertas</div>
         <div class="tab" data-status="closed">Cerradas</div>
         <div class="tab" data-status="all">Todas</div>
       </div>
-
       <div id="convList" class="conv-list"></div>
     </aside>
 
@@ -215,8 +138,8 @@
     messages: []
   };
 
-  // 🔸 Cache local para esconder "nuevo" inmediatamente al abrir
-  const locallyRead = new Set();
+  // ⬇️ Registro local: conv_id -> last_incoming_at que ya marcaste como leído
+  const readSeen = new Map();
 
   const qs = s => document.querySelector(s);
   const qsa = s => Array.from(document.querySelectorAll(s));
@@ -225,6 +148,7 @@
   function within24h(lastIncoming){ if(!lastIncoming) return false; const t=new Date(lastIncoming.replace(' ','T')+'Z'); return (Date.now()-t.getTime()) <= 24*3600*1000; }
   function isClosed(c){ return (c.status && c.status==='closed') || !within24h(c.last_incoming_at); }
   function hasUnreadConv(c){
+    // backend heuristic original
     return !!(c.last_incoming_at && (!c.last_outgoing_at || c.last_incoming_at > c.last_outgoing_at));
   }
 
@@ -232,9 +156,7 @@
     const box = qs('#messages');
     if (!box) return;
     const nearBottom = (box.scrollTop + box.clientHeight) >= (box.scrollHeight - 80);
-    if (force || nearBottom) {
-      requestAnimationFrame(()=>{ box.scrollTop = box.scrollHeight; });
-    }
+    if (force || nearBottom) requestAnimationFrame(()=>{ box.scrollTop = box.scrollHeight; });
   }
 
   function debounce(fn,ms){ let h; return (...a)=>{ clearTimeout(h); h=setTimeout(()=>fn(...a),ms); } }
@@ -258,11 +180,8 @@
   function renderConversations(){
     const box = qs('#convList'); box.innerHTML='';
     let list = state.conversations;
-    if (state.status === 'open') {
-      list = list.filter(c => within24h(c.last_incoming_at) && c.status !== 'closed');
-    } else if (state.status === 'closed') {
-      list = list.filter(isClosed);
-    }
+    if (state.status === 'open') list = list.filter(c => within24h(c.last_incoming_at) && c.status !== 'closed');
+    else if (state.status === 'closed') list = list.filter(isClosed);
 
     if (!list.length){
       box.innerHTML = '<div class="empty" style="padding:12px">Sin resultados</div>';
@@ -270,7 +189,9 @@
     }
 
     list.forEach(c=>{
-      const unread = hasUnreadConv(c) && !locallyRead.has(c.id);
+      // 🔸 NO mostrar "nuevo" si ya vimos este mismo last_incoming_at
+      const unread = hasUnreadConv(c) && readSeen.get(c.id) !== c.last_incoming_at;
+
       const el=document.createElement('div'); el.className='conv'; el.dataset.id=c.id;
       el.innerHTML = `
         <div class="title">
@@ -298,15 +219,12 @@
     qs('#btnSend').disabled = !open;
     qs('#btnReopen').disabled = false;
 
-    const unreadBefore = hasUnreadConv(c) && !locallyRead.has(c.id);
+    const wasUnread = hasUnreadConv(c) && readSeen.get(c.id) !== c.last_incoming_at;
 
     await loadMessages(c.id, { forceBottom: true });
     startMsgPolling();
 
-    // 🔸 Auto-marcar leído al abrir si había "nuevo"
-    if (unreadBefore) {
-      autoMarkCurrentAsRead();
-    }
+    if (wasUnread) autoMarkCurrentAsRead();
   }
 
   async function loadMessages(convId, { forceBottom = false } = {}){
@@ -357,7 +275,6 @@
 
   /* ==================== ACTIONS ==================== */
   async function autoMarkCurrentAsRead(){
-    // Marca el último entrante como leído y quita "nuevo" al instante
     const lastIn = [...state.messages].reverse().find(m=>m.direction==='in');
     if (!state.current || !lastIn) return;
 
@@ -369,12 +286,13 @@
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j.error || 'No se pudo marcar');
 
-      // ✅ Actualiza estado local para que desaparezca el pill sin esperar
-      locallyRead.add(state.current.id);
-      // Además, adelanta el "last_outgoing_at" localmente para que hasUnread sea falso
-      state.current.last_outgoing_at = new Date().toISOString().slice(0,19).replace('T',' ');
-      qs('#btnMarkRead').disabled = true;
+      // ✅ Guarda qué last_incoming_at ya vimos/marcamos
+      // Preferimos timestamp exacto del último IN para robustez:
+      const lastInAt = (lastIn.created_at || '').slice(0,19).replace('T',' ');
+      // Si no tienes created_at con ese formato, cae al last_incoming_at del objeto conversación
+      readSeen.set(state.current.id, lastInAt || state.current.last_incoming_at || null);
 
+      qs('#btnMarkRead').disabled = true;
       renderConversations();
     }catch(e){
       console.warn('markRead fallo:', e.message);
@@ -397,8 +315,7 @@
       toast('Enviado');
       scrollToBottom(true);
       await loadMessages(state.current.id, { forceBottom: true });
-      // Por si el backend actualiza last_outgoing_at: refrescamos lista
-      await loadConversations();
+      await loadConversations(); // refresca pills
     }catch(e){ toast('Error: '+e.message); }
     finally{ qs('#btnSend').disabled = false; }
   }
@@ -409,10 +326,14 @@
       const r = await fetch(ENDPOINTS.markRead,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wa_message_id:id})});
       const j=await r.json(); if(!j.ok) throw new Error('No se pudo marcar');
       toast('Marcado como leído');
-      if (state.current) {
-        locallyRead.add(state.current.id);
-        state.current.last_outgoing_at = new Date().toISOString().slice(0,19).replace('T',' ');
+
+      if (state.current){
+        // Igual que en auto, anota lo que vimos
+        const lastIn = [...state.messages].reverse().find(m=>m.direction==='in');
+        const lastInAt = lastIn ? (lastIn.created_at||'').slice(0,19).replace('T',' ') : state.current.last_incoming_at;
+        readSeen.set(state.current.id, lastInAt || null);
         renderConversations();
+        qs('#btnMarkRead').disabled = true;
       }
     }catch(e){ toast('Error: '+e.message); }
   }
@@ -441,9 +362,7 @@
 
   function startMsgPolling(){ 
     stopMsgPolling(); 
-    msgPoll=setInterval(()=>{ 
-      if(state.current) loadMessages(state.current.id); 
-    }, 8000); 
+    msgPoll=setInterval(()=>{ if(state.current) loadMessages(state.current.id); }, 8000); 
   }
   function stopMsgPolling(){ if(msgPoll){ clearInterval(msgPoll); msgPoll=null; } }
 
@@ -453,19 +372,11 @@
       const prevId = state.current?.id;
       const list = document.querySelector('#convList');
       const prevScroll = list ? list.scrollTop : 0;
+
       await loadConversations();
 
-      // 🔄 Sincroniza cache local segun backend
-      state.conversations.forEach(c=>{
-        const unreadServer = hasUnreadConv(c);
-        if (!unreadServer && locallyRead.has(c.id)) {
-          locallyRead.delete(c.id);
-        }
-        if (unreadServer) {
-          // llegó algo nuevo: asegúrate de que se muestre de nuevo "nuevo"
-          locallyRead.delete(c.id);
-        }
-      });
+      // ❌ Eliminamos la "sincronización" que borraba el estado local si el servidor no cambiaba
+      // Ahora, la lógica del pill depende de comparar readSeen[c.id] vs c.last_incoming_at
 
       if (prevId){
         const found = state.conversations.find(c=>c.id===prevId);
@@ -503,7 +414,6 @@
   loadConversations().then(startConvPolling);
   </script>
 
-  <!-- (Opcional) Guardia de acceso -->
   <script type="module">
     import { guardPage } from "/JS/auth/guard.js";
     guardPage({ allowEmpIds:[6,5,4,2], stealth:false, redirectTo:"/VIEWS/home.php" });
