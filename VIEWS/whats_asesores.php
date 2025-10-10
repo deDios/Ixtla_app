@@ -225,7 +225,17 @@
   function fmtDate(s){ if(!s) return '—'; const d=new Date(s.replace(' ','T')+'Z'); return d.toLocaleString(); }
   function within24h(lastIncoming){ if(!lastIncoming) return false; const t=new Date(lastIncoming.replace(' ','T')+'Z'); return (Date.now()-t.getTime()) <= 24*3600*1000; }
   function isClosed(c){ return (c.status && c.status==='closed') || !within24h(c.last_incoming_at); }
-  function scrollToBottom(force=false){ const box=qs('#messages'); const near=(box.scrollTop+box.clientHeight)>=(box.scrollHeight-80); if(force||near) box.scrollTop=box.scrollHeight; }
+
+  /* ⬇️ NUEVA versión robusta */
+  function scrollToBottom(force=false){
+    const box = qs('#messages');
+    if (!box) return;
+    const nearBottom = (box.scrollTop + box.clientHeight) >= (box.scrollHeight - 80);
+    if (force || nearBottom) {
+      requestAnimationFrame(()=>{ box.scrollTop = box.scrollHeight; });
+    }
+  }
+
   function debounce(fn,ms){ let h; return (...a)=>{ clearTimeout(h); h=setTimeout(()=>fn(...a),ms); } }
 
   /* ==================== LOAD CONVERSATIONS ==================== */
@@ -289,34 +299,56 @@
     qs('#btnSend').disabled = !open;
     qs('#btnReopen').disabled = false;
 
-    await loadMessages(c.id);
+    // ⬇️ Forzar scroll al final en la primera carga de ese hilo
+    await loadMessages(c.id, { forceBottom: true });
     startMsgPolling();
   }
 
-  async function loadMessages(convId){
+  /* ⬇️ loadMessages con forceBottom */
+  async function loadMessages(convId, { forceBottom = false } = {}){
     const url = new URL(ENDPOINTS.messages);
     url.searchParams.set('conversation_id', convId);
     url.searchParams.set('page', 1);
     url.searchParams.set('page_size', 200);
     const r = await fetch(url);
     const j = await r.json();
+
+    const prevLen = state.messages.length;
     state.messages = j.data||[];
-    renderMessages();
+
+    renderMessages({ forceBottom: forceBottom || (state.messages.length > prevLen) });
   }
 
-  function renderMessages(){
-    const box = qs('#messages'); box.innerHTML='';
-    if (!state.messages.length){ box.innerHTML = '<div class="empty">No hay mensajes en este hilo.</div>'; return; }
+  /* ⬇️ renderMessages con ancla y forceBottom */
+  function renderMessages({ forceBottom = false } = {}){
+    const box = qs('#messages'); 
+    box.innerHTML='';
+
+    if (!state.messages.length){
+      box.innerHTML = '<div class="empty">No hay mensajes en este hilo.</div>';
+      return;
+    }
 
     state.messages.forEach(m=>{
-      const li=document.createElement('div'); li.className = 'bubble ' + (m.direction==='out'?'out':'in');
+      const li=document.createElement('div'); 
+      li.className = 'bubble ' + (m.direction==='out'?'out':'in');
       li.innerHTML = `
         <div>${escapeHtml(m.text||'')}</div>
         <div class="time">${m.msg_type} · ${fmtDate(m.created_at)}</div>
       `;
       box.appendChild(li);
     });
-    scrollToBottom();
+
+    // Ancla final para asegurar el scroll incluso con mensajes largos
+    const anchor = document.createElement('div');
+    anchor.id = 'msgEnd';
+    box.appendChild(anchor);
+
+    if (forceBottom) {
+      scrollToBottom(true);
+    } else {
+      scrollToBottom(false);
+    }
 
     const lastIn = [...state.messages].reverse().find(m=>m.direction==='in');
     qs('#btnMarkRead').disabled = !lastIn;
@@ -338,8 +370,10 @@
       if (r.status===409){ await r.json(); openTplModal(); return; }
       const j = await r.json();
       if (!j.ok) throw new Error(j.error||'Fallo al enviar');
-      qs('#composer').value=''; toast('Enviado'); scrollToBottom(true);
-      await loadMessages(state.current.id);
+      qs('#composer').value='';
+      toast('Enviado');
+      scrollToBottom(true); // salto inmediato
+      await loadMessages(state.current.id, { forceBottom: true }); // asegura al re-render
     }catch(e){ toast('Error: '+e.message); }
     finally{ qs('#btnSend').disabled = false; }
   }
@@ -375,7 +409,12 @@
   /* ==================== POLLING ==================== */
   let msgPoll=null, convPoll=null;
 
-  function startMsgPolling(){ stopMsgPolling(); msgPoll=setInterval(()=>{ if(state.current) loadMessages(state.current.id); }, 8000); }
+  function startMsgPolling(){ 
+    stopMsgPolling(); 
+    msgPoll=setInterval(()=>{ 
+      if(state.current) loadMessages(state.current.id); 
+    }, 8000); 
+  }
   function stopMsgPolling(){ if(msgPoll){ clearInterval(msgPoll); msgPoll=null; } }
 
   function startConvPolling(){
@@ -428,7 +467,3 @@
   </script>
 </body>
 </html>
- 
-
-
-
