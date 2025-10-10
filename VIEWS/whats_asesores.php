@@ -8,18 +8,18 @@
   <style>
     /* ==================== THEME: LIGHT ==================== */
     :root{
-      --bg:#f6f8fb;           /* fondo app */
-      --panel:#ffffff;        /* tarjetas / barras */
-      --panel-alt:#f1f3f7;    /* secciones pegadas */
-      --border:#e5e7ef;       /* líneas y bordes */
-      --text:#1f2937;         /* texto principal (gris oscuro) */
-      --muted:#6b7280;        /* texto secundario */
-      --accent:#2b6fff;       /* azul UI */
+      --bg:#f6f8fb;
+      --panel:#ffffff;
+      --panel-alt:#f1f3f7;
+      --border:#e5e7ef;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --accent:#2b6fff;
       --accent-600:#1f5bff;
-      --accent-50:#edf2ff;    /* azul muy claro para hover */
+      --accent-50:#edf2ff;
       --danger:#e11d48;
-      --bubble-in:#ffffff;    /* ⬅️ ENTRANTES: blanco */
-      --bubble-out:#2b6fff;   /* ⬅️ SALIENTES: azul */
+      --bubble-in:#ffffff;
+      --bubble-out:#2b6fff;
       --bubble-out-text:#ffffff;
     }
 
@@ -88,20 +88,17 @@
       max-width:70%;padding:10px 12px;border-radius:14px;border:1px solid var(--border);
       background:#fff;color:var(--text);
     }
-    /* Entrante (ciudadano) blanca */
     .in{
       align-self:flex-start;border-top-left-radius:4px;background:var(--bubble-in);
       border-color:var(--border);color:var(--text);
     }
-    /* Saliente (asesor) azul */
     .out{
       align-self:flex-end;border-top-right-radius:4px;background:var(--bubble-out);
       border-color:var(--bubble-out);color:var(--bubble-out-text);
     }
     .bubble .time{color:var(--muted);font-size:11px;margin-top:6px}
-    .out .time{color:#e7ecff} /* time clarito sobre fondo azul */
+    .out .time{color:#e7ecff}
 
-    /* Composer pegado abajo */
     .composer{
       display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);
       background:var(--panel);position:sticky;bottom:0;z-index:5;
@@ -145,7 +142,6 @@
         <input id="search" placeholder="Buscar nombre o teléfono…"/>
       </div>
 
-      <!-- Solo 3 pestañas -->
       <div class="tabs">
         <div class="tab active" data-status="open">Abiertas</div>
         <div class="tab" data-status="closed">Cerradas</div>
@@ -215,9 +211,12 @@
     page: 1,
     pageSize: 30,
     conversations: [],
-    current: null, // { id, contact_name, wa_phone, last_incoming_at, last_outgoing_at, status }
+    current: null,
     messages: []
   };
+
+  // 🔸 Cache local para esconder "nuevo" inmediatamente al abrir
+  const locallyRead = new Set();
 
   const qs = s => document.querySelector(s);
   const qsa = s => Array.from(document.querySelectorAll(s));
@@ -225,8 +224,10 @@
   function fmtDate(s){ if(!s) return '—'; const d=new Date(s.replace(' ','T')+'Z'); return d.toLocaleString(); }
   function within24h(lastIncoming){ if(!lastIncoming) return false; const t=new Date(lastIncoming.replace(' ','T')+'Z'); return (Date.now()-t.getTime()) <= 24*3600*1000; }
   function isClosed(c){ return (c.status && c.status==='closed') || !within24h(c.last_incoming_at); }
+  function hasUnreadConv(c){
+    return !!(c.last_incoming_at && (!c.last_outgoing_at || c.last_incoming_at > c.last_outgoing_at));
+  }
 
-  /* ⬇️ NUEVA versión robusta */
   function scrollToBottom(force=false){
     const box = qs('#messages');
     if (!box) return;
@@ -243,7 +244,6 @@
     const search = qs('#search').value.trim();
     const url = new URL(ENDPOINTS.conversations);
 
-    // 🔁 Siempre pedimos TODAS, filtramos en front para que 'Cerradas' funcione
     url.searchParams.set('status', 'all');
     url.searchParams.set('page', state.page);
     url.searchParams.set('page_size', state.pageSize);
@@ -257,7 +257,6 @@
 
   function renderConversations(){
     const box = qs('#convList'); box.innerHTML='';
-    // Filtro por pestaña
     let list = state.conversations;
     if (state.status === 'open') {
       list = list.filter(c => within24h(c.last_incoming_at) && c.status !== 'closed');
@@ -271,12 +270,12 @@
     }
 
     list.forEach(c=>{
-      const hasUnread = c.last_incoming_at && (!c.last_outgoing_at || c.last_incoming_at > c.last_outgoing_at);
+      const unread = hasUnreadConv(c) && !locallyRead.has(c.id);
       const el=document.createElement('div'); el.className='conv'; el.dataset.id=c.id;
       el.innerHTML = `
         <div class="title">
           ${c.contact_name||c.wa_phone||'Sin nombre'}
-          ${hasUnread?'<span class="pill">nuevo</span>':''}
+          ${unread?'<span class="pill">nuevo</span>':''}
         </div>
         <div class="meta">${c.wa_phone||''}</div>
         <div class="meta">Último in: ${fmtDate(c.last_incoming_at)}</div>
@@ -299,12 +298,17 @@
     qs('#btnSend').disabled = !open;
     qs('#btnReopen').disabled = false;
 
-    // ⬇️ Forzar scroll al final en la primera carga de ese hilo
+    const unreadBefore = hasUnreadConv(c) && !locallyRead.has(c.id);
+
     await loadMessages(c.id, { forceBottom: true });
     startMsgPolling();
+
+    // 🔸 Auto-marcar leído al abrir si había "nuevo"
+    if (unreadBefore) {
+      autoMarkCurrentAsRead();
+    }
   }
 
-  /* ⬇️ loadMessages con forceBottom */
   async function loadMessages(convId, { forceBottom = false } = {}){
     const url = new URL(ENDPOINTS.messages);
     url.searchParams.set('conversation_id', convId);
@@ -319,7 +323,6 @@
     renderMessages({ forceBottom: forceBottom || (state.messages.length > prevLen) });
   }
 
-  /* ⬇️ renderMessages con ancla y forceBottom */
   function renderMessages({ forceBottom = false } = {}){
     const box = qs('#messages'); 
     box.innerHTML='';
@@ -339,16 +342,11 @@
       box.appendChild(li);
     });
 
-    // Ancla final para asegurar el scroll incluso con mensajes largos
     const anchor = document.createElement('div');
     anchor.id = 'msgEnd';
     box.appendChild(anchor);
 
-    if (forceBottom) {
-      scrollToBottom(true);
-    } else {
-      scrollToBottom(false);
-    }
+    if (forceBottom) scrollToBottom(true); else scrollToBottom(false);
 
     const lastIn = [...state.messages].reverse().find(m=>m.direction==='in');
     qs('#btnMarkRead').disabled = !lastIn;
@@ -358,6 +356,31 @@
   function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
 
   /* ==================== ACTIONS ==================== */
+  async function autoMarkCurrentAsRead(){
+    // Marca el último entrante como leído y quita "nuevo" al instante
+    const lastIn = [...state.messages].reverse().find(m=>m.direction==='in');
+    if (!state.current || !lastIn) return;
+
+    try{
+      const r = await fetch(ENDPOINTS.markRead,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ wa_message_id: lastIn.wa_message_id })
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.error || 'No se pudo marcar');
+
+      // ✅ Actualiza estado local para que desaparezca el pill sin esperar
+      locallyRead.add(state.current.id);
+      // Además, adelanta el "last_outgoing_at" localmente para que hasUnread sea falso
+      state.current.last_outgoing_at = new Date().toISOString().slice(0,19).replace('T',' ');
+      qs('#btnMarkRead').disabled = true;
+
+      renderConversations();
+    }catch(e){
+      console.warn('markRead fallo:', e.message);
+    }
+  }
+
   async function sendText(){
     if (!state.current) return;
     const txt = qs('#composer').value.trim(); if (!txt) return;
@@ -372,8 +395,10 @@
       if (!j.ok) throw new Error(j.error||'Fallo al enviar');
       qs('#composer').value='';
       toast('Enviado');
-      scrollToBottom(true); // salto inmediato
-      await loadMessages(state.current.id, { forceBottom: true }); // asegura al re-render
+      scrollToBottom(true);
+      await loadMessages(state.current.id, { forceBottom: true });
+      // Por si el backend actualiza last_outgoing_at: refrescamos lista
+      await loadConversations();
     }catch(e){ toast('Error: '+e.message); }
     finally{ qs('#btnSend').disabled = false; }
   }
@@ -384,6 +409,11 @@
       const r = await fetch(ENDPOINTS.markRead,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wa_message_id:id})});
       const j=await r.json(); if(!j.ok) throw new Error('No se pudo marcar');
       toast('Marcado como leído');
+      if (state.current) {
+        locallyRead.add(state.current.id);
+        state.current.last_outgoing_at = new Date().toISOString().slice(0,19).replace('T',' ');
+        renderConversations();
+      }
     }catch(e){ toast('Error: '+e.message); }
   }
 
@@ -399,10 +429,10 @@
       const j = await r.json(); if(!j.ok) throw new Error(j.error||'Fallo plantilla');
       toast('Plantilla enviada'); closeTplModal();
 
-      // Simula reactivación de ventana en UI
       state.current.last_incoming_at = new Date().toISOString().slice(0,19).replace('T',' ');
       qs('#composer').disabled=false; qs('#btnSend').disabled=false;
       qs('#pillWindow').textContent='Ventana 24h: activa';
+      renderConversations();
     }catch(e){ toast('Error: '+e.message); }
   }
 
@@ -424,6 +454,19 @@
       const list = document.querySelector('#convList');
       const prevScroll = list ? list.scrollTop : 0;
       await loadConversations();
+
+      // 🔄 Sincroniza cache local segun backend
+      state.conversations.forEach(c=>{
+        const unreadServer = hasUnreadConv(c);
+        if (!unreadServer && locallyRead.has(c.id)) {
+          locallyRead.delete(c.id);
+        }
+        if (unreadServer) {
+          // llegó algo nuevo: asegúrate de que se muestre de nuevo "nuevo"
+          locallyRead.delete(c.id);
+        }
+      });
+
       if (prevId){
         const found = state.conversations.find(c=>c.id===prevId);
         if (found){
