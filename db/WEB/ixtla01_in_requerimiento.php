@@ -204,7 +204,7 @@ if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>fa
 
 // (opcional) Fallback por Referer para formularios que oculten Origin
 $ref     = $_SERVER['HTTP_REFERER'] ?? '';
-$ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
+$ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com','https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net'];
 $refererOK = false;
 if ($ref) {
   foreach ($ALLOWED as $base) {
