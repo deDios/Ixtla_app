@@ -17,7 +17,7 @@
       --accent-600:#1f5bff;
       --accent-50:#edf2ff;    /* azul muy claro para hover */
       --danger:#e11d48;
-      --bubble-in:#f2f4f7;    /* gris para mensajes entrantes */
+      --bubble-in:#ffffff;    /* gris para mensajes entrantes */
       --bubble-out:#2b6fff;   /* azul para salientes */
       --bubble-out-text:#ffffff;
     }
