@@ -242,6 +242,14 @@ if (isset($_SERVER['HTTP_ORIGIN']) && !$originOK) {
 }
 
 $requiresSig = !($originOK || $refererOK);
+
+$acceptHasHtml   = isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'text/html') !== false;
+$isBrowserLikely = isset($_SERVER['HTTP_SEC_FETCH_MODE']) || isset($_SERVER['HTTP_SEC_CH_UA']) || $acceptHasHtml;
+
+if (($originOK || $refererOK) && !$isBrowserLikely) {
+  $requiresSig = true;
+}
+
 if ($requiresSig) {
   $ts  = $_SERVER['HTTP_X_TS']  ?? '';
   $app = $_SERVER['HTTP_X_APP'] ?? '';   // ej. "webpublic"
