@@ -9,6 +9,8 @@ api_log('start', 'ixtla01_in_requerimiento', [
 $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
 $ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
 $originOK = $origin && in_array($origin, $ALLOWED, true);
+/* ------------------------------ */
+
 
 if ($originOK) {
   header("Access-Control-Allow-Origin: $origin");
@@ -25,6 +27,49 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
   exit;
 }
+
+/* ===== Bloqueo por User-Agent (denegar Python) ===== */
+
+
+$ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+$UA_DENY_PATTERNS = [
+  '/\bpython-requests\b/i',
+  '/\brequests\/[\d.]+\b/i',
+  '/\bpython-urllib\/[\d.]+\b/i',   
+  '/\bpython\b/i',               
+];
+$UA_ALLOW_EXACT = [
+  // 'MiBotSeguro/1.0',
+];
+
+$deny_ua = false;
+if ($ua !== '') {
+  foreach ($UA_ALLOW_EXACT as $ok) {
+    if (strcasecmp($ua, $ok) === 0) { $deny_ua = false; break; }
+  }
+  if (!$deny_ua) {
+    foreach ($UA_DENY_PATTERNS as $re) {
+      if (preg_match($re, $ua)) { $deny_ua = true; break; }
+    }
+  }
+}
+
+if ($deny_ua) {
+  api_log('403','ua_blocked', [
+    'ua'      => $ua,
+    'client'  => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? null),
+    'reason'  => 'UA matches denylist',
+  ]);
+  if ($originOK) { header("Access-Control-Allow-Origin: $origin"); } // <-- CORS en 403
+  header('Content-Type: application/json');
+  http_response_code(403);
+  echo json_encode(['ok'=>false,'error'=>'Acceso denegado (UA)']);
+  exit;
+}
+
+
+/* ------------------------------ */
+
 
 /* ===== Content-Type y tamaño ===== */
 header('Content-Type: application/json');
