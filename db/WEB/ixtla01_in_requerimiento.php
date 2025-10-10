@@ -7,7 +7,7 @@ api_log('start', 'ixtla01_in_requerimiento', [
 
 /* ===== CORS (poner literalmente al inicio del archivo) ===== */
 $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
-$ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
+$ALLOWED = ['https://ixtla-app.com','https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net'];
 $originOK = $origin && in_array($origin, $ALLOWED, true);
 /* ------------------------------ */
 
@@ -83,23 +83,77 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 
 /* ====== RATE LIMIT por IP (5/min, ban 30 min) ====== */
 /* IP helper: usa XFF solo si el remoto es proxy de confianza */
+
+/* Nota: esta versión soporta IPv4 y hace un mejor esfuerzo con IPv6.
+   Si tus clientes son mayormente IPv4, esto es suficiente para rate-limit. */
+
 function __ip_in_cidr(string $ip, string $cidr): bool {
   [$subnet, $mask] = explode('/', $cidr) + [null, null];
   if ($mask === null) return $ip === $subnet;
   $mask = (int)$mask;
-  return (ip2long($ip) & ~((1 << (32 - $mask)) - 1)) === (ip2long($subnet) & ~((1 << (32 - $mask)) - 1));
+  // Implementación IPv4; para IPv6 se requeriría lógica adicional.
+  if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+    return (ip2long($ip) & ~((1 << (32 - $mask)) - 1)) === (ip2long($subnet) & ~((1 << (32 - $mask)) - 1));
+  }
+  return false;
 }
+
+function __parse_ip_from_token(string $token): string {
+  $t = trim($token, " \t\n\r\0\x0B\"'");
+  // IPv6 con corchetes y puerto: [2001:db8::1]:443
+  if ($t !== '' && $t[0] === '[') {
+    $end = strpos($t, ']');
+    if ($end !== false) {
+      return substr($t, 1, $end - 1);
+    }
+  }
+  // IPv4 con puerto: 1.2.3.4:5678
+  if (substr_count($t, ':') === 1 && preg_match('/^\d{1,3}(\.\d{1,3}){3}:\d+$/', $t)) {
+    return explode(':', $t, 2)[0];
+  }
+  // IPv6 sin corchetes con posible puerto al final → intenta validar tal cual, si no, corta último ':'
+  if (strpos($t, ':') !== false && !filter_var($t, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+    $pos = strrpos($t, ':');
+    if ($pos !== false) {
+      $maybe = substr($t, 0, $pos);
+      if (filter_var($maybe, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        return $maybe;
+      }
+    }
+  }
+  return $t;
+}
+
 function __rl_ip(): string {
   $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-  $trusted = ['127.0.0.1/32','10.0.0.0/8','172.16.0.0/12','192.168.0.0/16']; // proxies internos
+
+  // Proxies confiables (incluye Azure App Service 169.254.0.0/16 y CGNAT 100.64.0.0/10)
+  $trusted = [
+    '127.0.0.1/32',
+    '10.0.0.0/8',
+    '172.16.0.0/12',
+    '192.168.0.0/16',
+    '169.254.0.0/16',
+    '100.64.0.0/10',
+  ];
+
   $isTrusted = false;
-  foreach ($trusted as $cidr) { if (__ip_in_cidr($remote, $cidr)) { $isTrusted = true; break; } }
+  foreach ($trusted as $cidr) {
+    if (__ip_in_cidr($remote, $cidr)) { $isTrusted = true; break; }
+  }
+
   $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
   if ($isTrusted && $xff) {
+    // Primer hop = cliente original
     $parts = array_map('trim', explode(',', $xff));
-    if (!empty($parts[0])) return $parts[0];
+    if (!empty($parts[0])) {
+      $first = __parse_ip_from_token($parts[0]);
+      if (filter_var($first, FILTER_VALIDATE_IP)) {
+        return $first; // usa IP real (sin puerto)
+      }
+    }
   }
-  return $remote;
+  return $remote; // fallback: IP del proxy
 }
 
 function __rl_get(string $key) {
@@ -178,9 +232,9 @@ $__skip_rl = isset($_SERVER[$RL_BYPASS_HEADER]) && hash_equals($RL_BYPASS_SECRET
 if (!$__skip_rl) {
   rate_limit_or_die(
     bucket: 'requerimiento_api',
-    windowSec: 10,   // ventana de 10 seg
-    maxHits: 8,     // 2 req/min antes de ban
-    banSec: 3600,     // ban de 1 hr
+    windowSec: 30,   // ventana de 10 seg
+    maxHits: 5,      // 2 req/min antes de ban (ajusta si quieres ser más estricto)
+    banSec: 3600,    // ban de 1 hr
     whitelist: $RL_WHITELIST
   );
 }
@@ -203,8 +257,8 @@ if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>fa
 //  - Cabeceras: X-TS, X-APP, X-SIG
 
 // (opcional) Fallback por Referer para formularios que oculten Origin
+
 $ref     = $_SERVER['HTTP_REFERER'] ?? '';
-$ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com','https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net'];
 $refererOK = false;
 if ($ref) {
   foreach ($ALLOWED as $base) {
