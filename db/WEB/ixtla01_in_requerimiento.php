@@ -21,7 +21,7 @@ if ($originOK) {
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   if ($originOK) {
     header('Access-Control-Allow-Methods: POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-RL-BSS');
+    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-RL-BSS, X-TS, X-APP, X-SIG');
     header('Access-Control-Max-Age: 86400');
   }
   http_response_code(204);
@@ -195,6 +195,51 @@ if (stripos($ct, 'application/json') === false) {
 $raw = file_get_contents("php://input", false, null, 0, 64*1024 + 1);
 if ($raw === false || strlen($raw) === 0) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Body vacío"])); }
 if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>false,"error"=>"Payload demasiado grande"])); }
+
+// === Firma HMAC para clients no-navegador ===
+// Reglas:
+//  - Si la petición NO trae ORIGIN permitido, requiere firma.
+//  - Firma = base64( HMAC-SHA256( "<timestamp>.<raw_body>", SECRET ) )
+//  - Cabeceras: X-TS, X-APP, X-SIG
+
+// (opcional) Fallback por Referer para formularios que oculten Origin
+$ref     = $_SERVER['HTTP_REFERER'] ?? '';
+$ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
+$refererOK = false;
+if ($ref) {
+  foreach ($ALLOWED as $base) {
+    if (stripos($ref, $base . '/') === 0) { $refererOK = true; break; }
+  }
+}
+
+$ts  = $_SERVER['HTTP_X_TS']  ?? '';
+$app = $_SERVER['HTTP_X_APP'] ?? '';  // ej. "webpublic"
+$sig = $_SERVER['HTTP_X_SIG'] ?? '';
+
+// Obtén el secreto del entorno (configura en App Service: API_SECRET_webpublic, etc.)
+$secret = $app ? getenv('API_SECRET_'.$app) : null;
+
+// Requiere firma solo si NO hay Origin/Referer permitido (bots server-to-server)
+$requiresSig = !($originOK || $refererOK);
+
+if ($requiresSig) {
+  if (!$ts || !$sig || !$secret) {
+    http_response_code(403);
+    die(json_encode(['ok'=>false,'error'=>'Falta firma (X-TS/X-APP/X-SIG)']));
+  }
+  if (!ctype_digit($ts) || abs(time() - (int)$ts) > 300) {
+    http_response_code(403);
+    die(json_encode(['ok'=>false,'error'=>'Timestamp inválido/expirado']));
+  }
+  $base = $ts.'.'.$raw;
+  $calc = base64_encode(hash_hmac('sha256', $base, $secret, true));
+  if (!hash_equals($calc, $sig)) {
+    http_response_code(403);
+    die(json_encode(['ok'=>false,'error'=>'Firma inválida']));
+  }
+}
+
+// ===========================================
 
 $in = json_decode($raw, true) ?? [];
 
