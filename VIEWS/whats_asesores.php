@@ -8,58 +8,38 @@
     :root { --bg:#0b1220; --panel:#121a2b; --muted:#808aa5; --text:#e9eefc; --accent:#8ab4ff; --danger:#ff6b6b; }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif}
-    .app{display:grid;grid-template-columns:420px 1fr;height:100vh;min-height:0;} /* ★ min-height:0 */
+    .app{display:grid;grid-template-columns:420px 1fr;height:100vh;min-height:0;}
 
     /* ==== Sidebar (lista de conversaciones) ==== */
-    .sidebar{
-      border-right:1px solid #1e2a45;background:var(--panel);
-      display:flex;flex-direction:column;min-height:0; /* ★ min-height:0 permite scroll interno */
-    }
-    .side-head{
-      padding:14px;border-bottom:1px solid #1e2a45;display:flex;gap:8px;
-      position:sticky;top:0;background:var(--panel);z-index:2; /* ★ fijo arriba */
-    }
+    .sidebar{border-right:1px solid #1e2a45;background:var(--panel);display:flex;flex-direction:column;min-height:0;}
+    .side-head{padding:14px;border-bottom:1px solid #1e2a45;display:flex;gap:8px;position:sticky;top:0;background:var(--panel);z-index:2;}
     .side-head input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #263657;background:#0d1526;color:var(--text)}
-    .tabs{
-      display:flex;gap:6px;padding:10px;border-bottom:1px solid #1e2a45;
-      position:sticky;top:58px;background:var(--panel);z-index:2; /* ★ fijo bajo la barra de búsqueda */
-    }
+    .tabs{display:flex;gap:6px;padding:10px;border-bottom:1px solid #1e2a45;position:sticky;top:58px;background:var(--panel);z-index:2;}
     .tab{padding:6px 10px;border-radius:20px;cursor:pointer;color:var(--muted);border:1px solid #263657}
     .tab.active{color:var(--text);border-color:#35507a;background:#0f1a31}
-    .conv-list{flex:1;min-height:0;overflow:auto;padding:8px} /* ★ scroll independiente */
+    .conv-list{flex:1;min-height:0;overflow:auto;padding:8px}
     .conv{padding:10px;border:1px solid #223357;margin:8px 0;border-radius:12px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:6px;background:#0e172b}
     .conv:hover{border-color:#35507a}
-    .conv .title{font-weight:600}
+    .conv .title{font-weight:600;display:flex;align-items:center;gap:6px}
     .conv .meta{color:var(--muted);font-size:12px}
+    .pill{font-size:11px;padding:3px 8px;border:1px solid #2a3d63;border-radius:999px;color:#b3c1e4}
 
     /* ==== Main (mensajes) ==== */
-    .main{display:grid;grid-template-rows:auto 1fr auto;min-height:0;} /* ★ min-height:0 */
-    .header{
-      padding:14px;border-bottom:1px solid #1e2a45;background:var(--panel);
-      display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:3; /* opcional fijo arriba */
-    }
+    .main{display:grid;grid-template-rows:auto 1fr auto;min-height:0;}
+    .header{padding:14px;border-bottom:1px solid #1e2a45;background:var(--panel);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:3;}
     .header .title{font-weight:700}
     .header .sub{color:var(--muted);font-size:12px}
 
     /* panel SCROLL de mensajes */
-    .messages{
-      min-height:0;overflow:auto; /* ★ clave para que scrollee */
-      padding:16px;display:flex;flex-direction:column;gap:10px;
-      scroll-behavior:smooth;overscroll-behavior:contain; /* ★ suavidad */
-    }
+    .messages{min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;overscroll-behavior:contain;}
     .bubble{max-width:70%;padding:10px 12px;border-radius:14px;border:1px solid #223357;background:#0f1930}
     .in{align-self:flex-start;border-top-left-radius:4px}
     .out{align-self:flex-end;border-top-right-radius:4px;background:#0d2244;border-color:#2c4b84}
     .bubble .time{color:var(--muted);font-size:11px;margin-top:6px}
 
     /* composer pegado abajo */
-    .composer{
-      display:flex;gap:8px;padding:12px;border-top:1px solid #1e2a45;background:var(--panel);
-      position:sticky;bottom:0;z-index:5; /* ★ fijo abajo */
-    }
-    .composer textarea{
-      flex:1;min-height:44px;max-height:120px;padding:10px;border-radius:10px;border:1px solid #263657;background:#0d1526;color:var(--text);resize:vertical
-    }
+    .composer{display:flex;gap:8px;padding:12px;border-top:1px solid #1e2a45;background:var(--panel);position:sticky;bottom:0;z-index:5;}
+    .composer textarea{flex:1;min-height:44px;max-height:120px;padding:10px;border-radius:10px;border:1px solid #263657;background:#0d1526;color:var(--text);resize:vertical}
     .btn{border:none;border-radius:10px;padding:10px 14px;background:#1a2b4d;color:#cfe2ff;cursor:pointer}
     .btn:hover{background:#223a6b}
     .btn.secondary{background:#20314f;color:#b9c8e6}
@@ -68,7 +48,6 @@
     .empty{color:var(--muted);text-align:center;margin-top:20vh}
     .toast{position:fixed;right:16px;bottom:16px;background:#0c1a35;color:#dfe8ff;border:1px solid #26467d;border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:none}
     .row{display:flex;gap:8px;align-items:center}
-    .pill{font-size:11px;padding:3px 8px;border:1px solid #2a3d63;border-radius:999px;color:#b3c1e4}
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5)}
     .card{background:#0d1526;border:1px solid #223357;border-radius:12px;padding:16px;min-width:320px;max-width:96vw}
     .card h3{margin:0 0 8px 0}
@@ -154,7 +133,7 @@
     page: 1,
     pageSize: 30,
     conversations: [],
-    current: null, // { id, contact_name, wa_phone, last_incoming_at, ... }
+    current: null, // { id, contact_name, wa_phone, last_incoming_at, last_outgoing_at, ... }
     messages: [],
     poll: null
   };
@@ -191,9 +170,13 @@
     const box = qs('#convList'); box.innerHTML='';
     if (!state.conversations.length){ box.innerHTML = '<div class="empty" style="padding:12px">Sin resultados</div>'; return; }
     state.conversations.forEach(c=>{
+      const hasUnread = c.last_incoming_at && (!c.last_outgoing_at || c.last_incoming_at > c.last_outgoing_at);
       const el=document.createElement('div'); el.className='conv'; el.dataset.id=c.id;
       el.innerHTML = `
-        <div class="title">${c.contact_name||c.wa_phone||'Sin nombre'}</div>
+        <div class="title">
+          ${c.contact_name||c.wa_phone||'Sin nombre'}
+          ${hasUnread?'<span class="pill">nuevo</span>':''}
+        </div>
         <div class="meta">${c.wa_phone||''}</div>
         <div class="meta">Último in: ${fmtDate(c.last_incoming_at)}</div>
         <div class="meta">Estado: ${c.status}</div>
@@ -204,7 +187,8 @@
   }
 
   async function selectConversation(c){
-    state.current = c; qs('#hdrTitle').textContent = c.contact_name || c.wa_phone || ('ID '+c.id);
+    state.current = c;
+    qs('#hdrTitle').textContent = c.contact_name || c.wa_phone || ('ID '+c.id);
     qs('#hdrSub').textContent = (c.wa_phone||'') + ' · conv #' + c.id;
     const open = within24h(c.last_incoming_at);
     qs('#pillWindow').textContent = 'Ventana 24h: ' + (open?'activa':'cerrada');
@@ -212,7 +196,7 @@
     qs('#btnSend').disabled = !open;
     qs('#btnReopen').disabled = false;
     await loadMessages(c.id);
-    startPolling();
+    startMsgPolling();
   }
 
   async function loadMessages(convId){
@@ -237,7 +221,7 @@
       `;
       box.appendChild(li);
     });
-    scrollToBottom(); /* ★ en lugar de forzar siempre */
+    scrollToBottom(); // autoscroll inteligente
     // Habilitar mark read si hay último entrante
     const lastIn = [...state.messages].reverse().find(m=>m.direction==='in');
     qs('#btnMarkRead').disabled = !lastIn;
@@ -253,37 +237,26 @@
     if (!state.current) return; const txt = qs('#composer').value.trim(); if (!txt) return;
     qs('#btnSend').disabled = true;
     try{
-      const r = await fetch(ENDPOINTS.sendText,{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({conversation_id: state.current.id, text: txt})
-      });
+      const r = await fetch(ENDPOINTS.sendText,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id: state.current.id, text: txt})});
       if (r.status===409){ await r.json(); openTplModal(); return; }
       const j = await r.json();
       if (!j.ok) throw new Error(j.error||'Fallo al enviar');
-      qs('#composer').value='';
-      toast('Enviado');
-      scrollToBottom(true); /* ★ baja siempre tras enviar */
+      qs('#composer').value=''; toast('Enviado');
+      scrollToBottom(true); // baja siempre tras enviar
       await loadMessages(state.current.id);
     }catch(e){ toast('Error: '+e.message); }
     finally{ qs('#btnSend').disabled = false; }
   }
 
   // === Reabrir con plantilla ===
-  function openTplModal(){
-    const m = qs('#tplModal'); m.style.display='flex';
-    qs('#paramWrap').innerHTML=''; addParam();
-    qs('#tplName').focus();
-  }
+  function openTplModal(){ const m = qs('#tplModal'); m.style.display='flex'; qs('#paramWrap').innerHTML=''; addParam(); qs('#tplName').focus(); }
   function closeTplModal(){ qs('#tplModal').style.display='none'; }
   function addParam(){ const input=document.createElement('input'); input.placeholder='{{n}}'; qs('#paramWrap').appendChild(input); }
   async function sendTpl(){
     if (!state.current) return; const name = qs('#tplName').value.trim()||'req_01';
     const params = Array.from(qs('#paramWrap').querySelectorAll('input')).map(i=>i.value).filter(Boolean);
     try{
-      const r = await fetch(ENDPOINTS.reopen,{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({conversation_id: state.current.id, template: name, params})
-      });
+      const r = await fetch(ENDPOINTS.reopen,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id: state.current.id, template: name, params})});
       const j = await r.json(); if(!j.ok) throw new Error(j.error||'Fallo plantilla');
       toast('Plantilla enviada'); closeTplModal();
       state.current.last_incoming_at = new Date().toISOString().slice(0,19).replace('T',' ');
@@ -301,9 +274,35 @@
     }catch(e){ toast('Error: '+e.message); }
   }
 
-  // === Polling ===
-  function startPolling(){ stopPolling(); state.poll = setInterval(()=>{ if(state.current) loadMessages(state.current.id); }, 8000); }
-  function stopPolling(){ if(state.poll){ clearInterval(state.poll); state.poll=null; } }
+  // === Polling de mensajes (hilo abierto) ===
+  let msgPoll=null;
+  function startMsgPolling(){ stopMsgPolling(); msgPoll=setInterval(()=>{ if(state.current) loadMessages(state.current.id); }, 8000); }
+  function stopMsgPolling(){ if(msgPoll){ clearInterval(msgPoll); msgPoll=null; } }
+
+  // === Polling de conversaciones (lista izquierda) ===
+  let convPoll=null;
+  function startConvPolling(){
+    stopConvPolling();
+    convPoll = setInterval(async ()=>{
+      const prevId = state.current?.id;
+      const list = document.querySelector('#convList');
+      const prevScroll = list ? list.scrollTop : 0;
+      await loadConversations();
+      // re-selecciona si sigue existiendo y refresca cabecera
+      if (prevId){
+        const found = state.conversations.find(c=>c.id===prevId);
+        if (found){
+          state.current = {...found};
+          const open = within24h(found.last_incoming_at);
+          qs('#hdrTitle').textContent = found.contact_name || found.wa_phone || ('ID '+found.id);
+          qs('#hdrSub').textContent = (found.wa_phone||'') + ' · conv #' + found.id;
+          qs('#pillWindow').textContent = 'Ventana 24h: ' + (open?'activa':'cerrada');
+        }
+      }
+      if (list) list.scrollTop = prevScroll;
+    }, 10000); // 10s
+  }
+  function stopConvPolling(){ if(convPoll){ clearInterval(convPoll); convPoll=null; } }
 
   // === Eventos UI ===
   qsa('.tab').forEach(t=> t.onclick = ()=>{
@@ -321,17 +320,16 @@
   function debounce(fn,ms){ let h; return (...a)=>{ clearTimeout(h); h=setTimeout(()=>fn(...a),ms); } }
 
   // Init
-  loadConversations();
+  loadConversations().then(startConvPolling);
   </script>
 
   <script type="module">
   import { guardPage } from "/JS/auth/guard.js";
   guardPage({
-    allowEmpIds: [6, 5, 4, 2],     
+    allowEmpIds: [6, 5, 4, 2],
     stealth: false,
     redirectTo: "/VIEWS/home.php"
   });
   </script>
-
 </body>
 </html>
