@@ -74,8 +74,165 @@
 
 
 
-    <main>
-        
+    <main class="home-samapa">
+        <div class="hs-wrap">
+            <!-- SIDEBAR -->
+            <aside class="hs-sidebar">
+                <!-- Perfil -->
+                <section class="hs-profile" aria-label="Perfil">
+                    <img class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
+                    <!-- <a class="link" href="#perfil" aria-label="Administrar perfil">Administrar perfil ›</a> -->
+                    <h3 class="name">Juan Pablo Garcia Casillas</h3>
+                    <span class="badge">SAMAPA</span>
+                </section>
+
+                <!-- Estados -->
+                <nav class="hs-states" aria-label="Estados">
+                    <button class="item is-active">
+                        <span class="label">Todos</span><span class="count">(50)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">Pendientes</span><span class="count">(10)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">En proceso</span><span class="count">(10)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">Terminados</span><span class="count">(20)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">Cancelados</span><span class="count">(5)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">Pausados</span><span class="count">(5)</span>
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- MAIN -->
+            <section class="hs-main">
+                <!-- FILA DE GRÁFICOS -->
+                <div class="hs-charts">
+                    <section class="hs-card" aria-labelledby="y-title">
+                        <div class="hs-chart-wrap">
+                            <canvas id="chart-year" width="600" height="240" aria-hidden="true"></canvas>
+                            <div class="hs-chart-skeleton" aria-hidden="true"></div>
+                        </div>
+                    </section>
+
+                    <section class="hs-card" aria-labelledby="m-title">
+                        <div class="hs-chart-wrap">
+                            <canvas id="chart-month" width="380" height="240" aria-hidden="true"></canvas>
+                            <div class="hs-chart-skeleton" aria-hidden="true"></div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- TABLA -->
+                <section class="hs-table">
+                    <div class="hs-head">
+                        <h3 style="margin:0;">Trámites</h3>
+                        <div class="hs-tools">
+                            <div class="search" role="search">
+                                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path fill="currentColor" d="M10 4a6 6 0 0 1 4.472 9.931l4.298 4.297l-1.414 1.415l-4.297-4.298A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8" />
+                                </svg>
+                                <input id="hs-search" type="search" placeholder="Buscar por nombre o status…" aria-label="Buscar">
+                            </div>
+                            <div class="legend">
+                                <span>Requerimientos: <strong>50</strong></span>
+                                <span style="margin:0 .4rem;">·</span>
+                                <span>Status: <strong>Todos los status</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-wrap">
+                        <table class="gc" aria-describedby="hs-search">
+                            <thead>
+                                <tr>
+                                    <th>Trámites</th>
+                                    <th>Asignado</th>
+                                    <th>Fecha de solicitado</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Filas de ejemplo (placeholder) -->
+                                <tr>
+                                    <td>Fuga de agua</td>
+                                    <td>Juan Pablo Casillas</td>
+                                    <td>02/09/2025</td>
+                                    <td><span class="hs-status" data-k="en-proceso">Solicitud</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Fuga de agua</td>
+                                    <td>Juan Pablo Casillas</td>
+                                    <td>02/09/2025</td>
+                                    <td><span class="hs-status" data-k="en-proceso">En proceso</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Fuga de agua</td>
+                                    <td>Juan Pablo Casillas</td>
+                                    <td>02/09/2025</td>
+                                    <td><span class="hs-status" data-k="en-proceso">En pausa</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Fuga de drenaje</td>
+                                    <td>Juan Pablo Casillas</td>
+                                    <td>02/09/2025</td>
+                                    <td><span class="hs-status" data-k="pendiente">Pendiente</span></td>
+                                </tr>
+                                <tr>
+                                    <td>No disponemos de agua</td>
+                                    <td>Juan Pablo Casillas</td>
+                                    <td>02/09/2025</td>
+                                    <td><span class="hs-status" data-k="pausado">Pausado</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Baja presión de agua</td>
+                                    <td>Juan Pablo Casillas</td>
+                                    <td>02/09/2025</td>
+                                    <td><span class="hs-status" data-k="terminado">Terminado</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <nav class="hs-pager" aria-label="Paginación (demo – 12 páginas)">
+                        <span class="pg-info">151–175 de 300</span>
+
+                        <div class="pg-group">
+                            <button class="pg-btn" aria-label="Primera página">«</button>
+                            <button class="pg-btn" aria-label="Página anterior">‹</button>
+                        </div>
+
+                        <div class="pg-group">
+                            <button class="pg-num" aria-label="Página 1">1</button>
+                            <span class="pg-dots" aria-hidden="true">…</span>
+                            <button class="pg-num" aria-label="Página 5">5</button>
+                            <button class="pg-num" aria-label="Página 6">6</button>
+                            <button class="pg-num" aria-label="Página 7" aria-current="page">7</button>
+                            <button class="pg-num" aria-label="Página 8">8</button>
+                            <button class="pg-num" aria-label="Página 9">9</button>
+                            <span class="pg-dots" aria-hidden="true">…</span>
+                            <button class="pg-num" aria-label="Página 12">12</button>
+                        </div>
+
+                        <div class="pg-group">
+                            <button class="pg-btn" aria-label="Página siguiente">›</button>
+                            <button class="pg-btn" aria-label="Última página">»</button>
+                        </div>
+
+                        <div class="pg-jump">
+                            <span>Ir a:</span>
+                            <input type="number" value="7" min="1" max="12">
+                            <button class="pg-btn">Ir</button>
+                        </div>
+                    </nav>
+                </section>
+            </section>
+        </div>
+
     </main>
 
 
