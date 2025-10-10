@@ -17,8 +17,8 @@
       --accent-600:#1f5bff;
       --accent-50:#edf2ff;    /* azul muy claro para hover */
       --danger:#e11d48;
-      --bubble-in:#ffffff;    /* gris para mensajes entrantes */
-      --bubble-out:#2b6fff;   /* azul para salientes */
+      --bubble-in:#ffffff;    /* ⬅️ ENTRANTES: blanco */
+      --bubble-out:#2b6fff;   /* ⬅️ SALIENTES: azul */
       --bubble-out-text:#ffffff;
     }
 
@@ -87,10 +87,10 @@
       max-width:70%;padding:10px 12px;border-radius:14px;border:1px solid var(--border);
       background:#fff;color:var(--text);
     }
-    /* Entrante (ciudadano) gris */
+    /* Entrante (ciudadano) blanca */
     .in{
       align-self:flex-start;border-top-left-radius:4px;background:var(--bubble-in);
-      border-color:#e9ecf2;color:var(--text);
+      border-color:var(--border);color:var(--text);
     }
     /* Saliente (asesor) azul */
     .out{
@@ -143,12 +143,14 @@
       <div class="side-head">
         <input id="search" placeholder="Buscar nombre o teléfono…"/>
       </div>
+
+      <!-- Solo 3 pestañas -->
       <div class="tabs">
         <div class="tab active" data-status="open">Abiertas</div>
-        <div class="tab" data-status="pending">Pendientes</div>
         <div class="tab" data-status="closed">Cerradas</div>
         <div class="tab" data-status="all">Todas</div>
       </div>
+
       <div id="convList" class="conv-list"></div>
     </aside>
 
@@ -196,7 +198,7 @@
   <div class="toast" id="toast"></div>
 
   <script>
-  /* --- JS igual al tuyo; no requiere cambios para el tema --- */
+  /* ==================== CONFIG ==================== */
   const API_BASE = 'https://ixtla-app.com/db/WEB';
   const ENDPOINTS = {
     conversations: API_BASE + '/z_conversations.php',
@@ -206,29 +208,58 @@
     markRead:      API_BASE + '/z_mark_read.php'
   };
 
-  let state = { status:'open', page:1, pageSize:30, conversations:[], current:null, messages:[], poll:null };
+  /* ==================== STATE & UTILS ==================== */
+  let state = {
+    status: 'open',
+    page: 1,
+    pageSize: 30,
+    conversations: [],
+    current: null, // { id, contact_name, wa_phone, last_incoming_at, last_outgoing_at, status }
+    messages: []
+  };
+
   const qs = s => document.querySelector(s);
   const qsa = s => Array.from(document.querySelectorAll(s));
   function toast(msg, ms=2500){ const t=qs('#toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>{t.style.display='none'}, ms); }
   function fmtDate(s){ if(!s) return '—'; const d=new Date(s.replace(' ','T')+'Z'); return d.toLocaleString(); }
-  function within24h(lastIncoming){ if(!lastIncoming) return false; const t = new Date(lastIncoming.replace(' ','T')+'Z'); return (Date.now()-t.getTime()) <= 24*3600*1000; }
+  function within24h(lastIncoming){ if(!lastIncoming) return false; const t=new Date(lastIncoming.replace(' ','T')+'Z'); return (Date.now()-t.getTime()) <= 24*3600*1000; }
+  function isClosed(c){ return (c.status && c.status==='closed') || !within24h(c.last_incoming_at); }
   function scrollToBottom(force=false){ const box=qs('#messages'); const near=(box.scrollTop+box.clientHeight)>=(box.scrollHeight-80); if(force||near) box.scrollTop=box.scrollHeight; }
+  function debounce(fn,ms){ let h; return (...a)=>{ clearTimeout(h); h=setTimeout(()=>fn(...a),ms); } }
 
+  /* ==================== LOAD CONVERSATIONS ==================== */
   async function loadConversations(){
     const search = qs('#search').value.trim();
     const url = new URL(ENDPOINTS.conversations);
-    url.searchParams.set('status', state.status);
+
+    // 🔁 Siempre pedimos TODAS, filtramos en front para que 'Cerradas' funcione
+    url.searchParams.set('status', 'all');
     url.searchParams.set('page', state.page);
     url.searchParams.set('page_size', state.pageSize);
     if (search) url.searchParams.set('search', search);
-    const r = await fetch(url); const j = await r.json();
-    state.conversations = j.data||[]; renderConversations();
+
+    const r = await fetch(url);
+    const j = await r.json();
+    state.conversations = j.data || [];
+    renderConversations();
   }
 
   function renderConversations(){
     const box = qs('#convList'); box.innerHTML='';
-    if (!state.conversations.length){ box.innerHTML='<div class="empty" style="padding:12px">Sin resultados</div>'; return; }
-    state.conversations.forEach(c=>{
+    // Filtro por pestaña
+    let list = state.conversations;
+    if (state.status === 'open') {
+      list = list.filter(c => within24h(c.last_incoming_at) && c.status !== 'closed');
+    } else if (state.status === 'closed') {
+      list = list.filter(isClosed);
+    }
+
+    if (!list.length){
+      box.innerHTML = '<div class="empty" style="padding:12px">Sin resultados</div>';
+      return;
+    }
+
+    list.forEach(c=>{
       const hasUnread = c.last_incoming_at && (!c.last_outgoing_at || c.last_incoming_at > c.last_outgoing_at);
       const el=document.createElement('div'); el.className='conv'; el.dataset.id=c.id;
       el.innerHTML = `
@@ -238,124 +269,158 @@
         </div>
         <div class="meta">${c.wa_phone||''}</div>
         <div class="meta">Último in: ${fmtDate(c.last_incoming_at)}</div>
-        <div class="meta">Estado: ${c.status}</div>`;
+        <div class="meta">Estado: ${c.status}</div>
+      `;
       el.onclick=()=>selectConversation(c);
       box.appendChild(el);
     });
   }
 
+  /* ==================== MESSAGES ==================== */
   async function selectConversation(c){
-    state.current=c;
-    qs('#hdrTitle').textContent = c.contact_name||c.wa_phone||('ID '+c.id);
+    state.current = c;
+    qs('#hdrTitle').textContent = c.contact_name || c.wa_phone || ('ID '+c.id);
     qs('#hdrSub').textContent   = (c.wa_phone||'') + ' · conv #' + c.id;
+
     const open = within24h(c.last_incoming_at);
-    qs('#pillWindow').textContent = 'Ventana 24h: ' + (open?'activa':'cerrada');
-    qs('#composer').disabled = !open; qs('#btnSend').disabled = !open; qs('#btnReopen').disabled=false;
-    await loadMessages(c.id); startMsgPolling();
+    qs('#pillWindow').textContent = 'Ventana 24h: ' + (open ? 'activa' : 'cerrada');
+    qs('#composer').disabled = !open;
+    qs('#btnSend').disabled = !open;
+    qs('#btnReopen').disabled = false;
+
+    await loadMessages(c.id);
+    startMsgPolling();
   }
 
-  async function loadMessages(id){
+  async function loadMessages(convId){
     const url = new URL(ENDPOINTS.messages);
-    url.searchParams.set('conversation_id', id);
+    url.searchParams.set('conversation_id', convId);
     url.searchParams.set('page', 1);
     url.searchParams.set('page_size', 200);
-    const r = await fetch(url); const j = await r.json();
-    state.messages = j.data||[]; renderMessages();
+    const r = await fetch(url);
+    const j = await r.json();
+    state.messages = j.data||[];
+    renderMessages();
   }
 
   function renderMessages(){
-    const box=qs('#messages'); box.innerHTML='';
-    if(!state.messages.length){ box.innerHTML='<div class="empty">No hay mensajes en este hilo.</div>'; return; }
+    const box = qs('#messages'); box.innerHTML='';
+    if (!state.messages.length){ box.innerHTML = '<div class="empty">No hay mensajes en este hilo.</div>'; return; }
+
     state.messages.forEach(m=>{
-      const li=document.createElement('div'); li.className='bubble ' + (m.direction==='out'?'out':'in');
-      li.innerHTML = `<div>${escapeHtml(m.text||'')}</div><div class="time">${m.msg_type} · ${fmtDate(m.created_at)}</div>`;
+      const li=document.createElement('div'); li.className = 'bubble ' + (m.direction==='out'?'out':'in');
+      li.innerHTML = `
+        <div>${escapeHtml(m.text||'')}</div>
+        <div class="time">${m.msg_type} · ${fmtDate(m.created_at)}</div>
+      `;
       box.appendChild(li);
     });
     scrollToBottom();
-    const lastIn=[...state.messages].reverse().find(m=>m.direction==='in');
-    qs('#btnMarkRead').disabled=!lastIn;
+
+    const lastIn = [...state.messages].reverse().find(m=>m.direction==='in');
+    qs('#btnMarkRead').disabled = !lastIn;
     qs('#btnMarkRead').dataset.wamid = lastIn ? lastIn.wa_message_id : '';
   }
 
   function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
 
+  /* ==================== ACTIONS ==================== */
   async function sendText(){
-    if(!state.current) return;
-    const txt=qs('#composer').value.trim(); if(!txt) return;
-    qs('#btnSend').disabled=true;
+    if (!state.current) return;
+    const txt = qs('#composer').value.trim(); if (!txt) return;
+    qs('#btnSend').disabled = true;
     try{
-      const r=await fetch(ENDPOINTS.sendText,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id:state.current.id,text:txt})});
-      if(r.status===409){ await r.json(); openTplModal(); return; }
-      const j=await r.json(); if(!j.ok) throw new Error(j.error||'Fallo al enviar');
-      qs('#composer').value=''; toast('Enviado'); scrollToBottom(true); await loadMessages(state.current.id);
+      const r = await fetch(ENDPOINTS.sendText,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({conversation_id: state.current.id, text: txt})
+      });
+      if (r.status===409){ await r.json(); openTplModal(); return; }
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error||'Fallo al enviar');
+      qs('#composer').value=''; toast('Enviado'); scrollToBottom(true);
+      await loadMessages(state.current.id);
     }catch(e){ toast('Error: '+e.message); }
-    finally{ qs('#btnSend').disabled=false; }
+    finally{ qs('#btnSend').disabled = false; }
+  }
+
+  async function markRead(){
+    const id = qs('#btnMarkRead').dataset.wamid; if(!id) return;
+    try{
+      const r = await fetch(ENDPOINTS.markRead,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wa_message_id:id})});
+      const j=await r.json(); if(!j.ok) throw new Error('No se pudo marcar');
+      toast('Marcado como leído');
+    }catch(e){ toast('Error: '+e.message); }
   }
 
   function openTplModal(){ const m=qs('#tplModal'); m.style.display='flex'; qs('#paramWrap').innerHTML=''; addParam(); qs('#tplName').focus(); }
   function closeTplModal(){ qs('#tplModal').style.display='none'; }
   function addParam(){ const input=document.createElement('input'); input.placeholder='{{n}}'; qs('#paramWrap').appendChild(input); }
   async function sendTpl(){
-    if(!state.current) return;
-    const name=qs('#tplName').value.trim()||'req_01';
-    const params=Array.from(qs('#paramWrap').querySelectorAll('input')).map(i=>i.value).filter(Boolean);
+    if (!state.current) return;
+    const name = qs('#tplName').value.trim()||'req_01';
+    const params = Array.from(qs('#paramWrap').querySelectorAll('input')).map(i=>i.value).filter(Boolean);
     try{
-      const r=await fetch(ENDPOINTS.reopen,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id:state.current.id,template:name,params})});
-      const j=await r.json(); if(!j.ok) throw new Error(j.error||'Fallo plantilla');
+      const r = await fetch(ENDPOINTS.reopen,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id: state.current.id, template: name, params})});
+      const j = await r.json(); if(!j.ok) throw new Error(j.error||'Fallo plantilla');
       toast('Plantilla enviada'); closeTplModal();
-      state.current.last_incoming_at=new Date().toISOString().slice(0,19).replace('T',' ');
-      qs('#composer').disabled=false; qs('#btnSend').disabled=false; qs('#pillWindow').textContent='Ventana 24h: activa';
+
+      // Simula reactivación de ventana en UI
+      state.current.last_incoming_at = new Date().toISOString().slice(0,19).replace('T',' ');
+      qs('#composer').disabled=false; qs('#btnSend').disabled=false;
+      qs('#pillWindow').textContent='Ventana 24h: activa';
     }catch(e){ toast('Error: '+e.message); }
   }
 
-  async function markRead(){
-    const id=qs('#btnMarkRead').dataset.wamid; if(!id) return;
-    try{
-      const r=await fetch(ENDPOINTS.markRead,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wa_message_id:id})});
-      const j=await r.json(); if(!j.ok) throw new Error('No se pudo marcar'); toast('Marcado como leído');
-    }catch(e){ toast('Error: '+e.message); }
-  }
+  /* ==================== POLLING ==================== */
+  let msgPoll=null, convPoll=null;
 
-  let msgPoll=null;
-  function startMsgPolling(){ stopMsgPolling(); msgPoll=setInterval(()=>{ if(state.current) loadMessages(state.current.id); },8000); }
+  function startMsgPolling(){ stopMsgPolling(); msgPoll=setInterval(()=>{ if(state.current) loadMessages(state.current.id); }, 8000); }
   function stopMsgPolling(){ if(msgPoll){ clearInterval(msgPoll); msgPoll=null; } }
 
-  let convPoll=null;
   function startConvPolling(){
     stopConvPolling();
-    convPoll=setInterval(async ()=>{
-      const prevId=state.current?.id;
-      const list=document.querySelector('#convList'); const prevScroll=list?list.scrollTop:0;
+    convPoll = setInterval(async ()=>{
+      const prevId = state.current?.id;
+      const list = document.querySelector('#convList');
+      const prevScroll = list ? list.scrollTop : 0;
       await loadConversations();
-      if(prevId){
-        const found=state.conversations.find(c=>c.id===prevId);
-        if(found){
-          state.current={...found};
-          const open=within24h(found.last_incoming_at);
-          qs('#hdrTitle').textContent=found.contact_name||found.wa_phone||('ID '+found.id);
-          qs('#hdrSub').textContent=(found.wa_phone||'')+' · conv #'+found.id;
-          qs('#pillWindow').textContent='Ventana 24h: '+(open?'activa':'cerrada');
+      if (prevId){
+        const found = state.conversations.find(c=>c.id===prevId);
+        if (found){
+          state.current = {...found};
+          const open = within24h(found.last_incoming_at);
+          qs('#hdrTitle').textContent = found.contact_name || found.wa_phone || ('ID '+found.id);
+          qs('#hdrSub').textContent   = (found.wa_phone||'') + ' · conv #' + found.id;
+          qs('#pillWindow').textContent = 'Ventana 24h: ' + (open?'activa':'cerrada');
         }
       }
-      if(list) list.scrollTop=prevScroll;
-    },10000);
+      if (list) list.scrollTop = prevScroll;
+    }, 10000);
   }
   function stopConvPolling(){ if(convPoll){ clearInterval(convPoll); convPoll=null; } }
 
-  qsa('.tab').forEach(t=> t.onclick=()=>{ qsa('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); state.status=t.dataset.status; state.page=1; loadConversations(); });
-  qs('#search').addEventListener('input', debounce(()=>{ state.page=1; loadConversations(); },400));
-  qs('#btnSend').onclick=sendText;
-  qs('#btnReopen').onclick=openTplModal;
-  qs('#btnMarkRead').onclick=markRead;
-  qs('#btnAddParam').onclick=addParam;
-  qs('#btnSendTpl').onclick=sendTpl;
-  qs('#btnCloseTpl').onclick=closeTplModal;
+  /* ==================== UI EVENTS ==================== */
+  qsa('.tab').forEach(t=> t.onclick = ()=>{
+    qsa('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    state.status = t.dataset.status;
+    state.page = 1;
+    loadConversations();
+  });
 
-  function debounce(fn,ms){ let h; return (...a)=>{ clearTimeout(h); h=setTimeout(()=>fn(...a),ms); } }
+  qs('#search').addEventListener('input', debounce(()=>{ state.page=1; loadConversations(); }, 400));
+  qs('#btnSend').onclick = sendText;
+  qs('#btnReopen').onclick = openTplModal;
+  qs('#btnMarkRead').onclick = markRead;
+  qs('#btnAddParam').onclick = addParam;
+  qs('#btnSendTpl').onclick = sendTpl;
+  qs('#btnCloseTpl').onclick = closeTplModal;
 
+  /* ==================== INIT ==================== */
   loadConversations().then(startConvPolling);
   </script>
 
+  <!-- (Opcional) Guardia de acceso -->
   <script type="module">
     import { guardPage } from "/JS/auth/guard.js";
     guardPage({ allowEmpIds:[6,5,4,2], stealth:false, redirectTo:"/VIEWS/home.php" });
