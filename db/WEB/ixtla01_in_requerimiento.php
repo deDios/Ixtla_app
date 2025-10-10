@@ -7,10 +7,12 @@ api_log('start', 'ixtla01_in_requerimiento', [
 
 /* ===== CORS (poner literalmente al inicio del archivo) ===== */
 $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
-$ALLOWED = ['https://ixtla-app.com','https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net'];
+$ALLOWED = [
+  'https://ixtla-app.com',
+  'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net'
+];
 $originOK = $origin && in_array($origin, $ALLOWED, true);
 /* ------------------------------ */
-
 
 if ($originOK) {
   header("Access-Control-Allow-Origin: $origin");
@@ -29,14 +31,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 }
 
 /* ===== Bloqueo por User-Agent (denegar Python) ===== */
-
-
 $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
 $UA_DENY_PATTERNS = [
   '/\bpython-requests\b/i',
   '/\brequests\/[\d.]+\b/i',
-  '/\bpython-urllib\/[\d.]+\b/i',   
-  '/\bpython\b/i',               
+  '/\bpython-urllib\/[\d.]+\b/i',
+  '/\bpython\b/i',
 ];
 $UA_ALLOW_EXACT = [
   // 'MiBotSeguro/1.0',
@@ -60,16 +60,14 @@ if ($deny_ua) {
     'client'  => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? null),
     'reason'  => 'UA matches denylist',
   ]);
-  if ($originOK) { header("Access-Control-Allow-Origin: $origin"); } // <-- CORS en 403
+  if ($originOK) { header("Access-Control-Allow-Origin: $origin"); } // CORS en 403
   header('Content-Type: application/json');
   http_response_code(403);
   echo json_encode(['ok'=>false,'error'=>'Acceso denegado (UA)']);
   exit;
 }
 
-
 /* ------------------------------ */
-
 
 /* ===== Content-Type y tamaño ===== */
 header('Content-Type: application/json');
@@ -81,8 +79,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
   die(json_encode(["ok"=>false,"error"=>"Método no permitido"]));
 }
 
-/* ====== RATE LIMIT por IP (5/min, ban 30 min) ====== */
-/* IP helper: usa XFF solo si el remoto es proxy de confianza */
+/* ====== RATE LIMIT por IP ====== */
+/* IP helper: usa XFF solo si el remoto es proxy de confianza (Azure/privadas) */
 
 /* Nota: esta versión soporta IPv4 y hace un mejor esfuerzo con IPv6.
    Si tus clientes son mayormente IPv4, esto es suficiente para rate-limit. */
@@ -91,7 +89,6 @@ function __ip_in_cidr(string $ip, string $cidr): bool {
   [$subnet, $mask] = explode('/', $cidr) + [null, null];
   if ($mask === null) return $ip === $subnet;
   $mask = (int)$mask;
-  // Implementación IPv4; para IPv6 se requeriría lógica adicional.
   if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
     return (ip2long($ip) & ~((1 << (32 - $mask)) - 1)) === (ip2long($subnet) & ~((1 << (32 - $mask)) - 1));
   }
@@ -100,25 +97,18 @@ function __ip_in_cidr(string $ip, string $cidr): bool {
 
 function __parse_ip_from_token(string $token): string {
   $t = trim($token, " \t\n\r\0\x0B\"'");
-  // IPv6 con corchetes y puerto: [2001:db8::1]:443
-  if ($t !== '' && $t[0] === '[') {
+  if ($t !== '' && $t[0] === '[') { // [IPv6]:port
     $end = strpos($t, ']');
-    if ($end !== false) {
-      return substr($t, 1, $end - 1);
-    }
+    if ($end !== false) return substr($t, 1, $end - 1);
   }
-  // IPv4 con puerto: 1.2.3.4:5678
   if (substr_count($t, ':') === 1 && preg_match('/^\d{1,3}(\.\d{1,3}){3}:\d+$/', $t)) {
-    return explode(':', $t, 2)[0];
+    return explode(':', $t, 2)[0]; // IPv4:port
   }
-  // IPv6 sin corchetes con posible puerto al final → intenta validar tal cual, si no, corta último ':'
   if (strpos($t, ':') !== false && !filter_var($t, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
     $pos = strrpos($t, ':');
     if ($pos !== false) {
       $maybe = substr($t, 0, $pos);
-      if (filter_var($maybe, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-        return $maybe;
-      }
+      if (filter_var($maybe, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) return $maybe;
     }
   }
   return $t;
@@ -127,7 +117,7 @@ function __parse_ip_from_token(string $token): string {
 function __rl_ip(): string {
   $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 
-  // Proxies confiables (incluye Azure App Service 169.254.0.0/16 y CGNAT 100.64.0.0/10)
+  // Proxies confiables (Azure 169.254.0.0/16, redes privadas, CGNAT)
   $trusted = [
     '127.0.0.1/32',
     '10.0.0.0/8',
@@ -138,22 +128,17 @@ function __rl_ip(): string {
   ];
 
   $isTrusted = false;
-  foreach ($trusted as $cidr) {
-    if (__ip_in_cidr($remote, $cidr)) { $isTrusted = true; break; }
-  }
+  foreach ($trusted as $cidr) { if (__ip_in_cidr($remote, $cidr)) { $isTrusted = true; break; } }
 
   $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
   if ($isTrusted && $xff) {
-    // Primer hop = cliente original
     $parts = array_map('trim', explode(',', $xff));
     if (!empty($parts[0])) {
       $first = __parse_ip_from_token($parts[0]);
-      if (filter_var($first, FILTER_VALIDATE_IP)) {
-        return $first; // usa IP real (sin puerto)
-      }
+      if (filter_var($first, FILTER_VALIDATE_IP)) return $first; // IP cliente real
     }
   }
-  return $remote; // fallback: IP del proxy
+  return $remote;
 }
 
 function __rl_get(string $key) {
@@ -174,8 +159,8 @@ function __rl_set(string $key, $val, int $ttl): void {
 }
 
 function rate_limit_or_die(
-  string $bucket, int $windowSec=60, int $maxHits=5,
-  int $banSec=1800, array $whitelist=[]
+  string $bucket, int $windowSec=30, int $maxHits=5,
+  int $banSec=3600, array $whitelist=[]
 ): void {
   $ip = __rl_ip();
   if (in_array($ip,$whitelist,true)) return;
@@ -183,7 +168,6 @@ function rate_limit_or_die(
   $now=time(); $winId=intdiv($now,$windowSec); $key="rl:$bucket:$ip";
   $d=__rl_get($key) ?: ['win'=>$winId,'cnt'=>0,'ban_until'=>0];
 
-  // --- 429 por ban activo ---
   if(!empty($d['ban_until']) && $d['ban_until']>$now){
     if (!function_exists('api_log')) { @include __DIR__.'/_logger.php'; }
     api_log('429','rate_limit_exceeded', ['bucket'=>$bucket,'ip'=>$ip,'reason'=>'ban_active']);
@@ -201,7 +185,6 @@ function rate_limit_or_die(
   header('X-RateLimit-Remaining: '.max(0,$maxHits-$d['cnt']));
   header('X-RateLimit-Reset: '.(($winId+1)*$windowSec));
 
-  // --- 429 por exceder hits en la ventana ---
   if($d['cnt']>$maxHits){
     $d['ban_until']=$now+$banSec;
     __rl_set($key,$d,max($windowSec,$banSec));
@@ -216,29 +199,20 @@ function rate_limit_or_die(
   __rl_set($key,$d,max($windowSec,$banSec));
 }
 
-
 /* → Aplica límite ANTES de leer body/validar content-type */
-
-/* ① Whitelist de desarrollo (agrega tus IPs/rede(s)) */
-$RL_WHITELIST = [
-];
-
-/* ② (Opcional) Bypass con header secreto para Postman/frontend confiable */
+$RL_WHITELIST = [];
 $RL_BYPASS_HEADER = 'HTTP_X-RL-BSS';
 $RL_BYPASS_SECRET = 'r0K2z-P6iG-9vP9wP'; // cámbialo por uno fuerte
-
 $__skip_rl = isset($_SERVER[$RL_BYPASS_HEADER]) && hash_equals($RL_BYPASS_SECRET, $_SERVER[$RL_BYPASS_HEADER]);
-
 if (!$__skip_rl) {
   rate_limit_or_die(
     bucket: 'requerimiento_api',
-    windowSec: 30,   // ventana de 10 seg
-    maxHits: 5,      // 2 req/min antes de ban (ajusta si quieres ser más estricto)
+    windowSec: 30,   // ventana de 30 seg
+    maxHits: 5,      // 5 req / 30s (≈10/min)
     banSec: 3600,    // ban de 1 hr
     whitelist: $RL_WHITELIST
   );
 }
-
 
 /* Ahora sí valida Content-Type y body */
 $ct = $_SERVER['CONTENT_TYPE'] ?? '';
@@ -250,52 +224,57 @@ $raw = file_get_contents("php://input", false, null, 0, 64*1024 + 1);
 if ($raw === false || strlen($raw) === 0) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Body vacío"])); }
 if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>false,"error"=>"Payload demasiado grande"])); }
 
-// === Firma HMAC para clients no-navegador ===
-// Reglas:
-//  - Si la petición NO trae ORIGIN permitido, requiere firma.
-//  - Firma = base64( HMAC-SHA256( "<timestamp>.<raw_body>", SECRET ) )
-//  - Cabeceras: X-TS, X-APP, X-SIG
-
-// (opcional) Fallback por Referer para formularios que oculten Origin
-
-$ref     = $_SERVER['HTTP_REFERER'] ?? '';
-$refererOK = false;
+/* ===== CSRF/Origen o HMAC obligatorio =====
+   - Si viene Origin y NO está en ALLOWED → 403
+   - Si NO hay Origin/Referer permitido → exigir HMAC (X-TS/X-APP/X-SIG) */
+$ref        = $_SERVER['HTTP_REFERER'] ?? '';
+$refererOK  = false;
 if ($ref) {
   foreach ($ALLOWED as $base) {
-    if (stripos($ref, $base . '/') === 0) { $refererOK = true; break; }
+    if (stripos($ref, rtrim($base,'/').'/') === 0) { $refererOK = true; break; }
   }
 }
 
-$ts  = $_SERVER['HTTP_X_TS']  ?? '';
-$app = $_SERVER['HTTP_X_APP'] ?? '';  // ej. "webpublic"
-$sig = $_SERVER['HTTP_X_SIG'] ?? '';
+if (isset($_SERVER['HTTP_ORIGIN']) && !$originOK) {
+  http_response_code(403);
+  echo json_encode(['ok'=>false,'error'=>'Origin no permitido']);
+  exit;
+}
 
-// Obtén el secreto del entorno (configura en App Service: API_SECRET_webpublic, etc.)
-$secret = $app ? getenv('API_SECRET_'.$app) : null;
-
-// Requiere firma solo si NO hay Origin/Referer permitido (bots server-to-server)
 $requiresSig = !($originOK || $refererOK);
-
 if ($requiresSig) {
+  $ts  = $_SERVER['HTTP_X_TS']  ?? '';
+  $app = $_SERVER['HTTP_X_APP'] ?? '';   // ej. "webpublic"
+  $sig = $_SERVER['HTTP_X_SIG'] ?? '';
+
+  $secret = $app ? getenv('API_SECRET_'.$app) : null;
+
   if (!$ts || !$sig || !$secret) {
     http_response_code(403);
-    die(json_encode(['ok'=>false,'error'=>'Falta firma (X-TS/X-APP/X-SIG)']));
+    echo json_encode(['ok'=>false,'error'=>'Falta firma (X-TS/X-APP/X-SIG)']);
+    exit;
   }
   if (!ctype_digit($ts) || abs(time() - (int)$ts) > 300) {
     http_response_code(403);
-    die(json_encode(['ok'=>false,'error'=>'Timestamp inválido/expirado']));
+    echo json_encode(['ok'=>false,'error'=>'Timestamp inválido/expirado']);
+    exit;
   }
   $base = $ts.'.'.$raw;
   $calc = base64_encode(hash_hmac('sha256', $base, $secret, true));
   if (!hash_equals($calc, $sig)) {
     http_response_code(403);
-    die(json_encode(['ok'=>false,'error'=>'Firma inválida']));
+    echo json_encode(['ok'=>false,'error'=>'Firma inválida']);
+    exit;
   }
 }
 
-// ===========================================
-
-$in = json_decode($raw, true) ?? [];
+/* Decodifica JSON (mejor explícito si falla) */
+$in = json_decode($raw, true);
+if (!is_array($in)) {
+  http_response_code(400);
+  echo json_encode(['ok'=>false,'error'=>'JSON inválido']);
+  exit;
+}
 
 /* ===== Conexión ===== */
 $path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
@@ -414,7 +393,7 @@ if (!$st->execute()) {
   $err = $st->error; $code = $st->errno;
   $st->close(); $con->rollback(); $con->close();
   http_response_code(400);
-  die(json_encode(["ok"=>false, "error"=>"Error al insertar", "detail"=>$err, "code"=>$code]));
+  die(json_encode(["ok"=>false, "error"=>"Error al insertar"])); // no exponer detalle
 }
 $new_id = $st->insert_id;
 $st->close();
@@ -422,10 +401,9 @@ $st->close();
 $st = $con->prepare("UPDATE requerimiento SET folio = CONCAT('REQ-', LPAD(?,10,'0')) WHERE id=?");
 $st->bind_param("ii", $new_id, $new_id);
 if (!$st->execute()) {
-  $err = $st->error; $code = $st->errno;
   $st->close(); $con->rollback(); $con->close();
   http_response_code(500);
-  die(json_encode(["ok"=>false, "error"=>"Error al generar folio", "detail"=>$err, "code"=>$code]));
+  die(json_encode(["ok"=>false, "error"=>"Error al generar folio"]));
 }
 $st->close();
 $con->commit();
@@ -576,4 +554,4 @@ api_log('ok', 'requerimiento_creado', [
 ]);
 
 http_response_code(201);
-echo json_encode(["ok"=>true, "data"=>$res, "wa"=>$wa], JSON_UNESCAPED_UNICODE); 
+echo json_encode(["ok"=>true, "data"=>$res, "wa"=>$wa], JSON_UNESCAPED_UNICODE);
