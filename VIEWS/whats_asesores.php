@@ -7,112 +7,59 @@
   <style>
     /* ==================== THEME: LIGHT ==================== */
     :root{
-      --bg:#f6f8fb;           /* fondo app */
-      --panel:#ffffff;        /* tarjetas / barras */
-      --panel-alt:#f1f3f7;    /* secciones pegadas */
-      --border:#e5e7ef;       /* líneas y bordes */
-      --text:#1f2937;         /* texto principal (gris oscuro) */
-      --muted:#6b7280;        /* texto secundario */
-      --accent:#2b6fff;       /* azul UI */
+      --bg:#f6f8fb;
+      --panel:#ffffff;
+      --panel-alt:#f1f3f7;
+      --border:#e5e7ef;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --accent:#2b6fff;
       --accent-600:#1f5bff;
-      --accent-50:#edf2ff;    /* azul muy claro para hover */
+      --accent-50:#edf2ff;
       --danger:#e11d48;
-      --bubble-in:#ffffff;    /* ⬅️ ENTRANTES: blanco */
-      --bubble-out:#2b6fff;   /* ⬅️ SALIENTES: azul */
+      --bubble-in:#ffffff;   /* entrantes: blanco */
+      --bubble-out:#2b6fff;  /* salientes: azul */
       --bubble-out-text:#ffffff;
     }
 
     *{box-sizing:border-box}
-    body{
-      margin:0;background:var(--bg);color:var(--text);
-      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-    }
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
     .app{display:grid;grid-template-columns:420px 1fr;height:100vh;min-height:0;}
 
-    /* ==================== Sidebar (lista) ==================== */
-    .sidebar{
-      border-right:1px solid var(--border);
-      background:var(--panel);
-      display:flex;flex-direction:column;min-height:0;
-    }
-    .side-head{
-      padding:14px;border-bottom:1px solid var(--border);
-      display:flex;gap:8px;position:sticky;top:0;background:var(--panel);z-index:2;
-    }
-    .side-head input{
-      flex:1;padding:10px 12px;border-radius:10px;
-      border:1px solid var(--border);background:#fff;color:var(--text)
-    }
+    /* Sidebar */
+    .sidebar{border-right:1px solid var(--border);background:var(--panel);display:flex;flex-direction:column;min-height:0;}
+    .side-head{padding:14px;border-bottom:1px solid var(--border);display:flex;gap:8px;position:sticky;top:0;background:var(--panel);z-index:2;}
+    .side-head input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text)}
     .side-head input::placeholder{color:#a0a6b3}
 
-    .tabs{
-      display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--border);
-      position:sticky;top:58px;background:var(--panel);z-index:2;
-    }
-    .tab{
-      padding:6px 10px;border-radius:20px;cursor:pointer;
-      color:var(--muted);border:1px solid var(--border);background:#fff;
-    }
+    .tabs{display:flex;gap:6px;padding:10px;border-bottom:1px solid var(--border);position:sticky;top:58px;background:var(--panel);z-index:2;}
+    .tab{padding:6px 10px;border-radius:20px;cursor:pointer;color:var(--muted);border:1px solid var(--border);background:#fff;}
     .tab:hover{background:var(--accent-50);border-color:#cdd8ff;color:#3653a5}
     .tab.active{color:#0f172a;border-color:#cdd8ff;background:var(--accent-50)}
 
     .conv-list{flex:1;min-height:0;overflow:auto;padding:8px;background:var(--panel)}
-    .conv{
-      padding:10px;border:1px solid var(--border);margin:8px 0;border-radius:12px;
-      cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:6px;background:#fff;
-      transition:border-color .15s, box-shadow .15s, background .15s;
-    }
+    .conv{padding:10px;border:1px solid var(--border);margin:8px 0;border-radius:12px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:6px;background:#fff;transition:border-color .15s, box-shadow .15s, background .15s;}
     .conv:hover{border-color:#cdd8ff;background:#fff;box-shadow:0 1px 0 rgba(20,28,55,.04)}
     .conv .title{font-weight:600;display:flex;align-items:center;gap:6px}
     .conv .meta{color:var(--muted);font-size:12px}
-    .pill{
-      font-size:11px;padding:3px 8px;border:1px solid #d7defa;border-radius:999px;
-      color:#3b5bcc;background:#eef2ff
-    }
+    .pill{font-size:11px;padding:3px 8px;border:1px solid #d7defa;border-radius:999px;color:#3b5bcc;background:#eef2ff}
 
-    /* ==================== Main (mensajes) ==================== */
+    /* Main */
     .main{display:grid;grid-template-rows:auto 1fr auto;min-height:0;background:var(--panel-alt)}
-    .header{
-      padding:14px;border-bottom:1px solid var(--border);background:var(--panel);
-      display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:3;
-    }
+    .header{padding:14px;border-bottom:1px solid var(--border);background:var(--panel);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:3;}
     .header .title{font-weight:700}
     .header .sub{color:var(--muted);font-size:12px}
 
-    .messages{
-      min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;
-      scroll-behavior:smooth;overscroll-behavior:contain;
-    }
-    .bubble{
-      max-width:70%;padding:10px 12px;border-radius:14px;border:1px solid var(--border);
-      background:#fff;color:var(--text);
-    }
-    /* Entrante (ciudadano) blanca */
-    .in{
-      align-self:flex-start;border-top-left-radius:4px;background:var(--bubble-in);
-      border-color:var(--border);color:var(--text);
-    }
-    /* Saliente (asesor) azul */
-    .out{
-      align-self:flex-end;border-top-right-radius:4px;background:var(--bubble-out);
-      border-color:var(--bubble-out);color:var(--bubble-out-text);
-    }
+    .messages{min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;overscroll-behavior:contain;}
+    .bubble{max-width:70%;padding:10px 12px;border-radius:14px;border:1px solid var(--border);background:#fff;color:var(--text);}
+    .in{align-self:flex-start;border-top-left-radius:4px;background:var(--bubble-in);border-color:var(--border);color:var(--text);}
+    .out{align-self:flex-end;border-top-right-radius:4px;background:var(--bubble-out);border-color:var(--bubble-out);color:var(--bubble-out-text);}
     .bubble .time{color:var(--muted);font-size:11px;margin-top:6px}
-    .out .time{color:#e7ecff} /* time clarito sobre fondo azul */
+    .out .time{color:#e7ecff}
 
-    /* Composer pegado abajo */
-    .composer{
-      display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);
-      background:var(--panel);position:sticky;bottom:0;z-index:5;
-    }
-    .composer textarea{
-      flex:1;min-height:44px;max-height:120px;padding:10px;border-radius:10px;
-      border:1px solid var(--border);background:#fff;color:var(--text);resize:vertical
-    }
-    .btn{
-      border:1px solid transparent;border-radius:10px;padding:10px 14px;background:var(--accent);
-      color:#fff;cursor:pointer;transition:filter .15s, background .15s
-    }
+    .composer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);background:var(--panel);position:sticky;bottom:0;z-index:5;}
+    .composer textarea{flex:1;min-height:44px;max-height:120px;padding:10px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);resize:vertical}
+    .btn{border:1px solid transparent;border-radius:10px;padding:10px 14px;background:var(--accent);color:#fff;cursor:pointer;transition:filter .15s, background .15s}
     .btn:hover{background:var(--accent-600)}
     .btn.secondary{background:#eef2ff;color:#2643a0;border-color:#d7defa}
     .btn.secondary:hover{background:#e6ecff}
@@ -120,11 +67,7 @@
     .btn.danger:hover{background:#ffdada}
 
     .empty{color:var(--muted);text-align:center;margin-top:20vh}
-    .toast{
-      position:fixed;right:16px;bottom:16px;background:#ffffff;color:#0f172a;
-      border:1px solid var(--border);border-radius:12px;padding:10px 12px;
-      box-shadow:0 10px 30px rgba(0,0,0,.12);display:none
-    }
+    .toast{position:fixed;right:16px;bottom:16px;background:#ffffff;color:#0f172a;border:1px solid var(--border);border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.12);display:none}
     .row{display:flex;gap:8px;align-items:center}
 
     .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35)}
@@ -221,10 +164,24 @@
   const qs = s => document.querySelector(s);
   const qsa = s => Array.from(document.querySelectorAll(s));
   function toast(msg, ms=2500){ const t=qs('#toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>{t.style.display='none'}, ms); }
-  function fmtDate(s){ if(!s) return '—'; const d=new Date(s.replace(' ','T')+'Z'); return d.toLocaleString(); }
-  function within24h(lastIncoming){ if(!lastIncoming) return false; const t=new Date(lastIncoming.replace(' ','T')+'Z'); return (Date.now()-t.getTime()) <= 24*3600*1000; }
+  function fmtDate(s){ if(!s) return '—'; const d=new Date(String(s||'').replace(' ','T')+'Z'); return isNaN(d)?'—':d.toLocaleString(); }
+  function within24h(lastIncoming){ if(!lastIncoming) return false; const t=new Date(String(lastIncoming).replace(' ','T')+'Z'); return (Date.now()-t.getTime()) <= 24*3600*1000; }
   function isClosed(c){ return (c.status && c.status==='closed') || !within24h(c.last_incoming_at); }
-  function scrollToBottom(force=false){ const box=qs('#messages'); const near=(box.scrollTop+box.clientHeight)>=(box.scrollHeight-80); if(force||near) box.scrollTop=box.scrollHeight; }
+
+  // Auto-scroll con doble rAF para asegurar que el DOM ya está pintado
+  function scrollToBottom(force=false){
+    const box = qs('#messages');
+    if (!box) return;
+    const nearBottom = (box.scrollTop + box.clientHeight) >= (box.scrollHeight - 80);
+    if (force || nearBottom) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          box.scrollTop = box.scrollHeight;
+        });
+      });
+    }
+  }
+
   function debounce(fn,ms){ let h; return (...a)=>{ clearTimeout(h); h=setTimeout(()=>fn(...a),ms); } }
 
   /* ==================== LOAD CONVERSATIONS ==================== */
@@ -232,7 +189,7 @@
     const search = qs('#search').value.trim();
     const url = new URL(ENDPOINTS.conversations);
 
-    // 🔁 Siempre pedimos TODAS, filtramos en front para que 'Cerradas' funcione
+    // Pedimos todas; filtramos en front para 'Abiertas/Cerradas'
     url.searchParams.set('status', 'all');
     url.searchParams.set('page', state.page);
     url.searchParams.set('page_size', state.pageSize);
@@ -246,7 +203,6 @@
 
   function renderConversations(){
     const box = qs('#convList'); box.innerHTML='';
-    // Filtro por pestaña
     let list = state.conversations;
     if (state.status === 'open') {
       list = list.filter(c => within24h(c.last_incoming_at) && c.status !== 'closed');
@@ -288,41 +244,57 @@
     qs('#btnSend').disabled = !open;
     qs('#btnReopen').disabled = false;
 
-    await loadMessages(c.id);
+    await loadMessages(c.id, { forceScroll: true }); // ⬅️ baja al final al abrir
     startMsgPolling();
   }
 
-  async function loadMessages(convId){
+  // El backend devuelve DESC; aquí ordenamos ASC y controlamos scroll
+  async function loadMessages(convId, { forceScroll = false } = {}){
     const url = new URL(ENDPOINTS.messages);
     url.searchParams.set('conversation_id', convId);
     url.searchParams.set('page', 1);
     url.searchParams.set('page_size', 200);
-    const r = await fetch(url);
+
+    const r = await fetch(url, { cache: 'no-store' });
     const j = await r.json();
-    state.messages = j.data||[];
-    renderMessages();
+    state.messages = j.data || [];
+
+    state.messages.sort((a,b) => {
+      const ta = new Date(String(a.created_at||'').replace(' ','T')+'Z').getTime();
+      const tb = new Date(String(b.created_at||'').replace(' ','T')+'Z').getTime();
+      if (ta === tb) return (a.id||0) - (b.id||0);
+      return ta - tb;
+    });
+
+    renderMessages(forceScroll);
   }
 
-  function renderMessages(){
-    const box = qs('#messages'); box.innerHTML='';
-    if (!state.messages.length){ box.innerHTML = '<div class="empty">No hay mensajes en este hilo.</div>'; return; }
+  function renderMessages(forceScroll = false){
+    const box = qs('#messages'); 
+    box.innerHTML = '';
+    if (!state.messages.length){
+      box.innerHTML = '<div class="empty">No hay mensajes en este hilo.</div>';
+      return;
+    }
 
-    state.messages.forEach(m=>{
-      const li=document.createElement('div'); li.className = 'bubble ' + (m.direction==='out'?'out':'in');
+    for (const m of state.messages){
+      const li=document.createElement('div');
+      li.className='bubble ' + (m.direction==='out'?'out':'in');
       li.innerHTML = `
         <div>${escapeHtml(m.text||'')}</div>
         <div class="time">${m.msg_type} · ${fmtDate(m.created_at)}</div>
       `;
       box.appendChild(li);
-    });
-    scrollToBottom();
+    }
 
     const lastIn = [...state.messages].reverse().find(m=>m.direction==='in');
     qs('#btnMarkRead').disabled = !lastIn;
     qs('#btnMarkRead').dataset.wamid = lastIn ? lastIn.wa_message_id : '';
+
+    scrollToBottom(forceScroll); // 👈
   }
 
-  function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;","">":"&gt;","\"":"&quot;","'":"&#039;"}[m])); }
 
   /* ==================== ACTIONS ==================== */
   async function sendText(){
@@ -337,8 +309,11 @@
       if (r.status===409){ await r.json(); openTplModal(); return; }
       const j = await r.json();
       if (!j.ok) throw new Error(j.error||'Fallo al enviar');
-      qs('#composer').value=''; toast('Enviado'); scrollToBottom(true);
-      await loadMessages(state.current.id);
+
+      qs('#composer').value='';
+      toast('Enviado');
+      scrollToBottom(true);                              // baja de inmediato
+      await loadMessages(state.current.id, { forceScroll:true }); // y tras repintar
     }catch(e){ toast('Error: '+e.message); }
     finally{ qs('#btnSend').disabled = false; }
   }
@@ -363,8 +338,6 @@
       const r = await fetch(ENDPOINTS.reopen,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id: state.current.id, template: name, params})});
       const j = await r.json(); if(!j.ok) throw new Error(j.error||'Fallo plantilla');
       toast('Plantilla enviada'); closeTplModal();
-
-      // Simula reactivación de ventana en UI
       state.current.last_incoming_at = new Date().toISOString().slice(0,19).replace('T',' ');
       qs('#composer').disabled=false; qs('#btnSend').disabled=false;
       qs('#pillWindow').textContent='Ventana 24h: activa';
