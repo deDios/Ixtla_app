@@ -290,10 +290,9 @@
     </script>
 
     <script src="/JS/components.js"></script>
-    
-    -->
-    
     <script type="module" src="/JS/home.js"></script>
+    -->
+
     <script src="/JS/JSglobal.js"></script>
 
 </body>
