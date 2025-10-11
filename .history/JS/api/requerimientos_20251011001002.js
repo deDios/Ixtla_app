@@ -7,7 +7,7 @@ const API_BASE =
   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/";
 
 const API = {
-  // Consulta de requerimientos
+  // Consulta de requerimientos db\WEB\c_requerimiento.php
   requerimientos: window.API?.requerimientos || (API_BASE + "ixtla01_c_requerimiento.php"),
   // Consulta de empleados 
   empleados:      window.API?.empleados      || (API_BASE + "ixtla01_c_empleado.php"),
