@@ -153,8 +153,10 @@ function buildTable() {
       { key: "asignado", title: "Asignado", sortable: true, accessor: r => r.asignado || "Sin asignar" },
       { key: "fecha", title: "Fecha de solicitado", sortable: true, accessor: r => r.fecha || "—" },
       { key: "estatus", title: "Status", sortable: true, accessor: r => r.estatus?.code ?? "",
-        render: (val) => `<span class="badge-status" data-k="${escapeHtml(ESTATUS[val]?.key || "")}">${escapeHtml(estatusNombre(val))}</span>`
-      },
+        render: (val) => {
+  const key = (val === 3) ? "en_proceso" : (ESTATUS[val]?.key || "");
+  return `<span class="badge-status" data-k="${escapeHtml(key)}">${escapeHtml(estatusNombre(val))}</span>`;
+},
     ],
     onRender: ({ page, pages, total }) => console.log(TAG, "table render", { page, pages, total }),
   });

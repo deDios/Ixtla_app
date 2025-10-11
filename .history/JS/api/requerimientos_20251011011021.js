@@ -1,6 +1,6 @@
 // /JS/api/requerimientos.js
 
-/* CON */
+/* ============================== CON ============================== */
 const TAG = "[API:Requerimientos]";
 
 const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
@@ -13,8 +13,8 @@ const API = {
 };
 
 const MAX_PER_PAGE        = 200;     // tope de page size
-const DEFAULT_RANGE_DAYS  = 90;      
-const CACHE_TTL_MS        = 60_000;  // cache (1 minuto)
+const DEFAULT_RANGE_DAYS  = 90;      // rango por defecto para scopes grandes
+const CACHE_TTL_MS        = 60_000;  // cache simple (1 minuto)
 
 /* ============================ Estatus ============================ */
 export const ESTATUS = {
@@ -31,7 +31,7 @@ export function isCerrado(r) {
 }
 
 /* ========================== Logging utils ======================== */
-const dev = true; 
+const dev = true; // puedes mutear logs poniendo false
 function log(...a){ if (dev) console.log(TAG, ...a); }
 function warn(...a){ if (dev) console.warn(TAG, ...a); }
 function group(label){ if (dev) console.group?.(label); }

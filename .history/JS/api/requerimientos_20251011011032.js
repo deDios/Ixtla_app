@@ -14,7 +14,7 @@ const API = {
 
 const MAX_PER_PAGE        = 200;     // tope de page size
 const DEFAULT_RANGE_DAYS  = 90;      
-const CACHE_TTL_MS        = 60_000;  // cache (1 minuto)
+const CACHE_TTL_MS        = 60_000;  // cache simple (1 minuto)
 
 /* ============================ Estatus ============================ */
 export const ESTATUS = {
@@ -31,7 +31,7 @@ export function isCerrado(r) {
 }
 
 /* ========================== Logging utils ======================== */
-const dev = true; 
+const dev = true; // puedes mutear logs poniendo false
 function log(...a){ if (dev) console.log(TAG, ...a); }
 function warn(...a){ if (dev) console.warn(TAG, ...a); }
 function group(label){ if (dev) console.group?.(label); }

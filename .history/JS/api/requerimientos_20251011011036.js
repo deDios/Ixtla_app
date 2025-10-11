@@ -31,7 +31,7 @@ export function isCerrado(r) {
 }
 
 /* ========================== Logging utils ======================== */
-const dev = true; 
+const dev = true; // puedes mutear logs poniendo false
 function log(...a){ if (dev) console.log(TAG, ...a); }
 function warn(...a){ if (dev) console.warn(TAG, ...a); }
 function group(label){ if (dev) console.group?.(label); }
