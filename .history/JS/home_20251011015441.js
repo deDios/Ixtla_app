@@ -427,6 +427,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     initSearch();
     buildTable();
 
+    // 3) Datos (scope por subordinados) – no truena si no hay sesión
     await loadScopeData();
 
     console.log(TAG, "init — Home listo");
