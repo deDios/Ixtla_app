@@ -1,7 +1,4 @@
 // /JS/home.js
-// Home Ixtla — Tabla + Filtros + Charts con alcance por subordinados (y ADMIN global)
-// Dependencias: /JS/core/dom.js, /JS/core/store.js, /JS/charts/line-chart.js, /JS/charts/donut-chart.js,
-//               /JS/ui/table.js, /JS/api/requerimientos.js
 
 import { $, mountSkeletonList, toggle, escapeHtml } from "/JS/core/dom.js";
 import { createStore } from "/JS/core/store.js";
@@ -13,6 +10,7 @@ import {
   planScope,
   fetchScope,
   parseReq,
+  ESTATUS as ESTATUS_API
 } from "/JS/api/requerimientos.js";
 
 const TAG = "[Home]";
@@ -20,7 +18,7 @@ const TAG = "[Home]";
 /* ===================== Selectores (alineados a tu HTML) ===================== */
 const SEL = {
   profileName: "#h-user-nombre",
-  profileBadge: ".profile-dep.badge", // (no la usamos aún como filtro, pero se conserva)
+  profileBadge: ".profile-dep.badge",
   avatar: ".profile-card .avatar",
 
   statusGroup: ".status-block",
@@ -64,31 +62,29 @@ const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 function debounce(fn, ms = 300) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 function setTextSafe(sel, txt) { const el = document.querySelector(sel); if (el) el.textContent = txt; }
 
-/* ===================== Sesión (con fallback a cookie) ===================== */
-// Lee Session.get(); si no está, lee cookie ix_emp (base64 JSON) y valida exp
+/* ===================== Sesión (cookie ix_emp) ===================== */
+// --- reemplaza tu readIxSession por este ---
 function readIxSession() {
-  // 1) API oficial si existe
+  // 1) Si está la API de sesión, úsala
   try {
     if (window.Session?.get) {
       const s = window.Session.get();
       if (s) return s;
     }
-  } catch (e) {
-    console.warn(`${TAG} Session.get() lanzó`, e);
-  }
+  } catch {}
 
-  // 2) Fallback: cookie ix_emp
+  // 2) Fallback: leer cookie ix_emp (base64 JSON) y validar expiración
   try {
     const pair = document.cookie.split("; ")
       .find(c => c.startsWith(encodeURIComponent("ix_emp") + "="));
     if (!pair) return null;
 
     const raw = decodeURIComponent(pair.split("=")[1] || "");
-    const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    const json = JSON.parse(decodeURIComponent(escape(atob(raw)))); // <- mismo esquema que tu session.js
 
     if (json && typeof json === "object") {
       if (typeof json.exp === "number" && Date.now() > json.exp) {
-        // expirada → borrar
+        // expirada: borrar cookie suave
         document.cookie = [
           encodeURIComponent("ix_emp") + "=;",
           "expires=Thu, 01 Jan 1970 00:00:00 GMT",
@@ -97,17 +93,15 @@ function readIxSession() {
           "SameSite=Lax",
           location.protocol === "https:" ? "Secure" : ""
         ].filter(Boolean).join("; ");
-        console.warn(`${TAG} cookie ix_emp expirada; borrada`);
         return null;
       }
       return json;
     }
-  } catch (e) {
-    console.warn(`${TAG} error leyendo cookie ix_emp`, e);
-  }
+  } catch {}
 
   return null;
 }
+
 
 const __sess = readIxSession();
 const SessIDs = {
@@ -117,13 +111,6 @@ const SessIDs = {
   apellidos: (__sess?.apellidos || "").trim(),
   roles: Array.isArray(__sess?.roles) ? __sess.roles.map(String) : [],
 };
-
-// log de sesión
-console.log(`${TAG} sesión detectada`, {
-  idEmpleado: SessIDs.idEmpleado,
-  depId: SessIDs.depId,
-  roles: SessIDs.roles
-});
 
 /* ===================== Store ===================== */
 const S = createStore({
@@ -156,7 +143,7 @@ const CH = {
 window.addEventListener("DOMContentLoaded", init);
 
 async function init() {
-  console.log(`${TAG} init — cargando Home con scope por subordinados`);
+  console.log(TAG, "init — cargando Home con scope por subordinados"); // LOG
 
   // Perfil (nombre + avatar)
   hydrateProfile();
@@ -226,8 +213,6 @@ function hydrateProfile() {
     avatarEl.src = candidate;
     avatarEl.onerror = () => (avatarEl.src = fallback);
   }
-
-  console.log(`${TAG} perfil`, { nombre: fullName, depId: SessIDs.depId });
 }
 
 /* ===================== Data por Scope ===================== */
@@ -237,19 +222,15 @@ async function loadScopeData() {
   toggle($(SEL.tableEmpty), false);
 
   try {
-    const viewerId = S.get().viewerId;
-    if (!viewerId) throw new Error("viewerId ausente. Revisa sesión.");
+    if (!S.get().viewerId) throw new Error("viewerId ausente. Revisa sesión.");
 
-    console.log(`${TAG} construyendo planScope`, { viewerId, viewerDeptId: SessIDs.depId });
     const plan = await planScope({
-      viewerId,
+      viewerId: S.get().viewerId,
       viewerDeptId: SessIDs.depId || null
     });
-    console.log(`${TAG} planScope listo`, plan);
+    console.log(TAG, "planScope listo", plan); // LOG
 
-    console.log(`${TAG} ejecutando fetchScope…`);
-    const { items, counts, filtros } = await fetchScope({ plan, filtros: {} });
-    console.log(`${TAG} fetchScope OK`, { total: items.length, counts, filtros });
+    const { items } = await fetchScope({ plan, filtros: {} });
 
     // Parse para UI
     const presentables = items.map(parseReq);
@@ -259,16 +240,12 @@ async function loadScopeData() {
     CH.lc?.update({ data: computeSeriesAnual(items) });
     CH.dc?.update({ data: computeDonutMes(items) });
 
-    // Totales y etiqueta
+    // Totales
     setTextSafe(SEL.tableTotal, String(items.length));
     setTextSafe(SEL.tableStatusLabel, "Todos los status");
-
-    console.log(`${TAG} datos listos`, {
-      total: items.length,
-      primeros3: items.slice(0, 3).map(r => ({ id: r.id, folio: r.folio, estatus: r.estatus }))
-    });
+    console.log(TAG, "refresh OK", { total: items.length }); // LOG
   } catch (err) {
-    console.error(`${TAG} loadScopeData() Error:`, err);
+    console.error(TAG, "loadScopeData() Error:", err);
     S.set({ itemsRaw: [], items: [] });
     if (typeof gcToast === "function") gcToast("Hubo un error al cargar datos.", "warning");
   } finally {
@@ -286,7 +263,6 @@ function initStatusDom(){
       btn.dataset.status = key;
     }
   });
-  console.log(`${TAG} status DOM inicializado`, $$(SEL.statusItems).map(b => b.dataset.status));
 }
 function makeStatusRadiogroup() {
   const nav = $one(SEL.statusGroup);
@@ -307,8 +283,6 @@ function makeStatusRadiogroup() {
     if (nextIdx !== idx) { items[nextIdx].focus(); e.preventDefault(); }
     if (e.key === " " || e.key === "Enter") { items[nextIdx].click(); e.preventDefault(); }
   }, { passive:false });
-
-  console.log(`${TAG} radiogroup ARIA listo`);
 }
 
 /* ===================== Wiring: sidebar y búsqueda ===================== */
@@ -324,18 +298,14 @@ function wireSidebarEvents(table) {
       setTextSafe(SEL.tableStatusLabel, humanStatusLabel(statusKey));
       pipelineAndRender({ table });
       $(SEL.searchInput)?.focus();
-
-      console.log(`${TAG} filtro de status aplicado`, { statusKey });
     });
   });
-  console.log(`${TAG} sidebar events listos`);
 }
 function wireSearch() {
   $(SEL.searchInput)?.addEventListener("input", debounce((e) => {
     const q = (e.target.value || "").trim().toLowerCase();
     S.set({ filtros: { ...S.get().filtros, search: q } });
     pipelineAndRender({});
-    console.log(`${TAG} búsqueda`, { q });
   }, 250));
 }
 
@@ -364,6 +334,7 @@ function pipelineAndRender({ table = window.__tableInstance } = {}) {
 
   // (2) Conteos previos al filtro de status
   computeCounts(filtered);
+  renderCounts();
 
   // (3) Filtro por status
   let forTable = filtered;
@@ -384,14 +355,6 @@ function pipelineAndRender({ table = window.__tableInstance } = {}) {
     toggle($(SEL.tableEmpty), false);
     setTextSafe(SEL.tableTotal, String(forTable.length));
   }
-
-  console.log(`${TAG} pipeline`, {
-    filtroStatus: status,
-    search,
-    totalBase: base.length,
-    totalFiltrado: forTable.length,
-    counts: S.get().counts
-  });
 }
 
 /* ===================== Conteos ===================== */
@@ -402,8 +365,16 @@ function computeCounts(rows = []) {
     if (m[code] != null) m[code] += 1;
   });
   S.set({ counts: m });
-  // log de conteos
-  console.log(`${TAG} conteos`, m);
+}
+function renderCounts() {
+  const m = S.get().counts;
+  const order = ["todos","0","1","2","3","4","5","6"];
+  const buttons = $$(SEL.statusItems);
+  buttons.forEach((btn, idx) => {
+    const key = order[idx] ?? "todos";
+    const cntEl = btn.querySelector(".count");
+    if (cntEl) cntEl.textContent = `(${m[key] ?? 0})`;
+  });
 }
 
 /* ===================== Charts helpers ===================== */
@@ -427,10 +398,7 @@ function computeDonutMes(rows = []) {
     if (!clave) return;
     acc[clave] = (acc[clave] || 0) + 1;
   });
-  const donut = Object.entries(acc)
+  return Object.entries(acc)
     .map(([clave, value]) => ({ label: humanStatusLabel(clave), value }))
     .sort((a,b) => b.value - a.value);
-
-  console.log(`${TAG} donutMes`, donut);
-  return donut;
 }
