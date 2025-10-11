@@ -1,21 +1,27 @@
 // /JS/api/requerimientos.js
-// CON
 const TAG = "[API:Requerimientos]";
 
-const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+/* CON */
+const API_BASE =
+  window.API?.BASE ||
+  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/";
 
 const API = {
-  requerimientos: API_BASE + "ixtla01_c_requerimiento.php",
-  empleados:      API_BASE + "ixtla01_c_empleado.php",
-  departamentos:  API_BASE + "ixtla01_c_departamento.php",
-  updReq:         API_BASE + "ixtla01_upd_requerimiento.php",
+  // Consulta de requerimientos db\WEB\ixtla01_c_requerimiento.php
+  requerimientos: window.API?.requerimientos || (API_BASE + "ixtla01_c_requerimiento.php"),
+  // Consulta de empleados  db\WEB\ixtla01_c_empleado.php
+  empleados:      window.API?.empleados      || (API_BASE + "ixtla01_c_empleado.php"),
+  // Consulta de departamentos db\WEB\ixtla01_c_departamento.php
+  departamentos:  window.API?.departamentos  || (API_BASE + "ixtla01_c_departamento.php"),
+  // Update de requerimiento  db\WEB\ixtla01_upd_requerimiento.php
+  updReq:         window.API?.updRequerimiento || (API_BASE + "ixtla01_upd_requerimiento.php"),
 };
 
-const MAX_PER_PAGE = 200;                 // tope de page size
-const DEFAULT_RANGE_DAYS = 90;            
-const CACHE_TTL_MS = 60 * 1000;           
+const MAX_PER_PAGE = 200;                 // cantidad por pagina
+const DEFAULT_RANGE_DAYS = 90;
+const CACHE_TTL_MS = 60 * 1000;
 
-// ============================ Estatus ===========================
+/* Estatus */
 export const ESTATUS = {
   0: { key: "solicitud",   label: "Solicitud",   badge: "badge--neutral" },
   1: { key: "revision",    label: "Revisión",    badge: "badge--info" },
@@ -29,37 +35,7 @@ export function isCerrado(r) {
   return r?.estatus === 6 || r?.estatus === 5 || !!r?.cerrado_en;
 }
 
-// ============================ Utils base ========================
-function getSessionSafe() {
-  try { return window.Session?.get?.() || null; } catch { return null; }
-}
-function rolesFromSession() {
-  const s = getSessionSafe();
-  const rs = Array.isArray(s?.roles) ? s.roles : [];
-  return rs.map(r => String(r).toUpperCase());
-}
-function isAdminRole(roleCodes) {
-  return (roleCodes || []).includes("ADMIN");
-}
-
-async function postJSON(url, body) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type":"application/json", "Accept":"application/json" },
-    body: JSON.stringify(body || {})
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} @ ${url}`);
-  return res.json();
-}
-
-function todayISO() { return new Date().toISOString().slice(0,10); }
-function addDaysISO(iso, days) {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0,10);
-}
-
-// Cache en memoria
+/* Cache */
 const _cache = new Map();
 function cacheGet(k) {
   const v = _cache.get(k);
@@ -69,7 +45,24 @@ function cacheGet(k) {
 }
 function cacheSet(k, data) { _cache.set(k, { t: Date.now(), data }); }
 
-// ============================ Empleados / Org ====================
+/* Utils HTTP / fechas */
+async function postJSON(url, body) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type":"application/json" },
+    body: JSON.stringify(body || {})
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} @ ${url}`);
+  return res.json();
+}
+function todayISO() { return new Date().toISOString().slice(0,10); }
+function addDaysISO(iso, days) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
+}
+
+/* Empleados y Organizacion */
 export async function loadEmpleados({ q=null, page_size=200, status_empleado=1 } = {}) {
   const key = `emp|${q||""}|${page_size}|${status_empleado}`;
   const hit = cacheGet(key); if (hit) return hit;
@@ -80,19 +73,36 @@ export async function loadEmpleados({ q=null, page_size=200, status_empleado=1 }
     const json = await postJSON(API.empleados, payload);
     const list = json?.data || [];
     out = out.concat(list);
-
     const meta = json?.meta || {};
     const total = meta?.total ?? list.length;
     if ((page * page_size) >= total) break;
     page++;
-    if (page > 25) break; // guard
+    if (page > 25) break; 
   }
   cacheSet(key, out);
   return out;
 }
 
-// Construye índice reporta_a -> [empleado_id]
-function buildIndexByManager(empleados) {
+function resolveViewerRole(viewer, { departamentosAll=[] } = {}) {
+  const roles = viewer?.cuenta?.roles?.map(r => r.codigo) || [];
+  const isAdmin = roles.includes("ADMIN");
+  const deptoId = viewer?.departamento_id ?? null;
+
+  const isPresidencia = (() => {
+    const dep = departamentosAll.find(d => d?.id === deptoId || (d?.nombre||"").toLowerCase() === "presidencia");
+    if (!dep) return false;
+    return (dep?.nombre||"").toLowerCase() === "presidencia";
+  })();
+
+  let role = "OTRO";
+  if (roles.includes("DIRECTOR")) role = "DIRECTOR";
+  else if (roles.includes("JEFE")) role = "JEFE";
+  else if (roles.includes("ANALISTA")) role = "ANALISTA";
+
+  return { role, deptoId, isAdmin, isPresidencia };
+}
+
+function buildTeamIds(viewerId, role, empleados) {
   const byManager = new Map();
   empleados.forEach(e => {
     const rep = e?.cuenta?.reporta_a ?? null;
@@ -100,14 +110,8 @@ function buildIndexByManager(empleados) {
     if (!byManager.has(rep)) byManager.set(rep, []);
     byManager.get(rep).push(e.id);
   });
-  return byManager;
-}
 
-/** Devuelve ids subordinados directos o toda la rama según rol */
-function buildTeamIds(viewerId, role, empleados) {
-  const byManager = buildIndexByManager(empleados);
   const direct = byManager.get(viewerId) || [];
-
   if (role === "JEFE") return direct.slice();
 
   if (role === "DIRECTOR") {
@@ -125,7 +129,25 @@ function buildTeamIds(viewerId, role, empleados) {
   return [];
 }
 
-// ============================ Reqs unitarias =====================
+async function buildDeptIds({ viewerId, role, isAdmin, isPresidencia, viewerDeptId }) {
+  try {
+    const all = API.departamentos
+      ? (await postJSON(API.departamentos, { page:1, page_size:500 }))?.data || []
+      : [];
+    if (isAdmin || isPresidencia) return all.map(d => d.id);
+    if (role === "DIRECTOR") {
+      return all
+        .filter(d => (d.director === viewerId) || (d.director_id === viewerId))
+        .map(d => d.id);
+    }
+    return viewerDeptId ? [viewerDeptId] : [];
+  } catch (e) {
+    console.warn(TAG, "buildDeptIds error (fallback a depto propio):", e);
+    return viewerDeptId ? [viewerDeptId] : [];
+  }
+}
+
+/* Requerimientos unitarios */
 function pickFiltros(f) {
   const out = {};
   if (f?.estatus != null) out.estatus = f.estatus;
@@ -142,19 +164,19 @@ function pickFiltros(f) {
 
 export async function listByAsignado(asignadoId, filtros={}) {
   const body = { asignado_a: asignadoId, per_page: MAX_PER_PAGE, ...pickFiltros(filtros) };
-  console.log(TAG, "listByAsignado()", { asignadoId, body });
+  console.log(TAG, "listByAsignado()", { asignadoId, body }); // LOG 
   const json = await postJSON(API.requerimientos, body);
   return json?.data || [];
 }
 
 export async function listByDepto(departamentoId, filtros={}) {
   const body = { departamento_id: departamentoId, per_page: MAX_PER_PAGE, ...pickFiltros(filtros) };
-  console.log(TAG, "listByDepto()", { departamentoId, body });
+  console.log(TAG, "listByDepto()", { departamentoId, body }); // LOG 
   const json = await postJSON(API.requerimientos, body);
   return json?.data || [];
 }
 
-// ============================ Unión / orden ======================
+/* concat / dedup / orden */
 function mergeDedupOrder(lists, { order="created_at_desc" } = {}) {
   const map = new Map();
   lists.flat().forEach(r => {
@@ -168,65 +190,18 @@ function mergeDedupOrder(lists, { order="created_at_desc" } = {}) {
   return arr;
 }
 
-// ============================ ADMIN: global ======================
-async function listAllRequerimientos({ perPage=MAX_PER_PAGE, maxPages=50 } = {}) {
-  const all = [];
-  for (let page=1; page<=maxPages; page++) {
-    const body = { page, per_page: perPage };
-    console.log(TAG, "listAllRequerimientos()", body);
-    const json = await postJSON(API.requerimientos, body);
-    const arr = json?.data || [];
-    all.push(...arr);
-
-    // Heurística de fin de páginas
-    if (arr.length < perPage) break;
-  }
-  return all;
-}
-
-// ============================ Scope ==============================
-/**
- * planScope: construye el plan de alcance (ADMIN global, o subordinados+depto)
- * @param {number} viewerId
- * @param {number|null} viewerDeptId  — pásalo desde Home (Session.departamento_id)
- */
-export async function planScope({ viewerId, viewerDeptId=null, empleadosAll=null, rangeDays=DEFAULT_RANGE_DAYS } = {}) {
+/* plan + fetch */
+export async function planScope({ viewerId, empleadosAll=null, departamentosAll=null, rangeDays=DEFAULT_RANGE_DAYS } = {}) {
   if (!viewerId) throw new Error("planScope(): viewerId requerido");
-
-  const sessionRoles = rolesFromSession();
-  const admin = isAdminRole(sessionRoles);
-
-  // ADMIN → plan global (no depende de empleados/deptos)
-  if (admin) {
-    const created_to = todayISO();
-    const created_from = addDaysISO(created_to, -Math.abs(rangeDays));
-    const plan = {
-      viewerId,
-      role: "ADMIN",
-      isAdmin: true,
-      isPresidencia: false,
-      mineId: viewerId,
-      teamIds: [],
-      deptIds: [],
-      defaultRange: { created_from, created_to }
-    };
-    console.log(TAG, "planScope() [ADMIN]", plan);
-    return plan;
-  }
-
-  // No ADMIN → construir jerarquía
   const empleados = empleadosAll || await loadEmpleados();
-  const viewer = empleados.find(e => e.id === viewerId) || null;
+  const departamentos = departamentosAll || (API.departamentos ? (await postJSON(API.departamentos, { page:1, page_size:500 }))?.data || [] : []);
+  const viewer = empleados.find(e => e.id === viewerId);
+  if (!viewer) throw new Error("planScope(): viewer no encontrado");
 
-  // Rol a partir del empleado; si no hay match, cae a ANALISTA
-  const empRoles = viewer?.cuenta?.roles?.map(r => r.codigo) || sessionRoles || [];
-  let role = "ANALISTA";
-  if (empRoles.includes("DIRECTOR")) role = "DIRECTOR";
-  else if (empRoles.includes("JEFE")) role = "JEFE";
-  else if (empRoles.includes("ANALISTA")) role = "ANALISTA";
-
+  const roleInfo = resolveViewerRole(viewer, { departamentosAll: departamentos });
+  const { role, deptoId, isAdmin, isPresidencia } = roleInfo;
   const teamIds = buildTeamIds(viewerId, role, empleados);
-  const deptIds = viewerDeptId ? [viewerDeptId] : (viewer?.departamento_id ? [viewer.departamento_id] : []);
+  const deptIds = await buildDeptIds({ viewerId, role, isAdmin, isPresidencia, viewerDeptId: deptoId });
 
   const created_to = todayISO();
   const created_from = addDaysISO(created_to, -Math.abs(rangeDays));
@@ -234,43 +209,40 @@ export async function planScope({ viewerId, viewerDeptId=null, empleadosAll=null
   const plan = {
     viewerId,
     role,
-    isAdmin:false,
-    isPresidencia:false, // reservado si más adelante agregas "Presidencia"
+    isAdmin,
+    isPresidencia,
     mineId: viewerId,
     teamIds,
     deptIds,
     defaultRange: { created_from, created_to }
   };
-  console.log(TAG, "planScope()", plan);
+  console.log(TAG, "planScope()", plan); // LOG 3
   return plan;
 }
 
-/**
- * fetchScope: ejecuta el plan
- * - ADMIN: baja todo (paginado) y ordena
- * - otros: combina mine + team + dept
- */
 export async function fetchScope({ plan, filtros={} }) {
   if (!plan) throw new Error("fetchScope(): plan requerido");
+  const isGlobal = plan.isAdmin || plan.isPresidencia;
 
-  // ADMIN global
-  if (plan.isAdmin) {
-    const all = await listAllRequerimientos({ perPage: MAX_PER_PAGE });
-    const items = mergeDedupOrder([all], { order: "created_at_desc" });
-    console.log(TAG, "fetchScope[ADMIN] done", { total: items.length });
-    return { items, counts:{ mine:0, team:0, dept:0 }, filtros };
-  }
-
-  // No ADMIN → mine + team + dept
   const useFiltros = { ...filtros };
-  if (!useFiltros.created_from && !useFiltros.created_to && (plan.deptIds.length > 1 || plan.teamIds.length > 5)) {
+  if (!useFiltros.created_from && !useFiltros.created_to && (isGlobal || plan.deptIds.length > 1 || plan.teamIds.length > 5)) {
     Object.assign(useFiltros, plan.defaultRange);
   }
 
   const promises = [];
+
+  // mine
   if (plan.mineId) promises.push(listByAsignado(plan.mineId, useFiltros));
-  for (const subId of (plan.teamIds || [])) promises.push(listByAsignado(subId, useFiltros));
-  for (const depId of (plan.deptIds || [])) promises.push(listByDepto(depId, useFiltros));
+
+  // team
+  for (const subId of (plan.teamIds || [])) {
+    promises.push(listByAsignado(subId, useFiltros));
+  }
+
+  // dept
+  for (const depId of (plan.deptIds || [])) {
+    promises.push(listByDepto(depId, useFiltros));
+  }
 
   const results = await Promise.allSettled(promises);
   const okLists = results.filter(r => r.status === "fulfilled").map(r => r.value || []);
@@ -278,18 +250,24 @@ export async function fetchScope({ plan, filtros={} }) {
 
   const counts = {
     mine: (okLists[0] || []).length,
-    team: (plan.teamIds?.length || 0) ? okLists.slice(1, 1 + plan.teamIds.length).reduce((a, l) => a + (l?.length || 0), 0) : 0,
-    dept: okLists.slice(1 + (plan.teamIds?.length || 0)).reduce((a, l) => a + (l?.length || 0), 0)
+    team: (plan.teamIds?.length || 0) ? sumLengths(okLists.slice(1, 1 + plan.teamIds.length)) : 0,
+    dept: sumLengths(okLists.slice(1 + (plan.teamIds?.length || 0)))
   };
 
-  console.log(TAG, "fetchScope done", { total: items.length, counts, filtros: useFiltros });
+  console.log(TAG, "fetchScope() done", {
+    total: items.length,
+    counts,
+    filtros: useFiltros
+  }); // LOG 
+
   return { items, counts, filtros: useFiltros };
 }
+function sumLengths(arr) { return arr.reduce((a, l) => a + (l?.length || 0), 0); }
 
-// ============================ Updates ============================
+/* update (usa ixtla01_upd_requerimiento.php) */
 export async function updateRequerimiento(patch = {}) {
   if (!patch?.id) throw new Error("updateRequerimiento(): falta 'id'");
-  console.log(TAG, "updateRequerimiento()", patch);
+  console.log(TAG, "updateRequerimiento()", patch); // LOG update
   const json = await postJSON(API.updReq, patch);
   if (json?.ok === false) throw new Error(json?.error || "Error al actualizar requerimiento");
   return json?.data || json;
@@ -304,6 +282,7 @@ export async function setPrioridadReq(id, prioridad, { updated_by=null } = {}) {
 }
 
 export async function transferirDeptoReq(id, departamento_id, { tramite_id=null, updated_by=null } = {}) {
+  // Si mandas tramite_id, el server valida coherencia y ajusta el depto si hace falta
   const patch = { id, departamento_id };
   if (tramite_id != null) patch.tramite_id = tramite_id;
   if (updated_by) patch.updated_by = updated_by;
@@ -326,23 +305,13 @@ export async function finalizarReq(id, { cerrado_en=null, updated_by=null } = {}
 }
 
 export async function cancelarReq(id, { updated_by=null } = {}) {
+  // delete
   const patch = { id, estatus: 5 };
   if (updated_by != null) patch.updated_by = updated_by;
   return updateRequerimiento(patch);
 }
 
-// ============================ Presentación =======================
-function mapPrioridad(p) {
-  if (p === 1) return "Baja";
-  if (p === 2) return "Media";
-  if (p === 3) return "Alta";
-  return "—";
-}
-function mapCanal(c) {
-  return (c != null ? `Canal ${c}` : "—");
-}
-
-/** parseReq: adapta un registro crudo para la UI */
+/* Helpers de presentacion */
 export function parseReq(raw) {
   const e = ESTATUS[raw?.estatus] || { key: "desconocido", label: "—", badge: "badge" };
   return {
@@ -351,8 +320,8 @@ export function parseReq(raw) {
     departamento: raw?.departamento_nombre || raw?.departamento_id,
     tramite: raw?.tramite_nombre || raw?.tramite_id,
     asunto: raw?.asunto || "—",
-    prioridad: mapPrioridad(raw?.prioridad),
-    canal: mapCanal(raw?.canal),
+    prioridad: raw?.prioridad ?? null,
+    canal: raw?.canal ?? null,
     contacto: raw?.contacto_nombre || "—",
     tel: raw?.contacto_telefono || "—",
     mail: raw?.contacto_email || "—",

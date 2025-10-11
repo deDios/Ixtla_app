@@ -1,19 +1,28 @@
 // /JS/api/requerimientos.js
-// CON
+// Módulo API de Requerimientos — scope por subordinados + soporte ADMIN global
+// No modifica endpoints. Une resultados en cliente. Incluye logs con TAG.
+
+// ============================ Config ============================
 const TAG = "[API:Requerimientos]";
 
-const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+const API_BASE =
+  window.API?.BASE ||
+  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/";
 
 const API = {
-  requerimientos: API_BASE + "ixtla01_c_requerimiento.php",
-  empleados:      API_BASE + "ixtla01_c_empleado.php",
-  departamentos:  API_BASE + "ixtla01_c_departamento.php",
-  updReq:         API_BASE + "ixtla01_upd_requerimiento.php",
+  // Consulta de requerimientos
+  requerimientos: window.API?.requerimientos || (API_BASE + "ixtla01_c_requerimiento.php"),
+  // Consulta de empleados
+  empleados:      window.API?.empleados      || (API_BASE + "ixtla01_c_empleado.php"),
+  // Consulta de departamentos
+  departamentos:  window.API?.departamentos  || (API_BASE + "ixtla01_c_departamento.php"),
+  // Update de requerimiento
+  updReq:         window.API?.updRequerimiento || (API_BASE + "ixtla01_upd_requerimiento.php"),
 };
 
 const MAX_PER_PAGE = 200;                 // tope de page size
-const DEFAULT_RANGE_DAYS = 90;            
-const CACHE_TTL_MS = 60 * 1000;           
+const DEFAULT_RANGE_DAYS = 90;            // rango por defecto para scopes grandes
+const CACHE_TTL_MS = 60 * 1000;           // cache simple (1 minuto)
 
 // ============================ Estatus ===========================
 export const ESTATUS = {

@@ -2,7 +2,7 @@
 // CON
 const TAG = "[API:Requerimientos]";
 
-const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/";
 
 const API = {
   requerimientos: API_BASE + "ixtla01_c_requerimiento.php",

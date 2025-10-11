@@ -2,13 +2,19 @@
 // CON
 const TAG = "[API:Requerimientos]";
 
-const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+const API_BASE =
+  window.API?.BASE ||
+  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/";
 
 const API = {
-  requerimientos: API_BASE + "ixtla01_c_requerimiento.php",
-  empleados:      API_BASE + "ixtla01_c_empleado.php",
-  departamentos:  API_BASE + "ixtla01_c_departamento.php",
-  updReq:         API_BASE + "ixtla01_upd_requerimiento.php",
+  // Consulta de requerimientos
+  requerimientos: window.API?.requerimientos || (API_BASE + "ixtla01_c_requerimiento.php"),
+  // Consulta de empleados
+  empleados:      window.API?.empleados      || (API_BASE + "ixtla01_c_empleado.php"),
+  // Consulta de departamentos
+  departamentos:  window.API?.departamentos  || (API_BASE + "ixtla01_c_departamento.php"),
+  // Update de requerimiento
+  updReq:         window.API?.updRequerimiento || (API_BASE + "ixtla01_upd_requerimiento.php"),
 };
 
 const MAX_PER_PAGE = 200;                 // tope de page size

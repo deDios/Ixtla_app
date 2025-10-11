@@ -1,4 +1,8 @@
 // /JS/home.js
+// Home Ixtla — Tabla + Filtros + Charts con alcance por subordinados (y ADMIN global)
+// Dependencias: /JS/core/dom.js, /JS/core/store.js, /JS/charts/line-chart.js, /JS/charts/donut-chart.js,
+//               /JS/ui/table.js, /JS/api/requerimientos.js
+// NOTA: No usa Drawer. Solo lectura y visualización.
 
 import { $, mountSkeletonList, toggle, escapeHtml } from "/JS/core/dom.js";
 import { createStore } from "/JS/core/store.js";
