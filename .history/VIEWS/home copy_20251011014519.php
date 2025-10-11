@@ -162,7 +162,7 @@
                         </table>
                     </div>
 
-                    <!-- Contenedor de paginación -->
+                    <!-- Contenedor de paginación (lo llena table.js) -->
                     <nav id="hs-pager" class="hs-pager" aria-label="Paginación"></nav>
                 </section>
             </section>
