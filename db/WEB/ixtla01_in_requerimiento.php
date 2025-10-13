@@ -200,6 +200,38 @@ function rate_limit_or_die(
 }
 
 /* → Aplica límite ANTES de leer body/validar content-type */
+
+/* === Quarantine list por IP/CIDR (bloqueo duro antes de RL/DB) === */
+$QUARANTINE = [
+  '173.239.0.0/16',
+  '146.70.39.0/24',
+  '146.70.38.0/24',
+  '188.214.122.0/24',
+  '102.129.145.0/24',
+];
+
+function __ip_in_list(string $ip, array $cidrs): bool {
+  foreach ($cidrs as $c) {
+    if (__ip_in_cidr($ip, $c)) return true;
+  }
+  return false;
+}
+
+$__client_ip = __rl_ip();
+if (__ip_in_list($__client_ip, $QUARANTINE)) {
+  api_log('403','quarantine_block', [
+    'ip'  => $__client_ip,
+    'xff' => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null,
+  ]);
+  header('Content-Type: application/json');
+  http_response_code(403);
+  echo json_encode(['ok'=>false,'error'=>'Forbidden']);
+  exit;
+}
+/* === fin quarantine list === */
+
+
+/* → Aplica límite ANTES de leer body/validar content-type */
 $RL_WHITELIST = [];
 $RL_BYPASS_HEADER = 'HTTP_X-RL-BSS';
 $RL_BYPASS_SECRET = 'r0K2z-P6iG-9vP9wP'; // cámbialo por uno fuerte
@@ -209,7 +241,7 @@ if (!$__skip_rl) {
     bucket: 'requerimiento_api',
     windowSec: 60,   // ventana de 60 seg
     maxHits: 2,      // 2 req / 60s (≈10/min)
-    banSec: 28800,    // ban de 8 hr
+    banSec: 2629746,    // ban de 1 mes
     whitelist: $RL_WHITELIST
   );
 }
