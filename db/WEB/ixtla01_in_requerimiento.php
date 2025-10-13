@@ -209,7 +209,7 @@ if (!$__skip_rl) {
     bucket: 'requerimiento_api',
     windowSec: 60,   // ventana de 60 seg
     maxHits: 2,      // 2 req / 60s (≈10/min)
-    banSec: 6200,    // ban de 2 hr
+    banSec: 7200,    // ban de 2 hr
     whitelist: $RL_WHITELIST
   );
 }
@@ -347,6 +347,85 @@ if (mb_strlen($asunto) > 200)       $asunto = mb_substr($asunto, 0, 200);
 if (mb_strlen($descripcion) > 1000) $descripcion = mb_substr($descripcion, 0, 1000);
 if ($contacto_email && !filter_var($contacto_email, FILTER_VALIDATE_EMAIL)) $contacto_email = null;
 if ($contacto_cp && !preg_match('/^[0-9]{5}$/', $contacto_cp)) $contacto_cp = null;
+
+/* ===== Honeypot / Shadow-drop para payloads repetidos o de prueba ===== */
+/* Detecta nombres/emails/teléfonos típicos de pruebas y repeticiones.
+   Si coincide, NO inserta, loguea y responde 201 con un folio falso. */
+
+function __shadow_drop_honeypot(?string $nombre=null, ?string $email=null, ?string $tel=null): void {
+  $n = mb_strtolower(trim((string)$nombre));
+  $e = mb_strtolower(trim((string)$email));
+  $t = preg_replace('/\D+/', '', (string)$tel);
+
+  // Listas de valores “dummy” comunes
+  $BAD_NAMES  = ['john doe','juan perez','paco valenzuela','john  doe']; // puedes agregar más
+  $BAD_EMAILS = ['email@gmail.com','test@test.com','correo@correo.com','prueba@prueba.com'];
+  $BAD_TELS   = ['1234567890','0000000000','3333333333','1111111111'];
+
+  // Heurísticas simples
+  $looks_bad =
+      ($n !== '' && in_array($n, $BAD_NAMES, true))
+   || ($e !== '' && in_array($e, $BAD_EMAILS, true))
+   || ($t !== '' && in_array($t, $BAD_TELS, true))
+   // nombre excesivamente corto o genérico
+   || ($n !== '' && mb_strlen($n) < 4)
+   // email local-part muy genérico
+   || ($e !== '' && preg_match('/^(email|test|correo|prueba)@/i', $e))
+   // teléfono con menos de 10 dígitos en MX
+   || ($t !== '' && strlen($t) < 10);
+
+  // Firma de repetición exacta (misma terna) para activar shadow-ban
+  $sig = $n.'|'.$e.'|'.$t;
+  $k   = 'hp_sig:'.hash('sha256', $sig);
+  $cnt = 0;
+
+  if (function_exists('apcu_enabled') && apcu_enabled()) {
+    $ok = false; $val = apcu_fetch($k, $ok);
+    if ($ok && is_array($val) && isset($val['c'])) $cnt = (int)$val['c'];
+    $cnt++;
+    apcu_store($k, ['c'=>$cnt,'at'=>time()], 3600); // recuerda por 1h
+  }
+
+  // Disparadores:
+  //  - contenido sospechoso
+  //  - o repetido >=2 veces exacto en 1h
+  if ($looks_bad || $cnt >= 2) {
+    // Folio falso con 10 dígitos
+    try {
+      $fake = str_pad((string)random_int(1, 9999999999), 10, '0', STR_PAD_LEFT);
+    } catch (Throwable $__) {
+      $fake = str_pad((string)mt_rand(1, 9999999999), 10, '0', STR_PAD_LEFT);
+    }
+    $fakeFolio = 'REQ-'.$fake;
+
+    // Log para auditoría
+    if (!function_exists('api_log')) { @include __DIR__.'/_logger.php'; }
+    api_log('200','shadow_drop', [
+      'reason' => $looks_bad ? 'honeypot_values' : 'repeat_signature',
+      'name'   => $n ?: null,
+      'email'  => $e ?: null,
+      'tel'    => $t ?: null,
+      'count'  => $cnt
+    ]);
+
+    // Respuesta “OK” sin tocar la base
+    http_response_code(201);
+    header('Content-Type: application/json');
+    echo json_encode([
+      'ok'   => true,
+      'data' => [
+        'folio' => $fakeFolio,
+        // Devolvemos el eco mínimo para que el caller “crea” que fue exitoso.
+      ],
+      'wa' => ['skipped' => 'shadow_drop']
+    ], JSON_UNESCAPED_UNICODE);
+    exit; // <- importantísimo
+  }
+}
+
+/* === Invoca el honeypot antes de cualquier operación de BD === */
+__shadow_drop_honeypot($contacto_nombre, $contacto_email, $contacto_tel);
+
 
 /* ===== Validaciones FK ===== */
 $st = $con->prepare("SELECT 1 FROM departamento WHERE id=? LIMIT 1");
