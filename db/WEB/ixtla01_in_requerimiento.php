@@ -209,7 +209,7 @@ if (!$__skip_rl) {
     bucket: 'requerimiento_api',
     windowSec: 60,   // ventana de 60 seg
     maxHits: 2,      // 2 req / 60s (≈10/min)
-    banSec: 7200,    // ban de 2 hr
+    banSec: 28800,    // ban de 8 hr
     whitelist: $RL_WHITELIST
   );
 }
