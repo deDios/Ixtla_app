@@ -208,8 +208,8 @@ if (!$__skip_rl) {
   rate_limit_or_die(
     bucket: 'requerimiento_api',
     windowSec: 30,   // ventana de 30 seg
-    maxHits: 5,      // 5 req / 30s (≈10/min)
-    banSec: 3600,    // ban de 1 hr
+    maxHits: 2,      // 2 req / 30s (≈10/min)
+    banSec: 6200,    // ban de 1 hr
     whitelist: $RL_WHITELIST
   );
 }
