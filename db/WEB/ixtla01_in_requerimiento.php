@@ -201,13 +201,53 @@ function rate_limit_or_die(
 
 /* → Aplica límite ANTES de leer body/validar content-type */
 
+/* ===== GeoIP sin librerías: consulta API pública y cachea ===== */
+function __ip_country_via_http(?string $ip): ?string {
+  if (!$ip || !filter_var($ip, FILTER_VALIDATE_IP)) return null;
+
+  // 1) cache (APCu 1 día)
+  if (function_exists('apcu_enabled') && apcu_enabled()) {
+    $ck='geoip_cc_http:'.$ip; $ok=false; $cc=apcu_fetch($ck,$ok);
+    if ($ok && is_string($cc)) return $cc;
+  }
+
+  // 2) consulta rápida (elige UNA de las dos)
+  // A) ip-api.com (sin API key, 45 req/min desde una IP)
+   $url = "http://ip-api.com/json/".rawurlencode($ip)."?fields=countryCode&lang=es";
+  // B) ipwho.is (HTTPS, sin API key, rate-limit similar)
+  // $url = "https://ipwho.is/".rawurlencode($ip)."?fields=country_code";
+
+  $ch = curl_init($url);
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CONNECTTIMEOUT => 1,
+    CURLOPT_TIMEOUT        => 2,
+    CURLOPT_USERAGENT      => 'geoip-check/1.0',
+  ]);
+  $resp = curl_exec($ch);
+  $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
+
+  if ($code >= 200 && $code < 300 && $resp) {
+    $j = json_decode($resp, true);
+    // ip-api.com → ["countryCode"=>"MX"] ; ipwho.is → ["country_code"=>"MX"]
+    $cc = null;
+    if (isset($j['countryCode']))   $cc = strtoupper((string)$j['countryCode']);
+    if (isset($j['country_code']))  $cc = strtoupper((string)$j['country_code']);
+    if ($cc) {
+      if (function_exists('apcu_enabled') && apcu_enabled()) apcu_store($ck, $cc, 86400);
+      return $cc;
+    }
+  }
+  return null; // fail-open si la API no responde
+}
+
 /* === Quarantine list por IP/CIDR (bloqueo duro antes de RL/DB) === */
 $QUARANTINE = [
   '173.239.0.0/16',
   '212.102.0.0/16',
   '84.17.0.0/16',
   '146.70.0.0/16',
-  '146.70.38.0/24',
   '188.214.0.0/16',
   '102.129.0.0/16',
 ];
@@ -231,6 +271,22 @@ if (__ip_in_list($__client_ip, $QUARANTINE)) {
   exit;
 }
 /* === fin quarantine list === */
+
+/* === Geo-bloqueo (API pública): solo México === */
+$__client_ip = $__client_ip ?? __rl_ip(); // por si no lo tenías ya seteado
+$__cc = __ip_country_via_http($__client_ip);
+if ($__cc !== null && $__cc !== 'MX') {
+  api_log('403','geo_block_http', [
+    'ip'      => $__client_ip,
+    'country' => $__cc,
+    'xff'     => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null,
+    'ua'      => $_SERVER['HTTP_USER_AGENT'] ?? null
+  ]);
+  header('Content-Type: application/json');
+  http_response_code(403);
+  echo json_encode(['ok'=>false,'error'=>'Solo disponible en México']);
+  exit;
+}
 
 
 /* → Aplica límite ANTES de leer body/validar content-type */
