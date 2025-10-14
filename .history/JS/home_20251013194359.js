@@ -1,9 +1,9 @@
 // /JS/home.js
 "use strict";
 
-/* 
+/* ============================================================================
    Imports
-    */
+   ========================================================================== */
 import { Session } from "/JS/auth/session.js";
 import {
   planScope,
@@ -14,7 +14,9 @@ import {
 } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
 
-/* Debug flag */
+/* ============================================================================
+   Debug flag
+   ========================================================================== */
 const DEBUG_LOGS = true;              
 const TAG = "[Home]";
 const log  = (...a) => { if (DEBUG_LOGS) console.log(TAG, ...a); };
@@ -22,9 +24,9 @@ const warn = (...a) => { if (DEBUG_LOGS) console.warn(TAG, ...a); };
 const err  = (...a) => console.error(TAG, ...a);
 window.__HOME_DEBUG = DEBUG_LOGS;
 
-/* 
+/* ============================================================================
    Selectores
-    */
+   ========================================================================== */
 const SEL = {
   // Perfil
   avatar:       "#hs-avatar",
@@ -53,9 +55,9 @@ const SEL = {
 };
 const SIDEBAR_KEYS = ["todos", "pendientes", "en_proceso", "terminados", "cancelados", "pausados"];
 
-/* 
+/* ============================================================================
    Helpers DOM
-    */
+   ========================================================================== */
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
@@ -68,9 +70,9 @@ function formatDateMX(isoOrSql) {
   return d.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-/* 
+/* ============================================================================
    Estado
-    */
+   ========================================================================== */
 const State = {
   session: { empleado_id: null, dept_id: null, roles: [], id_usuario: null },
   scopePlan: null,
@@ -82,9 +84,9 @@ const State = {
   table: null
 };
 
-/* 
+/* ============================================================================
    Fallback cookie ix_emp (base64 JSON) si Session.get() no devuelve nada
-    */
+   ========================================================================== */
 function readCookiePayload() {
   try {
     const name = "ix_emp=";
@@ -98,9 +100,9 @@ function readCookiePayload() {
   }
 }
 
-/* 
+/* ============================================================================
    Lectura de sesión
-    */
+   ========================================================================== */
 function readSession() {
   let s = null;
   try { s = Session?.get?.() || null; } catch { s = null; }
@@ -133,9 +135,9 @@ function readSession() {
   return State.session;
 }
 
-/* 
+/* ============================================================================
    UI: perfil
-    */
+   ========================================================================== */
 function hydrateProfileFromSession() {
   const s = Session?.get?.() || readCookiePayload() || {};
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
@@ -169,9 +171,9 @@ function hydrateProfileFromSession() {
   }
 }
 
-/* 
+/* ============================================================================
    Sidebar: eventos + ARIA
-    */
+   ========================================================================== */
 function initStatesSidebar() {
   const group = $(SEL.statusGroup);
   if (!group) { warn("No se encontró el contenedor de estados", SEL.statusGroup); return; }
@@ -212,9 +214,9 @@ function initStatesSidebar() {
   log("sidebar events listos");
 }
 
-/* 
+/* ============================================================================
    Búsqueda
-    */
+   ========================================================================== */
 function initSearch() {
   const input = $(SEL.searchInput);
   if (!input) return;
@@ -228,9 +230,9 @@ function initSearch() {
   });
 }
 
-/* 
+/* ============================================================================
    Tabla
-    */
+   ========================================================================== */
 function buildTable() {
   State.table = createTable({
     bodySel:  SEL.tableBody,
@@ -273,9 +275,9 @@ function buildTable() {
   State.table.setSort?.("fecha", -1);
 }
 
-/* 
+/* ============================================================================
    Leyenda
-    */
+   ========================================================================== */
 function updateLegendTotals(n) { setText(SEL.legendTotal, String(n ?? 0)); }
 function updateLegendStatus() {
   const map = {
@@ -289,9 +291,9 @@ function updateLegendStatus() {
   setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
 }
 
-/* 
+/* ============================================================================
    Conteos
-    */
+   ========================================================================== */
 function catKeyFromCode(code) {
   if (code === 3) return "en_proceso";
   if (code === 4) return "pausados";
@@ -313,9 +315,9 @@ function computeCounts(rows) {
   setText("#cnt-pausados",    `(${c.pausados})`);
 }
 
-/* 
+/* ============================================================================
    Pipeline + render tabla
-    */
+   ========================================================================== */
 function applyPipelineAndRender() {
   const all = State.rows || [];
   let filtered = all;
@@ -361,9 +363,9 @@ function applyPipelineAndRender() {
   });
 }
 
-/* 
+/* ============================================================================
    Util: log de jerarquía (usuario principal + subordinados con nombres)
-    */
+   ========================================================================== */
 async function logHierarchy(plan) {
   try {
     if (!plan) return;
@@ -390,9 +392,9 @@ async function logHierarchy(plan) {
   }
 }
 
-/* 
+/* ============================================================================
    Carga de datos (scope por subordinados)
-    */
+   ========================================================================== */
 async function loadScopeData() {
   const viewerId = State.session.empleado_id;
   const viewerDeptId = State.session.dept_id;
@@ -434,9 +436,9 @@ async function loadScopeData() {
   });
 }
 
-/* 
+/* ============================================================================
    Init
-    */
+   ========================================================================== */
 window.addEventListener("DOMContentLoaded", async () => {
   try {
     // 1) Sesión

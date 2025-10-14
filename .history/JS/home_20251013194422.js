@@ -1,7 +1,7 @@
 // /JS/home.js
 "use strict";
 
-/* 
+/* ==
    Imports
     */
 import { Session } from "/JS/auth/session.js";
@@ -22,7 +22,7 @@ const warn = (...a) => { if (DEBUG_LOGS) console.warn(TAG, ...a); };
 const err  = (...a) => console.error(TAG, ...a);
 window.__HOME_DEBUG = DEBUG_LOGS;
 
-/* 
+/* ==
    Selectores
     */
 const SEL = {
@@ -53,7 +53,7 @@ const SEL = {
 };
 const SIDEBAR_KEYS = ["todos", "pendientes", "en_proceso", "terminados", "cancelados", "pausados"];
 
-/* 
+/* ==
    Helpers DOM
     */
 const $  = (sel, root = document) => root.querySelector(sel);
@@ -68,7 +68,7 @@ function formatDateMX(isoOrSql) {
   return d.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-/* 
+/* ==
    Estado
     */
 const State = {
@@ -82,7 +82,7 @@ const State = {
   table: null
 };
 
-/* 
+/* ==
    Fallback cookie ix_emp (base64 JSON) si Session.get() no devuelve nada
     */
 function readCookiePayload() {
@@ -98,7 +98,7 @@ function readCookiePayload() {
   }
 }
 
-/* 
+/* ==
    Lectura de sesión
     */
 function readSession() {
@@ -133,7 +133,7 @@ function readSession() {
   return State.session;
 }
 
-/* 
+/* ==
    UI: perfil
     */
 function hydrateProfileFromSession() {
@@ -169,7 +169,7 @@ function hydrateProfileFromSession() {
   }
 }
 
-/* 
+/* ==
    Sidebar: eventos + ARIA
     */
 function initStatesSidebar() {
@@ -212,7 +212,7 @@ function initStatesSidebar() {
   log("sidebar events listos");
 }
 
-/* 
+/* ==
    Búsqueda
     */
 function initSearch() {
@@ -228,7 +228,7 @@ function initSearch() {
   });
 }
 
-/* 
+/* ==
    Tabla
     */
 function buildTable() {
@@ -273,7 +273,7 @@ function buildTable() {
   State.table.setSort?.("fecha", -1);
 }
 
-/* 
+/* ==
    Leyenda
     */
 function updateLegendTotals(n) { setText(SEL.legendTotal, String(n ?? 0)); }
@@ -289,7 +289,7 @@ function updateLegendStatus() {
   setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
 }
 
-/* 
+/* ==
    Conteos
     */
 function catKeyFromCode(code) {
@@ -313,7 +313,7 @@ function computeCounts(rows) {
   setText("#cnt-pausados",    `(${c.pausados})`);
 }
 
-/* 
+/* ==
    Pipeline + render tabla
     */
 function applyPipelineAndRender() {
@@ -361,7 +361,7 @@ function applyPipelineAndRender() {
   });
 }
 
-/* 
+/* ==
    Util: log de jerarquía (usuario principal + subordinados con nombres)
     */
 async function logHierarchy(plan) {
@@ -390,7 +390,7 @@ async function logHierarchy(plan) {
   }
 }
 
-/* 
+/* ==
    Carga de datos (scope por subordinados)
     */
 async function loadScopeData() {
@@ -434,7 +434,7 @@ async function loadScopeData() {
   });
 }
 
-/* 
+/* ==
    Init
     */
 window.addEventListener("DOMContentLoaded", async () => {
