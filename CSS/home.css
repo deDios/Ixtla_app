@@ -312,7 +312,6 @@ main.home-samapa{
   user-select:none;
 }
 
-/* Inputs compactos y sin “salirse” */
 .home-samapa .hs-pager input[type="number"]{
   width:72px;
   border:1px solid var(--hs-border);
@@ -322,7 +321,6 @@ main.home-samapa{
   color:#111;
 }
 
-/* Responsive: en anchos medios, centra los botones y deja info/jump en líneas propias */
 @media (max-width: 1100px){
   .home-samapa .hs-pager{
     justify-content:center;
@@ -343,7 +341,6 @@ main.home-samapa{
 }
 
 @media (max-width: 640px){
-  /* botones un poco más chicos en móvil para que quepan mejor */
   .home-samapa .hs-pager .pg-btn,
   .home-samapa .hs-pager .pg-num{ height:32px; min-width:32px; padding:0 8px; }
   .home-samapa .hs-pager input[type="number"]{ width:64px; }
@@ -353,35 +350,25 @@ main.home-samapa{
 
 
 
-/* ============ STEPPER basado en tu <ul class="step-menu">…</ul> ============ */
-/* HTML:
-<ul class="step-menu">
-  <li class="complete">Step 1</li>
-  <li class="current">Step 2</li>
-  <li>Step 3</li>
-  <li>Step 4</li>
-  <li>Step 5</li>
-  <li>Step 6</li>
-</ul>
-*/
+/* ============ STEPPER ============ */
 
 .step-menu{
   /* controles */
-  --h: 46px;                      /* alto del rail */
-  --slant: 28px;                  /* profundidad del pico (chevron) */
-  --stroke: #0f0f0f;              /* trazo exterior */
-  --up: #e9edf3;                  /* pendiente */
-  --done: #1d6a5b;                /* completado */
-  --curr: #a68f00;                /* actual (mostaza) */
+  --h: 46px;                   
+  --slant: 28px;                 
+  --stroke: #0f0f0f;             
+  --up: #e9edf3;                 
+  --done: #1d6a5b;               
+  --curr: #a68f00;                
 
   margin: 12px auto;
   padding: 0;
   list-style: none;
-  display: flex;                  /* << en vez de floats */
+  display: flex;                  
   border: 1.5px solid var(--stroke);
   border-radius: 9999px;
-  overflow: hidden;               /* recorta picos en extremos */
-  max-width: 1100px;              /* opcional */
+  overflow: hidden;               
+  max-width: 1100px;              
 }
 
 /* cada paso ocupa el mismo ancho */
@@ -404,13 +391,13 @@ main.home-samapa{
 .step-menu li.complete{ --bg: var(--done); color:#fff; }
 .step-menu li.current { --bg: var(--curr); color:#fff; }
 
-/* ---------- chevron derecho (color del propio paso) ---------- */
+/* ---------- chevron derecho ---------- */
 .step-menu li::after{
   content:"";
   position:absolute; top:0; right: calc(-1 * var(--slant));
   border-top:    calc(var(--h)/2) solid transparent;
   border-bottom: calc(var(--h)/2) solid transparent;
-  border-left:   var(--slant) solid var(--bg);   /* mismo color de fondo */
+  border-left:   var(--slant) solid var(--bg);  
 }
 
 .step-menu li::before{
@@ -418,19 +405,28 @@ main.home-samapa{
   position:absolute; top:0; right: calc(-1 * (var(--slant) + 2px));
   border-top:    calc(var(--h)/2) solid transparent;
   border-bottom: calc(var(--h)/2) solid transparent;
-  border-left:   calc(var(--slant) + 2px) solid #fff;  /* bisel blanco */
+  border-left:   calc(var(--slant) + 2px) solid #fff; 
 }
 
-/* último paso: sin chevron ni separador saliendo del contenedor */
 .step-menu li:last-child::after,
 .step-menu li:last-child::before{ display:none; }
 
-/* primero: un poco más de aire visual a la izquierda */
 .step-menu li:first-child{ padding-left: 20px; }
 
-.step-menu li > i{ display:none; } /* por si tenías algo similar */
+.step-menu li > i{ display:none; }
 
 @media (max-width: 720px){
   .step-menu{ overflow:auto; }
   .step-menu li{ min-width: 120px; }
+}
+
+/* filas de relleno */
+.gc-blank td { cursor: default; height: 42px; }
+
+/* fila mensaje vacío (dentro de la tabla) */
+.gc-empty-row td {
+  text-align: center;
+  color: #6b7280;        
+  padding: 16px 8px;
+  font-style: italic;
 }

@@ -11,8 +11,8 @@
       VIEWS:  "/VIEWS",
     },
     ROUTES: {
-      publicHome: "/index.php",        // ← redireccion de a index (logo)
-      appHome:    "/VIEWS/UAT/home.php",   // ← Home para usuarios logeados ("Ir a Home")
+      publicHome: "/index.php",        // redireccion de a index (logo)
+      appHome:    "/VIEWS/UAT/home.php",   // Home para usuarios logeados ("Ir a Home")
       login:      "/VIEWS/login.php",
     },
     ASSETS: {

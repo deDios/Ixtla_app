@@ -2,6 +2,18 @@
 "use strict";
 
 /* ============================================================================
+   CONFIG
+   ========================================================================== */
+const CONFIG = {
+  DEBUG_LOGS: true,                    // ← apaga/enciende logs del Home
+  PAGE_SIZE: 7,                        // ← tamaño de página en la tabla
+  DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
+  DEPT_API_URL: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
+  // Navegación al hacer click en una fila
+  REQ_VIEW_URL: "/VIEWS/requerimiento.php", // se le añade ?id=123
+};
+
+/* ============================================================================
    Imports
    ========================================================================== */
 import { Session } from "/JS/auth/session.js";
@@ -14,20 +26,13 @@ import {
 import { createTable } from "/JS/ui/table.js";
 
 /* ============================================================================
-   Config / Debug
+   Logs helpers
    ========================================================================== */
-const DEBUG_LOGS = true;                     
-const TAG = "[Home]";
-const log  = (...a) => { if (DEBUG_LOGS) console.log(TAG, ...a); };
-const warn = (...a) => { if (DEBUG_LOGS) console.warn(TAG, ...a); };
-const err  = (...a) => console.error(TAG, ...a);
-window.__HOME_DEBUG = DEBUG_LOGS;
-
-// Detalle de requerimiento (click en fila)
-const REQ_DETAIL_URL = "/VIEWS/requerimiento.php";
-
-// Avatar fallback (edítala a tu gusto)
-const AVATAR_FALLBACK = "/ASSETS/user/img_user_default.png";
+const TAG  = "[Home]";
+const LOG  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
+const WARN = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
+const ERR  = (...a) => console.error(TAG, ...a);
+window.__HOME_DEBUG = CONFIG.DEBUG_LOGS;
 
 /* ============================================================================
    Selectores
@@ -53,13 +58,6 @@ const SEL = {
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
-
-  // Placeholder vacío
-  empty:        "#hs-empty",
-
-  // Charts (si los usas)
-  chartYear:    "#chart-year",
-  chartMonth:   "#chart-month",
 };
 
 const SIDEBAR_KEYS = ["todos", "pendientes", "en_proceso", "terminados", "cancelados", "pausados"];
@@ -70,7 +68,6 @@ const SIDEBAR_KEYS = ["todos", "pendientes", "en_proceso", "terminados", "cancel
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
-const toggle = (el, show) => { if (!el) return; el.hidden = !show; };
 
 function formatDateMX(isoOrSql) {
   if (!isoOrSql) return "—";
@@ -103,9 +100,11 @@ function readCookiePayload() {
     const pair = document.cookie.split("; ").find(c => c.startsWith(name));
     if (!pair) return null;
     const raw = decodeURIComponent(pair.slice(name.length));
-    return JSON.parse(decodeURIComponent(escape(atob(raw)))) || null;
+    // decode base64 json
+    const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    return json || null;
   } catch (e) {
-    warn("No se pudo decodificar cookie ix_emp:", e);
+    WARN("No se pudo decodificar cookie ix_emp:", e);
     return null;
   }
 }
@@ -119,13 +118,13 @@ function readSession() {
 
   if (!s) {
     s = readCookiePayload();
-    log("cookie ix_emp (fallback):", s || null);
+    LOG("cookie ix_emp (fallback):", s || null);
   } else {
-    log("cookie ix_emp (via Session):", s || null);
+    LOG("cookie ix_emp (via Session):", s || null);
   }
 
   if (!s) {
-    warn("No hay sesión (Session.get y cookie fallback nulos).");
+    WARN("No hay sesión (Session.get y cookie fallback nulos).");
     State.session = { empleado_id: null, dept_id: null, roles: [], id_usuario: null };
     return State.session;
   }
@@ -135,57 +134,97 @@ function readSession() {
   const roles       = Array.isArray(s?.roles) ? s.roles.map(r => String(r).toUpperCase()) : [];
   const id_usuario  = s?.id_usuario ?? s?.cuenta_id ?? null;
 
-  if (!empleado_id) warn("No hay sesión válida (empleado_id).");
-  else log("sesión detectada", { idEmpleado: empleado_id, depId: dept_id, roles });
+  if (!empleado_id) WARN("No hay sesión válida (empleado_id).");
+  else LOG("sesión detectada", { idEmpleado: empleado_id, depId: dept_id, roles });
 
   State.session = { empleado_id, dept_id, roles, id_usuario };
   return State.session;
 }
 
 /* ============================================================================
+   Resolver nombre de departamento por id (caché)
+   ========================================================================== */
+const _deptCache = new Map();
+async function resolveDeptName(depId) {
+  if (!depId) return "Sin dependencia";
+  if (_deptCache.has(depId)) return _deptCache.get(depId);
+
+  try {
+    // Intento 1: consulta por id (si el endpoint lo soporta)
+    const res1 = await fetch(CONFIG.DEPT_API_URL, {
+      method: "POST",
+      headers: { "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ id: Number(depId) })
+    });
+    if (res1.ok) {
+      const j1 = await res1.json().catch(() => null);
+      const name = j1?.data?.nombre || j1?.data?.Nombre || j1?.data?.nombre_departamento;
+      if (name) { _deptCache.set(depId, name); return name; }
+    }
+
+    // Intento 2: listado completo y buscar localmente
+    const res2 = await fetch(CONFIG.DEPT_API_URL, {
+      method: "POST",
+      headers: { "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ page: 1, page_size: 500, status: 1 })
+    });
+    if (res2.ok) {
+      const j2 = await res2.json().catch(() => null);
+      const list = j2?.data || j2?.rows || [];
+      const hit = list.find(d => Number(d.id) === Number(depId));
+      const name = hit?.nombre || hit?.Nombre || hit?.nombre_departamento;
+      if (name) { _deptCache.set(depId, name); return name; }
+    }
+  } catch (e) {
+    if (CONFIG.DEBUG_LOGS) console.warn("[Home] resolveDeptName error:", e);
+  }
+  const fallback = `Departamento ${depId}`;
+  _deptCache.set(depId, fallback);
+  return fallback;
+}
+
+/* ============================================================================
    UI: perfil
    ========================================================================== */
-function hydrateProfileFromSession() {
+async function hydrateProfileFromSession() {
   const s = Session?.get?.() || readCookiePayload() || {};
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
   setText(SEL.profileName, nombre);
 
-  // Badge de dependencia (si no hay, mostramos id)
+  // Departamento → nombre
   const depBadgeEl = $(SEL.profileBadge);
   if (depBadgeEl) {
-    const text = depBadgeEl.textContent?.trim();
-    if (!text || text === "—") {
-      depBadgeEl.textContent = State.session.dept_id != null ? String(State.session.dept_id) : "—";
+    const depId = State.session.dept_id;
+    if (depId != null) {
+      depBadgeEl.textContent = "Cargando…";
+      const depName = await resolveDeptName(depId);
+      depBadgeEl.textContent = depName || String(depId);
+    } else {
+      depBadgeEl.textContent = "Sin dependencia";
     }
   }
 
-  // Avatar con fallback
+  // Avatar con fallback configurable
   const avatarEl = $(SEL.avatar);
-  if (avatarEl) {
+  if (avatarEl && State.session.id_usuario != null) {
     const idu = State.session.id_usuario;
-    const candidates = idu ? [
+    const candidates = [
       `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
       `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
       `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
       `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-    ] : [];
-    let triedFallback = false;
+    ];
     let idx = 0;
-
-    const setFallback = () => {
-      if (triedFallback) return;
-      triedFallback = true;
-      avatarEl.onerror = null;
-      avatarEl.src = AVATAR_FALLBACK;
-    };
-
     const tryNext = () => {
-      if (idx >= candidates.length) { setFallback(); return; }
+      if (idx >= candidates.length) {
+        avatarEl.onerror = null;
+        avatarEl.src = CONFIG.DEFAULT_AVATAR;
+        return;
+      }
       avatarEl.onerror = () => { idx++; tryNext(); };
       avatarEl.src = `${candidates[idx]}?v=${Date.now()}`;
     };
-
-    if (candidates.length) tryNext(); else setFallback();
+    tryNext();
   }
 }
 
@@ -194,18 +233,18 @@ function hydrateProfileFromSession() {
    ========================================================================== */
 function initStatesSidebar() {
   const group = $(SEL.statusGroup);
-  if (!group) { warn("No se encontró el contenedor de estados", SEL.statusGroup); return; }
+  if (!group) { WARN("No se encontró el contenedor de estados", SEL.statusGroup); return; }
   group.setAttribute("role", "radiogroup");
 
   const items = $$(SEL.statusItems);
-  if (!items.length) warn("No se encontraron status items a tiempo. Revisa el HTML o los selectores.");
+  if (!items.length) WARN("No se encontraron status items a tiempo. Revisa el HTML o los selectores.");
 
   items.forEach((btn, i) => {
     btn.setAttribute("role", "radio");
     btn.setAttribute("tabindex", i === 0 ? "0" : "-1");
     btn.setAttribute("aria-checked", btn.classList.contains("is-active") ? "true" : "false");
 
-    if (!SIDEBAR_KEYS.includes(btn.dataset.status)) warn("Botón de estado sin data-status válido:", btn);
+    if (!SIDEBAR_KEYS.includes(btn.dataset.status)) WARN("Botón de estado sin data-status válido:", btn);
 
     btn.addEventListener("click", () => {
       items.forEach(b => { b.classList.remove("is-active"); b.setAttribute("aria-checked", "false"); b.tabIndex = -1; });
@@ -229,7 +268,7 @@ function initStatesSidebar() {
     if (e.key === " " || e.key === "Enter") { items[nextIdx].click(); e.preventDefault(); }
   });
 
-  log("sidebar events listos");
+  LOG("sidebar events listos");
 }
 
 /* ============================================================================
@@ -256,7 +295,7 @@ function buildTable() {
     bodySel:  SEL.tableBody,
     wrapSel:  SEL.tableWrap,
     pagSel:   SEL.pager,
-    pageSize: 25,
+    pageSize: CONFIG.PAGE_SIZE,
     columns: [
       {
         key: "tramite",
@@ -290,31 +329,29 @@ function buildTable() {
     ]
   });
 
-  // Orden inicial: por fecha (desc)
+  // Orden por fecha desc por defecto
   State.table.setSort?.("fecha", -1);
-}
 
-/* ============================================================================
-   Click en fila → detalle
-   ========================================================================== */
-function wireRowClick() {
+  // Navegación al hacer click (ignora filas de relleno o fila vacía)
   const tbody = $(SEL.tableBody);
-  if (!tbody) return;
+  if (tbody) {
+    tbody.addEventListener("click", (ev) => {
+      const tr = ev.target.closest("tr");
+      if (!tr || tr.classList.contains("gc-blank") || tr.classList.contains("gc-empty-row")) return;
 
-  tbody.addEventListener("click", (e) => {
-    const tr = e.target.closest("tr");
-    if (!tr || tr.classList.contains("gc-blank")) return;       // si usas filas relleno del table.js
-    const idx = Number(tr.dataset.rowIdx);
-    if (!Number.isFinite(idx)) return;
+      const idx = parseInt(tr.getAttribute("data-row-idx") || "-1", 10);
+      if (isNaN(idx) || idx < 0) return;
 
-    const pageRaw = State.table?.getRawRows?.() || [];
-    const raw = pageRaw[idx];
-    const id = raw?.id || raw?.__raw?.id;
-    if (!id) return;
+      const rawRowsThisPage = State.table.getPageRawRows?.() || [];
+      const raw = rawRowsThisPage[idx];
+      const reqId = raw?.id ?? raw?.__raw?.id;
+      if (!reqId) return;
 
-    const url = `${REQ_DETAIL_URL}?id=${encodeURIComponent(id)}`;
-    window.location.href = url;
-  });
+      // Redirige a la vista del requerimiento
+      const url = `${CONFIG.REQ_VIEW_URL}?id=${encodeURIComponent(reqId)}`;
+      window.location.href = url;
+    });
+  }
 }
 
 /* ============================================================================
@@ -347,8 +384,9 @@ function computeCounts(rows) {
   const c = { todos: 0, pendientes: 0, en_proceso: 0, terminados: 0, cancelados: 0, pausados: 0 };
   rows.forEach(r => { c.todos++; const k = catKeyFromCode(r.estatus?.code); if (k in c) c[k]++; });
   State.counts = c;
-  log("conteos", c);
+  LOG("conteos", c);
 
+  // Solo se actualizan si existen en tu HTML
   setText("#cnt-todos",       `(${c.todos})`);
   setText("#cnt-pendientes",  `(${c.pendientes})`);
   setText("#cnt-en_proceso",  `(${c.en_proceso})`);
@@ -361,9 +399,6 @@ function computeCounts(rows) {
    Pipeline + render
    ========================================================================== */
 function applyPipelineAndRender() {
-  const wrap = $(SEL.tableWrap);
-  const empty = $(SEL.empty);
-
   const all = State.rows || [];
   let filtered = all;
 
@@ -395,16 +430,11 @@ function applyPipelineAndRender() {
 
   State.table?.setData(tableRows);
 
-  // Mostrar placeholder vacío si no hay filas
-  const hasRows = tableRows.length > 0;
-  toggle(wrap, hasRows);
-  toggle(empty, !hasRows);
-
   if (State.table) {
     const s = State.table.getSort?.() || {};
-    log("table render", s);
+    LOG("table render", s);
   }
-  log("pipeline", {
+  LOG("pipeline", {
     filtroStatus: State.filterKey,
     search: State.search,
     totalUniverso: all.length,
@@ -414,7 +444,7 @@ function applyPipelineAndRender() {
 }
 
 /* ============================================================================
-   Logs de jerarquía: usuario + subordinados (con nombre)
+   Util: log de jerarquía (usuario principal + subordinados con nombres)
    ========================================================================== */
 async function logHierarchy(plan) {
   try {
@@ -429,26 +459,29 @@ async function logHierarchy(plan) {
       return { id, nombre: fullName(emp), depto: emp?.departamento_id ?? null, username: emp?.cuenta?.username || null };
     });
 
-    log("USUARIO PRINCIPAL:", {
+    LOG("USUARIO PRINCIPAL:", {
       id: plan.viewerId,
       nombre: fullName(principal),
       depto: principal?.departamento_id ?? null,
       role: plan.role,
       isAdmin: !!plan.isAdmin
     });
-    log("SUBORDINADOS (deep):", { total: subsAll.length, items: subsAll });
+    LOG("SUBORDINADOS (deep):", { total: subsAll.length, items: subsAll });
   } catch (e) {
-    warn("No se pudo loggear jerarquía:", e);
+    WARN("No se pudo loggear jerarquía:", e);
   }
 }
 
 /* ============================================================================
-   Data: traer solo “yo + subordinados”
+   Solo “yo + subordinados” (sin depto)
    ========================================================================== */
 async function fetchMineAndTeam(plan, filtros = {}) {
   const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
-  const results = await Promise.allSettled(ids.map(id => listByAsignado(id, filtros)));
-  const lists = results.filter(r => r.status === "fulfilled").map(r => r.value || []);
+  const promises = ids.map(id => listByAsignado(id, filtros));
+  const results = await Promise.allSettled(promises);
+  const lists = results
+    .filter(r => r.status === "fulfilled")
+    .map(r => r.value || []);
 
   // Dedup por id y orden por created_at DESC
   const map = new Map();
@@ -459,8 +492,8 @@ async function fetchMineAndTeam(plan, filtros = {}) {
       ((b.id || 0) - (a.id || 0))
     );
 
-  // Log: lista final cruda
-  log("FINAL mine+team items (raw):",
+  // Log visible de la lista final (crudos)
+  LOG("FINAL mine+team items (raw):",
     items.map(r => ({
       id: r.id, folio: r.folio,
       asignado_a: r.asignado_a,
@@ -480,7 +513,7 @@ async function loadScopeData() {
   const viewerDeptId = State.session.dept_id;
 
   if (!viewerId) {
-    warn("viewerId ausente. Se omite carga de scope.");
+    WARN("viewerId ausente. Se omite carga de scope.");
     State.universe = [];
     State.rows = [];
     computeCounts(State.rows);
@@ -490,24 +523,24 @@ async function loadScopeData() {
     return;
   }
 
-  log("construyendo planScope", { viewerId, viewerDeptId });
+  LOG("construyendo planScope", { viewerId, viewerDeptId });
   const plan = await planScope({ viewerId, viewerDeptId });
   State.scopePlan = plan;
-  log("planScope listo", plan);
+  LOG("planScope listo", plan);
 
-  // Jerarquía (logs)
+  // Logs de jerarquía
   logHierarchy(plan);
 
-  // Solo YO + SUBS
-  log("fetching only mine + team…");
+  // Solo yo + subordinados
+  LOG("fetching only mine + team…");
   const items = await fetchMineAndTeam(plan, {});
 
-  // Adaptar para UI
+  // Pintado
   State.universe = items.slice();
   State.rows = State.universe.map(parseReq);
 
-  // Log: lo que realmente pintamos (UI)
-  log("FINAL mine+team items (UI-mapped):",
+  // Log visible (ya mapeado a UI)
+  LOG("FINAL mine+team items (UI-mapped):",
     State.rows.map(r => ({
       id: r.id, folio: r.folio, asignado: r.asignado,
       estatus: r.estatus?.label, creado: r.creado
@@ -519,7 +552,7 @@ async function loadScopeData() {
   updateLegendStatus();
   applyPipelineAndRender();
 
-  log("datos listos", {
+  LOG("datos listos", {
     total: State.rows.length,
     primeros3: State.rows.slice(0, 3).map(r => ({ id: r.id, folio: r.folio, estatus: r.estatus?.code }))
   });
@@ -530,22 +563,19 @@ async function loadScopeData() {
    ========================================================================== */
 window.addEventListener("DOMContentLoaded", async () => {
   try {
-    // Sesión + perfil
-    readSession();
-    hydrateProfileFromSession();
+    readSession();                  // llena State.session y loguea
+    await hydrateProfileFromSession(); // pinta nombre/depto/avatar
 
-    // UI base
     initStatesSidebar();
     initSearch();
     buildTable();
-    wireRowClick();
     updateLegendStatus();
 
-    // Datos
     await loadScopeData();
 
-    log("init — Home listo");
+    LOG("init — Home listo");
   } catch (e) {
-    err("init error:", e);
+    ERR("init error:", e);
   }
 });
+
