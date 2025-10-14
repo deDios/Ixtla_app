@@ -8,8 +8,8 @@ import { Session } from "/JS/auth/session.js";
 import {
   planScope,
   parseReq,
-  loadEmpleados,     
-  listByAsignado,    
+  loadEmpleados,     // para loggear jerarquía con nombres
+  listByAsignado,    // <-- NUEVO: para traer mine + team
 } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
 
