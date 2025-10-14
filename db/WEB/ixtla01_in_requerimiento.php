@@ -202,20 +202,29 @@ function rate_limit_or_die(
 /* → Aplica límite ANTES de leer body/validar content-type */
 
 /* ===== GeoIP sin librerías: consulta API pública y cachea ===== */
+if (!defined('GEO_FAIL_CLOSED')) {
+  // true = si la API de GeoIP falla, bloquea; false = si falla, deja pasar (fail-open)
+  define('GEO_FAIL_CLOSED', false);
+}
+
 function __ip_country_via_http(?string $ip): ?string {
   if (!$ip || !filter_var($ip, FILTER_VALIDATE_IP)) return null;
 
-  // 1) cache (APCu 1 día)
-  if (function_exists('apcu_enabled') && apcu_enabled()) {
-    $ck='geoip_cc_http:'.$ip; $ok=false; $cc=apcu_fetch($ck,$ok);
-    if ($ok && is_string($cc)) return $cc;
+  // No consultar IPs privadas/reservadas
+  if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+    return null;
   }
 
-  // 2) consulta rápida (elige UNA de las dos)
-  // A) ip-api.com (sin API key, 45 req/min desde una IP)
-   $url = "http://ip-api.com/json/".rawurlencode($ip)."?fields=countryCode&lang=es";
-  // B) ipwho.is (HTTPS, sin API key, rate-limit similar)
-  // $url = "https://ipwho.is/".rawurlencode($ip)."?fields=country_code";
+  $ck = 'geoip_cc_http:'.$ip;
+
+  // Cache APCu
+  if (function_exists('apcu_enabled') && apcu_enabled()) {
+    $ok = false; $cc = apcu_fetch($ck, $ok);
+    if ($ok && is_string($cc)) { if ($cc === '??') return null; return $cc; }
+  }
+
+  // Usar HTTPS (ipwho.is)
+  $url = "https://ipwho.is/".rawurlencode($ip)."?fields=country_code";
 
   $ch = curl_init($url);
   curl_setopt_array($ch, [
@@ -229,18 +238,21 @@ function __ip_country_via_http(?string $ip): ?string {
   curl_close($ch);
 
   if ($code >= 200 && $code < 300 && $resp) {
-    $j = json_decode($resp, true);
-    // ip-api.com → ["countryCode"=>"MX"] ; ipwho.is → ["country_code"=>"MX"]
-    $cc = null;
-    if (isset($j['countryCode']))   $cc = strtoupper((string)$j['countryCode']);
-    if (isset($j['country_code']))  $cc = strtoupper((string)$j['country_code']);
+    $j  = json_decode($resp, true);
+    $cc = isset($j['country_code']) ? strtoupper((string)$j['country_code']) : null;
     if ($cc) {
-      if (function_exists('apcu_enabled') && apcu_enabled()) apcu_store($ck, $cc, 86400);
+      if (function_exists('apcu_enabled') && apcu_enabled()) apcu_store($ck, $cc, 86400); // 1 día
       return $cc;
     }
   }
-  return null; // fail-open si la API no responde
+
+  // Negative-cache cuando la API no respondió bien
+  if (function_exists('apcu_enabled') && apcu_enabled()) apcu_store($ck, '??', 600); // 10 min
+
+  // Si quieres bloquear cuando la API falle, devolvemos 'XX' (el caller decide)
+  return GEO_FAIL_CLOSED ? 'XX' : null;
 }
+
 
 /* === Quarantine list por IP/CIDR (bloqueo duro antes de RL/DB) === */
 $QUARANTINE = [
@@ -273,9 +285,11 @@ if (__ip_in_list($__client_ip, $QUARANTINE)) {
 /* === fin quarantine list === */
 
 /* === Geo-bloqueo (API pública): solo México === */
-$__client_ip = $__client_ip ?? __rl_ip(); // por si no lo tenías ya seteado
+$__client_ip = $__client_ip ?? __rl_ip();
 $__cc = __ip_country_via_http($__client_ip);
-if ($__cc !== null && $__cc !== 'MX') {
+
+// Bloquea si país ≠ MX, o si GEO_FAIL_CLOSED está activo y la API falló (XX)
+if ( ($__cc === 'XX') || ($__cc !== null && $__cc !== 'MX') ) {
   api_log('403','geo_block_http', [
     'ip'      => $__client_ip,
     'country' => $__cc,
@@ -291,8 +305,8 @@ if ($__cc !== null && $__cc !== 'MX') {
 
 /* → Aplica límite ANTES de leer body/validar content-type */
 $RL_WHITELIST = [];
-$RL_BYPASS_HEADER = 'HTTP_X-RL-BSS';
-$RL_BYPASS_SECRET = 'r0K2z-P6iG-9vP9wP'; // cámbialo por uno fuerte
+$RL_BYPASS_HEADER = 'HTTP_X_RL_BSS';
+$RL_BYPASS_SECRET = 'r0K2z-P6iG-9vP9wP'; // c
 $__skip_rl = isset($_SERVER[$RL_BYPASS_HEADER]) && hash_equals($RL_BYPASS_SECRET, $_SERVER[$RL_BYPASS_HEADER]);
 if (!$__skip_rl) {
   rate_limit_or_die(
