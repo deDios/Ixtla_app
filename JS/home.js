@@ -1,17 +1,24 @@
 // /JS/home.js
 "use strict";
 
-/* ============================================================================
-   CONFIG
-   ========================================================================== */
+/* CON  */
 const CONFIG = {
-  DEBUG_LOGS: true,                    // ← apaga/enciende logs del Home
-  PAGE_SIZE: 7,                        // ← tamaño de página en la tabla
+  DEBUG_LOGS: true,
+  PAGE_SIZE: 7, // elementos por página
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
-  DEPT_API_URL: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
-  // Navegación al hacer click en una fila
-  REQ_VIEW_URL: "/VIEWS/requerimiento.php", // se le añade ?id=123
+  REQ_VIEW_URL_BASE: "/VIEWS/requerimiento.php?id=",
+
+  // Endpoints 
+  API_BASE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/",
+  EP: {
+    departamentos: "ixtla01_c_departamento.php",
+  },
 };
+
+const TAG = "[Home]";
+const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
+const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
+const err  = (...a) => console.error(TAG, ...a);
 
 /* ============================================================================
    Imports
@@ -26,35 +33,21 @@ import {
 import { createTable } from "/JS/ui/table.js";
 
 /* ============================================================================
-   Logs helpers
-   ========================================================================== */
-const TAG  = "[Home]";
-const LOG  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
-const WARN = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
-const ERR  = (...a) => console.error(TAG, ...a);
-window.__HOME_DEBUG = CONFIG.DEBUG_LOGS;
-
-/* ============================================================================
    Selectores
    ========================================================================== */
 const SEL = {
-  // Perfil
   avatar:       "#hs-avatar",
   profileName:  "#hs-profile-name",
   profileBadge: "#hs-profile-badge",
 
-  // Sidebar estados
   statusGroup:  "#hs-states",
   statusItems:  "#hs-states .item",
 
-  // Búsqueda
   searchInput:  "#hs-search",
 
-  // Leyendas
   legendTotal:  "#hs-legend-total",
   legendStatus: "#hs-legend-status",
 
-  // Tabla
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
@@ -88,7 +81,8 @@ const State = {
   filterKey: "todos",
   search: "",
   counts: { todos: 0, pendientes: 0, en_proceso: 0, terminados: 0, cancelados: 0, pausados: 0 },
-  table: null
+  table: null,
+  deptoNameCache: new Map(),
 };
 
 /* ============================================================================
@@ -100,11 +94,9 @@ function readCookiePayload() {
     const pair = document.cookie.split("; ").find(c => c.startsWith(name));
     if (!pair) return null;
     const raw = decodeURIComponent(pair.slice(name.length));
-    // decode base64 json
-    const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
-    return json || null;
+    return JSON.parse(decodeURIComponent(escape(atob(raw)))) || null;
   } catch (e) {
-    WARN("No se pudo decodificar cookie ix_emp:", e);
+    warn("No se pudo decodificar cookie ix_emp:", e);
     return null;
   }
 }
@@ -118,13 +110,13 @@ function readSession() {
 
   if (!s) {
     s = readCookiePayload();
-    LOG("cookie ix_emp (fallback):", s || null);
+    log("cookie ix_emp (fallback):", s || null);
   } else {
-    LOG("cookie ix_emp (via Session):", s || null);
+    log("cookie ix_emp (via Session):", s || null);
   }
 
   if (!s) {
-    WARN("No hay sesión (Session.get y cookie fallback nulos).");
+    warn("No hay sesión (Session.get y cookie fallback nulos).");
     State.session = { empleado_id: null, dept_id: null, roles: [], id_usuario: null };
     return State.session;
   }
@@ -134,53 +126,34 @@ function readSession() {
   const roles       = Array.isArray(s?.roles) ? s.roles.map(r => String(r).toUpperCase()) : [];
   const id_usuario  = s?.id_usuario ?? s?.cuenta_id ?? null;
 
-  if (!empleado_id) WARN("No hay sesión válida (empleado_id).");
-  else LOG("sesión detectada", { idEmpleado: empleado_id, depId: dept_id, roles });
+  if (!empleado_id) warn("No hay sesión válida (empleado_id).");
+  else log("sesión detectada", { idEmpleado: empleado_id, depId: dept_id, roles });
 
   State.session = { empleado_id, dept_id, roles, id_usuario };
   return State.session;
 }
 
 /* ============================================================================
-   Resolver nombre de departamento por id (caché)
+   Departamentos (nombre por id) – sin cambiar endpoint
    ========================================================================== */
-const _deptCache = new Map();
-async function resolveDeptName(depId) {
-  if (!depId) return "Sin dependencia";
-  if (_deptCache.has(depId)) return _deptCache.get(depId);
-
+async function fetchDepartamentos() {
+  if (State.deptoNameCache.size) return State.deptoNameCache;
+  const url = CONFIG.API_BASE + CONFIG.EP.departamentos;
   try {
-    // Intento 1: consulta por id (si el endpoint lo soporta)
-    const res1 = await fetch(CONFIG.DEPT_API_URL, {
-      method: "POST",
-      headers: { "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ id: Number(depId) })
-    });
-    if (res1.ok) {
-      const j1 = await res1.json().catch(() => null);
-      const name = j1?.data?.nombre || j1?.data?.Nombre || j1?.data?.nombre_departamento;
-      if (name) { _deptCache.set(depId, name); return name; }
-    }
-
-    // Intento 2: listado completo y buscar localmente
-    const res2 = await fetch(CONFIG.DEPT_API_URL, {
-      method: "POST",
-      headers: { "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ page: 1, page_size: 500, status: 1 })
-    });
-    if (res2.ok) {
-      const j2 = await res2.json().catch(() => null);
-      const list = j2?.data || j2?.rows || [];
-      const hit = list.find(d => Number(d.id) === Number(depId));
-      const name = hit?.nombre || hit?.Nombre || hit?.nombre_departamento;
-      if (name) { _deptCache.set(depId, name); return name; }
-    }
+    // “simple”, sin complicar params
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" }, body: JSON.stringify({}) });
+    const json = await res.json().catch(() => null);
+    const list = json?.data || json?.rows || [];
+    list.forEach(d => State.deptoNameCache.set(Number(d.id), String(d.nombre || `Departamento ${d.id}`)));
   } catch (e) {
-    if (CONFIG.DEBUG_LOGS) console.warn("[Home] resolveDeptName error:", e);
+    warn("No se pudieron cargar departamentos:", e);
   }
-  const fallback = `Departamento ${depId}`;
-  _deptCache.set(depId, fallback);
-  return fallback;
+  return State.deptoNameCache;
+}
+async function resolveDeptoName(id) {
+  if (id == null) return "—";
+  await fetchDepartamentos();
+  return State.deptoNameCache.get(Number(id)) || `Departamento ${id}`;
 }
 
 /* ============================================================================
@@ -191,40 +164,34 @@ async function hydrateProfileFromSession() {
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
   setText(SEL.profileName, nombre);
 
-  // Departamento → nombre
+  // Badge con NOMBRE del departamento
   const depBadgeEl = $(SEL.profileBadge);
   if (depBadgeEl) {
-    const depId = State.session.dept_id;
-    if (depId != null) {
-      depBadgeEl.textContent = "Cargando…";
-      const depName = await resolveDeptName(depId);
-      depBadgeEl.textContent = depName || String(depId);
-    } else {
-      depBadgeEl.textContent = "Sin dependencia";
-    }
+    const depName = await resolveDeptoName(State.session.dept_id);
+    depBadgeEl.textContent = depName || "—";
   }
 
-  // Avatar con fallback configurable
+  // Avatar (fallback configurable)
   const avatarEl = $(SEL.avatar);
-  if (avatarEl && State.session.id_usuario != null) {
+  if (avatarEl) {
     const idu = State.session.id_usuario;
-    const candidates = [
-      `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
-      `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
-      `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
-      `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-    ];
-    let idx = 0;
-    const tryNext = () => {
-      if (idx >= candidates.length) {
-        avatarEl.onerror = null;
-        avatarEl.src = CONFIG.DEFAULT_AVATAR;
-        return;
-      }
-      avatarEl.onerror = () => { idx++; tryNext(); };
-      avatarEl.src = `${candidates[idx]}?v=${Date.now()}`;
-    };
-    tryNext();
+    if (!idu) {
+      avatarEl.src = CONFIG.DEFAULT_AVATAR;
+    } else {
+      const candidates = [
+        `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
+        `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
+        `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
+        `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
+      ];
+      let idx = 0;
+      const tryNext = () => {
+        if (idx >= candidates.length) { avatarEl.src = CONFIG.DEFAULT_AVATAR; return; }
+        avatarEl.onerror = () => { idx++; tryNext(); };
+        avatarEl.src = `${candidates[idx]}?v=${Date.now()}`;
+      };
+      tryNext();
+    }
   }
 }
 
@@ -233,18 +200,18 @@ async function hydrateProfileFromSession() {
    ========================================================================== */
 function initStatesSidebar() {
   const group = $(SEL.statusGroup);
-  if (!group) { WARN("No se encontró el contenedor de estados", SEL.statusGroup); return; }
+  if (!group) { warn("No se encontró el contenedor de estados", SEL.statusGroup); return; }
   group.setAttribute("role", "radiogroup");
 
   const items = $$(SEL.statusItems);
-  if (!items.length) WARN("No se encontraron status items a tiempo. Revisa el HTML o los selectores.");
+  if (!items.length) warn("No se encontraron status items a tiempo. Revisa el HTML o los selectores.");
 
   items.forEach((btn, i) => {
     btn.setAttribute("role", "radio");
     btn.setAttribute("tabindex", i === 0 ? "0" : "-1");
     btn.setAttribute("aria-checked", btn.classList.contains("is-active") ? "true" : "false");
 
-    if (!SIDEBAR_KEYS.includes(btn.dataset.status)) WARN("Botón de estado sin data-status válido:", btn);
+    if (!SIDEBAR_KEYS.includes(btn.dataset.status)) warn("Botón de estado sin data-status válido:", btn);
 
     btn.addEventListener("click", () => {
       items.forEach(b => { b.classList.remove("is-active"); b.setAttribute("aria-checked", "false"); b.tabIndex = -1; });
@@ -268,7 +235,7 @@ function initStatesSidebar() {
     if (e.key === " " || e.key === "Enter") { items[nextIdx].click(); e.preventDefault(); }
   });
 
-  LOG("sidebar events listos");
+  log("sidebar events listos");
 }
 
 /* ============================================================================
@@ -301,27 +268,36 @@ function buildTable() {
         key: "tramite",
         title: "Trámites",
         sortable: true,
-        accessor: r => r.asunto || r.tramite || "—"
+        accessor: r => (r.__placeholder || r.__empty) ? "" : (r.asunto || r.tramite || "—"),
+        render: (v, r) => {
+          if (r.__empty) return `<span class="muted">No hay requerimientos asignados de momento</span>`;
+          if (r.__placeholder) return "";
+          return (r.asunto || r.tramite || "—");
+        }
       },
       {
         key: "asignado",
         title: "Asignado",
         sortable: true,
-        accessor: r => r.asignado || "—"
+        accessor: r => (r.__placeholder || r.__empty) ? "" : (r.asignado || "—"),
+        render: (v, r) => (r.__placeholder || r.__empty) ? "" : (r.asignado || "—"),
       },
       {
         key: "fecha",
         title: "Fecha de solicitado",
         sortable: true,
-        accessor: r => r.creado ? new Date(String(r.creado).replace(" ", "T")).getTime() : 0,
-        render: (v, r) => formatDateMX(r.creado)
+        accessor: r => (r.__placeholder || r.__empty)
+          ? 0
+          : (r.creado ? new Date(String(r.creado).replace(" ", "T")).getTime() : 0),
+        render: (v, r) => (r.__placeholder || r.__empty) ? "" : formatDateMX(r.creado)
       },
       {
         key: "status",
         title: "Status",
         sortable: true,
-        accessor: r => r.estatus?.label || "—",
+        accessor: r => (r.__placeholder || r.__empty) ? "" : (r.estatus?.label || "—"),
         render: (v, r) => {
+          if (r.__placeholder || r.__empty) return "";
           const cat = catKeyFromCode(r.estatus?.code);
           return `<span class="hs-status" data-k="${cat}">${r.estatus?.label || "—"}</span>`;
         }
@@ -329,29 +305,24 @@ function buildTable() {
     ]
   });
 
-  // Orden por fecha desc por defecto
-  State.table.setSort?.("fecha", -1);
+  // Click en fila → vista del requerimiento
+  wireTableClicks();
+}
 
-  // Navegación al hacer click (ignora filas de relleno o fila vacía)
+function wireTableClicks() {
   const tbody = $(SEL.tableBody);
-  if (tbody) {
-    tbody.addEventListener("click", (ev) => {
-      const tr = ev.target.closest("tr");
-      if (!tr || tr.classList.contains("gc-blank") || tr.classList.contains("gc-empty-row")) return;
-
-      const idx = parseInt(tr.getAttribute("data-row-idx") || "-1", 10);
-      if (isNaN(idx) || idx < 0) return;
-
-      const rawRowsThisPage = State.table.getPageRawRows?.() || [];
-      const raw = rawRowsThisPage[idx];
-      const reqId = raw?.id ?? raw?.__raw?.id;
-      if (!reqId) return;
-
-      // Redirige a la vista del requerimiento
-      const url = `${CONFIG.REQ_VIEW_URL}?id=${encodeURIComponent(reqId)}`;
-      window.location.href = url;
-    });
-  }
+  if (!tbody) return;
+  tbody.addEventListener("click", (ev) => {
+    const tr = ev.target.closest("tr");
+    if (!tr || !tbody.contains(tr)) return;
+    const idx = Number(tr.getAttribute("data-row-idx") || -1);
+    const rawRows = State.table?.getRawRows?.() || [];
+    const raw = rawRows[idx];
+    if (!raw || raw.__placeholder || raw.__empty) return; // no interactivo
+    const id = raw?.id || raw?.__raw?.id;
+    if (!id) return;
+    location.href = `${CONFIG.REQ_VIEW_URL_BASE}${id}`;
+  });
 }
 
 /* ============================================================================
@@ -384,9 +355,8 @@ function computeCounts(rows) {
   const c = { todos: 0, pendientes: 0, en_proceso: 0, terminados: 0, cancelados: 0, pausados: 0 };
   rows.forEach(r => { c.todos++; const k = catKeyFromCode(r.estatus?.code); if (k in c) c[k]++; });
   State.counts = c;
-  LOG("conteos", c);
+  log("conteos", c);
 
-  // Solo se actualizan si existen en tu HTML
   setText("#cnt-todos",       `(${c.todos})`);
   setText("#cnt-pendientes",  `(${c.pendientes})`);
   setText("#cnt-en_proceso",  `(${c.en_proceso})`);
@@ -419,8 +389,10 @@ function applyPipelineAndRender() {
   computeCounts(all);
   updateLegendTotals(filtered.length);
 
-  const tableRows = filtered.map(r => ({
+  // 1) filas reales
+  let tableRows = filtered.map(r => ({
     __raw: r,
+    id: r.id,
     asunto:   r.asunto,
     tramite:  r.tramite,
     asignado: r.asignado,
@@ -428,17 +400,27 @@ function applyPipelineAndRender() {
     estatus:  r.estatus
   }));
 
+  // 2) manejar vacío / placeholders
+  if (tableRows.length === 0) {
+    tableRows = [{ __empty: true }];
+    log("placeholders: empty=1, fillers=0");
+  } else if (tableRows.length < CONFIG.PAGE_SIZE) {
+    const fillers = CONFIG.PAGE_SIZE - tableRows.length;
+    for (let i = 0; i < fillers; i++) tableRows.push({ __placeholder: true });
+    log("placeholders:", { empty: 0, fillers });
+  }
+
   State.table?.setData(tableRows);
 
   if (State.table) {
     const s = State.table.getSort?.() || {};
-    LOG("table render", s);
+    log("table render", s);
   }
-  LOG("pipeline", {
+  log("pipeline", {
     filtroStatus: State.filterKey,
     search: State.search,
     totalUniverso: all.length,
-    totalFiltrado: tableRows.length,
+    totalFiltrado: filtered.length,
     counts: State.counts
   });
 }
@@ -459,24 +441,25 @@ async function logHierarchy(plan) {
       return { id, nombre: fullName(emp), depto: emp?.departamento_id ?? null, username: emp?.cuenta?.username || null };
     });
 
-    LOG("USUARIO PRINCIPAL:", {
+    log("USUARIO PRINCIPAL:", {
       id: plan.viewerId,
       nombre: fullName(principal),
       depto: principal?.departamento_id ?? null,
       role: plan.role,
       isAdmin: !!plan.isAdmin
     });
-    LOG("SUBORDINADOS (deep):", { total: subsAll.length, items: subsAll });
+    log("SUBORDINADOS (deep):", { total: subsAll.length, items: subsAll });
   } catch (e) {
-    WARN("No se pudo loggear jerarquía:", e);
+    warn("No se pudo loggear jerarquía:", e);
   }
 }
 
 /* ============================================================================
-   Solo “yo + subordinados” (sin depto)
+   Traer “yo + subordinados” (múltiples llamadas simples al mismo endpoint)
    ========================================================================== */
 async function fetchMineAndTeam(plan, filtros = {}) {
   const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
+  // Llamadas “simples”, una por cada id
   const promises = ids.map(id => listByAsignado(id, filtros));
   const results = await Promise.allSettled(promises);
   const lists = results
@@ -492,8 +475,8 @@ async function fetchMineAndTeam(plan, filtros = {}) {
       ((b.id || 0) - (a.id || 0))
     );
 
-  // Log visible de la lista final (crudos)
-  LOG("FINAL mine+team items (raw):",
+  // Log de lista final cruda
+  log("FINAL mine+team items (raw):",
     items.map(r => ({
       id: r.id, folio: r.folio,
       asignado_a: r.asignado_a,
@@ -513,7 +496,7 @@ async function loadScopeData() {
   const viewerDeptId = State.session.dept_id;
 
   if (!viewerId) {
-    WARN("viewerId ausente. Se omite carga de scope.");
+    warn("viewerId ausente. Se omite carga de scope.");
     State.universe = [];
     State.rows = [];
     computeCounts(State.rows);
@@ -523,24 +506,24 @@ async function loadScopeData() {
     return;
   }
 
-  LOG("construyendo planScope", { viewerId, viewerDeptId });
+  log("construyendo planScope", { viewerId, viewerDeptId });
   const plan = await planScope({ viewerId, viewerDeptId });
   State.scopePlan = plan;
-  LOG("planScope listo", plan);
+  log("planScope listo", plan);
 
-  // Logs de jerarquía
+  // Log jerarquía con nombres
   logHierarchy(plan);
 
-  // Solo yo + subordinados
-  LOG("fetching only mine + team…");
+  // Sólo YO + SUBORDINADOS (múltiples llamadas sencillas)
+  log("fetching only mine + team…");
   const items = await fetchMineAndTeam(plan, {});
 
-  // Pintado
+  // Adaptar para UI
   State.universe = items.slice();
   State.rows = State.universe.map(parseReq);
 
-  // Log visible (ya mapeado a UI)
-  LOG("FINAL mine+team items (UI-mapped):",
+  // Log visible de lo que pintamos
+  log("FINAL mine+team items (UI-mapped):",
     State.rows.map(r => ({
       id: r.id, folio: r.folio, asignado: r.asignado,
       estatus: r.estatus?.label, creado: r.creado
@@ -552,7 +535,7 @@ async function loadScopeData() {
   updateLegendStatus();
   applyPipelineAndRender();
 
-  LOG("datos listos", {
+  log("datos listos", {
     total: State.rows.length,
     primeros3: State.rows.slice(0, 3).map(r => ({ id: r.id, folio: r.folio, estatus: r.estatus?.code }))
   });
@@ -563,8 +546,8 @@ async function loadScopeData() {
    ========================================================================== */
 window.addEventListener("DOMContentLoaded", async () => {
   try {
-    readSession();                  // llena State.session y loguea
-    await hydrateProfileFromSession(); // pinta nombre/depto/avatar
+    readSession();
+    await hydrateProfileFromSession();
 
     initStatesSidebar();
     initSearch();
@@ -573,9 +556,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     await loadScopeData();
 
-    LOG("init — Home listo");
+    log("init — Home listo");
   } catch (e) {
-    ERR("init error:", e);
+    err("init error:", e);
   }
 });
-
