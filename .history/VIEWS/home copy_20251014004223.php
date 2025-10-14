@@ -161,7 +161,7 @@
                             <tbody id="hs-table-body"></tbody>
                         </table>
                     </div>
-                    <!-- Estado vacio para la tabla
+                    <!-- Estado vacio para la tabla 
                     <div id="hs-empty" class="hs-empty" role="status" aria-live="polite" hidden>
                         <div class="hs-empty-icon" aria-hidden="true">🗂️</div>
                         <h4 class="hs-empty-title">No hay requerimientos asignados de momento</h4>
@@ -236,17 +236,6 @@
     <script src="/JS/components.js"></script>
 
     -->
-    <!-- guard para la pagina de login -->
-    <script type="module">
-    import {
-        guardPage
-    } from "/JS/auth/guard.js";
-    guardPage({
-        stealth: false,
-        redirectTo: "/VIEWS/login.php"
-    });
-    </script>
-
     <script type="module" src="/JS/home.js"></script>
     <script src="/JS/JSglobal.js"></script>
 

@@ -236,7 +236,6 @@
     <script src="/JS/components.js"></script>
 
     -->
-    <!-- guard para la pagina de login -->
     <script type="module">
     import {
         guardPage

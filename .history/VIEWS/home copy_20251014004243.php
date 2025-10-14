@@ -236,14 +236,14 @@
     <script src="/JS/components.js"></script>
 
     -->
-    <!-- guard para la pagina de login -->
     <script type="module">
     import {
         guardPage
     } from "/JS/auth/guard.js";
     guardPage({
+        allowEmpIds: [6, 5, 4, 2],
         stealth: false,
-        redirectTo: "/VIEWS/login.php"
+        redirectTo: "/VIEWS/home.php"
     });
     </script>
 
