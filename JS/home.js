@@ -8,44 +8,60 @@ import { Session } from "/JS/auth/session.js";
 import {
   planScope,
   parseReq,
-  loadEmpleados,     
-  listByAsignado,    
+  loadEmpleados,
+  listByAsignado,
 } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
 
 /* ============================================================================
-   Debug flag
+   Config / Debug
    ========================================================================== */
-const DEBUG_LOGS = true;
+const DEBUG_LOGS = true;                     
 const TAG = "[Home]";
 const log  = (...a) => { if (DEBUG_LOGS) console.log(TAG, ...a); };
 const warn = (...a) => { if (DEBUG_LOGS) console.warn(TAG, ...a); };
 const err  = (...a) => console.error(TAG, ...a);
 window.__HOME_DEBUG = DEBUG_LOGS;
 
+// Detalle de requerimiento (click en fila)
+const REQ_DETAIL_URL = "/VIEWS/requerimiento.php";
+
+// Avatar fallback (edítala a tu gusto)
+const AVATAR_FALLBACK = "/ASSETS/user/img_user_default.png";
+
 /* ============================================================================
    Selectores
    ========================================================================== */
 const SEL = {
+  // Perfil
   avatar:       "#hs-avatar",
   profileName:  "#hs-profile-name",
   profileBadge: "#hs-profile-badge",
 
+  // Sidebar estados
   statusGroup:  "#hs-states",
   statusItems:  "#hs-states .item",
 
+  // Búsqueda
   searchInput:  "#hs-search",
 
+  // Leyendas
   legendTotal:  "#hs-legend-total",
   legendStatus: "#hs-legend-status",
 
+  // Tabla
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
 
+  // Placeholder vacío
+  empty:        "#hs-empty",
+
+  // Charts (si los usas)
   chartYear:    "#chart-year",
   chartMonth:   "#chart-month",
 };
+
 const SIDEBAR_KEYS = ["todos", "pendientes", "en_proceso", "terminados", "cancelados", "pausados"];
 
 /* ============================================================================
@@ -54,6 +70,7 @@ const SIDEBAR_KEYS = ["todos", "pendientes", "en_proceso", "terminados", "cancel
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
+const toggle = (el, show) => { if (!el) return; el.hidden = !show; };
 
 function formatDateMX(isoOrSql) {
   if (!isoOrSql) return "—";
@@ -133,6 +150,7 @@ function hydrateProfileFromSession() {
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
   setText(SEL.profileName, nombre);
 
+  // Badge de dependencia (si no hay, mostramos id)
   const depBadgeEl = $(SEL.profileBadge);
   if (depBadgeEl) {
     const text = depBadgeEl.textContent?.trim();
@@ -141,22 +159,33 @@ function hydrateProfileFromSession() {
     }
   }
 
+  // Avatar con fallback
   const avatarEl = $(SEL.avatar);
-  if (avatarEl && State.session.id_usuario != null) {
+  if (avatarEl) {
     const idu = State.session.id_usuario;
-    const candidates = [
+    const candidates = idu ? [
       `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
       `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
       `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
       `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-    ];
+    ] : [];
+    let triedFallback = false;
     let idx = 0;
+
+    const setFallback = () => {
+      if (triedFallback) return;
+      triedFallback = true;
+      avatarEl.onerror = null;
+      avatarEl.src = AVATAR_FALLBACK;
+    };
+
     const tryNext = () => {
-      if (idx >= candidates.length) return;
+      if (idx >= candidates.length) { setFallback(); return; }
       avatarEl.onerror = () => { idx++; tryNext(); };
       avatarEl.src = `${candidates[idx]}?v=${Date.now()}`;
     };
-    tryNext();
+
+    if (candidates.length) tryNext(); else setFallback();
   }
 }
 
@@ -229,13 +258,29 @@ function buildTable() {
     pagSel:   SEL.pager,
     pageSize: 25,
     columns: [
-      { key: "tramite",  title: "Trámites",            sortable: true, accessor: r => r.asunto || r.tramite || "—" },
-      { key: "asignado", title: "Asignado",            sortable: true, accessor: r => r.asignado || "—" },
-      { key: "fecha",    title: "Fecha de solicitado", sortable: true,
+      {
+        key: "tramite",
+        title: "Trámites",
+        sortable: true,
+        accessor: r => r.asunto || r.tramite || "—"
+      },
+      {
+        key: "asignado",
+        title: "Asignado",
+        sortable: true,
+        accessor: r => r.asignado || "—"
+      },
+      {
+        key: "fecha",
+        title: "Fecha de solicitado",
+        sortable: true,
         accessor: r => r.creado ? new Date(String(r.creado).replace(" ", "T")).getTime() : 0,
         render: (v, r) => formatDateMX(r.creado)
       },
-      { key: "status",   title: "Status",              sortable: true,
+      {
+        key: "status",
+        title: "Status",
+        sortable: true,
         accessor: r => r.estatus?.label || "—",
         render: (v, r) => {
           const cat = catKeyFromCode(r.estatus?.code);
@@ -244,7 +289,32 @@ function buildTable() {
       }
     ]
   });
-  State.table.setSort?.("fecha", -1); // más recientes primero
+
+  // Orden inicial: por fecha (desc)
+  State.table.setSort?.("fecha", -1);
+}
+
+/* ============================================================================
+   Click en fila → detalle
+   ========================================================================== */
+function wireRowClick() {
+  const tbody = $(SEL.tableBody);
+  if (!tbody) return;
+
+  tbody.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr");
+    if (!tr || tr.classList.contains("gc-blank")) return;       // si usas filas relleno del table.js
+    const idx = Number(tr.dataset.rowIdx);
+    if (!Number.isFinite(idx)) return;
+
+    const pageRaw = State.table?.getRawRows?.() || [];
+    const raw = pageRaw[idx];
+    const id = raw?.id || raw?.__raw?.id;
+    if (!id) return;
+
+    const url = `${REQ_DETAIL_URL}?id=${encodeURIComponent(id)}`;
+    window.location.href = url;
+  });
 }
 
 /* ============================================================================
@@ -291,6 +361,9 @@ function computeCounts(rows) {
    Pipeline + render
    ========================================================================== */
 function applyPipelineAndRender() {
+  const wrap = $(SEL.tableWrap);
+  const empty = $(SEL.empty);
+
   const all = State.rows || [];
   let filtered = all;
 
@@ -322,6 +395,11 @@ function applyPipelineAndRender() {
 
   State.table?.setData(tableRows);
 
+  // Mostrar placeholder vacío si no hay filas
+  const hasRows = tableRows.length > 0;
+  toggle(wrap, hasRows);
+  toggle(empty, !hasRows);
+
   if (State.table) {
     const s = State.table.getSort?.() || {};
     log("table render", s);
@@ -336,7 +414,7 @@ function applyPipelineAndRender() {
 }
 
 /* ============================================================================
-   Util: log de jerarquía (usuario principal + subordinados con nombres)
+   Logs de jerarquía: usuario + subordinados (con nombre)
    ========================================================================== */
 async function logHierarchy(plan) {
   try {
@@ -365,15 +443,12 @@ async function logHierarchy(plan) {
 }
 
 /* ============================================================================
-   NUEVO: traer solo “yo + subordinados” (sin depto)
+   Data: traer solo “yo + subordinados”
    ========================================================================== */
 async function fetchMineAndTeam(plan, filtros = {}) {
   const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
-  const promises = ids.map(id => listByAsignado(id, filtros));
-  const results = await Promise.allSettled(promises);
-  const lists = results
-    .filter(r => r.status === "fulfilled")
-    .map(r => r.value || []);
+  const results = await Promise.allSettled(ids.map(id => listByAsignado(id, filtros)));
+  const lists = results.filter(r => r.status === "fulfilled").map(r => r.value || []);
 
   // Dedup por id y orden por created_at DESC
   const map = new Map();
@@ -384,7 +459,7 @@ async function fetchMineAndTeam(plan, filtros = {}) {
       ((b.id || 0) - (a.id || 0))
     );
 
-  // Log visible de la lista final (crudos)
+  // Log: lista final cruda
   log("FINAL mine+team items (raw):",
     items.map(r => ({
       id: r.id, folio: r.folio,
@@ -420,18 +495,18 @@ async function loadScopeData() {
   State.scopePlan = plan;
   log("planScope listo", plan);
 
-  // Log jerarquía con nombres
+  // Jerarquía (logs)
   logHierarchy(plan);
 
-  // === AQUÍ: sólo YO + SUBORDINADOS ===
+  // Solo YO + SUBS
   log("fetching only mine + team…");
-  const items = await fetchMineAndTeam(plan, {}); // puedes pasar filtros si quieres
+  const items = await fetchMineAndTeam(plan, {});
 
-  // Pintado
+  // Adaptar para UI
   State.universe = items.slice();
   State.rows = State.universe.map(parseReq);
 
-  // Log visible de lo que realmente pintamos (ya mapeado a UI)
+  // Log: lo que realmente pintamos (UI)
   log("FINAL mine+team items (UI-mapped):",
     State.rows.map(r => ({
       id: r.id, folio: r.folio, asignado: r.asignado,
@@ -455,14 +530,18 @@ async function loadScopeData() {
    ========================================================================== */
 window.addEventListener("DOMContentLoaded", async () => {
   try {
+    // Sesión + perfil
     readSession();
     hydrateProfileFromSession();
 
+    // UI base
     initStatesSidebar();
     initSearch();
     buildTable();
+    wireRowClick();
     updateLegendStatus();
 
+    // Datos
     await loadScopeData();
 
     log("init — Home listo");

@@ -8,9 +8,9 @@ export function createTable({
   pagSel = "#tbl-pag",
   pageSize = 8,
   columns = [],
-  pagerFancy = true,          // <— NUEVO: paginación con elipsis/prev/next
-  onRender = null,            // <— NUEVO: callback tras render
-  tag = "[Table]"             // <— NUEVO: logs
+  pagerFancy = true,          // paginación con elipsis/prev/next
+  onRender = null,            // callback tras render
+  tag = "[Table]"             // logs
 } = {}) {
   const body = $(bodySel);
   const wrap = $(wrapSel);
