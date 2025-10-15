@@ -1,0 +1,136 @@
+/* ============ STEPPER ============ */
+
+.step-menu{
+  /* controles */
+  --h: 46px;                   
+  --slant: 28px;                 
+  --stroke: #0f0f0f;             
+  --up: #e9edf3;                 
+  --done: #1d6a5b;               
+  --curr: #a68f00;                
+
+  margin: 12px auto;
+  padding: 0;
+  list-style: none;
+  display: flex;                  
+  border: 1.5px solid var(--stroke);
+  border-radius: 9999px;
+  overflow: hidden;               
+  max-width: 1100px;              
+}
+
+/* cada paso ocupa el mismo ancho */
+.step-menu li{
+  --bg: var(--up);               
+  flex: 1 1 0;
+  height: var(--h);
+  background: var(--bg);
+  color: #0e2233;
+  font-weight: 800;
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0 16px 0 calc(16px + var(--slant)*.35);
+  line-height: 1;
+  user-select: none;
+}
+
+/* estados */
+.step-menu li.complete{ --bg: var(--done); color:#fff; }
+.step-menu li.current { --bg: var(--curr); color:#fff; }
+
+/* ---------- chevron derecho ---------- */
+.step-menu li::after{
+  content:"";
+  position:absolute; top:0; right: calc(-1 * var(--slant));
+  border-top:    calc(var(--h)/2) solid transparent;
+  border-bottom: calc(var(--h)/2) solid transparent;
+  border-left:   var(--slant) solid var(--bg);  
+}
+
+.step-menu li::before{
+  content:"";
+  position:absolute; top:0; right: calc(-1 * (var(--slant) + 2px));
+  border-top:    calc(var(--h)/2) solid transparent;
+  border-bottom: calc(var(--h)/2) solid transparent;
+  border-left:   calc(var(--slant) + 2px) solid #fff; 
+}
+
+.step-menu li:last-child::after,
+.step-menu li:last-child::before{ display:none; }
+
+.step-menu li:first-child{ padding-left: 20px; }
+
+.step-menu li > i{ display:none; }
+
+@media (max-width: 720px){
+  .step-menu{ overflow:auto; }
+  .step-menu li{ min-width: 120px; }
+}
+
+/* filas de relleno */
+.gc-blank td { cursor: default; height: 42px; }
+
+/* fila mensaje vacío (dentro de la tabla) */
+.gc-empty-row td {
+  text-align: center;
+  color: #6b7280;        
+  padding: 16px 8px;
+  font-style: italic;
+}
+
+
+
+.gc{
+  table-layout: fixed;     
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  --row-h: 48px;         
+  --cell-px: 16px;         
+}
+
+.gc thead th,
+.gc tbody td{
+  padding: 12px var(--cell-px);
+  vertical-align: middle;
+}
+
+.gc tbody tr{
+  height: var(--row-h);     
+}
+
+.gc thead th:nth-child(1){ width: 42%; }  
+.gc thead th:nth-child(2){ width: 26%; }  
+.gc thead th:nth-child(3){ width: 18%; }  
+.gc thead th:nth-child(4){ width: 14%; }  
+
+.gc tbody tr[data-filler],
+.gc tbody tr[data-empty]{
+  background: transparent !important; 
+  cursor: default;               
+}
+
+.gc tbody tr[data-filler] td,
+.gc tbody tr[data-empty] td{
+  height: var(--row-h);
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-top: 1px solid rgba(0,0,0,0.03);  
+}
+
+.gc tbody tr[data-filler] td:empty::before,
+.gc tbody tr[data-empty] td:empty::before{
+  content: "\00a0"; /* &nbsp; */
+}
+
+.gc tbody tr[data-filler]:hover,
+.gc tbody tr[data-empty]:hover{
+  background: transparent !important;
+}
+
+.gc tbody tr.hs-row-empty td{
+  text-align: center;
+  color: #6b7280;       
+  font-style: italic;
+}

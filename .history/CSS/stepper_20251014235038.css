@@ -1,0 +1,53 @@
+/* =======================================================
+   Requerimiento View — tabs + acordeones + ?tab=
+   ======================================================= */
+(() => {
+  const TAB_NAMES = ["informante", "detalles", "planeacion"];
+
+  // -------- Tabs ----------
+  const tabButtons = Array.from(document.querySelectorAll(".exp-tabs .exp-tab"));
+  const panes = Array.from(document.querySelectorAll(".exp-pane"));
+
+  function setActiveTab(index) {
+    tabButtons.forEach((btn, i) => {
+      const active = i === index;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", String(active));
+      if (panes[i]) panes[i].classList.toggle("is-active", active);
+    });
+  }
+
+  // Map by query (?tab=detalles)
+  function tabIndexFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const t = (params.get("tab") || "").toLowerCase();
+    const idx = TAB_NAMES.indexOf(t);
+    return idx >= 0 ? idx : 0;
+  }
+
+  // Click handlers
+  tabButtons.forEach((btn, i) => {
+    btn.addEventListener("click", () => {
+      setActiveTab(i);
+      // Opcional: actualizar ?tab= sin recargar
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", TAB_NAMES[i]);
+      window.history.replaceState({}, "", url);
+    });
+  });
+
+  // Init default tab
+  setActiveTab(tabIndexFromQuery());
+
+  // -------- Acordeones (Evidencias y Fases) ----------
+  const accHeads = document.querySelectorAll(".exp-accordion .exp-acc-head");
+  accHeads.forEach((head) => {
+    head.addEventListener("click", () => {
+      const expanded = head.getAttribute("aria-expanded") === "true";
+      head.setAttribute("aria-expanded", String(!expanded));
+      const body = head.nextElementSibling;
+      if (!body) return;
+      body.style.display = expanded ? "none" : "block";
+    });
+  });
+})();

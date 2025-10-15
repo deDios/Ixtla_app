@@ -82,29 +82,43 @@
                 <!-- Perfil -->
                 <section class="hs-profile" aria-label="Perfil">
                     <img class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
+                    <!-- <a class="link" href="#perfil" aria-label="Administrar perfil">Administrar perfil ›</a> -->
                     <h3 class="name">Juan Pablo Garcia Casillas</h3>
                     <span class="badge">SAMAPA</span>
                 </section>
 
                 <!-- Estados -->
                 <nav class="hs-states" aria-label="Estados">
-                    <button class="item is-active"><span class="label">Todos</span><span
-                            class="count">(50)</span></button>
-                    <button class="item"><span class="label">Pendientes</span><span class="count">(10)</span></button>
-                    <button class="item"><span class="label">En proceso</span><span class="count">(10)</span></button>
-                    <button class="item"><span class="label">Terminados</span><span class="count">(20)</span></button>
-                    <button class="item"><span class="label">Cancelados</span><span class="count">(5)</span></button>
-                    <button class="item"><span class="label">Pausados</span><span class="count">(5)</span></button>
+                    <button class="item is-active">
+                        <span class="label">Todos</span><span class="count">(50)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">Pendientes</span><span class="count">(10)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">En proceso</span><span class="count">(10)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">Terminados</span><span class="count">(20)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">Cancelados</span><span class="count">(5)</span>
+                    </button>
+                    <button class="item">
+                        <span class="label">Pausados</span><span class="count">(5)</span>
+                    </button>
                 </nav>
             </aside>
 
             <!-- MAIN -->
             <section class="hs-main exp-view">
-                <!-- Encabezado -->
+
+                <!-- Encabezado: título + meta -->
                 <header class="exp-head">
                     <div class="exp-title">
                         <h1>Fuga de agua</h1>
                     </div>
+
                     <dl class="exp-meta">
                         <div>
                             <dt>Informante</dt>
@@ -133,6 +147,7 @@
                     </ul>
                 </div>
 
+
                 <!-- Tabs -->
                 <nav class="exp-tabs" role="tablist" aria-label="Secciones">
                     <button class="exp-tab is-active" role="tab" aria-selected="true">Informante</button>
@@ -140,22 +155,27 @@
                     <button class="exp-tab" role="tab" aria-selected="false">Planeación</button>
                 </nav>
 
-                <!-- Panel: Informante -->
-                <section class="exp-pane is-active" role="tabpanel" data-tab="informante">
+                <!-- Panel activo (Informante) -->
+                <section class="exp-pane is-active" role="tabpanel">
                     <div class="exp-grid">
-                        <div class="exp-field"><label>Nombre:</label>
+                        <div class="exp-field">
+                            <label>Nombre:</label>
                             <div class="exp-val">Luis Enrique Mendez</div>
                         </div>
-                        <div class="exp-field"><label>Teléfono:</label>
+                        <div class="exp-field">
+                            <label>Teléfono:</label>
                             <div class="exp-val">33 3333 3333</div>
                         </div>
-                        <div class="exp-field"><label>Dirección del reporte:</label>
+                        <div class="exp-field">
+                            <label>Dirección del reporte:</label>
                             <div class="exp-val">Vicente Guerrero #13, Centro</div>
                         </div>
-                        <div class="exp-field"><label>Correo:</label>
+                        <div class="exp-field">
+                            <label>Correo:</label>
                             <div class="exp-val"><a href="mailto:correo@ejemplo.com">correo@ejemplo.com</a></div>
                         </div>
-                        <div class="exp-field"><label>C.P.:</label>
+                        <div class="exp-field">
+                            <label>C.P.:</label>
                             <div class="exp-val">45850</div>
                         </div>
                     </div>
@@ -164,18 +184,25 @@
                 <!-- Panel: Detalles -->
                 <section class="exp-pane" role="tabpanel" data-tab="detalles">
                     <div class="exp-grid">
-                        <div class="exp-field"><label>Nombre del Requerimiento:</label>
+                        <div class="exp-field">
+                            <label>Nombre del Requerimiento:</label>
                             <div class="exp-val">Fuga de agua</div>
                         </div>
-                        <div class="exp-field"><label>Líder del Departamento:</label>
+                        <div class="exp-field">
+                            <label>Líder del Departamento:</label>
                             <div class="exp-val"><a href="#">Juan Pablo</a></div>
                         </div>
-                        <div class="exp-field"><label>Asignado:</label>
+                        <div class="exp-field">
+                            <label>Asignado:</label>
                             <div class="exp-val"><a href="#">Luis Enrique Mendez</a></div>
                         </div>
-                        <div class="exp-field"><label>Estatus:</label>
-                            <div class="exp-val"><span class="exp-badge is-info">En proceso</span></div>
+                        <div class="exp-field">
+                            <label>Estatus:</label>
+                            <div class="exp-val">
+                                <span class="exp-badge is-info">En proceso</span>
+                            </div>
                         </div>
+
                         <div class="exp-field exp-field--full">
                             <label>Descripción:</label>
                             <div class="exp-val exp-preline">
@@ -183,10 +210,13 @@
                                 agua y no parece que se encuentren los propietarios. Nos preocupa porque es agua limpia.
                             </div>
                         </div>
-                        <div class="exp-field"><label>Fecha de inicio:</label>
+
+                        <div class="exp-field">
+                            <label>Fecha de inicio:</label>
                             <div class="exp-val">02/09/2025</div>
                         </div>
-                        <div class="exp-field"><label>Fecha de terminado:</label>
+                        <div class="exp-field">
+                            <label>Fecha de terminado:</label>
                             <div class="exp-val">—</div>
                         </div>
                     </div>
@@ -194,7 +224,6 @@
 
                 <!-- Panel: Planeación -->
                 <section class="exp-pane" role="tabpanel" data-tab="planeacion">
-
                     <!-- Fase 1 -->
                     <section class="exp-accordion exp-accordion--fase">
                         <button class="exp-acc-head" type="button" aria-expanded="true">
@@ -204,8 +233,10 @@
                             </div>
                             <div class="fase-right">
                                 <span class="fase-label">Estatus</span>
-                                <span class="exp-progress" aria-label="70%"><span class="bar"
-                                        style="width:70%"></span><span class="pct">70%</span></span>
+                                <span class="exp-progress" aria-label="70%">
+                                    <span class="bar" style="width: 70%"></span>
+                                    <span class="pct">70%</span>
+                                </span>
                                 <span class="fase-label">Fecha de inicio</span>
                                 <span class="fase-date">02/06/2025</span>
                                 <span class="chev" aria-hidden="true"></span>
@@ -249,7 +280,9 @@
                                     <div class="fecha">10/05/2025</div>
                                 </div>
                             </div>
+
                         </div>
+
                     </section>
 
                     <!-- Fase 2 -->
@@ -262,7 +295,7 @@
                             <div class="fase-right">
                                 <span class="fase-label">Estatus</span>
                                 <span class="exp-progress" aria-label="79%"><span class="bar"
-                                        style="width:79%"></span><span class="pct">79%</span></span>
+                                        style="width: 79%"></span><span class="pct">79%</span></span>
                                 <span class="fase-label">Fecha de inicio</span>
                                 <span class="fase-date">02/09/2025</span>
                                 <span class="chev" aria-hidden="true"></span>
@@ -281,7 +314,7 @@
                             <div class="fase-right">
                                 <span class="fase-label">Estatus</span>
                                 <span class="exp-progress" aria-label="100%"><span class="bar"
-                                        style="width:100%"></span><span class="pct">100%</span></span>
+                                        style="width: 100%"></span><span class="pct">100%</span></span>
                                 <span class="fase-label">Fecha de inicio</span>
                                 <span class="fase-date">02/09/2025</span>
                                 <span class="chev" aria-hidden="true"></span>
@@ -289,10 +322,10 @@
                         </button>
                         <div class="exp-acc-body" style="display:none"></div>
                     </section>
-
                 </section>
 
-                <!-- Evidencias (visible sin importar el tab activo) -->
+
+                <!-- Evidencias (accordion + tabla simple) -->
                 <section class="exp-accordion">
                     <button class="exp-acc-head" type="button" aria-expanded="true">
                         <span>Evidencias</span>
@@ -308,8 +341,10 @@
                             </div>
 
                             <a class="exp-row" href="#">
-                                <div class="file"><img class="ico" src="/ASSETS/filetypes/img.png"
-                                        alt=""><span>Evidencia Fuga de Agua</span></div>
+                                <div class="file">
+                                    <img class="ico" src="/ASSETS/filetypes/img.png" alt="">
+                                    <span>Evidencia Fuga de Agua</span>
+                                </div>
                                 <div class="who">Luis Enrique</div>
                                 <div class="date">02 de Septiembre del 2025 a las 14:25</div>
                             </a>
@@ -318,8 +353,8 @@
                 </section>
             </section>
         </div>
-    </main>
 
+    </main>
 
 
     <!-- Pie de pagina -->

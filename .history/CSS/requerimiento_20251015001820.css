@@ -321,186 +321,300 @@
 
 
 
-/* =================== Utilidades =================== */
-.exp-view .exp-field--full{ grid-column:1 / -1; }
-.exp-view .exp-preline{ white-space:pre-line; }
+/* ========= Utilidades de panel ========= */
+.exp-view .exp-field--full{ grid-column: 1 / -1; }
+.exp-view .exp-preline{ white-space: pre-line; }
 
-/* =================== Badges (compat con Home) =================== */
-.badge,.exp-badge{
-  display:inline-block; padding:.18rem .5rem; border-radius:999px;
+/* ========= Badges coherentes con la UI ========= */
+.exp-view .exp-badge{
+  display:inline-block; padding:.2rem .5rem; border-radius:999px;
   font-size:.78rem; line-height:1; font-weight:700;
-  background:#eef2f7; color:#374151; border:1px solid #e5e7eb; vertical-align:middle;
+  background:#eef2f7; color:#374151; border:1px solid #e5e7eb;
 }
-.badge--info,    .exp-badge.is-info    { background:#e8f1ff; border-color:#cfe3ff; color:#285ea8; }
-.badge--success, .exp-badge.is-success { background:#e8f7ef; border-color:#cfeede; color:#1f7a4d; }
-.badge--warning, .exp-badge.is-warning { background:#fff6e5; border-color:#ffe7b8; color:#7a5a1f; }
-.badge--danger,  .exp-badge.is-danger  { background:#ffeaea; border-color:#ffc9c9; color:#a82b2b; }
-.badge--muted,   .exp-badge.is-muted   { background:#f3f4f6; border-color:#e5e7eb; color:#6b7280; }
+.exp-view .exp-badge.is-info{ background:#e8f1ff; border-color:#cfe3ff; color:#285ea8; }
+.exp-view .exp-badge.is-success{ background:#e8f7ef; border-color:#cfeede; color:#1f7a4d; }
+.exp-view .exp-badge.is-warning{ background:#fff6e5; border-color:#ffe7b8; color:#7a5a1f; }
+.exp-view .exp-badge.is-danger{ background:#ffeaea; border-color:#ffc9c9; color:#a82b2b; }
+.exp-view .exp-badge.is-muted{ background:#f3f4f6; border-color:#e5e7eb; color:#6b7280; }
 
-/* =================== Progreso =================== */
+/* ========= Progreso mini (fase/actividad) ========= */
+.exp-view .exp-progress{
+  position:relative; display:inline-flex; align-items:center; gap:8px;
+  padding:2px; border-radius:999px; background:#eef2f5; border:1px solid #e5e7eb;
+  height:20px; min-width:88px;
+}
+.exp-view .exp-progress .bar{
+  position:relative; display:block; height:12px; min-width:8px; border-radius:999px; background:#6aa995;
+}
+.exp-view .exp-progress .pct{ font-size:.75rem; color:#111827; font-weight:700; }
+
+.exp-view .exp-progress.xs{
+  height:12px; padding:0; min-width:60px; border:none; background:#eef2f5;
+}
+.exp-view .exp-progress.xs .bar{ height:8px; }
+
+/* ========= Planeación: acordeón de fase ========= */
+.exp-view .exp-accordion--fase > .exp-acc-head{
+  padding:10px 12px !important;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.exp-view .exp-accordion--fase .fase-head{
+  display:flex; flex-direction:column; gap:2px;
+}
+.exp-view .exp-accordion--fase .fase-title{
+  font-weight:700; color:#111827;
+}
+.exp-view .exp-accordion--fase .fase-meta{
+  color:#6b7280; font-size:.8rem;
+}
+.exp-view .exp-accordion--fase .fase-right{
+  display:grid; grid-auto-flow:column; align-items:center; gap:10px;
+}
+.exp-view .exp-accordion--fase .fase-label{
+  color:#6b7280; font-size:.8rem;
+}
+.exp-view .exp-accordion--fase .fase-date{ color:#111827; font-weight:600; }
+
+/* ========= Tabla de planeación ========= */
+.exp-view .exp-table--planeacion .exp-thead,
+.exp-view .exp-table--planeacion .exp-row{
+  grid-template-columns: 1.2fr .8fr .8fr .9fr .8fr;
+}
+.exp-view .exp-table--planeacion .exp-row .estatus .exp-badge{
+  font-weight:700;
+}
+
+/* Mobile */
+@media (max-width: 760px){
+  .exp-view .exp-accordion--fase .fase-right{
+    grid-auto-flow:row; justify-items:flex-start; gap:4px; margin-top:6px;
+  }
+  .exp-view .exp-table--planeacion .exp-thead{ display:none; }
+  .exp-view .exp-table--planeacion .exp-row{
+    grid-template-columns: 1fr; gap:6px; align-items:flex-start;
+  }
+  .exp-view .exp-table--planeacion .responsable::before{
+    content:"Responsable: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+  .exp-view .exp-table--planeacion .estatus::before{
+    content:"Estatus: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+  .exp-view .exp-table--planeacion .porcentaje::before{
+    content:"Porcentaje: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+  .exp-view .exp-table--planeacion .fecha::before{
+    content:"Fecha de inicio: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+}
+
+/* ====== Fase: card y header fiel al mockup ====== */
+.exp-view .exp-accordion--fase{ margin-top:12px; }
+.exp-view .exp-accordion--fase > .exp-acc-head{
+  position:relative;
+  padding:12px 14px 12px 36px !important;   /* espacio a la izquierda para caret */
+  display:flex; justify-content:space-between; align-items:center;
+  background:#f3f4f6 !important;
+  border:1px solid var(--exp-border) !important;
+  border-radius:8px !important;
+  box-shadow: 0 1px 2px rgba(17,24,39,.04);
+}
+.exp-view .exp-accordion--fase > .exp-acc-head .chev{
+  position:absolute; left:12px; top:50%; transform: translateY(-50%) rotate(-135deg);
+  width:12px; height:12px; border-right:2px solid #6b7280; border-bottom:2px solid #6b7280;
+  transition: transform .2s ease;
+}
+.exp-view .exp-accordion--fase > .exp-acc-head[aria-expanded="false"] .chev{
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.exp-view .exp-accordion--fase .fase-head{ display:flex; flex-direction:column; gap:2px; }
+.exp-view .exp-accordion--fase .fase-title{ font-weight:700; color:#111827; }
+.exp-view .exp-accordion--fase .fase-meta{ color:#6b7280; font-size:.8rem; }
+
+.exp-view .exp-accordion--fase .fase-right{
+  display:grid; grid-auto-flow:column; align-items:center; gap:10px;
+  color:#6b7280; font-size:.85rem;
+}
+.exp-view .exp-accordion--fase .fase-right .fase-date{ color:#111827; font-weight:600; }
+
+/* El body queda blanco, sin doble borde, con radios pequeños y sombra sutil */
+.exp-view .exp-accordion--fase > .exp-acc-body{
+  border:1px solid var(--exp-border) !important; border-top:0 !important;
+  border-radius:0 0 8px 8px !important; overflow:hidden !important; background:#fff;
+  box-shadow: 0 1px 2px rgba(17,24,39,.04);
+}
+
+/* ====== Tabla de planeación (5 columnas como mockup) ====== */
+.exp-view .exp-table--planeacion{
+  display:block;
+}
+.exp-view .exp-table--planeacion.is-card .exp-thead{
+  background:#f3f4f6; border-bottom:1px solid var(--exp-border);
+}
+.exp-view .exp-table--planeacion .exp-thead,
+.exp-view .exp-table--planeacion .exp-row{
+  display:grid; align-items:center; gap:0;
+  grid-template-columns: 1.6fr 1fr .9fr 1fr .9fr;  /* Actividad | Resp | Estatus | % | Fecha */
+}
+.exp-view .exp-table--planeacion .exp-thead{
+  padding:10px 14px; color:#1f2937; font-weight:600;
+}
+.exp-view .exp-table--planeacion .exp-row{
+  padding:14px; border-top:1px solid #edf0f3; min-height:48px; background:#fff;
+}
+.exp-view .exp-table--planeacion .exp-row:hover{ background:#fafafa; }
+
+/* tipografía/coherencia */
+.exp-view .exp-table--planeacion .responsable,
+.exp-view .exp-table--planeacion .fecha{ color:#111827; }
+.exp-view .exp-table--planeacion .estatus{ white-space:nowrap; }
+
+/* barra de progreso mini en su columna */
 .exp-view .exp-progress{
   position:relative; display:inline-flex; align-items:center; gap:8px;
   height:20px; min-width:88px; padding:0 6px; border-radius:999px;
   background:#eef2f5; border:1px solid #e5e7eb;
 }
-.exp-view .exp-progress .bar{ height:8px; min-width:8px; border-radius:999px; background:#6aa995; display:block; }
-.exp-view .exp-progress .pct{ font-size:.75rem; color:#111827; font-weight:700; }
-.exp-view .exp-progress.xs{ height:14px; padding:0 4px; min-width:70px; }
-
-/* =================== Fase: header =================== */
-/* Grid con columna fija para caret -> no se solapa con el título */
-.exp-view .exp-accordion--fase{ margin-top:12px; }
-.exp-view .exp-accordion--fase > .exp-acc-head{
-  display:grid; grid-template-columns:24px 1fr auto; column-gap:10px;
-  align-items:center; padding:12px 14px;
-  background:#f3f4f6; border:1px solid var(--exp-border); border-radius:8px;
-  box-shadow:0 1px 2px rgba(17,24,39,.04);
+.exp-view .exp-progress .bar{
+  height:8px; border-radius:999px; background:#6aa995; display:block;
 }
-.exp-view .exp-accordion--fase > .exp-acc-head .chev{
-  position:static; justify-self:center; width:12px; height:12px;
-  border-right:2px solid #6b7280; border-bottom:2px solid #6b7280;
-  transform:rotate(-135deg); transition:transform .2s ease;
+.exp-view .exp-progress.xs{
+  height:14px; padding:0 4px; min-width:70px; border:1px solid #e5e7eb;
 }
-.exp-view .exp-accordion--fase > .exp-acc-head[aria-expanded="false"] .chev{ transform:rotate(45deg); }
+.exp-view .exp-progress .pct{ font-size:.75rem; font-weight:700; color:#111827; } /* si decides mostrar “70%” al lado */
 
-.exp-view .exp-accordion--fase .fase-head{
-  grid-column:2; display:flex; flex-direction:column; gap:2px;
-  justify-self:start; align-items:flex-start; text-align:left;
+/* badges alineados al mockup */
+.exp-view .exp-badge{
+  display:inline-block; padding:.18rem .5rem; border-radius:999px;
+  font-size:.78rem; line-height:1; font-weight:700;
+  background:#eef2f7; color:#374151; border:1px solid #e5e7eb;
 }
-.exp-view .exp-accordion--fase .fase-title{ font-weight:700; color:#111827; }
-.exp-view .exp-accordion--fase .fase-meta{ color:#6b7280; font-size:.8rem; }
+.exp-view .exp-badge.is-info{ background:#e8f1ff; border-color:#cfe3ff; color:#285ea8; }
+.exp-view .exp-badge.is-success{ background:#e8f7ef; border-color:#cfeede; color:#1f7a4d; }
 
-.exp-view .exp-accordion--fase .fase-right{
-  grid-column:3; display:grid; grid-auto-flow:column; align-items:center; gap:10px;
-  color:#6b7280; font-size:.85rem;
-}
-.exp-view .exp-accordion--fase .fase-date{ color:#111827; font-weight:600; }
+/* ====== Mobile fiel y legible ====== */
+@media (max-width: 760px){
+  .exp-view .exp-accordion--fase > .exp-acc-head{
+    grid-template-columns:1fr; gap:6px; padding-left:36px !important;
+  }
+  .exp-view .exp-accordion--fase .fase-right{
+    grid-auto-flow:row; justify-items:flex-start; gap:4px;
+  }
 
-/* Body de fase (card) */
-.exp-view .exp-accordion--fase > .exp-acc-body{
-  border:1px solid var(--exp-border); border-top:0; border-radius:0 0 8px 8px;
-  overflow:hidden; background:#fff; box-shadow:0 1px 2px rgba(17,24,39,.04);
-}
-
-/* =================== Tabla Planeación (5 columnas) =================== */
-/* Fijamos la grilla y la verticalidad; alta especificidad para ganar a estilos genéricos */
-.exp-view .exp-table.exp-table--planeacion .exp-thead,
-.exp-view .exp-table.exp-table--planeacion .exp-row{
-  display:grid !important;
-  grid-template-columns:1.6fr 1fr .9fr 1fr .9fr !important;  /* Actividad | Responsable | Estatus | % | Fecha */
-  align-items:center; gap:0;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-thead{
-  background:#f3f4f6; border-bottom:1px solid var(--exp-border);
-  padding:10px 14px; color:#1f2937; font-weight:600;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-row{
-  padding:14px; min-height:56px; border-top:1px solid #edf0f3; background:#fff;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-row:hover{ background:#fafafa; }
-
-/* Alineaciones como en Home: col1/2 izquierda; col3/4/5 centradas */
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(1),
-.exp-view .exp-table.exp-table--planeacion .exp-row   > div:nth-child(1),
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(2),
-.exp-view .exp-table.exp-table--planeacion .exp-row   > div:nth-child(2){ text-align:left; }
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(3),
-.exp-view .exp-table.exp-table--planeacion .exp-row   > div:nth-child(3),
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(4),
-.exp-view .exp-table.exp-table--planeacion .exp-row   > div:nth-child(4),
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(5),
-.exp-view .exp-table.exp-table--planeacion .exp-row   > div:nth-child(5){ text-align:center; }
-
-/* Centrado real de la barra dentro de su celda */
-.exp-view .exp-table.exp-table--planeacion .porcentaje{ display:flex; justify-content:center; }
-
-/* Tipografía */
-.exp-view .exp-table.exp-table--planeacion .estatus{ white-space:nowrap; }
-.exp-view .exp-table.exp-table--planeacion .responsable,
-.exp-view .exp-table.exp-table--planeacion .fecha{ color:#111827; }
-
-/* =================== Mobile =================== */
-@media (max-width:760px){
-  .exp-view .exp-accordion--fase > .exp-acc-head{ grid-template-columns:24px 1fr; row-gap:6px; }
-  .exp-view .exp-accordion--fase .fase-right{ grid-column:2; grid-auto-flow:row; justify-items:flex-start; gap:4px; }
-
-  .exp-view .exp-table.exp-table--planeacion .exp-thead{ display:none; }
-  .exp-view .exp-table.exp-table--planeacion .exp-row{ grid-template-columns:1fr !important; gap:6px; align-items:flex-start; }
-  .exp-view .exp-table.exp-table--planeacion .responsable::before{ content:"Responsable: "; color:#6b7280; font-weight:600; margin-right:4px; }
-  .exp-view .exp-table.exp-table--planeacion .estatus::before{ content:"Estatus: "; color:#6b7280; font-weight:600; margin-right:4px; }
-  .exp-view .exp-table.exp-table--planeacion .porcentaje::before{ content:"Porcentaje: "; color:#6b7280; font-weight:600; margin-right:4px; }
-  .exp-view .exp-table.exp-table--planeacion .fecha::before{ content:"Fecha de inicio: "; color:#6b7280; font-weight:600; margin-right:4px; }
+  .exp-view .exp-table--planeacion .exp-thead{ display:none; }
+  .exp-view .exp-table--planeacion .exp-row{
+    grid-template-columns:1fr; gap:6px; align-items:flex-start;
+  }
+  .exp-view .exp-table--planeacion .responsable::before{
+    content:"Responsable: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+  .exp-view .exp-table--planeacion .estatus::before{
+    content:"Estatus: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+  .exp-view .exp-table--planeacion .porcentaje::before{
+    content:"Porcentaje: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+  .exp-view .exp-table--planeacion .fecha::before{
+    content:"Fecha de inicio: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
 }
 
 
-/* ===== Planeación: fijar grilla (5 cols) */
-.exp-view .exp-table.exp-table--planeacion .exp-thead,
-.exp-view .exp-table.exp-table--planeacion .exp-row{
-  display:grid !important;
-  grid-template-columns: 1.6fr 1fr .9fr 1fr .9fr !important; /* Actividad | Responsable | Estatus | % | Fecha */
-  align-items:center;           /* centra vertical en la grilla */
+/* Planeación: Asegurar 5 columnas consistentes */
+.exp-view .exp-table--planeacion .exp-thead,
+.exp-view .exp-table--planeacion .exp-row{
+  display:grid;
+  align-items:center;
   gap:0;
+  grid-template-columns: 1.6fr 1fr .9fr 1fr .9fr; /* Actividad | Responsable | Estatus | % | Fecha */
 }
 
-/* ===== Encabezado: alinear como en home */
-.exp-view .exp-table.exp-table--planeacion .exp-thead{ 
-  background:#f3f4f6; border-bottom:1px solid var(--exp-border);
-  padding:10px 14px; color:#1f2937; font-weight:600;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div{
-  display:flex; align-items:center; height:100%;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(1),
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(2){ justify-content:flex-start; }
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(3),
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(4),
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(5){ justify-content:center; }
-
-/* ===== Filas: cada celda usa flex para centrar vertical y horizontal */
-.exp-view .exp-table.exp-table--planeacion .exp-row{
-  padding:14px; min-height:60px; border-top:1px solid #edf0f3; background:#fff;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-row:hover{ background:#fafafa; }
-.exp-view .exp-table.exp-table--planeacion .exp-row > div{
-  display:flex; align-items:center; min-height:32px; /* uniforma la altura del contenido */
+/* Encabezado */
+.exp-view .exp-table--planeacion .exp-thead{
+  background:#f3f4f6;
+  border-bottom:1px solid var(--exp-border);
+  padding:10px 14px;
+  color:#1f2937;
+  font-weight:600;
 }
 
-/* Col 1-2 a la izquierda */
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(1),
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(2){ justify-content:flex-start; }
-/* Col 3-5 centradas */
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(3),
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(4),
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(5){ justify-content:center; }
-
-/* Badge sin “brinco” de línea */
-.exp-view .exp-table.exp-table--planeacion .estatus .badge,
-.exp-view .exp-table.exp-table--planeacion .estatus .exp-badge{ line-height:1; }
-
-/* Barra de porcentaje con ancho fijo para que todas queden alineadas */
-.exp-view .exp-table.exp-table--planeacion .porcentaje .exp-progress{
-  width:120px;    /* ajústalo si quieres más corto/largo */
-  height:14px; padding:0 4px; min-width:120px;
-  background:#eef2f5; border:1px solid #e5e7eb; border-radius:999px;
-  display:flex; align-items:center; justify-content:flex-start;
+/* Filas */
+.exp-view .exp-table--planeacion .exp-row{
+  padding:14px;
+  min-height:48px;
+  border-top:1px solid #edf0f3;
+  background:#fff;
 }
-.exp-view .exp-table.exp-table--planeacion .porcentaje .exp-progress .bar{
+.exp-view .exp-table--planeacion .exp-row:hover{ background:#fafafa; }
+
+/* Progreso va en la 4ª columna, nunca bajo Actividad */
+.exp-view .exp-table--planeacion .porcentaje .exp-progress{
+  height:14px; padding:0 4px; min-width:70px; border:1px solid #e5e7eb;
+  background:#eef2f5; border-radius:999px; display:inline-flex; align-items:center;
+}
+.exp-view .exp-table--planeacion .porcentaje .exp-progress .bar{
   height:8px; border-radius:999px; background:#6aa995; display:block;
 }
 
-/* Tipografía de columnas (consistencia) */
-.exp-view .exp-table.exp-table--planeacion .responsable,
-.exp-view .exp-table.exp-table--planeacion .fecha{ color:#111827; }
+/* Tipografía */
+.exp-view .exp-table--planeacion .responsable,
+.exp-view .exp-table--planeacion .fecha{ color:#111827; }
+.exp-view .exp-table--planeacion .estatus{ white-space:nowrap; }
 
-/* ===== Mobile ===== */
-@media (max-width:760px){
-  .exp-view .exp-table.exp-table--planeacion .exp-thead{ display:none; }
-  .exp-view .exp-table.exp-table--planeacion .exp-row{
-    grid-template-columns:1fr !important; gap:6px; align-items:flex-start;
+/* Mobile: apilar legible */
+@media (max-width: 760px){
+  .exp-view .exp-table--planeacion .exp-thead{ display:none; }
+  .exp-view .exp-table--planeacion .exp-row{
+    grid-template-columns:1fr; gap:6px; align-items:flex-start;
   }
-  .exp-view .exp-table.exp-table--planeacion .exp-row > div{ justify-content:flex-start; }
-  .exp-view .exp-table.exp-table--planeacion .responsable::before{ content:"Responsable: "; color:#6b7280; font-weight:600; margin-right:4px; }
-  .exp-view .exp-table.exp-table--planeacion .estatus::before{ content:"Estatus: "; color:#6b7280; font-weight:600; margin-right:4px; }
-  .exp-view .exp-table.exp-table--planeacion .porcentaje::before{ content:"Porcentaje: "; color:#6b7280; font-weight:600; margin-right:4px; }
-  .exp-view .exp-table.exp-table--planeacion .fecha::before{ content:"Fecha de inicio: "; color:#6b7280; font-weight:600; margin-right:4px; }
+  .exp-view .exp-table--planeacion .responsable::before{
+    content:"Responsable: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+  .exp-view .exp-table--planeacion .estatus::before{
+    content:"Estatus: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+  .exp-view .exp-table--planeacion .porcentaje::before{
+    content:"Porcentaje: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+  .exp-view .exp-table--planeacion .fecha::before{
+    content:"Fecha de inicio: "; color:#6b7280; font-weight:600; margin-right:4px;
+  }
+}
+
+
+/* Fuerza 5 columnas para la tabla de planeación (override genérico) */
+.exp-view .exp-table.exp-table--planeacion .exp-thead,
+.exp-view .exp-table.exp-table--planeacion .exp-row{
+  display: grid !important;
+  grid-template-columns: 1.6fr 1fr .9fr 1fr .9fr !important; /* Actividad | Responsable | Estatus | % | Fecha */
+  align-items: center;
+  gap: 0;
+}
+
+/* Encabezado con fondo gris y separación como en el mockup */
+.exp-view .exp-table.exp-table--planeacion .exp-thead{
+  background: #f3f4f6;
+  border-bottom: 1px solid var(--exp-border, #e5e7eb);
+  padding: 10px 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* Filas */
+.exp-view .exp-table.exp-table--planeacion .exp-row{
+  padding: 14px;
+  min-height: 48px;
+  border-top: 1px solid #edf0f3;
+  background: #fff;
+}
+.exp-view .exp-table.exp-table--planeacion .exp-row:hover{ background:#fafafa; }
+
+/* Columna de porcentaje: barra mini */
+.exp-view .exp-table.exp-table--planeacion .porcentaje .exp-progress{
+  height: 14px; padding: 0 4px; min-width: 70px;
+  background: #eef2f5; border: 1px solid #e5e7eb; border-radius: 999px;
+  display: inline-flex; align-items: center;
+}
+.exp-view .exp-table.exp-table--planeacion .porcentaje .exp-progress .bar{
+  height: 8px; border-radius: 999px; background: #6aa995; display: block;
 }
