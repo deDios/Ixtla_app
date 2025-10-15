@@ -116,15 +116,22 @@
                     <section class="hs-card" aria-labelledby="y-title">
                         <h3 id="y-title" class="hs-card-title">Gráfico de este Año</h3>
 
-                        <div class="hs-chart-wrap">
+                        <div class="hs-chart-wrap" style="position:relative;">
                             <canvas id="chart-year" width="600" height="240"
-                                data-series-year="[3,8,14,20,17,24,22,27,29,30,31,35]"
+                                data-series-year='[3,8,14,20,17,24,22,27,29,30,31,35]'
                                 data-labels-year='["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]'
                                 aria-describedby="y-desc">
                             </canvas>
-                            <!-- Skeleton (el JS lo ocultara/retirara cuando pinte el chart) -->
+
+                            <!-- Skeleton (se oculta al renderizar el chart) -->
                             <div class="hs-chart-skeleton" aria-hidden="true"></div>
+
+                            <!-- Tooltip para hover -->
+                            <div class="chart-tip"
+                                style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
+                            </div>
                         </div>
+
 
                         <p id="y-desc" class="sr-only">
                             Serie mensual de requerimientos creados durante el año actual.
@@ -150,14 +157,20 @@
                             <div class="hs-chart-skeleton" aria-hidden="true"></div>
                         </div>
 
-                        <!-- Leyenda estática (solo como ayuda visual; el JS puede rehacerla) -->
-                        <ul class="hs-legend" aria-hidden="true">
-                            <li><span class="dot"></span> Fuga de agua</li>
-                            <li><span class="dot"></span> Fuga de drenaje</li>
-                            <li><span class="dot"></span> Baja presión de agua</li>
-                            <li><span class="dot"></span> No disponemos de agua</li>
-                            <li><span class="dot"></span> Otros</li>
+                        <!-- datos estaticos -->
+                        <ul id="donut-legend">
+                            <li data-label="Fuga de agua"><span class="bullet"></span> <span class="t">Fuga de
+                                    agua</span> <span class="pct"></span></li>
+                            <li data-label="Fuga de drenaje"><span class="bullet"></span> <span class="t">Fuga de
+                                    drenaje</span> <span class="pct"></span></li>
+                            <li data-label="Baja presión de agua"><span class="bullet"></span> <span class="t">Baja
+                                    presión de agua</span> <span class="pct"></span></li>
+                            <li data-label="No disponemos de agua"><span class="bullet"></span> <span class="t">No
+                                    disponemos de agua</span> <span class="pct"></span></li>
+                            <li data-label="Otros"><span class="bullet"></span> <span class="t">Otros</span> <span
+                                    class="pct"></span></li>
                         </ul>
+
 
                         <p id="m-desc" class="sr-only">
                             Distribución porcentual de requerimientos por tipo en el mes actual.
@@ -202,7 +215,8 @@
                         </table>
                     </div>
 
-                    <!-- Contenedor de paginación -->
+                    <!-- Contenedor de paginación 
+                     
                     <nav id="hs-pager" class="hs-pager" aria-label="Paginación"><button class="btn "
                             data-p="1">«</button> <button class="btn " data-p="2" disabled="">›</button><button
                             class="btn " data-p="0" disabled="">‹</button> <button class="btn primary"
@@ -211,6 +225,9 @@
                         <input type="number" min="1" max="1" value="1" data-goto="" style="width:4rem;margin:0 .25rem;">
                         <button class="btn" data-go="">Ir</button>
                     </nav>
+
+                    -->
+                    <nav id="hs-pager" class="hs-pager" aria-label="Paginación"></nav>
                 </section>
             </section>
         </div>
