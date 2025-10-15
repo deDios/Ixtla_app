@@ -391,7 +391,6 @@ main.home-samapa{
 /* Tarjeta */
 .hs-card {
   background: var(--hs-card-bg);
-  border-radius: var(--hs-card-radius);
   box-shadow: var(--hs-card-shadow);
   padding: var(--hs-card-pad);
   position: relative;

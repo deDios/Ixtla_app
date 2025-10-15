@@ -1,112 +1,159 @@
 // /JS/charts/line-chart.js
 export function LineChart(canvas) {
   const ctx = canvas.getContext("2d");
+  const DPR = window.devicePixelRatio || 1;
+
+  // dims
+  let W = 600, H = 240;
+  let PAD = { t: 24, r: 16, b: 32, l: 36 };
+
   let data = new Array(12).fill(0);
-  let ro; // ResizeObserver
-  let dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-  const pad = { t: 16, r: 16, b: 28, l: 36 };
-  const months = ["E","F","M","A","M","J","J","A","S","O","N","D"];
+  let months = ["E","F","M","A","M","J","J","A","S","O","N","D"];
 
-  function attach() {
-    ro = new ResizeObserver(scale);
-    ro.observe(canvas);
-    scale();
+  // tooltip DOM
+  let tip = document.createElement("div");
+  tip.className = "chart-tip";
+  tip.style.cssText = "position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;";
+  canvas.parentElement.style.position = "relative";
+  canvas.parentElement.appendChild(tip);
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    W = Math.max(320, rect.width);
+    H = Math.max(180, rect.height);
+    canvas.width  = W * DPR;
+    canvas.height = H * DPR;
+    canvas.style.width  = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR,0,0,DPR,0,0);
   }
 
-  function detach() {
-    ro?.disconnect?.();
+  function yMaxNice(maxVal) {
+    if (maxVal <= 5) return 5;
+    if (maxVal <= 10) return 10;
+    const pow = Math.pow(10, Math.floor(Math.log10(maxVal)));
+    const base = Math.ceil(maxVal / pow);
+    const nice = base <= 2 ? 2*pow : base <=5 ? 5*pow : 10*pow;
+    return nice;
   }
 
-  function scale() {
-    const { clientWidth: w, clientHeight: h } = canvas;
-    if (!w || !h) return;
-    dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw();
-  }
+  function render() {
+    ctx.clearRect(0,0,W,H);
 
-  function niceMax(n) {
-    if (n <= 5) return 5;
-    const p = Math.pow(10, Math.floor(Math.log10(n)));
-    const q = Math.ceil(n / p);
-    if (q <= 2) return 2 * p;
-    if (q <= 5) return 5 * p;
-    return 10 * p;
-  }
+    // grid & axes
+    const innerW = W - PAD.l - PAD.r;
+    const innerH = H - PAD.t - PAD.b;
 
-  function draw() {
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    ctx.clearRect(0, 0, w, h);
-    ctx.save();
-    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-    ctx.fillStyle = "#6b7280";
-    ctx.strokeStyle = "#e5e7eb";
+    const maxVal = Math.max(1, ...data);
+    const yMax = yMaxNice(maxVal);
+    const yStep = yMax / 4;
+
     ctx.lineWidth = 1;
-
-    // plot area
-    const x0 = pad.l, y0 = pad.t, x1 = w - pad.r, y1 = h - pad.b;
-    const pw = x1 - x0, ph = y1 - y0;
-
-    // axes
+    ctx.strokeStyle = "#eef2f7";
     ctx.beginPath();
-    ctx.moveTo(x0, y1); ctx.lineTo(x1, y1);
-    ctx.moveTo(x0, y0); ctx.lineTo(x0, y1);
+    for (let i=0;i<=4;i++){
+      const y = PAD.t + innerH - (i/4)*innerH;
+      ctx.moveTo(PAD.l, y);
+      ctx.lineTo(PAD.l + innerW, y);
+    }
     ctx.stroke();
 
-    // scales
-    const maxVal = Math.max(0, ...data);
-    const yMax = niceMax(maxVal);
-    const yTicks = 4;
-    const yStep = yMax / yTicks;
-
-    // y ticks + labels
-    for (let i = 0; i <= yTicks; i++) {
-      const v = i * yStep;
-      const y = y1 - (v / yMax) * ph;
-      ctx.strokeStyle = "#f3f4f6";
-      ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
-      ctx.fillStyle = "#6b7280";
-      ctx.fillText(String(Math.round(v)), 4, y + 4);
+    // X labels
+    ctx.fillStyle = "#6b7280";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.font = "12px system-ui";
+    for (let i=0;i<12;i++){
+      const x = PAD.l + innerW * (i/11);
+      ctx.fillText(months[i], x, PAD.t + innerH + 6);
     }
 
-    // x labels
-    const n = data.length;
-    for (let i = 0; i < n; i++) {
-      const x = x0 + (i / (n - 1)) * pw;
-      ctx.fillStyle = "#6b7280";
-      ctx.fillText(months[i], x - 4, h - 8);
+    // Y labels
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (let i=0;i<=4;i++){
+      const val = Math.round(i*yStep);
+      const y = PAD.t + innerH - (i/4)*innerH;
+      ctx.fillText(String(val), PAD.l - 6, y);
     }
 
     // line
-    if (maxVal > 0) {
-      ctx.strokeStyle = "#4f6b95";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let i = 0; i < n; i++) {
-        const x = x0 + (i / (n - 1)) * pw;
-        const y = y1 - (data[i] / yMax) * ph;
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
+    const points = data.map((v,i)=>{
+      const x = PAD.l + innerW * (i/11);
+      const y = PAD.t + innerH - (v/yMax)*innerH;
+      return {x,y,v,i};
+    });
 
-      // points
-      ctx.fillStyle = "#4f6b95";
-      for (let i = 0; i < n; i++) {
-        const x = x0 + (i / (n - 1)) * pw;
-        const y = y1 - (data[i] / yMax) * ph;
-        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
-      }
-    }
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#4f6b95";
+    ctx.beginPath();
+    points.forEach((p,idx)=>{ if(idx===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+    ctx.stroke();
 
-    ctx.restore();
+    // points
+    ctx.fillStyle = "#4f6b95";
+    points.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill(); });
+
+    // save for hover
+    _points = points;
+    _yMax = yMax;
   }
 
-  function mount(opts) { data = opts?.data || data; attach(); }
-  function update(opts) { data = opts?.data || data; draw(); }
-  function destroy() { detach(); }
+  let _points = [];
+  let _yMax = 0;
 
-  return { mount, update, destroy };
+  function nearestIdx(px){
+    if (!_points.length) return -1;
+    let best = 0, bestDx = Infinity;
+    _points.forEach((p,i)=>{
+      const dx = Math.abs(p.x - px);
+      if (dx < bestDx){ bestDx = dx; best = i; }
+    });
+    return best;
+  }
+
+  function onMove(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const idx = nearestIdx(x);
+    if (idx < 0) { tip.style.opacity = 0; return; }
+    const p = _points[idx];
+
+    tip.textContent = `${months[p.i]} · ${p.v}`;
+    tip.style.left = `${p.x}px`;
+    tip.style.top  = `${p.y}px`;
+    tip.style.opacity = 1;
+
+    // crosshair
+    render(); // repaint
+    ctx.save();
+    ctx.strokeStyle = "#c7d2fe";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath();
+    ctx.moveTo(p.x, PAD.t);
+    ctx.lineTo(p.x, H - PAD.b);
+    ctx.stroke();
+    ctx.restore();
+
+    // emphasize point
+    ctx.fillStyle = "#1f3b68";
+    ctx.beginPath(); ctx.arc(p.x,p.y,4.5,0,Math.PI*2); ctx.fill();
+  }
+  function onLeave(){ tip.style.opacity = 0; render(); }
+
+  window.addEventListener("resize", ()=>{ resize(); render(); });
+
+  return {
+    mount(opts={}) {
+      if (Array.isArray(opts.data)) data = opts.data.slice(0,12);
+      resize(); render();
+      canvas.addEventListener("mousemove", onMove);
+      canvas.addEventListener("mouseleave", onLeave);
+    },
+    update(opts={}) {
+      if (Array.isArray(opts.data)) data = opts.data.slice(0,12);
+      render();
+    }
+  };
 }
-

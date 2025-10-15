@@ -486,24 +486,23 @@ function initCharts() {
 }
 
 function updateCharts(allRawRows) {
-  // Serie anual: por mes (año actual)
   try {
     const yearSeries = computeYearSeries(allRawRows);
-    if (State.charts.lc && Array.isArray(yearSeries)) {
+    if (State.charts.lc) {
       State.charts.lc.update({ data: yearSeries });
-      $(SEL.chartWrapYear)?.classList.add("loaded"); // ocultar skeleton
+      document.querySelector("#hs-card-year .hs-chart-wrap")?.classList.add("loaded");
     }
-  } catch (e) { warn("line chart error:", e); }
+  } catch(e){}
 
-  // Donut del mes actual por estatus
   try {
     const donutData = computeDonutMonth(allRawRows);
-    if (State.charts.dc && Array.isArray(donutData)) {
+    if (State.charts.dc) {
       State.charts.dc.update({ data: donutData });
-      $(SEL.chartWrapMonth)?.classList.add("loaded"); // ocultar skeleton
+      document.querySelector("#hs-card-month .hs-chart-wrap")?.classList.add("loaded");
     }
-  } catch (e) { warn("donut chart error:", e); }
+  } catch(e){}
 }
+
 
 function computeYearSeries(rows=[]) {
   const now = new Date();
