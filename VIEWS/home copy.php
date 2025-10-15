@@ -123,8 +123,9 @@
                                 aria-describedby="y-desc">
                             </canvas>
 
-                            <!-- Skeleton (se oculta al renderizar el chart) -->
-                            <div class="hs-chart-skeleton" aria-hidden="true"></div>
+                            <!-- Skeleton (se oculta al renderizar el chart) 
+                             <div class="hs-chart-skeleton" aria-hidden="true"></div>
+                            -->
 
                             <!-- Tooltip para hover -->
                             <div class="chart-tip"
@@ -153,8 +154,9 @@
                                   ]' aria-describedby="m-desc">
                             </canvas>
 
-                            <!-- Skeleton (el JS lo ocultará/retirará cuando pinte el chart) -->
+                            <!-- Skeleton 
                             <div class="hs-chart-skeleton" aria-hidden="true"></div>
+                            -->
                         </div>
 
                         <!-- datos estaticos -->
