@@ -163,7 +163,14 @@
                     </div>
 
                     <!-- Contenedor de paginación -->
-                    <nav id="hs-pager" class="hs-pager" aria-label="Paginación"></nav>
+                    <nav id="hs-pager" class="hs-pager" aria-label="Paginación"><button class="btn "
+                            data-p="1">«</button> <button class="btn " data-p="2" disabled="">›</button><button
+                            class="btn " data-p="0" disabled="">‹</button> <button class="btn primary"
+                            data-p="1">1</button> <button class="btn " data-p="1">»</button> <span class="muted"
+                            style="margin-left:.75rem;">Ir a:</span>
+                        <input type="number" min="1" max="1" value="1" data-goto="" style="width:4rem;margin:0 .25rem;">
+                        <button class="btn" data-go="">Ir</button>
+                    </nav>
                 </section>
             </section>
         </div>

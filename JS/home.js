@@ -2,14 +2,14 @@
 "use strict";
 
 /* ============================================================================
-   CONFIG (edita aquí)
+   CONFIG
    ========================================================================== */
 const CONFIG = {
   DEBUG_LOGS: true,
-  PAGE_SIZE: 10,
+  PAGE_SIZE: 10,                              // ← page size
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
   ADMIN_ROLES: ["ADMIN"],
-  PRESIDENCIA_DEPT_IDS: [6],         // ids que ven TODO
+  PRESIDENCIA_DEPT_IDS: [6],
   DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
 };
 
@@ -53,7 +53,7 @@ const SEL = {
 const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
 
 /* ============================================================================
-   Helpers DOM
+   Helpers
    ========================================================================== */
 const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
@@ -78,10 +78,12 @@ const State = {
   search: "",
   counts: { todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 },
   table: null,
+  __page: 1,         // ← página actual (la controlamos nosotros)
+  __lastFilteredLen: 0,
 };
 
 /* ============================================================================
-   Cookie fallback (por si Session.get() falla)
+   Cookie fallback
    ========================================================================== */
 function readCookiePayload() {
   try {
@@ -94,14 +96,10 @@ function readCookiePayload() {
 }
 
 /* ============================================================================
-   Depto: nombre (intenta API; fallback estático)
+   Depto name
    ========================================================================== */
 async function resolveDeptName(deptId){
-  if (!deptId && deptId!==0) return "—";
-  // fallback inmediato si tenemos mapeo local
   if (CONFIG.DEPT_FALLBACK_NAMES[deptId]) return CONFIG.DEPT_FALLBACK_NAMES[deptId];
-
-  // intenta API de departamentos (opcional)
   try {
     const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
     const url = API_BASE + "ixtla01_c_departamento.php";
@@ -144,21 +142,19 @@ function readSession(){
 }
 
 /* ============================================================================
-   Perfil (nombre, depto, avatar)
+   Perfil UI
    ========================================================================== */
 async function hydrateProfileFromSession(){
   const s = Session?.get?.() || readCookiePayload() || {};
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
   setText(SEL.profileName, nombre);
 
-  // depto (nombre)
   const badge = $(SEL.profileBadge);
   if (badge){
     const deptName = await resolveDeptName(State.session.dept_id);
     badge.textContent = deptName || "—";
   }
 
-  // avatar
   const img = $(SEL.avatar);
   if (img){
     const idu = State.session.id_usuario;
@@ -198,6 +194,7 @@ function initSidebar(onChange){
       items.forEach(b=>{ b.classList.remove("is-active"); b.setAttribute("aria-checked","false"); b.tabIndex=-1; });
       btn.classList.add("is-active"); btn.setAttribute("aria-checked","true"); btn.tabIndex=0;
       State.filterKey = key || "todos";
+      State.__page = 1;
       updateLegendStatus();
       onChange?.();
       $(SEL.searchInput)?.focus();
@@ -226,6 +223,7 @@ function initSearch(onChange){
     clearTimeout(t);
     t = setTimeout(()=>{
       State.search = (e.target.value||"").trim().toLowerCase();
+      State.__page = 1;
       onChange?.();
     },250);
   });
@@ -238,16 +236,16 @@ function buildTable(){
   State.table = createTable({
     bodySel: SEL.tableBody,
     wrapSel: SEL.tableWrap,
-    pagSel:  null,            // paginación la pintamos nosotros (#hs-pager)
+    pagSel:  null,
     pageSize: CONFIG.PAGE_SIZE,
     columns: [
-      { key:"tramite", title:"Trámites", sortable:true, accessor:r=>r.asunto||r.tramite||"—" },
+      { key:"tramite",  title:"Trámites", sortable:true, accessor:r=>r.asunto||r.tramite||"—" },
       { key:"asignado", title:"Asignado", sortable:true, accessor:r=>r.asignado||"—" },
-      { key:"fecha", title:"Fecha de solicitado", sortable:true,
+      { key:"fecha",    title:"Fecha de solicitado", sortable:true,
         accessor:r=> r.creado ? new Date(String(r.creado).replace(" ","T")).getTime() : 0,
         render:(v,r)=> formatDateMX(r.creado)
       },
-      { key:"status", title:"Status", sortable:true,
+      { key:"status",   title:"Status", sortable:true,
         accessor:r=> r.estatus?.label || "—",
         render:(v,r)=>{
           const k = catKeyFromCode(r.estatus?.code);
@@ -265,23 +263,16 @@ function buildTable(){
    ========================================================================== */
 function updateLegendTotals(n){ setText(SEL.legendTotal, String(n??0)); }
 function updateLegendStatus(){
-  const map = {
-    todos:"Todos los status",
-    pendientes:"Pendientes",
-    en_proceso:"En proceso",
-    terminados:"Terminados",
-    cancelados:"Cancelados",
-    pausados:"Pausados",
-  };
+  const map = { todos:"Todos los status", pendientes:"Pendientes", en_proceso:"En proceso",
+                terminados:"Terminados", cancelados:"Cancelados", pausados:"Pausados" };
   setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
 }
-
 function catKeyFromCode(code){
   if (code===3) return "en_proceso";
   if (code===4) return "pausados";
   if (code===5) return "cancelados";
   if (code===6) return "terminados";
-  return "pendientes"; // 0,1,2
+  return "pendientes";
 }
 function computeCounts(rows){
   const c={ todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 };
@@ -296,53 +287,100 @@ function computeCounts(rows){
 }
 
 /* ============================================================================
-   Paginación (controles del HTML: « ‹ [n] › »  + Ir a)
+   Paginación – TU HTML / CSS (botones .btn, .primary)
    ========================================================================== */
-function renderPagerExt(total, page, pages){
+function renderPagerClassic(total){
   const cont = $(SEL.pager);
   if (!cont) return;
-  const btn = (label, data, disabled=false, active=false) =>
-    `<button class="pg-btn ${active?"active":""}" data-p="${data}" ${disabled?"disabled":""}>${label}</button>`;
 
-  // ventana de números (como 1 … 5 6 7 … N)
-  const windowSize = 5;
-  const start = Math.max(1, page - Math.floor(windowSize/2));
-  const end   = Math.min(pages, start + windowSize - 1);
+  const pages = Math.max(1, Math.ceil(total / CONFIG.PAGE_SIZE));
+  const cur   = Math.min(Math.max(1, State.__page || 1), pages);
+
+  const btn = (label, p, extra="") =>
+    `<button class="btn ${extra}" data-p="${p}" ${p==="disabled"?"disabled":""}>${label}</button>`;
+
+  // números 1..pages (si prefieres ventana, aquí puedes limitar)
   let nums = "";
-  for (let i=start;i<=end;i++){
-    nums += btn(String(i), i, false, i===page);
+  for (let i=1;i<=pages;i++){
+    nums += btn(String(i), i, i===cur ? "primary" : "");
   }
 
-  cont.innerHTML = `
-    ${btn("«", 1,  page<=1)}
-    ${btn("‹", page-1, page<=1)}
-    <span class="pg-group">${nums}</span>
-    ${btn("›", page+1, page>=pages)}
-    ${btn("»", pages,   page>=pages)}
-    <span class="pg-jump-label">Ir a:</span>
-    <input class="pg-jump" type="number" min="1" max="${pages||1}" value="${page}">
-    ${btn("Ir", "go")}
-  `;
+  cont.innerHTML = [
+    btn("«", cur<=1 ? "disabled" : 1),
+    btn("‹", cur<=1 ? "disabled" : (cur-1)),
+    nums,
+    btn("›", cur>=pages ? "disabled" : (cur+1)),
+    btn("»", cur>=pages ? "disabled" : pages),
+    `<span class="muted" style="margin-left:.75rem;">Ir a:</span>`,
+    `<input type="number" min="1" max="${pages}" value="${cur}" data-goto style="width:4rem;margin:0 .25rem;">`,
+    `<button class="btn" data-go>Ir</button>`
+  ].join(" ");
 
-  // wire
-  cont.querySelectorAll(".pg-btn").forEach(b=>{
+  // wire (sin pipeline)
+  cont.querySelectorAll("[data-p]").forEach(b=>{
     b.addEventListener("click", ()=>{
-      const v = b.dataset.p;
-      if (v==="go"){
-        const n = parseInt(cont.querySelector(".pg-jump")?.value||"1",10);
-        State.table?.setPage(Math.min(Math.max(1,n), pages||1));
-        applyPipelineAndRender();
-        return;
-      }
-      const p = Math.min(Math.max(1, parseInt(v,10)||1), pages||1);
+      const v = b.getAttribute("data-p");
+      if (v==="disabled") return;
+      const p = parseInt(v,10);
+      if (!Number.isFinite(p)) return;
+      State.__page = p;
       State.table?.setPage(p);
-      applyPipelineAndRender();
+      refreshCurrentPageDecorations();   // gaps + binds
+      renderPagerClassic(total);         // re-pinta activo/disabled
     });
+  });
+  cont.querySelector("[data-go]")?.addEventListener("click", ()=>{
+    const n = parseInt(cont.querySelector("[data-goto]")?.value || "1", 10);
+    const p = Math.min(Math.max(1, n), pages);
+    State.__page = p;
+    State.table?.setPage(p);
+    refreshCurrentPageDecorations();
+    renderPagerClassic(total);
   });
 }
 
 /* ============================================================================
-   Pipeline + render
+   Gaps + binds para la página actual (sin tocar pipeline)
+   ========================================================================== */
+function refreshCurrentPageDecorations(){
+  const tbody = $(SEL.tableBody);
+  if (!tbody) return;
+
+  // quitar gaps previos
+  tbody.querySelectorAll("tr.hs-gap").forEach(tr => tr.remove());
+
+  const pageRows = State.table?.getRawRows?.() || [];
+  const realCount = pageRows.length;
+  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
+
+  // limpiar y re-binder filas reales
+  Array.from(tbody.querySelectorAll("tr")).forEach(tr=>{
+    tr.classList.remove("is-clickable");
+    tr.onclick = null;
+  });
+  for (let i=0;i<realCount;i++){
+    const tr = tbody.querySelectorAll("tr")[i];
+    const raw = pageRows[i];
+    if (!tr || !raw) continue;
+    tr.classList.add("is-clickable");
+    tr.addEventListener("click", ()=>{
+      const id = raw?.id || raw?.__raw?.id;
+      if (id) window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
+    });
+  }
+
+  if (gaps>0){
+    let html="";
+    for (let i=0;i<gaps;i++){
+      html += `<tr class="hs-gap" aria-hidden="true"><td colspan="4">&nbsp;</td></tr>`;
+    }
+    tbody.insertAdjacentHTML("beforeend", html);
+  }
+  log("gaps añadidos:", gaps, "reales en página:", realCount);
+}
+
+/* ============================================================================
+   Pipeline + render (se llama cuando cambian filtros/búsqueda/datos)
    ========================================================================== */
 function applyPipelineAndRender(){
   const all = State.rows || [];
@@ -365,79 +403,25 @@ function applyPipelineAndRender(){
   computeCounts(all);
   updateLegendTotals(filtered.length);
 
-  // mapeo filas
+  // mapeo
   const rows = filtered.map(r=>({
-    __raw:r,
-    asunto:r.asunto, tramite:r.tramite, asignado:r.asignado, creado:r.creado, estatus:r.estatus
+    __raw:r, asunto:r.asunto, tramite:r.tramite, asignado:r.asignado, creado:r.creado, estatus:r.estatus
   }));
 
+  // setData SIEMPRE que cambia universo/filters => reseteamos a 1
   State.table?.setData(rows);
+  State.__page = 1;
 
-  // Relleno gap (no interactivo) — contar basado en filas reales en la página actual
-  // Después de setData, la tabla ya paginó; obtenemos cuántas reales hay
-  const pageRows = State.table?.getRawRows?.() || []; // objetos crudos página
-  const realCount = pageRows.length;
-  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
-
-  // Pintar gaps en el tbody
-  const tbody = $(SEL.tableBody);
-  if (tbody && gaps>0){
-    const gapHtml = `<tr class="hs-gap" aria-hidden="true">
-      <td colspan="4">&nbsp;</td>
-    </tr>`;
-    let html = "";
-    for (let i=0;i<gaps;i++) html += gapHtml;
-    tbody.insertAdjacentHTML("beforeend", html);
-  }
-  log("gaps añadidos:", gaps, "reales en página:", realCount);
-
-  // Redirección por fila (solo reales, NO gaps)
-  if (tbody){
-    tbody.querySelectorAll("tr").forEach((tr, idx)=>{
-      tr.classList.remove("is-clickable");
-      tr.onclick = null;
-    });
-    // solo bind a reales (primer realCount)
-    for (let i=0;i<realCount;i++){
-      const tr = tbody.querySelectorAll("tr")[i];
-      const raw = pageRows[i];
-      if (!tr || !raw) continue;
-      tr.classList.add("is-clickable");
-      tr.addEventListener("click", ()=>{
-        const id = raw?.id || raw?.__raw?.id;
-        if (id) window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
-      }, { once:false });
-    }
-  }
-
-  // Paginador externo (nuestro HTML)
-  const sort = State.table?.getSort?.() || {};
-  const page = (State.table?.getSort && (State.table.getSort(), 0), null); // no usado
-  const currentPageRows = State.table?.getRawRows?.() || [];
-  const total = filtered.length;
-  const pages = Math.max(1, Math.ceil(total / CONFIG.PAGE_SIZE));
-  const current = Math.min(Math.max(1,
-    Math.ceil(((State.table?.getPageRawRows?.()?.__pageIndex)||0)+1)), // fallback
-    pages
-  );
-  // si el createTable no expone página, la inferimos por posición; mejor: recalcular
-  // Simple: calc a partir de tbody index
-  const tableEl = $(SEL.tableBody)?.closest("table");
-  const metaPage = (() => {
-    const btnActive = $("#hs-pager .pg-btn.active");
-    return btnActive ? parseInt(btnActive.dataset.p,10) : (State.__lastPage || 1);
-  })();
-  const pageToShow = State.table?._page || metaPage || 1;
-  State.__lastPage = pageToShow;
-
-  renderPagerExt(total, pageToShow, pages);
+  // decorar página actual y paginador
+  refreshCurrentPageDecorations();
+  renderPagerClassic(filtered.length);
 
   log("pipeline", {
     filtroStatus: State.filterKey,
     search: State.search,
     totalUniverso: all.length,
-    totalFiltrado: total,
-    page: pageToShow, pages, sort
+    totalFiltrado: filtered.length,
+    page: State.__page,
   });
 }
 
@@ -463,18 +447,17 @@ async function logHierarchy(plan){
 }
 
 /* ============================================================================
-   Fetch de datos (ALL para ADMIN/Presidencia; mine+team para el resto)
+   Fetch (ADMIN/Presidencia = todos; de lo contrario solo yo + team)
    ========================================================================== */
 async function fetchAllRequerimientos(perPage=200, maxPages=50){
   const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
   const url = API_BASE + "ixtla01_c_requerimiento.php";
   const all=[];
   for (let page=1; page<=maxPages; page++){
-    const body = { page, per_page: perPage };
     const res = await fetch(url, {
       method:"POST",
       headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ page, per_page: perPage })
     });
     if (!res.ok) break;
     const json = await res.json();
@@ -484,7 +467,6 @@ async function fetchAllRequerimientos(perPage=200, maxPages=50){
   }
   return all;
 }
-
 async function fetchMineAndTeam(plan){
   const ids = [plan.mineId, ...(plan.teamIds||[])].filter(Boolean);
   const results = await Promise.allSettled(ids.map(id => listByAsignado(id, {})));
@@ -502,7 +484,7 @@ async function fetchMineAndTeam(plan){
 async function loadScopeData(){
   const { empleado_id:viewerId, dept_id } = State.session;
   if (!viewerId){
-    warn("viewerId ausente, UI vacía.");
+    warn("viewerId ausente.");
     State.universe=[]; State.rows=[];
     computeCounts([]); updateLegendTotals(0); updateLegendStatus(); applyPipelineAndRender();
     return;
@@ -511,11 +493,10 @@ async function loadScopeData(){
   const plan = await planScope({ viewerId, viewerDeptId: dept_id });
   State.scopePlan = plan;
 
-  // ¿Admin/Presidencia?
   const isAdmin = (State.session.roles||[]).some(r=>CONFIG.ADMIN_ROLES.includes(r));
-  const isPres = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+  const isPres  = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
 
-  logHierarchy(plan);
+  await logHierarchy(plan);
 
   let items=[];
   if (isAdmin || isPres){
