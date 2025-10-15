@@ -107,7 +107,7 @@
                     </div>
                     <dl class="exp-meta">
                         <div>
-                            <dt>Informante</dt>
+                            <dt>Contacto</dt>
                             <dd>Luis Enrique Mendez</dd>
                         </div>
                         <div>
@@ -124,24 +124,26 @@
                 <!-- Stepper -->
                 <div class="container">
                     <ul class="step-menu">
-                        <li role="button" class="complete">Step 1</li>
-                        <li role="button" class="current">Step 2</li>
-                        <li role="button">Step 3</li>
-                        <li role="button">Step 4</li>
-                        <li role="button">Step 5</li>
-                        <li role="button">Step 6</li>
+                        <li role="button" class="complete" data-status="0">Solicitud</li>
+                        <li role="button" class="complete" data-status="1">Revisión</li>
+                        <li role="button" class="complete" data-status="2">Asignación</li>
+                        <li role="button" class="current" data-status="3">En proceso</li>
+                        <li role="button" data-status="4">Pausado</li>
+                        <li role="button" data-status="5">Cancelado</li>
+                        <li role="button" data-status="6">Finalizado</li>
                     </ul>
                 </div>
 
+
                 <!-- Tabs -->
                 <nav class="exp-tabs" role="tablist" aria-label="Secciones">
-                    <button class="exp-tab is-active" role="tab" aria-selected="true">Informante</button>
+                    <button class="exp-tab is-active" role="tab" aria-selected="true">Contacto</button>
                     <button class="exp-tab" role="tab" aria-selected="false">Detalles</button>
                     <button class="exp-tab" role="tab" aria-selected="false">Planeación</button>
                 </nav>
 
-                <!-- Panel: Informante -->
-                <section class="exp-pane is-active" role="tabpanel" data-tab="informante">
+                <!-- Panel: Contacto -->
+                <section class="exp-pane is-active" role="tabpanel" data-tab="Contacto">
                     <div class="exp-grid">
                         <div class="exp-field"><label>Nombre:</label>
                             <div class="exp-val">Luis Enrique Mendez</div>

@@ -6,11 +6,19 @@
    ========================================================================== */
 const CONFIG = {
   DEBUG_LOGS: true,
-  PAGE_SIZE: 10,                              // ← page size
+  PAGE_SIZE: 10,
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
   ADMIN_ROLES: ["ADMIN"],
-  PRESIDENCIA_DEPT_IDS: [6],
+  PRESIDENCIA_DEPT_IDS: [6],               // ids de Presidencia
   DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
+
+  // Charts
+  DONUT_MAX_SLICES: 5,
+  PALETTE: [
+    "#4f6b95","#3b82f6","#10b981","#f59e0b","#ef4444",
+    "#6366f1","#22c55e","#06b6d4","#eab308","#f97316",
+  ],
+  API_BASE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/",
 };
 
 const TAG = "[Home]";
@@ -29,27 +37,41 @@ import {
   parseReq,
 } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
+import { LineChart } from "/JS/charts/line-chart.js";
+import { DonutChart } from "/JS/charts/donut-chart.js";
 
 /* ============================================================================
    Selectores
    ========================================================================== */
 const SEL = {
+  // Perfil
   avatar:       "#hs-avatar",
   profileName:  "#hs-profile-name",
   profileBadge: "#hs-profile-badge",
 
+  // Sidebar estados
   statusGroup:  "#hs-states",
   statusItems:  "#hs-states .item",
 
+  // Búsqueda
   searchInput:  "#hs-search",
 
+  // Leyenda
   legendTotal:  "#hs-legend-total",
   legendStatus: "#hs-legend-status",
 
+  // Tabla
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
+
+  // Charts
+  chartWrapYear:  "#hs-card-year .hs-chart-wrap",
+  chartYear:      "#chart-year",
+  chartWrapMonth: "#hs-card-month .hs-chart-wrap",
+  chartMonth:     "#chart-month",
 };
+
 const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
 
 /* ============================================================================
@@ -66,6 +88,16 @@ function formatDateMX(v){
   return d.toLocaleDateString("es-MX",{year:"numeric",month:"2-digit",day:"2-digit"});
 }
 
+function readCookiePayload() {
+  try {
+    const name="ix_emp=";
+    const pair = document.cookie.split("; ").find(c=>c.startsWith(name));
+    if (!pair) return null;
+    const raw = decodeURIComponent(pair.slice(name.length));
+    return JSON.parse(decodeURIComponent(escape(atob(raw))));
+  } catch { return null; }
+}
+
 /* ============================================================================
    Estado
    ========================================================================== */
@@ -78,51 +110,50 @@ const State = {
   search: "",
   counts: { todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 },
   table: null,
-  __page: 1,         // ← página actual (la controlamos nosotros)
-  __lastFilteredLen: 0,
+  __page: 1,
+  charts: { lc: null, dc: null },
+  deptos: null, // cache de departamentos para lógica "primera_linea"
 };
 
 /* ============================================================================
-   Cookie fallback
+   API auxiliares para Departamentos
    ========================================================================== */
-function readCookiePayload() {
-  try {
-    const name="ix_emp=";
-    const pair = document.cookie.split("; ").find(c=>c.startsWith(name));
-    if (!pair) return null;
-    const raw = decodeURIComponent(pair.slice(name.length));
-    return JSON.parse(decodeURIComponent(escape(atob(raw))));
-  } catch { return null; }
+async function fetchDepartamentosAll() {
+  // Nota del usuario: endpoint acepta { "all": true }
+  const url = CONFIG.API_BASE + "ixtla01_c_departamento.php";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type":"application/json", "Accept":"application/json" },
+    body: JSON.stringify({ all: true })
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const json = await res.json();
+  return json?.data || [];
 }
 
-/* ============================================================================
-   Depto name
-   ========================================================================== */
 async function resolveDeptName(deptId){
+  if (!deptId) return "—";
   if (CONFIG.DEPT_FALLBACK_NAMES[deptId]) return CONFIG.DEPT_FALLBACK_NAMES[deptId];
-  try {
-    const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
-    const url = API_BASE + "ixtla01_c_departamento.php";
-    const res = await fetch(url, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ page:1, page_size:200, status:1 })
-    });
-    if (!res.ok) throw new Error("HTTP "+res.status);
-    const json = await res.json();
-    const arr = json?.data || [];
-    const found = arr.find(d => Number(d.id) === Number(deptId));
-    return found?.nombre || CONFIG.DEPT_FALLBACK_NAMES[deptId] || `Depto ${deptId}`;
-  } catch {
-    return CONFIG.DEPT_FALLBACK_NAMES[deptId] || `Depto ${deptId}`;
+
+  if (!State.deptos) {
+    try { State.deptos = await fetchDepartamentosAll(); }
+    catch { State.deptos = []; }
   }
+  const found = (State.deptos || []).find(d => Number(d.id) === Number(deptId));
+  return found?.nombre || CONFIG.DEPT_FALLBACK_NAMES[deptId] || `Depto ${deptId}`;
+}
+
+function isPrimeraLinea(empleadoId, deptId) {
+  if (!empleadoId || !deptId) return false;
+  const d = (State.deptos || []).find(x => Number(x.id) === Number(deptId));
+  return d ? Number(d.primera_linea) === Number(empleadoId) : false;
 }
 
 /* ============================================================================
    Sesión
    ========================================================================== */
 function readSession(){
-  let s=null;
+  let s = null;
   try { s = Session?.get?.() || null; } catch {}
   if (!s) s = readCookiePayload();
 
@@ -147,7 +178,7 @@ function readSession(){
 async function hydrateProfileFromSession(){
   const s = Session?.get?.() || readCookiePayload() || {};
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
-  setText(SEL.profileName, nombre);
+  setText("#hs-profile-name", nombre);
 
   const badge = $(SEL.profileBadge);
   if (badge){
@@ -164,7 +195,7 @@ async function hydrateProfileFromSession(){
       `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
       `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
     ] : [];
-    let i=0;
+    let i = 0;
     const tryNext = () => {
       if (i >= candidates.length) { img.src = CONFIG.DEFAULT_AVATAR; return; }
       img.onerror = () => { i++; tryNext(); };
@@ -175,7 +206,7 @@ async function hydrateProfileFromSession(){
 }
 
 /* ============================================================================
-   Sidebar
+   Sidebar (ARIA + eventos)
    ========================================================================== */
 function initSidebar(onChange){
   const group = $(SEL.statusGroup);
@@ -236,7 +267,7 @@ function buildTable(){
   State.table = createTable({
     bodySel: SEL.tableBody,
     wrapSel: SEL.tableWrap,
-    pagSel:  null,
+    pagSel:  null, // paginación la manejamos custom
     pageSize: CONFIG.PAGE_SIZE,
     columns: [
       { key:"tramite",  title:"Trámites", sortable:true, accessor:r=>r.asunto||r.tramite||"—" },
@@ -267,6 +298,7 @@ function updateLegendStatus(){
                 terminados:"Terminados", cancelados:"Cancelados", pausados:"Pausados" };
   setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
 }
+
 function catKeyFromCode(code){
   if (code===3) return "en_proceso";
   if (code===4) return "pausados";
@@ -274,6 +306,7 @@ function catKeyFromCode(code){
   if (code===6) return "terminados";
   return "pendientes";
 }
+
 function computeCounts(rows){
   const c={ todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 };
   rows.forEach(r=>{ c.todos++; const k=catKeyFromCode(r.estatus?.code); if(k in c) c[k]++; });
@@ -287,7 +320,7 @@ function computeCounts(rows){
 }
 
 /* ============================================================================
-   Paginación – TU HTML / CSS (botones .btn, .primary)
+   Paginación (clásica) — usa tus botones/estilos
    ========================================================================== */
 function renderPagerClassic(total){
   const cont = $(SEL.pager);
@@ -299,7 +332,7 @@ function renderPagerClassic(total){
   const btn = (label, p, extra="") =>
     `<button class="btn ${extra}" data-p="${p}" ${p==="disabled"?"disabled":""}>${label}</button>`;
 
-  // números 1..pages (si prefieres ventana, aquí puedes limitar)
+  // Serie completa (si luego quieres ventana, aquí limitas)
   let nums = "";
   for (let i=1;i<=pages;i++){
     nums += btn(String(i), i, i===cur ? "primary" : "");
@@ -316,7 +349,6 @@ function renderPagerClassic(total){
     `<button class="btn" data-go>Ir</button>`
   ].join(" ");
 
-  // wire (sin pipeline)
   cont.querySelectorAll("[data-p]").forEach(b=>{
     b.addEventListener("click", ()=>{
       const v = b.getAttribute("data-p");
@@ -325,8 +357,8 @@ function renderPagerClassic(total){
       if (!Number.isFinite(p)) return;
       State.__page = p;
       State.table?.setPage(p);
-      refreshCurrentPageDecorations();   // gaps + binds
-      renderPagerClassic(total);         // re-pinta activo/disabled
+      refreshCurrentPageDecorations(total);
+      renderPagerClassic(total);
     });
   });
   cont.querySelector("[data-go]")?.addEventListener("click", ()=>{
@@ -334,32 +366,40 @@ function renderPagerClassic(total){
     const p = Math.min(Math.max(1, n), pages);
     State.__page = p;
     State.table?.setPage(p);
-    refreshCurrentPageDecorations();
+    refreshCurrentPageDecorations(total);
     renderPagerClassic(total);
   });
 }
 
 /* ============================================================================
-   Gaps + binds para la página actual (sin tocar pipeline)
+   Decoraciones de página: gaps + click rows + mensaje vacío
    ========================================================================== */
-function refreshCurrentPageDecorations(){
+function refreshCurrentPageDecorations(totalInFiltered){
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
-  // quitar gaps previos
-  tbody.querySelectorAll("tr.hs-gap").forEach(tr => tr.remove());
+  // Limpia gaps previos y fila vacía previa
+  tbody.querySelectorAll("tr.hs-gap, tr.hs-empty-row").forEach(tr => tr.remove());
 
   const pageRows = State.table?.getRawRows?.() || [];
   const realCount = pageRows.length;
-  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
 
-  // limpiar y re-binder filas reales
-  Array.from(tbody.querySelectorAll("tr")).forEach(tr=>{
-    tr.classList.remove("is-clickable");
-    tr.onclick = null;
-  });
+  // Si no hay filas reales, metemos una fila con mensaje
+  if (realCount === 0) {
+    const msg = `<tr class="hs-empty-row"><td colspan="4">
+      <div class="muted">No hay requerimientos asignados de momento</div>
+    </td></tr>`;
+    tbody.insertAdjacentHTML("beforeend", msg);
+    log("gaps añadidos:", 0, "reales en página:", 0);
+    return;
+  }
+
+  // Re-bind click a filas reales
+  const trs = Array.from(tbody.querySelectorAll("tr"));
+  trs.forEach(tr=>{ tr.classList.remove("is-clickable"); tr.onclick = null; });
+
   for (let i=0;i<realCount;i++){
-    const tr = tbody.querySelectorAll("tr")[i];
+    const tr = trs[i];
     const raw = pageRows[i];
     if (!tr || !raw) continue;
     tr.classList.add("is-clickable");
@@ -369,8 +409,10 @@ function refreshCurrentPageDecorations(){
     });
   }
 
-  if (gaps>0){
-    let html="";
+  // Gaps (relleno hasta PAGE_SIZE)
+  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
+  if (gaps > 0) {
+    let html = "";
     for (let i=0;i<gaps;i++){
       html += `<tr class="hs-gap" aria-hidden="true"><td colspan="4">&nbsp;</td></tr>`;
     }
@@ -380,7 +422,7 @@ function refreshCurrentPageDecorations(){
 }
 
 /* ============================================================================
-   Pipeline + render (se llama cuando cambian filtros/búsqueda/datos)
+   Pipeline + render
    ========================================================================== */
 function applyPipelineAndRender(){
   const all = State.rows || [];
@@ -403,18 +445,18 @@ function applyPipelineAndRender(){
   computeCounts(all);
   updateLegendTotals(filtered.length);
 
-  // mapeo
   const rows = filtered.map(r=>({
     __raw:r, asunto:r.asunto, tramite:r.tramite, asignado:r.asignado, creado:r.creado, estatus:r.estatus
   }));
 
-  // setData SIEMPRE que cambia universo/filters => reseteamos a 1
   State.table?.setData(rows);
   State.__page = 1;
 
-  // decorar página actual y paginador
-  refreshCurrentPageDecorations();
+  refreshCurrentPageDecorations(filtered.length);
   renderPagerClassic(filtered.length);
+
+  // Charts
+  updateCharts(all);
 
   log("pipeline", {
     filtroStatus: State.filterKey,
@@ -423,6 +465,85 @@ function applyPipelineAndRender(){
     totalFiltrado: filtered.length,
     page: State.__page,
   });
+}
+
+/* ============================================================================
+   Charts
+   ========================================================================== */
+function initCharts() {
+  const yEl = $(SEL.chartYear);
+  const mEl = $(SEL.chartMonth);
+  if (yEl) {
+    const lc = LineChart(yEl);
+    lc.mount({ data: new Array(12).fill(0) });
+    State.charts.lc = lc;
+  }
+  if (mEl) {
+    const dc = DonutChart(mEl);
+    dc.mount({ data: [] });
+    State.charts.dc = dc;
+  }
+}
+
+function updateCharts(allRawRows) {
+  // Serie anual: por mes (año actual)
+  try {
+    const yearSeries = computeYearSeries(allRawRows);
+    if (State.charts.lc && Array.isArray(yearSeries)) {
+      State.charts.lc.update({ data: yearSeries });
+      $(SEL.chartWrapYear)?.classList.add("loaded"); // ocultar skeleton
+    }
+  } catch (e) { warn("line chart error:", e); }
+
+  // Donut del mes actual por estatus
+  try {
+    const donutData = computeDonutMonth(allRawRows);
+    if (State.charts.dc && Array.isArray(donutData)) {
+      State.charts.dc.update({ data: donutData });
+      $(SEL.chartWrapMonth)?.classList.add("loaded"); // ocultar skeleton
+    }
+  } catch (e) { warn("donut chart error:", e); }
+}
+
+function computeYearSeries(rows=[]) {
+  const now = new Date();
+  const Y = now.getFullYear();
+  const buckets = new Array(12).fill(0);
+  rows.forEach(r=>{
+    const d = new Date(String(r.created_at || r.creado).replace(" ", "T"));
+    if (!isNaN(d) && d.getFullYear() === Y) {
+      buckets[d.getMonth()] += 1;
+    }
+  });
+  return buckets;
+}
+
+function computeDonutMonth(rows=[]) {
+  const now = new Date();
+  const Y = now.getFullYear(), M = now.getMonth();
+  const map = new Map();
+
+  rows.forEach(r=>{
+    const d = new Date(String(r.created_at || r.creado).replace(" ", "T"));
+    if (isNaN(d) || d.getFullYear() !== Y || d.getMonth() !== M) return;
+    const label = r.estatus?.label || "Desconocido";
+    map.set(label, (map.get(label) || 0) + 1);
+  });
+
+  const entries = Array.from(map.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a,b)=> b.value - a.value);
+
+  const top = entries.slice(0, CONFIG.DONUT_MAX_SLICES);
+  const rest = entries.slice(CONFIG.DONUT_MAX_SLICES);
+  const others = rest.reduce((acc, x)=> acc + x.value, 0);
+  if (others > 0) top.push({ label: "Otros", value: others });
+
+  // asignar colores
+  return top.map((it, i)=> ({
+    ...it,
+    color: CONFIG.PALETTE[i % CONFIG.PALETTE.length]
+  }));
 }
 
 /* ============================================================================
@@ -447,11 +568,10 @@ async function logHierarchy(plan){
 }
 
 /* ============================================================================
-   Fetch (ADMIN/Presidencia = todos; de lo contrario solo yo + team)
+   Fetch helpers
    ========================================================================== */
 async function fetchAllRequerimientos(perPage=200, maxPages=50){
-  const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
-  const url = API_BASE + "ixtla01_c_requerimiento.php";
+  const url = CONFIG.API_BASE + "ixtla01_c_requerimiento.php";
   const all=[];
   for (let page=1; page<=maxPages; page++){
     const res = await fetch(url, {
@@ -467,6 +587,19 @@ async function fetchAllRequerimientos(perPage=200, maxPages=50){
   }
   return all;
 }
+
+async function listByDepto(departamentoId){
+  const url = CONFIG.API_BASE + "ixtla01_c_requerimiento.php";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type":"application/json", "Accept":"application/json" },
+    body: JSON.stringify({ departamento_id: departamentoId, per_page: 200 })
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const json = await res.json();
+  return json?.data || [];
+}
+
 async function fetchMineAndTeam(plan){
   const ids = [plan.mineId, ...(plan.teamIds||[])].filter(Boolean);
   const results = await Promise.allSettled(ids.map(id => listByAsignado(id, {})));
@@ -483,6 +616,10 @@ async function fetchMineAndTeam(plan){
    ========================================================================== */
 async function loadScopeData(){
   const { empleado_id:viewerId, dept_id } = State.session;
+
+  // cache deptos para resolver nombre y verificar "primera_linea"
+  try { State.deptos = await fetchDepartamentosAll(); } catch { State.deptos = []; }
+
   if (!viewerId){
     warn("viewerId ausente.");
     State.universe=[]; State.rows=[];
@@ -493,15 +630,20 @@ async function loadScopeData(){
   const plan = await planScope({ viewerId, viewerDeptId: dept_id });
   State.scopePlan = plan;
 
-  const isAdmin = (State.session.roles||[]).some(r=>CONFIG.ADMIN_ROLES.includes(r));
+  const roles = State.session.roles || [];
+  const isAdmin = roles.some(r=>CONFIG.ADMIN_ROLES.includes(r));
   const isPres  = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+  const esPrimeraLinea = isPrimeraLinea(viewerId, dept_id);
 
   await logHierarchy(plan);
 
   let items=[];
-  if (isAdmin || isPres){
+  if (isAdmin || isPres) {
     log("modo ADMIN/PRESIDENCIA: fetch global…");
     items = await fetchAllRequerimientos();
+  } else if (esPrimeraLinea) {
+    log("modo PRIMERA LINEA: fetch Departamento…", { dept_id });
+    items = await listByDepto(dept_id);
   } else {
     log("modo subordinados: yo + team…");
     items = await fetchMineAndTeam(plan);
@@ -530,7 +672,10 @@ window.addEventListener("DOMContentLoaded", async ()=>{
     buildTable();
     updateLegendStatus();
 
+    initCharts(); // monta charts
+
     await loadScopeData();
+
     log("Home listo");
   } catch(e){
     err("init error:", e);

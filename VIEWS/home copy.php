@@ -110,22 +110,62 @@
 
             <!-- MAIN -->
             <section class="hs-main">
-                <!-- FILA DE GRÁFICOS -->
-                <div class="hs-charts">
+                <!-- === CHARTS: Año (linea) + Mes (donut) =============================== -->
+                <div class="hs-charts" id="hs-charts">
+                    <!-- Línea: este año -->
                     <section class="hs-card" aria-labelledby="y-title">
+                        <h3 id="y-title" class="hs-card-title">Gráfico de este Año</h3>
+
                         <div class="hs-chart-wrap">
-                            <canvas id="chart-year" width="600" height="240" aria-hidden="true"></canvas>
+                            <canvas id="chart-year" width="600" height="240"
+                                data-series-year="[3,8,14,20,17,24,22,27,29,30,31,35]"
+                                data-labels-year='["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]'
+                                aria-describedby="y-desc">
+                            </canvas>
+                            <!-- Skeleton (el JS lo ocultara/retirara cuando pinte el chart) -->
                             <div class="hs-chart-skeleton" aria-hidden="true"></div>
                         </div>
+
+                        <p id="y-desc" class="sr-only">
+                            Serie mensual de requerimientos creados durante el año actual.
+                        </p>
+
                     </section>
 
+                    <!-- Donut: este mes -->
                     <section class="hs-card" aria-labelledby="m-title">
+                        <h3 id="m-title" class="hs-card-title">Gráfico de este mes</h3>
+
                         <div class="hs-chart-wrap">
-                            <canvas id="chart-month" width="380" height="240" aria-hidden="true"></canvas>
+                            <canvas id="chart-month" width="380" height="240" data-donut='[
+                                 {"label":"Fuga de agua","value":50},
+                                 {"label":"Fuga de drenaje","value":5},
+                                 {"label":"Baja presión de agua","value":10},
+                                 {"label":"No disponemos de agua","value":15},
+                                 {"label":"Otros","value":20}
+                                  ]' aria-describedby="m-desc">
+                            </canvas>
+
+                            <!-- Skeleton (el JS lo ocultará/retirará cuando pinte el chart) -->
                             <div class="hs-chart-skeleton" aria-hidden="true"></div>
                         </div>
+
+                        <!-- Leyenda estática (solo como ayuda visual; el JS puede rehacerla) -->
+                        <ul class="hs-legend" aria-hidden="true">
+                            <li><span class="dot"></span> Fuga de agua</li>
+                            <li><span class="dot"></span> Fuga de drenaje</li>
+                            <li><span class="dot"></span> Baja presión de agua</li>
+                            <li><span class="dot"></span> No disponemos de agua</li>
+                            <li><span class="dot"></span> Otros</li>
+                        </ul>
+
+                        <p id="m-desc" class="sr-only">
+                            Distribución porcentual de requerimientos por tipo en el mes actual.
+                        </p>
                     </section>
                 </div>
+                <!-- ===================================================================== -->
+
 
                 <!-- TABLA -->
                 <section class="hs-table">
