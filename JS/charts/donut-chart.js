@@ -3,268 +3,341 @@
 
 /**
  * DonutChart
- * - Usa un <canvas> 2D
- * - items: [{ label: string, value: number }]
- * - Paleta estable por etiqueta (hash -> índice paleta) para consistencia.
- * - Dibuja % sobre cada porción (umbral configurable).
+ * Canvas donut with percentages, center label and hover tooltip.
+ * - No external deps.
+ * - Call `new DonutChart(canvas, data, opts)` and optionally `bindDonutLegend(ul, donut)`.
  */
+
 export class DonutChart {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {object} opts
+   * @param {Array<{label:string, value:number}>} data
+   * @param {Object} opts
    */
-  constructor(canvas, opts = {}) {
+  constructor(canvas, data = [], opts = {}) {
     if (!(canvas instanceof HTMLCanvasElement)) {
-      throw new Error("DonutChart: canvas inválido");
+      throw new Error("DonutChart: canvas requerido");
     }
+
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
-    this.dpr = window.devicePixelRatio || 1;
+    this.ctx    = canvas.getContext("2d");
+    this.wrap   = canvas.closest(".hs-chart-wrap") || canvas.parentElement;
 
-    // Defaults
-    this.opts = {
-      innerRatio: 0.58,           // tamaño del “agujero”
-      strokeWidth: 0,             // borde del arco
-      showCenterTotal: true,
-      centerTitle: "Total del mes",
-      centerFont: "600 22px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
-      centerSubFont: "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
-      centerColor: "#111827",
+    // Options
+    this.opts = Object.assign(
+      {
+        palette: [
+          "#3b82f6", // 0  azul
+          "#22c55e", // 1  verde
+          "#f59e0b", // 2  ámbar
+          "#ef4444", // 3  rojo
+          "#6366f1", // 4  índigo
+          "#06b6d4", // 5  cian
+          "#eab308", // 6  amarillo
+          "#f97316", // 7  naranja
+          "#14b8a6", // 8  teal
+          "#a855f7", // 9  púrpura
+        ],
+        bgTrack: "#e5ebf0",     // anillo de fondo (si hay “resto” cero, no se muestra)
+        textColor: "#111827",   // textos
+        centerTextColor: "#111827",
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+        innerRatio: 0.60,       // 0..1
+        labelMinPercent: 4,     // no mostrar % menores a este valor en el aro
+        showCenterTotal: true,
+        centerTextFn: (total) => String(total),
+        centerSubText: "Total del mes",
+        // Accessors
+        getLabel: (d) => d?.label ?? "—",
+        getValue: (d) => Number(d?.value ?? 0),
+      },
+      opts || {}
+    );
 
-      showSlicePercents: true,    // ← dibujar % sobre cada segmento
-      minPercentLabel: 4,         // % mínimo para mostrar etiqueta
-      labelFont: "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
-      labelColor: "#111827",
+    this._data = [];
+    this._arcs = []; // {start,end,color,label,percent}
+    this._total = 0;
+    this._tooltip = null;
 
-      // Paleta por defecto (puedes agregar más)
-      palette: [
-        "#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#10b981",
-        "#6366f1", "#06b6d4", "#eab308", "#f97316", "#14b8a6"
-      ],
+    // Build tooltip container once
+    this._ensureTooltip();
 
-      // Callback opcional cuando termina de pintar
-      onReady: null,
-      ...opts,
-    };
+    // Resize handling
+    this._onResize = () => this._draw();
+    window.addEventListener("resize", this._onResize);
 
-    this.items = [];
-    this.colors = []; // color por item (paralelo a this.items)
+    // Mouse events
+    this.canvas.addEventListener("mousemove", (e) => this._onMove(e));
+    this.canvas.addEventListener("mouseleave", () => this._hideTip());
 
-    // Hidratar desde data-donut si viene en el canvas
-    const dataAttr = this.canvas.getAttribute("data-donut");
-    if (dataAttr) {
+    // Hydrate from data-donut attribute if needed
+    if (!data.length) {
       try {
-        const parsed = JSON.parse(dataAttr);
-        if (Array.isArray(parsed)) this.items = normalizeItems(parsed);
-      } catch { /* ignore */ }
+        const attr = canvas.getAttribute("data-donut");
+        if (attr) data = JSON.parse(attr);
+      } catch {}
     }
 
-    this.resizeForDPR();
-    if (this.items.length) {
-      this.computeColors();
-      this.render();
-    }
-  }
+    this.updateData(data);
 
-  /** Ajusta el backing-store del canvas al DPR para nitidez */
-  resizeForDPR() {
-    const { canvas, dpr } = this;
-    const w = canvas.width;
-    const h = canvas.height;
-    // Si el width/height del atributo ya son los “CSS pixels”, escalamos el buffer
-    canvas.style.width = w + "px";
-    canvas.style.height = h + "px";
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-
-  /** Define data nueva y repinta */
-  setData(items) {
-    this.items = normalizeItems(items);
-    this.computeColors();
-    this.render();
-  }
-
-  /** Devuelve una copia de los items actuales */
-  getData() {
-    return this.items.map(i => ({ ...i }));
-  }
-
-  /** Color de un índice */
-  getColor(i) {
-    return this.colors[i] || "#cbd5e1";
-  }
-
-  /** Hash estable por label → índice de paleta */
-  labelToPaletteIndex(label) {
-    const s = String(label || "");
-    let hash = 0;
-    for (let i = 0; i < s.length; i++) {
-      hash = (hash * 31 + s.charCodeAt(i)) | 0;
-    }
-    if (hash < 0) hash = -hash;
-    return hash % this.opts.palette.length;
-  }
-
-  /** Calcula this.colors siguiendo la paleta estable por etiqueta */
-  computeColors() {
-    this.colors = this.items.map(it => {
-      const idx = this.labelToPaletteIndex(it.label);
-      return this.opts.palette[idx];
-    });
-  }
-
-  /** Limpia el canvas */
-  clear() {
-    const { ctx, canvas } = this;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
-  /** Render principal */
-  render() {
-    const { ctx, canvas } = this;
-    this.clear();
-
-    const cssW = canvas.width / this.dpr;
-    const cssH = canvas.height / this.dpr;
-    const cx = cssW / 2;
-    const cy = cssH / 2;
-    const radius = Math.min(cx, cy) * 0.9;
-    const innerR = radius * this.opts.innerRatio;
-
-    const total = this.items.reduce((s, it) => s + (Number(it.value) || 0), 0);
-    const twoPI = Math.PI * 2;
-
-    // Arco por segmento
-    let startAngle = -Math.PI / 2; // inicia arriba
-    this.items.forEach((it, i) => {
-      const val = Math.max(0, Number(it.value) || 0);
-      const frac = total > 0 ? (val / total) : 0;
-      const endAngle = startAngle + frac * twoPI;
-
-      // Donut slice
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, radius, startAngle, endAngle, false);
-      ctx.arc(cx, cy, innerR, endAngle, startAngle, true);
-      ctx.closePath();
-
-      ctx.fillStyle = this.colors[i] || "#cbd5e1";
-      ctx.fill();
-
-      if (this.opts.strokeWidth > 0) {
-        ctx.lineWidth = this.opts.strokeWidth;
-        ctx.strokeStyle = "#fff";
-        ctx.stroke();
-      }
-
-      // Porcentaje sobre el aro
-      if (this.opts.showSlicePercents && total > 0) {
-        const pct = (val / total) * 100;
-        if (pct >= this.opts.minPercentLabel) {
-          const mid = (startAngle + endAngle) / 2;
-          const labelR = (radius + innerR) / 2; // mitad del aro
-          const lx = cx + Math.cos(mid) * labelR;
-          const ly = cy + Math.sin(mid) * labelR;
-
-          ctx.save();
-          ctx.fillStyle = this.opts.labelColor;
-          ctx.font = this.opts.labelFont;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(`${Math.round(pct)}%`, lx, ly);
-          ctx.restore();
-        }
-      }
-
-      startAngle = endAngle;
-    });
-
-    // Agujero (por si hay aliasing)
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath();
-    ctx.arc(cx, cy, innerR, 0, twoPI);
-    ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
-
-    // Centro: total y subtítulo
-    if (this.opts.showCenterTotal) {
-      ctx.save();
-      ctx.fillStyle = this.opts.centerColor;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-
-      // número grande
-      ctx.font = this.opts.centerFont;
-      ctx.fillText(String(total), cx, cy - 6);
-
-      // subtítulo
-      ctx.font = this.opts.centerSubFont;
-      ctx.fillText(this.opts.centerTitle, cx, cy + 14);
-      ctx.restore();
-    }
-
-    // Ocultar skeleton si existe
-    const sk = this.canvas.parentElement?.querySelector(".hs-chart-skeleton");
-    if (sk) sk.style.display = "none";
-
-    // callback
-    this.opts.onReady?.(this);
-  }
-
-  /** Atajo: si el canvas trae data-donut, instancia y pinta */
-  static fromCanvas(canvas, opts = {}) {
-    return new DonutChart(canvas, opts);
+    // Hide/remove skeleton if present
+    this._hideSkeleton();
   }
 
   destroy() {
-    // Por ahora no hay listeners. Método previsto para futuro.
-    this.clear();
+    window.removeEventListener("resize", this._onResize);
+    this.canvas.removeEventListener("mousemove", this._onMove);
+    this.canvas.removeEventListener("mouseleave", this._hideTip);
+    this._hideTip(true);
+  }
+
+  get total() { return this._total; }
+  get arcs()  { return this._arcs.slice(); }
+
+  updateData(data = []) {
+    // Normalize & compute
+    const getLabel = this.opts.getLabel;
+    const getValue = this.opts.getValue;
+
+    this._data = (Array.isArray(data) ? data : []).map((d) => ({
+      label: String(getLabel(d)),
+      value: Math.max(0, Number(getValue(d) || 0))
+    }));
+
+    this._total = this._data.reduce((a, b) => a + b.value, 0);
+
+    // Map to arcs with angles
+    const TAU = Math.PI * 2;
+    let acc = 0;
+    this._arcs = this._data.map((d, i) => {
+      const pct = this._total ? (d.value / this._total) * 100 : 0;
+      const ang = this._total ? (d.value / this._total) * TAU : 0;
+      const start = acc;
+      const end = acc + ang;
+      acc = end;
+      return {
+        start, end, percent: pct,
+        label: d.label,
+        color: this.opts.palette[i % this.opts.palette.length],
+        value: d.value
+      };
+    });
+
+    this._draw();
+  }
+
+  _px(n) { return Math.round(n * (window.devicePixelRatio || 1)); }
+
+  _setupCanvasSize() {
+    // Keep the CSS width/height as layout, set internal buffer with DPR
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    const cssW = rect.width || this.canvas.width;
+    const cssH = rect.height || this.canvas.height;
+
+    this.canvas.width  = Math.max(1, Math.floor(cssW * dpr));
+    this.canvas.height = Math.max(1, Math.floor(cssH * dpr));
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    return { w: cssW, h: cssH };
+  }
+
+  _draw() {
+    const { ctx } = this;
+    const { w, h } = this._setupCanvasSize();
+
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const cy = h / 2;
+
+    // Radio exterior toma el menor lado con padding
+    const R = Math.max(10, Math.min(w, h) * 0.44);
+    const r = Math.max(5, R * (this.opts.innerRatio || 0.6));
+
+    // Track (gris claro), opcional si hay espacio libre
+    if (this._arcs.length === 0 || this._total === 0) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.strokeStyle = this.opts.bgTrack;
+      ctx.lineWidth = Math.max(10, R - r);
+      ctx.stroke();
+      this._drawCenter(cx, cy);
+      return;
+    }
+
+    // Dibuja porciones
+    ctx.lineWidth = Math.max(10, R - r);
+    ctx.lineCap = "butt";
+
+    for (const a of this._arcs) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, (R + r) / 2, a.start, a.end);
+      ctx.strokeStyle = a.color;
+      ctx.stroke();
+    }
+
+    // Etiquetas (% sobre el aro)
+    ctx.fillStyle = this.opts.textColor;
+    ctx.font = `600 12px ${this.opts.fontFamily}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const minPct = Number(this.opts.labelMinPercent || 0);
+    for (const a of this._arcs) {
+      if (a.percent < minPct) continue;
+      const mid = (a.start + a.end) / 2;
+      const rr = (R + r) / 2; // sobre el aro
+      const tx = cx + Math.cos(mid) * rr;
+      const ty = cy + Math.sin(mid) * rr;
+      ctx.fillText(`${Math.round(a.percent)}%`, tx, ty);
+    }
+
+    // Centro
+    this._drawCenter(cx, cy);
+  }
+
+  _drawCenter(cx, cy) {
+    if (!this.opts.showCenterTotal) return;
+    const ctx = this.ctx;
+    const total = this._total;
+
+    ctx.save();
+    ctx.fillStyle = this.opts.centerTextColor;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.font = `700 24px ${this.opts.fontFamily}`;
+    ctx.fillText(this.opts.centerTextFn(total), cx, cy - 2);
+
+    ctx.font = `400 11px ${this.opts.fontFamily}`;
+    ctx.fillText(this.opts.centerSubText || "", cx, cy + 16);
+    ctx.restore();
+  }
+
+  _ensureTooltip() {
+    if (this._tooltip) return;
+    const tip = document.createElement("div");
+    tip.className = "chart-tip";
+    Object.assign(tip.style, {
+      position: "absolute",
+      pointerEvents: "none",
+      padding: ".35rem .5rem",
+      borderRadius: ".5rem",
+      background: "#1f2937",
+      color: "#fff",
+      font: "12px/1.2 system-ui",
+      opacity: "0",
+      transform: "translate(-50%,-120%)",
+      transition: "opacity .12s"
+    });
+    (this.wrap || this.canvas.parentElement).appendChild(tip);
+    this._tooltip = tip;
+  }
+
+  _showTip(x, y, text) {
+    if (!this._tooltip) return;
+    this._tooltip.textContent = text;
+    this._tooltip.style.left = `${x}px`;
+    this._tooltip.style.top  = `${y}px`;
+    this._tooltip.style.opacity = "1";
+  }
+  _hideTip(force = false) {
+    if (!this._tooltip) return;
+    if (force) {
+      this._tooltip.remove();
+      this._tooltip = null;
+      return;
+    }
+    this._tooltip.style.opacity = "0";
+  }
+
+  _onMove(evt) {
+    if (!this._arcs.length || !this._total) { this._hideTip(); return; }
+
+    const rect = this.canvas.getBoundingClientRect();
+    const px = evt.clientX - rect.left;
+    const py = evt.clientY - rect.top;
+
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+
+    const dx = px - cx;
+    const dy = py - cy;
+    const dist = Math.hypot(dx, dy);
+
+    // R y r deben coincidir con _draw()
+    const R = Math.max(10, Math.min(rect.width, rect.height) * 0.44);
+    const r = Math.max(5, R * (this.opts.innerRatio || 0.6));
+    const midRadius = (R + r) / 2;
+
+    // check ring hit
+    if (dist < r * 0.9 || dist > R * 1.1) { this._hideTip(); return; }
+
+    // angle 0 at +X, counterclockwise, normalized to [0, 2π)
+    let ang = Math.atan2(dy, dx);
+    if (ang < 0) ang += Math.PI * 2;
+
+    // find arc
+    const arc = this._arcs.find(a => ang >= a.start && ang <= a.end);
+    if (!arc) { this._hideTip(); return; }
+
+    const text = `${arc.label}: ${Math.round(arc.percent)}%`;
+    // Position the tip slightly outward from the midpoint angle
+    const mid = (arc.start + arc.end) / 2;
+    const tx = cx + Math.cos(mid) * midRadius;
+    const ty = cy + Math.sin(mid) * midRadius - 6;
+
+    this._showTip(tx, ty, text);
+  }
+
+  _hideSkeleton() {
+    const sk = this.wrap?.querySelector?.(".hs-chart-skeleton");
+    if (sk) sk.remove();
   }
 }
 
-/* ------------------------------------------------------------------------------------
- * Utilities
- * ----------------------------------------------------------------------------------*/
-
-/** Normaliza [{label, value}] y filtra valores no numéricos */
-function normalizeItems(items) {
-  if (!Array.isArray(items)) return [];
-  return items
-    .map(it => ({
-      label: String(it?.label ?? "—"),
-      value: Number(it?.value ?? 0)
-    }))
-    .filter(it => Number.isFinite(it.value) && it.value >= 0);
-}
-
 /**
- * Vincula una UL con li[data-label] .bullet y .pct a un donut (colores y %).
- * @param {HTMLElement} ul    <ul id="donut-legend"> … </ul>
- * @param {DonutChart} donut  instancia del donut
- * @param {Array} itemsOverride (opcional) para forzar items distintos a los del donut
+ * bindDonutLegend
+ * Colorea bullets + coloca los porcentajes calculados en la <ul> de leyenda.
+ * La <ul> debe contener <li data-label="..."><span class="bullet"></span> ... <span class="pct"></span></li>
+ * @param {HTMLElement} ul
+ * @param {DonutChart} donut
  */
-export function bindDonutLegend(ul, donut, itemsOverride = null) {
+export function bindDonutLegend(ul, donut) {
   if (!ul || !donut) return;
-  const items = Array.isArray(itemsOverride) ? normalizeItems(itemsOverride) : donut.getData();
-  const total = items.reduce((s, it) => s + (Number(it.value) || 0), 0) || 0;
-
-  // Mapa label → color real usado en el donut
-  const colorByLabel = new Map(items.map((it, i) => [it.label, donut.getColor(i)]));
-
-  ul.querySelectorAll("li").forEach(li => {
-    const label  = li.getAttribute("data-label");
+  const items = Array.from(ul.querySelectorAll("li[data-label]"));
+  const byLabel = new Map(donut.arcs.map(a => [a.label, a]));
+  items.forEach(li => {
+    const key = li.getAttribute("data-label");
+    const arc = byLabel.get(key);
     const bullet = li.querySelector(".bullet");
-    const pctEl  = li.querySelector(".pct");
-
-    const item  = items.find(x => x.label === label);
-    const color = colorByLabel.get(label) || "#cbd5e1";
-    if (bullet) bullet.style.background = color;
-
-    if (pctEl) {
-      const pct = total > 0 && item ? Math.round((item.value / total) * 100) : 0;
-      pctEl.textContent = total ? ` ${pct}%` : "";
+    const pct = li.querySelector(".pct");
+    if (arc) {
+      if (bullet) bullet.style.background = arc.color;
+      if (pct) pct.textContent = ` ${Math.round(arc.percent)}%`;
+      li.style.opacity = "1";
+    } else {
+      if (bullet) bullet.style.background = "#cbd5e1";
+      if (pct) pct.textContent = "";
+      li.style.opacity = ".6";
     }
   });
 }
+
+export function initDonutFromCanvas(canvas, opts = {}) {
+  if (!(canvas instanceof HTMLCanvasElement)) return null;
+  let data = [];
+  try {
+    const attr = canvas.getAttribute("data-donut");
+    if (attr) data = JSON.parse(attr);
+  } catch {}
+  const donut = new DonutChart(canvas, data, opts);
+  // Buscar una UL “cercana” para la leyenda
+  const ul = canvas.closest(".hs-card")?.querySelector("#donut-legend") ||
+             canvas.parentElement?.nextElementSibling;
+  if (ul instanceof HTMLElement) bindDonutLegend(ul, donut);
+  return donut;
+}
+

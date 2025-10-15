@@ -2,7 +2,7 @@
 "use strict";
 
 /* ============================================================================
-   CONFIG (ajusta aquí lo que necesites)
+   CONFIG
    ========================================================================== */
 const CONFIG = {
   DEBUG_LOGS: true,
@@ -11,8 +11,6 @@ const CONFIG = {
   ADMIN_ROLES: ["ADMIN"],
   PRESIDENCIA_DEPT_IDS: [6],
   DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
-
-  // Endpoints “crudos” cuando necesitamos resolver nombres/visiones globales
   API_BASE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/",
 };
 
@@ -33,8 +31,6 @@ import {
 } from "/JS/api/requerimientos.js";
 
 import { createTable } from "/JS/ui/table.js";
-
-// Charts (línea + donut)
 import { LineChart } from "/JS/charts/line-chart.js";
 import { DonutChart } from "/JS/charts/donut-chart.js";
 
@@ -42,35 +38,28 @@ import { DonutChart } from "/JS/charts/donut-chart.js";
    Selectores
    ========================================================================== */
 const SEL = {
-  // Perfil
   avatar:       "#hs-avatar",
   profileName:  "#hs-profile-name",
   profileBadge: "#hs-profile-badge",
 
-  // Sidebar
   statusGroup:  "#hs-states",
   statusItems:  "#hs-states .item",
 
-  // Búsqueda
   searchInput:  "#hs-search",
 
-  // Leyendas
   legendTotal:  "#hs-legend-total",
   legendStatus: "#hs-legend-status",
 
-  // Tabla
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
 
-  // Charts
   chartYear:    "#chart-year",
   chartMonth:   "#chart-month",
+  donutLegend:  "#donut-legend",
 };
 
-const SIDEBAR_KEYS = [
-  "todos","pendientes","en_proceso","terminados","cancelados","pausados"
-];
+const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
 
 /* ============================================================================
    Helpers
@@ -93,8 +82,8 @@ const State = {
   session: { empleado_id:null, dept_id:null, roles:[], id_usuario:null },
   scopePlan: null,
 
-  universe: [], // crudos originales
-  rows: [],     // mapeados a la UI
+  universe: [],
+  rows: [],
 
   filterKey: "todos",
   search: "",
@@ -106,7 +95,7 @@ const State = {
 };
 
 /* ============================================================================
-   Cookie fallback (por si Session.get falla)
+   Cookie fallback
    ========================================================================== */
 function readCookiePayload() {
   try {
@@ -119,7 +108,7 @@ function readCookiePayload() {
 }
 
 /* ============================================================================
-   Resolver nombre de departamento
+   Resolver nombre de depto
    ========================================================================== */
 async function resolveDeptName(deptId){
   if (CONFIG.DEPT_FALLBACK_NAMES[deptId]) return CONFIG.DEPT_FALLBACK_NAMES[deptId];
@@ -178,7 +167,6 @@ async function hydrateProfileFromSession(){
     badge.textContent = deptName || "—";
   }
 
-  // Avatar
   const img = $(SEL.avatar);
   if (img){
     const idu = State.session.id_usuario;
@@ -262,7 +250,7 @@ function buildTable(){
   State.table = createTable({
     bodySel: SEL.tableBody,
     wrapSel: SEL.tableWrap,
-    pagSel:  null, // usamos nuestro paginador clásico externo
+    pagSel:  null,
     pageSize: CONFIG.PAGE_SIZE,
     columns: [
       { key:"tramite",  title:"Trámites", sortable:true, accessor:r=>r.asunto||r.tramite||"—" },
@@ -313,7 +301,7 @@ function computeCounts(rows){
 }
 
 /* ============================================================================
-   Paginación — usa el estilo/markup clásico de tu HTML (.btn, "Ir a:")
+   Paginación clásica
    ========================================================================== */
 function renderPagerClassic(total){
   const cont = $(SEL.pager);
@@ -325,7 +313,6 @@ function renderPagerClassic(total){
   const btn = (label, p, extra="") =>
     `<button class="btn ${extra}" data-p="${p}" ${p==="disabled"?"disabled":""}>${label}</button>`;
 
-  // números 1..pages
   let nums = "";
   for (let i=1; i<=pages; i++){
     nums += btn(String(i), i, i===cur ? "primary" : "");
@@ -342,7 +329,6 @@ function renderPagerClassic(total){
     `<button class="btn" data-go>Ir</button>`
   ].join(" ");
 
-  // wire (sin rehacer filtros)
   cont.querySelectorAll("[data-p]").forEach(b=>{
     b.addEventListener("click", ()=>{
       const v = b.getAttribute("data-p");
@@ -366,20 +352,18 @@ function renderPagerClassic(total){
 }
 
 /* ============================================================================
-   Gaps + binds (para la página actual)
+   Gaps + binds (página actual)
    ========================================================================== */
 function refreshCurrentPageDecorations(){
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
-  // Limpia gaps previos
   tbody.querySelectorAll("tr.hs-gap").forEach(tr => tr.remove());
 
   const pageRows = State.table?.getRawRows?.() || [];
   const realCount = pageRows.length;
   const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
 
-  // Re-bind filas reales
   Array.from(tbody.querySelectorAll("tr")).forEach(tr=>{
     tr.classList.remove("is-clickable");
     tr.onclick = null;
@@ -395,7 +379,6 @@ function refreshCurrentPageDecorations(){
     });
   }
 
-  // Inserta gaps visuales
   if (gaps>0){
     let html="";
     for (let i=0;i<gaps;i++){
@@ -450,7 +433,7 @@ function applyPipelineAndRender(){
 }
 
 /* ============================================================================
-   Jerarquía — logs bonitos
+   Jerarquía — logs
    ========================================================================== */
 async function logHierarchy(plan){
   try{
@@ -472,9 +455,6 @@ async function logHierarchy(plan){
 
 /* ============================================================================
    Visiones de datos
-   - ADMIN / Presidencia: “todos”
-   - Primera línea: “todos del departamento”
-   - Resto: yo + subordinados
    ========================================================================== */
 async function fetchAllRequerimientos(perPage=200, maxPages=50){
   const url = CONFIG.API_BASE + "ixtla01_c_requerimiento.php";
@@ -566,12 +546,12 @@ async function loadScopeData(){
   updateLegendStatus();
   applyPipelineAndRender();
 
-  // Charts una vez que hay datos (quita skeletons si existen)
-  initCharts();
+  // Charts con datos reales
+  initChartsFromState();
 }
 
 /* ============================================================================
-   Charts
+   Charts – datos reales + tooltips y sin bullets debajo del donut
    ========================================================================== */
 function hideSiblingSkeleton(canvas){
   const wrap = canvas?.parentElement;
@@ -579,24 +559,68 @@ function hideSiblingSkeleton(canvas){
   if (sk) sk.remove();
 }
 
-function initCharts(){
-  // Línea (año)
+// Construye serie del año y distribución de este mes a partir de State.rows
+function buildChartsData(rows){
+  const now = new Date();
+  const cy  = now.getFullYear();
+  const cm  = now.getMonth(); // 0-11
+
+  const labelsYear = ["E","F","M","A","M","J","J","A","S","O","N","D"];
+  const seriesYear = new Array(12).fill(0);
+
+  const monthCountByType = new Map();
+
+  rows.forEach(r => {
+    const d = r.creado ? new Date(String(r.creado).replace(" ","T")) : null;
+    if (!d || isNaN(d)) return;
+
+    // Serie anual
+    if (d.getFullYear() === cy){
+      seriesYear[d.getMonth()]++;
+    }
+
+    // Donut del mes actual
+    if (d.getFullYear() === cy && d.getMonth() === cm){
+      const key = (r.tramite || r.asunto || "Otros").trim() || "Otros";
+      monthCountByType.set(key, (monthCountByType.get(key) || 0) + 1);
+    }
+  });
+
+  // Donut data
+  const donutData = Array.from(monthCountByType.entries())
+    .map(([label,value]) => ({ label, value }))
+    .sort((a,b) => b.value - a.value);
+
+  return { labelsYear, seriesYear, donutData };
+}
+
+function initChartsFromState(){
+  const { labelsYear, seriesYear, donutData } = buildChartsData(State.rows);
+
+  // Línea
   const cYear = $(SEL.chartYear);
   if (cYear){
-    const series = JSON.parse(cYear.getAttribute("data-series-year") || "[]");
-    const labels = JSON.parse(cYear.getAttribute("data-labels-year") || "[]");
-    new LineChart(cYear, { labels, series, color: "#4f6b95" });
+    new LineChart(cYear, {
+      labels: labelsYear,
+      series: seriesYear,
+      color: "#4f6b95",
+      hover: true, // nuestro LineChart ya muestra tooltip
+    });
     hideSiblingSkeleton(cYear);
   }
 
-  // Donut (mes) — pasamos deptId para que pueda auto-ajustar claves si lo necesita
+  // Donut
   const cMonth = $(SEL.chartMonth);
   if (cMonth){
-    const raw = JSON.parse(cMonth.getAttribute("data-donut") || "[]");
+    // Ocultamos la lista de bullets si existe
+    const lg = $(SEL.donutLegend);
+    if (lg) lg.style.display = "none";
+
     new DonutChart(cMonth, {
-      data: raw,
-      legendSelector: "#donut-legend",
+      data: donutData,
+      legendSelector: null,       // sin bullets
       centerText: true,
+      showTooltips: true,         // tooltip sobre cada segmento
       deptId: State.session.dept_id
     });
     hideSiblingSkeleton(cMonth);
@@ -613,7 +637,6 @@ window.addEventListener("DOMContentLoaded", async ()=>{
 
     initSidebar(()=>applyPipelineAndRender());
     initSearch(()=>applyPipelineAndRender());
-
     buildTable();
     updateLegendStatus();
 
