@@ -1,21 +1,18 @@
 // /JS/home.js
 "use strict";
 
-/* =============================================================================
-   CONFIG 
+/* ============================================================================
+   CONFIG
    ========================================================================== */
 const CONFIG = {
-  ENABLE_LOGS: true,
-  PAGE_SIZE: 7, 
+  DEBUG_LOGS: true,                            // ← apágalo en prod si quieres
+  PAGE_SIZE: 7,                                // ← 7 filas por página (fijas)
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
+  REQ_VIEW_URL: "/VIEWS/requerimiento.php",    // ← destino al hacer click en fila
+  // Si tienes window.API.departamentos, se usa para resolver el nombre
 };
 
-const TAG = "[Home]";
-const log  = (...a) => { if (CONFIG.ENABLE_LOGS) console.log(TAG, ...a); };
-const warn = (...a) => { if (CONFIG.ENABLE_LOGS) console.warn(TAG, ...a); };
-const err  = (...a) => console.error(TAG, ...a);
-
-/* =============================================================================
+/* ============================================================================
    Imports
    ========================================================================== */
 import { Session } from "/JS/auth/session.js";
@@ -25,10 +22,19 @@ import {
   loadEmpleados,
   listByAsignado,
 } from "/JS/api/requerimientos.js";
-import { createTable }   from "/JS/ui/table.js";
+import { createTable } from "/JS/ui/table.js";
 import { createSidebar } from "/JS/ui/sidebar.js";
 
-/* =============================================================================
+/* ============================================================================
+   Logs
+   ========================================================================== */
+const TAG = "[Home]";
+const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
+const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
+const err  = (...a) => console.error(TAG, ...a);
+window.__HOME_DEBUG = CONFIG.DEBUG_LOGS;
+
+/* ============================================================================
    Selectores
    ========================================================================== */
 const SEL = {
@@ -52,11 +58,12 @@ const SEL = {
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
+
+  // Panel vacío (dentro de tabla lo mostraremos como fila)
+  emptyPanel:   "#hs-empty",
 };
 
-const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
-
-/* =============================================================================
+/* ============================================================================
    Helpers DOM
    ========================================================================== */
 const $  = (sel, root = document) => root.querySelector(sel);
@@ -71,7 +78,7 @@ function formatDateMX(isoOrSql) {
   return d.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-/* =============================================================================
+/* ============================================================================
    Estado
    ========================================================================== */
 const State = {
@@ -83,11 +90,10 @@ const State = {
   search: "",
   counts: { todos: 0, pendientes: 0, en_proceso: 0, terminados: 0, cancelados: 0, pausados: 0 },
   table: null,
-  sidebar: null,
 };
 
-/* =============================================================================
-   Fallback cookie ix_emp (base64 JSON)
+/* ============================================================================
+   Cookie fallback (ix_emp base64 JSON)
    ========================================================================== */
 function readCookiePayload() {
   try {
@@ -102,8 +108,8 @@ function readCookiePayload() {
   }
 }
 
-/* =============================================================================
-   Lectura de sesión
+/* ============================================================================
+   Sesión
    ========================================================================== */
 function readSession() {
   let s = null;
@@ -134,20 +140,45 @@ function readSession() {
   return State.session;
 }
 
-/* =============================================================================
-   UI: perfil (nombre, badge, avatar con fallback)
+/* ============================================================================
+   Departamento: resolver nombre (si hay API.departamentos)
    ========================================================================== */
-function hydrateProfileFromSession() {
+async function resolveDeptName(depId) {
+  if (!depId) return null;
+  try {
+    const url = window.API?.departamentos;
+    if (!url) return null;
+    const body = { status: 1, page: 1, page_size: 200 };
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => null);
+    const list = json?.data || json?.rows || [];
+    const found = list.find(d => Number(d.id) === Number(depId));
+    return found?.nombre || null;
+  } catch {
+    return null;
+  }
+}
+
+/* ============================================================================
+   UI: perfil
+   ========================================================================== */
+async function hydrateProfileFromSession() {
   const s = Session?.get?.() || readCookiePayload() || {};
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
   setText(SEL.profileName, nombre);
 
-  // badge: si el HTML ya trae el nombre del depto, lo dejamos; si no, ponemos el id
-  const depBadgeEl = $(SEL.profileBadge);
-  if (depBadgeEl) {
-    const text = depBadgeEl.textContent?.trim();
-    if (!text || text === "—") {
-      depBadgeEl.textContent = State.session.dept_id != null ? String(State.session.dept_id) : "—";
+  // Departamento → nombre si disponible, si no el id
+  const badgeEl = $(SEL.profileBadge);
+  if (badgeEl) {
+    const current = badgeEl.textContent?.trim();
+    if (!current || current === "—") {
+      const depId = State.session.dept_id;
+      const depName = await resolveDeptName(depId);
+      badgeEl.textContent = depName || (depId != null ? String(depId) : "—");
     }
   }
 
@@ -155,12 +186,14 @@ function hydrateProfileFromSession() {
   const avatarEl = $(SEL.avatar);
   if (avatarEl) {
     const idu = State.session.id_usuario;
-    const candidates = idu ? [
-      `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
-      `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
-      `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
-      `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-    ] : [];
+    const candidates = idu
+      ? [
+          `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
+          `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
+          `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
+          `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
+        ]
+      : [];
     let idx = 0;
     const tryNext = () => {
       if (idx >= candidates.length) {
@@ -171,29 +204,41 @@ function hydrateProfileFromSession() {
       avatarEl.onerror = () => { idx++; tryNext(); };
       avatarEl.src = `${candidates[idx]}?v=${Date.now()}`;
     };
-    if (candidates.length) tryNext();
-    else avatarEl.src = CONFIG.DEFAULT_AVATAR;
+    // Si no hay id de usuario, poner default directo
+    if (!idu) {
+      avatarEl.src = CONFIG.DEFAULT_AVATAR;
+    } else {
+      tryNext();
+    }
   }
 }
 
-/* =============================================================================
-   Sidebar (componente)
+/* ============================================================================
+   Sidebar (usa /JS/ui/sidebar.js)
    ========================================================================== */
 function initSidebar() {
-  State.sidebar = createSidebar({
-    groupSel: SEL.statusGroup,
-    itemSel:  SEL.statusItems,
-    initial:  "todos",
+  const el = $(SEL.statusGroup);
+  if (!el) {
+    warn("No se encontró el contenedor de estados", SEL.statusGroup);
+    return;
+  }
+
+  createSidebar({
+    root: el,
+    activeKey: "todos",
     onChange: (key) => {
-      State.filterKey = key;
+      State.filterKey = key || "todos";
       updateLegendStatus();
-      applyPipelineAndRender();
+      applyPipelineAndRender();   // <- aquí ya existe la tabla (se construye antes)
       $(SEL.searchInput)?.focus();
-    }
+    },
+    debug: CONFIG.DEBUG_LOGS,
   });
+
+  log("sidebar listo");
 }
 
-/* =============================================================================
+/* ============================================================================
    Búsqueda
    ========================================================================== */
 function initSearch() {
@@ -209,7 +254,7 @@ function initSearch() {
   });
 }
 
-/* =============================================================================
+/* ============================================================================
    Tabla
    ========================================================================== */
 function buildTable() {
@@ -251,25 +296,22 @@ function buildTable() {
     ]
   });
 
-  // Navegar al requerimiento al hacer click en fila (ignora vacías y mensaje)
+  // Click fila -> navegar al detalle
   const tbody = $(SEL.tableBody);
   if (tbody) {
     tbody.addEventListener("click", (e) => {
       const tr = e.target.closest("tr");
-      if (!tr || tr.dataset.blank === "1" || tr.dataset.empty === "1") return;
+      if (!tr) return;
       const idx = Number(tr.dataset.rowIdx);
-      const pageRows = State.table.getRawRows?.() || [];
-      const uiRow = pageRows[idx];
-      const req = uiRow?.__raw || uiRow; // nuestro setData mete __raw
-      const id = req?.id;
-      if (id != null) {
-        location.href = `/VIEWS/requerimiento.php?id=${id}`;
-      }
+      const raw = State.table?.getRawRows?.()?.[idx];
+      const id = raw?.id || raw?.__raw?.id;
+      if (!id) return;
+      location.href = `${CONFIG.REQ_VIEW_URL}?id=${encodeURIComponent(id)}`;
     });
   }
 }
 
-/* =============================================================================
+/* ============================================================================
    Leyendas
    ========================================================================== */
 function updateLegendTotals(n) { setText(SEL.legendTotal, String(n ?? 0)); }
@@ -285,7 +327,7 @@ function updateLegendStatus() {
   setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
 }
 
-/* =============================================================================
+/* ============================================================================
    Conteos
    ========================================================================== */
 function catKeyFromCode(code) {
@@ -299,49 +341,59 @@ function computeCounts(rows) {
   const c = { todos: 0, pendientes: 0, en_proceso: 0, terminados: 0, cancelados: 0, pausados: 0 };
   rows.forEach(r => { c.todos++; const k = catKeyFromCode(r.estatus?.code); if (k in c) c[k]++; });
   State.counts = c;
-  State.sidebar?.setCounts(c);
   log("conteos", c);
+
+  setText("#cnt-todos",       `(${c.todos})`);
+  setText("#cnt-pendientes",  `(${c.pendientes})`);
+  setText("#cnt-en_proceso",  `(${c.en_proceso})`);
+  setText("#cnt-terminados",  `(${c.terminados})`);
+  setText("#cnt-cancelados",  `(${c.cancelados})`);
+  setText("#cnt-pausados",    `(${c.pausados})`);
 }
 
-/* =============================================================================
-   Relleno de tabla: mensaje vacío y filas en blanco
+/* ============================================================================
+   Padding / placeholder dentro de la tabla
    ========================================================================== */
-function padTableRowsAfterRender(visibleCount, totalFiltered) {
+function padTableRowsAfterRender(visibleCount, filteredCount) {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
-  // Si no hay datos: 1 fila de mensaje + blanks hasta PAGE_SIZE
-  if (totalFiltered === 0) {
-    const msg = document.createElement("tr");
-    msg.dataset.empty = "1";
-    msg.innerHTML = `<td colspan="4" class="gc-empty-cell">No hay requerimientos asignados de momento</td>`;
-    tbody.appendChild(msg);
+  // Limpia placeholders previos
+  tbody.querySelectorAll('tr[data-blank="1"], tr[data-empty="1"]').forEach(el => el.remove());
 
-    const blanks = Math.max(0, CONFIG.PAGE_SIZE - 1);
-    for (let i = 0; i < blanks; i++) {
-      const tr = document.createElement("tr");
-      tr.dataset.blank = "1";
-      tr.className = "gc-blank-row";
-      tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td>`;
-      tbody.appendChild(tr);
-    }
-    log("tabla: filas vacías agregadas (estado vacío)", { blanks });
+  // Caso: no hay elementos -> una fila que ocupa todas las columnas
+  if (filteredCount === 0) {
+    const tr = document.createElement("tr");
+    tr.setAttribute("data-empty", "1");
+    tr.className = "is-empty";
+    tr.innerHTML = `
+      <td colspan="4">
+        <div class="hs-empty-inline">
+          <div class="hs-empty-icon" aria-hidden="true">🗂️</div>
+          <div>
+            <div class="hs-empty-title">No hay requerimientos asignados de momento</div>
+            <div class="hs-empty-desc">Cuando te asignen un requerimiento a ti o a tu equipo, aparecerá aquí.</div>
+          </div>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+    log("padding: tabla vacía → se colocó 1 fila placeholder (data-empty=1)");
     return;
   }
 
-  // Si hay menos filas que PAGE_SIZE: agregar blanks
-  const need = Math.max(0, CONFIG.PAGE_SIZE - visibleCount);
-  for (let i = 0; i < need; i++) {
+  // Caso: hay menos filas que PAGE_SIZE -> rellenar con blanks no interactivos
+  const blanks = Math.max(0, CONFIG.PAGE_SIZE - visibleCount);
+  for (let i = 0; i < blanks; i++) {
     const tr = document.createElement("tr");
-    tr.dataset.blank = "1";
-    tr.className = "gc-blank-row";
+    tr.setAttribute("data-blank", "1");
+    tr.className = "is-blank";
     tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td>`;
     tbody.appendChild(tr);
   }
-  if (need > 0) log("tabla: filas vacías agregadas (padding)", { blanks: need });
+  if (blanks > 0) log(`padding: se agregaron ${blanks} filas en blanco para completar ${CONFIG.PAGE_SIZE}`);
 }
 
-/* =============================================================================
+/* ============================================================================
    Pipeline + render
    ========================================================================== */
 function applyPipelineAndRender() {
@@ -371,28 +423,26 @@ function applyPipelineAndRender() {
     tramite:  r.tramite,
     asignado: r.asignado,
     creado:   r.creado,
-    estatus:  r.estatus
+    estatus:  r.estatus,
+    id:       r.id,
   }));
 
-  // Pintar tabla
-  State.table?.setData(tableRows);
-
-  // Padding/placeholder dentro del tbody
-  const tbody = $(SEL.tableBody);
-  if (tbody) {
-    // `createTable` ya pintó pageItems; contamos cuántos
-    const painted = tbody.querySelectorAll("tr").length;
-    // Limpia y vuelve a calcular según los datos de la página actual
-    tbody.querySelectorAll('tr[data-blank="1"], tr[data-empty="1"]').forEach(el => el.remove());
-    const currentRows = State.table.getRawRows?.() || [];
-    const visibleCount = currentRows.length;
-    padTableRowsAfterRender(visibleCount, tableRows.length);
+  // ⛑️ Guardia si la tabla aún no existe (no intentes pintar ni paddear)
+  if (!State.table) {
+    log("applyPipelineAndRender() — tabla aún no inicializada; diferido.", {
+      totalUniverso: all.length, totalFiltrado: tableRows.length
+    });
+    return;
   }
 
-  if (State.table) {
-    const s = State.table.getSort?.() || {};
-    log("table render", s);
-  }
+  State.table.setData(tableRows);
+
+  // Padding / placeholder
+  const pageRaw = State.table.getRawRows?.() || [];
+  padTableRowsAfterRender(pageRaw.length, tableRows.length);
+
+  const s = State.table.getSort?.() || {};
+  log("table render", s);
   log("pipeline", {
     filtroStatus: State.filterKey,
     search: State.search,
@@ -402,7 +452,7 @@ function applyPipelineAndRender() {
   });
 }
 
-/* =============================================================================
+/* ============================================================================
    Log de jerarquía (principal + subordinados)
    ========================================================================== */
 async function logHierarchy(plan) {
@@ -431,18 +481,14 @@ async function logHierarchy(plan) {
   }
 }
 
-/* =============================================================================
-   Traer solo “yo + subordinados” (sin depto)
+/* ============================================================================
+   Sólo “yo + subordinados” (sin depto)
    ========================================================================== */
 async function fetchMineAndTeam(plan, filtros = {}) {
   const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
-  const promises = ids.map(id => listByAsignado(id, filtros));
-  const results = await Promise.allSettled(promises);
-  const lists = results
-    .filter(r => r.status === "fulfilled")
-    .map(r => r.value || []);
+  const results = await Promise.allSettled(ids.map(id => listByAsignado(id, filtros)));
+  const lists = results.filter(r => r.status === "fulfilled").map(r => r.value || []);
 
-  // Dedup por id y orden por created_at DESC
   const map = new Map();
   lists.flat().forEach(r => { if (r?.id != null) map.set(r.id, r); });
   const items = Array.from(map.values())
@@ -463,7 +509,7 @@ async function fetchMineAndTeam(plan, filtros = {}) {
   return items;
 }
 
-/* =============================================================================
+/* ============================================================================
    Carga de datos
    ========================================================================== */
 async function loadScopeData() {
@@ -486,17 +532,16 @@ async function loadScopeData() {
   State.scopePlan = plan;
   log("planScope listo", plan);
 
-  await logHierarchy(plan);
+  // Jerarquía con nombres
+  logHierarchy(plan);
 
-  // Solo yo + subordinados
+  // Sólo yo + team
   log("fetching only mine + team…");
   const items = await fetchMineAndTeam(plan, {});
 
-  // Mapear a UI
   State.universe = items.slice();
   State.rows = State.universe.map(parseReq);
 
-  // Log de lo que pintamos
   log("FINAL mine+team items (UI-mapped):",
     State.rows.map(r => ({
       id: r.id, folio: r.folio, asignado: r.asignado,
@@ -515,19 +560,24 @@ async function loadScopeData() {
   });
 }
 
-/* =============================================================================
+/* ============================================================================
    Init
    ========================================================================== */
 window.addEventListener("DOMContentLoaded", async () => {
   try {
+    // 1) Sesión + Perfil
     readSession();
-    hydrateProfileFromSession();
+    await hydrateProfileFromSession();
 
+    // 2) Construye TABLA primero (evita getRawRows null)
+    buildTable();
+
+    // 3) Sidebar + search
     initSidebar();
     initSearch();
-    buildTable();
     updateLegendStatus();
 
+    // 4) Datos
     await loadScopeData();
 
     log("init — Home listo");
