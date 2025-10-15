@@ -1,389 +1,270 @@
 // /JS/charts/donut-chart.js
 "use strict";
 
-/* ============================================================================
-   CONFIG
-   ========================================================================== */
-const DONUT_CFG = {
-  DEBUG: true,
-  API_BASE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/",
-  MAX_SLICES: 5,                      
-  OTHERS_LABEL: "Otros",
-  OTHERS_COLOR: "#CBD5E1",         
-  DEFAULT_PALETTE: [
-    "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#6366F1",
-    "#06B6D4", "#22C55E", "#EAB308", "#F97316", "#8B5CF6"
-  ],
-};
-
-const D_TAG = "[DonutSmart]";
-const dlog = (...a) => { if (DONUT_CFG.DEBUG) console.log(D_TAG, ...a); };
-const dwarn= (...a) => { if (DONUT_CFG.DEBUG) console.warn(D_TAG, ...a); };
-
-/* ============================================================================
-   Utils
-   ========================================================================== */
-function $(sel, root=document){ return root.querySelector(sel); }
-function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
-function monthStart(y,m){ return new Date(y, m, 1, 0,0,0,0); }
-function monthEnd(y,m){ return new Date(y, m+1, 0, 23,59,59,999); }
-function parseSqlishDate(s){
-  if (!s) return null;
-  const d = new Date(String(s).replace(" ", "T"));
-  return isNaN(d) ? null : d;
-}
-function normalizeName(s){
-  return String(s||"").toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .trim();
-}
-function djb2(str){
-  let h = 5381;
-  for (let i=0;i<str.length;i++) h = ((h<<5)+h) + str.charCodeAt(i);
-  return h >>> 0;
-}
-
-/* ============================================================================
-   Catálogo de trámites (cache por scopeKey)
-   ========================================================================== */
-const _catalogCache = new Map(); // scopeKey -> { ts, data: { byId, byName, keys[] } }
-const CATALOG_TTL_MS = 10 * 60 * 1000;
-
-function makeScopeKey(scope){
-  // scope: { type:"all"|"dept", deptId?:number }
-  return scope?.type === "dept" ? `dept:${scope.deptId||"0"}` : "all";
-}
-function cacheGet(scopeKey){
-  const v = _catalogCache.get(scopeKey);
-  if (!v) return null;
-  if (Date.now() - v.ts > CATALOG_TTL_MS) { _catalogCache.delete(scopeKey); return null; }
-  return v.data;
-}
-function cacheSet(scopeKey, data){ _catalogCache.set(scopeKey, { ts: Date.now(), data }); }
-
-async function fetchTramitesCatalog(scope){
-  const scopeKey = makeScopeKey(scope);
-  const hit = cacheGet(scopeKey);
-  if (hit) return hit;
-
-  const url = DONUT_CFG.API_BASE + "ixtla01_c_tramite.php";
-  const body = (scope?.type === "dept")
-    ? { departamento_id: Number(scope.deptId), all: true, estatus: 1, page:1, per_page: 500 }
-    : { all: true, estatus: 1, page:1, per_page: 500 };
-
-  try{
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error("HTTP "+res.status);
-    const json = await res.json();
-    const arr = Array.isArray(json?.data) ? json.data : [];
-
-    // Construir índices
-    const byId = new Map();
-    const byName = new Map();
-    const keys = [];
-    arr.forEach(t => {
-      const id = Number(t.id);
-      const name = String(t.nombre||`Trámite ${id}`);
-      byId.set(id, { id, name });
-      byName.set(normalizeName(name), { id, name });
-      keys.push({ id, name });
-    });
-
-    const data = { byId, byName, keys };
-    cacheSet(scopeKey, data);
-    dlog("Catálogo cargado", scopeKey, { count: keys.length });
-    return data;
-  } catch (e){
-    dwarn("Catálogo de trámites falló; se generará ad-hoc", e);
-    // Retornar estructura vacía; el caller podrá generar ad-hoc desde los items
-    return { byId: new Map(), byName: new Map(), keys: [] };
-  }
-}
-
-/* ============================================================================
-   Donut Rendering (Canvas 2D)
-   ========================================================================== */
-function colorFromKey(key, palette){
-  const idx = djb2(String(key)) % palette.length;
-  return palette[idx];
-}
-
-function drawDonut(canvas, data, { innerRatio=0.6 } = {}){
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width;
-  const H = canvas.height;
-  ctx.clearRect(0,0,W,H);
-
-  const cx = W/2, cy = H/2;
-  const R = Math.min(W, H) * 0.45;
-  const r = R * innerRatio;
-
-  const total = data.reduce((a,s)=>a + (s.value||0), 0);
-  if (!total){
-    // placeholder "sin datos"
-    ctx.fillStyle = "#94A3B8";
-    ctx.font = "14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("Sin datos", cx, cy);
-    return;
-  }
-
-  let start = -Math.PI / 2;
-  data.forEach(s => {
-    const ang = (s.value / total) * Math.PI * 2;
-    if (!ang) return;
-    const end = start + ang;
-
-    // sector
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, R, start, end);
-    ctx.closePath();
-    ctx.fillStyle = s.color;
-    ctx.fill();
-
-    start = end;
-  });
-
-  // “agujero”
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI*2);
-  ctx.fill();
-  ctx.globalCompositeOperation = "source-over";
-}
-
-/* ============================================================================
-   Leyenda HTML
-   ========================================================================== */
-function renderLegend(legendEl, data, total){
-  if (!legendEl) return;
-  if (!total){
-    legendEl.innerHTML = `<div class="hs-donut-legend-empty">Sin datos</div>`;
-    return;
-  }
-  legendEl.innerHTML = data.map(s => {
-    const pct = total ? Math.round((s.value/total)*100) : 0;
-    return `
-      <div class="hs-donut-legend-item">
-        <span class="dot" style="background:${s.color};"></span>
-        <span class="name">${escapeHtml(s.label)}</span>
-        <span class="pct">${pct}%</span>
-      </div>
-    `;
-  }).join("");
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, m => (
-    m === "&" ? "&amp;" : m === "<" ? "&lt;" : m === ">" ? "&gt;" :
-    m === '"' ? "&quot;" : "&#39;"
-  ));
-}
-
-/* ============================================================================
-   DonutSmart – API
-   ========================================================================== */
-export class DonutSmart {
+/**
+ * DonutChart
+ * - Usa un <canvas> 2D
+ * - items: [{ label: string, value: number }]
+ * - Paleta estable por etiqueta (hash -> índice paleta) para consistencia.
+ * - Dibuja % sobre cada porción (umbral configurable).
+ */
+export class DonutChart {
   /**
-   * @param {Object} opts
-   * @param {HTMLCanvasElement|string} opts.canvas - canvas o selector
-   * @param {HTMLElement|string} [opts.legend] - contenedor leyenda o selector
-   * @param {HTMLElement|string} [opts.skeleton] - overlay/skeleton para ocultar cuando termine
-   * @param {"all"|"dept"} [opts.scopeType="dept"]
-   * @param {number} [opts.deptId=null]
-   * @param {string[]} [opts.palette]
-   * @param {number} [opts.maxSlices]
+   * @param {HTMLCanvasElement} canvas
+   * @param {object} opts
    */
-  constructor(opts={}){
-    this.canvas   = typeof opts.canvas === "string" ? $(opts.canvas) : opts.canvas;
-    this.legendEl = typeof opts.legend === "string" ? $(opts.legend) : opts.legend || null;
-    this.skeleton = typeof opts.skeleton === "string" ? $(opts.skeleton) : opts.skeleton || null;
+  constructor(canvas, opts = {}) {
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("DonutChart: canvas inválido");
+    }
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.dpr = window.devicePixelRatio || 1;
 
-    this.scope = {
-      type: opts.scopeType === "all" ? "all" : "dept",
-      deptId: opts.deptId != null ? Number(opts.deptId) : null
+    // Defaults
+    this.opts = {
+      innerRatio: 0.58,           // tamaño del “agujero”
+      strokeWidth: 0,             // borde del arco
+      showCenterTotal: true,
+      centerTitle: "Total del mes",
+      centerFont: "600 22px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
+      centerSubFont: "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
+      centerColor: "#111827",
+
+      showSlicePercents: true,    // ← dibujar % sobre cada segmento
+      minPercentLabel: 4,         // % mínimo para mostrar etiqueta
+      labelFont: "12px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
+      labelColor: "#111827",
+
+      // Paleta por defecto (puedes agregar más)
+      palette: [
+        "#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#10b981",
+        "#6366f1", "#06b6d4", "#eab308", "#f97316", "#14b8a6"
+      ],
+
+      // Callback opcional cuando termina de pintar
+      onReady: null,
+      ...opts,
     };
 
-    this.palette = Array.isArray(opts.palette) && opts.palette.length
-      ? opts.palette.slice()
-      : DONUT_CFG.DEFAULT_PALETTE.slice();
+    this.items = [];
+    this.colors = []; // color por item (paralelo a this.items)
 
-    this.maxSlices = Number.isFinite(opts.maxSlices) ? opts.maxSlices : DONUT_CFG.MAX_SLICES;
+    // Hidratar desde data-donut si viene en el canvas
+    const dataAttr = this.canvas.getAttribute("data-donut");
+    if (dataAttr) {
+      try {
+        const parsed = JSON.parse(dataAttr);
+        if (Array.isArray(parsed)) this.items = normalizeItems(parsed);
+      } catch { /* ignore */ }
+    }
 
-    if (!this.canvas) throw new Error("DonutSmart: canvas requerido");
-    this._catalog = null;
-    this._destroyed = false;
-  }
-
-  setPalette(palette){
-    if (Array.isArray(palette) && palette.length) {
-      this.palette = palette.slice();
+    this.resizeForDPR();
+    if (this.items.length) {
+      this.computeColors();
+      this.render();
     }
   }
 
-  async setScope({ type, deptId=null }){
-    this.scope = { type: type==="all" ? "all" : "dept", deptId: deptId!=null ? Number(deptId) : null };
-    this._catalog = null; // forzar recarga
-    await this._ensureCatalog();
+  /** Ajusta el backing-store del canvas al DPR para nitidez */
+  resizeForDPR() {
+    const { canvas, dpr } = this;
+    const w = canvas.width;
+    const h = canvas.height;
+    // Si el width/height del atributo ya son los “CSS pixels”, escalamos el buffer
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  async _ensureCatalog(){
-    if (this._destroyed) return;
-    this._catalog = await fetchTramitesCatalog(this.scope);
+  /** Define data nueva y repinta */
+  setData(items) {
+    this.items = normalizeItems(items);
+    this.computeColors();
+    this.render();
   }
 
-  _buildAdHocCatalogFromItems(items){
-    const byId = new Map();
-    const byName = new Map();
-    const keys = [];
-    items.forEach(it => {
-      const id = it?.tramite_id != null ? Number(it.tramite_id) : null;
-      const nameRaw = it?.tramite_nombre || it?.tramite || it?.tramiteName;
-      if (id != null && !byId.has(id)){
-        const name = nameRaw ? String(nameRaw) : `Trámite ${id}`;
-        byId.set(id, { id, name });
-        keys.push({ id, name });
-      } else if (id == null && nameRaw){
-        const nn = normalizeName(String(nameRaw));
-        if (!byName.has(nn)){
-          byName.set(nn, { id:null, name: String(nameRaw) });
-          keys.push({ id:null, name: String(nameRaw) });
+  /** Devuelve una copia de los items actuales */
+  getData() {
+    return this.items.map(i => ({ ...i }));
+  }
+
+  /** Color de un índice */
+  getColor(i) {
+    return this.colors[i] || "#cbd5e1";
+  }
+
+  /** Hash estable por label → índice de paleta */
+  labelToPaletteIndex(label) {
+    const s = String(label || "");
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) {
+      hash = (hash * 31 + s.charCodeAt(i)) | 0;
+    }
+    if (hash < 0) hash = -hash;
+    return hash % this.opts.palette.length;
+  }
+
+  /** Calcula this.colors siguiendo la paleta estable por etiqueta */
+  computeColors() {
+    this.colors = this.items.map(it => {
+      const idx = this.labelToPaletteIndex(it.label);
+      return this.opts.palette[idx];
+    });
+  }
+
+  /** Limpia el canvas */
+  clear() {
+    const { ctx, canvas } = this;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  /** Render principal */
+  render() {
+    const { ctx, canvas } = this;
+    this.clear();
+
+    const cssW = canvas.width / this.dpr;
+    const cssH = canvas.height / this.dpr;
+    const cx = cssW / 2;
+    const cy = cssH / 2;
+    const radius = Math.min(cx, cy) * 0.9;
+    const innerR = radius * this.opts.innerRatio;
+
+    const total = this.items.reduce((s, it) => s + (Number(it.value) || 0), 0);
+    const twoPI = Math.PI * 2;
+
+    // Arco por segmento
+    let startAngle = -Math.PI / 2; // inicia arriba
+    this.items.forEach((it, i) => {
+      const val = Math.max(0, Number(it.value) || 0);
+      const frac = total > 0 ? (val / total) : 0;
+      const endAngle = startAngle + frac * twoPI;
+
+      // Donut slice
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, radius, startAngle, endAngle, false);
+      ctx.arc(cx, cy, innerR, endAngle, startAngle, true);
+      ctx.closePath();
+
+      ctx.fillStyle = this.colors[i] || "#cbd5e1";
+      ctx.fill();
+
+      if (this.opts.strokeWidth > 0) {
+        ctx.lineWidth = this.opts.strokeWidth;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+      }
+
+      // Porcentaje sobre el aro
+      if (this.opts.showSlicePercents && total > 0) {
+        const pct = (val / total) * 100;
+        if (pct >= this.opts.minPercentLabel) {
+          const mid = (startAngle + endAngle) / 2;
+          const labelR = (radius + innerR) / 2; // mitad del aro
+          const lx = cx + Math.cos(mid) * labelR;
+          const ly = cy + Math.sin(mid) * labelR;
+
+          ctx.save();
+          ctx.fillStyle = this.opts.labelColor;
+          ctx.font = this.opts.labelFont;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(`${Math.round(pct)}%`, lx, ly);
+          ctx.restore();
         }
       }
-    });
-    return { byId, byName, keys };
-  }
 
-  _mapItemToCategory(item){
-    const cat = this._catalog || { byId:new Map(), byName:new Map() };
-    const tId = item?.tramite_id != null ? Number(item.tramite_id) : null;
-    const tNameRaw = item?.tramite_nombre || item?.tramite || item?.tramiteName;
-
-    if (tId != null && cat.byId.has(tId)) {
-      const c = cat.byId.get(tId);
-      return { key: `id:${tId}`, label: c.name };
-    }
-    if (tId != null) {
-      // id sin catalogar → usamos id como clave, nombre de fallback
-      return { key: `id:${tId}`, label: tNameRaw ? String(tNameRaw) : `Trámite ${tId}` };
-    }
-
-    if (tNameRaw) {
-      const nn = normalizeName(String(tNameRaw));
-      if (cat.byName.has(nn)) {
-        const c = cat.byName.get(nn);
-        // si catalogo trae id null (ad-hoc) igual usamos nombre
-        return { key: c.id != null ? `id:${c.id}` : `name:${nn}`, label: c.name };
-      }
-      return { key: `name:${nn}`, label: String(tNameRaw) };
-    }
-
-    // completamente desconocido
-    return { key: "otros", label: DONUT_CFG.OTHERS_LABEL };
-  }
-
-  _countByCategory(items, targetMonth, targetYear){
-    const start = monthStart(targetYear, targetMonth);
-    const end   = monthEnd(targetYear, targetMonth);
-
-    const counts = new Map(); // key -> { label, value }
-    let total = 0;
-
-    items.forEach(it => {
-      const d = parseSqlishDate(it?.created_at || it?.creado || it?.createdAt);
-      if (!d || d < start || d > end) return;
-
-      const cat = this._mapItemToCategory(it);
-      const prev = counts.get(cat.key) || { label: cat.label, value: 0 };
-      prev.value += 1;
-      counts.set(cat.key, prev);
-      total += 1;
+      startAngle = endAngle;
     });
 
-    return { counts, total };
-  }
+    // Agujero (por si hay aliasing)
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(cx, cy, innerR, 0, twoPI);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
 
-  _assignColors(sortedArr){
-    // colores deterministas por key
-    return sortedArr.map(s => ({
-      ...s,
-      color: s.key === "otros" ? DONUT_CFG.OTHERS_COLOR : colorFromKey(s.key, this.palette)
-    }));
-  }
+    // Centro: total y subtítulo
+    if (this.opts.showCenterTotal) {
+      ctx.save();
+      ctx.fillStyle = this.opts.centerColor;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
 
-  _topNWithOthers(countsMap, total){
-    // pasar a arreglo y ordenar
-    const arr = Array.from(countsMap.entries()).map(([key, v]) => ({ key, label: v.label, value: v.value }));
-    arr.sort((a,b) => b.value - a.value || a.label.localeCompare(b.label));
+      // número grande
+      ctx.font = this.opts.centerFont;
+      ctx.fillText(String(total), cx, cy - 6);
 
-    if (arr.length <= this.maxSlices) return arr;
-
-    const keep = this.maxSlices - 1;
-    const head = arr.slice(0, keep);
-    const tail = arr.slice(keep);
-    const rest = tail.reduce((a,s)=>a+s.value, 0);
-
-    return [
-      ...head,
-      { key: "otros", label: DONUT_CFG.OTHERS_LABEL, value: rest }
-    ];
-  }
-
-  _hideSkeleton(){
-    if (!this.skeleton) return;
-    // soporta tanto overlay div como clase en wrapper
-    this.skeleton.style.display = "none";
-    this.skeleton.setAttribute("aria-hidden", "true");
-  }
-
-  async update(items=[], { month, year } = {}){
-    if (this._destroyed) return;
-
-    // mes/año por defecto: actual
-    const now = new Date();
-    const m = Number.isFinite(month) ? clamp(month, 0, 11) : now.getMonth();
-    const y = Number.isFinite(year)  ? year : now.getFullYear();
-
-    // catálogo (si no hay, tratar de cargar; si falla, ad-hoc)
-    if (!this._catalog) {
-      this._catalog = await fetchTramitesCatalog(this.scope);
-    }
-    if (!this._catalog || (this._catalog.keys||[]).length === 0) {
-      dlog("Usando catálogo ad-hoc desde items…");
-      this._catalog = this._buildAdHocCatalogFromItems(items);
+      // subtítulo
+      ctx.font = this.opts.centerSubFont;
+      ctx.fillText(this.opts.centerTitle, cx, cy + 14);
+      ctx.restore();
     }
 
-    // conteo por categoría
-    const { counts, total } = this._countByCategory(items, m, y);
-    const limited = this._topNWithOthers(counts, total);
-    const colored = this._assignColors(limited);
+    // Ocultar skeleton si existe
+    const sk = this.canvas.parentElement?.querySelector(".hs-chart-skeleton");
+    if (sk) sk.style.display = "none";
 
-    // render
-    drawDonut(this.canvas, colored, { innerRatio: 0.65 });
-    renderLegend(this.legendEl, colored, total);
-
-    // quitar skeleton
-    this._hideSkeleton();
-
-    dlog("Donut actualizado", {
-      scope: this.scope,
-      month: m, year: y,
-      total,
-      slices: colored.map(s => ({ label:s.label, value:s.value, color:s.color }))
-    });
+    // callback
+    this.opts.onReady?.(this);
   }
 
-  destroy(){
-    this._destroyed = true;
-    // limpiar canvas
-    const ctx = this.canvas?.getContext("2d");
-    if (ctx) ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
-    if (this.legendEl) this.legendEl.innerHTML = "";
+  /** Atajo: si el canvas trae data-donut, instancia y pinta */
+  static fromCanvas(canvas, opts = {}) {
+    return new DonutChart(canvas, opts);
   }
+
+  destroy() {
+    // Por ahora no hay listeners. Método previsto para futuro.
+    this.clear();
+  }
+}
+
+/* ------------------------------------------------------------------------------------
+ * Utilities
+ * ----------------------------------------------------------------------------------*/
+
+/** Normaliza [{label, value}] y filtra valores no numéricos */
+function normalizeItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map(it => ({
+      label: String(it?.label ?? "—"),
+      value: Number(it?.value ?? 0)
+    }))
+    .filter(it => Number.isFinite(it.value) && it.value >= 0);
+}
+
+/**
+ * Vincula una UL con li[data-label] .bullet y .pct a un donut (colores y %).
+ * @param {HTMLElement} ul    <ul id="donut-legend"> … </ul>
+ * @param {DonutChart} donut  instancia del donut
+ * @param {Array} itemsOverride (opcional) para forzar items distintos a los del donut
+ */
+export function bindDonutLegend(ul, donut, itemsOverride = null) {
+  if (!ul || !donut) return;
+  const items = Array.isArray(itemsOverride) ? normalizeItems(itemsOverride) : donut.getData();
+  const total = items.reduce((s, it) => s + (Number(it.value) || 0), 0) || 0;
+
+  // Mapa label → color real usado en el donut
+  const colorByLabel = new Map(items.map((it, i) => [it.label, donut.getColor(i)]));
+
+  ul.querySelectorAll("li").forEach(li => {
+    const label  = li.getAttribute("data-label");
+    const bullet = li.querySelector(".bullet");
+    const pctEl  = li.querySelector(".pct");
+
+    const item  = items.find(x => x.label === label);
+    const color = colorByLabel.get(label) || "#cbd5e1";
+    if (bullet) bullet.style.background = color;
+
+    if (pctEl) {
+      const pct = total > 0 && item ? Math.round((item.value / total) * 100) : 0;
+      pctEl.textContent = total ? ` ${pct}%` : "";
+    }
+  });
 }
