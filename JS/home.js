@@ -1,26 +1,21 @@
 // /JS/home.js
 "use strict";
 
-/* CON  */
+/* =============================================================================
+   CONFIG 
+   ========================================================================== */
 const CONFIG = {
-  DEBUG_LOGS: true,
-  PAGE_SIZE: 7, // elementos por página
+  ENABLE_LOGS: true,
+  PAGE_SIZE: 7, 
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
-  REQ_VIEW_URL_BASE: "/VIEWS/requerimiento.php?id=",
-
-  // Endpoints 
-  API_BASE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/",
-  EP: {
-    departamentos: "ixtla01_c_departamento.php",
-  },
 };
 
 const TAG = "[Home]";
-const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
-const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
+const log  = (...a) => { if (CONFIG.ENABLE_LOGS) console.log(TAG, ...a); };
+const warn = (...a) => { if (CONFIG.ENABLE_LOGS) console.warn(TAG, ...a); };
 const err  = (...a) => console.error(TAG, ...a);
 
-/* ============================================================================
+/* =============================================================================
    Imports
    ========================================================================== */
 import { Session } from "/JS/auth/session.js";
@@ -30,32 +25,38 @@ import {
   loadEmpleados,
   listByAsignado,
 } from "/JS/api/requerimientos.js";
-import { createTable } from "/JS/ui/table.js";
+import { createTable }   from "/JS/ui/table.js";
+import { createSidebar } from "/JS/ui/sidebar.js";
 
-/* ============================================================================
+/* =============================================================================
    Selectores
    ========================================================================== */
 const SEL = {
+  // Perfil
   avatar:       "#hs-avatar",
   profileName:  "#hs-profile-name",
   profileBadge: "#hs-profile-badge",
 
+  // Sidebar
   statusGroup:  "#hs-states",
   statusItems:  "#hs-states .item",
 
+  // Búsqueda
   searchInput:  "#hs-search",
 
+  // Leyendas
   legendTotal:  "#hs-legend-total",
   legendStatus: "#hs-legend-status",
 
+  // Tabla
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
 };
 
-const SIDEBAR_KEYS = ["todos", "pendientes", "en_proceso", "terminados", "cancelados", "pausados"];
+const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
 
-/* ============================================================================
+/* =============================================================================
    Helpers DOM
    ========================================================================== */
 const $  = (sel, root = document) => root.querySelector(sel);
@@ -70,7 +71,7 @@ function formatDateMX(isoOrSql) {
   return d.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-/* ============================================================================
+/* =============================================================================
    Estado
    ========================================================================== */
 const State = {
@@ -82,10 +83,10 @@ const State = {
   search: "",
   counts: { todos: 0, pendientes: 0, en_proceso: 0, terminados: 0, cancelados: 0, pausados: 0 },
   table: null,
-  deptoNameCache: new Map(),
+  sidebar: null,
 };
 
-/* ============================================================================
+/* =============================================================================
    Fallback cookie ix_emp (base64 JSON)
    ========================================================================== */
 function readCookiePayload() {
@@ -101,7 +102,7 @@ function readCookiePayload() {
   }
 }
 
-/* ============================================================================
+/* =============================================================================
    Lectura de sesión
    ========================================================================== */
 function readSession() {
@@ -133,112 +134,66 @@ function readSession() {
   return State.session;
 }
 
-/* ============================================================================
-   Departamentos (nombre por id) – sin cambiar endpoint
+/* =============================================================================
+   UI: perfil (nombre, badge, avatar con fallback)
    ========================================================================== */
-async function fetchDepartamentos() {
-  if (State.deptoNameCache.size) return State.deptoNameCache;
-  const url = CONFIG.API_BASE + CONFIG.EP.departamentos;
-  try {
-    // “simple”, sin complicar params
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" }, body: JSON.stringify({}) });
-    const json = await res.json().catch(() => null);
-    const list = json?.data || json?.rows || [];
-    list.forEach(d => State.deptoNameCache.set(Number(d.id), String(d.nombre || `Departamento ${d.id}`)));
-  } catch (e) {
-    warn("No se pudieron cargar departamentos:", e);
-  }
-  return State.deptoNameCache;
-}
-async function resolveDeptoName(id) {
-  if (id == null) return "—";
-  await fetchDepartamentos();
-  return State.deptoNameCache.get(Number(id)) || `Departamento ${id}`;
-}
-
-/* ============================================================================
-   UI: perfil
-   ========================================================================== */
-async function hydrateProfileFromSession() {
+function hydrateProfileFromSession() {
   const s = Session?.get?.() || readCookiePayload() || {};
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
   setText(SEL.profileName, nombre);
 
-  // Badge con NOMBRE del departamento
+  // badge: si el HTML ya trae el nombre del depto, lo dejamos; si no, ponemos el id
   const depBadgeEl = $(SEL.profileBadge);
   if (depBadgeEl) {
-    const depName = await resolveDeptoName(State.session.dept_id);
-    depBadgeEl.textContent = depName || "—";
+    const text = depBadgeEl.textContent?.trim();
+    if (!text || text === "—") {
+      depBadgeEl.textContent = State.session.dept_id != null ? String(State.session.dept_id) : "—";
+    }
   }
 
-  // Avatar (fallback configurable)
+  // Avatar con fallback
   const avatarEl = $(SEL.avatar);
   if (avatarEl) {
     const idu = State.session.id_usuario;
-    if (!idu) {
-      avatarEl.src = CONFIG.DEFAULT_AVATAR;
-    } else {
-      const candidates = [
-        `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
-        `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
-        `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
-        `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-      ];
-      let idx = 0;
-      const tryNext = () => {
-        if (idx >= candidates.length) { avatarEl.src = CONFIG.DEFAULT_AVATAR; return; }
-        avatarEl.onerror = () => { idx++; tryNext(); };
-        avatarEl.src = `${candidates[idx]}?v=${Date.now()}`;
-      };
-      tryNext();
-    }
+    const candidates = idu ? [
+      `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
+      `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
+      `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
+      `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
+    ] : [];
+    let idx = 0;
+    const tryNext = () => {
+      if (idx >= candidates.length) {
+        avatarEl.onerror = null;
+        avatarEl.src = CONFIG.DEFAULT_AVATAR;
+        return;
+      }
+      avatarEl.onerror = () => { idx++; tryNext(); };
+      avatarEl.src = `${candidates[idx]}?v=${Date.now()}`;
+    };
+    if (candidates.length) tryNext();
+    else avatarEl.src = CONFIG.DEFAULT_AVATAR;
   }
 }
 
-/* ============================================================================
-   Sidebar: eventos + ARIA
+/* =============================================================================
+   Sidebar (componente)
    ========================================================================== */
-function initStatesSidebar() {
-  const group = $(SEL.statusGroup);
-  if (!group) { warn("No se encontró el contenedor de estados", SEL.statusGroup); return; }
-  group.setAttribute("role", "radiogroup");
-
-  const items = $$(SEL.statusItems);
-  if (!items.length) warn("No se encontraron status items a tiempo. Revisa el HTML o los selectores.");
-
-  items.forEach((btn, i) => {
-    btn.setAttribute("role", "radio");
-    btn.setAttribute("tabindex", i === 0 ? "0" : "-1");
-    btn.setAttribute("aria-checked", btn.classList.contains("is-active") ? "true" : "false");
-
-    if (!SIDEBAR_KEYS.includes(btn.dataset.status)) warn("Botón de estado sin data-status válido:", btn);
-
-    btn.addEventListener("click", () => {
-      items.forEach(b => { b.classList.remove("is-active"); b.setAttribute("aria-checked", "false"); b.tabIndex = -1; });
-      btn.classList.add("is-active"); btn.setAttribute("aria-checked", "true"); btn.tabIndex = 0;
-      State.filterKey = btn.dataset.status || "todos";
+function initSidebar() {
+  State.sidebar = createSidebar({
+    groupSel: SEL.statusGroup,
+    itemSel:  SEL.statusItems,
+    initial:  "todos",
+    onChange: (key) => {
+      State.filterKey = key;
       updateLegendStatus();
       applyPipelineAndRender();
       $(SEL.searchInput)?.focus();
-    });
+    }
   });
-
-  group.addEventListener("keydown", (e) => {
-    const items = $$(SEL.statusItems);
-    if (!items.length) return;
-    const cur = document.activeElement.closest(".item");
-    const idx = Math.max(0, items.indexOf(cur));
-    let nextIdx = idx;
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") nextIdx = (idx + 1) % items.length;
-    if (e.key === "ArrowUp" || e.key === "ArrowLeft") nextIdx = (idx - 1 + items.length) % items.length;
-    if (nextIdx !== idx) { items[nextIdx].focus(); e.preventDefault(); }
-    if (e.key === " " || e.key === "Enter") { items[nextIdx].click(); e.preventDefault(); }
-  });
-
-  log("sidebar events listos");
 }
 
-/* ============================================================================
+/* =============================================================================
    Búsqueda
    ========================================================================== */
 function initSearch() {
@@ -254,7 +209,7 @@ function initSearch() {
   });
 }
 
-/* ============================================================================
+/* =============================================================================
    Tabla
    ========================================================================== */
 function buildTable() {
@@ -268,36 +223,27 @@ function buildTable() {
         key: "tramite",
         title: "Trámites",
         sortable: true,
-        accessor: r => (r.__placeholder || r.__empty) ? "" : (r.asunto || r.tramite || "—"),
-        render: (v, r) => {
-          if (r.__empty) return `<span class="muted">No hay requerimientos asignados de momento</span>`;
-          if (r.__placeholder) return "";
-          return (r.asunto || r.tramite || "—");
-        }
+        accessor: r => r.asunto || r.tramite || "—"
       },
       {
         key: "asignado",
         title: "Asignado",
         sortable: true,
-        accessor: r => (r.__placeholder || r.__empty) ? "" : (r.asignado || "—"),
-        render: (v, r) => (r.__placeholder || r.__empty) ? "" : (r.asignado || "—"),
+        accessor: r => r.asignado || "—"
       },
       {
         key: "fecha",
         title: "Fecha de solicitado",
         sortable: true,
-        accessor: r => (r.__placeholder || r.__empty)
-          ? 0
-          : (r.creado ? new Date(String(r.creado).replace(" ", "T")).getTime() : 0),
-        render: (v, r) => (r.__placeholder || r.__empty) ? "" : formatDateMX(r.creado)
+        accessor: r => r.creado ? new Date(String(r.creado).replace(" ", "T")).getTime() : 0,
+        render: (v, r) => formatDateMX(r.creado)
       },
       {
         key: "status",
         title: "Status",
         sortable: true,
-        accessor: r => (r.__placeholder || r.__empty) ? "" : (r.estatus?.label || "—"),
+        accessor: r => r.estatus?.label || "—",
         render: (v, r) => {
-          if (r.__placeholder || r.__empty) return "";
           const cat = catKeyFromCode(r.estatus?.code);
           return `<span class="hs-status" data-k="${cat}">${r.estatus?.label || "—"}</span>`;
         }
@@ -305,27 +251,25 @@ function buildTable() {
     ]
   });
 
-  // Click en fila → vista del requerimiento
-  wireTableClicks();
-}
-
-function wireTableClicks() {
+  // Navegar al requerimiento al hacer click en fila (ignora vacías y mensaje)
   const tbody = $(SEL.tableBody);
-  if (!tbody) return;
-  tbody.addEventListener("click", (ev) => {
-    const tr = ev.target.closest("tr");
-    if (!tr || !tbody.contains(tr)) return;
-    const idx = Number(tr.getAttribute("data-row-idx") || -1);
-    const rawRows = State.table?.getRawRows?.() || [];
-    const raw = rawRows[idx];
-    if (!raw || raw.__placeholder || raw.__empty) return; // no interactivo
-    const id = raw?.id || raw?.__raw?.id;
-    if (!id) return;
-    location.href = `${CONFIG.REQ_VIEW_URL_BASE}${id}`;
-  });
+  if (tbody) {
+    tbody.addEventListener("click", (e) => {
+      const tr = e.target.closest("tr");
+      if (!tr || tr.dataset.blank === "1" || tr.dataset.empty === "1") return;
+      const idx = Number(tr.dataset.rowIdx);
+      const pageRows = State.table.getRawRows?.() || [];
+      const uiRow = pageRows[idx];
+      const req = uiRow?.__raw || uiRow; // nuestro setData mete __raw
+      const id = req?.id;
+      if (id != null) {
+        location.href = `/VIEWS/requerimiento.php?id=${id}`;
+      }
+    });
+  }
 }
 
-/* ============================================================================
+/* =============================================================================
    Leyendas
    ========================================================================== */
 function updateLegendTotals(n) { setText(SEL.legendTotal, String(n ?? 0)); }
@@ -341,7 +285,7 @@ function updateLegendStatus() {
   setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
 }
 
-/* ============================================================================
+/* =============================================================================
    Conteos
    ========================================================================== */
 function catKeyFromCode(code) {
@@ -355,17 +299,49 @@ function computeCounts(rows) {
   const c = { todos: 0, pendientes: 0, en_proceso: 0, terminados: 0, cancelados: 0, pausados: 0 };
   rows.forEach(r => { c.todos++; const k = catKeyFromCode(r.estatus?.code); if (k in c) c[k]++; });
   State.counts = c;
+  State.sidebar?.setCounts(c);
   log("conteos", c);
-
-  setText("#cnt-todos",       `(${c.todos})`);
-  setText("#cnt-pendientes",  `(${c.pendientes})`);
-  setText("#cnt-en_proceso",  `(${c.en_proceso})`);
-  setText("#cnt-terminados",  `(${c.terminados})`);
-  setText("#cnt-cancelados",  `(${c.cancelados})`);
-  setText("#cnt-pausados",    `(${c.pausados})`);
 }
 
-/* ============================================================================
+/* =============================================================================
+   Relleno de tabla: mensaje vacío y filas en blanco
+   ========================================================================== */
+function padTableRowsAfterRender(visibleCount, totalFiltered) {
+  const tbody = $(SEL.tableBody);
+  if (!tbody) return;
+
+  // Si no hay datos: 1 fila de mensaje + blanks hasta PAGE_SIZE
+  if (totalFiltered === 0) {
+    const msg = document.createElement("tr");
+    msg.dataset.empty = "1";
+    msg.innerHTML = `<td colspan="4" class="gc-empty-cell">No hay requerimientos asignados de momento</td>`;
+    tbody.appendChild(msg);
+
+    const blanks = Math.max(0, CONFIG.PAGE_SIZE - 1);
+    for (let i = 0; i < blanks; i++) {
+      const tr = document.createElement("tr");
+      tr.dataset.blank = "1";
+      tr.className = "gc-blank-row";
+      tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td>`;
+      tbody.appendChild(tr);
+    }
+    log("tabla: filas vacías agregadas (estado vacío)", { blanks });
+    return;
+  }
+
+  // Si hay menos filas que PAGE_SIZE: agregar blanks
+  const need = Math.max(0, CONFIG.PAGE_SIZE - visibleCount);
+  for (let i = 0; i < need; i++) {
+    const tr = document.createElement("tr");
+    tr.dataset.blank = "1";
+    tr.className = "gc-blank-row";
+    tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td>`;
+    tbody.appendChild(tr);
+  }
+  if (need > 0) log("tabla: filas vacías agregadas (padding)", { blanks: need });
+}
+
+/* =============================================================================
    Pipeline + render
    ========================================================================== */
 function applyPipelineAndRender() {
@@ -389,10 +365,8 @@ function applyPipelineAndRender() {
   computeCounts(all);
   updateLegendTotals(filtered.length);
 
-  // 1) filas reales
-  let tableRows = filtered.map(r => ({
+  const tableRows = filtered.map(r => ({
     __raw: r,
-    id: r.id,
     asunto:   r.asunto,
     tramite:  r.tramite,
     asignado: r.asignado,
@@ -400,17 +374,20 @@ function applyPipelineAndRender() {
     estatus:  r.estatus
   }));
 
-  // 2) manejar vacío / placeholders
-  if (tableRows.length === 0) {
-    tableRows = [{ __empty: true }];
-    log("placeholders: empty=1, fillers=0");
-  } else if (tableRows.length < CONFIG.PAGE_SIZE) {
-    const fillers = CONFIG.PAGE_SIZE - tableRows.length;
-    for (let i = 0; i < fillers; i++) tableRows.push({ __placeholder: true });
-    log("placeholders:", { empty: 0, fillers });
-  }
-
+  // Pintar tabla
   State.table?.setData(tableRows);
+
+  // Padding/placeholder dentro del tbody
+  const tbody = $(SEL.tableBody);
+  if (tbody) {
+    // `createTable` ya pintó pageItems; contamos cuántos
+    const painted = tbody.querySelectorAll("tr").length;
+    // Limpia y vuelve a calcular según los datos de la página actual
+    tbody.querySelectorAll('tr[data-blank="1"], tr[data-empty="1"]').forEach(el => el.remove());
+    const currentRows = State.table.getRawRows?.() || [];
+    const visibleCount = currentRows.length;
+    padTableRowsAfterRender(visibleCount, tableRows.length);
+  }
 
   if (State.table) {
     const s = State.table.getSort?.() || {};
@@ -420,13 +397,13 @@ function applyPipelineAndRender() {
     filtroStatus: State.filterKey,
     search: State.search,
     totalUniverso: all.length,
-    totalFiltrado: filtered.length,
+    totalFiltrado: tableRows.length,
     counts: State.counts
   });
 }
 
-/* ============================================================================
-   Util: log de jerarquía (usuario principal + subordinados con nombres)
+/* =============================================================================
+   Log de jerarquía (principal + subordinados)
    ========================================================================== */
 async function logHierarchy(plan) {
   try {
@@ -454,12 +431,11 @@ async function logHierarchy(plan) {
   }
 }
 
-/* ============================================================================
-   Traer “yo + subordinados” (múltiples llamadas simples al mismo endpoint)
+/* =============================================================================
+   Traer solo “yo + subordinados” (sin depto)
    ========================================================================== */
 async function fetchMineAndTeam(plan, filtros = {}) {
   const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
-  // Llamadas “simples”, una por cada id
   const promises = ids.map(id => listByAsignado(id, filtros));
   const results = await Promise.allSettled(promises);
   const lists = results
@@ -475,7 +451,6 @@ async function fetchMineAndTeam(plan, filtros = {}) {
       ((b.id || 0) - (a.id || 0))
     );
 
-  // Log de lista final cruda
   log("FINAL mine+team items (raw):",
     items.map(r => ({
       id: r.id, folio: r.folio,
@@ -488,7 +463,7 @@ async function fetchMineAndTeam(plan, filtros = {}) {
   return items;
 }
 
-/* ============================================================================
+/* =============================================================================
    Carga de datos
    ========================================================================== */
 async function loadScopeData() {
@@ -511,18 +486,17 @@ async function loadScopeData() {
   State.scopePlan = plan;
   log("planScope listo", plan);
 
-  // Log jerarquía con nombres
-  logHierarchy(plan);
+  await logHierarchy(plan);
 
-  // Sólo YO + SUBORDINADOS (múltiples llamadas sencillas)
+  // Solo yo + subordinados
   log("fetching only mine + team…");
   const items = await fetchMineAndTeam(plan, {});
 
-  // Adaptar para UI
+  // Mapear a UI
   State.universe = items.slice();
   State.rows = State.universe.map(parseReq);
 
-  // Log visible de lo que pintamos
+  // Log de lo que pintamos
   log("FINAL mine+team items (UI-mapped):",
     State.rows.map(r => ({
       id: r.id, folio: r.folio, asignado: r.asignado,
@@ -541,15 +515,15 @@ async function loadScopeData() {
   });
 }
 
-/* ============================================================================
+/* =============================================================================
    Init
    ========================================================================== */
 window.addEventListener("DOMContentLoaded", async () => {
   try {
     readSession();
-    await hydrateProfileFromSession();
+    hydrateProfileFromSession();
 
-    initStatesSidebar();
+    initSidebar();
     initSearch();
     buildTable();
     updateLegendStatus();

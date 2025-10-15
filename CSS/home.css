@@ -430,3 +430,59 @@ main.home-samapa{
   padding: 16px 8px;
   font-style: italic;
 }
+
+
+
+.gc{
+  table-layout: fixed;     
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  --row-h: 48px;         
+  --cell-px: 16px;         
+}
+
+.gc thead th,
+.gc tbody td{
+  padding: 12px var(--cell-px);
+  vertical-align: middle;
+}
+
+.gc tbody tr{
+  height: var(--row-h);     
+}
+
+.gc thead th:nth-child(1){ width: 42%; }  
+.gc thead th:nth-child(2){ width: 26%; }  
+.gc thead th:nth-child(3){ width: 18%; }  
+.gc thead th:nth-child(4){ width: 14%; }  
+
+.gc tbody tr[data-filler],
+.gc tbody tr[data-empty]{
+  background: transparent !important; 
+  cursor: default;               
+}
+
+.gc tbody tr[data-filler] td,
+.gc tbody tr[data-empty] td{
+  height: var(--row-h);
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-top: 1px solid rgba(0,0,0,0.03);  
+}
+
+.gc tbody tr[data-filler] td:empty::before,
+.gc tbody tr[data-empty] td:empty::before{
+  content: "\00a0"; /* &nbsp; */
+}
+
+.gc tbody tr[data-filler]:hover,
+.gc tbody tr[data-empty]:hover{
+  background: transparent !important;
+}
+
+.gc tbody tr.hs-row-empty td{
+  text-align: center;
+  color: #6b7280;       
+  font-style: italic;
+}
