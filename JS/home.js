@@ -2,20 +2,21 @@
 "use strict";
 
 /* ============================================================================
-   CONFIG
+   CONFIG (edita aquí)
    ========================================================================== */
 const CONFIG = {
   DEBUG_LOGS: true,
-  PAGE_SIZE: 10, // <- solicitado
+  PAGE_SIZE: 10,
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
-  PRESI_DEPTS: [/* agrega aquí los IDs de Presidencia, ej. 99 */],
+  ADMIN_ROLES: ["ADMIN"],
+  PRESIDENCIA_DEPT_IDS: [6],         // ids que ven TODO
+  DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
 };
 
 const TAG = "[Home]";
 const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
 const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
 const err  = (...a) => console.error(TAG, ...a);
-window.__HOME_DEBUG = CONFIG.DEBUG_LOGS;
 
 /* ============================================================================
    Imports
@@ -23,10 +24,9 @@ window.__HOME_DEBUG = CONFIG.DEBUG_LOGS;
 import { Session } from "/JS/auth/session.js";
 import {
   planScope,
-  fetchScope,         // <- para ADMIN/Presidencia (todo)
-  parseReq,
   loadEmpleados,
   listByAsignado,
+  parseReq,
 } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
 
@@ -49,26 +49,21 @@ const SEL = {
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
-
-  chartYear:    "#chart-year",
-  chartMonth:   "#chart-month",
 };
-
 const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
 
 /* ============================================================================
    Helpers DOM
    ========================================================================== */
-const $  = (s, r=document) => r.querySelector(s);
-const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+const $  = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
 
-function formatDateMX(isoOrSql) {
-  if (!isoOrSql) return "—";
-  const s = String(isoOrSql).replace(" ", "T");
-  const d = new Date(s);
-  if (isNaN(d)) return isoOrSql;
-  return d.toLocaleDateString("es-MX", { year:"numeric", month:"2-digit", day:"2-digit" });
+function formatDateMX(v){
+  if (!v) return "—";
+  const d = new Date(String(v).replace(" ", "T"));
+  if (isNaN(d)) return v;
+  return d.toLocaleDateString("es-MX",{year:"numeric",month:"2-digit",day:"2-digit"});
 }
 
 /* ============================================================================
@@ -82,272 +77,274 @@ const State = {
   filterKey: "todos",
   search: "",
   counts: { todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 },
-  table: null
+  table: null,
 };
 
 /* ============================================================================
-   Cookie ix_emp (fallback)
+   Cookie fallback (por si Session.get() falla)
    ========================================================================== */
 function readCookiePayload() {
   try {
-    const name = "ix_emp=";
-    const pair = document.cookie.split("; ").find(c => c.startsWith(name));
+    const name="ix_emp=";
+    const pair = document.cookie.split("; ").find(c=>c.startsWith(name));
     if (!pair) return null;
     const raw = decodeURIComponent(pair.slice(name.length));
-    return JSON.parse(decodeURIComponent(escape(atob(raw)))) || null;
-  } catch (e) {
-    warn("No se pudo decodificar cookie ix_emp:", e);
-    return null;
+    return JSON.parse(decodeURIComponent(escape(atob(raw))));
+  } catch { return null; }
+}
+
+/* ============================================================================
+   Depto: nombre (intenta API; fallback estático)
+   ========================================================================== */
+async function resolveDeptName(deptId){
+  if (!deptId && deptId!==0) return "—";
+  // fallback inmediato si tenemos mapeo local
+  if (CONFIG.DEPT_FALLBACK_NAMES[deptId]) return CONFIG.DEPT_FALLBACK_NAMES[deptId];
+
+  // intenta API de departamentos (opcional)
+  try {
+    const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+    const url = API_BASE + "ixtla01_c_departamento.php";
+    const res = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ page:1, page_size:200, status:1 })
+    });
+    if (!res.ok) throw new Error("HTTP "+res.status);
+    const json = await res.json();
+    const arr = json?.data || [];
+    const found = arr.find(d => Number(d.id) === Number(deptId));
+    return found?.nombre || CONFIG.DEPT_FALLBACK_NAMES[deptId] || `Depto ${deptId}`;
+  } catch {
+    return CONFIG.DEPT_FALLBACK_NAMES[deptId] || `Depto ${deptId}`;
   }
 }
 
 /* ============================================================================
    Sesión
    ========================================================================== */
-function readSession() {
-  let s = null;
-  try { s = Session?.get?.() || null; } catch { s = null; }
-
-  if (!s) { s = readCookiePayload(); log("cookie ix_emp (fallback):", s || null); }
-  else {    log("cookie ix_emp (via Session):", s || null); }
+function readSession(){
+  let s=null;
+  try { s = Session?.get?.() || null; } catch {}
+  if (!s) s = readCookiePayload();
 
   if (!s) {
-    warn("No hay sesión.");
+    warn("Sin sesión.");
     State.session = { empleado_id:null, dept_id:null, roles:[], id_usuario:null };
     return State.session;
   }
-
   const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
   const dept_id     = s?.departamento_id ?? null;
-  const roles       = Array.isArray(s?.roles) ? s.roles.map(r => String(r).toUpperCase()) : [];
+  const roles       = Array.isArray(s?.roles) ? s.roles.map(r=>String(r).toUpperCase()) : [];
   const id_usuario  = s?.id_usuario ?? s?.cuenta_id ?? null;
 
-  if (!empleado_id) warn("No hay sesión válida (empleado_id).");
-  else log("sesión detectada", { idEmpleado: empleado_id, depId: dept_id, roles });
-
+  log("sesión detectada", { empleado_id, dept_id, roles });
   State.session = { empleado_id, dept_id, roles, id_usuario };
   return State.session;
 }
 
 /* ============================================================================
-   UI: Perfil
+   Perfil (nombre, depto, avatar)
    ========================================================================== */
-function hydrateProfileFromSession() {
+async function hydrateProfileFromSession(){
   const s = Session?.get?.() || readCookiePayload() || {};
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
   setText(SEL.profileName, nombre);
 
-  // Forzar ID del departamento en el badge
-  const depBadgeEl = $(SEL.profileBadge);
-  if (depBadgeEl) depBadgeEl.textContent = State.session.dept_id != null ? String(State.session.dept_id) : "—";
+  // depto (nombre)
+  const badge = $(SEL.profileBadge);
+  if (badge){
+    const deptName = await resolveDeptName(State.session.dept_id);
+    badge.textContent = deptName || "—";
+  }
 
-  // Avatar: intenta varios; si no, DEFAULT_AVATAR
-  const avatarEl = $(SEL.avatar);
-  if (avatarEl) {
+  // avatar
+  const img = $(SEL.avatar);
+  if (img){
     const idu = State.session.id_usuario;
     const candidates = idu ? [
       `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
       `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
       `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
       `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-      CONFIG.DEFAULT_AVATAR
-    ] : [CONFIG.DEFAULT_AVATAR];
-
-    let idx = 0;
+    ] : [];
+    let i=0;
     const tryNext = () => {
-      avatarEl.onerror = null;
-      if (idx >= candidates.length) { avatarEl.src = CONFIG.DEFAULT_AVATAR; return; }
-      const src = `${candidates[idx]}${candidates[idx] === CONFIG.DEFAULT_AVATAR ? "" : `?v=${Date.now()}`}`;
-      avatarEl.onerror = () => { idx++; tryNext(); };
-      avatarEl.src = src;
+      if (i >= candidates.length) { img.src = CONFIG.DEFAULT_AVATAR; return; }
+      img.onerror = () => { i++; tryNext(); };
+      img.src = `${candidates[i]}?v=${Date.now()}`;
     };
     tryNext();
   }
 }
 
 /* ============================================================================
-   Sidebar (estados)
+   Sidebar
    ========================================================================== */
-function updateLegendStatus() {
-  const map = {
-    todos:"Todos los status", pendientes:"Pendientes", en_proceso:"En proceso",
-    terminados:"Terminados", cancelados:"Cancelados", pausados:"Pausados",
-  };
-  setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
-}
-
-function initSidebar() {
+function initSidebar(onChange){
   const group = $(SEL.statusGroup);
-  if (!group) { warn("No se encontró contenedor de estados", SEL.statusGroup); return; }
+  if (!group) return;
+
   group.setAttribute("role","radiogroup");
-
   const items = $$(SEL.statusItems);
-  items.forEach((btn,i) => {
+  items.forEach((btn,i)=>{
     btn.setAttribute("role","radio");
-    btn.setAttribute("tabindex", i===0 ? "0":"-1");
+    btn.setAttribute("tabindex", i===0 ? "0" : "-1");
     btn.setAttribute("aria-checked", btn.classList.contains("is-active") ? "true" : "false");
+    const key = btn.dataset.status;
+    if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
 
-    if (!SIDEBAR_KEYS.includes(btn.dataset.status)) warn("status sin data-status válido:", btn);
-
-    btn.addEventListener("click", () => {
-      items.forEach(b => { b.classList.remove("is-active"); b.setAttribute("aria-checked","false"); b.tabIndex = -1; });
-      btn.classList.add("is-active"); btn.setAttribute("aria-checked","true"); btn.tabIndex = 0;
-
-      State.filterKey = btn.dataset.status || "todos";
+    btn.addEventListener("click", ()=>{
+      items.forEach(b=>{ b.classList.remove("is-active"); b.setAttribute("aria-checked","false"); b.tabIndex=-1; });
+      btn.classList.add("is-active"); btn.setAttribute("aria-checked","true"); btn.tabIndex=0;
+      State.filterKey = key || "todos";
       updateLegendStatus();
-      applyPipelineAndRender();
+      onChange?.();
       $(SEL.searchInput)?.focus();
     });
   });
 
-  group.addEventListener("keydown", (e) => {
-    const items = $$(SEL.statusItems);
-    if (!items.length) return;
+  group.addEventListener("keydown",(e)=>{
     const cur = document.activeElement.closest(".item");
     const idx = Math.max(0, items.indexOf(cur));
-    let nextIdx = idx;
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") nextIdx = (idx+1) % items.length;
-    if (e.key === "ArrowUp"   || e.key === "ArrowLeft")  nextIdx = (idx-1+items.length) % items.length;
-    if (nextIdx !== idx) { items[nextIdx].focus(); e.preventDefault(); }
-    if (e.key === " " || e.key === "Enter") { items[nextIdx].click(); e.preventDefault(); }
+    let next = idx;
+    if (e.key==="ArrowDown"||e.key==="ArrowRight") next=(idx+1)%items.length;
+    if (e.key==="ArrowUp"  ||e.key==="ArrowLeft")  next=(idx-1+items.length)%items.length;
+    if (next!==idx){ items[next].focus(); e.preventDefault(); }
+    if (e.key===" "||e.key==="Enter"){ items[next].click(); e.preventDefault(); }
   });
-
-  log("sidebar listo");
 }
 
 /* ============================================================================
-   Búsqueda
+   Search
    ========================================================================== */
-function initSearch() {
+function initSearch(onChange){
   const input = $(SEL.searchInput);
   if (!input) return;
   let t;
-  input.addEventListener("input", (e) => {
+  input.addEventListener("input",(e)=>{
     clearTimeout(t);
-    t = setTimeout(() => {
-      State.search = (e.target.value || "").trim().toLowerCase();
-      applyPipelineAndRender();
-    }, 250);
+    t = setTimeout(()=>{
+      State.search = (e.target.value||"").trim().toLowerCase();
+      onChange?.();
+    },250);
   });
 }
 
 /* ============================================================================
    Tabla
    ========================================================================== */
-let _tbodyEl = null;
-
-function buildTable() {
+function buildTable(){
   State.table = createTable({
-    bodySel:  SEL.tableBody,
-    wrapSel:  SEL.tableWrap,
-    pagSel:   SEL.pager,
+    bodySel: SEL.tableBody,
+    wrapSel: SEL.tableWrap,
+    pagSel:  null,            // paginación la pintamos nosotros (#hs-pager)
     pageSize: CONFIG.PAGE_SIZE,
     columns: [
-      { key:"tramite",  title:"Trámites",            sortable:true, accessor:r => r.asunto || r.tramite || "—" },
-      { key:"asignado", title:"Asignado",            sortable:true, accessor:r => r.asignado || "—" },
-      { key:"fecha",    title:"Fecha de solicitado", sortable:true,
-        accessor: r => r.creado ? new Date(String(r.creado).replace(" ","T")).getTime() : 0,
-        render:   (v,r) => formatDateMX(r.creado)
+      { key:"tramite", title:"Trámites", sortable:true, accessor:r=>r.asunto||r.tramite||"—" },
+      { key:"asignado", title:"Asignado", sortable:true, accessor:r=>r.asignado||"—" },
+      { key:"fecha", title:"Fecha de solicitado", sortable:true,
+        accessor:r=> r.creado ? new Date(String(r.creado).replace(" ","T")).getTime() : 0,
+        render:(v,r)=> formatDateMX(r.creado)
       },
-      { key:"status",   title:"Status",              sortable:true,
-        accessor: r => r.estatus?.label || "—",
-        render:   (v,r) => {
+      { key:"status", title:"Status", sortable:true,
+        accessor:r=> r.estatus?.label || "—",
+        render:(v,r)=>{
           const k = catKeyFromCode(r.estatus?.code);
-          return `<span class="hs-status" data-k="${k}">${r.estatus?.label || "—"}</span>`;
+          return `<span class="hs-status" data-k="${k}">${r.estatus?.label||"—"}</span>`;
         }
       }
     ]
   });
   State.table.setPageSize?.(CONFIG.PAGE_SIZE);
-  State.table.setSort?.("fecha", -1);
-
-  _tbodyEl = $(SEL.tableBody);
-
-  // Delegación: click fila -> navegar
-  if (_tbodyEl) {
-    _tbodyEl.addEventListener("click", (e) => {
-      const tr = e.target.closest("tr");
-      if (!tr || tr.classList.contains("gc-row--spacer") || tr.classList.contains("gc-empty-row")) return;
-      const idx = Number(tr.getAttribute("data-row-idx"));
-      const pageRaw = State.table?.getRawRows?.() || [];
-      const raw = pageRaw[idx];
-      const id = raw?.id ?? raw?.__raw?.id;
-      if (id) window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
-    });
-  }
-
-  // Cada click en paginador -> repintar fillers en el siguiente frame
-  const pager = $(SEL.pager);
-  if (pager) {
-    pager.addEventListener("click", () => setTimeout(paintFillers, 0));
-  }
-}
-
-/* --- filas vacías / fillers contadas desde el DOM --- */
-function paintFillers() {
-  if (!_tbodyEl) return;
-
-  // 1) limpiar fillers previos
-  const prev = Array.from(_tbodyEl.querySelectorAll("tr.gc-row--spacer, tr.gc-empty-row"));
-  prev.forEach(tr => tr.remove());
-
-  // 2) contar filas reales ya pintadas por table.js
-  const realRows = Array.from(_tbodyEl.querySelectorAll("tr"))
-    .filter(tr => !tr.classList.contains("gc-row--spacer") && !tr.classList.contains("gc-empty-row"));
-  const realCount = realRows.length;
-
-  // 3) si no hay filas reales -> mensaje dentro de la tabla
-  if (realCount === 0) {
-    _tbodyEl.innerHTML = `<tr class="gc-empty-row"><td colspan="4">
-      <div class="tbl-empty">
-        <div>
-          <strong>No hay requerimientos asignados de momento</strong>
-          <div>Cuando te asignen un requerimiento a ti o a tu equipo, aparecerá aquí.</div>
-        </div>
-      </div>
-    </td></tr>`;
-    log("paintFillers() -> tabla vacía (0 fillers)");
-    return;
-  }
-
-  // 4) calcular fillers hasta PAGE_SIZE
-  const toAdd = Math.max(0, CONFIG.PAGE_SIZE - realCount);
-  for (let i = 0; i < toAdd; i++) {
-    const tr = document.createElement("tr");
-    tr.className = "gc-row--spacer";
-    tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td>`;
-    _tbodyEl.appendChild(tr);
-  }
-  log("paintFillers()", { realCount, pageSize: CONFIG.PAGE_SIZE, added: toAdd });
+  State.table.setSort?.("fecha",-1);
 }
 
 /* ============================================================================
-   Conteos & filtros
+   Leyendas / conteos
    ========================================================================== */
-function catKeyFromCode(code) {
-  if (code === 3) return "en_proceso";
-  if (code === 4) return "pausados";
-  if (code === 5) return "cancelados";
-  if (code === 6) return "terminados";
+function updateLegendTotals(n){ setText(SEL.legendTotal, String(n??0)); }
+function updateLegendStatus(){
+  const map = {
+    todos:"Todos los status",
+    pendientes:"Pendientes",
+    en_proceso:"En proceso",
+    terminados:"Terminados",
+    cancelados:"Cancelados",
+    pausados:"Pausados",
+  };
+  setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
+}
+
+function catKeyFromCode(code){
+  if (code===3) return "en_proceso";
+  if (code===4) return "pausados";
+  if (code===5) return "cancelados";
+  if (code===6) return "terminados";
   return "pendientes"; // 0,1,2
 }
-function computeCounts(rows) {
-  const c = { todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 };
-  rows.forEach(r => { c.todos++; const k = catKeyFromCode(r.estatus?.code); if (k in c) c[k]++; });
-  State.counts = c;
-  setText("#cnt-todos",       `(${c.todos})`);
-  setText("#cnt-pendientes",  `(${c.pendientes})`);
-  setText("#cnt-en_proceso",  `(${c.en_proceso})`);
-  setText("#cnt-terminados",  `(${c.terminados})`);
-  setText("#cnt-cancelados",  `(${c.cancelados})`);
-  setText("#cnt-pausados",    `(${c.pausados})`);
-  log("conteos", c);
+function computeCounts(rows){
+  const c={ todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 };
+  rows.forEach(r=>{ c.todos++; const k=catKeyFromCode(r.estatus?.code); if(k in c) c[k]++; });
+  State.counts=c;
+  setText("#cnt-todos",      `(${c.todos})`);
+  setText("#cnt-pendientes", `(${c.pendientes})`);
+  setText("#cnt-en_proceso", `(${c.en_proceso})`);
+  setText("#cnt-terminados", `(${c.terminados})`);
+  setText("#cnt-cancelados", `(${c.cancelados})`);
+  setText("#cnt-pausados",   `(${c.pausados})`);
+}
+
+/* ============================================================================
+   Paginación (controles del HTML: « ‹ [n] › »  + Ir a)
+   ========================================================================== */
+function renderPagerExt(total, page, pages){
+  const cont = $(SEL.pager);
+  if (!cont) return;
+  const btn = (label, data, disabled=false, active=false) =>
+    `<button class="pg-btn ${active?"active":""}" data-p="${data}" ${disabled?"disabled":""}>${label}</button>`;
+
+  // ventana de números (como 1 … 5 6 7 … N)
+  const windowSize = 5;
+  const start = Math.max(1, page - Math.floor(windowSize/2));
+  const end   = Math.min(pages, start + windowSize - 1);
+  let nums = "";
+  for (let i=start;i<=end;i++){
+    nums += btn(String(i), i, false, i===page);
+  }
+
+  cont.innerHTML = `
+    ${btn("«", 1,  page<=1)}
+    ${btn("‹", page-1, page<=1)}
+    <span class="pg-group">${nums}</span>
+    ${btn("›", page+1, page>=pages)}
+    ${btn("»", pages,   page>=pages)}
+    <span class="pg-jump-label">Ir a:</span>
+    <input class="pg-jump" type="number" min="1" max="${pages||1}" value="${page}">
+    ${btn("Ir", "go")}
+  `;
+
+  // wire
+  cont.querySelectorAll(".pg-btn").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const v = b.dataset.p;
+      if (v==="go"){
+        const n = parseInt(cont.querySelector(".pg-jump")?.value||"1",10);
+        State.table?.setPage(Math.min(Math.max(1,n), pages||1));
+        applyPipelineAndRender();
+        return;
+      }
+      const p = Math.min(Math.max(1, parseInt(v,10)||1), pages||1);
+      State.table?.setPage(p);
+      applyPipelineAndRender();
+    });
+  });
 }
 
 /* ============================================================================
    Pipeline + render
    ========================================================================== */
-function applyPipelineAndRender() {
+function applyPipelineAndRender(){
   const all = State.rows || [];
   let filtered = all;
 
@@ -356,157 +353,205 @@ function applyPipelineAndRender() {
   }
   if (State.search) {
     const q = State.search;
-    filtered = filtered.filter(r => {
-      const asunto = (r.asunto || "").toLowerCase();
-      const asign  = (r.asignado || "").toLowerCase();
-      const est    = (r.estatus?.label || "").toLowerCase();
-      const folio  = (r.folio || "").toLowerCase();
-      return asunto.includes(q) || asign.includes(q) || est.includes(q) || folio.includes(q);
+    filtered = filtered.filter(r=>{
+      const asunto=(r.asunto||"").toLowerCase();
+      const asign =(r.asignado||"").toLowerCase();
+      const est   =(r.estatus?.label||"").toLowerCase();
+      const folio =(r.folio||"").toLowerCase();
+      return asunto.includes(q)||asign.includes(q)||est.includes(q)||folio.includes(q);
     });
   }
 
   computeCounts(all);
-  setText(SEL.legendTotal, String(filtered.length));
-  updateLegendStatus();
+  updateLegendTotals(filtered.length);
 
-  const tableRows = filtered.map(r => ({
-    __raw: r,
-    asunto:   r.asunto,
-    tramite:  r.tramite,
-    asignado: r.asignado,
-    creado:   r.creado,
-    estatus:  r.estatus
+  // mapeo filas
+  const rows = filtered.map(r=>({
+    __raw:r,
+    asunto:r.asunto, tramite:r.tramite, asignado:r.asignado, creado:r.creado, estatus:r.estatus
   }));
 
-  State.table?.setData(tableRows);
+  State.table?.setData(rows);
 
-  // tras render del table -> pintar fillers
-  setTimeout(paintFillers, 0);
+  // Relleno gap (no interactivo) — contar basado en filas reales en la página actual
+  // Después de setData, la tabla ya paginó; obtenemos cuántas reales hay
+  const pageRows = State.table?.getRawRows?.() || []; // objetos crudos página
+  const realCount = pageRows.length;
+  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
+
+  // Pintar gaps en el tbody
+  const tbody = $(SEL.tableBody);
+  if (tbody && gaps>0){
+    const gapHtml = `<tr class="hs-gap" aria-hidden="true">
+      <td colspan="4">&nbsp;</td>
+    </tr>`;
+    let html = "";
+    for (let i=0;i<gaps;i++) html += gapHtml;
+    tbody.insertAdjacentHTML("beforeend", html);
+  }
+  log("gaps añadidos:", gaps, "reales en página:", realCount);
+
+  // Redirección por fila (solo reales, NO gaps)
+  if (tbody){
+    tbody.querySelectorAll("tr").forEach((tr, idx)=>{
+      tr.classList.remove("is-clickable");
+      tr.onclick = null;
+    });
+    // solo bind a reales (primer realCount)
+    for (let i=0;i<realCount;i++){
+      const tr = tbody.querySelectorAll("tr")[i];
+      const raw = pageRows[i];
+      if (!tr || !raw) continue;
+      tr.classList.add("is-clickable");
+      tr.addEventListener("click", ()=>{
+        const id = raw?.id || raw?.__raw?.id;
+        if (id) window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
+      }, { once:false });
+    }
+  }
+
+  // Paginador externo (nuestro HTML)
+  const sort = State.table?.getSort?.() || {};
+  const page = (State.table?.getSort && (State.table.getSort(), 0), null); // no usado
+  const currentPageRows = State.table?.getRawRows?.() || [];
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / CONFIG.PAGE_SIZE));
+  const current = Math.min(Math.max(1,
+    Math.ceil(((State.table?.getPageRawRows?.()?.__pageIndex)||0)+1)), // fallback
+    pages
+  );
+  // si el createTable no expone página, la inferimos por posición; mejor: recalcular
+  // Simple: calc a partir de tbody index
+  const tableEl = $(SEL.tableBody)?.closest("table");
+  const metaPage = (() => {
+    const btnActive = $("#hs-pager .pg-btn.active");
+    return btnActive ? parseInt(btnActive.dataset.p,10) : (State.__lastPage || 1);
+  })();
+  const pageToShow = State.table?._page || metaPage || 1;
+  State.__lastPage = pageToShow;
+
+  renderPagerExt(total, pageToShow, pages);
 
   log("pipeline", {
     filtroStatus: State.filterKey,
     search: State.search,
     totalUniverso: all.length,
-    totalFiltrado: tableRows.length,
-    counts: State.counts
+    totalFiltrado: total,
+    page: pageToShow, pages, sort
   });
 }
 
 /* ============================================================================
-   Jerarquía (logs útiles)
+   Jerarquía: logs
    ========================================================================== */
-async function logHierarchy(plan) {
-  try {
+async function logHierarchy(plan){
+  try{
     if (!plan) return;
-    const empleados = await loadEmpleados({ status_empleado: 1 });
-    const byId = new Map(empleados.map(e => [e.id, e]));
+    const empleados = await loadEmpleados({ status_empleado:1 });
+    const byId = new Map(empleados.map(e=>[e.id,e]));
     const full = e => e ? [e.nombre, e.apellidos].filter(Boolean).join(" ") : "—";
 
     const principal = byId.get(plan.viewerId);
-    const subs = (plan.teamIds || []).map(id => {
+    const subs = (plan.teamIds||[]).map(id=>{
       const emp = byId.get(id);
       return { id, nombre: full(emp), depto: emp?.departamento_id ?? null, username: emp?.cuenta?.username || null };
     });
 
-    log("USUARIO PRINCIPAL:", {
-      id: plan.viewerId, nombre: full(principal),
-      depto: principal?.departamento_id ?? null,
-      role: plan.role, isAdmin: !!plan.isAdmin
-    });
-    log("SUBORDINADOS (deep):", { total: subs.length, items: subs });
-  } catch (e) { warn("No se pudo loggear jerarquía:", e); }
+    log("USUARIO PRINCIPAL:", { id:plan.viewerId, nombre:full(principal), depto:principal?.departamento_id ?? null, role:plan.role, isAdmin:!!plan.isAdmin });
+    log("SUBORDINADOS (deep):", { total:subs.length, items:subs });
+  } catch(e){ warn("No se pudo loggear jerarquía:", e); }
 }
 
 /* ============================================================================
-   Carga de datos (ADMIN/Presidencia = todo; otros = yo + sub)
+   Fetch de datos (ALL para ADMIN/Presidencia; mine+team para el resto)
    ========================================================================== */
-async function fetchMineAndTeam(plan, filtros = {}) {
-  const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
-  const promises = ids.map(id => listByAsignado(id, filtros));
-  const results = await Promise.allSettled(promises);
-  const lists = results.filter(r => r.status === "fulfilled").map(r => r.value || []);
-  // dedup + order
+async function fetchAllRequerimientos(perPage=200, maxPages=50){
+  const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+  const url = API_BASE + "ixtla01_c_requerimiento.php";
+  const all=[];
+  for (let page=1; page<=maxPages; page++){
+    const body = { page, per_page: perPage };
+    const res = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) break;
+    const json = await res.json();
+    const arr = json?.data || [];
+    all.push(...arr);
+    if (arr.length < perPage) break;
+  }
+  return all;
+}
+
+async function fetchMineAndTeam(plan){
+  const ids = [plan.mineId, ...(plan.teamIds||[])].filter(Boolean);
+  const results = await Promise.allSettled(ids.map(id => listByAsignado(id, {})));
+  const lists = results.filter(r=>r.status==="fulfilled").map(r=>r.value||[]);
   const map = new Map();
-  lists.flat().forEach(r => { if (r?.id != null) map.set(r.id, r); });
-  return Array.from(map.values()).sort((a,b) =>
+  lists.flat().forEach(r=>{ if (r?.id!=null) map.set(r.id, r); });
+  return Array.from(map.values()).sort((a,b)=>
     String(b.created_at||"").localeCompare(String(a.created_at||"")) || ((b.id||0)-(a.id||0))
   );
 }
 
-async function loadScopeData() {
-  const viewerId = State.session.empleado_id;
-  const viewerDeptId = State.session.dept_id;
-
-  if (!viewerId) {
-    warn("viewerId ausente. Se omite carga.");
-    State.universe = [];
-    State.rows = [];
-    computeCounts(State.rows);
-    setText(SEL.legendTotal, "0");
-    updateLegendStatus();
-    applyPipelineAndRender();
+/* ============================================================================
+   Carga principal
+   ========================================================================== */
+async function loadScopeData(){
+  const { empleado_id:viewerId, dept_id } = State.session;
+  if (!viewerId){
+    warn("viewerId ausente, UI vacía.");
+    State.universe=[]; State.rows=[];
+    computeCounts([]); updateLegendTotals(0); updateLegendStatus(); applyPipelineAndRender();
     return;
   }
 
-  log("construyendo planScope", { viewerId, viewerDeptId });
-  // fuerza ADMIN/Presidencia
-  const forceAdmin = State.session.roles.includes("ADMIN") ||
-                     CONFIG.PRESI_DEPTS.includes(Number(viewerDeptId));
-  const plan = await planScope({ viewerId, viewerDeptId });
-  if (forceAdmin) { plan.isAdmin = true; plan.role = "ADMIN"; }
+  const plan = await planScope({ viewerId, viewerDeptId: dept_id });
   State.scopePlan = plan;
-  log("planScope listo", plan);
 
-  // logs de jerarquía
+  // ¿Admin/Presidencia?
+  const isAdmin = (State.session.roles||[]).some(r=>CONFIG.ADMIN_ROLES.includes(r));
+  const isPres = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+
   logHierarchy(plan);
 
-  let items = [];
-  if (plan.isAdmin) {
-    log("fetchScope [ADMIN/Presidencia] — trayendo todos…");
-    const out = await fetchScope({ plan, filtros: {} });
-    items = out.items || [];
+  let items=[];
+  if (isAdmin || isPres){
+    log("modo ADMIN/PRESIDENCIA: fetch global…");
+    items = await fetchAllRequerimientos();
   } else {
-    log("fetching only mine + team…");
-    items = await fetchMineAndTeam(plan, {});
+    log("modo subordinados: yo + team…");
+    items = await fetchMineAndTeam(plan);
   }
 
-  // Mapear a UI
   State.universe = items.slice();
   State.rows = State.universe.map(parseReq);
 
-  // Log de la lista final mapeada
-  log("FINAL items (UI):",
-    State.rows.map(r => ({ id:r.id, folio:r.folio, asignado:r.asignado, estatus:r.estatus?.label, creado:r.creado }))
-  );
+  log("items UI-mapped (preview):", State.rows.slice(0,5).map(r=>({id:r.id, folio:r.folio, asignado:r.asignado, estatus:r.estatus?.label})));
 
   computeCounts(State.rows);
-  setText(SEL.legendTotal, String(State.rows.length));
+  updateLegendTotals(State.rows.length);
   updateLegendStatus();
   applyPipelineAndRender();
-
-  log("datos listos", {
-    total: State.rows.length,
-    primeros3: State.rows.slice(0,3).map(r => ({ id:r.id, folio:r.folio, estatus:r.estatus?.code }))
-  });
 }
 
 /* ============================================================================
    Init
    ========================================================================== */
-window.addEventListener("DOMContentLoaded", async () => {
-  try {
+window.addEventListener("DOMContentLoaded", async ()=>{
+  try{
     readSession();
-    hydrateProfileFromSession();
-
-    initSidebar();
-    initSearch();
+    await hydrateProfileFromSession();
+    initSidebar(()=>applyPipelineAndRender());
+    initSearch(()=>applyPipelineAndRender());
     buildTable();
     updateLegendStatus();
 
     await loadScopeData();
-
-    log("init — Home listo");
-  } catch (e) {
+    log("Home listo");
+  } catch(e){
     err("init error:", e);
   }
 });
