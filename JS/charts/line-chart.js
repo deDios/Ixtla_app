@@ -24,18 +24,23 @@ export class LineChart {
                  : Array.isArray(seriesFromDS) ? seriesFromDS : [];
 
     // Opciones visuales
-    this.showDots  = opts.showDots !== false;
-    this.showGrid  = opts.showGrid !== false;      // grid horizontal
-    this.headroom  = Number.isFinite(opts.headroom) ? opts.headroom : 0.10; // +10% top
-    this.yTicks    = Number.isFinite(opts.yTicks) ? opts.yTicks : 5;
-    this.maxYHint  = Number.isFinite(opts.maxY) ? opts.maxY : null;
+    this.showDots   = opts.showDots !== false;
+    this.showGrid   = opts.showGrid !== false;             // grid horizontal
+    this.curvy      = opts.curvy !== false;                // línea suavizada
+    this.headroom   = Number.isFinite(opts.headroom) ? opts.headroom : 0.10; // +10% top
+    this.yTicks     = Number.isFinite(opts.yTicks) ? opts.yTicks : 5;
+    this.maxYHint   = Number.isFinite(opts.maxY) ? opts.maxY : null;
 
     // Colores
-    this.colorAxis = "#cbd5e1";
-    this.colorGrid = "rgba(203,213,225,.5)";
-    this.colorLine = "#2f495f";
-    this.colorDot  = "#2f495f";
-    this.colorHover= "#1f2f3f";
+    this.colorAxis  = "#cbd5e1";
+    this.colorGrid  = "rgba(203,213,225,.5)";
+    this.colorLine  = "#33a9f7";                           
+    this.colorDot   = "#2f495f";
+    this.colorHover = "#1f2f3f";
+
+    // Degradado del área 
+    this.fillTop    = "rgba(51, 169, 247, 0.30)";         
+    this.fillBottom = "rgba(51, 169, 247, 0.00)";
 
     // Estado hover
     this._pts = [];
@@ -46,7 +51,7 @@ export class LineChart {
   }
 
   // === API pública para actualizar dinámicamente ===
-  update({ labels, series, maxY, headroom, yTicks, showGrid, showDots } = {}) {
+  update({ labels, series, maxY, headroom, yTicks, showGrid, showDots, curvy } = {}) {
     if (Array.isArray(labels)) this.labels = labels.slice();
     if (Array.isArray(series)) this.series = series.slice();
     if (Number.isFinite(maxY)) this.maxYHint = maxY;
@@ -54,8 +59,9 @@ export class LineChart {
     if (Number.isFinite(yTicks)) this.yTicks = yTicks;
     if (typeof showGrid === "boolean") this.showGrid = showGrid;
     if (typeof showDots === "boolean") this.showDots = showDots;
+    if (typeof curvy === "boolean") this.curvy = curvy;
 
-    // Recalcular canvas por si el tamaño cambió
+    // Recalcular canvas por si el tamaño cambio
     const dpr = window.devicePixelRatio || 1;
     this.c.width  = this.c.clientWidth  * dpr;
     this.c.height = this.c.clientHeight * dpr;
@@ -139,6 +145,54 @@ export class LineChart {
     return { niceMin, niceMax, step };
   }
 
+  // curva suave tipo "midpoint quadratic" (simple y estable)
+  _strokeCurve(ctx, pts) {
+    if (!pts.length) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    if (!this.curvy || pts.length < 3) {
+      // recta
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    } else {
+      // suavizada por puntos medios
+      for (let i = 1; i < pts.length - 1; i++) {
+        const xc = (pts[i].x + pts[i + 1].x) / 2;
+        const yc = (pts[i].y + pts[i + 1].y) / 2;
+        ctx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
+      }
+      // último tramo hasta el último punto real
+      const last = pts.length - 1;
+      ctx.quadraticCurveTo(pts[last - 1].x, pts[last - 1].y, pts[last].x, pts[last].y);
+    }
+    ctx.stroke();
+  }
+
+  _fillUnderCurve(ctx, pts, baselineY, gradient) {
+    if (!pts.length) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, baselineY);
+    // trazo de la curva 
+    if (!this.curvy || pts.length < 3) {
+      for (let i = 0; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+    } else {
+      ctx.lineTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length - 1; i++) {
+        const xc = (pts[i].x + pts[i + 1].x) / 2;
+        const yc = (pts[i].y + pts[i + 1].y) / 2;
+        ctx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
+      }
+      const last = pts.length - 1;
+      ctx.quadraticCurveTo(pts[last - 1].x, pts[last - 1].y, pts[last].x, pts[last].y);
+    }
+    // cerrar hasta la base
+    ctx.lineTo(pts[pts.length - 1].x, baselineY);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+  }
+
   draw() {
     const ctx = this.ctx;
     const w = this.c.clientWidth;
@@ -197,15 +251,18 @@ export class LineChart {
       label: this.labels?.[i] ?? `#${i+1}`
     }));
 
-    // línea
+    // === Degradado (recalcular con el área actual del chart) ===
+    const grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+    grad.addColorStop(0, this.fillTop);
+    grad.addColorStop(1, this.fillBottom);
+
+    // === Relleno degradado bajo la curva ===
+    this._fillUnderCurve(ctx, this._pts, h - pad.bottom, grad);
+
+    // === Línea
     ctx.strokeStyle = this.colorLine;
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    this._pts.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    ctx.stroke();
+    this._strokeCurve(ctx, this._pts);
 
     // puntos (con hover)
     if (this.showDots) {
@@ -237,7 +294,6 @@ export class LineChart {
       ctx.textBaseline = "top";
       this.labels.forEach((lab, i) => {
         const x = toX(i), y = h - pad.bottom + 6;
-        // puedes cambiar a lab completo si caben:
         ctx.fillText(String(lab).substring(0, 1), x, y);
       });
     }
