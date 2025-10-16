@@ -563,18 +563,6 @@ body {
   position: static;
 }
 
-/* ====== Tabla: scroll interno opcional ====== */
-/* Si quieres que SOLO la tabla scrollee, descomenta. 
-   Si prefieres que scrollee toda la página, déjalo comentado. */
-/*
-#hs-table-wrap{
-  max-height: clamp(340px, 60vh, 720px);
-  overflow: auto;
-}
-#hs-table-wrap::-webkit-scrollbar{ width: 10px; height: 10px; }
-#hs-table-wrap::-webkit-scrollbar-thumb{ background: #cfd6de; border-radius: 8px; }
-*/
-
 /* ====== Pagos visuales útiles ====== */
 .hs-card, .table-wrap{
   background: #f4f6f8;

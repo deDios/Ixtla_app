@@ -497,11 +497,10 @@ function renderChartsFromRows(rows){
   try {
     const canvas = $(SEL.chartYear);
     if (canvas && typeof LineChart !== "undefined") {
-      // API esperada: new LineChart(canvas, { labels, series })
       new LineChart(canvas, {
         labels: labelsYear,
         series: yearSeries,
-        showDots: false,       // si tu clase soporta toggle de puntos
+        showDots: false,      
         smooth: false
       });
       log("CHARTS — LineChart render ok");
