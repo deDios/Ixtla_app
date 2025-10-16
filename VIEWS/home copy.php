@@ -242,7 +242,7 @@
   <script type="module" src="/JS/home.js"></script>
   <script src="/JS/JSglobal.js"></script>
 
-  <!-- pequeño script para el modal -->
+  <!-- pequeño script para el modal 
   <script>
     (function(){
       const modal = document.getElementById('profile-modal');
@@ -256,5 +256,7 @@
       document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && !modal.hidden) modal.hidden = true; });
     })();
   </script>
+    -->
+
 </body>
 </html>
