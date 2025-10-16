@@ -58,7 +58,7 @@ main.home-samapa{
   display:flex; flex-direction:column; gap:14px;
   padding-inline: var(--sidebar-pad-x);
   margin-right:0; 
-  padding-top: 1rem;
+  padding-top: 8rem;
 }
 .home-samapa .hs-profile{
   background:transparent; border:0; box-shadow:none; padding:0;
@@ -680,20 +680,22 @@ body {
 
 
 
+/* Home - centrar y hacer consistente la col de Estatus */
 .hs-table table.gc thead th:nth-child(5),
 .hs-table table.gc tbody td:nth-child(5){
-  text-align: center;            
-  padding-left: 0;              
+  text-align: center;            /* centra el contenido de la 5ª columna */
+  padding-left: 0;               /* opcional: quita sangría lateral */
   padding-right: 0;
-  width: 160px;                  
+  width: 160px;                  /* ancho fijo, ajusta si lo prefieres */
 }
 
+/* El pill siempre queda “centrado y parejo” */
 .badge-status{
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 24px;
-  min-width: 70px;             
+  min-width: 70px;              /* da una base visual uniforme */
   padding: 4px 10px;
   border-radius: 10px;
   line-height: 1;
@@ -703,6 +705,6 @@ body {
 @media (max-width: 920px){
   .hs-table table.gc thead th:nth-child(5),
   .hs-table table.gc tbody td:nth-child(5){
-    width: 140px;   
+    width: 140px;   /* evita que empuje a otras columnas */
   }
 }

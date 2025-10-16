@@ -58,7 +58,7 @@ main.home-samapa{
   display:flex; flex-direction:column; gap:14px;
   padding-inline: var(--sidebar-pad-x);
   margin-right:0; 
-  padding-top: 1rem;
+  padding-top: 8rem;
 }
 .home-samapa .hs-profile{
   background:transparent; border:0; box-shadow:none; padding:0;
