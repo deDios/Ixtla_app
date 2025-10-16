@@ -11,15 +11,22 @@ const CONFIG = {
   ADMIN_ROLES: ["ADMIN"],
   PRESIDENCIA_DEPT_IDS: [6],
   DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
+
+  // Charts
+  CHART_PALETTE: [
+    "#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#6366f1",
+    "#10b981", "#06b6d4", "#eab308", "#f97316", "#a855f7"
+  ],
+  DONUT_TOP_N: 5, // top categorías, el resto se agrupa en "Otros"
 };
 
-const TAG = "[Home]";
+const TAG  = "[Home]";
 const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
 const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
 const err  = (...a) => console.error(TAG, ...a);
 
 /* ============================================================================
-   IMPORTS
+   Imports
    ========================================================================== */
 import { Session } from "/JS/auth/session.js";
 import {
@@ -29,11 +36,13 @@ import {
   parseReq,
 } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
-import { LineChart } from "/JS/charts/line-chart.js";
+
+// Charts (si no están presentes no tronamos; solo logeamos)
+import { LineChart }  from "/JS/charts/line-chart.js";
 import { DonutChart } from "/JS/charts/donut-chart.js";
 
 /* ============================================================================
-   SELECTORES
+   Selectores
    ========================================================================== */
 const SEL = {
   avatar:       "#hs-avatar",
@@ -51,11 +60,17 @@ const SEL = {
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
+
+  // charts
+  chartYear:    "#chart-year",
+  chartMonth:   "#chart-month",
+  donutLegend:  "#donut-legend",
 };
+
 const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
 
 /* ============================================================================
-   HELPERS
+   Helpers
    ========================================================================== */
 const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
@@ -69,25 +84,25 @@ function formatDateMX(v){
 }
 
 /* ============================================================================
-   STATE
+   Estado
    ========================================================================== */
 const State = {
   session: { empleado_id:null, dept_id:null, roles:[], id_usuario:null },
   scopePlan: null,
-  universe: [],
-  rows: [],
+
+  universe: [],   // crudos API
+  rows: [],       // parseados con parseReq()
+
   filterKey: "todos",
   search: "",
   counts: { todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 },
+
   table: null,
   __page: 1,
 };
 
-let _yearChart = null;
-let _donut = null;
-
 /* ============================================================================
-   COOKIE FALLBACK
+   Cookie fallback
    ========================================================================== */
 function readCookiePayload() {
   try {
@@ -100,30 +115,28 @@ function readCookiePayload() {
 }
 
 /* ============================================================================
-   DEPTO NAME
+   Depto name
    ========================================================================== */
 async function resolveDeptName(deptId){
+  if (!deptId) return "—";
   if (CONFIG.DEPT_FALLBACK_NAMES[deptId]) return CONFIG.DEPT_FALLBACK_NAMES[deptId];
   try {
     const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
-    const url = API_BASE + "ixtla01_c_departamento.php";
-    const res = await fetch(url, {
+    const res = await fetch(API_BASE + "ixtla01_c_departamento.php", {
       method:"POST",
-      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ page:1, page_size:200, status:1 })
     });
-    if (!res.ok) throw new Error("HTTP "+res.status);
     const json = await res.json();
-    const arr = json?.data || [];
-    const found = arr.find(d => Number(d.id) === Number(deptId));
-    return found?.nombre || CONFIG.DEPT_FALLBACK_NAMES[deptId] || `Depto ${deptId}`;
+    const found = (json?.data || []).find(d => Number(d.id) === Number(deptId));
+    return found?.nombre || `Depto ${deptId}`;
   } catch {
-    return CONFIG.DEPT_FALLBACK_NAMES[deptId] || `Depto ${deptId}`;
+    return `Depto ${deptId}`;
   }
 }
 
 /* ============================================================================
-   SESIÓN
+   Sesión
    ========================================================================== */
 function readSession(){
   let s=null;
@@ -146,7 +159,7 @@ function readSession(){
 }
 
 /* ============================================================================
-   PERFIL UI
+   Perfil UI
    ========================================================================== */
 async function hydrateProfileFromSession(){
   const s = Session?.get?.() || readCookiePayload() || {};
@@ -179,7 +192,7 @@ async function hydrateProfileFromSession(){
 }
 
 /* ============================================================================
-   SIDEBAR
+   Sidebar
    ========================================================================== */
 function initSidebar(onChange){
   const group = $(SEL.statusGroup);
@@ -204,20 +217,10 @@ function initSidebar(onChange){
       $(SEL.searchInput)?.focus();
     });
   });
-
-  group.addEventListener("keydown",(e)=>{
-    const cur = document.activeElement.closest(".item");
-    const idx = Math.max(0, items.indexOf(cur));
-    let next = idx;
-    if (e.key==="ArrowDown"||e.key==="ArrowRight") next=(idx+1)%items.length;
-    if (e.key==="ArrowUp"  ||e.key==="ArrowLeft")  next=(idx-1+items.length)%items.length;
-    if (next!==idx){ items[next].focus(); e.preventDefault(); }
-    if (e.key===" "||e.key==="Enter"){ items[next].click(); e.preventDefault(); }
-  });
 }
 
 /* ============================================================================
-   SEARCH
+   Search
    ========================================================================== */
 function initSearch(onChange){
   const input = $(SEL.searchInput);
@@ -234,7 +237,7 @@ function initSearch(onChange){
 }
 
 /* ============================================================================
-   TABLA
+   Tabla
    ========================================================================== */
 function buildTable(){
   State.table = createTable({
@@ -263,7 +266,7 @@ function buildTable(){
 }
 
 /* ============================================================================
-   LEYENDAS / CONTEOS
+   Leyendas / conteos
    ========================================================================== */
 function updateLegendTotals(n){ setText(SEL.legendTotal, String(n??0)); }
 function updateLegendStatus(){
@@ -291,7 +294,7 @@ function computeCounts(rows){
 }
 
 /* ============================================================================
-   PAGER (TU HTML / estilos)
+   Paginación – tus botones clásicos
    ========================================================================== */
 function renderPagerClassic(total){
   const cont = $(SEL.pager);
@@ -342,20 +345,19 @@ function renderPagerClassic(total){
 }
 
 /* ============================================================================
-   GAPS + CLICK BINDERS
+   Gaps + row click
    ========================================================================== */
 function refreshCurrentPageDecorations(){
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
-  // quitar gaps previos
   tbody.querySelectorAll("tr.hs-gap").forEach(tr => tr.remove());
 
   const pageRows = State.table?.getRawRows?.() || [];
   const realCount = pageRows.length;
   const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
 
-  // limpiar / re-binder filas reales
+  // limpiar y bindear
   Array.from(tbody.querySelectorAll("tr")).forEach(tr=>{
     tr.classList.remove("is-clickable");
     tr.onclick = null;
@@ -382,81 +384,7 @@ function refreshCurrentPageDecorations(){
 }
 
 /* ============================================================================
-   CHART HELPERS (serie año + donut mes)
-   ========================================================================== */
-function buildYearSeries(items) {
-  const now = new Date();
-  const year = now.getFullYear();
-  const serie = new Array(12).fill(0);
-  for (const r of items) {
-    const d = r.creado ? new Date(String(r.creado).replace(" ", "T")) : null;
-    if (!d || isNaN(d)) continue;
-    if (d.getFullYear() !== year) continue;
-    serie[d.getMonth()]++;
-  }
-  return serie;
-}
-
-function buildMonthDonut(items) {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const acc = new Map();
-  let total = 0;
-
-  for (const r of items) {
-    const d = r.creado ? new Date(String(r.creado).replace(" ", "T")) : null;
-    if (!d || isNaN(d)) continue;
-    if (d.getFullYear() !== y || d.getMonth() !== m) continue;
-
-    const key = (r.tramite || "Otros").trim();
-    acc.set(key, (acc.get(key) || 0) + 1);
-    total++;
-  }
-
-  const data = Array.from(acc.entries()).map(([label, value]) => ({ label, value }));
-  if (!data.length) data.push({ label: "Otros", value: 0 });
-
-  return { total, data };
-}
-
-function initCharts() {
-  const c1 = document.getElementById("chart-year");
-  if (c1) {
-    _yearChart = new LineChart(c1, {
-      labels: ["E","F","M","A","M","J","J","A","S","O","N","D"]
-    });
-  }
-  const c2 = document.getElementById("chart-month");
-  if (c2) {
-    _donut = new DonutChart(c2, {
-      legendEl: document.getElementById("donut-legend"),
-      enableSliceTooltip: true
-    });
-  }
-}
-
-function renderChartsFromRows() {
-  const items = State.rows || [];
-
-  if (_yearChart) {
-    const serie = buildYearSeries(items);
-    _yearChart.setData(serie);
-  }
-
-  if (_donut) {
-    const { total, data } = buildMonthDonut(items);
-    _donut.setData(data, { total });
-  }
-
-  // remove any skeletons left
-  document.querySelectorAll(".hs-chart-skeleton").forEach(el => el.remove());
-
-  log("[Charts] universo:", items.length);
-}
-
-/* ============================================================================
-   PIPELINE + RENDER (tabla + pager)
+   Pipeline + render
    ========================================================================== */
 function applyPipelineAndRender(){
   const all = State.rows || [];
@@ -496,10 +424,121 @@ function applyPipelineAndRender(){
     totalFiltrado: filtered.length,
     page: State.__page,
   });
+
+  // charts se basan SIEMPRE en el universo total del scope (no en el filtro de la tabla)
+  renderChartsFromRows(State.rows);
 }
 
 /* ============================================================================
-   LOGS HIERARCHY
+   Charts – helpers de cálculo + render
+   ========================================================================== */
+function computeYearSeries(rows){
+  const now = new Date();
+  const y = now.getFullYear();
+  const counts = Array(12).fill(0);
+
+  rows.forEach(r=>{
+    const d = new Date(String(r.creado).replace(" ","T"));
+    if (!isNaN(d) && d.getFullYear() === y) {
+      counts[d.getMonth()]++;
+    }
+  });
+  return counts;
+}
+
+function computeMonthDistribution(rows){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+
+  const map = new Map();
+  rows.forEach(r=>{
+    const d = new Date(String(r.creado).replace(" ","T"));
+    if (!isNaN(d) && d.getFullYear()===y && d.getMonth()===m) {
+      const label = r.tramite || r.asunto || "Otros";
+      map.set(label, (map.get(label)||0) + 1);
+    }
+  });
+
+  const arr = Array.from(map.entries())
+    .map(([label,value])=>({label, value}))
+    .sort((a,b)=>b.value - a.value);
+
+  // Top N + Otros
+  if (arr.length > CONFIG.DONUT_TOP_N) {
+    const top = arr.slice(0, CONFIG.DONUT_TOP_N);
+    const rest = arr.slice(CONFIG.DONUT_TOP_N);
+    const otrosVal = rest.reduce((acc,x)=>acc+x.value,0);
+    top.push({ label:"Otros", value: otrosVal });
+    return top;
+  }
+  return arr;
+}
+
+function removeSkeletonsInCharts(){
+  document.querySelectorAll(".hs-chart-skeleton").forEach(el=>el.remove());
+}
+
+function renderChartsFromRows(rows){
+  // ---------------- Datos crudos
+  log("CHARTS — input (rows length):", rows.length);
+
+  // ---------------- Serie anual
+  const yearSeries = computeYearSeries(rows);
+  const labelsYear = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  log("CHARTS — year series:", { labels: labelsYear, series: yearSeries });
+
+  // ---------------- Distribución mensual
+  const donutData = computeMonthDistribution(rows);
+  const totalMonth = donutData.reduce((acc,x)=>acc+x.value,0);
+  log("CHARTS — month distribution:", { total: totalMonth, items: donutData });
+
+  // ---------------- Render línea
+  try {
+    const canvas = $(SEL.chartYear);
+    if (canvas && typeof LineChart !== "undefined") {
+      // API esperada: new LineChart(canvas, { labels, series })
+      new LineChart(canvas, {
+        labels: labelsYear,
+        series: yearSeries,
+        showDots: false,       // si tu clase soporta toggle de puntos
+        smooth: false
+      });
+      log("CHARTS — LineChart render ok");
+    } else {
+      warn("CHARTS — LineChart no disponible o canvas faltante");
+    }
+  } catch(e){
+    err("CHARTS — LineChart error:", e);
+  }
+
+  // ---------------- Render donut
+  try {
+    const canvas = $(SEL.chartMonth);
+    const legend = $(SEL.donutLegend);
+    if (canvas && typeof DonutChart !== "undefined") {
+      new DonutChart(canvas, {
+        data: donutData,
+        colors: CONFIG.CHART_PALETTE,
+        total: totalMonth,
+        legendEl: legend,
+        legendBullets: true,
+        showPercLabels: true,
+      });
+      log("CHARTS — DonutChart render ok", { colors: CONFIG.CHART_PALETTE });
+    } else {
+      warn("CHARTS — DonutChart no disponible o canvas faltante");
+    }
+  } catch(e){
+    err("CHARTS — DonutChart error:", e);
+  }
+
+  // ---------------- Fuera skeletons
+  removeSkeletonsInCharts();
+}
+
+/* ============================================================================
+   Jerarquía: logs
    ========================================================================== */
 async function logHierarchy(plan){
   try{
@@ -520,7 +559,7 @@ async function logHierarchy(plan){
 }
 
 /* ============================================================================
-   FETCH (ADMIN/Presidencia = todos; de lo contrario solo yo + team)
+   Fetch (ADMIN/Presidencia = todos; de lo contrario solo yo + team)
    ========================================================================== */
 async function fetchAllRequerimientos(perPage=200, maxPages=50){
   const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
@@ -529,7 +568,7 @@ async function fetchAllRequerimientos(perPage=200, maxPages=50){
   for (let page=1; page<=maxPages; page++){
     const res = await fetch(url, {
       method:"POST",
-      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ page, per_page: perPage })
     });
     if (!res.ok) break;
@@ -552,7 +591,7 @@ async function fetchMineAndTeam(plan){
 }
 
 /* ============================================================================
-   LOAD
+   Carga principal
    ========================================================================== */
 async function loadScopeData(){
   const { empleado_id:viewerId, dept_id } = State.session;
@@ -560,7 +599,6 @@ async function loadScopeData(){
     warn("viewerId ausente.");
     State.universe=[]; State.rows=[];
     computeCounts([]); updateLegendTotals(0); updateLegendStatus(); applyPipelineAndRender();
-    renderChartsFromRows();
     return;
   }
 
@@ -584,29 +622,34 @@ async function loadScopeData(){
   State.universe = items.slice();
   State.rows = State.universe.map(parseReq);
 
-  log("items UI-mapped (preview):", State.rows.slice(0,5).map(r=>({id:r.id, folio:r.folio, asignado:r.asignado, estatus:r.estatus?.label})));
+  log("items UI-mapped (preview):",
+    State.rows.slice(0,10).map(r=>({id:r.id, folio:r.folio, creado:r.creado, tramite:r.tramite, estatus:r.estatus?.label}))
+  );
+  log("totales — universo:", State.rows.length);
 
   computeCounts(State.rows);
   updateLegendTotals(State.rows.length);
   updateLegendStatus();
+
+  // tabla + charts
   applyPipelineAndRender();
-  renderChartsFromRows();
 }
 
 /* ============================================================================
-   INIT
+   Init
    ========================================================================== */
 window.addEventListener("DOMContentLoaded", async ()=>{
   try{
     readSession();
     await hydrateProfileFromSession();
+
     initSidebar(()=>applyPipelineAndRender());
     initSearch(()=>applyPipelineAndRender());
     buildTable();
-    initCharts();
     updateLegendStatus();
 
     await loadScopeData();
+
     log("Home listo");
   } catch(e){
     err("init error:", e);
