@@ -239,6 +239,8 @@
   </script>
 
   <!-- Pagina -->
+
+  <script type="module" src="/JS/auth/session.js"></script>
   <script type="module" src="/JS/home.js"></script>
   <script src="/JS/JSglobal.js"></script>
 
