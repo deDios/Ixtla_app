@@ -3,8 +3,11 @@ export class LineChart {
   constructor(canvas, opts = {}) {
     this.c = canvas;
     this.ctx = canvas.getContext("2d");
+    this.wrap = canvas.parentElement;
+    this.tip = this.wrap.querySelector(".chart-tip") || this._createTip();
+
     const dpr = window.devicePixelRatio || 1;
-    // autoscale para nitidez
+    // usa el tamaño CSS para render nítido
     this.c.width  = this.c.clientWidth  * dpr;
     this.c.height = this.c.clientHeight * dpr;
     this.ctx.scale(dpr, dpr);
@@ -21,26 +24,68 @@ export class LineChart {
     this.showDots = opts.showDots !== false;
     this.smooth   = !!opts.smooth;
 
-    // colores
-    this.colorAxis = "#cbd5e1";  // gris claro
-    this.colorLine = "#3b556e";  // azul grisáceo
-    this.colorDot  = "#3b556e";
+    // estilos
+    this.colorAxis = "#cbd5e1";
+    this.colorLine = "#2f495f";
+    this.colorDot  = "#2f495f";
+    this.colorHover= "#1f2f3f";
 
+    // estado hover
+    this._pts = [];        // [{x,y,val,label}]
+    this._hoverIdx = -1;
+
+    // listeners
+    this._bind();
+
+    // draw
     this.draw();
   }
 
-  draw() {
+  _createTip() {
+    const d = document.createElement("div");
+    d.className = "chart-tip";
+    d.style.cssText = "position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;";
+    this.wrap.appendChild(d);
+    return d;
+  }
+
+  _bind() {
+    this.c.addEventListener("mousemove", (e) => {
+      if (!this._pts.length) return;
+      const rect = this.c.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      // el punto más cercano en X
+      let idx = 0, best = Infinity;
+      for (let i=0;i<this._pts.length;i++){
+        const dx = Math.abs(this._pts[i].x - x);
+        if (dx < best){ best = dx; idx = i; }
+      }
+      this._hoverIdx = idx;
+      const p = this._pts[idx];
+      this.tip.textContent = `${p.label}: ${p.val}`;
+      this.tip.style.left = `${p.x}px`;
+      this.tip.style.top  = `${p.y}px`;
+      this.tip.style.opacity = "1";
+      this.draw(true);
+    });
+    this.c.addEventListener("mouseleave", ()=>{
+      this._hoverIdx = -1;
+      this.tip.style.opacity = "0";
+      this.draw();
+    });
+  }
+
+  draw(fromHover = false) {
     const ctx = this.ctx;
     const w = this.c.clientWidth;
     const h = this.c.clientHeight;
 
-    // padding de área de gráfico
     const pad = { top: 12, right: 10, bottom: 28, left: 26 };
 
     // limpiar
     ctx.clearRect(0, 0, w, h);
 
-    // ejes (solo guía horizontal)
+    // eje X (línea base)
     ctx.strokeStyle = this.colorAxis;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -50,7 +95,7 @@ export class LineChart {
 
     if (!this.series?.length) return;
 
-    // escala Y dinámica
+    // escala
     const maxY = Math.max(5, ...this.series);
     const toX = (i) => {
       const n = Math.max(1, this.series.length - 1);
@@ -61,29 +106,47 @@ export class LineChart {
       return pad.top + (usable * (1 - (v / maxY)));
     };
 
+    // pre-calcula puntos mapeados
+    this._pts = this.series.map((v,i)=>({
+      x: toX(i),
+      y: toY(v),
+      val: v,
+      label: this.labels?.[i] ?? `#${i+1}`
+    }));
+
     // línea
     ctx.strokeStyle = this.colorLine;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    this.series.forEach((v, i) => {
-      const x = toX(i), y = toY(v);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    this._pts.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
     });
     ctx.stroke();
 
     // puntos
     if (this.showDots) {
-      ctx.fillStyle = this.colorDot;
-      this.series.forEach((v, i) => {
-        const x = toX(i), y = toY(v);
+      this._pts.forEach((p, i) => {
+        ctx.fillStyle = (i === this._hoverIdx) ? this.colorHover : this.colorDot;
+        const r = (i === this._hoverIdx) ? 4.5 : 3;
         ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, r, 0, Math.PI*2);
         ctx.fill();
       });
     }
 
-    // labels X (meses abreviados si existen)
+    // guía vertical en hover
+    if (this._hoverIdx >= 0) {
+      const p = this._pts[this._hoverIdx];
+      ctx.strokeStyle = "rgba(31,41,55,.25)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(p.x, pad.top);
+      ctx.lineTo(p.x, h - pad.bottom);
+      ctx.stroke();
+    }
+
+    // labels X (primera letra)
     if (this.labels?.length) {
       ctx.fillStyle = "#334155";
       ctx.font = "12px system-ui, sans-serif";
@@ -91,8 +154,7 @@ export class LineChart {
       ctx.textBaseline = "top";
       this.labels.forEach((lab, i) => {
         const x = toX(i), y = h - pad.bottom + 6;
-        const t = String(lab).substring(0, 1); // primera letra (E F M A …)
-        ctx.fillText(t, x, y);
+        ctx.fillText(String(lab).substring(0, 1), x, y);
       });
     }
   }
