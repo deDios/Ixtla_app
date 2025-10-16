@@ -11,16 +11,15 @@ const CONFIG = {
   ADMIN_ROLES: ["ADMIN"],
   PRESIDENCIA_DEPT_IDS: [6],
   DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
-  API_BASE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/",
 };
 
-const TAG  = "[Home]";
+const TAG = "[Home]";
 const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
 const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
 const err  = (...a) => console.error(TAG, ...a);
 
 /* ============================================================================
-   Imports
+   IMPORTS
    ========================================================================== */
 import { Session } from "/JS/auth/session.js";
 import {
@@ -29,13 +28,12 @@ import {
   listByAsignado,
   parseReq,
 } from "/JS/api/requerimientos.js";
-
 import { createTable } from "/JS/ui/table.js";
 import { LineChart } from "/JS/charts/line-chart.js";
 import { DonutChart } from "/JS/charts/donut-chart.js";
 
 /* ============================================================================
-   Selectores
+   SELECTORES
    ========================================================================== */
 const SEL = {
   avatar:       "#hs-avatar",
@@ -53,16 +51,11 @@ const SEL = {
   tableWrap:    "#hs-table-wrap",
   tableBody:    "#hs-table-body",
   pager:        "#hs-pager",
-
-  chartYear:    "#chart-year",
-  chartMonth:   "#chart-month",
-  donutLegend:  "#donut-legend",
 };
-
 const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
 
 /* ============================================================================
-   Helpers
+   HELPERS
    ========================================================================== */
 const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
@@ -76,26 +69,25 @@ function formatDateMX(v){
 }
 
 /* ============================================================================
-   Estado
+   STATE
    ========================================================================== */
 const State = {
   session: { empleado_id:null, dept_id:null, roles:[], id_usuario:null },
   scopePlan: null,
-
   universe: [],
   rows: [],
-
   filterKey: "todos",
   search: "",
-
   counts: { todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 },
-
   table: null,
   __page: 1,
 };
 
+let _yearChart = null;
+let _donut = null;
+
 /* ============================================================================
-   Cookie fallback
+   COOKIE FALLBACK
    ========================================================================== */
 function readCookiePayload() {
   try {
@@ -108,15 +100,16 @@ function readCookiePayload() {
 }
 
 /* ============================================================================
-   Resolver nombre de depto
+   DEPTO NAME
    ========================================================================== */
 async function resolveDeptName(deptId){
   if (CONFIG.DEPT_FALLBACK_NAMES[deptId]) return CONFIG.DEPT_FALLBACK_NAMES[deptId];
   try {
-    const url = CONFIG.API_BASE + "ixtla01_c_departamento.php";
+    const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+    const url = API_BASE + "ixtla01_c_departamento.php";
     const res = await fetch(url, {
       method:"POST",
-      headers:{ "Content-Type":"application/json","Accept":"application/json" },
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
       body: JSON.stringify({ page:1, page_size:200, status:1 })
     });
     if (!res.ok) throw new Error("HTTP "+res.status);
@@ -130,7 +123,7 @@ async function resolveDeptName(deptId){
 }
 
 /* ============================================================================
-   Sesión
+   SESIÓN
    ========================================================================== */
 function readSession(){
   let s=null;
@@ -142,7 +135,6 @@ function readSession(){
     State.session = { empleado_id:null, dept_id:null, roles:[], id_usuario:null };
     return State.session;
   }
-
   const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
   const dept_id     = s?.departamento_id ?? null;
   const roles       = Array.isArray(s?.roles) ? s.roles.map(r=>String(r).toUpperCase()) : [];
@@ -154,7 +146,7 @@ function readSession(){
 }
 
 /* ============================================================================
-   Perfil UI
+   PERFIL UI
    ========================================================================== */
 async function hydrateProfileFromSession(){
   const s = Session?.get?.() || readCookiePayload() || {};
@@ -187,7 +179,7 @@ async function hydrateProfileFromSession(){
 }
 
 /* ============================================================================
-   Sidebar
+   SIDEBAR
    ========================================================================== */
 function initSidebar(onChange){
   const group = $(SEL.statusGroup);
@@ -195,12 +187,10 @@ function initSidebar(onChange){
 
   group.setAttribute("role","radiogroup");
   const items = $$(SEL.statusItems);
-
   items.forEach((btn,i)=>{
     btn.setAttribute("role","radio");
     btn.setAttribute("tabindex", i===0 ? "0" : "-1");
     btn.setAttribute("aria-checked", btn.classList.contains("is-active") ? "true" : "false");
-
     const key = btn.dataset.status;
     if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
 
@@ -227,7 +217,7 @@ function initSidebar(onChange){
 }
 
 /* ============================================================================
-   Search
+   SEARCH
    ========================================================================== */
 function initSearch(onChange){
   const input = $(SEL.searchInput);
@@ -244,7 +234,7 @@ function initSearch(onChange){
 }
 
 /* ============================================================================
-   Tabla
+   TABLA
    ========================================================================== */
 function buildTable(){
   State.table = createTable({
@@ -273,7 +263,7 @@ function buildTable(){
 }
 
 /* ============================================================================
-   Leyendas / conteos
+   LEYENDAS / CONTEOS
    ========================================================================== */
 function updateLegendTotals(n){ setText(SEL.legendTotal, String(n??0)); }
 function updateLegendStatus(){
@@ -301,7 +291,7 @@ function computeCounts(rows){
 }
 
 /* ============================================================================
-   Paginación clásica
+   PAGER (TU HTML / estilos)
    ========================================================================== */
 function renderPagerClassic(total){
   const cont = $(SEL.pager);
@@ -314,7 +304,7 @@ function renderPagerClassic(total){
     `<button class="btn ${extra}" data-p="${p}" ${p==="disabled"?"disabled":""}>${label}</button>`;
 
   let nums = "";
-  for (let i=1; i<=pages; i++){
+  for (let i=1;i<=pages;i++){
     nums += btn(String(i), i, i===cur ? "primary" : "");
   }
 
@@ -352,18 +342,20 @@ function renderPagerClassic(total){
 }
 
 /* ============================================================================
-   Gaps + binds (página actual)
+   GAPS + CLICK BINDERS
    ========================================================================== */
 function refreshCurrentPageDecorations(){
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
+  // quitar gaps previos
   tbody.querySelectorAll("tr.hs-gap").forEach(tr => tr.remove());
 
   const pageRows = State.table?.getRawRows?.() || [];
   const realCount = pageRows.length;
   const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
 
+  // limpiar / re-binder filas reales
   Array.from(tbody.querySelectorAll("tr")).forEach(tr=>{
     tr.classList.remove("is-clickable");
     tr.onclick = null;
@@ -386,12 +378,85 @@ function refreshCurrentPageDecorations(){
     }
     tbody.insertAdjacentHTML("beforeend", html);
   }
-
   log("gaps añadidos:", gaps, "reales en página:", realCount);
 }
 
 /* ============================================================================
-   Pipeline + render
+   CHART HELPERS (serie año + donut mes)
+   ========================================================================== */
+function buildYearSeries(items) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const serie = new Array(12).fill(0);
+  for (const r of items) {
+    const d = r.creado ? new Date(String(r.creado).replace(" ", "T")) : null;
+    if (!d || isNaN(d)) continue;
+    if (d.getFullYear() !== year) continue;
+    serie[d.getMonth()]++;
+  }
+  return serie;
+}
+
+function buildMonthDonut(items) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const acc = new Map();
+  let total = 0;
+
+  for (const r of items) {
+    const d = r.creado ? new Date(String(r.creado).replace(" ", "T")) : null;
+    if (!d || isNaN(d)) continue;
+    if (d.getFullYear() !== y || d.getMonth() !== m) continue;
+
+    const key = (r.tramite || "Otros").trim();
+    acc.set(key, (acc.get(key) || 0) + 1);
+    total++;
+  }
+
+  const data = Array.from(acc.entries()).map(([label, value]) => ({ label, value }));
+  if (!data.length) data.push({ label: "Otros", value: 0 });
+
+  return { total, data };
+}
+
+function initCharts() {
+  const c1 = document.getElementById("chart-year");
+  if (c1) {
+    _yearChart = new LineChart(c1, {
+      labels: ["E","F","M","A","M","J","J","A","S","O","N","D"]
+    });
+  }
+  const c2 = document.getElementById("chart-month");
+  if (c2) {
+    _donut = new DonutChart(c2, {
+      legendEl: document.getElementById("donut-legend"),
+      enableSliceTooltip: true
+    });
+  }
+}
+
+function renderChartsFromRows() {
+  const items = State.rows || [];
+
+  if (_yearChart) {
+    const serie = buildYearSeries(items);
+    _yearChart.setData(serie);
+  }
+
+  if (_donut) {
+    const { total, data } = buildMonthDonut(items);
+    _donut.setData(data, { total });
+  }
+
+  // remove any skeletons left
+  document.querySelectorAll(".hs-chart-skeleton").forEach(el => el.remove());
+
+  log("[Charts] universo:", items.length);
+}
+
+/* ============================================================================
+   PIPELINE + RENDER (tabla + pager)
    ========================================================================== */
 function applyPipelineAndRender(){
   const all = State.rows || [];
@@ -420,6 +485,7 @@ function applyPipelineAndRender(){
 
   State.table?.setData(rows);
   State.__page = 1;
+
   refreshCurrentPageDecorations();
   renderPagerClassic(filtered.length);
 
@@ -433,7 +499,7 @@ function applyPipelineAndRender(){
 }
 
 /* ============================================================================
-   Jerarquía — logs
+   LOGS HIERARCHY
    ========================================================================== */
 async function logHierarchy(plan){
   try{
@@ -454,10 +520,11 @@ async function logHierarchy(plan){
 }
 
 /* ============================================================================
-   Visiones de datos
+   FETCH (ADMIN/Presidencia = todos; de lo contrario solo yo + team)
    ========================================================================== */
 async function fetchAllRequerimientos(perPage=200, maxPages=50){
-  const url = CONFIG.API_BASE + "ixtla01_c_requerimiento.php";
+  const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+  const url = API_BASE + "ixtla01_c_requerimiento.php";
   const all=[];
   for (let page=1; page<=maxPages; page++){
     const res = await fetch(url, {
@@ -473,7 +540,6 @@ async function fetchAllRequerimientos(perPage=200, maxPages=50){
   }
   return all;
 }
-
 async function fetchMineAndTeam(plan){
   const ids = [plan.mineId, ...(plan.teamIds||[])].filter(Boolean);
   const results = await Promise.allSettled(ids.map(id => listByAsignado(id, {})));
@@ -485,23 +551,8 @@ async function fetchMineAndTeam(plan){
   );
 }
 
-async function isPrimeraLinea(empleadoId, deptId){
-  try{
-    const url = CONFIG.API_BASE + "ixtla01_c_departamento.php";
-    const res = await fetch(url, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json","Accept":"application/json" },
-      body: JSON.stringify({ page:1, page_size:200, all:true })
-    });
-    if (!res.ok) return false;
-    const json = await res.json();
-    const d = (json?.data||[]).find(x => Number(x.id)===Number(deptId));
-    return Number(d?.primera_linea) === Number(empleadoId);
-  } catch { return false; }
-}
-
 /* ============================================================================
-   Carga principal
+   LOAD
    ========================================================================== */
 async function loadScopeData(){
   const { empleado_id:viewerId, dept_id } = State.session;
@@ -509,6 +560,7 @@ async function loadScopeData(){
     warn("viewerId ausente.");
     State.universe=[]; State.rows=[];
     computeCounts([]); updateLegendTotals(0); updateLegendStatus(); applyPipelineAndRender();
+    renderChartsFromRows();
     return;
   }
 
@@ -517,7 +569,6 @@ async function loadScopeData(){
 
   const isAdmin = (State.session.roles||[]).some(r=>CONFIG.ADMIN_ROLES.includes(r));
   const isPres  = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
-  const isLinea = await isPrimeraLinea(viewerId, dept_id);
 
   await logHierarchy(plan);
 
@@ -525,10 +576,6 @@ async function loadScopeData(){
   if (isAdmin || isPres){
     log("modo ADMIN/PRESIDENCIA: fetch global…");
     items = await fetchAllRequerimientos();
-  } else if (isLinea){
-    log("modo PRIMERA LÍNEA (depto): fetch global y filtro por departamento…");
-    const all = await fetchAllRequerimientos();
-    items = all.filter(r => Number(r.departamento_id) === Number(dept_id));
   } else {
     log("modo subordinados: yo + team…");
     items = await fetchMineAndTeam(plan);
@@ -537,107 +584,26 @@ async function loadScopeData(){
   State.universe = items.slice();
   State.rows = State.universe.map(parseReq);
 
-  log("items UI-mapped (preview):",
-    State.rows.slice(0,5).map(r=>({id:r.id, folio:r.folio, asignado:r.asignado, estatus:r.estatus?.label}))
-  );
+  log("items UI-mapped (preview):", State.rows.slice(0,5).map(r=>({id:r.id, folio:r.folio, asignado:r.asignado, estatus:r.estatus?.label})));
 
   computeCounts(State.rows);
   updateLegendTotals(State.rows.length);
   updateLegendStatus();
   applyPipelineAndRender();
-
-  // Charts con datos reales
-  initChartsFromState();
+  renderChartsFromRows();
 }
 
 /* ============================================================================
-   Charts – datos reales + tooltips y sin bullets debajo del donut
-   ========================================================================== */
-function hideSiblingSkeleton(canvas){
-  const wrap = canvas?.parentElement;
-  const sk = wrap?.querySelector?.(".hs-chart-skeleton");
-  if (sk) sk.remove();
-}
-
-// Construye serie del año y distribución de este mes a partir de State.rows
-function buildChartsData(rows){
-  const now = new Date();
-  const cy  = now.getFullYear();
-  const cm  = now.getMonth(); // 0-11
-
-  const labelsYear = ["E","F","M","A","M","J","J","A","S","O","N","D"];
-  const seriesYear = new Array(12).fill(0);
-
-  const monthCountByType = new Map();
-
-  rows.forEach(r => {
-    const d = r.creado ? new Date(String(r.creado).replace(" ","T")) : null;
-    if (!d || isNaN(d)) return;
-
-    // Serie anual
-    if (d.getFullYear() === cy){
-      seriesYear[d.getMonth()]++;
-    }
-
-    // Donut del mes actual
-    if (d.getFullYear() === cy && d.getMonth() === cm){
-      const key = (r.tramite || r.asunto || "Otros").trim() || "Otros";
-      monthCountByType.set(key, (monthCountByType.get(key) || 0) + 1);
-    }
-  });
-
-  // Donut data
-  const donutData = Array.from(monthCountByType.entries())
-    .map(([label,value]) => ({ label, value }))
-    .sort((a,b) => b.value - a.value);
-
-  return { labelsYear, seriesYear, donutData };
-}
-
-function initChartsFromState(){
-  const { labelsYear, seriesYear, donutData } = buildChartsData(State.rows);
-
-  // Línea
-  const cYear = $(SEL.chartYear);
-  if (cYear){
-    new LineChart(cYear, {
-      labels: labelsYear,
-      series: seriesYear,
-      color: "#4f6b95",
-      hover: true, // nuestro LineChart ya muestra tooltip
-    });
-    hideSiblingSkeleton(cYear);
-  }
-
-  // Donut
-  const cMonth = $(SEL.chartMonth);
-  if (cMonth){
-    // Ocultamos la lista de bullets si existe
-    const lg = $(SEL.donutLegend);
-    if (lg) lg.style.display = "none";
-
-    new DonutChart(cMonth, {
-      data: donutData,
-      legendSelector: null,       // sin bullets
-      centerText: true,
-      showTooltips: true,         // tooltip sobre cada segmento
-      deptId: State.session.dept_id
-    });
-    hideSiblingSkeleton(cMonth);
-  }
-}
-
-/* ============================================================================
-   Init
+   INIT
    ========================================================================== */
 window.addEventListener("DOMContentLoaded", async ()=>{
   try{
     readSession();
     await hydrateProfileFromSession();
-
     initSidebar(()=>applyPipelineAndRender());
     initSearch(()=>applyPipelineAndRender());
     buildTable();
+    initCharts();
     updateLegendStatus();
 
     await loadScopeData();

@@ -117,11 +117,7 @@
                         <h3 id="y-title" class="hs-card-title">Gráfico de este Año</h3>
 
                         <div class="hs-chart-wrap" style="position:relative;">
-                            <canvas id="chart-year" width="600" height="240"
-                                data-series-year='[3,8,14,20,17,24,22,27,29,30,31,35]'
-                                data-labels-year='["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]'
-                                aria-describedby="y-desc">
-                            </canvas>
+                            <canvas id="chart-year" width="600" height="240" aria-describedby="y-desc"></canvas>
 
                             <!-- Skeleton (se oculta al renderizar el chart) 
                              <div class="hs-chart-skeleton" aria-hidden="true"></div>
@@ -145,14 +141,7 @@
                         <h3 id="m-title" class="hs-card-title">Gráfico de este mes</h3>
 
                         <div class="hs-chart-wrap">
-                            <canvas id="chart-month" width="380" height="240" data-donut='[
-                                 {"label":"Fuga de agua","value":50},
-                                 {"label":"Fuga de drenaje","value":5},
-                                 {"label":"Baja presión de agua","value":10},
-                                 {"label":"No disponemos de agua","value":15},
-                                 {"label":"Otros","value":20}
-                                  ]' aria-describedby="m-desc">
-                            </canvas>
+                            <canvas id="chart-month" width="380" height="240" aria-describedby="m-desc"></canvas>
 
                             <!-- Skeleton 
                             <div class="hs-chart-skeleton" aria-hidden="true"></div>
