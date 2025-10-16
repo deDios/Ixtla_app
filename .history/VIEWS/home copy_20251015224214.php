@@ -203,9 +203,7 @@
     </footer>
 
     <!-- Guard para la página de home 
-     
-    -->
-    <script type="module">
+     <script type="module">
     import {
         guardPage
     } from "/JS/auth/guard.js";
@@ -217,6 +215,8 @@
 
     <script type="module" src="/JS/home.js"></script>
     <script src="/JS/JSglobal.js"></script>
+    -->
+    
 </body>
 
 </html>

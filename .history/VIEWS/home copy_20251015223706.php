@@ -202,9 +202,7 @@
         </div>
     </footer>
 
-    <!-- Guard para la página de home 
-     
-    -->
+    <!-- Guard para la página de home -->
     <script type="module">
     import {
         guardPage

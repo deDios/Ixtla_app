@@ -619,6 +619,7 @@ body {
 .gc thead th:nth-child(4), .gc tbody td:nth-child(4) { width: 180px; } /* Teléfono */
 .gc thead th:nth-child(5), .gc tbody td:nth-child(5) { width: 140px; } /* Estatus */
 
+/* Truncado elegante en columnas largas */
 .gc td:nth-child(2),
 .gc td:nth-child(3) {
   white-space: nowrap;
@@ -626,24 +627,28 @@ body {
   text-overflow: ellipsis;
 }
 
+/* ID/Folio más legible */
 .gc td:nth-child(1) {
   font-variant-numeric: tabular-nums;
   color: #111827;
 }
 
+/* Teléfono centrado un poco */
 .gc td:nth-child(4) { white-space: nowrap; }
 
+/* Fila clicable (navega al detalle) */
 .gc tbody tr.is-clickable { cursor: pointer; }
 .gc tbody tr.is-clickable:hover td { background: #f9fafb; }
 
+/* Fila gap para rellenar página (no interactiva) */
 .gc tbody tr.hs-gap td {
   background: #fff !important;
-  height: 42px;               
+  height: 42px;                /* mismo alto visual que filas normales */
   border-bottom: 1px solid #f3f4f6;
 }
 .gc tbody tr.hs-gap { pointer-events: none; }
 
-/* ===== Badges de estado  ===== */
+/* ===== Badges de estado (paleta que me pasaste) ===== */
 .badge-status {
   display: inline-block;
   padding: .25rem .5rem;
@@ -656,12 +661,21 @@ body {
 
 /* Map de colores por data-k */
 .badge-status[data-k="solicitud"]    { background:#e9eafe; }
-.badge-status[data-k="revision"]     { background:#e6f0ff; }
+.badge-status[data-k="revision"],
+.badge-status[data-k="revicion"]     { background:#e6f0ff; }
 .badge-status[data-k="asignacion"]   { background:#e6fff4; }
 .badge-status[data-k="enProceso"]    { background:#e8f1ff; }
 .badge-status[data-k="pausado"]      { background:#fff4da; }
 .badge-status[data-k="cancelado"]    { background:#ffe4e6; }
 .badge-status[data-k="finalizado"]   { background:#e7fff4; }
+
+/* Si usas “pendientes / en_proceso / terminados / cancelados / pausados” en el sidebar
+   y quieres que coincidan visualmente con badges de la tabla: */
+.badge-status[data-k="pendientes"]   { background:#e6f0ff; }   /* similar a revisión */
+.badge-status[data-k="en_proceso"]   { background:#e8f1ff; }   /* similar a enProceso */
+.badge-status[data-k="terminados"]   { background:#e7fff4; }
+.badge-status[data-k="cancelados"]   { background:#ffe4e6; }
+.badge-status[data-k="pausados"]     { background:#fff4da; }
 
 /* ===== Paginador clásico (usa tus .btn existentes) ===== */
 .hs-pager {

@@ -619,6 +619,7 @@ body {
 .gc thead th:nth-child(4), .gc tbody td:nth-child(4) { width: 180px; } /* Teléfono */
 .gc thead th:nth-child(5), .gc tbody td:nth-child(5) { width: 140px; } /* Estatus */
 
+/* Truncado elegante en columnas largas */
 .gc td:nth-child(2),
 .gc td:nth-child(3) {
   white-space: nowrap;
@@ -626,11 +627,13 @@ body {
   text-overflow: ellipsis;
 }
 
+/* ID/Folio más legible */
 .gc td:nth-child(1) {
   font-variant-numeric: tabular-nums;
   color: #111827;
 }
 
+/* Teléfono centrado un poco */
 .gc td:nth-child(4) { white-space: nowrap; }
 
 .gc tbody tr.is-clickable { cursor: pointer; }
