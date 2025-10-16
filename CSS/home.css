@@ -420,7 +420,7 @@ main.home-samapa{
 /* Canvas responsivo (mantiene alto del contenedor) */
 .hs-chart-wrap > canvas {
   display: block;
-  width: 100%;
+  width: 98%;
   height: 100%;
 }
 
@@ -510,4 +510,91 @@ main.home-samapa{
   }
   .hs-card { box-shadow: none; }
   .hs-chart-wrap { background: #0b1220; }
+}
+
+
+
+
+/* ====== Layout base (scroll del documento) ====== */
+:root{
+  /* Ajusta según tu header/subnav reales */
+  --header-h: 72px;     /* top bar aproximado */
+  --subnav-h: 48px;     /* subnav aproximado */
+  --sticky-top: calc(var(--header-h) + var(--subnav-h)); /* offset para el sticky */
+  --footer-pad: 32px;   /* respirito antes del footer */
+}
+
+/* Asegúrate de NO tener overflow en <main> / .hs-wrap */
+html, body {
+  height: 100%;
+}
+body {
+  overflow-y: auto;          /* scroll global */
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Contenedor principal de Home */
+.home-samapa .hs-wrap{
+  display: grid;
+  grid-template-columns: 280px 1fr;  /* sidebar + main */
+  gap: 1.5rem;
+  align-items: start;                /* importante para sticky */
+}
+
+/* ====== Sidebar sticky ====== */
+.hs-sidebar{
+  position: sticky;
+  top: var(--sticky-top);
+  align-self: start;                 /* se pega al inicio del grid */
+  max-height: calc(100vh - var(--sticky-top));
+  overflow: visible;                 /* sin scroll interno */
+  z-index: 2;                        /* por si hay cabeceras flotantes */
+}
+
+/* ====== Main que empuja el footer ====== */
+.hs-main{
+  min-height: calc(100vh - var(--sticky-top) - var(--footer-pad));
+  padding-bottom: var(--footer-pad); /* evita que el contenido toque el footer */
+}
+
+/* Footer normal (no fixed) */
+#site-footer{
+  position: static;
+}
+
+/* ====== Tabla: scroll interno opcional ====== */
+/* Si quieres que SOLO la tabla scrollee, descomenta. 
+   Si prefieres que scrollee toda la página, déjalo comentado. */
+/*
+#hs-table-wrap{
+  max-height: clamp(340px, 60vh, 720px);
+  overflow: auto;
+}
+#hs-table-wrap::-webkit-scrollbar{ width: 10px; height: 10px; }
+#hs-table-wrap::-webkit-scrollbar-thumb{ background: #cfd6de; border-radius: 8px; }
+*/
+
+/* ====== Pagos visuales útiles ====== */
+.hs-card, .table-wrap{
+  background: #f4f6f8;
+  border-radius: 12px;
+}
+
+@media (max-width: 1024px){
+  :root{ --sticky-top: calc(var(--header-h) + 6px); }
+}
+
+@media (max-width: 768px){
+  .home-samapa .hs-wrap{
+    grid-template-columns: 1fr;  
+  }
+  .hs-sidebar{
+    position: static;           
+    max-height: none;
+  }
+  .hs-main{
+    min-height: auto;
+    padding-bottom: 1rem;
+  }
 }
