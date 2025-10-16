@@ -1,366 +1,659 @@
 // /JS/home.js
-import { planScope, fetchScope, parseReq } from "/JS/api/requerimientos.js";
-import { LineChart } from "/JS/charts/line-chart.js";
-import { DonutChart } from "/JS/charts/donut-chart.js";
+"use strict";
 
-// === Cookie de sesión (única fuente) ===
-function getSessionSafe() {
-  try { return window.Session?.get?.() || null; } catch { return null; }
-}
+/* ============================================================================
+   CONFIGURACIÓN
+   ========================================================================== */
+const CONFIG = {
+  DEBUG_LOGS: true,
+  PAGE_SIZE: 10,
+  DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
+  ADMIN_ROLES: ["ADMIN"],
+  PRESIDENCIA_DEPT_IDS: [6], // ids que ven TODO
+  DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
 
-const TAG = "[Home]";
-const MONTHS3 = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-
-const STATUS_MAP = {
-  todos: null,
-  solicitud: 0,
-  revision: 1,
-  asignacion: 2,
-  en_proceso: 3,
-  pausado: 4,
-  cancelado: 5,
-  finalizado: 6,
-};
-
-const State = {
-  plan: null,
-  items: [],
-  charts: { year:null, donut:null },
-  ui: {
-    filterKey: "todos",
-    search: "",
-    pager: { page: 1, size: 10, total: 0, pages: 1 },
+  // Paleta de badges (clases CSS ya existen)
+  STATUS_KEY_BY_CODE: {
+    0: "solicitud",
+    1: "revision",
+    2: "asignacion",
+    3: "enProceso",
+    4: "pausado",
+    5: "cancelado",
+    6: "finalizado",
   },
 };
 
+const TAG = "[Home]";
+const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
+const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
+const err  = (...a) => console.error(TAG, ...a);
+
+/* ============================================================================
+   IMPORTS
+   ========================================================================== */
+import { Session } from "/JS/auth/session.js";
+import {
+  planScope,
+  loadEmpleados,
+  listByAsignado,
+  parseReq,
+} from "/JS/api/requerimientos.js";
+import { createTable } from "/JS/ui/table.js";
+import { LineChart } from "/JS/charts/line-chart.js";
+import { DonutChart } from "/JS/charts/donut-chart.js";
+
+/* ============================================================================
+   SELECTORES
+   ========================================================================== */
 const SEL = {
-  // Perfil
-  avatar:   "#hs-avatar",
-  name:     "#hs-profile-name",
-  editBtn:  "#hs-edit-profile",
+  avatar:       "#hs-avatar",
+  profileName:  "#hs-profile-name",
+  profileBadge: "#hs-profile-badge",
 
-  // Sidebar
-  states:   "#hs-states",
-  stateItem:"#hs-states .item",
+  statusGroup:  "#hs-states",
+  statusItems:  "#hs-states .item",
 
-  // Buscador
-  search:   "#hs-search",
+  searchInput:  "#hs-search",
 
-  // Charts
-  chartYear:  "#chart-year",
-  chartDonut: "#chart-month",
-
-  // Tabla
-  tableBody: "#hs-table-body",
-  tableWrap: "#hs-table-wrap",
-
-  // Leyenda / contador
   legendTotal:  "#hs-legend-total",
   legendStatus: "#hs-legend-status",
 
-  // Paginador
-  pager: "#hs-pager",
+  tableWrap:    "#hs-table-wrap",
+  tableBody:    "#hs-table-body",
+  pager:        "#hs-pager",
+
+  chartYear:    "#chart-year",
+  chartMonth:   "#chart-month",
+  donutLegend:  "#donut-legend"
+};
+const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
+
+/* ============================================================================
+   HELPERS
+   ========================================================================== */
+const $  = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
+
+function formatDateMX(v){
+  if (!v) return "—";
+  const d = new Date(String(v).replace(" ", "T"));
+  if (isNaN(d)) return v;
+  return d.toLocaleDateString("es-MX",{year:"numeric",month:"2-digit",day:"2-digit"});
+}
+
+/* ============================================================================
+   ESTADO
+   ========================================================================== */
+const State = {
+  session: { empleado_id:null, dept_id:null, roles:[], id_usuario:null },
+  scopePlan: null,
+  universe: [],
+  rows: [],          // parseados para UI
+  filterKey: "todos",
+  search: "",
+  counts: { todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 },
+  table: null,
+  __page: 1,
 };
 
-// ------------- utils -------------
-function $(s, r=document){ return r.querySelector(s); }
-function $all(s, r=document){ return Array.from(r.querySelectorAll(s)); }
-function log(...a){ console.log(TAG, ...a); }
-function warn(...a){ console.warn(TAG, ...a); }
-function escapeHTML(s){ return String(s||"").replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+let Charts = { line:null, donut:null };
 
-// Avatar: default + intenta img{id}.{png,jpg,webp,jpeg} sin flood
-function setProfileImage(imgEl, empleadoId) {
-  if (!imgEl) return;
-  const base = "/ASSETS/user/userImgs/";
-  imgEl.src = base + "default.png";
-  if (!empleadoId) return;
-  const cand = [`img${empleadoId}.png`,`img${empleadoId}.jpg`,`img${empleadoId}.jpeg`,`img${empleadoId}.webp`];
-  (async () => {
-    for (const name of cand) {
-      const ok = await tryImg(base + name);
-      if (ok) { imgEl.src = base + name; break; }
-    }
-  })();
-  function tryImg(url){ return new Promise(res=>{ const t=new Image(); t.onload=()=>res(true); t.onerror=()=>res(false); t.src=url; }); }
+/* ============================================================================
+   COOKIE FALLBACK
+   ========================================================================== */
+function readCookiePayload() {
+  try {
+    const name="ix_emp=";
+    const pair = document.cookie.split("; ").find(c=>c.startsWith(name));
+    if (!pair) return null;
+    const raw = decodeURIComponent(pair.slice(name.length));
+    return JSON.parse(decodeURIComponent(escape(atob(raw))));
+  } catch { return null; }
 }
 
-// ------------- init -------------
-document.addEventListener("DOMContentLoaded", init);
-
-async function init(){
-  const session = getSessionSafe();
-  log("Cookie ix_emp (Session.get()):", session);
-
-  const empleadoId = session?.empleado_id ?? session?.id_empleado ?? null;
-  const deptId     = session?.departamento_id ?? null;
-
-  const displayName = (session?.nombre || "") && (session?.apellidos || "")
-    ? `${session.nombre} ${session.apellidos}`
-    : (session?.nombre || session?.username || "—");
-  const $name = $(SEL.name);
-  if ($name) $name.textContent = displayName;
-  setProfileImage($(SEL.avatar), empleadoId);
-
-  wireSidebar();
-  wireSearch();
-  initCharts();
-
-  if (!empleadoId) {
-    warn("empleado_id ausente; no se llama a planScope()");
-    State.items = [];
-    render(); // limpia UI con 0s
-    return;
-  }
-
-  State.plan = await planScope({ viewerId: empleadoId, viewerDeptId: deptId });
-  await loadDataAndRender();
-}
-
-// ------------- sidebar -------------
-function wireSidebar(){
-  $all(SEL.stateItem).forEach(btn => {
-    btn.addEventListener("click", () => {
-      const k = btn.dataset.k || btn.dataset.status || "todos";
-      setActiveState(k);
-      State.ui.pager.page = 1;
-      loadDataAndRender();
+/* ============================================================================
+   RESOLVER NOMBRE DE DEPTO
+   ========================================================================== */
+async function resolveDeptName(deptId){
+  if (!deptId) return "—";
+  if (CONFIG.DEPT_FALLBACK_NAMES[deptId]) return CONFIG.DEPT_FALLBACK_NAMES[deptId];
+  try {
+    const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
+    const res = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ page:1, page_size:200, status:1 })
     });
-  });
-  setActiveState("todos");
-}
-function setActiveState(key){
-  State.ui.filterKey = (key in STATUS_MAP) ? key : "todos";
-  $all(SEL.stateItem).forEach(b => b.classList.toggle("is-active", (b.dataset.k||b.dataset.status) === State.ui.filterKey));
-  const $legendStatus = $(SEL.legendStatus);
-  if ($legendStatus) $legendStatus.textContent = key === "todos" ? "Todos los status" : key.replace("_"," ");
-}
-
-// ------------- search -------------
-function wireSearch(){
-  const $search = $(SEL.search);
-  if (!$search) return;
-  $search.addEventListener("input", () => {
-    State.ui.search = $search.value.trim();
-    State.ui.pager.page = 1;
-    render();
-  });
-}
-
-// ------------- charts -------------
-function initCharts(){
-  const $cy = $(SEL.chartYear);
-  const $cd = $(SEL.chartDonut);
-
-  if ($cy) {
-    State.charts.year = new LineChart($cy, {
-      labels: MONTHS3,
-      series: new Array(12).fill(0),
-      showGrid: true, headroom: 0.2, yTicks: 5
-    });
-  }
-
-  if ($cd) {
-    State.charts.donut = new DonutChart($cd, {
-      data: [],
-      total: 0,
-      colors: ["#1d4ed8","#2563eb","#3b82f6","#60a5fa","#93c5fd","#38bdf8","#0ea5e9","#0284c7","#0369a1","#7dd3fc"],
-      showPercLabels: true
-    });
+    if (!res.ok) throw new Error("HTTP "+res.status);
+    const json = await res.json();
+    const arr = json?.data || [];
+    const found = arr.find(d => Number(d.id) === Number(deptId));
+    return found?.nombre || `Depto ${deptId}`;
+  } catch {
+    return `Depto ${deptId}`;
   }
 }
 
-// ------------- datos + render -------------
-async function loadDataAndRender(){
-  const filtros = buildAPIFiltrosFromUI();
-  const { items } = await fetchScope({ plan: State.plan, filtros }).catch(()=>({items:[]}));
-  State.items = items;
-  render();
-}
-function buildAPIFiltrosFromUI(){
-  const f = {};
-  const k = State.ui.filterKey || "todos";
-  const code = STATUS_MAP[k];
-  if (code != null) f.estatus = code;
-  return f;
-}
-function render(){
-  // filtros cliente + conteos + paginado + tabla + charts
-  const filtered = applyClientFilters(State.items, State.ui.search);
-  renderCountsSidebar(State.items);
-  buildPager(filtered.length);
-  const pageRows = slicePage(filtered);
-  renderTable(pageRows);
-  renderCharts(filtered);
-
-  const $total = $(SEL.legendTotal);
-  if ($total) $total.textContent = String(filtered.length);
+async function isPrimeraLinea(viewerId, deptId){
+  try{
+    const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
+    const res = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ all:true })
+    });
+    if (!res.ok) return false;
+    const json = await res.json();
+    const arr = json?.data || [];
+    const dep = arr.find(d=>Number(d.id)===Number(deptId));
+    return !!(dep && Number(dep.primera_linea) === Number(viewerId));
+  } catch { return false; }
 }
 
-// ------------- filtros cliente -------------
-function applyClientFilters(items, q){
-  if (!q) return items.slice();
-  const s = q.toLowerCase();
-  return items.filter(r => {
-    const p = parseReq(r);
-    const byFolio = String(p.folio||"").toLowerCase().includes(s);
-    const byId = /^\d+$/.test(s) ? String(p.id||"") === s : false;
-    const byStatus = (p.estatus?.label || "").toLowerCase().includes(s);
-    const byTipo = (p.tramite || "").toLowerCase().includes(s);
-    return byFolio || byId || byStatus || byTipo;
+/* ============================================================================
+   SESIÓN
+   ========================================================================== */
+function readSession(){
+  let s=null;
+  try { s = Session?.get?.() || null; } catch {}
+  if (!s) s = readCookiePayload();
+
+  if (!s) {
+    warn("Sin sesión.");
+    State.session = { empleado_id:null, dept_id:null, roles:[], id_usuario:null };
+    return State.session;
+  }
+  const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
+  const dept_id     = s?.departamento_id ?? null;
+  const roles       = Array.isArray(s?.roles) ? s.roles.map(r=>String(r).toUpperCase()) : [];
+  const id_usuario  = s?.id_usuario ?? s?.cuenta_id ?? null;
+
+  log("sesión detectada", { empleado_id, dept_id, roles });
+  State.session = { empleado_id, dept_id, roles, id_usuario };
+  return State.session;
+}
+
+/* ============================================================================
+   PERFIL UI
+   ========================================================================== */
+async function hydrateProfileFromSession(){
+  const s = Session?.get?.() || readCookiePayload() || {};
+  const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
+  setText(SEL.profileName, nombre);
+
+  const badge = $(SEL.profileBadge);
+  if (badge){
+    const deptName = await resolveDeptName(State.session.dept_id);
+    badge.textContent = deptName || "—";
+  }
+
+  const img = $(SEL.avatar);
+  if (img){
+    const idu = State.session.id_usuario;
+    const candidates = idu ? [
+      `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
+      `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
+      `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
+      `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
+    ] : [];
+    let i=0;
+    const tryNext = () => {
+      if (i >= candidates.length) { img.src = CONFIG.DEFAULT_AVATAR; return; }
+      img.onerror = () => { i++; tryNext(); };
+      img.src = `${candidates[i]}?v=${Date.now()}`;
+    };
+    tryNext();
+  }
+}
+
+/* ============================================================================
+   SIDEBAR
+   ========================================================================== */
+function initSidebar(onChange){
+  const group = $(SEL.statusGroup);
+  if (!group) return;
+
+  group.setAttribute("role","radiogroup");
+  const items = $$(SEL.statusItems);
+  items.forEach((btn,i)=>{
+    btn.setAttribute("role","radio");
+    btn.setAttribute("tabindex", i===0 ? "0" : "-1");
+    btn.setAttribute("aria-checked", btn.classList.contains("is-active") ? "true" : "false");
+    const key = btn.dataset.status;
+    if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
+
+    btn.addEventListener("click", ()=>{
+      items.forEach(b=>{ b.classList.remove("is-active"); b.setAttribute("aria-checked","false"); b.tabIndex=-1; });
+      btn.classList.add("is-active"); btn.setAttribute("aria-checked","true"); btn.tabIndex=0;
+      State.filterKey = key || "todos";
+      State.__page = 1;
+      updateLegendStatus();
+      onChange?.();
+      $(SEL.searchInput)?.focus();
+    });
+  });
+
+  group.addEventListener("keydown",(e)=>{
+    const cur = document.activeElement.closest(".item");
+    const idx = Math.max(0, items.indexOf(cur));
+    let next = idx;
+    if (e.key==="ArrowDown"||e.key==="ArrowRight") next=(idx+1)%items.length;
+    if (e.key==="ArrowUp"  ||e.key==="ArrowLeft")  next=(idx-1+items.length)%items.length;
+    if (next!==idx){ items[next].focus(); e.preventDefault(); }
+    if (e.key===" "||e.key==="Enter"){ items[next].click(); e.preventDefault(); }
   });
 }
 
-// ------------- sidebar counts -------------
-function renderCountsSidebar(items){
-  const counts = { todos: items.length };
-  Object.entries(STATUS_MAP).forEach(([k,code])=>{
-    if (k==="todos") return;
-    counts[k] = items.reduce((a,r)=> a + ((r?.estatus===code)?1:0), 0);
-  });
-  $all(SEL.stateItem).forEach(btn => {
-    const k = btn.dataset.k || btn.dataset.status || "todos";
-    const cnt = counts[k] ?? 0;
-    const spot = btn.querySelector(".count");
-    if (spot) spot.textContent = `(${cnt})`;
+/* ============================================================================
+   SEARCH
+   ========================================================================== */
+function initSearch(onChange){
+  const input = $(SEL.searchInput);
+  if (!input) return;
+  let t;
+  input.addEventListener("input",(e)=>{
+    clearTimeout(t);
+    t = setTimeout(()=>{
+      State.search = (e.target.value||"").trim().toLowerCase();
+      State.__page = 1;
+      onChange?.();
+    },250);
   });
 }
 
-// ------------- paginador -------------
-function buildPager(total){
-  const size = State.ui.pager.size;
-  const pages = Math.max(1, Math.ceil(total / size));
-  State.ui.pager.total = total;
-  State.ui.pager.pages = pages;
-  if (State.ui.pager.page > pages) State.ui.pager.page = pages;
+/* ============================================================================
+   TABLA (REQID, Tipo de trámite, Asignado, Teléfono, Estatus)
+   ========================================================================== */
+function buildTable(){
+  State.table = createTable({
+    bodySel: SEL.tableBody,
+    wrapSel: SEL.tableWrap,
+    pagSel:  null,
+    pageSize: CONFIG.PAGE_SIZE,
+    columns: [
+      { key:"reqid",   title:"REQID",               sortable:true, accessor:r=> r.id || 0,
+        render:(v,r)=> String(r.id || "—") },
+      { key:"tramite", title:"Tipo de trámite",     sortable:true, accessor:r=> r.tramite || r.asunto || "—" },
+      { key:"asignado",title:"Asignado",            sortable:true, accessor:r=> r.asignado || "Sin asignar" },
+      { key:"tel",     title:"Teléfono de contacto",sortable:true, accessor:r=> r.tel || "—",
+        render:(v)=> v && v!=="—" ? v : "—" },
+      { key:"status",  title:"Estatus",             sortable:true,
+        accessor:r=> r.estatus?.label || "—",
+        render:(v,r)=>{
+          const k = CONFIG.STATUS_KEY_BY_CODE[r.estatus?.code] || "revision";
+          return `<span class="badge-status" data-k="${k}">${r.estatus?.label || "—"}</span>`;
+        }
+      }
+    ]
+  });
+  State.table.setPageSize?.(CONFIG.PAGE_SIZE);
+  State.table.setSort?.("reqid",-1);
+}
 
-  const $p = $(SEL.pager);
-  if (!$p) return;
+/* ============================================================================
+   LEYENDAS / CONTEOS
+   ========================================================================== */
+function updateLegendTotals(n){ setText(SEL.legendTotal, String(n??0)); }
+function updateLegendStatus(){
+  const map = { todos:"Todos los status", pendientes:"Pendientes", en_proceso:"En proceso",
+                terminados:"Terminados", cancelados:"Cancelados", pausados:"Pausados" };
+  setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
+}
 
-  const cur = State.ui.pager.page;
-  const mkBtn = (label, disabled, goTo) =>
-    `<button class="pg-btn" ${disabled?"disabled":""} data-go="${goTo??""}">${label}</button>`;
-  const mkNum = (n) =>
-    `<button class="pg-num" data-go="${n}" ${n===cur?'aria-current="page"':''}>${n}</button>`;
+function catKeyFromCode(code){
+  if (code===3) return "en_proceso";
+  if (code===4) return "pausados";
+  if (code===5) return "cancelados";
+  if (code===6) return "terminados";
+  return "pendientes"; // 0,1,2
+}
+function computeCounts(rows){
+  const c={ todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 };
+  rows.forEach(r=>{ c.todos++; const k=catKeyFromCode(r.estatus?.code); if(k in c) c[k]++; });
+  State.counts=c;
+  setText("#cnt-todos",      `(${c.todos})`);
+  setText("#cnt-pendientes", `(${c.pendientes})`);
+  setText("#cnt-en_proceso", `(${c.en_proceso})`);
+  setText("#cnt-terminados", `(${c.terminados})`);
+  setText("#cnt-cancelados", `(${c.cancelados})`);
+  setText("#cnt-pausados",   `(${c.pausados})`);
+}
+
+/* ============================================================================
+   PAGINACIÓN CLÁSICA (tu HTML/CSS)
+   ========================================================================== */
+function renderPagerClassic(total){
+  const cont = $(SEL.pager);
+  if (!cont) return;
+
+  const pages = Math.max(1, Math.ceil(total / CONFIG.PAGE_SIZE));
+  const cur   = Math.min(Math.max(1, State.__page || 1), pages);
+
+  const btn = (label, p, extra="") =>
+    `<button class="btn ${extra}" data-p="${p}" ${p==="disabled"?"disabled":""}>${label}</button>`;
 
   let nums = "";
-  const windowSize = 5;
-  const start = Math.max(1, cur - Math.floor(windowSize/2));
-  const end = Math.min(pages, start + windowSize - 1);
-  for (let i=start;i<=end;i++) nums += mkNum(i);
+  for (let i=1;i<=pages;i++){
+    nums += btn(String(i), i, i===cur ? "primary" : "");
+  }
 
-  $p.innerHTML =
-    `<div class="pg-group">
-       ${mkBtn("«", cur===1, 1)}
-       ${mkBtn("‹", cur===1, cur-1)}
-     </div>
-     <div class="pg-group">${nums}</div>
-     <div class="pg-group">
-       ${mkBtn("›", cur===pages, cur+1)}
-       ${mkBtn("»", cur===pages, pages)}
-     </div>
-     <div class="pg-jump">
-       <span class="pg-info">Pág. ${cur} de ${pages}</span>
-       <span>Ir a:</span>
-       <input type="number" min="1" max="${pages}" value="${cur}" data-goto />
-       <button class="pg-btn" data-go="__input">Ir</button>
-     </div>`;
+  cont.innerHTML = [
+    btn("«", cur<=1 ? "disabled" : 1),
+    btn("‹", cur<=1 ? "disabled" : (cur-1)),
+    nums,
+    btn("›", cur>=pages ? "disabled" : (cur+1)),
+    btn("»", cur>=pages ? "disabled" : pages),
+    `<span class="muted" style="margin-left:.75rem;">Ir a:</span>`,
+    `<input type="number" min="1" max="${pages}" value="${cur}" data-goto style="width:4rem;margin:0 .25rem;">`,
+    `<button class="btn" data-go>Ir</button>`
+  ].join(" ");
 
-  $all(".pg-btn,[data-go]", $p).forEach(b=>{
-    b.addEventListener("click", (ev)=>{
-      const go = b.getAttribute("data-go");
-      if (!go || b.disabled) return;
-      let target = cur;
-      if (go === "__input") {
-        const n = Number($('[data-goto]',$p)?.value || cur);
-        target = clamp(n, 1, pages);
-      } else {
-        target = clamp(Number(go), 1, pages);
-      }
-      if (target !== cur) {
-        State.ui.pager.page = target;
-        render();
-      }
+  cont.querySelectorAll("[data-p]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const v = b.getAttribute("data-p");
+      if (v==="disabled") return;
+      const p = parseInt(v,10);
+      if (!Number.isFinite(p)) return;
+      State.__page = p;
+      State.table?.setPage(p);
+      refreshCurrentPageDecorations();
+      renderPagerClassic(total);
     });
   });
-}
-function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
-function slicePage(list){
-  const { page, size } = State.ui.pager;
-  const start = (page-1)*size;
-  return list.slice(start, start + size);
-}
 
-// ------------- tabla -------------
-function renderTable(items){
-  const $tbody = $(SEL.tableBody);
-  if (!$tbody) return;
-  if (!items.length) {
-    $tbody.innerHTML = `<tr><td colspan="5" style="padding:16px 20px;color:#6b7280;">No hay requerimientos asignados de momento</td></tr>`;
-    return;
-  }
-  const rows = items.map(raw => {
-    const p = parseReq(raw);
-    const folio = p.folio || (p.id ? `REQ-${String(p.id).padStart(11,"0")}` : "—");
-    const asignado = (p.asignado||"").toString().replace(/\s+(DIRECTOR|ANALISTA|JEFE)$/i,"").trim() || "Sin asignar";
-    const tel = p.tel || "—";
-    const tipo = p.tramite || "—";
-    const k = mapStatusKeyFromCode(p.estatus?.code);
-    const label = p.estatus?.label || "—";
-    return `
-      <tr class="is-clickable" data-id="${p.id}">
-        <td>${folio}</td>
-        <td>${escapeHTML(tipo)}</td>
-        <td>${escapeHTML(asignado)}</td>
-        <td>${escapeHTML(tel)}</td>
-        <td style="text-align:center"><span class="badge-status" data-k="${k}">${escapeHTML(label)}</span></td>
-      </tr>`;
-  }).join("");
-  $tbody.innerHTML = rows;
-
-  const base = $(SEL.tableWrap)?.dataset?.detailBase || "/VIEWS/requerimiento.php?id=";
-  $all("tr.is-clickable", $tbody).forEach(tr => {
-    tr.addEventListener("click", () => {
-      const id = tr.getAttribute("data-id");
-      if (id) location.href = `${base}${id}`;
-    });
+  cont.querySelector("[data-go]")?.addEventListener("click", ()=>{
+    const n = parseInt(cont.querySelector("[data-goto]")?.value || "1", 10);
+    const p = Math.min(Math.max(1, n), pages);
+    State.__page = p;
+    State.table?.setPage(p);
+    refreshCurrentPageDecorations();
+    renderPagerClassic(total);
   });
 }
-function mapStatusKeyFromCode(c){
-  switch (c) {
-    case 0: return "solicitud";
-    case 1: return "revision";
-    case 2: return "asignacion";
-    case 3: return "enProceso";
-    case 4: return "pausado";
-    case 5: return "cancelado";
-    case 6: return "finalizado";
-    default: return "solicitud";
-  }
-}
 
-// ------------- charts (filtrados) -------------
-function renderCharts(items){
-  if (State.charts.year) {
-    const series = new Array(12).fill(0);
-    for (const r of items) {
-      const d = new Date(r.created_at || r.creado);
-      if (!isNaN(d)) series[d.getMonth()]++;
+/* ============================================================================
+   GAPS + BIND ROW CLICK (solo página actual)
+   ========================================================================== */
+function refreshCurrentPageDecorations(){
+  const tbody = $(SEL.tableBody);
+  if (!tbody) return;
+
+  // limpiar gaps previos
+  tbody.querySelectorAll("tr.hs-gap").forEach(tr => tr.remove());
+
+  // filas reales actuales
+  const pageRows = State.table?.getRawRows?.() || [];
+  const realCount = pageRows.length;
+  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
+
+  // limpiar interacción previa y re-asignar
+  Array.from(tbody.querySelectorAll("tr")).forEach(tr=>{
+    tr.classList.remove("is-clickable");
+    tr.onclick = null;
+  });
+  for (let i=0;i<realCount;i++){
+    const tr = tbody.querySelectorAll("tr")[i];
+    const raw = pageRows[i];
+    if (!tr || !raw) continue;
+    tr.classList.add("is-clickable");
+    tr.addEventListener("click", ()=>{
+      const id = raw?.id || raw?.__raw?.id;
+      if (id) window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
+    });
+  }
+
+  if (gaps>0){
+    let html="";
+    for (let i=0;i<gaps;i++){
+      html += `<tr class="hs-gap" aria-hidden="true"><td colspan="5">&nbsp;</td></tr>`;
     }
-    State.charts.year.update({ labels: MONTHS3, series, showGrid:true, headroom:0.2, yTicks:5 });
+    tbody.insertAdjacentHTML("beforeend", html);
   }
-  if (State.charts.donut) {
-    const agg = aggregateDonut(items); // por tipo de trámite, sobre el set filtrado
-    State.charts.donut.update({ data: agg.items, total: agg.total });
-  }
+  log("gaps añadidos:", gaps, "reales en página:", realCount);
 }
-function aggregateDonut(all){
-  const map = new Map();
-  for (const r of all) {
-    const k = r?.tramite_nombre || r?.tramite || "Otros";
-    map.set(k, (map.get(k)||0) + 1);
+
+/* ============================================================================
+   PIPELINE + RENDER
+   ========================================================================== */
+function applyPipelineAndRender(){
+  const all = State.rows || [];
+  let filtered = all;
+
+  if (State.filterKey !== "todos") {
+    filtered = filtered.filter(r => catKeyFromCode(r.estatus?.code) === State.filterKey);
   }
-  const items = [...map.entries()].sort((a,b)=> b[1]-a[1]).map(([label,value])=>({ label, value }));
-  const total = items.reduce((a,b)=>a+b.value,0);
+  if (State.search) {
+    const q = State.search;
+    filtered = filtered.filter(r=>{
+      const asunto =(r.asunto||"").toLowerCase();
+      const asign  =(r.asignado||"").toLowerCase();
+      const est    =(r.estatus?.label||"").toLowerCase();
+      const folio  =(r.folio||"").toLowerCase();
+      const idTxt  = String(r.id||"");
+      return asunto.includes(q) || asign.includes(q) || est.includes(q) || folio.includes(q) || idTxt.includes(q);
+    });
+  }
+
+  computeCounts(all);
+  updateLegendTotals(filtered.length);
+
+  const rows = filtered.map(r=>({
+    __raw:r,
+    id: r.id,
+    tramite: r.tramite,
+    asunto: r.asunto,
+    asignado: r.asignado,
+    tel: r.tel,
+    estatus: r.estatus
+  }));
+
+  State.table?.setData(rows);
+  State.__page = 1;
+
+  refreshCurrentPageDecorations();
+  renderPagerClassic(filtered.length);
+
+  log("pipeline", {
+    filtroStatus: State.filterKey,
+    search: State.search,
+    totalUniverso: all.length,
+    totalFiltrado: filtered.length,
+    page: State.__page,
+  });
+
+  // Opcional: si quieres que los charts respondan al filtro, descomenta:
+  // drawChartsFromRows(filtered);
+}
+
+/* ============================================================================
+   CHARTS — helpers + render
+   ========================================================================== */
+function computeYearSeries(rows) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const series = Array(12).fill(0);
+  for (const r of rows) {
+    const iso = String(r.creado || r.raw?.created_at || "").replace(" ", "T");
+    const d = new Date(iso);
+    if (!isNaN(d) && d.getFullYear() === y) series[d.getMonth()]++;
+  }
+  return series;
+}
+function computeMonthDistribution(rows) {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const by = new Map();
+  for (const r of rows) {
+    const iso = String(r.creado || r.raw?.created_at || "").replace(" ", "T");
+    const d = new Date(iso);
+    if (!isNaN(d) && d.getFullYear() === y && d.getMonth() === m) {
+      const key = r.tramite || r.asunto || "Otros";
+      by.set(key, (by.get(key) || 0) + 1);
+    }
+  }
+  const items = Array.from(by.entries()).map(([label, value]) => ({ label, value }));
+  items.sort((a,b)=>b.value-a.value);
+  const total = items.reduce((a,b)=>a+b.value, 0);
   return { items, total };
 }
+function drawChartsFromRows(rows){
+  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const yearSeries = computeYearSeries(rows);
+  const monthAgg   = computeMonthDistribution(rows);
+
+  const $line  = $(SEL.chartYear);
+  const $donut = $(SEL.chartMonth);
+
+  log("CHARTS — input (rows length):", rows.length);
+  log("CHARTS — year series:", { labels, series: yearSeries });
+  log("CHARTS — month distribution:", monthAgg);
+
+  if ($line) {
+    Charts.line = new LineChart($line, {
+      labels,
+      series: yearSeries,
+      showGrid: true,
+      headroom: 0.2,   // aire arriba para picos altos (evita cortes)
+      yTicks: 6
+    });
+    log("CHARTS — LineChart render ok");
+  }
+  if ($donut) {
+    Charts.donut = new DonutChart($donut, {
+      data: monthAgg.items,
+      total: monthAgg.total,
+      legendEl: $(SEL.donutLegend) || null,
+      showPercLabels: true
+    });
+    log("CHARTS — DonutChart render ok", { total: monthAgg.total });
+  }
+
+  // por si existen skeletons residuales
+  document.querySelectorAll(".hs-chart-skeleton")?.forEach(el => el.remove());
+}
+
+/* ============================================================================
+   RBAC – fetch según rol
+   ========================================================================== */
+async function fetchAllRequerimientos(perPage=200, maxPages=50){
+  const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
+  const all=[];
+  for (let page=1; page<=maxPages; page++){
+    const res = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ page, per_page: perPage })
+    });
+    if (!res.ok) break;
+    const json = await res.json();
+    const arr = json?.data || [];
+    all.push(...arr);
+    if (arr.length < perPage) break;
+  }
+  return all;
+}
+
+async function fetchMineAndTeam(plan){
+  const ids = [plan.mineId, ...(plan.teamIds||[])].filter(Boolean);
+  const results = await Promise.allSettled(ids.map(id => listByAsignado(id, {})));
+  const lists = results.filter(r=>r.status==="fulfilled").map(r=>r.value||[]);
+  const map = new Map();
+  lists.flat().forEach(r=>{ if (r?.id!=null) map.set(r.id, r); });
+  return Array.from(map.values()).sort((a,b)=>
+    String(b.created_at||"").localeCompare(String(a.created_at||"")) || ((b.id||0)-(a.id||0))
+  );
+}
+
+async function fetchDeptAsignacion(deptId){
+  // Solo estatus=2 (Asignación)
+  const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
+  const res = await fetch(url, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+    body: JSON.stringify({ departamento_id: deptId, estatus: 2, per_page: 200 })
+  });
+  if (!res.ok) return [];
+  const json = await res.json();
+  return json?.data || [];
+}
+
+/* ============================================================================
+   CARGA PRINCIPAL
+   ========================================================================== */
+async function loadScopeData(){
+  const { empleado_id:viewerId, dept_id, roles } = State.session;
+  if (!viewerId){
+    warn("viewerId ausente.");
+    State.universe=[]; State.rows=[];
+    computeCounts([]); updateLegendTotals(0); updateLegendStatus(); applyPipelineAndRender();
+    drawChartsFromRows([]); // charts vacíos
+    return;
+  }
+
+  const plan = await planScope({ viewerId, viewerDeptId: dept_id });
+  State.scopePlan = plan;
+
+  const isAdmin = (roles||[]).some(r=>CONFIG.ADMIN_ROLES.includes(r));
+  const isPres  = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+  const isDirector = (roles||[]).includes("DIRECTOR");
+  const soyPrimeraLinea = await isPrimeraLinea(viewerId, dept_id);
+
+  log("RBAC flags:", { isAdmin, isPres, isDirector, soyPrimeraLinea });
+
+  let items=[];
+  if (isAdmin || isPres){
+    log("modo ADMIN/PRESIDENCIA → fetch global");
+    items = await fetchAllRequerimientos();
+  } else if (isDirector || soyPrimeraLinea) {
+    log("modo DIRECTOR/PRIMERA LÍNEA → asignación del depto + asignados (yo/team)");
+    const [deptAsign, mineTeam] = await Promise.all([
+      fetchDeptAsignacion(dept_id),
+      fetchMineAndTeam(plan)
+    ]);
+    const dedup = new Map();
+    [...deptAsign, ...mineTeam].forEach(r=>{ if(r?.id!=null) dedup.set(r.id, r); });
+    items = Array.from(dedup.values()).sort((a,b)=>
+      String(b.created_at||"").localeCompare(String(a.created_at||"")) || ((b.id||0)-(a.id||0))
+    );
+  } else {
+    log("modo JEFE/ANALISTA/resto → yo + team asignados");
+    items = await fetchMineAndTeam(plan);
+  }
+
+  State.universe = items.slice();
+  State.rows = State.universe.map(parseReq);
+
+  log("items UI-mapped (preview):",
+    State.rows.slice(0,5).map(r=>({id:r.id, tramite:r.tramite, asignado:r.asignado, tel:r.tel, estatus:r.estatus?.label}))
+  );
+
+  computeCounts(State.rows);
+  updateLegendTotals(State.rows.length);
+  updateLegendStatus();
+  applyPipelineAndRender();
+
+  // CHARTS con el universo visible para el usuario
+  drawChartsFromRows(State.rows);
+
+  log("Home listo");
+}
+
+/* ============================================================================
+   INIT
+   ========================================================================== */
+window.addEventListener("DOMContentLoaded", async ()=>{
+  try{
+    readSession();
+    await hydrateProfileFromSession();
+    initSidebar(()=>applyPipelineAndRender());
+    initSearch(()=>applyPipelineAndRender());
+    buildTable();
+    updateLegendStatus();
+
+    await loadScopeData();
+  } catch(e){
+    err("init error:", e);
+  }
+});
