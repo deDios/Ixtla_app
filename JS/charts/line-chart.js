@@ -7,12 +7,11 @@ export class LineChart {
     this.tip = this.wrap.querySelector(".chart-tip") || this._createTip();
 
     const dpr = window.devicePixelRatio || 1;
-    // usa el tamaño CSS para render nítido
     this.c.width  = this.c.clientWidth  * dpr;
     this.c.height = this.c.clientHeight * dpr;
     this.ctx.scale(dpr, dpr);
 
-    // Fallback a data-* si no vienen opciones
+    // Datos desde opciones o data-*
     const ds = canvas.dataset || {};
     const labelsFromDS = ds.labelsYear ? JSON.parse(ds.labelsYear) : null;
     const seriesFromDS = ds.seriesYear ? JSON.parse(ds.seriesYear) : null;
@@ -21,23 +20,26 @@ export class LineChart {
                  : Array.isArray(labelsFromDS) ? labelsFromDS : [];
     this.series  = Array.isArray(opts.series) ? opts.series
                  : Array.isArray(seriesFromDS) ? seriesFromDS : [];
-    this.showDots = opts.showDots !== false;
-    this.smooth   = !!opts.smooth;
 
-    // estilos
+    // Opciones visuales
+    this.showDots  = opts.showDots !== false;
+    this.showGrid  = opts.showGrid !== false; // ← nuevo (grid horizontal)
+    this.headroom  = Number.isFinite(opts.headroom) ? opts.headroom : 0.1; // 10% por defecto
+    this.yTicks    = Number.isFinite(opts.yTicks) ? opts.yTicks : 5;       // nº de divisiones
+    this.maxYHint  = Number.isFinite(opts.maxY) ? opts.maxY : null;        // opcional forzar yMax
+
+    // Colores
     this.colorAxis = "#cbd5e1";
+    this.colorGrid = "rgba(203,213,225,.5)";
     this.colorLine = "#2f495f";
     this.colorDot  = "#2f495f";
     this.colorHover= "#1f2f3f";
 
-    // estado hover
-    this._pts = [];        // [{x,y,val,label}]
+    // Estado hover
+    this._pts = [];
     this._hoverIdx = -1;
 
-    // listeners
     this._bind();
-
-    // draw
     this.draw();
   }
 
@@ -54,7 +56,6 @@ export class LineChart {
       if (!this._pts.length) return;
       const rect = this.c.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      // el punto más cercano en X
       let idx = 0, best = Infinity;
       for (let i=0;i<this._pts.length;i++){
         const dx = Math.abs(this._pts[i].x - x);
@@ -73,19 +74,56 @@ export class LineChart {
       this.tip.style.opacity = "0";
       this.draw();
     });
+
+    // Redibuja si cambia el tamaño
+    const ro = new ResizeObserver(() => {
+      const dpr = window.devicePixelRatio || 1;
+      this.c.width  = this.c.clientWidth  * dpr;
+      this.c.height = this.c.clientHeight * dpr;
+      this.ctx.setTransform(1,0,0,1,0,0);
+      this.ctx.scale(dpr, dpr);
+      this.draw();
+    });
+    ro.observe(this.c);
   }
 
-  draw(fromHover = false) {
+  // === Utils para escala "bonita" 1-2-5 ===
+  _niceNum(range, round) {
+    const exp = Math.floor(Math.log10(range || 1));
+    const f   = range / Math.pow(10, exp);
+    let nf;
+    if (round) {
+      if (f < 1.5)      nf = 1;
+      else if (f < 3)   nf = 2;
+      else if (f < 7)   nf = 5;
+      else              nf = 10;
+    } else {
+      if (f <= 1)       nf = 1;
+      else if (f <= 2)  nf = 2;
+      else if (f <= 5)  nf = 5;
+      else              nf = 10;
+    }
+    return nf * Math.pow(10, exp);
+  }
+
+  _niceScale(min, max, ticks) {
+    const range   = this._niceNum(max - min, false);
+    const step    = this._niceNum(range / (ticks - 1), true);
+    const niceMin = Math.floor(min / step) * step;
+    const niceMax = Math.ceil (max / step) * step;
+    return { niceMin, niceMax, step };
+  }
+
+  draw() {
     const ctx = this.ctx;
     const w = this.c.clientWidth;
     const h = this.c.clientHeight;
 
-    const pad = { top: 12, right: 10, bottom: 28, left: 26 };
+    const pad = { top: 18, right: 10, bottom: 28, left: 32 };
 
-    // limpiar
     ctx.clearRect(0, 0, w, h);
 
-    // eje X (línea base)
+    // Eje X base
     ctx.strokeStyle = this.colorAxis;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -95,18 +133,38 @@ export class LineChart {
 
     if (!this.series?.length) return;
 
-    // escala
-    const maxY = Math.max(5, ...this.series);
+    // === Escala Y inteligente con headroom ===
+    const rawMax = Math.max(0, ...this.series);
+    const hinted = this.maxYHint != null ? this.maxYHint : rawMax;
+    const withHeadroom = hinted * (1 + Math.max(0, this.headroom)); // p.ej. +10%
+    const { niceMin, niceMax, step } = this._niceScale(0, withHeadroom, this.yTicks);
+    const yMax = Math.max(1, niceMax); // nunca 0
+
+    // funciones de mapeo
     const toX = (i) => {
       const n = Math.max(1, this.series.length - 1);
       return pad.left + (i * (w - pad.left - pad.right)) / n;
     };
     const toY = (v) => {
       const usable = h - pad.top - pad.bottom;
-      return pad.top + (usable * (1 - (v / maxY)));
+      const clamped = Math.max(0, Math.min(v, yMax));
+      return pad.top + (usable * (1 - (clamped / yMax)));
     };
 
-    // pre-calcula puntos mapeados
+    // Grid horizontal (opcional)
+    if (this.showGrid && step > 0) {
+      ctx.strokeStyle = this.colorGrid;
+      ctx.lineWidth = 1;
+      for (let yv = niceMin; yv <= yMax + 1e-9; yv += step) {
+        const yPix = toY(yv);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, yPix);
+        ctx.lineTo(w - pad.right, yPix);
+        ctx.stroke();
+      }
+    }
+
+    // puntos mapeados
     this._pts = this.series.map((v,i)=>({
       x: toX(i),
       y: toY(v),
@@ -124,7 +182,7 @@ export class LineChart {
     });
     ctx.stroke();
 
-    // puntos
+    // puntos (con hover)
     if (this.showDots) {
       this._pts.forEach((p, i) => {
         ctx.fillStyle = (i === this._hoverIdx) ? this.colorHover : this.colorDot;
@@ -146,7 +204,7 @@ export class LineChart {
       ctx.stroke();
     }
 
-    // labels X (primera letra)
+    // labels X
     if (this.labels?.length) {
       ctx.fillStyle = "#334155";
       ctx.font = "12px system-ui, sans-serif";
