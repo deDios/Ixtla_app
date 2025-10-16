@@ -56,104 +56,87 @@
         </nav>
     </header>
 
-    <main class="home-samapa">
-        <div class="hs-wrap">
-
-            <!-- SIDEBAR -->
-            <aside class="hs-sidebar">
-                <section class="hs-profile" aria-label="Perfil">
-                    <img id="hs-avatar" class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
-                    <h3 id="hs-profile-name" class="name">—</h3>
-                    <span id="hs-profile-badge" class="badge">—</span>
-                </section>
-
-                <nav id="hs-states" class="hs-states" aria-label="Estados">
-                    <button class="item is-active" data-status="todos" role="radio" aria-checked="true">
-                        <span class="label">Todos</span><span class="count" id="cnt-todos">(0)</span>
-                    </button>
-                    <button class="item" data-status="pendientes" role="radio" aria-checked="false">
-                        <span class="label">Pendientes</span><span class="count" id="cnt-pendientes">(0)</span>
-                    </button>
-                    <button class="item" data-status="en_proceso" role="radio" aria-checked="false">
-                        <span class="label">En proceso</span><span class="count" id="cnt-en_proceso">(0)</span>
-                    </button>
-                    <button class="item" data-status="terminados" role="radio" aria-checked="false">
-                        <span class="label">Terminados</span><span class="count" id="cnt-terminados">(0)</span>
-                    </button>
-                    <button class="item" data-status="cancelados" role="radio" aria-checked="false">
-                        <span class="label">Cancelados</span><span class="count" id="cnt-cancelados">(0)</span>
-                    </button>
-                    <button class="item" data-status="pausados" role="radio" aria-checked="false">
-                        <span class="label">Pausados</span><span class="count" id="cnt-pausados">(0)</span>
-                    </button>
-                </nav>
-            </aside>
-
-            <!-- MAIN -->
-            <section class="hs-main">
-
-                <!-- CHARTS -->
-                <div class="hs-charts" id="hs-charts">
-
-                    <!-- Línea: este año -->
-                    <section class="hs-card" aria-labelledby="y-title">
-                        <h3 id="y-title" class="hs-card-title">Gráfico de este Año</h3>
-
-                        <div class="hs-chart-wrap" style="position:relative;">
-                            <canvas id="chart-year" width="600" height="240" aria-describedby="y-desc"></canvas>
-                            <!-- Tooltip para hover -->
-                            <div class="chart-tip"
-                                style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
-                            </div>
-                        </div>
-
-                        <p id="y-desc" class="sr-only">
-                            Serie mensual de requerimientos creados durante el año actual.
-                        </p>
-                    </section>
-
-                    <!-- Donut: este mes -->
-                    <section class="hs-card" aria-labelledby="m-title">
-                        <h3 id="m-title" class="hs-card-title">Gráfico de este mes</h3>
-
-                        <div class="hs-chart-wrap" style="position:relative;">
-                            <canvas id="chart-month" width="380" height="240" aria-describedby="m-desc"></canvas>
-                            <!-- Tooltip para hover del donut (opcional, lo usa el JS del donut) -->
-                            <div class="chart-tip"
-                                style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
-                            </div>
-                        </div>
-
-                        <!-- Sin leyenda estática: la genera el JS del donut -->
-                        <p id="m-desc" class="sr-only">
-                            Distribución porcentual de requerimientos por tipo en el mes actual.
-                        </p>
-                    </section>
-                </div>
-
-                <!-- TABLA -->
-                <section class="hs-table">
-                    <div class="hs-head">
-                        <h3 style="margin:0;">Trámites</h3>
-                        <div class="hs-tools">
-                            <div class="search" role="search">
-                                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path fill="currentColor"
-                                        d="M10 4a6 6 0 0 1 4.472 9.931l4.298 4.297l-1.414 1.415l-4.297-4.298A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8" />
-                                </svg>
-                                <input id="hs-search" type="search" placeholder="Buscar por folio, ID (#123) o status…"
-                                    aria-label="Buscar">
-                            </div>
-                            <div class="legend">
-                                <span>Requerimientos: <strong id="hs-legend-total">0</strong></span>
-                                <span style="margin:0 .4rem;">·</span>
-                                <span>Status: <strong id="hs-legend-status">Todos los status</strong></span>
-                            </div>
+    <main class="home-view">
+        <!-- Layout principal -->
+        <div class="home-layout">
+            <!-- ================= Sidebar ================= -->
+            <aside class="home-sidebar">
+                <!-- Perfil -->
+                <section class="section">
+                    <div class="section-head">
+                        <h2>Mi perfil</h2>
+                    </div>
+                    <div class="profile">
+                        <img id="hs-avatar" alt="Avatar" class="avatar" width="72" height="72" />
+                        <div class="info">
+                            <div id="hs-profile-name" class="name">—</div>
+                            <div id="hs-profile-badge" class="badge">—</div>
                         </div>
                     </div>
+                </section>
 
-                    <div id="hs-table-wrap" class="table-wrap">
-                        <table class="gc" aria-describedby="hs-search">
+                <!-- Estados / Filtro -->
+                <section class="section">
+                    <div class="section-head">
+                        <h2>Estados</h2>
+                    </div>
+                    <nav id="hs-states" class="states" aria-label="Filtros por estado">
+                        <!-- usa data-status con claves: todos | pendientes | en_proceso | terminados | cancelados | pausados -->
+                        <button class="item is-active" data-status="todos">Todos <span id="cnt-todos" class="muted">(0)</span></button>
+                        <button class="item" data-status="pendientes">Pendientes <span id="cnt-pendientes" class="muted">(0)</span></button>
+                        <button class="item" data-status="en_proceso">En proceso <span id="cnt-en_proceso" class="muted">(0)</span></button>
+                        <button class="item" data-status="terminados">Terminados <span id="cnt-terminados" class="muted">(0)</span></button>
+                        <button class="item" data-status="cancelados">Cancelados <span id="cnt-cancelados" class="muted">(0)</span></button>
+                        <button class="item" data-status="pausados">Pausados <span id="cnt-pausados" class="muted">(0)</span></button>
+                    </nav>
+                </section>
+            </aside>
+
+            <!-- ================= Contenido ================= -->
+            <section class="home-content">
+                <!-- Buscador + leyendas -->
+                <section class="section">
+                    <div class="section-head">
+                        <h2>Trámites</h2>
+                        <input id="hs-search" type="search" placeholder="Buscar por asunto, asignado, estatus, folio o ID…" aria-label="Buscar" />
+                    </div>
+                    <div class="legend">
+                        <span>Total: <strong id="hs-legend-total">0</strong></span>
+                        <span class="muted">•</span>
+                        <span>Estatus: <strong id="hs-legend-status">Todos</strong></span>
+                    </div>
+                </section>
+
+                <!-- Gráficas -->
+                <section class="section">
+                    <div class="cards">
+                        <!-- Línea (por meses) -->
+                        <article class="card">
+                            <div class="body" style="width:100%">
+                                <div class="chart-wrap" style="position:relative; width:100%; height:220px;">
+                                    <canvas id="chart-year"></canvas>
+                                    <!-- el JS crea .chart-tip si no existe -->
+                                </div>
+                            </div>
+                        </article>
+
+                        <!-- Donut (distribución global por estatus) -->
+                        <article class="card">
+                            <div class="body" style="width:100%">
+                                <div class="chart-wrap" style="position:relative; width:100%; height:220px;">
+                                    <canvas id="chart-month"></canvas>
+                                    <!-- leyenda del donut -->
+                                    <div id="donut-legend" class="legend-list" aria-live="polite"></div>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                </section>
+
+                <!-- Tabla -->
+                <section class="section">
+                    <div class="table-wrap" id="hs-table-wrap">
+                        <table class="table" aria-label="Listado de requerimientos">
                             <thead>
                                 <tr>
                                     <th>REQID</th>
@@ -163,17 +146,19 @@
                                     <th>Estatus</th>
                                 </tr>
                             </thead>
-                            <tbody id="hs-table-body"></tbody>
+                            <tbody id="hs-table-body">
+                                <!-- filas renderizadas por JS -->
+                            </tbody>
                         </table>
                     </div>
-
-                    <!-- Paginación: el JS dibuja los botones clásicos y el “Ir a:” -->
-                    <nav id="hs-pager" class="hs-pager" aria-label="Paginación"></nav>
+                    <div id="hs-pager" class="pager" aria-label="Paginación">
+                        <!-- el JS pinta el pager clásico aquí -->
+                    </div>
                 </section>
-
             </section>
         </div>
     </main>
+
 
     <!-- Pie de pagina -->
     <footer id="site-footer">
@@ -206,13 +191,13 @@
      
     -->
     <script type="module">
-    import {
-        guardPage
-    } from "/JS/auth/guard.js";
-    guardPage({
-        stealth: false,
-        redirectTo: "/VIEWS/login.php"
-    });
+        import {
+            guardPage
+        } from "/JS/auth/guard.js";
+        guardPage({
+            stealth: false,
+            redirectTo: "/VIEWS/login.php"
+        });
     </script>
 
     <script type="module" src="/JS/home.js"></script>

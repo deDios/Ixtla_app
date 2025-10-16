@@ -238,7 +238,7 @@ export class LineChart {
       this.labels.forEach((lab, i) => {
         const x = toX(i), y = h - pad.bottom + 6;
         // puedes cambiar a lab completo si caben:
-        ctx.fillText(String(lab).substring(0, 1), x, y);
+        ctx.fillText(String(lab).substring(0, 3), x, y);
       });
     }
   }

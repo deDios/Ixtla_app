@@ -273,8 +273,8 @@ function buildTable(){
     pagSel:  null,
     pageSize: CONFIG.PAGE_SIZE,
     columns: [
-      { key:"reqid",   title:"REQID",               sortable:true, accessor:r=> r.id || 0,
-        render:(v,r)=> String(r.id || "—") },
+      { key:"reqid",   title:"REQID",               sortable:true, accessor:r=> r.folio || r.id || 0,
+        render:(v,r)=> (r.folio ? r.folio : ("REQ-" + String(r.id||0).toString().padStart(11,"0"))) },
       { key:"tramite", title:"Tipo de trámite",     sortable:true, accessor:r=> r.tramite || r.asunto || "—" },
       { key:"asignado",title:"Asignado",            sortable:true, accessor:r=> r.asignado || "Sin asignar" },
       { key:"tel",     title:"Teléfono de contacto",sortable:true, accessor:r=> r.tel || "—",
@@ -464,7 +464,7 @@ function applyPipelineAndRender(){
   });
 
   // Opcional: si quieres que los charts respondan al filtro, descomenta:
-  // drawChartsFromRows(filtered);
+  drawChartsFromRows(filtered);
 }
 
 /* ============================================================================
@@ -498,10 +498,22 @@ function computeMonthDistribution(rows) {
   const total = items.reduce((a,b)=>a+b.value, 0);
   return { items, total };
 }
+
+function computeStatusDistribution(rows) {
+  const by = new Map();
+  for (const r of rows) {
+    const key = (r.estatus?.label) || "Sin estatus";
+    by.set(key, (by.get(key) || 0) + 1);
+  }
+  const items = Array.from(by.entries()).map(([label, value]) => ({ label, value }));
+  items.sort((a,b)=>b.value-a.value);
+  const total = items.reduce((a,b)=>a+b.value, 0);
+  return { items, total };
+}
 function drawChartsFromRows(rows){
   const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const yearSeries = computeYearSeries(rows);
-  const monthAgg   = computeMonthDistribution(rows);
+  const monthAgg   = computeStatusDistribution(rows);
 
   const $line  = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
@@ -525,7 +537,8 @@ function drawChartsFromRows(rows){
       data: monthAgg.items,
       total: monthAgg.total,
       legendEl: $(SEL.donutLegend) || null,
-      showPercLabels: true
+      showPercLabels: true,
+      colors: ["#dbeafe","#bfdbfe","#93c5fd","#60a5fa","#3b82f6","#2563eb","#1d4ed8","#1e40af"],
     });
     log("CHARTS — DonutChart render ok", { total: monthAgg.total });
   }
