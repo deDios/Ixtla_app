@@ -433,3 +433,30 @@ export function parseReq(raw) {
     raw
   };
 }
+
+
+// === Catálogo de tipos de requerimiento (tramite) ===
+const API_TRAMITES = API_BASE + "ixtla01_c_tramite.php";
+
+/**
+ * Carga el catálogo de tipos de requerimiento.
+ * @param {Object} opts  { departamento_id?: number }
+ */
+export async function loadTramitesCatalog(opts = {}) {
+  const body = {
+    estatus: 1,
+    all: true,
+    ...(opts.departamento_id ? { departamento_id: opts.departamento_id } : {})
+  };
+  try {
+    const res = await postJSON(API_TRAMITES, body);
+    const arr = res?.data || res || [];
+    return arr.map(x => ({
+      id: Number(x.id),
+      nombre: String(x.nombre || "Otros").replace(/\.\s*$/, "").trim()
+    })).filter(t => t.nombre);
+  } catch (e) {
+    console.warn("[Trámites] catálogo no disponible:", e);
+    return [];
+  }
+}

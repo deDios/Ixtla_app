@@ -66,7 +66,7 @@
                     <h3 id="hs-profile-name" class="name">—</h3>
                     <span id="hs-profile-badge" class="badge">—</span>
                 </section>
-
+                <!-- se actulizaron los filtros ahora deberian coincidir con los esperados -->
                 <nav id="hs-states" class="hs-states" aria-label="Estados">
                     <button class="item is-active" data-status="todos" role="radio" aria-checked="true">
                         <span class="label">Todos</span><span class="count" id="cnt-todos">(0)</span>
@@ -207,13 +207,13 @@
      
     -->
     <script type="module">
-        import {
-            guardPage
-        } from "/JS/auth/guard.js";
-        guardPage({
-            stealth: false,
-            redirectTo: "/VIEWS/login.php"
-        });
+    import {
+        guardPage
+    } from "/JS/auth/guard.js";
+    guardPage({
+        stealth: false,
+        redirectTo: "/VIEWS/login.php"
+    });
     </script>
 
     <script type="module" src="/JS/home.js"></script>

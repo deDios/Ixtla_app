@@ -60,7 +60,7 @@ export class DonutChart {
   }
   _colorFor(label, idx) {
     if (this.paletteMap && this.paletteMap[label]) return this.paletteMap[label];
-    return this._hashColor(label ?? String(idx));
+    return this.palette[idx % this.palette.length];
   }
 
   /* ---------- Tip ---------- */
