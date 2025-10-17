@@ -25,9 +25,13 @@ const CONFIG = {
 };
 
 const TAG = "[Home]";
-const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
-const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
-const err  = (...a) => console.error(TAG, ...a);
+const log = (...a) => {
+  if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a);
+};
+const warn = (...a) => {
+  if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a);
+};
+const err = (...a) => console.error(TAG, ...a);
 
 /* ============================================================================
    IMPORTS
@@ -47,136 +51,181 @@ import { DonutChart } from "/JS/charts/donut-chart.js";
    SELECTORES
    ========================================================================== */
 const SEL = {
-  avatar:       "#hs-avatar",
-  profileName:  "#hs-profile-name",
+  avatar: "#hs-avatar",
+  profileName: "#hs-profile-name",
   profileBadge: "#hs-profile-badge",
 
-  statusGroup:  "#hs-states",
-  statusItems:  "#hs-states .item",
+  statusGroup: "#hs-states",
+  statusItems: "#hs-states .item",
 
-  searchInput:  "#hs-search",
+  searchInput: "#hs-search",
 
-  legendTotal:  "#hs-legend-total",
+  legendTotal: "#hs-legend-total",
   legendStatus: "#hs-legend-status",
 
-  tableWrap:    "#hs-table-wrap",
-  tableBody:    "#hs-table-body",
-  pager:        "#hs-pager",
+  tableWrap: "#hs-table-wrap",
+  tableBody: "#hs-table-body",
+  pager: "#hs-pager",
 
-  chartYear:    "#chart-year",
-  chartMonth:   "#chart-month",
-  donutLegend:  "#donut-legend"
+  chartYear: "#chart-year",
+  chartMonth: "#chart-month",
+  donutLegend: "#donut-legend",
 };
-const SIDEBAR_KEYS = ["todos","solicitud","revision","asignacion","proceso","pausado","cancelado","finalizado"];
+const SIDEBAR_KEYS = [
+  "todos",
+  "solicitud",
+  "revision",
+  "asignacion",
+  "proceso",
+  "pausado",
+  "cancelado",
+  "finalizado",
+];
 
 /* ============================================================================
    HELPERS
    ========================================================================== */
-const $  = (sel, root=document) => root.querySelector(sel);
-const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
-function formatFolio(folio, id){
-  if (folio && /^REQ-\d+$/i.test(String(folio).trim())) return String(folio).trim();
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const setText = (sel, txt) => {
+  const el = $(sel);
+  if (el) el.textContent = txt;
+};
+function formatFolio(folio, id) {
+  if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
+    return String(folio).trim();
   const digits = String(folio ?? "").match(/\d+/)?.[0];
   if (digits) return "REQ-" + digits.padStart(11, "0");
   if (id != null) return "REQ-" + String(id).padStart(11, "0");
   return "—";
 }
 
-
-function formatDateMX(v){
+function formatDateMX(v) {
   if (!v) return "—";
   const d = new Date(String(v).replace(" ", "T"));
   if (isNaN(d)) return v;
-  return d.toLocaleDateString("es-MX",{year:"numeric",month:"2-digit",day:"2-digit"});
+  return d.toLocaleDateString("es-MX", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
 /* ============================================================================
    ESTADO
    ========================================================================== */
 const State = {
-  session: { empleado_id:null, dept_id:null, roles:[], id_usuario:null },
+  session: { empleado_id: null, dept_id: null, roles: [], id_usuario: null },
   scopePlan: null,
   universe: [],
-  rows: [],          // parseados para UI
+  rows: [], // parseados para UI
   filterKey: "todos",
   search: "",
-  counts: { todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 },
+  counts: {
+    todos: 0,
+    pendientes: 0,
+    en_proceso: 0,
+    terminados: 0,
+    cancelados: 0,
+    pausados: 0,
+  },
   table: null,
   __page: 1,
 };
 
-let Charts = { line:null, donut:null };
+let Charts = { line: null, donut: null };
 
 /* ============================================================================
    COOKIE FALLBACK
    ========================================================================== */
 function readCookiePayload() {
   try {
-    const name="ix_emp=";
-    const pair = document.cookie.split("; ").find(c=>c.startsWith(name));
+    const name = "ix_emp=";
+    const pair = document.cookie.split("; ").find((c) => c.startsWith(name));
     if (!pair) return null;
     const raw = decodeURIComponent(pair.slice(name.length));
     return JSON.parse(decodeURIComponent(escape(atob(raw))));
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /* ============================================================================
    RESOLVER NOMBRE DE DEPTO
    ========================================================================== */
-async function resolveDeptName(deptId){
+async function resolveDeptName(deptId) {
   if (!deptId) return "—";
-  if (CONFIG.DEPT_FALLBACK_NAMES[deptId]) return CONFIG.DEPT_FALLBACK_NAMES[deptId];
+  if (CONFIG.DEPT_FALLBACK_NAMES[deptId])
+    return CONFIG.DEPT_FALLBACK_NAMES[deptId];
   try {
-    const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
+    const url =
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
     const res = await fetch(url, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ page:1, page_size:200, status:1 })
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
     });
-    if (!res.ok) throw new Error("HTTP "+res.status);
+    if (!res.ok) throw new Error("HTTP " + res.status);
     const json = await res.json();
     const arr = json?.data || [];
-    const found = arr.find(d => Number(d.id) === Number(deptId));
+    const found = arr.find((d) => Number(d.id) === Number(deptId));
     return found?.nombre || `Depto ${deptId}`;
   } catch {
     return `Depto ${deptId}`;
   }
 }
 
-async function isPrimeraLinea(viewerId, deptId){
-  try{
-    const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
+async function isPrimeraLinea(viewerId, deptId) {
+  try {
+    const url =
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
     const res = await fetch(url, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ all:true })
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ all: true }),
     });
     if (!res.ok) return false;
     const json = await res.json();
     const arr = json?.data || [];
-    const dep = arr.find(d=>Number(d.id)===Number(deptId));
+    const dep = arr.find((d) => Number(d.id) === Number(deptId));
     return !!(dep && Number(dep.primera_linea) === Number(viewerId));
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 /* ============================================================================
    SESIÓN
    ========================================================================== */
-function readSession(){
-  let s=null;
-  try { s = Session?.get?.() || null; } catch {}
+function readSession() {
+  let s = null;
+  try {
+    s = Session?.get?.() || null;
+  } catch {}
   if (!s) s = readCookiePayload();
 
   if (!s) {
     warn("Sin sesión.");
-    State.session = { empleado_id:null, dept_id:null, roles:[], id_usuario:null };
+    State.session = {
+      empleado_id: null,
+      dept_id: null,
+      roles: [],
+      id_usuario: null,
+    };
     return State.session;
   }
   const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
-  const dept_id     = s?.departamento_id ?? null;
-  const roles       = Array.isArray(s?.roles) ? s.roles.map(r=>String(r).toUpperCase()) : [];
-  const id_usuario  = s?.id_usuario ?? s?.cuenta_id ?? null;
+  const dept_id = s?.departamento_id ?? null;
+  const roles = Array.isArray(s?.roles)
+    ? s.roles.map((r) => String(r).toUpperCase())
+    : [];
+  const id_usuario = s?.id_usuario ?? s?.cuenta_id ?? null;
 
   log("sesión detectada", { empleado_id, dept_id, roles });
   State.session = { empleado_id, dept_id, roles, id_usuario };
@@ -186,30 +235,38 @@ function readSession(){
 /* ============================================================================
    PERFIL UI
    ========================================================================== */
-async function hydrateProfileFromSession(){
+async function hydrateProfileFromSession() {
   const s = Session?.get?.() || readCookiePayload() || {};
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
   setText(SEL.profileName, nombre);
 
   const badge = $(SEL.profileBadge);
-  if (badge){
+  if (badge) {
     const deptName = await resolveDeptName(State.session.dept_id);
     badge.textContent = deptName || "—";
   }
 
   const img = $(SEL.avatar);
-  if (img){
+  if (img) {
     const idu = State.session.id_usuario;
-    const candidates = idu ? [
-      `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
-      `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
-      `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
-      `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-    ] : [];
-    let i=0;
+    const candidates = idu
+      ? [
+          `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
+          `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
+          `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
+          `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
+        ]
+      : [];
+    let i = 0;
     const tryNext = () => {
-      if (i >= candidates.length) { img.src = CONFIG.DEFAULT_AVATAR; return; }
-      img.onerror = () => { i++; tryNext(); };
+      if (i >= candidates.length) {
+        img.src = CONFIG.DEFAULT_AVATAR;
+        return;
+      }
+      img.onerror = () => {
+        i++;
+        tryNext();
+      };
       img.src = `${candidates[i]}?v=${Date.now()}`;
     };
     tryNext();
@@ -219,22 +276,31 @@ async function hydrateProfileFromSession(){
 /* ============================================================================
    SIDEBAR
    ========================================================================== */
-function initSidebar(onChange){
+function initSidebar(onChange) {
   const group = $(SEL.statusGroup);
   if (!group) return;
 
-  group.setAttribute("role","radiogroup");
+  group.setAttribute("role", "radiogroup");
   const items = $$(SEL.statusItems);
-  items.forEach((btn,i)=>{
-    btn.setAttribute("role","radio");
-    btn.setAttribute("tabindex", i===0 ? "0" : "-1");
-    btn.setAttribute("aria-checked", btn.classList.contains("is-active") ? "true" : "false");
+  items.forEach((btn, i) => {
+    btn.setAttribute("role", "radio");
+    btn.setAttribute("tabindex", i === 0 ? "0" : "-1");
+    btn.setAttribute(
+      "aria-checked",
+      btn.classList.contains("is-active") ? "true" : "false"
+    );
     const key = btn.dataset.status;
     if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
 
-    btn.addEventListener("click", ()=>{
-      items.forEach(b=>{ b.classList.remove("is-active"); b.setAttribute("aria-checked","false"); b.tabIndex=-1; });
-      btn.classList.add("is-active"); btn.setAttribute("aria-checked","true"); btn.tabIndex=0;
+    btn.addEventListener("click", () => {
+      items.forEach((b) => {
+        b.classList.remove("is-active");
+        b.setAttribute("aria-checked", "false");
+        b.tabIndex = -1;
+      });
+      btn.classList.add("is-active");
+      btn.setAttribute("aria-checked", "true");
+      btn.tabIndex = 0;
       State.filterKey = key || "todos";
       State.__page = 1;
       updateLegendStatus();
@@ -243,142 +309,194 @@ function initSidebar(onChange){
     });
   });
 
-  group.addEventListener("keydown",(e)=>{
+  group.addEventListener("keydown", (e) => {
     const cur = document.activeElement.closest(".item");
     const idx = Math.max(0, items.indexOf(cur));
     let next = idx;
-    if (e.key==="ArrowDown"||e.key==="ArrowRight") next=(idx+1)%items.length;
-    if (e.key==="ArrowUp"  ||e.key==="ArrowLeft")  next=(idx-1+items.length)%items.length;
-    if (next!==idx){ items[next].focus(); e.preventDefault(); }
-    if (e.key===" "||e.key==="Enter"){ items[next].click(); e.preventDefault(); }
+    if (e.key === "ArrowDown" || e.key === "ArrowRight")
+      next = (idx + 1) % items.length;
+    if (e.key === "ArrowUp" || e.key === "ArrowLeft")
+      next = (idx - 1 + items.length) % items.length;
+    if (next !== idx) {
+      items[next].focus();
+      e.preventDefault();
+    }
+    if (e.key === " " || e.key === "Enter") {
+      items[next].click();
+      e.preventDefault();
+    }
   });
 }
 
 /* ============================================================================
    SEARCH
    ========================================================================== */
-function initSearch(onChange){
+function initSearch(onChange) {
   const input = $(SEL.searchInput);
   if (!input) return;
   let t;
-  input.addEventListener("input",(e)=>{
+  input.addEventListener("input", (e) => {
     clearTimeout(t);
-    t = setTimeout(()=>{
-      State.search = (e.target.value||"").trim().toLowerCase();
+    t = setTimeout(() => {
+      State.search = (e.target.value || "").trim().toLowerCase();
       State.__page = 1;
       onChange?.();
-    },250);
+    }, 250);
   });
 }
 
 /* ============================================================================
    TABLA (REQID, Tipo de trámite, Asignado, Teléfono, Estatus)
    ========================================================================== */
-function buildTable(){
+function buildTable() {
   State.table = createTable({
     bodySel: SEL.tableBody,
     wrapSel: SEL.tableWrap,
-    pagSel:  null,
+    pagSel: null,
     pageSize: CONFIG.PAGE_SIZE,
     columns: [
-      { key:"reqid",   title:"REQID",               sortable:true, accessor:r=> r.id || 0,
-        render:(v,r)=> String(r.id || "—") },
-      { key:"tramite", title:"Tipo de trámite",     sortable:true, accessor:r=> r.tramite || r.asunto || "—" },
-      { key:"asignado",title:"Asignado",            sortable:true, accessor:r=> r.asignado || "Sin asignar" },
-      { key:"tel",     title:"Teléfono de contacto",sortable:true, accessor:r=> r.tel || "—",
-        render:(v)=> v && v!=="—" ? v : "—" },
-      { key:"status",  title:"Estatus",             sortable:true,
-        accessor:r=> r.estatus?.label || "—",
-        render:(v,r)=>{
-        const k = (r.estatus?.key || "revision").toLowerCase();
-        return `<span class="badge-status" data-k="${k}">${r.estatus?.label || "—"}</span>`;
-      }
-      }
-    ]
+      {
+        key: "folio",
+        title: "Folio",
+        sortable: true,
+        accessor: (r) => {
+          const m = String(r.folio ?? "").match(/\d+/);
+          return m ? Number(m[0]) : Number(r.id || 0);
+        },
+        render: (v, r) => {
+          const fol = (r.folio ?? "").toString().trim();
+          if (/^REQ-\d+$/i.test(fol)) return fol;
+          const digits = (fol.match(/\d+/) || [String(r.id ?? "")])[0];
+          return digits ? "REQ-" + digits.padStart(11, "0") : "—";
+        },
+      },
+      {
+        key: "tramite",
+        title: "Tipo de trámite",
+        sortable: true,
+        accessor: (r) => r.tramite || r.asunto || "—",
+      },
+      {
+        key: "asignado",
+        title: "Asignado",
+        sortable: true,
+        accessor: (r) => r.asignado || "Sin asignar",
+      },
+      {
+        key: "tel",
+        title: "Teléfono de contacto",
+        sortable: true,
+        accessor: (r) => r.tel || "—",
+        render: (v) => (v && v !== "—" ? v : "—"),
+      },
+      {
+        key: "status",
+        title: "Estatus",
+        sortable: true,
+        accessor: (r) => r.estatus?.label || "—",
+        render: (v, r) => {
+          const k = (r.estatus?.key || "revision").toLowerCase();
+          return `<span class="badge-status" data-k="${k}">${
+            r.estatus?.label || "—"
+          }</span>`;
+        },
+      },
+    ],
   });
   State.table.setPageSize?.(CONFIG.PAGE_SIZE);
-  State.table.setSort?.("reqid",-1);
+  State.table.setSort?.("folio", -1);
 }
 
 /* ============================================================================
    LEYENDAS / CONTEOS
    ========================================================================== */
-function updateLegendTotals(n){ setText(SEL.legendTotal, String(n??0)); }
-function updateLegendStatus(){
+function updateLegendTotals(n) {
+  setText(SEL.legendTotal, String(n ?? 0));
+}
+function updateLegendStatus() {
   const map = {
-    todos:"Todos los status",
-    solicitud:"Solicitud",
-    revision:"Revisión",
-    asignacion:"Asignación",
-    proceso:"En proceso",
-    pausado:"Pausado",
-    cancelado:"Cancelado",
-    finalizado:"Finalizado"
+    todos: "Todos los status",
+    solicitud: "Solicitud",
+    revision: "Revisión",
+    asignacion: "Asignación",
+    proceso: "En proceso",
+    pausado: "Pausado",
+    cancelado: "Cancelado",
+    finalizado: "Finalizado",
   };
   setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
 }
 
-
-function catKeyFromCode(code){
-  if (code===3) return "en_proceso";
-  if (code===4) return "pausados";
-  if (code===5) return "cancelados";
-  if (code===6) return "terminados";
+function catKeyFromCode(code) {
+  if (code === 3) return "en_proceso";
+  if (code === 4) return "pausados";
+  if (code === 5) return "cancelados";
+  if (code === 6) return "terminados";
   return "pendientes"; // 0,1,2
 }
-function computeCounts(rows){
-  const c = { todos:0, solicitud:0, revision:0, asignacion:0, proceso:0, pausado:0, cancelado:0, finalizado:0 };
-  rows.forEach(r=>{
+function computeCounts(rows) {
+  const c = {
+    todos: 0,
+    solicitud: 0,
+    revision: 0,
+    asignacion: 0,
+    proceso: 0,
+    pausado: 0,
+    cancelado: 0,
+    finalizado: 0,
+  };
+  rows.forEach((r) => {
     c.todos++;
     const k = (r.estatus?.key || "").toLowerCase();
     if (k in c) c[k]++;
   });
   State.counts = c;
-  setText("#cnt-todos",      `(${c.todos})`);
-  setText("#cnt-solicitud",  `(${c.solicitud})`);
-  setText("#cnt-revision",   `(${c.revision})`);
+  setText("#cnt-todos", `(${c.todos})`);
+  setText("#cnt-solicitud", `(${c.solicitud})`);
+  setText("#cnt-revision", `(${c.revision})`);
   setText("#cnt-asignacion", `(${c.asignacion})`);
-  setText("#cnt-proceso",    `(${c.proceso})`);
-  setText("#cnt-pausado",    `(${c.pausado})`);
-  setText("#cnt-cancelado",  `(${c.cancelado})`);
+  setText("#cnt-proceso", `(${c.proceso})`);
+  setText("#cnt-pausado", `(${c.pausado})`);
+  setText("#cnt-cancelado", `(${c.cancelado})`);
   setText("#cnt-finalizado", `(${c.finalizado})`);
 }
-
 
 /* ============================================================================
    PAGINACIÓN CLÁSICA (tu HTML/CSS)
    ========================================================================== */
-function renderPagerClassic(total){
+function renderPagerClassic(total) {
   const cont = $(SEL.pager);
   if (!cont) return;
 
   const pages = Math.max(1, Math.ceil(total / CONFIG.PAGE_SIZE));
-  const cur   = Math.min(Math.max(1, State.__page || 1), pages);
+  const cur = Math.min(Math.max(1, State.__page || 1), pages);
 
-  const btn = (label, p, extra="") =>
-    `<button class="btn ${extra}" data-p="${p}" ${p==="disabled"?"disabled":""}>${label}</button>`;
+  const btn = (label, p, extra = "") =>
+    `<button class="btn ${extra}" data-p="${p}" ${
+      p === "disabled" ? "disabled" : ""
+    }>${label}</button>`;
 
   let nums = "";
-  for (let i=1;i<=pages;i++){
-    nums += btn(String(i), i, i===cur ? "primary" : "");
+  for (let i = 1; i <= pages; i++) {
+    nums += btn(String(i), i, i === cur ? "primary" : "");
   }
 
   cont.innerHTML = [
-    btn("«", cur<=1 ? "disabled" : 1),
-    btn("‹", cur<=1 ? "disabled" : (cur-1)),
+    btn("«", cur <= 1 ? "disabled" : 1),
+    btn("‹", cur <= 1 ? "disabled" : cur - 1),
     nums,
-    btn("›", cur>=pages ? "disabled" : (cur+1)),
-    btn("»", cur>=pages ? "disabled" : pages),
+    btn("›", cur >= pages ? "disabled" : cur + 1),
+    btn("»", cur >= pages ? "disabled" : pages),
     `<span class="muted" style="margin-left:.75rem;">Ir a:</span>`,
     `<input type="number" min="1" max="${pages}" value="${cur}" data-goto style="width:4rem;margin:0 .25rem;">`,
-    `<button class="btn" data-go>Ir</button>`
+    `<button class="btn" data-go>Ir</button>`,
   ].join(" ");
 
-  cont.querySelectorAll("[data-p]").forEach(b=>{
-    b.addEventListener("click", ()=>{
+  cont.querySelectorAll("[data-p]").forEach((b) => {
+    b.addEventListener("click", () => {
       const v = b.getAttribute("data-p");
-      if (v==="disabled") return;
-      const p = parseInt(v,10);
+      if (v === "disabled") return;
+      const p = parseInt(v, 10);
       if (!Number.isFinite(p)) return;
       State.__page = p;
       State.table?.setPage(p);
@@ -387,7 +505,7 @@ function renderPagerClassic(total){
     });
   });
 
-  cont.querySelector("[data-go]")?.addEventListener("click", ()=>{
+  cont.querySelector("[data-go]")?.addEventListener("click", () => {
     const n = parseInt(cont.querySelector("[data-goto]")?.value || "1", 10);
     const p = Math.min(Math.max(1, n), pages);
     State.__page = p;
@@ -400,12 +518,12 @@ function renderPagerClassic(total){
 /* ============================================================================
    GAPS + BIND ROW CLICK (solo página actual)
    ========================================================================== */
-function refreshCurrentPageDecorations(){
+function refreshCurrentPageDecorations() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
   // limpiar gaps previos
-  tbody.querySelectorAll("tr.hs-gap").forEach(tr => tr.remove());
+  tbody.querySelectorAll("tr.hs-gap").forEach((tr) => tr.remove());
 
   // filas reales actuales
   const pageRows = State.table?.getRawRows?.() || [];
@@ -413,24 +531,24 @@ function refreshCurrentPageDecorations(){
   const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
 
   // limpiar interacción previa y re-asignar
-  Array.from(tbody.querySelectorAll("tr")).forEach(tr=>{
+  Array.from(tbody.querySelectorAll("tr")).forEach((tr) => {
     tr.classList.remove("is-clickable");
     tr.onclick = null;
   });
-  for (let i=0;i<realCount;i++){
+  for (let i = 0; i < realCount; i++) {
     const tr = tbody.querySelectorAll("tr")[i];
     const raw = pageRows[i];
     if (!tr || !raw) continue;
     tr.classList.add("is-clickable");
-    tr.addEventListener("click", ()=>{
+    tr.addEventListener("click", () => {
       const id = raw?.id || raw?.__raw?.id;
       if (id) window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
     });
   }
 
-  if (gaps>0){
-    let html="";
-    for (let i=0;i<gaps;i++){
+  if (gaps > 0) {
+    let html = "";
+    for (let i = 0; i < gaps; i++) {
       html += `<tr class="hs-gap" aria-hidden="true"><td colspan="5">&nbsp;</td></tr>`;
     }
     tbody.insertAdjacentHTML("beforeend", html);
@@ -441,37 +559,44 @@ function refreshCurrentPageDecorations(){
 /* ============================================================================
    PIPELINE + RENDER
    ========================================================================== */
-function applyPipelineAndRender(){
+function applyPipelineAndRender() {
   const all = State.rows || [];
   let filtered = all;
 
   if (State.filterKey !== "todos") {
-   filtered = filtered.filter(r => (r.estatus?.key || "").toLowerCase() === State.filterKey);
+    filtered = filtered.filter(
+      (r) => (r.estatus?.key || "").toLowerCase() === State.filterKey
+    );
   }
   if (State.search) {
     const q = State.search;
-    filtered = filtered.filter(r=>{
-      const asunto =(r.asunto||"").toLowerCase();
-      const asign  =(r.asignado||"").toLowerCase();
-      const est    =(r.estatus?.label||"").toLowerCase();
-      const folio  =(r.folio||"").toLowerCase();
-      const idTxt  = String(r.id||"");
-      return asunto.includes(q) || asign.includes(q) || est.includes(q) || folio.includes(q) || idTxt.includes(q);
+    filtered = filtered.filter((r) => {
+      const asunto = (r.asunto || "").toLowerCase();
+      const asign = (r.asignado || "").toLowerCase();
+      const est = (r.estatus?.label || "").toLowerCase();
+      const folio = (r.folio || "").toLowerCase();
+      const idTxt = String(r.id || "");
+      return (
+        asunto.includes(q) ||
+        asign.includes(q) ||
+        est.includes(q) ||
+        folio.includes(q) ||
+        idTxt.includes(q)
+      );
     });
   }
 
   computeCounts(all);
   updateLegendTotals(filtered.length);
 
-  const rows = filtered.map(r=>({
-    __raw:r,
+  const rows = filtered.map((r) => ({
+    __raw: r,
     id: r.id,
-    folio: r.folio,
     tramite: r.tramite,
     asunto: r.asunto,
     asignado: r.asignado,
     tel: r.tel,
-    estatus: r.estatus
+    estatus: r.estatus,
   }));
 
   State.table?.setData(rows);
@@ -508,7 +633,8 @@ function computeYearSeries(rows) {
 }
 function computeMonthDistribution(rows) {
   const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth();
+  const y = now.getFullYear(),
+    m = now.getMonth();
   const by = new Map();
   for (const r of rows) {
     const iso = String(r.creado || r.raw?.created_at || "").replace(" ", "T");
@@ -518,17 +644,33 @@ function computeMonthDistribution(rows) {
       by.set(key, (by.get(key) || 0) + 1);
     }
   }
-  const items = Array.from(by.entries()).map(([label, value]) => ({ label, value }));
-  items.sort((a,b)=>b.value-a.value);
-  const total = items.reduce((a,b)=>a+b.value, 0);
+  const items = Array.from(by.entries()).map(([label, value]) => ({
+    label,
+    value,
+  }));
+  items.sort((a, b) => b.value - a.value);
+  const total = items.reduce((a, b) => a + b.value, 0);
   return { items, total };
 }
-function drawChartsFromRows(rows){
-  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+function drawChartsFromRows(rows) {
+  const labels = [
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+  ];
   const yearSeries = computeYearSeries(rows);
-  const monthAgg   = computeMonthDistribution(rows);
+  const monthAgg = computeMonthDistribution(rows);
 
-  const $line  = $(SEL.chartYear);
+  const $line = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
 
   log("CHARTS — input (rows length):", rows.length);
@@ -540,8 +682,8 @@ function drawChartsFromRows(rows){
       labels,
       series: yearSeries,
       showGrid: true,
-      headroom: 0.2,   // aire arriba para picos altos (evita cortes)
-      yTicks: 6
+      headroom: 0.2, // aire arriba para picos altos (evita cortes)
+      yTicks: 6,
     });
     log("CHARTS — LineChart render ok");
   }
@@ -550,26 +692,30 @@ function drawChartsFromRows(rows){
       data: monthAgg.items,
       total: monthAgg.total,
       legendEl: $(SEL.donutLegend) || null,
-      showPercLabels: true
+      showPercLabels: true,
     });
     log("CHARTS — DonutChart render ok", { total: monthAgg.total });
   }
 
   // por si existen skeletons residuales
-  document.querySelectorAll(".hs-chart-skeleton")?.forEach(el => el.remove());
+  document.querySelectorAll(".hs-chart-skeleton")?.forEach((el) => el.remove());
 }
 
 /* ============================================================================
    RBAC – fetch según rol
    ========================================================================== */
-async function fetchAllRequerimientos(perPage=200, maxPages=50){
-  const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
-  const all=[];
-  for (let page=1; page<=maxPages; page++){
+async function fetchAllRequerimientos(perPage = 200, maxPages = 50) {
+  const url =
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
+  const all = [];
+  for (let page = 1; page <= maxPages; page++) {
     const res = await fetch(url, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ page, per_page: perPage })
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ page, per_page: perPage }),
     });
     if (!res.ok) break;
     const json = await res.json();
@@ -580,24 +726,37 @@ async function fetchAllRequerimientos(perPage=200, maxPages=50){
   return all;
 }
 
-async function fetchMineAndTeam(plan){
-  const ids = [plan.mineId, ...(plan.teamIds||[])].filter(Boolean);
-  const results = await Promise.allSettled(ids.map(id => listByAsignado(id, {})));
-  const lists = results.filter(r=>r.status==="fulfilled").map(r=>r.value||[]);
+async function fetchMineAndTeam(plan) {
+  const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
+  const results = await Promise.allSettled(
+    ids.map((id) => listByAsignado(id, {}))
+  );
+  const lists = results
+    .filter((r) => r.status === "fulfilled")
+    .map((r) => r.value || []);
   const map = new Map();
-  lists.flat().forEach(r=>{ if (r?.id!=null) map.set(r.id, r); });
-  return Array.from(map.values()).sort((a,b)=>
-    String(b.created_at||"").localeCompare(String(a.created_at||"")) || ((b.id||0)-(a.id||0))
+  lists.flat().forEach((r) => {
+    if (r?.id != null) map.set(r.id, r);
+  });
+  return Array.from(map.values()).sort(
+    (a, b) =>
+      String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
+      (b.id || 0) - (a.id || 0)
   );
 }
 
-async function fetchDeptAsignacion(deptId){
+async function fetchDeptAsignacion(deptId) {
   // Solo estatus=2 (Asignación)
-  const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
+  const url =
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
   const res = await fetch(url, {
-    method:"POST",
-    headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-    body: JSON.stringify({ departamento_id: deptId, estatus: 2, per_page: 200 })
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      departamento_id: deptId,
+      estatus: 2,
+      per_page: 200,
+    }),
   });
   if (!res.ok) return [];
   const json = await res.json();
@@ -607,12 +766,16 @@ async function fetchDeptAsignacion(deptId){
 /* ============================================================================
    CARGA PRINCIPAL
    ========================================================================== */
-async function loadScopeData(){
-  const { empleado_id:viewerId, dept_id, roles } = State.session;
-  if (!viewerId){
+async function loadScopeData() {
+  const { empleado_id: viewerId, dept_id, roles } = State.session;
+  if (!viewerId) {
     warn("viewerId ausente.");
-    State.universe=[]; State.rows=[];
-    computeCounts([]); updateLegendTotals(0); updateLegendStatus(); applyPipelineAndRender();
+    State.universe = [];
+    State.rows = [];
+    computeCounts([]);
+    updateLegendTotals(0);
+    updateLegendStatus();
+    applyPipelineAndRender();
     drawChartsFromRows([]); // charts vacíos
     return;
   }
@@ -620,27 +783,33 @@ async function loadScopeData(){
   const plan = await planScope({ viewerId, viewerDeptId: dept_id });
   State.scopePlan = plan;
 
-  const isAdmin = (roles||[]).some(r=>CONFIG.ADMIN_ROLES.includes(r));
-  const isPres  = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
-  const isDirector = (roles||[]).includes("DIRECTOR");
+  const isAdmin = (roles || []).some((r) => CONFIG.ADMIN_ROLES.includes(r));
+  const isPres = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+  const isDirector = (roles || []).includes("DIRECTOR");
   const soyPrimeraLinea = await isPrimeraLinea(viewerId, dept_id);
 
   log("RBAC flags:", { isAdmin, isPres, isDirector, soyPrimeraLinea });
 
-  let items=[];
-  if (isAdmin || isPres){
+  let items = [];
+  if (isAdmin || isPres) {
     log("modo ADMIN/PRESIDENCIA → fetch global");
     items = await fetchAllRequerimientos();
   } else if (isDirector || soyPrimeraLinea) {
-    log("modo DIRECTOR/PRIMERA LÍNEA → asignación del depto + asignados (yo/team)");
+    log(
+      "modo DIRECTOR/PRIMERA LÍNEA → asignación del depto + asignados (yo/team)"
+    );
     const [deptAsign, mineTeam] = await Promise.all([
       fetchDeptAsignacion(dept_id),
-      fetchMineAndTeam(plan)
+      fetchMineAndTeam(plan),
     ]);
     const dedup = new Map();
-    [...deptAsign, ...mineTeam].forEach(r=>{ if(r?.id!=null) dedup.set(r.id, r); });
-    items = Array.from(dedup.values()).sort((a,b)=>
-      String(b.created_at||"").localeCompare(String(a.created_at||"")) || ((b.id||0)-(a.id||0))
+    [...deptAsign, ...mineTeam].forEach((r) => {
+      if (r?.id != null) dedup.set(r.id, r);
+    });
+    items = Array.from(dedup.values()).sort(
+      (a, b) =>
+        String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
+        (b.id || 0) - (a.id || 0)
     );
   } else {
     log("modo JEFE/ANALISTA/resto → yo + team asignados");
@@ -650,8 +819,15 @@ async function loadScopeData(){
   State.universe = items.slice();
   State.rows = State.universe.map(parseReq);
 
-  log("items UI-mapped (preview):",
-    State.rows.slice(0,5).map(r=>({id:r.id, tramite:r.tramite, asignado:r.asignado, tel:r.tel, estatus:r.estatus?.label}))
+  log(
+    "items UI-mapped (preview):",
+    State.rows.slice(0, 5).map((r) => ({
+      id: r.id,
+      tramite: r.tramite,
+      asignado: r.asignado,
+      tel: r.tel,
+      estatus: r.estatus?.label,
+    }))
   );
 
   computeCounts(State.rows);
@@ -668,17 +844,17 @@ async function loadScopeData(){
 /* ============================================================================
    INIT
    ========================================================================== */
-window.addEventListener("DOMContentLoaded", async ()=>{
-  try{
+window.addEventListener("DOMContentLoaded", async () => {
+  try {
     readSession();
     await hydrateProfileFromSession();
-    initSidebar(()=>applyPipelineAndRender());
-    initSearch(()=>applyPipelineAndRender());
+    initSidebar(() => applyPipelineAndRender());
+    initSearch(() => applyPipelineAndRender());
     buildTable();
     updateLegendStatus();
 
     await loadScopeData();
-  } catch(e){
+  } catch (e) {
     err("init error:", e);
   }
 });
