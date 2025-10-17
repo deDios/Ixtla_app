@@ -272,6 +272,24 @@ function __ip_in_list(string $ip, array $cidrs): bool {
 }
 
 $__client_ip = __rl_ip();
+// === Inicio: log enriquecido (después de __rl_ip) ===
+api_log('start', 'ixtla01_in_requerimiento', [
+  'client_ip'        => $__client_ip,
+  'remote_addr'      => $_SERVER['REMOTE_ADDR'] ?? null,
+  'x_forwarded_for'  => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null,
+  'x_real_ip'        => $_SERVER['HTTP_X_REAL_IP'] ?? null,
+  'cf_connecting_ip' => $_SERVER['HTTP_CF_CONNECTING_IP'] ?? null,
+  'ua'               => $_SERVER['HTTP_USER_AGENT'] ?? null,
+  'method'           => $_SERVER['REQUEST_METHOD'] ?? null,
+  'uri'              => $_SERVER['REQUEST_URI'] ?? null,
+  'origin'           => $_SERVER['HTTP_ORIGIN'] ?? null,
+  'referer'          => $_SERVER['HTTP_REFERER'] ?? null,
+  'ctx'              => [
+    'content_type' => $_SERVER['CONTENT_TYPE'] ?? null,
+  ],
+]);
+
+// === Quarantine list check (debe permanecer) ===
 if (__ip_in_list($__client_ip, $QUARANTINE)) {
   api_log('403','quarantine_block', [
     'ip'  => $__client_ip,
