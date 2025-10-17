@@ -328,50 +328,43 @@ $raw = file_get_contents("php://input", false, null, 0, 64*1024 + 1);
 if ($raw === false || strlen($raw) === 0) { http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Body vacío"])); }
 if (strlen($raw) > 64*1024) { http_response_code(413); die(json_encode(["ok"=>false,"error"=>"Payload demasiado grande"])); }
 
-/* ===== CSRF/Origen o HMAC obligatorio =====
-   - Si viene Origin y NO está en ALLOWED → 403
-   - Si NO hay Origin/Referer permitido → exigir HMAC (X-TS/X-APP/X-SIG) */
-$ref        = $_SERVER['HTTP_REFERER'] ?? '';
-$refererOK  = false;
-if ($ref) {
-  foreach ($ALLOWED as $base) {
-    if (stripos($ref, rtrim($base,'/').'/') === 0) { $refererOK = true; break; }
-  }
-}
+/* ===== HMAC obligatorio SIEMPRE ===== */
+$ref = $_SERVER['HTTP_REFERER'] ?? '';
 
-if (isset($_SERVER['HTTP_ORIGIN']) && !$originOK) {
+if (isset($_SERVER['HTTP_ORIGIN']) && !in_array($_SERVER['HTTP_ORIGIN'], $ALLOWED, true)) {
   http_response_code(403);
   echo json_encode(['ok'=>false,'error'=>'Origin no permitido']);
   exit;
 }
 
-// Forzar firma SIEMPRE para POST
-$requiresSig = true;
+// Requiere firma en todos los POST
+$ts  = $_SERVER['HTTP_X_TS']  ?? '';
+$app = $_SERVER['HTTP_X_APP'] ?? '';   // ej. "webpublic"
+$sig = $_SERVER['HTTP_X_SIG'] ?? '';
 
-if ($requiresSig) {
-  $ts  = $_SERVER['HTTP_X_TS']  ?? '';
-  $app = $_SERVER['HTTP_X_APP'] ?? '';   // ej. "webpublic"
-  $sig = $_SERVER['HTTP_X_SIG'] ?? '';
+$secret = $app ? getenv('API_SECRET_'.$app) : null; // <-- nombre correcto
 
-  $secret = $app ? getenv('API_SECRET_'.$app) : null;
+if (!$ts || !$sig || !$secret) {
+  http_response_code(403);
+  echo json_encode(['ok'=>false,'error'=>'Falta firma (X-TS/X-APP/X-SIG)']);
+  exit;
+}
+if (!ctype_digit($ts) || abs(time() - (int)$ts) > 300) { // ±5 min
+  http_response_code(403);
+  echo json_encode(['ok'=>false,'error'=>'Timestamp inválido/expirado']);
+  exit;
+}
 
-  if (!$ts || !$sig || !$secret) {
-    http_response_code(403);
-    echo json_encode(['ok'=>false,'error'=>'Falta firma (X-TS/X-APP/X-SIG)']);
-    exit;
-  }
-  if (!ctype_digit($ts) || abs(time() - (int)$ts) > 300) {
-    http_response_code(403);
-    echo json_encode(['ok'=>false,'error'=>'Timestamp inválido/expirado']);
-    exit;
-  }
-  $base = $ts.'.'.$raw;
-  $calc = base64_encode(hash_hmac('sha256', $base, $secret, true));
-  if (!hash_equals($calc, $sig)) {
-    http_response_code(403);
-    echo json_encode(['ok'=>false,'error'=>'Firma inválida']);
-    exit;
-  }
+// Incluye método y ruta para evitar reutilizar la firma en otro endpoint
+$method = $_SERVER['REQUEST_METHOD'] ?? 'POST';
+$path   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$base   = $ts.'.'.$method.'.'.$path.'.'.$raw;
+
+$calc = base64_encode(hash_hmac('sha256', $base, $secret, true));
+if (!hash_equals($calc, $sig)) {
+  http_response_code(403);
+  echo json_encode(['ok'=>false,'error'=>'Firma inválida']);
+  exit;
 }
 
 /* Decodifica JSON (mejor explícito si falla) */
