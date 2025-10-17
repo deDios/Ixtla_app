@@ -61,7 +61,7 @@
 
     ENDPOINTS: {
       cpcolonia:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
-      insertReq:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_in_requerimiento.php",
+      insertReq:   "/webpublic_proxy.php",
       fsBootstrap: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
       uploadImg:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_in_requerimiento_img.php",
     },
@@ -423,7 +423,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ACCEPT_EXT: [".jpg",".jpeg",".png",".webp",".heic",".heif"],
     ENDPOINTS: {
       cpcolonia:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
-      insertReq:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_in_requerimiento.php",
+      insertReq:   "/webpublic_proxy.php",
       fsBootstrap: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
       uploadImg:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_in_requerimiento_img.php",
     },
@@ -905,7 +905,6 @@ document.addEventListener("DOMContentLoaded", () => {
             "Accept": "application/json",
             "X-Requested-With": "XMLHttpRequest",
             "Idempotency-Key": idempKey,
-            "X-RL-BSS": "r0K2z-P6iG-9vP9wP"
           },
           body: JSON.stringify(body),
           signal,
