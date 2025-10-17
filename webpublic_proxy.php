@@ -29,7 +29,7 @@ $app    = 'webpublic';
 $secret = getenv('API_SECRET_'.$app);
 if (!$secret) {
   http_response_code(500);
-  exit('{"ok":false,"error":"Falta API_SECRET_webpublic en el proxy"}');
+  exit('{"ok":false,"error":"Falta API_SECRET en el proxy"}');
 }
 
 // Construye firma: TS.METHOD.PATH.BODY (PATH EXACTO del endpoint real)
