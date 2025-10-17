@@ -10,12 +10,7 @@ const CONFIG = {
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
   ADMIN_ROLES: ["ADMIN"],
   PRESIDENCIA_DEPT_IDS: [6], // ids que ven TODO
-  DEPT_FALLBACK_NAMES: { 6: "Presidencia" ,
-  DONUT_COLORS: [
-    "#3b82f6","#10b981","#f59e0b","#ef4444",
-    "#8b5cf6","#14b8a6","#6366f1","#dc2626",
-    "#0ea5e9","#22c55e","#eab308","#f97316"
-  ]},
+  DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
 
   // Paleta de badges (clases CSS ya existen)
   STATUS_KEY_BY_CODE: {
@@ -44,7 +39,6 @@ import {
   listByAsignado,
   parseReq,
 } from "/JS/api/requerimientos.js";
-import { loadTramitesCatalog } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
 import { LineChart } from "/JS/charts/line-chart.js";
 import { DonutChart } from "/JS/charts/donut-chart.js";
@@ -93,8 +87,6 @@ function formatDateMX(v){
    ESTADO
    ========================================================================== */
 const State = {
-  tramitesCat: [],
-  paletteMap: {},
   session: { empleado_id:null, dept_id:null, roles:[], id_usuario:null },
   scopePlan: null,
   universe: [],
@@ -430,7 +422,7 @@ function applyPipelineAndRender(){
   let filtered = all;
 
   if (State.filterKey !== "todos") {
-    filtered = filtered.filter(r => (r.estatus?.key || '').toLowerCase() === State.filterKey);
+    filtered = filtered.filter(r => catKeyFromCode(r.estatus?.code) === State.filterKey);
   }
   if (State.search) {
     const q = State.search;
@@ -509,7 +501,7 @@ function computeMonthDistribution(rows) {
 function drawChartsFromRows(rows){
   const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const yearSeries = computeYearSeries(rows);
-  const tipoAgg    = computeTipoDistribution(rows);
+  const monthAgg   = computeMonthDistribution(rows);
 
   const $line  = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
@@ -529,13 +521,13 @@ function drawChartsFromRows(rows){
     log("CHARTS — LineChart render ok");
   }
   if ($donut) {
-    Charts.donut = new DonutChart($donut, { colors: CONFIG.DONUT_COLORS, paletteMap: State.paletteMap,
-      data: tipoAgg.items,
-      total: tipoAgg.total,
+    Charts.donut = new DonutChart($donut, {
+      data: monthAgg.items,
+      total: monthAgg.total,
       legendEl: $(SEL.donutLegend) || null,
       showPercLabels: true
     });
-    log("CHARTS — DonutChart render ok", { total: tipoAgg.total });
+    log("CHARTS — DonutChart render ok", { total: monthAgg.total });
   }
 
   // por si existen skeletons residuales
@@ -665,36 +657,3 @@ window.addEventListener("DOMContentLoaded", async ()=>{
     err("init error:", e);
   }
 });
-async function initTramitesYColores(){
-  let tipos = [];
-  try { tipos = await loadTramitesCatalog(); } catch(e){ tipos = []; }
-  if (!tipos.length) {
-    const seen = new Map();
-    (State.rows || []).forEach(r => {
-      const k = (r.tramite_nombre || r.tramite || r.asunto || "Otros").replace(/\.\s*$/, "").trim();
-      if (k) seen.set(k, true);
-    });
-    tipos = Array.from(seen.keys()).map(nombre => ({ nombre }));
-  }
-  tipos = tipos
-    .map(t => ({ nombre: String(t.nombre || "Otros").replace(/\.\s*$/, "").trim() }))
-    .filter(t => t.nombre)
-    .sort((a,b)=> a.nombre.localeCompare(b.nombre, "es"));
-  State.tramitesCat = tipos;
-  const pal = CONFIG.DONUT_COLORS || [];
-  const map = {};
-  tipos.forEach((t, i) => { map[t.nombre] = pal[i % pal.length] || pal[0] || "#3b82f6"; });
-  State.paletteMap = map;
-}
-
-function computeTipoDistribution(rows) {
-  const by = new Map();
-  for (const r of rows) {
-    const key = (r.tramite_nombre || r.tramite || r.asunto || "Otros").replace(/\.\s*$/, "").trim();
-    by.set(key, (by.get(key) || 0) + 1);
-  }
-  const items = Array.from(by.entries()).map(([label, value]) => ({ label, value }));
-  items.sort((a,b)=> b.value - a.value);
-  const total = items.reduce((a,b)=> a + b.value, 0);
-  return { items, total };
-}
