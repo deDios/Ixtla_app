@@ -17,7 +17,7 @@ const CONFIG = {
     0: "solicitud",
     1: "revision",
     2: "asignacion",
-    3: "Proceso",
+    3: "enProceso",
     4: "pausado",
     5: "cancelado",
     6: "finalizado",
@@ -67,7 +67,7 @@ const SEL = {
   chartMonth:   "#chart-month",
   donutLegend:  "#donut-legend"
 };
-const SIDEBAR_KEYS = ["todos","solicitud","revision","asignacion","proceso","pausado","cancelado","finalizado"];
+const SIDEBAR_KEYS = ["todos","pendientes","en_proceso","terminados","cancelados","pausados"];
 
 /* ============================================================================
    HELPERS
@@ -75,6 +75,14 @@ const SIDEBAR_KEYS = ["todos","solicitud","revision","asignacion","proceso","pau
 const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
+function formatFolio(folio, id){
+  if (folio && /^REQ-\d+$/i.test(String(folio).trim())) return String(folio).trim();
+  const digits = String(folio ?? "").match(/\d+/)?.[0];
+  if (digits) return "REQ-" + digits.padStart(11, "0");
+  if (id != null) return "REQ-" + String(id).padStart(11, "0");
+  return "—";
+}
+
 
 function formatDateMX(v){
   if (!v) return "—";
@@ -297,16 +305,8 @@ function buildTable(){
    ========================================================================== */
 function updateLegendTotals(n){ setText(SEL.legendTotal, String(n??0)); }
 function updateLegendStatus(){
-  const map = {
-   todos:"Todos los status",
-   solicitud:"Solicitud",
-   revision:"Revisión",
-   asignacion:"Asignación",
-   proceso:"En proceso",
-   pausado:"Pausado",
-   cancelado:"Cancelado",
-   finalizado:"Finalizado"
- };
+  const map = { todos:"Todos los status", pendientes:"Pendientes", en_proceso:"En proceso",
+                terminados:"Terminados", cancelados:"Cancelados", pausados:"Pausados" };
   setText(SEL.legendStatus, map[State.filterKey] || "Todos los status");
 }
 
@@ -318,22 +318,16 @@ function catKeyFromCode(code){
   return "pendientes"; // 0,1,2
 }
 function computeCounts(rows){
-   const c = { todos:0, solicitud:0, revision:0, asignacion:0, proceso:0, pausado:0, cancelado:0, finalizado:0 };
-   rows.forEach(r=>{
-     c.todos++;
-     const k = (r.estatus?.key || "").toLowerCase();
-     if (k in c) c[k]++;
-   });
-   State.counts = c;
-   setText("#cnt-todos",      `(${c.todos})`);
-   setText("#cnt-solicitud",  `(${c.solicitud})`);
-   setText("#cnt-revision",   `(${c.revision})`);
-   setText("#cnt-asignacion", `(${c.asignacion})`);
-   setText("#cnt-proceso",    `(${c.proceso})`);
-   setText("#cnt-pausado",    `(${c.pausado})`);
-   setText("#cnt-cancelado",  `(${c.cancelado})`);
-   setText("#cnt-finalizado", `(${c.finalizado})`);
- }
+  const c={ todos:0, pendientes:0, en_proceso:0, terminados:0, cancelados:0, pausados:0 };
+  rows.forEach(r=>{ c.todos++; const k=catKeyFromCode(r.estatus?.code); if(k in c) c[k]++; });
+  State.counts=c;
+  setText("#cnt-todos",      `(${c.todos})`);
+  setText("#cnt-pendientes", `(${c.pendientes})`);
+  setText("#cnt-en_proceso", `(${c.en_proceso})`);
+  setText("#cnt-terminados", `(${c.terminados})`);
+  setText("#cnt-cancelados", `(${c.cancelados})`);
+  setText("#cnt-pausados",   `(${c.pausados})`);
+}
 
 /* ============================================================================
    PAGINACIÓN CLÁSICA (tu HTML/CSS)
@@ -436,7 +430,7 @@ function applyPipelineAndRender(){
   let filtered = all;
 
   if (State.filterKey !== "todos") {
-   filtered = filtered.filter(r => (r.estatus?.key || "").toLowerCase() === State.filterKey);
+    filtered = filtered.filter(r => catKeyFromCode(r.estatus?.code) === State.filterKey);
   }
   if (State.search) {
     const q = State.search;
@@ -456,6 +450,7 @@ function applyPipelineAndRender(){
   const rows = filtered.map(r=>({
     __raw:r,
     id: r.id,
+    folio: r.folio,
     tramite: r.tramite,
     asunto: r.asunto,
     asignado: r.asignado,
@@ -478,7 +473,7 @@ function applyPipelineAndRender(){
   });
 
   // Opcional: si quieres que los charts respondan al filtro, descomenta:
-  // drawChartsFromRows(filtered);
+  drawChartsFromRows(filtered);
 }
 
 /* ============================================================================
