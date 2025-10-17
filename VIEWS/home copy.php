@@ -71,22 +71,29 @@
                     <button class="item is-active" data-status="todos" role="radio" aria-checked="true">
                         <span class="label">Todos</span><span class="count" id="cnt-todos">(0)</span>
                     </button>
-                    <button class="item" data-status="pendientes" role="radio" aria-checked="false">
-                        <span class="label">Pendientes</span><span class="count" id="cnt-pendientes">(0)</span>
+                    <button class="item" data-status="solicitud" role="radio" aria-checked="false">
+                        <span class="label">Solicitud</span><span class="count" id="cnt-solicitud">(0)</span>
                     </button>
-                    <button class="item" data-status="en_proceso" role="radio" aria-checked="false">
-                        <span class="label">En proceso</span><span class="count" id="cnt-en_proceso">(0)</span>
+                    <button class="item" data-status="revision" role="radio" aria-checked="false">
+                        <span class="label">Revisión</span><span class="count" id="cnt-revision">(0)</span>
                     </button>
-                    <button class="item" data-status="terminados" role="radio" aria-checked="false">
-                        <span class="label">Terminados</span><span class="count" id="cnt-terminados">(0)</span>
+                    <button class="item" data-status="asignacion" role="radio" aria-checked="false">
+                        <span class="label">Asignación</span><span class="count" id="cnt-asignacion">(0)</span>
                     </button>
-                    <button class="item" data-status="cancelados" role="radio" aria-checked="false">
-                        <span class="label">Cancelados</span><span class="count" id="cnt-cancelados">(0)</span>
+                    <button class="item" data-status="proceso" role="radio" aria-checked="false">
+                        <span class="label">En proceso</span><span class="count" id="cnt-proceso">(0)</span>
                     </button>
-                    <button class="item" data-status="pausados" role="radio" aria-checked="false">
-                        <span class="label">Pausados</span><span class="count" id="cnt-pausados">(0)</span>
+                    <button class="item" data-status="pausado" role="radio" aria-checked="false">
+                        <span class="label">Pausado</span><span class="count" id="cnt-pausado">(0)</span>
+                    </button>
+                    <button class="item" data-status="cancelado" role="radio" aria-checked="false">
+                        <span class="label">Cancelado</span><span class="count" id="cnt-cancelado">(0)</span>
+                    </button>
+                    <button class="item" data-status="finalizado" role="radio" aria-checked="false">
+                        <span class="label">Finalizado</span><span class="count" id="cnt-finalizado">(0)</span>
                     </button>
                 </nav>
+
             </aside>
 
             <!-- MAIN -->
@@ -200,13 +207,13 @@
      
     -->
     <script type="module">
-    import {
-        guardPage
-    } from "/JS/auth/guard.js";
-    guardPage({
-        stealth: false,
-        redirectTo: "/VIEWS/login.php"
-    });
+        import {
+            guardPage
+        } from "/JS/auth/guard.js";
+        guardPage({
+            stealth: false,
+            redirectTo: "/VIEWS/login.php"
+        });
     </script>
 
     <script type="module" src="/JS/home.js"></script>
