@@ -115,19 +115,29 @@
                         </p>
                     </section>
 
-                    <!-- Donut (histórico por estatus, sin título) -->
+                    <!-- Donut -->
                     <section class="hs-card" aria-labelledby="m-desc">
-                        <div class="hs-chart-wrap" style="position:relative;">
-                            <canvas id="chart-month" width="380" height="240" aria-describedby="m-desc"></canvas>
-                            <!-- Tooltip (lo usa DonutChart) -->
-                            <div class="chart-tip"
-                                style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
+                        <div class="hs-donut">
+                            <!-- Columna: gráfico -->
+                            <div class="hs-chart-wrap" style="position:relative;">
+                                <canvas id="chart-month" width="380" height="240" aria-describedby="m-desc"></canvas>
+                                <!-- Tooltip (lo usa DonutChart) -->
+                                <div class="chart-tip"
+                                    style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
+                                </div>
                             </div>
+
+                            <!-- Columna: leyenda (scrollable) -->
+                            <aside class="hs-donut-legend" aria-label="Tipos de requerimiento">
+                                <div id="donut-legend" class="legend" aria-live="polite"></div>
+                            </aside>
                         </div>
-                        <!-- Leyenda dinámica del donut -->
-                        <div id="donut-legend" class="legend" aria-live="polite"></div>
-                        <p id="m-desc" class="sr-only">Distribución histórica por estatus de los requerimientos.</p>
+
+                        <p id="m-desc" class="sr-only">
+                            Requerimientos.
+                        </p>
                     </section>
+
 
                 </div>
 
@@ -207,13 +217,13 @@
      
     -->
     <script type="module">
-    import {
-        guardPage
-    } from "/JS/auth/guard.js";
-    guardPage({
-        stealth: false,
-        redirectTo: "/VIEWS/login.php"
-    });
+        import {
+            guardPage
+        } from "/JS/auth/guard.js";
+        guardPage({
+            stealth: false,
+            redirectTo: "/VIEWS/login.php"
+        });
     </script>
 
     <script type="module" src="/JS/home.js"></script>
