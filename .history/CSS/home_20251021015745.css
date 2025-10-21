@@ -351,11 +351,11 @@ table.gc th:nth-child(4), table.gc td:nth-child(4){ min-width:140px; text-align:
 .modal-overlay{
   position: fixed;
   inset: 0;
-  display: none;               
+  display: none;                  /* oculto por defecto */
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
-  background: rgba(17,24,39,.6); 
+  background: rgba(17,24,39,.6);  /* #111827 con 60% */
   z-index: 1000;
 }
 .modal-overlay.active{ display: flex; }
