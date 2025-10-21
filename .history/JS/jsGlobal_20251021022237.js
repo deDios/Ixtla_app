@@ -177,29 +177,6 @@
       : "Avatar";
     imgEl.loading = "lazy";
   }
-  
-   // === (NUEVO) Exponer helpers para refrescar avatar/correo en runtime ===
-  window.gcSetAvatarSrc = setAvatarSrc;
-
-  window.gcRefreshHeader = function gcRefreshHeader(sessionOverride) {
-    const session = sessionOverride || getIxSession();
-
-    // Desktop header
-    const wrap = document.querySelector(".actions .user-icon");
-    if (wrap) {
-      const emailSpan = wrap.querySelector(".user-email");
-      const img = wrap.querySelector("img.img-perfil");
-      if (emailSpan && session?.email) emailSpan.textContent = session.email;
-      if (img) setAvatarSrc(img, session);
-    }
-
-    // Mobile header
-    const mobImg = document.querySelector(".user-icon-mobile img");
-    if (mobImg) setAvatarSrc(mobImg, session);
-
-    // Dispara un evento por si otras vistas quieren engancharse
-    document.dispatchEvent(new CustomEvent("gc:header-refreshed", { detail: { session } }));
-  };
 
   // CSS var --vh para layouts móviles
   const applyVH = () =>

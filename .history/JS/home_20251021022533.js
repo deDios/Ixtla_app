@@ -24,7 +24,7 @@ const CONFIG = {
   },
 };
 
-const TAG  = "[Home]";
+const TAG = "[Home]";
 const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
 const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
 const err  = (...a) => console.error(TAG, ...a);
@@ -134,6 +134,7 @@ function splitNombreCompleto(full) {
   if (!s) return { nombre: "", apellidos: "" };
   const parts = s.split(" ");
   if (parts.length === 1) return { nombre: parts[0], apellidos: "" };
+  // Heurística: último token como último apellido, resto como nombre+apellidos
   const apellidos = parts.slice(-1).join(" ");
   const nombre = parts.slice(0, -1).join(" ");
   return { nombre, apellidos };
@@ -144,11 +145,14 @@ function pickReportaField(modalRoot) {
   let inp = modalRoot.querySelector("#perfil-reporta");
   if (inp) return { el: inp, usedFallback: false };
 
-  inp = modalRoot.querySelector("#perfil-nacimiento"); // fallback legacy
+  // Fallback: reutilizar el antiguo campo de nacimiento
+  inp = modalRoot.querySelector("#perfil-nacimiento");
   if (inp) {
     try {
+      // cambiar label visualmente
       const label = modalRoot.querySelector('label[for="perfil-nacimiento"]');
       if (label) label.childNodes[0].nodeValue = "Reporta a";
+      // volverlo texto readonly
       inp.setAttribute("type", "text");
       inp.setAttribute("readonly", "true");
       inp.setAttribute("aria-readonly", "true");
@@ -230,6 +234,7 @@ function initProfileModal() {
         if (usedFallback) inpReporta.classList.add("is-readonly");
       }
 
+      // listo
       focusFirst();
       log("[Modal] prefill OK");
     } catch (e) {
@@ -269,6 +274,7 @@ function initProfileModal() {
       apellidos: (apellidos || "").trim(),
       email: (inpEmail?.value || "").trim().toLowerCase(),
       telefono: (inpTel?.value || "").trim(),
+      // Omitimos: reporta_a, roles, username, depto, etc.
       ...(inpPass?.value ? { password: inpPass.value } : {}),
       updated_by: State.session?.empleado_id || null,
     };
@@ -279,30 +285,11 @@ function initProfileModal() {
       const result = await updateEmpleado(payload);
       log("[Perfil] actualizado OK:", result);
 
-      // 1) Actualizar nombres visibles inmediatos (sidebar)
+      // Refrescar encabezado de perfil
       const nuevoNombre = [payload.nombre, payload.apellidos].filter(Boolean).join(" ") || "—";
       setText(SEL.profileName, nuevoNombre);
 
-      // 2) Persistir cambios en Session (si existe)
-      try {
-        const cur = Session?.get?.() || {};
-        const next = {
-          ...cur,
-          nombre: payload.nombre || cur.nombre,
-          apellidos: payload.apellidos || cur.apellidos,
-          email: payload.email || cur.email,
-          telefono: payload.telefono || cur.telefono,
-        };
-        Session?.set?.(next);
-        log("[Perfil] Session.set aplicado:", next);
-      } catch (se) {
-        warn("[Perfil] No pude persistir Session:", se);
-      }
-
-      // 3) Refrescar header (correo/imagen) y sidebar avatar
-      const sess = Session?.get?.() || null;
-      window.gcRefreshHeader?.(sess);
-      refreshSidebarFromSession(sess);
+      // (El badge de depto no cambia aquí)
 
       close();
     } catch (e2) {
@@ -432,36 +419,24 @@ async function hydrateProfileFromSession() {
     badge.textContent = deptName || "—";
   }
 
-  // Avatar del sidebar usando el helper global si existe
   const img = $(SEL.avatar);
   if (img) {
-    const sessionLike = {
-      id_usuario: State.session.id_usuario ?? s.id_usuario ?? s.usuario_id ?? s.id_empleado,
-      avatarUrl: s.avatarUrl || s.avatar,
-      nombre: s.nombre,
-      apellidos: s.apellidos,
+    const idu = State.session.id_usuario;
+    const candidates = idu
+      ? [
+          `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
+          `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
+          `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
+          `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
+        ]
+      : [];
+    let i = 0;
+    const tryNext = () => {
+      if (i >= candidates.length) { img.src = CONFIG.DEFAULT_AVATAR; return; }
+      img.onerror = () => { i++; tryNext(); };
+      img.src = `${candidates[i]}?v=${Date.now()}`;
     };
-    if (window.gcSetAvatarSrc) {
-      window.gcSetAvatarSrc(img, sessionLike);
-    } else {
-      // Fallback local
-      const idu = sessionLike.id_usuario;
-      const candidates = idu
-        ? [
-            `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
-            `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
-            `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
-            `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-          ]
-        : [];
-      let i = 0;
-      const tryNext = () => {
-        if (i >= candidates.length) { img.src = CONFIG.DEFAULT_AVATAR; return; }
-        img.onerror = () => { i++; tryNext(); };
-        img.src = `${candidates[i]}?v=${Date.now()}`;
-      };
-      tryNext();
-    }
+    tryNext();
   }
 }
 
@@ -724,21 +699,23 @@ function refreshCurrentPageDecorations() {
   log("gaps añadidos:", gaps, "reales en página:", realCount);
 }
 
-/** Refresca el bloque de perfil del sidebar (nombre + avatar) */
 function refreshSidebarFromSession(sess) {
   try {
-    const s = sess || (window.Session?.get?.() || null);
+    const s = sess || (window.Session?.get?.() || null); // usa tu Session si la tienes
     if (!s) return;
 
+    // Nombre
     const name = [s.nombre, s.apellidos].filter(Boolean).join(" ").trim();
     const nameEl = document.getElementById("hs-profile-name");
     if (nameEl && name) nameEl.textContent = name;
 
+    // Avatar
     const avatarEl = document.getElementById("hs-avatar");
     if (avatarEl && window.gcSetAvatarSrc) {
+      // compone un objeto "session-like" con los campos que usa gcSetAvatarSrc
       const sessionLike = {
         id_usuario: s.id_usuario ?? s.usuario_id ?? s.empleado_id ?? s.id_empleado,
-        avatarUrl: s.avatarUrl || s.avatar,
+        avatarUrl: s.avatarUrl || s.avatar, // por si guardas url directa
         nombre: s.nombre,
         apellidos: s.apellidos
       };
@@ -748,6 +725,7 @@ function refreshSidebarFromSession(sess) {
     console.warn("[Home] refreshSidebarFromSession error:", e);
   }
 }
+
 
 /* ============================================================================
    PIPELINE + RENDER
@@ -988,17 +966,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   try {
     readSession();
     await hydrateProfileFromSession();
-    ensureEditProfileButton();
-    initProfileModal();
+    ensureEditProfileButton();    // <- inserta botón si no estaba
+    initProfileModal();           // <- conecta modal + API usuarios
     initSidebar(() => applyPipelineAndRender());
     initSearch(() => applyPipelineAndRender());
     buildTable();
     updateLegendStatus();
-
-    // Refrescar header + sidebar desde la sesión actual al cargar
-    const sess = Session?.get?.() || null;
-    window.gcRefreshHeader?.(sess);
-    refreshSidebarFromSession(sess);
 
     await loadScopeData();
   } catch (e) {
