@@ -347,7 +347,7 @@ table.gc th:nth-child(4), table.gc td:nth-child(4){ min-width:140px; text-align:
 
 
 
-/* -------------------------- Modal ------------------------------------ */
+/* Modal */
 body.modal-open { overflow: hidden; }
 
 /* ---------------------------- Modal base ---------------------------- */
@@ -481,8 +481,10 @@ input[readonly]:focus {
   border-color: #d9dee3;
 }
 
+/* Evita scroll del body cuando el modal está abierto */
 body.modal-open { overflow: hidden; }
 
+/* Responsive: apila los .split en pantallas angostas */
 @media (max-width: 560px) {
   .form-row.split { flex-direction: column; gap: .75rem; }
   .modal-content { padding: 1.5rem; }

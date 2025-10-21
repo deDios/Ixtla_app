@@ -219,67 +219,7 @@
     </footer>
 
     <!-- MODALES -->
-    <div id="modal-perfil" class="modal-overlay"></div>
-
-    <!-- Modal: Administrar perfil -->
-    <div id="modal-perfil" class="modal-overlay" aria-hidden="true">
-        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="perfil-title">
-            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
-            <h2 id="perfil-title">Administrar perfil</h2>
-
-            <form id="form-perfil" novalidate>
-                <div class="form-row">
-                    <label for="perfil-nombre">Nombre completo</label>
-                    <input type="text" id="perfil-nombre" name="nombre" autocomplete="name" />
-                </div>
-
-                <div class="form-row">
-                    <label for="perfil-email">Correo electrónico</label>
-                    <input type="email" id="perfil-email" name="correo" autocomplete="email" />
-                </div>
-
-                <div class="form-row split">
-                    <div>
-                        <label for="perfil-password">
-                            Contraseña
-                            <span class="tooltip">ⓘ
-                                <span class="tooltiptext">Deja vacío si no deseas cambiarla.</span>
-                            </span>
-                        </label>
-                        <input type="password" id="perfil-password" name="password" autocomplete="new-password" />
-                    </div>
-                    <div>
-                        <label for="perfil-password2">Confirmar contraseña</label>
-                        <input type="password" id="perfil-password2" name="password2" autocomplete="new-password" />
-                    </div>
-                </div>
-
-                <div class="form-row split">
-                    <div>
-                        <label for="perfil-telefono">Teléfono</label>
-                        <input type="tel" id="perfil-telefono" name="telefono" autocomplete="tel" />
-                    </div>
-                    <div>
-                        <!-- NUEVO: Reporta a (solo lectura) -->
-                        <label for="perfil-reporta">Reporta a</label>
-                        <input type="text" id="perfil-reporta" name="reporta_a_nombre" readonly aria-readonly="true"
-                            class="is-readonly" />
-                    </div>
-                </div>
-
-                <button type="submit" class="btn-submit">Guardar cambios</button>
-            </form>
-
-            <p class="modal-note">
-                Tus datos están seguros con nosotros. Al guardar aceptas nuestras políticas de privacidad
-                y condiciones de uso.
-            </p>
-            <p class="modal-copy">
-                © 2025 GodCode. Todos los derechos reservados.
-            </p>
-        </div>
-    </div>
-
+     <div id="modal-perfil" class="modal-overlay"></div>
 
     <!-- Guard para la página de home
 

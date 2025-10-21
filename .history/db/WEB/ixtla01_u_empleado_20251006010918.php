@@ -1,5 +1,5 @@
 <?php
-//db\WEB\ixtla01_u_empleado.php
+
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
   header("Access-Control-Allow-Origin: $origin");
