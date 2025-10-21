@@ -325,6 +325,7 @@ table.gc th:nth-child(4), table.gc td:nth-child(4){ min-width:140px; text-align:
   clip: rect(0,0,0,0); white-space:nowrap; border:0;
 }
 
+/* Ajustes extra de tabla para 5ta columna centrada */
 .hs-table table.gc thead th:nth-child(5),
 .hs-table table.gc tbody td:nth-child(5){
   text-align:center; padding-left:0; padding-right:0; width:160px;
@@ -334,6 +335,7 @@ table.gc th:nth-child(4), table.gc td:nth-child(4){ min-width:140px; text-align:
   .hs-table table.gc tbody td:nth-child(5){ width:140px; }
 }
 
+/* Responsive extra para paginación */
 @media (max-width:1100px){
   .hs-pager{ justify-content:center; row-gap:10px; }
 }
