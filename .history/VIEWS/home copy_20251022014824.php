@@ -226,76 +226,71 @@
             <h2 id="perfil-title">Administrar perfil</h2>
 
             <form id="form-perfil" novalidate>
-                <!-- Nombre / Apellidos -->
-                <div class="form-row split">
-                    <div>
-                        <label for="perfil-nombre">Nombre</label>
-                        <input type="text" id="perfil-nombre" name="nombre" autocomplete="given-name">
-                    </div>
-                    <div>
-                        <label for="perfil-apellidos">Apellidos</label>
-                        <input type="text" id="perfil-apellidos" name="apellidos" autocomplete="family-name">
-                    </div>
-                </div>
+  <!-- Nombre / Apellidos -->
+  <div class="form-row split">
+    <div>
+      <label for="perfil-nombre">Nombre</label>
+      <input type="text" id="perfil-nombre" name="nombre" autocomplete="given-name">
+    </div>
+    <div>
+      <label for="perfil-apellidos">Apellidos</label>
+      <input type="text" id="perfil-apellidos" name="apellidos" autocomplete="family-name">
+    </div>
+  </div>
 
-                <!-- Correo / Teléfono -->
-                <div class="form-row split">
-                    <div>
-                        <label for="perfil-email">Correo electrónico</label>
-                        <input type="email" id="perfil-email" name="correo" autocomplete="email">
-                    </div>
-                    <div>
-                        <label for="perfil-telefono">Teléfono</label>
-                        <input type="tel" id="perfil-telefono" name="telefono" autocomplete="tel">
-                    </div>
-                </div>
+  <!-- Correo / Teléfono -->
+  <div class="form-row split">
+    <div>
+      <label for="perfil-email">Correo electrónico</label>
+      <input type="email" id="perfil-email" name="correo" autocomplete="email">
+    </div>
+    <div>
+      <label for="perfil-telefono">Teléfono</label>
+      <input type="tel" id="perfil-telefono" name="telefono" autocomplete="tel">
+    </div>
+  </div>
 
-                <!-- Contraseña / Confirmar -->
-                <div class="form-row split">
-                    <div>
-                        <label for="perfil-password">
-                            Contraseña
-                            <span class="tooltip">ⓘ
-                                <span class="tooltiptext">Deja vacío si no deseas cambiarla.</span>
-                            </span>
-                        </label>
-                        <input type="password" id="perfil-password" name="password" autocomplete="new-password"
-                            placeholder="Opcional">
-                    </div>
-                    <div>
-                        <label for="perfil-password2">Confirmar contraseña</label>
-                        <input type="password" id="perfil-password2" name="password2" autocomplete="new-password"
-                            placeholder="Opcional">
-                    </div>
-                </div>
+  <!-- Contraseña / Confirmar -->
+  <div class="form-row split">
+    <div>
+      <label for="perfil-password">
+        Contraseña
+        <span class="tooltip">ⓘ
+          <span class="tooltiptext">Deja vacío si no deseas cambiarla.</span>
+        </span>
+      </label>
+      <input type="password" id="perfil-password" name="password" autocomplete="new-password" placeholder="Opcional">
+    </div>
+    <div>
+      <label for="perfil-password2">Confirmar contraseña</label>
+      <input type="password" id="perfil-password2" name="password2" autocomplete="new-password" placeholder="Opcional">
+    </div>
+  </div>
 
-                <!-- Sección informativa -->
-                <h3 class="form-section-title">INFORMACIÓN DEL SISTEMA</h3>
+  <!-- Sección informativa -->
+  <h3 class="form-section-title">INFORMACIÓN DEL SISTEMA</h3>
 
-                <!-- Departamento / Reporta a (solo lectura) -->
-                <div class="form-row split">
-                    <div>
-                        <label for="perfil-departamento">Departamento</label>
-                        <input type="text" id="perfil-departamento" name="departamento" class="is-readonly" readonly
-                            aria-readonly="true">
-                    </div>
-                    <div>
-                        <label for="perfil-reporta">Reporta a</label>
-                        <input type="text" id="perfil-reporta" name="reporta_a_nombre" class="is-readonly" readonly
-                            aria-readonly="true">
-                    </div>
-                </div>
+  <!-- Departamento / Reporta a (solo lectura) -->
+  <div class="form-row split">
+    <div>
+      <label for="perfil-departamento">Departamento</label>
+      <input type="text" id="perfil-departamento" name="departamento" class="is-readonly" readonly aria-readonly="true">
+    </div>
+    <div>
+      <label for="perfil-reporta">Reporta a</label>
+      <input type="text" id="perfil-reporta" name="reporta_a_nombre" class="is-readonly" readonly aria-readonly="true">
+    </div>
+  </div>
 
-                <!-- Status (solo lectura) -->
-                <div class="form-row">
-                    <label for="perfil-status">Status</label>
-                    <input type="text" id="perfil-status" name="status" class="is-readonly" readonly
-                        aria-readonly="true">
-                </div>
+  <!-- Status (solo lectura) -->
+  <div class="form-row">
+    <label for="perfil-status">Status</label>
+    <input type="text" id="perfil-status" name="status" class="is-readonly" readonly aria-readonly="true">
+  </div>
 
-                <!-- Submit -->
-                <button type="submit" class="btn-submit">Guardar cambios</button>
-            </form>
+  <!-- Submit -->
+  <button type="submit" class="btn-submit">Guardar cambios</button>
+</form>
 
 
 
