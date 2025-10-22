@@ -629,6 +629,7 @@ body.modal-open{ overflow: hidden; }
 }
 
 
+/* Subtítulo del bloque “solo lectura” */
 .subtitulo-info{
   margin: 1rem .25rem .5rem;
   font-size: .9rem;

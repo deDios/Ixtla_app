@@ -23,10 +23,10 @@ const CONFIG = {
   },
 };
 
-const TAG = "[Home]";
-const log = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
+const TAG  = "[Home]";
+const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
 const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
-const err = (...a) => console.error(TAG, ...a);
+const err  = (...a) => console.error(TAG, ...a);
 
 /* ============================================================================
    IMPORTS
@@ -85,7 +85,7 @@ const SIDEBAR_KEYS = [
 /* ============================================================================
    HELPERS
    ========================================================================== */
-const $ = (sel, root = document) => root.querySelector(sel);
+const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
 
@@ -148,7 +148,7 @@ function pickReportaField(modalRoot) {
       inp.setAttribute("readonly", "true");
       inp.setAttribute("aria-readonly", "true");
       inp.classList.add("is-readonly");
-    } catch { }
+    } catch {}
     return { el: inp, usedFallback: true };
   }
   return { el: null, usedFallback: false };
@@ -161,21 +161,21 @@ function initProfileModal() {
 
   const openers = document.querySelectorAll('.edit-profile,[data-open="#modal-perfil"]');
   const closeBtn = modal.querySelector(".modal-close");
-  const content = modal.querySelector(".modal-content");
-  const form = modal.querySelector("#form-perfil");
+  const content  = modal.querySelector(".modal-content");
+  const form     = modal.querySelector("#form-perfil");
 
   // Inputs EDITABLES
-  const inpNombre = modal.querySelector("#perfil-nombre");
+  const inpNombre    = modal.querySelector("#perfil-nombre");
   const inpApellidos = modal.querySelector("#perfil-apellidos");
-  const inpEmail = modal.querySelector("#perfil-email");
-  const inpTel = modal.querySelector("#perfil-telefono");
-  const inpPass = modal.querySelector("#perfil-password");
-  const inpPass2 = modal.querySelector("#perfil-password2");
+  const inpEmail     = modal.querySelector("#perfil-email");
+  const inpTel       = modal.querySelector("#perfil-telefono");
+  const inpPass      = modal.querySelector("#perfil-password");
+  const inpPass2     = modal.querySelector("#perfil-password2");
 
   // SOLO LECTURA
-  const inpDepto = modal.querySelector("#perfil-departamento");
-  const inpReporta = modal.querySelector("#perfil-reporta");
-  const inpStatus = modal.querySelector("#perfil-status");
+  const inpDepto     = modal.querySelector("#perfil-departamento");
+  const inpReporta   = modal.querySelector("#perfil-reporta");
+  const inpStatus    = modal.querySelector("#perfil-status");
 
   let empleadoActual = null;
 
@@ -197,12 +197,12 @@ function initProfileModal() {
       log("[Perfil] empleado actual:", empleadoActual);
 
       // 2) Prefill simples (EDITABLES)
-      if (inpNombre) inpNombre.value = empleadoActual?.nombre || "";
+      if (inpNombre)    inpNombre.value    = empleadoActual?.nombre    || "";
       if (inpApellidos) inpApellidos.value = empleadoActual?.apellidos || "";
-      if (inpEmail) inpEmail.value = (empleadoActual?.email || "").toLowerCase();
-      if (inpTel) inpTel.value = empleadoActual?.telefono || "";
-      if (inpPass) inpPass.value = "";
-      if (inpPass2) inpPass2.value = "";
+      if (inpEmail)     inpEmail.value     = (empleadoActual?.email || "").toLowerCase();
+      if (inpTel)       inpTel.value       = empleadoActual?.telefono  || "";
+      if (inpPass)      inpPass.value      = "";
+      if (inpPass2)     inpPass2.value     = "";
 
       // 3) SOLO LECTURA
       // Departamento (por id)
@@ -262,8 +262,8 @@ function initProfileModal() {
     }
 
     // Tomar nombre y apellidos desde inputs (con fallback a split del nombre completo)
-    const nombre = (inpNombre?.value || "").trim();
-    let apellidos = (inpApellidos?.value || "").trim();
+    const nombre    = (inpNombre?.value || "").trim();
+    let   apellidos = (inpApellidos?.value || "").trim();
     if (!apellidos && nombre.includes(" ")) {
       const parts = nombre.split(/\s+/);
       apellidos = parts.slice(1).join(" ");
@@ -406,7 +406,7 @@ async function isPrimeraLinea(viewerId, deptId) {
    ========================================================================== */
 function readSession() {
   let s = null;
-  try { s = Session?.get?.() || null; } catch { }
+  try { s = Session?.get?.() || null; } catch {}
   if (!s) s = readCookiePayload();
 
   if (!s) {
@@ -415,9 +415,9 @@ function readSession() {
     return State.session;
   }
   const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
-  const dept_id = s?.departamento_id ?? null;
-  const roles = Array.isArray(s?.roles) ? s.roles.map((r) => String(r).toUpperCase()) : [];
-  const id_usuario = s?.id_usuario ?? s?.cuenta_id ?? null;
+  const dept_id     = s?.departamento_id ?? null;
+  const roles       = Array.isArray(s?.roles) ? s.roles.map((r) => String(r).toUpperCase()) : [];
+  const id_usuario  = s?.id_usuario ?? s?.cuenta_id ?? null;
 
   log("sesión detectada", { empleado_id, dept_id, roles });
   State.session = { empleado_id, dept_id, roles, id_usuario };
@@ -452,11 +452,11 @@ async function hydrateProfileFromSession() {
       const idu = sessionLike.id_usuario;
       const candidates = idu
         ? [
-          `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
-          `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
-          `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
-          `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-        ]
+            `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
+            `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
+            `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
+            `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
+          ]
         : [];
       let i = 0;
       const tryNext = () => {
@@ -875,11 +875,11 @@ function computeMonthDistribution(rows) {
   return { items, total };
 }
 function drawChartsFromRows(rows) {
-  const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const yearSeries = computeYearSeries(rows);
-  const monthAgg = computeMonthDistribution(rows);
+  const monthAgg   = computeMonthDistribution(rows);
 
-  const $line = $(SEL.chartYear);
+  const $line  = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
 
   log("CHARTS — input (rows length):", rows.length);
@@ -976,12 +976,12 @@ async function loadScopeData() {
   const plan = await planScope({ viewerId, viewerDeptId: dept_id });
   State.scopePlan = plan;
 
-  const isAdmin = (roles || []).some((r) => CONFIG.ADMIN_ROLES.includes(r));
-  const isPres = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
-  const isDir = (roles || []).includes("DIRECTOR");
-  const soyPL = await isPrimeraLinea(viewerId, dept_id);
-  const isJefe = (roles || []).includes("JEFE");
-  const isAnal = (roles || []).includes("ANALISTA");
+  const isAdmin  = (roles || []).some((r) => CONFIG.ADMIN_ROLES.includes(r));
+  const isPres   = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+  const isDir    = (roles || []).includes("DIRECTOR");
+  const soyPL    = await isPrimeraLinea(viewerId, dept_id);
+  const isJefe   = (roles || []).includes("JEFE");
+  const isAnal   = (roles || []).includes("ANALISTA");
 
   log("RBAC flags:", { isAdmin, isPres, isDirector: isDir, primeraLinea: soyPL, isJefe, isAnal });
 

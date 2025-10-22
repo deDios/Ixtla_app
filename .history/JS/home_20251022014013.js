@@ -23,10 +23,10 @@ const CONFIG = {
   },
 };
 
-const TAG = "[Home]";
-const log = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
+const TAG  = "[Home]";
+const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
 const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
-const err = (...a) => console.error(TAG, ...a);
+const err  = (...a) => console.error(TAG, ...a);
 
 /* ============================================================================
    IMPORTS
@@ -85,7 +85,7 @@ const SIDEBAR_KEYS = [
 /* ============================================================================
    HELPERS
    ========================================================================== */
-const $ = (sel, root = document) => root.querySelector(sel);
+const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
 
@@ -148,174 +148,12 @@ function pickReportaField(modalRoot) {
       inp.setAttribute("readonly", "true");
       inp.setAttribute("aria-readonly", "true");
       inp.classList.add("is-readonly");
-    } catch { }
+    } catch {}
     return { el: inp, usedFallback: true };
   }
   return { el: null, usedFallback: false };
 }
 
-function initProfileModal() {
-  const MODAL_ID = "modal-perfil";
-  const modal = document.getElementById(MODAL_ID);
-  if (!modal) { log("[Modal] #modal-perfil no encontrado (se activará cuando exista)."); return; }
-
-  const openers = document.querySelectorAll('.edit-profile,[data-open="#modal-perfil"]');
-  const closeBtn = modal.querySelector(".modal-close");
-  const content = modal.querySelector(".modal-content");
-  const form = modal.querySelector("#form-perfil");
-
-  // Inputs EDITABLES
-  const inpNombre = modal.querySelector("#perfil-nombre");
-  const inpApellidos = modal.querySelector("#perfil-apellidos");
-  const inpEmail = modal.querySelector("#perfil-email");
-  const inpTel = modal.querySelector("#perfil-telefono");
-  const inpPass = modal.querySelector("#perfil-password");
-  const inpPass2 = modal.querySelector("#perfil-password2");
-
-  // SOLO LECTURA
-  const inpDepto = modal.querySelector("#perfil-departamento");
-  const inpReporta = modal.querySelector("#perfil-reporta");
-  const inpStatus = modal.querySelector("#perfil-status");
-
-  let empleadoActual = null;
-
-  const focusFirst = () => {
-    const first = modal.querySelector("input,button,select,textarea,[tabindex]:not([tabindex='-1'])");
-    first?.focus();
-  };
-
-  const open = async () => {
-    modal.classList.add("active");
-    document.body.classList.add("modal-open");
-
-    try {
-      const empId = State.session.empleado_id;
-      if (!empId) { warn("[Perfil] Sin empleado_id en sesión"); return; }
-
-      // 1) Traer empleado actual
-      empleadoActual = await getEmpleadoById(empId);
-      log("[Perfil] empleado actual:", empleadoActual);
-
-      // 2) Prefill simples (EDITABLES)
-      if (inpNombre) inpNombre.value = empleadoActual?.nombre || "";
-      if (inpApellidos) inpApellidos.value = empleadoActual?.apellidos || "";
-      if (inpEmail) inpEmail.value = (empleadoActual?.email || "").toLowerCase();
-      if (inpTel) inpTel.value = empleadoActual?.telefono || "";
-      if (inpPass) inpPass.value = "";
-      if (inpPass2) inpPass2.value = "";
-
-      // 3) SOLO LECTURA
-      // Departamento (por id)
-      const deptId = empleadoActual?.departamento_id ?? State.session.dept_id ?? null;
-      if (inpDepto) inpDepto.value = await resolveDeptName(deptId);
-
-      // Reporta a (id → nombre)
-      let jefeTxt = "—";
-      const reportaId = empleadoActual?.cuenta?.reporta_a ?? empleadoActual?.reporta_a ?? null;
-      if (reportaId) {
-        try {
-          const jefe = await getEmpleadoById(reportaId);
-          jefeTxt = [jefe?.nombre, jefe?.apellidos].filter(Boolean).join(" ") || `Empleado #${reportaId}`;
-        } catch (e) {
-          warn("[Perfil] No se pudo consultar el 'reporta_a':", e);
-          jefeTxt = `Empleado #${reportaId}`;
-        }
-      }
-      if (inpReporta) {
-        inpReporta.value = jefeTxt;
-        inpReporta.readOnly = true;
-        inpReporta.setAttribute("aria-readonly", "true");
-        inpReporta.classList.add("is-readonly");
-      }
-
-      // Status (1/0 → Activo/Inactivo)
-      if (inpStatus) {
-        const st = Number(empleadoActual?.status);
-        inpStatus.value = st === 1 ? "Activo" : "Inactivo";
-      }
-
-      focusFirst();
-    } catch (e) {
-      err("[Modal] error prefill:", e);
-    }
-  };
-
-  const close = () => {
-    modal.classList.remove("active");
-    document.body.classList.remove("modal-open");
-  };
-
-  // Abrir/cerrar
-  openers.forEach(el => el.addEventListener("click", (e) => { e.preventDefault(); open(); }));
-  closeBtn?.addEventListener("click", (e) => { e.preventDefault(); close(); });
-  modal.addEventListener("mousedown", (e) => { if (e.target === modal && !content.contains(e.target)) close(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.classList.contains("active")) close(); });
-
-  // Guardar
-  form?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!empleadoActual) return;
-
-    if (inpPass && inpPass2 && inpPass.value !== inpPass2.value) {
-      alert("Las contraseñas no coinciden.");
-      return;
-    }
-
-    // Tomar nombre y apellidos desde inputs (con fallback a split del nombre completo)
-    const nombre = (inpNombre?.value || "").trim();
-    let apellidos = (inpApellidos?.value || "").trim();
-    if (!apellidos && nombre.includes(" ")) {
-      const parts = nombre.split(/\s+/);
-      apellidos = parts.slice(1).join(" ");
-    }
-
-    const payload = {
-      id: empleadoActual.id,
-      nombre,
-      apellidos,
-      email: (inpEmail?.value || "").trim().toLowerCase(),
-      telefono: (inpTel?.value || "").trim(),
-      ...(inpPass?.value ? { password: inpPass.value } : {}),
-      updated_by: State.session?.empleado_id || null,
-    };
-
-    log("[Perfil] updateEmpleado payload:", payload);
-
-    try {
-      const result = await updateEmpleado(payload);
-      log("[Perfil] actualizado OK:", result);
-
-      // 1) Actualizar visibles inmediatos (sidebar)
-      const nuevoNombre = [payload.nombre, payload.apellidos].filter(Boolean).join(" ") || "—";
-      setText(SEL.profileName, nuevoNombre);
-
-      // 2) Persistir en Session (si existe)
-      try {
-        const cur = Session?.get?.() || {};
-        const next = {
-          ...cur,
-          nombre: payload.nombre || cur.nombre,
-          apellidos: payload.apellidos || cur.apellidos,
-          email: payload.email || cur.email,
-          telefono: payload.telefono || cur.telefono,
-        };
-        Session?.set?.(next);
-      } catch (se) {
-        warn("[Perfil] No pude persistir Session:", se);
-      }
-
-      // 3) Refrescar header y avatar
-      const sess = Session?.get?.() || null;
-      window.gcRefreshHeader?.(sess);
-      refreshSidebarFromSession(sess);
-
-      close();
-    } catch (e2) {
-      err("[Perfil] error al actualizar:", e2);
-      alert("Error al actualizar perfil. Intenta de nuevo.");
-    }
-  });
-}
 
 
 /* ============================================================================
@@ -406,7 +244,7 @@ async function isPrimeraLinea(viewerId, deptId) {
    ========================================================================== */
 function readSession() {
   let s = null;
-  try { s = Session?.get?.() || null; } catch { }
+  try { s = Session?.get?.() || null; } catch {}
   if (!s) s = readCookiePayload();
 
   if (!s) {
@@ -415,9 +253,9 @@ function readSession() {
     return State.session;
   }
   const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
-  const dept_id = s?.departamento_id ?? null;
-  const roles = Array.isArray(s?.roles) ? s.roles.map((r) => String(r).toUpperCase()) : [];
-  const id_usuario = s?.id_usuario ?? s?.cuenta_id ?? null;
+  const dept_id     = s?.departamento_id ?? null;
+  const roles       = Array.isArray(s?.roles) ? s.roles.map((r) => String(r).toUpperCase()) : [];
+  const id_usuario  = s?.id_usuario ?? s?.cuenta_id ?? null;
 
   log("sesión detectada", { empleado_id, dept_id, roles });
   State.session = { empleado_id, dept_id, roles, id_usuario };
@@ -452,11 +290,11 @@ async function hydrateProfileFromSession() {
       const idu = sessionLike.id_usuario;
       const candidates = idu
         ? [
-          `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
-          `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
-          `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
-          `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
-        ]
+            `/ASSETS/usuario/usuarioImg/user_${idu}.png`,
+            `/ASSETS/usuario/usuarioImg/user_${idu}.jpg`,
+            `/ASSETS/usuario/usuarioImg/img_user${idu}.png`,
+            `/ASSETS/usuario/usuarioImg/img_user${idu}.jpg`,
+          ]
         : [];
       let i = 0;
       const tryNext = () => {
@@ -875,11 +713,11 @@ function computeMonthDistribution(rows) {
   return { items, total };
 }
 function drawChartsFromRows(rows) {
-  const labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const yearSeries = computeYearSeries(rows);
-  const monthAgg = computeMonthDistribution(rows);
+  const monthAgg   = computeMonthDistribution(rows);
 
-  const $line = $(SEL.chartYear);
+  const $line  = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
 
   log("CHARTS — input (rows length):", rows.length);
@@ -976,12 +814,12 @@ async function loadScopeData() {
   const plan = await planScope({ viewerId, viewerDeptId: dept_id });
   State.scopePlan = plan;
 
-  const isAdmin = (roles || []).some((r) => CONFIG.ADMIN_ROLES.includes(r));
-  const isPres = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
-  const isDir = (roles || []).includes("DIRECTOR");
-  const soyPL = await isPrimeraLinea(viewerId, dept_id);
-  const isJefe = (roles || []).includes("JEFE");
-  const isAnal = (roles || []).includes("ANALISTA");
+  const isAdmin  = (roles || []).some((r) => CONFIG.ADMIN_ROLES.includes(r));
+  const isPres   = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+  const isDir    = (roles || []).includes("DIRECTOR");
+  const soyPL    = await isPrimeraLinea(viewerId, dept_id);
+  const isJefe   = (roles || []).includes("JEFE");
+  const isAnal   = (roles || []).includes("ANALISTA");
 
   log("RBAC flags:", { isAdmin, isPres, isDirector: isDir, primeraLinea: soyPL, isJefe, isAnal });
 
