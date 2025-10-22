@@ -12,7 +12,6 @@ const CONFIG = {
   PRESIDENCIA_DEPT_IDS: [6], // ids que ven TODO
   DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
 
-  // Paleta de badges (clases CSS ya existen)
   STATUS_KEY_BY_CODE: {
     0: "solicitud",
     1: "revision",
@@ -109,8 +108,6 @@ function formatDateMX(v) {
 /* ============================================================================
    PERFIL + botón "Administrar perfil" + Modal
    ========================================================================== */
-
-/** Inserta el botón si no existe */
 function ensureEditProfileButton() {
   const section = $(SEL.profileSection);
   if (!section) return;
@@ -128,7 +125,6 @@ function ensureEditProfileButton() {
   section.insertBefore(btn, badgeEl || null);
 }
 
-/** Partir un "Nombre completo" en { nombre, apellidos } de forma robusta */
 function splitNombreCompleto(full) {
   const s = (full || "").trim().replace(/\s+/g, " ");
   if (!s) return { nombre: "", apellidos: "" };
@@ -139,7 +135,6 @@ function splitNombreCompleto(full) {
   return { nombre, apellidos };
 }
 
-/** Devuelve input de "Reporta a" (acepta fallback si aún no cambiaste el HTML) */
 function pickReportaField(modalRoot) {
   let inp = modalRoot.querySelector("#perfil-reporta");
   if (inp) return { el: inp, usedFallback: false };
@@ -159,7 +154,6 @@ function pickReportaField(modalRoot) {
   return { el: null, usedFallback: false };
 }
 
-/** Inicializa el modal y lo conecta a la API de usuarios */
 function initProfileModal() {
   const MODAL_ID = "modal-perfil";
   const modal = document.getElementById(MODAL_ID);
@@ -170,18 +164,15 @@ function initProfileModal() {
   const content  = modal.querySelector(".modal-content");
   const form     = modal.querySelector("#form-perfil");
 
-  // Inputs base
   const inpNombre   = modal.querySelector("#perfil-nombre");
   const inpEmail    = modal.querySelector("#perfil-email");
   const inpTel      = modal.querySelector("#perfil-telefono");
   const inpPass     = modal.querySelector("#perfil-password");
   const inpPass2    = modal.querySelector("#perfil-password2");
 
-  // Campo Reporta a (solo lectura) + fallback
   const { el: inpReporta, usedFallback } = pickReportaField(modal);
   if (!inpReporta) warn("[Perfil] Campo 'Reporta a' no está en el DOM (ni fallback).");
 
-  // Estado para el empleado actual
   let empleadoActual = null;
 
   const focusFirst = () => {
@@ -198,11 +189,9 @@ function initProfileModal() {
       const empId = State.session.empleado_id;
       if (!empId) { warn("[Perfil] Sin empleado_id en sesión"); return; }
 
-      // 1) Traer empleado actual
       empleadoActual = await getEmpleadoById(empId);
       log("[Perfil] empleado actual:", empleadoActual);
 
-      // 2) Prefill simples
       const nombreCompleto = [empleadoActual?.nombre, empleadoActual?.apellidos].filter(Boolean).join(" ");
       if (inpNombre) inpNombre.value = nombreCompleto || "";
       if (inpEmail)  inpEmail.value  = (empleadoActual?.email || "").toLowerCase();
@@ -210,7 +199,6 @@ function initProfileModal() {
       if (inpPass)   inpPass.value   = "";
       if (inpPass2)  inpPass2.value  = "";
 
-      // 3) Reporta a (solo lectura)
       let jefeTxt = "—";
       const reportaId = empleadoActual?.cuenta?.reporta_a ?? null;
       log("[Perfil] reporta_a id:", reportaId);
@@ -242,27 +230,22 @@ function initProfileModal() {
     document.body.classList.remove("modal-open");
   };
 
-  // Abrir/cerrar
   openers.forEach(el => el.addEventListener("click", (e) => { e.preventDefault(); open(); }));
   closeBtn?.addEventListener("click", (e) => { e.preventDefault(); close(); });
   modal.addEventListener("mousedown", (e) => { if (e.target === modal && !content.contains(e.target)) close(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.classList.contains("active")) close(); });
 
-  // Submit
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!empleadoActual) return;
 
-    // Validar passwords (opcionales)
     if (inpPass && inpPass2 && inpPass.value !== inpPass2.value) {
       alert("Las contraseñas no coinciden.");
       return;
     }
 
-    // Parse nombre completo → nombre + apellidos
     const { nombre, apellidos } = splitNombreCompleto(inpNombre?.value || "");
 
-    // Construir payload de actualización
     const payload = {
       id: empleadoActual.id,
       nombre: (nombre || "").trim(),
@@ -279,11 +262,9 @@ function initProfileModal() {
       const result = await updateEmpleado(payload);
       log("[Perfil] actualizado OK:", result);
 
-      // 1) Actualizar nombres visibles inmediatos (sidebar)
       const nuevoNombre = [payload.nombre, payload.apellidos].filter(Boolean).join(" ") || "—";
       setText(SEL.profileName, nuevoNombre);
 
-      // 2) Persistir cambios en Session (si existe)
       try {
         const cur = Session?.get?.() || {};
         const next = {
@@ -299,7 +280,6 @@ function initProfileModal() {
         warn("[Perfil] No pude persistir Session:", se);
       }
 
-      // 3) Refrescar header (correo/imagen) y sidebar avatar
       const sess = Session?.get?.() || null;
       window.gcRefreshHeader?.(sess);
       refreshSidebarFromSession(sess);
@@ -319,7 +299,7 @@ const State = {
   session: { empleado_id: null, dept_id: null, roles: [], id_usuario: null },
   scopePlan: null,
   universe: [],
-  rows: [], // parseados para UI
+  rows: [],
   filterKey: "todos",
   search: "",
   counts: {
@@ -432,7 +412,6 @@ async function hydrateProfileFromSession() {
     badge.textContent = deptName || "—";
   }
 
-  // Avatar del sidebar usando el helper global si existe
   const img = $(SEL.avatar);
   if (img) {
     const sessionLike = {
@@ -444,7 +423,6 @@ async function hydrateProfileFromSession() {
     if (window.gcSetAvatarSrc) {
       window.gcSetAvatarSrc(img, sessionLike);
     } else {
-      // Fallback local
       const idu = sessionLike.id_usuario;
       const candidates = idu
         ? [
@@ -527,7 +505,7 @@ function initSearch(onChange) {
 }
 
 /* ============================================================================
-   TABLA (REQID, Tipo de trámite, Asignado, Teléfono, Estatus)
+   TABLA (Folio, Departamento, Tipo de trámite, Asignado, Teléfono, Estatus)
    ========================================================================== */
 function buildTable() {
   State.table = createTable({
@@ -536,6 +514,7 @@ function buildTable() {
     pagSel: null,
     pageSize: CONFIG.PAGE_SIZE,
     columns: [
+      // 1) Folio
       {
         key: "folio",
         title: "Folio",
@@ -551,18 +530,38 @@ function buildTable() {
           return digits ? "REQ-" + digits.padStart(11, "0") : "—";
         },
       },
+
+      // 2) Departamento (NUEVA)
+      {
+        key: "departamento",
+        title: "Departamento",
+        sortable: true,
+        accessor: (r) =>
+          r.departamento ||
+          r.depto ||
+          r.depto_nombre ||
+          r.departamento_nombre ||
+          r.raw?.departamento?.nombre ||
+          "—",
+      },
+
+      // 3) Tipo de trámite
       {
         key: "tramite",
         title: "Tipo de trámite",
         sortable: true,
         accessor: (r) => r.tramite || r.asunto || "—",
       },
+
+      // 4) Asignado
       {
         key: "asignado",
         title: "Asignado",
         sortable: true,
         accessor: (r) => r.asignado || "Sin asignar",
       },
+
+      // 5) Teléfono
       {
         key: "tel",
         title: "Teléfono de contacto",
@@ -570,6 +569,8 @@ function buildTable() {
         accessor: (r) => r.tel || "—",
         render: (v) => (v && v !== "—" ? v : "—"),
       },
+
+      // 6) Estatus
       {
         key: "status",
         title: "Estatus",
@@ -690,15 +691,12 @@ function refreshCurrentPageDecorations() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
-  // limpiar gaps previos
   tbody.querySelectorAll("tr.hs-gap").forEach((tr) => tr.remove());
 
-  // filas reales actuales
   const pageRows = State.table?.getRawRows?.() || [];
   const realCount = pageRows.length;
   const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
 
-  // limpiar interacción previa y re-asignar
   Array.from(tbody.querySelectorAll("tr")).forEach((tr) => {
     tr.classList.remove("is-clickable");
     tr.onclick = null;
@@ -717,7 +715,7 @@ function refreshCurrentPageDecorations() {
   if (gaps > 0) {
     let html = "";
     for (let i = 0; i < gaps; i++) {
-      html += `<tr class="hs-gap" aria-hidden="true"><td colspan="5">&nbsp;</td></tr>`;
+      html += `<tr class="hs-gap" aria-hidden="true"><td colspan="6">&nbsp;</td></tr>`;
     }
     tbody.insertAdjacentHTML("beforeend", html);
   }
@@ -768,11 +766,13 @@ function applyPipelineAndRender() {
       const asign = (r.asignado || "").toLowerCase();
       const est = (r.estatus?.label || "").toLowerCase();
       const folio = (r.folio || "").toLowerCase();
+      const depto = (r.departamento || "").toLowerCase();
       const idTxt = String(r.id || "");
       return (
         asunto.includes(q) ||
         asign.includes(q) ||
         est.includes(q) ||
+        depto.includes(q) ||
         folio.includes(q) ||
         idTxt.includes(q)
       );
@@ -785,6 +785,14 @@ function applyPipelineAndRender() {
   const rows = filtered.map((r) => ({
     __raw: r,
     id: r.id,
+    folio: r.folio,
+    departamento:
+      r.departamento ||
+      r.depto ||
+      r.depto_nombre ||
+      r.departamento_nombre ||
+      r.raw?.departamento?.nombre ||
+      "—",
     tramite: r.tramite,
     asunto: r.asunto,
     asignado: r.asignado,
@@ -806,7 +814,6 @@ function applyPipelineAndRender() {
     page: State.__page,
   });
 
-  // Charts sensibles al filtro
   drawChartsFromRows(filtered);
 }
 
@@ -866,8 +873,18 @@ function drawChartsFromRows(rows) {
 }
 
 /* ============================================================================
-   RBAC – fetch según rol
+   RBAC – fetch según rol (con deduplicación)
    ========================================================================== */
+function dedupeById(...lists) {
+  const map = new Map();
+  lists.flat().forEach((r) => { if (r && r.id != null) map.set(r.id, r); });
+  return Array.from(map.values()).sort(
+    (a, b) =>
+      String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
+      (b.id || 0) - (a.id || 0)
+  );
+}
+
 async function fetchAllRequerimientos(perPage = 200, maxPages = 50) {
   const url =
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
@@ -887,34 +904,37 @@ async function fetchAllRequerimientos(perPage = 200, maxPages = 50) {
   return all;
 }
 
+/** Reqs asignados a un conjunto de empleados (yo + team) */
 async function fetchMineAndTeam(plan) {
   const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
   const results = await Promise.allSettled(ids.map((id) => listByAsignado(id, {})));
   const lists = results.filter((r) => r.status === "fulfilled").map((r) => r.value || []);
-  const map = new Map();
-  lists.flat().forEach((r) => { if (r?.id != null) map.set(r.id, r); });
-  return Array.from(map.values()).sort(
-    (a, b) =>
-      String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
-      (b.id || 0) - (a.id || 0)
-  );
+  return dedupeById(...lists);
 }
 
-async function fetchDeptAsignacion(deptId) {
+/** NUEVO: todos los requerimientos del departamento (cualquier estatus) */
+async function fetchDeptAll(deptId, perPage = 200, maxPages = 50) {
+  if (!deptId) return [];
   const url =
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ departamento_id: deptId, estatus: 2, per_page: 200 }),
-  });
-  if (!res.ok) return [];
-  const json = await res.json();
-  return json?.data || [];
+  const all = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ departamento_id: deptId, per_page: perPage, page }),
+    });
+    if (!res.ok) break;
+    const json = await res.json();
+    const arr = json?.data || [];
+    all.push(...arr);
+    if (arr.length < perPage) break;
+  }
+  return all;
 }
 
 /* ============================================================================
-   CARGA PRINCIPAL
+   CARGA PRINCIPAL (con reglas jerárquicas)
    ========================================================================== */
 async function loadScopeData() {
   const { empleado_id: viewerId, dept_id, roles } = State.session;
@@ -922,50 +942,52 @@ async function loadScopeData() {
     warn("viewerId ausente.");
     State.universe = [];
     State.rows = [];
-    computeCounts([]);
-    updateLegendTotals(0);
-    updateLegendStatus();
-    applyPipelineAndRender();
-    drawChartsFromRows([]);
+    computeCounts([]); updateLegendTotals(0); updateLegendStatus();
+    applyPipelineAndRender(); drawChartsFromRows([]);
     return;
   }
 
   const plan = await planScope({ viewerId, viewerDeptId: dept_id });
   State.scopePlan = plan;
 
-  const isAdmin = (roles || []).some((r) => CONFIG.ADMIN_ROLES.includes(r));
-  const isPres  = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
-  const isDir   = (roles || []).includes("DIRECTOR");
-  const soyPrimeraLinea = await isPrimeraLinea(viewerId, dept_id);
+  const isAdmin  = (roles || []).some((r) => CONFIG.ADMIN_ROLES.includes(r));
+  const isPres   = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+  const isDir    = (roles || []).includes("DIRECTOR");
+  const soyPL    = await isPrimeraLinea(viewerId, dept_id);
+  const isJefe   = (roles || []).includes("JEFE");
+  const isAnal   = (roles || []).includes("ANALISTA");
 
-  log("RBAC flags:", { isAdmin, isPres, isDirector: isDir, soyPrimeraLinea });
+  log("RBAC flags:", { isAdmin, isPres, isDirector: isDir, primeraLinea: soyPL, isJefe, isAnal });
 
   let items = [];
+
   if (isAdmin || isPres) {
+    // ADMIN / PRESIDENCIA: todo el universo
     log("modo ADMIN/PRESIDENCIA → fetch global");
     items = await fetchAllRequerimientos();
-  } else if (isDir || soyPrimeraLinea) {
-    log("modo DIRECTOR/PRIMERA LÍNEA → asignación del depto + asignados (yo/team)");
-    const [deptAsign, mineTeam] = await Promise.all([ fetchDeptAsignacion(dept_id), fetchMineAndTeam(plan) ]);
-    const dedup = new Map();
-    [...deptAsign, ...mineTeam].forEach((r) => { if (r?.id != null) dedup.set(r.id, r); });
-    items = Array.from(dedup.values()).sort(
-      (a, b) =>
-        String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
-        (b.id || 0) - (a.id || 0)
-    );
-  } else {
-    log("modo JEFE/ANALISTA/resto → yo + team asignados");
+  } else if (isDir || soyPL) {
+    // DIRECTOR / PRIMERA LÍNEA: todo el departamento (cualquier estatus)
+    log("modo DIRECTOR/PRIMERA LÍNEA → todos los del departamento");
+    items = await fetchDeptAll(dept_id);
+  } else if (isJefe || isAnal) {
+    // JEFE / ANALISTA: propios + subordinados
+    log("modo JEFE/ANALISTA → yo + subordinados");
     items = await fetchMineAndTeam(plan);
+  } else {
+    // Resto: al menos los asignados a mí
+    log("modo RESTO → asignados a mí");
+    items = await fetchMineAndTeam({ mineId: plan.mineId, teamIds: [] });
   }
 
-  State.universe = items.slice();
+  // Deduplicación por id (por si futuras combinaciones agregan fuentes)
+  State.universe = dedupeById(items);
   State.rows = State.universe.map(parseReq);
 
   log("items UI-mapped (preview):",
     State.rows.slice(0, 5).map((r) => ({
       id: r.id,
       tramite: r.tramite,
+      departamento: r.departamento || r.raw?.departamento?.nombre,
       asignado: r.asignado,
       tel: r.tel,
       estatus: r.estatus?.label,
@@ -995,7 +1017,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     buildTable();
     updateLegendStatus();
 
-    // Refrescar header + sidebar desde la sesión actual al cargar
     const sess = Session?.get?.() || null;
     window.gcRefreshHeader?.(sess);
     refreshSidebarFromSession(sess);

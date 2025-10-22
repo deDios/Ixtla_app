@@ -171,7 +171,8 @@
                         <table class="gc" aria-describedby="hs-search">
                             <thead>
                                 <tr>
-                                    <th>REQID</th>
+                                    <th>Folio</th>
+                                    <th>Departamento</th>
                                     <th>Tipo de trámite</th>
                                     <th>Asignado</th>
                                     <th>Teléfono de contacto</th>
@@ -288,7 +289,7 @@
         redirectTo: "/VIEWS/login.php"
     });
     </script>
-    
+
     <script src="/JS/JSglobal.js"></script>
     <script type="module" src="/JS/home.js"></script>
 </body>
