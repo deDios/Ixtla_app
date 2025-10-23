@@ -1,7 +1,7 @@
 // db\WEB\ixtla01_u_usuario_avatar.php
 "use strict";
 
-const DEFAULT_ENDPOINT = "/db/WEB/ixtla01_u_usuario_avatar.php";
+const DEFAULT_ENDPOINT = "/db/WEB/ixtla01_u_usuario_avatar.phpp";
 const MAX_BYTES = 1 * 1024 * 1024;
 const VALID_TYPES = ["image/jpeg","image/png","image/webp","image/heic","image/heif"];
 
