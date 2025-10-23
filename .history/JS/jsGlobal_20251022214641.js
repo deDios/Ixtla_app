@@ -17,7 +17,7 @@
     },
     ASSETS: {
       DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
-      AVATAR_BASE: "//ASSETS/user/userImgs",
+      AVATAR_BASE: "/ASSETS/user/userImgs",
     },
     SOCIAL: {
       facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
@@ -160,7 +160,7 @@
     const id =
       session?.id_usuario != null ? String(session.id_usuario).trim() : null;
     const basesSinExt = id
-      ? [`${AVATAR_BASE}/user_${id}`, `${AVATAR_BASE}/img_${id}`]
+      ? [`${AVATAR_BASE}/user_${id}`, `${AVATAR_BASE}/img${id}`]
       : [];
     const primary = cookieUrl ? [cookieUrl] : [];
     const candidates = [...primary, ...basesSinExt, DEFAULT_AVATAR];

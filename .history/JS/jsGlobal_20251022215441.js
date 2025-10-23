@@ -17,7 +17,7 @@
     },
     ASSETS: {
       DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
-      AVATAR_BASE: "//ASSETS/user/userImgs",
+      AVATAR_BASE: "/ASSETS/usuario/usuarioImg",
     },
     SOCIAL: {
       facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
