@@ -1043,7 +1043,7 @@ if (isAdmin || isPres) {
   State.rows = uiRows.filter(r => !hide.has(normalizeStatusKey(r?.estatus?.key)));
 } else {
   State.universe = deduped;
-  State.rows = uiRows; 
+  State.rows = uiRows; // resto sin filtro extra
 }
 
   log("items UI-mapped (preview):",
