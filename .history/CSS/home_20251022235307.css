@@ -667,7 +667,8 @@ body.modal-open{ overflow: hidden; }
 
 
 
-/* ======================= Ixtla · Editor de Avatar  ======================= */
+/* ======================= Ixtla · Editor de Avatar (modal) ======================= */
+/* Todo el estilo está scopeado a .eda-overlay para evitar conflictos globales.    */
 
 .eda-overlay {
   /* Paleta adaptada a Ixtla con fallbacks */

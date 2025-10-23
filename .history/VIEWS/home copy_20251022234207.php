@@ -327,59 +327,63 @@
 
 
 
-    <!-- Modal editor de Avatar  -->
-    <div class="eda-overlay" id="eda-overlay" aria-hidden="true">
-        <div class="eda-modal" role="dialog" aria-modal="true" aria-labelledby="eda-title">
-            <div class="eda-header">
-                <div class="eda-title" id="eda-title">Editar avatar</div>
-                <div class="eda-actions">
-                    <button class="btn" id="eda-close" type="button">Cerrar</button>
-                </div>
-            </div>
-
-            <div class="eda-body">
-                <!-- Lado izquierdo: Dropzone + Vista previa -->
-                <div class="eda-left">
-                    <div class="eda-drop" id="eda-drop" aria-label="Zona para arrastrar y soltar imágenes">
-                        <div class="eda-drop-cta">
-                            <strong>Arrastra una imagen</strong> o
-                            <button class="btn btn-outline" id="eda-choose" type="button">Elegir archivo</button>
-                            <div class="eda-hint">También puedes pegar con <kbd>Ctrl</kbd>+<kbd>V</kbd></div>
-                        </div>
-                    </div>
-
-                    <div class="eda-preview">
-                        <div class="eda-preview-wrap">
-                            <img id="eda-preview-img" alt="Vista previa" />
-                            <div class="eda-mask" aria-hidden="true"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Lado derecho: Recientes (mini-historial local) -->
-                <div class="eda-right">
-                    <div class="eda-recents">
-                        <div class="eda-recents-title">Recientes</div>
-                        <div class="eda-recents-grid" id="eda-recents-grid">
-                            <div class="eda-empty">Sin recientes</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="eda-footer">
-                <div class="eda-hint">JPG, PNG, WebP, HEIC/HEIF · Máx 1MB</div>
-                <div class="eda-actions">
-                    <button class="btn" id="eda-cancel" type="button">Cancelar</button>
-                    <button class="btn blue" id="eda-save" type="button" disabled>Guardar</button>
-                </div>
-            </div>
-
-            <!-- Input real (oculto). El JS se encarga de activarlo. -->
-            <input type="file" id="eda-file" accept="image/png, image/jpeg, image/webp, image/heic, image/heif"
-                hidden />
-        </div>
+    <!-- Modal: Editor de Avatar (Ixtla) -->
+<div class="eda-overlay" id="eda-overlay" aria-hidden="true">
+  <div class="eda-modal" role="dialog" aria-modal="true" aria-labelledby="eda-title">
+    <div class="eda-header">
+      <div class="eda-title" id="eda-title">Editar avatar</div>
+      <div class="eda-actions">
+        <button class="btn" id="eda-close" type="button">Cerrar</button>
+      </div>
     </div>
+
+    <div class="eda-body">
+      <!-- Lado izquierdo: Dropzone + Vista previa -->
+      <div class="eda-left">
+        <div class="eda-drop" id="eda-drop" aria-label="Zona para arrastrar y soltar imágenes">
+          <div class="eda-drop-cta">
+            <strong>Arrastra una imagen</strong> o
+            <button class="btn btn-outline" id="eda-choose" type="button">Elegir archivo</button>
+            <div class="eda-hint">También puedes pegar con <kbd>Ctrl</kbd>+<kbd>V</kbd></div>
+          </div>
+        </div>
+
+        <div class="eda-preview">
+          <div class="eda-preview-wrap">
+            <img id="eda-preview-img" alt="Vista previa" />
+            <div class="eda-mask" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lado derecho: Recientes (mini-historial local) -->
+      <div class="eda-right">
+        <div class="eda-recents">
+          <div class="eda-recents-title">Recientes</div>
+          <div class="eda-recents-grid" id="eda-recents-grid">
+            <div class="eda-empty">Sin recientes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="eda-footer">
+      <div class="eda-hint">JPG, PNG, WebP, HEIC/HEIF · Máx 1MB</div>
+      <div class="eda-actions">
+        <button class="btn" id="eda-cancel" type="button">Cancelar</button>
+        <button class="btn blue" id="eda-save" type="button" disabled>Guardar</button>
+      </div>
+    </div>
+
+    <!-- Input real (oculto). El JS se encarga de activarlo. -->
+    <input
+      type="file"
+      id="eda-file"
+      accept="image/png, image/jpeg, image/webp, image/heic, image/heif"
+      hidden
+    />
+  </div>
+</div>
 
 
 

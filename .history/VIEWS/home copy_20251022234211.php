@@ -327,7 +327,7 @@
 
 
 
-    <!-- Modal editor de Avatar  -->
+    <!-- Modal: Editor de Avatar (Ixtla) -->
     <div class="eda-overlay" id="eda-overlay" aria-hidden="true">
         <div class="eda-modal" role="dialog" aria-modal="true" aria-labelledby="eda-title">
             <div class="eda-header">
