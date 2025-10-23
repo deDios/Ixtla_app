@@ -341,7 +341,32 @@
 
     <script src="/JS/JSglobal.js"></script>
     <script type="module" src="/JS/home.js"></script>
-    <script type="module" src="/JS/ui/avatar-edit.js"></script>
+    <script type="module">
+    import {
+        Session
+    } from "/JS/auth/session.js";
+    import {
+        initAvatarUpload
+    } from "/JS/avatar-editor.js"; // tu archivo nuevo
+
+    const s = Session?.get?.() || null;
+    const usuarioId = s?.id_usuario ?? s?.usuario_id ?? s?.empleado_id ?? s?.id_empleado ?? null;
+
+    // Si hay sesión, habilita el botón y conecta el editor
+    const editBtn = document.querySelector(".hs-profile .avatar-edit");
+    if (usuarioId && editBtn) {
+        editBtn.removeAttribute("disabled");
+        initAvatarUpload({
+            imgSel: "#hs-avatar",
+            btnSel: ".hs-profile .avatar-edit",
+            usuarioId, // ← id del usuario logueado
+            endpoint: "/db/WEB/ixtla01_u_avatar.php" // ← tu nuevo endpoint PHP
+        });
+    } else if (editBtn) {
+        editBtn.title = "Inicia sesión para cambiar tu foto";
+        editBtn.setAttribute("disabled", "");
+    }
+    </script>
 
 
 </body>

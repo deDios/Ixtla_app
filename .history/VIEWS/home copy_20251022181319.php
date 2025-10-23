@@ -343,7 +343,6 @@
     <script type="module" src="/JS/home.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
 
-
 </body>
 
 </html>

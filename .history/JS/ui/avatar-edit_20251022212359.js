@@ -6,7 +6,9 @@ const MAX_BYTES = 1 * 1024 * 1024;
 const VALID_TYPES = ["image/jpeg","image/png","image/webp","image/heic","image/heif"];
 
 function getSession() {
+  // 1) Session.get() si existe
   try { if (window.Session?.get) return window.Session.get(); } catch {}
+  // 2) cookie fallback (ix_emp=… base64)
   try {
     const name = "ix_emp=";
     const pair = document.cookie.split("; ").find(c => c.startsWith(name));
@@ -125,4 +127,5 @@ if (document.readyState === "loading") {
   init();
 }
 
+// Exponer por si quieres re-inicializar manualmente
 window.gcInitAvatarEdit = init;
