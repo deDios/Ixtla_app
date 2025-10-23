@@ -11,34 +11,37 @@
       VIEWS: "/VIEWS",
     },
     ROUTES: {
-      publicHome: "/index.php",
-      appHome: "/VIEWS/UAT/home.php",
+      publicHome: "/index.php", // ← redireccion de a index (logo)
+      appHome: "/VIEWS/UAT/home.php", // ← Home para usuarios logeados ("Ir a Home")
       login: "/VIEWS/login.php",
     },
     ASSETS: {
       DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
-      // IMPORTANTE: carpeta donde guardamos "img_{id}.png"
       AVATAR_BASE: "/ASSETS/user/userImgs",
     },
     SOCIAL: {
       facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
       instagram: "https://www.instagram.com/imembrillosgob/",
-      youtube: "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
+      youtube:
+        "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
       x: "https://twitter.com",
     },
     FLAGS: {
-      stickyHeaderOffset: 50,
-      animateOnView: true,
+      stickyHeaderOffset: 50, // px para activar header "scrolled"
+      animateOnView: true, // aplicar IO a .animado
     },
   };
 
   const CFG = (function merge(base, ext) {
-    const out = structuredClone ? structuredClone(base) : JSON.parse(JSON.stringify(base));
+    const out = structuredClone
+      ? structuredClone(base)
+      : JSON.parse(JSON.stringify(base));
     const src = window.GC_CONFIG || {};
     function deepMerge(target, from) {
       for (const k of Object.keys(from || {})) {
         if (from[k] && typeof from[k] === "object" && !Array.isArray(from[k])) {
-          target[k] = target[k] && typeof target[k] === "object" ? target[k] : {};
+          target[k] =
+            target[k] && typeof target[k] === "object" ? target[k] : {};
           deepMerge(target[k], from[k]);
         } else {
           target[k] = from[k];
@@ -54,24 +57,39 @@
   const join = (...parts) =>
     parts
       .filter(Boolean)
-      .map((s, i) => (i === 0 ? s.replace(/\/+$/g, "") : s.replace(/^\/+|\/+$/g, "")))
+      .map((s, i) =>
+        i === 0 ? s.replace(/\/+$/g, "") : s.replace(/^\/+|\/+$/g, "")
+      )
       .join("/")
       .replace(/\/{2,}/g, "/");
 
   const asset = (sub) => abs(join(CFG.PATHS.ASSETS, sub));
   const view = (sub) => abs(join(CFG.PATHS.VIEWS, sub));
 
-  const routePublicHome = CFG.ROUTES?.publicHome ? abs(CFG.ROUTES.publicHome) : abs("/index.php");
-  const routeAppHome = CFG.ROUTES?.appHome ? abs(CFG.ROUTES.appHome) : view("home.php");
-  const routeLogin = CFG.ROUTES?.login ? abs(CFG.ROUTES.login) : view("login.php");
+  const routePublicHome = CFG.ROUTES?.publicHome
+    ? abs(CFG.ROUTES.publicHome)
+    : abs("/index.php");
+  const routeAppHome = CFG.ROUTES?.appHome
+    ? abs(CFG.ROUTES.appHome)
+    : view("home.php");
+  const routeLogin = CFG.ROUTES?.login
+    ? abs(CFG.ROUTES.login)
+    : view("login.php");
 
-  const DEFAULT_AVATAR = abs(CFG.ASSETS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png");
-  const AVATAR_BASE = abs(CFG.ASSETS.AVATAR_BASE || "/ASSETS/user/userImgs");
+  const DEFAULT_AVATAR = abs(
+    CFG.ASSETS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png"
+  );
+  const AVATAR_BASE = abs(
+    CFG.ASSETS.AVATAR_BASE || "/ASSETS/usuario/usuarioImg"
+  );
 
   /* ===================== SESIÓN ===================== */
+  // Lee cookie ix_emp (JSON base64)
   function getIxSession() {
     try {
-      const m = document.cookie.split("; ").find((c) => c.startsWith("ix_emp="));
+      const m = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("ix_emp="));
       if (!m) return null;
       const raw = decodeURIComponent(m.split("=")[1] || "");
       return JSON.parse(decodeURIComponent(escape(atob(raw))));
@@ -79,9 +97,12 @@
       return null;
     }
   }
+  // Limpia ix_emp + usuario
   function clearIxSession() {
-    document.cookie = "ix_emp=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
-    document.cookie = "usuario=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    document.cookie =
+      "ix_emp=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    document.cookie =
+      "usuario=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
   }
 
   /* ===================== UTILS ===================== */
@@ -95,7 +116,12 @@
     }
   };
 
-  function setImgWithExtFallback(imgEl, bases, { extOrder = ["png", "jpg"], placeholder, cacheBust = true } = {}) {
+  // Intenta varias rutas/formatos de imagen, con fallback
+  function setImgWithExtFallback(
+    imgEl,
+    bases,
+    { extOrder = ["png", "jpg"], placeholder, cacheBust = true } = {}
+  ) {
     const isAbsolute = (u) => /^https?:\/\//i.test(u) || u.startsWith("/");
     const hasExt = (u) => /\.[a-zA-Z0-9]{2,5}(\?|#|$)/.test(u);
 
@@ -122,33 +148,22 @@
         imgEl.dataset.srcResolved = url;
         imgEl.onerror = null;
       };
-      imgEl.src = cacheBust && isAbsolute(url) ? withBust(url) : url;
+      const finalUrl = cacheBust && isAbsolute(url) ? withBust(url) : url;
+      imgEl.src = finalUrl;
     };
 
     tryNext();
   }
 
-  // === Avatar helpers ===
-  function gcAvatarUrlFor(id) {
-    if (id == null) return DEFAULT_AVATAR;
-    return `${AVATAR_BASE}/img_${id}.png`;
-  }
-
   function setAvatarSrc(imgEl, session) {
     const cookieUrl = session?.avatarUrl || session?.avatar || null;
-    const id = session?.id_usuario != null ? String(session.id_usuario).trim() : null;
-
-    // Orden de preferencia:
-    // 1) URL directa (si vino de la respuesta del upload)
-    // 2) NUEVO: img_{id}.png
-    // 3) LEGACY: user_{id}.png
-    // 4) DEFAULT
-    const candidates = [
-      ...(cookieUrl ? [cookieUrl] : []),
-      ...(id ? [`${AVATAR_BASE}/img_${id}`] : []),
-      ...(id ? [`${AVATAR_BASE}/user_${id}`] : []),
-      DEFAULT_AVATAR,
-    ];
+    const id =
+      session?.id_usuario != null ? String(session.id_usuario).trim() : null;
+    const basesSinExt = id
+      ? [`${AVATAR_BASE}/user_${id}`, `${AVATAR_BASE}/img_${id}`]
+      : [];
+    const primary = cookieUrl ? [cookieUrl] : [];
+    const candidates = [...primary, ...basesSinExt, DEFAULT_AVATAR];
 
     setImgWithExtFallback(imgEl, candidates, {
       extOrder: ["png", "jpg"],
@@ -156,39 +171,14 @@
       cacheBust: true,
     });
 
-    imgEl.alt = session?.nombre ? `${session.nombre} ${session?.apellidos || ""}`.trim() : "Avatar";
+    imgEl.alt = session?.nombre
+      ? `${session.nombre} ${session?.apellidos || ""}`.trim()
+      : "Avatar";
     imgEl.loading = "lazy";
   }
-
-  // Refrescar todas las vistas conocidas con un URL (opcional) o tomando la sesión
-  function gcRefreshAvatarEverywhere(url, sessionOverride) {
-    const session = sessionOverride || getIxSession();
-
-    // Header desktop
-    document.querySelectorAll(".actions .img-perfil").forEach((img) => {
-      if (url) img.src = withBust(url);
-      else setAvatarSrc(img, session);
-    });
-
-    // Header móvil
-    const mobImg = document.querySelector(".user-icon-mobile img");
-    if (mobImg) {
-      if (url) mobImg.src = withBust(url);
-      else setAvatarSrc(mobImg, session);
-    }
-
-    // Cualquier avatar visible en la vista (por ejemplo el del sidebar)
-    const side = document.getElementById("hs-avatar");
-    if (side) {
-      if (url) side.src = withBust(url);
-      else setAvatarSrc(side, session);
-    }
-  }
-
-  // Exponer helpers
+  
+   // === (NUEVO) Exponer helpers para refrescar avatar/correo en runtime ===
   window.gcSetAvatarSrc = setAvatarSrc;
-  window.gcAvatarUrlFor = gcAvatarUrlFor;
-  window.gcRefreshAvatarEverywhere = gcRefreshAvatarEverywhere;
 
   window.gcRefreshHeader = function gcRefreshHeader(sessionOverride) {
     const session = sessionOverride || getIxSession();
@@ -206,17 +196,16 @@
     const mobImg = document.querySelector(".user-icon-mobile img");
     if (mobImg) setAvatarSrc(mobImg, session);
 
+    // Dispara un evento por si otras vistas quieren engancharse
     document.dispatchEvent(new CustomEvent("gc:header-refreshed", { detail: { session } }));
   };
 
-  // Escucha global: cuando el editor de avatar suba una imagen, refrescamos
-  document.addEventListener("gc:avatar-updated", (e) => {
-    const url = e?.detail?.url || null; // ej. "/ASSETS/user/userImgs/img_12.png"
-    gcRefreshAvatarEverywhere(url);
-  });
-
   // CSS var --vh para layouts móviles
-  const applyVH = () => document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
+  const applyVH = () =>
+    document.documentElement.style.setProperty(
+      "--vh",
+      `${window.innerHeight * 0.01}px`
+    );
   applyVH();
   window.addEventListener("resize", applyVH);
 
@@ -284,11 +273,15 @@
           <div class="dropdown-menu" id="user-dropdown" role="menu" aria-hidden="true">
             <ul>
               <li role="menuitem" tabindex="-1">
-                <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
+                <img src="${asset(
+          "/user/userMenu/homebtn.png"
+        )}" alt="" aria-hidden="true" />
                 Ir a Home
               </li>
               <li id="logout-btn" role="menuitem" tabindex="-1">
-                <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
+                <img src="${asset(
+          "/user/userMenu/logoutbtn.png"
+        )}" alt="" aria-hidden="true" />
                 Logout
               </li>
             </ul>
@@ -320,6 +313,7 @@
         });
         document.addEventListener("click", () => open(false));
 
+        // Desktop dropdown: “Ir a Home” → /VIEWS/home.php
         dd.querySelector("li:nth-child(1)")?.addEventListener("click", () => {
           window.location.href = routeAppHome;
         });
@@ -330,14 +324,25 @@
         });
 
         if (!sessionStorage.getItem("bienvenidaMostrada")) {
-          try { window.gcToast?.(`Bienvenido, ${session.nombre || "usuario"}`, "exito"); } catch {}
+          try {
+            window.gcToast?.(
+              `Bienvenido, ${session.nombre || "usuario"}`,
+              "exito"
+            );
+          } catch { }
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
+        // No logueado → icono clicable a login
         const loginIcon = document.createElement("div");
         loginIcon.className = "user-icon";
-        loginIcon.innerHTML = `<img src="${withBust(DEFAULT_AVATAR)}" alt="Usuario" title="Iniciar sesión" class="img-perfil" />`;
-        loginIcon.addEventListener("click", () => (window.location.href = routeLogin));
+        loginIcon.innerHTML = `<img src="${withBust(
+          DEFAULT_AVATAR
+        )}" alt="Usuario" title="Iniciar sesión" class="img-perfil" />`;
+        loginIcon.addEventListener(
+          "click",
+          () => (window.location.href = routeLogin)
+        );
         actions.appendChild(loginIcon);
         actions.classList.add("mostrar");
       }
@@ -354,7 +359,9 @@
 
       const mob = document.createElement("div");
       mob.className = "user-icon-mobile";
-      mob.innerHTML = `<img alt="Perfil" title="Perfil" src="${withBust(DEFAULT_AVATAR)}" />`;
+      mob.innerHTML = `<img alt="Perfil" title="Perfil" src="${withBust(
+        DEFAULT_AVATAR
+      )}" />`;
       socialIconsContainer.appendChild(mob);
       const mobImg = mob.querySelector("img");
 
@@ -368,11 +375,15 @@
         dropdownMobile.innerHTML = `
           <ul>
             <li>
-              <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
+              <img src="${asset(
+          "/user/userMenu/homebtn.png"
+        )}" alt="" aria-hidden="true" />
               Ir a Home
             </li>
             <li id="logout-btn-mobile">
-              <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
+              <img src="${asset(
+          "/user/userMenu/logoutbtn.png"
+        )}" alt="" aria-hidden="true" />
               Logout
             </li>
           </ul>`;
@@ -381,7 +392,10 @@
         const reposition = () => {
           const rect = mob.getBoundingClientRect();
           dropdownMobile.style.top = `${rect.bottom + window.scrollY}px`;
-          const left = Math.max(8, rect.right - (dropdownMobile.offsetWidth || 180));
+          const left = Math.max(
+            8,
+            rect.right - (dropdownMobile.offsetWidth || 180)
+          );
           dropdownMobile.style.left = `${left + window.scrollX}px`;
         };
 
@@ -392,16 +406,23 @@
           dropdownMobile.classList.toggle("active", willOpen);
         });
 
-        document.addEventListener("click", () => dropdownMobile.classList.remove("active"));
+        document.addEventListener("click", () =>
+          dropdownMobile.classList.remove("active")
+        );
         document.addEventListener("keydown", (e) => {
           if (e.key === "Escape") dropdownMobile.classList.remove("active");
         });
         const onRepositionIfOpen = () => {
           if (dropdownMobile.classList.contains("active")) reposition();
         };
-        window.addEventListener("resize", onRepositionIfOpen, { passive: true });
-        window.addEventListener("scroll", onRepositionIfOpen, { passive: true });
+        window.addEventListener("resize", onRepositionIfOpen, {
+          passive: true,
+        });
+        window.addEventListener("scroll", onRepositionIfOpen, {
+          passive: true,
+        });
 
+        // Mobile dropdown: “Ir a Home” → /VIEWS/home.php
         dropdownMobile
           .querySelector("li:first-child")
           ?.addEventListener("click", (e) => {
@@ -418,7 +439,10 @@
 
         setAvatarSrc(mobImg, session);
       } else {
-        mob.addEventListener("click", () => (window.location.href = routeLogin));
+        mob.addEventListener(
+          "click",
+          () => (window.location.href = routeLogin)
+        );
       }
     }
   });
@@ -432,13 +456,14 @@
 
     const nav = header.querySelector(".subnav");
 
+    // Enlaza redes en subnav (desktop) y en la barra móvil superior
     const socialMap = Object.assign({}, CFG.SOCIAL, window.NAV_SOCIAL || {});
     const attachSocialClicks = (root) => {
       if (!root) return;
       root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
         if (el.dataset.socialBound === "1") return;
         const img = el.querySelector("img") || el;
-        const key = (img.alt || "").trim().toLowerCase();
+        const key = (img.alt || "").trim().toLowerCase(); // "facebook", "instagram", "youtube", "x"
         const url = socialMap[key];
         if (!url) return;
 
@@ -465,7 +490,7 @@
     attachSocialClicks(nav);
     attachSocialClicks(header.querySelector(".social-bar-mobile"));
 
-    // Logo → Home público
+    // Logo → Home público (/index.php)
     const logoBtn = document.getElementById("logo-btn");
     if (logoBtn) {
       logoBtn.style.cursor = "pointer";
@@ -489,12 +514,13 @@
 
     if (!nav.dataset.originalHtml) nav.dataset.originalHtml = nav.innerHTML;
 
-    const operativeViews = ["home.php", "home%20copy.php"].map((s) => s.toLowerCase());
+    const operativeViews = ["home.php","home%20copy.php"].map((s) => s.toLowerCase());
     const pathL = (window.location.pathname || "").toLowerCase();
     const currentPage = (pathL.split("/").pop() || "").toLowerCase();
     const hrefL = (window.location.href || "").toLowerCase();
 
-    const isOperative = hrefL.includes("home.php") || operativeViews.includes(currentPage);
+    const isOperative =
+      hrefL.includes("home.php") || operativeViews.includes(currentPage);
 
     const socialEl = nav.querySelector(".social-icons");
     const socialMarkup = socialEl
@@ -508,11 +534,14 @@
     </div>
   `;
 
-    const LINKS = { home: typeof routeAppHome !== "undefined" ? routeAppHome : "/VIEWS/UAT/home.php" };
+    const LINKS = {
+      home: typeof routeAppHome !== "undefined" ? routeAppHome : "/VIEWS/UAT/home.php",
+    };
 
     function isActive(href) {
       try {
-        const norm = (u) => new URL(u, window.location.origin).pathname.toLowerCase().replace(/\/+$/, "");
+        const norm = (u) =>
+          new URL(u, window.location.origin).pathname.toLowerCase().replace(/\/+$/, "");
         const navPath = norm(href);
         const curPath = norm(window.location.pathname);
 
@@ -540,11 +569,16 @@
 
       nav.innerHTML = markup;
 
-      const socialMap = Object.assign({}, window.GC_CONFIG?.SOCIAL || {}, window.NAV_SOCIAL || {}, window.CFG?.SOCIAL || {});
+      const socialMap = Object.assign(
+        {},
+        window.GC_CONFIG?.SOCIAL || {},
+        window.NAV_SOCIAL || {},
+        window.CFG?.SOCIAL || {}
+      );
       nav.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
         if (el.dataset.socialBound === "1") return;
         const img = el.querySelector("img") || el;
-        const key = (img.alt || "").trim().toLowerCase();
+        const key = (img.alt || "").trim().toLowerCase(); // "facebook" | "instagram" | "youtube" | "x"
         const url = socialMap[key];
         if (!url) return;
 
@@ -553,6 +587,7 @@
           e.stopPropagation();
           window.open(url, "_blank", "noopener");
         });
+        // Accesibilidad teclado
         if (!/^(a|button)$/i.test(el.tagName)) {
           el.tabIndex = 0;
           el.addEventListener("keydown", (e) => {
@@ -569,15 +604,16 @@
     }
   })();
 
+
   // ----------------------------- Botón "Chat" controlado por IDs (empleado_id)
   (function () {
-    const ALLOWED_EMP_IDS = [6, 5, 4, 2, 1];
+    const ALLOWED_EMP_IDS = [6, 5, 4, 2, 1];         
     const CHAT_URL = "/VIEWS/whats_asesores.php";
-    const ONLY_IN_HOME = true;
+    const ONLY_IN_HOME = true;           
 
     function getIxSession() {
       try {
-        const m = document.cookie.split("; ").find((c) => c.startsWith("ix_emp="));
+        const m = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
         if (!m) return null;
         const raw = decodeURIComponent(m.split("=")[1] || "");
         return JSON.parse(decodeURIComponent(escape(atob(raw))));
@@ -596,7 +632,8 @@
       const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
       navs.forEach((navLeft) => {
         if (!navLeft) return;
-        if (navLeft.querySelector("#link-chat")) return;
+        if (navLeft.querySelector("#link-chat")) return; // evitar duplicado
+
         const a = document.createElement("a");
         a.id = "link-chat";
         a.href = CHAT_URL;
@@ -610,6 +647,7 @@
     const sess = getIxSession();
     const empId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
 
+    // Permisos + ubicación
     if (!CHAT_URL || !Number.isFinite(empId) || !ALLOWED_EMP_IDS.includes(empId)) return;
     if (ONLY_IN_HOME && !isHomeLike()) return;
 
@@ -620,5 +658,8 @@
     }
   })();
 
+
   // ------------------------------------- fin subnav operativo
+
+
 })();
