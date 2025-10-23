@@ -384,7 +384,7 @@ function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
     console.warn("[Home] No se pudo escribir cookie ix_emp:", e);
   }
 }
-
+}
 
 /* ============================================================================
    RESOLVER NOMBRE DE DEPTO

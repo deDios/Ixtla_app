@@ -326,8 +326,6 @@ function initProfileModal() {
       refreshSidebarFromSession(sess);
 
       close();
-      // Refrescar la página para garantizar que toda la UI tome los cambios
-      setTimeout(() => { try { window.location.reload(); } catch {} }, 120);
     } catch (e2) {
       err("[Perfil] error al actualizar:", e2);
       alert("Error al actualizar perfil. Intenta de nuevo.");
@@ -926,7 +924,7 @@ function drawChartsFromRows(rows) {
 }
 
 /* ============================================================================
-   RBAC + fetch + dedupe + visibilidad por rol
+   RBAC – fetch + dedupe + visibilidad por rol
    ========================================================================== */
 function dedupeById(...lists) {
   const map = new Map();

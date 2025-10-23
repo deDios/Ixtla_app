@@ -384,7 +384,7 @@ function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
     console.warn("[Home] No se pudo escribir cookie ix_emp:", e);
   }
 }
-
+}
 
 /* ============================================================================
    RESOLVER NOMBRE DE DEPTO
@@ -926,7 +926,7 @@ function drawChartsFromRows(rows) {
 }
 
 /* ============================================================================
-   RBAC + fetch + dedupe + visibilidad por rol
+   RBAC – fetch + dedupe + visibilidad por rol
    ========================================================================== */
 function dedupeById(...lists) {
   const map = new Map();
