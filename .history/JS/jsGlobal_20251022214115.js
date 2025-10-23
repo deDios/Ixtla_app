@@ -18,7 +18,7 @@
     ASSETS: {
       DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
       // Avatares por ID: intentará /ASSETS/usuario/usuarioImg/user_<id>.{png|jpg}
-      AVATAR_BASE: "/ASSETS/user/userImgs",
+      AVATAR_BASE: "/ASSETS/user/userImgs/",
     },
     SOCIAL: {
       facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
