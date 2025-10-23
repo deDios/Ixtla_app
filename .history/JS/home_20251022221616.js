@@ -700,6 +700,44 @@ function renderPagerClassic(total) {
   });
 }
 
+/* ============================================================================
+   GAPS + BIND ROW CLICK
+   ========================================================================== */
+function refreshCurrentPageDecorations() {
+  const tbody = $(SEL.tableBody);
+  if (!tbody) return;
+
+  tbody.querySelectorAll("tr.hs-gap").forEach((tr) => tr.remove());
+
+  const pageRows = State.table?.getRawRows?.() || [];
+  const realCount = pageRows.length;
+  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
+
+  Array.from(tbody.querySelectorAll("tr")).forEach((tr) => {
+    tr.classList.remove("is-clickable");
+    tr.onclick = null;
+  });
+  for (let i = 0; i < realCount; i++) {
+    const tr = tbody.querySelectorAll("tr")[i];
+    const raw = pageRows[i];
+    if (!tr || !raw) continue;
+    tr.classList.add("is-clickable");
+    tr.addEventListener("click", () => {
+      const id = raw?.id || raw?.__raw?.id;
+      if (id) window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
+    });
+  }
+
+  if (gaps > 0) {
+    let html = "";
+    for (let i = 0; i < gaps; i++) {
+      html += `<tr class="hs-gap" aria-hidden="true"><td colspan="6">&nbsp;</td></tr>`;
+    }
+    tbody.insertAdjacentHTML("beforeend", html);
+  }
+  log("gaps añadidos:", gaps, "reales en página:", realCount);
+}
+
 /** Refresca el bloque de perfil del sidebar (nombre + avatar) */
 function refreshSidebarFromSession(sess) {
   try {
