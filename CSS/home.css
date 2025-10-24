@@ -282,7 +282,7 @@ main.home-samapa{
   overflow:hidden;
 }
 #donut-legend .pct{
-  justify-self:end;              /* SIEMPRE pegado a la derecha */
+  justify-self:end;             
   text-align:right;
   white-space:nowrap;
   min-width:3.5ch;

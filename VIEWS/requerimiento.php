@@ -6,10 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/plantilla.css">
+    <link rel="stylesheet" href="/CSS/home.css"> 
     <link rel="stylesheet" href="/CSS/stepper.css">
-    <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/requerimiento.css">
     <link rel="stylesheet" href="/CSS/components.css">
+    <link rel="stylesheet" href="/CSS/requerimientoCoemntariosSection.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -79,23 +80,163 @@
         <div class="hs-wrap">
             <!-- SIDEBAR -->
             <aside class="hs-sidebar">
-                <!-- Perfil -->
                 <section class="hs-profile" aria-label="Perfil">
-                    <img class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
-                    <h3 class="name">Juan Pablo Garcia Casillas</h3>
-                    <span class="badge">SAMAPA</span>
+                    <div class="avatar-shell">
+                        <div class="avatar-circle">
+                            <img id="hs-avatar" class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
+                        </div>
+
+                        <!-- Botón editar avatar (igual que en GodCode) -->
+                        <button type="button" class="icon-btn avatar-edit" aria-label="Cambiar foto"
+                            title="Cambiar foto">
+                            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                <path
+                                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z"
+                                    fill="currentColor"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <h3 id="hs-profile-name" class="name">—</h3>
+
+                    <button type="button" class="gc-btn gc-btn-ghost edit-profile" data-open="#modal-perfil"
+                        aria-haspopup="dialog" aria-controls="modal-perfil">
+                        Administrar perfil ›
+                    </button>
+
+                    <span id="hs-profile-badge" class="badge">—</span>
                 </section>
 
-                <!-- Estados -->
-                <nav class="hs-states" aria-label="Estados">
-                    <button class="item is-active"><span class="label">Todos</span><span
-                            class="count">(50)</span></button>
-                    <button class="item"><span class="label">Pendientes</span><span class="count">(10)</span></button>
-                    <button class="item"><span class="label">En proceso</span><span class="count">(10)</span></button>
-                    <button class="item"><span class="label">Terminados</span><span class="count">(20)</span></button>
-                    <button class="item"><span class="label">Cancelados</span><span class="count">(5)</span></button>
-                    <button class="item"><span class="label">Pausados</span><span class="count">(5)</span></button>
-                </nav>
+
+
+
+
+
+
+
+
+                <section class="demo-comments">
+                    <div class="demo-card">
+                        <div class="head">
+                            <h4>Comentarios</h4>
+                        </div>
+
+                        <!-- dentro de tu .composer -->
+                        <div class="composer" aria-label="Escribir comentario">
+                            <div class="composer-wrap">
+                                <textarea placeholder="Escribe un comentario…"></textarea>
+                                <button class="send-fab" type="button" aria-label="Enviar comentario">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="hint">Presiona <strong> Enter </strong> para enviar <br> o <br> da clic en el botón</div>
+                        </div>
+
+
+                        <!-- Feed de ejemplo -->
+                        <div class="c-feed" aria-live="polite">
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2 min</span></div>
+                                    <div class="text">¿Pueden validar si la cuadrilla ya salió a la zona?</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1 min</span></div>
+                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en sitio.</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span></div>
+                                    <div class="text">Recibido ✅</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2 min</span></div>
+                                    <div class="text">¿Pueden validar si la cuadrilla ya salió a la zona?</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1 min</span></div>
+                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en sitio.</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span></div>
+                                    <div class="text">Recibido ✅</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2 min</span></div>
+                                    <div class="text">¿Pueden validar si la cuadrilla ya salió a la zona?</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1 min</span></div>
+                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en sitio.</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span></div>
+                                    <div class="text">Recibido ✅</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2 min</span></div>
+                                    <div class="text">¿Pueden validar si la cuadrilla ya salió a la zona?</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1 min</span></div>
+                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en sitio.</div>
+                                </div>
+                            </article>
+                            <article class="msg">
+                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+                                <div>
+                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span></div>
+                                    <div class="text">Recibido ✅</div>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
+
+
+
+
+
+
+
+
+
+
+
+
             </aside>
 
             <!-- MAIN -->
@@ -127,7 +268,7 @@
                         <li role="button" class="complete" data-status="0">Solicitud</li>
                         <li role="button" class="complete" data-status="1">Revisión</li>
                         <li role="button" class="complete" data-status="2">Asignación</li>
-                        <li role="button" class="current" data-status="3">En proceso</li>
+                        <li role="button" class="current" data-status="3">Proceso</li>
                         <li role="button" data-status="4">Pausado</li>
                         <li role="button" data-status="5">Cancelado</li>
                         <li role="button" data-status="6">Finalizado</li>
@@ -383,6 +524,7 @@
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/requerimientoView.js"></script>
+    <script src="/JS/ui/avatar-edit.js"></script>
 
 </body>
 
