@@ -3,48 +3,61 @@
 /* CON */
 const TAG = "[API:Requerimientos]";
 
-const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+const API_BASE =
+  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
 
 const API = {
   requerimientos: API_BASE + "ixtla01_c_requerimiento.php",
-  empleados:      API_BASE + "ixtla01_c_empleado.php",
-  departamentos:  API_BASE + "ixtla01_c_departamento.php",
-  updReq:         API_BASE + "ixtla01_upd_requerimiento.php",
+  empleados: API_BASE + "ixtla01_c_empleado.php",
+  departamentos: API_BASE + "ixtla01_c_departamento.php",
+  updReq: API_BASE + "ixtla01_upd_requerimiento.php",
 };
 
-const MAX_PER_PAGE        = 200;     // tope de page size
-const DEFAULT_RANGE_DAYS  = 90;      
-const CACHE_TTL_MS        = 60_000;  // cache (1 minuto)
+const MAX_PER_PAGE = 200; // tope de page size
+const DEFAULT_RANGE_DAYS = 90;
+const CACHE_TTL_MS = 60_000; // cache (1 minuto)
 
 /* ============================ Estatus ============================ */
 export const ESTATUS = {
-  0: { key: "solicitud",   label: "Solicitud",   badge: "badge--neutral" },
-  1: { key: "revision",    label: "Revisión",    badge: "badge--info" },
-  2: { key: "asignacion",  label: "Asignación",  badge: "badge--info" },
-  3: { key: "proceso",     label: "En proceso",  badge: "badge--warn" },
-  4: { key: "pausado",     label: "Pausado",     badge: "badge--pending" },
-  5: { key: "cancelado",   label: "Cancelado",   badge: "badge--error" },
-  6: { key: "finalizado",  label: "Finalizado",  badge: "badge--success" },
+  0: { key: "solicitud", label: "Solicitud", badge: "badge--neutral" },
+  1: { key: "revision", label: "Revisión", badge: "badge--info" },
+  2: { key: "asignacion", label: "Asignación", badge: "badge--info" },
+  3: { key: "proceso", label: "En proceso", badge: "badge--warn" },
+  4: { key: "pausado", label: "Pausado", badge: "badge--pending" },
+  5: { key: "cancelado", label: "Cancelado", badge: "badge--error" },
+  6: { key: "finalizado", label: "Finalizado", badge: "badge--success" },
 };
 export function isCerrado(r) {
   return r?.estatus === 6 || r?.estatus === 5 || !!r?.cerrado_en;
 }
 
 /* ========================== Logging utils ======================== */
-const dev = true; 
-function log(...a){ if (dev) console.log(TAG, ...a); }
-function warn(...a){ if (dev) console.warn(TAG, ...a); }
-function group(label){ if (dev) console.group?.(label); }
-function groupEnd(){ if (dev) console.groupEnd?.(); }
+const dev = true;
+function log(...a) {
+  if (dev) console.log(TAG, ...a);
+}
+function warn(...a) {
+  if (dev) console.warn(TAG, ...a);
+}
+function group(label) {
+  if (dev) console.group?.(label);
+}
+function groupEnd() {
+  if (dev) console.groupEnd?.();
+}
 
 /* =========================== Utils base ========================== */
 function getSessionSafe() {
-  try { return window.Session?.get?.() || null; } catch { return null; }
+  try {
+    return window.Session?.get?.() || null;
+  } catch {
+    return null;
+  }
 }
 function rolesFromSession() {
   const s = getSessionSafe();
   const rs = Array.isArray(s?.roles) ? s.roles : [];
-  const out = rs.map(r => String(r).toUpperCase());
+  const out = rs.map((r) => String(r).toUpperCase());
   log("rolesFromSession()", out);
   return out;
 }
@@ -59,12 +72,15 @@ async function postJSON(url, body) {
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify(body || {})
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body || {}),
     });
     const dt = Math.round((performance.now?.() ?? Date.now()) - t0);
     if (!res.ok) {
-      const text = await res.text().catch(()=>"(sin cuerpo)");
+      const text = await res.text().catch(() => "(sin cuerpo)");
       warn(`HTTP ${res.status} (${dt}ms) @ ${url} — body:`, text);
       throw new Error(`HTTP ${res.status} @ ${url}`);
     }
@@ -78,11 +94,13 @@ async function postJSON(url, body) {
   }
 }
 
-function todayISO() { return new Date().toISOString().slice(0,10); }
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
 function addDaysISO(iso, days) {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0,10);
+  return d.toISOString().slice(0, 10);
 }
 
 /* ============================ Cache ============================== */
@@ -90,21 +108,34 @@ const _cache = new Map();
 function cacheGet(k) {
   const v = _cache.get(k);
   if (!v) return null;
-  if (Date.now() - v.t > CACHE_TTL_MS) { _cache.delete(k); return null; }
+  if (Date.now() - v.t > CACHE_TTL_MS) {
+    _cache.delete(k);
+    return null;
+  }
   return v.data;
 }
-function cacheSet(k, data) { _cache.set(k, { t: Date.now(), data }); }
+function cacheSet(k, data) {
+  _cache.set(k, { t: Date.now(), data });
+}
 
 /* ======================= Empleados / Org ========================= */
-export async function loadEmpleados({ q=null, page_size=200, status_empleado=1 } = {}) {
-  const key = `emp|${q||""}|${page_size}|${status_empleado}`;
+export async function loadEmpleados({
+  q = null,
+  page_size = 200,
+  status_empleado = 1,
+} = {}) {
+  const key = `emp|${q || ""}|${page_size}|${status_empleado}`;
   const hit = cacheGet(key);
-  if (hit) { log("loadEmpleados() cache HIT", { key, total: hit.length }); return hit; }
+  if (hit) {
+    log("loadEmpleados() cache HIT", { key, total: hit.length });
+    return hit;
+  }
 
   group(`${TAG} loadEmpleados()`);
   log("params:", { q, page_size, status_empleado, url: API.empleados });
 
-  let page = 1, out = [];
+  let page = 1,
+    out = [];
   try {
     while (true) {
       const payload = { q, page, page_size, status_empleado };
@@ -116,9 +147,12 @@ export async function loadEmpleados({ q=null, page_size=200, status_empleado=1 }
       log(`page ${page}`, { received: list.length, total });
       out = out.concat(list);
 
-      if ((page * page_size) >= total) break;
+      if (page * page_size >= total) break;
       page++;
-      if (page > 50) { warn("safety break @ page>50"); break; }
+      if (page > 50) {
+        warn("safety break @ page>50");
+        break;
+      }
     }
     cacheSet(key, out);
     log("out length:", out.length);
@@ -134,7 +168,7 @@ export async function loadEmpleados({ q=null, page_size=200, status_empleado=1 }
 // Construye índice reporta_a -> [empleado_id]
 function buildIndexByManager(empleados) {
   const byManager = new Map();
-  empleados.forEach(e => {
+  empleados.forEach((e) => {
     const rep = e?.cuenta?.reporta_a ?? null;
     if (rep == null) return;
     if (!byManager.has(rep)) byManager.set(rep, []);
@@ -160,7 +194,7 @@ function buildTeamIds(viewerId, role, empleados) {
       if (out.has(cur)) continue;
       out.add(cur);
       const next = byManager.get(cur) || [];
-      next.forEach(n => q.push(n));
+      next.forEach((n) => q.push(n));
     }
     log("buildTeamIds() deep", { total: out.size });
     return Array.from(out);
@@ -183,8 +217,12 @@ function pickFiltros(f) {
   return out;
 }
 
-export async function listByAsignado(asignadoId, filtros={}) {
-  const body = { asignado_a: asignadoId, per_page: MAX_PER_PAGE, ...pickFiltros(filtros) };
+export async function listByAsignado(asignadoId, filtros = {}) {
+  const body = {
+    asignado_a: asignadoId,
+    per_page: MAX_PER_PAGE,
+    ...pickFiltros(filtros),
+  };
   group(`${TAG} listByAsignado(${asignadoId})`);
   log("body:", body);
   const json = await postJSON(API.requerimientos, body);
@@ -194,8 +232,12 @@ export async function listByAsignado(asignadoId, filtros={}) {
   return arr;
 }
 
-export async function listByDepto(departamentoId, filtros={}) {
-  const body = { departamento_id: departamentoId, per_page: MAX_PER_PAGE, ...pickFiltros(filtros) };
+export async function listByDepto(departamentoId, filtros = {}) {
+  const body = {
+    departamento_id: departamentoId,
+    per_page: MAX_PER_PAGE,
+    ...pickFiltros(filtros),
+  };
   group(`${TAG} listByDepto(${departamentoId})`);
   log("body:", body);
   const json = await postJSON(API.requerimientos, body);
@@ -206,26 +248,33 @@ export async function listByDepto(departamentoId, filtros={}) {
 }
 
 /* ==================== Unión / orden y dedupe ===================== */
-function mergeDedupOrder(lists, { order="created_at_desc" } = {}) {
+function mergeDedupOrder(lists, { order = "created_at_desc" } = {}) {
   const map = new Map();
-  lists.flat().forEach(r => {
+  lists.flat().forEach((r) => {
     const key = r?.id ?? r?.folio ?? `${Math.random()}`;
     if (!map.has(key)) map.set(key, r);
   });
   let arr = Array.from(map.values());
   if (order === "created_at_desc") {
-    arr.sort((a,b) => String(b.created_at).localeCompare(String(a.created_at)) || ((b.id||0) - (a.id||0)));
+    arr.sort(
+      (a, b) =>
+        String(b.created_at).localeCompare(String(a.created_at)) ||
+        (b.id || 0) - (a.id || 0)
+    );
   }
   log("mergeDedupOrder()", { inputLists: lists.length, out: arr.length });
   return arr;
 }
 
 /* ======================== ADMIN: global ========================== */
-async function listAllRequerimientos({ perPage=MAX_PER_PAGE, maxPages=50 } = {}) {
+async function listAllRequerimientos({
+  perPage = MAX_PER_PAGE,
+  maxPages = 50,
+} = {}) {
   group(`${TAG} listAllRequerimientos()`);
   const all = [];
   try {
-    for (let page=1; page<=maxPages; page++) {
+    for (let page = 1; page <= maxPages; page++) {
       const body = { page, per_page: perPage };
       log("page body:", body);
       const json = await postJSON(API.requerimientos, body);
@@ -233,7 +282,10 @@ async function listAllRequerimientos({ perPage=MAX_PER_PAGE, maxPages=50 } = {})
       all.push(...arr);
       log(`page ${page} received:`, arr.length);
 
-      if (arr.length < perPage) { log("last page reached"); break; }
+      if (arr.length < perPage) {
+        log("last page reached");
+        break;
+      }
     }
     log("TOTAL:", all.length);
     groupEnd();
@@ -251,7 +303,12 @@ async function listAllRequerimientos({ perPage=MAX_PER_PAGE, maxPages=50 } = {})
  * @param {number} viewerId
  * @param {number|null} viewerDeptId  — pásalo desde Home (Session.departamento_id)
  */
-export async function planScope({ viewerId, viewerDeptId=null, empleadosAll=null, rangeDays=DEFAULT_RANGE_DAYS } = {}) {
+export async function planScope({
+  viewerId,
+  viewerDeptId = null,
+  empleadosAll = null,
+  rangeDays = DEFAULT_RANGE_DAYS,
+} = {}) {
   if (!viewerId) throw new Error("planScope(): viewerId requerido");
 
   const sessionRoles = rolesFromSession();
@@ -268,25 +325,30 @@ export async function planScope({ viewerId, viewerDeptId=null, empleadosAll=null
       mineId: viewerId,
       teamIds: [],
       deptIds: [],
-      defaultRange: { created_from, created_to }
+      defaultRange: { created_from, created_to },
     };
     log("planScope()[ADMIN]", plan);
     return plan;
   }
 
   // No ADMIN → construir jerarquía
-  const empleados = empleadosAll || await loadEmpleados();
-  const viewer = empleados.find(e => e.id === viewerId) || null;
+  const empleados = empleadosAll || (await loadEmpleados());
+  const viewer = empleados.find((e) => e.id === viewerId) || null;
 
   // Rol a partir del empleado; si no hay match, cae a ANALISTA
-  const empRoles = viewer?.cuenta?.roles?.map(r => r.codigo) || sessionRoles || [];
+  const empRoles =
+    viewer?.cuenta?.roles?.map((r) => r.codigo) || sessionRoles || [];
   let role = "ANALISTA";
   if (empRoles.includes("DIRECTOR")) role = "DIRECTOR";
   else if (empRoles.includes("JEFE")) role = "JEFE";
   else if (empRoles.includes("ANALISTA")) role = "ANALISTA";
 
   const teamIds = buildTeamIds(viewerId, role, empleados);
-  const deptIds = viewerDeptId ? [viewerDeptId] : (viewer?.departamento_id ? [viewer.departamento_id] : []);
+  const deptIds = viewerDeptId
+    ? [viewerDeptId]
+    : viewer?.departamento_id
+    ? [viewer.departamento_id]
+    : [];
 
   const created_to = todayISO();
   const created_from = addDaysISO(created_to, -Math.abs(rangeDays));
@@ -294,12 +356,12 @@ export async function planScope({ viewerId, viewerDeptId=null, empleadosAll=null
   const plan = {
     viewerId,
     role,
-    isAdmin:false,
-    isPresidencia:false,
+    isAdmin: false,
+    isPresidencia: false,
     mineId: viewerId,
     teamIds,
     deptIds,
-    defaultRange: { created_from, created_to }
+    defaultRange: { created_from, created_to },
   };
   log("planScope()", plan);
   return plan;
@@ -310,18 +372,22 @@ export async function planScope({ viewerId, viewerDeptId=null, empleadosAll=null
  * - ADMIN: baja todo (paginado) y ordena
  * - otros: combina mine + team + dept
  */
-export async function fetchScope({ plan, filtros={} }) {
+export async function fetchScope({ plan, filtros = {} }) {
   if (!plan) throw new Error("fetchScope(): plan requerido");
 
   if (plan.isAdmin) {
     const all = await listAllRequerimientos({ perPage: MAX_PER_PAGE });
     const items = mergeDedupOrder([all], { order: "created_at_desc" });
     log("fetchScope[ADMIN] done", { total: items.length });
-    return { items, counts:{ mine:0, team:0, dept:0 }, filtros };
+    return { items, counts: { mine: 0, team: 0, dept: 0 }, filtros };
   }
 
   const useFiltros = { ...filtros };
-  if (!useFiltros.created_from && !useFiltros.created_to && (plan.deptIds.length > 1 || plan.teamIds.length > 5)) {
+  if (
+    !useFiltros.created_from &&
+    !useFiltros.created_to &&
+    (plan.deptIds.length > 1 || plan.teamIds.length > 5)
+  ) {
     Object.assign(useFiltros, plan.defaultRange);
   }
 
@@ -331,20 +397,33 @@ export async function fetchScope({ plan, filtros={} }) {
 
   const promises = [];
   if (plan.mineId) promises.push(listByAsignado(plan.mineId, useFiltros));
-  for (const subId of (plan.teamIds || [])) promises.push(listByAsignado(subId, useFiltros));
-  for (const depId of (plan.deptIds || [])) promises.push(listByDepto(depId, useFiltros));
+  for (const subId of plan.teamIds || [])
+    promises.push(listByAsignado(subId, useFiltros));
+  for (const depId of plan.deptIds || [])
+    promises.push(listByDepto(depId, useFiltros));
 
   const results = await Promise.allSettled(promises);
-  const okLists = results.filter(r => r.status === "fulfilled").map(r => r.value || []);
+  const okLists = results
+    .filter((r) => r.status === "fulfilled")
+    .map((r) => r.value || []);
   const items = mergeDedupOrder(okLists, { order: "created_at_desc" });
 
   const counts = {
     mine: (okLists[0] || []).length,
-    team: (plan.teamIds?.length || 0) ? okLists.slice(1, 1 + plan.teamIds.length).reduce((a, l) => a + (l?.length || 0), 0) : 0,
-    dept: okLists.slice(1 + (plan.teamIds?.length || 0)).reduce((a, l) => a + (l?.length || 0), 0)
+    team:
+      plan.teamIds?.length || 0
+        ? okLists
+            .slice(1, 1 + plan.teamIds.length)
+            .reduce((a, l) => a + (l?.length || 0), 0)
+        : 0,
+    dept: okLists
+      .slice(1 + (plan.teamIds?.length || 0))
+      .reduce((a, l) => a + (l?.length || 0), 0),
   };
 
-  const statuses = results.map((r, i) => r.status + (r.status === "rejected" ? `: ${r.reason}` : ""));
+  const statuses = results.map(
+    (r, i) => r.status + (r.status === "rejected" ? `: ${r.reason}` : "")
+  );
   log("fetchScope results:", { totalItems: items.length, counts, statuses });
   groupEnd();
 
@@ -363,18 +442,38 @@ export async function updateRequerimiento(patch = {}) {
     throw new Error(json?.error || "Error al actualizar requerimiento");
   }
   const data = json?.data || json;
-  log("updated:", { id: data?.id, estatus: data?.estatus, asignado_a: data?.asignado_a });
+  log("updated:", {
+    id: data?.id,
+    estatus: data?.estatus,
+    asignado_a: data?.asignado_a,
+  });
   groupEnd();
   return data;
 }
 
-export async function reassignReq(id, asignado_a, { updated_by=null } = {}) {
-  return updateRequerimiento({ id, asignado_a, ...(updated_by ? { updated_by } : {}) });
+export async function reassignReq(id, asignado_a, { updated_by = null } = {}) {
+  return updateRequerimiento({
+    id,
+    asignado_a,
+    ...(updated_by ? { updated_by } : {}),
+  });
 }
-export async function setPrioridadReq(id, prioridad, { updated_by=null } = {}) {
-  return updateRequerimiento({ id, prioridad, ...(updated_by ? { updated_by } : {}) });
+export async function setPrioridadReq(
+  id,
+  prioridad,
+  { updated_by = null } = {}
+) {
+  return updateRequerimiento({
+    id,
+    prioridad,
+    ...(updated_by ? { updated_by } : {}),
+  });
 }
-export async function transferirDeptoReq(id, departamento_id, { tramite_id=null, updated_by=null } = {}) {
+export async function transferirDeptoReq(
+  id,
+  departamento_id,
+  { tramite_id = null, updated_by = null } = {}
+) {
   const patch = { id, departamento_id };
   if (tramite_id != null) patch.tramite_id = tramite_id;
   if (updated_by) patch.updated_by = updated_by;
@@ -387,13 +486,16 @@ export async function setEstatusReq(id, estatus, opts = {}) {
   if (opts.updated_by != null) patch.updated_by = opts.updated_by;
   return updateRequerimiento(patch);
 }
-export async function finalizarReq(id, { cerrado_en=null, updated_by=null } = {}) {
+export async function finalizarReq(
+  id,
+  { cerrado_en = null, updated_by = null } = {}
+) {
   const patch = { id, estatus: 6 };
   if (cerrado_en) patch.cerrado_en = cerrado_en;
   if (updated_by != null) patch.updated_by = updated_by;
   return updateRequerimiento(patch);
 }
-export async function cancelarReq(id, { updated_by=null } = {}) {
+export async function cancelarReq(id, { updated_by = null } = {}) {
   const patch = { id, estatus: 5 };
   if (updated_by != null) patch.updated_by = updated_by;
   return updateRequerimiento(patch);
@@ -407,12 +509,16 @@ function mapPrioridad(p) {
   return "—";
 }
 function mapCanal(c) {
-  return (c != null ? `Canal ${c}` : "—");
+  return c != null ? `Canal ${c}` : "—";
 }
 
 /** parseReq: adapta un registro crudo para la UI */
 export function parseReq(raw) {
-  const e = ESTATUS[raw?.estatus] || { key: "desconocido", label: "—", badge: "badge" };
+  const e = ESTATUS[raw?.estatus] || {
+    key: "desconocido",
+    label: "—",
+    badge: "badge",
+  };
   return {
     id: raw?.id,
     folio: raw?.folio,
@@ -427,13 +533,18 @@ export function parseReq(raw) {
     creado: raw?.created_at,
     actualizado: raw?.updated_at,
     cerrado: raw?.cerrado_en,
-    asignado: raw?.asignado_nombre_completo || raw?.asignado_a || "Sin asignar",
+    asignado:
+      (raw?.asignado_nombre && String(raw.asignado_nombre).trim()) ||
+      (raw?.asignado_a_nombre && String(raw.asignado_a_nombre).trim()) ||
+      (raw?.asignado?.nombre && String(raw.asignado?.nombre).trim()) ||
+      (raw?.asignado_nombre_completo &&
+        String(raw.asignado_nombre_completo).trim()) ||
+      (raw?.asignado_a != null ? `#${raw.asignado_a}` : "Sin asignar"),
     estatus: { code: raw?.estatus, ...e },
     isCerrado: isCerrado(raw),
-    raw
+    raw,
   };
 }
-
 
 // === Catálogo de tipos de requerimiento (tramite) ===
 const API_TRAMITES = API_BASE + "ixtla01_c_tramite.php";
@@ -446,15 +557,19 @@ export async function loadTramitesCatalog(opts = {}) {
   const body = {
     estatus: 1,
     all: true,
-    ...(opts.departamento_id ? { departamento_id: opts.departamento_id } : {})
+    ...(opts.departamento_id ? { departamento_id: opts.departamento_id } : {}),
   };
   try {
     const res = await postJSON(API_TRAMITES, body);
     const arr = res?.data || res || [];
-    return arr.map(x => ({
-      id: Number(x.id),
-      nombre: String(x.nombre || "Otros").replace(/\.\s*$/, "").trim()
-    })).filter(t => t.nombre);
+    return arr
+      .map((x) => ({
+        id: Number(x.id),
+        nombre: String(x.nombre || "Otros")
+          .replace(/\.\s*$/, "")
+          .trim(),
+      }))
+      .filter((t) => t.nombre);
   } catch (e) {
     console.warn("[Trámites] catálogo no disponible:", e);
     return [];
