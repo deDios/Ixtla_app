@@ -24,13 +24,9 @@ const CONFIG = {
 };
 
 const TAG = "[Home]";
-const log = (...a) => {
-  if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a);
-};
-const warn = (...a) => {
-  if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a);
-};
-const err = (...a) => console.error(TAG, ...a);
+const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
+const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
+const err  = (...a) => console.error(TAG, ...a);
 
 /* ============================================================================
    IMPORTS
@@ -38,9 +34,10 @@ const err = (...a) => console.error(TAG, ...a);
 import { Session } from "/JS/auth/session.js";
 import {
   planScope,
+  loadEmpleados,
   listByAsignado,
   parseReq,
-  hydrateAsignadoFields, // ← importante
+  hydrateAsignadoFields,     // ← NEW: hidrata nombre del asignado por asignado_a
 } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
 import { LineChart } from "/JS/charts/line-chart.js";
@@ -89,16 +86,12 @@ const SIDEBAR_KEYS = [
 /* ============================================================================
    HELPERS
    ========================================================================== */
-const $ = (sel, root = document) => root.querySelector(sel);
+const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-const setText = (sel, txt) => {
-  const el = $(sel);
-  if (el) el.textContent = txt;
-};
+const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
 
 function formatFolio(folio, id) {
-  if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
-    return String(folio).trim();
+  if (folio && /^REQ-\d+$/i.test(String(folio).trim())) return String(folio).trim();
   const digits = String(folio ?? "").match(/\d+/)?.[0];
   if (digits) return "REQ-" + digits.padStart(11, "0");
   if (id != null) return "REQ-" + String(id).padStart(11, "0");
@@ -109,21 +102,13 @@ function formatDateMX(v) {
   if (!v) return "—";
   const d = new Date(String(v).replace(" ", "T"));
   if (isNaN(d)) return v;
-  return d.toLocaleDateString("es-MX", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  return d.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
 /** Normaliza claves de estatus a las usadas por la UI del sidebar */
 function normalizeStatusKey(k) {
   if (!k) return "";
-  let s = String(k)
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[\s_-]+/g, "");
+  let s = String(k).toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[\s_-]+/g, "");
   if (s === "enproceso") return "proceso";
   if (s === "revisión" || s === "revision") return "revision";
   if (s === "asignación" || s === "asignacion") return "asignacion";
@@ -132,17 +117,10 @@ function normalizeStatusKey(k) {
 
 // === helpers de ordenamiento / normalización de texto y dígitos
 function normText(s) {
-  return String(s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .trim();
+  return String(s || "").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").trim();
 }
 function digitsNumber(s) {
-  const d =
-    String(s || "")
-      .match(/\d+/g)
-      ?.join("") || "";
+  const d = String(s || "").match(/\d+/g)?.join("") || "";
   return d ? Number(d) : 0;
 }
 
@@ -203,32 +181,28 @@ function initProfileModal() {
     return;
   }
 
-  const openers = document.querySelectorAll(
-    '.edit-profile,[data-open="#modal-perfil"]'
-  );
+  const openers = document.querySelectorAll('.edit-profile,[data-open="#modal-perfil"]');
   const closeBtn = modal.querySelector(".modal-close");
   const content = modal.querySelector(".modal-content");
   const form = modal.querySelector("#form-perfil");
 
   // Inputs EDITABLES
-  const inpNombre = modal.querySelector("#perfil-nombre");
-  const inpApellidos = modal.querySelector("#perfil-apellidos");
-  const inpEmail = modal.querySelector("#perfil-email");
-  const inpTel = modal.querySelector("#perfil-telefono");
-  const inpPass = modal.querySelector("#perfil-password");
-  const inpPass2 = modal.querySelector("#perfil-password2");
+  const inpNombre   = modal.querySelector("#perfil-nombre");
+  const inpApellidos= modal.querySelector("#perfil-apellidos");
+  const inpEmail    = modal.querySelector("#perfil-email");
+  const inpTel      = modal.querySelector("#perfil-telefono");
+  const inpPass     = modal.querySelector("#perfil-password");
+  const inpPass2    = modal.querySelector("#perfil-password2");
 
   // SOLO LECTURA
-  const inpDepto = modal.querySelector("#perfil-departamento");
+  const inpDepto   = modal.querySelector("#perfil-departamento");
   const inpReporta = modal.querySelector("#perfil-reporta");
-  const inpStatus = modal.querySelector("#perfil-status");
+  const inpStatus  = modal.querySelector("#perfil-status");
 
   let empleadoActual = null;
 
   const focusFirst = () => {
-    const first = modal.querySelector(
-      "input,button,select,textarea,[tabindex]:not([tabindex='-1'])"
-    );
+    const first = modal.querySelector("input,button,select,textarea,[tabindex]:not([tabindex='-1'])");
     first?.focus();
   };
 
@@ -238,38 +212,30 @@ function initProfileModal() {
 
     try {
       const empId = State.session.empleado_id;
-      if (!empId) {
-        warn("[Perfil] Sin empleado_id en sesión");
-        return;
-      }
+      if (!empId) { warn("[Perfil] Sin empleado_id en sesión"); return; }
 
       // 1) Traer empleado actual
       empleadoActual = await getEmpleadoById(empId);
       log("[Perfil] empleado actual:", empleadoActual);
 
       // 2) Prefill (editables)
-      if (inpNombre) inpNombre.value = empleadoActual?.nombre || "";
+      if (inpNombre)    inpNombre.value    = empleadoActual?.nombre    || "";
       if (inpApellidos) inpApellidos.value = empleadoActual?.apellidos || "";
-      if (inpEmail)
-        inpEmail.value = (empleadoActual?.email || "").toLowerCase();
-      if (inpTel) inpTel.value = empleadoActual?.telefono || "";
-      if (inpPass) inpPass.value = "";
-      if (inpPass2) inpPass2.value = "";
+      if (inpEmail)     inpEmail.value     = (empleadoActual?.email || "").toLowerCase();
+      if (inpTel)       inpTel.value       = empleadoActual?.telefono || "";
+      if (inpPass)      inpPass.value      = "";
+      if (inpPass2)     inpPass2.value     = "";
 
       // 3) SOLO LECTURA
-      const deptId =
-        empleadoActual?.departamento_id ?? State.session.dept_id ?? null;
+      const deptId = empleadoActual?.departamento_id ?? State.session.dept_id ?? null;
       if (inpDepto) inpDepto.value = await resolveDeptName(deptId);
 
       let jefeTxt = "—";
-      const reportaId =
-        empleadoActual?.cuenta?.reporta_a ?? empleadoActual?.reporta_a ?? null;
+      const reportaId = empleadoActual?.cuenta?.reporta_a ?? empleadoActual?.reporta_a ?? null;
       if (reportaId) {
         try {
           const jefe = await getEmpleadoById(reportaId);
-          jefeTxt =
-            [jefe?.nombre, jefe?.apellidos].filter(Boolean).join(" ") ||
-            `Empleado #${reportaId}`;
+          jefeTxt = [jefe?.nombre, jefe?.apellidos].filter(Boolean).join(" ") || `Empleado #${reportaId}`;
         } catch (e) {
           warn("[Perfil] No se pudo consultar 'reporta_a':", e);
           jefeTxt = `Empleado #${reportaId}`;
@@ -299,22 +265,10 @@ function initProfileModal() {
   };
 
   // Abrir/cerrar
-  openers.forEach((el) =>
-    el.addEventListener("click", (e) => {
-      e.preventDefault();
-      open();
-    })
-  );
-  closeBtn?.addEventListener("click", (e) => {
-    e.preventDefault();
-    close();
-  });
-  modal.addEventListener("mousedown", (e) => {
-    if (e.target === modal && !content.contains(e.target)) close();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal.classList.contains("active")) close();
-  });
+  openers.forEach((el) => el.addEventListener("click", (e) => { e.preventDefault(); open(); }));
+  closeBtn?.addEventListener("click", (e) => { e.preventDefault(); close(); });
+  modal.addEventListener("mousedown", (e) => { if (e.target === modal && !content.contains(e.target)) close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.classList.contains("active")) close(); });
 
   // Guardar
   form?.addEventListener("submit", async (e) => {
@@ -349,8 +303,7 @@ function initProfileModal() {
       const result = await updateEmpleado(payload);
       log("[Perfil] actualizado OK:", result);
 
-      const nuevoNombre =
-        [payload.nombre, payload.apellidos].filter(Boolean).join(" ") || "—";
+      const nuevoNombre = [payload.nombre, payload.apellidos].filter(Boolean).join(" ") || "—";
       setText(SEL.profileName, nuevoNombre);
 
       try {
@@ -377,12 +330,7 @@ function initProfileModal() {
       refreshSidebarFromSession(sess);
 
       close();
-      // Refrescar la página para garantizar que toda la UI tome los cambios
-      setTimeout(() => {
-        try {
-          window.location.reload();
-        } catch {}
-      }, 120);
+      setTimeout(() => { try { window.location.reload(); } catch {} }, 120);
     } catch (e2) {
       err("[Perfil] error al actualizar:", e2);
       alert("Error al actualizar perfil. Intenta de nuevo.");
@@ -395,26 +343,14 @@ function initProfileModal() {
    ========================================================================== */
 const State = {
   session: { empleado_id: null, dept_id: null, roles: [], id_usuario: null },
-  rbac: {
-    isAdmin: false,
-    isPres: false,
-    isDir: false,
-    soyPL: false,
-    isJefe: false,
-    isAnal: false,
-  },
+  rbac: { isAdmin: false, isPres: false, isDir: false, soyPL: false, isJefe: false, isAnal: false },
   scopePlan: null,
   universe: [],
   rows: [],
   filterKey: "todos",
   search: "",
   counts: {
-    todos: 0,
-    pendientes: 0,
-    en_proceso: 0,
-    terminados: 0,
-    cancelados: 0,
-    pausados: 0,
+    todos: 0, pendientes: 0, en_proceso: 0, terminados: 0, cancelados: 0, pausados: 0,
   },
   table: null,
   __page: 1,
@@ -432,9 +368,7 @@ function readCookiePayload() {
     if (!pair) return null;
     const raw = decodeURIComponent(pair.slice(name.length));
     return JSON.parse(decodeURIComponent(escape(atob(raw))));
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
@@ -442,9 +376,7 @@ function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
     const json = JSON.stringify(obj || {});
     const b64 = btoa(unescape(encodeURIComponent(json)));
     const maxAge = Math.max(1, Math.floor(maxAgeDays * 86400));
-    document.cookie = `ix_emp=${encodeURIComponent(
-      b64
-    )}; path=/; max-age=${maxAge}; samesite=lax`;
+    document.cookie = `ix_emp=${encodeURIComponent(b64)}; path=/; max-age=${maxAge}; samesite=lax`;
   } catch (e) {
     console.warn("[Home] No se pudo escribir cookie ix_emp:", e);
   }
@@ -455,17 +387,14 @@ function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
    ========================================================================== */
 async function resolveDeptName(deptId) {
   if (!deptId) return "—";
-  if (CONFIG.DEPT_FALLBACK_NAMES[deptId])
-    return CONFIG.DEPT_FALLBACK_NAMES[deptId];
+  if (CONFIG.DEPT_FALLBACK_NAMES[deptId]) return CONFIG.DEPT_FALLBACK_NAMES[deptId];
+
+  const urlLower = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
+  const urlUpper = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php";
   try {
-    const url =
-      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
-    const res = await fetch(url, {
+    const res = await fetch(urlLower, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
@@ -474,29 +403,48 @@ async function resolveDeptName(deptId) {
     const found = arr.find((d) => Number(d.id) === Number(deptId));
     return found?.nombre || `Depto ${deptId}`;
   } catch {
-    return `Depto ${deptId}`;
+    try {
+      const res = await fetch(urlUpper, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const json = await res.json();
+      const arr = json?.data || [];
+      const found = arr.find((d) => Number(d.id) === Number(deptId));
+      return found?.nombre || `Depto ${deptId}`;
+    } catch { return `Depto ${deptId}`; }
   }
 }
 
 async function isPrimeraLinea(viewerId, deptId) {
+  const urlLower = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
+  const urlUpper = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php";
   try {
-    const url =
-      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
-    const res = await fetch(url, {
+    const res = await fetch(urlLower, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ all: true }),
     });
-    if (!res.ok) return false;
+    if (!res.ok) throw new Error("HTTP " + res.status);
     const json = await res.json();
     const arr = json?.data || [];
     const dep = arr.find((d) => Number(d.id) === Number(deptId));
     return !!(dep && Number(dep.primera_linea) === Number(viewerId));
   } catch {
-    return false;
+    try {
+      const res = await fetch(urlUpper, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ all: true }),
+      });
+      if (!res.ok) return false;
+      const json = await res.json();
+      const arr = json?.data || [];
+      const dep = arr.find((d) => Number(d.id) === Number(deptId));
+      return !!(dep && Number(dep.primera_linea) === Number(viewerId));
+    } catch { return false; }
   }
 }
 
@@ -505,27 +453,18 @@ async function isPrimeraLinea(viewerId, deptId) {
    ========================================================================== */
 function readSession() {
   let s = null;
-  try {
-    s = Session?.get?.() || null;
-  } catch {}
+  try { s = Session?.get?.() || null; } catch {}
   if (!s) s = readCookiePayload();
 
   if (!s) {
     warn("Sin sesión.");
-    State.session = {
-      empleado_id: null,
-      dept_id: null,
-      roles: [],
-      id_usuario: null,
-    };
+    State.session = { empleado_id: null, dept_id: null, roles: [], id_usuario: null };
     return State.session;
   }
   const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
-  const dept_id = s?.departamento_id ?? null;
-  const roles = Array.isArray(s?.roles)
-    ? s.roles.map((r) => String(r).toUpperCase())
-    : [];
-  const id_usuario = s?.id_usuario ?? s?.cuenta_id ?? null;
+  const dept_id     = s?.departamento_id ?? null;
+  const roles       = Array.isArray(s?.roles) ? s.roles.map((r) => String(r).toUpperCase()) : [];
+  const id_usuario  = s?.id_usuario ?? s?.cuenta_id ?? null;
 
   log("sesión detectada", { empleado_id, dept_id, roles });
   State.session = { empleado_id, dept_id, roles, id_usuario };
@@ -549,11 +488,7 @@ async function hydrateProfileFromSession() {
   const img = $(SEL.avatar);
   if (img) {
     const sessionLike = {
-      id_usuario:
-        State.session.id_usuario ??
-        s.id_usuario ??
-        s.usuario_id ??
-        s.id_empleado,
+      id_usuario: State.session.id_usuario ?? s.id_usuario ?? s.usuario_id ?? s.id_empleado,
       avatarUrl: s.avatarUrl || s.avatar,
       nombre: s.nombre,
       apellidos: s.apellidos,
@@ -562,22 +497,14 @@ async function hydrateProfileFromSession() {
       window.gcSetAvatarSrc(img, sessionLike);
     } else {
       const idu = sessionLike.id_usuario;
-      const candidates = idu
-        ? [
-            `/ASSETS/user/userImgs/img_${idu}.png`,
-            `/ASSETS/user/userImgs/img_${idu}.jpg`,
-          ]
-        : [];
+      const candidates = idu ? [
+        `/ASSETS/user/userImgs/img_${idu}.png`,
+        `/ASSETS/user/userImgs/img_${idu}.jpg`,
+      ] : [];
       let i = 0;
       const tryNext = () => {
-        if (i >= candidates.length) {
-          img.src = CONFIG.DEFAULT_AVATAR;
-          return;
-        }
-        img.onerror = () => {
-          i++;
-          tryNext();
-        };
+        if (i >= candidates.length) { img.src = CONFIG.DEFAULT_AVATAR; return; }
+        img.onerror = () => { i++; tryNext(); };
         img.src = `${candidates[i]}?v=${Date.now()}`;
       };
       tryNext();
@@ -594,8 +521,7 @@ function applySidebarVisibilityByRole() {
   if (!group) return;
 
   const lockSet = new Set(["solicitud", "revision"]);
-  const shouldLock =
-    (isDir || soyPL || isJefe || isAnal) && !(isAdmin || isPres);
+  const shouldLock = (isDir || soyPL || isJefe || isAnal) && !(isAdmin || isPres);
 
   $$(SEL.statusItems, group).forEach((btn) => {
     const key = btn.dataset.status;
@@ -605,8 +531,7 @@ function applySidebarVisibilityByRole() {
     if (shouldLock && lockSet.has(key)) {
       btn.setAttribute("aria-disabled", "true");
       btn.classList.add("is-locked");
-      // Si prefieres ocultarlos en lugar de bloquear:
-      // btn.classList.add("is-hidden");
+      // si prefieres ocultarlos en lugar de bloquear, usa .is-hidden
     }
   });
 }
@@ -620,20 +545,13 @@ function initSidebar(onChange) {
   items.forEach((btn, i) => {
     btn.setAttribute("role", "radio");
     btn.setAttribute("tabindex", i === 0 ? "0" : "-1");
-    btn.setAttribute(
-      "aria-checked",
-      btn.classList.contains("is-active") ? "true" : "false"
-    );
+    btn.setAttribute("aria-checked", btn.classList.contains("is-active") ? "true" : "false");
     const key = btn.dataset.status;
     if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
 
     btn.addEventListener("click", () => {
-      if (btn.getAttribute("aria-disabled") === "true") return; // respeta lock
-      items.forEach((b) => {
-        b.classList.remove("is-active");
-        b.setAttribute("aria-checked", "false");
-        b.tabIndex = -1;
-      });
+      if (btn.getAttribute("aria-disabled") === "true") return;
+      items.forEach((b) => { b.classList.remove("is-active"); b.setAttribute("aria-checked", "false"); b.tabIndex = -1; });
       btn.classList.add("is-active");
       btn.setAttribute("aria-checked", "true");
       btn.tabIndex = 0;
@@ -646,22 +564,14 @@ function initSidebar(onChange) {
   });
 
   group.addEventListener("keydown", (e) => {
-    const cur = document.activeElement.closest(".item");
-    const idx = Math.max(0, items.indexOf(cur));
-    let next = idx;
-    if (e.key === "ArrowDown" || e.key === "ArrowRight")
-      next = (idx + 1) % items.length;
-    if (e.key === "ArrowUp" || e.key === "ArrowLeft")
-      next = (idx - 1 + items.length) % items.length;
-    if (next !== idx) {
-      items[next].focus();
-      e.preventDefault();
-    }
+    const cur  = document.activeElement.closest(".item");
+    const idx  = Math.max(0, items.indexOf(cur));
+    let next   = idx;
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") next = (idx + 1) % items.length;
+    if (e.key === "ArrowUp"   || e.key === "ArrowLeft")  next = (idx - 1 + items.length) % items.length;
+    if (next !== idx) { items[next].focus(); e.preventDefault(); }
     if (e.key === " " || e.key === "Enter") {
-      if (items[next].getAttribute("aria-disabled") === "true") {
-        e.preventDefault();
-        return;
-      }
+      if (items[next].getAttribute("aria-disabled") === "true") { e.preventDefault(); return; }
       items[next].click();
       e.preventDefault();
     }
@@ -750,7 +660,7 @@ function buildTable() {
         title: "Asignado",
         sortable: true,
         accessor: (r) => r.asignadoNombre || "Sin asignar",
-        render: (v, r) => v || "Sin asignar",
+        render: (v) => v || "Sin asignar",
       },
 
       // 5) Teléfono de contacto (numérico por dígitos)
@@ -769,9 +679,7 @@ function buildTable() {
         sortable: true,
         accessor: (r) => normText(r.estatus?.label || "—"),
         render: (v, r) => {
-          const keyNorm = normalizeStatusKey(
-            r.estatus?.key || r.estatus?.label || "revision"
-          );
+          const keyNorm = normalizeStatusKey(r.estatus?.key || r.estatus?.label || "revision");
           const label = r.estatus?.label || "—";
           return `<span class="badge-status" data-k="${keyNorm}">${label}</span>`;
         },
@@ -785,9 +693,7 @@ function buildTable() {
 /* ============================================================================
    LEYENDAS / CONTEOS
    ========================================================================== */
-function updateLegendTotals(n) {
-  setText(SEL.legendTotal, String(n ?? 0));
-}
+function updateLegendTotals(n) { setText(SEL.legendTotal, String(n ?? 0)); }
 function updateLegendStatus() {
   const map = {
     todos: "Todos los status",
@@ -803,29 +709,20 @@ function updateLegendStatus() {
 }
 
 function computeCounts(rows) {
-  const c = {
-    todos: 0,
-    solicitud: 0,
-    revision: 0,
-    asignacion: 0,
-    proceso: 0,
-    pausado: 0,
-    cancelado: 0,
-    finalizado: 0,
-  };
+  const c = { todos: 0, solicitud: 0, revision: 0, asignacion: 0, proceso: 0, pausado: 0, cancelado: 0, finalizado: 0 };
   rows.forEach((r) => {
     c.todos++;
     const k = normalizeStatusKey(r.estatus?.key || "");
     if (k in c) c[k]++;
   });
   State.counts = c;
-  setText("#cnt-todos", `(${c.todos})`);
-  setText("#cnt-solicitud", `(${c.solicitud})`);
-  setText("#cnt-revision", `(${c.revision})`);
+  setText("#cnt-todos",      `(${c.todos})`);
+  setText("#cnt-solicitud",  `(${c.solicitud})`);
+  setText("#cnt-revision",   `(${c.revision})`);
   setText("#cnt-asignacion", `(${c.asignacion})`);
-  setText("#cnt-proceso", `(${c.proceso})`);
-  setText("#cnt-pausado", `(${c.pausado})`);
-  setText("#cnt-cancelado", `(${c.cancelado})`);
+  setText("#cnt-proceso",    `(${c.proceso})`);
+  setText("#cnt-pausado",    `(${c.pausado})`);
+  setText("#cnt-cancelado",  `(${c.cancelado})`);
   setText("#cnt-finalizado", `(${c.finalizado})`);
 }
 
@@ -840,13 +737,10 @@ function renderPagerClassic(total) {
   const cur = Math.min(Math.max(1, State.__page || 1), pages);
 
   const btn = (label, p, extra = "") =>
-    `<button class="btn ${extra}" data-p="${p}" ${
-      p === "disabled" ? "disabled" : ""
-    }>${label}</button>`;
+    `<button class="btn ${extra}" data-p="${p}" ${p === "disabled" ? "disabled" : ""}>${label}</button>`;
 
   let nums = "";
-  for (let i = 1; i <= pages; i++)
-    nums += btn(String(i), i, i === cur ? "primary" : "");
+  for (let i = 1; i <= pages; i++) nums += btn(String(i), i, i === cur ? "primary" : "");
 
   cont.innerHTML = [
     btn("«", cur <= 1 ? "disabled" : 1),
@@ -895,10 +789,7 @@ function refreshCurrentPageDecorations() {
   const realCount = pageRows.length;
   const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
 
-  Array.from(tbody.querySelectorAll("tr")).forEach((tr) => {
-    tr.classList.remove("is-clickable");
-    tr.onclick = null;
-  });
+  Array.from(tbody.querySelectorAll("tr")).forEach((tr) => { tr.classList.remove("is-clickable"); tr.onclick = null; });
   for (let i = 0; i < realCount; i++) {
     const tr = tbody.querySelectorAll("tr")[i];
     const raw = pageRows[i];
@@ -912,9 +803,7 @@ function refreshCurrentPageDecorations() {
 
   if (gaps > 0) {
     let html = "";
-    for (let i = 0; i < gaps; i++) {
-      //html += `<tr class="hs-gap" aria-hidden="true"><td colspan="6">&nbsp;</td></tr>`;
-    }
+    for (let i = 0; i < gaps; i++) { /* filas fantasma si se requieren */ }
     tbody.insertAdjacentHTML("beforeend", html);
   }
   log("gaps añadidos:", gaps, "reales en página:", realCount);
@@ -933,8 +822,7 @@ function refreshSidebarFromSession(sess) {
     const avatarEl = document.getElementById("hs-avatar");
     if (avatarEl && window.gcSetAvatarSrc) {
       const sessionLike = {
-        id_usuario:
-          s.id_usuario ?? s.usuario_id ?? s.empleado_id ?? s.id_empleado,
+        id_usuario: s.id_usuario ?? s.usuario_id ?? s.empleado_id ?? s.id_empleado,
         avatarUrl: s.avatarUrl || s.avatar,
         nombre: s.nombre,
         apellidos: s.apellidos,
@@ -947,6 +835,42 @@ function refreshSidebarFromSession(sess) {
 }
 
 /* ============================================================================
+   HELPERS FETCH CON FALLBACK /db/WEB ↔ /DB/WEB (para los fetch directos)
+   ========================================================================== */
+async function postJSONWithAlt(urlLower, body) {
+  const t0 = performance.now?.() ?? Date.now();
+  try {
+    const r = await fetch(urlLower, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body || {}),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    if (CONFIG.DEBUG_LOGS) console.log(TAG, "POST OK", urlLower, Math.round((performance.now?.() ?? Date.now()) - t0) + "ms");
+    return j;
+  } catch (e) {
+    const urlUpper = urlLower.replace("/db/WEB/", "/DB/WEB/");
+    if (urlUpper !== urlLower) {
+      try {
+        const r2 = await fetch(urlUpper, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(body || {}),
+        });
+        if (!r2.ok) throw new Error("HTTP " + r2.status);
+        const j2 = await r2.json();
+        if (CONFIG.DEBUG_LOGS) console.log(TAG, "POST OK (alt)", urlUpper, Math.round((performance.now?.() ?? Date.now()) - t0) + "ms");
+        return j2;
+      } catch (e2) {
+        throw e2;
+      }
+    }
+    throw e;
+  }
+}
+
+/* ============================================================================
    PIPELINE + RENDER
    ========================================================================== */
 function applyPipelineAndRender() {
@@ -954,27 +878,18 @@ function applyPipelineAndRender() {
   let filtered = all;
 
   if (State.filterKey !== "todos") {
-    filtered = filtered.filter(
-      (r) => normalizeStatusKey(r.estatus?.key) === State.filterKey
-    );
+    filtered = filtered.filter((r) => normalizeStatusKey(r.estatus?.key) === State.filterKey);
   }
   if (State.search) {
     const q = State.search;
     filtered = filtered.filter((r) => {
       const asunto = (r.asunto || "").toLowerCase();
-      const asign = (r.asignado || "").toLowerCase();
-      const est = (r.estatus?.label || "").toLowerCase();
-      const folio = (r.folio || "").toLowerCase();
-      const depto = (r.departamento || "").toLowerCase();
-      const idTxt = String(r.id || "");
-      return (
-        asunto.includes(q) ||
-        asign.includes(q) ||
-        est.includes(q) ||
-        depto.includes(q) ||
-        folio.includes(q) ||
-        idTxt.includes(q)
-      );
+      const asign  = (r.asignado || "").toLowerCase();
+      const est    = (r.estatus?.label || "").toLowerCase();
+      const folio  = (r.folio || "").toLowerCase();
+      const depto  = (r.departamento || "").toLowerCase();
+      const idTxt  = String(r.id || "");
+      return (asunto.includes(q) || asign.includes(q) || est.includes(q) || depto.includes(q) || folio.includes(q) || idTxt.includes(q));
     });
   }
 
@@ -985,16 +900,10 @@ function applyPipelineAndRender() {
     __raw: r,
     id: r.id,
     folio: r.folio,
-    departamento:
-      r.departamento ||
-      r.depto ||
-      r.depto_nombre ||
-      r.departamento_nombre ||
-      r.raw?.departamento?.nombre ||
-      "—",
+    departamento: r.departamento || r.depto || r.depto_nombre || r.departamento_nombre || r.raw?.departamento?.nombre || "—",
     tramite: r.tramite,
     asunto: r.asunto,
-    asignado: r.asignado, // ← ya viene solo el nombre desde parseReq()
+    asignado: r.asignado, // ← viene solo el nombre desde parseReq()
     tel: r.tel,
     estatus: r.estatus,
   }));
@@ -1032,8 +941,7 @@ function computeYearSeries(rows) {
 }
 function computeMonthDistribution(rows) {
   const now = new Date();
-  const y = now.getFullYear(),
-    m = now.getMonth();
+  const y = now.getFullYear(), m = now.getMonth();
   const by = new Map();
   for (const r of rows) {
     const iso = String(r.creado || r.raw?.created_at || "").replace(" ", "T");
@@ -1043,68 +951,32 @@ function computeMonthDistribution(rows) {
       by.set(key, (by.get(key) || 0) + 1);
     }
   }
-  const items = Array.from(by.entries()).map(([label, value]) => ({
-    label,
-    value,
-  }));
+  const items = Array.from(by.entries()).map(([label, value]) => ({ label, value }));
   items.sort((a, b) => b.value - a.value);
   const total = items.reduce((a, b) => a + b.value, 0);
   return { items, total };
 }
 function drawChartsFromRows(rows) {
-  const labels = [
-    "Ene",
-    "Feb",
-    "Mar",
-    "Abr",
-    "May",
-    "Jun",
-    "Jul",
-    "Ago",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dic",
-  ];
+  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const yearSeries = computeYearSeries(rows);
-  const monthAgg = computeMonthDistribution(rows);
+  const monthAgg   = computeMonthDistribution(rows);
 
-  const $line = $(SEL.chartYear);
+  const $line  = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
 
   log("CHARTS — input (rows length):", rows.length);
   log("CHARTS — year series:", { labels, series: yearSeries });
   log("CHARTS — month distribution:", monthAgg);
 
-  // Si tu librería soporta destroy(), puedes llamarlo antes de re-crear
-  if (Charts?.line && Charts.line.destroy) {
-    try {
-      Charts.line.destroy();
-    } catch {}
-  }
-  if (Charts?.donut && Charts.donut.destroy) {
-    try {
-      Charts.donut.destroy();
-    } catch {}
-  }
+  if (Charts?.line && Charts.line.destroy) { try { Charts.line.destroy(); } catch {} }
+  if (Charts?.donut && Charts.donut.destroy) { try { Charts.donut.destroy(); } catch {} }
 
   if ($line) {
-    Charts.line = new LineChart($line, {
-      labels,
-      series: yearSeries,
-      showGrid: true,
-      headroom: 0.2,
-      yTicks: 6,
-    });
+    Charts.line = new LineChart($line, { labels, series: yearSeries, showGrid: true, headroom: 0.2, yTicks: 6 });
     log("CHARTS — LineChart render ok");
   }
   if ($donut) {
-    Charts.donut = new DonutChart($donut, {
-      data: monthAgg.items,
-      total: monthAgg.total,
-      legendEl: $(SEL.donutLegend) || null,
-      showPercLabels: true,
-    });
+    Charts.donut = new DonutChart($donut, { data: monthAgg.items, total: monthAgg.total, legendEl: $(SEL.donutLegend) || null, showPercLabels: true });
     log("CHARTS — DonutChart render ok", { total: monthAgg.total });
   }
 
@@ -1116,32 +988,18 @@ function drawChartsFromRows(rows) {
    ========================================================================== */
 function dedupeById(...lists) {
   const map = new Map();
-  lists.flat().forEach((r) => {
-    if (r && r.id != null) map.set(r.id, r);
-  });
+  lists.flat().forEach((r) => { if (r && r.id != null) map.set(r.id, r); });
   return Array.from(map.values()).sort(
-    (a, b) =>
-      String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
-      (b.id || 0) - (a.id || 0)
+    (a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")) || (b.id || 0) - (a.id || 0)
   );
 }
 
 async function fetchAllRequerimientos(perPage = 200, maxPages = 50) {
-  const url =
-    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
+  const urlLower = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
   const all = [];
   for (let page = 1; page <= maxPages; page++) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ page, per_page: perPage }),
-    });
-    if (!res.ok) break;
-    const json = await res.json();
-    const arr = json?.data || [];
+    const json = await postJSONWithAlt(urlLower, { page, per_page: perPage });
+    const arr  = json?.data || [];
     all.push(...arr);
     if (arr.length < perPage) break;
   }
@@ -1150,52 +1008,27 @@ async function fetchAllRequerimientos(perPage = 200, maxPages = 50) {
 
 async function fetchMineAndTeam(plan) {
   const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
-  const results = await Promise.allSettled(
-    ids.map((id) => listByAsignado(id, {}))
-  );
-  const lists = results
-    .filter((r) => r.status === "fulfilled")
-    .map((r) => r.value || []);
+  const results = await Promise.allSettled(ids.map((id) => listByAsignado(id, {})));
+  const lists = results.filter((r) => r.status === "fulfilled").map((r) => r.value || []);
   return dedupeById(...lists);
 }
 
 /** Todos los requerimientos del departamento */
 async function fetchDeptAll(deptId, perPage = 200, maxPages = 50) {
   if (!deptId) return [];
-  const url =
-    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
+  const urlLower = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php";
   const all = [];
   for (let page = 1; page <= maxPages; page++) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        departamento_id: deptId,
-        per_page: perPage,
-        page,
-      }),
-    });
-    if (!res.ok) break;
-    const json = await res.json();
-    const arr = json?.data || [];
+    const json = await postJSONWithAlt(urlLower, { departamento_id: deptId, per_page: perPage, page });
+    const arr  = json?.data || [];
     all.push(...arr);
     if (arr.length < perPage) break;
   }
   return all;
 }
 
-/** Ajusta visibilidad por rol:
- * - Admin/Presidencia: ven TODO.
- * - Director/Primera línea/Jefe/Analista: excluye 'solicitud' y 'revision'.
- * - Resto: sin cambio extra (viene acotado por fuente).
- */
-function filterRoleVisibility(
-  items,
-  { isAdmin, isPres, isDir, soyPL, isJefe, isAnal }
-) {
+/** Ajusta visibilidad por rol */
+function filterRoleVisibility(items, { isAdmin, isPres, isDir, soyPL, isJefe, isAnal }) {
   if (isAdmin || isPres) return items;
   if (isDir || soyPL || isJefe || isAnal) {
     const hide = new Set(["solicitud", "revision"]);
@@ -1229,21 +1062,14 @@ async function loadScopeData() {
   State.scopePlan = plan;
 
   const isAdmin = (roles || []).some((r) => CONFIG.ADMIN_ROLES.includes(r));
-  const isPres = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
-  const isDir = (roles || []).includes("DIRECTOR");
-  const soyPL = await isPrimeraLinea(viewerId, dept_id);
-  const isJefe = (roles || []).includes("JEFE");
-  const isAnal = (roles || []).includes("ANALISTA");
+  const isPres  = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+  const isDir   = (roles || []).includes("DIRECTOR");
+  const soyPL   = await isPrimeraLinea(viewerId, dept_id);
+  const isJefe  = (roles || []).includes("JEFE");
+  const isAnal  = (roles || []).includes("ANALISTA");
 
   State.rbac = { isAdmin, isPres, isDir, soyPL, isJefe, isAnal };
-  log("RBAC flags:", {
-    isAdmin,
-    isPres,
-    isDirector: isDir,
-    primeraLinea: soyPL,
-    isJefe,
-    isAnal,
-  });
+  log("RBAC flags:", { isAdmin, isPres, isDirector: isDir, primeraLinea: soyPL, isJefe, isAnal });
 
   let items = [];
 
@@ -1261,55 +1087,53 @@ async function loadScopeData() {
     items = await fetchMineAndTeam({ mineId: plan.mineId, teamIds: [] });
   }
 
-  // Dedup
-  const deduped = dedupeById(items);
+  // 1) Dedup
+  const dedupedRaw = dedupeById(items);
 
-  // HIDRATAR nombres del asignado ANTES del parse (usa c_empleado si falta nombre)
-  await hydrateAsignadoFields(deduped);
+  // 2) HIDRATAR nombre de asignado si solo tenemos asignado_a
+  const hydratedRaw = await hydrateAsignadoFields(dedupedRaw);
+  if (CONFIG.DEBUG_LOGS) {
+    const need = dedupedRaw.filter(r => r?.asignado_a && !r?.asignado_nombre_completo).length;
+    const done = hydratedRaw.filter(r => r?.asignado_nombre_completo).length;
+    console.log(TAG, `[Hydration] necesitaban nombre: ${need} | con nombre ahora: ${done}`);
+  }
 
-  // Map UI
-  const uiRows = deduped.map(parseReq);
+  // 3) mapear a UI
+  const uiRows = hydratedRaw.map(parseReq);
 
-  // Visibilidad por rol a nivel UI (garantizar filtro independientemente del backend)
+  // 4) Visibilidad por rol a nivel UI
   let visibleRows = uiRows;
   if (!(isAdmin || isPres)) {
     if (isDir || soyPL || isJefe || isAnal) {
       const hide = new Set(["solicitud", "revision"]);
-      visibleRows = uiRows.filter(
-        (r) => !hide.has(normalizeStatusKey(r?.estatus?.key))
-      );
+      visibleRows = uiRows.filter(r => !hide.has(normalizeStatusKey(r?.estatus?.key)));
     }
   }
 
-  State.universe = deduped;
+  State.universe = hydratedRaw;
   State.rows = visibleRows;
 
-  // === DEBUG extra: ¿por qué “Sin asignar”? (muestra hasta 5 ejemplos)
+  // DEBUG: ejemplos “Sin asignar”
   try {
     const sinAsignar = State.rows
-      .filter((r) => (r.asignado || "").toLowerCase() === "sin asignar")
+      .filter(r => (r.asignado || "").toLowerCase() === "sin asignar")
       .slice(0, 5);
     if (sinAsignar.length) {
-      console.warn(
-        "[Home][DEBUG] Ejemplos 'Sin asignar' (máx 5):",
-        sinAsignar.map((r) => ({
+      console.warn("[Home][DEBUG] Ejemplos 'Sin asignar' (máx 5):",
+        sinAsignar.map(r => ({
           id: r.id,
           asignado: r.asignado,
           asignadoNombre: r.asignadoNombre,
           asignadoApellidos: r.asignadoApellidos,
           asignadoFull: r.asignadoFull,
-          raw_asignado: r.raw?.asignado,
           raw_asignado_a: r.raw?.asignado_a,
-          raw_asignado_nombre: r.raw?.asignado_nombre,
-          raw_asignado_apellidos: r.raw?.asignado_apellidos,
           raw_asignado_nombre_completo: r.raw?.asignado_nombre_completo,
         }))
       );
     }
   } catch {}
 
-  log(
-    "items UI-mapped (preview):",
+  log("items UI-mapped (preview):",
     State.rows.slice(0, 5).map((r) => ({
       id: r.id,
       tramite: r.tramite,
