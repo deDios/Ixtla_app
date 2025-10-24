@@ -756,7 +756,7 @@ function buildTable() {
       // 5) Teléfono de contacto (numérico por dígitos)
       {
         key: "tel",
-        title: "Teléfono de contacto",
+        title: "Teléfono",
         sortable: true,
         accessor: (r) => digitsNumber(r.tel),
         render: (v, r) => (r.tel ? r.tel : "—"),
