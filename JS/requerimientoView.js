@@ -30,7 +30,9 @@
     // Index panes por data-tab (normalizado) o por el texto del botón
     const paneMap = new Map();
     panes.forEach((p) => {
-      const key = normalize(p.getAttribute("data-tab") || p.getAttribute("aria-label") || p.id);
+      const key = normalize(
+        p.getAttribute("data-tab") || p.getAttribute("aria-label") || p.id
+      );
       if (key) paneMap.set(key, p);
     });
 
@@ -86,11 +88,15 @@
     });
 
     // Activa el primer tab marcado o el primero de la barra
-    const initialBtn = $(".exp-tab.is-active", tabsBar) || $(".exp-tab", tabsBar);
-    const initialKey = initialBtn ? normalize(initialBtn.dataset.tab || initialBtn.textContent) : null;
+    const initialBtn =
+      $(".exp-tab.is-active", tabsBar) || $(".exp-tab", tabsBar);
+    const initialKey = initialBtn
+      ? normalize(initialBtn.dataset.tab || initialBtn.textContent)
+      : null;
     if (initialKey) setActive(initialKey);
   }
 
+  /* ============================ Acordeones ============================ */
   /* ============================ Acordeones ============================ */
   function initAccordions() {
     const accs = $$(".exp-accordion");
@@ -101,18 +107,22 @@
       const body = $(".exp-acc-body", acc);
       if (!head || !body) return;
 
+      // Mostrar/ocultar solo con aria-expanded; NADA de transform aquí
       const setOpen = (open) => {
         head.setAttribute("aria-expanded", open ? "true" : "false");
-        body.style.display = open ? "block" : "none";
-        const chev = $(".chev", head);
-        if (chev) chev.style.transform = open ? "rotate(180deg)" : "rotate(0deg)";
+        // usa 'hidden' para evitar estilos inline conflictivos
+        body.hidden = !open;
       };
 
-      // Estado inicial según aria-expanded
-      const initOpen = head.getAttribute("aria-expanded") !== "false";
+      // Estado inicial: true si aria-expanded="true"
+      const initOpen = head.getAttribute("aria-expanded") === "true";
       setOpen(initOpen);
 
-      head.addEventListener("click", () => setOpen(head.getAttribute("aria-expanded") !== "true"));
+      head.addEventListener("click", () => {
+        const isOpen = head.getAttribute("aria-expanded") === "true";
+        setOpen(!isOpen);
+      });
+
       head.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -144,7 +154,10 @@
         });
         sortSpan.dataset.dir = dir;
 
-        const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
+        const collator = new Intl.Collator("es", {
+          numeric: true,
+          sensitivity: "base",
+        });
         const arr = rows();
         arr.sort((a, b) => {
           const av = (a.children[idx]?.textContent || "").trim();
