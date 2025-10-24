@@ -17,6 +17,18 @@ const MAX_PER_PAGE = 200; // tope de page size
 const DEFAULT_RANGE_DAYS = 90;
 const CACHE_TTL_MS = 60_000; // cache (1 minuto)
 
+function splitFullName(full = "") {
+  const s = String(full).trim().replace(/\s+/g, " ");
+  if (!s) return { nombre: "", apellidos: "" };
+  const parts = s.split(" ");
+  if (parts.length === 1) return { nombre: parts[0], apellidos: "" };
+  // toma el último bloque como apellidos (simple y seguro)
+  return {
+    nombre: parts.slice(0, -1).join(" "),
+    apellidos: parts.slice(-1).join(" "),
+  };
+}
+
 /* ============================ Estatus ============================ */
 export const ESTATUS = {
   0: { key: "solicitud", label: "Solicitud", badge: "badge--neutral" },
@@ -519,6 +531,30 @@ export function parseReq(raw) {
     label: "—",
     badge: "badge",
   };
+
+  const fullFromApi =
+    (raw?.asignado_nombre_completo &&
+      String(raw.asignado_nombre_completo).trim()) ||
+    "";
+  const soloNombreApi =
+    (raw?.asignado_nombre && String(raw.asignado_nombre).trim()) || "";
+  const soloApeApi =
+    (raw?.asignado_apellidos && String(raw.asignado_apellidos).trim()) || "";
+
+  let asignadoNombre = soloNombreApi;
+  let asignadoApellidos = soloApeApi;
+
+  if (!asignadoNombre && fullFromApi) {
+    const p = splitFullName(fullFromApi);
+    asignadoNombre = p.nombre;
+    asignadoApellidos = asignadoApellidos || p.apellidos;
+  }
+
+  const asignadoFull =
+    asignadoNombre || asignadoApellidos
+      ? [asignadoNombre, asignadoApellidos].filter(Boolean).join(" ")
+      : fullFromApi || (raw?.asignado_a != null ? `#${raw.asignado_a}` : "");
+
   return {
     id: raw?.id,
     folio: raw?.folio,
@@ -533,13 +569,13 @@ export function parseReq(raw) {
     creado: raw?.created_at,
     actualizado: raw?.updated_at,
     cerrado: raw?.cerrado_en,
-    asignado:
-      (raw?.asignado_nombre && String(raw.asignado_nombre).trim()) ||
-      (raw?.asignado_a_nombre && String(raw.asignado_a_nombre).trim()) ||
-      (raw?.asignado?.nombre && String(raw.asignado?.nombre).trim()) ||
-      (raw?.asignado_nombre_completo &&
-        String(raw.asignado_nombre_completo).trim()) ||
-      (raw?.asignado_a != null ? `#${raw.asignado_a}` : "Sin asignar"),
+
+    asignadoNombre:
+      asignadoNombre || (asignadoFull ? asignadoFull : "Sin asignar"),
+    asignadoApellidos: asignadoApellidos || "",
+    asignadoFull: asignadoFull || "Sin asignar",
+    asignado: asignadoNombre || asignadoFull || "Sin asignar", // compat: por defecto SOLO nombre
+
     estatus: { code: raw?.estatus, ...e },
     isCerrado: isCerrado(raw),
     raw,

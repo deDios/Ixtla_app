@@ -749,8 +749,8 @@ function buildTable() {
         key: "asignado",
         title: "Asignado",
         sortable: true,
-        accessor: (r) => normText(r.asignado || "Sin asignar"),
-        render: (v, r) => r.asignado || "Sin asignar",
+        accessor: (r) => r.asignadoNombre || "Sin asignar", 
+        render: (v, r) => v || "Sin asignar",
       },
 
       // 5) Teléfono de contacto (numérico por dígitos)

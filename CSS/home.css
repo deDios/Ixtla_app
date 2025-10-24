@@ -847,7 +847,7 @@ body.modal-open{ overflow: hidden; }
 }
 
 .badge-status[data-k="proceso"]{
-  background:#c4ffe6;
+  background:#fff1c4;
   /*border-color:#cfe3ff;*/
 }
 
