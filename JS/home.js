@@ -116,26 +116,21 @@ function formatDateMX(v) {
   });
 }
 
-/**
- * Normaliza claves de estatus a las usadas por la UI del sidebar
- * - El backend puede mandar: "enProceso", "en_proceso", "EN PROCESO", etc.
- * - La UI usa: "proceso"
- */
+/** Normaliza claves de estatus a las usadas por la UI del sidebar */
 function normalizeStatusKey(k) {
   if (!k) return "";
   let s = String(k)
     .toLowerCase()
     .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "") // quita acentos
-    .replace(/[\s_-]+/g, ""); // quita espacios/guiones/underscores
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[\s_-]+/g, "");
   if (s === "enproceso") return "proceso";
-  // otras equivalencias seguras
   if (s === "revisión" || s === "revision") return "revision";
   if (s === "asignación" || s === "asignacion") return "asignacion";
   return s;
 }
 
-// === helpers de ordenamiento ===
+// === helpers de ordenamiento / normalización de texto y dígitos
 function normText(s) {
   return String(s || "")
     .toLowerCase()
@@ -149,11 +144,6 @@ function digitsNumber(s) {
       .match(/\d+/g)
       ?.join("") || "";
   return d ? Number(d) : 0;
-}
-function onlyFirstWord(s) {
-  const t = String(s || "").trim();
-  if (!t) return "";
-  return t.split(/\s+/)[0]; // primer token
 }
 
 /* ============================================================================
@@ -405,6 +395,14 @@ function initProfileModal() {
    ========================================================================== */
 const State = {
   session: { empleado_id: null, dept_id: null, roles: [], id_usuario: null },
+  rbac: {
+    isAdmin: false,
+    isPres: false,
+    isDir: false,
+    soyPL: false,
+    isJefe: false,
+    isAnal: false,
+  },
   scopePlan: null,
   universe: [],
   rows: [],
@@ -590,6 +588,29 @@ async function hydrateProfileFromSession() {
 /* ============================================================================
    SIDEBAR
    ========================================================================== */
+function applySidebarVisibilityByRole() {
+  const { isAdmin, isPres, isDir, soyPL, isJefe, isAnal } = State.rbac;
+  const group = $(SEL.statusGroup);
+  if (!group) return;
+
+  const lockSet = new Set(["solicitud", "revision"]);
+  const shouldLock =
+    (isDir || soyPL || isJefe || isAnal) && !(isAdmin || isPres);
+
+  $$(SEL.statusItems, group).forEach((btn) => {
+    const key = btn.dataset.status;
+    btn.removeAttribute("aria-disabled");
+    btn.classList.remove("is-locked", "is-hidden");
+
+    if (shouldLock && lockSet.has(key)) {
+      btn.setAttribute("aria-disabled", "true");
+      btn.classList.add("is-locked");
+      // Si prefieres ocultarlos en lugar de bloquear:
+      // btn.classList.add("is-hidden");
+    }
+  });
+}
+
 function initSidebar(onChange) {
   const group = $(SEL.statusGroup);
   if (!group) return;
@@ -607,6 +628,7 @@ function initSidebar(onChange) {
     if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
 
     btn.addEventListener("click", () => {
+      if (btn.getAttribute("aria-disabled") === "true") return; // respeta lock
       items.forEach((b) => {
         b.classList.remove("is-active");
         b.setAttribute("aria-checked", "false");
@@ -636,6 +658,10 @@ function initSidebar(onChange) {
       e.preventDefault();
     }
     if (e.key === " " || e.key === "Enter") {
+      if (items[next].getAttribute("aria-disabled") === "true") {
+        e.preventDefault();
+        return;
+      }
       items[next].click();
       e.preventDefault();
     }
@@ -718,16 +744,13 @@ function buildTable() {
         render: (v, r) => r.tramite || r.asunto || "—",
       },
 
-      // 4) Asignado (mostrar primer nombre; ordenar alfabético por primer nombre)
+      // 4) Asignado (usar solo nombre – sin apellidos – y ordenar alfabético)
       {
         key: "asignado",
         title: "Asignado",
         sortable: true,
-        accessor: (r) => normText(onlyFirstWord(r.asignado || "Sin asignar")),
-        render: (v, r) => {
-          const first = onlyFirstWord(r.asignado || "");
-          return first || "Sin asignar";
-        },
+        accessor: (r) => normText(r.asignado || "Sin asignar"),
+        render: (v, r) => r.asignado || "Sin asignar",
       },
 
       // 5) Teléfono de contacto (numérico por dígitos)
@@ -749,7 +772,6 @@ function buildTable() {
           const keyNorm = normalizeStatusKey(
             r.estatus?.key || r.estatus?.label || "revision"
           );
-          // esto asegura data-k="proceso" para "En proceso"
           const label = r.estatus?.label || "—";
           return `<span class="badge-status" data-k="${keyNorm}">${label}</span>`;
         },
@@ -972,7 +994,7 @@ function applyPipelineAndRender() {
       "—",
     tramite: r.tramite,
     asunto: r.asunto,
-    asignado: r.asignado,
+    asignado: r.asignado, // ← ya viene solo el nombre desde parseReq()
     tel: r.tel,
     estatus: r.estatus,
   }));
@@ -1053,6 +1075,18 @@ function drawChartsFromRows(rows) {
   log("CHARTS — input (rows length):", rows.length);
   log("CHARTS — year series:", { labels, series: yearSeries });
   log("CHARTS — month distribution:", monthAgg);
+
+  // Si tu librería soporta destroy(), puedes llamarlo antes de re-crear
+  if (Charts?.line && Charts.line.destroy) {
+    try {
+      Charts.line.destroy();
+    } catch {}
+  }
+  if (Charts?.donut && Charts.donut.destroy) {
+    try {
+      Charts.donut.destroy();
+    } catch {}
+  }
 
   if ($line) {
     Charts.line = new LineChart($line, {
@@ -1153,20 +1187,16 @@ async function fetchDeptAll(deptId, perPage = 200, maxPages = 50) {
   return all;
 }
 
-/** Filtra items para esconder 'asignacion' y 'solicitud' según rol acordado */
-/** Ajusta visibilidad por rol según reglas:
+/** Ajusta visibilidad por rol:
  * - Admin/Presidencia: ven TODO.
- * - Director/Primera línea: ven TODO su DEPARTAMENTO, excepto estados 'solicitud' y 'revision'.
- * - Jefe/Analista: ven SUS asignados + SUBORDINADOS (sin filtrar por estado).
+ * - Director/Primera línea/Jefe/Analista: excluye 'solicitud' y 'revision'.
+ * - Resto: sin cambio extra (viene acotado por fuente).
  */
 function filterRoleVisibility(
   items,
   { isAdmin, isPres, isDir, soyPL, isJefe, isAnal }
 ) {
-  // Admin / Presidencia: sin restricciones
   if (isAdmin || isPres) return items;
-
-  // Director / Primera Línea / Jefe / Analista: NO ven 'solicitud' ni 'revision'
   if (isDir || soyPL || isJefe || isAnal) {
     const hide = new Set(["solicitud", "revision"]);
     return items.filter(
@@ -1175,8 +1205,6 @@ function filterRoleVisibility(
         !hide.has(normalizeStatusKey(r?.estatus?.key || ""))
     );
   }
-
-  // Resto de roles: sin cambio adicional (suelen venir acotados por fuente)
   return items;
 }
 
@@ -1207,6 +1235,7 @@ async function loadScopeData() {
   const isJefe = (roles || []).includes("JEFE");
   const isAnal = (roles || []).includes("ANALISTA");
 
+  State.rbac = { isAdmin, isPres, isDir, soyPL, isJefe, isAnal };
   log("RBAC flags:", {
     isAdmin,
     isPres,
@@ -1236,20 +1265,19 @@ async function loadScopeData() {
   const deduped = dedupeById(items);
   const uiRows = deduped.map(parseReq);
 
-  // Visibilidad por rol en NIVEL UI para garantizar el filtro aun si el backend cambia campos
-  if (isAdmin || isPres) {
-    State.universe = deduped;
-    State.rows = uiRows;
-  } else if (isDir || soyPL || isJefe || isAnal) {
-    const hide = new Set(["solicitud", "revision"]);
-    State.universe = deduped;
-    State.rows = uiRows.filter(
-      (r) => !hide.has(normalizeStatusKey(r?.estatus?.key))
-    );
-  } else {
-    State.universe = deduped;
-    State.rows = uiRows; // resto sin filtro extra
+  // Visibilidad por rol a nivel UI (garantizar filtro independientemente del backend)
+  let visibleRows = uiRows;
+  if (!(isAdmin || isPres)) {
+    if (isDir || soyPL || isJefe || isAnal) {
+      const hide = new Set(["solicitud", "revision"]);
+      visibleRows = uiRows.filter(
+        (r) => !hide.has(normalizeStatusKey(r?.estatus?.key))
+      );
+    }
   }
+
+  State.universe = deduped;
+  State.rows = visibleRows;
 
   log(
     "items UI-mapped (preview):",
@@ -1266,6 +1294,7 @@ async function loadScopeData() {
   computeCounts(State.rows);
   updateLegendTotals(State.rows.length);
   updateLegendStatus();
+  applySidebarVisibilityByRole(); // ← bloquea/oculta filtros del sidebar según rol
   applyPipelineAndRender();
 
   drawChartsFromRows(State.rows);

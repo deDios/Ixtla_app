@@ -192,7 +192,7 @@
                                     <th>Departamento</th>
                                     <th>Tipo de trámite</th>
                                     <th>Asignado</th>
-                                    <th>Teléfono de contacto</th>
+                                    <th>Teléfono</th>
                                     <th>Estatus</th>
                                 </tr>
                             </thead>

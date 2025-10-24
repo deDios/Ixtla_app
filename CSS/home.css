@@ -845,6 +845,13 @@ body.modal-open{ overflow: hidden; }
 .eda-overlay .btn.blue {
   background: var(--eda-primary); color:#fff; border-color: var(--eda-primary);
 }
+
+.badge-status[data-k="proceso"]{
+  background:#e8f1ff;
+  border-color:#cfe3ff;
+  color:#285ea8;
+}
+
 .eda-overlay .btn.blue:hover { background: var(--eda-primary-2); border-color: var(--eda-primary-2); }
 .eda-overlay .btn.btn-outline {
   background:#fff; color: var(--eda-primary); border: 1px solid color-mix(in srgb, var(--eda-primary) 60%, #fff 40%);
