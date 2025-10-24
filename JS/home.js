@@ -23,10 +23,14 @@ const CONFIG = {
   },
 };
 
-const TAG  = "[Home]";
-const log  = (...a) => { if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a); };
-const warn = (...a) => { if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a); };
-const err  = (...a) => console.error(TAG, ...a);
+const TAG = "[Home]";
+const log = (...a) => {
+  if (CONFIG.DEBUG_LOGS) console.log(TAG, ...a);
+};
+const warn = (...a) => {
+  if (CONFIG.DEBUG_LOGS) console.warn(TAG, ...a);
+};
+const err = (...a) => console.error(TAG, ...a);
 
 /* ============================================================================
    IMPORTS
@@ -85,9 +89,12 @@ const SIDEBAR_KEYS = [
 /* ============================================================================
    HELPERS
    ========================================================================== */
-const $  = (sel, root = document) => root.querySelector(sel);
+const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
+const setText = (sel, txt) => {
+  const el = $(sel);
+  if (el) el.textContent = txt;
+};
 
 function formatFolio(folio, id) {
   if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
@@ -102,7 +109,11 @@ function formatDateMX(v) {
   if (!v) return "—";
   const d = new Date(String(v).replace(" ", "T"));
   if (isNaN(d)) return v;
-  return d.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return d.toLocaleDateString("es-MX", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 
 /**
@@ -114,13 +125,35 @@ function normalizeStatusKey(k) {
   if (!k) return "";
   let s = String(k)
     .toLowerCase()
-    .normalize("NFD").replace(/\p{Diacritic}/gu, "") // quita acentos
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "") // quita acentos
     .replace(/[\s_-]+/g, ""); // quita espacios/guiones/underscores
   if (s === "enproceso") return "proceso";
   // otras equivalencias seguras
   if (s === "revisión" || s === "revision") return "revision";
   if (s === "asignación" || s === "asignacion") return "asignacion";
   return s;
+}
+
+// === helpers de ordenamiento ===
+function normText(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim();
+}
+function digitsNumber(s) {
+  const d =
+    String(s || "")
+      .match(/\d+/g)
+      ?.join("") || "";
+  return d ? Number(d) : 0;
+}
+function onlyFirstWord(s) {
+  const t = String(s || "").trim();
+  if (!t) return "";
+  return t.split(/\s+/)[0]; // primer token
 }
 
 /* ============================================================================
@@ -175,30 +208,37 @@ function pickReportaField(modalRoot) {
 function initProfileModal() {
   const MODAL_ID = "modal-perfil";
   const modal = document.getElementById(MODAL_ID);
-  if (!modal) { log("[Modal] #modal-perfil no encontrado (se activará cuando exista)."); return; }
+  if (!modal) {
+    log("[Modal] #modal-perfil no encontrado (se activará cuando exista).");
+    return;
+  }
 
-  const openers = document.querySelectorAll('.edit-profile,[data-open="#modal-perfil"]');
+  const openers = document.querySelectorAll(
+    '.edit-profile,[data-open="#modal-perfil"]'
+  );
   const closeBtn = modal.querySelector(".modal-close");
-  const content  = modal.querySelector(".modal-content");
-  const form     = modal.querySelector("#form-perfil");
+  const content = modal.querySelector(".modal-content");
+  const form = modal.querySelector("#form-perfil");
 
   // Inputs EDITABLES
-  const inpNombre    = modal.querySelector("#perfil-nombre");
+  const inpNombre = modal.querySelector("#perfil-nombre");
   const inpApellidos = modal.querySelector("#perfil-apellidos");
-  const inpEmail     = modal.querySelector("#perfil-email");
-  const inpTel       = modal.querySelector("#perfil-telefono");
-  const inpPass      = modal.querySelector("#perfil-password");
-  const inpPass2     = modal.querySelector("#perfil-password2");
+  const inpEmail = modal.querySelector("#perfil-email");
+  const inpTel = modal.querySelector("#perfil-telefono");
+  const inpPass = modal.querySelector("#perfil-password");
+  const inpPass2 = modal.querySelector("#perfil-password2");
 
   // SOLO LECTURA
-  const inpDepto   = modal.querySelector("#perfil-departamento");
+  const inpDepto = modal.querySelector("#perfil-departamento");
   const inpReporta = modal.querySelector("#perfil-reporta");
-  const inpStatus  = modal.querySelector("#perfil-status");
+  const inpStatus = modal.querySelector("#perfil-status");
 
   let empleadoActual = null;
 
   const focusFirst = () => {
-    const first = modal.querySelector("input,button,select,textarea,[tabindex]:not([tabindex='-1'])");
+    const first = modal.querySelector(
+      "input,button,select,textarea,[tabindex]:not([tabindex='-1'])"
+    );
     first?.focus();
   };
 
@@ -208,30 +248,38 @@ function initProfileModal() {
 
     try {
       const empId = State.session.empleado_id;
-      if (!empId) { warn("[Perfil] Sin empleado_id en sesión"); return; }
+      if (!empId) {
+        warn("[Perfil] Sin empleado_id en sesión");
+        return;
+      }
 
       // 1) Traer empleado actual
       empleadoActual = await getEmpleadoById(empId);
       log("[Perfil] empleado actual:", empleadoActual);
 
       // 2) Prefill (editables)
-      if (inpNombre)    inpNombre.value    = empleadoActual?.nombre || "";
+      if (inpNombre) inpNombre.value = empleadoActual?.nombre || "";
       if (inpApellidos) inpApellidos.value = empleadoActual?.apellidos || "";
-      if (inpEmail)     inpEmail.value     = (empleadoActual?.email || "").toLowerCase();
-      if (inpTel)       inpTel.value       = empleadoActual?.telefono || "";
-      if (inpPass)      inpPass.value      = "";
-      if (inpPass2)     inpPass2.value     = "";
+      if (inpEmail)
+        inpEmail.value = (empleadoActual?.email || "").toLowerCase();
+      if (inpTel) inpTel.value = empleadoActual?.telefono || "";
+      if (inpPass) inpPass.value = "";
+      if (inpPass2) inpPass2.value = "";
 
       // 3) SOLO LECTURA
-      const deptId = empleadoActual?.departamento_id ?? State.session.dept_id ?? null;
+      const deptId =
+        empleadoActual?.departamento_id ?? State.session.dept_id ?? null;
       if (inpDepto) inpDepto.value = await resolveDeptName(deptId);
 
       let jefeTxt = "—";
-      const reportaId = empleadoActual?.cuenta?.reporta_a ?? empleadoActual?.reporta_a ?? null;
+      const reportaId =
+        empleadoActual?.cuenta?.reporta_a ?? empleadoActual?.reporta_a ?? null;
       if (reportaId) {
         try {
           const jefe = await getEmpleadoById(reportaId);
-          jefeTxt = [jefe?.nombre, jefe?.apellidos].filter(Boolean).join(" ") || `Empleado #${reportaId}`;
+          jefeTxt =
+            [jefe?.nombre, jefe?.apellidos].filter(Boolean).join(" ") ||
+            `Empleado #${reportaId}`;
         } catch (e) {
           warn("[Perfil] No se pudo consultar 'reporta_a':", e);
           jefeTxt = `Empleado #${reportaId}`;
@@ -261,10 +309,22 @@ function initProfileModal() {
   };
 
   // Abrir/cerrar
-  openers.forEach(el => el.addEventListener("click", (e) => { e.preventDefault(); open(); }));
-  closeBtn?.addEventListener("click", (e) => { e.preventDefault(); close(); });
-  modal.addEventListener("mousedown", (e) => { if (e.target === modal && !content.contains(e.target)) close(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.classList.contains("active")) close(); });
+  openers.forEach((el) =>
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      open();
+    })
+  );
+  closeBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    close();
+  });
+  modal.addEventListener("mousedown", (e) => {
+    if (e.target === modal && !content.contains(e.target)) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("active")) close();
+  });
 
   // Guardar
   form?.addEventListener("submit", async (e) => {
@@ -299,7 +359,8 @@ function initProfileModal() {
       const result = await updateEmpleado(payload);
       log("[Perfil] actualizado OK:", result);
 
-      const nuevoNombre = [payload.nombre, payload.apellidos].filter(Boolean).join(" ") || "—";
+      const nuevoNombre =
+        [payload.nombre, payload.apellidos].filter(Boolean).join(" ") || "—";
       setText(SEL.profileName, nuevoNombre);
 
       try {
@@ -327,7 +388,11 @@ function initProfileModal() {
 
       close();
       // Refrescar la página para garantizar que toda la UI tome los cambios
-      setTimeout(() => { try { window.location.reload(); } catch {} }, 120);
+      setTimeout(() => {
+        try {
+          window.location.reload();
+        } catch {}
+      }, 120);
     } catch (e2) {
       err("[Perfil] error al actualizar:", e2);
       alert("Error al actualizar perfil. Intenta de nuevo.");
@@ -379,12 +444,13 @@ function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
     const json = JSON.stringify(obj || {});
     const b64 = btoa(unescape(encodeURIComponent(json)));
     const maxAge = Math.max(1, Math.floor(maxAgeDays * 86400));
-    document.cookie = `ix_emp=${encodeURIComponent(b64)}; path=/; max-age=${maxAge}; samesite=lax`;
+    document.cookie = `ix_emp=${encodeURIComponent(
+      b64
+    )}; path=/; max-age=${maxAge}; samesite=lax`;
   } catch (e) {
     console.warn("[Home] No se pudo escribir cookie ix_emp:", e);
   }
 }
-
 
 /* ============================================================================
    RESOLVER NOMBRE DE DEPTO
@@ -398,7 +464,10 @@ async function resolveDeptName(deptId) {
       "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
@@ -417,7 +486,10 @@ async function isPrimeraLinea(viewerId, deptId) {
       "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify({ all: true }),
     });
     if (!res.ok) return false;
@@ -435,18 +507,27 @@ async function isPrimeraLinea(viewerId, deptId) {
    ========================================================================== */
 function readSession() {
   let s = null;
-  try { s = Session?.get?.() || null; } catch {}
+  try {
+    s = Session?.get?.() || null;
+  } catch {}
   if (!s) s = readCookiePayload();
 
   if (!s) {
     warn("Sin sesión.");
-    State.session = { empleado_id: null, dept_id: null, roles: [], id_usuario: null };
+    State.session = {
+      empleado_id: null,
+      dept_id: null,
+      roles: [],
+      id_usuario: null,
+    };
     return State.session;
   }
   const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
-  const dept_id     = s?.departamento_id ?? null;
-  const roles       = Array.isArray(s?.roles) ? s.roles.map((r) => String(r).toUpperCase()) : [];
-  const id_usuario  = s?.id_usuario ?? s?.cuenta_id ?? null;
+  const dept_id = s?.departamento_id ?? null;
+  const roles = Array.isArray(s?.roles)
+    ? s.roles.map((r) => String(r).toUpperCase())
+    : [];
+  const id_usuario = s?.id_usuario ?? s?.cuenta_id ?? null;
 
   log("sesión detectada", { empleado_id, dept_id, roles });
   State.session = { empleado_id, dept_id, roles, id_usuario };
@@ -470,7 +551,11 @@ async function hydrateProfileFromSession() {
   const img = $(SEL.avatar);
   if (img) {
     const sessionLike = {
-      id_usuario: State.session.id_usuario ?? s.id_usuario ?? s.usuario_id ?? s.id_empleado,
+      id_usuario:
+        State.session.id_usuario ??
+        s.id_usuario ??
+        s.usuario_id ??
+        s.id_empleado,
       avatarUrl: s.avatarUrl || s.avatar,
       nombre: s.nombre,
       apellidos: s.apellidos,
@@ -487,8 +572,14 @@ async function hydrateProfileFromSession() {
         : [];
       let i = 0;
       const tryNext = () => {
-        if (i >= candidates.length) { img.src = CONFIG.DEFAULT_AVATAR; return; }
-        img.onerror = () => { i++; tryNext(); };
+        if (i >= candidates.length) {
+          img.src = CONFIG.DEFAULT_AVATAR;
+          return;
+        }
+        img.onerror = () => {
+          i++;
+          tryNext();
+        };
         img.src = `${candidates[i]}?v=${Date.now()}`;
       };
       tryNext();
@@ -508,7 +599,10 @@ function initSidebar(onChange) {
   items.forEach((btn, i) => {
     btn.setAttribute("role", "radio");
     btn.setAttribute("tabindex", i === 0 ? "0" : "-1");
-    btn.setAttribute("aria-checked", btn.classList.contains("is-active") ? "true" : "false");
+    btn.setAttribute(
+      "aria-checked",
+      btn.classList.contains("is-active") ? "true" : "false"
+    );
     const key = btn.dataset.status;
     if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
 
@@ -533,10 +627,18 @@ function initSidebar(onChange) {
     const cur = document.activeElement.closest(".item");
     const idx = Math.max(0, items.indexOf(cur));
     let next = idx;
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") next = (idx + 1) % items.length;
-    if (e.key === "ArrowUp" || e.key === "ArrowLeft") next = (idx - 1 + items.length) % items.length;
-    if (next !== idx) { items[next].focus(); e.preventDefault(); }
-    if (e.key === " " || e.key === "Enter") { items[next].click(); e.preventDefault(); }
+    if (e.key === "ArrowDown" || e.key === "ArrowRight")
+      next = (idx + 1) % items.length;
+    if (e.key === "ArrowUp" || e.key === "ArrowLeft")
+      next = (idx - 1 + items.length) % items.length;
+    if (next !== idx) {
+      items[next].focus();
+      e.preventDefault();
+    }
+    if (e.key === " " || e.key === "Enter") {
+      items[next].click();
+      e.preventDefault();
+    }
   });
 }
 
@@ -567,7 +669,7 @@ function buildTable() {
     pagSel: null,
     pageSize: CONFIG.PAGE_SIZE,
     columns: [
-      // 1) Folio
+      // 1) Folio (numérico)
       {
         key: "folio",
         title: "Folio",
@@ -584,12 +686,21 @@ function buildTable() {
         },
       },
 
-      // 2) Departamento
+      // 2) Departamento (alfabético)
       {
         key: "departamento",
         title: "Departamento",
         sortable: true,
         accessor: (r) =>
+          normText(
+            r.departamento ||
+              r.depto ||
+              r.depto_nombre ||
+              r.departamento_nombre ||
+              r.raw?.departamento?.nombre ||
+              "—"
+          ),
+        render: (v, r) =>
           r.departamento ||
           r.depto ||
           r.depto_nombre ||
@@ -598,40 +709,49 @@ function buildTable() {
           "—",
       },
 
-      // 3) Tipo de trámite
+      // 3) Tipo de trámite (alfabético)
       {
         key: "tramite",
         title: "Tipo de trámite",
         sortable: true,
-        accessor: (r) => r.tramite || r.asunto || "—",
+        accessor: (r) => normText(r.tramite || r.asunto || "—"),
+        render: (v, r) => r.tramite || r.asunto || "—",
       },
 
-      // 4) Asignado
+      // 4) Asignado (mostrar primer nombre; ordenar alfabético por primer nombre)
       {
         key: "asignado",
         title: "Asignado",
         sortable: true,
-        accessor: (r) => r.asignado || "Sin asignar",
+        accessor: (r) => normText(onlyFirstWord(r.asignado || "Sin asignar")),
+        render: (v, r) => {
+          const first = onlyFirstWord(r.asignado || "");
+          return first || "Sin asignar";
+        },
       },
 
-      // 5) Teléfono
+      // 5) Teléfono de contacto (numérico por dígitos)
       {
         key: "tel",
         title: "Teléfono de contacto",
         sortable: true,
-        accessor: (r) => r.tel || "—",
-        render: (v) => (v && v !== "—" ? v : "—"),
+        accessor: (r) => digitsNumber(r.tel),
+        render: (v, r) => (r.tel ? r.tel : "—"),
       },
 
-      // 6) Estatus
+      // 6) Estatus (alfabético por label; badge con data-k normalizado)
       {
         key: "status",
         title: "Estatus",
         sortable: true,
-        accessor: (r) => r.estatus?.label || "—",
+        accessor: (r) => normText(r.estatus?.label || "—"),
         render: (v, r) => {
-          const k = normalizeStatusKey(r.estatus?.key || "revision");
-          return `<span class="badge-status" data-k="${k}">${r.estatus?.label || "—"}</span>`;
+          const keyNorm = normalizeStatusKey(
+            r.estatus?.key || r.estatus?.label || "revision"
+          );
+          // esto asegura data-k="proceso" para "En proceso"
+          const label = r.estatus?.label || "—";
+          return `<span class="badge-status" data-k="${keyNorm}">${label}</span>`;
         },
       },
     ],
@@ -698,10 +818,13 @@ function renderPagerClassic(total) {
   const cur = Math.min(Math.max(1, State.__page || 1), pages);
 
   const btn = (label, p, extra = "") =>
-    `<button class="btn ${extra}" data-p="${p}" ${p === "disabled" ? "disabled" : ""}>${label}</button>`;
+    `<button class="btn ${extra}" data-p="${p}" ${
+      p === "disabled" ? "disabled" : ""
+    }>${label}</button>`;
 
   let nums = "";
-  for (let i = 1; i <= pages; i++) nums += btn(String(i), i, i === cur ? "primary" : "");
+  for (let i = 1; i <= pages; i++)
+    nums += btn(String(i), i, i === cur ? "primary" : "");
 
   cont.innerHTML = [
     btn("«", cur <= 1 ? "disabled" : 1),
@@ -778,7 +901,7 @@ function refreshCurrentPageDecorations() {
 /** Refresca el bloque de perfil del sidebar (nombre + avatar) */
 function refreshSidebarFromSession(sess) {
   try {
-    const s = sess || (window.Session?.get?.() || null);
+    const s = sess || window.Session?.get?.() || null;
     if (!s) return;
 
     const name = [s.nombre, s.apellidos].filter(Boolean).join(" ").trim();
@@ -788,10 +911,11 @@ function refreshSidebarFromSession(sess) {
     const avatarEl = document.getElementById("hs-avatar");
     if (avatarEl && window.gcSetAvatarSrc) {
       const sessionLike = {
-        id_usuario: s.id_usuario ?? s.usuario_id ?? s.empleado_id ?? s.id_empleado,
+        id_usuario:
+          s.id_usuario ?? s.usuario_id ?? s.empleado_id ?? s.id_empleado,
         avatarUrl: s.avatarUrl || s.avatar,
         nombre: s.nombre,
-        apellidos: s.apellidos
+        apellidos: s.apellidos,
       };
       window.gcSetAvatarSrc(avatarEl, sessionLike);
     }
@@ -886,7 +1010,8 @@ function computeYearSeries(rows) {
 }
 function computeMonthDistribution(rows) {
   const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth();
+  const y = now.getFullYear(),
+    m = now.getMonth();
   const by = new Map();
   for (const r of rows) {
     const iso = String(r.creado || r.raw?.created_at || "").replace(" ", "T");
@@ -896,17 +1021,33 @@ function computeMonthDistribution(rows) {
       by.set(key, (by.get(key) || 0) + 1);
     }
   }
-  const items = Array.from(by.entries()).map(([label, value]) => ({ label, value }));
+  const items = Array.from(by.entries()).map(([label, value]) => ({
+    label,
+    value,
+  }));
   items.sort((a, b) => b.value - a.value);
   const total = items.reduce((a, b) => a + b.value, 0);
   return { items, total };
 }
 function drawChartsFromRows(rows) {
-  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const labels = [
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+  ];
   const yearSeries = computeYearSeries(rows);
-  const monthAgg   = computeMonthDistribution(rows);
+  const monthAgg = computeMonthDistribution(rows);
 
-  const $line  = $(SEL.chartYear);
+  const $line = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
 
   log("CHARTS — input (rows length):", rows.length);
@@ -914,11 +1055,22 @@ function drawChartsFromRows(rows) {
   log("CHARTS — month distribution:", monthAgg);
 
   if ($line) {
-    Charts.line = new LineChart($line, { labels, series: yearSeries, showGrid: true, headroom: 0.2, yTicks: 6 });
+    Charts.line = new LineChart($line, {
+      labels,
+      series: yearSeries,
+      showGrid: true,
+      headroom: 0.2,
+      yTicks: 6,
+    });
     log("CHARTS — LineChart render ok");
   }
   if ($donut) {
-    Charts.donut = new DonutChart($donut, { data: monthAgg.items, total: monthAgg.total, legendEl: $(SEL.donutLegend) || null, showPercLabels: true });
+    Charts.donut = new DonutChart($donut, {
+      data: monthAgg.items,
+      total: monthAgg.total,
+      legendEl: $(SEL.donutLegend) || null,
+      showPercLabels: true,
+    });
     log("CHARTS — DonutChart render ok", { total: monthAgg.total });
   }
 
@@ -930,7 +1082,9 @@ function drawChartsFromRows(rows) {
    ========================================================================== */
 function dedupeById(...lists) {
   const map = new Map();
-  lists.flat().forEach((r) => { if (r && r.id != null) map.set(r.id, r); });
+  lists.flat().forEach((r) => {
+    if (r && r.id != null) map.set(r.id, r);
+  });
   return Array.from(map.values()).sort(
     (a, b) =>
       String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
@@ -945,7 +1099,10 @@ async function fetchAllRequerimientos(perPage = 200, maxPages = 50) {
   for (let page = 1; page <= maxPages; page++) {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify({ page, per_page: perPage }),
     });
     if (!res.ok) break;
@@ -959,8 +1116,12 @@ async function fetchAllRequerimientos(perPage = 200, maxPages = 50) {
 
 async function fetchMineAndTeam(plan) {
   const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
-  const results = await Promise.allSettled(ids.map((id) => listByAsignado(id, {})));
-  const lists = results.filter((r) => r.status === "fulfilled").map((r) => r.value || []);
+  const results = await Promise.allSettled(
+    ids.map((id) => listByAsignado(id, {}))
+  );
+  const lists = results
+    .filter((r) => r.status === "fulfilled")
+    .map((r) => r.value || []);
   return dedupeById(...lists);
 }
 
@@ -973,8 +1134,15 @@ async function fetchDeptAll(deptId, perPage = 200, maxPages = 50) {
   for (let page = 1; page <= maxPages; page++) {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ departamento_id: deptId, per_page: perPage, page }),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        departamento_id: deptId,
+        per_page: perPage,
+        page,
+      }),
     });
     if (!res.ok) break;
     const json = await res.json();
@@ -991,15 +1159,21 @@ async function fetchDeptAll(deptId, perPage = 200, maxPages = 50) {
  * - Director/Primera línea: ven TODO su DEPARTAMENTO, excepto estados 'solicitud' y 'revision'.
  * - Jefe/Analista: ven SUS asignados + SUBORDINADOS (sin filtrar por estado).
  */
-function filterRoleVisibility(items, { isAdmin, isPres, isDir, soyPL, isJefe, isAnal }) {
+function filterRoleVisibility(
+  items,
+  { isAdmin, isPres, isDir, soyPL, isJefe, isAnal }
+) {
   // Admin / Presidencia: sin restricciones
   if (isAdmin || isPres) return items;
 
   // Director / Primera Línea / Jefe / Analista: NO ven 'solicitud' ni 'revision'
   if (isDir || soyPL || isJefe || isAnal) {
     const hide = new Set(["solicitud", "revision"]);
-    return items.filter(r => !hide.has(normalizeStatusKey(r?.estatus_key || r?.estatus || "")) &&
-                              !hide.has(normalizeStatusKey(r?.estatus?.key || "")));
+    return items.filter(
+      (r) =>
+        !hide.has(normalizeStatusKey(r?.estatus_key || r?.estatus || "")) &&
+        !hide.has(normalizeStatusKey(r?.estatus?.key || ""))
+    );
   }
 
   // Resto de roles: sin cambio adicional (suelen venir acotados por fuente)
@@ -1015,8 +1189,11 @@ async function loadScopeData() {
     warn("viewerId ausente.");
     State.universe = [];
     State.rows = [];
-    computeCounts([]); updateLegendTotals(0); updateLegendStatus();
-    applyPipelineAndRender(); drawChartsFromRows([]);
+    computeCounts([]);
+    updateLegendTotals(0);
+    updateLegendStatus();
+    applyPipelineAndRender();
+    drawChartsFromRows([]);
     return;
   }
 
@@ -1024,13 +1201,20 @@ async function loadScopeData() {
   State.scopePlan = plan;
 
   const isAdmin = (roles || []).some((r) => CONFIG.ADMIN_ROLES.includes(r));
-  const isPres  = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
-  const isDir   = (roles || []).includes("DIRECTOR");
-  const soyPL   = await isPrimeraLinea(viewerId, dept_id);
-  const isJefe  = (roles || []).includes("JEFE");
-  const isAnal  = (roles || []).includes("ANALISTA");
+  const isPres = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(dept_id));
+  const isDir = (roles || []).includes("DIRECTOR");
+  const soyPL = await isPrimeraLinea(viewerId, dept_id);
+  const isJefe = (roles || []).includes("JEFE");
+  const isAnal = (roles || []).includes("ANALISTA");
 
-  log("RBAC flags:", { isAdmin, isPres, isDirector: isDir, primeraLinea: soyPL, isJefe, isAnal });
+  log("RBAC flags:", {
+    isAdmin,
+    isPres,
+    isDirector: isDir,
+    primeraLinea: soyPL,
+    isJefe,
+    isAnal,
+  });
 
   let items = [];
 
@@ -1049,23 +1233,26 @@ async function loadScopeData() {
   }
 
   // Dedup + mapeo UI primero
-const deduped = dedupeById(items);
-const uiRows  = deduped.map(parseReq);
+  const deduped = dedupeById(items);
+  const uiRows = deduped.map(parseReq);
 
-// Visibilidad por rol en NIVEL UI para garantizar el filtro aun si el backend cambia campos
-if (isAdmin || isPres) {
-  State.universe = deduped;
-  State.rows = uiRows;
-} else if (isDir || soyPL || isJefe || isAnal) {
-  const hide = new Set(["solicitud", "revision"]);
-  State.universe = deduped;
-  State.rows = uiRows.filter(r => !hide.has(normalizeStatusKey(r?.estatus?.key)));
-} else {
-  State.universe = deduped;
-  State.rows = uiRows; // resto sin filtro extra
-}
+  // Visibilidad por rol en NIVEL UI para garantizar el filtro aun si el backend cambia campos
+  if (isAdmin || isPres) {
+    State.universe = deduped;
+    State.rows = uiRows;
+  } else if (isDir || soyPL || isJefe || isAnal) {
+    const hide = new Set(["solicitud", "revision"]);
+    State.universe = deduped;
+    State.rows = uiRows.filter(
+      (r) => !hide.has(normalizeStatusKey(r?.estatus?.key))
+    );
+  } else {
+    State.universe = deduped;
+    State.rows = uiRows; // resto sin filtro extra
+  }
 
-  log("items UI-mapped (preview):",
+  log(
+    "items UI-mapped (preview):",
     State.rows.slice(0, 5).map((r) => ({
       id: r.id,
       tramite: r.tramite,
