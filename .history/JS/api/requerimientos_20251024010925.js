@@ -4,20 +4,21 @@
    CONFIG / CONSTANTES
    ========================================================================== */
 const TAG = "[API:Requerimientos]";
-export const DEBUG_LOGS = true;              // activa/desactiva logs 
+export const DEBUG_LOGS = true;              // ← activa/desactiva logs aquí
 const MAX_PER_PAGE       = 200;              // tope de page size
 const DEFAULT_RANGE_DAYS = 90;
 const CACHE_TTL_MS       = 60_000;           // cache (1 minuto)
 
 /* Nota: algunos entornos sirven /db/WEB/ y otros /DB/WEB/ */
-const API_BASE = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+const API_BASE_LOWER = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+const API_BASE_UPPER = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/";
 
 /* Endpoints (usamos el lower por defecto; si falla, probamos el upper) */
 const API = {
-  requerimientos: API_BASE + "ixtla01_c_requerimiento.php",
-  empleados:      API_BASE + "ixtla01_c_empleado.php",
-  departamentos:  API_BASE + "ixtla01_c_departamento.php",
-  updReq:         API_BASE + "ixtla01_upd_requerimiento.php",
+  requerimientos: API_BASE_LOWER + "ixtla01_c_requerimiento.php",
+  empleados:      API_BASE_LOWER + "ixtla01_c_empleado.php",
+  departamentos:  API_BASE_LOWER + "ixtla01_c_departamento.php",
+  updReq:         API_BASE_LOWER + "ixtla01_upd_requerimiento.php",
 };
 
 /* ============================================================================
@@ -532,7 +533,7 @@ export function parseReq(raw){
 /* ============================================================================
    TRÁMITES (catálogo)
    ========================================================================== */
-const API_TRAMITES = API_BASE + "ixtla01_c_tramite.php";
+const API_TRAMITES = API_BASE_LOWER + "ixtla01_c_tramite.php";
 
 export async function loadTramitesCatalog(opts = {}){
   const body = {
