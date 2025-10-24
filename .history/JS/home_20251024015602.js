@@ -961,7 +961,7 @@ function applyPipelineAndRender() {
     const q = State.search;
     filtered = filtered.filter((r) => {
       const asunto = (r.asunto || "").toLowerCase();
-      const asign = (r.asignado || r.asignadoNombre || "").toLowerCase();
+      const asign = (r.asignado || "").toLowerCase();
       const est = (r.estatus?.label || "").toLowerCase();
       const folio = (r.folio || "").toLowerCase();
       const depto = (r.departamento || "").toLowerCase();
@@ -994,8 +994,8 @@ function applyPipelineAndRender() {
     tramite: r.tramite,
     asunto: r.asunto,
     asignado: r.asignado,              // nombre (o “Sin asignar”)
-    asignadoNombre: r.asignadoNombre,  
-    asignadoFull: r.asignadoFull,      
+    asignadoNombre: r.asignadoNombre,  // ← AGREGA ESTO
+    asignadoFull: r.asignadoFull,      // ← (opcional) por si quieres mostrar tooltip
     tel: r.tel,
     estatus: r.estatus,
   }));

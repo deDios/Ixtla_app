@@ -189,7 +189,7 @@ function pickReportaField(modalRoot) {
       inp.setAttribute("readonly", "true");
       inp.setAttribute("aria-readonly", "true");
       inp.classList.add("is-readonly");
-    } catch { }
+    } catch {}
     return { el: inp, usedFallback: true };
   }
   return { el: null, usedFallback: false };
@@ -381,7 +381,7 @@ function initProfileModal() {
       setTimeout(() => {
         try {
           window.location.reload();
-        } catch { }
+        } catch {}
       }, 120);
     } catch (e2) {
       err("[Perfil] error al actualizar:", e2);
@@ -507,7 +507,7 @@ function readSession() {
   let s = null;
   try {
     s = Session?.get?.() || null;
-  } catch { }
+  } catch {}
   if (!s) s = readCookiePayload();
 
   if (!s) {
@@ -564,9 +564,9 @@ async function hydrateProfileFromSession() {
       const idu = sessionLike.id_usuario;
       const candidates = idu
         ? [
-          `/ASSETS/user/userImgs/img_${idu}.png`,
-          `/ASSETS/user/userImgs/img_${idu}.jpg`,
-        ]
+            `/ASSETS/user/userImgs/img_${idu}.png`,
+            `/ASSETS/user/userImgs/img_${idu}.jpg`,
+          ]
         : [];
       let i = 0;
       const tryNext = () => {
@@ -720,11 +720,11 @@ function buildTable() {
         accessor: (r) =>
           normText(
             r.departamento ||
-            r.depto ||
-            r.depto_nombre ||
-            r.departamento_nombre ||
-            r.raw?.departamento?.nombre ||
-            "—"
+              r.depto ||
+              r.depto_nombre ||
+              r.departamento_nombre ||
+              r.raw?.departamento?.nombre ||
+              "—"
           ),
         render: (v, r) =>
           r.departamento ||
@@ -749,8 +749,8 @@ function buildTable() {
         key: "asignado",
         title: "Asignado",
         sortable: true,
-        accessor: (r) => r.asignadoNombre || r.asignado || "Sin asignar",
-        render: (v, r) => v || r.asignado || "Sin asignar",
+        accessor: (r) => r.asignadoNombre || "Sin asignar",
+        render: (v, r) => v || "Sin asignar",
       },
 
       // 5) Teléfono de contacto (numérico por dígitos)
@@ -840,7 +840,8 @@ function renderPagerClassic(total) {
   const cur = Math.min(Math.max(1, State.__page || 1), pages);
 
   const btn = (label, p, extra = "") =>
-    `<button class="btn ${extra}" data-p="${p}" ${p === "disabled" ? "disabled" : ""
+    `<button class="btn ${extra}" data-p="${p}" ${
+      p === "disabled" ? "disabled" : ""
     }>${label}</button>`;
 
   let nums = "";
@@ -961,7 +962,7 @@ function applyPipelineAndRender() {
     const q = State.search;
     filtered = filtered.filter((r) => {
       const asunto = (r.asunto || "").toLowerCase();
-      const asign = (r.asignado || r.asignadoNombre || "").toLowerCase();
+      const asign = (r.asignado || "").toLowerCase();
       const est = (r.estatus?.label || "").toLowerCase();
       const folio = (r.folio || "").toLowerCase();
       const depto = (r.departamento || "").toLowerCase();
@@ -993,9 +994,10 @@ function applyPipelineAndRender() {
       "—",
     tramite: r.tramite,
     asunto: r.asunto,
-    asignado: r.asignado,              // nombre (o “Sin asignar”)
-    asignadoNombre: r.asignadoNombre,  
-    asignadoFull: r.asignadoFull,      
+   asignado: r.asignado, // ← ya viene solo el nombre desde parseReq()
+   asignado: r.asignado,              // nombre (o “Sin asignar”)
+  asignadoNombre: r.asignadoNombre,  // ← AGREGA ESTO
+   asignadoFull: r.asignadoFull,      // ← (opcional) por si quieres mostrar tooltip
     tel: r.tel,
     estatus: r.estatus,
   }));
@@ -1081,12 +1083,12 @@ function drawChartsFromRows(rows) {
   if (Charts?.line && Charts.line.destroy) {
     try {
       Charts.line.destroy();
-    } catch { }
+    } catch {}
   }
   if (Charts?.donut && Charts.donut.destroy) {
     try {
       Charts.donut.destroy();
-    } catch { }
+    } catch {}
   }
 
   if ($line) {
@@ -1307,7 +1309,7 @@ async function loadScopeData() {
         }))
       );
     }
-  } catch { }
+  } catch {}
 
   log(
     "items UI-mapped (preview):",
