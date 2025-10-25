@@ -485,7 +485,7 @@
     // ---------- Config overridable ----------
     const CFG = {
       // Puedes sobreescribir desde window.NAV_OPERATIVE_VIEWS = ["home.php","admin.php"]
-      operativeViews: (window.NAV_OPERATIVE_VIEWS || ["home.php", "tareas.php", "requerimiento.php"]).map(s => s.toLowerCase()),
+      operativeViews: (window.NAV_OPERATIVE_VIEWS || ["home.php", "admin.php"]).map(s => s.toLowerCase()),
       // Mapa de links. Puedes sobreescribir con window.NAV_LINKS
       links: Object.assign({
         home:  "/VIEWS/UAT/home.php",
@@ -559,13 +559,6 @@
     function renderOperative(nav) {
       const socialMarkup = getSocialMarkup(nav);
 
-
-
-
-
-
-
-
       // ----------------------------------------------------- agregar o quitar botones:
       const left = [
         mkLink("Home", CFG.links.home),
@@ -576,11 +569,6 @@
       <div class="nav-left">${left}</div>
       ${socialMarkup}
     `;
-
-
-
-
-    
 
       bindSocialClicks(nav);
       ensureLogoNavigates();

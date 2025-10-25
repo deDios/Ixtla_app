@@ -481,15 +481,18 @@
   });
 
   // ------------------------------------- Subnav Operativo
+  // =============================== SUBNAV OPERATIVO (refactor) ===============================
   (function SubnavOperativo() {
     // ---------- Config overridable ----------
     const CFG = {
       // Puedes sobreescribir desde window.NAV_OPERATIVE_VIEWS = ["home.php","admin.php"]
-      operativeViews: (window.NAV_OPERATIVE_VIEWS || ["home.php", "tareas.php", "requerimiento.php"]).map(s => s.toLowerCase()),
+      operativeViews: (window.NAV_OPERATIVE_VIEWS || ["home.php", "admin.php"]).map(s => s.toLowerCase()),
       // Mapa de links. Puedes sobreescribir con window.NAV_LINKS
       links: Object.assign({
-        home:  "/VIEWS/UAT/home.php",
-        tareas: "/VIEWS/tareas.php",
+        home: (typeof window.routeAppHome !== "undefined" ? window.routeAppHome : "/VIEWS/UAT/home.php"),
+        proyectos: "/proyectos.php",
+        cursos: "/cursos.php",
+        admin: "/VIEWS/UAT/admin.php",
       }, window.NAV_LINKS || {}),
       // Redes sociales (se mezcla con GC_CONFIG.SOCIAL y NAV_SOCIAL si existen)
       social: Object.assign(
@@ -502,7 +505,7 @@
         enabled: true,
         onlyInHome: true,
         url: "/VIEWS/whats_asesores.php",
-        allowedEmpIds: [6, 5, 4, 2, 1], 
+        allowedEmpIds: [6, 5, 4, 2, 1], // sobreescribe con window.NAV_CHAT_ALLOWED = [...]
         idCookie: "ix_emp",
       },
     };
@@ -559,17 +562,12 @@
     function renderOperative(nav) {
       const socialMarkup = getSocialMarkup(nav);
 
-
-
-
-
-
-
-
-      // ----------------------------------------------------- agregar o quitar botones:
+      // Aquí es súper fácil agregar o quitar botones:
       const left = [
         mkLink("Home", CFG.links.home),
-        mkLink("tareas", CFG.links.tareas),
+        // mkLink("Proyectos", CFG.links.proyectos),
+        // mkLink("Cursos",    CFG.links.cursos),
+        // mkLink("Admin",     CFG.links.admin),
       ].join("");
 
       nav.innerHTML = `
@@ -577,13 +575,9 @@
       ${socialMarkup}
     `;
 
-
-
-
-    
-
       bindSocialClicks(nav);
       ensureLogoNavigates();
+      bindMegaMenu();        // opcional (solo si existe #submenu-productos)
       maybeAddChatLink();    // opcional según cookie de empleado y página
     }
 
@@ -631,6 +625,27 @@
         window.location.href = to;
       });
       logoBtn.dataset.logoBound = "1";
+    }
+
+    // ---------- Megamenú opcional ----------
+    function bindMegaMenu() {
+      const submenu = document.getElementById("submenu-productos");
+      if (!submenu || submenu.dataset.megaBound === "1") return;
+      const mega = submenu.querySelector(".megamenu");
+      if (!mega) return;
+
+      mega.classList.remove("show");
+      const link = Array.from(submenu.children).find(c => c.tagName === "A");
+      if (link) {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          mega.classList.toggle("show");
+        });
+      }
+      document.addEventListener("click", (e) => {
+        if (!submenu.contains(e.target)) mega.classList.remove("show");
+      });
+      submenu.dataset.megaBound = "1";
     }
 
     // ---------- Chat por empleado ----------
