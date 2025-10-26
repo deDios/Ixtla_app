@@ -502,218 +502,208 @@
 
 
   // ------------------------------------- Subnav Operativo
-(function SubnavOperativo() {
-  // ---------- Config overridable ----------
-  const CFG = {
-    // vistas operativas (se comparan contra el último segmento decodificado)
-    operativeViews: (window.NAV_OPERATIVE_VIEWS || [
-      "home.php", "tareas.php", "requerimiento.php", "home copy.php", "home%20copy.php"
-    ]).map(s => s.toLowerCase()),
-    // links de la subnav
-    links: Object.assign({
-      home:   "/VIEWS/UAT/home.php",
-      tareas: "/VIEWS/Tareas.php",
-    }, window.NAV_LINKS || {}),
-    // redes (se mezclan con posibles configs globales)
-    social: Object.assign(
-      {},
-      (window.GC_CONFIG && window.GC_CONFIG.SOCIAL) || {},
-      window.NAV_SOCIAL || {},
-      (window.CFG && window.CFG.SOCIAL) || {}
-    ),
-    // botones con acceso limitado por empleado_id (p. ej. Chat)
-    chat: {
-      enabled: true,
-      url: "/VIEWS/whats_asesores.php",
-      allowedEmpIds: [6, 5, 4, 2, 1],
-      idCookie: "ix_emp",
-    },
-  };
-  if (Array.isArray(window.NAV_CHAT_ALLOWED)) {
-    CFG.chat.allowedEmpIds = window.NAV_CHAT_ALLOWED.slice();
-  }
+  (function SubnavOperativo() {
+    // ---------- Config overridable ----------
+    const CFG = {
+      // window.NAV_OPERATIVE_VIEWS = ["home.php","admin.php"]
+      operativeViews: (window.NAV_OPERATIVE_VIEWS || ["home.php", "tareas.php", "requerimiento.php", "home copy.php", "home%20copy.php"]).map(s => s.toLowerCase()),
+      // Mapa de links
+      links: Object.assign({
+        home:  "/VIEWS/UAT/home.php",
+        tareas: "/VIEWS/Tareas.php",
+      }, window.NAV_LINKS || {}),
+      // Redes sociales (se mezcla con GC_CONFIG.SOCIAL y NAV_SOCIAL si existen)
+      social: Object.assign(
+        {},
+        (window.GC_CONFIG && window.GC_CONFIG.SOCIAL) || {},
+        window.NAV_SOCIAL || {},
+        window.CFG && window.CFG.SOCIAL || {}
+      ),
+      chat: {
+        enabled: true,
+        onlyInHome: true,
+        url: "/VIEWS/whats_asesores.php",
+        allowedEmpIds: [6, 5, 4, 2, 1], 
+        idCookie: "ix_emp",
+      },
+    };
+    if (Array.isArray(window.NAV_CHAT_ALLOWED)) CFG.chat.allowedEmpIds = window.NAV_CHAT_ALLOWED.slice();
 
-  // ---------- Utils ----------
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+    // ---------- Utils ----------
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  const normPath = (u) => {
-    try { return new URL(u, location.origin).pathname.toLowerCase().replace(/\/+$/, ""); }
-    catch { return ""; }
-  };
-  const isActive = (href) => normPath(href) === normPath(location.pathname);
+    const normPath = (u) => {
+      try {
+        return new URL(u, window.location.origin).pathname.toLowerCase().replace(/\/+$/, "");
+      } catch { return ""; }
+    };
+    const isActive = (href) => normPath(href) === normPath(location.pathname);
 
-  const lastSeg = () => (location.pathname.split("/").pop() || "").toLowerCase();
-  const lastSegDecoded = () => decodeURIComponent(lastSeg());
-  const isOperativeLike = () => {
-    const page = lastSegDecoded();
-    return CFG.operativeViews.includes(page) || /home\.php/i.test(page) || location.href.toLowerCase().includes("home.php");
-  };
+    const currentPage = (location.pathname.split("/").pop() || "").toLowerCase();
+    const isOperativeView = CFG.operativeViews.includes(currentPage) ||
+      location.href.toLowerCase().includes("home.php");
 
-  // ---------- Header/Subnav targets ----------
-  const header = document.getElementById("header");
-  if (!header) return;
+    // ---------- Header/Subnav targets ----------
+    const header = document.getElementById("header");
+    if (!header) return;
 
-  const subnavs = Array.from(header.querySelectorAll(".subnav"));
-  if (!subnavs.length) return;
+    const subnavs = Array.from(header.querySelectorAll(".subnav"));
+    if (!subnavs.length) return;
 
-  // Guarda HTML original (para poder restaurar cuando no aplique)
-  subnavs.forEach(nav => {
-    if (!nav.dataset.originalHtml) nav.dataset.originalHtml = nav.innerHTML;
-  });
+    // Guarda HTML original (para poder restaurar cuando no aplique)
+    subnavs.forEach(nav => {
+      if (!nav.dataset.originalHtml) nav.dataset.originalHtml = nav.innerHTML;
+    });
 
-  // ---------- Social markup ----------
-  function getSocialMarkup(nav) {
-    const existing = nav.querySelector(".social-icons");
-    if (existing) return existing.outerHTML;
-    return `
+    // ---------- Social markup ----------
+    function getSocialMarkup(nav) {
+      const existing = nav.querySelector(".social-icons");
+      if (existing) return existing.outerHTML;
+      return `
       <div class="social-icons">
         <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
         <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
         <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
         <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
-      </div>`;
-  }
+      </div>
+    `;
+    }
 
-  // ---------- Construcción del subnav operativo ----------
-  function mkLink(label, href) {
-    const active = isActive(href) ? "active" : "";
-    return `<a href="${href}" class="${active}">${label}</a>`;
-  }
+    // ---------- Construcción del subnav operativo ----------
+    function mkLink(label, href) {
+      const active = isActive(href) ? "active" : "";
+      return `<a href="${href}" class="${active}">${label}</a>`;
+    }
 
-  function renderOperative(nav) {
-    const socialMarkup = getSocialMarkup(nav);
+    function renderOperative(nav) {
+      const socialMarkup = getSocialMarkup(nav);
 
-    // Agrega o quita botones aquí
-    const left = [
-      mkLink("Home",   CFG.links.home),
-      mkLink("Tareas", CFG.links.tareas),
-    ].join("");
 
-    nav.innerHTML = `<div class="nav-left">${left}</div>${socialMarkup}`;
 
-    bindSocialClicks(nav);
-    ensureLogoNavigates();
-    maybeAddChatLink(); // limitado por empleado_id + vista operativa
-  }
 
-  function restoreOriginal(nav) {
-    if (nav.dataset.originalHtml) nav.innerHTML = nav.dataset.originalHtml;
-    bindSocialClicks(nav);
-    ensureLogoNavigates();
-  }
 
-  // ---------- Social clicks ----------
-  function bindSocialClicks(root) {
-    const socialMap = CFG.social || {};
-    root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
-      if (el.dataset.socialBound === "1") return;
-      const img = el.querySelector("img") || el;
-      const key = (img.alt || "").trim().toLowerCase();
-      const url = socialMap[key];
-      if (!url) return;
 
-      el.style.cursor = "pointer";
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        window.open(url, "_blank", "noopener");
-      });
-      if (!/^(a|button)$/i.test(el.tagName)) {
-        el.tabIndex = 0;
-        el.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            window.open(url, "_blank", "noopener");
-          }
+
+
+      // ----------------------------------------------------- agregar o quitar botones:
+      const left = [
+        mkLink("Home", CFG.links.home),
+        mkLink("tareas", CFG.links.tareas),
+      ].join("");
+
+      nav.innerHTML = `
+      <div class="nav-left">${left}</div>
+      ${socialMarkup}
+    `;
+
+
+
+
+    
+
+      bindSocialClicks(nav);
+      ensureLogoNavigates();
+      maybeAddChatLink();    // opcional según cookie de empleado y página
+    }
+
+    function restoreOriginal(nav) {
+      if (nav.dataset.originalHtml) nav.innerHTML = nav.dataset.originalHtml;
+      bindSocialClicks(nav); // aunque restauremos, mantenemos funcionales los íconos
+      ensureLogoNavigates();
+    }
+
+    // ---------- Social clicks ----------
+    function bindSocialClicks(root) {
+      const socialMap = CFG.social || {};
+      root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
+        if (el.dataset.socialBound === "1") return;
+        const img = el.querySelector("img") || el;
+        const key = (img.alt || "").trim().toLowerCase();
+        const url = socialMap[key];
+        if (!url) return;
+
+        el.style.cursor = "pointer";
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.open(url, "_blank", "noopener");
         });
-      }
-      el.dataset.socialBound = "1";
-    });
-  }
+        if (!/^(a|button)$/i.test(el.tagName)) {
+          el.tabIndex = 0;
+          el.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              window.open(url, "_blank", "noopener");
+            }
+          });
+        }
+        el.dataset.socialBound = "1";
+      });
+    }
 
-  // ---------- Logo → index ----------
-  function ensureLogoNavigates() {
-    const logoBtn = document.getElementById("logo-btn");
-    if (!logoBtn || logoBtn.dataset.logoBound === "1") return;
-    logoBtn.style.cursor = "pointer";
-    logoBtn.addEventListener("click", () => {
-      const to = (window.NAV_HOME_LINK || "/index.php");
-      window.location.href = to;
-    });
-    logoBtn.dataset.logoBound = "1";
-  }
+    // ---------- Logo → index ----------
+    function ensureLogoNavigates() {
+      const logoBtn = document.getElementById("logo-btn");
+      if (!logoBtn || logoBtn.dataset.logoBound === "1") return;
+      logoBtn.style.cursor = "pointer";
+      logoBtn.addEventListener("click", () => {
+        const to = (window.NAV_HOME_LINK || "/index.php");
+        window.location.href = to;
+      });
+      logoBtn.dataset.logoBound = "1";
+    }
 
-  // ---------- Helpers Chat + whitelist ----------
-  function readIxSession(cookieName) {
-    try {
-      const m = document.cookie.split("; ").find((c) => c.startsWith(cookieName + "="));
-      if (!m) return null;
-      const raw = decodeURIComponent(m.split("=")[1] || "");
-      return JSON.parse(decodeURIComponent(escape(atob(raw))));
-    } catch { return null; }
-  }
+    // ---------- Chat por empleado ----------
+    function readIxSession(cookieName) {
+      try {
+        const m = document.cookie.split("; ").find((c) => c.startsWith(cookieName + "="));
+        if (!m) return null;
+        const raw = decodeURIComponent(m.split("=")[1] || "");
+        return JSON.parse(decodeURIComponent(escape(atob(raw))));
+      } catch { return null; }
+    }
+    function isHomeLike() {
+      const hrefL = (location.href || "").toLowerCase();
+      const last = (location.pathname.split("/").pop() || "").toLowerCase();
+      return hrefL.includes("home.php") || last === "home.php";
+    }
+    function maybeAddChatLink() {
+      if (!CFG.chat.enabled || !CFG.chat.url) return;
 
-  function ensureNavLeftHosts() {
-    // Asegura un host donde insertar links también dentro de #mobile-menu
-    document.querySelectorAll("#mobile-menu").forEach((menu) => {
-      if (!menu.querySelector(".nav-left")) {
-        const div = document.createElement("div");
-        div.className = "nav-left";
-        menu.insertBefore(div, menu.firstChild || null);
-      }
-    });
-  }
+      const sess = readIxSession(CFG.chat.idCookie);
+      const empId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
+      if (!Number.isFinite(empId) || !CFG.chat.allowedEmpIds.includes(empId)) return;
+      if (CFG.chat.onlyInHome && !isHomeLike()) return;
 
-  function maybeAddChatLink() {
-    if (!CFG.chat.enabled || !CFG.chat.url) return;
-    if (!isOperativeLike()) return; // ⬅️ ÚNICA compuerta de vista
+      const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
+      navs.forEach((navLeft) => {
+        if (!navLeft) return;
+        if (navLeft.querySelector("#link-chat")) return;
+        const a = document.createElement("a");
+        a.id = "link-chat";
+        a.href = CFG.chat.url;
+        a.textContent = "Chat";
+        a.target = "_blank";
+        a.rel = "noopener";
+        navLeft.appendChild(a);
+      });
+    }
 
-    const sess = readIxSession(CFG.chat.idCookie);
-    const empId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
-    if (!Number.isFinite(empId) || !CFG.chat.allowedEmpIds.includes(empId)) return;
+    // ---------- Render / Restore según vista ----------
+    function mount() {
+      subnavs.forEach(nav => {
+        if (isOperativeView) renderOperative(nav);
+        else restoreOriginal(nav);
+      });
+    }
 
-    ensureNavLeftHosts();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", mount, { once: true });
+    } else {
+      mount();
+    }
 
-    const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
-    navs.forEach((navLeft) => {
-      if (!navLeft || navLeft.querySelector("#link-chat")) return;
-      const a = document.createElement("a");
-      a.id = "link-chat";
-      a.href = CFG.chat.url;
-      a.textContent = "Chat";
-      a.target = "_blank";
-      a.rel = "noopener";
-      navLeft.appendChild(a);
-    });
-  }
-
-  // ---------- Mount ----------
-  function mount() {
-    const isOperative = isOperativeLike();
-    subnavs.forEach(nav => {
-      if (isOperative) renderOperative(nav);
-      else restoreOriginal(nav);
-    });
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mount, { once: true });
-  } else {
-    mount();
-  }
-
-  // Reinyecta Chat si otra parte del front reescribe la subnav
-  if ("MutationObserver" in window) {
-    const obs = new MutationObserver(() => {
-      if (isOperativeLike() && !document.getElementById("link-chat")) {
-        try { maybeAddChatLink(); } catch {}
-      }
-    });
-    obs.observe(header, { childList: true, subtree: true });
-  }
-
-  window.SubnavOps = { refresh: mount };
-})();
-// ------------------------------------- fin subnav operativo
-
+    window.SubnavOps = { refresh: mount };
+  })();
+  // ------------------------------------- fin subnav operativo
 })();
