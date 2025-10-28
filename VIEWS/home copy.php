@@ -236,6 +236,23 @@
         </div>
     </footer>
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     <!-- MODALES -->
     <div id="modal-perfil" class="modal-overlay" aria-hidden="true">
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="perfil-title">
@@ -384,6 +401,12 @@
 
 
 
+
+
+
+
+
+    
     <!-- Guard para la página de home
 
     -->
