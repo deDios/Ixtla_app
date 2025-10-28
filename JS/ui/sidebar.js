@@ -1,5 +1,4 @@
-// JS\ui\sidebar.js
-// ================= Sidebar =================
+// ================= Ixtla – Sidebar (perfil + filtros opcionales) =================
 "use strict";
 
 /* -------------------- Config -------------------- */
@@ -8,6 +7,12 @@ const CFG = {
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
   DEPT_API:
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
+
+  // Fallbacks por si acaso
+  DEPT_FALLBACK_NAMES: {
+    6: "Presidencia",
+  },
+
   SEL: {
     // Perfil (OBLIGATORIOS)
     avatar: "#hs-avatar",
@@ -51,8 +56,20 @@ function readCookiePayload() {
   } catch { return null; }
 }
 
+// Cache en memoria para nombres de departamento
+const __DEPT_CACHE = new Map();
+
 async function resolveDeptName(deptId, api = CFG.DEPT_API) {
   if (!deptId) return "—";
+  const idNum = Number(deptId);
+
+  // 1) Fallback inmediato si existe
+  if (CFG.DEPT_FALLBACK_NAMES[idNum]) return CFG.DEPT_FALLBACK_NAMES[idNum];
+
+  // 2) Cache en memoria
+  if (__DEPT_CACHE.has(idNum)) return __DEPT_CACHE.get(idNum);
+
+  // 3) Fetch al endpoint
   try {
     const res = await fetch(api, {
       method: "POST",
@@ -61,9 +78,13 @@ async function resolveDeptName(deptId, api = CFG.DEPT_API) {
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const json = await res.json();
-    const found = (json?.data || []).find((d) => Number(d.id) === Number(deptId));
-    return found?.nombre || `Depto ${deptId}`;
-  } catch { return `Depto ${deptId}`; }
+    const found = (json?.data || []).find((d) => Number(d.id) === idNum);
+    const name = found?.nombre || `Depto ${deptId}`;
+    __DEPT_CACHE.set(idNum, name);
+    return name;
+  } catch {
+    return `Depto ${deptId}`;
+  }
 }
 
 function setAvatarImage(imgEl, sessionLike, defaultAvatar = CFG.DEFAULT_AVATAR) {
@@ -297,7 +318,7 @@ async function bootSidebar() {
   const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ") || "—";
   setText(CFG.SEL.profileName, nombre);
 
-  // Depto
+  // Depto (nombre con fallback + cache)
   const deptId = s?.departamento_id ?? s?.dept_id ?? null;
   const deptName = await resolveDeptName(deptId, CFG.DEPT_API);
   setText(CFG.SEL.profileBadge, deptName || "—");
