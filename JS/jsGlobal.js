@@ -23,7 +23,8 @@
     SOCIAL: {
       facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
       instagram: "https://www.instagram.com/imembrillosgob/",
-      youtube: "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
+      youtube:
+        "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
       x: "https://twitter.com",
     },
     FLAGS: {
@@ -33,12 +34,15 @@
   };
 
   const CFG = (function merge(base, ext) {
-    const out = structuredClone ? structuredClone(base) : JSON.parse(JSON.stringify(base));
+    const out = structuredClone
+      ? structuredClone(base)
+      : JSON.parse(JSON.stringify(base));
     const src = window.GC_CONFIG || {};
     function deepMerge(target, from) {
       for (const k of Object.keys(from || {})) {
         if (from[k] && typeof from[k] === "object" && !Array.isArray(from[k])) {
-          target[k] = target[k] && typeof target[k] === "object" ? target[k] : {};
+          target[k] =
+            target[k] && typeof target[k] === "object" ? target[k] : {};
           deepMerge(target[k], from[k]);
         } else {
           target[k] = from[k];
@@ -54,24 +58,36 @@
   const join = (...parts) =>
     parts
       .filter(Boolean)
-      .map((s, i) => (i === 0 ? s.replace(/\/+$/g, "") : s.replace(/^\/+|\/+$/g, "")))
+      .map((s, i) =>
+        i === 0 ? s.replace(/\/+$/g, "") : s.replace(/^\/+|\/+$/g, "")
+      )
       .join("/")
       .replace(/\/{2,}/g, "/");
 
   const asset = (sub) => abs(join(CFG.PATHS.ASSETS, sub));
   const view = (sub) => abs(join(CFG.PATHS.VIEWS, sub));
 
-  const routePublicHome = CFG.ROUTES?.publicHome ? abs(CFG.ROUTES.publicHome) : abs("/index.php");
-  const routeAppHome = CFG.ROUTES?.appHome ? abs(CFG.ROUTES.appHome) : view("home.php");
-  const routeLogin = CFG.ROUTES?.login ? abs(CFG.ROUTES.login) : view("login.php");
+  const routePublicHome = CFG.ROUTES?.publicHome
+    ? abs(CFG.ROUTES.publicHome)
+    : abs("/index.php");
+  const routeAppHome = CFG.ROUTES?.appHome
+    ? abs(CFG.ROUTES.appHome)
+    : view("home.php");
+  const routeLogin = CFG.ROUTES?.login
+    ? abs(CFG.ROUTES.login)
+    : view("login.php");
 
-  const DEFAULT_AVATAR = abs(CFG.ASSETS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png");
+  const DEFAULT_AVATAR = abs(
+    CFG.ASSETS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png"
+  );
   const AVATAR_BASE = abs(CFG.ASSETS.AVATAR_BASE || "/ASSETS/user/userImgs");
 
   /* ===================== SESIÓN ===================== */
   function getIxSession() {
     try {
-      const m = document.cookie.split("; ").find((c) => c.startsWith("ix_emp="));
+      const m = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("ix_emp="));
       if (!m) return null;
       const raw = decodeURIComponent(m.split("=")[1] || "");
       return JSON.parse(decodeURIComponent(escape(atob(raw))));
@@ -80,8 +96,10 @@
     }
   }
   function clearIxSession() {
-    document.cookie = "ix_emp=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
-    document.cookie = "usuario=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    document.cookie =
+      "ix_emp=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    document.cookie =
+      "usuario=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
   }
 
   /* ===================== UTILS ===================== */
@@ -95,7 +113,11 @@
     }
   };
 
-  function setImgWithExtFallback(imgEl, bases, { extOrder = ["png", "jpg"], placeholder, cacheBust = true } = {}) {
+  function setImgWithExtFallback(
+    imgEl,
+    bases,
+    { extOrder = ["png", "jpg"], placeholder, cacheBust = true } = {}
+  ) {
     const isAbsolute = (u) => /^https?:\/\//i.test(u) || u.startsWith("/");
     const hasExt = (u) => /\.[a-zA-Z0-9]{2,5}(\?|#|$)/.test(u);
 
@@ -136,7 +158,8 @@
 
   function setAvatarSrc(imgEl, session) {
     const cookieUrl = session?.avatarUrl || session?.avatar || null;
-    const id = session?.id_usuario != null ? String(session.id_usuario).trim() : null;
+    const id =
+      session?.id_usuario != null ? String(session.id_usuario).trim() : null;
 
     // Orden de preferencia:
     // 1) URL directa (si vino de la respuesta del upload)
@@ -156,7 +179,9 @@
       cacheBust: true,
     });
 
-    imgEl.alt = session?.nombre ? `${session.nombre} ${session?.apellidos || ""}`.trim() : "Avatar";
+    imgEl.alt = session?.nombre
+      ? `${session.nombre} ${session?.apellidos || ""}`.trim()
+      : "Avatar";
     imgEl.loading = "lazy";
   }
 
@@ -206,7 +231,9 @@
     const mobImg = document.querySelector(".user-icon-mobile img");
     if (mobImg) setAvatarSrc(mobImg, session);
 
-    document.dispatchEvent(new CustomEvent("gc:header-refreshed", { detail: { session } }));
+    document.dispatchEvent(
+      new CustomEvent("gc:header-refreshed", { detail: { session } })
+    );
   };
 
   // Escucha global: cuando el editor de avatar suba una imagen, refrescamos
@@ -216,7 +243,11 @@
   });
 
   // CSS var --vh para layouts móviles
-  const applyVH = () => document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
+  const applyVH = () =>
+    document.documentElement.style.setProperty(
+      "--vh",
+      `${window.innerHeight * 0.01}px`
+    );
   applyVH();
   window.addEventListener("resize", applyVH);
 
@@ -284,11 +315,15 @@
           <div class="dropdown-menu" id="user-dropdown" role="menu" aria-hidden="true">
             <ul>
               <li role="menuitem" tabindex="-1">
-                <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
+                <img src="${asset(
+                  "/user/userMenu/homebtn.png"
+                )}" alt="" aria-hidden="true" />
                 Ir a Home
               </li>
               <li id="logout-btn" role="menuitem" tabindex="-1">
-                <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
+                <img src="${asset(
+                  "/user/userMenu/logoutbtn.png"
+                )}" alt="" aria-hidden="true" />
                 Logout
               </li>
             </ul>
@@ -330,14 +365,24 @@
         });
 
         if (!sessionStorage.getItem("bienvenidaMostrada")) {
-          try { window.gcToast?.(`Bienvenido, ${session.nombre || "usuario"}`, "exito"); } catch { }
+          try {
+            window.gcToast?.(
+              `Bienvenido, ${session.nombre || "usuario"}`,
+              "exito"
+            );
+          } catch {}
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
         const loginIcon = document.createElement("div");
         loginIcon.className = "user-icon";
-        loginIcon.innerHTML = `<img src="${withBust(DEFAULT_AVATAR)}" alt="Usuario" title="Iniciar sesión" class="img-perfil" />`;
-        loginIcon.addEventListener("click", () => (window.location.href = routeLogin));
+        loginIcon.innerHTML = `<img src="${withBust(
+          DEFAULT_AVATAR
+        )}" alt="Usuario" title="Iniciar sesión" class="img-perfil" />`;
+        loginIcon.addEventListener(
+          "click",
+          () => (window.location.href = routeLogin)
+        );
         actions.appendChild(loginIcon);
         actions.classList.add("mostrar");
       }
@@ -354,7 +399,9 @@
 
       const mob = document.createElement("div");
       mob.className = "user-icon-mobile";
-      mob.innerHTML = `<img alt="Perfil" title="Perfil" src="${withBust(DEFAULT_AVATAR)}" />`;
+      mob.innerHTML = `<img alt="Perfil" title="Perfil" src="${withBust(
+        DEFAULT_AVATAR
+      )}" />`;
       socialIconsContainer.appendChild(mob);
       const mobImg = mob.querySelector("img");
 
@@ -368,11 +415,15 @@
         dropdownMobile.innerHTML = `
           <ul>
             <li>
-              <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
+              <img src="${asset(
+                "/user/userMenu/homebtn.png"
+              )}" alt="" aria-hidden="true" />
               Ir a Home
             </li>
             <li id="logout-btn-mobile">
-              <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
+              <img src="${asset(
+                "/user/userMenu/logoutbtn.png"
+              )}" alt="" aria-hidden="true" />
               Logout
             </li>
           </ul>`;
@@ -381,7 +432,10 @@
         const reposition = () => {
           const rect = mob.getBoundingClientRect();
           dropdownMobile.style.top = `${rect.bottom + window.scrollY}px`;
-          const left = Math.max(8, rect.right - (dropdownMobile.offsetWidth || 180));
+          const left = Math.max(
+            8,
+            rect.right - (dropdownMobile.offsetWidth || 180)
+          );
           dropdownMobile.style.left = `${left + window.scrollX}px`;
         };
 
@@ -392,15 +446,21 @@
           dropdownMobile.classList.toggle("active", willOpen);
         });
 
-        document.addEventListener("click", () => dropdownMobile.classList.remove("active"));
+        document.addEventListener("click", () =>
+          dropdownMobile.classList.remove("active")
+        );
         document.addEventListener("keydown", (e) => {
           if (e.key === "Escape") dropdownMobile.classList.remove("active");
         });
         const onRepositionIfOpen = () => {
           if (dropdownMobile.classList.contains("active")) reposition();
         };
-        window.addEventListener("resize", onRepositionIfOpen, { passive: true });
-        window.addEventListener("scroll", onRepositionIfOpen, { passive: true });
+        window.addEventListener("resize", onRepositionIfOpen, {
+          passive: true,
+        });
+        window.addEventListener("scroll", onRepositionIfOpen, {
+          passive: true,
+        });
 
         dropdownMobile
           .querySelector("li:first-child")
@@ -418,7 +478,10 @@
 
         setAvatarSrc(mobImg, session);
       } else {
-        mob.addEventListener("click", () => (window.location.href = routeLogin));
+        mob.addEventListener(
+          "click",
+          () => (window.location.href = routeLogin)
+        );
       }
     }
   });
@@ -480,240 +543,286 @@
     }
   });
 
+  // ------------------------------------- Subnav Operativo — secciones + active + chat
+  (function SubnavOperativo() {
+    "use strict";
 
+    /* ================= Config ================= */
+    const CFG = {
+      // Rutas para el subnav (orden de render)
+      SECTIONS: Object.assign(
+        {
+          home: {
+            label: "Home",
+            href: "/VIEWS/UAT/home.php",
+            // Todas estas vistas heredan de home
+            matchers: [
+              "home.php",
+              "home copy.php",
+              "requerimiento.php",
+              /^\/VIEWS\/requerimiento\/\d+$/i,
+            ],
+          },
+          tareas: {
+            label: "Tareas",
+            href: "/VIEWS/Tareas.php",
+            matchers: ["tareas.php"],
+          },
+          // se pueden añadir mas (sin tocar HTML)
+          // reportes: { label:"Reportes", href:"/VIEWS/Reportes.php", matchers:["reportes.php"] },
+        },
+        window.NAV_SECTIONS || {}
+      ),
 
+      SOCIAL: Object.assign(
+        {}, // defaults vacíos (rellena si tienes URLs globales)
+        (window.GC_CONFIG && window.GC_CONFIG.SOCIAL) || {},
+        (window.CFG && window.CFG.SOCIAL) || {}
+      ),
 
+      CHAT: {
+        enabled: true,
+        url: "/VIEWS/whats_asesores.php",
+        allowedEmpIds: Array.isArray(window.NAV_CHAT_ALLOWED)
+          ? window.NAV_CHAT_ALLOWED.slice()
+          : [6, 5, 4, 2, 1], // ← whitelist por defecto
+        cookieName: "ix_emp",
+      },
+    };
 
+    /* ================= Utils ================= */
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+    const normPath = (u) => {
+      try {
+        const url = new URL(u, location.origin);
+        return decodeURIComponent(
+          url.pathname.toLowerCase().replace(/\/+$/, "")
+        );
+      } catch {
+        return "";
+      }
+    };
+    const curPath = () => normPath(location.pathname);
+    const curLast = () =>
+      decodeURIComponent((curPath().split("/").pop() || "").toLowerCase());
 
+    function matchOne(m) {
+      // m puede ser string (último segmento) o RegExp (contra pathname completo)
+      if (typeof m === "string") return curLast() === m.toLowerCase();
+      if (m instanceof RegExp) return m.test(curPath());
+      return false;
+    }
 
+    function resolveActiveSectionKey() {
+      // 1) Emparejar por matchers (incluye hijas)
+      for (const [key, sec] of Object.entries(CFG.SECTIONS)) {
+        if ((sec.matchers || []).some(matchOne)) return key;
+      }
+      // 2) Fallback por href (último segmento)
+      for (const [key, sec] of Object.entries(CFG.SECTIONS)) {
+        const last = decodeURIComponent(
+          (normPath(sec.href).split("/").pop() || "").toLowerCase()
+        );
+        if (curLast() === last) return key;
+      }
+      // 3) Fallback por path exacto
+      for (const [key, sec] of Object.entries(CFG.SECTIONS)) {
+        if (normPath(sec.href) === curPath()) return key;
+      }
+      return null;
+    }
 
+    function readIxSession(cookieName) {
+      try {
+        const m = document.cookie
+          .split("; ")
+          .find((c) => c.startsWith(cookieName + "="));
+        if (!m) return null;
+        const raw = decodeURIComponent(m.split("=")[1] || "");
+        return JSON.parse(decodeURIComponent(escape(atob(raw))));
+      } catch {
+        return null;
+      }
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-
-  // ------------------------------------- Subnav Operativo
-(function SubnavOperativo() {
-  // ---------- Config overridable ----------
-  const CFG = {
-    // vistas operativas (se comparan contra el último segmento decodificado)
-    operativeViews: (window.NAV_OPERATIVE_VIEWS || [
-      "home.php", "tareas.php", "requerimiento.php", "home copy.php", "home%20copy.php"
-    ]).map(s => s.toLowerCase()),
-    // links de la subnav
-    links: Object.assign({
-      home:   "/VIEWS/UAT/home.php",
-      tareas: "/VIEWS/Tareas.php",
-    }, window.NAV_LINKS || {}),
-    // redes (se mezclan con posibles configs globales)
-    social: Object.assign(
-      {},
-      (window.GC_CONFIG && window.GC_CONFIG.SOCIAL) || {},
-      window.NAV_SOCIAL || {},
-      (window.CFG && window.CFG.SOCIAL) || {}
-    ),
-    // botones con acceso limitado por empleado_id (p. ej. Chat)
-    chat: {
-      enabled: true,
-      url: "/VIEWS/whats_asesores.php",
-      allowedEmpIds: [6, 5, 4, 2, 1],
-      idCookie: "ix_emp",
-    },
-  };
-  if (Array.isArray(window.NAV_CHAT_ALLOWED)) {
-    CFG.chat.allowedEmpIds = window.NAV_CHAT_ALLOWED.slice();
-  }
-
-  // ---------- Utils ----------
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
-  const normPath = (u) => {
-    try { return new URL(u, location.origin).pathname.toLowerCase().replace(/\/+$/, ""); }
-    catch { return ""; }
-  };
-  const isActive = (href) => normPath(href) === normPath(location.pathname);
-
-  const lastSeg = () => (location.pathname.split("/").pop() || "").toLowerCase();
-  const lastSegDecoded = () => decodeURIComponent(lastSeg());
-  const isOperativeLike = () => {
-    const page = lastSegDecoded();
-    return CFG.operativeViews.includes(page) || /home\.php/i.test(page) || location.href.toLowerCase().includes("home.php");
-  };
-
-  // ---------- Header/Subnav targets ----------
-  const header = document.getElementById("header");
-  if (!header) return;
-
-  const subnavs = Array.from(header.querySelectorAll(".subnav"));
-  if (!subnavs.length) return;
-
-  // Guarda HTML original (para poder restaurar cuando no aplique)
-  subnavs.forEach(nav => {
-    if (!nav.dataset.originalHtml) nav.dataset.originalHtml = nav.innerHTML;
-  });
-
-  // ---------- Social markup ----------
-  function getSocialMarkup(nav) {
-    const existing = nav.querySelector(".social-icons");
-    if (existing) return existing.outerHTML;
-    return `
+    /* ================= Social ================= */
+    function getSocialMarkup(nav) {
+      const existing = nav.querySelector(".social-icons");
+      if (existing) return existing.outerHTML;
+      return `
       <div class="social-icons">
         <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
         <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
         <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
         <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
       </div>`;
-  }
+    }
 
-  // ---------- Construcción del subnav operativo ----------
-  function mkLink(label, href) {
-    const active = isActive(href) ? "active" : "";
-    return `<a href="${href}" class="${active}">${label}</a>`;
-  }
+    function bindSocialClicks(root) {
+      const socialMap = CFG.SOCIAL || {};
+      root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
+        if (el.dataset.socialBound === "1") return;
+        const img = el.querySelector("img") || el;
+        const key = (img.alt || "").trim().toLowerCase();
+        const url = socialMap[key];
+        if (!url) return;
 
-  function renderOperative(nav) {
-    const socialMarkup = getSocialMarkup(nav);
-
-    // Agrega o quita botones aquí
-    const left = [
-      mkLink("Home",   CFG.links.home),
-      mkLink("Tareas", CFG.links.tareas),
-    ].join("");
-
-    nav.innerHTML = `<div class="nav-left">${left}</div>${socialMarkup}`;
-
-    bindSocialClicks(nav);
-    ensureLogoNavigates();
-    maybeAddChatLink(); // limitado por empleado_id + vista operativa
-  }
-
-  function restoreOriginal(nav) {
-    if (nav.dataset.originalHtml) nav.innerHTML = nav.dataset.originalHtml;
-    bindSocialClicks(nav);
-    ensureLogoNavigates();
-  }
-
-  // ---------- Social clicks ----------
-  function bindSocialClicks(root) {
-    const socialMap = CFG.social || {};
-    root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
-      if (el.dataset.socialBound === "1") return;
-      const img = el.querySelector("img") || el;
-      const key = (img.alt || "").trim().toLowerCase();
-      const url = socialMap[key];
-      if (!url) return;
-
-      el.style.cursor = "pointer";
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        window.open(url, "_blank", "noopener");
-      });
-      if (!/^(a|button)$/i.test(el.tagName)) {
-        el.tabIndex = 0;
-        el.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            window.open(url, "_blank", "noopener");
-          }
+        el.style.cursor = "pointer";
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.open(url, "_blank", "noopener");
         });
-      }
-      el.dataset.socialBound = "1";
+        if (!/^(a|button)$/i.test(el.tagName)) {
+          el.tabIndex = 0;
+          el.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              window.open(url, "_blank", "noopener");
+            }
+          });
+        }
+        el.dataset.socialBound = "1";
+      });
+    }
+
+    function ensureNavLeftHosts() {
+      document.querySelectorAll("#mobile-menu").forEach((menu) => {
+        if (!menu.querySelector(".nav-left")) {
+          const div = document.createElement("div");
+          div.className = "nav-left";
+          menu.insertBefore(div, menu.firstChild || null);
+        }
+      });
+    }
+
+    function maybeAddChatLink() {
+      if (!CFG.CHAT.enabled || !CFG.CHAT.url) return;
+
+      const sess = readIxSession(CFG.CHAT.cookieName);
+      const empId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
+      if (!Number.isFinite(empId) || !CFG.CHAT.allowedEmpIds.includes(empId))
+        return;
+
+      ensureNavLeftHosts();
+
+      const navs = document.querySelectorAll(
+        "#mobile-menu .nav-left, .subnav .nav-left"
+      );
+      navs.forEach((navLeft) => {
+        if (!navLeft || navLeft.querySelector("#link-chat")) return;
+        const a = document.createElement("a");
+        a.id = "link-chat";
+        a.href = CFG.CHAT.url;
+        a.textContent = "Chat";
+        a.target = "_blank";
+        a.rel = "noopener";
+        navLeft.appendChild(a);
+      });
+    }
+
+    /* ================= Render ================= */
+    function mkLink(label, href, isActive) {
+      return `<a href="${href}" class="${
+        isActive ? "active" : ""
+      }">${label}</a>`;
+    }
+
+    function mirrorActiveToMobile() {
+      const activeHref = document
+        .querySelector(".subnav .nav-left a.active")
+        ?.getAttribute("href");
+      if (!activeHref) return;
+      const target = normPath(activeHref);
+      document.querySelectorAll("#mobile-menu a").forEach((a) => {
+        a.classList.toggle(
+          "active",
+          normPath(a.getAttribute("href") || "") === target
+        );
+      });
+    }
+
+    function ensureLogoNavigates() {
+      const logoBtn = document.getElementById("logo-btn");
+      if (!logoBtn || logoBtn.dataset.logoBound === "1") return;
+      logoBtn.style.cursor = "pointer";
+      logoBtn.addEventListener("click", () => {
+        const to = window.NAV_HOME_LINK || "/index.php";
+        window.location.href = to;
+      });
+      logoBtn.dataset.logoBound = "1";
+    }
+
+    function renderOperative(nav) {
+      const activeKey = resolveActiveSectionKey();
+      const left = Object.entries(CFG.SECTIONS)
+        .map(([key, sec]) => mkLink(sec.label, sec.href, key === activeKey))
+        .join("");
+
+      nav.innerHTML = `<div class="nav-left">${left}</div>${getSocialMarkup(
+        nav
+      )}`;
+
+      bindSocialClicks(nav);
+      ensureLogoNavigates();
+      maybeAddChatLink();
+      mirrorActiveToMobile();
+    }
+
+    function restoreOriginal(nav) {
+      if (nav.dataset.originalHtml) nav.innerHTML = nav.dataset.originalHtml;
+      bindSocialClicks(nav);
+      ensureLogoNavigates();
+      mirrorActiveToMobile();
+    }
+
+    /* ================= Mount ================= */
+    const header = document.getElementById("header");
+    if (!header) return;
+
+    const subnavs = Array.from(header.querySelectorAll(".subnav"));
+    if (!subnavs.length) return;
+
+    // Guarda HTML original (para restaurar si no aplica)
+    subnavs.forEach((nav) => {
+      if (!nav.dataset.originalHtml) nav.dataset.originalHtml = nav.innerHTML;
     });
-  }
 
-  // ---------- Logo → index ----------
-  function ensureLogoNavigates() {
-    const logoBtn = document.getElementById("logo-btn");
-    if (!logoBtn || logoBtn.dataset.logoBound === "1") return;
-    logoBtn.style.cursor = "pointer";
-    logoBtn.addEventListener("click", () => {
-      const to = (window.NAV_HOME_LINK || "/index.php");
-      window.location.href = to;
-    });
-    logoBtn.dataset.logoBound = "1";
-  }
+    function isOperativeLike() {
+      // Considera "operativo" si la sección activa existe (home/tareas/…)
+      return !!resolveActiveSectionKey() || /home\.php/i.test(curLast());
+    }
 
-  // ---------- Helpers Chat + whitelist ----------
-  function readIxSession(cookieName) {
-    try {
-      const m = document.cookie.split("; ").find((c) => c.startsWith(cookieName + "="));
-      if (!m) return null;
-      const raw = decodeURIComponent(m.split("=")[1] || "");
-      return JSON.parse(decodeURIComponent(escape(atob(raw))));
-    } catch { return null; }
-  }
+    function mount() {
+      const isOperative = isOperativeLike();
+      subnavs.forEach((nav) => {
+        if (isOperative) renderOperative(nav);
+        else restoreOriginal(nav);
+      });
+    }
 
-  function ensureNavLeftHosts() {
-    // Asegura un host donde insertar links también dentro de #mobile-menu
-    document.querySelectorAll("#mobile-menu").forEach((menu) => {
-      if (!menu.querySelector(".nav-left")) {
-        const div = document.createElement("div");
-        div.className = "nav-left";
-        menu.insertBefore(div, menu.firstChild || null);
-      }
-    });
-  }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", mount, { once: true });
+    } else {
+      mount();
+    }
 
-  function maybeAddChatLink() {
-    if (!CFG.chat.enabled || !CFG.chat.url) return;
-    if (!isOperativeLike()) return; // ⬅️ ÚNICA compuerta de vista
+    if ("MutationObserver" in window) {
+      const obs = new MutationObserver(() => {
+        if (isOperativeLike()) {
+          try {
+            maybeAddChatLink();
+            mirrorActiveToMobile();
+          } catch {}
+        }
+      });
+      obs.observe(header, { childList: true, subtree: true });
+    }
 
-    const sess = readIxSession(CFG.chat.idCookie);
-    const empId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
-    if (!Number.isFinite(empId) || !CFG.chat.allowedEmpIds.includes(empId)) return;
+    // API opcional por si necesitas refrescar manualmente
+    window.SubnavOps = { refresh: mount };
+  })();
 
-    ensureNavLeftHosts();
-
-    const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
-    navs.forEach((navLeft) => {
-      if (!navLeft || navLeft.querySelector("#link-chat")) return;
-      const a = document.createElement("a");
-      a.id = "link-chat";
-      a.href = CFG.chat.url;
-      a.textContent = "Chat";
-      a.target = "_blank";
-      a.rel = "noopener";
-      navLeft.appendChild(a);
-    });
-  }
-
-  // ---------- Mount ----------
-  function mount() {
-    const isOperative = isOperativeLike();
-    subnavs.forEach(nav => {
-      if (isOperative) renderOperative(nav);
-      else restoreOriginal(nav);
-    });
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mount, { once: true });
-  } else {
-    mount();
-  }
-
-  // Reinyecta Chat si otra parte del front reescribe la subnav
-  if ("MutationObserver" in window) {
-    const obs = new MutationObserver(() => {
-      if (isOperativeLike() && !document.getElementById("link-chat")) {
-        try { maybeAddChatLink(); } catch {}
-      }
-    });
-    obs.observe(header, { childList: true, subtree: true });
-  }
-
-  window.SubnavOps = { refresh: mount };
-})();
-// ------------------------------------- fin subnav operativo
-
+  // ------------------------------------- fin subnav operativo
 })();
