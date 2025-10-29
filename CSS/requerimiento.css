@@ -1,5 +1,5 @@
 
-/* ================= Detalle de trámite ================= */
+/* ================= Detalle de tramite ================= */
 .exp-view{
   --exp-border:#e5e7eb;
   --exp-muted:#6b7280;
@@ -14,7 +14,7 @@
 
 .exp-view .exp-title{ display:flex; align-items:center; gap:10px; }
 .exp-view .exp-title .exp-icon{ width:38px; height:38px; object-fit:contain; }
-.exp-view .exp-title h1{ margin:0; font-weight:800; font-size:1.5rem; color:var(--exp-ink); }
+.exp-view .exp-title h1{ margin:0; font-weight:800; font-size:1.5rem; color:var(--exp-ink);padding-bottom: .8rem; }
 
 .exp-view .exp-meta{ display:grid; grid-template-columns: repeat(3, minmax(180px,1fr)); gap:10px; }
 .exp-view .exp-meta dt{ font-size:.82rem; color:var(--exp-muted); }
@@ -168,7 +168,7 @@
 
 }
 
-/* ===== Evidencias: tarjeta cohesionada, tipografía y alineación ===== */
+/* ===== Evidencias: tarjeta cohesionada, tipografÃ­a y alineaciÃ³n ===== */
 .exp-view .exp-accordion{
   --soft: var(--exp-soft, #f3f4f6);
   --border: var(--exp-border, #e5e7eb);
@@ -179,7 +179,7 @@
   border-radius: 12px;
 }
 
-/* --- Header del acordeón (tarjeta) --- */
+/* --- Header del acordeÃ³n (tarjeta) --- */
 .exp-view .exp-accordion > .exp-acc-head{
   background: var(--soft) !important;
   border: 1px solid var(--border) !important;
@@ -265,12 +265,12 @@
   color: #374151 !important;
 }
 
-/* Cierre redondeado en la última fila */
+/* Cierre redondeado en la Ãºltima fila */
 .exp-view .exp-accordion .exp-table .exp-row:last-child{
   border-radius: 0 0 12px 12px !important;
 }
 
-/* Placeholders con misma altura (si luego agregas filas vacías) */
+/* Placeholders con misma altura (si luego agregas filas vacÃ­as) */
 .exp-view .exp-accordion .exp-table .exp-row.is-placeholder{
   pointer-events: none !important; user-select: none !important;
   color: transparent !important; background: #fff !important;
@@ -284,10 +284,10 @@
     align-items: flex-start !important;
   }
   .exp-view .exp-accordion .exp-table .who::before{
-    content: "Quien lo cargó: "; color: var(--muted); font-weight: 600; margin-right: 4px;
+    content: "Quien lo cargÃ³: "; color: var(--muted); font-weight: 600; margin-right: 4px;
   }
   .exp-view .exp-accordion .exp-table .date::before{
-    content: "Última modificación: "; color: var(--muted); font-weight: 600; margin-right: 4px;
+    content: "Ãšltima modificaciÃ³n: "; color: var(--muted); font-weight: 600; margin-right: 4px;
   }
 }
 
@@ -348,7 +348,7 @@
 .exp-view .exp-progress.xs{ height:14px; padding:0 4px; min-width:70px; }
 
 /* =================== Fase: header =================== */
-/* Grid con columna fija para caret -> no se solapa con el título */
+/* Grid con columna fija para caret -> no se solapa con el tÃ­tulo */
 .exp-view .exp-accordion--fase{ margin-top:12px; }
 .exp-view .exp-accordion--fase > .exp-acc-head{
   display:grid; grid-template-columns:24px 1fr auto; column-gap:10px;
@@ -382,8 +382,8 @@
   overflow:hidden; background:#fff; box-shadow:0 1px 2px rgba(17,24,39,.04);
 }
 
-/* =================== Tabla Planeación (5 columnas) =================== */
-/* Fijamos la grilla y la verticalidad; alta especificidad para ganar a estilos genéricos */
+/* =================== Tabla PlaneaciÃ³n (5 columnas) =================== */
+/* Fijamos la grilla y la verticalidad; alta especificidad para ganar a estilos genÃ©ricos */
 .exp-view .exp-table.exp-table--planeacion .exp-thead,
 .exp-view .exp-table.exp-table--planeacion .exp-row{
   display:grid !important;
@@ -414,7 +414,7 @@
 /* Centrado real de la barra dentro de su celda */
 .exp-view .exp-table.exp-table--planeacion .porcentaje{ display:flex; justify-content:center; }
 
-/* Tipografía */
+/* TipografÃ­a */
 .exp-view .exp-table.exp-table--planeacion .estatus{ white-space:nowrap; }
 .exp-view .exp-table.exp-table--planeacion .responsable,
 .exp-view .exp-table.exp-table--planeacion .fecha{ color:#111827; }
@@ -433,7 +433,7 @@
 }
 
 
-/* ===== Planeación: fijar grilla (5 cols) */
+/* ===== PlaneaciÃ³n: fijar grilla (5 cols) */
 .exp-view .exp-table.exp-table--planeacion .exp-thead,
 .exp-view .exp-table.exp-table--planeacion .exp-row{
   display:grid !important;
@@ -473,7 +473,7 @@
 .exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(4),
 .exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(5){ justify-content:center; }
 
-/* Badge sin “brinco” de línea */
+/* Badge sin â€œbrincoâ€ de lÃ­nea */
 .exp-view .exp-table.exp-table--planeacion .estatus .badge,
 .exp-view .exp-table.exp-table--planeacion .estatus .exp-badge{ line-height:1; }
 
@@ -488,7 +488,7 @@
   height:8px; border-radius:999px; background:#6aa995; display:block;
 }
 
-/* Tipografía de columnas (consistencia) */
+/* Tipografi­a de columnas (consistencia) */
 .exp-view .exp-table.exp-table--planeacion .responsable,
 .exp-view .exp-table.exp-table--planeacion .fecha{ color:#111827; }
 
@@ -503,4 +503,16 @@
   .exp-view .exp-table.exp-table--planeacion .estatus::before{ content:"Estatus: "; color:#6b7280; font-weight:600; margin-right:4px; }
   .exp-view .exp-table.exp-table--planeacion .porcentaje::before{ content:"Porcentaje: "; color:#6b7280; font-weight:600; margin-right:4px; }
   .exp-view .exp-table.exp-table--planeacion .fecha::before{ content:"Fecha de inicio: "; color:#6b7280; font-weight:600; margin-right:4px; }
+}
+
+
+.exp-panes {
+  position: relative;
+  overflow-anchor: none;     
+  transition: height 0.2s ease;
+}
+
+.exp-view .exp-pane {
+  min-height: 240px;         
+  padding-top: 10px;
 }

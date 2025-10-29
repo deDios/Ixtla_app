@@ -89,7 +89,7 @@
                     <span id="hs-profile-badge" class="badge">—</span>
                 </section>
 
-                <!-- se actulizaron los filtros ahora deberian coincidir con los esperados -->
+                <!-- se actulizaron los filtros ahora deberian coincidir con los esperados 
                 <nav id="hs-states" class="hs-states" aria-label="Estados">
                     <button class="item is-active" data-status="todos" role="radio" aria-checked="true">
                         <span class="label">Todos</span><span class="count" id="cnt-todos">(0)</span>
@@ -116,6 +116,7 @@
                         <span class="label">Finalizado</span><span class="count" id="cnt-finalizado">(0)</span>
                     </button>
                 </nav>
+                -->
 
             </aside>
 
@@ -230,8 +231,167 @@
         </div>
     </footer>
 
-    <!-- MODALES -->
 
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- ESPACIO PARA MODALES -->
+    <div id="modal-perfil" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="perfil-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+            <h2 id="perfil-title">Administrar perfil</h2>
+
+            <form id="form-perfil" novalidate>
+                <!-- Nombre / Apellidos -->
+                <div class="form-row split">
+                    <div>
+                        <label for="perfil-nombre">Nombre</label>
+                        <input type="text" id="perfil-nombre" name="nombre" autocomplete="given-name">
+                    </div>
+                    <div>
+                        <label for="perfil-apellidos">Apellidos</label>
+                        <input type="text" id="perfil-apellidos" name="apellidos" autocomplete="family-name">
+                    </div>
+                </div>
+
+                <!-- Correo / Teléfono -->
+                <div class="form-row split">
+                    <div>
+                        <label for="perfil-email">Correo electrónico</label>
+                        <input type="email" id="perfil-email" name="correo" autocomplete="email">
+                    </div>
+                    <div>
+                        <label for="perfil-telefono">Teléfono</label>
+                        <input type="tel" id="perfil-telefono" name="telefono" autocomplete="tel">
+                    </div>
+                </div>
+
+                <!-- Contraseña / Confirmar -->
+                <div class="form-row split">
+                    <div>
+                        <label for="perfil-password">
+                            Contraseña
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext">Deja vacío si no deseas cambiarla.</span>
+                            </span>
+                        </label>
+                        <input type="password" id="perfil-password" name="password" autocomplete="new-password"
+                            placeholder="Opcional">
+                    </div>
+                    <div>
+                        <label for="perfil-password2">Confirmar contraseña</label>
+                        <input type="password" id="perfil-password2" name="password2" autocomplete="new-password"
+                            placeholder="Opcional">
+                    </div>
+                </div>
+
+                <!-- Sección informativa -->
+                <h3 class="form-section-title">INFORMACIÓN DEL EMPLEADO</h3>
+
+                <!-- Departamento / Reporta a (solo lectura) -->
+                <div class="form-row split">
+                    <div>
+                        <label for="perfil-departamento">Departamento</label>
+                        <input type="text" id="perfil-departamento" name="departamento" class="is-readonly" readonly
+                            aria-readonly="true">
+                    </div>
+                    <div>
+                        <label for="perfil-reporta">Reporta a</label>
+                        <input type="text" id="perfil-reporta" name="reporta_a_nombre" class="is-readonly" readonly
+                            aria-readonly="true">
+                    </div>
+                </div>
+
+                <!-- Status (solo lectura) -->
+                <div class="form-row">
+                    <label for="perfil-status">Status</label>
+                    <input type="text" id="perfil-status" name="status" class="is-readonly" readonly
+                        aria-readonly="true">
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="btn-submit">Guardar cambios</button>
+            </form>
+
+
+
+            <p class="modal-note">
+                Tus datos están seguros con nosotros. Al guardar aceptas nuestras políticas de privacidad y condiciones
+                de uso.
+            </p>
+            <p class="modal-copy">© 2025 GodCode. Todos los derechos reservados.</p>
+        </div>
+    </div>
+
+
+
+
+    <!-- Modal editor de Avatar  -->
+    <div class="eda-overlay" id="eda-overlay" aria-hidden="true">
+        <div class="eda-modal" role="dialog" aria-modal="true" aria-labelledby="eda-title">
+            <div class="eda-header">
+                <div class="eda-title" id="eda-title">Editar avatar</div>
+                <div class="eda-actions">
+                    <button class="btn" id="eda-close" type="button">Cerrar</button>
+                </div>
+            </div>
+
+            <div class="eda-body">
+                <!-- Lado izquierdo: Dropzone + Vista previa -->
+                <div class="eda-left">
+                    <div class="eda-drop" id="eda-drop" aria-label="Zona para arrastrar y soltar imágenes">
+                        <div class="eda-drop-cta">
+                            <strong>Arrastra una imagen</strong> o
+                            <button class="btn btn-outline" id="eda-choose" type="button">Elegir archivo</button>
+                            <div class="eda-hint">También puedes pegar con <kbd>Ctrl</kbd>+<kbd>V</kbd></div>
+                        </div>
+                    </div>
+
+                    <div class="eda-preview">
+                        <div class="eda-preview-wrap">
+                            <img id="eda-preview-img" alt="Vista previa" />
+                            <div class="eda-mask" aria-hidden="true"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lado derecho: Recientes (mini-historial local) -->
+                <div class="eda-right">
+                    <div class="eda-recents">
+                        <div class="eda-recents-title">Recientes</div>
+                        <div class="eda-recents-grid" id="eda-recents-grid">
+                            <div class="eda-empty">Sin recientes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="eda-footer">
+                <div class="eda-hint">JPG, PNG, WebP, HEIC/HEIF · Máx 1MB</div>
+                <div class="eda-actions">
+                    <button class="btn" id="eda-cancel" type="button">Cancelar</button>
+                    <button class="btn blue" id="eda-save" type="button" disabled>Guardar</button>
+                </div>
+            </div>
+
+            <!-- Input real (oculto). El JS se encarga de activarlo. -->
+            <input type="file" id="eda-file" accept="image/png, image/jpeg, image/webp, image/heic, image/heif"
+                hidden />
+        </div>
+    </div>
+
+
+
+    
 
 
 
