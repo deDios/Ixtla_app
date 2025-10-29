@@ -256,6 +256,11 @@
     <script type="module" src="/JS/tareas.js"></script>
 
 
+    <!-- bundle para que cargue bien el sidebar -->
+    <script type="module" src="/JS/auth/session.js"></script>
+    <script type="module" src="/JS/ui/sidebar.js"></script>
+    <script type="module" src="/JS/ui/avatar-edit.js"></script>
+
 </body>
 
 </html>
