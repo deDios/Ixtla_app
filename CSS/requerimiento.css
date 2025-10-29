@@ -516,3 +516,16 @@
   min-height: 240px;         
   padding-top: 10px;
 }
+
+.hs-main{
+  display:block;               
+  --stack-gap: clamp(12px, 2vw, 20px);
+  min-height: calc(100vh - var(--sticky-top) - var(--footer-pad));
+  padding-bottom: var(--footer-pad);
+  overflow: visible;
+  overflow-anchor: none;        
+}
+
+.hs-main > * + *{ 
+  margin-top: var(--stack-gap);
+}

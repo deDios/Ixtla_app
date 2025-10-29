@@ -15,8 +15,16 @@
 
     <!-- Fix tabs smooth (mover a requerimiento.css si deseas) -->
     <style>
-      .exp-panes { position: relative; overflow-anchor: none; transition: height .2s ease; }
-      .exp-view .exp-pane { min-height: 240px; padding-top: 10px; }
+        .exp-panes {
+            position: relative;
+            overflow-anchor: none;
+            transition: height .2s ease;
+        }
+
+        .exp-view .exp-pane {
+            min-height: 240px;
+            padding-top: 10px;
+        }
     </style>
 </head>
 
@@ -84,7 +92,8 @@
                         </div>
 
                         <!-- Botón editar avatar -->
-                        <button type="button" class="icon-btn avatar-edit" aria-label="Cambiar foto" title="Cambiar foto">
+                        <button type="button" class="icon-btn avatar-edit" aria-label="Cambiar foto"
+                            title="Cambiar foto">
                             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                                 <path
                                     d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z"
@@ -105,7 +114,9 @@
 
                 <section class="demo-comments">
                     <div class="demo-card">
-                        <div class="head"><h4>Comentarios</h4></div>
+                        <div class="head">
+                            <h4>Comentarios</h4>
+                        </div>
 
                         <div class="composer" aria-label="Escribir comentario">
                             <div class="composer-wrap">
@@ -116,28 +127,33 @@
                                     </svg>
                                 </button>
                             </div>
-                            <div class="hint">Presiona <strong> Enter </strong> para enviar <br> o <br> da clic en el botón</div>
+                            <div class="hint">Presiona <strong> Enter </strong> para enviar <br> o <br> da clic en el
+                                botón</div>
                         </div>
 
                         <div class="c-feed" aria-live="polite">
                             <article class="msg">
                                 <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
                                 <div>
-                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2 min</span></div>
+                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2
+                                            min</span></div>
                                     <div class="text">¿Pueden validar si la cuadrilla ya salió a la zona?</div>
                                 </div>
                             </article>
                             <article class="msg">
                                 <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
                                 <div>
-                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1 min</span></div>
-                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en sitio.</div>
+                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1
+                                            min</span></div>
+                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en
+                                        sitio.</div>
                                 </div>
                             </article>
                             <article class="msg">
                                 <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
                                 <div>
-                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span></div>
+                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span>
+                                    </div>
                                     <div class="text">Recibido ✅</div>
                                 </div>
                             </article>
@@ -146,21 +162,25 @@
                             <article class="msg">
                                 <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
                                 <div>
-                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2 min</span></div>
+                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2
+                                            min</span></div>
                                     <div class="text">¿Pueden validar si la cuadrilla ya salió a la zona?</div>
                                 </div>
                             </article>
                             <article class="msg">
                                 <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
                                 <div>
-                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1 min</span></div>
-                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en sitio.</div>
+                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1
+                                            min</span></div>
+                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en
+                                        sitio.</div>
                                 </div>
                             </article>
                             <article class="msg">
                                 <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
                                 <div>
-                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span></div>
+                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span>
+                                    </div>
                                     <div class="text">Recibido ✅</div>
                                 </div>
                             </article>
@@ -215,153 +235,183 @@
 
                 <!-- WRAPPER: evita salto entre tabs -->
                 <div class="exp-panes">
-                  <!-- Panel: Contacto -->
-                  <section class="exp-pane is-active" role="tabpanel" data-tab="Contacto">
-                      <div class="exp-grid">
-                          <div class="exp-field"><label>Nombre:</label>
-                              <div class="exp-val">Luis Enrique Mendez</div>
-                          </div>
-                          <div class="exp-field"><label>Teléfono:</label>
-                              <div class="exp-val">33 3333 3333</div>
-                          </div>
-                          <div class="exp-field"><label>Dirección del reporte:</label>
-                              <div class="exp-val">Vicente Guerrero #13, Centro</div>
-                          </div>
-                          <div class="exp-field"><label>Correo:</label>
-                              <div class="exp-val"><a href="mailto:correo@ejemplo.com">correo@ejemplo.com</a></div>
-                          </div>
-                          <div class="exp-field"><label>C.P.:</label>
-                              <div class="exp-val">45850</div>
-                          </div>
-                      </div>
-                  </section>
+                    <!-- Panel: Contacto -->
+                    <section class="exp-pane is-active" role="tabpanel" data-tab="Contacto">
+                        <div class="exp-grid">
+                            <div class="exp-field"><label>Nombre:</label>
+                                <div class="exp-val">Luis Enrique Mendez</div>
+                            </div>
+                            <div class="exp-field"><label>Teléfono:</label>
+                                <div class="exp-val">33 3333 3333</div>
+                            </div>
+                            <div class="exp-field"><label>Dirección del reporte:</label>
+                                <div class="exp-val">Vicente Guerrero #13, Centro</div>
+                            </div>
+                            <div class="exp-field"><label>Correo:</label>
+                                <div class="exp-val"><a href="mailto:correo@ejemplo.com">correo@ejemplo.com</a></div>
+                            </div>
+                            <div class="exp-field"><label>C.P.:</label>
+                                <div class="exp-val">45850</div>
+                            </div>
+                        </div>
+                    </section>
 
-                  <!-- Panel: Detalles -->
-                  <section class="exp-pane" role="tabpanel" data-tab="detalles">
-                      <div class="exp-grid">
-                          <div class="exp-field"><label>Nombre del Requerimiento:</label>
-                              <div class="exp-val">Fuga de agua</div>
-                          </div>
-                          <div class="exp-field"><label>Líder del Departamento:</label>
-                              <div class="exp-val"><a href="#">Juan Pablo</a></div>
-                          </div>
-                          <div class="exp-field"><label>Asignado:</label>
-                              <div class="exp-val"><a href="#">Luis Enrique Mendez</a></div>
-                          </div>
-                          <div class="exp-field"><label>Estatus:</label>
-                              <div class="exp-val"><span class="exp-badge is-info">En proceso</span></div>
-                          </div>
-                          <div class="exp-field exp-field--full">
-                              <label>Descripción:</label>
-                              <div class="exp-val exp-preline">
-                                  Vimos una fuga de agua en una casa amarilla de dos pisos, lleva más de 3 horas tirando
-                                  agua y no parece que se encuentren los propietarios. Nos preocupa porque es agua limpia.
-                              </div>
-                          </div>
-                          <div class="exp-field"><label>Fecha de inicio:</label>
-                              <div class="exp-val">02/09/2025</div>
-                          </div>
-                          <div class="exp-field"><label>Fecha de terminado:</label>
-                              <div class="exp-val">—</div>
-                          </div>
-                      </div>
-                  </section>
+                    <!-- Panel: Detalles -->
+                    <section class="exp-pane" role="tabpanel" data-tab="detalles">
+                        <div class="exp-grid">
+                            <div class="exp-field"><label>Nombre del Requerimiento:</label>
+                                <div class="exp-val">Fuga de agua</div>
+                            </div>
+                            <div class="exp-field"><label>Líder del Departamento:</label>
+                                <div class="exp-val"><a href="#">Juan Pablo</a></div>
+                            </div>
+                            <div class="exp-field"><label>Asignado:</label>
+                                <div class="exp-val"><a href="#">Luis Enrique Mendez</a></div>
+                            </div>
+                            <div class="exp-field"><label>Estatus:</label>
+                                <div class="exp-val"><span class="exp-badge is-info">En proceso</span></div>
+                            </div>
+                            <div class="exp-field exp-field--full">
+                                <label>Descripción:</label>
+                                <div class="exp-val exp-preline">
+                                    Vimos una fuga de agua en una casa amarilla de dos pisos, lleva más de 3 horas
+                                    tirando
+                                    agua y no parece que se encuentren los propietarios. Nos preocupa porque es agua
+                                    limpia.
+                                </div>
+                            </div>
+                            <div class="exp-field"><label>Fecha de inicio:</label>
+                                <div class="exp-val">02/09/2025</div>
+                            </div>
+                            <div class="exp-field"><label>Fecha de terminado:</label>
+                                <div class="exp-val">—</div>
+                            </div>
+                        </div>
+                    </section>
 
-                  <!-- Panel: Planeación -->
-                  <section class="exp-pane" role="tabpanel" data-tab="planeacion">
-                      <!-- Fase 1 -->
-                      <section class="exp-accordion exp-accordion--fase">
-                          <button class="exp-acc-head" type="button" aria-expanded="true">
-                              <div class="fase-head">
-                                  <span class="fase-title">Proceso</span>
-                                  <small class="fase-meta">10 actividades</small>
-                              </div>
-                              <div class="fase-right">
-                                  <span class="fase-label">Estatus</span>
-                                  <span class="exp-progress" aria-label="70%"><span class="bar" style="width:70%"></span><span class="pct">70%</span></span>
-                                  <span class="fase-label">Fecha de inicio</span>
-                                  <span class="fase-date">02/06/2025</span>
-                                  <span class="chev" aria-hidden="true"></span>
-                              </div>
-                          </button>
+                    <!-- Panel: Planeacion -->
+                    <section class="exp-pane" role="tabpanel" data-tab="planeacion">
 
-                          <div class="exp-acc-body">
-                              <div class="exp-table exp-table--planeacion is-card">
-                                  <div class="exp-thead">
-                                      <div>Actividad</div>
-                                      <div>Responsable</div>
-                                      <div>Estatus</div>
-                                      <div>Porcentaje</div>
-                                      <div>Fecha de inicio</div>
-                                  </div>
+                        <!-- tabla procesos -->
+                        <section class="exp-accordion exp-accordion--fase">
+                            <button class="exp-acc-head" type="button" aria-expanded="true">
+                                <div class="fase-head">
+                                    <span class="fase-title">Proceso</span>
+                                    <small class="fase-meta">10 actividades</small>
+                                </div>
+                                <div class="fase-right">
+                                    <span class="fase-label">Estatus</span>
+                                    <span class="exp-progress" aria-label="70%"><span class="bar"
+                                            style="width:70%"></span><span class="pct">70%</span></span>
+                                    <span class="fase-label">Fecha de inicio</span>
+                                    <span class="fase-date">02/06/2025</span>
+                                    <span class="chev" aria-hidden="true"></span>
+                                </div>
+                            </button>
 
-                                  <div class="exp-row">
-                                      <div class="actividad">Reparación de Llave</div>
-                                      <div class="responsable">Juan Pablo</div>
-                                      <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
-                                      <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:70%"></span></span></div>
-                                      <div class="fecha">02/06/2025</div>
-                                  </div>
+                            <div class="exp-acc-body">
+                                <div class="exp-table exp-table--planeacion is-card">
+                                    <div class="exp-thead">
+                                        <div>Actividad</div>
+                                        <div>Responsable</div>
+                                        <div>Estatus</div>
+                                        <div>Porcentaje</div>
+                                        <div>Fecha de inicio</div>
+                                    </div>
 
-                                  <div class="exp-row">
-                                      <div class="actividad">Revisión de toma</div>
-                                      <div class="responsable">Juan Pablo</div>
-                                      <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-                                      <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:100%"></span></span></div>
-                                      <div class="fecha">10/06/2025</div>
-                                  </div>
+                                    <div class="exp-row">
+                                        <div class="actividad">Reparación de Llave</div>
+                                        <div class="responsable">Juan Pablo</div>
+                                        <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
+                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                    style="width:70%"></span></span></div>
+                                        <div class="fecha">02/06/2025</div>
+                                    </div>
 
-                                  <div class="exp-row">
-                                      <div class="actividad">Cierre de Toma</div>
-                                      <div class="responsable">Juan Pablo</div>
-                                      <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-                                      <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:100%"></span></span></div>
-                                      <div class="fecha">10/05/2025</div>
-                                  </div>
-                              </div>
-                          </div>
-                      </section>
+                                    <div class="exp-row">
+                                        <div class="actividad">Revisión de toma</div>
+                                        <div class="responsable">Juan Pablo</div>
+                                        <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
+                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                    style="width:100%"></span></span></div>
+                                        <div class="fecha">10/06/2025</div>
+                                    </div>
 
-                      <!-- Fase 2 -->
-                      <section class="exp-accordion exp-accordion--fase">
-                          <button class="exp-acc-head" type="button" aria-expanded="false">
-                              <div class="fase-head">
-                                  <span class="fase-title">Revisión de la zona</span>
-                                  <small class="fase-meta">10 actividades</small>
-                              </div>
-                              <div class="fase-right">
-                                  <span class="fase-label">Estatus</span>
-                                  <span class="exp-progress" aria-label="79%"><span class="bar" style="width:79%"></span><span class="pct">79%</span></span>
-                                  <span class="fase-label">Fecha de inicio</span>
-                                  <span class="fase-date">02/09/2025</span>
-                                  <span class="chev" aria-hidden="true"></span>
-                              </div>
-                          </button>
-                          <div class="exp-acc-body" style="display:none"></div>
-                      </section>
+                                    <div class="exp-row">
+                                        <div class="actividad">Cierre de Toma</div>
+                                        <div class="responsable">Juan Pablo</div>
+                                        <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
+                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                    style="width:100%"></span></span></div>
+                                        <div class="fecha">10/05/2025</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
 
-                      <!-- Fase 3 -->
-                      <section class="exp-accordion exp-accordion--fase">
-                          <button class="exp-acc-head" type="button" aria-expanded="false">
-                              <div class="fase-head">
-                                  <span class="fase-title">Selección de Personal</span>
-                                  <small class="fase-meta">13 actividades</small>
-                              </div>
-                              <div class="fase-right">
-                                  <span class="fase-label">Estatus</span>
-                                  <span class="exp-progress" aria-label="100%"><span class="bar" style="width:100%"></span><span class="pct">100%</span></span>
-                                  <span class="fase-label">Fecha de inicio</span>
-                                  <span class="fase-date">02/09/2025</span>
-                                  <span class="chev" aria-hidden="true"></span>
-                              </div>
-                          </button>
-                          <div class="exp-acc-body" style="display:none"></div>
-                      </section>
-                  </section>
+
+                        <!-- tabla procesos 2 para ver como se comporta el contenedor -->
+                        <section class="exp-accordion exp-accordion--fase">
+                            <button class="exp-acc-head" type="button" aria-expanded="true">
+                                <div class="fase-head">
+                                    <span class="fase-title">Proceso</span>
+                                    <small class="fase-meta">10 actividades</small>
+                                </div>
+                                <div class="fase-right">
+                                    <span class="fase-label">Estatus</span>
+                                    <span class="exp-progress" aria-label="70%"><span class="bar"
+                                            style="width:70%"></span><span class="pct">70%</span></span>
+                                    <span class="fase-label">Fecha de inicio</span>
+                                    <span class="fase-date">02/06/2025</span>
+                                    <span class="chev" aria-hidden="true"></span>
+                                </div>
+                            </button>
+
+                            <div class="exp-acc-body">
+                                <div class="exp-table exp-table--planeacion is-card">
+                                    <div class="exp-thead">
+                                        <div>Actividad</div>
+                                        <div>Responsable</div>
+                                        <div>Estatus</div>
+                                        <div>Porcentaje</div>
+                                        <div>Fecha de inicio</div>
+                                    </div>
+
+                                    <div class="exp-row">
+                                        <div class="actividad">Reparación de Llave</div>
+                                        <div class="responsable">Juan Pablo</div>
+                                        <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
+                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                    style="width:70%"></span></span></div>
+                                        <div class="fecha">02/06/2025</div>
+                                    </div>
+
+                                    <div class="exp-row">
+                                        <div class="actividad">Revisión de toma</div>
+                                        <div class="responsable">Juan Pablo</div>
+                                        <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
+                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                    style="width:100%"></span></span></div>
+                                        <div class="fecha">10/06/2025</div>
+                                    </div>
+
+                                    <div class="exp-row">
+                                        <div class="actividad">Cierre de Toma</div>
+                                        <div class="responsable">Juan Pablo</div>
+                                        <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
+                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                    style="width:100%"></span></span></div>
+                                        <div class="fecha">10/05/2025</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                    </section>
                 </div>
                 <!-- /exp-panes -->
 
-                <!-- Evidencias (visible sin importar el tab activo) -->
+                <!-- Evidencias -->
                 <section class="exp-accordion">
                     <button class="exp-acc-head" type="button" aria-expanded="true">
                         <span>Evidencias</span>
@@ -377,7 +427,8 @@
                             </div>
 
                             <a class="exp-row" href="#">
-                                <div class="file"><img class="ico" src="/ASSETS/filetypes/img.png" alt=""><span>Evidencia Fuga de Agua</span></div>
+                                <div class="file"><img class="ico" src="/ASSETS/filetypes/img.png"
+                                        alt=""><span>Evidencia Fuga de Agua</span></div>
                                 <div class="who">Luis Enrique</div>
                                 <div class="date">02 de Septiembre del 2025 a las 14:25</div>
                             </a>
@@ -453,11 +504,13 @@
                                 <span class="tooltiptext">Deja vacío si no deseas cambiarla.</span>
                             </span>
                         </label>
-                        <input type="password" id="perfil-password" name="password" autocomplete="new-password" placeholder="Opcional">
+                        <input type="password" id="perfil-password" name="password" autocomplete="new-password"
+                            placeholder="Opcional">
                     </div>
                     <div>
                         <label for="perfil-password2">Confirmar contraseña</label>
-                        <input type="password" id="perfil-password2" name="password2" autocomplete="new-password" placeholder="Opcional">
+                        <input type="password" id="perfil-password2" name="password2" autocomplete="new-password"
+                            placeholder="Opcional">
                     </div>
                 </div>
 
@@ -466,24 +519,28 @@
                 <div class="form-row split">
                     <div>
                         <label for="perfil-departamento">Departamento</label>
-                        <input type="text" id="perfil-departamento" name="departamento" class="is-readonly" readonly aria-readonly="true">
+                        <input type="text" id="perfil-departamento" name="departamento" class="is-readonly" readonly
+                            aria-readonly="true">
                     </div>
                     <div>
                         <label for="perfil-reporta">Reporta a</label>
-                        <input type="text" id="perfil-reporta" name="reporta_a_nombre" class="is-readonly" readonly aria-readonly="true">
+                        <input type="text" id="perfil-reporta" name="reporta_a_nombre" class="is-readonly" readonly
+                            aria-readonly="true">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <label for="perfil-status">Status</label>
-                    <input type="text" id="perfil-status" name="status" class="is-readonly" readonly aria-readonly="true">
+                    <input type="text" id="perfil-status" name="status" class="is-readonly" readonly
+                        aria-readonly="true">
                 </div>
 
                 <button type="submit" class="btn-submit">Guardar cambios</button>
             </form>
 
             <p class="modal-note">
-                Tus datos están seguros con nosotros. Al guardar aceptas nuestras políticas de privacidad y condiciones de uso.
+                Tus datos están seguros con nosotros. Al guardar aceptas nuestras políticas de privacidad y condiciones
+                de uso.
             </p>
             <p class="modal-copy">© 2025 GodCode. Todos los derechos reservados.</p>
         </div>
@@ -535,7 +592,8 @@
                 </div>
             </div>
 
-            <input type="file" id="eda-file" accept="image/png, image/jpeg, image/webp, image/heic, image/heif" hidden />
+            <input type="file" id="eda-file" accept="image/png, image/jpeg, image/webp, image/heic, image/heif"
+                hidden />
         </div>
     </div>
 
@@ -549,34 +607,38 @@
 
     <!-- Script suave de tabs (reutilizable si lo deseas mover a /JS/ui/tabs-smooth.js) -->
     <script>
-    (() => {
-      const tabs = Array.from(document.querySelectorAll('.exp-tab'));
-      const panes = Array.from(document.querySelectorAll('.exp-pane'));
-      const host  = document.querySelector('.exp-panes');
-      if (!tabs.length || !panes.length || !host) return;
+        (() => {
+            const tabs = Array.from(document.querySelectorAll('.exp-tab'));
+            const panes = Array.from(document.querySelectorAll('.exp-pane'));
+            const host = document.querySelector('.exp-panes');
+            if (!tabs.length || !panes.length || !host) return;
 
-      function setActive(i) {
-        const cur = document.querySelector('.exp-pane.is-active');
-        const oldH = cur ? cur.offsetHeight : host.offsetHeight;
-        host.style.height = oldH + 'px';
+            function setActive(i) {
+                const cur = document.querySelector('.exp-pane.is-active');
+                const oldH = cur ? cur.offsetHeight : host.offsetHeight;
+                host.style.height = oldH + 'px';
 
-        tabs.forEach(t => t.classList.remove('is-active'));
-        panes.forEach(p => p.classList.remove('is-active'));
-        tabs[i].classList.add('is-active');
-        panes[i].classList.add('is-active');
+                tabs.forEach(t => t.classList.remove('is-active'));
+                panes.forEach(p => p.classList.remove('is-active'));
+                tabs[i].classList.add('is-active');
+                panes[i].classList.add('is-active');
 
-        const newH = panes[i].offsetHeight;
-        requestAnimationFrame(() => {
-          host.style.height = newH + 'px';
-          setTimeout(() => host.style.height = 'auto', 200);
-        });
+                const newH = panes[i].offsetHeight;
+                requestAnimationFrame(() => {
+                    host.style.height = newH + 'px';
+                    setTimeout(() => host.style.height = 'auto', 200);
+                });
 
-        // Accesibilidad
-        tabs.forEach((t, idx) => t.setAttribute('aria-selected', String(idx === i)));
-      }
+                // Accesibilidad
+                tabs.forEach((t, idx) => t.setAttribute('aria-selected', String(idx === i)));
+            }
 
-      tabs.forEach((t, i) => t.addEventListener('click', e => { e.preventDefault(); setActive(i); }));
-    })();
+            tabs.forEach((t, i) => t.addEventListener('click', e => {
+                e.preventDefault();
+                setActive(i);
+            }));
+        })();
     </script>
 </body>
+
 </html>
