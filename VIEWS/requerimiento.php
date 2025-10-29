@@ -194,9 +194,12 @@
             <section class="hs-main exp-view">
                 <!-- Encabezado -->
                 <header class="exp-head">
+
                     <div class="exp-title">
                         <h1>Fuga de agua</h1>
+                        <div id="req-actions" class="exp-actions"></div>
                     </div>
+
                     <dl class="exp-meta">
                         <div>
                             <dt>Contacto</dt>
@@ -250,7 +253,7 @@
                             <div class="exp-field"><label>Correo:</label>
                                 <div class="exp-val"><a href="mailto:correo@ejemplo.com">correo@ejemplo.com</a></div>
                             </div>
-                            <div class="exp-field"><label>C.P.:</label>
+                            <div class="exp-field"><label>C.P:</label>
                                 <div class="exp-val">45850</div>
                             </div>
                         </div>
@@ -263,10 +266,10 @@
                                 <div class="exp-val">Fuga de agua</div>
                             </div>
                             <div class="exp-field"><label>Líder del Departamento:</label>
-                                <div class="exp-val"><a href="#">Juan Pablo</a></div>
+                                <div class="exp-val"><a>Juan Pablo</a></div>
                             </div>
                             <div class="exp-field"><label>Asignado:</label>
-                                <div class="exp-val"><a href="#">Luis Enrique Mendez</a></div>
+                                <div class="exp-val"><a>Luis Enrique Mendez</a></div>
                             </div>
                             <div class="exp-field"><label>Estatus:</label>
                                 <div class="exp-val"><span class="exp-badge is-info">En proceso</span></div>
@@ -597,6 +600,27 @@
         </div>
     </div>
 
+
+    <!-- Modal genérico para Pausar / Cancelar -->
+    <div id="modal-estado" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="estado-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+            <h2 id="estado-title">Motivo</h2>
+            <form id="form-estado">
+                <div class="form-row">
+                    <label for="estado-motivo">Describe el motivo</label>
+                    <textarea id="estado-motivo" name="motivo" rows="5" required
+                        placeholder="Escribe brevemente el motivo…"></textarea>
+                </div>
+                <div class="form-row">
+                    <button type="submit" class="btn-submit">Confirmar</button>
+                </div>
+            </form>
+            <p class="modal-note">Este cambio afectará el estado del requerimiento.</p>
+        </div>
+    </div>
+
+
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/requerimientoView.js"></script>
 
@@ -605,7 +629,7 @@
     <script type="module" src="/JS/ui/sidebar.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
 
-    <!-- Script suave de tabs (reutilizable si lo deseas mover a /JS/ui/tabs-smooth.js) -->
+    <!-- tabs suaves -->
     <script>
         (() => {
             const tabs = Array.from(document.querySelectorAll('.exp-tab'));
@@ -639,6 +663,7 @@
             }));
         })();
     </script>
+
 </body>
 
 </html>

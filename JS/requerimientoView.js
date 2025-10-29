@@ -194,3 +194,204 @@
     }
   });
 })();
+
+
+// ======================= Acciones contextualizadas del requerimiento =======================
+(() => {
+  "use strict";
+
+  // ---- Config: actualiza estos endpoints según tu backend ----
+  const API = {
+    cambiarEstado: "/db/WEB/ixtla01_u_requerimiento_estado.php", // <- POST { id, status, motivo? }
+    asignarDepto:  "/VIEWS/Tareas.php?asignar=" // <- ejemplo redirección; cámbialo si usas drawer/flujo propio
+  };
+
+  // ---- Utils ----
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const toast = (m,t="info") => window.gcToast ? gcToast(m,t) : console.log("[req]", t, m);
+
+  function getReqIdFromUrl() {
+    try { return Number(new URLSearchParams(location.search).get("id")) || null; }
+    catch { return null; }
+  }
+
+  function getCurrentStatus() {
+    const li = $(".step-menu li.current");
+    return li ? Number(li.dataset.status) : null;
+  }
+
+  // Marca visual en el stepper después de un cambio
+  function paintStepper(nextStatus) {
+    const items = $$(".step-menu li");
+    items.forEach((li) => {
+      const s = Number(li.dataset.status);
+      li.classList.remove("current");
+      if (s < nextStatus) li.classList.add("complete");
+      else li.classList.remove("complete");
+      if (s === nextStatus) li.classList.add("current");
+    });
+  }
+
+  // ---- Modal genérico de motivo (pausar/cancelar) ----
+  const modal = $("#modal-estado");
+  const form  = $("#form-estado");
+  const txt   = $("#estado-motivo");
+  const title = $("#estado-title");
+  const btnClose = modal?.querySelector(".modal-close");
+
+  let _pendingAction = null; // { type: "pausar"|"cancelar", nextStatus:number, id:number }
+
+  function openEstadoModal({ type, nextStatus, id }) {
+    _pendingAction = { type, nextStatus, id };
+    title.textContent = type === "cancelar" ? "Motivo de cancelación" : "Motivo de pausa";
+    txt.value = "";
+    modal.setAttribute("aria-hidden","false");
+    modal.classList.add("open");
+    setTimeout(()=> txt?.focus(), 50);
+  }
+
+  function closeEstadoModal() {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden","true");
+    _pendingAction = null;
+  }
+
+  btnClose?.addEventListener("click", closeEstadoModal);
+  modal?.addEventListener("click", (e) => { if (e.target === modal) closeEstadoModal(); });
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!_pendingAction) return;
+    const motivo = (txt.value || "").trim();
+    if (!motivo) { toast("Describe el motivo, por favor.","warning"); txt.focus(); return; }
+
+    const { id, nextStatus, type } = _pendingAction;
+
+    try {
+      const fd = new FormData();
+      fd.append("id", String(id));
+      fd.append("status", String(nextStatus));
+      fd.append("motivo", motivo);
+
+      const res  = await fetch(API.cambiarEstado, { method: "POST", body: fd });
+      const data = await res.json().catch(()=> ({}));
+      if (!res.ok || data.ok === false || data.error) {
+        throw new Error(data.error || "No se pudo actualizar el estado");
+      }
+
+      paintStepper(nextStatus);
+      toast(type === "cancelar" ? "Requerimiento cancelado" : "Requerimiento en pausa", "exito");
+      closeEstadoModal();
+    } catch (err) {
+      console.error(err);
+      toast("Error al cambiar el estado.", "error");
+    }
+  });
+
+  // ---- Render de acciones en host #req-actions ----
+  function renderActions() {
+    const host   = $("#req-actions");
+    if (!host) return;
+
+    const id     = getReqIdFromUrl();
+    const status = getCurrentStatus(); // 0..6
+
+    host.innerHTML = "";
+    if (status == null) return;
+
+    // helpers UI
+    const btn = (txt, cls="btn-xs", onClick=()=>{}) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = cls;
+      b.textContent = txt;
+      b.addEventListener("click", onClick);
+      return b;
+    };
+
+    // Estado: SOLICITUD (0) -> mostrar "Iniciar revisión"
+    if (status === 0) {
+      host.appendChild(
+        btn("Iniciar revisión", "btn-xs primary", async () => {
+          try {
+            const fd = new FormData();
+            fd.append("id", String(id));
+            fd.append("status", "1"); // revisión
+            const res  = await fetch(API.cambiarEstado, { method:"POST", body: fd });
+            const data = await res.json().catch(()=> ({}));
+            if (!res.ok || data.ok === false || data.error) throw new Error(data.error || "fail");
+            paintStepper(1);
+            toast("Requerimiento en revisión","exito");
+          } catch (e) {
+            console.error(e); toast("No se pudo iniciar la revisión","error");
+          }
+        })
+      );
+      return; // sólo ese botón en este estado
+    }
+
+    // Estado: REVISIÓN (1) -> "Asignar a departamento" + "Pausar" + "Cancelar"
+    if (status === 1) {
+      host.appendChild(
+        btn("Asignar a departamento", "btn-xs primary", () => {
+          // Si tu flujo abre drawer/modal, invócalo aquí.
+          // Como fallback, redirigimos a una vista de asignación con el id:
+          window.location.href = API.asignarDepto + encodeURIComponent(id);
+        })
+      );
+      host.appendChild(
+        btn("Pausar", "btn-xs warn", () => openEstadoModal({ type:"pausar", nextStatus:4, id }))
+      );
+      host.appendChild(
+        btn("Cancelar", "btn-xs danger", () => openEstadoModal({ type:"cancelar", nextStatus:5, id }))
+      );
+      return;
+    }
+
+    // Estado: PROCESO (3) -> puedes querer "Pausar" y "Cancelar" también
+    if (status === 3) {
+      host.appendChild(
+        btn("Pausar", "btn-xs warn", () => openEstadoModal({ type:"pausar", nextStatus:4, id }))
+      );
+      host.appendChild(
+        btn("Cancelar", "btn-xs danger", () => openEstadoModal({ type:"cancelar", nextStatus:5, id }))
+      );
+      return;
+    }
+
+    // Otros estados: opcionalmente podrías mostrar "Reanudar" cuando está en Pausado (4)
+    if (status === 4) {
+      host.appendChild(
+        btn("Reanudar", "btn-xs primary", async () => {
+          try {
+            const fd = new FormData();
+            fd.append("id", String(id));
+            fd.append("status", "3"); // volver a Proceso
+            const res  = await fetch(API.cambiarEstado, { method:"POST", body: fd });
+            const data = await res.json().catch(()=> ({}));
+            if (!res.ok || data.ok === false || data.error) throw new Error(data.error || "fail");
+            paintStepper(3);
+            toast("Reanudado a Proceso","exito");
+          } catch (e) {
+            console.error(e); toast("No se pudo reanudar","error");
+          }
+        })
+      );
+    }
+  }
+
+  // ---- Mount ----
+  function mount() {
+    try { renderActions(); } catch (e) { console.error(e); }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mount, { once:true });
+  } else {
+    mount();
+  }
+
+  // Si cambias el estatus desde otro script y quieres re-render:
+  window.ReqActions = { refresh: renderActions, paintStepper };
+})();

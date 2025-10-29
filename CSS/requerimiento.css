@@ -529,3 +529,20 @@
 .hs-main > * + *{ 
   margin-top: var(--stack-gap);
 }
+
+
+/* Acciones junto al título */
+.exp-title { display:flex; align-items:center; gap:10px; } /* ya lo tienes, lo dejamos explícito */
+.exp-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-left:8px; }
+.exp-actions .btn-xs{
+  all:unset; display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:10px; font-weight:700; cursor:pointer;
+  background:#eef2f6; border:1px solid #dfe3ea; color:#0f172a;
+}
+.exp-actions .btn-xs.primary{ background:#e6f0ea; border-color:#cfe4d6; color:#0e4f34; }
+.exp-actions .btn-xs.warn{ background:#fff6e5; border-color:#ffe7b8; color:#7a5a1f; }
+.exp-actions .btn-xs.danger{ background:#ffeaea; border-color:#ffc9c9; color:#a82b2b; }
+.exp-actions .btn-xs:active{ transform:translateY(1px); }
+
+
+
