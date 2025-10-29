@@ -1,4 +1,4 @@
-// /JS/requerimientoView.js V2
+// /JS/requerimientoView.js
 (function () {
   "use strict";
 
