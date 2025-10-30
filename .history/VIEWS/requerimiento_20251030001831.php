@@ -281,34 +281,17 @@
                     <!-- Panel: Planeacion -->
                     <section class="exp-pane" role="tabpanel" data-tab="planeacion">
 
-                        <!-- Toolbar superior: Nuevo proceso -->
-                        <div class="planeacion-toolbar" role="group" aria-label="Acciones de planeación">
-                            <span class="ptb-label">Nuevo proceso</span>
-                            <button id="btn-nuevo-proceso" class="btn-circle" type="button"
-                                aria-label="Nuevo proceso">+</button>
-                        </div>
-
-                        <!-- Proceso 1 -->
+                        <!-- tabla procesos -->
                         <section class="exp-accordion exp-accordion--fase">
                             <button class="exp-acc-head" type="button" aria-expanded="true">
                                 <div class="fase-head">
-                                    <span class="fase-title">Proceso 1</span>
+                                    <span class="fase-title">Proceso</span>
                                     <small class="fase-meta">10 actividades</small>
                                 </div>
-
-                                <!-- Acción dentro del título de fase -->
-                                <div class="fase-tools">
-                                    <span class="tool-label">Nueva tarea</span>
-                                    <button class="btn-circle btn-add-tarea" type="button"
-                                        aria-label="Nueva tarea">+</button>
-                                </div>
-
                                 <div class="fase-right">
                                     <span class="fase-label">Estatus</span>
-                                    <span class="exp-progress" aria-label="70%">
-                                        <span class="bar" style="width:70%"></span>
-                                        <span class="pct">70%</span>
-                                    </span>
+                                    <span class="exp-progress" aria-label="70%"><span class="bar"
+                                            style="width:70%"></span><span class="pct">70%</span></span>
                                     <span class="fase-label">Fecha de inicio</span>
                                     <span class="fase-date">02/06/2025</span>
                                     <span class="chev" aria-hidden="true"></span>
@@ -355,27 +338,18 @@
                             </div>
                         </section>
 
-                        <!-- Proceso 2 -->
+
+                        <!-- tabla procesos 2 para ver como se comporta el contenedor -->
                         <section class="exp-accordion exp-accordion--fase">
                             <button class="exp-acc-head" type="button" aria-expanded="true">
                                 <div class="fase-head">
-                                    <span class="fase-title">Proceso 2</span>
+                                    <span class="fase-title">Proceso</span>
                                     <small class="fase-meta">10 actividades</small>
                                 </div>
-
-                                <!-- Acción dentro del título de fase -->
-                                <div class="fase-tools">
-                                    <span class="tool-label">Nueva tarea</span>
-                                    <button class="btn-circle btn-add-tarea" type="button"
-                                        aria-label="Nueva tarea">+</button>
-                                </div>
-
                                 <div class="fase-right">
                                     <span class="fase-label">Estatus</span>
-                                    <span class="exp-progress" aria-label="70%">
-                                        <span class="bar" style="width:70%"></span>
-                                        <span class="pct">70%</span>
-                                    </span>
+                                    <span class="exp-progress" aria-label="70%"><span class="bar"
+                                            style="width:70%"></span><span class="pct">70%</span></span>
                                     <span class="fase-label">Fecha de inicio</span>
                                     <span class="fase-date">02/06/2025</span>
                                     <span class="chev" aria-hidden="true"></span>
@@ -423,7 +397,6 @@
                         </section>
 
                     </section>
-
                 </div>
                 <!-- /exp-panes -->
 
@@ -645,96 +618,38 @@
 
     <!-- tabs suaves -->
     <script>
-    (() => {
-        const tabs = Array.from(document.querySelectorAll('.exp-tab'));
-        const panes = Array.from(document.querySelectorAll('.exp-pane'));
-        const host = document.querySelector('.exp-panes');
-        if (!tabs.length || !panes.length || !host) return;
+        (() => {
+            const tabs = Array.from(document.querySelectorAll('.exp-tab'));
+            const panes = Array.from(document.querySelectorAll('.exp-pane'));
+            const host = document.querySelector('.exp-panes');
+            if (!tabs.length || !panes.length || !host) return;
 
-        function setActive(i) {
-            const cur = document.querySelector('.exp-pane.is-active');
-            const oldH = cur ? cur.offsetHeight : host.offsetHeight;
-            host.style.height = oldH + 'px';
+            function setActive(i) {
+                const cur = document.querySelector('.exp-pane.is-active');
+                const oldH = cur ? cur.offsetHeight : host.offsetHeight;
+                host.style.height = oldH + 'px';
 
-            tabs.forEach(t => t.classList.remove('is-active'));
-            panes.forEach(p => p.classList.remove('is-active'));
-            tabs[i].classList.add('is-active');
-            panes[i].classList.add('is-active');
+                tabs.forEach(t => t.classList.remove('is-active'));
+                panes.forEach(p => p.classList.remove('is-active'));
+                tabs[i].classList.add('is-active');
+                panes[i].classList.add('is-active');
 
-            const newH = panes[i].offsetHeight;
-            requestAnimationFrame(() => {
-                host.style.height = newH + 'px';
-                setTimeout(() => host.style.height = 'auto', 200);
-            });
+                const newH = panes[i].offsetHeight;
+                requestAnimationFrame(() => {
+                    host.style.height = newH + 'px';
+                    setTimeout(() => host.style.height = 'auto', 200);
+                });
 
-            // Accesibilidad
-            tabs.forEach((t, idx) => t.setAttribute('aria-selected', String(idx === i)));
-        }
+                // Accesibilidad
+                tabs.forEach((t, idx) => t.setAttribute('aria-selected', String(idx === i)));
+            }
 
-        tabs.forEach((t, i) => t.addEventListener('click', e => {
-            e.preventDefault();
-            setActive(i);
-        }));
-    })();
+            tabs.forEach((t, i) => t.addEventListener('click', e => {
+                e.preventDefault();
+                setActive(i);
+            }));
+        })();
     </script>
-
-
-
-
-
-    <script>
-    (() => {
-        // 1) Numerar “Proceso 1, 2, 3…”
-        const titles = document.querySelectorAll('.exp-accordion--fase .fase-title');
-        titles.forEach((el, i) => {
-            const txt = el.textContent.trim();
-            // Solo renombrar si inicia con "Proceso" sin número final
-            if (/^Proceso(\s*\d+)?$/i.test(txt)) el.textContent = `Proceso ${i+1}`;
-        });
-
-        // 2) (Opcional) Inyectar “Nueva tarea +” si no editaste el HTML
-        document.querySelectorAll('.exp-accordion--fase > .exp-acc-head').forEach(head => {
-            if (!head.querySelector('.fase-tools')) {
-                const tools = document.createElement('div');
-                tools.className = 'fase-tools';
-                tools.innerHTML = `<span class="tool-label">Nueva tarea</span>
-                         <button class="btn-circle btn-add-tarea" type="button" aria-label="Nueva tarea">+</button>`;
-                const right = head.querySelector('.fase-right');
-                right ? head.insertBefore(tools, right) : head.appendChild(tools);
-            }
-        });
-
-        // 3) (Opcional) Inyectar toolbar superior si no la pusiste en HTML
-        const planeacionPane = document.querySelector(
-                '.exp-pane[data-tab="planeacion"], .exp-pane[data-tab="Planeación"]') ||
-            document.querySelector('.exp-pane:nth-of-type(3)');
-        if (planeacionPane && !document.querySelector('.planeacion-toolbar')) {
-            const tb = document.createElement('div');
-            tb.className = 'planeacion-toolbar';
-            tb.innerHTML =
-                `<span class="ptb-label">Nuevo proceso</span>
-                    <button id="btn-nuevo-proceso" class="btn-circle" type="button" aria-label="Nuevo proceso">+</button>`;
-            planeacionPane.prepend(tb);
-        }
-
-        // 4) Clics (placeholder)
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('#btn-nuevo-proceso')) {
-                (window.gcToast?.info?.('Nuevo proceso (placeholder)')) ?? console.log('Nuevo proceso');
-                // TODO: clonar plantilla de proceso y anexar
-            }
-            if (e.target.closest('.btn-add-tarea')) {
-                (window.gcToast?.info?.('Nueva tarea (placeholder)')) ?? console.log('Nueva tarea');
-                // TODO: abrir modal/añadir fila a la tabla del proceso
-            }
-        });
-    })();
-    </script>
-
-
-
-
-
 
 </body>
 

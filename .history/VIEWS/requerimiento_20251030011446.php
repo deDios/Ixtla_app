@@ -281,34 +281,17 @@
                     <!-- Panel: Planeacion -->
                     <section class="exp-pane" role="tabpanel" data-tab="planeacion">
 
-                        <!-- Toolbar superior: Nuevo proceso -->
-                        <div class="planeacion-toolbar" role="group" aria-label="Acciones de planeación">
-                            <span class="ptb-label">Nuevo proceso</span>
-                            <button id="btn-nuevo-proceso" class="btn-circle" type="button"
-                                aria-label="Nuevo proceso">+</button>
-                        </div>
-
-                        <!-- Proceso 1 -->
+                        <!-- tabla procesos -->
                         <section class="exp-accordion exp-accordion--fase">
                             <button class="exp-acc-head" type="button" aria-expanded="true">
                                 <div class="fase-head">
-                                    <span class="fase-title">Proceso 1</span>
+                                    <span class="fase-title">Proceso</span>
                                     <small class="fase-meta">10 actividades</small>
                                 </div>
-
-                                <!-- Acción dentro del título de fase -->
-                                <div class="fase-tools">
-                                    <span class="tool-label">Nueva tarea</span>
-                                    <button class="btn-circle btn-add-tarea" type="button"
-                                        aria-label="Nueva tarea">+</button>
-                                </div>
-
                                 <div class="fase-right">
                                     <span class="fase-label">Estatus</span>
-                                    <span class="exp-progress" aria-label="70%">
-                                        <span class="bar" style="width:70%"></span>
-                                        <span class="pct">70%</span>
-                                    </span>
+                                    <span class="exp-progress" aria-label="70%"><span class="bar"
+                                            style="width:70%"></span><span class="pct">70%</span></span>
                                     <span class="fase-label">Fecha de inicio</span>
                                     <span class="fase-date">02/06/2025</span>
                                     <span class="chev" aria-hidden="true"></span>
@@ -355,27 +338,18 @@
                             </div>
                         </section>
 
-                        <!-- Proceso 2 -->
+
+                        <!-- tabla procesos 2 para ver como se comporta el contenedor -->
                         <section class="exp-accordion exp-accordion--fase">
                             <button class="exp-acc-head" type="button" aria-expanded="true">
                                 <div class="fase-head">
-                                    <span class="fase-title">Proceso 2</span>
+                                    <span class="fase-title">Proceso</span>
                                     <small class="fase-meta">10 actividades</small>
                                 </div>
-
-                                <!-- Acción dentro del título de fase -->
-                                <div class="fase-tools">
-                                    <span class="tool-label">Nueva tarea</span>
-                                    <button class="btn-circle btn-add-tarea" type="button"
-                                        aria-label="Nueva tarea">+</button>
-                                </div>
-
                                 <div class="fase-right">
                                     <span class="fase-label">Estatus</span>
-                                    <span class="exp-progress" aria-label="70%">
-                                        <span class="bar" style="width:70%"></span>
-                                        <span class="pct">70%</span>
-                                    </span>
+                                    <span class="exp-progress" aria-label="70%"><span class="bar"
+                                            style="width:70%"></span><span class="pct">70%</span></span>
                                     <span class="fase-label">Fecha de inicio</span>
                                     <span class="fase-date">02/06/2025</span>
                                     <span class="chev" aria-hidden="true"></span>
@@ -423,7 +397,6 @@
                         </section>
 
                     </section>
-
                 </div>
                 <!-- /exp-panes -->
 
