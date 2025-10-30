@@ -282,68 +282,68 @@
                     <section class="exp-pane" role="tabpanel" data-tab="planeacion">
 
                         <!-- ===== Toolbar Planeación ===== -->
-                        <div class="planeacion-toolbar">
-                            <span class="ptb-label">Nuevo proceso</span>
-                            <button class="btn-circle" type="button" id="btn-add-proceso">+</button>
-                        </div>
+<div class="planeacion-toolbar">
+  <span class="ptb-label">Nuevo proceso</span>
+  <button class="btn-circle" type="button" id="btn-add-proceso">+</button>
+</div>
 
-                        <!-- ===== Contenedor dinámico de procesos ===== -->
-                        <div id="planeacion-list"></div>
+<!-- ===== Contenedor dinámico de procesos ===== -->
+<div id="planeacion-list"></div>
 
-                        <!-- ===== Templates (clonados por JS; no se renderizan directamente) ===== -->
-                        <template id="tpl-fase">
-                            <section class="exp-accordion exp-accordion--fase">
-                                <button class="exp-acc-head" type="button" aria-expanded="true">
-                                    <div class="fase-head">
-                                        <span class="fase-title"></span>
-                                        <small class="fase-meta"></small>
-                                    </div>
+<!-- ===== Templates (clonados por JS; no se renderizan directamente) ===== -->
+<template id="tpl-fase">
+  <section class="exp-accordion exp-accordion--fase">
+    <button class="exp-acc-head" type="button" aria-expanded="true">
+      <div class="fase-head">
+        <span class="fase-title"></span>
+        <small class="fase-meta"></small>
+      </div>
 
-                                    <div class="fase-tools">
-                                        <span class="tool-label">Nueva tarea</span>
-                                        <button class="btn-circle" type="button" data-add-actividad>+</button>
-                                    </div>
+      <div class="fase-tools">
+        <span class="tool-label">Nueva tarea</span>
+        <button class="btn-circle" type="button" data-add-actividad>+</button>
+      </div>
 
-                                    <div class="fase-right">
-                                        <span class="fase-label">Estatus</span>
-                                        <span class="exp-progress" aria-label="">
-                                            <span class="bar"></span>
-                                            <span class="pct"></span>
-                                        </span>
-                                        <span class="fase-label">Fecha de inicio</span>
-                                        <span class="fase-date"></span>
-                                        <span class="chev" aria-hidden="true"></span>
-                                    </div>
-                                </button>
+      <div class="fase-right">
+        <span class="fase-label">Estatus</span>
+        <span class="exp-progress" aria-label="">
+          <span class="bar"></span>
+          <span class="pct"></span>
+        </span>
+        <span class="fase-label">Fecha de inicio</span>
+        <span class="fase-date"></span>
+        <span class="chev" aria-hidden="true"></span>
+      </div>
+    </button>
 
-                                <div class="exp-acc-body">
-                                    <div class="exp-table exp-table--planeacion is-card">
-                                        <div class="exp-thead">
-                                            <div>Actividad</div>
-                                            <div>Responsable</div>
-                                            <div>Estatus</div>
-                                            <div>Porcentaje</div>
-                                            <div>Fecha de inicio</div>
-                                        </div>
-                                        <div class="exp-tbody"></div>
-                                    </div>
-                                </div>
-                            </section>
-                        </template>
+    <div class="exp-acc-body">
+      <div class="exp-table exp-table--planeacion is-card">
+        <div class="exp-thead">
+          <div>Actividad</div>
+          <div>Responsable</div>
+          <div>Estatus</div>
+          <div>Porcentaje</div>
+          <div>Fecha de inicio</div>
+        </div>
+        <div class="exp-tbody"></div>
+      </div>
+    </div>
+  </section>
+</template>
 
-                        <template id="tpl-actividad">
-                            <div class="exp-row">
-                                <div class="actividad"></div>
-                                <div class="responsable"></div>
-                                <div class="estatus">
-                                    <span class="exp-badge"></span>
-                                </div>
-                                <div class="porcentaje">
-                                    <span class="exp-progress xs"><span class="bar"></span></span>
-                                </div>
-                                <div class="fecha"></div>
-                            </div>
-                        </template>
+<template id="tpl-actividad">
+  <div class="exp-row">
+    <div class="actividad"></div>
+    <div class="responsable"></div>
+    <div class="estatus">
+      <span class="exp-badge"></span>
+    </div>
+    <div class="porcentaje">
+      <span class="exp-progress xs"><span class="bar"></span></span>
+    </div>
+    <div class="fecha"></div>
+  </div>
+</template>
 
 
                     </section>
@@ -568,37 +568,37 @@
 
     <!-- tabs suaves -->
     <script>
-    (() => {
-        const tabs = Array.from(document.querySelectorAll('.exp-tab'));
-        const panes = Array.from(document.querySelectorAll('.exp-pane'));
-        const host = document.querySelector('.exp-panes');
-        if (!tabs.length || !panes.length || !host) return;
+        (() => {
+            const tabs = Array.from(document.querySelectorAll('.exp-tab'));
+            const panes = Array.from(document.querySelectorAll('.exp-pane'));
+            const host = document.querySelector('.exp-panes');
+            if (!tabs.length || !panes.length || !host) return;
 
-        function setActive(i) {
-            const cur = document.querySelector('.exp-pane.is-active');
-            const oldH = cur ? cur.offsetHeight : host.offsetHeight;
-            host.style.height = oldH + 'px';
+            function setActive(i) {
+                const cur = document.querySelector('.exp-pane.is-active');
+                const oldH = cur ? cur.offsetHeight : host.offsetHeight;
+                host.style.height = oldH + 'px';
 
-            tabs.forEach(t => t.classList.remove('is-active'));
-            panes.forEach(p => p.classList.remove('is-active'));
-            tabs[i].classList.add('is-active');
-            panes[i].classList.add('is-active');
+                tabs.forEach(t => t.classList.remove('is-active'));
+                panes.forEach(p => p.classList.remove('is-active'));
+                tabs[i].classList.add('is-active');
+                panes[i].classList.add('is-active');
 
-            const newH = panes[i].offsetHeight;
-            requestAnimationFrame(() => {
-                host.style.height = newH + 'px';
-                setTimeout(() => host.style.height = 'auto', 200);
-            });
+                const newH = panes[i].offsetHeight;
+                requestAnimationFrame(() => {
+                    host.style.height = newH + 'px';
+                    setTimeout(() => host.style.height = 'auto', 200);
+                });
 
-            // Accesibilidad
-            tabs.forEach((t, idx) => t.setAttribute('aria-selected', String(idx === i)));
-        }
+                // Accesibilidad
+                tabs.forEach((t, idx) => t.setAttribute('aria-selected', String(idx === i)));
+            }
 
-        tabs.forEach((t, i) => t.addEventListener('click', e => {
-            e.preventDefault();
-            setActive(i);
-        }));
-    })();
+            tabs.forEach((t, i) => t.addEventListener('click', e => {
+                e.preventDefault();
+                setActive(i);
+            }));
+        })();
     </script>
 
 </body>
