@@ -12,6 +12,20 @@
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="/CSS/requerimientoCoemntariosSection.css">
     <link rel="icon" href="/favicon.ico">
+
+    <!-- Fix tabs smooth (mover a requerimiento.css si deseas) -->
+    <style>
+        .exp-panes {
+            position: relative;
+            overflow-anchor: none;
+            transition: height .2s ease;
+        }
+
+        .exp-view .exp-pane {
+            min-height: 240px;
+            padding-top: 10px;
+        }
+    </style>
 </head>
 
 <body>
