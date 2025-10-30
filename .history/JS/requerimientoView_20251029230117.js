@@ -13,19 +13,14 @@
     data:{
       id:3623, folio:"REQ-0000003623",
       asunto:"Reporte Fuga de agua", tramite_nombre:"Fuga de agua",
-      descripcion:"Entre la casa 58 y 60 de la calle Jesús macias existe una fuga de agua...",
+      descripcion:"Entre la casa 58 y 60 de la calle Jesús macias...",
       prioridad:2, estatus:0, canal:1,
       contacto_nombre:"Karla ochoa", contacto_email:"Omelettelaguna@gmail.com",
       contacto_telefono:"3318310524",
       contacto_calle:"Jesus macias 60", contacto_colonia:"Luis García", contacto_cp:"45850",
       created_at:"2025-10-03 18:08:38", cerrado_en:null,
       asignado_nombre_completo:"Juan Pablo García · ANALISTA",
-      evidencias:[{id:1,nombre:"Evidencia Fuga de Agua",quien:"Luis Enrique",fecha:"2025-09-02 14:25:00",tipo:"img",url:"#"}],
-      comentarios:[ // semilla de ejemplo
-        {id:1, nombre:"Juan Pablo", texto:"¿Pueden validar si la cuadrilla ya salió a la zona?", cuando:Date.now()-2*60*1000},
-        {id:2, nombre:"María López", texto:"Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en sitio.", cuando:Date.now()-60*1000},
-        {id:3, nombre:"Sergio", texto:"Recibido ✅", cuando:Date.now()-10*1000}
-      ]
+      evidencias:[{id:1,nombre:"Evidencia Fuga de Agua",quien:"Luis Enrique",fecha:"2025-09-02 14:25:00",tipo:"img",url:"#"}]
     }
   };
 
@@ -35,13 +30,8 @@
       if (!raw) { localStorage.setItem(DEMO_KEY, JSON.stringify(DEMO_FALLBACK)); return DEMO_FALLBACK; }
       const obj = JSON.parse(raw);
       if (!obj || obj.ok === false || !obj.data) { localStorage.setItem(DEMO_KEY, JSON.stringify(DEMO_FALLBACK)); return DEMO_FALLBACK; }
-      // hotfix: asegurar arreglo de comentarios
-      if (!Array.isArray(obj.data.comentarios)) obj.data.comentarios = [];
       return obj;
-    } catch {
-      localStorage.setItem(DEMO_KEY, JSON.stringify(DEMO_FALLBACK));
-      return DEMO_FALLBACK;
-    }
+    } catch { localStorage.setItem(DEMO_KEY, JSON.stringify(DEMO_FALLBACK)); return DEMO_FALLBACK; }
   };
   const saveDemo = (data) => { localStorage.setItem(DEMO_KEY, JSON.stringify({ok:true,data})); return data; };
 
@@ -65,10 +55,6 @@
     items.forEach(li=>li.classList.remove("current","complete"));
     const sol = items.find(li=>Number(li.dataset.status)===0);
     sol?.classList.add("current");
-
-    // limpiar feed de comentarios
-    const feed = $(".c-feed");
-    if (feed) feed.innerHTML = "";
   }
 
   /* =============== Acordeones con animación =============== */
@@ -86,7 +72,7 @@
   function initAccordions(){
     $$(".exp-accordion").forEach(acc=>{
       const head=$(".exp-acc-head",acc), body=$(".exp-acc-body",acc); if(!head||!body) return;
-      const initOpen=head.getAttribute("aria-expanded") === "true"; body.hidden=!initOpen;
+      const initOpen=head.getAttribute("aria-expanded")==="true"; body.hidden=!initOpen;
       head.addEventListener("click",()=>{ const isOpen=head.getAttribute("aria-expanded")==="true"; setAccordionOpen(head,body,!isOpen); });
       head.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); head.click(); }});
     });
@@ -109,7 +95,7 @@
 
   /* =============== Stepper + badge =============== */
   const statusLabel = (s)=>({0:"Solicitud",1:"Revisión",2:"Asignación",3:"Proceso",4:"Pausado",5:"Cancelado",6:"Finalizado"})[Number(s)]||"—";
-  const statusBadgeClass = (s)=>({0:"is-muted",1:"is-info",2:"is-info",3:"is-info",4:"is-warning",5:"is-danger",6:"is-success"})[Number(s)]||"is-info";
+  const statusBadgeClass = (s)=>({0:"is-muted",1:"is-info",2:"is-info",3:"is-info",4:"is-warn",5:"is-danger",6:"is-success"})[Number(s)]||"is-info";
 
   function paintStepper(next){
     const items=$$(".step-menu li");
@@ -125,75 +111,6 @@
     }
   }
   window.paintStepper = paintStepper;
-
-  /* =============== Comentarios (DEMO local) =============== */
-  function relTime(ts){
-    const diff = Math.max(0, Date.now() - ts);
-    const s = Math.floor(diff/1000);
-    if (s < 10) return "ahora";
-    if (s < 60) return `hace ${s}s`;
-    const m = Math.floor(s/60);
-    if (m < 60) return `hace ${m} min`;
-    const h = Math.floor(m/60);
-    return `hace ${h} h`;
-  }
-
-  function renderComments(req){
-    const feed = $(".c-feed"); if (!feed) return;
-    feed.innerHTML = "";
-    (req.comentarios || []).forEach(c => {
-      const art = document.createElement("article");
-      art.className = "msg";
-      art.innerHTML = `
-        <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
-        <div>
-          <div class="who"><span class="name">${c.nombre || "Anónimo"}</span> <span class="time">${relTime(c.cuando||Date.now())}</span></div>
-          <div class="text"></div>
-        </div>`;
-      art.querySelector(".text").textContent = c.texto || "";
-      feed.appendChild(art);
-    });
-    // scroll al final
-    feed.parentElement?.scrollTo({ top: feed.parentElement.scrollHeight, behavior: "smooth" });
-  }
-
-  function setupComposer(req){
-    const ta = $(".composer textarea");
-    const btn = $(".composer .send-fab");
-    if (!ta || !btn) return;
-
-    const getAutor = () => ($("#hs-profile-name")?.textContent?.trim() || "Tú");
-
-    const updateBtn = () => {
-      const has = (ta.value || "").trim().length > 0;
-      btn.disabled = !has;
-      btn.style.opacity = has ? "1" : ".6";
-      btn.style.pointerEvents = has ? "auto" : "none";
-    };
-    updateBtn();
-
-    const send = () => {
-      const texto = (ta.value || "").trim();
-      if (!texto) return;
-      const c = { id: Date.now(), nombre: getAutor(), texto, cuando: Date.now() };
-      req.comentarios = Array.isArray(req.comentarios) ? req.comentarios : [];
-      req.comentarios.push(c);
-      saveDemo(req);
-      renderComments(req);
-      ta.value = "";
-      updateBtn();
-      toast("Comentario enviado","success");
-    };
-
-    ta.addEventListener("input", updateBtn);
-    ta.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        send();
-      }
-    });
-    btn.addEventListener("click", send);
-  }
 
   /* =============== Hidratar vista =============== */
   const fillText = (sel, txt)=>{ const n=$(sel); if(n) n.textContent = (txt ?? "—"); };
@@ -238,13 +155,8 @@
       });
     }
 
-    // pintar stepper y acciones
     paintStepper(Number(req.estatus??0));
     ReqActions.refresh();
-
-    // comentarios
-    renderComments(req);
-    setupComposer(req);
   }
 
   /* =============== Acciones por estado (DEMO local) =============== */
@@ -292,7 +204,7 @@
         return;
       }
 
-      // 3: Proceso -> Pausar/Cancelar
+      // 3: Proceso -> Pausar/Cancelar (demo termina aquí si quieres)
       if(status===3){
         host.appendChild(mk("Pausar","btn-xs warn",()=> openEstadoModal({type:"pausar", nextStatus:4})));
         host.appendChild(mk("Cancelar","btn-xs danger",()=> openEstadoModal({type:"cancelar", nextStatus:5})));
@@ -331,6 +243,7 @@
     const motivo=(txt.value||"").trim(); if(!motivo){ toast("Describe el motivo, por favor.","warning"); txt.focus(); return; }
     const data = loadDemo().data;
     data.estatus = _pendingAction.nextStatus;
+    // opcional: data.demoNotas = [...(data.demoNotas||[]), {tipo:_pendingAction.type, motivo, fecha: new Date().toISOString()}];
     saveDemo(data);
     paintStepper(data.estatus);
     hydrateFromData(data);
@@ -345,10 +258,9 @@
       const li=e.target.closest("li"); if(!li) return;
       $$("li",menu).forEach(it=>it.classList.remove("current"));
       li.classList.add("current");
-      // (solo visual; el negocio lo maneja ReqActions)
     });
   }
-
+h
   /* =============== Boot =============== */
   function boot(){
     resetTemplate();
