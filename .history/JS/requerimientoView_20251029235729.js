@@ -3,11 +3,10 @@
   "use strict";
 
   /* =============== Helpers =============== */
-  const $  = (s, r = document) => r.querySelector(s);
+  const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-  const log   = (...a) => console.log("[RequerimientoView]", ...a);
-  const toast = (m, t = "info") =>
-    (window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m));
+  const log = (...a) => console.log("[RequerimientoView]", ...a);
+  const toast = (m, t = "info") => (window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m));
 
   // Solo dos nombres (sin apellidos)
   const firstTwoNames = (full = "") => {
@@ -15,7 +14,6 @@
     return parts.slice(0, Math.min(2, parts.length)).join(" ") || full || "—";
   };
 
-  /* =============== DEMO store local =============== */
   const DEMO_KEY = "REQ_DEMO";
   const DEMO_FALLBACK = {
     ok: true,
@@ -41,15 +39,9 @@
   const loadDemo = () => {
     try {
       const raw = localStorage.getItem(DEMO_KEY);
-      if (!raw) {
-        localStorage.setItem(DEMO_KEY, JSON.stringify(DEMO_FALLBACK));
-        return DEMO_FALLBACK;
-      }
+      if (!raw) { localStorage.setItem(DEMO_KEY, JSON.stringify(DEMO_FALLBACK)); return DEMO_FALLBACK; }
       const obj = JSON.parse(raw);
-      if (!obj || obj.ok === false || !obj.data) {
-        localStorage.setItem(DEMO_KEY, JSON.stringify(DEMO_FALLBACK));
-        return DEMO_FALLBACK;
-      }
+      if (!obj || obj.ok === false || !obj.data) { localStorage.setItem(DEMO_KEY, JSON.stringify(DEMO_FALLBACK)); return DEMO_FALLBACK; }
       if (!Array.isArray(obj.data.comentarios)) obj.data.comentarios = [];
       return obj;
     } catch {
@@ -57,10 +49,7 @@
       return DEMO_FALLBACK;
     }
   };
-  const saveDemo = (data) => {
-    localStorage.setItem(DEMO_KEY, JSON.stringify({ ok: true, data }));
-    return data;
-  };
+  const saveDemo = (data) => { localStorage.setItem(DEMO_KEY, JSON.stringify({ ok: true, data })); return data; };
 
   /* =============== Reset plantilla =============== */
   function resetTemplate() {
@@ -69,18 +58,12 @@
 
     const contactoVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
     contactoVals.forEach((n, i) => {
-      if (i === 3) {
-        const a = n.querySelector("a");
-        if (a) { a.textContent = "—"; a.removeAttribute("href"); }
-        else n.textContent = "—";
-      } else n.textContent = "—";
+      if (i === 3) { const a = n.querySelector("a"); if (a) { a.textContent = "—"; a.removeAttribute("href"); } else n.textContent = "—"; }
+      else n.textContent = "—";
     });
 
     const detallesVals = $$('.exp-pane[data-tab="detalles"] .exp-grid .exp-val');
-    detallesVals.forEach((n, i) => {
-      if (i === 3) n.innerHTML = '<span class="exp-badge is-info">—</span>';
-      else n.textContent = "—";
-    });
+    detallesVals.forEach((n, i) => { if (i === 3) n.innerHTML = '<span class="exp-badge is-info">—</span>'; else n.textContent = "—"; });
 
     $$(".exp-accordion .exp-table .exp-row").forEach(r => r.remove());
 
@@ -131,10 +114,8 @@
   }
 
   /* =============== Stepper + badge =============== */
-  const statusLabel = (s) =>
-    ({ 0: "Solicitud", 1: "Revisión", 2: "Asignación", 3: "Proceso", 4: "Pausado", 5: "Cancelado", 6: "Finalizado" })[Number(s)] || "—";
-  const statusBadgeClass = (s) =>
-    ({ 0: "is-muted", 1: "is-info", 2: "is-info", 3: "is-info", 4: "is-warning", 5: "is-danger", 6: "is-success" })[Number(s)] || "is-info";
+  const statusLabel = (s) => ({ 0: "Solicitud", 1: "Revisión", 2: "Asignación", 3: "Proceso", 4: "Pausado", 5: "Cancelado", 6: "Finalizado" })[Number(s)] || "—";
+  const statusBadgeClass = (s) => ({ 0: "is-muted", 1: "is-info", 2: "is-info", 3: "is-info", 4: "is-warning", 5: "is-danger", 6: "is-success" })[Number(s)] || "is-info";
 
   function paintStepper(next) {
     const items = $$(".step-menu li");
@@ -180,6 +161,7 @@
       art.querySelector(".text").textContent = c.texto || "";
       feed.appendChild(art);
     });
+    // autoscroll
     const scroller = feed.parentElement || feed;
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
   }
@@ -215,7 +197,10 @@
 
     ta.addEventListener("input", updateBtn);
     ta.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
     });
     btn.addEventListener("click", send);
   }
@@ -272,28 +257,28 @@
     setupComposer(req);
   }
 
-  /* =============== Acciones por estado (DEMO) =============== */
+  /* =============== Acciones por estado (DEMO local) =============== */
   const ReqActions = (() => {
     const hostSel = "#req-actions";
 
-    function setStatusAndRefresh(next) {
-      const data = loadDemo().data;
-      const prev = data.estatus;
-      data.estatus = next;
-      saveDemo(data);
-      console.log("[ReqActions] estatus change", { prev, next });
-      paintStepper(next);
-      hydrateFromData(data);
-    }
+    function setStatusAndRefresh(next){
+  const data = loadDemo().data;
+  const prev = data.estatus;
+  data.estatus = next;
+  saveDemo(data);
+  console.log("[ReqActions] estatus change", { prev, next });
+  paintStepper(next);
+  hydrateFromData(data);
+}
 
     function ensureModalOrFallback(type, next) {
       const modal = $("#modal-estado");
-      if (modal && typeof window.openEstadoModal === "function") {
+      if (modal) {
         console.log("[ReqActions] abrir modal:", { type, next });
-        window.openEstadoModal({ type, nextStatus: next });
+        window.openEstadoModal?.({ type, nextStatus: next });
       } else {
         console.warn("[ReqActions] modal no encontrado, usando fallback demo");
-        setStatusAndRefresh(next);
+        setStatusAndRefresh(next, `fallback:${type}`);
         toast(type === "cancelar" ? "Requerimiento cancelado" : "Requerimiento en pausa", "warning");
       }
     }
@@ -317,37 +302,38 @@
         return b;
       };
 
+      // 0: Solicitud -> Iniciar revisión
       if (status === 0) {
-        host.appendChild(mk("Iniciar revisión", "btn-xs primary",
-          () => { setStatusAndRefresh(1); toast("Requerimiento en revisión", "success"); }));
+        host.appendChild(mk("Iniciar revisión", "btn-xs primary", () => { setStatusAndRefresh(1, "iniciar_revision"); toast("Requerimiento en revisión", "success"); }));
         return;
       }
 
+      // 1: Revisión -> Asignar (→2), Pausar (→4), Cancelar(→5)
       if (status === 1) {
-        host.appendChild(mk("Asignar a departamento", "btn-xs primary",
-          () => { setStatusAndRefresh(2); toast("Asignado a departamento", "success"); }));
-        host.appendChild(mk("Pausar", "btn-xs warn",     () => ensureModalOrFallback("pausar",   4)));
+        host.appendChild(mk("Asignar a departamento", "btn-xs primary", () => { setStatusAndRefresh(2, "asignar"); toast("Asignado a departamento", "success"); }));
+        host.appendChild(mk("Pausar", "btn-xs warn", () => ensureModalOrFallback("pausar", 4)));
         host.appendChild(mk("Cancelar", "btn-xs danger", () => ensureModalOrFallback("cancelar", 5)));
         return;
       }
 
+      // 2: Asignación -> Iniciar proceso (→3) + Pausar/Cancelar
       if (status === 2) {
-        host.appendChild(mk("Iniciar proceso", "btn-xs primary",
-          () => { setStatusAndRefresh(3); toast("Iniciado Proceso", "success"); }));
-        host.appendChild(mk("Pausar", "btn-xs warn",     () => ensureModalOrFallback("pausar",   4)));
+        host.appendChild(mk("Iniciar proceso", "btn-xs primary", () => { setStatusAndRefresh(3, "iniciar_proceso"); toast("Iniciado Proceso", "success"); }));
+        host.appendChild(mk("Pausar", "btn-xs warn", () => ensureModalOrFallback("pausar", 4)));
         host.appendChild(mk("Cancelar", "btn-xs danger", () => ensureModalOrFallback("cancelar", 5)));
         return;
       }
 
+      // 3: Proceso -> Pausar/Cancelar
       if (status === 3) {
-        host.appendChild(mk("Pausar", "btn-xs warn",     () => ensureModalOrFallback("pausar",   4)));
+        host.appendChild(mk("Pausar", "btn-xs warn", () => ensureModalOrFallback("pausar", 4)));
         host.appendChild(mk("Cancelar", "btn-xs danger", () => ensureModalOrFallback("cancelar", 5)));
         return;
       }
 
+      // 4/5/6: Reactivar (→1)
       if (status === 4 || status === 5 || status === 6) {
-        host.appendChild(mk("Reactivar", "btn-xs primary",
-          () => { setStatusAndRefresh(1); toast("Reactivado a Revisión", "success"); }));
+        host.appendChild(mk("Reactivar", "btn-xs primary", () => { setStatusAndRefresh(1, "reactivar"); toast("Reactivado a Revisión", "success"); }));
         return;
       }
     }
@@ -356,62 +342,54 @@
   })();
   window.ReqActions = ReqActions;
 
-  /* =============== Modal Pausar/Cancelar (anti-burbujeo) =============== */
-  const modal         = $("#modal-estado");
-  const form          = $("#form-estado");
-  const txt           = $("#estado-motivo");
-  const title         = $("#estado-title");
-  const btnClose      = modal?.querySelector(".modal-close");
-  const modalContent  = modal?.querySelector(".modal-content");
+  /* =============== Modal Pausar/Cancelar (DEMO local, con anti-burbujeo) =============== */
+  const modal = $("#modal-estado"), form = $("#form-estado"),
+    txt = $("#estado-motivo"), title = $("#estado-title");
+  const btnClose = modal?.querySelector(".modal-close");
+  const modalContent = modal?.querySelector(".modal-content");
 
-  let _pendingAction = null;
-  let _modalBound = false;
+  let _pendingAction = null; // {type:"pausar"|"cancelar", nextStatus:number}
 
   function openEstadoModal({ type, nextStatus }) {
-    if (!modal || !modalContent) {
-      console.warn("[ModalEstado] DOM no disponible");
-      return;
-    }
     _pendingAction = { type, nextStatus };
     title.textContent = type === "cancelar" ? "Motivo de cancelación" : "Motivo de pausa";
-    if (txt) txt.value = "";
+    txt.value = "";
 
-    modal.classList.add("open");           // tu CSS acepta .open
+    // Evita que el click de apertura dispare el cierre por “fondo”
+    // y conecta el cierre SOLO si se hace click exactamente en el overlay.
+    modal.classList.add("open");
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("me-modal-open");
-
-    // Evita cierre inmediato por burbujeo
-    if (!_modalBound) {
+    setTimeout(() => {
       modal.addEventListener("click", onBackdropClick);
-      modalContent.addEventListener("mousedown", stop, { capture: true });
-      modalContent.addEventListener("click",      stop, { capture: true });
-      _modalBound = true;
-    }
+    }, 0);
 
-    setTimeout(() => txt?.focus(), 40);
+    // Bloquear burbujeo dentro del contenido
+    modalContent.addEventListener("mousedown", stop, { capture: true });
+    modalContent.addEventListener("click", stop, { capture: true });
+
+    setTimeout(() => txt?.focus(), 50);
     console.log("[ModalEstado] open", { type, nextStatus });
   }
-  function stop(e){ e.stopPropagation(); }
-  function onBackdropClick(e){ if (e.target === modal) closeEstadoModal(); }
-
+  function stop(e) { e.stopPropagation(); }
+  function onBackdropClick(e) { if (e.target === modal) closeEstadoModal(); }
   function closeEstadoModal() {
-    if (!modal) return;
     modal.classList.remove("open", "active");
     modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("me-modal-open");
+    modal.removeEventListener("click", onBackdropClick);
+    modalContent.removeEventListener("mousedown", stop, { capture: true });
+    modalContent.removeEventListener("click", stop, { capture: true });
     _pendingAction = null;
   }
-
   btnClose?.addEventListener("click", closeEstadoModal);
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal?.classList.contains("open")) closeEstadoModal();
-  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.classList.contains("open")) closeEstadoModal(); });
 
   form?.addEventListener("submit", (e) => {
     e.preventDefault();
     if (!_pendingAction) return;
-    const motivo = (txt?.value || "").trim();
-    if (!motivo) { toast("Describe el motivo, por favor.", "warning"); txt?.focus(); return; }
+    const motivo = (txt.value || "").trim();
+    if (!motivo) { toast("Describe el motivo, por favor.", "warning"); txt.focus(); return; }
 
     const data = loadDemo().data;
     data.estatus = _pendingAction.nextStatus;
@@ -423,8 +401,6 @@
     closeEstadoModal();
   });
 
-  // Exponer para que ReqActions lo invoque
-  window.openEstadoModal = openEstadoModal;
 
   /* =============== Stepper visual (clic) =============== */
   function initStepper() {
@@ -433,21 +409,19 @@
       const li = e.target.closest("li"); if (!li) return;
       $$("li", menu).forEach(it => it.classList.remove("current"));
       li.classList.add("current");
+      // (solo visual)
     });
   }
 
   /* =============== Boot =============== */
   function boot() {
     resetTemplate();
-    const demo = loadDemo();
-    hydrateFromData(demo.data);
-    initAccordions();
-    initSortableTables();
-    initStepper();
+    const demo = loadDemo(); hydrateFromData(demo.data);
+    initAccordions(); initSortableTables(); initStepper();
     log("Boot OK. Estatus actual:", loadDemo().data.estatus);
   }
-  if (document.readyState === "loading")
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();
 
 })();
+
