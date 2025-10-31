@@ -418,9 +418,7 @@ const State = {
   },
   table: null,
   __page: 1,
-
-  // ← nuevo: guardamos el total usado por el pager para navegar sin recalcular pipeline
-  __lastTotal: 0,
+  __lastTotal: 0, // ← total para el pager
 };
 
 let Charts = { line: null, donut: null };
@@ -862,26 +860,16 @@ function renderPagerClassic(total) {
       disabled ? "disabled" : p
     }" ${disabled ? "disabled" : ""}>${label}</button>`;
 
-  // siempre mostramos 1 y última; creamos ventana alrededor de la actual
   const left = Math.max(2, cur - WIN);
   const right = Math.min(pages - 1, cur + WIN);
 
   let nums = "";
-  // página 1
   nums += btn("1", 1, { active: cur === 1 });
-
-  // elipsis izquierda
   if (left > 2) nums += `<span class="pager-ellipsis">…</span>`;
-
-  // ventana central
   for (let i = left; i <= right; i++) {
     if (i > 1 && i < pages) nums += btn(String(i), i, { active: cur === i });
   }
-
-  // elipsis derecha
   if (right < pages - 1) nums += `<span class="pager-ellipsis">…</span>`;
-
-  // última página
   if (pages > 1) nums += btn(String(pages), pages, { active: cur === pages });
 
   cont.innerHTML = [
@@ -913,44 +901,58 @@ function renderPagerClassic(total) {
 }
 
 /* ============================================================================
-   GAPS + BIND ROW CLICK
+   GAPS + CLICK DELEGADO
    ========================================================================== */
+/* SOLO estilos/gaps: NO añadir listeners por fila (se pierden al ordenar) */
 function refreshCurrentPageDecorations() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
   tbody.querySelectorAll("tr.hs-gap").forEach((tr) => tr.remove());
 
+  // marca visual
+  Array.from(tbody.querySelectorAll("tr")).forEach((tr) => {
+    tr.classList.add("is-clickable");
+  });
+
+  // (opcional) gaps si quieres altura fija
   const pageRows = State.table?.getRawRows?.() || [];
   const realCount = pageRows.length;
   const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
-
-  Array.from(tbody.querySelectorAll("tr")).forEach((tr) => {
-    tr.classList.remove("is-clickable");
-    tr.onclick = null;
-  });
-  for (let i = 0; i < realCount; i++) {
-    const tr = tbody.querySelectorAll("tr")[i];
-    const raw = pageRows[i];
-    if (!tr || !raw) continue;
-    tr.classList.add("is-clickable");
-    tr.addEventListener("click", () => {
-      const id = raw?.id || raw?.__raw?.id;
-      if (id) window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
-    });
-  }
-
   if (gaps > 0) {
-    let html = "";
-    for (let i = 0; i < gaps; i++) {
-      //html += `<tr class="hs-gap" aria-hidden="true"><td colspan="6">&nbsp;</td></tr>`;
-    }
-    tbody.insertAdjacentHTML("beforeend", html);
+    // Si quisieras filas fantasma, agrega aquí <tr class="hs-gap">…
   }
   log("gaps añadidos:", gaps, "reales en página:", realCount);
 }
 
-/** Refresca el bloque de perfil del sidebar (nombre + avatar) */
+/* Delegación permanente: mantiene los clicks aunque se regenere el <tbody> */
+function setupRowClickDelegation() {
+  const tbody = document.querySelector(SEL.tableBody);
+  if (!tbody) return;
+
+  tbody.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr");
+    if (!tr || tr.classList.contains("hs-gap")) return;
+
+    // Resuelve índice visible dentro del DOM actual
+    const rowsInDom = Array.from(tbody.querySelectorAll("tr"));
+    const idx = rowsInDom.indexOf(tr);
+    if (idx < 0) return;
+
+    // Obtén la fila cruda correspondiente a la página actual
+    const pageRows = State.table?.getRawRows?.() || [];
+    const raw = pageRows[idx];
+
+    const id = raw?.id || raw?.__raw?.id;
+    if (id) {
+      window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
+    }
+  });
+}
+
+/* ============================================================================
+   Refresca bloque de perfil (sidebar)
+   ========================================================================== */
 function refreshSidebarFromSession(sess) {
   try {
     const s = sess || window.Session?.get?.() || null;
@@ -1024,7 +1026,7 @@ function applyPipelineAndRender() {
       "—",
     tramite: r.tramite,
     asunto: r.asunto,
-    asignado: r.asignado, // nombre (o “Sin asignar”)
+    asignado: r.asignado,
     asignadoNombre: r.asignadoNombre,
     asignadoFull: r.asignadoFull,
     tel: r.tel,
@@ -1036,8 +1038,7 @@ function applyPipelineAndRender() {
 
   refreshCurrentPageDecorations();
 
-  // ← guardamos total para el pager y renderizamos compactado
-  State.__lastTotal = filtered.length;
+  State.__lastTotal = filtered.length; // para el pager
   renderPagerClassic(filtered.length);
 
   log("pipeline", {
@@ -1111,7 +1112,6 @@ function drawChartsFromRows(rows) {
   log("CHARTS — year series:", { labels, series: yearSeries });
   log("CHARTS — month distribution:", monthAgg);
 
-  // Si tu librería soporta destroy(), puedes llamarlo antes de re-crear
   if (Charts?.line && Charts.line.destroy) {
     try {
       Charts.line.destroy();
@@ -1222,11 +1222,7 @@ async function fetchDeptAll(deptId, perPage = 200, maxPages = 50) {
   return all;
 }
 
-/** Ajusta visibilidad por rol:
- * - Admin/Presidencia: ven TODO.
- * - Director/Primera línea/Jefe/Analista: excluye 'solicitud' y 'revision'.
- * - Resto: sin cambio extra (viene acotado por fuente).
- */
+/** Visibilidad por rol */
 function filterRoleVisibility(
   items,
   { isAdmin, isPres, isDir, soyPL, isJefe, isAnal }
@@ -1299,13 +1295,13 @@ async function loadScopeData() {
   // Dedup
   const deduped = dedupeById(items);
 
-  // HIDRATAR nombres del asignado ANTES del parse (usa c_empleado si falta nombre)
+  // HIDRATAR nombres del asignado ANTES del parse
   await hydrateAsignadoFields(deduped);
 
   // Map UI
   const uiRows = deduped.map(parseReq);
 
-  // Visibilidad por rol a nivel UI (garantizar filtro independientemente del backend)
+  // Visibilidad por rol a nivel UI
   let visibleRows = uiRows;
   if (!(isAdmin || isPres)) {
     if (isDir || soyPL || isJefe || isAnal) {
@@ -1319,7 +1315,7 @@ async function loadScopeData() {
   State.universe = deduped;
   State.rows = visibleRows;
 
-  // === DEBUG extra: ¿por qué “Sin asignar”? (muestra hasta 5 ejemplos)
+  // DEBUG “Sin asignar”
   try {
     const sinAsignar = State.rows
       .filter((r) => (r.asignado || "").toLowerCase() === "sin asignar")
@@ -1358,7 +1354,7 @@ async function loadScopeData() {
   computeCounts(State.rows);
   updateLegendTotals(State.rows.length);
   updateLegendStatus();
-  applySidebarVisibilityByRole(); // bloquea/oculta filtros del sidebar según rol
+  applySidebarVisibilityByRole();
   applyPipelineAndRender();
 
   drawChartsFromRows(State.rows);
@@ -1378,6 +1374,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     initSearch(() => applyPipelineAndRender());
     buildTable();
     updateLegendStatus();
+
+    setupRowClickDelegation();
 
     const sess = Session?.get?.() || null;
     window.gcRefreshHeader?.(sess);

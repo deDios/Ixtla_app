@@ -604,5 +604,24 @@ body.me-modal-open{ overflow:hidden; }
 }
 .modal-overlay .modal-close:hover{ color:#111827; }
 
-/* Evitar que otros estilos globales opaquen el modal */
-.modal-overlay * { /* no tocar pointer-events ni opacity heredada */ }
+.modal-overlay{
+  position: fixed; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  background: rgba(17,24,39,.55); backdrop-filter: blur(2px);
+  z-index: 3000; /* por encima de toolbars/headers */
+}
+.modal-overlay.open,
+.modal-overlay[aria-hidden="false"] { display: flex; }
+
+.modal-content{
+  position: relative; width: min(720px, 92vw);
+  max-height: 86vh; overflow: auto;
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.2);
+  padding: 20px 22px 18px;
+}
+.modal-close{
+  position: absolute; top: 10px; right: 12px;
+  font-size: 22px; line-height: 1; cursor: pointer;
+  border: 0; background: transparent; color: #111827;
+}

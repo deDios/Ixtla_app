@@ -1,4 +1,4 @@
-// /JS/requerimientoView.js — versión limpia + modal "Nueva tarea"
+// /JS/requerimientoView.js
 (function () {
   "use strict";
 
@@ -469,6 +469,7 @@
 
     if (!_modalBound) {
       modal.addEventListener("click", onBackdropClick);
+      // ⚠️ Permitir que la X y elementos marcados con [data-modal-pass] NO se bloqueen
       modalContent.addEventListener("mousedown", stop, { capture: true });
       modalContent.addEventListener("click",      stop, { capture: true });
       _modalBound = true;
@@ -476,7 +477,11 @@
 
     setTimeout(() => txt?.focus(), 40);
   }
-  function stop(e){ e.stopPropagation(); }
+  function stop(e){
+    if (e.target.closest(".modal-close")) return;
+    if (e.target.closest("[data-modal-pass]")) return;
+    e.stopPropagation();
+  }
   function onBackdropClick(e){ if (e.target === modal) closeEstadoModal(); }
 
   function closeEstadoModal() {
@@ -522,17 +527,17 @@
   });
 
   /* =============== Modal NUEVA TAREA =============== */
-  const modalT       = $("#modal-tarea");
-  const formT        = $("#form-tarea");
-  const selProceso   = $("#tarea-proceso");
-  const inpTitulo    = $("#tarea-titulo");
-  const inpEsfuerzo  = $("#tarea-esfuerzo");
-  const inpInicio    = $("#tarea-inicio");
-  const inpFin       = $("#tarea-fin");
-  const inpAsignado  = $("#tarea-asignado");
-  const txtDesc      = $("#tarea-desc");
-  const btnCloseT    = modalT?.querySelector(".modal-close");
-  const modalContentT= modalT?.querySelector(".modal-content");
+  const modalT        = $("#modal-tarea");
+  const formT         = $("#form-tarea");
+  const selProceso    = $("#tarea-proceso");
+  const inpTitulo     = $("#tarea-titulo");
+  const inpEsfuerzo   = $("#tarea-esfuerzo");
+  const inpInicio     = $("#tarea-inicio");
+  const inpFin        = $("#tarea-fin");
+  const inpAsignado   = $("#tarea-asignado");
+  const txtDesc       = $("#tarea-desc");
+  const btnCloseT     = modalT?.querySelector(".modal-close");
+  const modalContentT = modalT?.querySelector(".modal-content");
 
   let _modalTBound = false;
 
@@ -558,7 +563,6 @@
   function openTareaModal({ preferProcesoId = null } = {}) {
     if (!modalT || !modalContentT) return;
     fillProcesoSelect(preferProcesoId);
-    // limpiar campos
     formT?.reset();
 
     modalT.classList.add("open");
@@ -567,13 +571,18 @@
 
     if (!_modalTBound) {
       modalT.addEventListener("click", onBackdropClickT);
+      // ⚠️ Igual que arriba: permitir clics en .modal-close pasar
       modalContentT.addEventListener("mousedown", stopT, { capture: true });
       modalContentT.addEventListener("click",      stopT, { capture: true });
       _modalTBound = true;
     }
     setTimeout(() => (selProceso?.focus()), 40);
   }
-  function stopT(e){ e.stopPropagation(); }
+  function stopT(e){
+    if (e.target.closest(".modal-close")) return;
+    if (e.target.closest("[data-modal-pass]")) return;
+    e.stopPropagation();
+  }
   function onBackdropClickT(e){ if (e.target === modalT) closeTareaModal(); }
   function closeTareaModal() {
     if (!modalT) return;
@@ -585,7 +594,6 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && modalT?.classList.contains("open")) closeTareaModal();
   });
-  // Delegación segura por si re-renderizan
   document.addEventListener("click", (e) => {
     const btn = e.target.closest("#modal-tarea .modal-close");
     if (btn && document.querySelector("#modal-tarea")?.classList.contains("open")) {
@@ -611,7 +619,6 @@
     const table = $(".exp-table--planeacion", sec);
     if (!table) { toast("No existe la tabla de planeación en ese proceso.", "error"); return false; }
 
-    // construir fila
     const row = document.createElement("div");
     row.className = "exp-row";
     const pct = Math.max(0, Math.min(100, Number(tarea.porcentaje ?? 0)));
@@ -629,14 +636,12 @@
 
     table.appendChild(row);
 
-    // actualizar contador "N actividades"
     const meta = $(".fase-meta", head);
     if (meta) {
       const num = parseInt((meta.textContent.match(/\d+/) || [0])[0], 10) || 0;
       meta.textContent = `${num + 1} actividades`;
     }
 
-    // abrir acordeón si estaba cerrado
     if (head && body && head.getAttribute("aria-expanded") !== "true") {
       setAccordionOpen(head, body, true);
     }
@@ -686,12 +691,10 @@
     btnProceso?.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
       toast("Se creó un nuevo tablero de procesos", "success");
-      // En futuro: crear dinámicamente un nuevo acordeón con un data-proceso-id único.
     });
 
     btnTarea?.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
-      // Si hay un único proceso, lo preseleccionamos
       const procesos = collectProcesos();
       const prefer = (procesos.length === 1) ? (procesos[0].getAttribute("data-proceso-id")) : null;
       openTareaModal({ preferProcesoId: prefer });
