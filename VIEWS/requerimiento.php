@@ -281,127 +281,88 @@
                     <!-- Panel: Planeacion -->
                     <section class="exp-pane" role="tabpanel" data-tab="planeacion">
 
-                        <!-- tabla procesos -->
-                        <section class="exp-accordion exp-accordion--fase">
-                            <button class="exp-acc-head" type="button" aria-expanded="true">
-                                <div class="fase-head">
-                                    <span class="fase-title">Proceso</span>
-                                    <small class="fase-meta">10 actividades</small>
-                                </div>
-                                <div class="fase-right">
-                                    <span class="fase-label">Estatus</span>
-                                    <span class="exp-progress" aria-label="70%"><span class="bar"
-                                            style="width:70%"></span><span class="pct">70%</span></span>
-                                    <span class="fase-label">Fecha de inicio</span>
-                                    <span class="fase-date">02/06/2025</span>
-                                    <span class="chev" aria-hidden="true"></span>
-                                </div>
-                            </button>
+                        <!-- ===== HEADER TOOLBAR ===== -->
+                        <div class="planeacion-toolbar">
+                            <h3 class="planeacion-title">Planeación</h3>
+                            <button id="btn-add-proceso" class="fase-add" type="button">Nuevo proceso +</button>
+                            <button id="btn-add-tarea" class="fase-add" type="button">Nueva tarea +</button>
+                        </div>
 
-                            <div class="exp-acc-body">
-                                <div class="exp-table exp-table--planeacion is-card">
-                                    <div class="exp-thead">
-                                        <div>Actividad</div>
-                                        <div>Responsable</div>
-                                        <div>Estatus</div>
-                                        <div>Porcentaje</div>
-                                        <div>Fecha de inicio</div>
+                        <!-- ===== CONTENEDOR DE PROCESOS ===== -->
+                        <div id="planeacion-list">
+                            <!-- Acordeón de proceso -->
+                            <section class="exp-accordion exp-accordion--fase" data-proceso-id="p1">
+                                <!-- HEADER del acordeón -->
+                                <button class="exp-acc-head" type="button" aria-expanded="true">
+                                    <div class="fase-left">
+                                        <div class="fase-head">
+                                            <span class="fase-title">Proceso</span>
+                                            <small class="fase-meta">10 actividades</small>
+                                        </div>
                                     </div>
 
-                                    <div class="exp-row">
-                                        <div class="actividad">Reparación de Llave</div>
-                                        <div class="responsable">Juan Pablo</div>
-                                        <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
-                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
-                                                    style="width:70%"></span></span></div>
-                                        <div class="fecha">02/06/2025</div>
+                                    <div class="fase-right">
+                                        <span class="fase-label">Estatus</span>
+                                        <span class="exp-progress" aria-label="70%">
+                                            <span class="bar" style="width:70%"></span>
+                                            <span class="pct">70%</span>
+                                        </span>
+                                        <span class="fase-label">Fecha de inicio</span>
+                                        <span class="fase-date">02/06/2025</span>
+                                        <span class="chev" aria-hidden="true"></span>
                                     </div>
+                                </button>
 
-                                    <div class="exp-row">
-                                        <div class="actividad">Revisión de toma</div>
-                                        <div class="responsable">Juan Pablo</div>
-                                        <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
-                                                    style="width:100%"></span></span></div>
-                                        <div class="fecha">10/06/2025</div>
-                                    </div>
+                                <!-- CUERPO del acordeón -->
+                                <div class="exp-acc-body">
+                                    <div class="exp-table exp-table--planeacion is-card">
+                                        <div class="exp-thead">
+                                            <div>Actividad</div>
+                                            <div>Responsable</div>
+                                            <div>Estatus</div>
+                                            <div>Porcentaje</div>
+                                            <div>Fecha de inicio</div>
+                                        </div>
 
-                                    <div class="exp-row">
-                                        <div class="actividad">Cierre de Toma</div>
-                                        <div class="responsable">Juan Pablo</div>
-                                        <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
-                                                    style="width:100%"></span></span></div>
-                                        <div class="fecha">10/05/2025</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
+                                        <div class="exp-row">
+                                            <div class="actividad">Reparación de Llave</div>
+                                            <div class="responsable">Juan Pablo</div>
+                                            <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
+                                            <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                        style="width:70%"></span></span></div>
+                                            <div class="fecha">02/06/2025</div>
+                                        </div>
 
+                                        <div class="exp-row">
+                                            <div class="actividad">Revisión de toma</div>
+                                            <div class="responsable">Juan Pablo</div>
+                                            <div class="estatus"><span class="exp-badge is-success">Finalizado</span>
+                                            </div>
+                                            <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                        style="width:100%"></span></span></div>
+                                            <div class="fecha">10/06/2025</div>
+                                        </div>
 
-                        <!-- tabla procesos 2 para ver como se comporta el contenedor -->
-                        <section class="exp-accordion exp-accordion--fase">
-                            <button class="exp-acc-head" type="button" aria-expanded="true">
-                                <div class="fase-head">
-                                    <span class="fase-title">Proceso</span>
-                                    <small class="fase-meta">10 actividades</small>
-                                </div>
-                                <div class="fase-right">
-                                    <span class="fase-label">Estatus</span>
-                                    <span class="exp-progress" aria-label="70%"><span class="bar"
-                                            style="width:70%"></span><span class="pct">70%</span></span>
-                                    <span class="fase-label">Fecha de inicio</span>
-                                    <span class="fase-date">02/06/2025</span>
-                                    <span class="chev" aria-hidden="true"></span>
-                                </div>
-                            </button>
-
-                            <div class="exp-acc-body">
-                                <div class="exp-table exp-table--planeacion is-card">
-                                    <div class="exp-thead">
-                                        <div>Actividad</div>
-                                        <div>Responsable</div>
-                                        <div>Estatus</div>
-                                        <div>Porcentaje</div>
-                                        <div>Fecha de inicio</div>
-                                    </div>
-
-                                    <div class="exp-row">
-                                        <div class="actividad">Reparación de Llave</div>
-                                        <div class="responsable">Juan Pablo</div>
-                                        <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
-                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
-                                                    style="width:70%"></span></span></div>
-                                        <div class="fecha">02/06/2025</div>
-                                    </div>
-
-                                    <div class="exp-row">
-                                        <div class="actividad">Revisión de toma</div>
-                                        <div class="responsable">Juan Pablo</div>
-                                        <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
-                                                    style="width:100%"></span></span></div>
-                                        <div class="fecha">10/06/2025</div>
-                                    </div>
-
-                                    <div class="exp-row">
-                                        <div class="actividad">Cierre de Toma</div>
-                                        <div class="responsable">Juan Pablo</div>
-                                        <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-                                        <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
-                                                    style="width:100%"></span></span></div>
-                                        <div class="fecha">10/05/2025</div>
+                                        <div class="exp-row">
+                                            <div class="actividad">Cierre de Toma</div>
+                                            <div class="responsable">Juan Pablo</div>
+                                            <div class="estatus"><span class="exp-badge is-success">Finalizado</span>
+                                            </div>
+                                            <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                        style="width:100%"></span></span></div>
+                                            <div class="fecha">10/05/2025</div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </section>
+                            </section>
+                        </div>
 
                     </section>
                 </div>
                 <!-- /exp-panes -->
 
                 <!-- Evidencias -->
-                <section class="exp-accordion">
+                <section class="exp-accordion exp-accordion--evidencias" data-acc="evidencias">
                     <button class="exp-acc-head" type="button" aria-expanded="true">
                         <span>Evidencias</span>
                         <span class="chev" aria-hidden="true"></span>
@@ -586,8 +547,7 @@
         </div>
     </div>
 
-
-    <!-- Modal genérico para Pausar / Cancelar -->
+    <!-- Modal generico para Pausar / Cancelar -->
     <div id="modal-estado" class="modal-overlay" aria-hidden="true">
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="estado-title">
             <button class="modal-close" type="button" aria-label="Cerrar">×</button>
@@ -606,6 +566,62 @@
         </div>
     </div>
 
+    <!-- Modal: Nueva tarea -->
+    <div id="modal-tarea" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="tarea-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+            <h2 id="tarea-title">Nueva tarea</h2>
+
+            <form id="form-tarea" novalidate>
+                <div class="form-row">
+                    <label for="tarea-proceso">Proceso</label>
+                    <!-- Se llena por JS con los procesos detectados; value = data-proceso-id -->
+                    <select id="tarea-proceso" name="proceso" required>
+                        <option value="" disabled selected>Selecciona un proceso…</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <label for="tarea-titulo">Título</label>
+                    <input type="text" id="tarea-titulo" name="titulo" maxlength="150" required
+                           placeholder="Ej. Reparar válvula principal">
+                </div>
+
+                <div class="form-row split">
+                    <div>
+                        <label for="tarea-esfuerzo">Esfuerzo (horas)</label>
+                        <input type="number" id="tarea-esfuerzo" name="esfuerzo" min="1" step="1" required placeholder="1">
+                    </div>
+                    <div>
+                        <label for="tarea-inicio">Fecha de inicio</label>
+                        <input type="date" id="tarea-inicio" name="fecha_inicio">
+                    </div>
+                </div>
+
+                <div class="form-row split">
+                    <div>
+                        <label for="tarea-fin">Fecha de fin</label>
+                        <input type="date" id="tarea-fin" name="fecha_fin">
+                    </div>
+                    <div>
+                        <label for="tarea-asignado">Asignado a (opcional)</label>
+                        <input type="text" id="tarea-asignado" name="asignado_nombre" placeholder="Nombre responsable">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <label for="tarea-desc">Descripción (opcional)</label>
+                    <textarea id="tarea-desc" name="descripcion" rows="4" placeholder="Detalles de la tarea…"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <button type="submit" class="btn-submit">Crear tarea</button>
+                </div>
+            </form>
+
+            <p class="modal-note">La tarea se agregará al proceso seleccionado.</p>
+        </div>
+    </div>
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/requerimientoView.js"></script>
@@ -616,41 +632,8 @@
     <script type="module" src="/JS/ui/sidebar.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
 
-    <!-- tabs suaves -->
-    <script>
-        (() => {
-            const tabs = Array.from(document.querySelectorAll('.exp-tab'));
-            const panes = Array.from(document.querySelectorAll('.exp-pane'));
-            const host = document.querySelector('.exp-panes');
-            if (!tabs.length || !panes.length || !host) return;
-
-            function setActive(i) {
-                const cur = document.querySelector('.exp-pane.is-active');
-                const oldH = cur ? cur.offsetHeight : host.offsetHeight;
-                host.style.height = oldH + 'px';
-
-                tabs.forEach(t => t.classList.remove('is-active'));
-                panes.forEach(p => p.classList.remove('is-active'));
-                tabs[i].classList.add('is-active');
-                panes[i].classList.add('is-active');
-
-                const newH = panes[i].offsetHeight;
-                requestAnimationFrame(() => {
-                    host.style.height = newH + 'px';
-                    setTimeout(() => host.style.height = 'auto', 200);
-                });
-
-                // Accesibilidad
-                tabs.forEach((t, idx) => t.setAttribute('aria-selected', String(idx === i)));
-            }
-
-            tabs.forEach((t, i) => t.addEventListener('click', e => {
-                e.preventDefault();
-                setActive(i);
-            }));
-        })();
-    </script>
+    <!-- Animaciones y utilidades de esta vista -->
+    <script type="module" src="/JS/ui/animacionesDeViewDetalle.js"></script>
 
 </body>
-
 </html>

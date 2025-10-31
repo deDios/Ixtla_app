@@ -1,4 +1,4 @@
-// /JS/requerimientoView.js
+// /JS/requerimientoView.js — versión limpia + modal "Nueva tarea"
 (function () {
   "use strict";
 
@@ -9,13 +9,12 @@
   const toast = (m, t = "info") =>
     (window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m));
 
-  // Solo dos nombres (sin apellidos)
   const firstTwoNames = (full = "") => {
     const parts = String(full).trim().split(/\s+/).filter(Boolean);
     return parts.slice(0, Math.min(2, parts.length)).join(" ") || full || "—";
   };
 
-  /* =============== DEMO store local =============== */
+  /* =============== Local DEMO (persistencia mínima) =============== */
   const DEMO_KEY = "REQ_DEMO";
   const DEMO_FALLBACK = {
     ok: true,
@@ -36,17 +35,6 @@
         { id: 1, nombre: "Juan Pablo García Casillas3", texto: "¿Pueden validar si la cuadrilla ya salió a la zona?", cuando: Date.now() - 120000 },
         { id: 2, nombre: "María López", texto: "Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en sitio.", cuando: Date.now() - 60000 },
         { id: 3, nombre: "Sergio", texto: "Recibido ✅", cuando: Date.now() - 10000 }
-      ],
-      // Planeación demo
-      planeacion: [
-        {
-          titulo: "Proceso",
-          fecha_inicio: "2025-06-02",
-          pct: 70,
-          actividades: [
-            { actividad: "Evidencia Fuga de Agua", responsable: "Luis Enrique", estatus: "Activo", estatusCls: "is-info", pct: 70, fecha: "2025-06-02" }
-          ]
-        }
       ]
     }
   };
@@ -77,6 +65,27 @@
     return data;
   };
 
+  /* =============== Evidencias: helpers DOM =============== */
+  function findEvidenciasAccordion() {
+    return (
+      document.querySelector('[data-acc="evidencias"]') ||
+      document.querySelector('.exp-accordion--evidencias') ||
+      document.querySelector('#evidencias-accordion') ||
+      (() => {
+        const accs = document.querySelectorAll('.exp-accordion');
+        for (const acc of accs) {
+          const headText = (acc.querySelector('.exp-acc-head')?.textContent || '').toLowerCase();
+          if (headText.includes('evidencia')) return acc;
+        }
+        return null;
+      })()
+    );
+  }
+  function findEvidenciasTable() {
+    const acc = findEvidenciasAccordion();
+    return acc ? acc.querySelector('.exp-table') : null;
+  }
+
   /* =============== Reset plantilla =============== */
   function resetTemplate() {
     const h1 = $(".exp-title h1"); if (h1) h1.textContent = "—";
@@ -97,7 +106,8 @@
       else n.textContent = "—";
     });
 
-    $$(".exp-accordion .exp-table .exp-row").forEach(r => r.remove());
+    const evTable = findEvidenciasTable();
+    if (evTable) evTable.querySelectorAll('.exp-row').forEach(r => r.remove());
 
     const items = $$(".step-menu li");
     items.forEach(li => li.classList.remove("current", "complete"));
@@ -107,45 +117,115 @@
     const feed = $(".c-feed"); if (feed) feed.innerHTML = "";
   }
 
-  /* =============== Acordeones con animación (base) =============== */
+  /* =============== Animación de acordeones =============== */
   function animateOpen(el) {
-    el.hidden = false; el.style.overflow = "hidden"; el.style.height = "0px"; el.getBoundingClientRect();
-    const h = el.scrollHeight; el.style.transition = "height 180ms ease"; el.style.height = h + "px";
-    const done = () => { el.style.transition = ""; el.style.height = ""; el.style.overflow = ""; el.removeEventListener("transitionend", done); };
+    el.hidden = false;
+    el.style.overflow = "hidden";
+    el.style.height = "0px";
+    el.getBoundingClientRect();
+    const h = el.scrollHeight;
+    el.style.transition = "height 180ms ease";
+    el.style.height = h + "px";
+    const done = () => {
+      el.style.transition = ""; el.style.height = ""; el.style.overflow = "";
+      el.removeEventListener("transitionend", done);
+    };
     el.addEventListener("transitionend", done);
   }
   function animateClose(el) {
-    el.style.overflow = "hidden"; const h = el.offsetHeight; el.style.height = h + "px"; el.getBoundingClientRect();
-    el.style.transition = "height 160ms ease"; el.style.height = "0px";
-    const done = () => { el.hidden = true; el.style.transition = ""; el.style.height = ""; el.style.overflow = ""; el.removeEventListener("transitionend", done); };
+    el.style.overflow = "hidden";
+    const h = el.offsetHeight;
+    el.style.height = h + "px";
+    el.getBoundingClientRect();
+    el.style.transition = "height 160ms ease";
+    el.style.height = "0px";
+    const done = () => {
+      el.hidden = true;
+      el.style.transition = ""; el.style.height = ""; el.style.overflow = "";
+      el.removeEventListener("transitionend", done);
+    };
     el.addEventListener("transitionend", done);
   }
-  function setAccordionOpen(head, body, open) { head.setAttribute("aria-expanded", open ? "true" : "false"); open ? animateOpen(body) : animateClose(body); }
-  function initAccordions() {
-    $$(".exp-accordion").forEach(acc => {
-      const head = $(".exp-acc-head", acc), body = $(".exp-acc-body", acc); if (!head || !body) return;
-      const initOpen = head.getAttribute("aria-expanded") === "true"; body.hidden = !initOpen; if (!initOpen) body.style.height = "0px";
-      head.addEventListener("click", () => { const isOpen = head.getAttribute("aria-expanded") === "true"; setAccordionOpen(head, body, !isOpen); });
-      head.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); head.click(); } });
+  function setAccordionOpen(head, body, open) {
+    head.setAttribute("aria-expanded", open ? "true" : "false");
+    open ? animateOpen(body) : animateClose(body);
+  }
+
+  // Evidencias: el header completo es clickeable
+  function initAccordionsEvidencias() {
+    const acc = findEvidenciasAccordion();
+    if (!acc) return;
+    const head = $(".exp-acc-head", acc), body = $(".exp-acc-body", acc);
+    if (!head || !body) return;
+    const initOpen = head.getAttribute("aria-expanded") === "true";
+    body.hidden = !initOpen; if (!initOpen) body.style.height = "0px";
+    head.addEventListener("click", () => {
+      const isOpen = head.getAttribute("aria-expanded") === "true";
+      setAccordionOpen(head, body, !isOpen);
+    });
+    head.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); head.click(); }
     });
   }
 
-  /* =============== Tablas ordenables =============== */
-  function initSortableTables() {
-    $$(".exp-table").forEach(table => {
-      const head = $(".exp-thead", table); const rows = () => $$(".exp-row", table); if (!head) return;
+  // Planeación: SOLO el chevron controla el colapso
+  function initAccordionsPlaneacion() {
+    const list = $("#planeacion-list");
+    if (!list) return;
+
+    $$(".exp-accordion--fase", list).forEach(acc => {
+      const head = $(".exp-acc-head", acc);
+      const body = $(".exp-acc-body", acc);
+      const chev = $(".chev", head);
+      if (!head || !body || !chev) return;
+
+      const initOpen = head.getAttribute("aria-expanded") === "true";
+      body.hidden = !initOpen; if (!initOpen) body.style.height = "0px";
+
       head.addEventListener("click", (e) => {
-        const sortSpan = e.target.closest(".sort"); if (!sortSpan) return;
-        const th = sortSpan.closest("div"); const headers = $$(".exp-thead > div", table); const idx = headers.indexOf(th); if (idx < 0) return;
-        const dir = sortSpan.dataset.dir === "asc" ? "desc" : "asc"; headers.forEach(h => { const s = $(".sort", h); if (s && s !== sortSpan) s.dataset.dir = ""; }); sortSpan.dataset.dir = dir;
-        const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" }); const arr = rows();
-        arr.sort((a, b) => { const av = (a.children[idx]?.textContent || "").trim(); const bv = (b.children[idx]?.textContent || "").trim(); const cmp = collator.compare(av, bv); return dir === "asc" ? cmp : -cmp; });
-        arr.forEach(r => r.parentElement.appendChild(r));
+        if (!e.target.closest(".chev")) return;
+      });
+
+      chev.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const isOpen = head.getAttribute("aria-expanded") === "true";
+        setAccordionOpen(head, body, !isOpen);
       });
     });
   }
 
-  /* =============== Stepper + badge =============== */
+  /* =============== Sort en tabla Evidencias =============== */
+  function initSortableTables() {
+    const table = findEvidenciasTable();
+    if (!table) return;
+    const head = $(".exp-thead", table);
+    const rows = () => $$(".exp-row", table);
+    if (!head) return;
+
+    head.addEventListener("click", (e) => {
+      const sortSpan = e.target.closest(".sort"); if (!sortSpan) return;
+      const th = sortSpan.closest("div");
+      const headers = $$(".exp-thead > div", table);
+      const idx = headers.indexOf(th); if (idx < 0) return;
+
+      const dir = sortSpan.dataset.dir === "asc" ? "desc" : "asc";
+      headers.forEach(h => { const s = $(".sort", h); if (s && s !== sortSpan) s.dataset.dir = ""; });
+      sortSpan.dataset.dir = dir;
+
+      const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
+      const arr = rows();
+      arr.sort((a, b) => {
+        const av = (a.children[idx]?.textContent || "").trim();
+        const bv = (b.children[idx]?.textContent || "").trim();
+        const cmp = collator.compare(av, bv);
+        return dir === "asc" ? cmp : -cmp;
+      });
+      arr.forEach(r => r.parentElement.appendChild(r));
+    });
+  }
+
+  /* =============== Stepper + badge (general) =============== */
   const statusLabel = (s) =>
     ({ 0: "Solicitud", 1: "Revisión", 2: "Asignación", 3: "Proceso", 4: "Pausado", 5: "Cancelado", 6: "Finalizado" })[Number(s)] || "—";
   const statusBadgeClass = (s) =>
@@ -159,12 +239,6 @@
       if (s < next) li.classList.add("complete"); else li.classList.remove("complete");
       if (s === next) li.classList.add("current");
     });
-    const cur = items.find(li => li.classList.contains("current"));
-    if (cur) {
-      cur.style.transform = "scale(0.98)"; cur.style.transition = "transform 120ms ease";
-      requestAnimationFrame(() => { cur.style.transform = "scale(1)"; setTimeout(() => cur.style.transition = "", 140); });
-    }
-    // Auto-centra el paso actual si hay overflow horizontal
     const container = document.querySelector('.container');
     const current = document.querySelector('.step-menu li.current');
     if (container && current) {
@@ -176,7 +250,7 @@
   }
   window.paintStepper = paintStepper;
 
-  /* =============== Comentarios (DEMO local) =============== */
+  /* =============== Comentarios (demo) =============== */
   function relTime(ts) {
     const diff = Math.max(0, Date.now() - ts);
     const s = Math.floor(diff / 1000);
@@ -230,7 +304,6 @@
       req.comentarios = Array.isArray(req.comentarios) ? req.comentarios : [];
       req.comentarios.push(c);
       saveDemo(req);
-      console.log("[Comentarios] agregado:", c);
       renderComments(req);
       ta.value = "";
       updateBtn();
@@ -244,114 +317,7 @@
     btn.addEventListener("click", send);
   }
 
-  /* =============== Planeación (templating) =============== */
-  function clsEstatus(estatus) {
-    if (/final/i.test(estatus)) return 'is-success';
-    if (/paus/i.test(estatus))  return 'is-warning';
-    if (/cancel/i.test(estatus))return 'is-danger';
-    return 'is-info';
-  }
-
-  function renderPlaneacionFromTemplates(req){
-    const host = document.getElementById('planeacion-list');
-    const tplF = document.getElementById('tpl-fase');
-    const tplA = document.getElementById('tpl-actividad');
-    if (!host || !tplF || !tplA) return;
-
-    host.innerHTML = '';
-
-    const fases = Array.isArray(req.planeacion) ? req.planeacion : [];
-    fases.forEach((fase, idx) => {
-      const node = tplF.content.firstElementChild.cloneNode(true);
-
-      // header
-      node.dataset.index = idx;
-      node.querySelector('.fase-title').textContent = fase.titulo || 'Proceso';
-      node.querySelector('.fase-meta').textContent  = `${(fase.actividades?.length || 0)} actividades`;
-      node.querySelector('.fase-date').textContent  = fase.fecha_inicio || '—';
-
-      const pWrap = node.querySelector('.exp-progress');
-      const pBar  = pWrap.querySelector('.bar');
-      const pPct  = pWrap.querySelector('.pct');
-      const pct   = Math.max(0, Math.min(100, Number(fase.pct || 0)));
-      pWrap.setAttribute('aria-label', `${pct}%`);
-      pBar.style.width = `${pct}%`;
-      pPct.textContent = `${pct}%`;
-
-      // toggle acordeón (sin cerrar si clic en tools)
-      const head = node.querySelector('.exp-acc-head');
-      const body = node.querySelector('.exp-acc-body');
-      body.hidden = false;
-      head.addEventListener('click', (e) => {
-        if (e.target.closest('.fase-tools')) return;
-        const open = head.getAttribute('aria-expanded') !== 'false';
-        head.setAttribute('aria-expanded', String(!open));
-        body.hidden = open;
-      });
-
-      // actividades
-      const tbody = node.querySelector('.exp-tbody');
-      (fase.actividades || []).forEach(a => {
-        const row = tplA.content.firstElementChild.cloneNode(true);
-        row.querySelector('.actividad').textContent   = a.actividad || '—';
-        row.querySelector('.responsable').textContent = a.responsable || '—';
-        const badge = row.querySelector('.estatus .exp-badge');
-        badge.classList.add(a.estatusCls || clsEstatus(a.estatus || 'Activo'));
-        badge.textContent = a.estatus || 'Activo';
-        row.querySelector('.porcentaje .bar').style.width = `${Math.max(0,Math.min(100, Number(a.pct||0)))}%`;
-        row.querySelector('.fecha').textContent = a.fecha || '—';
-        tbody.appendChild(row);
-      });
-
-      // botón “Nueva tarea +”
-      node.querySelector('[data-add-actividad]').addEventListener('click', (e) => {
-        e.stopPropagation();
-        onAddActividad(idx);
-      });
-
-      host.appendChild(node);
-    });
-  }
-
-  // Handlers “+” (por ahora con prompt; luego cambiamos a modal)
-  function onAddProceso(){
-    const state = loadDemo().data;
-    const titulo = prompt('Título del proceso:', 'Nuevo proceso');
-    if (titulo === null) return;
-    const fecha = prompt('Fecha de inicio (YYYY-MM-DD):', new Date().toISOString().slice(0,10)) || '—';
-    const pct   = Math.max(0, Math.min(100, Number(prompt('Porcentaje inicial (0-100):','0')) || 0));
-
-    const fase = { titulo, fecha_inicio: fecha, pct, actividades: [] };
-    state.planeacion = Array.isArray(state.planeacion) ? state.planeacion : [];
-    state.planeacion.unshift(fase);
-
-    saveDemo(state);
-    renderPlaneacionFromTemplates(state);
-    toast('Proceso creado', 'success');
-  }
-
-  function onAddActividad(idx){
-    const state = loadDemo().data;
-    const fase = state.planeacion?.[idx];
-    if (!fase) return;
-
-    const actividad   = prompt('Actividad:', 'Nueva tarea'); if (actividad === null) return;
-    const responsable = prompt('Responsable:', '—') || '—';
-    const estatus     = prompt('Estatus (Activo/Finalizado/Pausado):', 'Activo') || 'Activo';
-    const pct         = Math.max(0, Math.min(100, Number(prompt('Porcentaje (0-100):','0')) || 0));
-    const fecha       = prompt('Fecha (YYYY-MM-DD):', new Date().toISOString().slice(0,10)) || '—';
-
-    const row = { actividad, responsable, estatus, estatusCls: clsEstatus(estatus), pct, fecha };
-    fase.actividades = Array.isArray(fase.actividades) ? fase.actividades : [];
-    fase.actividades.push(row);
-    fase.pct = Math.round(fase.actividades.reduce((s, x) => s + (x.pct||0), 0) / fase.actividades.length);
-
-    saveDemo(state);
-    renderPlaneacionFromTemplates(state);
-    toast('Actividad agregada', 'success');
-  }
-
-  /* =============== Hidratar vista =============== */
+  /* =============== Hidratar vista básica =============== */
   const fillText = (sel, txt) => { const n = $(sel); if (n) n.textContent = (txt ?? "—"); };
 
   function hydrateFromData(req) {
@@ -377,37 +343,36 @@
     const badgeWrap = document.querySelector('.exp-pane[data-tab="detalles"] .exp-grid .exp-field:nth-child(4) .exp-val');
     if (badgeWrap) {
       const cls = statusBadgeClass(req.estatus); const lbl = statusLabel(req.estatus);
-      badgeWrap.innerHTML = `<span class="exp-badge ${cls} pulse-once">${lbl}</span>`;
-      setTimeout(() => badgeWrap.querySelector(".pulse-once")?.classList.remove("pulse-once"), 220);
+      badgeWrap.innerHTML = `<span class="exp-badge ${cls}">${lbl}</span>`;
     }
     fillText('.exp-pane[data-tab="detalles"] .exp-grid .exp-field.exp-field--full .exp-val', req.descripcion);
     fillText('.exp-pane[data-tab="detalles"] .exp-grid .exp-field:nth-child(6) .exp-val', req.created_at?.split(" ")[0]);
     fillText('.exp-pane[data-tab="detalles"] .exp-grid .exp-field:nth-child(7) .exp-val', req.cerrado_en ? req.cerrado_en.split(" ")[0] : "—");
 
-    const evTable = $(".exp-accordion .exp-table");
+    const evTable = findEvidenciasTable();
     if (evTable) {
-      $$(".exp-accordion .exp-table .exp-row").forEach(r => r.remove());
+      evTable.querySelectorAll('.exp-row').forEach(r => r.remove());
       (req.evidencias || []).forEach(ev => {
-        const a = document.createElement("a"); a.className = "exp-row"; a.href = ev.url || "#";
-        a.innerHTML = `<div class="file"><img class="ico" src="/ASSETS/filetypes/${ev.tipo || "file"}.png" alt=""><span>${ev.nombre || "Archivo"}</span></div>
-                     <div class="who">${ev.quien || "—"}</div>
-                     <div class="date">${(ev.fecha || "").replace(" ", " ") || "—"}</div>`;
+        const a = document.createElement("a");
+        a.className = "exp-row";
+        a.href = ev.url || "#";
+        a.innerHTML = `
+          <span>${ev.nombre || "Archivo"}</span>
+          <div class="who">${ev.quien || "—"}</div>
+          <div class="date">${(ev.fecha || "").replace(" ", " ") || "—"}</div>`;
         evTable.appendChild(a);
       });
       if ((req.evidencias || []).length === 0) {
         const empty = document.createElement("div");
         empty.className = "exp-row";
-        empty.innerHTML = `<div class="file"><img class="ico" src="/ASSETS/filetypes/file.png" alt=""><span>Sin evidencias</span></div>
-                           <div class="who">—</div>
-                           <div class="date">—</div>`;
+        empty.innerHTML = `
+          <span>Sin evidencias</span>
+          <div class="who">—</div>
+          <div class="date">—</div>`;
         evTable.appendChild(empty);
       }
     }
 
-    // Planeación dinámica por templates
-    renderPlaneacionFromTemplates(req);
-
-    // Stepper/acciones/comentarios
     paintStepper(Number(req.estatus ?? 0));
     ReqActions.refresh();
 
@@ -415,16 +380,14 @@
     setupComposer(req);
   }
 
-  /* =============== Acciones por estado (DEMO) =============== */
+  /* =============== Acciones por estado (demo) =============== */
   const ReqActions = (() => {
     const hostSel = "#req-actions";
 
     function setStatusAndRefresh(next) {
       const data = loadDemo().data;
-      const prev = data.estatus;
       data.estatus = next;
       saveDemo(data);
-      console.log("[ReqActions] estatus change", { prev, next });
       paintStepper(next);
       hydrateFromData(data);
     }
@@ -432,10 +395,8 @@
     function ensureModalOrFallback(type, next) {
       const modal = $("#modal-estado");
       if (modal) {
-        // Llamamos directo (función declarada, hoisting OK)
         openEstadoModal({ type, nextStatus: next });
       } else {
-        console.warn("[ReqActions] modal no encontrado, usando fallback demo");
         setStatusAndRefresh(next);
         toast(type === "cancelar" ? "Requerimiento cancelado" : "Requerimiento en pausa", "warning");
       }
@@ -448,50 +409,36 @@
       const data = loadDemo().data;
       const status = Number(data.estatus ?? 0);
 
-      const mk = (txt, cls = "btn-xs", onClick = () => { }) => {
+      const mk = (txt, cls = "btn-xs", onClick = () => {}) => {
         const b = document.createElement("button");
         b.type = "button"; b.className = cls; b.textContent = txt;
-        b.addEventListener("click", (ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          console.log("[ReqActions] click:", txt);
-          onClick();
-        });
+        b.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); onClick(); });
         return b;
       };
 
       if (status === 0) {
         host.appendChild(mk("Iniciar revisión", "btn-xs primary",
-          () => { setStatusAndRefresh(1); toast("Requerimiento en revisión", "success"); }));
-        return;
+          () => { setStatusAndRefresh(1); toast("Requerimiento en revisión", "success"); })); return;
       }
-
       if (status === 1) {
         host.appendChild(mk("Asignar a departamento", "btn-xs primary",
           () => { setStatusAndRefresh(2); toast("Asignado a departamento", "success"); }));
         host.appendChild(mk("Pausar", "btn-xs warn",     () => ensureModalOrFallback("pausar",   4)));
-        host.appendChild(mk("Cancelar", "btn-xs danger", () => ensureModalOrFallback("cancelar", 5)));
-        return;
+        host.appendChild(mk("Cancelar", "btn-xs danger", () => ensureModalOrFallback("cancelar", 5))); return;
       }
-
       if (status === 2) {
         host.appendChild(mk("Iniciar proceso", "btn-xs primary",
           () => { setStatusAndRefresh(3); toast("Iniciado Proceso", "success"); }));
         host.appendChild(mk("Pausar", "btn-xs warn",     () => ensureModalOrFallback("pausar",   4)));
-        host.appendChild(mk("Cancelar", "btn-xs danger", () => ensureModalOrFallback("cancelar", 5)));
-        return;
+        host.appendChild(mk("Cancelar", "btn-xs danger", () => ensureModalOrFallback("cancelar", 5))); return;
       }
-
       if (status === 3) {
         host.appendChild(mk("Pausar", "btn-xs warn",     () => ensureModalOrFallback("pausar",   4)));
-        host.appendChild(mk("Cancelar", "btn-xs danger", () => ensureModalOrFallback("cancelar", 5)));
-        return;
+        host.appendChild(mk("Cancelar", "btn-xs danger", () => ensureModalOrFallback("cancelar", 5))); return;
       }
-
       if (status === 4 || status === 5 || status === 6) {
         host.appendChild(mk("Reactivar", "btn-xs primary",
-          () => { setStatusAndRefresh(1); toast("Reactivado a Revisión", "success"); }));
-        return;
+          () => { setStatusAndRefresh(1); toast("Reactivado a Revisión", "success"); })); return;
       }
     }
 
@@ -511,10 +458,7 @@
   let _modalBound = false;
 
   function openEstadoModal({ type, nextStatus }) {
-    if (!modal || !modalContent) {
-      console.warn("[ModalEstado] DOM no disponible");
-      return;
-    }
+    if (!modal || !modalContent) return;
     _pendingAction = { type, nextStatus };
     title.textContent = type === "cancelar" ? "Motivo de cancelación" : "Motivo de pausa";
     if (txt) txt.value = "";
@@ -531,7 +475,6 @@
     }
 
     setTimeout(() => txt?.focus(), 40);
-    console.log("[ModalEstado] open", { type, nextStatus });
   }
   function stop(e){ e.stopPropagation(); }
   function onBackdropClick(e){ if (e.target === modal) closeEstadoModal(); }
@@ -548,6 +491,20 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && modal?.classList.contains("open")) closeEstadoModal();
   });
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("#modal-estado .modal-close");
+    if (btn && document.querySelector("#modal-estado")?.classList.contains("open")) {
+      e.preventDefault();
+      closeEstadoModal();
+    }
+  });
+  document.addEventListener("click", (e) => {
+    const modalEl = document.querySelector("#modal-estado");
+    if (!modalEl) return;
+    if (e.target === modalEl && modalEl.classList.contains("open")) {
+      closeEstadoModal();
+    }
+  });
 
   form?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -561,13 +518,157 @@
     paintStepper(data.estatus);
     hydrateFromData(data);
     toast(_pendingAction.type === "cancelar" ? "Requerimiento cancelado" : "Requerimiento en pausa", "success");
-    console.log("[ModalEstado] submit → set estatus", { next: data.estatus, motivo });
     closeEstadoModal();
   });
 
-  window.openEstadoModal = openEstadoModal;
+  /* =============== Modal NUEVA TAREA =============== */
+  const modalT       = $("#modal-tarea");
+  const formT        = $("#form-tarea");
+  const selProceso   = $("#tarea-proceso");
+  const inpTitulo    = $("#tarea-titulo");
+  const inpEsfuerzo  = $("#tarea-esfuerzo");
+  const inpInicio    = $("#tarea-inicio");
+  const inpFin       = $("#tarea-fin");
+  const inpAsignado  = $("#tarea-asignado");
+  const txtDesc      = $("#tarea-desc");
+  const btnCloseT    = modalT?.querySelector(".modal-close");
+  const modalContentT= modalT?.querySelector(".modal-content");
 
-  /* =============== Stepper visual (clic) =============== */
+  let _modalTBound = false;
+
+  // Detectar procesos y llenar <select>
+  function collectProcesos() {
+    return $$('#planeacion-list .exp-accordion--fase[data-proceso-id]');
+  }
+  function fillProcesoSelect(preferId = null) {
+    if (!selProceso) return;
+    selProceso.innerHTML = '<option value="" disabled selected>Selecciona un proceso…</option>';
+    const procesos = collectProcesos();
+    procesos.forEach((sec, idx) => {
+      const id = sec.getAttribute('data-proceso-id') || `p${idx+1}`;
+      const title = $('.fase-title', sec)?.textContent?.trim() || `Proceso ${idx+1}`;
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = title;
+      selProceso.appendChild(opt);
+    });
+    if (preferId) selProceso.value = preferId;
+  }
+
+  function openTareaModal({ preferProcesoId = null } = {}) {
+    if (!modalT || !modalContentT) return;
+    fillProcesoSelect(preferProcesoId);
+    // limpiar campos
+    formT?.reset();
+
+    modalT.classList.add("open");
+    modalT.setAttribute("aria-hidden", "false");
+    document.body.classList.add("me-modal-open");
+
+    if (!_modalTBound) {
+      modalT.addEventListener("click", onBackdropClickT);
+      modalContentT.addEventListener("mousedown", stopT, { capture: true });
+      modalContentT.addEventListener("click",      stopT, { capture: true });
+      _modalTBound = true;
+    }
+    setTimeout(() => (selProceso?.focus()), 40);
+  }
+  function stopT(e){ e.stopPropagation(); }
+  function onBackdropClickT(e){ if (e.target === modalT) closeTareaModal(); }
+  function closeTareaModal() {
+    if (!modalT) return;
+    modalT.classList.remove("open", "active");
+    modalT.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("me-modal-open");
+  }
+  btnCloseT?.addEventListener("click", closeTareaModal);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modalT?.classList.contains("open")) closeTareaModal();
+  });
+  // Delegación segura por si re-renderizan
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("#modal-tarea .modal-close");
+    if (btn && document.querySelector("#modal-tarea")?.classList.contains("open")) {
+      e.preventDefault();
+      closeTareaModal();
+    }
+  });
+  document.addEventListener("click", (e) => {
+    const modalEl = document.querySelector("#modal-tarea");
+    if (!modalEl) return;
+    if (e.target === modalEl && modalEl.classList.contains("open")) {
+      closeTareaModal();
+    }
+  });
+
+  // Insertar tarea en el acordeón/tabla
+  function addTaskToProcess(procesoId, tarea) {
+    const sec = $(`#planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(procesoId)}"]`);
+    if (!sec) { toast("No se encontró el proceso seleccionado.", "error"); return false; }
+
+    const head = $(".exp-acc-head", sec);
+    const body = $(".exp-acc-body", sec);
+    const table = $(".exp-table--planeacion", sec);
+    if (!table) { toast("No existe la tabla de planeación en ese proceso.", "error"); return false; }
+
+    // construir fila
+    const row = document.createElement("div");
+    row.className = "exp-row";
+    const pct = Math.max(0, Math.min(100, Number(tarea.porcentaje ?? 0)));
+
+    row.innerHTML = `
+      <div class="actividad"></div>
+      <div class="responsable"></div>
+      <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
+      <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:${pct}%"></span></span></div>
+      <div class="fecha"></div>
+    `;
+    $(".actividad", row).textContent = tarea.titulo || "Nueva actividad";
+    $(".responsable", row).textContent = tarea.asignado || "—";
+    $(".fecha", row).textContent = tarea.fecha_inicio || "—";
+
+    table.appendChild(row);
+
+    // actualizar contador "N actividades"
+    const meta = $(".fase-meta", head);
+    if (meta) {
+      const num = parseInt((meta.textContent.match(/\d+/) || [0])[0], 10) || 0;
+      meta.textContent = `${num + 1} actividades`;
+    }
+
+    // abrir acordeón si estaba cerrado
+    if (head && body && head.getAttribute("aria-expanded") !== "true") {
+      setAccordionOpen(head, body, true);
+    }
+
+    return true;
+  }
+
+  // Submit modal tarea
+  formT?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const procesoId = selProceso?.value || "";
+    const titulo    = (inpTitulo?.value || "").trim();
+    const esfuerzo  = Number(inpEsfuerzo?.value || 0);
+    const fechaI    = inpInicio?.value || "";
+    const fechaF    = inpFin?.value || "";
+    const asignado  = (inpAsignado?.value || "").trim();
+    const desc      = (txtDesc?.value || "").trim();
+
+    if (!procesoId) { toast("Selecciona un proceso.", "warning"); selProceso?.focus(); return; }
+    if (!titulo)    { toast("Escribe un título.", "warning"); inpTitulo?.focus(); return; }
+    if (!(esfuerzo > 0)) { toast("Define el esfuerzo (mínimo 1).", "warning"); inpEsfuerzo?.focus(); return; }
+
+    const ok = addTaskToProcess(procesoId, {
+      titulo, esfuerzo, fecha_inicio: fechaI, fecha_fin: fechaF, asignado, descripcion: desc, porcentaje: 0
+    });
+    if (ok) {
+      toast("Tarea creada en el proceso seleccionado", "success");
+      closeTareaModal();
+    }
+  });
+
+  /* =============== Stepper visual (clic simple) =============== */
   function initStepper() {
     const menu = $(".step-menu"); if (!menu) return;
     menu.addEventListener("click", (e) => {
@@ -577,22 +678,36 @@
     });
   }
 
+  /* =============== Toolbar Planeación =============== */
+  function initPlaneacionToolbar() {
+    const btnProceso = $("#btn-add-proceso");
+    const btnTarea   = $("#btn-add-tarea");
+
+    btnProceso?.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      toast("Se creó un nuevo tablero de procesos", "success");
+      // En futuro: crear dinámicamente un nuevo acordeón con un data-proceso-id único.
+    });
+
+    btnTarea?.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      // Si hay un único proceso, lo preseleccionamos
+      const procesos = collectProcesos();
+      const prefer = (procesos.length === 1) ? (procesos[0].getAttribute("data-proceso-id")) : null;
+      openTareaModal({ preferProcesoId: prefer });
+    });
+  }
+
   /* =============== Boot =============== */
   function boot() {
     resetTemplate();
     const demo = loadDemo();
     hydrateFromData(demo.data);
-    initAccordions();
+    initAccordionsEvidencias();
+    initAccordionsPlaneacion();
     initSortableTables();
     initStepper();
-
-    // Toolbar planeación
-    const btnAdd = document.getElementById('btn-add-proceso');
-    if (btnAdd && !btnAdd._bound) {
-      btnAdd._bound = true;
-      btnAdd.addEventListener('click', onAddProceso);
-    }
-
+    initPlaneacionToolbar();
     log("Boot OK. Estatus actual:", loadDemo().data.estatus);
   }
   if (document.readyState === "loading")

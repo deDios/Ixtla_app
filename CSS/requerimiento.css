@@ -1,16 +1,13 @@
-
-/* ---------------- Vars de la vista ---------------- */
+/* ================= Vars / Base ================= */
 .exp-view{
-  --exp-border: #e5e7eb;
-  --exp-muted:  #6b7280;
-  --exp-ink:    #111827;
-  --exp-brand:  #6aa995;
-  --exp-accent: #4f6b95;
+  --exp-border:#e5e7eb; --exp-muted:#6b7280; --exp-ink:#111827;
+  --exp-brand:#6aa995;  --exp-accent:#4f6b95;
 }
+.exp-view{ position:relative; z-index:0; }
 
-/* ---------------- Head ---------------- */
+/* ================= Head ================= */
 .exp-view .exp-head{ display:grid; gap:10px; align-items:end; }
-@media (min-width: 840px){ .exp-view .exp-head{ grid-template-columns: 1fr auto; } }
+@media (min-width:840px){ .exp-view .exp-head{ grid-template-columns:1fr auto; } }
 
 .exp-view .exp-title{ display:flex; align-items:center; gap:10px; padding-bottom:.8rem; }
 .exp-view .exp-title .exp-icon{ width:38px; height:38px; object-fit:contain; }
@@ -20,7 +17,7 @@
 .exp-view .exp-meta dt{ font-size:.82rem; color:var(--exp-muted); }
 .exp-view .exp-meta dd{ margin:2px 0 0; font-weight:600; color:var(--exp-ink); }
 
-/* ---------------- Tabs ---------------- */
+/* ================= Tabs ================= */
 .exp-view .exp-tabs{ display:flex; gap:14px; border-bottom:1px solid var(--exp-border); margin-top:10px; }
 .exp-view .exp-tab{ all:unset; cursor:pointer; padding:10px 12px; border-radius:8px 8px 0 0; font-weight:700; color:#1f2937; }
 .exp-view .exp-tab.is-active{ background:#fff; box-shadow:0 -1px 0 #dfe3e7, 1px 0 0 #dfe3e7, -1px 0 0 #dfe3e7; }
@@ -29,20 +26,19 @@
 .exp-view .exp-pane{ min-height:240px; padding-top:10px; }
 .exp-view .exp-pane:not(.is-active){ display:none; }
 
-/* ---------------- Grid de campos ---------------- */
+/* ================= Grid de campos ================= */
 .exp-view .exp-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; margin-bottom:10px; }
 @media (max-width:700px){ .exp-view .exp-grid{ grid-template-columns:1fr; } }
-
 .exp-view .exp-field label{ display:block; font-size:.9rem; color:#374151; margin-bottom:6px; }
-.exp-view .exp-val{ border-bottom:1px solid #e2e5ea; padding:6px 0 8px; color:#111827; white-space:normal; }
+.exp-view .exp-val{ border-bottom:1px solid #e2e5ea; padding:6px 0 8px; color:#111827; }
 .exp-view .exp-val a{ color:var(--exp-accent); text-decoration:none; }
 
-/* ---------------- Acordeón base ---------------- */
+/* ================= Acordeón base ================= */
 .exp-view .exp-accordion{ margin-top:16px; border-radius:12px; }
 .exp-view .exp-acc-head{
   width:100%; display:flex; justify-content:space-between; align-items:center;
   background:#f7f8fa; border:1px solid var(--exp-border); border-radius:12px 12px 0 0;
-  padding:12px 14px; cursor:pointer; font-weight:600; color:var(--exp-ink);
+  padding:12px 14px; font-weight:600; color:var(--exp-ink);
 }
 .exp-view .exp-acc-head .chev{
   width:18px; height:18px; border-right:2px solid var(--exp-muted); border-bottom:2px solid var(--exp-muted);
@@ -50,12 +46,15 @@
 }
 .exp-view .exp-acc-head[aria-expanded="true"] .chev{ transform:rotate(-135deg); }
 
+/* El cuerpo no pelea con la animación JS */
 .exp-view .exp-acc-body{
   border:1px solid var(--exp-border); border-top:0; border-radius:0 0 12px 12px;
   padding:0; overflow:hidden; background:#fff;
+  display:block;               /* evita rebotes */
+  transition:none !important;  /* el JS setea la transición en inline */
 }
 
-/* ---------------- Tabla simple (Evidencias) ---------------- */
+/* ================= Tabla simple (Evidencias) ================= */
 .exp-view .exp-table{ display:block; }
 .exp-view .exp-thead,
 .exp-view .exp-row{ display:grid; grid-template-columns:1.2fr .7fr 1fr; gap:0; align-items:center; }
@@ -75,44 +74,60 @@
   .exp-view .date::before{ content:"Última modificación: "; color:var(--exp-muted); font-weight:600; margin-right:4px; }
 }
 
-/* ---------------- Acordeón de Fase (Planeación) ---------------- */
+/* ================= PLANEACIÓN (limpio/unificado) ================= */
+
+/* Header de fase: una fila [left | actions | right] */
 .exp-view .exp-accordion--fase{ margin-top:12px; }
 .exp-view .exp-accordion--fase > .exp-acc-head{
-  display:grid; grid-template-columns:24px 1fr auto; column-gap:10px;
-  align-items:center; padding:12px 14px;
-  background:#f3f4f6; border:1px solid var(--exp-border); border-radius:8px;
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px; background:#f3f4f6;
+  border:1px solid var(--exp-border); border-radius:8px;
   box-shadow:0 1px 2px rgba(17,24,39,.04);
 }
-.exp-view .exp-accordion--fase > .exp-acc-head .chev{
-  position:static; justify-self:center; width:12px; height:12px;
-  border-right:2px solid #6b7280; border-bottom:2px solid #6b7280;
-  transform:rotate(-135deg); transition:transform .2s ease;
-}
-.exp-view .exp-accordion--fase > .exp-acc-head[aria-expanded="false"] .chev{ transform:rotate(45deg); }
-
-.exp-view .exp-accordion--fase .fase-head{ grid-column:2; display:flex; flex-direction:column; gap:2px; align-items:flex-start; }
+/* Izquierda (título + meta) + botón “Nueva tarea” al lado */
+.exp-view .exp-accordion--fase .fase-left{ display:flex; align-items:center; gap:12px; min-width:0; }
+.exp-view .exp-accordion--fase .fase-head{ display:flex; flex-direction:column; line-height:1.1; min-width:0; }
 .exp-view .exp-accordion--fase .fase-title{ font-weight:700; color:#111827; }
-.exp-view .exp-accordion--fase .fase-meta{ color:#6b7280; font-size:.8rem; }
+.exp-view .exp-accordion--fase .fase-meta{ color:#6b7280; font-size:.8rem; margin-top:2px; }
+.exp-view .exp-accordion--fase .fase-actions{ flex:0 0 auto; }
+.exp-view .exp-accordion--fase .fase-add{
+  display:inline-block; text-decoration:none; cursor:pointer;
+  padding:.38rem .7rem; border:1px solid #e5e7eb; border-radius:8px;
+  background:#fff; font-weight:700; font-size:.85rem; line-height:1; white-space:nowrap;
+}
+.exp-view .exp-accordion--fase .fase-add:hover{ background:#f9fafb; }
 
+/* Derecha (estatus, progreso, fecha) */
 .exp-view .exp-accordion--fase .fase-right{
-  grid-column:3; display:grid; grid-auto-flow:column; align-items:center; gap:10px;
+  margin-left:auto; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
   color:#6b7280; font-size:.85rem;
 }
 .exp-view .exp-accordion--fase .fase-date{ color:#111827; font-weight:600; }
 
+/* Chevron al final y SOLO clickable */
+.exp-view .exp-accordion--fase > .exp-acc-head .chev{
+  width:12px; height:12px; border-right:2px solid #6b7280; border-bottom:2px solid #6b7280;
+  transform:rotate(-135deg); transition:transform .2s ease; cursor:pointer;
+}
+.exp-view .exp-accordion--fase > .exp-acc-head[aria-expanded="false"] .chev{ transform:rotate(45deg); }
+/* Header no clickable */
+#planeacion-list .exp-accordion--fase > .exp-acc-head{ cursor:default; }
+#planeacion-list .exp-accordion--fase > .exp-acc-head .chev:focus-visible{ outline:2px solid #3b82f6; outline-offset:2px; }
+
+/* Cuerpo de planeación */
 .exp-view .exp-accordion--fase > .exp-acc-body{
   border:1px solid var(--exp-border); border-top:0; border-radius:0 0 8px 8px;
   overflow:hidden; background:#fff; box-shadow:0 1px 2px rgba(17,24,39,.04);
+  display:block; transition:none !important;
 }
 
-/* ---- Tabla Planeación (5 columnas) ---- */
+/* Tabla de planeación (5 columnas) */
 .exp-view .exp-table.exp-table--planeacion .exp-thead,
 .exp-view .exp-table.exp-table--planeacion .exp-row{
   display:grid !important;
   grid-template-columns:1.6fr 1fr .9fr 1fr .9fr !important; /* Actividad | Responsable | Estatus | % | Fecha */
   align-items:center; gap:0;
 }
-
 .exp-view .exp-table.exp-table--planeacion .exp-thead{
   background:#f3f4f6; border-bottom:1px solid var(--exp-border);
   padding:10px 14px; color:#1f2937; font-weight:600;
@@ -128,37 +143,31 @@
   padding:14px; min-height:60px; border-top:1px solid #edf0f3; background:#fff;
 }
 .exp-view .exp-table.exp-table--planeacion .exp-row > div{ display:flex; align-items:center; min-height:32px; }
-.exp-view .exp-table.exp-table--planeacion .exp-row:hover{ background:#fafafa; }
-
-/* Alineaciones: col 1-2 izquierda; col 3-5 centradas */
 .exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(1),
 .exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(2){ justify-content:flex-start; }
 .exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(3),
 .exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(4),
 .exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(5){ justify-content:center; }
 
-/* Barra de porcentaje fija */
-.exp-view .exp-table.exp-table--planeacion .porcentaje{ display:flex; justify-content:center; }
+/* Barra de porcentaje */
 .exp-view .exp-table.exp-table--planeacion .porcentaje .exp-progress{
-  width:120px; height:14px; min-width:120px; padding:0 4px;
+  width:120px; min-width:120px; height:14px; padding:0 4px;
   background:#eef2f5; border:1px solid #e5e7eb; border-radius:999px;
   display:flex; align-items:center; justify-content:flex-start;
 }
 .exp-view .exp-table.exp-table--planeacion .porcentaje .exp-progress .bar{
-  height:8px; border-radius:999px; background:#6aa995; display:block;
+  height:8px; border-radius:999px; background:var(--exp-brand); display:block;
 }
 
-.exp-view .exp-table.exp-table--planeacion .estatus{ white-space:nowrap; }
-.exp-view .exp-table.exp-table--planeacion .responsable,
-.exp-view .exp-table.exp-table--planeacion .fecha{ color:#111827; }
-
-/* Mobile planeación */
+/* Responsive planeación */
 @media (max-width:760px){
-  .exp-view .exp-accordion--fase > .exp-acc-head{ grid-template-columns:24px 1fr; row-gap:6px; }
-  .exp-view .exp-accordion--fase .fase-right{ grid-column:2; grid-auto-flow:row; justify-items:flex-start; gap:4px; }
+  .exp-view .exp-accordion--fase > .exp-acc-head{ flex-wrap:wrap; }
+  .exp-view .exp-accordion--fase .fase-right{ width:100%; justify-content:flex-start; }
 
-  .exp-view .exp-table.exp-table--planeacion .exp-thead{ display:none; }
-  .exp-view .exp-table.exp-table--planeacion .exp-row{ grid-template-columns:1fr !important; gap:6px; align-items:flex-start; }
+  .exp-view .exp-table.exp-table--planeacion .exp-thead{ display:none !important; }
+  .exp-view .exp-table.exp-table--planeacion .exp-row{
+    grid-template-columns:1fr !important; gap:6px; align-items:flex-start;
+  }
   .exp-view .exp-table.exp-table--planeacion .exp-row > div{ justify-content:flex-start; }
   .exp-view .exp-table.exp-table--planeacion .responsable::before{ content:"Responsable: "; color:#6b7280; font-weight:600; margin-right:4px; }
   .exp-view .exp-table.exp-table--planeacion .estatus::before{ content:"Estatus: "; color:#6b7280; font-weight:600; margin-right:4px; }
@@ -166,7 +175,7 @@
   .exp-view .exp-table.exp-table--planeacion .fecha::before{ content:"Fecha de inicio: "; color:#6b7280; font-weight:600; margin-right:4px; }
 }
 
-/* ---------------- Stepper ---------------- */
+/* ================= Stepper ================= */
 .step-menu{ list-style:none; margin:0 auto; padding:0; }
 .step-menu::after{ content:""; display:block; clear:both; }
 .step-menu li{
@@ -193,7 +202,7 @@
 .step-menu li.complete{ background:rgba(51,122,183,.4); color:#fff; }
 .step-menu li.complete:after{ border-left-color:rgba(51,122,183,.4); }
 
-/* ---------------- Acciones junto al título ---------------- */
+/* ================= Acciones junto al título ================= */
 .exp-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-left:8px; }
 .exp-actions .btn-xs{
   all:unset; display:inline-flex; align-items:center; gap:8px; padding:8px 12px;
@@ -204,11 +213,10 @@
 .exp-actions .btn-xs.danger{  background:#ffeaea; border-color:#ffc9c9; color:#a82b2b; }
 .exp-actions .btn-xs:active{ transform:translateY(1px); }
 
-/* ---------------- Utilidades ---------------- */
+/* ================= Badges / Utilidades ================= */
 .exp-view .exp-field--full{ grid-column:1 / -1; }
 .exp-view .exp-preline{ white-space:pre-line; }
 
-/* Badges (compat con Home) */
 .badge,.exp-badge{
   display:inline-block; padding:.18rem .5rem; border-radius:999px; font-size:.78rem; line-height:1; font-weight:700;
   background:#eef2f7; color:#374151; border:1px solid #e5e7eb; vertical-align:middle;
@@ -219,42 +227,23 @@
 .badge--danger,  .exp-badge.is-danger  { background:#ffeaea; border-color:#ffc9c9; color:#a82b2b; }
 .badge--muted,   .exp-badge.is-muted   { background:#f3f4f6; border-color:#e5e7eb; color:#6b7280; }
 
-/* Progreso genérico */
 .exp-view .exp-progress{ position:relative; display:inline-flex; align-items:center; gap:8px; height:20px; min-width:88px; padding:0 6px; border-radius:999px; background:#eef2f5; border:1px solid #e5e7eb; }
 .exp-view .exp-progress .bar{ height:8px; min-width:8px; border-radius:999px; background:#6aa995; display:block; }
 .exp-view .exp-progress .pct{ font-size:.75rem; color:#111827; font-weight:700; }
 .exp-view .exp-progress.xs{ height:14px; padding:0 4px; min-width:70px; }
 
-/* =========================================================
-   MODAL: Pausar / Cancelar (#modal-estado)
-   ========================================================= */
-
-/* Overlay */
+/* ================= Modal Pausar/Cancelar ================= */
 .modal-overlay{ position:fixed; inset:0; background:rgba(17,24,39,.56); display:none; opacity:0; visibility:hidden; z-index:10000; transition:opacity .2s ease; }
 .modal-overlay.open{ display:block; opacity:1; visibility:visible; }
 body.me-modal-open{ overflow:hidden; }
 
-/* Contenido */
 #modal-estado .modal-content{
-  max-width:740px;
-  width:min(92vw,740px);
-  margin:auto;
-  padding:28px 32px;
-  border-radius:14px;
-  background:#fff;
-  box-shadow:0 20px 50px rgba(3,10,18,.25);
-  opacity:1;
-  visibility:visible;
-  animation:me-fade-in .18s ease, me-pop .18s ease;
+  max-width:740px; width:min(92vw,740px); margin:auto; padding:28px 32px; border-radius:14px; background:#fff;
+  box-shadow:0 20px 50px rgba(3,10,18,.25); opacity:1; visibility:visible; animation:me-fade-in .18s ease, me-pop .18s ease;
 }
-
-/* Título */
 #modal-estado #estado-title{ margin:0 0 16px; font-size:clamp(22px,2.4vw,32px); line-height:1.15; text-align:center; }
-
-/* Form */
 #modal-estado .modal-content .form-row{ max-width:640px; margin:0 auto 16px; }
 #modal-estado .modal-content label{ display:block; font-weight:600; margin:10px 0 8px; color:#111827; }
-
 #modal-estado #estado-motivo{
   display:block; width:100%; height:180px; min-height:180px; max-height:180px;
   padding:12px 14px; border-radius:10px; border:1px solid #d1d5db; background:#fff;
@@ -263,226 +252,357 @@ body.me-modal-open{ overflow:hidden; }
 }
 #modal-estado #estado-motivo::placeholder{ color:#9aa3af; }
 #modal-estado #estado-motivo:focus{ outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.25); }
-
 #modal-estado .btn-submit{
   width:100%; height:44px; font-weight:700; border-radius:10px;
-  background:#3b82f6; border:1px solid #3573d6; color:#fff;
-  transition:transform .06s ease, filter .12s ease;
+  background:#3b82f6; border:1px solid #3573d6; color:#fff; transition:transform .06s ease, filter .12s ease;
 }
 #modal-estado .btn-submit:hover{ filter:brightness(1.05); }
 #modal-estado .btn-submit:active{ transform:translateY(1px); }
-
 #modal-estado .modal-note{ max-width:640px; margin:14px auto 0; color:#374151; text-align:left; }
+@keyframes me-fade-in{ from{opacity:0} to{opacity:1} } @keyframes me-pop{ from{transform:scale(.985)} to{transform:scale(1)} }
+@media (max-width:480px){ #modal-estado #estado-motivo{ height:200px; min-height:200px; max-height:200px; } }
 
-/* Animaciones */
-@keyframes me-fade-in{ from{opacity:0} to{opacity:1} }
-@keyframes me-pop{ from{transform:scale(.985)} to{transform:scale(1)} }
+/* ================= Planeación toolbar + botones ================= */
+.planeacion-toolbar{
+  display:flex; align-items:center; gap:10px;
+  margin:10px 0 6px; padding:8px 10px; background:#f7f8fa;
+  border:1px solid var(--exp-border); border-radius:10px;
+}
+.planeacion-toolbar .ptb-label{ font-weight:700; color:var(--exp-ink); }
 
-@media (max-width:480px){
-  #modal-estado #estado-motivo{ height:200px; min-height:200px; max-height:200px; }
+/* pill reutilizable: coincide con .fase-add */
+.planeacion-toolbar #btn-add-proceso,
+.exp-view .exp-accordion--fase .fase-add{
+  border:1px solid #e5e7eb; background:#fff; color:#0f172a;
+  font-weight:700; font-size:.85rem; line-height:1;
+  padding:.38rem .7rem; border-radius:8px; white-space:nowrap;
+  display:inline-block; text-decoration:none; cursor:pointer;
+  transition:background .2s ease, filter .12s ease, transform .06s ease;
+}
+.planeacion-toolbar #btn-add-proceso:hover,
+.exp-view .exp-accordion--fase .fase-add:hover{ background:#f9fafb; }
+.planeacion-toolbar #btn-add-proceso:active,
+.exp-view .exp-accordion--fase .fase-add:active{ transform:translateY(1px); }
+.planeacion-toolbar #btn-add-proceso:focus-visible{
+  outline:2px solid #3b82f6; outline-offset:2px;
 }
 
-/* Main en bloque con espaciado vertical controlado */
-.home-samapa .hs-main{
-  display:block !important;
-  --stack-gap: clamp(16px, 2vw, 24px);
-  min-height: calc(100vh - var(--sticky-top) - var(--footer-pad));
-  padding-bottom: var(--footer-pad);
-  overflow: visible;
-}
-
-/* separación uniforme entre hijos directos del main */
-.home-samapa .hs-main > * + *{
-  margin-top: var(--stack-gap);
-}
-
-/* Sidebar apilado: deja respiro cuando se coloca encima */
-@media (max-width: 980px){
-  .home-samapa .hs-sidebar{ margin-bottom: var(--stack-gap); }
-}
-
-/* ----- Pane wrapper: transición de altura + respiro interno ----- */
-.exp-panes{
-  position: relative;
-  overflow-anchor: none;
-  transition: height .2s ease;
-}
-.exp-view .exp-pane{
-  min-height: 200px;
-  padding-top: 10px;
-}
-
-/* ----- Acordeones/Tablas: separar bloques entre sí ----- */
-.exp-view .exp-accordion{ margin-top: 10px; }
-.exp-view .exp-accordion + .exp-accordion{ margin-top: 12px; }
-
-/* Evidencias: que no “pegue” al borde inferior del main */
-.exp-view .exp-accordion:last-of-type{ margin-bottom: var(--stack-gap); }
-
-.exp-view{ position: relative; z-index: 0; }
+.exp-accordion .exp-acc-body[aria-hidden="true"]{ display:none !important; }
 
 
 /* ===== Planeación: toolbar superior ===== */
 .planeacion-toolbar{
   display:flex; align-items:center; gap:10px;
-  margin: 10px 0 6px;
-  padding: 8px 10px;
+  margin:10px 0 6px;
+  padding:8px 10px;
   background:#f7f8fa;
   border:1px solid var(--exp-border);
   border-radius:10px;
 }
-.planeacion-toolbar .ptb-label{ font-weight:700; color:var(--exp-ink); }
 
-/* ===== Botón redondo “+” reutilizable ===== */
-.btn-circle{
-  inline-size: 30px; block-size: 30px;
-  border-radius: 999px;
-  display: grid; place-items: center;
+.planeacion-toolbar .planeacion-title{
+  font-weight:800; color:var(--exp-ink); margin:0;
+}
+
+/* Botones “pill” unificados */
+.planeacion-toolbar .fase-add{
+  border:1px solid #e5e7eb;
   background:#fff;
-  border:1px solid #dfe3ea;
   color:#0f172a;
-  font-size:18px; line-height:1;
-  box-shadow: 0 1px 2px rgba(17,24,39,.06);
-  cursor: pointer;
-  transition: transform .06s ease, filter .12s ease, background .12s;
-}
-.btn-circle:hover{ filter:brightness(1.03); background:#f9fafb; }
-.btn-circle:active{ transform: translateY(1px); }
-
-/* ===== Botones dentro del encabezado de cada Proceso ===== */
-/* Cambiamos el grid del header para alojar la mini barra */
-.exp-view .exp-accordion--fase > .exp-acc-head{
-  grid-template-columns: 24px 1fr auto auto;  /* + | título | tools | right */
-}
-
-/* mini barra “Nueva tarea +” */
-.fase-tools{
-  grid-column: 3;
-  display: inline-flex; align-items: center; gap: 8px;
-  background:#fff; border:1px solid var(--exp-border);
-  padding:4px 8px; border-radius: 999px;
-  box-shadow: 0 1px 2px rgba(17,24,39,.04);
-  white-space: nowrap;
-}
-.fase-tools .tool-label{ font-weight:600; color:var(--exp-ink); font-size:.9rem; }
-
-/* lo que ya tenías a la derecha (estatus, fecha, progreso) pasa a la col 4 */
-.exp-view .exp-accordion--fase .fase-right{ grid-column: 4; }
-
-/* Responsive: apilamos las “tools” con el bloque derecho */
-@media (max-width: 760px){
-  .exp-view .exp-accordion--fase > .exp-acc-head{
-    grid-template-columns: 24px 1fr;               /* + | todo */
-    row-gap: 6px;
-  }
-  .fase-tools{ grid-column: 2; justify-self: start; }
-  .exp-view .exp-accordion--fase .fase-right{
-    grid-column: 2; justify-self: start;
-    grid-auto-flow: row; gap: 6px;
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-/* ===== Acordeón Fase: header con 4 columnas fijas ===== */
-.exp-view .exp-accordion--fase > .exp-acc-head{
-  display:grid;
-  grid-template-columns:24px 1fr auto auto; /* chev | titulo | tools | right */
-  align-items:center;
-  column-gap:12px;
-  padding:12px 14px;
-  background:#f3f4f6;
-  border:1px solid var(--exp-border);
+  font-weight:700;
+  font-size:.85rem;
+  line-height:1;
+  padding:.38rem .7rem;
   border-radius:8px;
-  box-shadow:0 1px 2px rgba(17,24,39,.04);
+  white-space:nowrap;
+  display:inline-block;
+  text-decoration:none;
+  cursor:pointer;
+  transition:background .2s ease, filter .12s ease, transform .06s ease;
 }
-.exp-view .exp-accordion--fase .fase-head{ grid-column:2; display:flex; flex-direction:column; gap:2px; }
-.exp-view .exp-accordion--fase .fase-right{ grid-column:4; display:grid; grid-auto-flow:column; gap:10px; align-items:center; }
-.fase-tools{ grid-column:3; display:inline-flex; gap:8px; align-items:center; background:#fff;
-  border:1px solid var(--exp-border); padding:4px 8px; border-radius:999px; box-shadow:0 1px 2px rgba(17,24,39,.04); }
-.fase-tools .tool-label{ font-weight:600; color:var(--exp-ink); font-size:.9rem; }
+.planeacion-toolbar .fase-add:hover{ background:#f9fafb; }
+.planeacion-toolbar .fase-add:active{ transform:translateY(1px); }
+.planeacion-toolbar .fase-add:focus-visible{
+  outline:2px solid #3b82f6;
+  outline-offset:2px;
+}
 
-/* ===== Tabla Planeación (plantilla única de columnas) ===== */
-.exp-view .exp-table.exp-table--planeacion{ display:block; }
-.exp-view .exp-table.exp-table--planeacion .exp-thead,
-.exp-view .exp-table.exp-table--planeacion .exp-row{
-  display:grid !important;
-  grid-template-columns: 1.6fr 1fr .9fr 1fr .9fr !important; /* Actividad | Responsable | Estatus | % | Fecha */
+
+/* ===== Evidencias: chevron compacto y clickeable (no afecta .exp-accordion--fase) ===== */
+.exp-view .exp-accordion:not(.exp-accordion--fase) > .exp-acc-head{
+  cursor: pointer;                  /* que “se sienta” clickeable */
+}
+
+.exp-view .exp-accordion:not(.exp-accordion--fase) > .exp-acc-head .chev{
+  margin-left: 10px;                /* separa del texto */
+  width: 12px;                      /* mismo tamaño que planeación */
+  height: 12px;
+  flex: 0 0 12px;                   /* evita que se deforme */
+  border-right: 2px solid #6b7280;  /* gris neutro */
+  border-bottom: 2px solid #6b7280;
+  transform: rotate(-135deg);       /* estado abierto */
+  transition: transform .2s ease, opacity .2s ease;
+  opacity: .9;
+  cursor: pointer;                  /* cursor de “mano” sobre el ícono */
+}
+
+.exp-view .exp-accordion:not(.exp-accordion--fase) > .exp-acc-head[aria-expanded="false"] .chev{
+  transform: rotate(45deg);         /* estado cerrado */
+  opacity: .9;
+}
+
+/* Accesibilidad visual al navegar con teclado */
+.exp-view .exp-accordion:not(.exp-accordion--fase) > .exp-acc-head .chev:focus-visible{
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+
+/* Overlay centrado con flex */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(17,24,39,.56);
+  display:none; opacity:0; visibility:hidden;
+  z-index:10000; transition:opacity .2s ease, visibility .2s ease;
+}
+.modal-overlay.open{
+  display:flex;                 /* centrado */
   align-items:center;
-  gap:0;
+  justify-content:center;
+  opacity:1; visibility:visible;
 }
 
-/* Head */
-.exp-view .exp-table.exp-table--planeacion .exp-thead{
-  background:#f3f4f6;
-  border-bottom:1px solid var(--exp-border);
-  padding:10px 14px;
-  color:#1f2937;
-  font-weight:600;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div{
-  display:flex; align-items:center; height:100%;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(1),
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(2){ justify-content:flex-start; }
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(3),
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(4),
-.exp-view .exp-table.exp-table--planeacion .exp-thead > div:nth-child(5){ justify-content:center; }
-
-/* Rows */
-.exp-view .exp-table.exp-table--planeacion .exp-row{
-  padding:14px; min-height:60px;
-  border-top:1px solid #edf0f3; background:#fff;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-row > div{
-  display:flex; align-items:center; min-height:32px;
-}
-.exp-view .exp-table.exp-table--planeacion .exp-row:hover{ background:#fafafa; }
-
-/* Alineaciones: col 1-2 izq; col 3-5 centro */
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(1),
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(2){ justify-content:flex-start; }
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(3),
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(4),
-.exp-view .exp-table.exp-table--planeacion .exp-row > div:nth-child(5){ justify-content:center; }
-
-/* Barra % compacta y estable */
-.exp-view .exp-table.exp-table--planeacion .porcentaje{ justify-content:center; }
-.exp-view .exp-table.exp-table--planeacion .porcentaje .exp-progress{
-  width:120px; min-width:120px; height:14px; padding:0 4px;
-  background:#eef2f5; border:1px solid #e5e7eb; border-radius:999px;
-  display:flex; align-items:center; justify-content:flex-start;
-}
-.exp-view .exp-table.exp-table--planeacion .porcentaje .exp-progress .bar{
-  height:8px; border-radius:999px; background:#6aa995; display:block;
+/* Contenido: permitir scroll interno si es alto */
+#modal-estado .modal-content{
+  max-width:740px; width:min(92vw,740px);
+  max-height:min(92vh, 760px);
+  overflow:auto;                /* scroll si se pasa */
+  margin:0;                     /* ya no dependemos del auto centering antiguo */
 }
 
-/* Responsive móvil */
-@media (max-width:760px){
-  .exp-view .exp-accordion--fase > .exp-acc-head{
-    grid-template-columns:24px 1fr; row-gap:6px;
+/* Botón de cierre enfocables y visibles */
+#modal-estado .modal-close{
+  position:absolute; top:10px; right:14px;
+  background:transparent; border:0; font-size:22px; line-height:1;
+  cursor:pointer;
+}
+#modal-estado .modal-close:focus-visible{
+  outline:2px solid #3b82f6; outline-offset:2px;
+}
+
+
+/* =========================
+   Modal: Nueva tarea
+   ID esperado: #modal-tarea
+   ========================= */
+
+/* Tamaño y layout del contenedor del modal */
+#modal-tarea .modal-content{
+  max-width: 720px;              /* un poco más ancho que el de “estado” */
+  width: calc(100% - 2rem);
+  padding: 1.25rem 1.25rem 1.5rem;
+  border-radius: 14px;
+}
+
+/* Título del modal */
+#modal-tarea .modal-content h2{
+  margin: 0 0 .75rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* Texto auxiliar bajo campos */
+#modal-tarea .modal-note,
+#modal-tarea .help-text{
+  margin-top: .75rem;
+  font-size: .9rem;
+  color: #6b7280; /* gris medio */
+}
+
+/* Grid de formulario (dos columnas en md+) */
+#modal-tarea .form-grid{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .9rem 1rem;
+}
+@media (min-width: 640px){
+  #modal-tarea .form-grid{
+    grid-template-columns: 1fr 1fr;
   }
-  .fase-tools{ grid-column:2; justify-self:start; }
-  .exp-view .exp-accordion--fase .fase-right{
-    grid-column:2; grid-auto-flow:row; gap:6px; justify-items:flex-start;
-  }
-
-  .exp-view .exp-table.exp-table--planeacion .exp-thead{ display:none; }
-  .exp-view .exp-table.exp-table--planeacion .exp-row{
-    grid-template-columns:1fr !important; gap:6px; align-items:flex-start;
-  }
-  .exp-view .exp-table.exp-table--planeacion .exp-row > div{ justify-content:flex-start; }
-  .exp-view .exp-table.exp-table--planeacion .responsable::before{ content:"Responsable: "; color:#6b7280; font-weight:600; margin-right:4px; }
-  .exp-view .exp-table.exp-table--planeacion .estatus::before{ content:"Estatus: "; color:#6b7280; font-weight:600; margin-right:4px; }
-  .exp-view .exp-table.exp-table--planeacion .porcentaje::before{ content:"Porcentaje: "; color:#6b7280; font-weight:600; margin-right:4px; }
-  .exp-view .exp-table.exp-table--planeacion .fecha::before{ content:"Fecha de inicio: "; color:#6b7280; font-weight:600; margin-right:4px; }
 }
+/* Filas full-width dentro del grid */
+#modal-tarea .form-grid .full{
+  grid-column: 1 / -1;
+}
+
+/* Campos y labels */
+#modal-tarea .form-row{
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+#modal-tarea label{
+  font-size: .92rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Inputs base */
+#modal-tarea input[type="text"],
+#modal-tarea input[type="number"],
+#modal-tarea input[type="date"],
+#modal-tarea input[type="datetime-local"],
+#modal-tarea select,
+#modal-tarea textarea{
+  width: 100%;
+  appearance: none;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: .6rem .75rem;
+  font-size: .95rem;
+  line-height: 1.25rem;
+  color: #111827;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+#modal-tarea textarea{
+  min-height: 96px;
+  resize: vertical;
+}
+#modal-tarea select:disabled{
+  color: #9ca3af;
+}
+
+/* Focus */
+#modal-tarea input:focus,
+#modal-tarea select:focus,
+#modal-tarea textarea:focus{
+  border-color: #93c5fd;          /* azul claro */
+  box-shadow: 0 0 0 3px rgba(147,197,253,.35);
+}
+
+/* Inputs numéricos: quita spinners (WebKit) */
+#modal-tarea input[type="number"]::-webkit-outer-spin-button,
+#modal-tarea input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance: none;
+  margin: 0;
+}
+/* Firefox */
+#modal-tarea input[type="number"]{
+  -moz-appearance: textfield;
+}
+
+/* Pie del modal (acciones) */
+#modal-tarea .modal-actions{
+  display: flex;
+  gap: .75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+/* Botón primario y secundario coherentes con tu sistema */
+#modal-tarea .btn-submit,
+#modal-tarea .btn{
+  border-radius: 10px;
+  padding: .6rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+#modal-tarea .btn-submit{
+  background: #1d4ed8;   /* azul */
+  color: #fff;
+  border: 1px solid #1d4ed8;
+}
+#modal-tarea .btn{
+  background: #f3f4f6;   /* gris claro */
+  color: #111827;
+  border: 1px solid #e5e7eb;
+}
+#modal-tarea .btn[disabled],
+#modal-tarea .btn-submit[disabled]{
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+/* Select con caret simple (opcional) */
+#modal-tarea select{
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6b7280 50%),
+    linear-gradient(135deg, #6b7280 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 4px),
+    calc(100% - 12px) calc(50% - 4px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 2rem;
+}
+
+/* Close button (“×”) consistente */
+#modal-tarea .modal-close{
+  position: absolute;
+  top: .5rem;
+  right: .6rem;
+  border: none;
+  background: transparent;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+}
+#modal-tarea .modal-close:hover{ color:#111827; }
+
+
+/* ===== MODALES (robustos por aria-hidden) ===== */
+.modal-overlay{
+  position: fixed;
+  inset: 0;
+  display: none;                /* oculto por defecto */
+  align-items: center;
+  justify-content: center;
+  /* OJO: usar background con alpha, NO opacity, para no afectar a los hijos */
+  background: rgba(17, 24, 39, 0.55);
+  z-index: 20000;               /* por encima de header/avatars/etc. */
+}
+
+/* Mostrar cuando aria-hidden=false (tu JS ya lo setea) */
+.modal-overlay[aria-hidden="false"]{
+  display: flex;
+}
+
+/* Tarjeta */
+.modal-overlay .modal-content{
+  width: min(720px, 92vw);
+  max-height: 84vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  padding: 24px;
+  position: relative;
+
+  /* Animación de entrada */
+  opacity: 0;
+  transform: translateY(-8px) scale(.985);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+/* Cuando el overlay está visible, revelar contenido */
+.modal-overlay[aria-hidden="false"] .modal-content{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Botón cerrar (X) */
+.modal-overlay .modal-close{
+  position: absolute;
+  top: 10px; right: 12px;
+  width: 32px; height: 32px;
+  border: 0; background: transparent;
+  font-size: 24px; line-height: 1;
+  color: #6b7280; cursor: pointer;
+}
+.modal-overlay .modal-close:hover{ color:#111827; }
+
+/* Evitar que otros estilos globales opaquen el modal */
+.modal-overlay * { /* no tocar pointer-events ni opacity heredada */ }
