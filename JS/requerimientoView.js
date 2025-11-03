@@ -183,7 +183,7 @@
       body.hidden = !initOpen; if (!initOpen) body.style.height = "0px";
 
       head.addEventListener("click", (e) => {
-        if (!e.target.closest(".chev")) return;
+        if (!e.target.closest(".chev")) return; // bloquear clicks fuera del chevron
       });
 
       chev.addEventListener("click", (e) => {
@@ -469,7 +469,7 @@
 
     if (!_modalBound) {
       modal.addEventListener("click", onBackdropClick);
-      // ⚠️ Permitir que la X y elementos marcados con [data-modal-pass] NO se bloqueen
+      // permitir que .modal-close y [data-modal-pass] no se bloqueen
       modalContent.addEventListener("mousedown", stop, { capture: true });
       modalContent.addEventListener("click",      stop, { capture: true });
       _modalBound = true;
@@ -571,7 +571,7 @@
 
     if (!_modalTBound) {
       modalT.addEventListener("click", onBackdropClickT);
-      // ⚠️ Igual que arriba: permitir clics en .modal-close pasar
+      // permitir clics en .modal-close pasar
       modalContentT.addEventListener("mousedown", stopT, { capture: true });
       modalContentT.addEventListener("click",      stopT, { capture: true });
       _modalTBound = true;
@@ -638,7 +638,8 @@
 
     const meta = $(".fase-meta", head);
     if (meta) {
-      const num = parseInt((meta.textContent.match(/\d+/) || [0])[0], 10) || 0;
+      const match = meta.textContent.match(/(\d+)/);
+      const num = match ? parseInt(match[1], 10) : 0;
       meta.textContent = `${num + 1} actividades`;
     }
 
@@ -683,6 +684,90 @@
     });
   }
 
+  /* =============== Planeación: crear y bindear NUEVOS PROCESOS =============== */
+  function bindProcessAccordion(sec) {
+    const head = sec.querySelector(".exp-acc-head");
+    const body = sec.querySelector(".exp-acc-body");
+    const chev = head?.querySelector(".chev");
+    if (!head || !body || !chev) return;
+
+    const initOpen = head.getAttribute("aria-expanded") === "true";
+    body.hidden = !initOpen; if (!initOpen) body.style.height = "0px";
+
+    head.addEventListener("click", (e) => {
+      if (!e.target.closest(".chev")) return; // solo chevron
+    });
+
+    chev.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const isOpen = head.getAttribute("aria-expanded") === "true";
+      setAccordionOpen(head, body, !isOpen);
+    });
+  }
+
+  function createProcess({ title, fechaInicio, porcentaje = 0 } = {}) {
+    const list = $("#planeacion-list");
+    if (!list) { toast("No existe el contenedor de planeación.", "error"); return null; }
+
+    const count = collectProcesos().length;
+    const id = `p${Date.now()}`; // id único
+    const name = (title || "").trim() || `Proceso ${count + 1}`;
+    const fecha = fechaInicio || new Date().toISOString().slice(0,10); // YYYY-MM-DD
+    const pct = Math.max(0, Math.min(100, Number(porcentaje || 0)));
+
+    const sec = document.createElement("section");
+    sec.className = "exp-accordion exp-accordion--fase";
+    sec.setAttribute("data-proceso-id", id);
+
+    sec.innerHTML = `
+      <!-- HEADER -->
+      <button class="exp-acc-head" type="button" aria-expanded="true">
+        <div class="fase-left">
+          <div class="fase-head">
+            <span class="fase-title">${name}</span>
+            <small class="fase-meta">0 actividades</small>
+          </div>
+        </div>
+
+        <div class="fase-right">
+          <span class="fase-label">Estatus</span>
+          <span class="exp-progress" aria-label="${pct}%">
+            <span class="bar" style="width:${pct}%"></span>
+            <span class="pct">${pct}%</span>
+          </span>
+          <span class="fase-label">Fecha de inicio</span>
+          <span class="fase-date">${fecha.split("-").reverse().join("/")}</span>
+          <span class="chev" aria-hidden="true"></span>
+        </div>
+      </button>
+
+      <!-- BODY -->
+      <div class="exp-acc-body">
+        <div class="exp-table exp-table--planeacion is-card">
+          <div class="exp-thead">
+            <div>Actividad</div>
+            <div>Responsable</div>
+            <div>Estatus</div>
+            <div>Porcentaje</div>
+            <div>Fecha de inicio</div>
+          </div>
+          <!-- filas .exp-row se insertarán aquí -->
+        </div>
+      </div>
+    `;
+
+    list.appendChild(sec);
+    bindProcessAccordion(sec);
+
+    // Si el modal de tarea está abierto, refrescar el select y preseleccionar el nuevo
+    if ($("#modal-tarea")?.classList.contains("open")) {
+      fillProcesoSelect(id);
+    }
+
+    return sec;
+  }
+
   /* =============== Toolbar Planeación =============== */
   function initPlaneacionToolbar() {
     const btnProceso = $("#btn-add-proceso");
@@ -690,12 +775,20 @@
 
     btnProceso?.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
-      toast("Se creó un nuevo tablero de procesos", "success");
+      const sec = createProcess({ porcentaje: 0 });
+      if (sec) {
+        toast("Se creó un nuevo tablero de procesos", "success");
+        sec.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     });
 
     btnTarea?.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
       const procesos = collectProcesos();
+      if (procesos.length === 0) {
+        toast("Primero crea un proceso.", "warning");
+        return;
+      }
       const prefer = (procesos.length === 1) ? (procesos[0].getAttribute("data-proceso-id")) : null;
       openTareaModal({ preferProcesoId: prefer });
     });

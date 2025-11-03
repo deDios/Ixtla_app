@@ -1,10 +1,7 @@
 // /JS/api/requerimientos.js
-/* ========================================================================== */
-/*  API Requerimientos — limpio, con hidratación de asignado por empleado     */
-/* ========================================================================== */
 
 const TAG = "[API:Requerimientos]";
-const DEV_LOGS = true; // ← apaga/enciende logs de este módulo
+const DEV_LOGS = true; // apaga/enciende logs
 
 const API_BASE =
   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
@@ -522,4 +519,211 @@ export async function loadTramitesCatalog(opts = {}) {
     console.warn("[Trámites] catálogo no disponible:", e);
     return [];
   }
+}
+
+
+// /JS/requerimiento.integracion.js
+import { getById as getReqById } from "/JS/api/requerimientoDetalle.js";
+import { listComentarios, createComentario } from "/JS/api/comentarios.js";
+
+/* ===== Helpers DOM ===== */
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+const firstTwo = (full="") => String(full).trim().split(/\s+/).filter(Boolean).slice(0,2).join(" ") || "—";
+
+const fmtDate = (iso="") => {
+  // espera "YYYY-MM-DD HH:mm:ss" (del backend). Si viene vacío, devuelve "—"
+  if (!iso) return "—";
+  // mostrar tal cual (o podrías formatear a locale); aquí lo dejamos simple:
+  return iso.replace("T"," ").replace(" 00:00:00"," 00:00");
+};
+
+/* ===== Pintar requerimiento en la vista existente ===== */
+function paintRequerimiento(req) {
+  // Título y meta cabecera
+  const titulo = req.tramite || req.asunto || "Requerimiento";
+  const h1 = $(".exp-title h1"); if (h1) h1.textContent = titulo;
+
+  const ddC = $(".exp-meta > div:nth-child(1) dd");
+  const ddE = $(".exp-meta > div:nth-child(2) dd");
+  const ddF = $(".exp-meta > div:nth-child(3) dd");
+  if (ddC) ddC.textContent = firstTwo(req.contacto_nombre || "—");
+  if (ddE) ddE.textContent = req.asignado_full || "—";
+  if (ddF) ddF.textContent = fmtDate(req.creado_at || "—");
+
+  // Tab Contacto
+  const contactoGrid = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
+  if (contactoGrid) {
+    const set = (nth, html) => {
+      const node = $(`.exp-field:nth-child(${nth}) .exp-val`, contactoGrid);
+      if (node) {
+        if (nth === 4) {
+          const a = node.querySelector("a"); 
+          if (a) { a.textContent = req.contacto_email || "—"; req.contacto_email ? (a.href = `mailto:${req.contacto_email}`) : a.removeAttribute("href"); }
+          else node.textContent = req.contacto_email || "—";
+        } else {
+          node.textContent = html || "—";
+        }
+      }
+    };
+    set(1, firstTwo(req.contacto_nombre));
+    set(2, req.contacto_telefono || "—");
+    set(3, [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", "));
+    set(4, req.contacto_email || "—");
+    set(5, req.contacto_cp || "—");
+  }
+
+  // Tab Detalles
+  const detalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+  if (detalles) {
+    const put = (nth, value, isHTML=false) => {
+      const node = $(`.exp-field:nth-child(${nth}) .exp-val`, detalles);
+      if (!node) return;
+      if (isHTML) node.innerHTML = value;
+      else node.textContent = value ?? "—";
+    };
+    put(1, titulo);
+    put(2, req.asignado_full || "—");           // "Líder del Departamento"
+    put(3, firstTwo(req.contacto_nombre || "—"));// "Asignado" (ajústalo si usas otro campo)
+    // Estatus (badge)
+    const badgeWrap = $(`.exp-field:nth-child(4) .exp-val`, detalles);
+    if (badgeWrap) {
+      const statusLabel = (s) => ({0:"Solicitud",1:"Revisión",2:"Asignación",3:"Proceso",4:"Pausado",5:"Cancelado",6:"Finalizado"}[Number(s)]||"—");
+      const statusBadgeClass = (s) => ({0:"is-muted",1:"is-info",2:"is-info",3:"is-info",4:"is-warning",5:"is-danger",6:"is-success"}[Number(s)]||"is-info");
+      const cls = statusBadgeClass(req.estatus_code);
+      const lbl = statusLabel(req.estatus_code);
+      badgeWrap.innerHTML = `<span class="exp-badge ${cls}">${lbl}</span>`;
+    }
+    // Descripción (pre-wrap en HTML original)
+    const descNode = $(`.exp-field.exp-field--full .exp-val`, detalles);
+    if (descNode) descNode.textContent = req.descripcion || "—";
+
+    // Fechas
+    const fechaInicioNode = $(`.exp-field:nth-child(6) .exp-val`, detalles);
+    if (fechaInicioNode) fechaInicioNode.textContent = (req.creado_at || "").split(" ")[0] || "—";
+    const fechaFinNode = $(`.exp-field:nth-child(7) .exp-val`, detalles);
+    if (fechaFinNode) fechaFinNode.textContent = req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—";
+  }
+
+  // Stepper
+  if (window.paintStepper) window.paintStepper(Number(req.estatus_code ?? 0));
+}
+
+/* ===== Comentarios ===== */
+function renderCommentsList(items = []) {
+  const feed = $(".c-feed"); if (!feed) return;
+  feed.innerHTML = "";
+  items.forEach(c => {
+    const art = document.createElement("article");
+    art.className = "msg";
+    const nombre = firstTwo(c.nombre || c.autor || "Anónimo");
+    const cuando = c.creado_at || c.created_at || "ahora";
+    art.innerHTML = `
+      <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+      <div>
+        <div class="who"><span class="name">${nombre}</span> <span class="time">${cuando}</span></div>
+        <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
+      </div>`;
+    $(".text", art).textContent = c.texto || c.comentario || "";
+    feed.appendChild(art);
+  });
+  const scroller = feed.parentElement || feed;
+  scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+}
+
+async function loadAndRenderComentarios(requerimiento_id) {
+  try {
+    const res = await listComentarios({ requerimiento_id, page: 1, page_size: 100, status: 1 });
+    const data = res?.data ?? res?.items ?? res ?? [];
+    // normalizar a {nombre, comentario, creado_at}
+    const list = Array.isArray(data) ? data.map(r => ({
+      nombre: r.nombre || r.empleado_nombre || r.autor || r.created_by || "—",
+      comentario: r.comentario || r.texto || "",
+      creado_at: r.created_at || r.fecha || ""
+    })) : [];
+    renderCommentsList(list);
+  } catch (e) {
+    console.warn("[Comentarios] list error:", e);
+  }
+}
+
+function interceptComposer(requerimiento_id, empleado_id = null) {
+  const ta = $(".composer textarea");
+  const btn = $(".composer .send-fab");
+  if (!ta || !btn) return;
+
+  const send = async () => {
+    const texto = (ta.value || "").trim();
+    if (!texto) return;
+
+    // Evita doble envío del handler antiguo: captura y stopPropagation
+    try {
+      btn.disabled = true;
+      await createComentario({
+        requerimiento_id,
+        empleado_id: empleado_id,  // si lo tienes en sesión, pásalo aquí
+        comentario: texto,
+        status: 1,
+        created_by: empleado_id
+      });
+      ta.value = "";
+      await loadAndRenderComentarios(requerimiento_id);
+    } catch (e) {
+      console.error("[Comentarios] create error:", e);
+      // fallback: agrega local temporal
+      const feed = $(".c-feed");
+      if (feed) {
+        const art = document.createElement("article");
+        art.className = "msg";
+        art.innerHTML = `
+          <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+          <div>
+            <div class="who"><span class="name">${firstTwo($("#hs-profile-name")?.textContent || "Tú")}</span> <span class="time">ahora</span></div>
+            <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
+          </div>`;
+        $(".text", art).textContent = texto;
+        feed.appendChild(art);
+        feed.parentElement?.scrollTo({ top: feed.parentElement.scrollHeight, behavior: "smooth" });
+      }
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  // Interceptar eventos del botón/textarea antes del handler viejo
+  btn.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); send(); }, { capture: true });
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.stopPropagation(); e.preventDefault(); send();
+    }
+  }, { capture: true });
+}
+
+/* ===== Boot ===== */
+async function bootIntegracion() {
+  const params = new URL(window.location.href).searchParams;
+  const reqId = params.get("id");
+  if (!reqId) {
+    console.warn("[Detalle] No hay id en la URL (?id=XXXX). Se queda en modo demo.");
+    return;
+  }
+
+  // si tienes empleado_id en sesión, ponlo aquí:
+  const empleado_id = null; // e.g. window.SESSION?.empleado_id || null;
+
+  try {
+    const { data: req } = await getReqById(reqId);
+    paintRequerimiento(req);
+  } catch (e) {
+    console.warn("[Detalle] Error consultando requerimiento:", e);
+  }
+
+  await loadAndRenderComentarios(reqId);
+  interceptComposer(reqId, empleado_id);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootIntegracion, { once: true });
+} else {
+  bootIntegracion();
 }
