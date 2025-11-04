@@ -624,9 +624,8 @@
     </div>
 
     <script src="/JS/JSglobal.js"></script>
-    <script src="/JS/components.js"></script>
     <script src="/JS/requerimientoView.js"></script>
-    <script src="/JS/requerimientoPlaneacion.js"></script>
+    <script src="/JS/components.js"></script>
 
     <!-- bundle para que cargue bien el sidebar -->
     <script type="module" src="/JS/auth/session.js"></script>
@@ -635,7 +634,7 @@
 
     <!-- Animaciones y utilidades de esta vista -->
     <script type="module" src="/JS/ui/animacionesDeViewDetalle.js"></script>
+    <script src="/JS/requerimientoPlaneacion.js"></script>
     
-
 </body>
 </html>

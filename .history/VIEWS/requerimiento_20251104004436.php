@@ -624,8 +624,8 @@
     </div>
 
     <script src="/JS/JSglobal.js"></script>
-    <script src="/JS/components.js"></script>
     <script src="/JS/requerimientoView.js"></script>
+    <script src="/JS/components.js"></script>
     <script src="/JS/requerimientoPlaneacion.js"></script>
 
     <!-- bundle para que cargue bien el sidebar -->
