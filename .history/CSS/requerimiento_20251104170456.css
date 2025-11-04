@@ -639,41 +639,97 @@ body.me-modal-open{ overflow:hidden; }
 
 /* === Control de estatus ======================= */
 #req-status{
-  display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  flex-wrap:wrap;
 }
 
-/* Badge alineado */
-#req-status .exp-badge{ line-height:1; }
+/* Botón que activa el combo */
+#req-status .status-toggle{
+  appearance:none;
+  border:1px solid #d6d9e0;
+  background:#fff;
+  font-size:.875rem;
+  line-height:1;
+  padding:.45rem .65rem;
+  border-radius:.5rem;
+  cursor:pointer;
+  transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+#req-status .status-toggle:hover{
+  background:#f7f8fb;
+  border-color:#c8cdd8;
+  box-shadow:0 1px 0 rgba(20,20,20,.04);
+}
+#req-status .status-toggle:active{
+  background:#eef1f6;
+}
 
-/* Botón (por data-role) */
+/* Combo de estatus */
+#req-status .status-select{
+  font-size:.875rem;
+  padding:.45rem .55rem;
+  border:1px solid #d6d9e0;
+  border-radius:.5rem;
+  background:#fff;
+  line-height:1.2;
+  max-width: 100%;
+}
+#req-status .status-select:focus{
+  outline: none;
+  border-color:#8aa4ff;
+  box-shadow:0 0 0 3px rgba(138,164,255,.25);
+}
+
+/* Soporte para el atributo [hidden] */
+#req-status .status-select[hidden]{
+  display:none !important;
+}
+
+/* Responsive: si el grid se apila, que el select ocupe línea completa */
+@media (max-width: 720px){
+  #req-status{ gap:.4rem; }
+  #req-status .status-select{ width:100%; }
+}
+
+
+/* Botón dentro de #req-status por data-attr (sin mover HTML) */
 #req-status [data-role="status-btn"]{
-  appearance:none; border:1px solid #d6d9e0; background:#fff;
-  font-size:.875rem; line-height:1; padding:.45rem .65rem; border-radius:.5rem;
-  cursor:pointer; transition:background .15s, box-shadow .15s, border-color .15s;
+  appearance:none;
+  border:1px solid #d6d9e0;
+  background:#fff;
+  font-size:.875rem;
+  line-height:1;
+  padding:.45rem .65rem;
+  border-radius:.5rem;
+  cursor:pointer;
+  transition:background .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 #req-status [data-role="status-btn"]:hover{
-  background:#f7f8fb; border-color:#c8cdd8; box-shadow:0 1px 0 rgba(20,20,20,.04);
+  background:#f7f8fb;
+  border-color:#c8cdd8;
+  box-shadow:0 1px 0 rgba(20,20,20,.04);
 }
-#req-status [data-role="status-btn"]:active{ background:#eef1f6; }
-#req-status [data-role="status-btn"]:focus-visible{
-  outline:2px solid #8aa4ff; outline-offset:2px;
+#req-status [data-role="status-btn"]:active{
+  background:#eef1f6;
 }
 
-/* Select (por data-role) */
+/* Select por data-attr (mapea a tu JS) */
 #req-status [data-role="status-select"]{
-  font-size:.875rem; padding:.45rem .55rem; border:1px solid #d6d9e0; border-radius:.5rem;
-  background:#fff; line-height:1.2; max-width:100%;
+  font-size:.875rem;
+  padding:.45rem .55rem;
+  border:1px solid #d6d9e0;
+  border-radius:.5rem;
+  background:#fff;
+  line-height:1.2;
+  max-width:100%;
 }
 #req-status [data-role="status-select"]:focus{
-  outline:none; border-color:#8aa4ff; box-shadow:0 0 0 3px rgba(138,164,255,.25);
+  outline:none;
+  border-color:#8aa4ff;
+  box-shadow:0 0 0 3px rgba(138,164,255,.25);
 }
-#req-status [data-role="status-select"][hidden]{ display:none !important; }
-
-/* Responsive */
-@media (max-width:720px){
-  #req-status{ gap:.4rem; }
-  #req-status [data-role="status-select"]{ width:100%; }
+#req-status [data-role="status-select"][hidden]{
+  display:none !important;
 }
-
-/* (Opcional) si quieres quitar el inline-style del HTML */
-#req-status .status-tools{ display:inline-flex; gap:8px; align-items:center; margin-left:8px; }

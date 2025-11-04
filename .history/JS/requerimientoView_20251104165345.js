@@ -125,12 +125,32 @@
   }
 
   /* ========================================================================
-   * Stepper
+   * Stepper + mapas de estatus
    * ======================================================================*/
   const statusLabel = (s) =>
     ({ 0: "Solicitud", 1: "Revisión", 2: "Asignación", 3: "Proceso", 4: "Pausado", 5: "Cancelado", 6: "Finalizado" })[Number(s)] || "—";
   const statusBadgeClass = (s) =>
     ({ 0: "is-muted", 1: "is-info", 2: "is-info", 3: "is-info", 4: "is-warning", 5: "is-danger", 6: "is-success" })[Number(s)] || "is-info";
+
+  // Nuevos mapas para el control dummy
+  const STATUS_KEY_BY_CODE = {
+    0: "solicitud",
+    1: "revision",
+    2: "asignacion",
+    3: "enProceso",
+    4: "pausado",
+    5: "cancelado",
+    6: "finalizado",
+  };
+  const STATUS_LABEL_BY_CODE = {
+    0: "Solicitud",
+    1: "Revisión",
+    2: "Asignación",
+    3: "Proceso",
+    4: "Pausado",
+    5: "Cancelado",
+    6: "Finalizado",
+  };
 
   function paintStepper(next) {
     const items = $$(".step-menu li");
@@ -157,6 +177,57 @@
       const li = e.target.closest("li"); if (!li) return;
       $$("li", menu).forEach(it => it.classList.remove("current"));
       li.classList.add("current");
+    });
+  }
+
+  // ---- Control dummy de estatus (UI) ----
+  function setStatusUI(code = 0) {
+    const host   = document.getElementById("req-status");
+    if (!host) { // si no existe el control, al menos mover el stepper
+      if (window.paintStepper) window.paintStepper(Number(code));
+      return;
+    }
+    const badge  = host.querySelector('[data-role="status-badge"]');
+    const select = host.querySelector('[data-role="status-select"]');
+
+    const lbl = STATUS_LABEL_BY_CODE[code] || "—";
+    const cls = statusBadgeClass(code);
+
+    if (badge) {
+      badge.className = `exp-badge ${cls}`;
+      badge.textContent = lbl;
+    }
+    if (select) select.value = String(code);
+
+    if (window.paintStepper) window.paintStepper(Number(code));
+  }
+
+  function initStatusControls() {
+    const host   = document.getElementById("req-status");
+    if (!host) return; // si no está el HTML, no se arma el control
+
+    const btn    = host.querySelector('[data-role="status-btn"]');
+    const select = host.querySelector('[data-role="status-select"]');
+    if (!btn || !select) return;
+
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const isHidden = select.hasAttribute("hidden");
+      if (isHidden) select.removeAttribute("hidden"); else select.setAttribute("hidden", "");
+      if (isHidden) select.focus();
+    });
+
+    select.addEventListener("change", () => {
+      const code = Number(select.value);
+      setStatusUI(code);
+      select.setAttribute("hidden", "");
+      console.groupCollapsed("[Estatus] cambio (dummy)");
+      console.log({ code, key: STATUS_KEY_BY_CODE[code], label: STATUS_LABEL_BY_CODE[code] });
+      console.groupEnd();
+    });
+
+    document.addEventListener("click", (ev) => {
+      if (!host.contains(ev.target)) select.setAttribute("hidden", "");
     });
   }
 
@@ -330,8 +401,8 @@
     const ddC = $(".exp-meta > div:nth-child(1) dd");
     const ddE = $(".exp-meta > div:nth-child(2) dd");
     const ddF = $(".exp-meta > div:nth-child(3) dd");
-    if (ddC) ddC.textContent = (req.contacto_nombre || "—");
-    if (ddE) ddE.textContent = req.asignado_full || "—";
+    if (ddC) ddC.textContent = (req.contacto_nombre || "—");   // nombre completo
+    if (ddE) ddE.textContent = req.asignado_full || "—";        // Encargado
     if (ddF) ddF.textContent = (req.creado_at || "—").replace("T"," ");
 
     // Tab Contacto (nombre completo)
@@ -348,7 +419,7 @@
           node.textContent = val || "—";
         }
       };
-      set(1, (req.contacto_nombre || "—"));
+      set(1, (req.contacto_nombre || "—")); // completo
       set(2, req.contacto_telefono || "—");
       set(3, [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", "));
       set(4, req.contacto_email || "—");
@@ -358,93 +429,39 @@
     // Tab Detalles
     const detalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     if (detalles) {
-      const put = (nth, value) => {
+      const put = (nth, value, isHTML=false) => {
         const node = $(`.exp-field:nth-child(${nth}) .exp-val`, detalles);
         if (!node) return;
-        node.textContent = value ?? "—";
+        if (isHTML) node.innerHTML = value;
+        else node.textContent = value ?? "—";
       };
       put(1, titulo);
       put(2, "pendiente");                    // Líder del Departamento (placeholder)
       put(3, (req.contacto_nombre || "—"));   // Asignado (por ahora mostramos contacto)
 
-      // Actualiza SOLO el badge existente (sin borrar el botón/combo)
-      const badgeEl =
-        document.querySelector('#req-status [data-role="status-badge"]') ||
-        $(`.exp-field:nth-child(4) .exp-val .exp-badge`, detalles);
-      if (badgeEl) {
-        badgeEl.classList.remove('is-info','is-muted','is-warning','is-danger','is-success');
+      // Estatus (si NO está el control #req-status, pintamos badge aquí)
+      const badgeWrap = $(`.exp-field:nth-child(4) .exp-val`, detalles);
+      if (badgeWrap && !document.getElementById("req-status")) {
         const cls = statusBadgeClass(req.estatus_code);
         const lbl = statusLabel(req.estatus_code);
-        badgeEl.classList.add(cls);
-        badgeEl.textContent = lbl;
+        badgeWrap.innerHTML = `<span class="exp-badge ${cls}">${lbl}</span>`;
       }
+      // Si SÍ existe #req-status, lo actualizamos vía setStatusUI más abajo.
 
-      // Fechas / descripción
+      // Descripción
       const descNode = $(`.exp-field.exp-field--full .exp-val`, detalles);
       if (descNode) descNode.textContent = req.descripcion || "—";
+      // Fechas
       const fIni = $(`.exp-field:nth-child(6) .exp-val`, detalles);
       if (fIni) fIni.textContent = (req.creado_at || "").split(" ")[0] || "—";
       const fFin = $(`.exp-field:nth-child(7) .exp-val`, detalles);
       if (fFin) fFin.textContent = req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—";
     }
 
-    // Preseleccionar valor del select con el estatus actual
-    const sel = document.querySelector('#req-status [data-role="status-select"]');
-    if (sel) sel.value = String(req.estatus_code ?? 0);
-
-    // Stepper
-    if (window.paintStepper) window.paintStepper(Number(req.estatus_code ?? 0));
+    // Actualiza control dummy (si existe) + stepper
+    setStatusUI(Number(req.estatus_code ?? 0));
 
     console.groupEnd();
-  }
-
-  /* ========================================================================
-   * Control dummy de estatus (botón + select)
-   * ======================================================================*/
-  function bindStatusControl() {
-    const host = $("#req-status");
-    if (!host) return;
-
-    const btn = host.querySelector('[data-role="status-btn"]');
-    const sel = host.querySelector('[data-role="status-select"]');
-    const badge = host.querySelector('[data-role="status-badge"]');
-
-    if (!btn || !sel || !badge) return;
-
-    // Mostrar/ocultar combo
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      const willShow = sel.hidden;
-      sel.hidden = !willShow;
-      if (willShow) sel.focus();
-    });
-
-    // Al elegir un estatus: actualiza badge y stepper (solo UI)
-    sel.addEventListener("change", () => {
-      const code = Number(sel.value);
-      const lbl = statusLabel(code);
-      const cls = statusBadgeClass(code);
-
-      badge.classList.remove("is-info","is-muted","is-warning","is-danger","is-success");
-      badge.classList.add(cls);
-      badge.textContent = lbl;
-
-      if (window.paintStepper) window.paintStepper(code);
-
-      // Oculta el combo tras seleccionar
-      sel.hidden = true;
-
-      // (dummy) feedback
-      toast(`Estatus cambiado a "${lbl}" (modo demo)`, "info");
-    });
-
-    // Acceso rápido con teclado: Enter/Space abre el select
-    btn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        btn.click();
-      }
-    });
   }
 
   /* ========================================================================
@@ -574,7 +591,7 @@
     initAccordionsEvidencias();
     initSortableTables();
     initStepper();
-    bindStatusControl(); // activa el botón/selector de estatus (dummy)
+    initStatusControls(); // ← activa el botón + combo si existe el HTML
 
     // Inicializa Planeación (UI puro por ahora)
     if (window.Planeacion?.init) {

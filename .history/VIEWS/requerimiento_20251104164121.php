@@ -264,7 +264,7 @@
                                     <!-- Badge que actualizamos por JS -->
                                     <span data-role="status-badge" class="exp-badge is-info">—</span>
 
-                                    <!-- boton + combo para cambiar el status, de momento no actualiza realmente-->
+                                    <!-- Herramientas: botón + combo (el combo arranca oculto) -->
                                     <div class="status-tools"
                                         style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
                                         <button type="button" class="btn-xs" data-role="status-btn">Cambiar</button>
