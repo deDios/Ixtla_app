@@ -1079,59 +1079,43 @@ function computeStatusDistributionAll(rows) {
 }
 
 function drawChartsFromRows(rows) {
-  const labels = [
-    "Ene",
-    "Feb",
-    "Mar",
-    "Abr",
-    "May",
-    "Jun",
-    "Jul",
-    "Ago",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dic",
-  ];
+  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const yearSeries = computeYearSeries(rows);
-  const donutAgg = computeStatusDistributionAll(rows);
+  const donutAgg   = computeStatusDistributionAll(rows);  // ← usa donutAgg
 
-  const $line = $(SEL.chartYear);
+  const $line  = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
 
   log("CHARTS — input (rows length):", rows.length);
   log("CHARTS — year series:", { labels, series: yearSeries });
   log("CHARTS — donut distribution:", donutAgg);
 
-  if (Charts?.line && Charts.line.destroy) {
-    try {
-      Charts.line.destroy();
-    } catch {}
-  }
-  if (Charts?.donut && Charts.donut.destroy) {
-    try {
-      Charts.donut.destroy();
-    } catch {}
-  }
+  try { Charts?.line?.destroy?.(); } catch {}
+  try { Charts?.donut?.destroy?.(); } catch {}
 
   if ($line) {
-    Charts.line = new LineChart($line, {
-      labels,
-      series: yearSeries,
-      showGrid: true,
-      headroom: 0.2,
-      yTicks: 6,
-    });
-    log("CHARTS — LineChart render ok");
+    try {
+      Charts.line = new LineChart($line, {
+        labels,
+        series: yearSeries,
+        showGrid: true,
+        headroom: 0.2,
+        yTicks: 6,
+      });
+      log("CHARTS — LineChart render ok");
+    } catch (e) { err("LineChart error:", e); }
   }
+
   if ($donut) {
-    Charts.donut = new DonutChart($donut, {
-      data: donutAgg.items,
-      total: donutAgg.total,
-      legendEl: $(SEL.donutLegend) || null,
-      showPercLabels: true,
-    });
-    log("CHARTS — DonutChart render ok", { total: donutAgg.total });
+    try {
+      Charts.donut = new DonutChart($donut, {
+        data: donutAgg.items,     // ← usa donutAgg
+        total: donutAgg.total,    // ← usa donutAgg
+        legendEl: $(SEL.donutLegend) || null,
+        showPercLabels: true,
+      });
+      log("CHARTS — DonutChart render ok", { total: donutAgg.total });
+    } catch (e) { err("DonutChart error:", e); }
   }
 
   document.querySelectorAll(".hs-chart-skeleton")?.forEach((el) => el.remove());
