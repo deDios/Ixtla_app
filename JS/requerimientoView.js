@@ -13,7 +13,6 @@
   const toast = (m, t = "info") =>
     (window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m));
 
-  // Exponer helpers mínimos para otros módulos
   if (!window._rvHelpers) window._rvHelpers = { $, $$, toast };
 
   /* ========================================================================
@@ -29,30 +28,53 @@
     finalizado: 6,
   };
 
-  // Fuente de estado actual (DOM)
-  function getCurrentStatus() {
-    const v1 = Number(document.body.getAttribute("data-req-status"));
-    if (!Number.isNaN(v1)) return v1;
-
-    const tag = $("[data-status-code]");
-    if (tag) {
-      const v2 = Number(tag.getAttribute("data-status-code"));
-      if (!Number.isNaN(v2)) return v2;
-    }
-
-    // fallback
-    return STATUS.revision;
+  /* ========================================================================
+   * Contenedor de acciones
+   * ======================================================================*/
+  // 🔴 Ahora apunta al contenedor real del HTML: #req-actions.exp-actions
+  function actionsContainer() {
+    return $("#req-actions") || $(".exp-actions") || $("#estado-actions") || $(".estado-actions") || null;
   }
 
-  function setCurrentStatus(next) {
-    document.body.setAttribute("data-req-status", String(next));
+  // Etiquetas por acción
+  const ACTION_LABEL = {
+    asignar:   "Asignar a departamento",
+    iniciar:   "Iniciar proceso",
+    pausar:    "Pausar",
+    cancelar:  "Cancelar",
+    finalizar: "Finalizar",
+    reanudar:  "Reanudar",
+  };
+
+  // Crea los botones si no existen (idempotente)
+  function ensureActions() {
+    const c = actionsContainer();
+    if (!c) return null;
+
+    const acts = ["asignar","iniciar","pausar","cancelar","finalizar","reanudar"];
+    acts.forEach((act) => {
+      let btn = c.querySelector(`[data-act="${act}"]`);
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("data-act", act);
+        // clases genéricas y no intrusivas (ajústalas si tienes un estilo específico)
+        btn.className = "exp-btn action-btn";
+        btn.textContent = ACTION_LABEL[act] || act;
+        c.appendChild(btn);
+      } else {
+        // asegurar la etiqueta correcta (p.ej. Reanudar sin “proceso”)
+        btn.textContent = ACTION_LABEL[act] || act;
+      }
+    });
+    return c;
   }
 
   /* ========================================================================
-   * Modal Estado (pausar / cancelar / etc.)
+   * Modal Estado (pausar / cancelar)
    * ======================================================================*/
   const ModalEstado = (() => {
-    const modal = $("#modal-estado");          // <div id="modal-estado" class="modal-overlay">
+    const modal = $("#modal-estado");
     if (!modal) return null;
 
     const closeBtn = modal.querySelector(".modal-close");
@@ -66,41 +88,44 @@
       modal.classList.remove("active");
     }
 
-    // Cerrar al hacer click en overlay
     modal.addEventListener("click", (e) => {
       if (e.target === modal) close();
     });
-
-    // Botón "x"
     if (closeBtn) {
       closeBtn.addEventListener("click", (e) => {
         e.preventDefault();
         close();
       });
     }
-
-    // Escape
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && modal.getAttribute("aria-hidden") === "false") {
-        close();
-      }
+      if (e.key === "Escape" && modal.getAttribute("aria-hidden") === "false") close();
     });
 
-    // Exponer
     return { open, close, el: modal };
   })();
-
-  // Acceso por consola si se requiere
   if (ModalEstado) window.modalEstado = ModalEstado;
 
   /* ========================================================================
-   * Acciones por estado (toolbar)
+   * Estado actual (leer/escribir)
    * ======================================================================*/
-  function actionsContainer() {
-    return $("#estado-actions") || $(".estado-actions") || null;
+  function getCurrentStatus() {
+    const v1 = Number(document.body.getAttribute("data-req-status"));
+    if (!Number.isNaN(v1)) return v1;
+
+    const tag = $("[data-status-code]");
+    if (tag) {
+      const v2 = Number(tag.getAttribute("data-status-code"));
+      if (!Number.isNaN(v2)) return v2;
+    }
+    return STATUS.revision;
+  }
+  function setCurrentStatus(next) {
+    document.body.setAttribute("data-req-status", String(next));
   }
 
-  // Mostrar / ocultar por data-act
+  /* ========================================================================
+   * Mostrar/ocultar/orden de acciones
+   * ======================================================================*/
   function setVisible(act, show) {
     const c = actionsContainer();
     if (!c) return;
@@ -109,8 +134,6 @@
     el.style.display = show ? "" : "none";
     el.toggleAttribute("hidden", !show);
   }
-
-  // Reordenar botones dentro del contenedor
   function orderActions(orderArr) {
     const c = actionsContainer();
     if (!c) return;
@@ -120,13 +143,13 @@
     });
   }
 
-  // Pintar UI de acciones según estado
   function renderActionsByStatus(currentStatus) {
+    ensureActions(); // garantiza que existan
     const all = ["asignar","iniciar","pausar","cancelar","finalizar","reanudar"];
     all.forEach((a) => setVisible(a, false));
 
     if (currentStatus === STATUS.revision) {
-      // En revisión: pausar, cancelar, asignar a departamento
+      // Solo ver: pausar, cancelar, asignar a departamento
       setVisible("pausar",   true);
       setVisible("cancelar", true);
       setVisible("asignar",  true);
@@ -134,16 +157,15 @@
     }
 
     if (currentStatus === STATUS.asignacion) {
-      // "Iniciar proceso" solo desde ASIGNACIÓN
+      // "Iniciar proceso" aparece desde ASIGNACIÓN
       setVisible("iniciar",  true);
-      // (si deseas permitir pausar/cancelar aquí, quedan visibles)
       setVisible("pausar",   true);
       setVisible("cancelar", true);
       orderActions(["pausar","cancelar","iniciar"]);
     }
 
     if (currentStatus === STATUS.enProceso) {
-      // En proceso: pausar, cancelar, finalizar (en ese orden)
+      // Orden: pausar, cancelar, finalizar
       setVisible("pausar",    true);
       setVisible("cancelar",  true);
       setVisible("finalizar", true);
@@ -151,73 +173,68 @@
     }
 
     if (currentStatus === STATUS.pausado) {
-      // En pausado: mostrar "Reanudar" (etiqueta corta)
+      // Reanudar (etiqueta corta) y opcionalmente cancelar
       const c = actionsContainer();
       if (c) {
         const btnRe = c.querySelector(`[data-act="reanudar"]`);
         if (btnRe) btnRe.textContent = "Reanudar";
       }
       setVisible("reanudar", true);
-      setVisible("cancelar", true); // opcional
+      setVisible("cancelar", true);
       orderActions(["reanudar","cancelar"]);
     }
 
-    if (currentStatus === STATUS.cancelado || currentStatus === STATUS.finalizado) {
-      // Estados terminales: no mostrar acciones
-    }
+    // cancelado/finalizado => sin acciones
   }
 
-  // Handlers (UI-only por ahora)
+  /* ========================================================================
+   * Handlers
+   * ======================================================================*/
   function wireActionHandlers() {
-    const c = actionsContainer();
+    const c = ensureActions();
     if (!c) return;
 
-    // Reanudar -> vuelve a Revisión
-    const re = c.querySelector(`[data-act="reanudar"]`);
-    if (re) {
-      re.addEventListener("click", (e) => {
+    // Reanudar => vuelve a Revisión
+    c.querySelectorAll(`[data-act="reanudar"]`).forEach((btn) => {
+      btn.addEventListener("click", (e) => {
         e.preventDefault();
         setCurrentStatus(STATUS.revision);
         renderActionsByStatus(STATUS.revision);
         toast("Requerimiento reanudado: estado 'Revisión'.", "success");
       });
-    }
+    });
 
-    // Iniciar (visible solo en asignación; aquí sin backend)
-    const ini = c.querySelector(`[data-act="iniciar"]`);
-    if (ini) {
-      ini.addEventListener("click", (e) => {
+    // Iniciar (placeholder)
+    c.querySelectorAll(`[data-act="iniciar"]`).forEach((btn) => {
+      btn.addEventListener("click", (e) => {
         e.preventDefault();
         toast("Iniciar proceso (pendiente de backend).", "info");
       });
-    }
+    });
 
-    // Pausar / Cancelar / Finalizar (placeholders)
+    // Pausar / Cancelar / Finalizar / Asignar (placeholder + modal en pausar/cancelar)
     ["pausar","cancelar","finalizar","asignar"].forEach((act) => {
-      const btn = c.querySelector(`[data-act="${act}"]`);
-      if (btn) {
+      c.querySelectorAll(`[data-act="${act}"]`).forEach((btn) => {
         btn.addEventListener("click", (e) => {
           e.preventDefault();
-          // Podemos abrir el modal de estado si aplica
           if (ModalEstado && (act === "pausar" || act === "cancelar")) {
             ModalEstado.open();
           } else {
-            toast(`Acción "${act}" (pendiente de backend).`, "info");
+            toast(`Acción "${ACTION_LABEL[act] || act}" (pendiente de backend).`, "info");
           }
         });
-      }
+      });
     });
   }
 
   /* ========================================================================
-   * Observador de cambios (si algún otro módulo cambia data-req-status)
+   * Observer de cambios en data-req-status
    * ======================================================================*/
   function observeStatusAttribute() {
     const obs = new MutationObserver((muts) => {
       for (const m of muts) {
         if (m.type === "attributes" && m.attributeName === "data-req-status") {
-          const st = getCurrentStatus();
-          renderActionsByStatus(st);
+          renderActionsByStatus(getCurrentStatus());
         }
       }
     });
@@ -229,22 +246,17 @@
    * ======================================================================*/
   function init() {
     log("Boot requerimientoView.js");
-    const st = getCurrentStatus();
-    renderActionsByStatus(st);
+    ensureActions();                        // crea botones si no existen
+    renderActionsByStatus(getCurrentStatus());
     wireActionHandlers();
     observeStatusAttribute();
 
-    // Exponer controlador de acciones (útil desde otros scripts)
     window._rvActions = {
       STATUS,
       getStatus: getCurrentStatus,
-      setStatus: (next) => {
-        setCurrentStatus(next);
-        renderActionsByStatus(next);
-      },
+      setStatus: (next) => { setCurrentStatus(next); renderActionsByStatus(next); },
       refresh: () => renderActionsByStatus(getCurrentStatus()),
     };
-
     log("Detalle listo");
   }
 
@@ -254,4 +266,5 @@
     init();
   }
 })();
+
 
