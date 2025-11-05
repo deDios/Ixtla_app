@@ -749,7 +749,7 @@ body.me-modal-open{ overflow:hidden; }
 body.me-modal-open { overflow: hidden; }
 
 
-/* ====== Modal PERFIL  ====== */
+/* ====== Modal PERFIL (override con alta especificidad) ====== */
 #modal-perfil.modal-overlay {
   position: fixed;
   inset: 0;

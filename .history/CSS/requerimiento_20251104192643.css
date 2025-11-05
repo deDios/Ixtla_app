@@ -721,7 +721,7 @@ body.me-modal-open{ overflow:hidden; }
   max-width: min(92vw, 980px);
   max-height: 90vh;
   overflow: auto;
-  background: #fff !important;    
+  background: #fff !important;      /* evita transparencia heredada */
   border-radius: 12px;
   padding: 16px 16px 20px;
   box-shadow: 0 12px 48px rgba(0,0,0,.28);
@@ -747,66 +747,3 @@ body.me-modal-open{ overflow:hidden; }
 }
 
 body.me-modal-open { overflow: hidden; }
-
-
-/* ====== Modal PERFIL  ====== */
-#modal-perfil.modal-overlay {
-  position: fixed;
-  inset: 0;
-
-  /* oculto por defecto */
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-
-  /* layout */
-  align-items: center;
-  justify-content: center;
-  padding: 1.25rem;
-
-  /* backdrop */
-  background: rgba(17, 24, 39, .60) !important;
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-
-  /* por encima de todo lo demás */
-  z-index: 2147483646 !important;
-
-  transition: opacity .18s ease, visibility .18s ease;
-}
-
-#modal-perfil.modal-overlay.active,
-#modal-perfil.modal-overlay[aria-hidden="false"] {
-  display: flex !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: auto !important;
-}
-
-/* caja del diálogo */
-#modal-perfil .modal-content {
-  position: relative;
-  width: 100%;
-  max-width: min(92vw, 880px);
-  max-height: 90vh;
-  overflow: auto;
-
-  background: #fff !important;      
-  border-radius: 12px;
-  padding: 16px 16px 20px;
-  box-shadow: 0 12px 48px rgba(0,0,0,.28);
-}
-
-/* botón cerrar */
-#modal-perfil .modal-close {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  border: 0;
-  background: transparent;
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-body.modal-open { overflow: hidden; }

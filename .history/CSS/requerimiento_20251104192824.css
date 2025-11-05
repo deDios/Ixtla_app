@@ -749,7 +749,7 @@ body.me-modal-open{ overflow:hidden; }
 body.me-modal-open { overflow: hidden; }
 
 
-/* ====== Modal PERFIL  ====== */
+/* ====== Modal PERFIL (override con alta especificidad) ====== */
 #modal-perfil.modal-overlay {
   position: fixed;
   inset: 0;
@@ -775,6 +775,7 @@ body.me-modal-open { overflow: hidden; }
   transition: opacity .18s ease, visibility .18s ease;
 }
 
+/* visible: por clase .active o por aria-hidden="false" */
 #modal-perfil.modal-overlay.active,
 #modal-perfil.modal-overlay[aria-hidden="false"] {
   display: flex !important;
@@ -791,7 +792,7 @@ body.me-modal-open { overflow: hidden; }
   max-height: 90vh;
   overflow: auto;
 
-  background: #fff !important;      
+  background: #fff !important;       /* evita transparencias heredadas */
   border-radius: 12px;
   padding: 16px 16px 20px;
   box-shadow: 0 12px 48px rgba(0,0,0,.28);
@@ -809,4 +810,5 @@ body.me-modal-open { overflow: hidden; }
   cursor: pointer;
 }
 
+/* bloqueo de scroll del body mientras está abierto */
 body.modal-open { overflow: hidden; }
