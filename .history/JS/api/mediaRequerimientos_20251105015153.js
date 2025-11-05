@@ -12,7 +12,7 @@ import { listMedia } from "/JS/api/media.js";
   const log = (...a) => console.log("[MediaGlue]", ...a);
   const warn = (...a) => console.warn("[MediaGlue]", ...a);
 
-  // Lee respuesta
+  // Lee respuesta “a prueba de HTML”
   async function fetchJsonSafe(input, init) {
     const res = await fetch(input, init);
     const text = await res.text();
