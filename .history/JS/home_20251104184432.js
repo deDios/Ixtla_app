@@ -1078,6 +1078,27 @@ function computeStatusDistributionAll(rows) {
   return { items, total: rows.length };
 }
 
+function computeMonthDistribution(rows) {
+  const now = new Date();
+  const y = now.getFullYear(),
+    m = now.getMonth();
+  const by = new Map();
+  for (const r of rows) {
+    const iso = String(r.creado || r.raw?.created_at || "").replace(" ", "T");
+    const d = new Date(iso);
+    if (!isNaN(d) && d.getFullYear() === y && d.getMonth() === m) {
+      const key = r.tramite || r.asunto || "Otros";
+      by.set(key, (by.get(key) || 0) + 1);
+    }
+  }
+  const items = Array.from(by.entries()).map(([label, value]) => ({
+    label,
+    value,
+  }));
+  items.sort((a, b) => b.value - a.value);
+  const total = items.reduce((a, b) => a + b.value, 0);
+  return { items, total };
+}
 function drawChartsFromRows(rows) {
   const labels = [
     "Ene",
@@ -1131,7 +1152,7 @@ function drawChartsFromRows(rows) {
       legendEl: $(SEL.donutLegend) || null,
       showPercLabels: true,
     });
-    log("CHARTS — DonutChart render ok", { total: donutAgg.total });
+    log("CHARTS — DonutChart render ok", { total: monthAgg.total });
   }
 
   document.querySelectorAll(".hs-chart-skeleton")?.forEach((el) => el.remove());

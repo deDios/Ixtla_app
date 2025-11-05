@@ -179,6 +179,7 @@
 
     const detallesVals = $$('.exp-pane[data-tab="detalles"] .exp-grid .exp-val');
     detallesVals.forEach((n) => {
+      // Si es el contenedor del estatus, NO clobber: sólo badge
       if (n.id === 'req-status') {
         let badge = n.querySelector('[data-role="status-badge"]');
         if (!badge) {
@@ -608,7 +609,6 @@
       const req = await getRequerimientoById(reqId);
       console.log("Requerimiento (normalizado):", req);
       paintRequerimiento(req);
-      bindStatusControl(); // ← engancha botón + select
 
       try {
         window.__REQ__ = req;

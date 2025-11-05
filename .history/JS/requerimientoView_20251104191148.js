@@ -608,7 +608,6 @@
       const req = await getRequerimientoById(reqId);
       console.log("Requerimiento (normalizado):", req);
       paintRequerimiento(req);
-      bindStatusControl(); // ← engancha botón + select
 
       try {
         window.__REQ__ = req;
