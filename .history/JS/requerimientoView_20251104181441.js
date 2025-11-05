@@ -598,7 +598,7 @@
       paintRequerimiento(req);
 
       try {
-        window.__REQ__ = req; 
+        window.__REQ__ = req; // útil para otros módulos también
         const evid = document.querySelector('[data-acc="evidencias"]');
         if (evid && req.folio) evid.setAttribute('data-folio', req.folio);
         document.dispatchEvent(new CustomEvent('req:loaded', { detail: req }));

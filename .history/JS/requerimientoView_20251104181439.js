@@ -5,16 +5,16 @@
   /* ========================================================================
    * Helpers base (expuestos a Planeación)
    * ======================================================================*/
-  const $ = (s, r = document) => r.querySelector(s);
+  const $  = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-  const log = (...a) => console.log("[RequerimientoView]", ...a);
-  const warn = (...a) => console.warn("[RequerimientoView]", ...a);
-  const err = (...a) => console.error("[RequerimientoView]", ...a);
+  const log   = (...a) => console.log("[RequerimientoView]", ...a);
+  const warn  = (...a) => console.warn("[RequerimientoView]", ...a);
+  const err   = (...a) => console.error("[RequerimientoView]", ...a);
   const toast = (m, t = "info") =>
     (window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m));
 
-  const firstTwo = (full = "") =>
-    String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") || "—";
+  const firstTwo = (full="") =>
+    String(full).trim().split(/\s+/).filter(Boolean).slice(0,2).join(" ") || "—";
 
   // Exponer helpers mínimos para otros módulos (Planeación)
   window._rvHelpers = { $, $$, toast };
@@ -145,7 +145,7 @@
     if (container && current) {
       const cRect = container.getBoundingClientRect();
       const iRect = current.getBoundingClientRect();
-      const delta = (iRect.left + iRect.width / 2) - (cRect.left + cRect.width / 2);
+      const delta = (iRect.left + iRect.width/2) - (cRect.left + cRect.width/2);
       container.scrollBy({ left: delta, behavior: 'smooth' });
     }
   }
@@ -198,9 +198,9 @@
    * HTTP + Session
    * ======================================================================*/
   const ENDPOINTS = {
-    REQUERIMIENTO_GET: "/db/WEB/ixtla01_c_requerimiento.php",
-    COMENT_LIST: "/db/WEB/ixtla01_c_comentario_requerimiento.php",
-    COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
+    REQUERIMIENTO_GET:  "/db/WEB/ixtla01_c_requerimiento.php",
+    COMENT_LIST:        "/db/WEB/ixtla01_c_comentario_requerimiento.php",
+    COMENT_CREATE:      "/db/WEB/ixtla01_i_comentario_requerimiento.php",
   };
 
   async function postJSON(url, body) {
@@ -250,14 +250,14 @@
   function safeGetSession() {
     try {
       if (window.Session?.get) return window.Session.get();
-    } catch { }
+    } catch {}
     try {
       const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
       if (!pair) return null;
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
       if (json && typeof json === "object") return json;
-    } catch { }
+    } catch {}
     return null;
   }
 
@@ -271,33 +271,33 @@
   }
 
   function normalizeRequerimiento(raw = {}) {
-    const toId = (v) => (v == null ? null : String(v));
+    const toId = (v)=> (v==null? null : String(v));
     const id = toId(raw.id ?? raw.requerimiento_id);
     const folio = String(raw.folio ?? raw.folio_requerimiento ?? "").trim();
 
     const tramite = String(raw.tramite ?? raw.tramite_nombre ?? raw.nombre_tramite ?? "").trim();
-    const asunto = String(raw.asunto ?? raw.titulo ?? "").trim();
+    const asunto  = String(raw.asunto ?? raw.titulo ?? "").trim();
     const descripcion = String(raw.descripcion ?? raw.detalle ?? "").trim();
 
-    const contacto_nombre = String(raw.contacto_nombre ?? raw.nombre_contacto ?? raw.contacto ?? "").trim();
+    const contacto_nombre   = String(raw.contacto_nombre ?? raw.nombre_contacto ?? raw.contacto ?? "").trim();
     const contacto_telefono = String(raw.contacto_telefono ?? raw.telefono_contacto ?? raw.telefono ?? "").trim();
-    const contacto_email = String(raw.contacto_email ?? raw.email_contacto ?? raw.correo ?? "").trim();
-    const contacto_calle = String(raw.contacto_calle ?? raw.direccion ?? raw.calle ?? "").trim();
-    const contacto_colonia = String(raw.contacto_colonia ?? raw.colonia ?? "").trim();
-    const contacto_cp = String(raw.contacto_cp ?? raw.cp ?? raw.codigo_postal ?? "").trim();
+    const contacto_email    = String(raw.contacto_email ?? raw.email_contacto ?? raw.correo ?? "").trim();
+    const contacto_calle    = String(raw.contacto_calle ?? raw.direccion ?? raw.calle ?? "").trim();
+    const contacto_colonia  = String(raw.contacto_colonia ?? raw.colonia ?? "").trim();
+    const contacto_cp       = String(raw.contacto_cp ?? raw.cp ?? raw.codigo_postal ?? "").trim();
     const direccion_reporte = buildDireccion(contacto_calle, contacto_colonia);
 
-    const asignado_nombre = String(raw.asignado_nombre ?? raw.nombre_asignado ?? raw.empleado_nombre ?? "").trim();
-    const asignado_apellidos = String(raw.asignado_apellidos ?? raw.empleado_apellidos ?? "").trim();
-    const asignado_full = String(raw.asignado_full || [asignado_nombre, asignado_apellidos].filter(Boolean).join(" ")).trim();
+    const asignado_nombre   = String(raw.asignado_nombre ?? raw.nombre_asignado ?? raw.empleado_nombre ?? "").trim();
+    const asignado_apellidos= String(raw.asignado_apellidos ?? raw.empleado_apellidos ?? "").trim();
+    const asignado_full     = String(raw.asignado_full || [asignado_nombre, asignado_apellidos].filter(Boolean).join(" ")).trim();
 
     const estatus_code = Number(raw.estatus_code ?? raw.estatus ?? raw.status ?? raw.estado ?? 0);
-    const prioridad = (raw.prioridad != null) ? Number(raw.prioridad) : null;
-    const canal = (raw.canal != null) ? Number(raw.canal) : null;
+    const prioridad    = (raw.prioridad != null) ? Number(raw.prioridad) : null;
+    const canal        = (raw.canal != null) ? Number(raw.canal) : null;
 
-    const creado_at = String(raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? "").trim();
+    const creado_at      = String(raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? "").trim();
     const actualizado_at = String(raw.actualizado_at ?? raw.updated_at ?? "").trim();
-    const cerrado_en = raw.cerrado_en != null ? String(raw.cerrado_en).trim() : null;
+    const cerrado_en     = raw.cerrado_en != null ? String(raw.cerrado_en).trim() : null;
 
     return {
       id, folio,
@@ -332,7 +332,7 @@
     const ddF = $(".exp-meta > div:nth-child(3) dd");
     if (ddC) ddC.textContent = (req.contacto_nombre || "—");
     if (ddE) ddE.textContent = req.asignado_full || "—";
-    if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
+    if (ddF) ddF.textContent = (req.creado_at || "—").replace("T"," ");
 
     // Tab Contacto (nombre completo)
     const contactoGrid = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
@@ -372,7 +372,7 @@
         document.querySelector('#req-status [data-role="status-badge"]') ||
         $(`.exp-field:nth-child(4) .exp-val .exp-badge`, detalles);
       if (badgeEl) {
-        badgeEl.classList.remove('is-info', 'is-muted', 'is-warning', 'is-danger', 'is-success');
+        badgeEl.classList.remove('is-info','is-muted','is-warning','is-danger','is-success');
         const cls = statusBadgeClass(req.estatus_code);
         const lbl = statusLabel(req.estatus_code);
         badgeEl.classList.add(cls);
@@ -425,7 +425,7 @@
       const lbl = statusLabel(code);
       const cls = statusBadgeClass(code);
 
-      badge.classList.remove("is-info", "is-muted", "is-warning", "is-danger", "is-success");
+      badge.classList.remove("is-info","is-muted","is-warning","is-danger","is-success");
       badge.classList.add(cls);
       badge.textContent = lbl;
 
@@ -450,7 +450,7 @@
   /* ========================================================================
    * Comentarios: listar / crear
    * ======================================================================*/
-  async function listComentariosAPI({ requerimiento_id, status = 1, page = 1, page_size = 100 }) {
+  async function listComentariosAPI({ requerimiento_id, status=1, page=1, page_size=100 }) {
     const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
     const res = await postJSON(ENDPOINTS.COMENT_LIST, payload);
     const raw = res?.data ?? res?.items ?? res;
@@ -458,7 +458,7 @@
     return arr;
   }
 
-  async function createComentarioAPI({ requerimiento_id, empleado_id, comentario, status = 1, created_by }) {
+  async function createComentarioAPI({ requerimiento_id, empleado_id, comentario, status=1, created_by }) {
     const payload = {
       requerimiento_id: Number(requerimiento_id),
       empleado_id: empleado_id ?? null,
@@ -485,7 +485,7 @@
     feed.innerHTML = "";
     filtered.forEach(r => {
       const nombre = r.nombre || r.empleado_nombre || r.autor || r.created_by || "—";
-      const texto = r.comentario || r.texto || "";
+      const texto  = r.comentario || r.texto || "";
       const cuandoAbs = r.created_at || r.fecha || "";
       const cuando = relShort(cuandoAbs); // relativo corto
 
@@ -566,60 +566,60 @@
     }, { capture: true });
   }
 
-  /* ========================================================================
-   * Boot
-   * ======================================================================*/
-  async function boot() {
-    resetTemplate();
-    initAccordionsEvidencias();
-    initSortableTables();
-    initStepper();
+/* ========================================================================
+ * Boot
+ * ======================================================================*/
+async function boot() {
+  resetTemplate();
+  initAccordionsEvidencias();
+  initSortableTables();
+  initStepper();
 
-    // Inicializa Planeación (UI puro por ahora)
-    if (window.Planeacion?.init) {
-      try { window.Planeacion.init(); } catch (e) { warn("Planeacion.init() error:", e); }
-    }
-
-    console.groupCollapsed("[Boot] Detalle");
-    const params = new URL(window.location.href).searchParams;
-    const reqId = params.get("id");
-    console.log("URL:", window.location.href, "reqId:", reqId);
-
-    if (!reqId) {
-      console.warn("Sin ?id= en URL; no se consultará backend.");
-      console.groupEnd();
-      return;
-    }
-
-    // Detalle
-    try {
-      const req = await getRequerimientoById(reqId);
-      console.log("Requerimiento (normalizado):", req);
-      paintRequerimiento(req);
-
-      try {
-        window.__REQ__ = req; 
-        const evid = document.querySelector('[data-acc="evidencias"]');
-        if (evid && req.folio) evid.setAttribute('data-folio', req.folio);
-        document.dispatchEvent(new CustomEvent('req:loaded', { detail: req }));
-      } catch (e) {
-        warn("No se pudo propagar folio a Evidencias:", e);
-      }
-
-    } catch (e) {
-      warn("Error consultando requerimiento:", e);
-    }
-
-    // Comentarios + composer
-    await loadComentarios(reqId);
-    interceptComposer(reqId);
-
-    console.groupEnd();
+  // Inicializa Planeación (UI puro por ahora)
+  if (window.Planeacion?.init) {
+    try { window.Planeacion.init(); } catch (e) { warn("Planeacion.init() error:", e); }
   }
 
-  if (document.readyState === "loading")
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
-  else boot();
+  console.groupCollapsed("[Boot] Detalle");
+  const params = new URL(window.location.href).searchParams;
+  const reqId = params.get("id");
+  console.log("URL:", window.location.href, "reqId:", reqId);
+
+  if (!reqId) {
+    console.warn("Sin ?id= en URL; no se consultará backend.");
+    console.groupEnd();
+    return;
+  }
+
+  // Detalle
+  try {
+    const req = await getRequerimientoById(reqId);
+    console.log("Requerimiento (normalizado):", req);
+    paintRequerimiento(req);
+
+    try {
+      window.__REQ__ = req; // útil para otros módulos también
+      const evid = document.querySelector('[data-acc="evidencias"]');
+      if (evid && req.folio) evid.setAttribute('data-folio', req.folio);
+      document.dispatchEvent(new CustomEvent('req:loaded', { detail: req }));
+    } catch (e) {
+      warn("No se pudo propagar folio a Evidencias:", e);
+    }
+
+  } catch (e) {
+    warn("Error consultando requerimiento:", e);
+  }
+
+  // Comentarios + composer
+  await loadComentarios(reqId);
+  interceptComposer(reqId);
+
+  console.groupEnd();
+}
+
+if (document.readyState === "loading")
+  document.addEventListener("DOMContentLoaded", boot, { once: true });
+else boot();
 
 
 })();

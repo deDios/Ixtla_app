@@ -651,29 +651,24 @@
 
 
     <!-- Modal: Visor de Evidencias -->
-    <div id="modal-media" class="modal-overlay" aria-hidden="true">
-        <div class="modal-content">
-            <button class="modal-close" aria-label="Cerrar">&times;</button>
-            <div class="media-head" style="margin-bottom:10px;">
-                <h3 id="media-title" style="margin:0; font-size:1.05rem; font-weight:700;"></h3>
-                <div id="media-meta" style="color:#6b7280; font-size:.85rem; margin-top:4px;"></div>
-            </div>
-            <div class="media-body">
-                <img id="media-img" alt=""
-                    style="max-width:100%; height:auto; display:block; margin:0 auto; border-radius:8px;">
-            </div>
-        </div>
+<div id="modal-media" class="modal-overlay" aria-hidden="true">
+  <div class="modal-content">
+    <button class="modal-close" aria-label="Cerrar">&times;</button>
+    <div class="media-head" style="margin-bottom:10px;">
+      <h3 id="media-title" style="margin:0; font-size:1.05rem; font-weight:700;"></h3>
+      <div id="media-meta" style="color:#6b7280; font-size:.85rem; margin-top:4px;"></div>
     </div>
+    <div class="media-body">
+      <img id="media-img" alt="" style="max-width:100%; height:auto; display:block; margin:0 auto; border-radius:8px;">
+    </div>
+  </div>
+</div>
 
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>
     <script src="/JS/requerimientoView.js"></script>
     <script src="/JS/ui/requerimientoPlaneacion.js"></script>
-
-    <script type="module" src="/JS/api/media.js"></script>
-    <script type="module" src="/JS/mediaRequerimiento.js"></script>
-
 
     <!-- bundle para que cargue bien el sidebar -->
     <script type="module" src="/JS/auth/session.js"></script>

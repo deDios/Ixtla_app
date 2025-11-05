@@ -34,7 +34,7 @@ export const API = {
   },
 
   // === Media ===
-  MEDIA: {
-    GET:    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento_img.php",
+  EMPLEADOS: {
+    GET:    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
   },
 };
