@@ -647,6 +647,7 @@ body.me-modal-open{ overflow:hidden; }
 
 /* Botón (por data-role) */
 #req-status [data-role="status-btn"]{
+  display: none;
   appearance:none; border:1px solid #d6d9e0; background:#fff;
   font-size:.875rem; line-height:1; padding:.45rem .65rem; border-radius:.5rem;
   cursor:pointer; transition:background .15s, box-shadow .15s, border-color .15s;

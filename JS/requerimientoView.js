@@ -161,6 +161,156 @@
   }
 
   /* ========================================================================
+   * BOTONERA de acciones (UI + hooks)
+   * ======================================================================*/
+  function getCurrentStatusCode() {
+    const sel = $('#req-status [data-role="status-select"]');
+    if (sel && !sel.hidden) return Number(sel.value || 0);
+    const cur = document.querySelector('.step-menu li.current');
+    return cur ? Number(cur.getAttribute('data-status')) : 0;
+  }
+
+  function updateStatusUI(code) {
+    code = Number(code);
+    const badge = document.querySelector('#req-status [data-role="status-badge"]');
+    if (badge) {
+      badge.classList.remove('is-info','is-muted','is-warning','is-danger','is-success');
+      badge.classList.add(statusBadgeClass(code));
+      badge.textContent = statusLabel(code);
+    }
+    const sel = document.querySelector('#req-status [data-role="status-select"]');
+    if (sel) sel.value = String(code);
+    if (window.paintStepper) window.paintStepper(code);
+  }
+
+  function askMotivo(titulo = "Motivo") {
+    return new Promise((resolve, reject) => {
+      const overlay = $('#modal-estado');
+      const title   = $('#estado-title');
+      const form    = $('#form-estado');
+      const txt     = $('#estado-motivo');
+      if (!overlay || !form || !txt) return reject("Modal #modal-estado no está en el DOM");
+      title.textContent = titulo;
+      txt.value = "";
+      overlay.setAttribute('aria-hidden','false');
+      document.body.classList.add('me-modal-open');
+      const onSubmit = (e) => {
+        e.preventDefault();
+        const v = txt.value.trim();
+        if (!v) return txt.focus();
+        cleanup(); resolve(v);
+      };
+      const onClose = () => { cleanup(); reject("cancel"); };
+      form.addEventListener('submit', onSubmit);
+      overlay.querySelector('.modal-close')?.addEventListener('click', onClose);
+      overlay.addEventListener('click', (e)=>{ if(e.target === overlay) onClose(); });
+      function cleanup(){
+        form.removeEventListener('submit', onSubmit);
+        overlay.querySelector('.modal-close')?.removeEventListener('click', onClose);
+        overlay.removeEventListener('click', onClose);
+        overlay.setAttribute('aria-hidden','true');
+        document.body.classList.remove('me-modal-open');
+      }
+    });
+  }
+
+  function makeBtn(text, cls="", act="") {
+    const b = document.createElement('button');
+    b.type = "button";
+    b.className = `btn-xs ${cls}`.trim();
+    b.textContent = text;
+    if (act) b.dataset.act = act;
+    return b;
+  }
+
+  function getButtonsForStatus(code){
+    switch(Number(code)){
+      case 0: return [
+        makeBtn("Iniciar revisión","primary","start-revision"),
+        makeBtn("Asignar a departamento","","assign-dept"),
+        makeBtn("Cancelar","danger","cancel"),
+      ];
+      case 1: return [
+        makeBtn("Asignar a departamento","","assign-dept"),
+        makeBtn("Iniciar proceso","primary","start-process"),
+        makeBtn("Pausar","warn","pause"),
+        makeBtn("Cancelar","danger","cancel"),
+      ];
+      case 2: return [
+        makeBtn("Iniciar proceso","primary","start-process"),
+        makeBtn("Pausar","warn","pause"),
+        makeBtn("Cancelar","danger","cancel"),
+      ];
+      case 3: return [
+        makeBtn("Pausar","warn","pause"),
+        makeBtn("Finalizar","primary","finish"),
+        makeBtn("Cancelar","danger","cancel"),
+      ];
+      case 4: return [
+        makeBtn("Reanudar proceso","primary","resume"),
+        makeBtn("Cancelar","danger","cancel"),
+      ];
+      case 5: return [
+        makeBtn("Reabrir","primary","reopen"),
+      ];
+      case 6: return [
+        makeBtn("Reabrir","primary","reopen"),
+      ];
+      default:
+        return [ makeBtn("Iniciar revisión","primary","start-revision") ];
+    }
+  }
+
+  async function onAction(act){
+    let code = getCurrentStatusCode();
+    try{
+      if (act === "start-revision") {
+        code = 1; updateStatusUI(code); toast("Estado cambiado a Revisión","info");
+      }
+      else if (act === "assign-dept") {
+        toast("Abrir asignación a departamento","info"); // hook
+      }
+      else if (act === "start-process") {
+        code = 3; updateStatusUI(code); toast("Proceso iniciado","success");
+      }
+      else if (act === "pause") {
+        const motivo = await askMotivo("Motivo de la pausa");
+        void motivo; // conectar a API
+        code = 4; updateStatusUI(code); toast("Requerimiento en Pausa","warn");
+      }
+      else if (act === "resume") {
+        code = 3; updateStatusUI(code); toast("Proceso reanudado","success");
+      }
+      else if (act === "finish") {
+        code = 6; updateStatusUI(code); toast("Requerimiento finalizado","success");
+      }
+      else if (act === "cancel") {
+        const motivo = await askMotivo("Motivo de la cancelación");
+        void motivo; // conectar a API
+        code = 5; updateStatusUI(code); toast("Requerimiento cancelado","danger");
+      }
+      else if (act === "reopen") {
+        code = 1; updateStatusUI(code); toast("Requerimiento reabierto (Revisión)","info");
+      }
+    } catch(e){
+      if (e !== "cancel") console.warn(e);
+    }
+    renderActions(code);
+  }
+
+  function renderActions(code = getCurrentStatusCode()){
+    const wrap = $('#req-actions');
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    wrap.classList.add('exp-actions');
+    const btns = getButtonsForStatus(code);
+    btns.forEach(b => {
+      b.addEventListener('click', () => onAction(b.dataset.act));
+      wrap.appendChild(b);
+    });
+  }
+
+  /* ========================================================================
    * Reset plantilla (valores vacíos)
    * ======================================================================*/
   const fillText = (sel, txt) => { const n = $(sel); if (n) n.textContent = (txt ?? "—"); };
@@ -191,7 +341,6 @@
         badge.textContent = '—';
         return;
       }
-      // Para los demás campos sí puedes limpiar texto
       n.textContent = '—';
     });
 
@@ -241,7 +390,7 @@
   function toTs(v) {
     if (!v) return Date.now();
     if (typeof v === "number") return v;
-    const s = String(v).replace("T", " ").replace(/-/g, "/"); // ayuda Safari
+    const s = String(v).replace("T", " ").replace(/-/g, "/");
     const t = Date.parse(s);
     return Number.isFinite(t) ? t : Date.now();
   }
@@ -404,8 +553,10 @@
     const sel = document.querySelector('#req-status [data-role="status-select"]');
     if (sel) sel.value = String(req.estatus_code ?? 0);
 
-    // Stepper
+    // Stepper y acciones
     if (window.paintStepper) window.paintStepper(Number(req.estatus_code ?? 0));
+    updateStatusUI(Number(req.estatus_code ?? 0));
+    renderActions(Number(req.estatus_code ?? 0));
 
     console.groupEnd();
   }
@@ -442,12 +593,11 @@
       badge.textContent = lbl;
 
       if (window.paintStepper) window.paintStepper(code);
-
-      // Oculta el combo tras seleccionar
       sel.hidden = true;
-
-      // (dummy) feedback
       toast(`Estatus cambiado a "${lbl}" (aun no actualiza de verdad)`, "info");
+
+      // refresca la botonera con el nuevo estado
+      renderActions(code);
     });
 
     // Acceso rápido con teclado: Enter/Space abre el select
@@ -627,12 +777,14 @@
     await loadComentarios(reqId);
     interceptComposer(reqId);
 
+    // Asegurar botonera inicial
+    renderActions(getCurrentStatusCode());
+
     console.groupEnd();
   }
 
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();
-
 
 })();
