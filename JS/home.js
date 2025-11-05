@@ -1094,7 +1094,7 @@ function drawChartsFromRows(rows) {
     "Dic",
   ];
   const yearSeries = computeYearSeries(rows);
-  const monthAgg = computeStatusDistributionAll(rows);
+  const donutAgg = computeStatusDistributionAll(rows);
 
   const $line = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
