@@ -174,7 +174,7 @@
     code = Number(code);
     const badge = document.querySelector('#req-status [data-role="status-badge"]');
     if (badge) {
-      badge.classList.remove('is-info', 'is-muted', 'is-warning', 'is-danger', 'is-success');
+      badge.classList.remove('is-info','is-muted','is-warning','is-danger','is-success');
       badge.classList.add(statusBadgeClass(code));
       badge.textContent = statusLabel(code);
     }
@@ -186,13 +186,13 @@
   function askMotivo(titulo = "Motivo") {
     return new Promise((resolve, reject) => {
       const overlay = $('#modal-estado');
-      const title = $('#estado-title');
-      const form = $('#form-estado');
-      const txt = $('#estado-motivo');
+      const title   = $('#estado-title');
+      const form    = $('#form-estado');
+      const txt     = $('#estado-motivo');
       if (!overlay || !form || !txt) return reject("Modal #modal-estado no está en el DOM");
       title.textContent = titulo;
       txt.value = "";
-      overlay.setAttribute('aria-hidden', 'false');
+      overlay.setAttribute('aria-hidden','false');
       document.body.classList.add('me-modal-open');
       const onSubmit = (e) => {
         e.preventDefault();
@@ -203,18 +203,18 @@
       const onClose = () => { cleanup(); reject("cancel"); };
       form.addEventListener('submit', onSubmit);
       overlay.querySelector('.modal-close')?.addEventListener('click', onClose);
-      overlay.addEventListener('click', (e) => { if (e.target === overlay) onClose(); });
-      function cleanup() {
+      overlay.addEventListener('click', (e)=>{ if(e.target === overlay) onClose(); });
+      function cleanup(){
         form.removeEventListener('submit', onSubmit);
         overlay.querySelector('.modal-close')?.removeEventListener('click', onClose);
         overlay.removeEventListener('click', onClose);
-        overlay.setAttribute('aria-hidden', 'true');
+        overlay.setAttribute('aria-hidden','true');
         document.body.classList.remove('me-modal-open');
       }
     });
   }
 
-  function makeBtn(text, cls = "", act = "") {
+  function makeBtn(text, cls="", act="") {
     const b = document.createElement('button');
     b.type = "button";
     b.className = `btn-xs ${cls}`.trim();
@@ -223,89 +223,86 @@
     return b;
   }
 
-  // botones para el requerimiento
-  function getButtonsForStatus(code) {
-    switch (Number(code)) {
-      case 0: // Solicitud
-        return [
-          makeBtn("Iniciar revisión", "primary", "start-revision"),
-          makeBtn("Cancelar", "danger", "cancel"),
-        ];
-      case 1: // Revisión → aquí sí aparece "Asignar a departamento"
-        return [
-          makeBtn("Pausar", "warn", "pause"),
-          makeBtn("Cancelar", "danger", "cancel"),
-          makeBtn("Asignar a departamento", "", "assign-dept"),
-        ];
-      case 2: // Asignación
-        return [
-          makeBtn("Pausar", "warn", "pause"),
-          makeBtn("Cancelar", "danger", "cancel"),
-          makeBtn("Iniciar proceso", "primary", "start-process"),
-        ];
-      case 3: // Proceso
-        return [
-          makeBtn("Pausar", "warn", "pause"),
-          makeBtn("Cancelar", "danger", "cancel"),
-          makeBtn("Finalizar", "primary", "finish"),
-        ];
-      case 4: // Pausado
-        return [
-          makeBtn("Reanudar", "primary", "resume"),
-          makeBtn("Cancelar", "danger", "cancel"),
-        ];
-      case 5: // Cancelado
-        return [makeBtn("Reabrir", "primary", "reopen")];
-      case 6: // Finalizado
-        return [makeBtn("Reabrir", "primary", "reopen")];
-      default:
-        return [makeBtn("Iniciar revisión", "primary", "start-revision")];
-    }
+  // ⬇️ Ajustado según lo acordado
+  function getButtonsForStatus(code){
+  switch(Number(code)){
+    case 0: // Solicitud
+      return [
+        makeBtn("Iniciar revisión","primary","start-revision"),
+        makeBtn("Cancelar","danger","cancel"),
+      ];
+    case 1: // Revisión → SOLO Pausar, Cancelar, Asignar a depto
+      return [
+        makeBtn("Pausar","warn","pause"),
+        makeBtn("Cancelar","danger","cancel"),
+        makeBtn("Asignar a departamento","","assign-dept"),
+      ];
+    case 2: // Asignación → Iniciar proceso visible aquí
+      return [
+        makeBtn("Pausar","warn","pause"),
+        makeBtn("Cancelar","danger","cancel"),
+        makeBtn("Iniciar proceso","primary","start-process"),
+      ];
+    case 3: // Proceso
+      return [
+        makeBtn("Pausar","warn","pause"),
+        makeBtn("Cancelar","danger","cancel"),
+        makeBtn("Finalizar","primary","finish"),
+      ];
+    case 4: // Pausado
+      return [
+        makeBtn("Reanudar","primary","resume"),
+        makeBtn("Cancelar","danger","cancel"),
+      ];
+    case 5: // Cancelado
+      return [ makeBtn("Reabrir","primary","reopen") ];
+    case 6: // Finalizado
+      return [ makeBtn("Reabrir","primary","reopen") ];
+    default:
+      return [ makeBtn("Iniciar revisión","primary","start-revision") ];
   }
+}
 
 
-
-  async function onAction(act) {
+  async function onAction(act){
     let code = getCurrentStatusCode();
-    try {
+    try{
       if (act === "start-revision") {
-        code = 1; updateStatusUI(code); toast("Estado cambiado a Revisión", "info");
+        code = 1; updateStatusUI(code); toast("Estado cambiado a Revisión","info");
       }
       else if (act === "assign-dept") {
-        // ← cambia solo el status a Asignación
-        code = 2;
-        updateStatusUI(code);
-        toast("Asignado a departamento (Estatus: Asignación)", "success");
+        toast("Abrir asignación a departamento","info"); // hook
       }
       else if (act === "start-process") {
-        code = 3; updateStatusUI(code); toast("Proceso iniciado", "success");
+        code = 3; updateStatusUI(code); toast("Proceso iniciado","success");
       }
       else if (act === "pause") {
-        const motivo = await askMotivo("Motivo de la pausa"); void motivo;
-        code = 4; updateStatusUI(code); toast("Requerimiento en Pausa", "warn");
+        const motivo = await askMotivo("Motivo de la pausa");
+        void motivo;
+        code = 4; updateStatusUI(code); toast("Requerimiento en Pausa","warn");
       }
       else if (act === "resume") {
-        code = 1; updateStatusUI(code); toast("Requerimiento reanudado (Revisión)", "success");
+        // ⬅️ Ahora reanudar regresa a REVISIÓN (no a Proceso)
+        code = 1; updateStatusUI(code); toast("Requerimiento reanudado (Revisión)","success");
       }
       else if (act === "finish") {
-        code = 6; updateStatusUI(code); toast("Requerimiento finalizado", "success");
+        code = 6; updateStatusUI(code); toast("Requerimiento finalizado","success");
       }
       else if (act === "cancel") {
-        const motivo = await askMotivo("Motivo de la cancelación"); void motivo;
-        code = 5; updateStatusUI(code); toast("Requerimiento cancelado", "danger");
+        const motivo = await askMotivo("Motivo de la cancelación");
+        void motivo;
+        code = 5; updateStatusUI(code); toast("Requerimiento cancelado","danger");
       }
       else if (act === "reopen") {
-        code = 1; updateStatusUI(code); toast("Requerimiento reabierto (Revisión)", "info");
+        code = 1; updateStatusUI(code); toast("Requerimiento reabierto (Revisión)","info");
       }
-    } catch (e) {
+    } catch(e){
       if (e !== "cancel") console.warn(e);
     }
     renderActions(code);
   }
 
-
-
-  function renderActions(code = getCurrentStatusCode()) {
+  function renderActions(code = getCurrentStatusCode()){
     const wrap = $('#req-actions');
     if (!wrap) return;
     wrap.innerHTML = "";

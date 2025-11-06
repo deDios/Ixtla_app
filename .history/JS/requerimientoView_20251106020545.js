@@ -223,7 +223,7 @@
     return b;
   }
 
-  // botones para el requerimiento
+  // ⬇️ Ajustado según lo acordado
   function getButtonsForStatus(code) {
     switch (Number(code)) {
       case 0: // Solicitud
@@ -231,13 +231,13 @@
           makeBtn("Iniciar revisión", "primary", "start-revision"),
           makeBtn("Cancelar", "danger", "cancel"),
         ];
-      case 1: // Revisión → aquí sí aparece "Asignar a departamento"
+      case 1: // Revisión → SOLO Pausar, Cancelar, Asignar a depto
         return [
           makeBtn("Pausar", "warn", "pause"),
           makeBtn("Cancelar", "danger", "cancel"),
           makeBtn("Asignar a departamento", "", "assign-dept"),
         ];
-      case 2: // Asignación
+      case 2: // Asignación → Iniciar proceso visible aquí
         return [
           makeBtn("Pausar", "warn", "pause"),
           makeBtn("Cancelar", "danger", "cancel"),
@@ -264,7 +264,6 @@
   }
 
 
-
   async function onAction(act) {
     let code = getCurrentStatusCode();
     try {
@@ -272,16 +271,19 @@
         code = 1; updateStatusUI(code); toast("Estado cambiado a Revisión", "info");
       }
       else if (act === "assign-dept") {
-        // ← cambia solo el status a Asignación
+        // Cambiar a Asignación
         code = 2;
         updateStatusUI(code);
         toast("Asignado a departamento (Estatus: Asignación)", "success");
+        // Si después quieres abrir un modal de selección, dispara aquí un evento:
+        // document.dispatchEvent(new CustomEvent('req:assign-dept', { detail: { id: __REQ__?.id } }));
       }
       else if (act === "start-process") {
         code = 3; updateStatusUI(code); toast("Proceso iniciado", "success");
       }
       else if (act === "pause") {
-        const motivo = await askMotivo("Motivo de la pausa"); void motivo;
+        const motivo = await askMotivo("Motivo de la pausa");
+        void motivo;
         code = 4; updateStatusUI(code); toast("Requerimiento en Pausa", "warn");
       }
       else if (act === "resume") {
@@ -291,7 +293,8 @@
         code = 6; updateStatusUI(code); toast("Requerimiento finalizado", "success");
       }
       else if (act === "cancel") {
-        const motivo = await askMotivo("Motivo de la cancelación"); void motivo;
+        const motivo = await askMotivo("Motivo de la cancelación");
+        void motivo;
         code = 5; updateStatusUI(code); toast("Requerimiento cancelado", "danger");
       }
       else if (act === "reopen") {
@@ -302,7 +305,6 @@
     }
     renderActions(code);
   }
-
 
 
   function renderActions(code = getCurrentStatusCode()) {

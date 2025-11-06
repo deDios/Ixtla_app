@@ -666,26 +666,26 @@
     </div>
 
     <!-- Modal: Nuevo proceso -->
-    <div id="modal-proceso" class="modal-overlay" aria-hidden="true">
-        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="proceso-title">
-            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
-            <h2 id="proceso-title">Nuevo proceso</h2>
+<div id="modal-proceso" class="modal-overlay" aria-hidden="true">
+  <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="proceso-title">
+    <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+    <h2 id="proceso-title">Nuevo proceso</h2>
 
-            <form id="form-proceso" novalidate>
-                <div class="form-row">
-                    <label for="proceso-desc">Descripción (título del proceso)</label>
-                    <textarea id="proceso-desc" name="descripcion" rows="4" required
-                        placeholder="Ej. Se asignó a Jurídico"></textarea>
-                </div>
+    <form id="form-proceso" novalidate>
+      <div class="form-row">
+        <label for="proceso-desc">Descripción (título del proceso)</label>
+        <textarea id="proceso-desc" name="descripcion" rows="4" required
+                  placeholder="Ej. Se asignó a Jurídico"></textarea>
+      </div>
 
-                <div class="form-row">
-                    <button type="submit" class="btn-submit">Crear proceso</button>
-                </div>
-            </form>
+      <div class="form-row">
+        <button type="submit" class="btn-submit">Crear proceso</button>
+      </div>
+    </form>
 
-            <p class="modal-note">El proceso se agregará a la planeación.</p>
-        </div>
-    </div>
+    <p class="modal-note">El proceso se agregará a la planeación.</p>
+  </div>
+</div>
 
 
 
