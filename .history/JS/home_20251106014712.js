@@ -1067,70 +1067,75 @@ function computeYearSeries(rows) {
   return series;
 }
 
-function computeStatusDistributionAll(rows) {
-  const toKey = (s) =>
-    String(s || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/\p{Diacritic}/gu, "")
-      .replace(/[\s_-]+/g, " ")
-      .trim();
-
-  const by = new Map(); 
+/** NUEVO: distribución por TIPO de TRÁMITE para el donut (todos los rows visibles) */
+function computeTypeDistribution(rows) {
+  const by = new Map();
   for (const r of rows) {
-    const raw = r.tramite || r.asunto || r.raw?.tramite || r.raw?.asunto || "";
-    const display = (String(raw).trim() || "Otros");
-    const key = toKey(display) || "otros";
-    const cur = by.get(key);
-    if (cur) {
-      cur.value += 1;
-    } else {
-      by.set(key, { label: display, value: 1 });
-    }
+    const rawLabel =
+      r.tramite || r.asunto || r.raw?.tramite || r.raw?.asunto || "";
+    const label = String(rawLabel || "").trim() || "Otros";
+    by.set(label, (by.get(label) || 0) + 1);
   }
-  const items = Array.from(by.values()).sort((a, b) => b.value - a.value);
+  const items = Array.from(by.entries()).map(([label, value]) => ({ label, value }));
+  items.sort((a, b) => b.value - a.value);
   const total = items.reduce((acc, it) => acc + it.value, 0);
   return { items, total };
 }
 
 function drawChartsFromRows(rows) {
-  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const labels = [
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+  ];
   const yearSeries = computeYearSeries(rows);
-  const donutAgg   = computeStatusDistributionAll(rows);  // ← usa donutAgg
+  const donutAgg = computeTypeDistribution(rows); // ← tipos de trámite
 
-  const $line  = $(SEL.chartYear);
+  const $line = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
 
   log("CHARTS — input (rows length):", rows.length);
   log("CHARTS — year series:", { labels, series: yearSeries });
-  log("CHARTS — donut distribution:", donutAgg);
+  log("CHARTS — tipos de trámite (donut):", donutAgg);
 
-  try { Charts?.line?.destroy?.(); } catch {}
-  try { Charts?.donut?.destroy?.(); } catch {}
-
-  if ($line) {
+  if (Charts?.line && Charts.line.destroy) {
     try {
-      Charts.line = new LineChart($line, {
-        labels,
-        series: yearSeries,
-        showGrid: true,
-        headroom: 0.2,
-        yTicks: 6,
-      });
-      log("CHARTS — LineChart render ok");
-    } catch (e) { err("LineChart error:", e); }
+      Charts.line.destroy();
+    } catch {}
+  }
+  if (Charts?.donut && Charts.donut.destroy) {
+    try {
+      Charts.donut.destroy();
+    } catch {}
   }
 
+  if ($line) {
+    Charts.line = new LineChart($line, {
+      labels,
+      series: yearSeries,
+      showGrid: true,
+      headroom: 0.2,
+      yTicks: 6,
+    });
+    log("CHARTS — LineChart render ok");
+  }
   if ($donut) {
-    try {
-      Charts.donut = new DonutChart($donut, {
-        data: donutAgg.items,     // ← usa donutAgg
-        total: donutAgg.total,    // ← usa donutAgg
-        legendEl: $(SEL.donutLegend) || null,
-        showPercLabels: true,
-      });
-      log("CHARTS — DonutChart render ok", { total: donutAgg.total });
-    } catch (e) { err("DonutChart error:", e); }
+    Charts.donut = new DonutChart($donut, {
+      data: donutAgg.items,
+      total: donutAgg.total,
+      legendEl: $(SEL.donutLegend) || null,
+      showPercLabels: true,
+    });
+    log("CHARTS — DonutChart render ok", { total: donutAgg.total });
   }
 
   document.querySelectorAll(".hs-chart-skeleton")?.forEach((el) => el.remove());

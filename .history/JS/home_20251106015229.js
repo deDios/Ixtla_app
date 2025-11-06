@@ -1076,7 +1076,7 @@ function computeStatusDistributionAll(rows) {
       .replace(/[\s_-]+/g, " ")
       .trim();
 
-  const by = new Map(); 
+  const by = new Map(); // key normalizado -> { label (display), value }
   for (const r of rows) {
     const raw = r.tramite || r.asunto || r.raw?.tramite || r.raw?.asunto || "";
     const display = (String(raw).trim() || "Otros");
