@@ -38,6 +38,6 @@ export const API = {
     // DB\WEB\ixtla01_c_requerimiento_img.php
     GET:    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_requerimiento_img.php",
     // DB\WEB\ixtla01_in_requerimiento_img.php
-    UPLOAD: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB\WEB\ixtla01_in_requerimiento_img.php",
+    UPLOAD: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_in_requerimiento_img.php",
   },
 };

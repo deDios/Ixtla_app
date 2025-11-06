@@ -4,6 +4,7 @@ const TAG = "[API:Media]";
 /* ====== Config ====== */
 const HOST = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
 const ENDPOINTS = {
+  //DB\WEB\ixtla01_u_requerimiento_folders.php
   setup:  `${HOST}/db/WEB/ixtla01_u_requerimiento_folders.php`, // crea /ASSETS/requerimientos/<folio>/{0..6}
   list:   `${HOST}/db/WEB/ixtla01_c_requerimiento_img.php`,      // lista imágenes por folio/estatus
   upload: `${HOST}/db/WEB/ixtla01_ins_requerimiento_img.php`,    // subida (multipart/form-data)
