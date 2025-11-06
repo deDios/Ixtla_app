@@ -382,6 +382,12 @@
                 </div>
                 <!-- /exp-panes -->
 
+                <!-- Toolbar arriba -->
+                <div class="planeacion-toolbar evid-toolbar">
+                    <h3 class="planeacion-title">Evidencias</h3>
+                    <button id="btn-open-evid-modal" class="fase-add" type="button">Subir imágenes +</button>
+                </div>
+
                 <!-- Evidencias -->
                 <section class="exp-accordion exp-accordion--evidencias" data-acc="evidencias">
                     <button class="exp-acc-head" type="button" aria-expanded="true">
@@ -390,27 +396,13 @@
                     </button>
 
                     <div class="exp-acc-body">
-
-                        <div class="planeacion-toolbar evid-toolbar">
-                            <h3 class="planeacion-title">Evidencias</h3>
-                            <button id="btn-open-evid-modal" class="fase-add" type="button">Subir imágenes +</button>
-                        </div>
-
                         <div class="exp-table">
                             <div class="exp-thead">
                                 <div>Nombre <span class="sort"></span></div>
                                 <div>Quien lo cargo</div>
                                 <div>Última modificación <span class="sort"></span></div>
                             </div>
-
-                            <a class="exp-row" href="#">
-                                <div class="file">
-                                    <img class="ico" src="/ASSETS/filetypes/img.png" alt="">
-                                    <span>Evidencia Fuga de Agua</span>
-                                </div>
-                                <div class="who">Luis Enrique</div>
-                                <div class="date">02 de Septiembre del 2025 a las 14:25</div>
-                            </a>
+                            <!-- filas -->
                         </div>
                     </div>
                 </section>
