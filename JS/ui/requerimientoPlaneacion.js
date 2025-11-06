@@ -142,6 +142,7 @@
     const arr = Array.isArray(j?.data) ? j.data : [];
     return arr.map(normalizeTarea);
   }
+  
   async function createTarea({ proceso_id, titulo, esfuerzo, asignado_a, descripcion, fecha_inicio, fecha_fin, created_by }) {
     const payload = {
       proceso_id: Number(proceso_id),
@@ -425,9 +426,9 @@
           proceso_id: Number(procesoId),
           titulo,
           esfuerzo,
-          asignado_a: null, // <- cuando tengas selector por ID, pásalo aquí
+          asignado_a: null, //  de momento se asigna a uno mismo luego checarlo
           descripcion: desc || null,
-          fecha_inicio: null, // si quisieras hoy: `${todayISO()} 00:00:00`
+          fecha_inicio: null, 
           fecha_fin: null,
           created_by: empleadoId ?? null
         });
