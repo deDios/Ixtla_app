@@ -1,5 +1,5 @@
-// /JS/mediaRequerimientos.js
-import { listMedia } from "/JS/api/media.js";
+// /JS/api/mediaRequerimientos.js
+import { listMedia, uploadMedia, setupMedia } from "/JS/api/media.js";
 
 (() => {
   "use strict";
@@ -346,19 +346,153 @@ import { listMedia } from "/JS/api/media.js";
       return;
     }
 
+    // Guardar folio para el modal de subida
+    window.__MEDIA_FOLIO__ = folio;
+
     bindPreviewClicks();
     await loadByFolio(folio);
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener(
-      "DOMContentLoaded",
-      () => {
-        boot();
-      },
-      { once: true }
-    );
+    document.addEventListener("DOMContentLoaded", () => { boot(); }, { once: true });
   } else {
     boot();
   }
+
+  /* ========================================================================
+   * Modal de subida: abrir/cerrar, drag&drop, previews y upload
+   * ======================================================================*/
+  (() => {
+    const openBtn = document.getElementById('btn-open-evid-modal');
+    const overlay = document.getElementById('ix-evid-modal');
+    const form    = document.getElementById('ix-evid-form');
+    const input   = document.getElementById('ix-evidencia');
+    const cta     = document.getElementById('ix-evidencia-cta');
+    const previews= document.getElementById('ix-evidencia-previews');
+    const err     = document.getElementById('ix-err-evidencia');
+    const saveBtn = document.getElementById('ix-evid-save');
+    const cancel  = document.getElementById('ix-evid-cancel');
+    const closeX  = overlay?.querySelector('.modal-close');
+
+    const MAX_MB = 1;
+    const ACCEPT = new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);
+
+    function open() {
+      if (!overlay) return;
+      form?.reset(); previews.innerHTML = ""; err.hidden = true; err.textContent = ""; saveBtn.disabled = true;
+      overlay.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('me-modal-open');
+    }
+    function close() {
+      overlay?.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('me-modal-open');
+    }
+
+    openBtn?.addEventListener('click', open);
+    cancel?.addEventListener('click', close);
+    closeX?.addEventListener('click', close);
+    overlay?.addEventListener('click', (e)=>{ if (e.target === overlay) close(); });
+    document.addEventListener('keydown', (e)=>{
+      if (overlay && overlay.getAttribute('aria-hidden')==='false' && e.key==='Escape') close();
+    });
+
+    // click -> input
+    cta?.addEventListener('click', ()=> input?.click());
+
+    // drag & drop
+    const dropZone = document.getElementById('ix-upload-zone');
+    dropZone?.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classList.add('is-drag'); });
+    dropZone?.addEventListener('dragleave', ()=> dropZone.classList.remove('is-drag'));
+    dropZone?.addEventListener('drop', (e)=>{
+      e.preventDefault(); dropZone.classList.remove('is-drag');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    input?.addEventListener('change', ()=> handleFiles(input.files));
+
+    let filesBuffer = []; // Array<File> (máx 3)
+    function handleFiles(list) {
+      const arr = Array.from(list || []);
+      for (const f of arr) {
+        if (filesBuffer.length >= 3) break;
+        const tooBig = f.size > MAX_MB*1024*1024;
+        const badMime = !ACCEPT.has(f.type);
+        if (tooBig || badMime) {
+          showError(tooBig ? `“${f.name}” excede ${MAX_MB} MB` : `“${f.name}” no es un tipo permitido (${f.type || 'desconocido'})`);
+          continue;
+        }
+        filesBuffer.push(f);
+      }
+      renderPreviews();
+    }
+
+    function renderPreviews() {
+      previews.innerHTML = "";
+      filesBuffer.forEach((f, idx) => {
+        const fig = document.createElement('figure');
+        const img = document.createElement('img');
+        img.alt = f.name;
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.src = URL.createObjectURL(f);
+        const del = document.createElement('button');
+        del.type = "button"; del.setAttribute('aria-label','Eliminar imagen'); del.textContent = "×";
+        del.addEventListener('click', () => {
+          filesBuffer.splice(idx,1);
+          renderPreviews();
+        });
+        fig.appendChild(img); fig.appendChild(del);
+        previews.appendChild(fig);
+      });
+      saveBtn.disabled = filesBuffer.length === 0;
+      if (filesBuffer.length >= 3) dropZone?.classList.add('is-max'); else dropZone?.classList.remove('is-max');
+    }
+
+    function showError(message) {
+      err.hidden = false; err.textContent = message;
+      setTimeout(()=>{ err.hidden = true; err.textContent = ""; }, 3500);
+    }
+
+    // Subir
+    saveBtn?.addEventListener('click', async () => {
+      const folio = window.__MEDIA_FOLIO__ || null;
+      if (!folio) { showError("No hay folio del requerimiento."); return; }
+
+      // status actual de la vista (carpeta destino)
+      const status = (() => {
+        const sel = document.querySelector('#req-status [data-role="status-select"]');
+        if (sel) return Number(sel.value || 0);
+        const cur = document.querySelector('.step-menu li.current');
+        return cur ? Number(cur.getAttribute('data-status')) : 0;
+      })();
+
+      try {
+        saveBtn.disabled = true;
+
+        // asegura carpetas (idempotente)
+        try { await setupMedia(folio); } catch {}
+
+        const out = await uploadMedia({ folio, status, files: filesBuffer });
+        const saved = out?.saved?.length || 0;
+        const failed = out?.failed?.length || 0;
+        const skipped= out?.skipped?.length || 0;
+
+        if (saved) toast(`Subida exitosa: ${saved} archivo(s).`, 'success');
+        if (failed) toast(`Fallo servidor: ${failed} archivo(s).`, 'danger');
+        if (skipped) toast(`Descartados localmente: ${skipped}.`, 'warn');
+
+        // refrescar lista
+        if (folio && typeof loadByFolio === 'function') await loadByFolio(folio);
+
+        filesBuffer = [];
+        close();
+      } catch (e) {
+        console.error('[Evidencias] upload error:', e);
+        showError('No se pudo subir la evidencia. Revisa tamaño/tipo o intenta más tarde.');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+  })();
+
 })();

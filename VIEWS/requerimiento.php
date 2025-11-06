@@ -390,6 +390,12 @@
                     </button>
 
                     <div class="exp-acc-body">
+
+                        <div class="planeacion-toolbar evid-toolbar">
+                            <h3 class="planeacion-title">Evidencias</h3>
+                            <button id="btn-open-evid-modal" class="fase-add" type="button">Subir imágenes +</button>
+                        </div>
+
                         <div class="exp-table">
                             <div class="exp-thead">
                                 <div>Nombre <span class="sort"></span></div>
@@ -398,14 +404,17 @@
                             </div>
 
                             <a class="exp-row" href="#">
-                                <div class="file"><img class="ico" src="/ASSETS/filetypes/img.png"
-                                        alt=""><span>Evidencia Fuga de Agua</span></div>
+                                <div class="file">
+                                    <img class="ico" src="/ASSETS/filetypes/img.png" alt="">
+                                    <span>Evidencia Fuga de Agua</span>
+                                </div>
                                 <div class="who">Luis Enrique</div>
                                 <div class="date">02 de Septiembre del 2025 a las 14:25</div>
                             </a>
                         </div>
                     </div>
                 </section>
+
 
 
             </section>
@@ -681,6 +690,53 @@
             <p class="modal-note">recuerda que todavia no se hacen los cambios con los endpoints.</p>
         </div>
     </div>
+
+
+    <!-- Modal: Subir evidencias -->
+    <div id="ix-evid-modal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-evid-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+            <div class="ix-modal__header">
+                <h2 id="ix-evid-title">Subir evidencias</h2>
+            </div>
+
+            <div class="ix-modal__body">
+                <form id="ix-evid-form" class="ix-form" novalidate>
+                    <div class="ix-form__row">
+                        <div class="ix-field ix-field--full">
+                            <label class="ix-field__label" for="ix-evidencia">Evidencia</label>
+
+                            <div class="ix-upload" id="ix-upload-zone" data-js="upload">
+                                <button type="button" id="ix-evidencia-cta" class="ix-upload-btn" title="Subir imágenes"
+                                    aria-label="Subir imágenes">
+                                    Subir imágenes
+                                </button>
+
+                                <input id="ix-evidencia" type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                                    multiple hidden>
+
+                                <div class="ix-upload__hint">
+                                    Arrastra imágenes o haz click para seleccionar (JPG/PNG/WebP/HEIC · máx 1 MB c/u ·
+                                    hasta 3)
+                                </div>
+
+                                <div class="ix-gallery" id="ix-evidencia-previews" aria-live="polite"></div>
+                            </div>
+
+                            <small class="ix-help" id="ix-err-evidencia" hidden></small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="ix-modal__footer">
+                <button type="button" class="btn" id="ix-evid-cancel">Cancelar</button>
+                <button type="button" class="btn blue" id="ix-evid-save" disabled>Subir</button>
+            </div>
+        </div>
+    </div>
+
 
 
 
