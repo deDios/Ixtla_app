@@ -618,9 +618,11 @@
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <label for="tarea-asignado">Asignado a (opcional)</label>
-                    <input type="text" id="tarea-asignado" name="asignado_nombre" placeholder="Nombre responsable">
+                <div class="form-row split">
+                    <div>
+                        <label for="tarea-asignado">Asignado a (opcional)</label>
+                        <input type="text" id="tarea-asignado" name="asignado_nombre" placeholder="Nombre responsable">
+                    </div>
                 </div>
 
                 <div class="form-row">

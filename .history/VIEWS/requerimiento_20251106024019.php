@@ -616,11 +616,17 @@
                         <input type="number" id="tarea-esfuerzo" name="esfuerzo" min="1" step="1" required
                             placeholder="1">
                     </div>
+                    <div>
+                        <label for="tarea-inicio">Fecha de inicio</label>
+                        <input type="date" id="tarea-inicio" name="fecha_inicio">
+                    </div>
                 </div>
 
-                <div class="form-row">
-                    <label for="tarea-asignado">Asignado a (opcional)</label>
-                    <input type="text" id="tarea-asignado" name="asignado_nombre" placeholder="Nombre responsable">
+                <div class="form-row split">
+                    <div>
+                        <label for="tarea-asignado">Asignado a (opcional)</label>
+                        <input type="text" id="tarea-asignado" name="asignado_nombre" placeholder="Nombre responsable">
+                    </div>
                 </div>
 
                 <div class="form-row">
