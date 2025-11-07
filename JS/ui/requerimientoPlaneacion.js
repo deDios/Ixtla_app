@@ -15,26 +15,23 @@
 
   // ===== Selectores / referencias de UI =====
   const SEL = {
-    toolbar: {
-      addProceso: "#btn-add-proceso",
-      addTarea:   "#btn-add-tarea",
-    },
+    toolbar: { addProceso: "#btn-add-proceso", addTarea: "#btn-add-tarea" },
     planeacionList: "#planeacion-list",
 
     // Modal Nueva Tarea
-    modalT:        "#modal-tarea",
-    formT:         "#form-tarea",
-    selProceso:    "#tarea-proceso",
-    inpTitulo:     "#tarea-titulo",
-    inpEsfuerzo:   "#tarea-esfuerzo",
-    inpAsignado:   "#tarea-asignado",   // <- lo convertimos a <select> al abrir
-    txtDesc:       "#tarea-desc",
+    modalT: "#modal-tarea",
+    formT:  "#form-tarea",
+    selProceso: "#tarea-proceso",
+    inpTitulo:  "#tarea-titulo",
+    inpEsfuerzo:"#tarea-esfuerzo",
+    inpAsignado:"#tarea-asignado",
+    txtDesc:    "#tarea-desc",
 
     // Modal Nuevo Proceso
-    modalP:        "#modal-proceso",
-    formP:         "#form-proceso",
-    inpPTitulo:    "#proceso-titulo",
-    inpPInicio:    "#proceso-inicio",
+    modalP:     "#modal-proceso",
+    formP:      "#form-proceso",
+    inpPTitulo: "#proceso-titulo",
+    inpPInicio: "#proceso-inicio",
   };
 
   // ===== Estado interno / flags =====
@@ -54,6 +51,10 @@
       UPDATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_tarea_proceso.php",
       LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tarea_proceso.php",
     },
+    USUARIOS: {
+      // Fallback genérico (patrón usado en tu backend)
+      LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
+    }
   };
   const API = (window.API || API_FBK);
 
@@ -106,27 +107,31 @@
     const s = safeGetSession() || {};
     return Array.isArray(s.roles) ? s.roles.map(r => String(r).toUpperCase()) : [];
   }
+  function getDeptId() {
+    const s = safeGetSession() || {};
+    return s?.departamento_id ?? null;
+  }
+  function isPresidencia() {
+    // mismo criterio que usas en Home.js: dept_id === 6
+    return Number(getDeptId()) === 6;
+  }
 
   // ===== Utilidades =====
   function collectProcesos() {
     return $$('#planeacion-list .exp-accordion--fase[data-proceso-id]');
   }
-
   function todayISO() {
-    // YYYY-MM-DD
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2, "0");
+    const d = new Date(); const pad = (n)=>String(n).padStart(2,"0");
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
   function fmtMXDate(s) {
     if (!s) return "—";
-    const parts = String(s).slice(0, 19).replace("T"," ").split(" ")[0].split("-");
+    const parts = String(s).slice(0,19).replace("T"," ").split(" ")[0].split("-");
     if (parts.length !== 3) return s;
-    const [Y,M,D] = parts;
-    return `${D}/${M}/${Y}`;
+    const [Y,M,D] = parts; return `${D}/${M}/${Y}`;
   }
 
-  // ====== LAYER: Procesos / Tareas (LIST / CREATE) ======
+  // ====== LAYER: Procesos / Tareas ======
   async function listProcesos(requerimiento_id, { status=1, page=1, page_size=100 } = {}) {
     const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
     const j = await postJSON(API.PROCESOS.LIST, payload);
@@ -143,14 +148,12 @@
     };
     return postJSON(API.PROCESOS.CREATE, payload);
   }
-
   async function listTareas(proceso_id, { status=1, page=1, page_size=100 } = {}) {
     const payload = { proceso_id: Number(proceso_id), status, page, page_size };
     const j = await postJSON(API.TAREAS.LIST, payload);
     const arr = Array.isArray(j?.data) ? j.data : [];
     return arr.map(normalizeTarea);
   }
-  
   async function createTarea({ proceso_id, titulo, esfuerzo, asignado_a, descripcion, fecha_inicio, fecha_fin, created_by }) {
     const payload = {
       proceso_id: Number(proceso_id),
@@ -197,7 +200,7 @@
     };
   }
 
-  // ====== Pintado de UI (reutiliza tu markup)
+  // ====== Pintado de UI
   function bindProcessAccordion(sec) {
     const head = sec.querySelector(".exp-acc-head");
     const body = sec.querySelector(".exp-acc-body");
@@ -230,7 +233,6 @@
     const hoyMx = fmtMXDate(p.created_at || todayISO());
 
     sec.innerHTML = `
-      <!-- HEADER -->
       <button class="exp-acc-head" type="button" aria-expanded="true">
         <div class="fase-left">
           <div class="fase-head">
@@ -238,7 +240,6 @@
             <small class="fase-meta">0 actividades</small>
           </div>
         </div>
-
         <div class="fase-right">
           <span class="fase-label">Estatus</span>
           <span class="exp-progress" aria-label="${pct}%">
@@ -250,8 +251,6 @@
           <span class="chev" aria-hidden="true"></span>
         </div>
       </button>
-
-      <!-- BODY -->
       <div class="exp-acc-body">
         <div class="exp-table exp-table--planeacion is-card">
           <div class="exp-thead">
@@ -270,8 +269,7 @@
   }
 
   function escapeHtml(s="") {
-    return String(s)
-      .replaceAll("&","&amp;").replaceAll("<","&lt;")
+    return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;")
       .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   }
 
@@ -282,7 +280,6 @@
     const row = document.createElement("div");
     row.className = "exp-row";
 
-    // Estatus visual
     let badgeClass = "is-info";
     let badgeText  = "Por hacer";
     if (t.fecha_fin) { badgeClass = "is-success"; badgeText = "Finalizado"; }
@@ -354,52 +351,93 @@
     }
   }
 
-  // ===== Modal Nueva Tarea =====
+  // ===== Asignación: helpers =====
   function ensureAsignadoSelect() {
-    // Convierte el input en <select> si aún no lo es (id se mantiene)
     const host = $(SEL.inpAsignado);
     if (!host) return null;
     if (host.tagName === "SELECT") return host;
-
     const sel = document.createElement("select");
-    sel.id = host.id;
-    sel.name = host.name || host.id;
-    sel.className = host.className || "";
-    sel.required = false;
-
+    sel.id = host.id; sel.name = host.name || host.id;
+    sel.className = host.className || ""; sel.required = false;
     host.replaceWith(sel);
     return sel;
   }
 
-  function setupAsignadoOptions(sel) {
+  async function fetchAsignablesAll() {
+    // 1) Si existe una API de usuarios en tu bundle, úsala. (opcional)
+    if (window.Usuarios?.listAll) {
+      try { return await window.Usuarios.listAll(); } catch {}
+    }
+    // 2) Fallback directo al endpoint de empleados (patrón de tus endpoints)
+    try {
+      const j = await postJSON(API.USUARIOS.LIST, { status:1, page:1, page_size:1000 });
+      const arr = Array.isArray(j?.data) ? j.data : [];
+      return arr.map(e => ({
+        id: Number(e.id),
+        nombre: String(e.nombre||"").trim(),
+        apellidos: String(e.apellidos||"").trim()
+      }));
+    } catch (e) {
+      warn("No se pudo listar empleados para el combo de asignación:", e);
+      return [];
+    }
+  }
+
+  async function setupAsignadoOptions(sel) {
     if (!sel) return;
     sel.innerHTML = "";
 
     const yoId = getEmpleadoId();
     const yoTxt = getEmpleadoNombre();
+    const roles = getRoles();
 
-    // siempre se puede asignar a sí mismo
+    // Siempre “Yo”
     const optYo = document.createElement("option");
     optYo.value = yoId != null ? String(yoId) : "";
     optYo.textContent = `Yo (${yoTxt})`;
     sel.appendChild(optYo);
-
-    // Aquí luego podremos añadir más empleados según rol/ámbito (Director, Jefe, etc.)
-    // Por ahora mantenemos solo "Yo" para no romper nada.
-
     sel.value = optYo.value || "";
-    // Si es analista, bloquear selección
-    const roles = getRoles();
+
+    // Analista → bloqueado con “Yo”
     if (roles.includes("ANALISTA")) {
       sel.setAttribute("disabled", "true");
       sel.title = "Como Analista, solo puedes asignarte tareas a ti mismo.";
-    } else {
+      return;
+    }
+
+    // Presidencia/Admin → cargar todos los empleados
+    if (roles.includes("ADMIN") || isPresidencia()) {
+      const all = await fetchAsignablesAll();
+      // quitar duplicado de "Yo" si viene en la lista
+      const restantes = all
+        .filter(e => e && Number(e.id) !== Number(yoId))
+        .sort((a,b) => (a.nombre + " " + a.apellidos).localeCompare(b.nombre + " " + b.apellidos, "es"));
+
+      if (restantes.length) {
+        // separador opcional
+        const optSep = document.createElement("option");
+        optSep.disabled = true; optSep.textContent = "──────────";
+        sel.appendChild(optSep);
+
+        restantes.forEach(e => {
+          const o = document.createElement("option");
+          o.value = String(e.id);
+          o.textContent = [e.nombre, e.apellidos].filter(Boolean).join(" ") || `Empleado #${e.id}`;
+          sel.appendChild(o);
+        });
+      }
       sel.removeAttribute("disabled");
       sel.title = "";
+      return;
     }
+
+    // Otros roles → de momento dejamos solo “Yo”
+    sel.removeAttribute("disabled");
+    sel.title = "";
   }
 
-  function openTareaModal({ preferProcesoId = null } = {}) {
+  // ===== Modal Nueva Tarea =====
+  async function openTareaModal({ preferProcesoId = null } = {}) {
     const modal = document.querySelector(SEL.modalT);
     const modalContent = modal?.querySelector(".modal-content");
     if (!modal || !modalContent) return;
@@ -409,9 +447,8 @@
     const form = document.querySelector(SEL.formT);
     form && form.reset();
 
-    // preparar combo de asignación
     const selAsign = ensureAsignadoSelect();
-    setupAsignadoOptions(selAsign);
+    await setupAsignadoOptions(selAsign);
 
     modal.classList.add("open");
     modal.setAttribute("aria-hidden", "false");
@@ -444,8 +481,7 @@
       const id = sec.getAttribute('data-proceso-id');
       const title = sec.querySelector('.fase-title')?.textContent?.trim() || `Proceso`;
       const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = title;
+      opt.value = id; opt.textContent = title;
       sel.appendChild(opt);
     });
     if (preferId) sel.value = String(preferId);
@@ -469,9 +505,7 @@
       if (!(esfuerzo > 0)) { toast("Define el esfuerzo (mínimo 1).", "warning"); $(SEL.inpEsfuerzo)?.focus(); return; }
 
       const empleadoId = getEmpleadoId();
-      if (!empleadoId) {
-        toast("Tu sesión no fue detectada. Intenta recargar o iniciar sesión de nuevo.", "warning");
-      }
+      if (!empleadoId) toast("Tu sesión no fue detectada. Recarga o inicia sesión.", "warning");
 
       try {
         const res = await createTarea({
@@ -588,7 +622,7 @@
       openProcesoModal();
     });
 
-    btnTarea?.addEventListener("click", (e) => {
+    btnTarea?.addEventListener("click", async (e) => {
       e.preventDefault(); e.stopPropagation();
       const procesos = collectProcesos();
       if (procesos.length === 0) {
@@ -596,7 +630,7 @@
         return;
       }
       const prefer = (procesos.length === 1) ? (procesos[0].getAttribute("data-proceso-id")) : null;
-      openTareaModal({ preferProcesoId: prefer });
+      await openTareaModal({ preferProcesoId: prefer });
     });
 
     _boundToolbar = true;
