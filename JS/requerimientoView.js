@@ -231,7 +231,7 @@
           makeBtn("Iniciar revisión", "primary", "start-revision"),
           makeBtn("Cancelar", "danger", "cancel"),
         ];
-      case 1: // Revisión → aquí sí aparece "Asignar a departamento"
+      case 1: // Revisión
         return [
           makeBtn("Pausar", "warn", "pause"),
           makeBtn("Cancelar", "danger", "cancel"),
@@ -263,110 +263,13 @@
     }
   }
 
-
-
-  async function onAction(act) {
-    let code = getCurrentStatusCode();
-    try {
-      if (act === "start-revision") {
-        code = 1; updateStatusUI(code); toast("Estado cambiado a Revisión", "info");
-      }
-      else if (act === "assign-dept") {
-        // ← cambia solo el status a Asignación
-        code = 2;
-        updateStatusUI(code);
-        toast("Asignado a departamento (Estatus: Asignación)", "success");
-      }
-      else if (act === "start-process") {
-        code = 3; updateStatusUI(code); toast("Proceso iniciado", "success");
-      }
-      else if (act === "pause") {
-        const motivo = await askMotivo("Motivo de la pausa"); void motivo;
-        code = 4; updateStatusUI(code); toast("Requerimiento en Pausa", "warn");
-      }
-      else if (act === "resume") {
-        code = 1; updateStatusUI(code); toast("Requerimiento reanudado (Revisión)", "success");
-      }
-      else if (act === "finish") {
-        code = 6; updateStatusUI(code); toast("Requerimiento finalizado", "success");
-      }
-      else if (act === "cancel") {
-        const motivo = await askMotivo("Motivo de la cancelación"); void motivo;
-        code = 5; updateStatusUI(code); toast("Requerimiento cancelado", "danger");
-      }
-      else if (act === "reopen") {
-        code = 1; updateStatusUI(code); toast("Requerimiento reabierto (Revisión)", "info");
-      }
-    } catch (e) {
-      if (e !== "cancel") console.warn(e);
-    }
-    renderActions(code);
-  }
-
-
-
-  function renderActions(code = getCurrentStatusCode()) {
-    const wrap = $('#req-actions');
-    if (!wrap) return;
-    wrap.innerHTML = "";
-    wrap.classList.add('exp-actions');
-    const btns = getButtonsForStatus(code);
-    btns.forEach(b => {
-      b.addEventListener('click', () => onAction(b.dataset.act));
-      wrap.appendChild(b);
-    });
-  }
-
-  /* ========================================================================
-   * Reset plantilla (valores vacíos)
-   * ======================================================================*/
-  const fillText = (sel, txt) => { const n = $(sel); if (n) n.textContent = (txt ?? "—"); };
-  function resetTemplate() {
-    const h1 = $(".exp-title h1"); if (h1) h1.textContent = "—";
-    $$(".exp-meta dd").forEach(dd => dd.textContent = "—");
-
-    const contactoVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
-    contactoVals.forEach((n, i) => {
-      if (i === 3) {
-        const a = n.querySelector("a");
-        if (a) { a.textContent = "—"; a.removeAttribute("href"); }
-        else n.textContent = "—";
-      } else n.textContent = "—";
-    });
-
-    const detallesVals = $$('.exp-pane[data-tab="detalles"] .exp-grid .exp-val');
-    detallesVals.forEach((n) => {
-      if (n.id === 'req-status') {
-        let badge = n.querySelector('[data-role="status-badge"]');
-        if (!badge) {
-          badge = document.createElement('span');
-          badge.className = 'exp-badge is-info';
-          badge.setAttribute('data-role', 'status-badge');
-          n.prepend(badge);
-        }
-        badge.className = 'exp-badge is-info';
-        badge.textContent = '—';
-        return;
-      }
-      n.textContent = '—';
-    });
-
-    const evTable = findEvidenciasTable();
-    if (evTable) evTable.querySelectorAll('.exp-row').forEach(r => r.remove());
-
-    const items = $$(".step-menu li");
-    items.forEach(li => li.classList.remove("current", "complete"));
-    const sol = items.find(li => Number(li.dataset.status) === 0);
-    sol?.classList.add("current");
-
-    const feed = $(".c-feed"); if (feed) feed.innerHTML = "";
-  }
-
   /* ========================================================================
    * HTTP + Session
    * ======================================================================*/
   const ENDPOINTS = {
     REQUERIMIENTO_GET: "/db/WEB/ixtla01_c_requerimiento.php",
+    REQUERIMIENTO_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",   // update estatus
+    EMPLEADOS_GET: "/db/WEB/ixtla01_c_empleado.php",                  // para avatar de comentarios
     COMENT_LIST: "/db/WEB/ixtla01_c_comentario_requerimiento.php",
     COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
   };
@@ -377,7 +280,7 @@
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(body || {})
       });
       const txt = await res.text();
@@ -427,6 +330,11 @@
       if (json && typeof json === "object") return json;
     } catch { }
     return null;
+  }
+
+  function getEmpleadoIdFromSession() {
+    const s = safeGetSession();
+    return s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
   }
 
   /* ========================================================================
@@ -499,7 +407,10 @@
     const ddE = $(".exp-meta > div:nth-child(2) dd");
     const ddF = $(".exp-meta > div:nth-child(3) dd");
     if (ddC) ddC.textContent = (req.contacto_nombre || "—");
-    if (ddE) ddE.textContent = req.asignado_full || "—";
+    if (ddE) {
+      const asignadoTxt = (req.asignado_full && req.asignado_full.trim()) ? req.asignado_full : "Sin asignar";
+      ddE.textContent = asignadoTxt;
+    }
     if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
 
     // Tab Contacto
@@ -547,7 +458,7 @@
         badgeEl.textContent = lbl;
       }
 
-      // Fechas / descripción
+      // Descripción y fechas
       const descNode = $(`.exp-field.exp-field--full .exp-val`, detalles);
       if (descNode) descNode.textContent = req.descripcion || "—";
       const fIni = $(`.exp-field:nth-child(6) .exp-val`, detalles);
@@ -597,7 +508,7 @@
 
       if (window.paintStepper) window.paintStepper(code);
       sel.hidden = true;
-      toast(`Estatus cambiado a "${lbl}" (aun no actualiza de verdad)`, "info");
+      toast(`Estatus cambiado a "${lbl}" (solo UI)`, "info");
 
       renderActions(code);
     });
@@ -611,7 +522,133 @@
   }
 
   /* ========================================================================
-   * Comentarios: listar / crear
+   * Estado real del requerimiento (UPDATE)
+   * ======================================================================*/
+  async function updateReqStatus({ id, estatus, motivo }) {
+    const updated_by = getEmpleadoIdFromSession();
+    const body = { id: Number(id), estatus: Number(estatus), updated_by };
+    if (motivo) body.motivo = String(motivo).trim();
+    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
+    return res?.data ?? res;
+  }
+
+  async function onAction(act) {
+    let next = getCurrentStatusCode();
+    const id = __CURRENT_REQ_ID__;
+    if (!id) { toast("No hay id de requerimiento en la URL", "danger"); return; }
+
+    try {
+      if (act === "start-revision") {
+        next = 1;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next); toast("Estado cambiado a Revisión", "info");
+      }
+      else if (act === "assign-dept") {
+        next = 2;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next); toast("Asignado a departamento (Estatus: Asignación)", "success");
+      }
+      else if (act === "start-process") {
+        next = 3;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next); toast("Proceso iniciado", "success");
+      }
+      else if (act === "pause") {
+        const motivo = await askMotivo("Motivo de la pausa");
+        next = 4;
+        await updateReqStatus({ id, estatus: next, motivo });
+        updateStatusUI(next); toast("Requerimiento en Pausa", "warn");
+      }
+      else if (act === "resume") {
+        next = 1;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next); toast("Requerimiento reanudado (Revisión)", "success");
+      }
+      else if (act === "finish") {
+        next = 6;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next); toast("Requerimiento finalizado", "success");
+      }
+      else if (act === "cancel") {
+        const motivo = await askMotivo("Motivo de la cancelación");
+        next = 5;
+        await updateReqStatus({ id, estatus: next, motivo });
+        updateStatusUI(next); toast("Requerimiento cancelado", "danger");
+      }
+      else if (act === "reopen") {
+        next = 1;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next); toast("Requerimiento reabierto (Revisión)", "info");
+      }
+    } catch (e) {
+      if (e !== "cancel") {
+        console.warn(e);
+        toast("No se pudo actualizar el estado en el servidor.", "danger");
+      }
+    }
+
+    renderActions(next);
+  }
+
+  function renderActions(code = getCurrentStatusCode()) {
+    const wrap = $('#req-actions');
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    wrap.classList.add('exp-actions');
+    const btns = getButtonsForStatus(code);
+    btns.forEach(b => {
+      b.addEventListener('click', () => onAction(b.dataset.act));
+      wrap.appendChild(b);
+    });
+  }
+
+  /* ========================================================================
+   * Reset plantilla (valores vacíos)
+   * ======================================================================*/
+  const fillText = (sel, txt) => { const n = $(sel); if (n) n.textContent = (txt ?? "—"); };
+  function resetTemplate() {
+    const h1 = $(".exp-title h1"); if (h1) h1.textContent = "—";
+    $$(".exp-meta dd").forEach(dd => dd.textContent = "—");
+
+    const contactoVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
+    contactoVals.forEach((n, i) => {
+      if (i === 3) {
+        const a = n.querySelector("a");
+        if (a) { a.textContent = "—"; a.removeAttribute("href"); }
+        else n.textContent = "—";
+      } else n.textContent = "—";
+    });
+
+    const detallesVals = $$('.exp-pane[data-tab="detalles"] .exp-grid .exp-val');
+    detallesVals.forEach((n) => {
+      if (n.id === 'req-status') {
+        let badge = n.querySelector('[data-role="status-badge"]');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'exp-badge is-info';
+          badge.setAttribute('data-role', 'status-badge');
+          n.prepend(badge);
+        }
+        badge.className = 'exp-badge is-info';
+        badge.textContent = '—';
+        return;
+      }
+      n.textContent = '—';
+    });
+
+    const evTable = findEvidenciasTable();
+    if (evTable) evTable.querySelectorAll('.exp-row').forEach(r => r.remove());
+
+    const items = $$(".step-menu li");
+    items.forEach(li => li.classList.remove("current", "complete"));
+    const sol = items.find(li => Number(li.dataset.status) === 0);
+    sol?.classList.add("current");
+
+    const feed = $(".c-feed"); if (feed) feed.innerHTML = "";
+  }
+
+  /* ========================================================================
+   * Comentarios: listar / crear (con avatar)
    * ======================================================================*/
   async function listComentariosAPI({ requerimiento_id, status = 1, page = 1, page_size = 100 }) {
     const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
@@ -632,36 +669,55 @@
     return postJSON(ENDPOINTS.COMENT_CREATE, payload);
   }
 
-  function renderCommentsList(items = [], requerimiento_id) {
+  const _avatarCache = new Map();
+  async function fetchAvatarUrl(empleadoId) {
+    if (!empleadoId) return null;
+    if (_avatarCache.has(empleadoId)) return _avatarCache.get(empleadoId);
+    try {
+      const res = await postJSON(ENDPOINTS.EMPLEADOS_GET, { id: Number(E(empleadoId)), status: 1, all: true });
+      // E() asegura casteo a número seguro
+      function E(v){ const n = Number(v); return Number.isFinite(n) ? n : null; }
+      const d = res?.data ?? res;
+      const url = d?.avatar_url || d?.foto_url || d?.imagen_url || null;
+      _avatarCache.set(empleadoId, url || null);
+      return url || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function renderCommentsList(items = [], requerimiento_id) {
     console.groupCollapsed("[Comentarios][UI] render");
-    console.log("items crudos (antes de map):", items);
 
     const filtered = items.filter(r => {
       const rid = r.requerimiento_id ?? r.req_id ?? r.requerimiento ?? null;
       return rid == null ? true : String(rid) === String(requerimiento_id);
     });
 
-    console.log("items filtrados:", filtered);
-
     const feed = $(".c-feed"); if (!feed) { console.groupEnd(); return; }
     feed.innerHTML = "";
-    filtered.forEach(r => {
+
+    for (const r of filtered) {
       const nombre = r.nombre || r.empleado_nombre || r.autor || r.created_by || "—";
       const texto = r.comentario || r.texto || "";
       const cuandoAbs = r.created_at || r.fecha || "";
       const cuando = relShort(cuandoAbs);
 
+      const empId = r.empleado_id ?? r.created_by ?? r.autor_id ?? null;
+      const avatar = await fetchAvatarUrl(empId);
+      const avatarSrc = avatar || "/ASSETS/user/img_user1.png";
+
       const art = document.createElement("article");
       art.className = "msg";
       art.innerHTML = `
-        <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
+        <img class="avatar" src="${avatarSrc}" alt="">
         <div>
           <div class="who"><span class="name">${firstTwo(nombre)}</span> <span class="time">${cuando}</span></div>
           <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
         </div>`;
       $(".text", art).textContent = texto;
       feed.appendChild(art);
-    });
+    }
     const scroller = feed.parentElement || feed;
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
     console.groupEnd();
@@ -671,10 +727,10 @@
     console.groupCollapsed("[Comentarios] list");
     try {
       const arr = await listComentariosAPI({ requerimiento_id, status: 1, page: 1, page_size: 100 });
-      renderCommentsList(arr, requerimiento_id);
+      await renderCommentsList(arr, requerimiento_id);
     } catch (e) {
       warn("Error listando comentarios:", e);
-      renderCommentsList([], requerimiento_id);
+      await renderCommentsList([], requerimiento_id);
     } finally {
       console.groupEnd();
     }
@@ -730,6 +786,8 @@
   /* ========================================================================
    * Boot
    * ======================================================================*/
+  let __CURRENT_REQ_ID__ = null;
+
   async function boot() {
     resetTemplate();
     initAccordionsEvidencias();
@@ -743,6 +801,7 @@
     console.groupCollapsed("[Boot] Detalle");
     const params = new URL(window.location.href).searchParams;
     const reqId = params.get("id");
+    __CURRENT_REQ_ID__ = reqId;
     console.log("URL:", window.location.href, "reqId:", reqId);
 
     if (!reqId) {

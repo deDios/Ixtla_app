@@ -13,6 +13,24 @@
   const warn = (...a)=>console.warn("[Planeación]", ...a);
   const err  = (...a)=>console.error("[Planeación]", ...a);
 
+  // ===== Mapeo de ESTATUS de TAREA (según requerimiento) =====
+  const TASK_STATUS_LABEL = {
+    0: "Inactivo",
+    1: "Por hacer",
+    2: "En proceso",
+    3: "Por revisar",
+    4: "Hecho",
+  };
+  const TASK_STATUS_BADGE = {
+    0: "is-muted",
+    1: "is-info",
+    2: "is-info",
+    3: "is-warning",
+    4: "is-success",
+  };
+  // % por tarea basado SOLO en status (no por fechas)
+  const TASK_STATUS_PCT = { 0: 0, 1: 0, 2: 50, 3: 75, 4: 100 };
+
   // ===== Selectores / referencias de UI =====
   const SEL = {
     toolbar: {
@@ -143,7 +161,6 @@
    * Empleados + RBAC para poblar el SELECT de asignado
    * =========================================================================*/
   function normalizeEmpleadoFromAPI(r) {
-    // reporta_a: leer de r.cuenta.reporta_a si existe
     const reporta_a =
       (r.reporta_a != null ? r.reporta_a : (r.cuenta && r.cuenta.reporta_a != null ? r.cuenta.reporta_a : null));
     const roles = Array.isArray(r.cuenta?.roles) ? r.cuenta.roles.map(x => x?.codigo).filter(Boolean) : [];
@@ -226,7 +243,6 @@
       return universe;
     }
 
-    // Presidencia: por tu home.js, dept=6 ve TODO; ampliamos a "si dept actual está en PRESIDENCIA_DEPT_IDS"
     const PRES_DEPT_IDS = [6];
     if (PRES_DEPT_IDS.includes(deptId)) {
       log("[RBAC] modo PRESIDENCIA → todos");
@@ -234,14 +250,12 @@
     }
 
     if (isDirector || isPL) {
-      // Director / Primera Línea: self + TODOS de depts donde figure como director o primera_linea (catálogo)
       const depts = await fetchDepartamentos();
       const visibleDeptIds = new Set(
         depts
           .filter(d => d.director === yoId || d.primera_linea === yoId)
           .map(d => d.id)
       );
-      // agrega su depto de sesión por seguridad
       if (deptId) visibleDeptIds.add(deptId);
 
       const inDepts = universe.filter(e => visibleDeptIds.has(Number(e.departamento_id)));
@@ -250,49 +264,19 @@
 
       const map = new Map();
       [...inDepts, ...reports, ...(self ? [self] : [])].forEach(e => map.set(e.id, e));
-      const visibles = Array.from(map.values());
-
-      console.groupCollapsed("[RBAC] modo DIRECTOR/PRIMERA_LINEA");
-      console.log("dept visibles:", Array.from(visibleDeptIds));
-      console.log("en depts visibles:", inDepts.length);
-      console.log("reports transitivos:", reports.length);
-      console.log("self incluido:", !!self);
-      console.log("Total visibles:", visibles.length);
-      console.table(visibles.map(x => ({
-        id: x.id, nombre: x.nombre, apellidos: x.apellidos,
-        depto: x.departamento_id, reporta_a: x.reporta_a
-      })));
-      console.groupEnd();
-
-      return visibles;
+      return Array.from(map.values());
     }
 
     if (isJefe) {
-      // Jefe: self + direct reports (nivel 1)
       const self = universe.find(e => e.id === yoId);
       const direct = universe.filter(e => e.reporta_a === yoId);
       const map = new Map();
       if (self) map.set(self.id, self);
       direct.forEach(e => map.set(e.id, e));
-      const visibles = Array.from(map.values());
-
-      console.groupCollapsed("[RBAC] modo JEFE");
-      console.log("direct reports:", direct.length);
-      console.log("Total visibles:", visibles.length);
-      console.table(visibles.map(x => ({
-        id: x.id, nombre: x.nombre, apellidos: x.apellidos,
-        depto: x.departamento_id, reporta_a: x.reporta_a
-      })));
-      console.groupEnd();
-
-      return visibles;
+      return Array.from(map.values());
     }
 
-    // Analista (y cualquier otro rol no contemplado): self only
     const self = universe.find(e => e.id === yoId);
-    console.groupCollapsed("[RBAC] modo ANALISTA/OTROS");
-    console.log("self:", self ? `${self.id} ${self.full}` : "(no encontrado)");
-    console.groupEnd();
     return self ? [self] : [];
   }
 
@@ -303,7 +287,6 @@
     sel.innerHTML = `<option value="" disabled selected>Selecciona responsable…</option>`;
 
     const visibles = await buildAsignablesList();
-    // Orden alfabético por nombre/apellido
     visibles.sort((a,b) => (a.full || "").localeCompare(b.full || "", "es"));
 
     const yoId = Number(getEmpleadoId());
@@ -317,18 +300,14 @@
       sel.appendChild(opt);
     }
 
-    // Analista: queda forzado a sí mismo y bloqueado
     if (isAnalista && yoId) {
       sel.value = String(yoId);
       sel.setAttribute("disabled", "true");
       sel.title = "Como Analista solo puedes asignarte a ti mismo.";
-      log("[RBAC] select asignado bloqueado (Analista) a id:", yoId);
     } else {
       sel.removeAttribute("disabled");
       sel.title = "";
     }
-
-    log("[RBAC] select asignado poblado; opciones:", sel.options.length - 1);
   }
 
   // ====== LAYER: Procesos / Tareas (LIST / CREATE) ======
@@ -363,9 +342,9 @@
       titulo: String(titulo || "").trim(),
       descripcion: String(descripcion || "").trim() || null,
       esfuerzo: Number(esfuerzo),
-      fecha_inicio: fecha_inicio || null, // "YYYY-MM-DD HH:mm:ss" (opcional)
-      fecha_fin: fecha_fin || null,
-      status: 1,
+      fecha_inicio: fecha_inicio || null, // opcional
+      fecha_fin: fecha_fin || null,       // opcional
+      status: 1,                          // Por hacer
       created_by: created_by ?? asignado_a ?? null
     };
     return postJSON(API.TAREAS.CREATE, payload);
@@ -396,7 +375,7 @@
       esfuerzo: Number(r.esfuerzo) || 0,
       fecha_inicio: r.fecha_inicio || null,
       fecha_fin: r.fecha_fin || null,
-      status: r.status != null ? Number(r.status) : 1,
+      status: r.status != null ? Number(r.status) : 1, // ← usar status tal cual del backend
       created_at: r.created_at || null,
       updated_at: r.updated_at || null,
     };
@@ -431,8 +410,7 @@
     sec.className = "exp-accordion exp-accordion--fase";
     sec.setAttribute("data-proceso-id", String(p.id));
 
-    // progreso lo calcularemos tras pintar tareas
-    const pct = 0;
+    const pct = 0; // se actualizará con updateProcesoHeaderStats()
     const hoyMx = fmtMXDate(p.created_at || todayISO());
 
     sec.innerHTML = `
@@ -483,18 +461,15 @@
     const row = document.createElement("div");
     row.className = "exp-row";
 
-    // Estatus visual de tarea
-    let badgeClass = "is-info";
-    let badgeText  = "Por hacer";
-    if (t.fecha_fin) { badgeClass = "is-success"; badgeText = "Finalizado"; }
-    else if (t.fecha_inicio) { badgeClass = "is-info"; badgeText = "Activo"; }
-
-    // Porcentaje por tarea (0% si no ha iniciado, 100% si finalizada)
-    const pct = t.fecha_fin ? 100 : (t.fecha_inicio ? 50 : 0);
+    // Estatus visual de tarea (SOLO por t.status)
+    const st = Number(t.status ?? 1);
+    const badgeClass = TASK_STATUS_BADGE[st] || "is-info";
+    const badgeText  = TASK_STATUS_LABEL[st] || "Por hacer";
+    const pct = TASK_STATUS_PCT[st] ?? 0;
 
     row.innerHTML = `
       <div class="actividad">${escapeHtml(t.titulo)}</div>
-      <div class="responsable">${escapeHtml(t.asignado_display || "—")}</div>
+      <div class="responsable">${escapeHtml((t.asignado_display && t.asignado_display.trim()) ? t.asignado_display : "Sin asignar")}</div>
       <div class="estatus"><span class="exp-badge ${badgeClass}">${badgeText}</span></div>
       <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:${pct}%"></span></span></div>
       <div class="fecha">${fmtMXDate(t.fecha_inicio)}</div>
@@ -510,7 +485,8 @@
     if (!meta || !pctBar || !pctTxt) return;
 
     const total = tareas.length;
-    const done  = tareas.filter(t => !!t.fecha_fin).length;
+    // Progreso del proceso basado SOLO en status de tareas (4 = Hecho)
+    const done  = tareas.filter(t => Number(t.status) === 4).length;
     const pct = total ? Math.round((done / total) * 100) : 0;
 
     meta.textContent = `${total} ${total === 1 ? "actividad" : "actividades"}`;
@@ -531,7 +507,6 @@
       const procesos = await listProcesos(requerimiento_id, { status: 1, page: 1, page_size: 100 });
 
       if (!procesos.length) {
-        // placeholder
         const empty = document.createElement("div");
         empty.className = "exp-row";
         empty.style.padding = "12px";
