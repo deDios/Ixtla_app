@@ -9,10 +9,9 @@
   const toast = H.toast || ((m,t="info")=>console.log("[toast]", t, m));
   const setAccordionOpen = window.setAccordionOpen || ((h,b,open)=>{ b.hidden=!open; });
 
-  const TAG  = "[Planeación]";
-  const log  = (...a)=>console.log(TAG, ...a);
-  const warn = (...a)=>console.warn(TAG, ...a);
-  const err  = (...a)=>console.error(TAG, ...a);
+  const log  = (...a)=>console.log("[Planeación]", ...a);
+  const warn = (...a)=>console.warn("[Planeación]", ...a);
+  const err  = (...a)=>console.error("[Planeación]", ...a);
 
   // ===== Selectores / referencias de UI =====
   const SEL = {
@@ -28,7 +27,7 @@
     selProceso:    "#tarea-proceso",
     inpTitulo:     "#tarea-titulo",
     inpEsfuerzo:   "#tarea-esfuerzo",
-    inpAsignado:   "#tarea-asignado",  // <select id="tarea-asignado">
+    selAsignado:   "#tarea-asignado",
     txtDesc:       "#tarea-desc",
 
     // Modal Nuevo Proceso
@@ -56,8 +55,10 @@
       LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tarea_proceso.php",
     },
     EMPLEADOS: {
-      // ajusta si tu endpoint se llama distinto
       LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
+    },
+    DEPTS: {
+      LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
     }
   };
   const API = (window.API || API_FBK);
@@ -106,32 +107,228 @@
     const s = safeGetSession();
     return s?.departamento_id ?? s?.dept_id ?? null;
   }
-  function getRolesUp() {
+  function getRoles() {
     const s = safeGetSession();
-    const r = Array.isArray(s?.roles) ? s.roles : [];
-    return r.map(x => String(x).toUpperCase());
-  }
-  function getNombreSesion() {
-    const s = safeGetSession();
-    return [s?.nombre, s?.apellidos].filter(Boolean).join(" ").trim() || "Yo";
+    const r = Array.isArray(s?.roles) ? s.roles.map(x => String(x).toUpperCase()) : [];
+    return r;
   }
 
-  // ===== Utilidades varias =====
+  // ===== Utilidades =====
   function collectProcesos() {
     return $$('#planeacion-list .exp-accordion--fase[data-proceso-id]');
   }
 
   function todayISO() {
+    // YYYY-MM-DD
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
   function fmtMXDate(s) {
     if (!s) return "—";
+    // acepta "YYYY-MM-DD" o "YYYY-MM-DD HH:mm:ss"
     const parts = String(s).slice(0, 19).replace("T"," ").split(" ")[0].split("-");
     if (parts.length !== 3) return s;
     const [Y,M,D] = parts;
     return `${D}/${M}/${Y}`;
+  }
+
+  function escapeHtml(s="") {
+    return String(s)
+      .replaceAll("&","&amp;").replaceAll("<","&lt;")
+      .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  }
+
+  /* =========================================================================
+   * Empleados + RBAC para poblar el SELECT de asignado
+   * =========================================================================*/
+  function normalizeEmpleadoFromAPI(r) {
+    // reporta_a: leer de r.cuenta.reporta_a si existe
+    const reporta_a =
+      (r.reporta_a != null ? r.reporta_a : (r.cuenta && r.cuenta.reporta_a != null ? r.cuenta.reporta_a : null));
+    const roles = Array.isArray(r.cuenta?.roles) ? r.cuenta.roles.map(x => x?.codigo).filter(Boolean) : [];
+    const rolCodes = roles.map(x => String(x).toUpperCase());
+    return {
+      id: Number(r.id),
+      nombre: String(r.nombre || "").trim(),
+      apellidos: String(r.apellidos || "").trim(),
+      full: [r.nombre, r.apellidos].filter(Boolean).join(" ").trim(),
+      departamento_id: (r.departamento_id != null ? Number(r.departamento_id) : null),
+      reporta_a: (reporta_a != null ? Number(reporta_a) : null),
+      rolCodes,
+    };
+  }
+
+  async function fetchEmpleadosAll() {
+    log("[RBAC] fetchEmpleadosAll");
+    const j = await postJSON(API.EMPLEADOS.LIST, { page: 1, page_size: 500, status: 1 });
+    const arr = Array.isArray(j?.data) ? j.data : [];
+    const norm = arr.map(normalizeEmpleadoFromAPI);
+    log("Total empleados en universo:", norm.length);
+    log("Muestra (5):", norm.slice(0,5));
+    return norm;
+  }
+
+  async function fetchDepartamentos() {
+    const j = await postJSON(API.DEPTS.LIST, { page: 1, page_size: 200, status: 1 });
+    const arr = Array.isArray(j?.data) ? j.data : [];
+    return arr.map(d => ({
+      id: Number(d.id),
+      nombre: String(d.nombre || "").trim(),
+      director: (d.director != null ? Number(d.director) : null),
+      primera_linea: (d.primera_linea != null ? Number(d.primera_linea) : null),
+    }));
+  }
+
+  function getReportesTransitivos(universe, jefeId) {
+    // BFS por reporta_a
+    const mapByBoss = new Map();
+    universe.forEach(emp => {
+      const boss = emp.reporta_a != null ? Number(emp.reporta_a) : null;
+      if (boss == null) return;
+      if (!mapByBoss.has(boss)) mapByBoss.set(boss, []);
+      mapByBoss.get(boss).push(emp);
+    });
+    const visited = new Set();
+    const queue = [Number(jefeId)];
+    const out = [];
+    while (queue.length) {
+      const cur = queue.shift();
+      const kids = mapByBoss.get(cur) || [];
+      for (const k of kids) {
+        if (visited.has(k.id)) continue;
+        visited.add(k.id);
+        out.push(k);
+        queue.push(k.id);
+      }
+    }
+    return out;
+  }
+
+  async function buildAsignablesList() {
+    const yoId   = Number(getEmpleadoId());
+    const deptId = Number(getDeptId());
+    const roles  = getRoles(); // ["ADMIN","DIRECTOR",...]
+    const isAdmin = roles.includes("ADMIN");
+    const isDirector = roles.includes("DIRECTOR");
+    const isPL = roles.includes("PRIMERA_LINEA") || roles.includes("PL") || roles.includes("PRIMERA LINEA");
+    const isJefe = roles.includes("JEFE");
+    const isAnalista = roles.includes("ANALISTA");
+
+    const universe = await fetchEmpleadosAll();
+    console.groupCollapsed("[RBAC] universo");
+    console.log("universe total:", universe.length);
+    console.log("yoId:", yoId, "deptId (session):", deptId, "roles:", roles);
+    console.groupEnd();
+
+    if (isAdmin) {
+      log("[RBAC] modo ADMIN → todos");
+      return universe;
+    }
+
+    // Presidencia: por tu home.js, dept=6 ve TODO; ampliamos a "si dept actual está en PRESIDENCIA_DEPT_IDS"
+    const PRES_DEPT_IDS = [6];
+    if (PRES_DEPT_IDS.includes(deptId)) {
+      log("[RBAC] modo PRESIDENCIA → todos");
+      return universe;
+    }
+
+    if (isDirector || isPL) {
+      // Director / Primera Línea: self + TODOS de depts donde figure como director o primera_linea (catálogo)
+      const depts = await fetchDepartamentos();
+      const visibleDeptIds = new Set(
+        depts
+          .filter(d => d.director === yoId || d.primera_linea === yoId)
+          .map(d => d.id)
+      );
+      // agrega su depto de sesión por seguridad
+      if (deptId) visibleDeptIds.add(deptId);
+
+      const inDepts = universe.filter(e => visibleDeptIds.has(Number(e.departamento_id)));
+      const reports = getReportesTransitivos(universe, yoId);
+      const self = universe.find(e => e.id === yoId);
+
+      const map = new Map();
+      [...inDepts, ...reports, ...(self ? [self] : [])].forEach(e => map.set(e.id, e));
+      const visibles = Array.from(map.values());
+
+      console.groupCollapsed("[RBAC] modo DIRECTOR/PRIMERA_LINEA");
+      console.log("dept visibles:", Array.from(visibleDeptIds));
+      console.log("en depts visibles:", inDepts.length);
+      console.log("reports transitivos:", reports.length);
+      console.log("self incluido:", !!self);
+      console.log("Total visibles:", visibles.length);
+      console.table(visibles.map(x => ({
+        id: x.id, nombre: x.nombre, apellidos: x.apellidos,
+        depto: x.departamento_id, reporta_a: x.reporta_a
+      })));
+      console.groupEnd();
+
+      return visibles;
+    }
+
+    if (isJefe) {
+      // Jefe: self + direct reports (nivel 1)
+      const self = universe.find(e => e.id === yoId);
+      const direct = universe.filter(e => e.reporta_a === yoId);
+      const map = new Map();
+      if (self) map.set(self.id, self);
+      direct.forEach(e => map.set(e.id, e));
+      const visibles = Array.from(map.values());
+
+      console.groupCollapsed("[RBAC] modo JEFE");
+      console.log("direct reports:", direct.length);
+      console.log("Total visibles:", visibles.length);
+      console.table(visibles.map(x => ({
+        id: x.id, nombre: x.nombre, apellidos: x.apellidos,
+        depto: x.departamento_id, reporta_a: x.reporta_a
+      })));
+      console.groupEnd();
+
+      return visibles;
+    }
+
+    // Analista (y cualquier otro rol no contemplado): self only
+    const self = universe.find(e => e.id === yoId);
+    console.groupCollapsed("[RBAC] modo ANALISTA/OTROS");
+    console.log("self:", self ? `${self.id} ${self.full}` : "(no encontrado)");
+    console.groupEnd();
+    return self ? [self] : [];
+  }
+
+  async function populateAsignadoSelect() {
+    const sel = $(SEL.selAsignado);
+    if (!sel) return;
+
+    sel.innerHTML = `<option value="" disabled selected>Selecciona responsable…</option>`;
+
+    const visibles = await buildAsignablesList();
+    // Orden alfabético por nombre/apellido
+    visibles.sort((a,b) => (a.full || "").localeCompare(b.full || "", "es"));
+
+    const yoId = Number(getEmpleadoId());
+    const roles = getRoles();
+    const isAnalista = roles.includes("ANALISTA");
+
+    for (const emp of visibles) {
+      const opt = document.createElement("option");
+      opt.value = String(emp.id);
+      opt.textContent = emp.full || `Empleado #${emp.id}`;
+      sel.appendChild(opt);
+    }
+
+    // Analista: queda forzado a sí mismo y bloqueado
+    if (isAnalista && yoId) {
+      sel.value = String(yoId);
+      sel.setAttribute("disabled", "true");
+      sel.title = "Como Analista solo puedes asignarte a ti mismo.";
+      log("[RBAC] select asignado bloqueado (Analista) a id:", yoId);
+    } else {
+      sel.removeAttribute("disabled");
+      sel.title = "";
+    }
+
+    log("[RBAC] select asignado poblado; opciones:", sel.options.length - 1);
   }
 
   // ====== LAYER: Procesos / Tareas (LIST / CREATE) ======
@@ -166,7 +363,7 @@
       titulo: String(titulo || "").trim(),
       descripcion: String(descripcion || "").trim() || null,
       esfuerzo: Number(esfuerzo),
-      fecha_inicio: fecha_inicio || null,
+      fecha_inicio: fecha_inicio || null, // "YYYY-MM-DD HH:mm:ss" (opcional)
       fecha_fin: fecha_fin || null,
       status: 1,
       created_by: created_by ?? asignado_a ?? null
@@ -174,7 +371,7 @@
     return postJSON(API.TAREAS.CREATE, payload);
   }
 
-  // ===== Normalizadores =====
+  // ===== Normalizadores
   function normalizeProceso(r = {}) {
     return {
       id: Number(r.id),
@@ -205,7 +402,7 @@
     };
   }
 
-  // ====== Pintado de UI (reutiliza tu markup) ======
+  // ====== Pintado de UI (reutiliza tu markup)
   function bindProcessAccordion(sec) {
     const head = sec.querySelector(".exp-acc-head");
     const body = sec.querySelector(".exp-acc-body");
@@ -234,6 +431,7 @@
     sec.className = "exp-accordion exp-accordion--fase";
     sec.setAttribute("data-proceso-id", String(p.id));
 
+    // progreso lo calcularemos tras pintar tareas
     const pct = 0;
     const hoyMx = fmtMXDate(p.created_at || todayISO());
 
@@ -278,12 +476,6 @@
     return sec;
   }
 
-  function escapeHtml(s="") {
-    return String(s)
-      .replaceAll("&","&amp;").replaceAll("<","&lt;")
-      .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
-  }
-
   function addTareaRow(sec, t) {
     const table = sec.querySelector(".exp-table--planeacion");
     if (!table) return;
@@ -297,6 +489,7 @@
     if (t.fecha_fin) { badgeClass = "is-success"; badgeText = "Finalizado"; }
     else if (t.fecha_inicio) { badgeClass = "is-info"; badgeText = "Activo"; }
 
+    // Porcentaje por tarea (0% si no ha iniciado, 100% si finalizada)
     const pct = t.fecha_fin ? 100 : (t.fecha_inicio ? 50 : 0);
 
     row.innerHTML = `
@@ -331,12 +524,14 @@
     const host = $(SEL.planeacionList);
     if (!host) return;
 
+    // Limpia todo
     host.innerHTML = "";
 
     try {
       const procesos = await listProcesos(requerimiento_id, { status: 1, page: 1, page_size: 100 });
 
       if (!procesos.length) {
+        // placeholder
         const empty = document.createElement("div");
         empty.className = "exp-row";
         empty.style.padding = "12px";
@@ -364,174 +559,6 @@
     }
   }
 
-  /* =====================================================================================
-   * RBAC + Empleados (para el <select id="tarea-asignado">)
-   * ===================================================================================*/
-
-  // Lista de empleados con aliases robustos para jerarquía
-  async function fetchEmpleadosAll({ page=1, page_size=500 } = {}) {
-    console.groupCollapsed(`${TAG} [RBAC] fetchEmpleadosAll`);
-    try {
-      const j = await postJSON(API.EMPLEADOS.LIST, { page, page_size, status: 1 });
-      const arr = Array.isArray(j?.data) ? j.data : [];
-      const mapped = arr.map(e => {
-        const depId =
-          e.departamento_id ?? e.depto_id ?? e.id_departamento ?? null;
-
-        // Alias para “reporta a”
-        const repA =
-          e.reporta_a ?? e.cuenta_reporta_a ?? e.jefe_id ?? e.superior_id ??
-          e.reporta ?? e.manager_id ?? e.id_jefe ?? null;
-
-        return {
-          id: Number(e.id),
-          nombre: String(e.nombre || "").trim(),
-          apellidos: String(e.apellidos || "").trim(),
-          departamento_id: depId != null ? Number(depId) : null,
-          reporta_a: repA != null ? Number(repA) : null,
-          display: [e.nombre, e.apellidos].filter(Boolean).join(" ").trim() || `Empleado #${e.id}`
-        };
-      });
-
-      console.log("Total empleados en universo:", mapped.length);
-      console.log("Muestra (5):", mapped.slice(0,5));
-      console.groupEnd();
-      return mapped;
-    } catch (e) {
-      console.groupEnd();
-      warn("No se pudo listar empleados:", e);
-      return [];
-    }
-  }
-
-  function unionById(a = [], b = []) {
-    const map = new Map();
-    a.forEach(x => x?.id && map.set(Number(x.id), x));
-    b.forEach(x => x?.id && map.set(Number(x.id), x));
-    return Array.from(map.values());
-  }
-
-  // Cadena de reportes transitiva
-  function getReportsTransitive(universe, managerId) {
-    const byBoss = new Map();
-    for (const e of universe) {
-      const key = Number(e.reporta_a ?? -1);
-      if (!byBoss.has(key)) byBoss.set(key, []);
-      byBoss.get(key).push(e);
-    }
-    const out = [];
-    const seen = new Set();
-    const q = [Number(managerId)];
-    while (q.length) {
-      const boss = q.shift();
-      const directs = byBoss.get(boss) || [];
-      for (const emp of directs) {
-        const k = Number(emp.id);
-        if (seen.has(k)) continue;
-        seen.add(k);
-        out.push(emp);
-        q.push(k);
-      }
-    }
-    return out;
-  }
-
-  function readRBACFlags() {
-    const rolesUp = getRolesUp();
-    const deptId  = getDeptId();
-    const yoId    = getEmpleadoId();
-
-    const isAdmin = rolesUp.includes("ADMIN");
-    const isPres  = (deptId != null && Number(deptId) === 6) || rolesUp.includes("PRESIDENCIA");
-    const isDir   = rolesUp.includes("DIRECTOR");
-    const soyPL   = rolesUp.includes("PRIMERA_LINEA") || rolesUp.includes("PRIMERA LINEA") || rolesUp.includes("PRIMERA-LINEA");
-    const isJefe  = rolesUp.includes("JEFE");
-    const isAnal  = rolesUp.includes("ANALISTA");
-
-    console.groupCollapsed(`${TAG} [RBAC] flags`);
-    console.log("roles:", rolesUp);
-    console.log("deptId:", deptId, "yoId:", yoId);
-    console.log({ isAdmin, isPres, isDir, soyPL, isJefe, isAnal });
-    console.groupEnd();
-
-    return { rolesUp, deptId, yoId, isAdmin, isPres, isDir, soyPL, isJefe, isAnal };
-  }
-
-  async function setupAsignadoOptions(selectEl) {
-    if (!selectEl) return;
-
-    const { rolesUp, deptId, yoId, isAdmin, isPres, isDir, soyPL, isJefe, isAnal } = readRBACFlags();
-    const yoName = getNombreSesion();
-
-    const universe = await fetchEmpleadosAll();
-    console.groupCollapsed(`${TAG} [RBAC] universo`);
-    console.log("universe total:", universe.length);
-    console.log("yoId:", yoId, "yoName:", yoName, "deptId:", deptId);
-    console.groupEnd();
-
-    let visibles = [];
-    if (isAdmin || isPres) {
-      visibles = universe.slice();
-      console.log(`${TAG} [RBAC] modo ADMIN/PRESIDENCIA → todo el universo (${visibles.length})`);
-    } else if (isDir || soyPL) {
-      const sameDept = universe.filter(e => Number(e.departamento_id) === Number(deptId));
-      const reports  = getReportsTransitive(universe, yoId);
-      visibles = unionById(sameDept, reports);
-      console.log(`${TAG} [RBAC] modo DIRECTOR/PRIMERA_LINEA → depto(${sameDept.length}) + reports(${reports.length}) = ${visibles.length}`);
-      if (!visibles.some(e => Number(e.id) === Number(yoId))) {
-        visibles.unshift({ id: yoId, display: yoName, departamento_id: deptId, reporta_a: null });
-      }
-    } else if (isJefe) {
-      const reports = getReportsTransitive(universe, yoId);
-      if (reports.length) {
-        visibles = unionById(reports, [{ id: yoId, display: yoName, departamento_id: deptId, reporta_a: null }]);
-        console.log(`${TAG} [RBAC] modo JEFE → reports(${reports.length}) + yo(1) = ${visibles.length}`);
-      } else {
-        const sameDept = universe.filter(e => Number(e.departamento_id) === Number(deptId));
-        visibles = unionById(sameDept, [{ id: yoId, display: yoName, departamento_id: deptId, reporta_a: null }]);
-        console.log(`${TAG} [RBAC] modo JEFE (sin reports) → depto(${sameDept.length}) + yo(1) = ${visibles.length}`);
-      }
-    } else if (isAnal) {
-      visibles = [{ id: yoId, display: yoName, departamento_id: deptId, reporta_a: null }];
-      console.log(`${TAG} [RBAC] modo ANALISTA → solo yo (1)`);
-    } else {
-      visibles = [{ id: yoId, display: yoName, departamento_id: deptId, reporta_a: null }];
-      console.log(`${TAG} [RBAC] modo RESTO → solo yo (1)`);
-    }
-
-    visibles.sort((a, b) => a.display.localeCompare(b.display, "es"));
-
-    // Poblado del select
-    selectEl.innerHTML = "";
-    const optP = document.createElement("option");
-    optP.value = "";
-    optP.disabled = true;
-    optP.selected = true;
-    optP.textContent = "Selecciona responsable…";
-    selectEl.appendChild(optP);
-
-    for (const e of visibles) {
-      const op = document.createElement("option");
-      op.value = String(e.id);
-      op.textContent = e.display || `Empleado #${e.id}`;
-      selectEl.appendChild(op);
-    }
-
-    // Forzar selección y bloqueo para ANALISTA
-    if (isAnal && yoId != null) {
-      selectEl.value = String(yoId);
-      selectEl.disabled = true;
-      console.log(`${TAG} [RBAC] ANALISTA: select bloqueado en id=${yoId}`);
-    } else {
-      selectEl.disabled = false;
-    }
-
-    console.groupCollapsed(`${TAG} [RBAC] resumen visibles`);
-    console.table(visibles.slice(0, 10));
-    console.log(`Total visibles: ${visibles.length}`);
-    console.groupEnd();
-  }
-
   // ===== Modal Nueva Tarea =====
   function openTareaModal({ preferProcesoId = null } = {}) {
     const modal = document.querySelector(SEL.modalT);
@@ -546,10 +573,6 @@
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("me-modal-open");
 
-    // Poblamos el combo de asignados según RBAC (cada apertura, por si cambió sesión)
-    const selAsignado = $(SEL.inpAsignado);
-    setupAsignadoOptions(selAsignado).catch(e => warn("setupAsignadoOptions error:", e));
-
     if (!_boundModalT) {
       modal.addEventListener("click", (e)=>{ if (e.target === modal) closeTareaModal(); });
       modalContent.addEventListener("click", (e)=>{ if (e.target.closest(".modal-close")) closeTareaModal(); }, { capture: true });
@@ -559,6 +582,9 @@
       bindSubmitNuevaTarea();
       _boundModalT = true;
     }
+
+    // Poblamos el combo de asignado según RBAC
+    populateAsignadoSelect().catch((e)=>warn("populateAsignadoSelect error:", e));
 
     setTimeout(() => $(SEL.selProceso)?.focus(), 30);
   }
@@ -593,30 +619,26 @@
       const procesoId = $(SEL.selProceso)?.value || "";
       const titulo    = ($(SEL.inpTitulo)?.value || "").trim();
       const esfuerzo  = Number($(SEL.inpEsfuerzo)?.value || 0);
-      const asignadoIdStr = ($(SEL.inpAsignado)?.value || "").trim(); // ahora es <select>: viene ID
+      const asignadoId= $(SEL.selAsignado)?.value || "";
       const desc      = ($(SEL.txtDesc)?.value || "").trim();
 
       if (!procesoId) { toast("Selecciona un proceso.", "warning"); $(SEL.selProceso)?.focus(); return; }
       if (!titulo)    { toast("Escribe un título.", "warning"); $(SEL.inpTitulo)?.focus(); return; }
       if (!(esfuerzo > 0)) { toast("Define el esfuerzo (mínimo 1).", "warning"); $(SEL.inpEsfuerzo)?.focus(); return; }
+      if (!asignadoId) { toast("Selecciona un responsable.", "warning"); $(SEL.selAsignado)?.focus(); return; }
 
       const empleadoId = getEmpleadoId();
-      const asignado_id = asignadoIdStr ? Number(asignadoIdStr) : null;
-
-      console.groupCollapsed(`${TAG} submit Tarea`);
-      console.log("payload (prev):", { procesoId, titulo, esfuerzo, asignado_id, desc, empleadoId });
-      console.groupEnd();
 
       try {
         const res = await createTarea({
           proceso_id: Number(procesoId),
           titulo,
           esfuerzo,
-          asignado_a: asignado_id,        // ← ahora sí mandamos el ID seleccionado
+          asignado_a: Number(asignadoId),
           descripcion: desc || null,
           fecha_inicio: null, 
           fecha_fin: null,
-          created_by: empleadoId ?? asignado_id ?? null
+          created_by: empleadoId ?? Number(asignadoId)
         });
         if (res?.ok === false) throw new Error(res?.error || "No se pudo crear la tarea");
         toast("Tarea creada", "success");
@@ -626,10 +648,12 @@
         const sec = $(`#planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(String(procesoId))}"]`);
         if (sec) {
           const tareas = await listTareas(Number(procesoId), { status:1, page:1, page_size:100 });
+          // limpia filas existentes
           sec.querySelectorAll(".exp-table--planeacion .exp-row").forEach(r => r.remove());
           tareas.forEach(t => addTareaRow(sec, t));
           updateProcesoHeaderStats(sec, tareas);
         } else {
+          // si no lo encuentra, refresca todo
           const req = window.__REQ__;
           if (req?.id) await renderProcesosYtareas(req.id);
         }
@@ -741,20 +765,24 @@
   // ===== API pública =====
   window.Planeacion = {
     async init() {
+      // 1) Acordeones existentes (si los hay en HTML de demo)
       $$('#planeacion-list .exp-accordion--fase').forEach(bindProcessAccordion);
+      // 2) Toolbar
       bindToolbar();
-
+      // 3) Cuando cargue el requerimiento, dispara carga real
       document.addEventListener("req:loaded", async (e) => {
         const req = e?.detail || window.__REQ__;
         if (!req?.id) return;
         await renderProcesosYtareas(Number(req.id));
       }, { once: true });
 
+      // Si ya estaba available __REQ__ (por timing), cargar
       if (window.__REQ__?.id) {
         await renderProcesosYtareas(Number(window.__REQ__.id));
       }
       log("init OK (API conectada)");
     },
+    // Por si luego los necesitas desde otros scripts:
     reload: async () => {
       const req = window.__REQ__; if (!req?.id) return;
       await renderProcesosYtareas(Number(req.id));
