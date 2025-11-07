@@ -15,23 +15,26 @@
 
   // ===== Selectores / referencias de UI =====
   const SEL = {
-    toolbar: { addProceso: "#btn-add-proceso", addTarea: "#btn-add-tarea" },
+    toolbar: {
+      addProceso: "#btn-add-proceso",
+      addTarea:   "#btn-add-tarea",
+    },
     planeacionList: "#planeacion-list",
 
     // Modal Nueva Tarea
-    modalT: "#modal-tarea",
-    formT:  "#form-tarea",
-    selProceso: "#tarea-proceso",
-    inpTitulo:  "#tarea-titulo",
-    inpEsfuerzo:"#tarea-esfuerzo",
-    inpAsignado:"#tarea-asignado",
-    txtDesc:    "#tarea-desc",
+    modalT:        "#modal-tarea",
+    formT:         "#form-tarea",
+    selProceso:    "#tarea-proceso",
+    inpTitulo:     "#tarea-titulo",
+    inpEsfuerzo:   "#tarea-esfuerzo",
+    inpAsignado:   "#tarea-asignado",   // <select>
+    txtDesc:       "#tarea-desc",
 
     // Modal Nuevo Proceso
-    modalP:     "#modal-proceso",
-    formP:      "#form-proceso",
-    inpPTitulo: "#proceso-titulo",
-    inpPInicio: "#proceso-inicio",
+    modalP:        "#modal-proceso",
+    formP:         "#form-proceso",
+    inpPTitulo:    "#proceso-titulo",
+    inpPInicio:    "#proceso-inicio",
   };
 
   // ===== Estado interno / flags =====
@@ -52,9 +55,9 @@
       LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tarea_proceso.php",
     },
     USUARIOS: {
-      // Fallback genérico (patrón usado en tu backend)
+      // ⚠️ Ajusta si tu endpoint real es distinto
       LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
-    }
+    },
   };
   const API = (window.API || API_FBK);
 
@@ -82,7 +85,7 @@
     }
   }
 
-  // ===== Session helper
+  // ===== Session helper (igual que en requerimientoView.safeGetSession)
   function safeGetSession() {
     try { if (window.Session?.get) return window.Session.get(); } catch {}
     try {
@@ -98,40 +101,147 @@
     const s = safeGetSession();
     return s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
   }
-  function getEmpleadoNombre() {
-    const s = safeGetSession() || {};
-    const nom = [s.nombre, s.apellidos].filter(Boolean).join(" ").trim();
-    return nom || "Yo";
-  }
+  function getDeptId() { return safeGetSession()?.departamento_id ?? null; }
   function getRoles() {
     const s = safeGetSession() || {};
     return Array.isArray(s.roles) ? s.roles.map(r => String(r).toUpperCase()) : [];
   }
-  function getDeptId() {
-    const s = safeGetSession() || {};
-    return s?.departamento_id ?? null;
+
+  // ===== RBAC helpers
+  function isAnalista()   { return getRoles().includes("ANALISTA"); }
+  function isDirector()   { return getRoles().includes("DIRECTOR"); }
+  function isJefe()       { return getRoles().includes("JEFE"); }
+  function isAdmin()      { return getRoles().includes("ADMIN"); }
+  function isPresidencia(){ return Number(getDeptId()) === 6; } // tu regla
+
+  // ¿soy primera línea del depto?
+  async function isPrimeraLinea() {
+    try {
+      const url = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php";
+      const res = await fetch(url, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", Accept:"application/json" },
+        body: JSON.stringify({ all:true })
+      });
+      if (!res.ok) return false;
+      const json = await res.json();
+      const arr = json?.data || [];
+      const myDept = arr.find(d => Number(d.id) === Number(getDeptId()));
+      return !!(myDept && Number(myDept.primera_linea) === Number(getEmpleadoId()));
+    } catch { return false; }
   }
-  function isPresidencia() {
-    // mismo criterio que usas en Home.js: dept_id === 6
-    return Number(getDeptId()) === 6;
+
+  // ===== Fetch de empleados (para el combo Asignado a)
+  async function fetchAllEmpleados() {
+    const j = await postJSON(API.USUARIOS.LIST, { status:1, page:1, page_size:1000 });
+    return (j?.data || []).map(e => ({
+      id:Number(e.id), nombre:e.nombre||"", apellidos:e.apellidos||"",
+      departamento_id:e.departamento_id, reporta_a:e.reporta_a
+    }));
+  }
+  async function fetchEmpleadosByDept(deptId) {
+    const j = await postJSON(API.USUARIOS.LIST, { status:1, departamento_id:Number(deptId), page:1, page_size:1000 });
+    return (j?.data || []).map(e => ({
+      id:Number(e.id), nombre:e.nombre||"", apellidos:e.apellidos||"",
+      departamento_id:e.departamento_id, reporta_a:e.reporta_a
+    }));
+  }
+  async function fetchSubordinados(bossId) {
+    const j = await postJSON(API.USUARIOS.LIST, { status:1, reporta_a:Number(bossId), page:1, page_size:1000 });
+    return (j?.data || []).map(e => ({
+      id:Number(e.id), nombre:e.nombre||"", apellidos:e.apellidos||"",
+      departamento_id:e.departamento_id, reporta_a:e.reporta_a
+    }));
+  }
+
+  function addPeopleOptions(sel, list, yoId) {
+    const restantes = (list || [])
+      .filter(e => e && Number(e.id) !== Number(yoId))
+      .sort((a,b) => (a.nombre+" "+a.apellidos).localeCompare(b.nombre+" "+b.apellidos, "es"));
+
+    if (restantes.length) {
+      const sep = document.createElement("option");
+      sep.disabled = true; sep.textContent = "──────────";
+      sel.appendChild(sep);
+      restantes.forEach(e => {
+        const o = document.createElement("option");
+        o.value = String(e.id);
+        o.textContent = [e.nombre, e.apellidos].filter(Boolean).join(" ") || `Empleado #${e.id}`;
+        sel.appendChild(o);
+      });
+      sel.removeAttribute("disabled");
+      sel.title = "";
+    }
+  }
+
+  async function setupAsignadoOptions(sel) {
+    if (!sel) return;
+    sel.innerHTML = "";
+
+    const yoId  = getEmpleadoId();
+    const s     = safeGetSession() || {};
+    const yoTxt = [s.nombre, s.apellidos].filter(Boolean).join(" ") || "Yo";
+    const roles = getRoles();
+
+    // Siempre agregamos "Yo"
+    const optYo = document.createElement("option");
+    optYo.value = yoId != null ? String(yoId) : "";
+    optYo.textContent = `Yo (${yoTxt})`;
+    sel.appendChild(optYo);
+    sel.value = optYo.value || "";
+
+    // ANALISTA → solo yo (bloqueado)
+    if (isAnalista()) {
+      sel.setAttribute("disabled", "true");
+      sel.title = "Como Analista, solo puedes asignarte tareas a ti mismo.";
+      return;
+    }
+
+    // PRESIDENCIA / ADMIN → todos
+    if (isPresidencia() || isAdmin()) {
+      const all = await fetchAllEmpleados();
+      addPeopleOptions(sel, all, yoId);
+      return;
+    }
+
+    // DIRECTOR / PRIMERA LÍNEA → todo el departamento
+    if (isDirector() || (await isPrimeraLinea())) {
+      const deptPeople = await fetchEmpleadosByDept(getDeptId());
+      addPeopleOptions(sel, deptPeople, yoId);
+      return;
+    }
+
+    // JEFE → subordinados directos
+    if (isJefe()) {
+      const team = await fetchSubordinados(yoId);
+      addPeopleOptions(sel, team, yoId);
+      return;
+    }
+
+    // Resto → solo yo (habilitado)
+    sel.removeAttribute("disabled");
+    sel.title = "";
   }
 
   // ===== Utilidades =====
   function collectProcesos() {
     return $$('#planeacion-list .exp-accordion--fase[data-proceso-id]');
   }
+
   function todayISO() {
-    const d = new Date(); const pad = (n)=>String(n).padStart(2,"0");
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
   function fmtMXDate(s) {
     if (!s) return "—";
-    const parts = String(s).slice(0,19).replace("T"," ").split(" ")[0].split("-");
+    const parts = String(s).slice(0, 19).replace("T"," ").split(" ")[0].split("-");
     if (parts.length !== 3) return s;
-    const [Y,M,D] = parts; return `${D}/${M}/${Y}`;
+    const [Y,M,D] = parts;
+    return `${D}/${M}/${Y}`;
   }
 
-  // ====== LAYER: Procesos / Tareas ======
+  // ====== LAYER: Procesos / Tareas (LIST / CREATE) ======
   async function listProcesos(requerimiento_id, { status=1, page=1, page_size=100 } = {}) {
     const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
     const j = await postJSON(API.PROCESOS.LIST, payload);
@@ -148,12 +258,14 @@
     };
     return postJSON(API.PROCESOS.CREATE, payload);
   }
+
   async function listTareas(proceso_id, { status=1, page=1, page_size=100 } = {}) {
     const payload = { proceso_id: Number(proceso_id), status, page, page_size };
     const j = await postJSON(API.TAREAS.LIST, payload);
     const arr = Array.isArray(j?.data) ? j.data : [];
     return arr.map(normalizeTarea);
   }
+
   async function createTarea({ proceso_id, titulo, esfuerzo, asignado_a, descripcion, fecha_inicio, fecha_fin, created_by }) {
     const payload = {
       proceso_id: Number(proceso_id),
@@ -200,7 +312,7 @@
     };
   }
 
-  // ====== Pintado de UI
+  // ====== Pintado de UI (reutiliza tu markup)
   function bindProcessAccordion(sec) {
     const head = sec.querySelector(".exp-acc-head");
     const body = sec.querySelector(".exp-acc-body");
@@ -233,6 +345,7 @@
     const hoyMx = fmtMXDate(p.created_at || todayISO());
 
     sec.innerHTML = `
+      <!-- HEADER -->
       <button class="exp-acc-head" type="button" aria-expanded="true">
         <div class="fase-left">
           <div class="fase-head">
@@ -240,6 +353,7 @@
             <small class="fase-meta">0 actividades</small>
           </div>
         </div>
+
         <div class="fase-right">
           <span class="fase-label">Estatus</span>
           <span class="exp-progress" aria-label="${pct}%">
@@ -251,6 +365,8 @@
           <span class="chev" aria-hidden="true"></span>
         </div>
       </button>
+
+      <!-- BODY -->
       <div class="exp-acc-body">
         <div class="exp-table exp-table--planeacion is-card">
           <div class="exp-thead">
@@ -269,7 +385,8 @@
   }
 
   function escapeHtml(s="") {
-    return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;")
+    return String(s)
+      .replaceAll("&","&amp;").replaceAll("<","&lt;")
       .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   }
 
@@ -318,6 +435,7 @@
   async function renderProcesosYtareas(requerimiento_id) {
     const host = $(SEL.planeacionList);
     if (!host) return;
+
     host.innerHTML = "";
 
     try {
@@ -351,93 +469,8 @@
     }
   }
 
-  // ===== Asignación: helpers =====
-  function ensureAsignadoSelect() {
-    const host = $(SEL.inpAsignado);
-    if (!host) return null;
-    if (host.tagName === "SELECT") return host;
-    const sel = document.createElement("select");
-    sel.id = host.id; sel.name = host.name || host.id;
-    sel.className = host.className || ""; sel.required = false;
-    host.replaceWith(sel);
-    return sel;
-  }
-
-  async function fetchAsignablesAll() {
-    // 1) Si existe una API de usuarios en tu bundle, úsala. (opcional)
-    if (window.Usuarios?.listAll) {
-      try { return await window.Usuarios.listAll(); } catch {}
-    }
-    // 2) Fallback directo al endpoint de empleados (patrón de tus endpoints)
-    try {
-      const j = await postJSON(API.USUARIOS.LIST, { status:1, page:1, page_size:1000 });
-      const arr = Array.isArray(j?.data) ? j.data : [];
-      return arr.map(e => ({
-        id: Number(e.id),
-        nombre: String(e.nombre||"").trim(),
-        apellidos: String(e.apellidos||"").trim()
-      }));
-    } catch (e) {
-      warn("No se pudo listar empleados para el combo de asignación:", e);
-      return [];
-    }
-  }
-
-  async function setupAsignadoOptions(sel) {
-    if (!sel) return;
-    sel.innerHTML = "";
-
-    const yoId = getEmpleadoId();
-    const yoTxt = getEmpleadoNombre();
-    const roles = getRoles();
-
-    // Siempre “Yo”
-    const optYo = document.createElement("option");
-    optYo.value = yoId != null ? String(yoId) : "";
-    optYo.textContent = `Yo (${yoTxt})`;
-    sel.appendChild(optYo);
-    sel.value = optYo.value || "";
-
-    // Analista → bloqueado con “Yo”
-    if (roles.includes("ANALISTA")) {
-      sel.setAttribute("disabled", "true");
-      sel.title = "Como Analista, solo puedes asignarte tareas a ti mismo.";
-      return;
-    }
-
-    // Presidencia/Admin → cargar todos los empleados
-    if (roles.includes("ADMIN") || isPresidencia()) {
-      const all = await fetchAsignablesAll();
-      // quitar duplicado de "Yo" si viene en la lista
-      const restantes = all
-        .filter(e => e && Number(e.id) !== Number(yoId))
-        .sort((a,b) => (a.nombre + " " + a.apellidos).localeCompare(b.nombre + " " + b.apellidos, "es"));
-
-      if (restantes.length) {
-        // separador opcional
-        const optSep = document.createElement("option");
-        optSep.disabled = true; optSep.textContent = "──────────";
-        sel.appendChild(optSep);
-
-        restantes.forEach(e => {
-          const o = document.createElement("option");
-          o.value = String(e.id);
-          o.textContent = [e.nombre, e.apellidos].filter(Boolean).join(" ") || `Empleado #${e.id}`;
-          sel.appendChild(o);
-        });
-      }
-      sel.removeAttribute("disabled");
-      sel.title = "";
-      return;
-    }
-
-    // Otros roles → de momento dejamos solo “Yo”
-    sel.removeAttribute("disabled");
-    sel.title = "";
-  }
-
   // ===== Modal Nueva Tarea =====
-  async function openTareaModal({ preferProcesoId = null } = {}) {
+  function openTareaModal({ preferProcesoId = null } = {}) {
     const modal = document.querySelector(SEL.modalT);
     const modalContent = modal?.querySelector(".modal-content");
     if (!modal || !modalContent) return;
@@ -447,8 +480,8 @@
     const form = document.querySelector(SEL.formT);
     form && form.reset();
 
-    const selAsign = ensureAsignadoSelect();
-    await setupAsignadoOptions(selAsign);
+    // ← llenar combo de asignado según RBAC
+    setupAsignadoOptions($(SEL.inpAsignado)).catch(e => warn("setupAsignadoOptions error:", e));
 
     modal.classList.add("open");
     modal.setAttribute("aria-hidden", "false");
@@ -481,7 +514,8 @@
       const id = sec.getAttribute('data-proceso-id');
       const title = sec.querySelector('.fase-title')?.textContent?.trim() || `Proceso`;
       const opt = document.createElement('option');
-      opt.value = id; opt.textContent = title;
+      opt.value = id;
+      opt.textContent = title;
       sel.appendChild(opt);
     });
     if (preferId) sel.value = String(preferId);
@@ -496,27 +530,26 @@
       const procesoId = $(SEL.selProceso)?.value || "";
       const titulo    = ($(SEL.inpTitulo)?.value || "").trim();
       const esfuerzo  = Number($(SEL.inpEsfuerzo)?.value || 0);
-      const selAsig   = $(SEL.inpAsignado);
-      const asignadoId= selAsig && selAsig.value ? Number(selAsig.value) : null;
+      const asignadoId= ($(SEL.inpAsignado)?.value || "").trim(); // ← ID desde el <select>
       const desc      = ($(SEL.txtDesc)?.value || "").trim();
 
-      if (!procesoId) { toast("Selecciona un proceso.", "warning"); $(SEL.selProceso)?.focus(); return; }
-      if (!titulo)    { toast("Escribe un título.", "warning"); $(SEL.inpTitulo)?.focus(); return; }
-      if (!(esfuerzo > 0)) { toast("Define el esfuerzo (mínimo 1).", "warning"); $(SEL.inpEsfuerzo)?.focus(); return; }
+      if (!procesoId)       { toast("Selecciona un proceso.", "warning"); $(SEL.selProceso)?.focus(); return; }
+      if (!titulo)          { toast("Escribe un título.", "warning"); $(SEL.inpTitulo)?.focus(); return; }
+      if (!(esfuerzo > 0))  { toast("Define el esfuerzo (mínimo 1).", "warning"); $(SEL.inpEsfuerzo)?.focus(); return; }
 
       const empleadoId = getEmpleadoId();
-      if (!empleadoId) toast("Tu sesión no fue detectada. Recarga o inicia sesión.", "warning");
+      const asignado_a = asignadoId ? Number(asignadoId) : (empleadoId ?? null);
 
       try {
         const res = await createTarea({
           proceso_id: Number(procesoId),
           titulo,
           esfuerzo,
-          asignado_a: asignadoId != null ? asignadoId : (empleadoId ?? null),
+          asignado_a,
           descripcion: desc || null,
-          fecha_inicio: null, 
+          fecha_inicio: null,
           fecha_fin: null,
-          created_by: empleadoId ?? null
+          created_by: empleadoId ?? asignado_a ?? null
         });
         if (res?.ok === false) throw new Error(res?.error || "No se pudo crear la tarea");
         toast("Tarea creada", "success");
@@ -622,7 +655,7 @@
       openProcesoModal();
     });
 
-    btnTarea?.addEventListener("click", async (e) => {
+    btnTarea?.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
       const procesos = collectProcesos();
       if (procesos.length === 0) {
@@ -630,7 +663,7 @@
         return;
       }
       const prefer = (procesos.length === 1) ? (procesos[0].getAttribute("data-proceso-id")) : null;
-      await openTareaModal({ preferProcesoId: prefer });
+      openTareaModal({ preferProcesoId: prefer });
     });
 
     _boundToolbar = true;
