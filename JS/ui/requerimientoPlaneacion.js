@@ -375,7 +375,7 @@
       esfuerzo: Number(r.esfuerzo) || 0,
       fecha_inicio: r.fecha_inicio || null,
       fecha_fin: r.fecha_fin || null,
-      status: r.status != null ? Number(r.status) : 1, // ← usar status tal cual del backend
+      status: r.status != null ? Number(r.status) : 1,
       created_at: r.created_at || null,
       updated_at: r.updated_at || null,
     };
