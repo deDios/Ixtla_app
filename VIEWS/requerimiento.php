@@ -611,22 +611,23 @@
                         placeholder="Ej. Reparar válvula principal">
                 </div>
 
-                <div class="form-row">
+                <div class="form-row split">
                     <div>
-                        <label for="tarea-asignado">Responsable</label>
-                        <select id="tarea-asignado" name="tarea-asignado" required>
-                            <option value="" disabled selected>Selecciona responsable…</option>
-                        </select>
+                        <label for="tarea-esfuerzo">Esfuerzo (horas)</label>
+                        <input type="number" id="tarea-esfuerzo" name="esfuerzo" min="1" step="1" required
+                            placeholder="1">
                     </div>
                 </div>
 
                 <div class="form-row">
-                    <label for="tarea-asignado">Asignado a (opcional)</label>
-                    <input type="text" id="tarea-asignado" name="asignado_nombre" placeholder="Nombre responsable">
+                    <label for="tarea-asignado">Responsable</label>
+                    <select id="tarea-asignado" name="tarea-asignado" required>
+                        <option value="" disabled selected>Selecciona responsable…</option>
+                    </select>
                 </div>
 
                 <div class="form-row">
-                    <label for="tarea-desc">Descripción (opcional)</label>
+                    <label for="tarea-desc">Descripción</label>
                     <textarea id="tarea-desc" name="descripcion" rows="4"
                         placeholder="Detalles de la tarea…"></textarea>
                 </div>
