@@ -611,11 +611,12 @@
                         placeholder="Ej. Reparar válvula principal">
                 </div>
 
-                <div class="form-row split">
+                <div class="form-row">
                     <div>
-                        <label for="tarea-esfuerzo">Esfuerzo (horas)</label>
-                        <input type="number" id="tarea-esfuerzo" name="esfuerzo" min="1" step="1" required
-                            placeholder="1">
+                        <label for="tarea-asignado">Responsable</label>
+                        <select id="tarea-asignado" name="tarea-asignado" required>
+                            <option value="" disabled selected>Selecciona responsable…</option>
+                        </select>
                     </div>
                 </div>
 
