@@ -27,7 +27,7 @@
     selProceso:    "#tarea-proceso",
     inpTitulo:     "#tarea-titulo",
     inpEsfuerzo:   "#tarea-esfuerzo",
-    inpAsignado:   "#tarea-asignado",
+    inpAsignado:   "#tarea-asignado",   // ← debe ser <select>; si es input lo convertimos
     txtDesc:       "#tarea-desc",
 
     // Modal Nuevo Proceso
@@ -42,7 +42,7 @@
   let _boundModalT  = false;
   let _boundModalP  = false;
 
-  // ====== API endpoints (fallback locales por si no tienes import) ======
+  // ====== API endpoints (fallback locales) ======
   const API_FBK = {
     PROCESOS: {
       CREATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_proceso_requerimiento.php",
@@ -53,6 +53,9 @@
       CREATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_tarea_proceso.php",
       UPDATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_tarea_proceso.php",
       LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tarea_proceso.php",
+    },
+    EMPLEADOS: {
+      GET:    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
     },
   };
   const API = (window.API || API_FBK);
@@ -81,7 +84,7 @@
     }
   }
 
-  // ===== Session helper (mismo patrón que requerimientoView.safeGetSession)
+  // ===== Session helper
   function safeGetSession() {
     try { if (window.Session?.get) return window.Session.get(); } catch {}
     try {
@@ -97,6 +100,122 @@
     const s = safeGetSession();
     return s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
   }
+  function getDeptId() {
+    const s = safeGetSession();
+    return s?.departamento_id ?? s?.dept_id ?? null;
+  }
+  function getRoles() {
+    const s = safeGetSession();
+    const arr = Array.isArray(s?.roles) ? s.roles : [];
+    return arr.map(r => String(r).toUpperCase());
+  }
+
+  // ===== RBAC / Empleados asignables =====
+  const PRESIDENCIA_DEPT_IDS = [6]; // igual que home.js
+
+  function getRBACFlags() {
+    const roles = getRoles();
+    const dept  = Number(getDeptId() || 0);
+    return {
+      isAdmin: roles.includes("ADMIN"),
+      isPres: PRESIDENCIA_DEPT_IDS.includes(dept),
+      isDir: roles.includes("DIRECTOR"),
+      isPL: roles.includes("PRIMERA_LINEA"),
+      isJefe: roles.includes("JEFE"),
+      isAnal: roles.includes("ANALISTA"),
+    };
+  }
+
+  let _empleadosCache = null;
+  async function fetchEmpleados() {
+    if (_empleadosCache) return _empleadosCache;
+    const j = await postJSON(API.EMPLEADOS.GET, { status: 1, page: 1, page_size: 1000 });
+    const arr = Array.isArray(j?.data) ? j.data : [];
+    _empleadosCache = arr.map(e => ({
+      id: Number(e.id),
+      nombre: (e.nombre || "").trim(),
+      apellidos: (e.apellidos || "").trim(),
+      departamento_id: e.departamento_id != null ? Number(e.departamento_id) : null,
+      reporta_a: e.reporta_a != null ? Number(e.reporta_a) : null,
+      status: e.status != null ? Number(e.status) : 1,
+    }));
+    return _empleadosCache;
+  }
+
+  function filtroAsignables(empleados) {
+    const me = Number(getEmpleadoId() || 0);
+    const dept = Number(getDeptId() || 0);
+    const f = getRBACFlags();
+
+    // Siempre incluirme si existo en listado
+    const includeMe = (list) => {
+      if (!me) return list;
+      if (!list.some(e => e.id === me)) {
+        const yo = empleados.find(e => e.id === me);
+        if (yo) list = [yo, ...list];
+      }
+      return list;
+    };
+
+    if (f.isAdmin || f.isPres) {
+      return includeMe(empleados.filter(e => e.status === 1));
+    }
+    if (f.isDir || f.isPL) {
+      const sameDept = empleados.filter(e => e.status === 1 && Number(e.departamento_id) === dept);
+      return includeMe(sameDept);
+    }
+    if (f.isJefe) {
+      const minePlusTeam = empleados.filter(e => e.status === 1 && (e.id === me || Number(e.reporta_a) === me));
+      return includeMe(minePlusTeam);
+    }
+    // Analista o resto: solo yo
+    const yo = empleados.find(e => e.id === me);
+    return yo ? [yo] : [];
+  }
+
+  async function populateAsignadoSelect() {
+    let sel = $(SEL.inpAsignado);
+    // Si el HTML actual es input, lo transformamos a <select>
+    if (sel && sel.tagName !== "SELECT") {
+      const replacement = document.createElement("select");
+      replacement.id = sel.id;
+      replacement.className = sel.className || "";
+      sel.replaceWith(replacement);
+      sel = replacement;
+    }
+    if (!sel) return;
+
+    sel.innerHTML = `<option value="">Sin asignar</option>`;
+    try {
+      const empleados = await fetchEmpleados();
+      const asignables = filtroAsignables(empleados);
+      const me = Number(getEmpleadoId() || 0);
+      const f = getRBACFlags();
+
+      asignables
+        .sort((a,b)=> (a.nombre+a.apellidos).localeCompare(b.nombre+b.apellidos, "es"))
+        .forEach(e => {
+          const opt = document.createElement("option");
+          opt.value = String(e.id);
+          opt.textContent = [e.nombre, e.apellidos].filter(Boolean).join(" ") || `Empleado #${e.id}`;
+          sel.appendChild(opt);
+        });
+
+      // Preselección
+      if (f.isAnal && me) {
+        sel.value = String(me);
+        sel.disabled = true; // analista solo puede asignarse a sí mismo
+      } else {
+        sel.disabled = false;
+        // Por UX, si existe "yo", lo dejamos seleccionado inicialmente
+        if (me && Array.from(sel.options).some(o => Number(o.value) === me)) {
+          sel.value = String(me);
+        }
+      }
+    } catch (e) {
+      warn("No se pudo poblar combo de asignado:", e);
+    }
+  }
 
   // ===== Utilidades =====
   function collectProcesos() {
@@ -104,14 +223,12 @@
   }
 
   function todayISO() {
-    // YYYY-MM-DD
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
   function fmtMXDate(s) {
     if (!s) return "—";
-    // acepta "YYYY-MM-DD" o "YYYY-MM-DD HH:mm:ss"
     const parts = String(s).slice(0, 19).replace("T"," ").split(" ")[0].split("-");
     if (parts.length !== 3) return s;
     const [Y,M,D] = parts;
@@ -146,14 +263,14 @@
   async function createTarea({ proceso_id, titulo, esfuerzo, asignado_a, descripcion, fecha_inicio, fecha_fin, created_by }) {
     const payload = {
       proceso_id: Number(proceso_id),
-      asignado_a: asignado_a != null ? Number(asignado_a) : null,
+      asignado_a: asignado_a != null && asignado_a !== "" ? Number(asignado_a) : null,
       titulo: String(titulo || "").trim(),
       descripcion: String(descripcion || "").trim() || null,
       esfuerzo: Number(esfuerzo),
-      fecha_inicio: fecha_inicio || null, // "YYYY-MM-DD HH:mm:ss" (opcional)
+      fecha_inicio: fecha_inicio || null,
       fecha_fin: fecha_fin || null,
       status: 1,
-      created_by: created_by ?? asignado_a ?? null
+      created_by: created_by ?? (asignado_a != null ? Number(asignado_a) : null)
     };
     return postJSON(API.TAREAS.CREATE, payload);
   }
@@ -189,7 +306,7 @@
     };
   }
 
-  // ====== Pintado de UI (reutiliza tu markup)
+  // ====== Pintado de UI
   function bindProcessAccordion(sec) {
     const head = sec.querySelector(".exp-acc-head");
     const body = sec.querySelector(".exp-acc-body");
@@ -218,7 +335,6 @@
     sec.className = "exp-accordion exp-accordion--fase";
     sec.setAttribute("data-proceso-id", String(p.id));
 
-    // progreso lo calcularemos tras pintar tareas
     const pct = 0;
     const hoyMx = fmtMXDate(p.created_at || todayISO());
 
@@ -254,7 +370,6 @@
             <div>Porcentaje</div>
             <div>Fecha de inicio</div>
           </div>
-          <!-- filas .exp-row aquí -->
         </div>
       </div>
     `;
@@ -269,6 +384,14 @@
       .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   }
 
+  function tareaBadge(t) {
+    // Preferimos status cuando exista (1 = Por hacer)
+    if (Number(t.status) === 1) return { cls: "is-info", txt: "Por hacer", pct: 0 };
+    if (t.fecha_fin) return { cls: "is-success", txt: "Finalizado", pct: 100 };
+    if (t.fecha_inicio) return { cls: "is-info", txt: "Activo", pct: 50 };
+    return { cls: "is-info", txt: "Por hacer", pct: 0 };
+  }
+
   function addTareaRow(sec, t) {
     const table = sec.querySelector(".exp-table--planeacion");
     if (!table) return;
@@ -276,20 +399,13 @@
     const row = document.createElement("div");
     row.className = "exp-row";
 
-    // Estatus visual de tarea
-    let badgeClass = "is-info";
-    let badgeText  = "Por hacer";
-    if (t.fecha_fin) { badgeClass = "is-success"; badgeText = "Finalizado"; }
-    else if (t.fecha_inicio) { badgeClass = "is-info"; badgeText = "Activo"; }
-
-    // Porcentaje por tarea (0% si no ha iniciado, 100% si finalizada)
-    const pct = t.fecha_fin ? 100 : (t.fecha_inicio ? 50 : 0);
+    const b = tareaBadge(t);
 
     row.innerHTML = `
       <div class="actividad">${escapeHtml(t.titulo)}</div>
       <div class="responsable">${escapeHtml(t.asignado_display || "—")}</div>
-      <div class="estatus"><span class="exp-badge ${badgeClass}">${badgeText}</span></div>
-      <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:${pct}%"></span></span></div>
+      <div class="estatus"><span class="exp-badge ${b.cls}">${b.txt}</span></div>
+      <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:${b.pct}%"></span></span></div>
       <div class="fecha">${fmtMXDate(t.fecha_inicio)}</div>
     `;
     table.appendChild(row);
@@ -317,14 +433,12 @@
     const host = $(SEL.planeacionList);
     if (!host) return;
 
-    // Limpia todo menos el primer acordeón estático (si lo quieres conservar, comenta esta línea)
     host.innerHTML = "";
 
     try {
       const procesos = await listProcesos(requerimiento_id, { status: 1, page: 1, page_size: 100 });
 
       if (!procesos.length) {
-        // placeholder
         const empty = document.createElement("div");
         empty.className = "exp-row";
         empty.style.padding = "12px";
@@ -337,7 +451,6 @@
         const sec = makeProcesoSection(p);
         if (!sec) continue;
 
-        // Carga tareas en paralelo (pero en orden de pintado)
         try {
           const tareas = await listTareas(p.id, { status: 1, page: 1, page_size: 100 });
           tareas.forEach(t => addTareaRow(sec, t));
@@ -360,6 +473,7 @@
     if (!modal || !modalContent) return;
 
     fillProcesoSelect(preferProcesoId);
+    prepareAsignadoCombo();   // ← poblar combo según RBAC
     const form = document.querySelector(SEL.formT);
     form && form.reset();
 
@@ -400,6 +514,16 @@
     });
     if (preferId) sel.value = String(preferId);
   }
+  async function prepareAsignadoCombo() {
+    const sessId = getEmpleadoId();
+    if (!sessId) {
+      toast("Tu sesión expiró. Vuelve a iniciar sesión.", "danger");
+      try { $(SEL.formT)?.querySelector("button[type=submit]").disabled = true; } catch {}
+      return;
+    }
+    await populateAsignadoSelect();
+  }
+
   function bindSubmitNuevaTarea() {
     const form = document.querySelector(SEL.formT);
     if (!form) return;
@@ -410,27 +534,30 @@
       const procesoId = $(SEL.selProceso)?.value || "";
       const titulo    = ($(SEL.inpTitulo)?.value || "").trim();
       const esfuerzo  = Number($(SEL.inpEsfuerzo)?.value || 0);
-      const asignadoN = ($(SEL.inpAsignado)?.value || "").trim();
+      const asignadoId = ($(SEL.inpAsignado)?.value || "").trim(); // id o ""
       const desc      = ($(SEL.txtDesc)?.value || "").trim();
 
       if (!procesoId) { toast("Selecciona un proceso.", "warning"); $(SEL.selProceso)?.focus(); return; }
       if (!titulo)    { toast("Escribe un título.", "warning"); $(SEL.inpTitulo)?.focus(); return; }
       if (!(esfuerzo > 0)) { toast("Define el esfuerzo (mínimo 1).", "warning"); $(SEL.inpEsfuerzo)?.focus(); return; }
 
-      // Nota: tu modal usa 'asignado_a' por ID; aquí solo tenemos nombre libre.
-      // En esta primera versión mandamos null (o podrías mapearlo a ID si el modal lo provee).
       const empleadoId = getEmpleadoId();
+      if (!empleadoId) { toast("Tu sesión expiró. Vuelve a iniciar sesión.", "danger"); return; }
+
+      // Si el rol es ANALISTA y el combo quedó habilitado por error, forzamos a sí mismo
+      const f = getRBACFlags();
+      const asignado_a_final = f.isAnal ? empleadoId : (asignadoId ? Number(asignadoId) : null);
 
       try {
         const res = await createTarea({
           proceso_id: Number(procesoId),
           titulo,
           esfuerzo,
-          asignado_a: null, //  de momento se asigna a uno mismo luego checarlo
+          asignado_a: asignado_a_final,
           descripcion: desc || null,
           fecha_inicio: null, 
           fecha_fin: null,
-          created_by: empleadoId ?? null
+          created_by: empleadoId
         });
         if (res?.ok === false) throw new Error(res?.error || "No se pudo crear la tarea");
         toast("Tarea creada", "success");
@@ -440,12 +567,10 @@
         const sec = $(`#planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(String(procesoId))}"]`);
         if (sec) {
           const tareas = await listTareas(Number(procesoId), { status:1, page:1, page_size:100 });
-          // limpia filas existentes
           sec.querySelectorAll(".exp-table--planeacion .exp-row").forEach(r => r.remove());
           tareas.forEach(t => addTareaRow(sec, t));
           updateProcesoHeaderStats(sec, tareas);
         } else {
-          // si no lo encuentra, refresca todo
           const req = window.__REQ__;
           if (req?.id) await renderProcesosYtareas(req.id);
         }
@@ -557,24 +682,19 @@
   // ===== API pública =====
   window.Planeacion = {
     async init() {
-      // 1) Acordeones existentes (si los hay en HTML de demo)
       $$('#planeacion-list .exp-accordion--fase').forEach(bindProcessAccordion);
-      // 2) Toolbar
       bindToolbar();
-      // 3) Cuando cargue el requerimiento, dispara carga real
       document.addEventListener("req:loaded", async (e) => {
         const req = e?.detail || window.__REQ__;
         if (!req?.id) return;
         await renderProcesosYtareas(Number(req.id));
       }, { once: true });
 
-      // Si ya estaba available __REQ__ (por timing), cargar
       if (window.__REQ__?.id) {
         await renderProcesosYtareas(Number(window.__REQ__.id));
       }
       log("init OK (API conectada)");
     },
-    // Por si luego los necesitas desde otros scripts:
     reload: async () => {
       const req = window.__REQ__; if (!req?.id) return;
       await renderProcesosYtareas(Number(req.id));
