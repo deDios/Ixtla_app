@@ -227,39 +227,14 @@
   // ====== botones visibles por status (sin "Finalizar") ======
   function getButtonsForStatus(code) {
     switch (Number(code)) {
-      case 0: // Solicitud
-        return [
-          makeBtn("Iniciar revisión", "primary", "start-revision"),
-          makeBtn("Cancelar", "danger", "cancel"),
-        ];
-      case 1: // Revisión
-        return [
-          makeBtn("Pausar", "warn", "pause"),
-          makeBtn("Cancelar", "danger", "cancel"),
-          makeBtn("Asignar a departamento", "", "assign-dept"),
-        ];
-      case 2: // Asignación
-        return [
-          makeBtn("Pausar", "warn", "pause"),
-          makeBtn("Cancelar", "danger", "cancel"),
-          makeBtn("Iniciar proceso", "primary", "start-process"),
-        ];
-      case 3: // Proceso (solo Pausar / Cancelar)
-        return [
-          makeBtn("Pausar", "warn", "pause"),
-          makeBtn("Cancelar", "danger", "cancel"),
-        ];
-      case 4: // Pausado
-        return [
-          makeBtn("Reanudar", "primary", "resume"),
-          makeBtn("Cancelar", "danger", "cancel"),
-        ];
-      case 5: // Cancelado
-        return [makeBtn("Reabrir", "primary", "reopen")];
-      case 6: // Finalizado (si llegara por backend, solo reabrir)
-        return [makeBtn("Reabrir", "primary", "reopen")];
-      default:
-        return [makeBtn("Iniciar revisión", "primary", "start-revision")];
+      case 0: return [ makeBtn("Iniciar revisión","primary","start-revision"), makeBtn("Cancelar","danger","cancel") ];
+      case 1: return [ makeBtn("Pausar","warn","pause"), makeBtn("Cancelar","danger","cancel"), makeBtn("Asignar a departamento","","assign-dept") ];
+      case 2: return [ makeBtn("Pausar","warn","pause"), makeBtn("Cancelar","danger","cancel"), makeBtn("Iniciar proceso","primary","start-process") ];
+      case 3: return [ makeBtn("Pausar","warn","pause"), makeBtn("Cancelar","danger","cancel") ];
+      case 4: return [ makeBtn("Reanudar","primary","resume"), makeBtn("Cancelar","danger","cancel") ];
+      case 5: return [ makeBtn("Reabrir","primary","reopen") ];
+      case 6: return [ makeBtn("Reabrir","primary","reopen") ];
+      default: return [ makeBtn("Iniciar revisión","primary","start-revision") ];
     }
   }
 
@@ -272,9 +247,10 @@
     EMPLEADOS_GET:          "/db/WEB/ixtla01_c_empleado.php",
     COMENT_LIST:            "/db/WEB/ixtla01_c_comentario_requerimiento.php",
     COMENT_CREATE:          "/db/WEB/ixtla01_i_comentario_requerimiento.php",
-    // Para validar "Iniciar proceso"
     PROCESOS_LIST:          "/db/WEB/ixtla01_c_proceso_requerimiento.php",
     TAREAS_LIST:            "/db/WEB/ixtla01_c_tarea_proceso.php",
+    // Departamento + líder
+    DEPARTAMENTOS_GET: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
   };
 
   async function postJSON(url, body) {
@@ -322,21 +298,43 @@
 
   // Lee cookie ix_emp segura (usa Session.get() si existe)
   function safeGetSession() {
-    try {
-      if (window.Session?.get) return window.Session.get();
-    } catch { }
+    try { if (window.Session?.get) return window.Session.get(); } catch {}
     try {
       const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
       if (!pair) return null;
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
       if (json && typeof json === "object") return json;
-    } catch { }
+    } catch {}
     return null;
   }
   function getEmpleadoIdFromSession() {
     const s = safeGetSession();
     return s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
+  }
+
+  /* ========================================================================
+   * Setters robustos por etiqueta (evita nth-child frágil)
+   * ======================================================================*/
+  function setFieldByLabel(panelEl, labelText, value) {
+    if (!panelEl) return;
+    const rows = Array.from(panelEl.querySelectorAll(".exp-field"));
+    const norm = (s) => String(s || "").trim().toLowerCase();
+    const row = rows.find(r => norm(r.querySelector(".exp-label")?.textContent) === norm(labelText));
+    const dd  = row?.querySelector(".exp-val");
+    if (dd) dd.textContent = (value ?? "—");
+  }
+  function setFieldByLabelWithMail(panelEl, labelText, value) {
+    if (!panelEl) return;
+    const rows = Array.from(panelEl.querySelectorAll(".exp-field"));
+    const norm = (s) => String(s || "").trim().toLowerCase();
+    const row = rows.find(r => norm(r.querySelector(".exp-label")?.textContent) === norm(labelText));
+    const dd  = row?.querySelector(".exp-val");
+    if (!dd) return;
+    const a = dd.querySelector("a") || document.createElement("a");
+    a.textContent = value || "—";
+    if (value) a.href = `mailto:${value}`; else a.removeAttribute("href");
+    if (!dd.contains(a)) { dd.innerHTML = ""; dd.appendChild(a); }
   }
 
   /* ========================================================================
@@ -371,19 +369,18 @@
 
     // ====== ASIGNADO (cuidado especial)
     const asignado_id = raw.asignado_a != null && raw.asignado_a !== "" ? String(raw.asignado_a) : null;
-
     const asignado_full = (() => {
       const fullApi = String(raw.asignado_nombre_completo || "").trim();
       if (fullApi) return fullApi;
       const n = String(raw.asignado_nombre || "").trim();
       const a = String(raw.asignado_apellidos || "").trim();
       const joined = [n, a].filter(Boolean).join(" ").trim();
-      return joined || ""; // vacío => UI mostrará "Sin asignar"
+      return joined || ""; // vacío => "Sin asignar"
     })();
 
-    // ====== Dept (si viene)
+    // ====== Departamento (id + nombre si viene)
+    const departamento_id = raw.departamento_id != null ? Number(raw.departamento_id) : null;
     const departamento_nombre = String(raw.departamento_nombre || "").trim() || "—";
-    const tramite_nombre = String(raw.tramite_nombre || "").trim();
 
     const estatus_code = Number(raw.estatus_code ?? raw.estatus ?? raw.status ?? raw.estado ?? 0);
     const prioridad = (raw.prioridad != null) ? Number(raw.prioridad) : null;
@@ -395,11 +392,11 @@
 
     const out = {
       id, folio,
-      tramite, tramite_nombre, asunto, descripcion,
+      tramite, asunto, descripcion,
       contacto_nombre, contacto_telefono, contacto_email,
       contacto_calle, contacto_colonia, contacto_cp, direccion_reporte,
       asignado_id, asignado_full,
-      departamento_nombre,
+      departamento_id, departamento_nombre,
       estatus_code, prioridad, canal,
       creado_at, actualizado_at, cerrado_en,
       raw
@@ -420,6 +417,28 @@
     return normalizeRequerimiento(data);
   }
 
+  /* ========================================================================
+   * Departamento (hydrate: nombre + director)
+   * ======================================================================*/
+  async function fetchDepartamentoInfo(depId) {
+    if (!depId) return { nombre: "—", director_full: "—" };
+    try {
+      const r = await postJSON(ENDPOINTS.DEPARTAMENTOS_GET, { id: Number(depId) });
+      let d = r?.data ?? r;
+      if (Array.isArray(d)) d = d.find(x => Number(x.id) === Number(depId)) || d[0] || null;
+      if (!d) return { nombre: "—", director_full: "—" };
+      const nombre = String(d?.nombre || "").trim() || "—";
+      const director_full = [d?.director_nombre, d?.director_apellidos].filter(Boolean).join(" ").trim() || "—";
+      return { nombre, director_full };
+    } catch (e) {
+      warn("[Departamento] fallo hydrate:", e);
+      return { nombre: "—", director_full: "—" };
+    }
+  }
+
+  /* ========================================================================
+   * Pintado de UI (por etiqueta, para no desfasar)
+   * ======================================================================*/
   function paintRequerimiento(req) {
     console.groupCollapsed("[UI] Pintar requerimiento");
     console.log("req:", req);
@@ -433,7 +452,6 @@
     const ddF = $(".exp-meta > div:nth-child(3) dd");
     if (ddC) ddC.textContent = (req.contacto_nombre || "—");
 
-    // *** Asignado a: muestra "Sin asignar" cuando no hay asignado ***
     const asignadoDisplay = (req.asignado_id && (req.asignado_full || "").trim())
       ? req.asignado_full
       : "Sin asignar";
@@ -441,43 +459,25 @@
 
     if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
 
-    // Tab Contacto
+    // Panel Contacto
     const contactoGrid = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
     if (contactoGrid) {
-      const set = (nth, val) => {
-        const node = $(`.exp-field:nth-child(${nth}) .exp-val`, contactoGrid);
-        if (!node) return;
-        if (nth === 4) {
-          const a = node.querySelector("a");
-          if (a) { a.textContent = val || "—"; val ? (a.href = `mailto:${val}`) : a.removeAttribute("href"); }
-          else node.textContent = val || "—";
-        } else {
-          node.textContent = val || "—";
-        }
-      };
-      set(1, (req.contacto_nombre || "—"));
-      set(2, req.contacto_telefono || "—");
-      set(3, [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", "));
-      set(4, req.contacto_email || "—");
-      set(5, req.contacto_cp || "—");
+      setFieldByLabel(contactoGrid, "Nombre del Contacto:", req.contacto_nombre || "—");
+      setFieldByLabel(contactoGrid, "Teléfono:", req.contacto_telefono || "—");
+      setFieldByLabel(contactoGrid, "Dirección:", [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", "));
+      setFieldByLabelWithMail(contactoGrid, "Correo:", req.contacto_email || "—");
+      setFieldByLabel(contactoGrid, "C.P.:", req.contacto_cp || "—");
     }
 
-    // Tab Detalles
+    // Panel Detalles (por etiqueta)
     const detalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     if (detalles) {
-      const put = (nth, value) => {
-        const node = $(`.exp-field:nth-child(${nth}) .exp-val`, detalles);
-        if (!node) return;
-        node.textContent = value ?? "—";
-      };
-      put(1, titulo);
-      put(2, req.departamento_nombre || "—"); // Departamento
-      put(3, (req.contacto_nombre || "—"));   // Solicitante
+      setFieldByLabel(detalles, "Nombre del Requerimiento:", titulo);
+      setFieldByLabel(detalles, "Asignado:", asignadoDisplay);
 
-      // Badge de status
       const badgeEl =
         document.querySelector('#req-status [data-role="status-badge"]') ||
-        $(`.exp-field:nth-child(4) .exp-val .exp-badge`, detalles);
+        detalles.querySelector('.exp-field .exp-val .exp-badge');
       if (badgeEl) {
         badgeEl.classList.remove('is-info', 'is-muted', 'is-warning', 'is-danger', 'is-success');
         const cls = statusBadgeClass(req.estatus_code);
@@ -485,17 +485,16 @@
         badgeEl.classList.add(cls);
         badgeEl.textContent = lbl;
       }
+      setFieldByLabel(detalles, "Estatus:", statusLabel(req.estatus_code));
+      setFieldByLabel(detalles, "Descripción:", req.descripcion || "—");
+      setFieldByLabel(detalles, "Fecha de inicio:", (req.creado_at || "").split(" ")[0] || "—");
+      setFieldByLabel(detalles, "Fecha de terminado:", req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—");
 
-      // Descripción y fechas
-      const descNode = $(`.exp-field.exp-field--full .exp-val`, detalles);
-      if (descNode) descNode.textContent = req.descripcion || "—";
-      const fIni = $(`.exp-field:nth-child(6) .exp-val`, detalles);
-      if (fIni) fIni.textContent = (req.creado_at || "").split(" ")[0] || "—";
-      const fFin = $(`.exp-field:nth-child(7) .exp-val`, detalles);
-      if (fFin) fFin.textContent = req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—";
+      // Colocamos placeholders por ahora; luego hidratamos con endpoint
+      setFieldByLabel(detalles, "Departamento:", req.departamento_nombre || "—");
+      setFieldByLabel(detalles, "Líder del Departamento:", "—");
     }
 
-    // Select de status y render
     const sel = document.querySelector('#req-status [data-role="status-select"]');
     if (sel) sel.value = String(req.estatus_code ?? 0);
 
@@ -602,13 +601,8 @@
         updateStatusUI(next); toast("Asignado a departamento (Estatus: Asignación)", "success");
       }
       else if (act === "start-process") {
-        // Validar que exista al menos 1 proceso y 1 tarea
         const ok = await hasAtLeastOneProcesoAndTask(id);
-        if (!ok) {
-          toast("Para iniciar proceso necesitas al menos un proceso y una tarea.", "warning");
-          warn("[Action] start-process cancelado por validación");
-          return;
-        }
+        if (!ok) { toast("Para iniciar proceso necesitas al menos un proceso y una tarea.", "warning"); return; }
         next = 3;
         await updateReqStatus({ id, estatus: next });
         updateStatusUI(next); toast("Proceso iniciado", "success");
@@ -661,7 +655,6 @@
   /* ========================================================================
    * Reset plantilla (valores vacíos)
    * ======================================================================*/
-  const fillText = (sel, txt) => { const n = $(sel); if (n) n.textContent = (txt ?? "—"); };
   function resetTemplate() {
     log("[UI] resetTemplate()");
     const h1 = $(".exp-title h1"); if (h1) h1.textContent = "—";
@@ -676,22 +669,23 @@
       } else n.textContent = "—";
     });
 
-    const detallesVals = $$('.exp-pane[data-tab="detalles"] .exp-grid .exp-val');
-    detallesVals.forEach((n) => {
-      if (n.id === 'req-status') {
-        let badge = n.querySelector('[data-role="status-badge"]');
+    const detalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+    if (detalles) {
+      ["Nombre del Requerimiento:","Asignado:","Estatus:","Descripción:","Fecha de inicio:","Fecha de terminado:","Departamento:","Líder del Departamento:"]
+        .forEach(lbl => setFieldByLabel(detalles, lbl, "—"));
+      const badgeHost = detalles.querySelector('#req-status [data-role="status-badge"]') || detalles.querySelector('.exp-field .exp-val');
+      if (badgeHost) {
+        let badge = badgeHost.querySelector('[data-role="status-badge"]');
         if (!badge) {
           badge = document.createElement('span');
           badge.className = 'exp-badge is-info';
-          badge.setAttribute('data-role', 'status-badge');
-          n.prepend(badge);
+          badge.setAttribute('data-role','status-badge');
+          badgeHost.prepend(badge);
         }
         badge.className = 'exp-badge is-info';
         badge.textContent = '—';
-        return;
       }
-      n.textContent = '—';
-    });
+    }
 
     const evTable = findEvidenciasTable();
     if (evTable) evTable.querySelectorAll('.exp-row').forEach(r => r.remove());
@@ -731,27 +725,27 @@
     return r;
   }
 
-  const AVATAR_CACHE = new Map();
-  async function fetchEmpleadoAvatarUrl(empleadoId) {
-    if (!empleadoId) return null;
-    const key = String(empleadoId);
-    if (AVATAR_CACHE.has(key)) return AVATAR_CACHE.get(key);
+  // Avatares
+  function setAvatarFor(imgEl, { empleadoId = null, nombre = "" } = {}) {
+    if (!imgEl) return;
+    const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
+    const sessionLike = { id_usuario: empleadoId || null, avatarUrl: null, nombre: nombre || "", apellidos: "" };
 
-    try {
-      const empRes = await postJSON(ENDPOINTS.EMPLEADOS_GET, { id: Number(empleadoId), status: 1 });
-      const emp = empRes?.data || {};
-      const avatar = emp.avatar_url || emp.foto_url || emp.foto || emp.img || null;
-      AVATAR_CACHE.set(key, avatar || null);
-      log("[Avatar] empleado", empleadoId, "→", avatar);
-      return avatar || null;
-    } catch (e) {
-      warn("[Avatar] fallo consultando empleado", empleadoId, e);
-      AVATAR_CACHE.set(key, null);
-      return null;
+    if (window.gcSetAvatarSrc) {
+      try { window.gcSetAvatarSrc(imgEl, sessionLike); return; } catch {}
     }
-  }
-  function placeholderAvatarFor(_name = "") {
-    return "/ASSETS/user/img_user1.png";
+    const idu = sessionLike.id_usuario;
+    const candidates = idu ? [
+      `/ASSETS/user/userImgs/img_${idu}.png`,
+      `/ASSETS/user/userImgs/img_${idu}.jpg`,
+    ] : [];
+    let i = 0;
+    const tryNext = () => {
+      if (i >= candidates.length) { imgEl.src = DEFAULT_AVATAR; return; }
+      imgEl.onerror = () => { i++; tryNext(); };
+      imgEl.src = `${candidates[i]}?v=${Date.now()}`;
+    };
+    tryNext();
   }
 
   async function renderCommentsList(items = [], requerimiento_id) {
@@ -773,18 +767,19 @@
       const cuando = relShort(cuandoAbs);
 
       const empleadoId = r.empleado_id ?? r.created_by ?? null;
-      const avatarUrl = await fetchEmpleadoAvatarUrl(empleadoId);
-      const imgSrc = avatarUrl || placeholderAvatarFor(nombre);
 
       const art = document.createElement("article");
       art.className = "msg";
       art.innerHTML = `
-        <img class="avatar" src="${imgSrc}" alt="">
+        <img class="avatar" alt="">
         <div>
           <div class="who"><span class="name">${firstTwo(nombre)}</span> <span class="time">${cuando}</span></div>
           <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
         </div>`;
       $(".text", art).textContent = texto;
+
+      setAvatarFor(art.querySelector("img.avatar"), { empleadoId, nombre });
+
       feed.appendChild(art);
     }
 
@@ -886,6 +881,16 @@
       paintRequerimiento(req);
       bindStatusControl();
 
+      // ------ Hidratar Departamento + Líder ------
+      try {
+        const info = await fetchDepartamentoInfo(req.departamento_id);
+        const panelDetalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+        setFieldByLabel(panelDetalles, "Departamento:", info.nombre || (req.departamento_nombre || "—"));
+        setFieldByLabel(panelDetalles, "Líder del Departamento:", info.director_full || "—");
+      } catch (e) {
+        warn("No se pudo hidratar departamento:", e);
+      }
+
       try {
         window.__REQ__ = req;
         const evid = document.querySelector('[data-acc="evidencias"]');
@@ -912,4 +917,3 @@
   else boot();
 
 })();
-
