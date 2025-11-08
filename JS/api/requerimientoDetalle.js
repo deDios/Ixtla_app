@@ -13,55 +13,55 @@ const buildDireccion = (calle, colonia) => {
 };
 
 /** Normaliza un registro crudo del backend al shape que necesita la vista */
-export function normalizeRequerimiento(raw = {}) {
-  const id = toIdString(raw.id ?? raw.requerimiento_id);
+function normalizeRequerimiento(raw = {}) {
+  const toId = (v) => (v == null ? null : String(v));
+  const id = toId(raw.id ?? raw.requerimiento_id);
   const folio = String(raw.folio ?? raw.folio_requerimiento ?? "").trim();
 
-  // Título / descripción
   const tramite = String(raw.tramite ?? raw.tramite_nombre ?? raw.nombre_tramite ?? "").trim();
-  const asunto  = String(raw.asunto ?? raw.titulo ?? "").trim();
+  const asunto = String(raw.asunto ?? raw.titulo ?? "").trim();
   const descripcion = String(raw.descripcion ?? raw.detalle ?? "").trim();
 
-  // Contacto
-  const contacto_nombre   = String(raw.contacto_nombre ?? raw.nombre_contacto ?? raw.contacto ?? "").trim();
+  const contacto_nombre = String(raw.contacto_nombre ?? raw.nombre_contacto ?? raw.contacto ?? "").trim();
   const contacto_telefono = String(raw.contacto_telefono ?? raw.telefono_contacto ?? raw.telefono ?? "").trim();
-  const contacto_email    = String(raw.contacto_email ?? raw.email_contacto ?? raw.correo ?? "").trim();
-  const contacto_calle    = String(raw.contacto_calle ?? raw.direccion ?? raw.calle ?? "").trim();
-  const contacto_colonia  = String(raw.contacto_colonia ?? raw.colonia ?? "").trim();
-  const contacto_cp       = String(raw.contacto_cp ?? raw.cp ?? raw.codigo_postal ?? "").trim();
-  const direccion_reporte = buildDireccion(contacto_calle, contacto_colonia);
+  const contacto_email = String(raw.contacto_email ?? raw.email_contacto ?? raw.correo ?? "").trim();
+  const contacto_calle = String(raw.contacto_calle ?? raw.direccion ?? raw.calle ?? "").trim();
+  const contacto_colonia = String(raw.contacto_colonia ?? raw.colonia ?? "").trim();
+  const contacto_cp = String(raw.contacto_cp ?? raw.cp ?? raw.codigo_postal ?? "").trim();
+  const direccion_reporte = [contacto_calle, contacto_colonia].filter(Boolean).join(", ");
 
-  // Asignación
-  const asignado_a        = toIdString(raw.asignado_a ?? raw.empleado_id ?? raw.asignado_id);
-  const asignado_nombre   = String(raw.asignado_nombre ?? raw.nombre_asignado ?? raw.empleado_nombre ?? "").trim();
-  const asignado_apellidos= String(raw.asignado_apellidos ?? raw.empleado_apellidos ?? "").trim();
-  const asignado_full     = String(raw.asignado_full || [asignado_nombre, asignado_apellidos].filter(Boolean).join(" ")).trim();
+  const asignado_id = raw.asignado_a != null ? String(raw.asignado_a) : null;
+  const asignado_full = (() => {
+    const fullApi = String(raw.asignado_nombre_completo || "").trim();
+    if (fullApi) return fullApi;
+    const n = String(raw.asignado_nombre || "").trim();
+    const a = String(raw.asignado_apellidos || "").trim();
+    const joined = [n, a].filter(Boolean).join(" ").trim();
+    return joined || "";
+  })();
 
-  // Estatus / meta
-  const estatus_code = Number(
-    raw.estatus_code ?? raw.estatus ?? raw.status ?? raw.estado ?? 0
-  );
+  const estatus_code = Number(raw.estatus_code ?? raw.estatus ?? raw.status ?? raw.estado ?? 0);
   const prioridad = (raw.prioridad != null) ? Number(raw.prioridad) : null;
-  const canal     = (raw.canal != null) ? Number(raw.canal) : null;
+  const canal = (raw.canal != null) ? Number(raw.canal) : null;
 
-  // Fechas
-  const creado_at      = String(raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? "").trim();
+  const creado_at = String(raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? "").trim();
   const actualizado_at = String(raw.actualizado_at ?? raw.updated_at ?? "").trim();
-  const cerrado_en     = raw.cerrado_en != null ? String(raw.cerrado_en).trim() : null;
+  const cerrado_en = raw.cerrado_en != null ? String(raw.cerrado_en).trim() : null;
 
   return {
     id, folio,
     tramite, asunto, descripcion,
     contacto_nombre, contacto_telefono, contacto_email,
     contacto_calle, contacto_colonia, contacto_cp, direccion_reporte,
-    asignado_a, asignado_nombre, asignado_apellidos, asignado_full,
+    asignado_id, asignado_full,
     estatus_code, prioridad, canal,
     creado_at, actualizado_at, cerrado_en,
-    raw,
+    raw
   };
 }
 
-/** GET por ID (sin filtrar por status) */
+
+/** GET por ID  */
 export async function getById(id) {
   const body = { id };
   const json = await postJSON(API.REQUERIMIENTO.GET, body);

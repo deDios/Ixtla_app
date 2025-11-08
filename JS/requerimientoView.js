@@ -363,14 +363,15 @@ function normalizeRequerimiento(raw = {}) {
   const contacto_cp = String(raw.contacto_cp ?? raw.cp ?? raw.codigo_postal ?? "").trim();
   const direccion_reporte = [contacto_calle, contacto_colonia].filter(Boolean).join(", ");
 
-  const asignado_id = (raw.asignado_a != null ? Number(raw.asignado_a) : null);
-  const asignado_nombre = String(raw.asignado_nombre ?? "").trim();
-  const asignado_apellidos = String(raw.asignado_apellidos ?? "").trim();
-  const asignado_full = String(
-    raw.asignado_nombre_completo
-    ?? raw.asignado_full
-    ?? [asignado_nombre, asignado_apellidos].filter(Boolean).join(" ")
-  ).trim();
+  const asignado_id = raw.asignado_a != null ? String(raw.asignado_a) : null;
+  const asignado_full = (() => {
+    const fullApi = String(raw.asignado_nombre_completo || "").trim();
+    if (fullApi) return fullApi;
+    const n = String(raw.asignado_nombre || "").trim();
+    const a = String(raw.asignado_apellidos || "").trim();
+    const joined = [n, a].filter(Boolean).join(" ").trim();
+    return joined || ""; // si no hay asignado, quedará vacío y la UI mostrará "Sin asignar"
+  })();
 
   const estatus_code = Number(raw.estatus_code ?? raw.estatus ?? raw.status ?? raw.estado ?? 0);
   const prioridad = (raw.prioridad != null) ? Number(raw.prioridad) : null;
@@ -392,6 +393,7 @@ function normalizeRequerimiento(raw = {}) {
   };
 }
 
+
   async function getRequerimientoById(id) {
     const payload = { id };
     const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, payload);
@@ -409,14 +411,11 @@ function normalizeRequerimiento(raw = {}) {
 
     // Encabezado: Contacto, Encargado, Fecha
     const ddC = $(".exp-meta > div:nth-child(1) dd");
-    const ddE = $(".exp-meta > div:nth-child(2) dd");
-    const ddF = $(".exp-meta > div:nth-child(3) dd");
-    if (ddC) ddC.textContent = (req.contacto_nombre || "—");
-    if (ddE) {
-      const asignadoTxt = (req.asignado_full && req.asignado_full.trim()) ? req.asignado_full : "Sin asignar";
-      ddE.textContent = asignadoTxt;
-    }
-    if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
+const ddE = $(".exp-meta > div:nth-child(2) dd");
+const ddF = $(".exp-meta > div:nth-child(3) dd");
+if (ddC) ddC.textContent = (req.contacto_nombre || "—");
+if (ddE) ddE.textContent = (req.asignado_full && req.asignado_full.trim()) ? req.asignado_full : "Sin asignar";
+if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
 
     // Tab Contacto
     const contactoGrid = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
@@ -691,42 +690,69 @@ function normalizeRequerimiento(raw = {}) {
     }
   }
 
-  async function renderCommentsList(items = [], requerimiento_id) {
-    console.groupCollapsed("[Comentarios][UI] render");
+  // ====== Avatar helpers para comentarios ======
+const AVATAR_CACHE = new Map();
 
-    const filtered = items.filter(r => {
-      const rid = r.requerimiento_id ?? r.req_id ?? r.requerimiento ?? null;
-      return rid == null ? true : String(rid) === String(requerimiento_id);
-    });
+async function fetchEmpleadoAvatarUrl(empleadoId) {
+  if (!empleadoId) return null;
+  const key = String(empleadoId);
+  if (AVATAR_CACHE.has(key)) return AVATAR_CACHE.get(key);
 
-    const feed = $(".c-feed"); if (!feed) { console.groupEnd(); return; }
-    feed.innerHTML = "";
-
-    for (const r of filtered) {
-      const nombre = r.nombre || r.empleado_nombre || r.autor || r.created_by || "—";
-      const texto = r.comentario || r.texto || "";
-      const cuandoAbs = r.created_at || r.fecha || "";
-      const cuando = relShort(cuandoAbs);
-
-      const empId = r.empleado_id ?? r.created_by ?? r.autor_id ?? null;
-      const avatar = await fetchAvatarUrl(empId);
-      const avatarSrc = avatar || "/ASSETS/user/img_user1.png";
-
-      const art = document.createElement("article");
-      art.className = "msg";
-      art.innerHTML = `
-        <img class="avatar" src="${avatarSrc}" alt="">
-        <div>
-          <div class="who"><span class="name">${firstTwo(nombre)}</span> <span class="time">${cuando}</span></div>
-          <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
-        </div>`;
-      $(".text", art).textContent = texto;
-      feed.appendChild(art);
-    }
-    const scroller = feed.parentElement || feed;
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
-    console.groupEnd();
+  try {
+    const url = (ENDPOINTS?.EMPLEADOS?.GET) || "/db/WEB/ixtla01_c_empleado.php";
+    const empRes = await postJSON(url, { id: Number(empleadoId), status: 1 });
+    const emp = empRes?.data || {};
+    const avatar = emp.avatar_url || emp.foto_url || emp.foto || emp.img || null;
+    AVATAR_CACHE.set(key, avatar || null);
+    return avatar || null;
+  } catch {
+    AVATAR_CACHE.set(key, null);
+    return null;
   }
+}
+
+function placeholderAvatarFor(_name = "") {
+  // Si luego quieres "iniciales en círculo", cámbialo aquí
+  return "/ASSETS/user/img_user1.png";
+}
+
+async function renderCommentsList(items = [], requerimiento_id) {
+  console.groupCollapsed("[Comentarios][UI] render");
+  const filtered = items.filter(r => {
+    const rid = r.requerimiento_id ?? r.req_id ?? r.requerimiento ?? null;
+    return rid == null ? true : String(rid) === String(requerimiento_id);
+  });
+
+  const feed = $(".c-feed"); if (!feed) { console.groupEnd(); return; }
+  feed.innerHTML = "";
+
+  for (const r of filtered) {
+    const nombre = r.nombre || r.empleado_nombre || r.autor || r.created_by || "—";
+    const texto = r.comentario || r.texto || "";
+    const cuandoAbs = r.created_at || r.fecha || "";
+    const cuando = relShort(cuandoAbs);
+
+    const empleadoId = r.empleado_id ?? r.created_by ?? null;
+    const avatarUrl = await fetchEmpleadoAvatarUrl(empleadoId);
+    const imgSrc = avatarUrl || placeholderAvatarFor(nombre);
+
+    const art = document.createElement("article");
+    art.className = "msg";
+    art.innerHTML = `
+      <img class="avatar" src="${imgSrc}" alt="">
+      <div>
+        <div class="who"><span class="name">${firstTwo(nombre)}</span> <span class="time">${cuando}</span></div>
+        <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
+      </div>`;
+    $(".text", art).textContent = texto;
+    feed.appendChild(art);
+  }
+
+  const scroller = feed.parentElement || feed;
+  scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+  console.groupEnd();
+}
+
 
   async function loadComentarios(requerimiento_id) {
     console.groupCollapsed("[Comentarios] list");
