@@ -2,255 +2,30 @@
 (function () {
   "use strict";
 
-  /* ========================================================================
-   * Helpers base (expuestos a Planeación)
-   * ======================================================================*/
+  /* ============================
+   * Helpers básicos
+   * ============================*/
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-  const log = (...a) => console.log("[RequerimientoView]", ...a);
-  const warn = (...a) => console.warn("[RequerimientoView][WARN]", ...a);
-  const err = (...a) => console.error("[RequerimientoView][ERR]", ...a);
+  const log = (...a) => console.log("[ReqView]", ...a);
+  const warn = (...a) => console.warn("[ReqView][WARN]", ...a);
+  const err = (...a) => console.error("[ReqView][ERR]", ...a);
   const toast = (m, t = "info") =>
-    (window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m));
+    window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m);
+  window._rvHelpers = { $, $$, toast }; // para Planeación
 
-  const firstTwo = (full = "") =>
-    String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") || "—";
-
-  // Exponer helpers mínimos para otros módulos (Planeación)
-  window._rvHelpers = { $, $$, toast };
-
-  /* ========================================================================
-   * Animaciones / acordeones (compartido con Planeación)
-   * ======================================================================*/
-  function animateOpen(el) {
-    el.hidden = false;
-    el.style.overflow = "hidden";
-    el.style.height = "0px";
-    el.getBoundingClientRect();
-    const h = el.scrollHeight;
-    el.style.transition = "height 180ms ease";
-    el.style.height = h + "px";
-    const done = () => {
-      el.style.transition = ""; el.style.height = ""; el.style.overflow = "";
-      el.removeEventListener("transitionend", done);
-    };
-    el.addEventListener("transitionend", done);
-  }
-  function animateClose(el) {
-    el.style.overflow = "hidden";
-    const h = el.offsetHeight;
-    el.style.height = h + "px";
-    el.getBoundingClientRect();
-    el.style.transition = "height 160ms ease";
-    el.style.height = "0px";
-    const done = () => {
-      el.hidden = true;
-      el.style.transition = ""; el.style.height = ""; el.style.overflow = "";
-      el.removeEventListener("transitionend", done);
-    };
-    el.addEventListener("transitionend", done);
-  }
-  function setAccordionOpen(head, body, open) {
-    head.setAttribute("aria-expanded", open ? "true" : "false");
-    open ? animateOpen(body) : animateClose(body);
-  }
-  window.setAccordionOpen = setAccordionOpen; // usado por Planeación
-
-  /* ========================================================================
-   * Evidencias (UI)
-   * ======================================================================*/
-  function findEvidenciasAccordion() {
-    return (
-      document.querySelector('[data-acc="evidencias"]') ||
-      document.querySelector('.exp-accordion--evidencias') ||
-      document.querySelector('#evidencias-accordion') ||
-      (() => {
-        const accs = document.querySelectorAll('.exp-accordion');
-        for (const acc of accs) {
-          const headText = (acc.querySelector('.exp-acc-head')?.textContent || '').toLowerCase();
-          if (headText.includes('evidencia')) return acc;
-        }
-        return null;
-      })()
-    );
-  }
-  function findEvidenciasTable() {
-    const acc = findEvidenciasAccordion();
-    return acc ? acc.querySelector('.exp-table') : null;
-  }
-
-  function initAccordionsEvidencias() {
-    const acc = findEvidenciasAccordion();
-    if (!acc) return;
-    const head = $(".exp-acc-head", acc), body = $(".exp-acc-body", acc);
-    if (!head || !body) return;
-    const initOpen = head.getAttribute("aria-expanded") === "true";
-    body.hidden = !initOpen; if (!initOpen) body.style.height = "0px";
-    head.addEventListener("click", () => {
-      const isOpen = head.getAttribute("aria-expanded") === "true";
-      setAccordionOpen(head, body, !isOpen);
-    });
-    head.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); head.click(); }
-    });
-  }
-
-  function initSortableTables() {
-    const table = findEvidenciasTable();
-    if (!table) return;
-    const head = $(".exp-thead", table);
-    const rows = () => $$(".exp-row", table);
-    if (!head) return;
-
-    head.addEventListener("click", (e) => {
-      const sortSpan = e.target.closest(".sort"); if (!sortSpan) return;
-      const th = sortSpan.closest("div");
-      const headers = $$(".exp-thead > div", table);
-      const idx = headers.indexOf(th); if (idx < 0) return;
-
-      const dir = sortSpan.dataset.dir === "asc" ? "desc" : "asc";
-      headers.forEach(h => { const s = $(".sort", h); if (s && s !== sortSpan) s.dataset.dir = ""; });
-      sortSpan.dataset.dir = dir;
-
-      const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
-      const arr = rows();
-      arr.sort((a, b) => {
-        const av = (a.children[idx]?.textContent || "").trim();
-        const bv = (b.children[idx]?.textContent || "").trim();
-        const cmp = collator.compare(av, bv);
-        return dir === "asc" ? cmp : -cmp;
-      });
-      arr.forEach(r => r.parentElement.appendChild(r));
-    });
-  }
-
-  /* ========================================================================
-   * Stepper
-   * ======================================================================*/
-  const statusLabel = (s) =>
-    ({ 0: "Solicitud", 1: "Revisión", 2: "Asignación", 3: "Proceso", 4: "Pausado", 5: "Cancelado", 6: "Finalizado" })[Number(s)] || "—";
-  const statusBadgeClass = (s) =>
-    ({ 0: "is-muted", 1: "is-info", 2: "is-info", 3: "is-info", 4: "is-warning", 5: "is-danger", 6: "is-success" })[Number(s)] || "is-info";
-
-  function paintStepper(next) {
-    const items = $$(".step-menu li");
-    items.forEach(li => {
-      const s = Number(li.dataset.status);
-      li.classList.remove("current");
-      if (s < next) li.classList.add("complete"); else li.classList.remove("complete");
-      if (s === next) li.classList.add("current");
-    });
-    const container = document.querySelector('.container');
-    const current = document.querySelector('.step-menu li.current');
-    if (container && current) {
-      const cRect = container.getBoundingClientRect();
-      const iRect = current.getBoundingClientRect();
-      const delta = (iRect.left + iRect.width / 2) - (cRect.left + cRect.width / 2);
-      container.scrollBy({ left: delta, behavior: 'smooth' });
-    }
-  }
-  window.paintStepper = paintStepper;
-
-  function initStepper() {
-    const menu = $(".step-menu"); if (!menu) return;
-    menu.addEventListener("click", (e) => {
-      const li = e.target.closest("li"); if (!li) return;
-      $$("li", menu).forEach(it => it.classList.remove("current"));
-      li.classList.add("current");
-    });
-  }
-
-  /* ========================================================================
-   * BOTONERA de acciones (UI + hooks)
-   * ======================================================================*/
-  function getCurrentStatusCode() {
-    const sel = $('#req-status [data-role="status-select"]');
-    if (sel && !sel.hidden) return Number(sel.value || 0);
-    const cur = document.querySelector('.step-menu li.current');
-    return cur ? Number(cur.getAttribute('data-status')) : 0;
-  }
-
-  function updateStatusUI(code) {
-    code = Number(code);
-    const badge = document.querySelector('#req-status [data-role="status-badge"]');
-    if (badge) {
-      badge.classList.remove('is-info', 'is-muted', 'is-warning', 'is-danger', 'is-success');
-      badge.classList.add(statusBadgeClass(code));
-      badge.textContent = statusLabel(code);
-    }
-    const sel = document.querySelector('#req-status [data-role="status-select"]');
-    if (sel) sel.value = String(code);
-    if (window.paintStepper) window.paintStepper(code);
-    log("[UI] updateStatusUI =>", code, statusLabel(code));
-  }
-
-  function askMotivo(titulo = "Motivo") {
-    return new Promise((resolve, reject) => {
-      const overlay = $('#modal-estado');
-      const title = $('#estado-title');
-      const form = $('#form-estado');
-      const txt = $('#estado-motivo');
-      if (!overlay || !form || !txt) return reject("Modal #modal-estado no está en el DOM");
-      title.textContent = titulo;
-      txt.value = "";
-      overlay.setAttribute('aria-hidden', 'false');
-      document.body.classList.add('me-modal-open');
-      const onSubmit = (e) => {
-        e.preventDefault();
-        const v = txt.value.trim();
-        if (!v) return txt.focus();
-        cleanup(); resolve(v);
-      };
-      const onClose = () => { cleanup(); reject("cancel"); };
-      form.addEventListener('submit', onSubmit);
-      overlay.querySelector('.modal-close')?.addEventListener('click', onClose);
-      overlay.addEventListener('click', (e) => { if (e.target === overlay) onClose(); });
-      function cleanup() {
-        form.removeEventListener('submit', onSubmit);
-        overlay.querySelector('.modal-close')?.removeEventListener('click', onClose);
-        overlay.removeEventListener('click', onClose);
-        overlay.setAttribute('aria-hidden', 'true');
-        document.body.classList.remove('me-modal-open');
-      }
-    });
-  }
-
-  function makeBtn(text, cls = "", act = "") {
-    const b = document.createElement('button');
-    b.type = "button";
-    b.className = `btn-xs ${cls}`.trim();
-    b.textContent = text;
-    if (act) b.dataset.act = act;
-    return b;
-  }
-
-  // ====== botones visibles por status (sin "Finalizar") ======
-  function getButtonsForStatus(code) {
-    switch (Number(code)) {
-      case 0: return [ makeBtn("Iniciar revisión","primary","start-revision"), makeBtn("Cancelar","danger","cancel") ];
-      case 1: return [ makeBtn("Pausar","warn","pause"), makeBtn("Cancelar","danger","cancel"), makeBtn("Asignar a departamento","","assign-dept") ];
-      case 2: return [ makeBtn("Pausar","warn","pause"), makeBtn("Cancelar","danger","cancel"), makeBtn("Iniciar proceso","primary","start-process") ];
-      case 3: return [ makeBtn("Pausar","warn","pause"), makeBtn("Cancelar","danger","cancel") ];
-      case 4: return [ makeBtn("Reanudar","primary","resume"), makeBtn("Cancelar","danger","cancel") ];
-      case 5: return [ makeBtn("Reabrir","primary","reopen") ];
-      case 6: return [ makeBtn("Reabrir","primary","reopen") ];
-      default: return [ makeBtn("Iniciar revisión","primary","start-revision") ];
-    }
-  }
-
-  /* ========================================================================
-   * HTTP + Endpoints
-   * ======================================================================*/
+  /* ============================
+   * Endpoints (ajustados a tu backend)
+   * ============================*/
   const ENDPOINTS = {
-    REQUERIMIENTO_GET:      "/db/WEB/ixtla01_c_requerimiento.php",
-    REQUERIMIENTO_UPDATE:   "/db/WEB/ixtla01_upd_requerimiento.php",
-    EMPLEADOS_GET:          "/db/WEB/ixtla01_c_empleado.php",
-    COMENT_LIST:            "/db/WEB/ixtla01_c_comentario_requerimiento.php",
-    COMENT_CREATE:          "/db/WEB/ixtla01_i_comentario_requerimiento.php",
-    PROCESOS_LIST:          "/db/WEB/ixtla01_c_proceso_requerimiento.php",
-    TAREAS_LIST:            "/db/WEB/ixtla01_c_tarea_proceso.php",
-    // Departamento + líder
-    DEPARTAMENTOS_GET: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
+    REQUERIMIENTO_GET: "/db/WEB/ixtla01_c_requerimiento.php",
+    REQUERIMIENTO_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",
+    EMPLEADOS_GET: "/db/WEB/ixtla01_c_empleado.php",
+    DEPT_LIST: "/DB/WEB/ixtla01_c_departamento.php", // (ojo: ruta con DB en mayúsculas de tu ejemplo)
+    COMENT_LIST: "/db/WEB/ixtla01_c_comentario_requerimiento.php",
+    COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
+    PROCESOS_LIST: "/db/WEB/ixtla01_c_proceso_requerimiento.php",
+    TAREAS_LIST: "/db/WEB/ixtla01_c_tarea_proceso.php",
   };
 
   async function postJSON(url, body) {
@@ -259,12 +34,19 @@
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(body || {})
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body || {}),
       });
       const txt = await res.text();
       let json;
-      try { json = JSON.parse(txt); } catch { json = { raw: txt }; }
+      try {
+        json = JSON.parse(txt);
+      } catch {
+        json = { raw: txt };
+      }
       console.log("← status:", res.status, "json:", json);
       console.groupEnd();
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -275,309 +57,241 @@
     }
   }
 
-  // ==== fechas relativas cortas ====
-  function toTs(v) {
-    if (!v) return Date.now();
-    if (typeof v === "number") return v;
-    const s = String(v).replace("T", " ").replace(/-/g, "/");
-    const t = Date.parse(s);
-    return Number.isFinite(t) ? t : Date.now();
-  }
-  function relShort(when) {
-    const diffMs = Date.now() - toTs(when);
-    const sec = Math.max(0, Math.floor(diffMs / 1000));
-    if (sec < 10) return "ahora";
-    if (sec < 60) return `hace ${sec}s`;
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `hace ${min} min`;
-    const hrs = Math.floor(min / 60);
-    if (hrs < 48) return `hace ${hrs} h`;
-    const days = Math.floor(hrs / 24);
-    return `hace ${days} d`;
-  }
-
-  // Lee cookie ix_emp segura (usa Session.get() si existe)
+  /* ============================
+   * Utilidades
+   * ============================*/
   function safeGetSession() {
-    try { if (window.Session?.get) return window.Session.get(); } catch {}
     try {
-      const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
-      if (!pair) return null;
-      const raw = decodeURIComponent(pair.split("=")[1] || "");
-      const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
-      if (json && typeof json === "object") return json;
+      if (window.Session?.get) return window.Session.get();
+    } catch {}
+    try {
+      const c = document.cookie
+        .split("; ")
+        .find((x) => x.startsWith("ix_emp="));
+      if (!c) return null;
+      const raw = decodeURIComponent(c.split("=")[1] || "");
+      return JSON.parse(decodeURIComponent(escape(atob(raw))));
     } catch {}
     return null;
   }
   function getEmpleadoIdFromSession() {
     const s = safeGetSession();
-    return s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
+    return (
+      s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null
+    );
   }
-
-  /* ========================================================================
-   * Setters robustos por etiqueta (evita nth-child frágil)
-   * ======================================================================*/
-  function setFieldByLabel(panelEl, labelText, value) {
-    if (!panelEl) return;
-    const rows = Array.from(panelEl.querySelectorAll(".exp-field"));
-    const norm = (s) => String(s || "").trim().toLowerCase();
-    const row = rows.find(r => norm(r.querySelector(".exp-label")?.textContent) === norm(labelText));
-    const dd  = row?.querySelector(".exp-val");
-    if (dd) dd.textContent = (value ?? "—");
+  function relShort(when) {
+    if (!when) return "—";
+    const t = Date.parse(String(when).replace("T", " ").replace(/-/g, "/"));
+    const diff = Date.now() - (Number.isFinite(t) ? t : Date.now());
+    const s = Math.max(0, Math.floor(diff / 1000));
+    if (s < 10) return "ahora";
+    if (s < 60) return `hace ${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `hace ${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 48) return `hace ${h} h`;
+    const d = Math.floor(h / 24);
+    return `hace ${d} d`;
   }
-  function setFieldByLabelWithMail(panelEl, labelText, value) {
-    if (!panelEl) return;
-    const rows = Array.from(panelEl.querySelectorAll(".exp-field"));
-    const norm = (s) => String(s || "").trim().toLowerCase();
-    const row = rows.find(r => norm(r.querySelector(".exp-label")?.textContent) === norm(labelText));
-    const dd  = row?.querySelector(".exp-val");
-    if (!dd) return;
-    const a = dd.querySelector("a") || document.createElement("a");
-    a.textContent = value || "—";
-    if (value) a.href = `mailto:${value}`; else a.removeAttribute("href");
-    if (!dd.contains(a)) { dd.innerHTML = ""; dd.appendChild(a); }
-  }
+  const firstTwo = (full = "") =>
+    String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") ||
+    "—";
 
-  /* ========================================================================
-   * Normalización requerimiento + UI
-   * ======================================================================*/
-  function buildDireccion(calle, colonia) {
-    const a = String(calle || "").trim();
-    const b = String(colonia || "").trim();
-    return [a, b].filter(Boolean).join(", ");
-  }
+  /* ============================
+   * Stepper / estatus
+   * ============================*/
+  const statusLabel = (s) =>
+    ({
+      0: "Solicitud",
+      1: "Revisión",
+      2: "Asignación",
+      3: "Proceso",
+      4: "Pausado",
+      5: "Cancelado",
+      6: "Finalizado",
+    }[Number(s)] || "—");
+  const statusBadgeClass = (s) =>
+    ({
+      0: "is-muted",
+      1: "is-info",
+      2: "is-info",
+      3: "is-info",
+      4: "is-warning",
+      5: "is-danger",
+      6: "is-success",
+    }[Number(s)] || "is-info");
 
-  function normalizeRequerimiento(raw = {}) {
-    console.groupCollapsed("[Normalize] Requerimiento: IN");
-    console.log(raw);
-    console.groupEnd();
-
-    const toId = (v) => (v == null ? null : String(v));
-    const id = toId(raw.id ?? raw.requerimiento_id);
-    const folio = String(raw.folio ?? raw.folio_requerimiento ?? "").trim();
-
-    const tramite = String(raw.tramite ?? raw.tramite_nombre ?? raw.nombre_tramite ?? "").trim();
-    const asunto = String(raw.asunto ?? raw.titulo ?? "").trim();
-    const descripcion = String(raw.descripcion ?? raw.detalle ?? "").trim();
-
-    const contacto_nombre = String(raw.contacto_nombre ?? raw.nombre_contacto ?? raw.contacto ?? "").trim();
-    const contacto_telefono = String(raw.contacto_telefono ?? raw.telefono_contacto ?? raw.telefono ?? "").trim();
-    const contacto_email = String(raw.contacto_email ?? raw.email_contacto ?? raw.correo ?? "").trim();
-    const contacto_calle = String(raw.contacto_calle ?? raw.direccion ?? raw.calle ?? "").trim();
-    const contacto_colonia = String(raw.contacto_colonia ?? raw.colonia ?? "").trim();
-    const contacto_cp = String(raw.contacto_cp ?? raw.cp ?? raw.codigo_postal ?? "").trim();
-    const direccion_reporte = buildDireccion(contacto_calle, contacto_colonia);
-
-    // ====== ASIGNADO (cuidado especial)
-    const asignado_id = raw.asignado_a != null && raw.asignado_a !== "" ? String(raw.asignado_a) : null;
-    const asignado_full = (() => {
-      const fullApi = String(raw.asignado_nombre_completo || "").trim();
-      if (fullApi) return fullApi;
-      const n = String(raw.asignado_nombre || "").trim();
-      const a = String(raw.asignado_apellidos || "").trim();
-      const joined = [n, a].filter(Boolean).join(" ").trim();
-      return joined || ""; // vacío => "Sin asignar"
-    })();
-
-    // ====== Departamento (id + nombre si viene)
-    const departamento_id = raw.departamento_id != null ? Number(raw.departamento_id) : null;
-    const departamento_nombre = String(raw.departamento_nombre || "").trim() || "—";
-
-    const estatus_code = Number(raw.estatus_code ?? raw.estatus ?? raw.status ?? raw.estado ?? 0);
-    const prioridad = (raw.prioridad != null) ? Number(raw.prioridad) : null;
-    const canal = (raw.canal != null) ? Number(raw.canal) : null;
-
-    const creado_at = String(raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? "").trim();
-    const actualizado_at = String(raw.actualizado_at ?? raw.updated_at ?? "").trim();
-    const cerrado_en = raw.cerrado_en != null ? String(raw.cerrado_en).trim() : null;
-
-    const out = {
-      id, folio,
-      tramite, asunto, descripcion,
-      contacto_nombre, contacto_telefono, contacto_email,
-      contacto_calle, contacto_colonia, contacto_cp, direccion_reporte,
-      asignado_id, asignado_full,
-      departamento_id, departamento_nombre,
-      estatus_code, prioridad, canal,
-      creado_at, actualizado_at, cerrado_en,
-      raw
-    };
-
-    console.groupCollapsed("[Normalize] Requerimiento: OUT");
-    console.log(out);
-    console.groupEnd();
-
-    return out;
-  }
-
-  async function getRequerimientoById(id) {
-    log("[API] getRequerimientoById", id);
-    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, { id });
-    let data = res?.data ?? res;
-    if (Array.isArray(data)) data = data[0] || {};
-    return normalizeRequerimiento(data);
-  }
-
-  /* ========================================================================
-   * Departamento (hydrate: nombre + director)
-   * ======================================================================*/
-  async function fetchDepartamentoInfo(depId) {
-    if (!depId) return { nombre: "—", director_full: "—" };
-    try {
-      const r = await postJSON(ENDPOINTS.DEPARTAMENTOS_GET, { id: Number(depId) });
-      let d = r?.data ?? r;
-      if (Array.isArray(d)) d = d.find(x => Number(x.id) === Number(depId)) || d[0] || null;
-      if (!d) return { nombre: "—", director_full: "—" };
-      const nombre = String(d?.nombre || "").trim() || "—";
-      const director_full = [d?.director_nombre, d?.director_apellidos].filter(Boolean).join(" ").trim() || "—";
-      return { nombre, director_full };
-    } catch (e) {
-      warn("[Departamento] fallo hydrate:", e);
-      return { nombre: "—", director_full: "—" };
-    }
-  }
-
-  /* ========================================================================
-   * Pintado de UI (por etiqueta, para no desfasar)
-   * ======================================================================*/
-  function paintRequerimiento(req) {
-    console.groupCollapsed("[UI] Pintar requerimiento");
-    console.log("req:", req);
-
-    const titulo = req.tramite || req.asunto || "Requerimiento";
-    const h1 = $(".exp-title h1"); if (h1) h1.textContent = titulo;
-
-    // Encabezado: Contacto, Encargado (asignado), Fecha
-    const ddC = $(".exp-meta > div:nth-child(1) dd");
-    const ddE = $(".exp-meta > div:nth-child(2) dd");
-    const ddF = $(".exp-meta > div:nth-child(3) dd");
-    if (ddC) ddC.textContent = (req.contacto_nombre || "—");
-
-    const asignadoDisplay = (req.asignado_id && (req.asignado_full || "").trim())
-      ? req.asignado_full
-      : "Sin asignar";
-    if (ddE) ddE.textContent = asignadoDisplay;
-
-    if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
-
-    // Panel Contacto
-    const contactoGrid = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
-    if (contactoGrid) {
-      setFieldByLabel(contactoGrid, "Nombre del Contacto:", req.contacto_nombre || "—");
-      setFieldByLabel(contactoGrid, "Teléfono:", req.contacto_telefono || "—");
-      setFieldByLabel(contactoGrid, "Dirección:", [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", "));
-      setFieldByLabelWithMail(contactoGrid, "Correo:", req.contacto_email || "—");
-      setFieldByLabel(contactoGrid, "C.P.:", req.contacto_cp || "—");
-    }
-
-    // Panel Detalles (por etiqueta)
-    const detalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-    if (detalles) {
-      setFieldByLabel(detalles, "Nombre del Requerimiento:", titulo);
-      setFieldByLabel(detalles, "Asignado:", asignadoDisplay);
-
-      const badgeEl =
-        document.querySelector('#req-status [data-role="status-badge"]') ||
-        detalles.querySelector('.exp-field .exp-val .exp-badge');
-      if (badgeEl) {
-        badgeEl.classList.remove('is-info', 'is-muted', 'is-warning', 'is-danger', 'is-success');
-        const cls = statusBadgeClass(req.estatus_code);
-        const lbl = statusLabel(req.estatus_code);
-        badgeEl.classList.add(cls);
-        badgeEl.textContent = lbl;
-      }
-      setFieldByLabel(detalles, "Estatus:", statusLabel(req.estatus_code));
-      setFieldByLabel(detalles, "Descripción:", req.descripcion || "—");
-      setFieldByLabel(detalles, "Fecha de inicio:", (req.creado_at || "").split(" ")[0] || "—");
-      setFieldByLabel(detalles, "Fecha de terminado:", req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—");
-
-      // Colocamos placeholders por ahora; luego hidratamos con endpoint
-      setFieldByLabel(detalles, "Departamento:", req.departamento_nombre || "—");
-      setFieldByLabel(detalles, "Líder del Departamento:", "—");
-    }
-
-    const sel = document.querySelector('#req-status [data-role="status-select"]');
-    if (sel) sel.value = String(req.estatus_code ?? 0);
-
-    if (window.paintStepper) window.paintStepper(Number(req.estatus_code ?? 0));
-    updateStatusUI(Number(req.estatus_code ?? 0));
-    renderActions(Number(req.estatus_code ?? 0));
-
-    console.groupEnd();
-  }
-
-  /* ========================================================================
-   * Control de estatus (select)
-   * ======================================================================*/
-  function bindStatusControl() {
-    const host = $("#req-status");
-    if (!host) return;
-
-    const btn = host.querySelector('[data-role="status-btn"]');
-    const sel = host.querySelector('[data-role="status-select"]');
-    const badge = host.querySelector('[data-role="status-badge"]');
-
-    if (!btn || !sel || !badge) return;
-
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      const willShow = sel.hidden;
-      sel.hidden = !willShow;
-      if (willShow) sel.focus();
+  function paintStepper(next) {
+    const items = $$(".step-menu li");
+    items.forEach((li) => {
+      const s = Number(li.dataset.status);
+      li.classList.remove("current");
+      if (s < next) li.classList.add("complete");
+      else li.classList.remove("complete");
+      if (s === next) li.classList.add("current");
     });
+  }
+  window.paintStepper = paintStepper;
 
-    sel.addEventListener("change", () => {
-      const code = Number(sel.value);
-      const lbl = statusLabel(code);
-      const cls = statusBadgeClass(code);
+  function getCurrentStatusCode() {
+    const cur = $(".step-menu li.current");
+    return cur ? Number(cur.getAttribute("data-status")) : 0;
+  }
+  function updateStatusUI(code) {
+    code = Number(code);
+    const badge = $('#req-status [data-role="status-badge"]');
+    if (badge) {
+      badge.classList.remove(
+        "is-info",
+        "is-muted",
+        "is-warning",
+        "is-danger",
+        "is-success"
+      );
+      badge.classList.add(statusBadgeClass(code));
+      badge.textContent = statusLabel(code);
+    }
+    const sel = $('#req-status [data-role="status-select"]');
+    if (sel) sel.value = String(code);
+    paintStepper(code);
+    log("[UI] updateStatusUI →", code, statusLabel(code));
+  }
 
-      badge.classList.remove("is-info", "is-muted", "is-warning", "is-danger", "is-success");
-      badge.classList.add(cls);
-      badge.textContent = lbl;
-
-      if (window.paintStepper) window.paintStepper(code);
-      sel.hidden = true;
-      toast(`Estatus cambiado a "${lbl}" (solo UI)`, "info");
-      log("[Status][UI only] change =>", code, lbl);
-
-      renderActions(code);
+  const makeBtn = (txt, cls = "", act = "") => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = `btn-xs ${cls}`.trim();
+    b.textContent = txt;
+    b.dataset.act = act;
+    return b;
+  };
+  function getButtonsForStatus(code) {
+    switch (Number(code)) {
+      case 0:
+        return [
+          makeBtn("Iniciar revisión", "primary", "start-revision"),
+          makeBtn("Cancelar", "danger", "cancel"),
+        ];
+      case 1:
+        return [
+          makeBtn("Pausar", "warn", "pause"),
+          makeBtn("Cancelar", "danger", "cancel"),
+          makeBtn("Asignar a departamento", "", "assign-dept"),
+        ];
+      case 2:
+        return [
+          makeBtn("Pausar", "warn", "pause"),
+          makeBtn("Cancelar", "danger", "cancel"),
+          makeBtn("Iniciar proceso", "primary", "start-process"),
+        ];
+      case 3:
+        return [
+          makeBtn("Pausar", "warn", "pause"),
+          makeBtn("Cancelar", "danger", "cancel"),
+        ];
+      case 4:
+        return [
+          makeBtn("Reanudar", "primary", "resume"),
+          makeBtn("Cancelar", "danger", "cancel"),
+        ];
+      case 5:
+        return [makeBtn("Reabrir", "primary", "reopen")];
+      case 6:
+        return [makeBtn("Reabrir", "primary", "reopen")];
+      default:
+        return [makeBtn("Iniciar revisión", "primary", "start-revision")];
+    }
+  }
+  function renderActions(code = getCurrentStatusCode()) {
+    const wrap = $("#req-actions");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    getButtonsForStatus(code).forEach((b) => {
+      b.addEventListener("click", () => onAction(b.dataset.act));
+      wrap.appendChild(b);
     });
+    log(
+      "[UI] renderActions:",
+      code,
+      "=>",
+      [...wrap.querySelectorAll("button")].map((x) => x.dataset.act)
+    );
+  }
 
-    btn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+  function askMotivo(titulo = "Motivo") {
+    return new Promise((resolve, reject) => {
+      const overlay = $("#modal-estado");
+      const title = $("#estado-title");
+      const form = $("#form-estado");
+      const txt = $("#estado-motivo");
+      if (!overlay || !form || !txt) return reject("sin modal motivo");
+      title.textContent = titulo;
+      txt.value = "";
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("me-modal-open");
+      const onSubmit = (e) => {
         e.preventDefault();
-        btn.click();
+        const v = txt.value.trim();
+        if (!v) return txt.focus();
+        cleanup();
+        resolve(v);
+      };
+      const onClose = () => {
+        cleanup();
+        reject("cancel");
+      };
+      form.addEventListener("submit", onSubmit);
+      overlay.querySelector(".modal-close")?.addEventListener("click", onClose);
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) onClose();
+      });
+      function cleanup() {
+        form.removeEventListener("submit", onSubmit);
+        overlay
+          .querySelector(".modal-close")
+          ?.removeEventListener("click", onClose);
+        overlay.removeEventListener("click", onClose);
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("me-modal-open");
       }
     });
   }
 
-  /* ========================================================================
-   * Estado real del requerimiento (UPDATE) + validación "Iniciar proceso"
-   * ======================================================================*/
   async function updateReqStatus({ id, estatus, motivo }) {
     const updated_by = getEmpleadoIdFromSession();
     const body = { id: Number(id), estatus: Number(estatus), updated_by };
     if (motivo) body.motivo = String(motivo).trim();
-    log("[API] updateReqStatus →", body);
+    log("[API] REQUERIMIENTO_UPDATE →", body);
     const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
-    log("[API] updateReqStatus ←", res);
+    log("[API] REQUERIMIENTO_UPDATE ←", res);
     return res?.data ?? res;
   }
 
-  async function hasAtLeastOneProcesoAndTask(requerimiento_id) {
+  async function hasAtLeastOneProcesoAndTask(reqId) {
     try {
-      log("[Check] hasAtLeastOneProcesoAndTask for req:", requerimiento_id);
-      const pRes = await postJSON(ENDPOINTS.PROCESOS_LIST, { requerimiento_id: Number(requerimiento_id), status: 1, page: 1, page_size: 50 });
-      const procesos = Array.isArray(pRes?.data) ? pRes.data : [];
-      log("[Check] procesos encontrados:", procesos.length);
-      for (const p of procesos) {
-        const tRes = await postJSON(ENDPOINTS.TAREAS_LIST, { proceso_id: Number(p.id), status: 1, page: 1, page_size: 50 });
-        const tareas = Array.isArray(tRes?.data) ? tRes.data : [];
-        log(`[Check] proceso ${p.id} → tareas:`, tareas.length);
+      const p = await postJSON(ENDPOINTS.PROCESOS_LIST, {
+        requerimiento_id: Number(reqId),
+        status: 1,
+        page: 1,
+        page_size: 50,
+      });
+      const procesos = Array.isArray(p?.data) ? p.data : [];
+      log("[Check] procesos:", procesos.length);
+      for (const pr of procesos) {
+        const t = await postJSON(ENDPOINTS.TAREAS_LIST, {
+          proceso_id: Number(pr.id),
+          status: 1,
+          page: 1,
+          page_size: 50,
+        });
+        const tareas = Array.isArray(t?.data) ? t.data : [];
+        log(`[Check] proc ${pr.id} tareas:`, tareas.length);
         if (tareas.length > 0) return true;
       }
       return false;
     } catch (e) {
-      warn("[Check] error validando procesos/tareas:", e);
+      warn("[Check] procesos/tareas error", e);
       return false;
     }
   }
@@ -585,139 +299,305 @@
   async function onAction(act) {
     let next = getCurrentStatusCode();
     const id = __CURRENT_REQ_ID__;
-    if (!id) { toast("No hay id de requerimiento en la URL", "danger"); return; }
-
-    log("[Action] click:", act, "status actual:", next, "reqId:", id);
+    if (!id) {
+      toast("No hay id de requerimiento en la URL", "danger");
+      return;
+    }
+    log("[Action]", act, "status:", next, "req:", id);
 
     try {
       if (act === "start-revision") {
         next = 1;
         await updateReqStatus({ id, estatus: next });
-        updateStatusUI(next); toast("Estado cambiado a Revisión", "info");
-      }
-      else if (act === "assign-dept") {
+        updateStatusUI(next);
+        toast("Estado cambiado a Revisión", "info");
+      } else if (act === "assign-dept") {
         next = 2;
         await updateReqStatus({ id, estatus: next });
-        updateStatusUI(next); toast("Asignado a departamento (Estatus: Asignación)", "success");
-      }
-      else if (act === "start-process") {
+        updateStatusUI(next);
+        toast("Asignado a departamento", "success");
+      } else if (act === "start-process") {
         const ok = await hasAtLeastOneProcesoAndTask(id);
-        if (!ok) { toast("Para iniciar proceso necesitas al menos un proceso y una tarea.", "warning"); return; }
+        if (!ok) {
+          toast(
+            "Para iniciar proceso necesitas al menos un proceso y una tarea.",
+            "warning"
+          );
+          return;
+        }
         next = 3;
         await updateReqStatus({ id, estatus: next });
-        updateStatusUI(next); toast("Proceso iniciado", "success");
-      }
-      else if (act === "pause") {
+        updateStatusUI(next);
+        toast("Proceso iniciado", "success");
+      } else if (act === "pause") {
         const motivo = await askMotivo("Motivo de la pausa");
         next = 4;
         await updateReqStatus({ id, estatus: next, motivo });
-        updateStatusUI(next); toast("Requerimiento en Pausa", "warn");
-      }
-      else if (act === "resume") {
+        updateStatusUI(next);
+        toast("Pausado", "warn");
+      } else if (act === "resume") {
         next = 1;
         await updateReqStatus({ id, estatus: next });
-        updateStatusUI(next); toast("Requerimiento reanudado (Revisión)", "success");
-      }
-      else if (act === "cancel") {
+        updateStatusUI(next);
+        toast("Reanudado (Revisión)", "success");
+      } else if (act === "cancel") {
         const motivo = await askMotivo("Motivo de la cancelación");
         next = 5;
         await updateReqStatus({ id, estatus: next, motivo });
-        updateStatusUI(next); toast("Requerimiento cancelado", "danger");
-      }
-      else if (act === "reopen") {
+        updateStatusUI(next);
+        toast("Cancelado", "danger");
+      } else if (act === "reopen") {
         next = 1;
         await updateReqStatus({ id, estatus: next });
-        updateStatusUI(next); toast("Requerimiento reabierto (Revisión)", "info");
+        updateStatusUI(next);
+        toast("Reabierto (Revisión)", "info");
       }
     } catch (e) {
       if (e !== "cancel") {
-        console.warn(e);
-        toast("No se pudo actualizar el estado en el servidor.", "danger");
+        err(e);
+        toast("No se pudo actualizar el estado.", "danger");
       }
     }
-
     renderActions(next);
   }
 
-  function renderActions(code = getCurrentStatusCode()) {
-    const wrap = $('#req-actions');
-    if (!wrap) return;
-    wrap.innerHTML = "";
-    wrap.classList.add('exp-actions');
-    const btns = getButtonsForStatus(code);
-    btns.forEach(b => {
-      b.addEventListener('click', () => onAction(b.dataset.act));
-      wrap.appendChild(b);
-    });
-    log("[UI] renderActions para status:", code, "=>", btns.map(b => b.dataset.act));
+  /* ============================
+   * Normalización (sin fallbacks raros)
+   * ============================*/
+  function normalizeRequerimiento(raw = {}) {
+    console.groupCollapsed("[Normalize] IN");
+    console.log(raw);
+    console.groupEnd();
+    const out = {
+      id: String(raw.id ?? raw.requerimiento_id ?? ""),
+      folio: String(raw.folio ?? ""),
+      departamento_id:
+        raw.departamento_id != null ? Number(raw.departamento_id) : null,
+      departamento_nombre: String(raw.departamento_nombre || "").trim(),
+      tramite_id: raw.tramite_id != null ? Number(raw.tramite_id) : null,
+      tramite_nombre: String(raw.tramite_nombre || "").trim(),
+      asignado_id: raw.asignado_a != null ? String(raw.asignado_a) : null,
+      asignado_full: String(raw.asignado_nombre_completo || "").trim(),
+      asunto: String(raw.asunto || "").trim(),
+      descripcion: String(raw.descripcion || "").trim(),
+      prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
+      estatus_code:
+        raw.estatus != null
+          ? Number(raw.estatus)
+          : raw.status != null
+          ? Number(raw.status)
+          : 0,
+      canal: raw.canal != null ? Number(raw.canal) : null,
+      contacto_nombre: String(raw.contacto_nombre || "").trim(),
+      contacto_telefono: String(raw.contacto_telefono || "").trim(),
+      contacto_email: String(raw.contacto_email || "").trim(),
+      contacto_calle: String(raw.contacto_calle || "").trim(),
+      contacto_colonia: String(raw.contacto_colonia || "").trim(),
+      contacto_cp: String(raw.contacto_cp || "").trim(),
+      creado_at: String(raw.created_at || "").trim(),
+      cerrado_en: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
+      raw,
+    };
+    console.groupCollapsed("[Normalize] OUT");
+    console.log(out);
+    console.groupEnd();
+    return out;
   }
 
-  /* ========================================================================
-   * Reset plantilla (valores vacíos)
-   * ======================================================================*/
-  function resetTemplate() {
-    log("[UI] resetTemplate()");
-    const h1 = $(".exp-title h1"); if (h1) h1.textContent = "—";
-    $$(".exp-meta dd").forEach(dd => dd.textContent = "—");
+  /* ============================
+   * Fetch básicos
+   * ============================*/
+  async function getRequerimientoById(id) {
+    log("[API] REQUERIMIENTO_GET →", { id });
+    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, { id });
+    const data = res?.data ?? res;
+    return normalizeRequerimiento(Array.isArray(data) ? data[0] || {} : data);
+  }
 
-    const contactoVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
-    contactoVals.forEach((n, i) => {
-      if (i === 3) {
-        const a = n.querySelector("a");
-        if (a) { a.textContent = "—"; a.removeAttribute("href"); }
-        else n.textContent = "—";
-      } else n.textContent = "—";
-    });
+  async function getDeptByIdOrName({ id, nombre }) {
+    const payload =
+      id != null ? { id: Number(id) } : { page: 1, page_size: 50, status: 1 };
+    log("[API] DEPT_LIST →", payload);
+    const res = await postJSON(ENDPOINTS.DEPT_LIST, payload);
+    const arr = Array.isArray(res?.data) ? res.data : [];
+    let found = null;
+    if (id != null) found = arr.find((d) => Number(d.id) === Number(id));
+    if (!found && nombre)
+      found = arr.find(
+        (d) =>
+          String(d.nombre).trim().toLowerCase() ===
+          String(nombre).trim().toLowerCase()
+      );
+    log("[API] DEPT_LIST ← count:", arr.length, "found:", found);
+    return found || null;
+  }
 
-    const detalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-    if (detalles) {
-      ["Nombre del Requerimiento:","Asignado:","Estatus:","Descripción:","Fecha de inicio:","Fecha de terminado:","Departamento:","Líder del Departamento:"]
-        .forEach(lbl => setFieldByLabel(detalles, lbl, "—"));
-      const badgeHost = detalles.querySelector('#req-status [data-role="status-badge"]') || detalles.querySelector('.exp-field .exp-val');
-      if (badgeHost) {
-        let badge = badgeHost.querySelector('[data-role="status-badge"]');
-        if (!badge) {
-          badge = document.createElement('span');
-          badge.className = 'exp-badge is-info';
-          badge.setAttribute('data-role','status-badge');
-          badgeHost.prepend(badge);
+  /* ============================
+   * Pintado UI (a tu HTML)
+   * ============================*/
+  function paintContacto(req) {
+    log("[UI] Pintar Contacto");
+    const p = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
+    if (!p) return;
+    const set = (labelText, val) => {
+      const row = Array.from(p.querySelectorAll(".exp-field")).find((r) => {
+        const txt = (r.querySelector("label")?.textContent || "")
+          .trim()
+          .toLowerCase();
+        return txt.startsWith(labelText.toLowerCase());
+      });
+      const dd = row?.querySelector(".exp-val");
+      if (!dd) return;
+      if (labelText.toLowerCase().includes("correo")) {
+        const a = dd.querySelector("a") || document.createElement("a");
+        a.textContent = val || "—";
+        if (val) a.href = `mailto:${val}`;
+        else a.removeAttribute("href");
+        if (!dd.contains(a)) {
+          dd.innerHTML = "";
+          dd.appendChild(a);
         }
-        badge.className = 'exp-badge is-info';
-        badge.textContent = '—';
+      } else {
+        dd.textContent = val || "—";
       }
+    };
+    set("Nombre", req.contacto_nombre || "—");
+    set("Teléfono", req.contacto_telefono || "—");
+    set(
+      "Dirección del reporte",
+      [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", ")
+    );
+    set("Correo", req.contacto_email || "—");
+    set("C.P", req.contacto_cp || "—");
+  }
+
+  function paintHeaderMeta(req) {
+    const ddC = $(".exp-meta > div:nth-child(1) dd");
+    const ddE = $(".exp-meta > div:nth-child(2) dd");
+    const ddF = $(".exp-meta > div:nth-child(3) dd");
+    if (ddC) ddC.textContent = req.contacto_nombre || "—";
+
+    // Encargado (Asignado) — si no hay, “Sin asignar”
+    const asignado =
+      req.asignado_id && (req.asignado_full || "").trim()
+        ? req.asignado_full
+        : "Sin asignar";
+    if (ddE) ddE.textContent = asignado;
+
+    if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
+  }
+
+  async function paintDetalles(req) {
+    log("[UI] Pintar Detalles");
+    const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+    if (!grid) return;
+
+    const put = (labelStartsWith, value, asLink = false) => {
+      const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
+        const t = (r.querySelector("label")?.textContent || "")
+          .trim()
+          .toLowerCase();
+        return t.startsWith(labelStartsWith.toLowerCase());
+      });
+      const dd = row?.querySelector(".exp-val");
+      if (!dd) return;
+      if (asLink) {
+        const a = dd.querySelector("a") || document.createElement("a");
+        a.textContent = value || "—";
+        if (value) a.href = "#";
+        else a.removeAttribute("href");
+        if (!dd.contains(a)) {
+          dd.innerHTML = "";
+          dd.appendChild(a);
+        }
+      } else {
+        dd.textContent = value ?? "—";
+      }
+    };
+
+    // Nombre del Requerimiento:
+    put("Nombre del Requerimiento", req.asunto || req.tramite_nombre || "—");
+
+    // Departamento y Director
+    let deptName = req.departamento_nombre || "—";
+    let directorFull = "—";
+    try {
+      const dept = await getDeptByIdOrName({
+        id: req.departamento_id,
+        nombre: req.departamento_nombre,
+      });
+      if (dept) {
+        deptName = String(dept.nombre || deptName);
+        const dn = String(dept.director_nombre || "").trim();
+        const da = String(dept.director_apellidos || "").trim();
+        directorFull = [dn, da].filter(Boolean).join(" ") || directorFull;
+      }
+    } catch (e) {
+      warn("Dept fetch error:", e);
     }
 
-    const evTable = findEvidenciasTable();
-    if (evTable) evTable.querySelectorAll('.exp-row').forEach(r => r.remove());
+    // Líder del Departamento:
+    put("Líder del Departamento", directorFull, true);
+    // Departamento:
+    const depNode = $("#req-departamento");
+    if (depNode) depNode.textContent = deptName || "—";
 
-    const items = $$(".step-menu li");
-    items.forEach(li => li.classList.remove("current", "complete"));
-    const sol = items.find(li => Number(li.dataset.status) === 0);
-    sol?.classList.add("current");
+    // Asignado:
+    const asignado =
+      req.asignado_id && (req.asignado_full || "").trim()
+        ? req.asignado_full
+        : "Sin asignar";
+    put("Asignado", asignado, true);
 
-    const feed = $(".c-feed"); if (feed) feed.innerHTML = "";
+    // Estatus badge:
+    updateStatusUI(req.estatus_code);
+    renderActions(req.estatus_code);
+
+    // Descripción:
+    put("Descripción", req.descripcion || "—");
+
+    // Fechas:
+    put("Fecha de inicio", (req.creado_at || "").split(" ")[0] || "—");
+    put(
+      "Fecha de terminado",
+      req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—"
+    );
   }
 
-  /* ========================================================================
-   * Comentarios: listar / crear (con avatar)
-   * ======================================================================*/
-  async function listComentariosAPI({ requerimiento_id, status = 1, page = 1, page_size = 100 }) {
-    const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
+  /* ============================
+   * Comentarios (con logs de avatar)
+   * ============================*/
+  async function listComentariosAPI({
+    requerimiento_id,
+    status = 1,
+    page = 1,
+    page_size = 100,
+  }) {
+    const payload = {
+      requerimiento_id: Number(requerimiento_id),
+      status,
+      page,
+      page_size,
+    };
     log("[API] COMENT_LIST →", payload);
     const res = await postJSON(ENDPOINTS.COMENT_LIST, payload);
     log("[API] COMENT_LIST ←", res);
     const raw = res?.data ?? res?.items ?? res;
-    const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.rows) ? raw.rows : []);
-    return arr;
+    return Array.isArray(raw) ? raw : Array.isArray(raw?.rows) ? raw.rows : [];
   }
-
-  async function createComentarioAPI({ requerimiento_id, empleado_id, comentario, status = 1, created_by }) {
+  async function createComentarioAPI({
+    requerimiento_id,
+    empleado_id,
+    comentario,
+    status = 1,
+    created_by,
+  }) {
     const payload = {
       requerimiento_id: Number(requerimiento_id),
       empleado_id: empleado_id ?? null,
       comentario,
       status,
-      created_by: created_by ?? empleado_id ?? null
+      created_by: created_by ?? empleado_id ?? null,
     };
     log("[API] COMENT_CREATE →", payload);
     const r = await postJSON(ENDPOINTS.COMENT_CREATE, payload);
@@ -725,61 +605,122 @@
     return r;
   }
 
-  // Avatares
-  function setAvatarFor(imgEl, { empleadoId = null, nombre = "" } = {}) {
-    if (!imgEl) return;
-    const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
-    const sessionLike = { id_usuario: empleadoId || null, avatarUrl: null, nombre: nombre || "", apellidos: "" };
-
-    if (window.gcSetAvatarSrc) {
-      try { window.gcSetAvatarSrc(imgEl, sessionLike); return; } catch {}
+  const AVATAR_CACHE = new Map();
+  async function fetchEmpleadoAvatarUrl(empleadoId) {
+    if (!empleadoId) {
+      log("[Avatar] empleadoId vacío");
+      return null;
     }
-    const idu = sessionLike.id_usuario;
-    const candidates = idu ? [
-      `/ASSETS/user/userImgs/img_${idu}.png`,
-      `/ASSETS/user/userImgs/img_${idu}.jpg`,
-    ] : [];
-    let i = 0;
-    const tryNext = () => {
-      if (i >= candidates.length) { imgEl.src = DEFAULT_AVATAR; return; }
-      imgEl.onerror = () => { i++; tryNext(); };
-      imgEl.src = `${candidates[i]}?v=${Date.now()}`;
-    };
-    tryNext();
+    const key = String(empleadoId);
+    if (AVATAR_CACHE.has(key)) return AVATAR_CACHE.get(key);
+    try {
+      log("[Avatar] EMPLEADOS_GET →", { id: Number(empleadoId), status: 1 });
+      const empRes = await postJSON(ENDPOINTS.EMPLEADOS_GET, {
+        id: Number(empleadoId),
+        status: 1,
+      });
+      const emp = empRes?.data || {};
+      const url = emp.avatar_url || emp.foto_url || emp.foto || emp.img || null;
+      log("[Avatar] EMPLEADOS_GET ← url:", url, "emp:", emp);
+      AVATAR_CACHE.set(key, url || null);
+      return url || null;
+    } catch (e) {
+      warn("[Avatar] fallo EMPLEADOS_GET", e);
+      AVATAR_CACHE.set(key, null);
+      return null;
+    }
+  }
+  function localAvatarCandidatesByUserId(idUsuario) {
+    if (!idUsuario) return [];
+    return [
+      `/ASSETS/user/userImgs/img_${idUsuario}.png`,
+      `/ASSETS/user/userImgs/img_${idUsuario}.jpg`,
+    ];
+  }
+  function placeholderAvatar() {
+    return "/ASSETS/user/img_user1.png";
   }
 
-  async function renderCommentsList(items = [], requerimiento_id) {
+  async function renderCommentsList(items = [], reqId) {
     console.groupCollapsed("[Comentarios][UI] render");
-    console.log("raw items:", items);
-    const filtered = items.filter(r => {
-      const rid = r.requerimiento_id ?? r.req_id ?? r.requerimiento ?? null;
-      return rid == null ? true : String(rid) === String(requerimiento_id);
-    });
-    console.log("items filtrados:", filtered.length);
-
-    const feed = $(".c-feed"); if (!feed) { console.groupEnd(); return; }
+    console.log("items(raw):", items);
+    const feed = $(".c-feed");
+    if (!feed) {
+      console.groupEnd();
+      return;
+    }
     feed.innerHTML = "";
 
-    for (const r of filtered) {
-      const nombre = r.nombre || r.empleado_nombre || r.autor || r.created_by || "—";
+    for (const r of items) {
+      const nombre =
+        r.nombre || r.empleado_nombre || r.autor || r.created_by || "—";
       const texto = r.comentario || r.texto || "";
-      const cuandoAbs = r.created_at || r.fecha || "";
-      const cuando = relShort(cuandoAbs);
-
+      const cuando = relShort(r.created_at || r.fecha || "");
       const empleadoId = r.empleado_id ?? r.created_by ?? null;
+
+      // avatar preferente por endpoint empleado
+      const endpointUrl = await fetchEmpleadoAvatarUrl(empleadoId);
+
+      // candidatos locales por id_usuario de sesión (si coincide con empleadoId)
+      const sess = safeGetSession() || {};
+      const idu =
+        sess.id_usuario ?? sess.usuario_id ?? sess.id_empleado ?? null;
+      const localCandidates = localAvatarCandidatesByUserId(empleadoId || idu);
+
+      log(
+        "[Avatar] comentario de:",
+        nombre,
+        "empleadoId:",
+        empleadoId,
+        "endpointUrl:",
+        endpointUrl,
+        "candidates:",
+        localCandidates
+      );
 
       const art = document.createElement("article");
       art.className = "msg";
-      art.innerHTML = `
-        <img class="avatar" alt="">
-        <div>
-          <div class="who"><span class="name">${firstTwo(nombre)}</span> <span class="time">${cuando}</span></div>
-          <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
-        </div>`;
-      $(".text", art).textContent = texto;
+      const img = document.createElement("img");
+      img.className = "avatar";
+      img.alt = "";
+      // estrategia de carga con logs
+      const sources = [
+        endpointUrl,
+        ...localCandidates,
+        placeholderAvatar(),
+      ].filter(Boolean);
+      let i = 0;
+      const tryNext = () => {
+        if (i >= sources.length) {
+          img.src = placeholderAvatar();
+          return;
+        }
+        const src = `${sources[i]}${
+          srcNeedsBust(sources[i]) ? `?v=${Date.now()}` : ""
+        }`;
+        log(`[Avatar][load] trying[${i}] →`, src);
+        img.onerror = () => {
+          log(`[Avatar][error]`, src);
+          i++;
+          tryNext();
+        };
+        img.onload = () => {
+          log(`[Avatar][ok]`, src);
+        };
+        img.src = src;
+      };
+      tryNext();
 
-      setAvatarFor(art.querySelector("img.avatar"), { empleadoId, nombre });
-
+      art.appendChild(img);
+      const box = document.createElement("div");
+      box.innerHTML = `
+        <div class="who"><span class="name">${firstTwo(
+          String(nombre)
+        )}</span> <span class="time">${cuando}</span></div>
+        <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
+      `;
+      $(".text", box).textContent = texto;
+      art.appendChild(box);
       feed.appendChild(art);
     }
 
@@ -787,133 +728,159 @@
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
     console.groupEnd();
   }
+  function srcNeedsBust(src) {
+    return !src.includes("/ASSETS/user/img_user1.png");
+  }
 
-  async function loadComentarios(requerimiento_id) {
+  async function loadComentarios(reqId) {
     console.groupCollapsed("[Comentarios] list");
     try {
-      const arr = await listComentariosAPI({ requerimiento_id, status: 1, page: 1, page_size: 100 });
-      await renderCommentsList(arr, requerimiento_id);
+      const arr = await listComentariosAPI({
+        requerimiento_id: reqId,
+        status: 1,
+        page: 1,
+        page_size: 100,
+      });
+      await renderCommentsList(arr, reqId);
     } catch (e) {
       warn("Error listando comentarios:", e);
-      await renderCommentsList([], requerimiento_id);
+      await renderCommentsList([], reqId);
     } finally {
       console.groupEnd();
     }
   }
 
-  function interceptComposer(requerimiento_id) {
+  function interceptComposer(reqId) {
     const ta = $(".composer textarea");
     const btn = $(".composer .send-fab");
     if (!ta || !btn) return;
-
-    const sess = safeGetSession();
+    const s = safeGetSession();
     const empleado_id =
-      sess?.empleado_id ?? sess?.id_empleado ??
-      sess?.id_usuario ?? sess?.cuenta_id ?? null;
+      s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
 
     const send = async () => {
       const texto = (ta.value || "").trim();
       if (!texto) return;
-
-      const payload = {
-        requerimiento_id,
-        empleado_id: empleado_id ?? null,
-        comentario: texto,
-        status: 1,
-        created_by: empleado_id ?? null
-      };
-
-      console.groupCollapsed("[Comentarios] create");
-      console.log("→ payload:", payload);
+      btn.disabled = true;
       try {
-        btn.disabled = true;
-        const res = await createComentarioAPI(payload);
-        console.log("← respuesta:", res);
+        await createComentarioAPI({
+          requerimiento_id: reqId,
+          empleado_id,
+          comentario: texto,
+          status: 1,
+          created_by: empleado_id,
+        });
         ta.value = "";
-        await loadComentarios(requerimiento_id);
+        await loadComentarios(reqId);
       } catch (e) {
-        err("Error creando comentario:", e);
-        toast("No se pudo enviar el comentario (revisa permisos/credenciales).", "danger");
+        err("crear comentario:", e);
+        toast("No se pudo enviar el comentario.", "danger");
       } finally {
         btn.disabled = false;
-        console.groupEnd();
       }
     };
-
-    btn.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); send(); }, { capture: true });
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      send();
+    });
     ta.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
-        e.stopPropagation(); e.preventDefault(); send();
+        e.preventDefault();
+        send();
       }
-    }, { capture: true });
+    });
   }
 
-  /* ========================================================================
-   * Boot
-   * ======================================================================*/
+  /* ============================
+   * Reset y Boot
+   * ============================*/
+  function resetTemplate() {
+    // Limpia lo visible
+    const contactVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
+    contactVals.forEach((n) => {
+      const a = n.querySelector("a");
+      if (a) {
+        a.textContent = "—";
+        a.removeAttribute("href");
+      } else n.textContent = "—";
+    });
+    const detallesVals = $$(
+      '.exp-pane[data-tab="detalles"] .exp-grid .exp-val'
+    );
+    detallesVals.forEach((n) => {
+      if (n.id === "req-status") {
+        const b = n.querySelector('[data-role="status-badge"]');
+        if (b) {
+          b.className = "exp-badge is-info";
+          b.textContent = "—";
+        }
+      } else n.textContent = "—";
+    });
+    $(".exp-title h1") && ($(".exp-title h1").textContent = "—");
+    $$(".exp-meta dd").forEach((dd) => (dd.textContent = "—"));
+    // comentarios de demo fuera
+    const feed = $(".c-feed");
+    if (feed) feed.innerHTML = "";
+  }
+
   let __CURRENT_REQ_ID__ = null;
 
   async function boot() {
     resetTemplate();
-    initAccordionsEvidencias();
-    initSortableTables();
-    initStepper();
 
-    if (window.Planeacion?.init) {
-      try { window.Planeacion.init(); } catch (e) { warn("Planeacion.init() error:", e); }
-    }
+    // stepper (solo UI)
+    const stepItems = $$(".step-menu li");
+    stepItems.forEach((li) => {
+      li.addEventListener("click", () => {
+        stepItems.forEach((x) => x.classList.remove("current"));
+        li.classList.add("current");
+        updateStatusUI(Number(li.dataset.status));
+        renderActions(Number(li.dataset.status));
+      });
+    });
 
-    console.groupCollapsed("[Boot] Detalle");
     const params = new URL(window.location.href).searchParams;
     const reqId = params.get("id");
     __CURRENT_REQ_ID__ = reqId;
-    console.log("URL:", window.location.href, "reqId:", reqId);
+    log("[Boot] reqId:", reqId);
 
     if (!reqId) {
-      console.warn("Sin ?id= en URL; no se consultará backend.");
-      console.groupEnd();
+      warn("Sin ?id=");
       return;
     }
 
     try {
       const req = await getRequerimientoById(reqId);
-      console.log("Requerimiento (normalizado):", req);
-      paintRequerimiento(req);
-      bindStatusControl();
+      // Título
+      const h1 = $(".exp-title h1");
+      if (h1)
+        h1.textContent = req.asunto || req.tramite_nombre || "Requerimiento";
 
-      // ------ Hidratar Departamento + Líder ------
-      try {
-        const info = await fetchDepartamentoInfo(req.departamento_id);
-        const panelDetalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-        setFieldByLabel(panelDetalles, "Departamento:", info.nombre || (req.departamento_nombre || "—"));
-        setFieldByLabel(panelDetalles, "Líder del Departamento:", info.director_full || "—");
-      } catch (e) {
-        warn("No se pudo hidratar departamento:", e);
-      }
+      paintHeaderMeta(req);
+      paintContacto(req);
+      await paintDetalles(req);
 
+      // exp-status select sync
+      const sel = $('#req-status [data-role="status-select"]');
+      if (sel) sel.value = String(req.estatus_code ?? 0);
+
+      // Notificar a Planeación
       try {
         window.__REQ__ = req;
-        const evid = document.querySelector('[data-acc="evidencias"]');
-        if (evid && req.folio) evid.setAttribute('data-folio', req.folio);
-        document.dispatchEvent(new CustomEvent('req:loaded', { detail: req }));
+        document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
       } catch (e) {
-        warn("No se pudo propagar folio a Evidencias:", e);
+        warn("req:loaded dispatch err:", e);
       }
-
     } catch (e) {
-      warn("Error consultando requerimiento:", e);
+      err("Error consultando requerimiento:", e);
     }
 
     await loadComentarios(reqId);
     interceptComposer(reqId);
-
     renderActions(getCurrentStatusCode());
-
-    console.groupEnd();
   }
 
-  if (document.readyState === "loading")
+  if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });
-  else boot();
-
+  } else boot();
 })();
