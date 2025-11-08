@@ -259,6 +259,11 @@
                             </div>
 
                             <div class="exp-field">
+                                <label>Departamento:</label>
+                                <div class="exp-val" id="req-departamento">—</div>
+                            </div>
+
+                            <div class="exp-field">
                                 <label>Estatus:</label>
                                 <div class="exp-val" id="req-status">
                                     <!-- Badge que actualizamos por JS -->

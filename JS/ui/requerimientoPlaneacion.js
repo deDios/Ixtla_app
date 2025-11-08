@@ -13,24 +13,6 @@
   const warn = (...a)=>console.warn("[Planeación]", ...a);
   const err  = (...a)=>console.error("[Planeación]", ...a);
 
-  // ===== Mapeo de ESTATUS de TAREA (según requerimiento) =====
-  const TASK_STATUS_LABEL = {
-    0: "Inactivo",
-    1: "Por hacer",
-    2: "En proceso",
-    3: "Por revisar",
-    4: "Hecho",
-  };
-  const TASK_STATUS_BADGE = {
-    0: "is-muted",
-    1: "is-info",
-    2: "is-info",
-    3: "is-warning",
-    4: "is-success",
-  };
-  // % por tarea basado SOLO en status (no por fechas)
-  const TASK_STATUS_PCT = { 0: 0, 1: 0, 2: 50, 3: 75, 4: 100 };
-
   // ===== Selectores / referencias de UI =====
   const SEL = {
     toolbar: {
@@ -60,7 +42,7 @@
   let _boundModalT  = false;
   let _boundModalP  = false;
 
-  // ====== API endpoints (fallback locales por si no tienes import) ======
+  // ====== API endpoints ======
   const API_FBK = {
     PROCESOS: {
       CREATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_proceso_requerimiento.php",
@@ -137,14 +119,12 @@
   }
 
   function todayISO() {
-    // YYYY-MM-DD
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
   function fmtMXDate(s) {
     if (!s) return "—";
-    // acepta "YYYY-MM-DD" o "YYYY-MM-DD HH:mm:ss"
     const parts = String(s).slice(0, 19).replace("T"," ").split(" ")[0].split("-");
     if (parts.length !== 3) return s;
     const [Y,M,D] = parts;
@@ -181,8 +161,6 @@
     const j = await postJSON(API.EMPLEADOS.LIST, { page: 1, page_size: 500, status: 1 });
     const arr = Array.isArray(j?.data) ? j.data : [];
     const norm = arr.map(normalizeEmpleadoFromAPI);
-    log("Total empleados en universo:", norm.length);
-    log("Muestra (5):", norm.slice(0,5));
     return norm;
   }
 
@@ -198,7 +176,6 @@
   }
 
   function getReportesTransitivos(universe, jefeId) {
-    // BFS por reporta_a
     const mapByBoss = new Map();
     universe.forEach(emp => {
       const boss = emp.reporta_a != null ? Number(emp.reporta_a) : null;
@@ -225,7 +202,7 @@
   async function buildAsignablesList() {
     const yoId   = Number(getEmpleadoId());
     const deptId = Number(getDeptId());
-    const roles  = getRoles(); // ["ADMIN","DIRECTOR",...]
+    const roles  = getRoles();
     const isAdmin = roles.includes("ADMIN");
     const isDirector = roles.includes("DIRECTOR");
     const isPL = roles.includes("PRIMERA_LINEA") || roles.includes("PL") || roles.includes("PRIMERA LINEA");
@@ -233,28 +210,16 @@
     const isAnalista = roles.includes("ANALISTA");
 
     const universe = await fetchEmpleadosAll();
-    console.groupCollapsed("[RBAC] universo");
-    console.log("universe total:", universe.length);
-    console.log("yoId:", yoId, "deptId (session):", deptId, "roles:", roles);
-    console.groupEnd();
 
-    if (isAdmin) {
-      log("[RBAC] modo ADMIN → todos");
-      return universe;
-    }
+    if (isAdmin) return universe;
 
     const PRES_DEPT_IDS = [6];
-    if (PRES_DEPT_IDS.includes(deptId)) {
-      log("[RBAC] modo PRESIDENCIA → todos");
-      return universe;
-    }
+    if (PRES_DEPT_IDS.includes(deptId)) return universe;
 
     if (isDirector || isPL) {
       const depts = await fetchDepartamentos();
       const visibleDeptIds = new Set(
-        depts
-          .filter(d => d.director === yoId || d.primera_linea === yoId)
-          .map(d => d.id)
+        depts.filter(d => d.director === yoId || d.primera_linea === yoId).map(d => d.id)
       );
       if (deptId) visibleDeptIds.add(deptId);
 
@@ -342,9 +307,9 @@
       titulo: String(titulo || "").trim(),
       descripcion: String(descripcion || "").trim() || null,
       esfuerzo: Number(esfuerzo),
-      fecha_inicio: fecha_inicio || null, // opcional
-      fecha_fin: fecha_fin || null,       // opcional
-      status: 1,                          // Por hacer
+      fecha_inicio: fecha_inicio || null,
+      fecha_fin: fecha_fin || null,
+      status: 1,
       created_by: created_by ?? asignado_a ?? null
     };
     return postJSON(API.TAREAS.CREATE, payload);
@@ -381,7 +346,29 @@
     };
   }
 
-  // ====== Pintado de UI (reutiliza tu markup)
+  /* =========================================================================
+   *  PORCENTAJES (basado 100% en status de tarea)
+   * =========================================================================*/
+  // 0: Inactivo → 0%
+  // 1: Por hacer → 0%
+  // 2: En proceso → 50%
+  // 3: Por revisar → 80%
+  // 4: Hecho → 100%
+  const SCORE_BY_STATUS = { 0:0, 1:0, 2:0.50, 3:0.80, 4:1.00 };
+
+  function taskPct(t) {
+    const s = Number(t.status ?? 0);
+    const score = SCORE_BY_STATUS[s] ?? 0;
+    return Math.round(score * 100);
+  }
+
+  function processPct(tareas = []) {
+    if (!tareas.length) return 0;
+    const sum = tareas.reduce((acc, t) => acc + taskPct(t), 0);
+    return Math.round(sum / tareas.length);
+  }
+
+  /* ====== Pintado de UI (reutiliza tu markup) ====== */
   function bindProcessAccordion(sec) {
     const head = sec.querySelector(".exp-acc-head");
     const body = sec.querySelector(".exp-acc-body");
@@ -410,7 +397,7 @@
     sec.className = "exp-accordion exp-accordion--fase";
     sec.setAttribute("data-proceso-id", String(p.id));
 
-    const pct = 0; // se actualizará con updateProcesoHeaderStats()
+    const pct = 0;
     const hoyMx = fmtMXDate(p.created_at || todayISO());
 
     sec.innerHTML = `
@@ -458,18 +445,22 @@
     const table = sec.querySelector(".exp-table--planeacion");
     if (!table) return;
 
+    const STATUS_TEXT = { 0:"Inactivo", 1:"Por hacer", 2:"En proceso", 3:"Por revisar", 4:"Hecho" };
+    const s = Number(t.status ?? 0);
+    const badgeText = STATUS_TEXT[s] || "—";
+    const badgeClass =
+      s === 4 ? "is-success" :
+      s === 3 ? "is-info" :
+      s === 2 ? "is-info" :
+      (s === 0 || s === 1) ? "is-muted" : "is-info";
+
+    const pct = taskPct(t);
+
     const row = document.createElement("div");
     row.className = "exp-row";
-
-    // Estatus visual de tarea (SOLO por t.status)
-    const st = Number(t.status ?? 1);
-    const badgeClass = TASK_STATUS_BADGE[st] || "is-info";
-    const badgeText  = TASK_STATUS_LABEL[st] || "Por hacer";
-    const pct = TASK_STATUS_PCT[st] ?? 0;
-
     row.innerHTML = `
       <div class="actividad">${escapeHtml(t.titulo)}</div>
-      <div class="responsable">${escapeHtml((t.asignado_display && t.asignado_display.trim()) ? t.asignado_display : "Sin asignar")}</div>
+      <div class="responsable">${escapeHtml(t.asignado_display || "—")}</div>
       <div class="estatus"><span class="exp-badge ${badgeClass}">${badgeText}</span></div>
       <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:${pct}%"></span></span></div>
       <div class="fecha">${fmtMXDate(t.fecha_inicio)}</div>
@@ -485,9 +476,7 @@
     if (!meta || !pctBar || !pctTxt) return;
 
     const total = tareas.length;
-    // Progreso del proceso basado SOLO en status de tareas (4 = Hecho)
-    const done  = tareas.filter(t => Number(t.status) === 4).length;
-    const pct = total ? Math.round((done / total) * 100) : 0;
+    const pct = processPct(tareas);
 
     meta.textContent = `${total} ${total === 1 ? "actividad" : "actividades"}`;
     pctBar.style.width = `${pct}%`;
@@ -500,7 +489,6 @@
     const host = $(SEL.planeacionList);
     if (!host) return;
 
-    // Limpia todo
     host.innerHTML = "";
 
     try {
@@ -558,7 +546,6 @@
       _boundModalT = true;
     }
 
-    // Poblamos el combo de asignado según RBAC
     populateAsignadoSelect().catch((e)=>warn("populateAsignadoSelect error:", e));
 
     setTimeout(() => $(SEL.selProceso)?.focus(), 30);
@@ -619,16 +606,13 @@
         toast("Tarea creada", "success");
         closeTareaModal();
 
-        // refrescar solo ese proceso
         const sec = $(`#planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(String(procesoId))}"]`);
         if (sec) {
           const tareas = await listTareas(Number(procesoId), { status:1, page:1, page_size:100 });
-          // limpia filas existentes
           sec.querySelectorAll(".exp-table--planeacion .exp-row").forEach(r => r.remove());
           tareas.forEach(t => addTareaRow(sec, t));
           updateProcesoHeaderStats(sec, tareas);
         } else {
-          // si no lo encuentra, refresca todo
           const req = window.__REQ__;
           if (req?.id) await renderProcesosYtareas(req.id);
         }
@@ -740,27 +724,21 @@
   // ===== API pública =====
   window.Planeacion = {
     async init() {
-      // 1) Acordeones existentes (si los hay en HTML de demo)
       $$('#planeacion-list .exp-accordion--fase').forEach(bindProcessAccordion);
-      // 2) Toolbar
       bindToolbar();
-      // 3) Cuando cargue el requerimiento, dispara carga real
       document.addEventListener("req:loaded", async (e) => {
         const req = e?.detail || window.__REQ__;
         if (!req?.id) return;
         await renderProcesosYtareas(Number(req.id));
       }, { once: true });
 
-      // Si ya estaba available __REQ__ (por timing), cargar
       if (window.__REQ__?.id) {
         await renderProcesosYtareas(Number(window.__REQ__.id));
       }
       log("init OK (API conectada)");
     },
-    // Por si luego los necesitas desde otros scripts:
     reload: async () => {
-      const req = window.__REQ__; if (!req?.id) return;
-      await renderProcesosYtareas(Number(req.id));
+      const req = window.__REQ__; if (req?.id) await renderProcesosYtareas(Number(req.id));
     }
   };
 

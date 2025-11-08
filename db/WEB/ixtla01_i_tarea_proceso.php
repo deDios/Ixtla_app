@@ -12,7 +12,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 header("Access-Control-Max-Age: 86400");
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 date_default_timezone_set('America/Mexico_City');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
@@ -26,25 +26,34 @@ $path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
 if ($path && file_exists($path)) { include $path; }
 else {
   http_response_code(500);
-  die(json_encode(["ok"=>false,"error"=>"No se encontró conn_db.php en $path"]));
+  echo json_encode(["ok"=>false,"error"=>"No se encontró conn_db.php en $path"]);
+  exit;
 }
 
-$in = json_decode(file_get_contents("php://input"), true) ?? [];
+$raw = file_get_contents("php://input");
+$in = json_decode($raw, true);
+if (!is_array($in)) $in = [];
 
 // === Inputs obligatorios / opcionales ===
 $proceso_id   = isset($in['proceso_id']) ? (int)$in['proceso_id'] : null;
 
-$asignado_a = array_key_exists('asignado_a',$in) && $in['asignado_a'] !== '' && $in['asignado_a'] !== null
-  ? (int)$in['asignado_a']
-  : null;
+$asignado_a = (array_key_exists('asignado_a',$in) && $in['asignado_a'] !== '' && $in['asignado_a'] !== null)
+  ? (int)$in['asignado_a'] : null;
 
-$titulo      = isset($in['titulo']) ? trim($in['titulo']) : '';
-$descripcion = array_key_exists('descripcion',$in) ? trim($in['descripcion']) : null;
+$titulo      = isset($in['titulo']) ? trim((string)$in['titulo']) : '';
+$descripcion = array_key_exists('descripcion',$in) ? trim((string)$in['descripcion']) : null;
 
 $esfuerzo    = isset($in['esfuerzo']) ? (int)$in['esfuerzo'] : null;
 
-$fecha_inicio = array_key_exists('fecha_inicio',$in) && $in['fecha_inicio'] !== '' ? trim($in['fecha_inicio']) : null;
-$fecha_fin    = array_key_exists('fecha_fin',$in)    && $in['fecha_fin']    !== '' ? trim($in['fecha_fin'])    : null;
+// Normalizamos fechas: "" → null; validamos formato simple (YYYY-MM-DD HH:mm:ss o YYYY-MM-DD)
+$fecha_inicio = (array_key_exists('fecha_inicio',$in) && $in['fecha_inicio'] !== '') ? trim((string)$in['fecha_inicio']) : null;
+$fecha_fin    = (array_key_exists('fecha_fin',   $in) && $in['fecha_fin']    !== '') ? trim((string)$in['fecha_fin'])    : null;
+
+$validDate = function($s) {
+  if ($s === null) return true;
+  // Acepta "YYYY-MM-DD" o "YYYY-MM-DD HH:mm:ss"
+  return (bool)preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $s);
+};
 
 $status     = isset($in['status']) ? (int)$in['status'] : 1;
 $created_by = isset($in['created_by']) ? (int)$in['created_by'] : null;
@@ -59,6 +68,14 @@ if (!$proceso_id || $titulo === '' || $esfuerzo === null || $created_by === null
   ]);
   exit;
 }
+if (!$validDate($fecha_inicio) || !$validDate($fecha_fin)) {
+  http_response_code(422);
+  echo json_encode([
+    "ok"=>false,
+    "error"=>"Formato de fecha inválido. Usa 'YYYY-MM-DD' o 'YYYY-MM-DD HH:mm:ss'."
+  ]);
+  exit;
+}
 
 $con = conectar();
 if (!$con) {
@@ -68,48 +85,52 @@ if (!$con) {
 }
 $con->set_charset('utf8mb4');
 
-// Insert
+// --- Armado de SQL con NULL literal para fechas/descripcion/asignado si vienen nulos ---
 $sql = "INSERT INTO tarea_proceso
-        (proceso_id, asignado_a, titulo, descripcion, esfuerzo, fecha_inicio, fecha_fin, status, created_by, updated_by)
-        VALUES (?,?,?,?,?,?,?,?,?,?)";
+  (proceso_id, asignado_a, titulo, descripcion, esfuerzo, fecha_inicio, fecha_fin, status, created_by, updated_by)
+  VALUES (
+    ?, " . ($asignado_a === null ? "NULL" : "?") . ", ?, " . ($descripcion === null ? "NULL" : "?") . ",
+    ?, " . ($fecha_inicio === null ? "NULL" : "?") . ", " . ($fecha_fin === null ? "NULL" : "?") . ",
+    ?, ?, ?
+  )";
+
+// Construimos los tipos/params dinámicamente, bindeando solo lo que NO es null
+$types = "i";         // proceso_id
+$params = [$proceso_id];
+
+if ($asignado_a !== null) { $types .= "i"; $params[] = $asignado_a; }
+
+$types .= "s";        // titulo
+$params[] = $titulo;
+
+if ($descripcion !== null) { $types .= "s"; $params[] = $descripcion; }
+
+$types .= "i";        // esfuerzo
+$params[] = $esfuerzo;
+
+if ($fecha_inicio !== null) { $types .= "s"; $params[] = $fecha_inicio; }
+if ($fecha_fin    !== null) { $types .= "s"; $params[] = $fecha_fin; }
+
+$types .= "iii";      // status, created_by, updated_by
+$params[] = $status;
+$params[] = $created_by;
+$params[] = $updated_by;
 
 $stmt = $con->prepare($sql);
 if (!$stmt) {
   http_response_code(500);
-  echo json_encode(["ok"=>false,"error"=>"Error en prepare"]);
+  echo json_encode(["ok"=>false,"error"=>"Error en prepare","detail"=>$con->error]);
   $con->close();
   exit;
 }
 
-// Tipos: i=int, s=string
-// proceso_id (i)
-// asignado_a (i)
-// titulo (s)
-// descripcion (s)
-// esfuerzo (i)
-// fecha_inicio (s)
-// fecha_fin (s)
-// status (i)
-// created_by (i)
-// updated_by (i)
-$stmt->bind_param(
-  "iississiii",
-  $proceso_id,
-  $asignado_a,
-  $titulo,
-  $descripcion,
-  $esfuerzo,
-  $fecha_inicio,
-  $fecha_fin,
-  $status,
-  $created_by,
-  $updated_by
-);
+// bind dinámico
+$stmt->bind_param($types, ...$params);
 
 $okExec = $stmt->execute();
 if (!$okExec) {
   http_response_code(500);
-  echo json_encode(["ok"=>false,"error"=>"No se pudo insertar"]);
+  echo json_encode(["ok"=>false,"error"=>"No se pudo insertar","detail"=>$stmt->error]);
   $stmt->close();
   $con->close();
   exit;
@@ -141,10 +162,14 @@ $q2 = $con->prepare("
   WHERE t.id = ?
   LIMIT 1
 ");
-$q2->bind_param("i", $newId);
-$q2->execute();
-$row = $q2->get_result()->fetch_assoc();
-$q2->close();
+if ($q2) {
+  $q2->bind_param("i", $newId);
+  $q2->execute();
+  $row = $q2->get_result()->fetch_assoc();
+  $q2->close();
+} else {
+  $row = null;
+}
 
 $con->close();
 
@@ -164,4 +189,4 @@ if ($row) {
 echo json_encode([
   "ok"=>true,
   "data"=>$row
-]);
+], JSON_UNESCAPED_UNICODE);

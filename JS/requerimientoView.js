@@ -8,8 +8,8 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const log = (...a) => console.log("[RequerimientoView]", ...a);
-  const warn = (...a) => console.warn("[RequerimientoView]", ...a);
-  const err = (...a) => console.error("[RequerimientoView]", ...a);
+  const warn = (...a) => console.warn("[RequerimientoView][WARN]", ...a);
+  const err = (...a) => console.error("[RequerimientoView][ERR]", ...a);
   const toast = (m, t = "info") =>
     (window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m));
 
@@ -181,6 +181,7 @@
     const sel = document.querySelector('#req-status [data-role="status-select"]');
     if (sel) sel.value = String(code);
     if (window.paintStepper) window.paintStepper(code);
+    log("[UI] updateStatusUI =>", code, statusLabel(code));
   }
 
   function askMotivo(titulo = "Motivo") {
@@ -223,7 +224,7 @@
     return b;
   }
 
-  // botones para el requerimiento
+  // ====== botones visibles por status (sin "Finalizar") ======
   function getButtonsForStatus(code) {
     switch (Number(code)) {
       case 0: // Solicitud
@@ -243,11 +244,10 @@
           makeBtn("Cancelar", "danger", "cancel"),
           makeBtn("Iniciar proceso", "primary", "start-process"),
         ];
-      case 3: // Proceso
+      case 3: // Proceso (solo Pausar / Cancelar)
         return [
           makeBtn("Pausar", "warn", "pause"),
           makeBtn("Cancelar", "danger", "cancel"),
-          makeBtn("Finalizar", "primary", "finish"),
         ];
       case 4: // Pausado
         return [
@@ -256,7 +256,7 @@
         ];
       case 5: // Cancelado
         return [makeBtn("Reabrir", "primary", "reopen")];
-      case 6: // Finalizado
+      case 6: // Finalizado (si llegara por backend, solo reabrir)
         return [makeBtn("Reabrir", "primary", "reopen")];
       default:
         return [makeBtn("Iniciar revisión", "primary", "start-revision")];
@@ -264,14 +264,17 @@
   }
 
   /* ========================================================================
-   * HTTP + Session
+   * HTTP + Endpoints
    * ======================================================================*/
   const ENDPOINTS = {
-    REQUERIMIENTO_GET: "/db/WEB/ixtla01_c_requerimiento.php",
-    REQUERIMIENTO_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",   // update estatus
-    EMPLEADOS_GET: "/db/WEB/ixtla01_c_empleado.php",                  // para avatar de comentarios
-    COMENT_LIST: "/db/WEB/ixtla01_c_comentario_requerimiento.php",
-    COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
+    REQUERIMIENTO_GET:      "/db/WEB/ixtla01_c_requerimiento.php",
+    REQUERIMIENTO_UPDATE:   "/db/WEB/ixtla01_upd_requerimiento.php",
+    EMPLEADOS_GET:          "/db/WEB/ixtla01_c_empleado.php",
+    COMENT_LIST:            "/db/WEB/ixtla01_c_comentario_requerimiento.php",
+    COMENT_CREATE:          "/db/WEB/ixtla01_i_comentario_requerimiento.php",
+    // Para validar "Iniciar proceso"
+    PROCESOS_LIST:          "/db/WEB/ixtla01_c_proceso_requerimiento.php",
+    TAREAS_LIST:            "/db/WEB/ixtla01_c_tarea_proceso.php",
   };
 
   async function postJSON(url, body) {
@@ -331,7 +334,6 @@
     } catch { }
     return null;
   }
-
   function getEmpleadoIdFromSession() {
     const s = safeGetSession();
     return s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
@@ -346,57 +348,73 @@
     return [a, b].filter(Boolean).join(", ");
   }
 
-function normalizeRequerimiento(raw = {}) {
-  const toId = (v) => (v == null ? null : String(v));
-  const id = toId(raw.id ?? raw.requerimiento_id);
-  const folio = String(raw.folio ?? raw.folio_requerimiento ?? "").trim();
+  function normalizeRequerimiento(raw = {}) {
+    console.groupCollapsed("[Normalize] Requerimiento: IN");
+    console.log(raw);
+    console.groupEnd();
 
-  const tramite = String(raw.tramite ?? raw.tramite_nombre ?? raw.nombre_tramite ?? "").trim();
-  const asunto = String(raw.asunto ?? raw.titulo ?? "").trim();
-  const descripcion = String(raw.descripcion ?? raw.detalle ?? "").trim();
+    const toId = (v) => (v == null ? null : String(v));
+    const id = toId(raw.id ?? raw.requerimiento_id);
+    const folio = String(raw.folio ?? raw.folio_requerimiento ?? "").trim();
 
-  const contacto_nombre = String(raw.contacto_nombre ?? raw.nombre_contacto ?? raw.contacto ?? "").trim();
-  const contacto_telefono = String(raw.contacto_telefono ?? raw.telefono_contacto ?? raw.telefono ?? "").trim();
-  const contacto_email = String(raw.contacto_email ?? raw.email_contacto ?? raw.correo ?? "").trim();
-  const contacto_calle = String(raw.contacto_calle ?? raw.direccion ?? raw.calle ?? "").trim();
-  const contacto_colonia = String(raw.contacto_colonia ?? raw.colonia ?? "").trim();
-  const contacto_cp = String(raw.contacto_cp ?? raw.cp ?? raw.codigo_postal ?? "").trim();
-  const direccion_reporte = [contacto_calle, contacto_colonia].filter(Boolean).join(", ");
+    const tramite = String(raw.tramite ?? raw.tramite_nombre ?? raw.nombre_tramite ?? "").trim();
+    const asunto = String(raw.asunto ?? raw.titulo ?? "").trim();
+    const descripcion = String(raw.descripcion ?? raw.detalle ?? "").trim();
 
-  const asignado_id = raw.asignado_a != null ? String(raw.asignado_a) : null;
-  const asignado_full = (() => {
-    const fullApi = String(raw.asignado_nombre_completo || "").trim();
-    if (fullApi) return fullApi;
-    const n = String(raw.asignado_nombre || "").trim();
-    const a = String(raw.asignado_apellidos || "").trim();
-    const joined = [n, a].filter(Boolean).join(" ").trim();
-    return joined || ""; // si no hay asignado, quedará vacío y la UI mostrará "Sin asignar"
-  })();
+    const contacto_nombre = String(raw.contacto_nombre ?? raw.nombre_contacto ?? raw.contacto ?? "").trim();
+    const contacto_telefono = String(raw.contacto_telefono ?? raw.telefono_contacto ?? raw.telefono ?? "").trim();
+    const contacto_email = String(raw.contacto_email ?? raw.email_contacto ?? raw.correo ?? "").trim();
+    const contacto_calle = String(raw.contacto_calle ?? raw.direccion ?? raw.calle ?? "").trim();
+    const contacto_colonia = String(raw.contacto_colonia ?? raw.colonia ?? "").trim();
+    const contacto_cp = String(raw.contacto_cp ?? raw.cp ?? raw.codigo_postal ?? "").trim();
+    const direccion_reporte = buildDireccion(contacto_calle, contacto_colonia);
 
-  const estatus_code = Number(raw.estatus_code ?? raw.estatus ?? raw.status ?? raw.estado ?? 0);
-  const prioridad = (raw.prioridad != null) ? Number(raw.prioridad) : null;
-  const canal = (raw.canal != null) ? Number(raw.canal) : null;
+    // ====== ASIGNADO (cuidado especial)
+    const asignado_id = raw.asignado_a != null && raw.asignado_a !== "" ? String(raw.asignado_a) : null;
 
-  const creado_at = String(raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? "").trim();
-  const actualizado_at = String(raw.actualizado_at ?? raw.updated_at ?? "").trim();
-  const cerrado_en = raw.cerrado_en != null ? String(raw.cerrado_en).trim() : null;
+    const asignado_full = (() => {
+      const fullApi = String(raw.asignado_nombre_completo || "").trim();
+      if (fullApi) return fullApi;
+      const n = String(raw.asignado_nombre || "").trim();
+      const a = String(raw.asignado_apellidos || "").trim();
+      const joined = [n, a].filter(Boolean).join(" ").trim();
+      return joined || ""; // vacío => UI mostrará "Sin asignar"
+    })();
 
-  return {
-    id, folio,
-    tramite, asunto, descripcion,
-    contacto_nombre, contacto_telefono, contacto_email,
-    contacto_calle, contacto_colonia, contacto_cp, direccion_reporte,
-    asignado_id, asignado_full,
-    estatus_code, prioridad, canal,
-    creado_at, actualizado_at, cerrado_en,
-    raw
-  };
-}
+    // ====== Dept (si viene)
+    const departamento_nombre = String(raw.departamento_nombre || "").trim() || "—";
+    const tramite_nombre = String(raw.tramite_nombre || "").trim();
 
+    const estatus_code = Number(raw.estatus_code ?? raw.estatus ?? raw.status ?? raw.estado ?? 0);
+    const prioridad = (raw.prioridad != null) ? Number(raw.prioridad) : null;
+    const canal = (raw.canal != null) ? Number(raw.canal) : null;
+
+    const creado_at = String(raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? "").trim();
+    const actualizado_at = String(raw.actualizado_at ?? raw.updated_at ?? "").trim();
+    const cerrado_en = raw.cerrado_en != null ? String(raw.cerrado_en).trim() : null;
+
+    const out = {
+      id, folio,
+      tramite, tramite_nombre, asunto, descripcion,
+      contacto_nombre, contacto_telefono, contacto_email,
+      contacto_calle, contacto_colonia, contacto_cp, direccion_reporte,
+      asignado_id, asignado_full,
+      departamento_nombre,
+      estatus_code, prioridad, canal,
+      creado_at, actualizado_at, cerrado_en,
+      raw
+    };
+
+    console.groupCollapsed("[Normalize] Requerimiento: OUT");
+    console.log(out);
+    console.groupEnd();
+
+    return out;
+  }
 
   async function getRequerimientoById(id) {
-    const payload = { id };
-    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, payload);
+    log("[API] getRequerimientoById", id);
+    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, { id });
     let data = res?.data ?? res;
     if (Array.isArray(data)) data = data[0] || {};
     return normalizeRequerimiento(data);
@@ -409,13 +427,19 @@ function normalizeRequerimiento(raw = {}) {
     const titulo = req.tramite || req.asunto || "Requerimiento";
     const h1 = $(".exp-title h1"); if (h1) h1.textContent = titulo;
 
-    // Encabezado: Contacto, Encargado, Fecha
+    // Encabezado: Contacto, Encargado (asignado), Fecha
     const ddC = $(".exp-meta > div:nth-child(1) dd");
-const ddE = $(".exp-meta > div:nth-child(2) dd");
-const ddF = $(".exp-meta > div:nth-child(3) dd");
-if (ddC) ddC.textContent = (req.contacto_nombre || "—");
-if (ddE) ddE.textContent = (req.asignado_full && req.asignado_full.trim()) ? req.asignado_full : "Sin asignar";
-if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
+    const ddE = $(".exp-meta > div:nth-child(2) dd");
+    const ddF = $(".exp-meta > div:nth-child(3) dd");
+    if (ddC) ddC.textContent = (req.contacto_nombre || "—");
+
+    // *** Asignado a: muestra "Sin asignar" cuando no hay asignado ***
+    const asignadoDisplay = (req.asignado_id && (req.asignado_full || "").trim())
+      ? req.asignado_full
+      : "Sin asignar";
+    if (ddE) ddE.textContent = asignadoDisplay;
+
+    if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
 
     // Tab Contacto
     const contactoGrid = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
@@ -447,10 +471,10 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
         node.textContent = value ?? "—";
       };
       put(1, titulo);
-      put(2, "pendiente");
-      put(3, (req.contacto_nombre || "—"));
+      put(2, req.departamento_nombre || "—"); // Departamento
+      put(3, (req.contacto_nombre || "—"));   // Solicitante
 
-      // Badge
+      // Badge de status
       const badgeEl =
         document.querySelector('#req-status [data-role="status-badge"]') ||
         $(`.exp-field:nth-child(4) .exp-val .exp-badge`, detalles);
@@ -471,6 +495,7 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
       if (fFin) fFin.textContent = req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—";
     }
 
+    // Select de status y render
     const sel = document.querySelector('#req-status [data-role="status-select"]');
     if (sel) sel.value = String(req.estatus_code ?? 0);
 
@@ -482,7 +507,7 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
   }
 
   /* ========================================================================
-   * Control dummy de estatus (botón + select)
+   * Control de estatus (select)
    * ======================================================================*/
   function bindStatusControl() {
     const host = $("#req-status");
@@ -513,6 +538,7 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
       if (window.paintStepper) window.paintStepper(code);
       sel.hidden = true;
       toast(`Estatus cambiado a "${lbl}" (solo UI)`, "info");
+      log("[Status][UI only] change =>", code, lbl);
 
       renderActions(code);
     });
@@ -526,20 +552,43 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
   }
 
   /* ========================================================================
-   * Estado real del requerimiento (UPDATE)
+   * Estado real del requerimiento (UPDATE) + validación "Iniciar proceso"
    * ======================================================================*/
   async function updateReqStatus({ id, estatus, motivo }) {
     const updated_by = getEmpleadoIdFromSession();
     const body = { id: Number(id), estatus: Number(estatus), updated_by };
     if (motivo) body.motivo = String(motivo).trim();
+    log("[API] updateReqStatus →", body);
     const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
+    log("[API] updateReqStatus ←", res);
     return res?.data ?? res;
+  }
+
+  async function hasAtLeastOneProcesoAndTask(requerimiento_id) {
+    try {
+      log("[Check] hasAtLeastOneProcesoAndTask for req:", requerimiento_id);
+      const pRes = await postJSON(ENDPOINTS.PROCESOS_LIST, { requerimiento_id: Number(requerimiento_id), status: 1, page: 1, page_size: 50 });
+      const procesos = Array.isArray(pRes?.data) ? pRes.data : [];
+      log("[Check] procesos encontrados:", procesos.length);
+      for (const p of procesos) {
+        const tRes = await postJSON(ENDPOINTS.TAREAS_LIST, { proceso_id: Number(p.id), status: 1, page: 1, page_size: 50 });
+        const tareas = Array.isArray(tRes?.data) ? tRes.data : [];
+        log(`[Check] proceso ${p.id} → tareas:`, tareas.length);
+        if (tareas.length > 0) return true;
+      }
+      return false;
+    } catch (e) {
+      warn("[Check] error validando procesos/tareas:", e);
+      return false;
+    }
   }
 
   async function onAction(act) {
     let next = getCurrentStatusCode();
     const id = __CURRENT_REQ_ID__;
     if (!id) { toast("No hay id de requerimiento en la URL", "danger"); return; }
+
+    log("[Action] click:", act, "status actual:", next, "reqId:", id);
 
     try {
       if (act === "start-revision") {
@@ -553,6 +602,13 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
         updateStatusUI(next); toast("Asignado a departamento (Estatus: Asignación)", "success");
       }
       else if (act === "start-process") {
+        // Validar que exista al menos 1 proceso y 1 tarea
+        const ok = await hasAtLeastOneProcesoAndTask(id);
+        if (!ok) {
+          toast("Para iniciar proceso necesitas al menos un proceso y una tarea.", "warning");
+          warn("[Action] start-process cancelado por validación");
+          return;
+        }
         next = 3;
         await updateReqStatus({ id, estatus: next });
         updateStatusUI(next); toast("Proceso iniciado", "success");
@@ -567,11 +623,6 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
         next = 1;
         await updateReqStatus({ id, estatus: next });
         updateStatusUI(next); toast("Requerimiento reanudado (Revisión)", "success");
-      }
-      else if (act === "finish") {
-        next = 6;
-        await updateReqStatus({ id, estatus: next });
-        updateStatusUI(next); toast("Requerimiento finalizado", "success");
       }
       else if (act === "cancel") {
         const motivo = await askMotivo("Motivo de la cancelación");
@@ -604,6 +655,7 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
       b.addEventListener('click', () => onAction(b.dataset.act));
       wrap.appendChild(b);
     });
+    log("[UI] renderActions para status:", code, "=>", btns.map(b => b.dataset.act));
   }
 
   /* ========================================================================
@@ -611,6 +663,7 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
    * ======================================================================*/
   const fillText = (sel, txt) => { const n = $(sel); if (n) n.textContent = (txt ?? "—"); };
   function resetTemplate() {
+    log("[UI] resetTemplate()");
     const h1 = $(".exp-title h1"); if (h1) h1.textContent = "—";
     $$(".exp-meta dd").forEach(dd => dd.textContent = "—");
 
@@ -656,7 +709,9 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
    * ======================================================================*/
   async function listComentariosAPI({ requerimiento_id, status = 1, page = 1, page_size = 100 }) {
     const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
+    log("[API] COMENT_LIST →", payload);
     const res = await postJSON(ENDPOINTS.COMENT_LIST, payload);
+    log("[API] COMENT_LIST ←", res);
     const raw = res?.data ?? res?.items ?? res;
     const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.rows) ? raw.rows : []);
     return arr;
@@ -670,89 +725,73 @@ if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
       status,
       created_by: created_by ?? empleado_id ?? null
     };
-    return postJSON(ENDPOINTS.COMENT_CREATE, payload);
+    log("[API] COMENT_CREATE →", payload);
+    const r = await postJSON(ENDPOINTS.COMENT_CREATE, payload);
+    log("[API] COMENT_CREATE ←", r);
+    return r;
   }
 
-  const _avatarCache = new Map();
-  async function fetchAvatarUrl(empleadoId) {
+  const AVATAR_CACHE = new Map();
+  async function fetchEmpleadoAvatarUrl(empleadoId) {
     if (!empleadoId) return null;
-    if (_avatarCache.has(empleadoId)) return _avatarCache.get(empleadoId);
+    const key = String(empleadoId);
+    if (AVATAR_CACHE.has(key)) return AVATAR_CACHE.get(key);
+
     try {
-      const res = await postJSON(ENDPOINTS.EMPLEADOS_GET, { id: Number(E(empleadoId)), status: 1, all: true });
-      // E() asegura casteo a número seguro
-      function E(v){ const n = Number(v); return Number.isFinite(n) ? n : null; }
-      const d = res?.data ?? res;
-      const url = d?.avatar_url || d?.foto_url || d?.imagen_url || null;
-      _avatarCache.set(empleadoId, url || null);
-      return url || null;
-    } catch {
+      const empRes = await postJSON(ENDPOINTS.EMPLEADOS_GET, { id: Number(empleadoId), status: 1 });
+      const emp = empRes?.data || {};
+      const avatar = emp.avatar_url || emp.foto_url || emp.foto || emp.img || null;
+      AVATAR_CACHE.set(key, avatar || null);
+      log("[Avatar] empleado", empleadoId, "→", avatar);
+      return avatar || null;
+    } catch (e) {
+      warn("[Avatar] fallo consultando empleado", empleadoId, e);
+      AVATAR_CACHE.set(key, null);
       return null;
     }
   }
-
-  // ====== Avatar helpers para comentarios ======
-const AVATAR_CACHE = new Map();
-
-async function fetchEmpleadoAvatarUrl(empleadoId) {
-  if (!empleadoId) return null;
-  const key = String(empleadoId);
-  if (AVATAR_CACHE.has(key)) return AVATAR_CACHE.get(key);
-
-  try {
-    const url = (ENDPOINTS?.EMPLEADOS?.GET) || "/db/WEB/ixtla01_c_empleado.php";
-    const empRes = await postJSON(url, { id: Number(empleadoId), status: 1 });
-    const emp = empRes?.data || {};
-    const avatar = emp.avatar_url || emp.foto_url || emp.foto || emp.img || null;
-    AVATAR_CACHE.set(key, avatar || null);
-    return avatar || null;
-  } catch {
-    AVATAR_CACHE.set(key, null);
-    return null;
-  }
-}
-
-function placeholderAvatarFor(_name = "") {
-  // Si luego quieres "iniciales en círculo", cámbialo aquí
-  return "/ASSETS/user/img_user1.png";
-}
-
-async function renderCommentsList(items = [], requerimiento_id) {
-  console.groupCollapsed("[Comentarios][UI] render");
-  const filtered = items.filter(r => {
-    const rid = r.requerimiento_id ?? r.req_id ?? r.requerimiento ?? null;
-    return rid == null ? true : String(rid) === String(requerimiento_id);
-  });
-
-  const feed = $(".c-feed"); if (!feed) { console.groupEnd(); return; }
-  feed.innerHTML = "";
-
-  for (const r of filtered) {
-    const nombre = r.nombre || r.empleado_nombre || r.autor || r.created_by || "—";
-    const texto = r.comentario || r.texto || "";
-    const cuandoAbs = r.created_at || r.fecha || "";
-    const cuando = relShort(cuandoAbs);
-
-    const empleadoId = r.empleado_id ?? r.created_by ?? null;
-    const avatarUrl = await fetchEmpleadoAvatarUrl(empleadoId);
-    const imgSrc = avatarUrl || placeholderAvatarFor(nombre);
-
-    const art = document.createElement("article");
-    art.className = "msg";
-    art.innerHTML = `
-      <img class="avatar" src="${imgSrc}" alt="">
-      <div>
-        <div class="who"><span class="name">${firstTwo(nombre)}</span> <span class="time">${cuando}</span></div>
-        <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
-      </div>`;
-    $(".text", art).textContent = texto;
-    feed.appendChild(art);
+  function placeholderAvatarFor(_name = "") {
+    return "/ASSETS/user/img_user1.png";
   }
 
-  const scroller = feed.parentElement || feed;
-  scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
-  console.groupEnd();
-}
+  async function renderCommentsList(items = [], requerimiento_id) {
+    console.groupCollapsed("[Comentarios][UI] render");
+    console.log("raw items:", items);
+    const filtered = items.filter(r => {
+      const rid = r.requerimiento_id ?? r.req_id ?? r.requerimiento ?? null;
+      return rid == null ? true : String(rid) === String(requerimiento_id);
+    });
+    console.log("items filtrados:", filtered.length);
 
+    const feed = $(".c-feed"); if (!feed) { console.groupEnd(); return; }
+    feed.innerHTML = "";
+
+    for (const r of filtered) {
+      const nombre = r.nombre || r.empleado_nombre || r.autor || r.created_by || "—";
+      const texto = r.comentario || r.texto || "";
+      const cuandoAbs = r.created_at || r.fecha || "";
+      const cuando = relShort(cuandoAbs);
+
+      const empleadoId = r.empleado_id ?? r.created_by ?? null;
+      const avatarUrl = await fetchEmpleadoAvatarUrl(empleadoId);
+      const imgSrc = avatarUrl || placeholderAvatarFor(nombre);
+
+      const art = document.createElement("article");
+      art.className = "msg";
+      art.innerHTML = `
+        <img class="avatar" src="${imgSrc}" alt="">
+        <div>
+          <div class="who"><span class="name">${firstTwo(nombre)}</span> <span class="time">${cuando}</span></div>
+          <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
+        </div>`;
+      $(".text", art).textContent = texto;
+      feed.appendChild(art);
+    }
+
+    const scroller = feed.parentElement || feed;
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+    console.groupEnd();
+  }
 
   async function loadComentarios(requerimiento_id) {
     console.groupCollapsed("[Comentarios] list");
@@ -873,3 +912,4 @@ async function renderCommentsList(items = [], requerimiento_id) {
   else boot();
 
 })();
+
