@@ -5,12 +5,13 @@
   /* ========================================================================
    * Helpers base (expuestos a Planeación)
    * ======================================================================*/
-  const $  = (s, r = document) => r.querySelector(s);
+  const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-  const log  = (...a) => console.log("[RequerimientoView]", ...a);
-  const warn = (...a) => console.warn("[RequerimientoView]", ...a);
-  const err  = (...a) => console.error("[RequerimientoView]", ...a);
-  const toast = (m, t = "info") => (window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m));
+  const log = (...a) => console.log("[RequerimientoView]", ...a);
+  const warn = (...a) => console.warn("[RequerimientoView][WARN]", ...a);
+  const err = (...a) => console.error("[RequerimientoView][ERR]", ...a);
+  const toast = (m, t = "info") =>
+    (window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m));
 
   const firstTwo = (full = "") =>
     String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") || "—";
@@ -180,6 +181,7 @@
     const sel = document.querySelector('#req-status [data-role="status-select"]');
     if (sel) sel.value = String(code);
     if (window.paintStepper) window.paintStepper(code);
+    log("[UI] updateStatusUI =>", code, statusLabel(code));
   }
 
   function askMotivo(titulo = "Motivo") {
@@ -222,7 +224,7 @@
     return b;
   }
 
-  // Botones para el requerimiento
+  // ====== botones visibles por status (sin "Finalizar") ======
   function getButtonsForStatus(code) {
     switch (Number(code)) {
       case 0: // Solicitud
@@ -242,7 +244,7 @@
           makeBtn("Cancelar", "danger", "cancel"),
           makeBtn("Iniciar proceso", "primary", "start-process"),
         ];
-      case 3: // Proceso → SIN "Finalizar"; solo Pausar/Cancelar
+      case 3: // Proceso (solo Pausar / Cancelar)
         return [
           makeBtn("Pausar", "warn", "pause"),
           makeBtn("Cancelar", "danger", "cancel"),
@@ -254,7 +256,7 @@
         ];
       case 5: // Cancelado
         return [makeBtn("Reabrir", "primary", "reopen")];
-      case 6: // Finalizado
+      case 6: // Finalizado (si llegara por backend, solo reabrir)
         return [makeBtn("Reabrir", "primary", "reopen")];
       default:
         return [makeBtn("Iniciar revisión", "primary", "start-revision")];
@@ -262,21 +264,17 @@
   }
 
   /* ========================================================================
-   * HTTP + Session
+   * HTTP + Endpoints
    * ======================================================================*/
   const ENDPOINTS = {
-    REQUERIMIENTO_GET:     "/db/WEB/ixtla01_c_requerimiento.php",
-    REQUERIMIENTO_UPDATE:  "/db/WEB/ixtla01_upd_requerimiento.php", // update estatus
-    EMPLEADOS_GET:         "/db/WEB/ixtla01_c_empleado.php",        // avatar / nombres
-    COMENT_LIST:           "/db/WEB/ixtla01_c_comentario_requerimiento.php",
-    COMENT_CREATE:         "/db/WEB/ixtla01_i_comentario_requerimiento.php",
-
-    // Planeación (validar para iniciar proceso)
-    PROCESOS_LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_proceso_requerimiento.php",
-    TAREAS_LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tarea_proceso.php",
-
-    // Departamentos
-    DEPARTAMENTOS_GET: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
+    REQUERIMIENTO_GET:      "/db/WEB/ixtla01_c_requerimiento.php",
+    REQUERIMIENTO_UPDATE:   "/db/WEB/ixtla01_upd_requerimiento.php",
+    EMPLEADOS_GET:          "/db/WEB/ixtla01_c_empleado.php",
+    COMENT_LIST:            "/db/WEB/ixtla01_c_comentario_requerimiento.php",
+    COMENT_CREATE:          "/db/WEB/ixtla01_i_comentario_requerimiento.php",
+    // Para validar "Iniciar proceso"
+    PROCESOS_LIST:          "/db/WEB/ixtla01_c_proceso_requerimiento.php",
+    TAREAS_LIST:            "/db/WEB/ixtla01_c_tarea_proceso.php",
   };
 
   async function postJSON(url, body) {
@@ -324,43 +322,21 @@
 
   // Lee cookie ix_emp segura (usa Session.get() si existe)
   function safeGetSession() {
-    try { if (window.Session?.get) return window.Session.get(); } catch {}
+    try {
+      if (window.Session?.get) return window.Session.get();
+    } catch { }
     try {
       const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
       if (!pair) return null;
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
       if (json && typeof json === "object") return json;
-    } catch {}
+    } catch { }
     return null;
   }
   function getEmpleadoIdFromSession() {
     const s = safeGetSession();
     return s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
-  }
-
-  /* ========================================================================
-   * Helpers de UI por etiqueta (corrige desfasados)
-   * ======================================================================*/
-  function setFieldByLabel(panelEl, labelText, value) {
-    if (!panelEl) return;
-    const rows = Array.from(panelEl.querySelectorAll(".exp-field"));
-    const norm = (s) => String(s || "").trim().toLowerCase();
-    const row = rows.find(r => norm(r.querySelector(".exp-label")?.textContent) === norm(labelText));
-    const dd  = row?.querySelector(".exp-val");
-    if (dd) dd.textContent = (value ?? "—");
-  }
-  function setFieldByLabelWithMail(panelEl, labelText, value) {
-    if (!panelEl) return;
-    const rows = Array.from(panelEl.querySelectorAll(".exp-field"));
-    const norm = (s) => String(s || "").trim().toLowerCase();
-    const row = rows.find(r => norm(r.querySelector(".exp-label")?.textContent) === norm(labelText));
-    const dd  = row?.querySelector(".exp-val");
-    if (!dd) return;
-    const a = dd.querySelector("a") || document.createElement("a");
-    a.textContent = value || "—";
-    if (value) a.href = `mailto:${value}`; else a.removeAttribute("href");
-    if (!dd.contains(a)) { dd.innerHTML = ""; dd.appendChild(a); }
   }
 
   /* ========================================================================
@@ -373,8 +349,9 @@
   }
 
   function normalizeRequerimiento(raw = {}) {
-    console.groupCollapsed("[Normalize] Requerimiento IN");
-    console.log(raw); console.groupEnd();
+    console.groupCollapsed("[Normalize] Requerimiento: IN");
+    console.log(raw);
+    console.groupEnd();
 
     const toId = (v) => (v == null ? null : String(v));
     const id = toId(raw.id ?? raw.requerimiento_id);
@@ -392,8 +369,9 @@
     const contacto_cp = String(raw.contacto_cp ?? raw.cp ?? raw.codigo_postal ?? "").trim();
     const direccion_reporte = buildDireccion(contacto_calle, contacto_colonia);
 
-    // Asignado: solo si viene; si no, quedará "Sin asignar"
+    // ====== ASIGNADO (cuidado especial)
     const asignado_id = raw.asignado_a != null && raw.asignado_a !== "" ? String(raw.asignado_a) : null;
+
     const asignado_full = (() => {
       const fullApi = String(raw.asignado_nombre_completo || "").trim();
       if (fullApi) return fullApi;
@@ -403,6 +381,10 @@
       return joined || ""; // vacío => UI mostrará "Sin asignar"
     })();
 
+    // ====== Dept (si viene)
+    const departamento_nombre = String(raw.departamento_nombre || "").trim() || "—";
+    const tramite_nombre = String(raw.tramite_nombre || "").trim();
+
     const estatus_code = Number(raw.estatus_code ?? raw.estatus ?? raw.status ?? raw.estado ?? 0);
     const prioridad = (raw.prioridad != null) ? Number(raw.prioridad) : null;
     const canal = (raw.canal != null) ? Number(raw.canal) : null;
@@ -411,64 +393,33 @@
     const actualizado_at = String(raw.actualizado_at ?? raw.updated_at ?? "").trim();
     const cerrado_en = raw.cerrado_en != null ? String(raw.cerrado_en).trim() : null;
 
-    // Departamento (se hidrata luego con endpoint)
-    const departamento_id = raw.departamento_id ?? raw.raw?.departamento_id ?? null;
-
     const out = {
       id, folio,
-      tramite, asunto, descripcion,
+      tramite, tramite_nombre, asunto, descripcion,
       contacto_nombre, contacto_telefono, contacto_email,
       contacto_calle, contacto_colonia, contacto_cp, direccion_reporte,
       asignado_id, asignado_full,
+      departamento_nombre,
       estatus_code, prioridad, canal,
       creado_at, actualizado_at, cerrado_en,
-      departamento_id,
-      departamento_nombre: raw.departamento_nombre || "—",
-      departamento_director_nombre: "", // se llenará con hydrate
       raw
     };
 
-    console.groupCollapsed("[Normalize] Requerimiento OUT");
-    console.log(out); console.groupEnd();
+    console.groupCollapsed("[Normalize] Requerimiento: OUT");
+    console.log(out);
+    console.groupEnd();
+
     return out;
   }
 
   async function getRequerimientoById(id) {
-    const payload = { id };
-    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, payload);
+    log("[API] getRequerimientoById", id);
+    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, { id });
     let data = res?.data ?? res;
     if (Array.isArray(data)) data = data[0] || {};
     return normalizeRequerimiento(data);
   }
 
-  /* ========================================================================
-   * Departamento (hydrate)
-   * ======================================================================*/
-  async function fetchDepartamentoById(id) {
-    if (!id) return null;
-    try {
-      const res = await postJSON(ENDPOINTS.DEPARTAMENTOS_GET, { id: Number(id) });
-      let dep = res?.data ?? res;
-      if (Array.isArray(dep)) dep = dep[0] || null;
-      return dep || null;
-    } catch (e) {
-      warn("[Departamento] error:", e);
-      return null;
-    }
-  }
-  async function getDepartamentoInfoFromReq(req) {
-    const depId = req?.departamento_id ?? req?.raw?.departamento_id ?? null;
-    if (!depId) return { departamento_nombre: "—", director_full: "—" };
-    const dep = await fetchDepartamentoById(depId);
-    if (!dep) return { departamento_nombre: "—", director_full: "—" };
-    const departamento_nombre = String(dep?.nombre || "").trim() || "—";
-    const director_full = [dep?.director_nombre, dep?.director_apellidos].filter(Boolean).join(" ").trim() || "—";
-    return { departamento_nombre, director_full };
-  }
-
-  /* ========================================================================
-   * Pintado de UI (robusto por etiqueta)
-   * ======================================================================*/
   function paintRequerimiento(req) {
     console.groupCollapsed("[UI] Pintar requerimiento");
     console.log("req:", req);
@@ -476,32 +427,57 @@
     const titulo = req.tramite || req.asunto || "Requerimiento";
     const h1 = $(".exp-title h1"); if (h1) h1.textContent = titulo;
 
-    // Encabezado: Contacto, Encargado, Fecha
+    // Encabezado: Contacto, Encargado (asignado), Fecha
     const ddC = $(".exp-meta > div:nth-child(1) dd");
     const ddE = $(".exp-meta > div:nth-child(2) dd");
     const ddF = $(".exp-meta > div:nth-child(3) dd");
     if (ddC) ddC.textContent = (req.contacto_nombre || "—");
-    if (ddE) ddE.textContent = (req.asignado_full && req.asignado_full.trim()) ? req.asignado_full : "Sin asignar";
+
+    // *** Asignado a: muestra "Sin asignar" cuando no hay asignado ***
+    const asignadoDisplay = (req.asignado_id && (req.asignado_full || "").trim())
+      ? req.asignado_full
+      : "Sin asignar";
+    if (ddE) ddE.textContent = asignadoDisplay;
+
     if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
 
-    // Panel Contacto
-    const panelContacto = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
-    if (panelContacto) {
-      setFieldByLabel(panelContacto, "Nombre del Contacto:", req.contacto_nombre || "—");
-      setFieldByLabel(panelContacto, "Teléfono:", req.contacto_telefono || "—");
-      setFieldByLabel(panelContacto, "Dirección:", [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", "));
-      setFieldByLabelWithMail(panelContacto, "Correo:", req.contacto_email || "—");
-      setFieldByLabel(panelContacto, "C.P.:", req.contacto_cp || "—");
+    // Tab Contacto
+    const contactoGrid = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
+    if (contactoGrid) {
+      const set = (nth, val) => {
+        const node = $(`.exp-field:nth-child(${nth}) .exp-val`, contactoGrid);
+        if (!node) return;
+        if (nth === 4) {
+          const a = node.querySelector("a");
+          if (a) { a.textContent = val || "—"; val ? (a.href = `mailto:${val}`) : a.removeAttribute("href"); }
+          else node.textContent = val || "—";
+        } else {
+          node.textContent = val || "—";
+        }
+      };
+      set(1, (req.contacto_nombre || "—"));
+      set(2, req.contacto_telefono || "—");
+      set(3, [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", "));
+      set(4, req.contacto_email || "—");
+      set(5, req.contacto_cp || "—");
     }
 
-    // Panel Detalles
-    const panelDetalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-    if (panelDetalles) {
-      setFieldByLabel(panelDetalles, "Nombre del Requerimiento:", titulo);
-      setFieldByLabel(panelDetalles, "Asignado:", (req.asignado_full && req.asignado_full.trim()) ? req.asignado_full : "Sin asignar");
+    // Tab Detalles
+    const detalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+    if (detalles) {
+      const put = (nth, value) => {
+        const node = $(`.exp-field:nth-child(${nth}) .exp-val`, detalles);
+        if (!node) return;
+        node.textContent = value ?? "—";
+      };
+      put(1, titulo);
+      put(2, req.departamento_nombre || "—"); // Departamento
+      put(3, (req.contacto_nombre || "—"));   // Solicitante
 
-      const badgeEl = document.querySelector('#req-status [data-role="status-badge"]') ||
-                      panelDetalles.querySelector('.exp-field .exp-val .exp-badge');
+      // Badge de status
+      const badgeEl =
+        document.querySelector('#req-status [data-role="status-badge"]') ||
+        $(`.exp-field:nth-child(4) .exp-val .exp-badge`, detalles);
       if (badgeEl) {
         badgeEl.classList.remove('is-info', 'is-muted', 'is-warning', 'is-danger', 'is-success');
         const cls = statusBadgeClass(req.estatus_code);
@@ -509,15 +485,17 @@
         badgeEl.classList.add(cls);
         badgeEl.textContent = lbl;
       }
-      setFieldByLabel(panelDetalles, "Estatus:", statusLabel(req.estatus_code));
-      setFieldByLabel(panelDetalles, "Descripción:", req.descripcion || "—");
-      setFieldByLabel(panelDetalles, "Fecha de inicio:", (req.creado_at || "").split(" ")[0] || "—");
-      setFieldByLabel(panelDetalles, "Fecha de terminado:", req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—");
-      // Se hidratan luego
-      setFieldByLabel(panelDetalles, "Departamento:", req.departamento_nombre || "—");
-      setFieldByLabel(panelDetalles, "Líder del Departamento:", req.departamento_director_nombre || "—");
+
+      // Descripción y fechas
+      const descNode = $(`.exp-field.exp-field--full .exp-val`, detalles);
+      if (descNode) descNode.textContent = req.descripcion || "—";
+      const fIni = $(`.exp-field:nth-child(6) .exp-val`, detalles);
+      if (fIni) fIni.textContent = (req.creado_at || "").split(" ")[0] || "—";
+      const fFin = $(`.exp-field:nth-child(7) .exp-val`, detalles);
+      if (fFin) fFin.textContent = req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—";
     }
 
+    // Select de status y render
     const sel = document.querySelector('#req-status [data-role="status-select"]');
     if (sel) sel.value = String(req.estatus_code ?? 0);
 
@@ -560,6 +538,7 @@
       if (window.paintStepper) window.paintStepper(code);
       sel.hidden = true;
       toast(`Estatus cambiado a "${lbl}" (solo UI)`, "info");
+      log("[Status][UI only] change =>", code, lbl);
 
       renderActions(code);
     });
@@ -573,33 +552,33 @@
   }
 
   /* ========================================================================
-   * Estado real del requerimiento (UPDATE)
+   * Estado real del requerimiento (UPDATE) + validación "Iniciar proceso"
    * ======================================================================*/
   async function updateReqStatus({ id, estatus, motivo }) {
     const updated_by = getEmpleadoIdFromSession();
     const body = { id: Number(id), estatus: Number(estatus), updated_by };
     if (motivo) body.motivo = String(motivo).trim();
+    log("[API] updateReqStatus →", body);
     const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
+    log("[API] updateReqStatus ←", res);
     return res?.data ?? res;
   }
 
-  // Validación para entrar a Proceso: debe existir al menos 1 proceso y 1 tarea
-  async function hasAnyProcesoAndTarea(requerimiento_id) {
+  async function hasAtLeastOneProcesoAndTask(requerimiento_id) {
     try {
-      const pj = await postJSON(ENDPOINTS.PROCESOS_LIST, { requerimiento_id: Number(requerimiento_id), status: 1, page:1, page_size:100 });
-      const procesos = Array.isArray(pj?.data) ? pj.data : [];
-      if (!procesos.length) return false;
-
-      // con que una tenga una tarea basta
+      log("[Check] hasAtLeastOneProcesoAndTask for req:", requerimiento_id);
+      const pRes = await postJSON(ENDPOINTS.PROCESOS_LIST, { requerimiento_id: Number(requerimiento_id), status: 1, page: 1, page_size: 50 });
+      const procesos = Array.isArray(pRes?.data) ? pRes.data : [];
+      log("[Check] procesos encontrados:", procesos.length);
       for (const p of procesos) {
-        const tj = await postJSON(ENDPOINTS.TAREAS_LIST, { proceso_id: Number(p.id), status: 1, page:1, page_size:100 });
-        const tareas = Array.isArray(tj?.data) ? tj.data : [];
-        if (tareas.length) return true;
+        const tRes = await postJSON(ENDPOINTS.TAREAS_LIST, { proceso_id: Number(p.id), status: 1, page: 1, page_size: 50 });
+        const tareas = Array.isArray(tRes?.data) ? tRes.data : [];
+        log(`[Check] proceso ${p.id} → tareas:`, tareas.length);
+        if (tareas.length > 0) return true;
       }
       return false;
     } catch (e) {
-      warn("Validación procesos/tareas falló:", e);
-      // Si falla la consulta, por seguridad no dejamos avanzar
+      warn("[Check] error validando procesos/tareas:", e);
       return false;
     }
   }
@@ -608,6 +587,8 @@
     let next = getCurrentStatusCode();
     const id = __CURRENT_REQ_ID__;
     if (!id) { toast("No hay id de requerimiento en la URL", "danger"); return; }
+
+    log("[Action] click:", act, "status actual:", next, "reqId:", id);
 
     try {
       if (act === "start-revision") {
@@ -621,10 +602,11 @@
         updateStatusUI(next); toast("Asignado a departamento (Estatus: Asignación)", "success");
       }
       else if (act === "start-process") {
-        // Validar que exista >=1 proceso y >=1 tarea
-        const ok = await hasAnyProcesoAndTarea(id);
+        // Validar que exista al menos 1 proceso y 1 tarea
+        const ok = await hasAtLeastOneProcesoAndTask(id);
         if (!ok) {
-          toast("Para iniciar proceso se requiere al menos un proceso con una tarea.", "warning");
+          toast("Para iniciar proceso necesitas al menos un proceso y una tarea.", "warning");
+          warn("[Action] start-process cancelado por validación");
           return;
         }
         next = 3;
@@ -641,12 +623,6 @@
         next = 1;
         await updateReqStatus({ id, estatus: next });
         updateStatusUI(next); toast("Requerimiento reanudado (Revisión)", "success");
-      }
-      else if (act === "finish") {
-        // Ya no se muestra en estatus 3, pero lo dejamos por compatibilidad si llega
-        next = 6;
-        await updateReqStatus({ id, estatus: next });
-        updateStatusUI(next); toast("Requerimiento finalizado", "success");
       }
       else if (act === "cancel") {
         const motivo = await askMotivo("Motivo de la cancelación");
@@ -679,12 +655,15 @@
       b.addEventListener('click', () => onAction(b.dataset.act));
       wrap.appendChild(b);
     });
+    log("[UI] renderActions para status:", code, "=>", btns.map(b => b.dataset.act));
   }
 
   /* ========================================================================
    * Reset plantilla (valores vacíos)
    * ======================================================================*/
+  const fillText = (sel, txt) => { const n = $(sel); if (n) n.textContent = (txt ?? "—"); };
   function resetTemplate() {
+    log("[UI] resetTemplate()");
     const h1 = $(".exp-title h1"); if (h1) h1.textContent = "—";
     $$(".exp-meta dd").forEach(dd => dd.textContent = "—");
 
@@ -714,13 +693,6 @@
       n.textContent = '—';
     });
 
-    // Limpia Departamento/Líder si existen
-    const panelDetalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-    if (panelDetalles) {
-      setFieldByLabel(panelDetalles, "Departamento:", "—");
-      setFieldByLabel(panelDetalles, "Líder del Departamento:", "—");
-    }
-
     const evTable = findEvidenciasTable();
     if (evTable) evTable.querySelectorAll('.exp-row').forEach(r => r.remove());
 
@@ -733,15 +705,18 @@
   }
 
   /* ========================================================================
-   * Comentarios: listar / crear + Avatares
+   * Comentarios: listar / crear (con avatar)
    * ======================================================================*/
   async function listComentariosAPI({ requerimiento_id, status = 1, page = 1, page_size = 100 }) {
     const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
+    log("[API] COMENT_LIST →", payload);
     const res = await postJSON(ENDPOINTS.COMENT_LIST, payload);
+    log("[API] COMENT_LIST ←", res);
     const raw = res?.data ?? res?.items ?? res;
     const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.rows) ? raw.rows : []);
     return arr;
   }
+
   async function createComentarioAPI({ requerimiento_id, empleado_id, comentario, status = 1, created_by }) {
     const payload = {
       requerimiento_id: Number(requerimiento_id),
@@ -750,42 +725,43 @@
       status,
       created_by: created_by ?? empleado_id ?? null
     };
-    return postJSON(ENDPOINTS.COMENT_CREATE, payload);
+    log("[API] COMENT_CREATE →", payload);
+    const r = await postJSON(ENDPOINTS.COMENT_CREATE, payload);
+    log("[API] COMENT_CREATE ←", r);
+    return r;
   }
 
-  // Avatares: intenta gcSetAvatarSrc; si no, prueba assets por id
-  function setAvatarFor(imgEl, { empleadoId = null, nombre = "" } = {}) {
-    if (!imgEl) return;
-    const sessionLike = {
-      id_usuario: empleadoId || null,
-      avatarUrl: null,
-      nombre: nombre || "",
-      apellidos: "",
-    };
-    if (window.gcSetAvatarSrc) {
-      try { window.gcSetAvatarSrc(imgEl, sessionLike); return; } catch {}
+  const AVATAR_CACHE = new Map();
+  async function fetchEmpleadoAvatarUrl(empleadoId) {
+    if (!empleadoId) return null;
+    const key = String(empleadoId);
+    if (AVATAR_CACHE.has(key)) return AVATAR_CACHE.get(key);
+
+    try {
+      const empRes = await postJSON(ENDPOINTS.EMPLEADOS_GET, { id: Number(empleadoId), status: 1 });
+      const emp = empRes?.data || {};
+      const avatar = emp.avatar_url || emp.foto_url || emp.foto || emp.img || null;
+      AVATAR_CACHE.set(key, avatar || null);
+      log("[Avatar] empleado", empleadoId, "→", avatar);
+      return avatar || null;
+    } catch (e) {
+      warn("[Avatar] fallo consultando empleado", empleadoId, e);
+      AVATAR_CACHE.set(key, null);
+      return null;
     }
-    const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
-    const idu = sessionLike.id_usuario;
-    const candidates = idu ? [
-      `/ASSETS/user/userImgs/img_${idu}.png`,
-      `/ASSETS/user/userImgs/img_${idu}.jpg`,
-    ] : [];
-    let i = 0;
-    const tryNext = () => {
-      if (i >= candidates.length) { imgEl.src = DEFAULT_AVATAR; return; }
-      imgEl.onerror = () => { i++; tryNext(); };
-      imgEl.src = `${candidates[i]}?v=${Date.now()}`;
-    };
-    tryNext();
+  }
+  function placeholderAvatarFor(_name = "") {
+    return "/ASSETS/user/img_user1.png";
   }
 
   async function renderCommentsList(items = [], requerimiento_id) {
     console.groupCollapsed("[Comentarios][UI] render");
+    console.log("raw items:", items);
     const filtered = items.filter(r => {
       const rid = r.requerimiento_id ?? r.req_id ?? r.requerimiento ?? null;
       return rid == null ? true : String(rid) === String(requerimiento_id);
     });
+    console.log("items filtrados:", filtered.length);
 
     const feed = $(".c-feed"); if (!feed) { console.groupEnd(); return; }
     feed.innerHTML = "";
@@ -795,23 +771,23 @@
       const texto = r.comentario || r.texto || "";
       const cuandoAbs = r.created_at || r.fecha || "";
       const cuando = relShort(cuandoAbs);
+
       const empleadoId = r.empleado_id ?? r.created_by ?? null;
+      const avatarUrl = await fetchEmpleadoAvatarUrl(empleadoId);
+      const imgSrc = avatarUrl || placeholderAvatarFor(nombre);
 
       const art = document.createElement("article");
       art.className = "msg";
       art.innerHTML = `
-        <img class="avatar" alt="">
+        <img class="avatar" src="${imgSrc}" alt="">
         <div>
           <div class="who"><span class="name">${firstTwo(nombre)}</span> <span class="time">${cuando}</span></div>
           <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
         </div>`;
       $(".text", art).textContent = texto;
-
-      const img = art.querySelector("img.avatar");
-      setAvatarFor(img, { empleadoId, nombre });
-
       feed.appendChild(art);
     }
+
     const scroller = feed.parentElement || feed;
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
     console.groupEnd();
@@ -904,25 +880,11 @@
       return;
     }
 
-    let req = null;
     try {
-      req = await getRequerimientoById(reqId);
+      const req = await getRequerimientoById(reqId);
       console.log("Requerimiento (normalizado):", req);
       paintRequerimiento(req);
       bindStatusControl();
-
-      // Hidrata Departamento + Director y repinta esas dos celdas
-      try {
-        const info = await getDepartamentoInfoFromReq(req);
-        req.departamento_nombre = info.departamento_nombre;
-        req.departamento_director_nombre = info.director_full;
-
-        const panelDetalles = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-        setFieldByLabel(panelDetalles, "Departamento:", info.departamento_nombre || "—");
-        setFieldByLabel(panelDetalles, "Líder del Departamento:", info.director_full || "—");
-      } catch (e) {
-        warn("No se pudo hidratar departamento/director:", e);
-      }
 
       try {
         window.__REQ__ = req;
@@ -950,3 +912,4 @@
   else boot();
 
 })();
+
