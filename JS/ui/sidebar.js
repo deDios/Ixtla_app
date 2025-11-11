@@ -89,47 +89,24 @@ async function resolveDeptName(deptId, api = CFG.DEPT_API) {
 
 function setAvatarImage(imgEl, sessionLike, defaultAvatar = CFG.DEFAULT_AVATAR) {
   if (!imgEl) return;
-
-  // Si tienes un helper global, dale chance primero
-  if (window.gcSetAvatarSrc) { 
-    window.gcSetAvatarSrc(imgEl, sessionLike); 
-    return; 
-  }
-
-  // Preferimos EMPLEADO
-  const idEmpleado = sessionLike?.empleado_id ?? sessionLike?.id_empleado ?? null;
-  // Fallback: USUARIO solo y cuando no exista el id de empleado
-  const idUsuario = sessionLike?.id_usuario ?? sessionLike?.usuario_id ?? null;
-
-  const v = `?v=${Date.now()}`;
-  const candidates = [];
-
-  if (sessionLike?.avatarUrl) candidates.push(`${sessionLike.avatarUrl}${sessionLike.avatarUrl.includes("?") ? "" : v}`);
-
-  if (idEmpleado) {
-    candidates.push(`/ASSETS/user/userImgs/img_${idEmpleado}.png${v}`);
-    candidates.push(`/ASSETS/user/userImgs/img_${idEmpleado}.jpg${v}`);
-  }
-  if (idUsuario && idUsuario !== idEmpleado) {
-    candidates.push(`/ASSETS/user/userImgs/img_${idUsuario}.png${v}`);
-    candidates.push(`/ASSETS/user/userImgs/img_${idUsuario}.jpg${v}`);
-  }
-
+  if (window.gcSetAvatarSrc) { window.gcSetAvatarSrc(imgEl, sessionLike); return; }
+  const idu = sessionLike?.id_usuario;
+  const candidates = sessionLike?.avatarUrl
+    ? [sessionLike.avatarUrl]
+    : idu
+      ? [
+          `/ASSETS/user/userImgs/img_${idu}.png`,
+          `/ASSETS/user/userImgs/img_${idu}.jpg`,
+        ]
+      : [];
   let i = 0;
-  console.log("[Sidebar][Avatar] ids:", { idEmpleado, idUsuario, candidates });
   const tryNext = () => {
     if (i >= candidates.length) { imgEl.src = defaultAvatar; return; }
-    const src = candidates[i++];
-    imgEl.onerror = () => {
-      console.warn("[Sidebar][Avatar][error]", src);
-      tryNext();
-    };
-    imgEl.onload = () => console.log("[Sidebar][Avatar][ok]", src);
-    imgEl.src = src;
+    imgEl.onerror = () => { i++; tryNext(); };
+    imgEl.src = `${candidates[i]}?v=${Date.now()}`;
   };
   tryNext();
 }
-
 
 /* -------------------- Botón Editar Perfil -------------------- */
 function ensureEditProfileButton({ label = "Administrar perfil ›" } = {}) {
@@ -314,30 +291,17 @@ function refreshProfile(sess = null) {
   try {
     const s = sess || S.sessionProvider();
     if (!s) return;
-
     const name = [s.nombre, s.apellidos].filter(Boolean).join(" ").trim();
     if (name) setText(CFG.SEL.profileName, name);
-
     const avatarEl = $(CFG.SEL.avatar);
-    const sessionLike = {
-      // Pasa explícitamente EMPLEADO y USUARIO
-      empleado_id: s.empleado_id ?? s.id_empleado ?? null,
-      id_usuario: s.id_usuario ?? s.usuario_id ?? null,
-      avatarUrl: s.avatarUrl || s.avatar || s.avatar_url || null,
+    setAvatarImage(avatarEl, {
+      id_usuario: s.id_usuario ?? s.usuario_id ?? s.empleado_id ?? s.id_empleado,
+      avatarUrl: s.avatarUrl || s.avatar,
       nombre: s.nombre,
       apellidos: s.apellidos,
-    };
-    setAvatarImage(avatarEl, sessionLike);
-
-    log("Perfil OK", {
-      nombre,
-      deptId: s?.departamento_id ?? s?.dept_id ?? null,
-      id_empleado: sessionLike.empleado_id,
-      id_usuario: sessionLike.id_usuario,
     });
   } catch (e) { warn("refreshProfile error:", e); }
 }
-
 
 /* -------------------- Boot: SIEMPRE perfil; filtros si existen -------------------- */
 async function bootSidebar() {
