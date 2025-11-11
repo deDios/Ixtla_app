@@ -12,18 +12,16 @@
   const err = (...a) => console.error("[ReqView][ERR]", ...a);
   const toast = (m, t = "info") =>
     window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m);
-  window._rvHelpers = { $, $$, toast }; // para otros módulos
+  window._rvHelpers = { $, $$, toast }; // para Planeación
 
   /* ============================
-   * Endpoints
+   * Endpoints (ajustados a tu backend)
    * ============================*/
   const ENDPOINTS = {
     REQUERIMIENTO_GET: "/db/WEB/ixtla01_c_requerimiento.php",
     REQUERIMIENTO_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",
     EMPLEADOS_GET: "/db/WEB/ixtla01_c_empleado.php",
-    // Prod (tal como lo pasaste):
-    DEPT_LIST:
-      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
+    DEPT_LIST: "/DB/WEB/ixtla01_c_departamento.php", 
     COMENT_LIST: "/db/WEB/ixtla01_c_comentario_requerimiento.php",
     COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
     PROCESOS_LIST: "/db/WEB/ixtla01_c_proceso_requerimiento.php",
@@ -96,154 +94,9 @@
     const d = Math.floor(h / 24);
     return `hace ${d} d`;
   }
-
-  /* ============================
-   * Normalización
-   * ============================*/
-  function normalizeRequerimiento(raw = {}) {
-    console.groupCollapsed("[Normalize] IN");
-    console.log(raw);
-    console.groupEnd();
-    const out = {
-      id: String(raw.id ?? raw.requerimiento_id ?? ""),
-      folio: String(raw.folio ?? ""),
-      departamento_id:
-        raw.departamento_id != null ? Number(raw.departamento_id) : null,
-      departamento_nombre: String(raw.departamento_nombre || "").trim(),
-      tramite_id: raw.tramite_id != null ? Number(raw.tramite_id) : null,
-      tramite_nombre: String(raw.tramite_nombre || "").trim(),
-      asignado_id: raw.asignado_a != null ? String(raw.asignado_a) : null,
-      asignado_full: String(raw.asignado_nombre_completo || "").trim(),
-      asunto: String(raw.asunto || "").trim(),
-      descripcion: String(raw.descripcion || "").trim(),
-      prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
-      estatus_code:
-        raw.estatus != null
-          ? Number(raw.estatus)
-          : raw.status != null
-          ? Number(raw.status)
-          : 0,
-      canal: raw.canal != null ? Number(raw.canal) : null,
-      contacto_nombre: String(raw.contacto_nombre || "").trim(),
-      contacto_telefono: String(raw.contacto_telefono || "").trim(),
-      contacto_email: String(raw.contacto_email || "").trim(),
-      contacto_calle: String(raw.contacto_calle || "").trim(),
-      contacto_colonia: String(raw.contacto_colonia || "").trim(),
-      contacto_cp: String(raw.contacto_cp || "").trim(),
-      creado_at: String(raw.created_at || "").trim(),
-      cerrado_en: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
-      raw,
-    };
-    console.groupCollapsed("[Normalize] OUT");
-    console.log(out);
-    console.groupEnd();
-    return out;
-  }
-
-  /* ============================
-   * Empleados (nombre + avatar robusto)
-   * ============================*/
-  const AVATAR_CACHE = new Map();
-
-  function normalizeAvatarUrl(raw) {
-    if (!raw) return null;
-    let url = String(raw).trim();
-    if (!url || /^(null|undefined)$/i.test(url)) return null;
-    if (!/^https?:\/\//i.test(url) && !url.startsWith("/")) {
-      url = "/" + url.replace(/^\/+/, "");
-    }
-    return url;
-  }
-
-  function extractAvatarFromEmpleado(empleado) {
-    const candidates = [
-      empleado?.avatar_url,
-      empleado?.foto_url,
-      empleado?.foto,
-      empleado?.img,
-      empleado?.img_perfil,
-      empleado?.imagen_url,
-      empleado?.path_imagen,
-      empleado?.imagen,
-    ];
-    for (const c of candidates) {
-      const u = normalizeAvatarUrl(c);
-      if (u) return u;
-    }
-    return null;
-  }
-
-  async function getEmpleadoById(id) {
-    if (id == null) return null;
-    console.groupCollapsed("[Empleado] GET BY ID →", id);
-    const res = await postJSON(ENDPOINTS.EMPLEADOS_GET, {
-      id: Number(id),
-      status: 1,
-    });
-    const payload = res?.data ?? res;
-    let emp = null;
-    if (Array.isArray(payload)) {
-      emp =
-        payload.find(
-          (e) => Number(e?.id ?? e?.empleado_id) === Number(id)
-        ) || payload[0] || null;
-    } else if (payload && typeof payload === "object") {
-      emp = payload;
-    }
-    console.log("[Empleado] payload:", payload, "pick:", emp);
-    if (!emp) {
-      console.groupEnd();
-      return null;
-    }
-    const nombre =
-      [emp.nombre, emp.nombres, emp.empleado_nombre, emp.first_name].find(
-        Boolean
-      ) || "";
-    const apellidos = [
-      emp.apellidos,
-      emp.empleado_apellidos,
-      emp.last_name,
-    ].find(Boolean) || "";
-    const info = {
-      id: Number(emp.id ?? emp.empleado_id ?? id),
-      nombre:
-        [nombre, apellidos].filter(Boolean).join(" ").trim() ||
-        (emp.empleado_display || "").trim() ||
-        "—",
-      avatar: extractAvatarFromEmpleado(emp),
-    };
-    console.log("[Empleado] OUT:", info);
-    console.groupEnd();
-    return info;
-  }
-
-  async function fetchEmpleadoAvatarUrl(empleadoId) {
-    if (!empleadoId) {
-      log("[Avatar] empleadoId vacío");
-      return null;
-    }
-    const key = String(empleadoId);
-    if (AVATAR_CACHE.has(key)) return AVATAR_CACHE.get(key);
-    try {
-      const emp = await getEmpleadoById(empleadoId);
-      const url = emp?.avatar || null;
-      AVATAR_CACHE.set(key, url);
-      log("[Avatar] resolved", empleadoId, "→", url);
-      return url;
-    } catch (e) {
-      warn("[Avatar] EMPLEADOS_GET error:", e);
-      AVATAR_CACHE.set(key, null);
-      return null;
-    }
-  }
-
-  function placeholderAvatar() {
-    return "/ASSETS/user/img_user1.png";
-  }
-
-  function srcNeedsBust(src) {
-    return !!src && !src.includes("/ASSETS/user/img_user1.png");
-  }
+  const firstTwo = (full = "") =>
+    String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") ||
+    "—";
 
   /* ============================
    * Stepper / estatus
@@ -366,7 +219,7 @@
     );
   }
 
-  async function askMotivo(titulo = "Motivo") {
+  function askMotivo(titulo = "Motivo") {
     return new Promise((resolve, reject) => {
       const overlay = $("#modal-estado");
       const title = $("#estado-title");
@@ -509,6 +362,49 @@
   }
 
   /* ============================
+   * Normalización (sin fallbacks raros)
+   * ============================*/
+  function normalizeRequerimiento(raw = {}) {
+    console.groupCollapsed("[Normalize] IN");
+    console.log(raw);
+    console.groupEnd();
+    const out = {
+      id: String(raw.id ?? raw.requerimiento_id ?? ""),
+      folio: String(raw.folio ?? ""),
+      departamento_id:
+        raw.departamento_id != null ? Number(raw.departamento_id) : null,
+      departamento_nombre: String(raw.departamento_nombre || "").trim(),
+      tramite_id: raw.tramite_id != null ? Number(raw.tramite_id) : null,
+      tramite_nombre: String(raw.tramite_nombre || "").trim(),
+      asignado_id: raw.asignado_a != null ? String(raw.asignado_a) : null,
+      asignado_full: String(raw.asignado_nombre_completo || "").trim(),
+      asunto: String(raw.asunto || "").trim(),
+      descripcion: String(raw.descripcion || "").trim(),
+      prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
+      estatus_code:
+        raw.estatus != null
+          ? Number(raw.estatus)
+          : raw.status != null
+          ? Number(raw.status)
+          : 0,
+      canal: raw.canal != null ? Number(raw.canal) : null,
+      contacto_nombre: String(raw.contacto_nombre || "").trim(),
+      contacto_telefono: String(raw.contacto_telefono || "").trim(),
+      contacto_email: String(raw.contacto_email || "").trim(),
+      contacto_calle: String(raw.contacto_calle || "").trim(),
+      contacto_colonia: String(raw.contacto_colonia || "").trim(),
+      contacto_cp: String(raw.contacto_cp || "").trim(),
+      creado_at: String(raw.created_at || "").trim(),
+      cerrado_en: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
+      raw,
+    };
+    console.groupCollapsed("[Normalize] OUT");
+    console.log(out);
+    console.groupEnd();
+    return out;
+  }
+
+  /* ============================
    * Fetch básicos
    * ============================*/
   async function getRequerimientoById(id) {
@@ -518,61 +414,26 @@
     return normalizeRequerimiento(Array.isArray(data) ? data[0] || {} : data);
   }
 
-  // Devuelve { dept, director }
   async function getDeptByIdOrName({ id, nombre }) {
     const payload =
       id != null ? { id: Number(id) } : { page: 1, page_size: 50, status: 1 };
     log("[API] DEPT_LIST →", payload);
     const res = await postJSON(ENDPOINTS.DEPT_LIST, payload);
     const arr = Array.isArray(res?.data) ? res.data : [];
-    let dept = null;
-    if (id != null) {
-      dept = arr.find((d) => Number(d.id) === Number(id)) || null;
-    }
-    if (!dept && nombre) {
-      const n = String(nombre).trim().toLowerCase();
-      dept =
-        arr.find(
-          (d) => String(d.nombre || "").trim().toLowerCase() === n
-        ) || null;
-    }
-    if (!dept && arr.length === 1) dept = arr[0];
-
-    if (!dept) {
-      log("[API] DEPT_LIST ← 0 encontrados para", { id, nombre });
-      return { dept: null, director: null };
-    }
-
-    // Trae director por ID; si falla, usa campos director_*
-    let director = null;
-    if (dept.director != null) {
-      try {
-        director = await getEmpleadoById(dept.director);
-      } catch (e) {
-        warn("[Dept] getEmpleadoById error:", e);
-      }
-    }
-    if (!director) {
-      const dn = String(dept.director_nombre || "").trim();
-      const da = String(dept.director_apellidos || "").trim();
-      const nombreFull = [dn, da].filter(Boolean).join(" ") || "—";
-      director = {
-        id: Number(dept.director ?? 0),
-        nombre: nombreFull,
-        avatar: null,
-      };
-    }
-
-    const out = {
-      dept: { id: Number(dept.id), nombre: String(dept.nombre || "—") },
-      director,
-    };
-    log("[API] DEPT_LIST ← dept+director:", out);
-    return out;
+    let found = null;
+    if (id != null) found = arr.find((d) => Number(d.id) === Number(id));
+    if (!found && nombre)
+      found = arr.find(
+        (d) =>
+          String(d.nombre).trim().toLowerCase() ===
+          String(nombre).trim().toLowerCase()
+      );
+    log("[API] DEPT_LIST ← count:", arr.length, "found:", found);
+    return found || null;
   }
 
   /* ============================
-   * Pintado UI
+   * Pintado UI (a tu HTML)
    * ============================*/
   function paintContacto(req) {
     log("[UI] Pintar Contacto");
@@ -616,6 +477,7 @@
     const ddF = $(".exp-meta > div:nth-child(3) dd");
     if (ddC) ddC.textContent = req.contacto_nombre || "—";
 
+    // Encargado (Asignado) — si no hay, “Sin asignar”
     const asignado =
       req.asignado_id && (req.asignado_full || "").trim()
         ? req.asignado_full
@@ -656,21 +518,25 @@
     // Nombre del Requerimiento:
     put("Nombre del Requerimiento", req.asunto || req.tramite_nombre || "—");
 
-    // Departamento y Director (director real)
+    // Departamento y Director
     let deptName = req.departamento_nombre || "—";
     let directorFull = "—";
     try {
-      const { dept, director } = await getDeptByIdOrName({
+      const dept = await getDeptByIdOrName({
         id: req.departamento_id,
         nombre: req.departamento_nombre,
       });
-      if (dept?.nombre) deptName = dept.nombre;
-      if (director?.nombre) directorFull = director.nombre;
+      if (dept) {
+        deptName = String(dept.nombre || deptName);
+        const dn = String(dept.director_nombre || "").trim();
+        const da = String(dept.director_apellidos || "").trim();
+        directorFull = [dn, da].filter(Boolean).join(" ") || directorFull;
+      }
     } catch (e) {
-      warn("Dept/Director fetch error:", e);
+      warn("Dept fetch error:", e);
     }
 
-    // Líder del Departamento (texto con link neutro)
+    // Líder del Departamento:
     put("Líder del Departamento", directorFull, true);
     // Departamento:
     const depNode = $("#req-departamento");
@@ -699,7 +565,7 @@
   }
 
   /* ============================
-   * Comentarios
+   * Comentarios (con logs de avatar)
    * ============================*/
   async function listComentariosAPI({
     requerimiento_id,
@@ -719,7 +585,6 @@
     const raw = res?.data ?? res?.items ?? res;
     return Array.isArray(raw) ? raw : Array.isArray(raw?.rows) ? raw.rows : [];
   }
-
   async function createComentarioAPI({
     requerimiento_id,
     empleado_id,
@@ -740,6 +605,42 @@
     return r;
   }
 
+  const AVATAR_CACHE = new Map();
+  async function fetchEmpleadoAvatarUrl(empleadoId) {
+    if (!empleadoId) {
+      log("[Avatar] empleadoId vacío");
+      return null;
+    }
+    const key = String(empleadoId);
+    if (AVATAR_CACHE.has(key)) return AVATAR_CACHE.get(key);
+    try {
+      log("[Avatar] EMPLEADOS_GET →", { id: Number(empleadoId), status: 1 });
+      const empRes = await postJSON(ENDPOINTS.EMPLEADOS_GET, {
+        id: Number(empleadoId),
+        status: 1,
+      });
+      const emp = empRes?.data || {};
+      const url = emp.avatar_url || emp.foto_url || emp.foto || emp.img || null;
+      log("[Avatar] EMPLEADOS_GET ← url:", url, "emp:", emp);
+      AVATAR_CACHE.set(key, url || null);
+      return url || null;
+    } catch (e) {
+      warn("[Avatar] fallo EMPLEADOS_GET", e);
+      AVATAR_CACHE.set(key, null);
+      return null;
+    }
+  }
+  function localAvatarCandidatesByUserId(idUsuario) {
+    if (!idUsuario) return [];
+    return [
+      `/ASSETS/user/userImgs/img_${idUsuario}.png`,
+      `/ASSETS/user/userImgs/img_${idUsuario}.jpg`,
+    ];
+  }
+  function placeholderAvatar() {
+    return "/ASSETS/user/img_user1.png";
+  }
+
   async function renderCommentsList(items = [], reqId) {
     console.groupCollapsed("[Comentarios][UI] render");
     console.log("items(raw):", items);
@@ -751,31 +652,38 @@
     feed.innerHTML = "";
 
     for (const r of items) {
-      const empleadoId = r.empleado_id ?? r.created_by ?? null;
       const nombre =
-        (r.empleado_display || "").trim() ||
-        [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ").trim() ||
-        r.nombre ||
-        r.autor ||
-        String(empleadoId || "—");
+        r.nombre || r.empleado_nombre || r.autor || r.created_by || "—";
       const texto = r.comentario || r.texto || "";
       const cuando = relShort(r.created_at || r.fecha || "");
+      const empleadoId = r.empleado_id ?? r.created_by ?? null;
 
-      // 1) URL avatar por endpoint empleado
+      // avatar preferente por endpoint empleado
       const endpointUrl = await fetchEmpleadoAvatarUrl(empleadoId);
 
-      // 2) Candidatos locales por convención
-      const localCandidates = [
-        `/ASSETS/user/userImgs/img_${empleadoId}.png`,
-        `/ASSETS/user/userImgs/img_${empleadoId}.jpg`,
-      ];
+      // candidatos locales por id_usuario de sesión (si coincide con empleadoId)
+      const sess = safeGetSession() || {};
+      const idu =
+        sess.id_usuario ?? sess.usuario_id ?? sess.id_empleado ?? null;
+      const localCandidates = localAvatarCandidatesByUserId(empleadoId || idu);
+
+      log(
+        "[Avatar] comentario de:",
+        nombre,
+        "empleadoId:",
+        empleadoId,
+        "endpointUrl:",
+        endpointUrl,
+        "candidates:",
+        localCandidates
+      );
 
       const art = document.createElement("article");
       art.className = "msg";
       const img = document.createElement("img");
       img.className = "avatar";
       img.alt = "";
-
+      // estrategia de carga con logs
       const sources = [
         endpointUrl,
         ...localCandidates,
@@ -792,12 +700,12 @@
         }`;
         log(`[Avatar][load] trying[${i}] →`, src);
         img.onerror = () => {
-          log("[Avatar][error]", src);
+          log(`[Avatar][error]`, src);
           i++;
           tryNext();
         };
         img.onload = () => {
-          log("[Avatar][ok]", src);
+          log(`[Avatar][ok]`, src);
         };
         img.src = src;
       };
@@ -806,7 +714,9 @@
       art.appendChild(img);
       const box = document.createElement("div");
       box.innerHTML = `
-        <div class="who"><span class="name">${nombre}</span> <span class="time">${cuando}</span></div>
+        <div class="who"><span class="name">${firstTwo(
+          String(nombre)
+        )}</span> <span class="time">${cuando}</span></div>
         <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
       `;
       $(".text", box).textContent = texto;
@@ -818,6 +728,9 @@
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
     console.groupEnd();
   }
+  function srcNeedsBust(src) {
+    return !src.includes("/ASSETS/user/img_user1.png");
+  }
 
   async function loadComentarios(reqId) {
     console.groupCollapsed("[Comentarios] list");
@@ -828,20 +741,6 @@
         page: 1,
         page_size: 100,
       });
-
-      // Prefetch de avatares (paralelo)
-      const ids = Array.from(
-        new Set(
-          arr
-            .map((r) => r.empleado_id ?? r.created_by)
-            .filter((id) => id != null)
-        )
-      );
-      log("[Comentarios] prefetch avatar IDs:", ids);
-      await Promise.all(
-        ids.map((id) => fetchEmpleadoAvatarUrl(id).catch(() => null))
-      );
-
       await renderCommentsList(arr, reqId);
     } catch (e) {
       warn("Error listando comentarios:", e);
@@ -893,27 +792,6 @@
   }
 
   /* ============================
-   * Cierre genérico de modales (×, fondo, Esc)
-   * ============================*/
-  function attachModalClose(overlaySel) {
-    const overlay = $(overlaySel);
-    if (!overlay) return;
-    const closeBtn = overlay.querySelector(".modal-close");
-    const close = () => {
-      overlay.setAttribute("aria-hidden", "true");
-      document.body.classList.remove("me-modal-open");
-    };
-    closeBtn?.addEventListener("click", close);
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) close();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (!overlay || overlay.getAttribute("aria-hidden") === "true") return;
-      if (e.key === "Escape") close();
-    });
-  }
-
-  /* ============================
    * Reset y Boot
    * ============================*/
   function resetTemplate() {
@@ -945,23 +823,6 @@
     if (feed) feed.innerHTML = "";
   }
 
-  function wireStatusSelectToggle() {
-    const btn = $('#req-status [data-role="status-btn"]');
-    const sel = $('#req-status [data-role="status-select"]');
-    if (!btn || !sel) return;
-    btn.addEventListener("click", () => {
-      const hidden = sel.hasAttribute("hidden");
-      if (hidden) sel.removeAttribute("hidden");
-      else sel.setAttribute("hidden", "");
-    });
-    sel.addEventListener("change", () => {
-      const code = Number(sel.value || 0);
-      updateStatusUI(code);
-      renderActions(code);
-      toast("Estatus actualizado en UI (pendiente backend).", "info");
-    });
-  }
-
   let __CURRENT_REQ_ID__ = null;
 
   async function boot() {
@@ -977,19 +838,6 @@
         renderActions(Number(li.dataset.status));
       });
     });
-
-    // cierre genérico de modales
-    [
-      "#modal-perfil",
-      "#modal-estado",
-      "#modal-tarea",
-      "#modal-proceso",
-      "#ix-evid-modal",
-      "#modal-media",
-    ].forEach(attachModalClose);
-
-    // toggle select estatus
-    wireStatusSelectToggle();
 
     const params = new URL(window.location.href).searchParams;
     const reqId = params.get("id");
