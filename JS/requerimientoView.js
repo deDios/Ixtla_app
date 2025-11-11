@@ -2,9 +2,9 @@
 (function () {
   "use strict";
 
-  /* ======================================
-   * Helpers básicos
-   * ====================================*/
+  /* =====================
+   * Helpers
+   * ===================*/
   const $  = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const log  = (...a) => console.log("[ReqView]", ...a);
@@ -13,19 +13,19 @@
   const toast = (m, t = "info") =>
     window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m);
 
-  // Normalizadores mínimos
   const norm = (s = "") =>
     String(s).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
   const firstTwo = (full = "") =>
     String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") || "—";
 
-  /* ======================================
+  /* =====================
    * Endpoints
-   * ====================================*/
+   * ===================*/
   const ENDPOINTS = {
     REQUERIMIENTO_GET:   "/db/WEB/ixtla01_c_requerimiento.php",
     REQUERIMIENTO_UPDATE:"/db/WEB/ixtla01_upd_requerimiento.php",
     DEPT_LIST:           "/DB/WEB/ixtla01_c_departamento.php",
+    EMPLEADOS_GET:       "/db/WEB/ixtla01_c_empleado.php",
     COMENT_LIST:         "/db/WEB/ixtla01_c_comentario_requerimiento.php",
     COMENT_CREATE:       "/db/WEB/ixtla01_i_comentario_requerimiento.php",
   };
@@ -48,9 +48,9 @@
     } catch (e) { console.groupEnd(); throw e; }
   }
 
-  /* ======================================
-   * Sesión (lee Session.get o cookie ix_emp)
-   * ====================================*/
+  /* =====================
+   * Sesión
+   * ===================*/
   function safeGetSession() {
     try { if (window.Session?.get) return window.Session.get(); } catch {}
     try {
@@ -62,9 +62,9 @@
     return null;
   }
 
-  /* ======================================
-   * Utils UI: tiempo relativo y stepper
-   * ====================================*/
+  /* =====================
+   * UI utils
+   * ===================*/
   function relShort(when) {
     if (!when) return "—";
     const t = Date.parse(String(when).replace("T"," ").replace(/-/g,"/"));
@@ -143,7 +143,6 @@
       b.addEventListener("click", () => onAction(b.dataset.act));
       wrap.appendChild(b);
     });
-    log("[UI] renderActions:", code, "=>", [...wrap.querySelectorAll("button")].map((x)=>x.dataset.act));
   }
 
   function askMotivo(titulo = "Motivo") {
@@ -178,7 +177,6 @@
   }
 
   async function updateReqStatus({ id, estatus, motivo }) {
-    // Este endpoint histórico usa updated_by (probablemente empleado); mantenemos compat
     const s = safeGetSession();
     const updated_by = s?.empleado_id ?? s?.id_empleado ?? null;
     const body = { id: Number(id), estatus: Number(estatus), updated_by };
@@ -193,38 +191,33 @@
     let next = getCurrentStatusCode();
     const id = __CURRENT_REQ_ID__;
     if (!id) { toast("No hay id de requerimiento en la URL", "danger"); return; }
-    log("[Action]", act, "status:", next, "req:", id);
-
     try {
       if (act === "start-revision") {
-        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Estado cambiado a Revisión","info");
+        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next);
       } else if (act === "assign-dept") {
-        next = 2; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Asignado a departamento","success");
+        next = 2; await updateReqStatus({ id, estatus: next }); updateStatusUI(next);
       } else if (act === "start-process") {
-        // Si requieres validación de procesos/tareas, añádela aquí (quitado por limpieza)
-        next = 3; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Proceso iniciado","success");
+        next = 3; await updateReqStatus({ id, estatus: next }); updateStatusUI(next);
       } else if (act === "pause") {
         const motivo = await askMotivo("Motivo de la pausa");
-        next = 4; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next); toast("Pausado","warn");
+        next = 4; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next);
       } else if (act === "resume") {
-        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Reanudado (Revisión)","success");
+        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next);
       } else if (act === "cancel") {
         const motivo = await askMotivo("Motivo de la cancelación");
-        next = 5; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next); toast("Cancelado","danger");
+        next = 5; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next);
       } else if (act === "reopen") {
-        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Reabierto (Revisión)","info");
+        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next);
       }
-    } catch (e) {
-      if (e !== "cancel") { err(e); toast("No se pudo actualizar el estado.","danger"); }
-    }
+    } catch (e) { if (e !== "cancel") { err(e); toast("No se pudo actualizar el estado.","danger"); } }
     renderActions(next);
   }
 
-  /* ======================================
-   * Normalización de Requerimiento
-   * ====================================*/
+  /* =====================
+   * Requerimiento
+   * ===================*/
   function normalizeRequerimiento(raw = {}) {
-    const out = {
+    return {
       id: String(raw.id ?? raw.requerimiento_id ?? ""),
       folio: String(raw.folio ?? ""),
       departamento_id: raw.departamento_id != null ? Number(raw.departamento_id) : null,
@@ -236,7 +229,7 @@
       asunto: String(raw.asunto || "").trim(),
       descripcion: String(raw.descripcion || "").trim(),
       prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
-      estatus_code: raw.estatus != null ? Number(raw.estatus) : raw.status != null ? Number(raw.status) : 0,
+      estatus_code: raw.estatus != null ? Number(raw.estatus) : (raw.status != null ? Number(raw.status) : 0),
       canal: raw.canal != null ? Number(raw.canal) : null,
       contacto_nombre: String(raw.contacto_nombre || "").trim(),
       contacto_telefono: String(raw.contacto_telefono || "").trim(),
@@ -248,7 +241,6 @@
       cerrado_en: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
       raw,
     };
-    return out;
   }
 
   async function getRequerimientoById(id) {
@@ -258,45 +250,39 @@
     return normalizeRequerimiento(Array.isArray(data) ? data[0] || {} : data);
   }
 
-  /* ======================================
-   * Dept: lista + pick (para pintar detalles)
-   * ====================================*/
-  async function getDeptByIdOrName({ id, nombre }) {
-    const wantedId = id != null ? Number(id) : null;
-    const wantedName = nombre ? norm(nombre) : null;
-    const payload = { page: 1, page_size: 200, status: 1 };
-    let res;
-    try { res = await postJSON(ENDPOINTS.DEPT_LIST, payload); }
-    catch (e) { warn("[Dept] fetch error:", e); return { dept: null, director: null, primeraLinea: null }; }
-    const arr = Array.isArray(res?.data) ? res.data : [];
-    let dept = null;
-    if (wantedId)  dept = arr.find((x) => Number(x.id) === wantedId) || null;
-    if (!dept && wantedName) {
-      dept = arr.find((x) => norm(x?.nombre || "") === wantedName)
-           || arr.find((x) => norm(x?.nombre || "").startsWith(wantedName))
-           || null;
-    }
-    if (!dept && arr.length === 1) dept = arr[0] || null;
-    if (!dept) return { dept: null, director: null, primeraLinea: null };
+  /* =====================
+   * Empleados (para nombre/avatar fallback)
+   * ===================*/
+  const EMP_CACHE = new Map(); // id -> { id, nombre, apellidos, avatar }
+  async function getEmpleadoById(id) {
+    const key = Number(id); if (!key) return null;
+    if (EMP_CACHE.has(key)) return EMP_CACHE.get(key);
+    log("[Empleado] GET →", key);
+    let emp = null;
+    try {
+      const res = await postJSON(ENDPOINTS.EMPLEADOS_GET, { id: key, status: 1 });
+      const payload = res?.data ?? res;
+      if (Array.isArray(payload)) {
+        emp = payload.find((e) => Number(e?.id ?? e?.empleado_id) === key) || payload[0] || null;
+      } else if (payload && typeof payload === "object") { emp = payload; }
+    } catch (e) { warn("[Empleado] error:", e); }
 
-    const infoDept = {
-      id: Number(dept.id),
-      nombre: String(dept.nombre || "—"),
-      director_id: Number(dept.director ?? 0) || null,
-      primera_linea_id: Number(dept.primera_linea ?? 0) || null,
-    };
-    return {
-      dept: { id: infoDept.id, nombre: infoDept.nombre },
-      director: infoDept.director_id ? { id: infoDept.director_id, nombre: "—", avatar: null } : null,
-      primeraLinea: infoDept.primera_linea_id ? { id: infoDept.primera_linea_id, nombre: "—", avatar: null } : null,
-    };
+    const nombre = [emp?.nombre, emp?.nombres, emp?.empleado_nombre].find(Boolean) || "";
+    const apellidos = [emp?.apellidos, emp?.empleado_apellidos].find(Boolean) || "";
+    const full = [nombre, apellidos].filter(Boolean).join(" ").trim() || "—";
+    const avatar =
+      emp?.avatar_url || emp?.foto_url || emp?.img || emp?.imagen_url || emp?.path_imagen || null;
+
+    const info = { id: key, nombre, apellidos, full, avatar };
+    EMP_CACHE.set(key, info);
+    log("[Empleado] OUT:", info);
+    return info;
   }
 
-  /* ======================================
-   * Pintado de UI (Contacto, Detalles)
-   * ====================================*/
+  /* =====================
+   * UI: Contacto/Detalles
+   * ===================*/
   function paintContacto(req) {
-    log("[UI] Pintar Contacto");
     const p = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
     if (!p) return;
     const set = (labelText, val) => {
@@ -304,8 +290,7 @@
         const txt = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
         return txt.startsWith(labelText.toLowerCase());
       });
-      const dd = row?.querySelector(".exp-val");
-      if (!dd) return;
+      const dd = row?.querySelector(".exp-val"); if (!dd) return;
       if (labelText.toLowerCase().includes("correo")) {
         const a = dd.querySelector("a") || document.createElement("a");
         a.textContent = val || "—";
@@ -313,11 +298,11 @@
         if (!dd.contains(a)) { dd.innerHTML = ""; dd.appendChild(a); }
       } else { dd.textContent = val || "—"; }
     };
-    set("Nombre",    req.contacto_nombre || "—");
-    set("Teléfono",  req.contacto_telefono || "—");
+    set("Nombre", req.contacto_nombre || "—");
+    set("Teléfono", req.contacto_telefono || "—");
     set("Dirección", [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", "));
-    set("Correo",    req.contacto_email || "—");
-    set("C.P",       req.contacto_cp || "—");
+    set("Correo", req.contacto_email || "—");
+    set("C.P", req.contacto_cp || "—");
   }
 
   function paintHeaderMeta(req) {
@@ -332,7 +317,6 @@
   }
 
   async function paintDetalles(req) {
-    log("[UI] Pintar Detalles");
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     if (!grid) return;
 
@@ -350,17 +334,14 @@
       } else { dd.textContent = value ?? "—"; }
     };
 
-    put("Nombre del Requerimiento", req.asunto || req.tramite_nombre || "—");
-
     const { dept } = await getDeptByIdOrName({
       id: req.departamento_id, nombre: req.departamento_nombre,
     });
+
+    put("Nombre del Requerimiento", req.asunto || req.tramite_nombre || "—");
     const depNode = $("#req-departamento");
     if (depNode) depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
-
-    const asignado =
-      req.asignado_id && (req.asignado_full || "").trim() ? req.asignado_full : "Sin asignar";
-    put("Asignado", asignado, true);
+    put("Asignado", (req.asignado_full || "Sin asignar"), true);
 
     updateStatusUI(req.estatus_code);
     renderActions(req.estatus_code);
@@ -370,9 +351,9 @@
     put("Fecha de terminado", req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—");
   }
 
-  /* ======================================
-   * Comentarios (GET + POST con id_usuario)
-   * ====================================*/
+  /* =====================
+   * Comentarios
+   * ===================*/
   async function listComentariosAPI({ requerimiento_id, status = 1, page = 1, page_size = 100 }) {
     const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
     log("[API] COMENT_LIST →", payload);
@@ -382,10 +363,11 @@
     return Array.isArray(raw) ? raw : Array.isArray(raw?.rows) ? raw.rows : [];
   }
 
-  // Inserta con created_by = id_usuario (empleado_id se manda null para no confundir)
-  async function createComentarioAPI({ requerimiento_id, usuario_id, comentario, status = 1 }) {
+  // created_by = id_usuario; enviamos también empleado_id para que el back pueda poblar nombres
+  async function createComentarioAPI({ requerimiento_id, usuario_id, empleado_id, comentario, status = 1 }) {
     const rid = Number(requerimiento_id);
     const uid = Number(usuario_id);
+    const eid = empleado_id != null ? Number(empleado_id) : null;
     const txt = String(comentario || "").trim();
 
     if (!Number.isFinite(rid)) throw new Error("Falta requerimiento_id válido");
@@ -396,8 +378,8 @@
       requerimiento_id: rid,
       comentario: txt,
       status: Number(status) || 1,
-      created_by: uid,   // ← requerido por el endpoint
-      empleado_id: null, // ← explícito en null
+      created_by: uid,           // requerido por el endpoint
+      empleado_id: eid ?? null,  // opcional, nos ayuda a nombre/joins
     };
 
     console.groupCollapsed("[API] COMENT_CREATE →");
@@ -420,23 +402,30 @@
     feed.innerHTML = "";
 
     for (const r of items) {
-      const nombre =
+      let display =
         r.empleado_display ||
-        [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ") ||
-        r.nombre || r.autor || "—";
-      const texto = r.comentario || r.texto || "";
+        [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ").trim();
+
+      const texto  = r.comentario || r.texto || "";
       const cuando = relShort(r.created_at || r.fecha || "");
 
-      // Prioridad: created_by (USUARIO) → fallback: empleado_id
       const idUsuario  = (Number(r.created_by) > 0 && Number(r.created_by)) || null;
       const idEmpleado = (Number(r.empleado_id) > 0 && Number(r.empleado_id)) || null;
+
+      // Si no traemos nombre, intenta hidratarlo por empleado_id
+      if (!display && idEmpleado) {
+        try {
+          const emp = await getEmpleadoById(idEmpleado);
+          display = emp?.full || display;
+        } catch (e) { /* noop */ }
+      }
+      display = display || "—";
 
       console.log("[Comentarios][Autor]", {
         comentario_id: r.id,
         created_by_raw: r.created_by,
         empleado_id_raw: r.empleado_id,
-        usado_usuario_id: idUsuario,
-        usado_empleado_fallback: idEmpleado && idEmpleado !== idUsuario ? idEmpleado : null,
+        nombre_resuelto: display,
       });
 
       const bust = `?v=${Date.now()}`;
@@ -444,12 +433,10 @@
         `/ASSETS/user/userImgs/img_${idUsuario}.png${bust}`,
         `/ASSETS/user/userImgs/img_${idUsuario}.jpg${bust}`,
       ] : [];
-
       const empCandidates = (idEmpleado && idEmpleado !== idUsuario) ? [
         `/ASSETS/user/userImgs/img_${idEmpleado}.png${bust}`,
         `/ASSETS/user/userImgs/img_${idEmpleado}.jpg${bust}`,
       ] : [];
-
       const sources = [...userCandidates, ...empCandidates, placeholderAvatar()];
 
       const art = document.createElement("article");
@@ -472,7 +459,7 @@
       art.appendChild(img);
       const box = document.createElement("div");
       box.innerHTML = `
-        <div class="who"><span class="name">${firstTwo(String(nombre))}</span> <span class="time">${cuando}</span></div>
+        <div class="who"><span class="name">${firstTwo(display)}</span> <span class="time">${cuando}</span></div>
         <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
       `;
       $(".text", box).textContent = texto;
@@ -489,10 +476,10 @@
     console.groupCollapsed("[Comentarios] list");
     try {
       const arr = await listComentariosAPI({ requerimiento_id: reqId, status: 1, page: 1, page_size: 100 });
-      await renderCommentsList(arr, reqId);
+      await renderCommentsList(arr);
     } catch (e) {
       warn("Error listando comentarios:", e);
-      await renderCommentsList([], reqId);
+      await renderCommentsList([]);
     } finally { console.groupEnd(); }
   }
 
@@ -502,12 +489,10 @@
     if (!ta || !btn) return;
 
     const s = safeGetSession();
-    const usuario_id = s?.id_usuario ?? s?.usuario_id ?? s?.cuenta_id ?? null;
+    const usuario_id  = s?.id_usuario ?? s?.usuario_id ?? s?.cuenta_id ?? null;
+    const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
 
-    console.log("[Comentarios][Send] ids de sesión (solo usuario)", {
-      usuario_id,
-      tiene_empleado_id: !!(s?.empleado_id ?? s?.id_empleado),
-    });
+    console.log("[Comentarios][Send] ids de sesión", { usuario_id, empleado_id });
 
     const send = async () => {
       const texto = (ta.value || "").trim();
@@ -521,7 +506,8 @@
       try {
         await createComentarioAPI({
           requerimiento_id: reqId,
-          usuario_id,          // ← USUARIO como created_by
+          usuario_id,         // created_by
+          empleado_id,        // ayuda a poblar nombre
           comentario: texto,
           status: 1,
         });
@@ -541,9 +527,31 @@
     });
   }
 
-  /* ======================================
-   * Reset y Boot
-   * ====================================*/
+  /* =====================
+   * Dept helper (ligero)
+   * ===================*/
+  async function getDeptByIdOrName({ id, nombre }) {
+    const wantedId = id != null ? Number(id) : null;
+    const wantedName = nombre ? norm(nombre) : null;
+    let res;
+    try { res = await postJSON(ENDPOINTS.DEPT_LIST, { page: 1, page_size: 200, status: 1 }); }
+    catch { return { dept: null, director: null, primeraLinea: null }; }
+    const arr = Array.isArray(res?.data) ? res.data : [];
+    let dept = null;
+    if (wantedId) dept = arr.find((x) => Number(x.id) === wantedId) || null;
+    if (!dept && wantedName) {
+      dept = arr.find((x) => norm(x?.nombre || "") === wantedName)
+           || arr.find((x) => norm(x?.nombre || "").startsWith(wantedName))
+           || null;
+    }
+    if (!dept && arr.length === 1) dept = arr[0] || null;
+    if (!dept) return { dept: null, director: null, primeraLinea: null };
+    return { dept: { id: Number(dept.id), nombre: String(dept.nombre || "—") }, director: null, primeraLinea: null };
+  }
+
+  /* =====================
+   * Reset & boot
+   * ===================*/
   function resetTemplate() {
     const contactVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
     contactVals.forEach((n) => {
@@ -568,7 +576,7 @@
   async function boot() {
     resetTemplate();
 
-    // Stepper (solo UI)
+    // Stepper UI
     const stepItems = $$(".step-menu li");
     stepItems.forEach((li) => {
       li.addEventListener("click", () => {
@@ -583,30 +591,19 @@
     const reqId = params.get("id");
     __CURRENT_REQ_ID__ = reqId;
     log("[Boot] reqId:", reqId);
-
     if (!reqId) { warn("Sin ?id="); return; }
 
     try {
       const req = await getRequerimientoById(reqId);
-
       const h1 = $(".exp-title h1");
       if (h1) h1.textContent = req.asunto || req.tramite_nombre || "Requerimiento";
-
       paintHeaderMeta(req);
       paintContacto(req);
       await paintDetalles(req);
-
       const sel = $('#req-status [data-role="status-select"]');
       if (sel) sel.value = String(req.estatus_code ?? 0);
-
-      // Notificar a Planeación (si alguien lo escucha)
-      try {
-        window.__REQ__ = req;
-        document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
-      } catch (e) { warn("req:loaded dispatch err:", e); }
-    } catch (e) {
-      err("Error consultando requerimiento:", e);
-    }
+      try { window.__REQ__ = req; document.dispatchEvent(new CustomEvent("req:loaded", { detail: req })); } catch {}
+    } catch (e) { err("Error consultando requerimiento:", e); }
 
     await loadComentarios(reqId);
     interceptComposer(reqId);
