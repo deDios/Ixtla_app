@@ -549,24 +549,25 @@ async function hydrateProfileFromSession() {
 
   const img = $(SEL.avatar);
   if (img) {
+    // >>> SOLO EMPLEADO <<<
+    const empleadoId = State.session.empleado_id ?? s.empleado_id ?? s.id_empleado ?? null;
+
     const sessionLike = {
-      id_usuario:
-        State.session.id_usuario ??
-        s.id_usuario ??
-        s.usuario_id ??
-        s.id_empleado,
+      // gcSetAvatarSrc espera 'id_usuario'; le pasamos el EMPLEADO_ID aquí
+      id_usuario: empleadoId,
       avatarUrl: s.avatarUrl || s.avatar,
       nombre: s.nombre,
       apellidos: s.apellidos,
     };
+
     if (window.gcSetAvatarSrc) {
       window.gcSetAvatarSrc(img, sessionLike);
     } else {
-      const idu = sessionLike.id_usuario;
-      const candidates = idu
+      // Fallback local: siempre /ASSETS/user/userImgs/img_{empleadoId}.ext
+      const candidates = empleadoId
         ? [
-            `/ASSETS/user/userImgs/img_${idu}.png`,
-            `/ASSETS/user/userImgs/img_${idu}.jpg`,
+            `/ASSETS/user/userImgs/img_${empleadoId}.png`,
+            `/ASSETS/user/userImgs/img_${empleadoId}.jpg`,
           ]
         : [];
       let i = 0;
@@ -575,10 +576,7 @@ async function hydrateProfileFromSession() {
           img.src = CONFIG.DEFAULT_AVATAR;
           return;
         }
-        img.onerror = () => {
-          i++;
-          tryNext();
-        };
+        img.onerror = () => { i++; tryNext(); };
         img.src = `${candidates[i]}?v=${Date.now()}`;
       };
       tryNext();
@@ -963,15 +961,39 @@ function refreshSidebarFromSession(sess) {
     if (nameEl && name) nameEl.textContent = name;
 
     const avatarEl = document.getElementById("hs-avatar");
-    if (avatarEl && window.gcSetAvatarSrc) {
-      const sessionLike = {
-        id_usuario:
-          s.id_usuario ?? s.usuario_id ?? s.empleado_id ?? s.id_empleado,
-        avatarUrl: s.avatarUrl || s.avatar,
-        nombre: s.nombre,
-        apellidos: s.apellidos,
-      };
-      window.gcSetAvatarSrc(avatarEl, sessionLike);
+    if (avatarEl) {
+      // >>> SOLO EMPLEADO <<<
+      const empleadoId =
+        s.empleado_id ?? s.id_empleado ?? State.session.empleado_id ?? null;
+
+      if (window.gcSetAvatarSrc) {
+        // Pasamos 'empleadoId' en la llave 'id_usuario' (compat con gcSetAvatarSrc)
+        const sessionLike = {
+          id_usuario: empleadoId,
+          avatarUrl: s.avatarUrl || s.avatar,
+          nombre: s.nombre,
+          apellidos: s.apellidos,
+        };
+        window.gcSetAvatarSrc(avatarEl, sessionLike);
+      } else {
+        // Fallback local
+        const candidates = empleadoId
+          ? [
+              `/ASSETS/user/userImgs/img_${empleadoId}.png`,
+              `/ASSETS/user/userImgs/img_${empleadoId}.jpg`,
+            ]
+          : [];
+        let i = 0;
+        const tryNext = () => {
+          if (i >= candidates.length) {
+            avatarEl.src = CONFIG.DEFAULT_AVATAR;
+            return;
+          }
+          avatarEl.onerror = () => { i++; tryNext(); };
+          avatarEl.src = `${candidates[i]}?v=${Date.now()}`;
+        };
+        tryNext();
+      }
     }
   } catch (e) {
     console.warn("[Home] refreshSidebarFromSession error:", e);

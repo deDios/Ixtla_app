@@ -151,27 +151,34 @@
   }
 
   // === Avatar helpers ===
-  function gcAvatarUrlFor(id) {
-    if (id == null) return DEFAULT_AVATAR;
-    return `${AVATAR_BASE}/img_${id}.png`;
+  function gcAvatarUrlFor(empleadoId) {
+    if (empleadoId == null) return DEFAULT_AVATAR;
+    return `${AVATAR_BASE}/img_${empleadoId}.png`;
   }
 
   function setAvatarSrc(imgEl, session) {
-    const cookieUrl = session?.avatarUrl || session?.avatar || null;
-    const id =
-      session?.id_usuario != null ? String(session.id_usuario).trim() : null;
+    // --- SIEMPRE EMPLEADO ---
+    const empleadoId = session?.empleado_id ?? session?.id_empleado ?? null;
 
-    // Orden de preferencia:
-    // 1) URL directa (si vino de la respuesta del upload)
-    // 2) NUEVO: img_{id}.png
-    // 3) LEGACY: user_{id}.png
-    // 4) DEFAULT
+    // Si tu backend devuelve una URL directa post-upload, la respetamos.
+    const cookieUrl = session?.avatarUrl || session?.avatar || null;
+
+    // Candidatos (en orden): URL directa, img_{empleadoId}.png/.jpg, DEFAULT
     const candidates = [
       ...(cookieUrl ? [cookieUrl] : []),
-      ...(id ? [`${AVATAR_BASE}/img_${id}`] : []),
-      ...(id ? [`${AVATAR_BASE}/user_${id}`] : []),
+      ...(empleadoId ? [`${AVATAR_BASE}/img_${empleadoId}`] : []),
       DEFAULT_AVATAR,
     ];
+
+    // (opcional) log para depuración
+    try {
+      console.log(
+        "[GC][Avatar] empleadoId usado:",
+        empleadoId,
+        "cookieUrl:",
+        cookieUrl
+      );
+    } catch {}
 
     setImgWithExtFallback(imgEl, candidates, {
       extOrder: ["png", "jpg"],
