@@ -12,18 +12,28 @@
   const err = (...a) => console.error("[ReqView][ERR]", ...a);
   const toast = (m, t = "info") =>
     window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m);
-  window._rvHelpers = { $, $$, toast };
+  window._rvHelpers = { $, $$, toast }; // para Planeación
+
+  // Normalizadores
+  const normName = (s = "") =>
+    String(s).trim().toLowerCase().replace(/\s+/g, " ");
+  const norm = (s = "") =>
+    String(s)
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
 
   /* ============================
-   * Endpoints
+   * Endpoints (ajustados a tu backend)
    * ============================*/
   const ENDPOINTS = {
     REQUERIMIENTO_GET: "/db/WEB/ixtla01_c_requerimiento.php",
     REQUERIMIENTO_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",
     EMPLEADOS_GET: "/db/WEB/ixtla01_c_empleado.php",
-    // Igual que en prod (ojo mayúsculas en /DB/)
-    DEPT_LIST:
-      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamento.php",
+    // ¡OJO al case de DB! usa el mismo que ya te funciona en prod:
+    DEPT_LIST: "/DB/WEB/ixtla01_c_departamento.php",
     COMENT_LIST: "/db/WEB/ixtla01_c_comentario_requerimiento.php",
     COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
     PROCESOS_LIST: "/db/WEB/ixtla01_c_proceso_requerimiento.php",
@@ -78,9 +88,10 @@
   }
   function getEmpleadoIdFromSession() {
     const s = safeGetSession();
-    return (
-      s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null
-    );
+    const empId =
+      s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
+    log("[Sesion] empleado_id detectado:", empId, "session:", s ? "(ok)" : "(null)");
+    return empId;
   }
   function relShort(when) {
     if (!when) return "—";
@@ -96,168 +107,9 @@
     const d = Math.floor(h / 24);
     return `hace ${d} d`;
   }
-
-  /* ============================
-   * Normalización
-   * ============================*/
-  function normalizeRequerimiento(raw = {}) {
-    console.groupCollapsed("[Normalize] IN");
-    console.log(raw);
-    console.groupEnd();
-    const out = {
-      id: String(raw.id ?? raw.requerimiento_id ?? ""),
-      folio: String(raw.folio ?? ""),
-      departamento_id:
-        raw.departamento_id != null ? Number(raw.departamento_id) : null,
-      departamento_nombre: String(raw.departamento_nombre || "").trim(),
-      tramite_id: raw.tramite_id != null ? Number(raw.tramite_id) : null,
-      tramite_nombre: String(raw.tramite_nombre || "").trim(),
-      asignado_id: raw.asignado_a != null ? String(raw.asignado_a) : null,
-      asignado_full: String(raw.asignado_nombre_completo || "").trim(),
-      asunto: String(raw.asunto || "").trim(),
-      descripcion: String(raw.descripcion || "").trim(),
-      prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
-      estatus_code:
-        raw.estatus != null
-          ? Number(raw.estatus)
-          : raw.status != null
-          ? Number(raw.status)
-          : 0,
-      canal: raw.canal != null ? Number(raw.canal) : null,
-      contacto_nombre: String(raw.contacto_nombre || "").trim(),
-      contacto_telefono: String(raw.contacto_telefono || "").trim(),
-      contacto_email: String(raw.contacto_email || "").trim(),
-      contacto_calle: String(raw.contacto_calle || "").trim(),
-      contacto_colonia: String(raw.contacto_colonia || "").trim(),
-      contacto_cp: String(raw.contacto_cp || "").trim(),
-      creado_at: String(raw.created_at || "").trim(),
-      cerrado_en: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
-      raw,
-    };
-    console.groupCollapsed("[Normalize] OUT");
-    console.log(out);
-    console.groupEnd();
-    return out;
-  }
-
-  /* ============================
-   * Empleados (nombre + avatar)
-   * ============================*/
-  const AVATAR_CACHE = new Map();
-
-  function normalizeAvatarUrl(raw) {
-    if (!raw) return null;
-    let url = String(raw).trim();
-    if (!url || /^(null|undefined)$/i.test(url)) return null;
-    if (!/^https?:\/\//i.test(url) && !url.startsWith("/")) {
-      url = "/" + url.replace(/^\/+/, "");
-    }
-    return url;
-  }
-  function extractAvatarFromEmpleado(empleado) {
-    const candidates = [
-      empleado?.avatar_url,
-      empleado?.foto_url,
-      empleado?.foto,
-      empleado?.img,
-      empleado?.img_perfil,
-      empleado?.imagen_url,
-      empleado?.path_imagen,
-      empleado?.imagen,
-    ];
-    for (const c of candidates) {
-      const u = normalizeAvatarUrl(c);
-      if (u) return u;
-    }
-    return null;
-  }
-  async function getEmpleadoById(id) {
-    if (id == null) return null;
-    console.groupCollapsed("[Empleado] GET BY ID →", id);
-    const res = await postJSON(ENDPOINTS.EMPLEADOS_GET, {
-      id: Number(id),
-      status: 1,
-    });
-    const payload = res?.data ?? res;
-    let emp = null;
-    if (Array.isArray(payload)) {
-      emp =
-        payload.find(
-          (e) => Number(e?.id ?? e?.empleado_id) === Number(id)
-        ) || payload[0] || null;
-    } else if (payload && typeof payload === "object") {
-      emp = payload;
-    }
-    console.log("[Empleado] payload:", payload, "pick:", emp);
-    if (!emp) {
-      console.groupEnd();
-      return null;
-    }
-    const nombre =
-      [emp.nombre, emp.nombres, emp.empleado_nombre, emp.first_name].find(
-        Boolean
-      ) || "";
-    const apellidos = [
-      emp.apellidos,
-      emp.empleado_apellidos,
-      emp.last_name,
-    ].find(Boolean) || "";
-    const info = {
-      id: Number(emp.id ?? emp.empleado_id ?? id),
-      nombre:
-        [nombre, apellidos].filter(Boolean).join(" ").trim() ||
-        (emp.empleado_display || "").trim() ||
-        "—",
-      avatar: extractAvatarFromEmpleado(emp),
-    };
-    console.log("[Empleado] OUT:", info);
-    console.groupEnd();
-    return info;
-  }
-
-  // Patrón igual que el sidebar: /ASSETS/user/userImgs/img_{id}.png (cache-bust)
-  function localAvatarCandidatesByUserId(id) {
-    if (!id) return [];
-    const v = `?v=${Date.now()}`; // para bust de cache como el sidebar
-    return [
-      `/ASSETS/user/userImgs/img_${id}.png${v}`,
-      `/ASSETS/user/userImgs/img_${id}.jpg${v}`,
-    ];
-  }
-
-  async function fetchEmpleadoAvatarUrl(empleadoId) {
-    if (!empleadoId) {
-      log("[Avatar] empleadoId vacío");
-      return null;
-    }
-    const key = String(empleadoId);
-    if (AVATAR_CACHE.has(key)) return AVATAR_CACHE.get(key);
-    try {
-      // Primero probamos patrón local (igual que sidebar)
-      const locals = localAvatarCandidatesByUserId(empleadoId);
-      AVATAR_CACHE.set(key, locals[0]); // cacheamos el primero como “intent”
-      // Luego intentamos endpoint (si trae algo, lo sobreescribimos)
-      const emp = await getEmpleadoById(empleadoId);
-      const endpointUrl = emp?.avatar ? normalizeAvatarUrl(emp.avatar) : null;
-      const finalUrl = endpointUrl || locals[0];
-      AVATAR_CACHE.set(key, finalUrl);
-      log("[Avatar] resolved", empleadoId, "→", finalUrl, "(endpoint:", endpointUrl, ")");
-      return finalUrl;
-    } catch (e) {
-      warn("[Avatar] EMPLEADOS_GET error:", e);
-      // Si algo falla, devolvemos el patrón local .png
-      const locals = localAvatarCandidatesByUserId(empleadoId);
-      AVATAR_CACHE.set(key, locals[0] || null);
-      return locals[0] || null;
-    }
-  }
-
-  function placeholderAvatar() {
-    return "/ASSETS/user/img_user1.png";
-  }
-  function srcNeedsBust(src) {
-    return !!src && !src.includes("/ASSETS/user/img_user1.png") && !/\?v=/.test(src);
-  }
+  const firstTwo = (full = "") =>
+    String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") ||
+    "—";
 
   /* ============================
    * Stepper / estatus
@@ -380,7 +232,7 @@
     );
   }
 
-  async function askMotivo(titulo = "Motivo") {
+  function askMotivo(titulo = "Motivo") {
     return new Promise((resolve, reject) => {
       const overlay = $("#modal-estado");
       const title = $("#estado-title");
@@ -523,6 +375,49 @@
   }
 
   /* ============================
+   * Normalización (sin fallbacks raros)
+   * ============================*/
+  function normalizeRequerimiento(raw = {}) {
+    console.groupCollapsed("[Normalize] IN");
+    console.log(raw);
+    console.groupEnd();
+    const out = {
+      id: String(raw.id ?? raw.requerimiento_id ?? ""),
+      folio: String(raw.folio ?? ""),
+      departamento_id:
+        raw.departamento_id != null ? Number(raw.departamento_id) : null,
+      departamento_nombre: String(raw.departamento_nombre || "").trim(),
+      tramite_id: raw.tramite_id != null ? Number(raw.tramite_id) : null,
+      tramite_nombre: String(raw.tramite_nombre || "").trim(),
+      asignado_id: raw.asignado_a != null ? String(raw.asignado_a) : null,
+      asignado_full: String(raw.asignado_nombre_completo || "").trim(),
+      asunto: String(raw.asunto || "").trim(),
+      descripcion: String(raw.descripcion || "").trim(),
+      prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
+      estatus_code:
+        raw.estatus != null
+          ? Number(raw.estatus)
+          : raw.status != null
+          ? Number(raw.status)
+          : 0,
+      canal: raw.canal != null ? Number(raw.canal) : null,
+      contacto_nombre: String(raw.contacto_nombre || "").trim(),
+      contacto_telefono: String(raw.contacto_telefono || "").trim(),
+      contacto_email: String(raw.contacto_email || "").trim(),
+      contacto_calle: String(raw.contacto_calle || "").trim(),
+      contacto_colonia: String(raw.contacto_colonia || "").trim(),
+      contacto_cp: String(raw.contacto_cp || "").trim(),
+      creado_at: String(raw.created_at || "").trim(),
+      cerrado_en: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
+      raw,
+    };
+    console.groupCollapsed("[Normalize] OUT");
+    console.log(out);
+    console.groupEnd();
+    return out;
+  }
+
+  /* ============================
    * Fetch básicos
    * ============================*/
   async function getRequerimientoById(id) {
@@ -532,34 +427,104 @@
     return normalizeRequerimiento(Array.isArray(data) ? data[0] || {} : data);
   }
 
-  // Devuelve { dept, director, primeraLinea }
-  async function getDeptByIdOrName({ id, nombre }) {
-    const payload =
-      id != null ? { id: Number(id) } : { page: 1, page_size: 50, status: 1 };
-    log("[API] DEPT_LIST →", payload);
-    const res = await postJSON(ENDPOINTS.DEPT_LIST, payload);
+  // ===== Empleados cache =====
+  const EMP_CACHE = new Map(); // id -> { id, nombre, avatar }
+  async function getEmpleadoById(id) {
+    if (id == null) return null;
+    const key = Number(id);
+    if (EMP_CACHE.has(key)) return EMP_CACHE.get(key);
 
-    console.groupCollapsed("[Dept][API] response");
-    console.log("raw:", res);
-    console.log("dataLen:", Array.isArray(res?.data) ? res.data.length : 0);
+    console.groupCollapsed("[Empleado] GET BY ID →", key);
+    const res = await postJSON(ENDPOINTS.EMPLEADOS_GET, { id: key, status: 1 });
+    const payload = res?.data ?? res;
+    let emp = null;
+
+    if (Array.isArray(payload)) {
+      emp =
+        payload.find((e) => Number(e?.id ?? e?.empleado_id) === key) ||
+        payload[0] ||
+        null;
+    } else if (payload && typeof payload === "object") {
+      emp = payload;
+    }
+
+    const nombre =
+      [emp?.nombre, emp?.nombres, emp?.empleado_nombre, emp?.first_name].find(Boolean) || "";
+    const apellidos =
+      [emp?.apellidos, emp?.empleado_apellidos, emp?.last_name].find(Boolean) || "";
+    const full =
+      [nombre, apellidos].filter(Boolean).join(" ").trim() ||
+      (emp?.empleado_display || "").trim() ||
+      "—";
+
+    const avatar =
+      emp?.avatar_url ||
+      emp?.foto_url ||
+      emp?.foto ||
+      emp?.img ||
+      emp?.img_perfil ||
+      emp?.imagen_url ||
+      emp?.path_imagen ||
+      emp?.imagen ||
+      null;
+
+    const info = {
+      id: key,
+      nombre: full,
+      avatar: avatar ? (avatar.startsWith("/") ? avatar : `/${String(avatar).replace(/^\/+/, "")}`) : null,
+    };
+
+    console.log("[Empleado] OUT:", info);
+    console.groupEnd();
+    EMP_CACHE.set(key, info);
+    return info;
+  }
+
+  /* ============================
+   * Departamentos: siempre lista + filtro en cliente
+   * ============================*/
+  async function getDeptByIdOrName({ id, nombre }) {
+    const wantedId = id != null ? Number(id) : null;
+    const wantedName = nombre ? norm(nombre) : null;
+
+    const payload = { page: 1, page_size: 200, status: 1 /*, all: true*/ };
+    console.groupCollapsed("[Dept][HTTP] POST (lista completa)", ENDPOINTS.DEPT_LIST);
+    console.log("→ payload:", payload, "(el back ignora filtro por id; filtramos en cliente)");
+    let res;
+    try {
+      res = await postJSON(ENDPOINTS.DEPT_LIST, payload);
+    } catch (e) {
+      console.groupEnd();
+      warn("[Dept] fallo fetch lista completa:", e);
+      return { dept: null, director: null, primeraLinea: null };
+    }
+    const arr = Array.isArray(res?.data) ? res.data : [];
+    console.log("← rows:", arr.length);
     console.groupEnd();
 
-    const arr = Array.isArray(res?.data) ? res.data : [];
+    console.groupCollapsed("[Dept][DATA] primeros 5");
+    console.log(arr.slice(0, 5));
+    console.groupEnd();
+
     let dept = null;
-    if (id != null) {
-      dept = arr.find((d) => Number(d.id) === Number(id)) || null;
+    if (wantedId) {
+      dept = arr.find((x) => Number(x.id) === wantedId) || null;
     }
-    if (!dept && nombre) {
-      const n = String(nombre).trim().toLowerCase();
+    if (!dept && wantedName) {
       dept =
-        arr.find(
-          (d) => String(d.nombre || "").trim().toLowerCase() === n
-        ) || null;
+        arr.find((x) => norm(x?.nombre || "") === wantedName) ||
+        arr.find((x) => norm(x?.nombre || "").startsWith(wantedName)) ||
+        null;
     }
-    if (!dept && arr.length === 1) dept = arr[0];
+    if (!dept && arr.length === 1) dept = arr[0] || null;
 
     if (!dept) {
-      warn("[Dept][Pick] No se encontró dept para:", { id, nombre });
+      warn("[Dept][Pick] No se encontró dept con:", {
+        wantedId,
+        wantedName,
+        len: arr.length,
+        sample: arr.map((d) => ({ id: d.id, nombre: d.nombre })).slice(0, 8),
+      });
       return { dept: null, director: null, primeraLinea: null };
     }
 
@@ -574,11 +539,11 @@
       primera_apellidos: String(dept.primera_apellidos || ""),
     };
 
-    console.groupCollapsed("[Dept][Pick] selected dept");
-    console.log(infoDept);
+    console.groupCollapsed("[Dept][Pick] seleccionado");
+    console.table(infoDept);
     console.groupEnd();
 
-    // Director por empleado_id (si existe)
+    // Director
     let director = null;
     if (infoDept.director_id) {
       try {
@@ -587,26 +552,22 @@
         console.log(director);
         console.groupEnd();
       } catch (e) {
-        warn("[Dept] getEmpleadoById error:", e);
+        warn("[Dept] getEmpleadoById(director) error:", e);
       }
     }
-    // Si no se pudo, usa los campos *_nombre del dept
     if (!director) {
-      const nombreFull = [infoDept.director_nombre, infoDept.director_apellidos]
-        .filter(Boolean)
-        .join(" ")
-        .trim() || "—";
-      director = {
-        id: infoDept.director_id,
-        nombre: nombreFull,
-        avatar: null,
-      };
+      const full =
+        [infoDept.director_nombre, infoDept.director_apellidos]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "—";
+      director = { id: infoDept.director_id, nombre: full, avatar: null };
       console.groupCollapsed("[Dept][Director] from dept fields");
       console.log(director);
       console.groupEnd();
     }
 
-    // Primera línea (por si la quieres después)
+    // Primera línea
     let primeraLinea = null;
     if (infoDept.primera_linea_id) {
       try {
@@ -614,10 +575,11 @@
       } catch {}
     }
     if (!primeraLinea) {
-      const full = [infoDept.primera_nombre, infoDept.primera_apellidos]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
+      const full =
+        [infoDept.primera_nombre, infoDept.primera_apellidos]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
       if (full) primeraLinea = { id: infoDept.primera_linea_id, nombre: full, avatar: null };
     }
 
@@ -629,7 +591,7 @@
   }
 
   /* ============================
-   * Pintado UI
+   * Pintado UI (a tu HTML)
    * ============================*/
   function paintContacto(req) {
     log("[UI] Pintar Contacto");
@@ -673,6 +635,7 @@
     const ddF = $(".exp-meta > div:nth-child(3) dd");
     if (ddC) ddC.textContent = req.contacto_nombre || "—";
 
+    // Encargado (Asignado) — si no hay, “Sin asignar”
     const asignado =
       req.asignado_id && (req.asignado_full || "").trim()
         ? req.asignado_full
@@ -713,28 +676,24 @@
     // Nombre del Requerimiento:
     put("Nombre del Requerimiento", req.asunto || req.tramite_nombre || "—");
 
-    // Departamento + Director (real)
-    let deptName = req.departamento_nombre || "—";
-    let directorFull = "—";
-    try {
-      const { dept, director, primeraLinea } = await getDeptByIdOrName({
-        id: req.departamento_id,
-        nombre: req.departamento_nombre,
-      });
-      if (dept?.nombre) deptName = dept.nombre;
-      if (director?.nombre) directorFull = director.nombre;
+    // Departamento + Director (líder del departamento)
+    log("[UI] Dept lookup with", {
+      req_departamento_id: req.departamento_id,
+      req_departamento_nombre: req.departamento_nombre,
+    });
+    const { dept, director, primeraLinea } = await getDeptByIdOrName({
+      id: req.departamento_id,
+      nombre: req.departamento_nombre,
+    });
+    console.groupCollapsed("[UI] Dept/Director/PrimeraLinea (para pintar)");
+    console.log({ dept, director, primeraLinea });
+    console.groupEnd();
 
-      console.groupCollapsed("[UI] Dept/Director/PrimeraLinea (para pintar)");
-      console.log({ dept, director, primeraLinea });
-      console.groupEnd();
-    } catch (e) {
-      warn("Dept/Director fetch error:", e);
-    }
-
-    // Pintado
-    put("Líder del Departamento", directorFull, true);
+    // Líder del Departamento:
+    put("Líder del Departamento", director?.nombre || "—", true);
+    // Departamento:
     const depNode = $("#req-departamento");
-    if (depNode) depNode.textContent = deptName || "—";
+    if (depNode) depNode.textContent = (dept?.nombre || req.departamento_nombre || "—");
 
     // Asignado:
     const asignado =
@@ -747,19 +706,19 @@
     updateStatusUI(req.estatus_code);
     renderActions(req.estatus_code);
 
-    // Descripción y Fechas:
+    // Descripción:
     put("Descripción", req.descripcion || "—");
+
+    // Fechas:
     put("Fecha de inicio", (req.creado_at || "").split(" ")[0] || "—");
     put(
       "Fecha de terminado",
       req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—"
     );
-
-    log("[UI] Director pintado:", directorFull, "Dept:", deptName);
   }
 
   /* ============================
-   * Comentarios
+   * Comentarios (con logs y avatars por empleado_id)
    * ============================*/
   async function listComentariosAPI({
     requerimiento_id,
@@ -779,7 +738,6 @@
     const raw = res?.data ?? res?.items ?? res;
     return Array.isArray(raw) ? raw : Array.isArray(raw?.rows) ? raw.rows : [];
   }
-
   async function createComentarioAPI({
     requerimiento_id,
     empleado_id,
@@ -789,15 +747,22 @@
   }) {
     const payload = {
       requerimiento_id: Number(requerimiento_id),
-      empleado_id: empleado_id ?? null,
+      empleado_id: empleado_id ?? null, // EMPLEADO
       comentario,
       status,
-      created_by: created_by ?? empleado_id ?? null,
+      created_by: created_by ?? empleado_id ?? null, // EMPLEADO
     };
     log("[API] COMENT_CREATE →", payload);
     const r = await postJSON(ENDPOINTS.COMENT_CREATE, payload);
     log("[API] COMENT_CREATE ←", r);
     return r;
+  }
+
+  function placeholderAvatar() {
+    return "/ASSETS/user/img_user1.png";
+  }
+  function srcNeedsBust(src) {
+    return !src.includes("/ASSETS/user/img_user1.png");
   }
 
   async function renderCommentsList(items = [], reqId) {
@@ -811,20 +776,52 @@
     feed.innerHTML = "";
 
     for (const r of items) {
-      const empleadoId = r.empleado_id ?? r.created_by ?? null;
       const nombre =
-        (r.empleado_display || "").trim() ||
-        [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ").trim() ||
+        r.empleado_display ||
+        [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ") ||
         r.nombre ||
         r.autor ||
-        String(empleadoId || "—");
+        "—";
       const texto = r.comentario || r.texto || "";
       const cuando = relShort(r.created_at || r.fecha || "");
 
-      // 1) patrón local como el sidebar
-      const localCandidates = localAvatarCandidatesByUserId(empleadoId);
-      // 2) endpoint empleado (si trae algo)
-      const endpointUrl = await fetchEmpleadoAvatarUrl(empleadoId);
+      // === DECISIÓN: usar empleado_id como fuente principal; fallback a created_by
+      const empleadoId =
+        (Number(r.empleado_id) > 0 && Number(r.empleado_id)) ||
+        (Number(r.created_by) > 0 && Number(r.created_by)) ||
+        null;
+
+      console.log("[Comentarios][Autor]", {
+        comentario_id: r.id,
+        empleado_id_raw: r.empleado_id,
+        created_by_raw: r.created_by,
+        empleado_id_usado: empleadoId,
+        nombrePlano: nombre,
+      });
+
+      // Avatares tipo sidebar: /ASSETS/user/userImgs/img_{empleadoId}.{ext}?v=...
+      const bust = `?v=${Date.now()}`;
+      const localCandidates = empleadoId
+        ? [
+            `/ASSETS/user/userImgs/img_${empleadoId}.png${bust}`,
+            `/ASSETS/user/userImgs/img_${empleadoId}.jpg${bust}`,
+          ]
+        : [];
+
+      // Intento de avatar desde endpoint empleado (por si existiera una URL guardada)
+      let endpointUrl = null;
+      try {
+        const emp = empleadoId ? await getEmpleadoById(empleadoId) : null;
+        endpointUrl = emp?.avatar || null;
+      } catch (e) {
+        warn("[Avatar] getEmpleadoById fallo:", e);
+      }
+
+      const sources = [
+        ...localCandidates,
+        endpointUrl,
+        placeholderAvatar(),
+      ].filter(Boolean);
 
       const art = document.createElement("article");
       art.className = "msg";
@@ -832,28 +829,23 @@
       img.className = "avatar";
       img.alt = "";
 
-      const sources = [
-        ...localCandidates,             // primero PNG/JPG locales con ?v=...
-        endpointUrl,                    // luego endpoint si existe
-        placeholderAvatar(),            // por último placeholder
-      ].filter(Boolean);
-
       let i = 0;
       const tryNext = () => {
         if (i >= sources.length) {
           img.src = placeholderAvatar();
           return;
         }
-        let src = sources[i];
-        if (srcNeedsBust(src)) src += `?v=${Date.now()}`;
+        const src = `${sources[i]}${
+          srcNeedsBust(sources[i]) ? (sources[i].includes("?") ? "" : `?v=${Date.now()}`) : ""
+        }`;
         log(`[Avatar][load] trying[${i}] →`, src);
         img.onerror = () => {
-          log("[Avatar][error]", src);
+          log(`[Avatar][error]`, src);
           i++;
           tryNext();
         };
         img.onload = () => {
-          log("[Avatar][ok]", src);
+          log(`[Avatar][ok]`, src);
         };
         img.src = src;
       };
@@ -862,7 +854,9 @@
       art.appendChild(img);
       const box = document.createElement("div");
       box.innerHTML = `
-        <div class="who"><span class="name">${nombre}</span> <span class="time">${cuando}</span></div>
+        <div class="who"><span class="name">${firstTwo(
+          String(nombre)
+        )}</span> <span class="time">${cuando}</span></div>
         <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
       `;
       $(".text", box).textContent = texto;
@@ -885,18 +879,19 @@
         page_size: 100,
       });
 
-      // Prefetch de avatares (ids únicos)
+      // Prefetch empleados (por performance, IDs únicos de empleado_id y created_by)
       const ids = Array.from(
         new Set(
           arr
-            .map((r) => r.empleado_id ?? r.created_by)
-            .filter((id) => id != null)
+            .flatMap((r) => [
+              Number(r.empleado_id) || null,
+              Number(r.created_by) || null,
+            ])
+            .filter(Boolean)
         )
       );
-      log("[Comentarios] prefetch avatar IDs:", ids);
-      await Promise.all(
-        ids.map((id) => fetchEmpleadoAvatarUrl(id).catch(() => null))
-      );
+      log("[Comentarios] prefetch empleado IDs:", ids);
+      await Promise.all(ids.map((id) => getEmpleadoById(id).catch(() => null)));
 
       await renderCommentsList(arr, reqId);
     } catch (e) {
@@ -912,20 +907,32 @@
     const btn = $(".composer .send-fab");
     if (!ta || !btn) return;
     const s = safeGetSession();
+
     const empleado_id =
       s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
+    const usuario_id = s?.id_usuario ?? null;
+
+    console.log("[Comentarios][Send] ids de sesión", {
+      empleado_id,
+      usuario_id,
+    });
 
     const send = async () => {
       const texto = (ta.value || "").trim();
       if (!texto) return;
+      if (!empleado_id) {
+        console.error("[Comentarios][Send] No hay empleado_id en sesión; abort");
+        toast("No se encontró tu empleado en la sesión.", "danger");
+        return;
+      }
       btn.disabled = true;
       try {
         await createComentarioAPI({
           requerimiento_id: reqId,
-          empleado_id,
+          empleado_id, // EMPLEADO
           comentario: texto,
           status: 1,
-          created_by: empleado_id,
+          created_by: empleado_id, // EMPLEADO
         });
         ta.value = "";
         await loadComentarios(reqId);
@@ -949,9 +956,10 @@
   }
 
   /* ============================
-   * Reset / Boot / UI extras
+   * Reset y Boot
    * ============================*/
   function resetTemplate() {
+    // Limpia lo visible
     const contactVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
     contactVals.forEach((n) => {
       const a = n.querySelector("a");
@@ -974,25 +982,9 @@
     });
     $(".exp-title h1") && ($(".exp-title h1").textContent = "—");
     $$(".exp-meta dd").forEach((dd) => (dd.textContent = "—"));
+    // comentarios de demo fuera
     const feed = $(".c-feed");
     if (feed) feed.innerHTML = "";
-  }
-
-  function wireStatusSelectToggle() {
-    const btn = $('#req-status [data-role="status-btn"]');
-    const sel = $('#req-status [data-role="status-select"]');
-    if (!btn || !sel) return;
-    btn.addEventListener("click", () => {
-      const hidden = sel.hasAttribute("hidden");
-      if (hidden) sel.removeAttribute("hidden");
-      else sel.setAttribute("hidden", "");
-    });
-    sel.addEventListener("change", () => {
-      const code = Number(sel.value || 0);
-      updateStatusUI(code);
-      renderActions(code);
-      toast("Estatus actualizado en UI (pendiente backend).", "info");
-    });
   }
 
   let __CURRENT_REQ_ID__ = null;
@@ -1011,8 +1003,6 @@
       });
     });
 
-    wireStatusSelectToggle();
-
     const params = new URL(window.location.href).searchParams;
     const reqId = params.get("id");
     __CURRENT_REQ_ID__ = reqId;
@@ -1025,6 +1015,7 @@
 
     try {
       const req = await getRequerimientoById(reqId);
+      // Título
       const h1 = $(".exp-title h1");
       if (h1)
         h1.textContent = req.asunto || req.tramite_nombre || "Requerimiento";
@@ -1033,9 +1024,11 @@
       paintContacto(req);
       await paintDetalles(req);
 
+      // exp-status select sync
       const sel = $('#req-status [data-role="status-select"]');
       if (sel) sel.value = String(req.estatus_code ?? 0);
 
+      // Notificar a Planeación
       try {
         window.__REQ__ = req;
         document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
