@@ -475,145 +475,103 @@
     return Array.isArray(raw) ? raw : Array.isArray(raw?.rows) ? raw.rows : [];
   }
 
-  async function createComentarioAPI({ requerimiento_id, empleado_id, comentario, status = 1, created_by }) {
-    const s = safeGetSession() || {};
-    const usuario_id = s?.id_usuario ?? s?.usuario_id ?? null; // si existe, viaja
+  async function createComentarioAPI({
+  requerimiento_id,
+  usuario_id,     // ← principal
+  comentario,
+  status = 1
+}) {
+  const payload = {
+    requerimiento_id: Number(requerimiento_id),
+    comentario,
+    status,
 
-    const payload = {
-      requerimiento_id: Number(requerimiento_id),
-      empleado_id: empleado_id ?? null,
-      comentario,
-      status,
-      created_by: created_by ?? empleado_id ?? null,
-      ...(usuario_id ? { usuario_id } : {}), // ← si tu API lo acepta, mejor
-    };
-    log("[API] COMENT_CREATE →", payload);
-    const r = await postJSON(ENDPOINTS.COMENT_CREATE, payload);
-    log("[API] COMENT_CREATE ←", r);
-    return r;
-  }
+    // mandamos el id de usuario en los alias comunes del back
+    usuario_id: usuario_id ?? null,
+    id_usuario: usuario_id ?? null,
+    cuenta_id:  usuario_id ?? null,
+    created_by_usuario: usuario_id ?? null
+  };
+
+  console.log("[API] COMENT_CREATE → (solo usuario_id)", payload);
+  const r = await postJSON(ENDPOINTS.COMENT_CREATE, payload);
+  console.log("[API] COMENT_CREATE ←", r);
+  return r;
+}
+
 
   function placeholderAvatar() { return "/ASSETS/user/img_user1.png"; }
 
   async function renderCommentsList(items = [], reqId) {
-    console.groupCollapsed("[Comentarios][UI] render");
-    console.log("items(raw):", items);
-    const feed = $(".c-feed");
-    if (!feed) { console.groupEnd(); return; }
-    feed.innerHTML = "";
+  console.groupCollapsed("[Comentarios][UI] render");
+  console.log("items(raw):", items);
+  const feed = $(".c-feed");
+  if (!feed) { console.groupEnd(); return; }
+  feed.innerHTML = "";
 
-    const sess = safeGetSession() || {};
-    const myEmpleadoId = sess?.empleado_id ?? sess?.id_empleado ?? null;
-    const myUsuarioId  = sess?.id_usuario  ?? sess?.usuario_id  ?? null;
+  const bust = `?v=${Date.now()}`;
 
-    // SRC EXACTO actualmente visible (sidebar/header) para el usuario actual
-    const sidebarImgEl =
-      document.getElementById("hs-avatar") ||
-      document.querySelector(".user-icon img.img-perfil") ||
-      document.querySelector(".user-icon-mobile img");
-    const myExactAvatarSrc =
-      (sidebarImgEl?.getAttribute("data-src-resolved")) ||
-      (sidebarImgEl?.getAttribute("src")) || null;
+  for (const r of items) {
+    const nombre =
+      r.empleado_display ||
+      [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ") ||
+      r.nombre || r.autor || "—";
+    const texto  = r.comentario || r.texto || "";
+    const cuando = relShort(r.created_at || r.fecha || "");
 
-    console.log("[Comentarios][Avatar][Yo]", { myEmpleadoId, myUsuarioId, myExactAvatarSrc });
+    // **principal**: id de usuario que idealmente regresará el endpoint
+    const userId =
+      Number(r.id_usuario ?? r.usuario_id ?? r.cuenta_id ?? NaN);
 
-    for (const r of items) {
-      const nombre =
-        r.empleado_display ||
-        [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ") ||
-        r.nombre || r.autor || "—";
-      const texto  = r.comentario || r.texto || "";
-      const cuando = relShort(r.created_at || r.fecha || "");
-
-      const rawUsuarioId  = Number(r.usuario_id || r.created_by_user) || null;
-      const rawEmpleadoId = Number(r.empleado_id || r.created_by)      || null;
-
-      const isMine =
-        (myEmpleadoId && rawEmpleadoId && Number(myEmpleadoId) === Number(rawEmpleadoId)) ||
-        (myUsuarioId  && rawUsuarioId  && Number(myUsuarioId)  === Number(rawUsuarioId));
-
-      const bust = `?v=${Date.now()}`;
-      let candidates = [];
-
-      if (isMine && myExactAvatarSrc) {
-        candidates.push(myExactAvatarSrc.includes("?") ? myExactAvatarSrc : (myExactAvatarSrc + bust));
-      }
-
-      if (rawUsuarioId) {
-        candidates.push(`/ASSETS/user/userImgs/img_${rawUsuarioId}.png${bust}`);
-        candidates.push(`/ASSETS/user/userImgs/img_${rawUsuarioId}.jpg${bust}`);
-      }
-
-      let endpointUrl = null;
-      if (!rawUsuarioId && rawEmpleadoId) {
-        try {
-          const emp = await getEmpleadoById(rawEmpleadoId);
-          if (emp?.usuario_id) {
-            candidates.push(`/ASSETS/user/userImgs/img_${emp.usuario_id}.png${bust}`);
-            candidates.push(`/ASSETS/user/userImgs/img_${emp.usuario_id}.jpg${bust}`);
-          }
-          endpointUrl = emp?.avatar || null;
-        } catch (e) { warn("[Comentarios][Avatar] getEmpleadoById fallo:", e); }
-      } else {
-        if (rawEmpleadoId && !endpointUrl) {
-          try {
-            const emp = await getEmpleadoById(rawEmpleadoId);
-            endpointUrl = emp?.avatar || null;
-          } catch {}
-        }
-      }
-
-      if (!rawUsuarioId && !rawEmpleadoId && isMine && myUsuarioId) {
-        candidates.push(`/ASSETS/user/userImgs/img_${myUsuarioId}.png${bust}`);
-        candidates.push(`/ASSETS/user/userImgs/img_${myUsuarioId}.jpg${bust}`);
-      }
-
-      if (endpointUrl) candidates.push(endpointUrl.includes("?") ? endpointUrl : (endpointUrl + bust));
-      candidates.push(placeholderAvatar());
-
-      candidates = Array.from(new Set(candidates.filter(Boolean)));
-
-      console.log("[Comentarios][Avatar][candidatos]", {
-        comentario_id: r.id,
-        rawUsuarioId, rawEmpleadoId, isMine,
-        candidates,
-      });
-
-      const art = document.createElement("article");
-      art.className = "msg";
-
-      const img = document.createElement("img");
-      img.className = "avatar";
-      img.alt = "";
-
-      let i = 0;
-      const tryNext = () => {
-        if (i >= candidates.length) { img.src = placeholderAvatar(); return; }
-        const src = candidates[i++];
-        log("[Avatar][try]", src);
-        img.onerror = () => { log("[Avatar][error]", src); tryNext(); };
-        img.onload  = () => { log("[Avatar][ok]", src); };
-        img.src = src;
-      };
-      tryNext();
-
-      art.appendChild(img);
-
-      const box = document.createElement("div");
-      box.innerHTML = `
-        <div class="who"><span class="name">${firstTwo(String(nombre))}</span> <span class="time">${cuando}</span></div>
-        <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
-      `;
-      $(".text", box).textContent = texto;
-
-      art.appendChild(box);
-      feed.appendChild(art);
+    // candidatos SOLO por usuario; si no hay, placeholder
+    const sources = [];
+    if (Number.isFinite(userId)) {
+      sources.push(`/ASSETS/user/userImgs/img_${userId}.png${bust}`);
+      sources.push(`/ASSETS/user/userImgs/img_${userId}.jpg${bust}`);
     }
+    sources.push(placeholderAvatar());
 
-    const scroller = feed.parentElement || feed;
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
-    console.groupEnd();
+    console.log("[Comentarios][Autor]", {
+      comentario_id: r.id,
+      userId_usado: Number.isFinite(userId) ? userId : null,
+      nombrePlano: nombre,
+      sourcesPreview: sources.slice(0,3)
+    });
+
+    const art = document.createElement("article");
+    art.className = "msg";
+
+    const img = document.createElement("img");
+    img.className = "avatar";
+    img.alt = "";
+
+    let i = 0;
+    const tryNext = () => {
+      if (i >= sources.length) { img.src = placeholderAvatar(); return; }
+      const src = sources[i++];
+      img.onerror = () => { console.log("[Avatar][error]", src); tryNext(); };
+      img.onload  = () => { console.log("[Avatar][ok]", src); };
+      img.src = src;
+    };
+    tryNext();
+
+    const box = document.createElement("div");
+    box.innerHTML = `
+      <div class="who"><span class="name">${firstTwo(String(nombre))}</span> <span class="time">${cuando}</span></div>
+      <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
+    `;
+    $(".text", box).textContent = texto;
+
+    art.appendChild(img);
+    art.appendChild(box);
+    feed.appendChild(art);
   }
+
+  const scroller = feed.parentElement || feed;
+  scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+  console.groupEnd();
+}
+
 
   async function loadComentarios(reqId) {
     console.groupCollapsed("[Comentarios] list");
@@ -634,46 +592,49 @@
   }
 
   function interceptComposer(reqId) {
-    const ta  = $(".composer textarea");
-    const btn = $(".composer .send-fab");
-    if (!ta || !btn) return;
+  const ta  = $(".composer textarea");
+  const btn = $(".composer .send-fab");
+  if (!ta || !btn) return;
 
-    const s = safeGetSession();
-    const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
-    console.log("[Comentarios][Send] ids de sesión:", {
-      empleado_id, id_usuario: s?.id_usuario ?? s?.usuario_id ?? null
-    });
+  const s = safeGetSession();
+  const usuario_id = s?.id_usuario ?? s?.usuario_id ?? s?.cuenta_id ?? null;
 
-    const send = async () => {
-      const texto = (ta.value || "").trim();
-      if (!texto) return;
-      if (!empleado_id) {
-        console.error("[Comentarios][Send] No hay empleado_id en sesión; abort");
-        toast("No se encontró tu empleado en la sesión.","danger");
-        return;
-      }
-      btn.disabled = true;
-      try {
-        await createComentarioAPI({
-          requerimiento_id: reqId,
-          empleado_id,               // EMPLEADO
-          comentario: texto,
-          status: 1,
-          created_by: empleado_id,   // EMPLEADO también
-        });
-        ta.value = "";
-        await loadComentarios(reqId);
-      } catch (e) {
-        err("crear comentario:", e);
-        toast("No se pudo enviar el comentario.","danger");
-      } finally { btn.disabled = false; }
-    };
+  console.log("[Comentarios][Send] sesión:", { usuario_id });
 
-    btn.addEventListener("click", (e) => { e.preventDefault(); send(); });
-    ta.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-    });
-  }
+  const send = async () => {
+    const texto = (ta.value || "").trim();
+    if (!texto) return;
+
+    if (!usuario_id) {
+      console.error("[Comentarios][Send] Sin id_usuario en sesión.");
+      toast("No se encontró tu usuario en la sesión.", "danger");
+      return;
+    }
+
+    btn.disabled = true;
+    try {
+      await createComentarioAPI({
+        requerimiento_id: reqId,
+        usuario_id,          // ← único identificador
+        comentario: texto,
+        status: 1
+      });
+      ta.value = "";
+      await loadComentarios(reqId);
+    } catch (e) {
+      err("crear comentario:", e);
+      toast("No se pudo enviar el comentario.", "danger");
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  btn.addEventListener("click", (e) => { e.preventDefault(); send(); });
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+}
+
 
   /* ============================
    * Reset + Boot
