@@ -88,9 +88,12 @@
   }
   function getEmpleadoIdFromSession() {
     const s = safeGetSession();
-    const empId =
-      s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
-    log("[Sesion] empleado_id detectado:", empId, "session:", s ? "(ok)" : "(null)");
+    const empId = s?.empleado_id ?? s?.id_empleado ?? null;
+    if (!empId) {
+      warn("[Sesion] NO hay empleado_id en la cookie/sesión. Sesión:", s);
+    } else {
+      log("[Sesion] empleado_id detectado:", empId);
+    }
     return empId;
   }
   function relShort(when) {
@@ -449,9 +452,12 @@
     }
 
     const nombre =
-      [emp?.nombre, emp?.nombres, emp?.empleado_nombre, emp?.first_name].find(Boolean) || "";
+      [emp?.nombre, emp?.nombres, emp?.empleado_nombre, emp?.first_name].find(
+        Boolean
+      ) || "";
     const apellidos =
-      [emp?.apellidos, emp?.empleado_apellidos, emp?.last_name].find(Boolean) || "";
+      [emp?.apellidos, emp?.empleado_apellidos, emp?.last_name].find(Boolean) ||
+      "";
     const full =
       [nombre, apellidos].filter(Boolean).join(" ").trim() ||
       (emp?.empleado_display || "").trim() ||
@@ -471,7 +477,11 @@
     const info = {
       id: key,
       nombre: full,
-      avatar: avatar ? (avatar.startsWith("/") ? avatar : `/${String(avatar).replace(/^\/+/, "")}`) : null,
+      avatar: avatar
+        ? avatar.startsWith("/")
+          ? avatar
+          : `/${String(avatar).replace(/^\/+/, "")}`
+        : null,
     };
 
     console.log("[Empleado] OUT:", info);
@@ -488,8 +498,15 @@
     const wantedName = nombre ? norm(nombre) : null;
 
     const payload = { page: 1, page_size: 200, status: 1 /*, all: true*/ };
-    console.groupCollapsed("[Dept][HTTP] POST (lista completa)", ENDPOINTS.DEPT_LIST);
-    console.log("→ payload:", payload, "(el back ignora filtro por id; filtramos en cliente)");
+    console.groupCollapsed(
+      "[Dept][HTTP] POST (lista completa)",
+      ENDPOINTS.DEPT_LIST
+    );
+    console.log(
+      "→ payload:",
+      payload,
+      "(el back ignora filtro por id; filtramos en cliente)"
+    );
     let res;
     try {
       res = await postJSON(ENDPOINTS.DEPT_LIST, payload);
@@ -575,12 +592,16 @@
       } catch {}
     }
     if (!primeraLinea) {
-      const full =
-        [infoDept.primera_nombre, infoDept.primera_apellidos]
-          .filter(Boolean)
-          .join(" ")
-          .trim();
-      if (full) primeraLinea = { id: infoDept.primera_linea_id, nombre: full, avatar: null };
+      const full = [infoDept.primera_nombre, infoDept.primera_apellidos]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      if (full)
+        primeraLinea = {
+          id: infoDept.primera_linea_id,
+          nombre: full,
+          avatar: null,
+        };
     }
 
     return {
@@ -693,7 +714,8 @@
     put("Líder del Departamento", director?.nombre || "—", true);
     // Departamento:
     const depNode = $("#req-departamento");
-    if (depNode) depNode.textContent = (dept?.nombre || req.departamento_nombre || "—");
+    if (depNode)
+      depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
 
     // Asignado:
     const asignado =
@@ -836,7 +858,11 @@
           return;
         }
         const src = `${sources[i]}${
-          srcNeedsBust(sources[i]) ? (sources[i].includes("?") ? "" : `?v=${Date.now()}`) : ""
+          srcNeedsBust(sources[i])
+            ? sources[i].includes("?")
+              ? ""
+              : `?v=${Date.now()}`
+            : ""
         }`;
         log(`[Avatar][load] trying[${i}] →`, src);
         img.onerror = () => {
@@ -903,57 +929,53 @@
   }
 
   function interceptComposer(reqId) {
-    const ta = $(".composer textarea");
-    const btn = $(".composer .send-fab");
-    if (!ta || !btn) return;
-    const s = safeGetSession();
+  const ta = $(".composer textarea");
+  const btn = $(".composer .send-fab");
+  if (!ta || !btn) return;
 
-    const empleado_id =
-      s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
-    const usuario_id = s?.id_usuario ?? null;
+  const s = safeGetSession();
+  // Solo usamos empleado_id para todo (empleado_id y created_by)
+  const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
 
-    console.log("[Comentarios][Send] ids de sesión", {
-      empleado_id,
-      usuario_id,
-    });
+  console.log("[Comentarios][Send] ids de sesión (solo empleado)", {
+    empleado_id,
+    tiene_id_usuario: !!(s?.id_usuario ?? s?.usuario_id),
+    tiene_cuenta_id: !!(s?.cuenta_id ?? s?.id_cuenta),
+  });
 
-    const send = async () => {
-      const texto = (ta.value || "").trim();
-      if (!texto) return;
-      if (!empleado_id) {
-        console.error("[Comentarios][Send] No hay empleado_id en sesión; abort");
-        toast("No se encontró tu empleado en la sesión.", "danger");
-        return;
-      }
-      btn.disabled = true;
-      try {
-        await createComentarioAPI({
-          requerimiento_id: reqId,
-          empleado_id, // EMPLEADO
-          comentario: texto,
-          status: 1,
-          created_by: empleado_id, // EMPLEADO
-        });
-        ta.value = "";
-        await loadComentarios(reqId);
-      } catch (e) {
-        err("crear comentario:", e);
-        toast("No se pudo enviar el comentario.", "danger");
-      } finally {
-        btn.disabled = false;
-      }
-    };
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      send();
-    });
-    ta.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        send();
-      }
-    });
-  }
+  const send = async () => {
+    const texto = (ta.value || "").trim();
+    if (!texto) return;
+    if (!empleado_id) {
+      console.error("[Comentarios][Send] No hay empleado_id en sesión; abort");
+      toast("No se encontró tu empleado en la sesión.", "danger");
+      return;
+    }
+    btn.disabled = true;
+    try {
+      await createComentarioAPI({
+        requerimiento_id: reqId,
+        empleado_id,      // ← EMPLEADO
+        comentario: texto,
+        status: 1,
+        created_by: empleado_id,  // ← EMPLEADO también
+      });
+      ta.value = "";
+      await loadComentarios(reqId);
+    } catch (e) {
+      err("crear comentario:", e);
+      toast("No se pudo enviar el comentario.", "danger");
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  btn.addEventListener("click", (e) => { e.preventDefault(); send(); });
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+}
+
 
   /* ============================
    * Reset y Boot
