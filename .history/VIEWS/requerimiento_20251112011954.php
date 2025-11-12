@@ -750,24 +750,6 @@
         </div>
     </div>
 
-    <!-- Modal: Asignar requerimiento -->
-    <div id="modal-asignar-req" class="modal-overlay" aria-hidden="true">
-        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="asignar-title">
-            <button class="modal-close" type="button" aria-label="Cerrar">✕</button>
-            <h2 id="asignar-title">Asignar requerimiento</h2>
-
-            <form id="form-asignar-req" class="form">
-                <div class="form-row">
-                    <label for="sel-asignado-req">Empleado</label>
-                    <select id="sel-asignado-req">
-                        <option value="" disabled selected>Selecciona responsable…</option>
-                    </select>
-                </div>
-                <button id="btn-guardar-asignacion" class="btn-submit" type="submit">Asignar</button>
-                <p class="muted" style="margin-top:8px">Se actualizará el responsable del requerimiento.</p>
-            </form>
-        </div>
-    </div>
 
 
 

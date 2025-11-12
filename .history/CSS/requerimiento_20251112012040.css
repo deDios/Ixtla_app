@@ -1064,89 +1064,16 @@ body.modal-open { overflow: hidden; }
 
 
 
-/* ===========================
-   Detalles → Asignar req (scoped)
-   =========================== */
-
-/* Botón lápiz en línea (junto al nombre) */
-.inline-edit-btn{
-  display:inline-grid; place-items:center;
-  width:28px; height:28px;
-  margin-left:8px;                        /* separa del texto */
-  vertical-align: text-bottom;            /* no “empuja” el label */
-  border-radius:999px;
-  border:1px solid var(--hs-border);
-  background:#fff;
-  box-shadow:0 2px 6px rgba(0,0,0,.08);
-  cursor:pointer;
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+/* Requerimiento · Detalles: texto + lápiz juntos, sin afectar otros labels */
+.reqdet-asignado{ display:inline-flex; align-items:center; gap:.5rem; min-height:28px; }
+.reqdet-asignado-name{ color:#1f4e8c; text-decoration:none; border-bottom:1px solid rgba(31,78,140,.18); padding-bottom:2px; }
+.reqdet-asignado-name:hover{ border-bottom-color:rgba(31,78,140,.35); }
+.reqdet-edit{
+  appearance:none; display:inline-grid; place-items:center;
+  width:28px; height:28px; margin-left:.1rem; border-radius:999px;
+  border:1px solid var(--hs-border,#e5e7eb); background:#fff; color:#374151;
+  box-shadow:0 1px 4px rgba(0,0,0,.08); cursor:pointer;
+  transition:transform .12s, box-shadow .12s, background .12s, border-color .12s;
 }
-.inline-edit-btn:hover{ transform:translateY(-1px); box-shadow:0 4px 10px rgba(0,0,0,.12); background:#f9fafb; }
-.inline-edit-btn:active{ transform:translateY(0); }
-.inline-edit-btn svg{ width:16px; height:16px; color:#374151; display:block; }
-
-/* Tip rápido opcional con atributo data-tooltip */
-.inline-edit-btn[data-tooltip]{ position:relative; }
-.inline-edit-btn[data-tooltip]::after{
-  content:attr(data-tooltip);
-  position:absolute; bottom:115%; left:50%; transform:translateX(-50%);
-  background:#111827; color:#fff; padding:.28rem .45rem; border-radius:.5rem;
-  font-size:.75rem; white-space:nowrap; opacity:0; visibility:hidden; transition:opacity .12s;
-}
-.inline-edit-btn[data-tooltip]:hover::after{ opacity:1; visibility:visible; }
-
-/* ===== Modal de asignación (usa tu modal base) ===== */
-#modal-asignar-req.modal-overlay .modal-content{
-  width:min(520px, 92vw);
-  padding:18px 20px 16px;
-}
-#modal-asignar-req .modal-content h2{
-  margin:4px 0 14px;
-  font-size: clamp(1.35rem, 1rem + 1vw, 1.7rem);
-}
-
-/* Layout simple del form */
-#modal-asignar-req .form-row{ margin: 10px 0 14px; }
-#modal-asignar-req label{
-  display:block; font-size:.9rem; color:#6b7280; margin-bottom:.35rem;
-}
-
-/* Select consistente con tus inputs */
-#modal-asignar-req select{
-  width:100%; height:38px; padding:0 .65rem;
-  border:1px solid #e5e7eb; border-radius:8px;
-  background:#f9fafb; color:#111827; outline:none;
-  transition:border-color .15s, background .15s, box-shadow .15s;
-  appearance: none;                      /* evita estilos raros */
-  background-image:
-    linear-gradient(45deg, transparent 50%, #6b7280 50%),
-    linear-gradient(135deg, #6b7280 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) 50%, calc(100% - 13px) 50%;
-  background-size:5px 5px, 5px 5px;
-  background-repeat:no-repeat;
-}
-#modal-asignar-req select:focus{
-  border-color:#3b82f6; background:#fff;
-  box-shadow:0 0 0 3px rgba(59,130,246,.15);
-}
-
-/* Botón principal del modal */
-#modal-asignar-req .btn-primary{
-  width:100%; height:40px;
-  border:0; border-radius:8px;
-  background:#3b82f6; color:#fff; font-weight:700; cursor:pointer;
-  transition:filter .15s;
-}
-#modal-asignar-req .btn-primary:hover{ filter:brightness(1.05); }
-
-/* Texto auxiliar debajo del botón */
-#modal-asignar-req .hint{
-  margin-top:8px; font-size:.9rem; color:#6b7280; text-align:center;
-}
-
-/* Responsivo pequeño */
-@media (max-width:520px){
-  #modal-asignar-req .modal-content{ width:min(96vw, 520px); }
-}
-
+.reqdet-edit:hover{ transform:translateY(-1px); background:#f8fafc; border-color:#d1d5db; box-shadow:0 3px 10px rgba(0,0,0,.12); }
+.reqdet-edit svg{ width:14px; height:14px; }

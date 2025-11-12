@@ -29,7 +29,7 @@
   const API = (window.API || {
     EMPLEADOS: { LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php" },
     DEPTS:     { LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php" },
-    REQ:       { UPDATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento.php" }
+    REQ:       { UPDATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento.php" } // se resuelve con fallback abajo si no existe
   });
 
   const REQ_UPDATE_URL = API.REQ?.UPDATE;
