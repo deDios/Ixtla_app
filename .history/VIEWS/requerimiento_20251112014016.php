@@ -756,15 +756,11 @@
             <button class="modal-close" type="button" aria-label="Cerrar">✕</button>
             <h2 id="asignar-title">Asignar requerimiento</h2>
 
-            <!-- Hint opcional que usa el JS; si no existe, no truena -->
-            <p id="asignar-actual" class="muted" style="margin:-6px 0 8px">Actual: —</p>
-
             <form id="form-asignar-req" class="form">
                 <div class="form-row">
                     <label for="sel-asignado-req">Empleado</label>
                     <select id="sel-asignado-req">
                         <option value="" disabled selected>Selecciona responsable…</option>
-                        <!-- Si defines window.IxEmpleados en JS, este select se rellenará automáticamente -->
                     </select>
                 </div>
                 <button id="btn-guardar-asignacion" class="btn-submit" type="submit">Asignar</button>

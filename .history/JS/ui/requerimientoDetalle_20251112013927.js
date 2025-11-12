@@ -3,7 +3,7 @@
   "use strict";
 
   /* =========================================================================
-   * Helpers (compatibles con _rvHelpers)
+   * Helpers básicos (usan _rvHelpers si existe)
    * =========================================================================*/
   const H = window._rvHelpers || {};
   const $  = H.$  || ((s, r=document)=>r.querySelector(s));
@@ -13,32 +13,30 @@
   const warn  = (...a)=>console.warn("[ReqDetalle]", ...a);
   const err   = (...a)=>console.error("[ReqDetalle]", ...a);
 
-  /* =========================================================================
-   * Selectores esperados en el DOM
-   * =========================================================================*/
+  // Elementos clave del DOM (coloca estos IDs/clases en tu HTML)
   const SEL = {
-    asignadoDisplay:  "#req-asignado-display",
-    btnAsignar:       "#btn-asignar-req",
-    modal:            "#modal-asignar-req",
-    modalClose:       ".modal-close",
-    form:             "#form-asignar-req",
-    select:           "#sel-asignado-req",
+    asignadoDisplay:  "#req-asignado-display",   // <a> donde va el nombre o "Sin asignar"
+    btnAsignar:       "#btn-asignar-req",        // botón lápiz junto al asignado
+    modal:            "#modal-asignar-req",      // overlay del modal
+    modalClose:       ".modal-close",            // botón ✕ dentro del modal
+    form:             "#form-asignar-req",       // form del modal
+    select:           "#sel-asignado-req",       // <select> de empleados
   };
 
   /* =========================================================================
-   * API (configurable)
+   * API (usa window.API si existe, si no, fallbacks)
    * =========================================================================*/
   const API = (window.API || {
     EMPLEADOS: { LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php" },
     DEPTS:     { LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php" },
-    REQ:       { UPDATE:"https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_upd_requerimiento.php" }
+    REQ:       { UPDATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_upd_requerimiento.php" }
   });
 
   const REQ_UPDATE_URL = API.REQ?.UPDATE;
 
   async function postJSON(url, body) {
-    const tag = `[HTTP][ReqDetalle] ${url}`;
-    console.groupCollapsed(tag);
+    const group = `[HTTP][ReqDetalle] ${url}`;
+    console.groupCollapsed(group);
     console.log("→ payload:", body);
     try {
       const res = await fetch(url, {
@@ -61,7 +59,7 @@
   }
 
   /* =========================================================================
-   * Sesión (igual patrón que en Planeación)
+   * Sesión (idéntico patrón a Planeación)
    * =========================================================================*/
   function safeGetSession() {
     try { if (window.Session?.get) return window.Session.get(); } catch {}
@@ -74,15 +72,22 @@
     } catch {}
     return null;
   }
-  const getEmpleadoId = () => (safeGetSession()?.empleado_id ?? safeGetSession()?.id_empleado ?? null);
-  const getDeptId     = () => (safeGetSession()?.departamento_id ?? null);
-  const getRoles      = () => {
+  function getEmpleadoId() {
     const s = safeGetSession();
-    return Array.isArray(s?.roles) ? s.roles.map(x => String(x).toUpperCase()) : [];
-  };
+    return s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
+  }
+  function getDeptId() {
+    const s = safeGetSession();
+    return s?.departamento_id ?? s?.dept_id ?? null;
+  }
+  function getRoles() {
+    const s = safeGetSession();
+    const r = Array.isArray(s?.roles) ? s.roles.map(x => String(x).toUpperCase()) : [];
+    return r;
+  }
 
   /* =========================================================================
-   * Normalizadores + fetchers
+   * RBAC (compacto, mismo criterio de Planeación)
    * =========================================================================*/
   function normalizeEmpleadoFromAPI(r) {
     const reporta_a =
@@ -130,27 +135,28 @@
       const kids = mapByBoss.get(cur) || [];
       for (const k of kids) {
         if (visited.has(k.id)) continue;
-        visited.add(k.id); out.push(k); queue.push(k.id);
+        visited.add(k.id);
+        out.push(k);
+        queue.push(k.id);
       }
     }
     return out;
   }
 
   async function buildAsignablesList() {
-    const yoId    = Number(getEmpleadoId());
-    const deptId  = Number(getDeptId());
-    const roles   = getRoles();
-    const isAdmin    = roles.includes("ADMIN");
+    const yoId   = Number(getEmpleadoId());
+    const deptId = Number(getDeptId());
+    const roles  = getRoles();
+    const isAdmin = roles.includes("ADMIN");
     const isDirector = roles.includes("DIRECTOR");
-    const isPL       = roles.includes("PRIMERA_LINEA") || roles.includes("PL") || roles.includes("PRIMERA LINEA");
-    const isJefe     = roles.includes("JEFE");
+    const isPL = roles.includes("PRIMERA_LINEA") || roles.includes("PL") || roles.includes("PRIMERA LINEA");
+    const isJefe = roles.includes("JEFE");
 
     const universe = await fetchEmpleadosAll();
 
     if (isAdmin) return universe;
 
-    // Excepción Presidencia
-    const PRES_DEPT_IDS = [6];
+    const PRES_DEPT_IDS = [6]; // excepción como en Planeación
     if (PRES_DEPT_IDS.includes(deptId)) return universe;
 
     if (isDirector || isPL) {
@@ -183,44 +189,35 @@
   }
 
   async function populateAsignadoSelect(sel) {
-    // Si no hay <select>, NO seguimos (previene el TypeError)
-    if (!sel) { warn("populateAsignadoSelect: select NULL"); return; }
-
-    // Reset seguro
+    if (!sel) return;
     sel.innerHTML = `<option value="" disabled selected>Selecciona responsable…</option>`;
 
-    try {
-      const visibles = await buildAsignablesList();
-      visibles.sort((a,b) => (a.full || "").localeCompare(b.full || "", "es"));
+    const visibles = await buildAsignablesList();
+    visibles.sort((a,b) => (a.full || "").localeCompare(b.full || "", "es"));
 
-      const yoId  = Number(getEmpleadoId());
-      const roles = getRoles();
-      const isAnalista = roles.includes("ANALISTA");
+    const yoId = Number(getEmpleadoId());
+    const roles = getRoles();
+    const isAnalista = roles.includes("ANALISTA");
 
-      for (const emp of visibles) {
-        const opt = document.createElement("option");
-        opt.value = String(emp.id);
-        opt.textContent = emp.full || `Empleado #${emp.id}`;
-        sel.appendChild(opt);
-      }
+    for (const emp of visibles) {
+      const opt = document.createElement("option");
+      opt.value = String(emp.id);
+      opt.textContent = emp.full || `Empleado #${emp.id}`;
+      sel.appendChild(opt);
+    }
 
-      if (isAnalista && yoId) {
-        sel.value = String(yoId);
-        sel.setAttribute("disabled", "true");
-        sel.title = "Como Analista solo puedes asignarte a ti mismo.";
-      } else {
-        sel.removeAttribute("disabled");
-        sel.title = "";
-      }
-      log("populateAsignadoSelect OK; items:", sel.options.length);
-    } catch (e) {
-      err("populateAsignadoSelect error:", e);
-      toast("No se pudo cargar la lista de empleados.", "danger");
+    if (isAnalista && yoId) {
+      sel.value = String(yoId);
+      sel.setAttribute("disabled", "true");
+      sel.title = "Como Analista solo puedes asignarte a ti mismo.";
+    } else {
+      sel.removeAttribute("disabled");
+      sel.title = "";
     }
   }
 
   /* =========================================================================
-   * UI modal
+   * UI: abrir/cerrar modal + submit
    * =========================================================================*/
   function openModal(modal) {
     if (!modal) return;
@@ -244,52 +241,45 @@
     const displayEl = $(SEL.asignadoDisplay);
 
     if (!btnEdit || !modal || !form || !sel || !displayEl) {
-      warn("Modal asignación: faltan nodos. btnEdit:", !!btnEdit, "modal:", !!modal, "form:", !!form, "select:", !!sel, "display:", !!displayEl);
+      warn("No se encontraron elementos del modal de asignación; omitiendo bind.");
       return;
     }
 
-    // Evitar doble binding si el script se inserta más de una vez
-    if (btnEdit.dataset.bound === "1") {
-      log("handlers ya enlazados — skip");
-      return;
-    }
-    btnEdit.dataset.bound = "1";
-
-    // Abrir
+    // abrir modal
     btnEdit.addEventListener("click", (e) => {
       e.preventDefault();
       openModal(modal);
-      // Poblado con try/catch para que JAMÁS truene el click
-      try { populateAsignadoSelect(sel); }
-      catch (e2) { err("open→populate error:", e2); }
+      populateAsignadoSelect(sel).catch((e)=>toast("No se pudo cargar la lista de empleados.","danger"));
       setTimeout(()=> sel?.focus(), 30);
     });
 
-    // Cerrar
+    // cerrar modal (overlay, ✕, Esc)
     btnClose?.addEventListener("click", (e) => { e.preventDefault(); closeModal(modal); });
     modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(modal); });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && modal.classList.contains("active")) closeModal(modal);
     });
 
-    // Guardar
+    // submit → update requerimiento
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const req = window.__REQ__;
-      const val = sel?.value;
+      const val = sel.value;
 
       if (!req?.id)       { toast("No hay requerimiento cargado.", "danger"); return; }
-      if (!val)           { toast("Selecciona un responsable.", "warning"); sel?.focus(); return; }
+      if (!val)           { toast("Selecciona un responsable.", "warning"); sel.focus(); return; }
       if (!REQ_UPDATE_URL){ toast("Configura el endpoint de actualización.", "danger"); return; }
 
       try {
         const updated_by = getEmpleadoId() ?? null;
         await postJSON(REQ_UPDATE_URL, { id: Number(req.id), asignado_a: Number(val), updated_by });
 
+        // Actualiza UI
         const txt = sel.options[sel.selectedIndex]?.textContent || `Empleado #${val}`;
         displayEl.textContent = txt;
         displayEl.removeAttribute("href");
 
+        // Refresca objeto global y emite evento
         window.__REQ__ = { ...(req || {}), asignado_id: String(val), asignado_full: txt };
         document.dispatchEvent(new CustomEvent("req:asignado:changed", {
           detail: { id: Number(req.id), asignado_a: Number(val), asignado_full: txt }
@@ -313,37 +303,45 @@
     const txt =
       req?.asignado_full ||
       req?.asignado_display ||
-      (req?.asignado_nombre || req?.asignado_apellidos
-        ? `${req.asignado_nombre || ""} ${req.asignado_apellidos || ""}`.trim()
-        : null);
+      req?.asignado_nombre && req?.asignado_apellidos
+        ? `${req.asignado_nombre} ${req.asignado_apellidos}`.trim()
+        : null;
 
     el.textContent = txt || "Sin asignar";
-    if (el.textContent === "Sin asignar") el.setAttribute("href", "#");
-    else el.removeAttribute("href");
+    if (el.textContent === "Sin asignar") {
+      el.setAttribute("href", "#");
+    } else {
+      el.removeAttribute("href");
+    }
   }
 
   /* =========================================================================
-   * Init
+   * API pública
    * =========================================================================*/
   async function init() {
-    // Pintar si ya hay req
+    // 1) Pintar el asignado si el req ya está cargado
     if (window.__REQ__) paintAsignadoFromReq(window.__REQ__);
 
-    // Cuando lo cargue requerimientoView.js, repintamos
+    // 2) Escuchar cuando el req termine de cargar
     document.addEventListener("req:loaded", (e) => {
       const req = e?.detail || window.__REQ__;
       if (req) paintAsignadoFromReq(req);
     }, { once: true });
 
+    // 3) Enlazar el modal/botón
     wireAsignarRequerimiento();
+
     log("init OK (Detalles enlazado)");
   }
 
+  // Exponer (por si necesitas invocarlo manual)
   window.ReqDetalle = { init };
 
+  // Auto-init cuando el DOM esté listo (si no lo llamas desde otro lado)
   if (document.readyState === "complete" || document.readyState === "interactive") {
     setTimeout(init, 0);
   } else {
     document.addEventListener("DOMContentLoaded", init, { once: true });
   }
+
 })();

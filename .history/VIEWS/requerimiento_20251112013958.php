@@ -254,21 +254,24 @@
                             <div class="exp-field"><label>Líder del Departamento:</label>
                                 <div class="exp-val"><a>Juan Pablo</a></div>
                             </div>
-                            <div class="exp-field">
-                                <label>Asignado:</label>
+                            <div class="exp-field"><label>Asignado:</label>
                                 <div class="exp-val">
-                                    <!-- Texto mostrado -->
-                                    <a id="req-asignado-display" class="reqdet-asignado-name" href="#">Sin asignar</a>
-
-                                    <!-- Botón lápiz inline (no empuja el layout) -->
-                                    <button id="btn-asignar-req" type="button" class="inline-edit-btn"
-                                        title="Asignar requerimiento" aria-label="Asignar requerimiento">
-                                        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
-                                            focusable="false">
-                                            <path
-                                                d="M13.586 3a2 2 0 0 1 2.828 2.828l-.793.793-2.828-2.828.793-.793ZM12.172 4.414 4 12.586V16h3.414l8.172-8.172-3.414-3.414Z" />
-                                        </svg>
-                                    </button>
+                                    <a>
+                                        Luis Enrique Mendez
+                                    </a>
+                                    <!-- Valor de ASIGNADO -->
+                                    <span class="reqdet-asignado">
+                                        <a id="req-asignado-display" class="reqdet-asignado-name" href="#">Sin
+                                            asignar</a>
+                                        <button id="btn-asignar-req" type="button" class="reqdet-edit"
+                                            title="Asignar requerimiento" aria-label="Asignar requerimiento">
+                                            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+                                                focusable="false">
+                                                <path
+                                                    d="M13.586 3a2 2 0 0 1 2.828 2.828l-.793.793-2.828-2.828.793-.793ZM12.172 4.414 4 12.586V16h3.414l8.172-8.172-3.414-3.414Z" />
+                                            </svg>
+                                        </button>
+                                    </span>
                                 </div>
                             </div>
 
@@ -756,15 +759,11 @@
             <button class="modal-close" type="button" aria-label="Cerrar">✕</button>
             <h2 id="asignar-title">Asignar requerimiento</h2>
 
-            <!-- Hint opcional que usa el JS; si no existe, no truena -->
-            <p id="asignar-actual" class="muted" style="margin:-6px 0 8px">Actual: —</p>
-
             <form id="form-asignar-req" class="form">
                 <div class="form-row">
                     <label for="sel-asignado-req">Empleado</label>
                     <select id="sel-asignado-req">
                         <option value="" disabled selected>Selecciona responsable…</option>
-                        <!-- Si defines window.IxEmpleados en JS, este select se rellenará automáticamente -->
                     </select>
                 </div>
                 <button id="btn-guardar-asignacion" class="btn-submit" type="submit">Asignar</button>
