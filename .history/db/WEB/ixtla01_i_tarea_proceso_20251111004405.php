@@ -30,40 +30,28 @@ else {
   exit;
 }
 
-// Lee JSON de entrada
 $raw = file_get_contents("php://input");
 $in = json_decode($raw, true);
 if (!is_array($in)) $in = [];
 
-/* =========================
- * Inputs (oblig/opt) + normalización
- * ========================= */
-$proceso_id = isset($in['proceso_id']) ? (int)$in['proceso_id'] : null;
+// === Inputs obligatorios / opcionales ===
+$proceso_id   = isset($in['proceso_id']) ? (int)$in['proceso_id'] : null;
 
 $asignado_a = (array_key_exists('asignado_a',$in) && $in['asignado_a'] !== '' && $in['asignado_a'] !== null)
   ? (int)$in['asignado_a'] : null;
 
 $titulo      = isset($in['titulo']) ? trim((string)$in['titulo']) : '';
-$descripcion = array_key_exists('descripcion',$in) ? (trim((string)$in['descripcion']) !== '' ? trim((string)$in['descripcion']) : null) : null;
+$descripcion = array_key_exists('descripcion',$in) ? trim((string)$in['descripcion']) : null;
 
 $esfuerzo    = isset($in['esfuerzo']) ? (int)$in['esfuerzo'] : null;
 
-// Normalizador de fechas: null/'' → null; reemplaza 'T' por espacio
-$normDate = function($v) {
-  if ($v === null) return null;
-  if ($v === '')   return null;
-  $s = trim((string)$v);
-  if ($s === '') return null;
-  $s = str_replace('T', ' ', $s); // ISO8601 compacto → espacio
-  return $s;
-};
+// Normalizamos fechas: "" → null; validamos formato simple (YYYY-MM-DD HH:mm:ss o YYYY-MM-DD)
+$fecha_inicio = (array_key_exists('fecha_inicio',$in) && $in['fecha_inicio'] !== '') ? trim((string)$in['fecha_inicio']) : null;
+$fecha_fin    = (array_key_exists('fecha_fin',   $in) && $in['fecha_fin']    !== '') ? trim((string)$in['fecha_fin'])    : null;
 
-$fecha_inicio = array_key_exists('fecha_inicio',$in) ? $normDate($in['fecha_inicio']) : null;
-$fecha_fin    = array_key_exists('fecha_fin',   $in) ? $normDate($in['fecha_fin'])    : null;
-
-// Validador simple: acepta 'YYYY-MM-DD' o 'YYYY-MM-DD HH:mm:ss'
 $validDate = function($s) {
   if ($s === null) return true;
+  // Acepta "YYYY-MM-DD" o "YYYY-MM-DD HH:mm:ss"
   return (bool)preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $s);
 };
 
@@ -71,15 +59,13 @@ $status     = isset($in['status']) ? (int)$in['status'] : 1;
 $created_by = isset($in['created_by']) ? (int)$in['created_by'] : null;
 $updated_by = $created_by;
 
-/* =========================
- * Validaciones mínimas
- * ========================= */
+// Validación mínima
 if (!$proceso_id || $titulo === '' || $esfuerzo === null || $created_by === null) {
   http_response_code(400);
   echo json_encode([
     "ok"=>false,
     "error"=>"Faltan datos obligatorios: proceso_id, titulo, esfuerzo, created_by"
-  ], JSON_UNESCAPED_UNICODE);
+  ]);
   exit;
 }
 if (!$validDate($fecha_inicio) || !$validDate($fecha_fin)) {
@@ -87,13 +73,10 @@ if (!$validDate($fecha_inicio) || !$validDate($fecha_fin)) {
   echo json_encode([
     "ok"=>false,
     "error"=>"Formato de fecha inválido. Usa 'YYYY-MM-DD' o 'YYYY-MM-DD HH:mm:ss'."
-  ], JSON_UNESCAPED_UNICODE);
+  ]);
   exit;
 }
 
-/* =========================
- * Inserción
- * ========================= */
 $con = conectar();
 if (!$con) {
   http_response_code(500);
@@ -102,7 +85,7 @@ if (!$con) {
 }
 $con->set_charset('utf8mb4');
 
-// SQL con NULL literal para campos opcionales
+// --- Armado de SQL con NULL literal para fechas/descripcion/asignado si vienen nulos ---
 $sql = "INSERT INTO tarea_proceso
   (proceso_id, asignado_a, titulo, descripcion, esfuerzo, fecha_inicio, fecha_fin, status, created_by, updated_by)
   VALUES (
@@ -111,7 +94,7 @@ $sql = "INSERT INTO tarea_proceso
     ?, ?, ?
   )";
 
-// Construcción dinámica de bind
+// Construimos los tipos/params dinámicamente, bindeando solo lo que NO es null
 $types = "i";         // proceso_id
 $params = [$proceso_id];
 
@@ -136,17 +119,18 @@ $params[] = $updated_by;
 $stmt = $con->prepare($sql);
 if (!$stmt) {
   http_response_code(500);
-  echo json_encode(["ok"=>false,"error"=>"Error en prepare","detail"=>$con->error], JSON_UNESCAPED_UNICODE);
+  echo json_encode(["ok"=>false,"error"=>"Error en prepare","detail"=>$con->error]);
   $con->close();
   exit;
 }
 
+// bind dinámico
 $stmt->bind_param($types, ...$params);
 
 $okExec = $stmt->execute();
 if (!$okExec) {
   http_response_code(500);
-  echo json_encode(["ok"=>false,"error"=>"No se pudo insertar","detail"=>$stmt->error], JSON_UNESCAPED_UNICODE);
+  echo json_encode(["ok"=>false,"error"=>"No se pudo insertar","detail"=>$stmt->error]);
   $stmt->close();
   $con->close();
   exit;
@@ -155,15 +139,13 @@ if (!$okExec) {
 $newId = $con->insert_id;
 $stmt->close();
 
-/* =========================
- * Selección de la nueva fila (con display del asignado)
- * ========================= */
+// Traemos la tarea recién creada con datos del asignado
 $q2 = $con->prepare("
   SELECT
     t.id,
     t.proceso_id,
     t.asignado_a,
-    e.nombre   AS asignado_nombre,
+    e.nombre AS asignado_nombre,
     e.apellidos AS asignado_apellidos,
     t.titulo,
     t.descripcion,
@@ -193,7 +175,6 @@ $con->close();
 
 http_response_code(201);
 
-// Normaliza tipos y agrega asignado_display
 if ($row) {
   $row['id']          = (int)$row['id'];
   $row['proceso_id']  = (int)$row['proceso_id'];
@@ -206,6 +187,6 @@ if ($row) {
 }
 
 echo json_encode([
-  "ok"   => true,
-  "data" => $row
+  "ok"=>true,
+  "data"=>$row
 ], JSON_UNESCAPED_UNICODE);
