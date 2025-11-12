@@ -264,30 +264,30 @@
   }
 
   async function paintDetalles(req) {
-    // Nombre del Requerimiento
-    putDetalle("Nombre del Requerimiento", req.asunto || req.tramite_nombre || "—");
+  // Nombre del Requerimiento
+  putDetalle("Nombre del Requerimiento", req.asunto || req.tramite_nombre || "—");
 
-    // Departamento + Líder (director)
-    const { dept, director } = await getDeptByIdOrName({
-      id: req.departamento_id,
-      nombre: req.departamento_nombre,
-    });
-    putDetalle("Líder del Departamento", director?.nombre || "—");
+  // Departamento + Líder (director)
+  const { dept, director } = await getDeptByIdOrName({
+    id: req.departamento_id,
+    nombre: req.departamento_nombre,
+  });
+  putDetalle("Líder del Departamento", director?.nombre || "—");
 
-    const depNode = $("#req-departamento");
-    if (depNode) depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
+  const depNode = $("#req-departamento");
+  if (depNode) depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
 
-    // Asignado (texto + botón)
-    const asignado =
-      req.asignado_id && (req.asignado_full || "").trim() ? req.asignado_full : "Sin asignar";
-    putDetalle("Asignado", asignado);
-    attachAsignarButton();
+  // Asignado (texto + botón)
+  const asignado =
+    req.asignado_id && (req.asignado_full || "").trim() ? req.asignado_full : "Sin asignar";
+  putDetalle("Asignado", asignado);
+  attachAsignarButton();
 
-    // Descripción + Fechas
-    putDetalle("Descripción", req.descripcion || "—");
-    putDetalle("Fecha de inicio", (req.creado_at || "").split(" ")[0] || "—");
-    putDetalle("Fecha de terminado", req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—");
-  }
+  // Descripción + Fechas
+  putDetalle("Descripción", req.descripcion || "—");
+  putDetalle("Fecha de inicio", (req.creado_at || "").split(" ")[0] || "—");
+  putDetalle("Fecha de terminado", req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—");
+}
 
 
   function resetDetallesSkeleton() {
@@ -295,7 +295,9 @@
     if (!grid) return;
     $$(".exp-field .exp-val", grid).forEach((n) => {
       if (n.id === "req-status") return; // NO tocar estatus
-      n.textContent = "—";
+      const a = n.querySelector("a");
+      if (a) { a.textContent = "—"; a.removeAttribute("href"); }
+      else n.textContent = "—";
     });
   }
 
@@ -422,6 +424,7 @@
   }
 
   async function refreshAsignadoUI(asignadoId) {
+    // cambia el campo "Asignado" en Detalles
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
       const t = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
@@ -429,14 +432,17 @@
     });
     const dd = row?.querySelector(".exp-val");
     if (dd) {
+      // intentar encontrar el display desde la última lista (si existe en el select)
       const sel = document.querySelector("#modal-asignar-req #asignar-select");
       const opt = sel ? sel.querySelector(`option[value="${CSS.escape(String(asignadoId))}"]`) : null;
       const display = opt?.textContent || `Empleado #${asignadoId}`;
-      dd.textContent = display; // ← texto plano
-      attachAsignarButton();     // re-asegura el botón al lado
+      const a = dd.querySelector("a") || document.createElement("a");
+      a.textContent = display;
+      a.href = "#";
+      if (!dd.contains(a)) { dd.innerHTML = ""; dd.appendChild(a); }
+      attachAsignarButton(); // re-asegura el botón
     }
-
-    // Encargado del encabezado (si existe esa sección)
+    // y también el **Encargado** del encabezado
     const ddE = $(".exp-meta > div:nth-child(2) dd");
     if (ddE) {
       const sel = document.querySelector("#modal-asignar-req #asignar-select");
@@ -444,7 +450,6 @@
       ddE.textContent = opt?.textContent || `Empleado #${asignadoId}`;
     }
   }
-
 
   /* =========================
    * Wiring

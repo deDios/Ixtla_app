@@ -45,14 +45,14 @@
    * Session helpers (idéntico patrón Planeación)
    * ========================= */
   function safeGetSession() {
-    try { if (window.Session?.get) return window.Session.get(); } catch { }
+    try { if (window.Session?.get) return window.Session.get(); } catch {}
     try {
       const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
       if (!pair) return null;
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
       if (json && typeof json === "object") return json;
-    } catch { }
+    } catch {}
     return null;
   }
   function getEmpleadoId() {
@@ -126,9 +126,9 @@
     return out;
   }
   async function buildAsignablesList() {
-    const yoId = Number(getEmpleadoId());
+    const yoId   = Number(getEmpleadoId());
     const deptId = Number(getDeptId());
-    const roles = getRoles();
+    const roles  = getRoles();
     const isAdmin = roles.includes("ADMIN");
     const isDirector = roles.includes("DIRECTOR");
     const isPL = roles.includes("PRIMERA_LINEA") || roles.includes("PL") || roles.includes("PRIMERA LINEA");
@@ -214,20 +214,20 @@
   /* =========================
    * Pintar TAB "detalles"
    * ========================= */
-  function putDetalle(labelStartsWith, value) {
-    const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-    if (!grid) return false;
-    const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const t = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
-      return t.startsWith(labelStartsWith.toLowerCase());
-    });
-    const dd = row?.querySelector(".exp-val");
-    if (!dd) return false;
+ function putDetalle(labelStartsWith, value) {
+  const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+  if (!grid) return false;
+  const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
+    const t = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
+    return t.startsWith(labelStartsWith.toLowerCase());
+  });
+  const dd = row?.querySelector(".exp-val");
+  if (!dd) return false;
 
-    // texto plano (sin links)
-    dd.textContent = value ?? "—";
-    return true;
-  }
+  // texto plano (sin links)
+  dd.textContent = value ?? "—";
+  return true;
+}
 
   function attachAsignarButton() {
     // Ubica la fila "Asignado"
@@ -272,15 +272,15 @@
       id: req.departamento_id,
       nombre: req.departamento_nombre,
     });
-    putDetalle("Líder del Departamento", director?.nombre || "—");
+    putDetalle("Líder del Departamento", director?.nombre || "—", { asLink: true });
 
     const depNode = $("#req-departamento");
     if (depNode) depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
 
-    // Asignado (texto + botón)
+    // Asignado (texto+botón)
     const asignado =
       req.asignado_id && (req.asignado_full || "").trim() ? req.asignado_full : "Sin asignar";
-    putDetalle("Asignado", asignado);
+    putDetalle("Asignado", asignado, { asLink: true });
     attachAsignarButton();
 
     // Descripción + Fechas
@@ -289,13 +289,14 @@
     putDetalle("Fecha de terminado", req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—");
   }
 
-
   function resetDetallesSkeleton() {
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     if (!grid) return;
     $$(".exp-field .exp-val", grid).forEach((n) => {
       if (n.id === "req-status") return; // NO tocar estatus
-      n.textContent = "—";
+      const a = n.querySelector("a");
+      if (a) { a.textContent = "—"; a.removeAttribute("href"); }
+      else n.textContent = "—";
     });
   }
 
@@ -348,13 +349,13 @@
   async function openAsignarModal() {
     const modal = ensureAsignarModal();
     const form = modal.querySelector("#form-asignar-req");
-    const sel = modal.querySelector("#asignar-select");
+    const sel  = modal.querySelector("#asignar-select");
 
     // Rellenar select con RBAC
     sel.innerHTML = `<option value="" disabled selected>Cargando…</option>`;
     try {
       const visibles = await buildAsignablesList();
-      visibles.sort((a, b) => (a.full || "").localeCompare(b.full || "", "es"));
+      visibles.sort((a,b) => (a.full || "").localeCompare(b.full || "", "es"));
       sel.innerHTML = `<option value="" disabled selected>Selecciona responsable…</option>`;
       for (const emp of visibles) {
         const opt = document.createElement("option");
@@ -422,6 +423,7 @@
   }
 
   async function refreshAsignadoUI(asignadoId) {
+    // cambia el campo "Asignado" en Detalles
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
       const t = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
@@ -429,14 +431,17 @@
     });
     const dd = row?.querySelector(".exp-val");
     if (dd) {
+      // intentar encontrar el display desde la última lista (si existe en el select)
       const sel = document.querySelector("#modal-asignar-req #asignar-select");
       const opt = sel ? sel.querySelector(`option[value="${CSS.escape(String(asignadoId))}"]`) : null;
       const display = opt?.textContent || `Empleado #${asignadoId}`;
-      dd.textContent = display; // ← texto plano
-      attachAsignarButton();     // re-asegura el botón al lado
+      const a = dd.querySelector("a") || document.createElement("a");
+      a.textContent = display;
+      a.href = "#";
+      if (!dd.contains(a)) { dd.innerHTML = ""; dd.appendChild(a); }
+      attachAsignarButton(); // re-asegura el botón
     }
-
-    // Encargado del encabezado (si existe esa sección)
+    // y también el **Encargado** del encabezado
     const ddE = $(".exp-meta > div:nth-child(2) dd");
     if (ddE) {
       const sel = document.querySelector("#modal-asignar-req #asignar-select");
@@ -444,7 +449,6 @@
       ddE.textContent = opt?.textContent || `Empleado #${asignadoId}`;
     }
   }
-
 
   /* =========================
    * Wiring
