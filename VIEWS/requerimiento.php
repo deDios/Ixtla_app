@@ -251,7 +251,7 @@
                             <div class="exp-field"><label>Nombre del Requerimiento:</label>
                                 <div class="exp-val">Fuga de agua</div>
                             </div>
-                            <div class="exp-field"><label>Líder del Departamento:</label>
+                            <div class="exp-field"><label>Director:</label>
                                 <div class="exp-val"><a>Juan Pablo</a></div>
                             </div>
                             <div class="exp-field"><label>Asignado:</label>

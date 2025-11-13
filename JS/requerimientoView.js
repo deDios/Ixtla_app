@@ -493,12 +493,12 @@
     // stepper (UI deja estatus en este archivo)
     const stepItems = $$(".step-menu li");
     stepItems.forEach((li) => {
-      li.addEventListener("click", () => {
-        stepItems.forEach((x) => x.classList.remove("current"));
-        li.classList.add("current");
-        updateStatusUI(Number(li.dataset.status));
-        renderActions(Number(li.dataset.status));
-      });
+      //li.addEventListener("click", () => {
+      //  stepItems.forEach((x) => x.classList.remove("current"));
+      //  li.classList.add("current");
+      //  updateStatusUI(Number(li.dataset.status));
+      //  renderActions(Number(li.dataset.status));
+      //});
     });
 
     const params = new URL(window.location.href).searchParams;
