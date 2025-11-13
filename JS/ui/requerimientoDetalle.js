@@ -215,18 +215,17 @@
    * Pintar TAB "detalles"
    * ========================= */
   function putDetalle(labelStartsWith, value) {
-    const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-    if (!grid) return false;
-    const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const t = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
-      return t.startsWith(labelStartsWith.toLowerCase());
-    });
-    const dd = row?.querySelector(".exp-val");
-    if (!dd) return false;
+  const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+  if (!grid) return false;
+  const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
+    const t = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
+    return t.startsWith(labelStartsWith.toLowerCase());
+  });
+  const dd = row?.querySelector(".exp-val");
+  if (!dd) return false;
 
-    // texto plano (sin links)
-    dd.textContent = value ?? "—";
-    return true;
+  dd.textContent = value ?? "—";
+  return true;
   }
 
   function attachAsignarButton() {
@@ -269,10 +268,10 @@
 
     // Departamento + Líder (director)
     const { dept, director } = await getDeptByIdOrName({
-      id: req.departamento_id,
-      nombre: req.departamento_nombre,
-    });
-    putDetalle("Líder del Departamento", director?.nombre || "—");
+   id: req.departamento_id,
+   nombre: req.departamento_nombre,
+   });
+   putDetalle("Director", director?.nombre || "—");
 
     const depNode = $("#req-departamento");
     if (depNode) depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
