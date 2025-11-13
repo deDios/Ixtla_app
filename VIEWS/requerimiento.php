@@ -743,6 +743,7 @@
     <script src="/JS/components.js"></script>
 
     <script type="module" src="/JS/auth/session.js"></script>
+    <script type="module" src="/JS/auth/requerimientoGuard.js"></script>    
 
     <script src="/JS/requerimientoView.js"></script>
     <script src="/JS/ui/requerimientoDetalle.js"></script>
