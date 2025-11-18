@@ -181,33 +181,33 @@
                 <!-- Encabezado -->
                 <header class="exp-head">
 
-                    <!-- Fila 1: título + meta -->
-                    <div class="exp-head-main">
-                        <div class="exp-title">
-                            <h1>Reporte Otros</h1>
-                        </div>
+  <!-- Fila 1: título + meta -->
+  <div class="exp-head-main">
+    <div class="exp-title">
+      <h1>Reporte Otros</h1>
+    </div>
 
-                        <dl class="exp-meta">
-                            <div>
-                                <dt>Contacto</dt>
-                                <dd>Juan test</dd>
-                            </div>
-                            <div>
-                                <dt>Encargado</dt>
-                                <dd>Pablo Agustin de Dios Garcia</dd>
-                            </div>
-                            <div>
-                                <dt>Fecha de solicitado</dt>
-                                <dd>2025-11-04 18:47:45</dd>
-                            </div>
-                        </dl>
-                    </div>
+    <dl class="exp-meta">
+      <div>
+        <dt>Contacto</dt>
+        <dd>Juan test</dd>
+      </div>
+      <div>
+        <dt>Encargado</dt>
+        <dd>Pablo Agustin de Dios Garcia</dd>
+      </div>
+      <div>
+        <dt>Fecha de solicitado</dt>
+        <dd>2025-11-04 18:47:45</dd>
+      </div>
+    </dl>
+  </div>
 
-                    <!-- Fila 2: botones, renglón propio -->
-                    <div class="exp-head-actions">
-                        <div id="req-actions" class="exp-actions"></div>
-                    </div>
-                </header>
+  <!-- Fila 2: botones, renglón propio -->
+  <div class="exp-head-actions">
+    <div id="req-actions" class="exp-actions"></div>
+  </div>
+</header>
 
 
 
