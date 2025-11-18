@@ -11,7 +11,8 @@
   const log = (...a) => console.log(TAG, ...a);
   const warn = (...a) => console.warn(TAG, ...a);
   const err = (...a) => console.error(TAG, ...a);
-  const toast = (m, t = "info") => (window.gcToast ? gcToast(m, t) : log("[toast]", t, m));
+  const toast = (m, t = "info") =>
+    window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
   const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
 
@@ -50,14 +51,24 @@
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify(body || {}),
       });
       const txt = await res.text();
-      let json; try { json = JSON.parse(txt); } catch { json = { raw: txt }; }
+      let json;
+      try {
+        json = JSON.parse(txt);
+      } catch {
+        json = { raw: txt };
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return json;
-    } catch (e) { throw e; }
+    } catch (e) {
+      throw e;
+    }
   }
 
   /* ======================================
@@ -70,10 +81,14 @@
       if (!pair) return null;
       const raw = decodeURIComponent(pair.slice(name.length));
       return JSON.parse(decodeURIComponent(escape(atob(raw))));
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
   function safeGetSession() {
-    try { if (window.Session?.get) return window.Session.get(); } catch { }
+    try {
+      if (window.Session?.get) return window.Session.get();
+    } catch {}
     return readCookiePayload() || null;
   }
   function getUserAndEmpleadoFromSession() {
@@ -88,21 +103,31 @@
    * ======================================*/
   const EMP_CACHE = new Map();
   async function getEmpleadoById(id) {
-    const key = Number(id); if (!key) return null;
+    const key = Number(id);
+    if (!key) return null;
     if (EMP_CACHE.has(key)) return EMP_CACHE.get(key);
     const res = await postJSON(ENDPOINTS.EMPLEADOS_GET, { id: key, status: 1 });
     const payload = res?.data ?? res;
     let emp = null;
     if (Array.isArray(payload)) {
-      emp = payload.find((e) => Number(e?.id ?? e?.empleado_id) === key) || payload[0] || null;
+      emp =
+        payload.find((e) => Number(e?.id ?? e?.empleado_id) === key) ||
+        payload[0] ||
+        null;
     } else if (payload && typeof payload === "object") emp = payload;
 
-    const nombre = [emp?.nombre, emp?.nombres, emp?.empleado_nombre, emp?.first_name].find(Boolean) || "";
-    const apellidos = [emp?.apellidos, emp?.empleado_apellidos, emp?.last_name].find(Boolean) || "";
+    const nombre =
+      [emp?.nombre, emp?.nombres, emp?.empleado_nombre, emp?.first_name].find(
+        Boolean
+      ) || "";
+    const apellidos =
+      [emp?.apellidos, emp?.empleado_apellidos, emp?.last_name].find(Boolean) ||
+      "";
     const out = {
       id: key,
       nombre: [nombre, apellidos].filter(Boolean).join(" ").trim() || "—",
-      avatar: emp?.avatar_url || emp?.foto_url || emp?.img || emp?.imagen || null,
+      avatar:
+        emp?.avatar_url || emp?.foto_url || emp?.img || emp?.imagen || null,
       departamento_id: emp?.departamento_id ?? null,
     };
     EMP_CACHE.set(key, out);
@@ -112,21 +137,34 @@
   /* ======================================
    *  UI: Stepper / estatus (se quedan aquí)
    * ======================================*/
-  const statusLabel = (s) => ({
-    0: "Solicitud", 1: "Revisión", 2: "Asignación",
-    3: "Proceso", 4: "Pausado", 5: "Cancelado", 6: "Finalizado",
-  }[Number(s)] || "—");
+  const statusLabel = (s) =>
+    ({
+      0: "Solicitud",
+      1: "Revisión",
+      2: "Asignación",
+      3: "Proceso",
+      4: "Pausado",
+      5: "Cancelado",
+      6: "Finalizado",
+    }[Number(s)] || "—");
 
-  const statusBadgeClass = (s) => ({
-    0: "is-muted", 1: "is-info", 2: "is-info",
-    3: "is-info", 4: "is-warning", 5: "is-danger", 6: "is-success",
-  }[Number(s)] || "is-info");
+  const statusBadgeClass = (s) =>
+    ({
+      0: "is-muted",
+      1: "is-info",
+      2: "is-info",
+      3: "is-info",
+      4: "is-warning",
+      5: "is-danger",
+      6: "is-success",
+    }[Number(s)] || "is-info");
 
   function paintStepper(next) {
     $$(".step-menu li").forEach((li) => {
       const s = Number(li.dataset.status);
       li.classList.remove("current");
-      if (s < next) li.classList.add("complete"); else li.classList.remove("complete");
+      if (s < next) li.classList.add("complete");
+      else li.classList.remove("complete");
       if (s === next) li.classList.add("current");
     });
   }
@@ -138,7 +176,13 @@
     code = Number(code);
     const badge = $('#req-status [data-role="status-badge"]');
     if (badge) {
-      badge.classList.remove("is-info", "is-muted", "is-warning", "is-danger", "is-success");
+      badge.classList.remove(
+        "is-info",
+        "is-muted",
+        "is-warning",
+        "is-danger",
+        "is-success"
+      );
       badge.classList.add(statusBadgeClass(code));
       badge.textContent = statusLabel(code);
     }
@@ -152,7 +196,11 @@
    * ======================================*/
   async function updateReqStatus({ id, estatus, motivo }) {
     const { empleado_id } = getUserAndEmpleadoFromSession();
-    const body = { id: Number(id), estatus: Number(estatus), updated_by: empleado_id || null };
+    const body = {
+      id: Number(id),
+      estatus: Number(estatus),
+      updated_by: empleado_id || null,
+    };
     if (motivo) body.motivo = String(motivo).trim();
     const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
     return res?.data ?? res;
@@ -161,18 +209,26 @@
   async function hasAtLeastOneProcesoAndTask(reqId) {
     try {
       const p = await postJSON(ENDPOINTS.PROCESOS_LIST, {
-        requerimiento_id: Number(reqId), status: 1, page: 1, page_size: 50,
+        requerimiento_id: Number(reqId),
+        status: 1,
+        page: 1,
+        page_size: 50,
       });
       const procesos = Array.isArray(p?.data) ? p.data : [];
       for (const pr of procesos) {
         const t = await postJSON(ENDPOINTS.TAREAS_LIST, {
-          proceso_id: Number(pr.id), status: 1, page: 1, page_size: 50,
+          proceso_id: Number(pr.id),
+          status: 1,
+          page: 1,
+          page_size: 50,
         });
         const tareas = Array.isArray(t?.data) ? t.data : [];
         if (tareas.length > 0) return true;
       }
       return false;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
   function makeBtn(txt, cls = "", act = "") {
@@ -185,14 +241,39 @@
   }
   function getButtonsForStatus(code) {
     switch (Number(code)) {
-      case 0: return [makeBtn("Iniciar revisión", "primary", "start-revision"), makeBtn("Cancelar", "danger", "cancel")];
-      case 1: return [makeBtn("Pausar", "warn", "pause"), makeBtn("Cancelar", "danger", "cancel"), makeBtn("Asignar a departamento", "", "assign-dept")];
-      case 2: return [makeBtn("Pausar", "warn", "pause"), makeBtn("Cancelar", "danger", "cancel"), makeBtn("Iniciar proceso", "primary", "start-process")];
-      case 3: return [makeBtn("Pausar", "warn", "pause"), makeBtn("Cancelar", "danger", "cancel")];
-      case 4: return [makeBtn("Reanudar", "primary", "resume"), makeBtn("Cancelar", "danger", "cancel")];
-      case 5: return [makeBtn("Reabrir", "primary", "reopen")];
-      case 6: return [makeBtn("Reabrir", "primary", "reopen")];
-      default: return [makeBtn("Iniciar revisión", "primary", "start-revision")];
+      case 0:
+        return [
+          makeBtn("Iniciar revisión", "primary", "start-revision"),
+          makeBtn("Cancelar", "danger", "cancel"),
+        ];
+      case 1:
+        return [
+          makeBtn("Pausar", "warn", "pause"),
+          makeBtn("Cancelar", "danger", "cancel"),
+          makeBtn("Asignar a departamento", "", "assign-dept"),
+        ];
+      case 2:
+        return [
+          makeBtn("Pausar", "warn", "pause"),
+          makeBtn("Cancelar", "danger", "cancel"),
+          makeBtn("Iniciar proceso", "primary", "start-process"),
+        ];
+      case 3:
+        return [
+          makeBtn("Pausar", "warn", "pause"),
+          makeBtn("Cancelar", "danger", "cancel"),
+        ];
+      case 4:
+        return [
+          makeBtn("Reanudar", "primary", "resume"),
+          makeBtn("Cancelar", "danger", "cancel"),
+        ];
+      case 5:
+        return [makeBtn("Reabrir", "primary", "reopen")];
+      case 6:
+        return [makeBtn("Reabrir", "primary", "reopen")];
+      default:
+        return [makeBtn("Iniciar revisión", "primary", "start-revision")];
     }
   }
   function renderActions(code = getCurrentStatusCode()) {
@@ -220,15 +301,23 @@
         e.preventDefault();
         const v = txt.value.trim();
         if (!v) return txt.focus();
-        cleanup(); resolve(v);
+        cleanup();
+        resolve(v);
       };
-      const onClose = () => { cleanup(); reject("cancel"); };
+      const onClose = () => {
+        cleanup();
+        reject("cancel");
+      };
       form.addEventListener("submit", onSubmit);
       overlay.querySelector(".modal-close")?.addEventListener("click", onClose);
-      overlay.addEventListener("click", (e) => { if (e.target === overlay) onClose(); });
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) onClose();
+      });
       function cleanup() {
         form.removeEventListener("submit", onSubmit);
-        overlay.querySelector(".modal-close")?.removeEventListener("click", onClose);
+        overlay
+          .querySelector(".modal-close")
+          ?.removeEventListener("click", onClose);
         overlay.removeEventListener("click", onClose);
         overlay.setAttribute("aria-hidden", "true");
         document.body.classList.remove("me-modal-open");
@@ -239,30 +328,63 @@
   async function onAction(act) {
     let next = getCurrentStatusCode();
     const id = __CURRENT_REQ_ID__;
-    if (!id) { toast("No hay id de requerimiento en la URL", "danger"); return; }
+    if (!id) {
+      toast("No hay id de requerimiento en la URL", "danger");
+      return;
+    }
 
     try {
       if (act === "start-revision") {
-        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Estado cambiado a Revisión", "info");
+        next = 1;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next);
+        toast("Estado cambiado a Revisión", "info");
       } else if (act === "assign-dept") {
-        next = 2; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Asignado a departamento", "success");
+        next = 2;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next);
+        toast("Asignado a departamento", "success");
       } else if (act === "start-process") {
         const ok = await hasAtLeastOneProcesoAndTask(id);
-        if (!ok) { toast("Para iniciar proceso necesitas al menos un proceso y una tarea.", "warning"); return; }
-        next = 3; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Proceso iniciado", "success");
+        if (!ok) {
+          toast(
+            "Para iniciar proceso necesitas al menos un proceso y una tarea.",
+            "warning"
+          );
+          return;
+        }
+        next = 3;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next);
+        toast("Proceso iniciado", "success");
       } else if (act === "pause") {
         const motivo = await askMotivo("Motivo de la pausa");
-        next = 4; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next); toast("Pausado", "warn");
+        next = 4;
+        await updateReqStatus({ id, estatus: next, motivo });
+        updateStatusUI(next);
+        toast("Pausado", "warn");
       } else if (act === "resume") {
-        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Reanudado (Revisión)", "success");
+        next = 1;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next);
+        toast("Reanudado (Revisión)", "success");
       } else if (act === "cancel") {
         const motivo = await askMotivo("Motivo de la cancelación");
-        next = 5; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next); toast("Cancelado", "danger");
+        next = 5;
+        await updateReqStatus({ id, estatus: next, motivo });
+        updateStatusUI(next);
+        toast("Cancelado", "danger");
       } else if (act === "reopen") {
-        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Reabierto (Revisión)", "info");
+        next = 1;
+        await updateReqStatus({ id, estatus: next });
+        updateStatusUI(next);
+        toast("Reabierto (Revisión)", "info");
       }
     } catch (e) {
-      if (e !== "cancel") { err(e); toast("No se pudo actualizar el estado.", "danger"); }
+      if (e !== "cancel") {
+        err(e);
+        toast("No se pudo actualizar el estado.", "danger");
+      }
     }
     renderActions(next);
   }
@@ -275,10 +397,12 @@
     const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, { id });
     const data = res?.data ?? res;
     const raw = Array.isArray(data) ? data[0] || {} : data || {};
+
     return {
       id: String(raw.id ?? raw.requerimiento_id ?? ""),
       folio: String(raw.folio ?? ""),
-      departamento_id: raw.departamento_id != null ? Number(raw.departamento_id) : null,
+      departamento_id:
+        raw.departamento_id != null ? Number(raw.departamento_id) : null,
       departamento_nombre: String(raw.departamento_nombre || "").trim(),
       tramite_id: raw.tramite_id != null ? Number(raw.tramite_id) : null,
       tramite_nombre: String(raw.tramite_nombre || "").trim(),
@@ -287,17 +411,35 @@
       asunto: String(raw.asunto || "").trim(),
       descripcion: String(raw.descripcion || "").trim(),
       prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
-      estatus_code: raw.estatus != null ? Number(raw.estatus) :
-        raw.status != null ? Number(raw.status) : 0,
+      estatus_code:
+        raw.estatus != null
+          ? Number(raw.estatus)
+          : raw.status != null
+          ? Number(raw.status)
+          : 0,
       canal: raw.canal != null ? Number(raw.canal) : null,
+
       contacto_nombre: String(raw.contacto_nombre || "").trim(),
       contacto_telefono: String(raw.contacto_telefono || "").trim(),
       contacto_email: String(raw.contacto_email || "").trim(),
       contacto_calle: String(raw.contacto_calle || "").trim(),
       contacto_colonia: String(raw.contacto_colonia || "").trim(),
       contacto_cp: String(raw.contacto_cp || "").trim(),
+
+      // fecha de creación (no cambia)
       creado_at: String(raw.created_at || "").trim(),
+
+      // === Mapeo lógico que pediste ===
+      // fecha_limite = fecha de inicio
+      fecha_inicio: raw.fecha_limite ? String(raw.fecha_limite).trim() : null,
+
+      // cerrado_en = fecha de fin
+      fecha_fin: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
+
+      // dejamos también el campo crudo por compatibilidad
       cerrado_en: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
+
+      // respaldo completo por si se ocupa algo más adelante
       raw,
     };
   }
@@ -310,7 +452,9 @@
     if (!p) return;
     const set = (labelText, val) => {
       const row = Array.from(p.querySelectorAll(".exp-field")).find((r) => {
-        const txt = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
+        const txt = (r.querySelector("label")?.textContent || "")
+          .trim()
+          .toLowerCase();
         return txt.startsWith(labelText.toLowerCase());
       });
       const dd = row?.querySelector(".exp-val");
@@ -318,15 +462,22 @@
       if (labelText.toLowerCase().includes("correo")) {
         const a = dd.querySelector("a") || document.createElement("a");
         a.textContent = val || "—";
-        if (val) a.href = `mailto:${val}`; else a.removeAttribute("href");
-        if (!dd.contains(a)) { dd.innerHTML = ""; dd.appendChild(a); }
+        if (val) a.href = `mailto:${val}`;
+        else a.removeAttribute("href");
+        if (!dd.contains(a)) {
+          dd.innerHTML = "";
+          dd.appendChild(a);
+        }
       } else {
         dd.textContent = val || "—";
       }
     };
     set("Nombre", req.contacto_nombre || "—");
     set("Teléfono", req.contacto_telefono || "—");
-    set("Dirección del reporte", [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", "));
+    set(
+      "Dirección del reporte",
+      [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", ")
+    );
     set("Correo", req.contacto_email || "—");
     set("C.P", req.contacto_cp || "—");
   }
@@ -336,7 +487,10 @@
     const ddE = $(".exp-meta > div:nth-child(2) dd");
     const ddF = $(".exp-meta > div:nth-child(3) dd");
     if (ddC) ddC.textContent = req.contacto_nombre || "—";
-    const asignado = req.asignado_id && (req.asignado_full || "").trim() ? req.asignado_full : "Sin asignar";
+    const asignado =
+      req.asignado_id && (req.asignado_full || "").trim()
+        ? req.asignado_full
+        : "Sin asignar";
     if (ddE) ddE.textContent = asignado;
     if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
   }
@@ -344,13 +498,29 @@
   /* ======================================
    *  Comentarios (se quedan tal cual)
    * ======================================*/
-  async function listComentariosAPI({ requerimiento_id, status = 1, page = 1, page_size = 100 }) {
-    const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
+  async function listComentariosAPI({
+    requerimiento_id,
+    status = 1,
+    page = 1,
+    page_size = 100,
+  }) {
+    const payload = {
+      requerimiento_id: Number(requerimiento_id),
+      status,
+      page,
+      page_size,
+    };
     const res = await postJSON(ENDPOINTS.COMENT_LIST, payload);
     const raw = res?.data ?? res?.items ?? res;
     return Array.isArray(raw) ? raw : Array.isArray(raw?.rows) ? raw.rows : [];
   }
-  async function createComentarioAPI({ requerimiento_id, comentario, status = 1, created_by, empleado_id }) {
+  async function createComentarioAPI({
+    requerimiento_id,
+    comentario,
+    status = 1,
+    created_by,
+    empleado_id,
+  }) {
     const payload = {
       requerimiento_id: Number(requerimiento_id),
       comentario,
@@ -360,7 +530,9 @@
     };
     return await postJSON(ENDPOINTS.COMENT_CREATE, payload);
   }
-  const firstTwo = (full = "") => String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") || "—";
+  const firstTwo = (full = "") =>
+    String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") ||
+    "—";
   function makeAvatarSourcesByUsuarioId(usuarioId) {
     const v = `?v=${Date.now()}`;
     const cand = [];
@@ -387,11 +559,14 @@
       try {
         const empId = Number(r.empleado_id) > 0 ? Number(r.empleado_id) : null;
         if (empId) display = (await getEmpleadoById(empId))?.nombre || "";
-      } catch { }
+      } catch {}
       if (!display) {
         display =
           r.empleado_display ||
-          [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ").trim() ||
+          [r.empleado_nombre, r.empleado_apellidos]
+            .filter(Boolean)
+            .join(" ")
+            .trim() ||
           r.nombre ||
           r.autor ||
           "—";
@@ -445,8 +620,15 @@
 
   async function loadComentarios(reqId) {
     try {
-      const arr = await listComentariosAPI({ requerimiento_id: reqId, status: 1, page: 1, page_size: 100 });
-      const ids = Array.from(new Set(arr.map((r) => Number(r.empleado_id) || null).filter(Boolean)));
+      const arr = await listComentariosAPI({
+        requerimiento_id: reqId,
+        status: 1,
+        page: 1,
+        page_size: 100,
+      });
+      const ids = Array.from(
+        new Set(arr.map((r) => Number(r.empleado_id) || null).filter(Boolean))
+      );
       await Promise.all(ids.map((id) => getEmpleadoById(id).catch(() => null)));
       await renderCommentsList(arr);
     } catch (e) {
@@ -462,7 +644,10 @@
     const send = async () => {
       const texto = (ta.value || "").trim();
       if (!texto) return;
-      if (!usuario_id) { toast("No se encontró tu usuario en la sesión.", "danger"); return; }
+      if (!usuario_id) {
+        toast("No se encontró tu usuario en la sesión.", "danger");
+        return;
+      }
       btn.disabled = true;
       try {
         await createComentarioAPI({
@@ -481,9 +666,15 @@
         btn.disabled = false;
       }
     };
-    btn.addEventListener("click", (e) => { e.preventDefault(); send(); });
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      send();
+    });
     ta.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
     });
   }
 
@@ -494,21 +685,26 @@
     const contactVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
     contactVals.forEach((n) => {
       const a = n.querySelector("a");
-      if (a) { a.textContent = "—"; a.removeAttribute("href"); }
-      else n.textContent = "—";
+      if (a) {
+        a.textContent = "—";
+        a.removeAttribute("href");
+      } else n.textContent = "—";
     });
 
     // No tocamos el tab "detalles" aquí (lo rellenará el nuevo módulo)
 
-    const h1 = $(".exp-title h1"); if (h1) h1.textContent = "—";
+    const h1 = $(".exp-title h1");
+    if (h1) h1.textContent = "—";
     $$(".exp-meta dd").forEach((dd) => (dd.textContent = "—"));
-    const feed = $(".c-feed"); if (feed) feed.innerHTML = "";
+    const feed = $(".c-feed");
+    if (feed) feed.innerHTML = "";
   }
 
   let __CURRENT_REQ_ID__ = null;
-  window.__defineGetter__ && Object.defineProperty(window, "__CURRENT_REQ_ID__", {
-    get: () => __CURRENT_REQ_ID__,
-  });
+  window.__defineGetter__ &&
+    Object.defineProperty(window, "__CURRENT_REQ_ID__", {
+      get: () => __CURRENT_REQ_ID__,
+    });
 
   async function boot() {
     resetTemplate();
@@ -527,14 +723,18 @@
     const params = new URL(window.location.href).searchParams;
     const reqId = params.get("id");
     __CURRENT_REQ_ID__ = reqId;
-    if (!reqId) { warn("Sin ?id="); return; }
+    if (!reqId) {
+      warn("Sin ?id=");
+      return;
+    }
 
     try {
       const req = await getRequerimientoById(reqId);
 
       // Título y meta + contacto
       const h1 = $(".exp-title h1");
-      if (h1) h1.textContent = req.asunto || req.tramite_nombre || "Requerimiento";
+      if (h1)
+        h1.textContent = req.asunto || req.tramite_nombre || "Requerimiento";
       paintHeaderMeta(req);
       paintContacto(req);
 
@@ -547,7 +747,9 @@
       try {
         window.__REQ__ = req;
         document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
-      } catch (e) { warn("req:loaded dispatch err:", e); }
+      } catch (e) {
+        warn("req:loaded dispatch err:", e);
+      }
     } catch (e) {
       err("Error consultando requerimiento:", e);
     }

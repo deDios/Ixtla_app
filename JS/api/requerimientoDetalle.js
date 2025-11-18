@@ -13,6 +13,7 @@ const buildDireccion = (calle, colonia) => {
 };
 
 /** Normaliza un registro crudo del backend al shape que necesita la vista */
+// /JS/api/requerimientoDetalle.js
 function normalizeRequerimiento(raw = {}) {
   console.groupCollapsed("[api/requerimientoDetalle] normalizeRequerimiento: IN");
   console.log(raw);
@@ -59,6 +60,17 @@ function normalizeRequerimiento(raw = {}) {
   const actualizado_at = String(raw.actualizado_at ?? raw.updated_at ?? "").trim();
   const cerrado_en     = raw.cerrado_en != null ? String(raw.cerrado_en).trim() : null;
 
+  // 👉 Nuevo: mapeo “lógico”
+  // fecha_limite = fecha_inicio
+  const fecha_inicio_raw = String(
+    raw.fecha_inicio ?? raw.fecha_limite ?? ""
+  ).trim();
+
+  // cerrado_en = fecha_fin (o fecha_fin si existe explícito)
+  const fecha_fin_raw = String(
+    raw.fecha_fin ?? raw.cerrado_en ?? ""
+  ).trim();
+
   const out = {
     id, folio,
     tramite, tramite_nombre, asunto, descripcion,
@@ -68,6 +80,10 @@ function normalizeRequerimiento(raw = {}) {
     departamento_nombre, departamento_director_nombre,
     estatus_code, prioridad, canal,
     creado_at, actualizado_at, cerrado_en,
+
+    fecha_inicio: fecha_inicio_raw || null,
+    fecha_fin: fecha_fin_raw || null,
+
     raw
   };
 
@@ -77,6 +93,7 @@ function normalizeRequerimiento(raw = {}) {
 
   return out;
 }
+
 
 /** GET por ID  */
 export async function getById(id) {

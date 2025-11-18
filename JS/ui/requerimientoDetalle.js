@@ -8,10 +8,15 @@
   const log = (...a) => console.log(TAG, ...a);
   const warn = (...a) => console.warn(TAG, ...a);
   const err = (...a) => console.error(TAG, ...a);
-  const toast = (m, t = "info") => (window.gcToast ? gcToast(m, t) : log("[toast]", t, m));
+  const toast = (m, t = "info") =>
+    window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
   const norm = (s = "") =>
-    String(s).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+    String(s)
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .trim();
 
   /* =========================
    * Endpoints
@@ -31,13 +36,22 @@
   async function postJSON(url, body) {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify(body || {}),
     });
     const txt = await res.text();
-    let json; try { json = JSON.parse(txt); } catch { json = { raw: txt }; }
+    let json;
+    try {
+      json = JSON.parse(txt);
+    } catch {
+      json = { raw: txt };
+    }
     if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-    if (json?.ok === false) throw new Error(json?.error || "Operación no exitosa");
+    if (json?.ok === false)
+      throw new Error(json?.error || "Operación no exitosa");
     return json ?? {};
   }
 
@@ -45,14 +59,18 @@
    * Session helpers (idéntico patrón Planeación)
    * ========================= */
   function safeGetSession() {
-    try { if (window.Session?.get) return window.Session.get(); } catch { }
     try {
-      const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
+      if (window.Session?.get) return window.Session.get();
+    } catch {}
+    try {
+      const pair = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("ix_emp="));
       if (!pair) return null;
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
       if (json && typeof json === "object") return json;
-    } catch { }
+    } catch {}
     return null;
   }
   function getEmpleadoId() {
@@ -65,7 +83,9 @@
   }
   function getRoles() {
     const s = safeGetSession();
-    return Array.isArray(s?.roles) ? s.roles.map(x => String(x).toUpperCase()) : [];
+    return Array.isArray(s?.roles)
+      ? s.roles.map((x) => String(x).toUpperCase())
+      : [];
   }
 
   /* =========================
@@ -73,38 +93,54 @@
    * ========================= */
   function normalizeEmpleadoFromAPI(r = {}) {
     const reporta_a =
-      (r.reporta_a != null ? r.reporta_a :
-        (r.cuenta && r.cuenta.reporta_a != null ? r.cuenta.reporta_a : null));
-    const roles = Array.isArray(r.cuenta?.roles) ? r.cuenta.roles.map(x => x?.codigo).filter(Boolean) : [];
-    const rolCodes = roles.map(x => String(x).toUpperCase());
+      r.reporta_a != null
+        ? r.reporta_a
+        : r.cuenta && r.cuenta.reporta_a != null
+        ? r.cuenta.reporta_a
+        : null;
+    const roles = Array.isArray(r.cuenta?.roles)
+      ? r.cuenta.roles.map((x) => x?.codigo).filter(Boolean)
+      : [];
+    const rolCodes = roles.map((x) => String(x).toUpperCase());
     return {
       id: Number(r.id),
       nombre: String(r.nombre || "").trim(),
       apellidos: String(r.apellidos || "").trim(),
-      full: [r.nombre, r.apellidos].filter(Boolean).join(" ").trim() || `Empleado #${r.id}`,
-      departamento_id: (r.departamento_id != null ? Number(r.departamento_id) : null),
-      reporta_a: (reporta_a != null ? Number(reporta_a) : null),
+      full:
+        [r.nombre, r.apellidos].filter(Boolean).join(" ").trim() ||
+        `Empleado #${r.id}`,
+      departamento_id:
+        r.departamento_id != null ? Number(r.departamento_id) : null,
+      reporta_a: reporta_a != null ? Number(reporta_a) : null,
       rolCodes,
     };
   }
   async function fetchEmpleadosAll() {
-    const j = await postJSON(ENDPOINTS.EMPLEADOS_LIST, { page: 1, page_size: 500, status: 1 });
+    const j = await postJSON(ENDPOINTS.EMPLEADOS_LIST, {
+      page: 1,
+      page_size: 500,
+      status: 1,
+    });
     const arr = Array.isArray(j?.data) ? j.data : [];
     return arr.map(normalizeEmpleadoFromAPI);
   }
   async function fetchDepartamentosRBAC() {
-    const j = await postJSON(ENDPOINTS.DEPTS_LIST, { page: 1, page_size: 200, status: 1 });
+    const j = await postJSON(ENDPOINTS.DEPTS_LIST, {
+      page: 1,
+      page_size: 200,
+      status: 1,
+    });
     const arr = Array.isArray(j?.data) ? j.data : [];
-    return arr.map(d => ({
+    return arr.map((d) => ({
       id: Number(d.id),
       nombre: String(d.nombre || "").trim(),
-      director: (d.director != null ? Number(d.director) : null),
-      primera_linea: (d.primera_linea != null ? Number(d.primera_linea) : null),
+      director: d.director != null ? Number(d.director) : null,
+      primera_linea: d.primera_linea != null ? Number(d.primera_linea) : null,
     }));
   }
   function getReportesTransitivos(universe, jefeId) {
     const mapByBoss = new Map();
-    universe.forEach(emp => {
+    universe.forEach((emp) => {
       const boss = emp.reporta_a != null ? Number(emp.reporta_a) : null;
       if (boss == null) return;
       if (!mapByBoss.has(boss)) mapByBoss.set(boss, []);
@@ -131,7 +167,10 @@
     const roles = getRoles();
     const isAdmin = roles.includes("ADMIN");
     const isDirector = roles.includes("DIRECTOR");
-    const isPL = roles.includes("PRIMERA_LINEA") || roles.includes("PL") || roles.includes("PRIMERA LINEA");
+    const isPL =
+      roles.includes("PRIMERA_LINEA") ||
+      roles.includes("PL") ||
+      roles.includes("PRIMERA LINEA");
     const isJefe = roles.includes("JEFE");
 
     const universe = await fetchEmpleadosAll();
@@ -143,27 +182,33 @@
     if (isDirector || isPL) {
       const depts = await fetchDepartamentosRBAC();
       const visibleDeptIds = new Set(
-        depts.filter(d => d.director === yoId || d.primera_linea === yoId).map(d => d.id)
+        depts
+          .filter((d) => d.director === yoId || d.primera_linea === yoId)
+          .map((d) => d.id)
       );
       if (deptId) visibleDeptIds.add(deptId);
-      const inDepts = universe.filter(e => visibleDeptIds.has(Number(e.departamento_id)));
+      const inDepts = universe.filter((e) =>
+        visibleDeptIds.has(Number(e.departamento_id))
+      );
       const reports = getReportesTransitivos(universe, yoId);
-      const self = universe.find(e => e.id === yoId);
+      const self = universe.find((e) => e.id === yoId);
       const map = new Map();
-      [...inDepts, ...reports, ...(self ? [self] : [])].forEach(e => map.set(e.id, e));
+      [...inDepts, ...reports, ...(self ? [self] : [])].forEach((e) =>
+        map.set(e.id, e)
+      );
       return Array.from(map.values());
     }
 
     if (isJefe) {
-      const self = universe.find(e => e.id === yoId);
-      const direct = universe.filter(e => e.reporta_a === yoId);
+      const self = universe.find((e) => e.id === yoId);
+      const direct = universe.filter((e) => e.reporta_a === yoId);
       const map = new Map();
       if (self) map.set(self.id, self);
-      direct.forEach(e => map.set(e.id, e));
+      direct.forEach((e) => map.set(e.id, e));
       return Array.from(map.values());
     }
 
-    const self = universe.find(e => e.id === yoId);
+    const self = universe.find((e) => e.id === yoId);
     return self ? [self] : [];
   }
 
@@ -172,13 +217,19 @@
    * ========================= */
   async function fetchDeptsWithFallback() {
     const payload = { page: 1, page_size: 200, status: 1 };
-    const urls = [ENDPOINTS.DEPT_LIST_PRIMARY, ENDPOINTS.DEPT_LIST_LOCAL, ENDPOINTS.DEPT_LIST_UPPER];
+    const urls = [
+      ENDPOINTS.DEPT_LIST_PRIMARY,
+      ENDPOINTS.DEPT_LIST_LOCAL,
+      ENDPOINTS.DEPT_LIST_UPPER,
+    ];
     for (const url of urls) {
       try {
         const res = await postJSON(url, payload);
         const arr = Array.isArray(res?.data) ? res.data : [];
         if (arr.length) return arr;
-      } catch (e) { warn("[Dept] fallo endpoint:", url, e); }
+      } catch (e) {
+        warn("[Dept] fallo endpoint:", url, e);
+      }
     }
     return [];
   }
@@ -206,7 +257,10 @@
       director_nombre: String(dept.director_nombre || ""),
       director_apellidos: String(dept.director_apellidos || ""),
     };
-    const fullDir = [info.director_nombre, info.director_apellidos].filter(Boolean).join(" ").trim();
+    const fullDir = [info.director_nombre, info.director_apellidos]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
     const director = fullDir ? { id: info.director_id, nombre: fullDir } : null;
     return { dept: { id: info.id, nombre: info.nombre }, director };
   }
@@ -215,17 +269,19 @@
    * Pintar TAB "detalles"
    * ========================= */
   function putDetalle(labelStartsWith, value) {
-  const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-  if (!grid) return false;
-  const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-    const t = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
-    return t.startsWith(labelStartsWith.toLowerCase());
-  });
-  const dd = row?.querySelector(".exp-val");
-  if (!dd) return false;
+    const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+    if (!grid) return false;
+    const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
+      const t = (r.querySelector("label")?.textContent || "")
+        .trim()
+        .toLowerCase();
+      return t.startsWith(labelStartsWith.toLowerCase());
+    });
+    const dd = row?.querySelector(".exp-val");
+    if (!dd) return false;
 
-  dd.textContent = value ?? "—";
-  return true;
+    dd.textContent = value ?? "—";
+    return true;
   }
 
   function attachAsignarButton() {
@@ -233,7 +289,9 @@
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     if (!grid) return null;
     const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const t = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
+      const t = (r.querySelector("label")?.textContent || "")
+        .trim()
+        .toLowerCase();
       return t.startsWith("asignado");
     });
     if (!row) return null;
@@ -264,30 +322,62 @@
 
   async function paintDetalles(req) {
     // Nombre del Requerimiento
-    putDetalle("Nombre del Requerimiento", req.asunto || req.tramite_nombre || "—");
+    putDetalle(
+    "Nombre del Requerimiento",
+    req.asunto || req.tramite_nombre || "—"
+    );
 
     // Departamento + Líder (director)
     const { dept, director } = await getDeptByIdOrName({
-   id: req.departamento_id,
-   nombre: req.departamento_nombre,
-   });
-   putDetalle("Director", director?.nombre || "—");
+    id: req.departamento_id,
+    nombre: req.departamento_nombre,
+    });
+    putDetalle("Director", director?.nombre || "—");
 
     const depNode = $("#req-departamento");
-    if (depNode) depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
+    if (depNode)
+      depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
 
     // Asignado (texto + botón)
     const asignado =
-      req.asignado_id && (req.asignado_full || "").trim() ? req.asignado_full : "Sin asignar";
+    req.asignado_id && (req.asignado_full || "").trim()
+    ? req.asignado_full
+    : "Sin asignar";
     putDetalle("Asignado", asignado);
     attachAsignarButton();
 
     // Descripción + Fechas
     putDetalle("Descripción", req.descripcion || "—");
-    putDetalle("Fecha de inicio", (req.creado_at || "").split(" ")[0] || "—");
-    putDetalle("Fecha de terminado", req.cerrado_en ? String(req.cerrado_en).split(" ")[0] : "—");
-  }
 
+    // Estatus numérico seguro
+    const estatus = Number(req.estatus_code ?? req.raw?.estatus ?? 0);
+
+    // === Fecha de inicio ===
+    // Usamos: fecha_inicio (normalizada) → fecha_limite en BD
+    const fechaInicioSrc =
+      req.fecha_inicio || req.raw?.fecha_inicio || req.raw?.fecha_limite || "";
+
+      const fechaInicioVal =
+      estatus >= 3 && fechaInicioSrc
+        ? String(fechaInicioSrc).split(" ")[0] // solo la parte YYYY-MM-DD
+        : "—";
+
+      putDetalle("Fecha de inicio", fechaInicioVal);
+
+      // === Fecha de terminado ===
+      // Usamos: fecha_fin (normalizada) → cerrado_en en BD
+      const fechaFinSrc =
+      req.fecha_fin ||
+      req.cerrado_en ||
+      req.raw?.fecha_fin ||
+      req.raw?.cerrado_en ||
+      "";
+
+    const fechaFinVal =
+    estatus === 6 && fechaFinSrc ? String(fechaFinSrc).split(" ")[0] : "—";
+
+    putDetalle("Fecha de terminado", fechaFinVal);
+  }
 
   function resetDetallesSkeleton() {
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
@@ -335,7 +425,9 @@
       modal.classList.remove("open", "active");
       document.body.classList.remove("me-modal-open");
     };
-    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) close();
+    });
     content.querySelector(".modal-close")?.addEventListener("click", close);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && modal.classList.contains("open")) close();
@@ -383,7 +475,10 @@
     form.onsubmit = async (e) => {
       e.preventDefault();
       const value = sel.value;
-      if (!value) { sel.focus(); return; }
+      if (!value) {
+        sel.focus();
+        return;
+      }
       await doAsignarRequerimiento(Number(value)).catch((err) => {
         warn("assign error:", err);
         toast("No se pudo asignar.", "danger");
@@ -403,10 +498,17 @@
 
   async function doAsignarRequerimiento(asignadoId) {
     const req = window.__REQ__;
-    if (!req?.id) { toast("No hay requerimiento cargado.", "danger"); return; }
+    if (!req?.id) {
+      toast("No hay requerimiento cargado.", "danger");
+      return;
+    }
 
     const updated_by = getEmpleadoId() ?? null;
-    const payload = { id: Number(req.id), asignado_a: Number(asignadoId), updated_by };
+    const payload = {
+      id: Number(req.id),
+      asignado_a: Number(asignadoId),
+      updated_by,
+    };
 
     const r = await postJSON(ENDPOINTS.REQ_UPDATE, payload);
     // UI refresh
@@ -423,48 +525,63 @@
   async function refreshAsignadoUI(asignadoId) {
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const t = (r.querySelector("label")?.textContent || "").trim().toLowerCase();
+      const t = (r.querySelector("label")?.textContent || "")
+        .trim()
+        .toLowerCase();
       return t.startsWith("asignado");
     });
     const dd = row?.querySelector(".exp-val");
     if (dd) {
       const sel = document.querySelector("#modal-asignar-req #asignar-select");
-      const opt = sel ? sel.querySelector(`option[value="${CSS.escape(String(asignadoId))}"]`) : null;
+      const opt = sel
+        ? sel.querySelector(`option[value="${CSS.escape(String(asignadoId))}"]`)
+        : null;
       const display = opt?.textContent || `Empleado #${asignadoId}`;
       dd.textContent = display; // ← texto plano
-      attachAsignarButton();     // re-asegura el botón al lado
+      attachAsignarButton(); // re-asegura el botón al lado
     }
 
     // Encargado del encabezado (si existe esa sección)
     const ddE = $(".exp-meta > div:nth-child(2) dd");
     if (ddE) {
       const sel = document.querySelector("#modal-asignar-req #asignar-select");
-      const opt = sel ? sel.querySelector(`option[value="${CSS.escape(String(asignadoId))}"]`) : null;
+      const opt = sel
+        ? sel.querySelector(`option[value="${CSS.escape(String(asignadoId))}"]`)
+        : null;
       ddE.textContent = opt?.textContent || `Empleado #${asignadoId}`;
     }
   }
-
 
   /* =========================
    * Wiring
    * ========================= */
   function bootListeners() {
-    document.addEventListener("req:loaded", async (e) => {
-      try {
-        resetDetallesSkeleton();
-        const req = e.detail;
-        await paintDetalles(req);
-      } catch (err) { warn("paintDetalles error:", err); }
-    }, { passive: true });
+    document.addEventListener(
+      "req:loaded",
+      async (e) => {
+        try {
+          resetDetallesSkeleton();
+          const req = e.detail;
+          await paintDetalles(req);
+        } catch (err) {
+          warn("paintDetalles error:", err);
+        }
+      },
+      { passive: true }
+    );
 
     // Fallback si __REQ__ ya estaba cargado
     if (window.__REQ__) {
       resetDetallesSkeleton();
-      paintDetalles(window.__REQ__).catch((e) => warn("paintDetalles fallback error:", e));
+      paintDetalles(window.__REQ__).catch((e) =>
+        warn("paintDetalles fallback error:", e)
+      );
     }
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bootListeners, { once: true });
+    document.addEventListener("DOMContentLoaded", bootListeners, {
+      once: true,
+    });
   } else bootListeners();
 })();
