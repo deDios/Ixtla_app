@@ -257,13 +257,18 @@
                     <!-- Panel: Detalles -->
                     <section class="exp-pane" role="tabpanel" data-tab="detalles">
                         <div class="exp-grid">
-                            <div class="exp-field"><label>Nombre del Requerimiento:</label>
+                            <div class="exp-field">
+                                <label>Nombre del Requerimiento:</label>
                                 <div class="exp-val">Fuga de agua</div>
                             </div>
-                            <div class="exp-field"><label>Director:</label>
+
+                            <div class="exp-field">
+                                <label>Director:</label>
                                 <div class="exp-val"><a>Juan Pablo</a></div>
                             </div>
-                            <div class="exp-field"><label>Asignado:</label>
+
+                            <div class="exp-field">
+                                <label>Asignado:</label>
                                 <div class="exp-val"><a>Luis Enrique Mendez</a></div>
                             </div>
 
@@ -272,13 +277,14 @@
                                 <div class="exp-val" id="req-departamento">—</div>
                             </div>
 
+                            <!-- Estatus (columna izquierda) -->
                             <div class="exp-field">
                                 <label>Estatus:</label>
                                 <div class="exp-val" id="req-status">
                                     <!-- Badge que actualizamos por JS -->
                                     <span data-role="status-badge" class="exp-badge is-info">—</span>
 
-                                    <!-- boton + combo para cambiar el status, de momento no actualiza realmente-->
+                                    <!-- boton + combo para cambiar el status -->
                                     <div class="status-tools"
                                         style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
                                         <button type="button" class="btn-xs" data-role="status-btn">Cambiar</button>
@@ -295,19 +301,29 @@
                                 </div>
                             </div>
 
+                            <!-- bandera motivo -->
+                            <div class="exp-field">
+                                <label>Motivo (pausa/cancelación):</label>
+                                <div class="exp-val" id="req-motivo">—</div>
+                            </div>
+
                             <div class="exp-field exp-field--full">
                                 <label>Descripción:</label>
                                 <div class="exp-val exp-preline">
                                     Vimos una fuga de agua en una casa amarilla de dos pisos, lleva más de 3 horas
-                                    tirando
-                                    agua y no parece que se encuentren los propietarios. Nos preocupa porque es agua
+                                    tirando agua y no parece que se encuentren los propietarios. Nos preocupa porque es
+                                    agua
                                     limpia.
                                 </div>
                             </div>
-                            <div class="exp-field"><label>Fecha de inicio:</label>
+
+                            <div class="exp-field">
+                                <label>Fecha de inicio:</label>
                                 <div class="exp-val">02/09/2025</div>
                             </div>
-                            <div class="exp-field"><label>Fecha de terminado:</label>
+
+                            <div class="exp-field">
+                                <label>Fecha de terminado:</label>
                                 <div class="exp-val">—</div>
                             </div>
                         </div>
