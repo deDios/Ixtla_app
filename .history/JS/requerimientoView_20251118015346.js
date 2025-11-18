@@ -73,7 +73,7 @@
     } catch { return null; }
   }
   function safeGetSession() {
-    try { if (window.Session?.get) return window.Session.get(); } catch { }
+    try { if (window.Session?.get) return window.Session.get(); } catch {}
     return readCookiePayload() || null;
   }
   function getUserAndEmpleadoFromSession() {
@@ -114,12 +114,12 @@
    * ======================================*/
   const statusLabel = (s) => ({
     0: "Solicitud", 1: "Revisión", 2: "Asignación",
-    3: "Proceso", 4: "Pausado", 5: "Cancelado", 6: "Finalizado",
+    3: "Proceso",   4: "Pausado",  5: "Cancelado", 6: "Finalizado",
   }[Number(s)] || "—");
 
   const statusBadgeClass = (s) => ({
     0: "is-muted", 1: "is-info", 2: "is-info",
-    3: "is-info", 4: "is-warning", 5: "is-danger", 6: "is-success",
+    3: "is-info",  4: "is-warning", 5: "is-danger", 6: "is-success",
   }[Number(s)] || "is-info");
 
   function paintStepper(next) {
@@ -185,14 +185,14 @@
   }
   function getButtonsForStatus(code) {
     switch (Number(code)) {
-      case 0: return [makeBtn("Iniciar revisión", "primary", "start-revision"), makeBtn("Cancelar", "danger", "cancel")];
-      case 1: return [makeBtn("Pausar", "warn", "pause"), makeBtn("Cancelar", "danger", "cancel"), makeBtn("Asignar a departamento", "", "assign-dept")];
-      case 2: return [makeBtn("Pausar", "warn", "pause"), makeBtn("Cancelar", "danger", "cancel"), makeBtn("Iniciar proceso", "primary", "start-process")];
-      case 3: return [makeBtn("Pausar", "warn", "pause"), makeBtn("Cancelar", "danger", "cancel")];
-      case 4: return [makeBtn("Reanudar", "primary", "resume"), makeBtn("Cancelar", "danger", "cancel")];
-      case 5: return [makeBtn("Reabrir", "primary", "reopen")];
-      case 6: return [makeBtn("Reabrir", "primary", "reopen")];
-      default: return [makeBtn("Iniciar revisión", "primary", "start-revision")];
+      case 0: return [makeBtn("Iniciar revisión","primary","start-revision"), makeBtn("Cancelar","danger","cancel")];
+      case 1: return [makeBtn("Pausar","warn","pause"), makeBtn("Cancelar","danger","cancel"), makeBtn("Asignar a departamento","","assign-dept")];
+      case 2: return [makeBtn("Pausar","warn","pause"), makeBtn("Cancelar","danger","cancel"), makeBtn("Iniciar proceso","primary","start-process")];
+      case 3: return [makeBtn("Pausar","warn","pause"), makeBtn("Cancelar","danger","cancel")];
+      case 4: return [makeBtn("Reanudar","primary","resume"), makeBtn("Cancelar","danger","cancel")];
+      case 5: return [makeBtn("Reabrir","primary","reopen")];
+      case 6: return [makeBtn("Reabrir","primary","reopen")];
+      default: return [makeBtn("Iniciar revisión","primary","start-revision")];
     }
   }
   function renderActions(code = getCurrentStatusCode()) {
@@ -248,21 +248,21 @@
         next = 2; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Asignado a departamento", "success");
       } else if (act === "start-process") {
         const ok = await hasAtLeastOneProcesoAndTask(id);
-        if (!ok) { toast("Para iniciar proceso necesitas al menos un proceso y una tarea.", "warning"); return; }
-        next = 3; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Proceso iniciado", "success");
+        if (!ok) { toast("Para iniciar proceso necesitas al menos un proceso y una tarea.","warning"); return; }
+        next = 3; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Proceso iniciado","success");
       } else if (act === "pause") {
         const motivo = await askMotivo("Motivo de la pausa");
-        next = 4; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next); toast("Pausado", "warn");
+        next = 4; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next); toast("Pausado","warn");
       } else if (act === "resume") {
-        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Reanudado (Revisión)", "success");
+        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Reanudado (Revisión)","success");
       } else if (act === "cancel") {
         const motivo = await askMotivo("Motivo de la cancelación");
-        next = 5; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next); toast("Cancelado", "danger");
+        next = 5; await updateReqStatus({ id, estatus: next, motivo }); updateStatusUI(next); toast("Cancelado","danger");
       } else if (act === "reopen") {
-        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Reabierto (Revisión)", "info");
+        next = 1; await updateReqStatus({ id, estatus: next }); updateStatusUI(next); toast("Reabierto (Revisión)","info");
       }
     } catch (e) {
-      if (e !== "cancel") { err(e); toast("No se pudo actualizar el estado.", "danger"); }
+      if (e !== "cancel") { err(e); toast("No se pudo actualizar el estado.","danger"); }
     }
     renderActions(next);
   }
@@ -288,7 +288,7 @@
       descripcion: String(raw.descripcion || "").trim(),
       prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
       estatus_code: raw.estatus != null ? Number(raw.estatus) :
-        raw.status != null ? Number(raw.status) : 0,
+                    raw.status  != null ? Number(raw.status)  : 0,
       canal: raw.canal != null ? Number(raw.canal) : null,
       contacto_nombre: String(raw.contacto_nombre || "").trim(),
       contacto_telefono: String(raw.contacto_telefono || "").trim(),
@@ -372,77 +372,77 @@
     return cand;
   }
   async function renderCommentsList(items = []) {
-    const feed = $(".c-feed");
-    if (!feed) return;
-    feed.innerHTML = "";
+  const feed = $(".c-feed");
+  if (!feed) return;
+  feed.innerHTML = "";
 
-    const ordered = [...items].sort((a, b) => {
-      const aDate = Date.parse(a.created_at || a.fecha || "") || 0;
-      const bDate = Date.parse(b.created_at || b.fecha || "") || 0;
-      return bDate - aDate; // descendente (nuevo → viejo)
-    });
+  const ordered = [...items].sort((a, b) => {
+    const aDate = Date.parse(a.created_at || a.fecha || "") || 0;
+    const bDate = Date.parse(b.created_at || b.fecha || "") || 0;
+    return bDate - aDate; // descendente (nuevo → viejo)
+  });
 
-    for (const r of ordered) {
-      let display = "";
-      try {
-        const empId = Number(r.empleado_id) > 0 ? Number(r.empleado_id) : null;
-        if (empId) display = (await getEmpleadoById(empId))?.nombre || "";
-      } catch { }
-      if (!display) {
-        display =
-          r.empleado_display ||
-          [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ").trim() ||
-          r.nombre ||
-          r.autor ||
-          "—";
+  for (const r of ordered) {
+    let display = "";
+    try {
+      const empId = Number(r.empleado_id) > 0 ? Number(r.empleado_id) : null;
+      if (empId) display = (await getEmpleadoById(empId))?.nombre || "";
+    } catch {}
+    if (!display) {
+      display =
+        r.empleado_display ||
+        [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ").trim() ||
+        r.nombre ||
+        r.autor ||
+        "—";
+    }
+    const texto = r.comentario || r.texto || "";
+    const cuando = relShort(r.created_at || r.fecha || "");
+    const usuarioId =
+      (Number(r.created_by) > 0 && Number(r.created_by)) ||
+      (Number(r.cuenta_id) > 0 && Number(r.cuenta_id)) ||
+      null;
+    const sources = makeAvatarSourcesByUsuarioId(usuarioId);
+
+    const art = document.createElement("article");
+    art.className = "msg";
+
+    const img = document.createElement("img");
+    img.className = "avatar";
+    img.alt = "";
+    let i = 0;
+    const tryNext = () => {
+      if (i >= sources.length) {
+        img.src = DEFAULT_AVATAR;
+        return;
       }
-      const texto = r.comentario || r.texto || "";
-      const cuando = relShort(r.created_at || r.fecha || "");
-      const usuarioId =
-        (Number(r.created_by) > 0 && Number(r.created_by)) ||
-        (Number(r.cuenta_id) > 0 && Number(r.cuenta_id)) ||
-        null;
-      const sources = makeAvatarSourcesByUsuarioId(usuarioId);
-
-      const art = document.createElement("article");
-      art.className = "msg";
-
-      const img = document.createElement("img");
-      img.className = "avatar";
-      img.alt = "";
-      let i = 0;
-      const tryNext = () => {
-        if (i >= sources.length) {
-          img.src = DEFAULT_AVATAR;
-          return;
-        }
-        img.onerror = () => {
-          i++;
-          tryNext();
-        };
-        img.src = sources[i];
+      img.onerror = () => {
+        i++;
+        tryNext();
       };
-      tryNext();
-      art.appendChild(img);
+      img.src = sources[i];
+    };
+    tryNext();
+    art.appendChild(img);
 
-      const box = document.createElement("div");
-      box.innerHTML = `
+    const box = document.createElement("div");
+    box.innerHTML = `
       <div class="who">
         <span class="name">${firstTwo(display)}</span>
         <span class="time">${cuando}</span>
       </div>
       <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
     `;
-      $(".text", box).textContent = texto;
-      art.appendChild(box);
+    $(".text", box).textContent = texto;
+    art.appendChild(box);
 
-      feed.appendChild(art);
-    }
-
-    // ✅ Dejamos el scroll arriba (más recientes ya están al inicio)
-    const scroller = feed.parentElement || feed;
-    scroller.scrollTo({ top: 0, behavior: "auto" });
+    feed.appendChild(art);
   }
+
+  // ✅ Dejamos el scroll arriba (más recientes ya están al inicio)
+  const scroller = feed.parentElement || feed;
+  scroller.scrollTo({ top: 0, behavior: "auto" });
+}
 
   async function loadComentarios(reqId) {
     try {
