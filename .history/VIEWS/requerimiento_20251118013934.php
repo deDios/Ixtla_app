@@ -181,33 +181,34 @@
                 <!-- Encabezado -->
                 <header class="exp-head">
 
-                    <!-- Fila 1: título + meta -->
-                    <div class="exp-head-main">
-                        <div class="exp-title">
-                            <h1>Fuga de agua</h1>
-                        </div>
+    <!-- Fila 1: título + meta -->
+    <div class="exp-head-main">
+        <div class="exp-title">
+            <h1>Fuga de agua</h1>
+        </div>
 
-                        <dl class="exp-meta">
-                            <div>
-                                <dt>Contacto</dt>
-                                <dd>Luis Enrique Mendez</dd>
-                            </div>
-                            <div>
-                                <dt>Encargado</dt>
-                                <dd>Juan Pablo</dd>
-                            </div>
-                            <div>
-                                <dt>Fecha de solicitado</dt>
-                                <dd>04/06/2025 12:30pm</dd>
-                            </div>
-                        </dl>
-                    </div>
+        <dl class="exp-meta">
+            <div>
+                <dt>Contacto</dt>
+                <dd>Luis Enrique Mendez</dd>
+            </div>
+            <div>
+                <dt>Encargado</dt>
+                <dd>Juan Pablo</dd>
+            </div>
+            <div>
+                <dt>Fecha de solicitado</dt>
+                <dd>04/06/2025 12:30pm</dd>
+            </div>
+        </dl>
+    </div>
 
-                    <!-- Fila 2: botones con su propio renglón -->
-                    <div class="exp-head-actions">
-                        <div id="req-actions" class="exp-actions"></div>
-                    </div>
-                </header>
+    <!-- Fila 2: botones con su propio renglón -->
+    <div class="exp-head-actions">
+        <div id="req-actions" class="exp-actions"></div>
+    </div>
+</header>
+
 
 
                 <!-- Stepper -->
