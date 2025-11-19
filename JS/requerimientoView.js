@@ -42,6 +42,9 @@
     COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
     PROCESOS_LIST: "/db/WEB/ixtla01_c_proceso_requerimiento.php",
     TAREAS_LIST: "/db/WEB/ixtla01_c_tarea_proceso.php",
+    CCP_CREATE: "https://ixtla-app.com/db/web/ixtla01_i_ccp.php",
+    CCP_UPDATE: "https://ixtla-app.com/db/web/ixtla01_u_ccp.php",
+    CCP_LIST: "https://ixtla-app.com/db/web/ixtla01_c_ccp.php",
   };
 
   /* ======================================
@@ -69,6 +72,88 @@
     } catch (e) {
       throw e;
     }
+  }
+
+  /* ======================================
+   *  CCP (Motivo de pausa / cancelación)
+   * ======================================*/
+
+  async function listCCPByReqId(reqId) {
+    const base = {
+      requerimiento_id: Number(reqId),
+      page: 1,
+      per_page: 50,
+    };
+
+    // 1) intentamos con activos
+    try {
+      const res = await postJSON(ENDPOINTS.CCP_LIST, { ...base, status: 1 });
+      const arr = Array.isArray(res?.data) ? res.data : [];
+      if (arr.length) return arr[0];
+    } catch (e) {
+      warn("[CCP] list activos error:", e);
+    }
+
+    // 2) si no hay activos, probamos inactivos
+    try {
+      const res = await postJSON(ENDPOINTS.CCP_LIST, { ...base, status: 0 });
+      const arr = Array.isArray(res?.data) ? res.data : [];
+      if (arr.length) return arr[0];
+    } catch (e) {
+      warn("[CCP] list inactivos error:", e);
+    }
+
+    return null;
+  }
+
+  async function upsertCCP({
+    requerimiento_id,
+    comentario,
+    tipo = 2,
+    status = 1,
+  }) {
+    const { empleado_id } = getUserAndEmpleadoFromSession();
+    const existente = await listCCPByReqId(requerimiento_id).catch(() => null);
+
+    if (existente && existente.id) {
+      // update
+      const payload = {
+        id: Number(existente.id),
+        comentario:
+          comentario != null ? String(comentario).trim() : existente.comentario,
+        updated_by: empleado_id || 1,
+      };
+      if (typeof status === "number") payload.status = status;
+
+      const res = await postJSON(ENDPOINTS.CCP_UPDATE, payload);
+      return res?.data ?? res;
+    } else {
+      // insert
+      const payload = {
+        requerimiento_id: Number(requerimiento_id),
+        empleado_id: empleado_id || null,
+        tipo: Number(tipo), // 2 = tipo CCP (pausa/cancelación)
+        comentario: comentario != null ? String(comentario).trim() : "",
+        status: typeof status === "number" ? status : 1,
+        created_by: empleado_id || 1,
+      };
+      const res = await postJSON(ENDPOINTS.CCP_CREATE, payload);
+      return res?.data ?? res;
+    }
+  }
+
+  async function deactivateCCPForReq(requerimiento_id) {
+    const { empleado_id } = getUserAndEmpleadoFromSession();
+    const existente = await listCCPByReqId(requerimiento_id).catch(() => null);
+    if (!existente || !existente.id) return null;
+
+    const payload = {
+      id: Number(existente.id),
+      status: 0,
+      updated_by: empleado_id || 1,
+    };
+    const res = await postJSON(ENDPOINTS.CCP_UPDATE, payload);
+    return res?.data ?? res;
   }
 
   /* ======================================
@@ -408,26 +493,72 @@
       } else if (act === "pause") {
         const motivo = await askMotivo("Motivo de la pausa");
         next = 4;
+
+        // 1) Actualizamos estatus del requerimiento
         await updateReqStatus({ id, estatus: next, motivo });
+
+        // 2) Guardamos/actualizamos motivo CCP (status 1 = activo)
+        try {
+          await upsertCCP({
+            requerimiento_id: id,
+            comentario: motivo,
+            tipo: 2,
+            status: 1,
+          });
+        } catch (e) {
+          warn("[CCP] no se pudo guardar motivo de pausa:", e);
+        }
+
         didUpdate = true;
         updateStatusUI(next);
         toast("Pausado", "warn");
       } else if (act === "resume") {
         next = 1;
         await updateReqStatus({ id, estatus: next });
+
+        // Al reanudar, desactivamos el CCP (status 0)
+        try {
+          await deactivateCCPForReq(id);
+        } catch (e) {
+          warn("[CCP] no se pudo desactivar CCP al reanudar:", e);
+        }
+
         didUpdate = true;
         updateStatusUI(next);
         toast("Reanudado (Revisión)", "success");
       } else if (act === "cancel") {
         const motivo = await askMotivo("Motivo de la cancelación");
         next = 5;
+
+        // 1) Actualizamos estatus del requerimiento
         await updateReqStatus({ id, estatus: next, motivo });
+
+        // 2) Guardamos/actualizamos motivo CCP (activo)
+        try {
+          await upsertCCP({
+            requerimiento_id: id,
+            comentario: motivo,
+            tipo: 2,
+            status: 1,
+          });
+        } catch (e) {
+          warn("[CCP] no se pudo guardar motivo de cancelación:", e);
+        }
+
         didUpdate = true;
         updateStatusUI(next);
         toast("Cancelado", "danger");
       } else if (act === "reopen") {
         next = 1;
         await updateReqStatus({ id, estatus: next });
+
+        // Al reabrir desde cancelado, igual desactivamos CCP
+        try {
+          await deactivateCCPForReq(id);
+        } catch (e) {
+          warn("[CCP] no se pudo desactivar CCP al reabrir:", e);
+        }
+
         didUpdate = true;
         updateStatusUI(next);
         toast("Reabierto (Revisión)", "info");

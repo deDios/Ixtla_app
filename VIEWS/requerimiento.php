@@ -268,32 +268,42 @@
                             </div>
 
                             <div class="exp-field">
-                                <label>Departamento:</label>
-                                <div class="exp-val" id="req-departamento">—</div>
-                            </div>
-
-                            <div class="exp-field">
                                 <label>Estatus:</label>
-                                <div class="exp-val" id="req-status">
-                                    <!-- Badge que actualizamos por JS -->
-                                    <span data-role="status-badge" class="exp-badge is-info">—</span>
+                                <div class="exp-val" id="req-status"
+                                    style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
 
-                                    <!-- boton + combo para cambiar el status, de momento no actualiza realmente-->
-                                    <div class="status-tools"
-                                        style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
-                                        <button type="button" class="btn-xs" data-role="status-btn">Cambiar</button>
-                                        <select class="status-select" data-role="status-select" hidden>
-                                            <option value="0">Solicitud</option>
-                                            <option value="1">Revisión</option>
-                                            <option value="2">Asignación</option>
-                                            <option value="3">Proceso</option>
-                                            <option value="4">Pausado</option>
-                                            <option value="5">Cancelado</option>
-                                            <option value="6">Finalizado</option>
-                                        </select>
+                                    <!-- Bloque de estatus (igual que antes) -->
+                                    <div class="status-main" style="display:inline-flex; align-items:center; gap:8px;">
+                                        <!-- Badge que actualizamos por JS -->
+                                        <span data-role="status-badge" class="exp-badge is-info">—</span>
+
+                                        <!-- botón + combo para cambiar el status -->
+                                        <div class="status-tools"
+                                            style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
+                                            <button type="button" class="btn-xs" data-role="status-btn">Cambiar</button>
+                                            <select class="status-select" data-role="status-select" hidden>
+                                                <option value="0">Solicitud</option>
+                                                <option value="1">Revisión</option>
+                                                <option value="2">Asignación</option>
+                                                <option value="3">Proceso</option>
+                                                <option value="4">Pausado</option>
+                                                <option value="5">Cancelado</option>
+                                                <option value="6">Finalizado</option>
+                                            </select>
+                                        </div>
                                     </div>
+
+                                    <!-- Bloque de motivo (para CCP) -->
+                                    <div class="status-motivo" id="req-motivo-wrap"
+                                        style="display:none; align-items:center; gap:4px; font-size:0.9rem;"
+                                        aria-live="polite">
+                                        <span class="exp-motivo-label">Motivo:</span>
+                                        <span class="exp-motivo-text" data-role="ccp-motivo">—</span>
+                                    </div>
+
                                 </div>
                             </div>
+
 
                             <div class="exp-field exp-field--full">
                                 <label>Descripción:</label>

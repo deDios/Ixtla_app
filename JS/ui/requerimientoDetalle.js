@@ -31,6 +31,7 @@
     DEPTS_LIST:
       "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
     REQ_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",
+    CCP_LIST: "https://ixtla-app.com/db/web/ixtla01_c_ccp.php",
   };
 
   async function postJSON(url, body) {
@@ -58,6 +59,71 @@
   /* =========================
    * Session helpers (idéntico patrón Planeación)
    * ========================= */
+
+  /* =========================
+   * CCP (Motivo de pausa / cancelación)
+   * ========================= */
+
+  async function fetchCCPByReqId(
+    requerimiento_id,
+    status = 1,
+    page = 1,
+    per_page = 50
+  ) {
+    const payload = {
+      requerimiento_id: Number(requerimiento_id),
+      status,
+      page,
+      per_page,
+    };
+
+    const res = await postJSON(ENDPOINTS.CCP_LIST, payload);
+    const data = Array.isArray(res?.data) ? res.data : [];
+    return data[0] || null; // solo uno por requerimiento
+  }
+
+  function getMotivoElements() {
+    const wrap = document.getElementById("req-motivo-wrap");
+    const text = document.getElementById("req-motivo-text");
+    if (!wrap || !text) return null;
+    return { wrap, text };
+  }
+
+  async function paintMotivoCCP(req) {
+    const els = getMotivoElements();
+    if (!els) return;
+    const { wrap, text } = els;
+
+    const code =
+      req &&
+      (req.estatus_code != null
+        ? Number(req.estatus_code)
+        : req.raw &&
+          (req.raw.estatus != null ? Number(req.raw.estatus) : null));
+
+    // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
+    if (code !== 4 && code !== 5) {
+      wrap.style.display = "none";
+      text.textContent = "—";
+      return;
+    }
+
+    wrap.style.display = "";
+    text.textContent = "Cargando motivo...";
+
+    try {
+      const ccp = await fetchCCPByReqId(req.id, 1);
+      if (ccp && ccp.comentario) {
+        text.textContent = ccp.comentario;
+      } else {
+        text.textContent = "Sin motivo registrado.";
+      }
+    } catch (e) {
+      warn("[CCP] error pintando motivo:", e);
+      text.textContent = "Sin motivo registrado.";
+    }
+  }
+
   function safeGetSession() {
     try {
       if (window.Session?.get) return window.Session.get();
@@ -560,6 +626,7 @@
           resetDetallesSkeleton();
           const req = e.detail;
           await paintDetalles(req);
+          await paintMotivoCCP(req); 
         } catch (err) {
           warn("paintDetalles error:", err);
         }
@@ -570,9 +637,9 @@
     // Fallback si __REQ__ ya estaba cargado
     if (window.__REQ__) {
       resetDetallesSkeleton();
-      paintDetalles(window.__REQ__).catch((e) =>
-        warn("paintDetalles fallback error:", e)
-      );
+      paintDetalles(window.__REQ__)
+        .then(() => paintMotivoCCP(window.__REQ__))
+        .catch((e) => warn("paintDetalles fallback error:", e));
     }
   }
 
