@@ -68,9 +68,9 @@
  * CCP (Motivo de pausa / cancelación)
  * ========================= */
 
-  /* =========================
- * CCP (Motivo de pausa / cancelación)
- * ========================= */
+    /* =========================
+   * CCP (Motivo de pausa / cancelación)
+   * ========================= */
 
   async function fetchCCPByReqId(
     requerimiento_id,
@@ -155,8 +155,8 @@
       (req.estatus_code != null
         ? Number(req.estatus_code)
         : req.raw && req.raw.estatus != null
-          ? Number(req.raw.estatus)
-          : null);
+        ? Number(req.raw.estatus)
+        : null);
 
     log(
       "[CCP] estatus detectado:",
@@ -795,9 +795,9 @@
     }
   }
 
-  /* =========================
- * Wiring
- * ========================= */
+    /* =========================
+   * Wiring
+   * ========================= */
   function bootListeners() {
     document.addEventListener(
       "req:loaded",

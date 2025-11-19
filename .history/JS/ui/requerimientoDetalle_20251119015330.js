@@ -68,9 +68,9 @@
  * CCP (Motivo de pausa / cancelación)
  * ========================= */
 
-  /* =========================
- * CCP (Motivo de pausa / cancelación)
- * ========================= */
+    /* =========================
+   * CCP (Motivo de pausa / cancelación)
+   * ========================= */
 
   async function fetchCCPByReqId(
     requerimiento_id,
@@ -155,8 +155,8 @@
       (req.estatus_code != null
         ? Number(req.estatus_code)
         : req.raw && req.raw.estatus != null
-          ? Number(req.raw.estatus)
-          : null);
+        ? Number(req.raw.estatus)
+        : null);
 
     log(
       "[CCP] estatus detectado:",
@@ -796,41 +796,32 @@
   }
 
   /* =========================
- * Wiring
- * ========================= */
+   * Wiring
+   * ========================= */
   function bootListeners() {
     document.addEventListener(
       "req:loaded",
       async (e) => {
-        const req = e.detail;
-        log("[Detalle] req:loaded → detalle recibido:", req);
-
         try {
           resetDetallesSkeleton();
+          const req = e.detail;
           await paintDetalles(req);
-
-          log("[Detalle] llamando a paintMotivoCCP desde evento req:loaded");
           await paintMotivoCCP(req);
         } catch (err) {
-          warn("paintDetalles / paintMotivoCCP error:", err);
+          warn("paintDetalles error:", err);
         }
       },
       { passive: true }
     );
 
-    // Fallback si __REQ__ ya estaba cargado antes del listener
+    // Fallback si __REQ__ ya estaba cargado
     if (window.__REQ__) {
-      log("[Detalle] __REQ__ ya existe al iniciar, aplicando paintDetalles + paintMotivoCCP:", window.__REQ__);
       resetDetallesSkeleton();
       paintDetalles(window.__REQ__)
-        .then(() => {
-          log("[Detalle] paintDetalles fallback listo, ahora paintMotivoCCP");
-          return paintMotivoCCP(window.__REQ__);
-        })
+        .then(() => paintMotivoCCP(window.__REQ__))
         .catch((e) => warn("paintDetalles fallback error:", e));
     }
   }
-
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bootListeners, {
