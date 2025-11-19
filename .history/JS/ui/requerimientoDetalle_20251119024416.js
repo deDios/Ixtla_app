@@ -22,6 +22,10 @@
    * Endpoints
    * ========================= */
   const ENDPOINTS = {
+    DEPT_LIST_PRIMARY:
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
+    DEPT_LIST_LOCAL: "/db/WEB/ixtla01_c_departamento.php",
+    DEPT_LIST_UPPER: "/DB/WEB/ixtla01_c_departamento.php",
     EMPLEADOS_LIST:
       "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
     DEPTS_LIST:
@@ -39,31 +43,357 @@
       },
       body: JSON.stringify(body || {}),
     });
-
     const txt = await res.text();
-    let json = null;
+    let json;
     try {
       json = JSON.parse(txt);
     } catch {
       json = { raw: txt };
     }
-
     if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
     if (json?.ok === false)
       throw new Error(json?.error || "Operación no exitosa");
-
     return json ?? {};
   }
 
   /* =========================
-   * Session helpers
+   * Session helpers (idéntico patrón Planeación)
    * ========================= */
+
+  /* =========================
+ * CCP (Motivo de pausa / cancelación)
+ * ========================= */
+
+  // Ahora tratamos la respuesta como OBJETO (data: { ... })
+  async function fetchCCPByReqId(
+    requerimiento_id,
+    status = 1,
+    page = 1,
+    per_page = 50
+  ) {aaa
+    const payload = {
+      requerimiento_id: Number(requerimiento_id),
+      status,
+      page,
+      per_page,
+    };
+
+    log("[CCP] fetchCCPByReqId payload:", payload);
+
+    const res = await postJSON(ENDPOINTS.CCP_LIST, payload);
+    log("[CCP] fetchCCPByReqId raw response:", res);
+
+    // La API regresa data como OBJETO, no arreglo
+    const obj = res && res.data ? res.data : null;
+    if (!obj) {
+      log("[CCP] sin data en respuesta CCP");
+    }
+    return obj; // { id, comentario, ... } o null
+  }
+
+  // Ahora usamos los IDs reales del HTML:
+  //  - #req-motivo-field  → toda la fila
+  //  - #req-motivo-wrap   → el contenedor de texto (exp-val)
+  function getMotivoElements() {
+    const field = document.getElementById("req-motivo-field");
+    const wrap = document.getElementById("req-motivo-wrap");
+
+    if (!field || !wrap) {
+      warn("[CCP] getMotivoElements: falta field o wrap", { field, wrap });
+      return null;
+    }
+    return { field, wrap };
+  }
+
+  async function paintMotivoCCP(req) {
+    const els = getMotivoElements();
+    if (!els) {
+      warn("[CCP] paintMotivoCCP: no hay elementos en DOM");
+      return;
+    }
+    const { field, wrap } = els;
+
+    // Codigo numérico de estatus (igual que en View)
+    const code = req && (
+      req.estatus_code != null
+        ? Number(req.estatus_code)
+        : req.raw && (req.raw.estatus != null ? Number(req.raw.estatus) : null)
+    );
+
+    log("[CCP] paintMotivoCCP status code:", code, "req.id:", req && req.id);
+
+    // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
+    if (code !== 4 && code !== 5) {
+      field.style.display = "none";
+      wrap.textContent = "—";
+      log("[CCP] status no requiere motivo, ocultando fila");
+      return;
+    }
+
+    // Mostrar la fila y poner mensaje de carga
+    field.style.display = "";
+    wrap.textContent = "Cargando motivo…";
+
+    try {
+      const ccp = await fetchCCPByReqId(req.id, 1);
+      log("[CCP] objeto CCP recibido:", ccp);
+
+      if (ccp && ccp.comentario) {
+        wrap.textContent = ccp.comentario;
+        log("[CCP] motivo pintado en UI");
+      } else {
+        wrap.textContent = "Sin motivo registrado.";
+        log("[CCP] no hay comentario en CCP, mostrando fallback");
+      }
+    } catch (e) {
+      warn("[CCP] error pintando motivo:", e);
+      wrap.textContent = "Sin motivo registrado.";
+    }
+  }
+
+
+  // Ahora usamos los IDs reales del HTML:
+  //  - #req-motivo-field  → toda la fila
+  //  - #req-motivo-wrap   → el contenedor de texto (exp-val)
+  function getMotivoElements() {
+    const field = document.getElementById("req-motivo-field");
+    const wrap = document.getElementById("req-motivo-wrap");
+
+    if (!field || !wrap) {
+      warn("[CCP] getMotivoElements: falta field o wrap", { field, wrap });
+      return null;
+    }
+    return { field, wrap };
+  }
+
+  async function paintMotivoCCP(req) {
+    const els = getMotivoElements();
+    if (!els) {
+      warn("[CCP] paintMotivoCCP: no hay elementos en DOM");
+      return;
+    }
+    const { field, wrap } = els;
+
+    // Codigo numérico de estatus (igual que en View)
+    const code = req && (
+      req.estatus_code != null
+        ? Number(req.estatus_code)
+        : req.raw && (req.raw.estatus != null ? Number(req.raw.estatus) : null)
+    );
+
+    log("[CCP] paintMotivoCCP status code:", code, "req.id:", req && req.id);
+
+    // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
+    if (code !== 4 && code !== 5) {
+      field.style.display = "none";
+      wrap.textContent = "—";
+      log("[CCP] status no requiere motivo, ocultando fila");
+      return;
+    }
+
+    // Mostrar la fila y poner mensaje de carga
+    field.style.display = "";
+    wrap.textContent = "Cargando motivo…";
+
+    try {
+      const ccp = await fetchCCPByReqId(req.id, 1);
+      log("[CCP] objeto CCP recibido:", ccp);
+
+      if (ccp && ccp.comentario) {
+        wrap.textContent = ccp.comentario;
+        log("[CCP] motivo pintado en UI");
+      } else {
+        wrap.textContent = "Sin motivo registrado.";
+        log("[CCP] no hay comentario en CCP, mostrando fallback");
+      }
+    } catch (e) {
+      warn("[CCP] error pintando motivo:", e);
+      wrap.textContent = "Sin motivo registrado.";
+    }
+  }
+
+
+  function getMotivoElements() {
+    const field = document.getElementById("req-motivo-field");
+    const wrap = document.getElementById("req-motivo-wrap");
+
+    if (!field || !wrap) {
+      warn("[CCP] getMotivoElements → faltan nodos", { field, wrap });
+      return null;
+    }
+
+    return { field, wrap };
+  }
+
+  async function paintMotivoCCP(req) {
+    const els = getMotivoElements();
+    if (!els) {
+      warn("[CCP] paintMotivoCCP → no hay elementos de UI para motivo");
+      return;
+    }
+    const { field, wrap } = els;
+
+    log("[CCP] paintMotivoCCP → req recibido:", req);
+
+    // Tomamos el código desde lo que trae el req
+    const code =
+      req &&
+      (req.estatus_code != null
+        ? Number(req.estatus_code)
+        : req.raw && req.raw.estatus != null
+          ? Number(req.raw.estatus)
+          : null);
+
+    log(
+      "[CCP] estatus detectado:",
+      code,
+      " (estatus_code:",
+      req?.estatus_code,
+      "raw.estatus:",
+      req?.raw?.estatus,
+      ")"
+    );
+
+    // El renglón de motivo SIEMPRE existe, solo cambiamos el texto
+    // Si NO está en Pausado (4) o Cancelado (5), mostramos guión
+    if (code !== 4 && code !== 5) {
+      log("[CCP] estado no es Pausado/Cancelado, mostrando '—'");
+      wrap.textContent = "—";
+      return;
+    }
+
+    wrap.textContent = "Cargando motivo…";
+
+    try {
+      const ccp = await fetchCCPByReqId(req.id, 1);
+      log("[CCP] resultado fetchCCPByReqId:", ccp);
+
+      if (ccp && ccp.comentario) {
+        wrap.textContent = ccp.comentario;
+        log("[CCP] motivo aplicado en UI:", ccp.comentario);
+      } else {
+        wrap.textContent = "Sin motivo registrado.";
+        warn("[CCP] no se encontró comentario en CCP, usando fallback.");
+      }
+    } catch (e) {
+      warn("[CCP] error pintando motivo:", e);
+      wrap.textContent = "Sin motivo registrado.";
+    }
+  }
+
+
+  function getMotivoElements() {
+    const field = document.getElementById("req-motivo-field");
+    const wrap = document.getElementById("req-motivo-wrap");
+    if (!field || !wrap) return null;
+    return { field, wrap };
+  }
+
+  async function paintMotivoCCP(req) {
+    const els = getMotivoElements();
+    if (!els) return;
+    const { field, wrap } = els;
+
+    const code =
+      req &&
+      (req.estatus_code != null
+        ? Number(req.estatus_code)
+        : req.raw && req.raw.estatus != null
+          ? Number(req.raw.estatus)
+          : null);
+
+    // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
+    if (code !== 4 && code !== 5) {
+      field.style.display = "none";
+      wrap.textContent = "—";
+      return;
+    }
+
+    field.style.display = "";
+    wrap.textContent = "Cargando motivo…";
+
+    try {
+      const ccp = await fetchCCPByReqId(req.id, 1);
+      log("[CCP] paintMotivoCCP ←", ccp);
+
+      if (ccp && ccp.comentario) {
+        wrap.textContent = ccp.comentario;
+      } else {
+        wrap.textContent = "Sin motivo registrado.";
+      }
+    } catch (e) {
+      warn("[CCP] error pintando motivo:", e);
+      wrap.textContent = "Sin motivo registrado.";
+    }
+  }
+
+
+
+  function getMotivoElements() {
+    const field = document.getElementById("req-motivo-field");
+    const text = document.getElementById("req-motivo-text");
+    if (!field || !text) return null;
+    return { wrap: field, text };
+  }
+
+  async function paintMotivoCCP(req) {
+    const els = getMotivoElements();
+    if (!els || !req) return;
+
+    const { wrap, text } = els;
+
+    // Determinar código de estatus de forma robusta
+    let code = null;
+
+    if (req.estatus_code != null && !Number.isNaN(Number(req.estatus_code))) {
+      code = Number(req.estatus_code);
+    } else if (
+      req.raw &&
+      req.raw.estatus != null &&
+      !Number.isNaN(Number(req.raw.estatus))
+    ) {
+      code = Number(req.raw.estatus);
+    }
+
+    log("[CCP] paintMotivoCCP →", {
+      reqId: req.id,
+      estatus_code: req.estatus_code,
+      raw_estatus: req.raw?.estatus,
+      code,
+    });
+
+    // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
+    if (code !== 4 && code !== 5) {
+      wrap.style.display = "none";
+      text.textContent = "—";
+      return;
+    }
+
+    // Mostrar el renglón y cargar motivo
+    wrap.style.display = "";
+    text.textContent = "Cargando motivo...";
+
+    try {
+      const ccp = await fetchCCPByReqId(req.id, 1);
+
+      log("[CCP] registro activo para pintar:", ccp);
+
+      if (ccp && ccp.comentario) {
+        text.textContent = ccp.comentario;
+      } else {
+        text.textContent = "Sin motivo registrado.";
+      }
+    } catch (e) {
+      warn("[CCP] error pintando motivo:", e);
+      text.textContent = "Sin motivo registrado.";
+    }
+  }
+
 
   function safeGetSession() {
     try {
       if (window.Session?.get) return window.Session.get();
-    } catch {}
-
+    } catch { }
     try {
       const pair = document.cookie
         .split("; ")
@@ -72,21 +402,17 @@
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
       if (json && typeof json === "object") return json;
-    } catch {}
-
+    } catch { }
     return null;
   }
-
   function getEmpleadoId() {
     const s = safeGetSession();
     return s?.empleado_id ?? s?.id_empleado ?? null;
   }
-
   function getDeptId() {
     const s = safeGetSession();
     return s?.departamento_id ?? s?.dept_id ?? null;
   }
-
   function getRoles() {
     const s = safeGetSession();
     return Array.isArray(s?.roles)
@@ -95,22 +421,19 @@
   }
 
   /* =========================
-   * RBAC empleados (para modal Asignar)
+   * RBAC empleados (traído de Planeación)
    * ========================= */
-
   function normalizeEmpleadoFromAPI(r = {}) {
     const reporta_a =
       r.reporta_a != null
         ? r.reporta_a
         : r.cuenta && r.cuenta.reporta_a != null
-        ? r.cuenta.reporta_a
-        : null;
-
+          ? r.cuenta.reporta_a
+          : null;
     const roles = Array.isArray(r.cuenta?.roles)
       ? r.cuenta.roles.map((x) => x?.codigo).filter(Boolean)
       : [];
     const rolCodes = roles.map((x) => String(x).toUpperCase());
-
     return {
       id: Number(r.id),
       nombre: String(r.nombre || "").trim(),
@@ -124,7 +447,6 @@
       rolCodes,
     };
   }
-
   async function fetchEmpleadosAll() {
     const j = await postJSON(ENDPOINTS.EMPLEADOS_LIST, {
       page: 1,
@@ -134,7 +456,6 @@
     const arr = Array.isArray(j?.data) ? j.data : [];
     return arr.map(normalizeEmpleadoFromAPI);
   }
-
   async function fetchDepartamentosRBAC() {
     const j = await postJSON(ENDPOINTS.DEPTS_LIST, {
       page: 1,
@@ -147,11 +468,8 @@
       nombre: String(d.nombre || "").trim(),
       director: d.director != null ? Number(d.director) : null,
       primera_linea: d.primera_linea != null ? Number(d.primera_linea) : null,
-      director_nombre: String(d.director_nombre || ""),
-      director_apellidos: String(d.director_apellidos || ""),
     }));
   }
-
   function getReportesTransitivos(universe, jefeId) {
     const mapByBoss = new Map();
     universe.forEach((emp) => {
@@ -160,11 +478,9 @@
       if (!mapByBoss.has(boss)) mapByBoss.set(boss, []);
       mapByBoss.get(boss).push(emp);
     });
-
     const visited = new Set();
     const queue = [Number(jefeId)];
     const out = [];
-
     while (queue.length) {
       const cur = queue.shift();
       const kids = mapByBoss.get(cur) || [];
@@ -175,10 +491,8 @@
         queue.push(k.id);
       }
     }
-
     return out;
   }
-
   async function buildAsignablesList() {
     const yoId = Number(getEmpleadoId());
     const deptId = Number(getDeptId());
@@ -205,18 +519,15 @@
           .map((d) => d.id)
       );
       if (deptId) visibleDeptIds.add(deptId);
-
       const inDepts = universe.filter((e) =>
         visibleDeptIds.has(Number(e.departamento_id))
       );
       const reports = getReportesTransitivos(universe, yoId);
       const self = universe.find((e) => e.id === yoId);
-
       const map = new Map();
       [...inDepts, ...reports, ...(self ? [self] : [])].forEach((e) =>
         map.set(e.id, e)
       );
-
       return Array.from(map.values());
     }
 
@@ -234,16 +545,15 @@
   }
 
   /* =========================
-   * Departamentos (para Director + nombre)
+   * Dept pick (para líder y nombre)
    * ========================= */
-
   async function fetchDeptsWithFallback() {
     const payload = { page: 1, page_size: 200, status: 1 };
     const urls = [
-      ENDPOINTS.DEPTS_LIST,
-      "/db/WEB/ixtla01_c_departamento.php", // relativo para dev
+      ENDPOINTS.DEPT_LIST_PRIMARY,
+      ENDPOINTS.DEPT_LIST_LOCAL,
+      ENDPOINTS.DEPT_LIST_UPPER,
     ];
-
     for (const url of urls) {
       try {
         const res = await postJSON(url, payload);
@@ -255,7 +565,6 @@
     }
     return [];
   }
-
   async function getDeptByIdOrName({ id, nombre }) {
     const wantedId = id != null ? Number(id) : null;
     const wantedName = nombre ? norm(nombre) : null;
@@ -263,52 +572,43 @@
     if (!arr.length) return { dept: null, director: null };
 
     let dept = null;
-    if (wantedId)
-      dept = arr.find((x) => Number(x.id) === wantedId) || null;
-
+    if (wantedId) dept = arr.find((x) => Number(x.id) === wantedId) || null;
     if (!dept && wantedName) {
       dept =
         arr.find((x) => norm(x?.nombre || "") === wantedName) ||
         arr.find((x) => norm(x?.nombre || "").startsWith(wantedName)) ||
         null;
     }
-
     if (!dept && arr.length === 1) dept = arr[0] || null;
     if (!dept) return { dept: null, director: null };
 
     const info = {
       id: Number(dept.id),
       nombre: String(dept.nombre || "—"),
-      director_id: dept.director != null ? Number(dept.director) : null,
+      director_id: Number(dept.director ?? 0) || null,
       director_nombre: String(dept.director_nombre || ""),
       director_apellidos: String(dept.director_apellidos || ""),
     };
-
     const fullDir = [info.director_nombre, info.director_apellidos]
       .filter(Boolean)
       .join(" ")
       .trim();
-
     const director = fullDir ? { id: info.director_id, nombre: fullDir } : null;
-
     return { dept: { id: info.id, nombre: info.nombre }, director };
   }
 
   /* =========================
    * Pintar TAB "detalles"
    * ========================= */
-
   function putDetalle(labelStartsWith, value) {
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     if (!grid) return false;
-
     const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
       const t = (r.querySelector("label")?.textContent || "")
         .trim()
         .toLowerCase();
       return t.startsWith(labelStartsWith.toLowerCase());
     });
-
     const dd = row?.querySelector(".exp-val");
     if (!dd) return false;
 
@@ -317,9 +617,9 @@
   }
 
   function attachAsignarButton() {
+    // Ubica la fila "Asignado"
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     if (!grid) return null;
-
     const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
       const t = (r.querySelector("label")?.textContent || "")
         .trim()
@@ -331,6 +631,7 @@
     const dd = row.querySelector(".exp-val");
     if (!dd) return null;
 
+    // Si ya está el botón, no duplicar
     if (dd.querySelector('[data-act="assign-req"]')) return dd;
 
     const btn = document.createElement("button");
@@ -352,32 +653,24 @@
   }
 
   async function paintDetalles(req) {
-    log("[Detalles] pintando con req:", req?.id, req);
-
     // Nombre del Requerimiento
     putDetalle(
       "Nombre del Requerimiento",
       req.asunto || req.tramite_nombre || "—"
     );
 
-    // Departamento + Director
-    try {
-      const { dept, director } = await getDeptByIdOrName({
-        id: req.departamento_id,
-        nombre: req.departamento_nombre,
-      });
+    // Departamento + Líder (director)
+    const { dept, director } = await getDeptByIdOrName({
+      id: req.departamento_id,
+      nombre: req.departamento_nombre,
+    });
+    putDetalle("Director", director?.nombre || "—");
 
-      putDetalle("Director", director?.nombre || "—");
+    const depNode = $("#req-departamento");
+    if (depNode)
+      depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
 
-      const depNode = $("#req-departamento");
-      if (depNode)
-        depNode.textContent = dept?.nombre || req.departamento_nombre || "—";
-    } catch (e) {
-      warn("[Detalles] error obteniendo departamento/director:", e);
-      putDetalle("Director", "—");
-    }
-
-    // Asignado
+    // Asignado (texto + botón)
     const asignado =
       req.asignado_id && (req.asignado_full || "").trim()
         ? req.asignado_full
@@ -385,30 +678,32 @@
     putDetalle("Asignado", asignado);
     attachAsignarButton();
 
-    // Descripción
+    // Descripción + Fechas
     putDetalle("Descripción", req.descripcion || "—");
 
     // Código numérico de estatus
-    const est = Number(
-      req.estatus_code ??
-        req.estatus ??
-        (req.raw && req.raw.estatus != null ? req.raw.estatus : 0)
-    );
+    const est = Number(req.estatus_code ?? req.raw?.estatus ?? 0);
 
-    // Fecha de inicio (solo desde Proceso en adelante)
+    // ===== Fecha de inicio (fecha_limite = fecha inicio) =====
     let fechaInicio = "—";
     if (est >= 3) {
+      // solo desde Proceso en adelante
       const srcInicio =
         req.raw?.fecha_limite || req.creado_at || req.raw?.created_at || "";
-      if (srcInicio) fechaInicio = String(srcInicio).split(" ")[0];
+      if (srcInicio) {
+        fechaInicio = String(srcInicio).split(" ")[0];
+      }
     }
     putDetalle("Fecha de inicio", fechaInicio);
 
-    // Fecha de terminado (solo Finalizado)
+    // ===== Fecha de terminado (solo Finalizado) =====
     let fechaFin = "—";
     if (est === 6) {
+      // solo Finalizado
       const srcFin = req.cerrado_en || req.raw?.cerrado_en || "";
-      if (srcFin) fechaFin = String(srcFin).split(" ")[0];
+      if (srcFin) {
+        fechaFin = String(srcFin).split(" ")[0];
+      }
     }
     putDetalle("Fecha de terminado", fechaFin);
   }
@@ -417,102 +712,14 @@
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
     if (!grid) return;
     $$(".exp-field .exp-val", grid).forEach((n) => {
-      if (n.id === "req-status") return; // NO tocar estatus (lo maneja otro JS)
+      if (n.id === "req-status") return; // NO tocar estatus
       n.textContent = "—";
     });
   }
 
   /* =========================
-   * CCP (Motivo de Pausa / Cancelación)
-   * ========================= */
-
-  function getMotivoElements() {
-    const field = document.getElementById("req-motivo-field");
-    const wrap = document.getElementById("req-motivo-wrap");
-
-    if (!field || !wrap) {
-      warn("[CCP] getMotivoElements(): faltan nodos", {
-        field: !!field,
-        wrap: !!wrap,
-      });
-      return null;
-    }
-
-    return { field, wrap };
-  }
-
-  async function fetchCCPByReqId(requerimiento_id, status = 1) {
-    const payload = { requerimiento_id: Number(requerimiento_id), status };
-
-    log("[CCP] fetchCCPByReqId → payload", payload);
-
-    const res = await postJSON(ENDPOINTS.CCP_LIST, payload);
-
-    log("[CCP] fetchCCPByReqId → respuesta cruda", res);
-
-    // El endpoint regresa { ok:true, data: { … } }
-    const ccp =
-      res && res.data && typeof res.data === "object" ? res.data : null;
-
-    if (!ccp) {
-      warn("[CCP] fetchCCPByReqId → sin data para req", requerimiento_id);
-    }
-
-    return ccp;
-  }
-
-  async function paintMotivoCCP(req) {
-    const els = getMotivoElements();
-    if (!els) {
-      warn("[CCP] paintMotivoCCP(): no hay elementos en la vista, salgo.");
-      return;
-    }
-
-    const { field, wrap } = els;
-
-    const code =
-      req && req.estatus_code != null
-        ? Number(req.estatus_code)
-        : req && req.estatus != null
-        ? Number(req.estatus)
-        : req &&
-          req.raw &&
-          req.raw.estatus != null
-        ? Number(req.raw.estatus)
-        : null;
-
-    log("[CCP] paintMotivoCCP(): estatus detectado", code, "req.id:", req?.id);
-
-    // Sólo Pausado (4) y Cancelado (5) muestran motivo
-    if (code !== 4 && code !== 5) {
-      field.style.display = "none";
-      wrap.textContent = "—";
-      log("[CCP] Estatus no requiere motivo, oculto campo.");
-      return;
-    }
-
-    field.style.display = "";
-    wrap.textContent = "Cargando motivo…";
-
-    try {
-      const ccp = await fetchCCPByReqId(req.id, 1);
-      log("[CCP] paintMotivoCCP(): ccp recibido", ccp);
-
-      if (ccp && ccp.comentario) {
-        wrap.textContent = ccp.comentario;
-      } else {
-        wrap.textContent = "Sin motivo registrado.";
-      }
-    } catch (e) {
-      warn("[CCP] error pintando motivo:", e);
-      wrap.textContent = "Sin motivo registrado.";
-    }
-  }
-
-  /* =========================
    * Modal "Asignar requerimiento"
    * ========================= */
-
   function ensureAsignarModal() {
     let modal = document.getElementById("modal-asignar-req");
     if (modal) return modal;
@@ -540,13 +747,13 @@
       </div>`;
     document.body.appendChild(modal);
 
+    // wiring básico
     const content = modal.querySelector(".modal-content");
     const close = () => {
       modal.setAttribute("aria-hidden", "true");
       modal.classList.remove("open", "active");
       document.body.classList.remove("me-modal-open");
     };
-
     modal.addEventListener("click", (e) => {
       if (e.target === modal) close();
     });
@@ -563,12 +770,11 @@
     const form = modal.querySelector("#form-asignar-req");
     const sel = modal.querySelector("#asignar-select");
 
+    // Rellenar select con RBAC
     sel.innerHTML = `<option value="" disabled selected>Cargando…</option>`;
-
     try {
       const visibles = await buildAsignablesList();
       visibles.sort((a, b) => (a.full || "").localeCompare(b.full || "", "es"));
-
       sel.innerHTML = `<option value="" disabled selected>Selecciona responsable…</option>`;
       for (const emp of visibles) {
         const opt = document.createElement("option");
@@ -577,6 +783,7 @@
         sel.appendChild(opt);
       }
 
+      // regla: ANALISTA solo a sí mismo
       const roles = getRoles();
       const isAnalista = roles.includes("ANALISTA");
       const yoId = Number(getEmpleadoId());
@@ -593,6 +800,7 @@
       sel.innerHTML = `<option value="" disabled selected>Sin opciones disponibles</option>`;
     }
 
+    // submit
     form.onsubmit = async (e) => {
       e.preventDefault();
       const value = sel.value;
@@ -600,16 +808,17 @@
         sel.focus();
         return;
       }
-      await doAsignarRequerimiento(Number(value)).catch((error) => {
-        warn("assign error:", error);
+      await doAsignarRequerimiento(Number(value)).catch((err) => {
+        warn("assign error:", err);
         toast("No se pudo asignar.", "danger");
       });
-
+      // cerrar si todo ok
       modal.setAttribute("aria-hidden", "true");
       modal.classList.remove("open", "active");
       document.body.classList.remove("me-modal-open");
     };
 
+    // abrir
     modal.classList.add("open");
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("me-modal-open");
@@ -630,28 +839,26 @@
       updated_by,
     };
 
-    log("[Asignar] payload", payload);
-
-    await postJSON(ENDPOINTS.REQ_UPDATE, payload);
+    const r = await postJSON(ENDPOINTS.REQ_UPDATE, payload);
+    // UI refresh
     await refreshAsignadoUI(asignadoId);
     toast("Asignación actualizada", "success");
 
+    // guarda en memoria local
     if (window.__REQ__) {
       window.__REQ__.asignado_id = String(asignadoId);
+      // dejamos el nombre ya resuelto en UI; si quieres, podríamos buscarlo en la lista y setear asignado_full aquí también
     }
   }
 
   async function refreshAsignadoUI(asignadoId) {
     const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
-    if (!grid) return;
-
     const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
       const t = (r.querySelector("label")?.textContent || "")
         .trim()
         .toLowerCase();
       return t.startsWith("asignado");
     });
-
     const dd = row?.querySelector(".exp-val");
     if (dd) {
       const sel = document.querySelector("#modal-asignar-req #asignar-select");
@@ -659,10 +866,11 @@
         ? sel.querySelector(`option[value="${CSS.escape(String(asignadoId))}"]`)
         : null;
       const display = opt?.textContent || `Empleado #${asignadoId}`;
-      dd.textContent = display;
-      attachAsignarButton();
+      dd.textContent = display; // ← texto plano
+      attachAsignarButton(); // re-asegura el botón al lado
     }
 
+    // Encargado del encabezado (si existe esa sección)
     const ddE = $(".exp-meta > div:nth-child(2) dd");
     if (ddE) {
       const sel = document.querySelector("#modal-asignar-req #asignar-select");
@@ -674,40 +882,35 @@
   }
 
   /* =========================
-   * Wiring
-   * ========================= */
-
+ * Wiring
+ * ========================= */
   function bootListeners() {
-    log("[Boot] Detalle: instalando listeners…");
+    log("[Boot] ReqDetalle listeners listos");
 
     document.addEventListener(
       "req:loaded",
       async (e) => {
         const req = e.detail;
-        log("[Boot] evento req:loaded recibido en Detalle:", req?.id, req);
+        log("[Boot] evento req:loaded recibido en Detalle:", req && req.id);
 
         try {
           resetDetallesSkeleton();
           await paintDetalles(req);
           await paintMotivoCCP(req);
-        } catch (error) {
-          warn("[Boot] error al pintar Detalle/CCP:", error);
+        } catch (err) {
+          warn("paintDetalles / paintMotivoCCP error:", err);
         }
       },
       { passive: true }
     );
 
-    // Fallback si __REQ__ ya estaba listo antes de que cargara este JS
+    // Fallback si __REQ__ ya estaba cargado
     if (window.__REQ__) {
-      const req = window.__REQ__;
-      log("[Boot] __REQ__ ya definido, pinto Detalle de inmediato:", req?.id);
-
+      log("[Boot] __REQ__ ya presente en Detalle, pintando de inmediato:", window.__REQ__.id);
       resetDetallesSkeleton();
-      paintDetalles(req)
-        .then(() => paintMotivoCCP(req))
-        .catch((error) =>
-          warn("[Boot] paintDetalles fallback error:", error)
-        );
+      paintDetalles(window.__REQ__)
+        .then(() => paintMotivoCCP(window.__REQ__))
+        .catch((e) => warn("paintDetalles fallback error:", e));
     }
   }
 
@@ -718,4 +921,21 @@
   } else {
     bootListeners();
   }
+
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootListeners, {
+      once: true,
+    });
+  } else {
+    bootListeners();
+  }
+
+
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootListeners, {
+      once: true,
+    });
+  } else bootListeners();
 })();
