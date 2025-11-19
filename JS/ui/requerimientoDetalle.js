@@ -78,8 +78,21 @@
     };
 
     const res = await postJSON(ENDPOINTS.CCP_LIST, payload);
-    const data = Array.isArray(res?.data) ? res.data : [];
-    return data[0] || null; // solo uno por requerimiento
+
+    // La API puede devolver data como objeto o como arreglo
+    const raw = res?.data;
+
+    let item = null;
+    if (Array.isArray(raw)) {
+      item = raw[0] || null;
+    } else if (raw && typeof raw === "object") {
+      item = raw; // justo tu caso: un solo objeto con el comentario
+    }
+
+    // opcional: log para verificar
+    log("[CCP] fetchCCPByReqId →", item);
+
+    return item;
   }
 
   function getMotivoElements() {
@@ -103,7 +116,6 @@
 
     // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
     if (code !== 4 && code !== 5) {
-      wrap.style.display = "none"; // escondemos TODO el renglón
       text.textContent = "—";
       return;
     }
