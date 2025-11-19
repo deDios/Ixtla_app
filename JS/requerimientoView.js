@@ -31,6 +31,35 @@
     return `hace ${d} d`;
   };
 
+  async function sendJSON(url, body, method = "POST") {
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body || {}),
+      });
+      const txt = await res.text();
+      let json;
+      try {
+        json = JSON.parse(txt);
+      } catch {
+        json = { raw: txt };
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return json;
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // Mantener postJSON para lo demás (si no quieres tocar todo el archivo)
+  async function postJSON(url, body) {
+    return sendJSON(url, body, "POST");
+  }
+
   /* ======================================
    *  Config / endpoints
    * ======================================*/
@@ -125,10 +154,10 @@
       };
       if (typeof status === "number") payload.status = status;
 
-      const res = await postJSON(ENDPOINTS.CCP_UPDATE, payload);
+      const res = await sendJSON(ENDPOINTS.CCP_UPDATE, payload, "PUT");
       return res?.data ?? res;
     } else {
-      // insert
+      // insert (sigue siendo POST normal)
       const payload = {
         requerimiento_id: Number(requerimiento_id),
         empleado_id: empleado_id || null,
@@ -152,7 +181,8 @@
       status: 0,
       updated_by: empleado_id || 1,
     };
-    const res = await postJSON(ENDPOINTS.CCP_UPDATE, payload);
+
+    const res = await sendJSON(ENDPOINTS.CCP_UPDATE, payload, "PUT");
     return res?.data ?? res;
   }
 
