@@ -60,9 +60,9 @@
    * Session helpers (idéntico patrón Planeación)
    * ========================= */
 
-  /* =========================
- * CCP (Motivo de pausa / cancelación)
- * ========================= */
+    /* =========================
+   * CCP (Motivo de pausa / cancelación)
+   * ========================= */
 
   // Ahora tratamos la respuesta como OBJETO (data: { ... })
   async function fetchCCPByReqId(
@@ -96,7 +96,7 @@
   //  - #req-motivo-wrap   → el contenedor de texto (exp-val)
   function getMotivoElements() {
     const field = document.getElementById("req-motivo-field");
-    const wrap = document.getElementById("req-motivo-wrap");
+    const wrap  = document.getElementById("req-motivo-wrap");
 
     if (!field || !wrap) {
       warn("[CCP] getMotivoElements: falta field o wrap", { field, wrap });
@@ -821,20 +821,20 @@
   }
 
   /* =========================
-  * Wiring
-  * ========================= */
+ * Wiring
+ * ========================= */
   function bootListeners() {
-    log("[Boot] ReqDetalle listeners listos");
-
     document.addEventListener(
       "req:loaded",
       async (e) => {
         const req = e.detail;
-        log("[Boot] evento req:loaded recibido en Detalle:", req && req.id);
+        log("[Detalle] req:loaded → detalle recibido:", req);
 
         try {
           resetDetallesSkeleton();
           await paintDetalles(req);
+
+          log("[Detalle] llamando a paintMotivoCCP desde evento req:loaded");
           await paintMotivoCCP(req);
         } catch (err) {
           warn("paintDetalles / paintMotivoCCP error:", err);
@@ -843,24 +843,18 @@
       { passive: true }
     );
 
-    // Fallback si __REQ__ ya estaba cargado
+    // Fallback si __REQ__ ya estaba cargado antes del listener
     if (window.__REQ__) {
-      log("[Boot] __REQ__ ya presente en Detalle, pintando de inmediato:", window.__REQ__.id);
+      log("[Detalle] __REQ__ ya existe al iniciar, aplicando paintDetalles + paintMotivoCCP:", window.__REQ__);
       resetDetallesSkeleton();
       paintDetalles(window.__REQ__)
-        .then(() => paintMotivoCCP(window.__REQ__))
+        .then(() => {
+          log("[Detalle] paintDetalles fallback listo, ahora paintMotivoCCP");
+          return paintMotivoCCP(window.__REQ__);
+        })
         .catch((e) => warn("paintDetalles fallback error:", e));
     }
   }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bootListeners, {
-      once: true,
-    });
-  } else {
-    bootListeners();
-  }
-
 
 
   if (document.readyState === "loading") {

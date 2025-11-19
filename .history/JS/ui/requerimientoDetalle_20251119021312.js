@@ -60,9 +60,9 @@
    * Session helpers (idéntico patrón Planeación)
    * ========================= */
 
-  /* =========================
- * CCP (Motivo de pausa / cancelación)
- * ========================= */
+    /* =========================
+   * CCP (Motivo de pausa / cancelación)
+   * ========================= */
 
   // Ahora tratamos la respuesta como OBJETO (data: { ... })
   async function fetchCCPByReqId(
@@ -96,7 +96,7 @@
   //  - #req-motivo-wrap   → el contenedor de texto (exp-val)
   function getMotivoElements() {
     const field = document.getElementById("req-motivo-field");
-    const wrap = document.getElementById("req-motivo-wrap");
+    const wrap  = document.getElementById("req-motivo-wrap");
 
     if (!field || !wrap) {
       warn("[CCP] getMotivoElements: falta field o wrap", { field, wrap });
@@ -820,9 +820,9 @@
     }
   }
 
-  /* =========================
-  * Wiring
-  * ========================= */
+   /* =========================
+   * Wiring
+   * ========================= */
   function bootListeners() {
     log("[Boot] ReqDetalle listeners listos");
 
