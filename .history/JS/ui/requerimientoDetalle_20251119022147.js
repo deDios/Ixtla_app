@@ -882,8 +882,8 @@
   }
 
   /* =========================
- * Wiring
- * ========================= */
+  * Wiring
+  * ========================= */
   function bootListeners() {
     log("[Boot] ReqDetalle listeners listos");
 
@@ -913,15 +913,6 @@
         .catch((e) => warn("paintDetalles fallback error:", e));
     }
   }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bootListeners, {
-      once: true,
-    });
-  } else {
-    bootListeners();
-  }
-
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bootListeners, {
