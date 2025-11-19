@@ -23,7 +23,7 @@
    * ========================= */
   const ENDPOINTS = {
     DEPT_LIST_PRIMARY:
-      "http://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
     DEPT_LIST_LOCAL: "/db/WEB/ixtla01_c_departamento.php",
     DEPT_LIST_UPPER: "/DB/WEB/ixtla01_c_departamento.php",
     EMPLEADOS_LIST:
