@@ -65,38 +65,38 @@
    * ========================= */
 
   async function fetchCCPByReqId(
-    requerimiento_id,
-    status = 1,
-    page = 1,
-    per_page = 50
-  ) {
-    const payload = {
-      requerimiento_id: Number(requerimiento_id),
-      status,
-      page,
-      per_page,
-    };
+  requerimiento_id,
+  status = 1,
+  page = 1,
+  per_page = 50
+) {
+  const payload = {
+    requerimiento_id: Number(requerimiento_id),
+    status,
+    page,
+    per_page,
+  };
 
-    const res = await postJSON(ENDPOINTS.CCP_LIST, payload);
-    const raw = res?.data;
+  const res = await postJSON(ENDPOINTS.CCP_LIST, payload);
+  const raw = res?.data;
 
-    let item = null;
+  let item = null;
 
-    // La API puede devolver un único objeto o un arreglo
-    if (Array.isArray(raw)) {
-      item = raw[0] || null;
-    } else if (raw && typeof raw === "object") {
-      item = raw;
-    }
-
-    log("[CCP] fetchCCPByReqId →", {
-      reqId: requerimiento_id,
-      status,
-      item,
-    });
-
-    return item;
+  // La API puede devolver un único objeto o un arreglo
+  if (Array.isArray(raw)) {
+    item = raw[0] || null;
+  } else if (raw && typeof raw === "object") {
+    item = raw;
   }
+
+  log("[CCP] fetchCCPByReqId →", {
+    reqId: requerimiento_id,
+    status,
+    item,
+  });
+
+  return item;
+}
 
 
   function getMotivoElements() {
@@ -107,63 +107,63 @@
   }
 
   async function paintMotivoCCP(req) {
-    const els = getMotivoElements();
-    if (!els || !req) return;
+  const els = getMotivoElements();
+  if (!els || !req) return;
 
-    const { wrap, text } = els;
+  const { wrap, text } = els;
 
-    // Determinar código de estatus de forma robusta
-    let code = null;
+  // Determinar código de estatus de forma robusta
+  let code = null;
 
-    if (req.estatus_code != null && !Number.isNaN(Number(req.estatus_code))) {
-      code = Number(req.estatus_code);
-    } else if (
-      req.raw &&
-      req.raw.estatus != null &&
-      !Number.isNaN(Number(req.raw.estatus))
-    ) {
-      code = Number(req.raw.estatus);
-    }
+  if (req.estatus_code != null && !Number.isNaN(Number(req.estatus_code))) {
+    code = Number(req.estatus_code);
+  } else if (
+    req.raw &&
+    req.raw.estatus != null &&
+    !Number.isNaN(Number(req.raw.estatus))
+  ) {
+    code = Number(req.raw.estatus);
+  }
 
-    log("[CCP] paintMotivoCCP →", {
-      reqId: req.id,
-      estatus_code: req.estatus_code,
-      raw_estatus: req.raw?.estatus,
-      code,
-    });
+  log("[CCP] paintMotivoCCP →", {
+    reqId: req.id,
+    estatus_code: req.estatus_code,
+    raw_estatus: req.raw?.estatus,
+    code,
+  });
 
-    // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
-    if (code !== 4 && code !== 5) {
-      wrap.style.display = "none";
-      text.textContent = "—";
-      return;
-    }
+  // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
+  if (code !== 4 && code !== 5) {
+    wrap.style.display = "none";
+    text.textContent = "—";
+    return;
+  }
 
-    // Mostrar el renglón y cargar motivo
-    wrap.style.display = "";
-    text.textContent = "Cargando motivo...";
+  // Mostrar el renglón y cargar motivo
+  wrap.style.display = "";
+  text.textContent = "Cargando motivo...";
 
-    try {
-      const ccp = await fetchCCPByReqId(req.id, 1);
+  try {
+    const ccp = await fetchCCPByReqId(req.id, 1);
 
-      log("[CCP] registro activo para pintar:", ccp);
+    log("[CCP] registro activo para pintar:", ccp);
 
-      if (ccp && ccp.comentario) {
-        text.textContent = ccp.comentario;
-      } else {
-        text.textContent = "Sin motivo registrado.";
-      }
-    } catch (e) {
-      warn("[CCP] error pintando motivo:", e);
+    if (ccp && ccp.comentario) {
+      text.textContent = ccp.comentario;
+    } else {
       text.textContent = "Sin motivo registrado.";
     }
+  } catch (e) {
+    warn("[CCP] error pintando motivo:", e);
+    text.textContent = "Sin motivo registrado.";
   }
+}
 
 
   function safeGetSession() {
     try {
       if (window.Session?.get) return window.Session.get();
-    } catch { }
+    } catch {}
     try {
       const pair = document.cookie
         .split("; ")
@@ -172,7 +172,7 @@
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
       if (json && typeof json === "object") return json;
-    } catch { }
+    } catch {}
     return null;
   }
   function getEmpleadoId() {
@@ -198,8 +198,8 @@
       r.reporta_a != null
         ? r.reporta_a
         : r.cuenta && r.cuenta.reporta_a != null
-          ? r.cuenta.reporta_a
-          : null;
+        ? r.cuenta.reporta_a
+        : null;
     const roles = Array.isArray(r.cuenta?.roles)
       ? r.cuenta.roles.map((x) => x?.codigo).filter(Boolean)
       : [];
