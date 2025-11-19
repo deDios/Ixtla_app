@@ -83,10 +83,10 @@
   }
 
   function getMotivoElements() {
-    const wrap = document.getElementById("req-motivo-wrap");
+    const field = document.getElementById("req-motivo-field");
     const text = document.getElementById("req-motivo-text");
-    if (!wrap || !text) return null;
-    return { wrap, text };
+    if (!field || !text) return null;
+    return { wrap: field, text };
   }
 
   async function paintMotivoCCP(req) {
@@ -103,11 +103,12 @@
 
     // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
     if (code !== 4 && code !== 5) {
-      wrap.style.display = "none";
+      wrap.style.display = "none"; // escondemos TODO el renglón
       text.textContent = "—";
       return;
     }
 
+    // Mostrar renglón y cargar motivo
     wrap.style.display = "";
     text.textContent = "Cargando motivo...";
 
@@ -626,7 +627,7 @@
           resetDetallesSkeleton();
           const req = e.detail;
           await paintDetalles(req);
-          await paintMotivoCCP(req); 
+          await paintMotivoCCP(req);
         } catch (err) {
           warn("paintDetalles error:", err);
         }

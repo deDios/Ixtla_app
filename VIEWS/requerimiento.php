@@ -272,11 +272,9 @@
                                 <div class="exp-val" id="req-status"
                                     style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
 
-                                    <!-- Bloque de estatus (igual que antes) -->
+                                    <!-- Bloque de estatus -->
                                     <div class="status-main" style="display:inline-flex; align-items:center; gap:8px;">
-                                        <!-- Badge que actualizamos por JS -->
                                         <span data-role="status-badge" class="exp-badge is-info">—</span>
-
                                         <!-- botón + combo para cambiar el status -->
                                         <div class="status-tools"
                                             style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
@@ -292,18 +290,15 @@
                                             </select>
                                         </div>
                                     </div>
-
-                                    <!-- Bloque de motivo (para CCP) -->
-                                    <div class="status-motivo" id="req-motivo-wrap"
-                                        style="display:none; align-items:center; gap:4px; font-size:0.9rem;"
-                                        aria-live="polite">
-                                        <span class="exp-motivo-label">Motivo:</span>
-                                        <span class="exp-motivo-text" data-role="ccp-motivo">—</span>
-                                    </div>
-
                                 </div>
                             </div>
 
+                            <div class="exp-field" id="req-motivo-field">
+                                <label>Motivo de Pausa/Cancelación:</label>
+                                <div class="exp-val" id="req-motivo-wrap">
+                                    <span id="req-motivo-text">—</span>
+                                </div>
+                            </div>
 
                             <div class="exp-field exp-field--full">
                                 <label>Descripción:</label>
