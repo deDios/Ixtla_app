@@ -191,6 +191,29 @@
     paintStepper(code);
   }
 
+  // === NUEVO: recargar requerimiento y refrescar UI (header + tabs) ===
+  async function reloadReqUI() {
+    const id = __CURRENT_REQ_ID__;
+    if (!id) return;
+
+    try {
+      const req = await getRequerimientoById(id);
+
+      // Guardamos la versión fresca en global por si otros módulos la usan
+      window.__REQ__ = req;
+
+      // Header y contacto
+      paintHeaderMeta(req);
+      paintContacto(req);
+      updateStatusUI(req.estatus_code);
+
+      // Notificamos a Detalles / Planeación para que repinten
+      document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
+    } catch (e) {
+      err("Error al recargar requerimiento después de actualizar estado:", e);
+    }
+  }
+
   /* ======================================
    *  Acciones de estatus
    * ======================================*/
@@ -201,48 +224,6 @@
       estatus: Number(estatus),
       updated_by: empleado_id || null,
     };
-
-    function updateStatusUI(code) {
-      code = Number(code);
-      const badge = $('#req-status [data-role="status-badge"]');
-      if (badge) {
-        badge.classList.remove(
-          "is-info",
-          "is-muted",
-          "is-warning",
-          "is-danger",
-          "is-success"
-        );
-        badge.classList.add(statusBadgeClass(code));
-        badge.textContent = statusLabel(code);
-      }
-      const sel = $('#req-status [data-role="status-select"]');
-      if (sel) sel.value = String(code);
-      paintStepper(code);
-    }
-
-    // === NUEVO: recargar requerimiento y refrescar UI (header + tabs) ===
-    async function reloadReqUI() {
-      const id = __CURRENT_REQ_ID__;
-      if (!id) return;
-
-      try {
-        const req = await getRequerimientoById(id);
-
-        // Guardamos la versión fresca en global por si otros módulos la usan
-        window.__REQ__ = req;
-
-        // Header y contacto
-        paintHeaderMeta(req);
-        paintContacto(req);
-        updateStatusUI(req.estatus_code);
-
-        // Notificamos a Detalles / Planeación para que repinten
-        document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
-      } catch (e) {
-        err("Error al recargar requerimiento después de actualizar estado:", e);
-      }
-    }
 
     // =========================
     // Fechas automáticas
