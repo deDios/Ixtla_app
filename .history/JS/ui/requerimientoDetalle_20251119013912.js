@@ -68,70 +68,70 @@
  * CCP (Motivo de pausa / cancelación)
  * ========================= */
 
-  async function fetchCCPByReqId(requerimiento_id, status = 1, page = 1, per_page = 50) {
-    const payload = {
-      requerimiento_id: Number(requerimiento_id),
-      status,
-      page,
-      per_page,
-    };
+async function fetchCCPByReqId(requerimiento_id, status = 1, page = 1, per_page = 50) {
+  const payload = {
+    requerimiento_id: Number(requerimiento_id),
+    status,
+    page,
+    per_page,
+  };
 
-    const res = await postJSON(ENDPOINTS.CCP_LIST, payload);
+  const res = await postJSON(ENDPOINTS.CCP_LIST, payload);
 
-    // ← AQUÍ asumimos que viene como OBJETO, no arreglo
-    const ccp =
-      res && res.data && typeof res.data === "object" && !Array.isArray(res.data)
-        ? res.data
-        : null;
+  // ← AQUÍ asumimos que viene como OBJETO, no arreglo
+  const ccp =
+    res && res.data && typeof res.data === "object" && !Array.isArray(res.data)
+      ? res.data
+      : null;
 
-    log("[CCP] fetchCCPByReqId →", { payload, raw: res, ccp });
-    return ccp;
+  log("[CCP] fetchCCPByReqId →", { payload, raw: res, ccp });
+  return ccp;
+}
+
+function getMotivoElements() {
+  const field = document.getElementById("req-motivo-field");
+  const wrap  = document.getElementById("req-motivo-wrap");
+  if (!field || !wrap) return null;
+  return { field, wrap };
+}
+
+async function paintMotivoCCP(req) {
+  const els = getMotivoElements();
+  if (!els) return;
+  const { field, wrap } = els;
+
+  const code =
+    req &&
+    (req.estatus_code != null
+      ? Number(req.estatus_code)
+      : req.raw && req.raw.estatus != null
+      ? Number(req.raw.estatus)
+      : null);
+
+  // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
+  if (code !== 4 && code !== 5) {
+    field.style.display = "none";
+    wrap.textContent = "—";
+    return;
   }
 
-  function getMotivoElements() {
-    const field = document.getElementById("req-motivo-field");
-    const wrap = document.getElementById("req-motivo-wrap");
-    if (!field || !wrap) return null;
-    return { field, wrap };
-  }
+  field.style.display = "";
+  wrap.textContent = "Cargando motivo…";
 
-  async function paintMotivoCCP(req) {
-    const els = getMotivoElements();
-    if (!els) return;
-    const { field, wrap } = els;
+  try {
+    const ccp = await fetchCCPByReqId(req.id, 1);
+    log("[CCP] paintMotivoCCP ←", ccp);
 
-    const code =
-      req &&
-      (req.estatus_code != null
-        ? Number(req.estatus_code)
-        : req.raw && req.raw.estatus != null
-          ? Number(req.raw.estatus)
-          : null);
-
-    // Solo mostramos motivo cuando el req está Pausado (4) o Cancelado (5)
-    if (code !== 4 && code !== 5) {
-      field.style.display = "none";
-      wrap.textContent = "—";
-      return;
-    }
-
-    field.style.display = "";
-    wrap.textContent = "Cargando motivo…";
-
-    try {
-      const ccp = await fetchCCPByReqId(req.id, 1);
-      log("[CCP] paintMotivoCCP ←", ccp);
-
-      if (ccp && ccp.comentario) {
-        wrap.textContent = ccp.comentario;
-      } else {
-        wrap.textContent = "Sin motivo registrado.";
-      }
-    } catch (e) {
-      warn("[CCP] error pintando motivo:", e);
+    if (ccp && ccp.comentario) {
+      wrap.textContent = ccp.comentario;
+    } else {
       wrap.textContent = "Sin motivo registrado.";
     }
+  } catch (e) {
+    warn("[CCP] error pintando motivo:", e);
+    wrap.textContent = "Sin motivo registrado.";
   }
+}
 
 
 
