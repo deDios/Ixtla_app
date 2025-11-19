@@ -195,36 +195,78 @@
    *  Acciones de estatus
    * ======================================*/
   async function updateReqStatus({ id, estatus, motivo }) {
-  const { empleado_id } = getUserAndEmpleadoFromSession();
-  const body = {
-    id: Number(id),
-    estatus: Number(estatus),
-    updated_by: empleado_id || null,
-  };
+    const { empleado_id } = getUserAndEmpleadoFromSession();
+    const body = {
+      id: Number(id),
+      estatus: Number(estatus),
+      updated_by: empleado_id || null,
+    };
 
-  // =========================
-  // Fechas automáticas
-  // =========================
-  const now = new Date();
-  const todayISO = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    function updateStatusUI(code) {
+      code = Number(code);
+      const badge = $('#req-status [data-role="status-badge"]');
+      if (badge) {
+        badge.classList.remove(
+          "is-info",
+          "is-muted",
+          "is-warning",
+          "is-danger",
+          "is-success"
+        );
+        badge.classList.add(statusBadgeClass(code));
+        badge.textContent = statusLabel(code);
+      }
+      const sel = $('#req-status [data-role="status-select"]');
+      if (sel) sel.value = String(code);
+      paintStepper(code);
+    }
 
-  // Cuando entra a PROCESO (3) → fecha de inicio (fecha_limite)
-  if (Number(estatus) === 3) {
-    body.fecha_limite = todayISO; // última vez que entró a Proceso
+    // === NUEVO: recargar requerimiento y refrescar UI (header + tabs) ===
+    async function reloadReqUI() {
+      const id = __CURRENT_REQ_ID__;
+      if (!id) return;
+
+      try {
+        const req = await getRequerimientoById(id);
+
+        // Guardamos la versión fresca en global por si otros módulos la usan
+        window.__REQ__ = req;
+
+        // Header y contacto
+        paintHeaderMeta(req);
+        paintContacto(req);
+        updateStatusUI(req.estatus_code);
+
+        // Notificamos a Detalles / Planeación para que repinten
+        document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
+      } catch (e) {
+        err("Error al recargar requerimiento después de actualizar estado:", e);
+      }
+    }
+
+    // =========================
+    // Fechas automáticas
+    // =========================
+    const now = new Date();
+    const todayISO = now.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // Cuando entra a PROCESO (3) → fecha de inicio (fecha_limite)
+    if (Number(estatus) === 3) {
+      body.fecha_limite = todayISO; // última vez que entró a Proceso
+    }
+
+    // Cuando entra a FINALIZADO (6) → fecha de terminado (cerrado_en)
+    if (Number(estatus) === 6) {
+      // formato "YYYY-MM-DD HH:MM:SS"
+      const fechaHora = now.toISOString().slice(0, 19).replace("T", " ");
+      body.cerrado_en = fechaHora;
+    }
+
+    if (motivo) body.motivo = String(motivo).trim();
+
+    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
+    return res?.data ?? res;
   }
-
-  // Cuando entra a FINALIZADO (6) → fecha de terminado (cerrado_en)
-  if (Number(estatus) === 6) {
-    // formato "YYYY-MM-DD HH:MM:SS"
-    const fechaHora = now.toISOString().slice(0, 19).replace("T", " ");
-    body.cerrado_en = fechaHora;
-  }
-
-  if (motivo) body.motivo = String(motivo).trim();
-
-  const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
-  return res?.data ?? res;
-}
 
   async function hasAtLeastOneProcesoAndTask(reqId) {
     try {
@@ -353,15 +395,19 @@
       return;
     }
 
+    let didUpdate = false;
+
     try {
       if (act === "start-revision") {
         next = 1;
         await updateReqStatus({ id, estatus: next });
+        didUpdate = true;
         updateStatusUI(next);
         toast("Estado cambiado a Revisión", "info");
       } else if (act === "assign-dept") {
         next = 2;
         await updateReqStatus({ id, estatus: next });
+        didUpdate = true;
         updateStatusUI(next);
         toast("Asignado a departamento", "success");
       } else if (act === "start-process") {
@@ -375,30 +421,40 @@
         }
         next = 3;
         await updateReqStatus({ id, estatus: next });
+        didUpdate = true;
         updateStatusUI(next);
         toast("Proceso iniciado", "success");
       } else if (act === "pause") {
         const motivo = await askMotivo("Motivo de la pausa");
         next = 4;
         await updateReqStatus({ id, estatus: next, motivo });
+        didUpdate = true;
         updateStatusUI(next);
         toast("Pausado", "warn");
       } else if (act === "resume") {
         next = 1;
         await updateReqStatus({ id, estatus: next });
+        didUpdate = true;
         updateStatusUI(next);
         toast("Reanudado (Revisión)", "success");
       } else if (act === "cancel") {
         const motivo = await askMotivo("Motivo de la cancelación");
         next = 5;
         await updateReqStatus({ id, estatus: next, motivo });
+        didUpdate = true;
         updateStatusUI(next);
         toast("Cancelado", "danger");
       } else if (act === "reopen") {
         next = 1;
         await updateReqStatus({ id, estatus: next });
+        didUpdate = true;
         updateStatusUI(next);
         toast("Reabierto (Revisión)", "info");
+      }
+
+      // Si realmente hicimos un update, recargamos el requerimiento completo
+      if (didUpdate) {
+        await reloadReqUI();
       }
     } catch (e) {
       if (e !== "cancel") {
@@ -406,6 +462,7 @@
         toast("No se pudo actualizar el estado.", "danger");
       }
     }
+
     renderActions(next);
   }
 
