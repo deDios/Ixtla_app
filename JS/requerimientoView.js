@@ -196,12 +196,32 @@
    * ======================================*/
   async function updateReqStatus({ id, estatus, motivo }) {
     const { empleado_id } = getUserAndEmpleadoFromSession();
+
     const body = {
       id: Number(id),
       estatus: Number(estatus),
       updated_by: empleado_id || null,
     };
+
+    // === Fecha de inicio (fecha_limite) cuando pasa a "En proceso" ===
+    if (Number(estatus) === 3) {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      // Formato YYYY-MM-DD para fecha_limite
+      const hoyISO = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+        d.getDate()
+      )}`;
+      body.fecha_limite = hoyISO;
+    }
+
+    // === Fecha de terminado cuando pasa a "Finalizado" ===
+    if (Number(estatus) === 6) {
+      // Enviamos timestamp completo; el PHP lo acepta y lo guarda tal cual
+      body.cerrado_en = new Date().toISOString().slice(0, 19).replace("T", " ");
+    }
+
     if (motivo) body.motivo = String(motivo).trim();
+
     const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
     return res?.data ?? res;
   }
@@ -398,6 +418,19 @@
     const data = res?.data ?? res;
     const raw = Array.isArray(data) ? data[0] || {} : data || {};
 
+    // Fechas base desde el backend
+    const creado_at = String(
+      raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? ""
+    ).trim();
+    const fecha_limite =
+      raw.fecha_limite != null && raw.fecha_limite !== ""
+        ? String(raw.fecha_limite).trim()
+        : null;
+    const cerrado_en =
+      raw.cerrado_en != null && raw.cerrado_en !== ""
+        ? String(raw.cerrado_en).trim()
+        : null;
+
     return {
       id: String(raw.id ?? raw.requerimiento_id ?? ""),
       folio: String(raw.folio ?? ""),
@@ -418,7 +451,6 @@
           ? Number(raw.status)
           : 0,
       canal: raw.canal != null ? Number(raw.canal) : null,
-
       contacto_nombre: String(raw.contacto_nombre || "").trim(),
       contacto_telefono: String(raw.contacto_telefono || "").trim(),
       contacto_email: String(raw.contacto_email || "").trim(),
@@ -426,20 +458,12 @@
       contacto_colonia: String(raw.contacto_colonia || "").trim(),
       contacto_cp: String(raw.contacto_cp || "").trim(),
 
-      // fecha de creación (no cambia)
-      creado_at: String(raw.created_at || "").trim(),
+      // Fechas
+      creado_at,
+      fecha_inicio: fecha_limite, // alias semántico
+      fecha_fin: cerrado_en,
+      cerrado_en,
 
-      // === Mapeo lógico que pediste ===
-      // fecha_limite = fecha de inicio
-      fecha_inicio: raw.fecha_limite ? String(raw.fecha_limite).trim() : null,
-
-      // cerrado_en = fecha de fin
-      fecha_fin: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
-
-      // dejamos también el campo crudo por compatibilidad
-      cerrado_en: raw.cerrado_en ? String(raw.cerrado_en).trim() : null,
-
-      // respaldo completo por si se ocupa algo más adelante
       raw,
     };
   }

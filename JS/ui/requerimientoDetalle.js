@@ -323,14 +323,14 @@
   async function paintDetalles(req) {
     // Nombre del Requerimiento
     putDetalle(
-    "Nombre del Requerimiento",
-    req.asunto || req.tramite_nombre || "—"
+      "Nombre del Requerimiento",
+      req.asunto || req.tramite_nombre || "—"
     );
 
     // Departamento + Líder (director)
     const { dept, director } = await getDeptByIdOrName({
-    id: req.departamento_id,
-    nombre: req.departamento_nombre,
+      id: req.departamento_id,
+      nombre: req.departamento_nombre,
     });
     putDetalle("Director", director?.nombre || "—");
 
@@ -340,43 +340,33 @@
 
     // Asignado (texto + botón)
     const asignado =
-    req.asignado_id && (req.asignado_full || "").trim()
-    ? req.asignado_full
-    : "Sin asignar";
+      req.asignado_id && (req.asignado_full || "").trim()
+        ? req.asignado_full
+        : "Sin asignar";
     putDetalle("Asignado", asignado);
     attachAsignarButton();
 
-    // Descripción + Fechas
+    // Descripción
     putDetalle("Descripción", req.descripcion || "—");
 
-    // Estatus numérico seguro
-    const estatus = Number(req.estatus_code ?? req.raw?.estatus ?? 0);
+    // === Fechas según estatus ===
+    const est = Number(req.estatus_code ?? req.raw?.estatus ?? 0);
 
-    // === Fecha de inicio ===
-    // Usamos: fecha_inicio (normalizada) → fecha_limite en BD
-    const fechaInicioSrc =
-      req.fecha_inicio || req.raw?.fecha_inicio || req.raw?.fecha_limite || "";
+    // Fecha de inicio  => usa fecha_inicio / fecha_limite SOLO desde "Proceso" (3) en adelante
+    let fechaInicioTxt = "—";
+    if (est >= 3) {
+      const src = req.fecha_inicio || req.raw?.fecha_limite || "";
+      if (src) fechaInicioTxt = String(src).split(" ")[0];
+    }
+    putDetalle("Fecha de inicio", fechaInicioTxt);
 
-      const fechaInicioVal =
-      estatus >= 3 && fechaInicioSrc
-        ? String(fechaInicioSrc).split(" ")[0] // solo la parte YYYY-MM-DD
-        : "—";
-
-      putDetalle("Fecha de inicio", fechaInicioVal);
-
-      // === Fecha de terminado ===
-      // Usamos: fecha_fin (normalizada) → cerrado_en en BD
-      const fechaFinSrc =
-      req.fecha_fin ||
-      req.cerrado_en ||
-      req.raw?.fecha_fin ||
-      req.raw?.cerrado_en ||
-      "";
-
-    const fechaFinVal =
-    estatus === 6 && fechaFinSrc ? String(fechaFinSrc).split(" ")[0] : "—";
-
-    putDetalle("Fecha de terminado", fechaFinVal);
+    // Fecha de terminado => usa fecha_fin / cerrado_en SOLO cuando está "Finalizado" (6)
+    let fechaFinTxt = "—";
+    if (est === 6) {
+      const src = req.fecha_fin || req.cerrado_en || req.raw?.cerrado_en || "";
+      if (src) fechaFinTxt = String(src).split(" ")[0];
+    }
+    putDetalle("Fecha de terminado", fechaFinTxt);
   }
 
   function resetDetallesSkeleton() {
