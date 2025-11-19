@@ -195,36 +195,36 @@
    *  Acciones de estatus
    * ======================================*/
   async function updateReqStatus({ id, estatus, motivo }) {
-    const { empleado_id } = getUserAndEmpleadoFromSession();
+  const { empleado_id } = getUserAndEmpleadoFromSession();
+  const body = {
+    id: Number(id),
+    estatus: Number(estatus),
+    updated_by: empleado_id || null,
+  };
 
-    const body = {
-      id: Number(id),
-      estatus: Number(estatus),
-      updated_by: empleado_id || null,
-    };
+  // =========================
+  // Fechas automáticas
+  // =========================
+  const now = new Date();
+  const todayISO = now.toISOString().slice(0, 10); // YYYY-MM-DD
 
-    // === Fecha de inicio (fecha_limite) cuando pasa a "En proceso" ===
-    if (Number(estatus) === 3) {
-      const d = new Date();
-      const pad = (n) => String(n).padStart(2, "0");
-      // Formato YYYY-MM-DD para fecha_limite
-      const hoyISO = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-        d.getDate()
-      )}`;
-      body.fecha_limite = hoyISO;
-    }
-
-    // === Fecha de terminado cuando pasa a "Finalizado" ===
-    if (Number(estatus) === 6) {
-      // Enviamos timestamp completo; el PHP lo acepta y lo guarda tal cual
-      body.cerrado_en = new Date().toISOString().slice(0, 19).replace("T", " ");
-    }
-
-    if (motivo) body.motivo = String(motivo).trim();
-
-    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
-    return res?.data ?? res;
+  // Cuando entra a PROCESO (3) → fecha de inicio (fecha_limite)
+  if (Number(estatus) === 3) {
+    body.fecha_limite = todayISO; // última vez que entró a Proceso
   }
+
+  // Cuando entra a FINALIZADO (6) → fecha de terminado (cerrado_en)
+  if (Number(estatus) === 6) {
+    // formato "YYYY-MM-DD HH:MM:SS"
+    const fechaHora = now.toISOString().slice(0, 19).replace("T", " ");
+    body.cerrado_en = fechaHora;
+  }
+
+  if (motivo) body.motivo = String(motivo).trim();
+
+  const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
+  return res?.data ?? res;
+}
 
   async function hasAtLeastOneProcesoAndTask(reqId) {
     try {

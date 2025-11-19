@@ -346,27 +346,34 @@
     putDetalle("Asignado", asignado);
     attachAsignarButton();
 
-    // Descripción
+    // Descripción + Fechas
     putDetalle("Descripción", req.descripcion || "—");
 
-    // === Fechas según estatus ===
+    // Código numérico de estatus
     const est = Number(req.estatus_code ?? req.raw?.estatus ?? 0);
 
-    // Fecha de inicio  => usa fecha_inicio / fecha_limite SOLO desde "Proceso" (3) en adelante
-    let fechaInicioTxt = "—";
+    // ===== Fecha de inicio (fecha_limite = fecha inicio) =====
+    let fechaInicio = "—";
     if (est >= 3) {
-      const src = req.fecha_inicio || req.raw?.fecha_limite || "";
-      if (src) fechaInicioTxt = String(src).split(" ")[0];
+      // solo desde Proceso en adelante
+      const srcInicio =
+        req.raw?.fecha_limite || req.creado_at || req.raw?.created_at || "";
+      if (srcInicio) {
+        fechaInicio = String(srcInicio).split(" ")[0];
+      }
     }
-    putDetalle("Fecha de inicio", fechaInicioTxt);
+    putDetalle("Fecha de inicio", fechaInicio);
 
-    // Fecha de terminado => usa fecha_fin / cerrado_en SOLO cuando está "Finalizado" (6)
-    let fechaFinTxt = "—";
+    // ===== Fecha de terminado (solo Finalizado) =====
+    let fechaFin = "—";
     if (est === 6) {
-      const src = req.fecha_fin || req.cerrado_en || req.raw?.cerrado_en || "";
-      if (src) fechaFinTxt = String(src).split(" ")[0];
+      // solo Finalizado
+      const srcFin = req.cerrado_en || req.raw?.cerrado_en || "";
+      if (srcFin) {
+        fechaFin = String(srcFin).split(" ")[0];
+      }
     }
-    putDetalle("Fecha de terminado", fechaFinTxt);
+    putDetalle("Fecha de terminado", fechaFin);
   }
 
   function resetDetallesSkeleton() {
