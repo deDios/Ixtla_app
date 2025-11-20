@@ -1,13 +1,38 @@
 <?php
-// c_ccp.php  (consulta comentario_cancelacion_pausa)
+<?php
+// ---- CORS (poner al MUY inicio) ----
+$allowed = [
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com',
+  // opcional: habilita también el hostname de Azure si llamas directo
+  'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net'
+];
+
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
-  header("Access-Control-Allow-Origin: $origin"); header("Vary: Origin");
+if ($origin && in_array($origin, $allowed, true)) {
+  header("Access-Control-Allow-Origin: $origin");
+  header("Vary: Origin");
+} else {
+  // si quieres permitir desde tu propio dominio por host (cuando no manda Origin)
+  $self = (isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+  if ($self && in_array($self, $allowed, true)) {
+    header("Access-Control-Allow-Origin: $self");
+    header("Vary: Origin");
+  }
 }
+
+header("Access-Control-Allow-Credentials: true"); // si usas cookies/sesión
 header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+
+// responder el preflight SIEMPRE con los headers ya puestos
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+  http_response_code(204);
+  exit;
+}
+// ---- fin CORS ----
+
 
 header('Content-Type: application/json'); date_default_timezone_set('America/Mexico_City');
 
