@@ -176,8 +176,7 @@
 }
 
 /* ================= Stepper ================= */
-.step-menu{ list-style:none; margin:0 auto; padding:0;
-          }
+.step-menu{ list-style:none; margin:0 auto; padding:0; }
 .step-menu::after{ content:""; display:block; clear:both; }
 .step-menu li{
   float:left; box-sizing:border-box; background:#ddd; height:50px; text-align:center;
@@ -1249,7 +1248,6 @@ body.modal-open { overflow: hidden; }
 .exp-view .exp-head-actions {
   display: flex;
   justify-content: flex-start;
-  padding-bottom: 1rem;
 }
 
 /* Botones: en línea, con wrap y sin empuje a la derecha */
@@ -1260,9 +1258,7 @@ body.modal-open { overflow: hidden; }
   gap: 8px;
 }
 
-.container {
-  padding-top: 1rem;
-}
+
 
 .hs-main {
     display: block;
