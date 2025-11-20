@@ -62,7 +62,7 @@
   function safeGetSession() {
     try {
       if (window.Session?.get) return window.Session.get();
-    } catch { }
+    } catch {}
 
     try {
       const pair = document.cookie
@@ -72,7 +72,7 @@
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
       if (json && typeof json === "object") return json;
-    } catch { }
+    } catch {}
 
     return null;
   }
@@ -103,8 +103,8 @@
       r.reporta_a != null
         ? r.reporta_a
         : r.cuenta && r.cuenta.reporta_a != null
-          ? r.cuenta.reporta_a
-          : null;
+        ? r.cuenta.reporta_a
+        : null;
 
     const roles = Array.isArray(r.cuenta?.roles)
       ? r.cuenta.roles.map((x) => x?.codigo).filter(Boolean)
@@ -263,8 +263,7 @@
     if (!arr.length) return { dept: null, director: null };
 
     let dept = null;
-    if (wantedId)
-      dept = arr.find((x) => Number(x.id) === wantedId) || null;
+    if (wantedId) dept = arr.find((x) => Number(x.id) === wantedId) || null;
 
     if (!dept && wantedName) {
       dept =
@@ -391,8 +390,8 @@
     // Código numérico de estatus
     const est = Number(
       req.estatus_code ??
-      req.estatus ??
-      (req.raw && req.raw.estatus != null ? req.raw.estatus : 0)
+        req.estatus ??
+        (req.raw && req.raw.estatus != null ? req.raw.estatus : 0)
     );
 
     // Fecha de inicio (solo desde Proceso en adelante)
@@ -441,8 +440,15 @@
     return { field, wrap };
   }
 
-  async function fetchCCPByReqId(requerimiento_id, status = 1) {
-    const payload = { requerimiento_id: Number(requerimiento_id), status };
+  async function fetchCCPByReqId(
+    requerimiento_id,
+    { tipo = null, status = null } = {}
+  ) {
+    const payload = { requerimiento_id: Number(requerimiento_id) };
+
+    // Solo enviamos filtros si vienen definidos
+    if (tipo != null) payload.tipo = Number(tipo);
+    if (status != null) payload.status = Number(status);
 
     log("[CCP] fetchCCPByReqId → payload", payload);
 
@@ -451,26 +457,52 @@
     log("[CCP] fetchCCPByReqId → respuesta cruda", res);
 
     // Puede venir como objeto o como arreglo
-    let arr = [];
+    let baseArr = [];
     if (Array.isArray(res?.data)) {
-      arr = res.data;
+      baseArr = res.data;
     } else if (res?.data && typeof res.data === "object") {
-      arr = [res.data];
+      baseArr = [res.data];
     }
 
-    if (!arr.length) {
+    if (!baseArr.length) {
       warn("[CCP] fetchCCPByReqId → sin registros para req", requerimiento_id);
       return null;
     }
 
-    // Busca el primero con el status solicitado (si se especifica)
+    // Filtro por tipo en el cliente (por si el backend ignora payload.tipo)
+    let arr = baseArr;
+    if (tipo != null) {
+      const filtered = baseArr.filter(
+        (item) => Number(item.tipo) === Number(tipo)
+      );
+      if (filtered.length) {
+        arr = filtered;
+      } else {
+        warn(
+          "[CCP] fetchCCPByReqId → sin registros con tipo",
+          tipo,
+          "uso lista completa"
+        );
+      }
+    }
+
+    // Ordenar por fecha de creación desc (más reciente primero) y, de respaldo, por id desc
+    arr.sort((a, b) => {
+      const da = Date.parse(a.created_at || "") || 0;
+      const db = Date.parse(b.created_at || "") || 0;
+      if (db !== da) return db - da; // más nuevo primero
+      const ia = Number(a.id) || 0;
+      const ib = Number(b.id) || 0;
+      return ib - ia;
+    });
+
+    // Elegir registro: si se pide status, preferimos ese; si no, el más reciente
     let ccp = null;
     if (status == null) {
       ccp = arr[0];
     } else {
       ccp =
-        arr.find((item) => Number(item.status) === Number(status)) ||
-        arr[0];
+        arr.find((item) => Number(item.status) === Number(status)) || arr[0];
     }
 
     log("[CCP] fetchCCPByReqId → ccp elegido", ccp);
@@ -493,10 +525,10 @@
       req && req.estatus_code != null
         ? Number(req.estatus_code)
         : req && req.estatus != null
-          ? Number(req.estatus)
-          : req && req.raw && req.raw.estatus != null
-            ? Number(req.raw.estatus)
-            : null;
+        ? Number(req.estatus)
+        : req && req.raw && req.raw.estatus != null
+        ? Number(req.raw.estatus)
+        : null;
 
     log("[CCP] paintMotivoCCP(): estatus detectado", code, "req.id:", req?.id);
 
@@ -509,8 +541,18 @@
 
     wrap.textContent = "Cargando motivo…";
 
+    // Mapear estatus → tipo CCP
+    // 4 = Pausado  → tipo 1
+    // 5 = Cancelado → tipo 2
+    const tipoFiltro = code === 4 ? 1 : 2;
+
     try {
-      const ccp = await fetchCCPByReqId(req.id, 1);
+      // status: null → no mandamos filtro al backend;
+      // adentro se ordena por fecha y se prefiere status 1 si existe
+      const ccp = await fetchCCPByReqId(req.id, {
+        tipo: tipoFiltro,
+        status: null,
+      });
       log("[CCP] paintMotivoCCP(): ccp recibido", ccp);
 
       if (ccp && ccp.comentario) {
@@ -523,7 +565,6 @@
       wrap.textContent = "Sin motivo registrado.";
     }
   }
-
 
   /* =========================
    * Modal "Asignar requerimiento"
@@ -721,9 +762,7 @@
       resetDetallesSkeleton();
       paintDetalles(req)
         .then(() => paintMotivoCCP(req))
-        .catch((error) =>
-          warn("[Boot] paintDetalles fallback error:", error)
-        );
+        .catch((error) => warn("[Boot] paintDetalles fallback error:", error));
     }
   }
 

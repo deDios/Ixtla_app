@@ -31,6 +31,9 @@
     return `hace ${d} d`;
   };
 
+  /* ======================================
+   *  HTTP helpers
+   * ======================================*/
   async function sendJSON(url, body, method = "POST") {
     try {
       const res = await fetch(url, {
@@ -55,7 +58,6 @@
     }
   }
 
-  // Mantener postJSON para lo demás (si no quieres tocar todo el archivo)
   async function postJSON(url, body) {
     return sendJSON(url, body, "POST");
   }
@@ -77,100 +79,68 @@
   };
 
   /* ======================================
-   *  HTTP helper
-   * ======================================*/
-  async function postJSON(url, body) {
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(body || {}),
-      });
-      const txt = await res.text();
-      let json;
-      try {
-        json = JSON.parse(txt);
-      } catch {
-        json = { raw: txt };
-      }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return json;
-    } catch (e) {
-      throw e;
-    }
-  }
-
-  /* ======================================
    *  CCP (Motivo de pausa / cancelación)
    * ======================================*/
 
+  // Devuelve el motivo CCP más reciente para el requerimiento.
+  // Preferimos status=1 (activo); si no hay, el más nuevo aunque esté inactivo.
   async function listCCPByReqId(reqId) {
-    const base = {
+    const payload = {
       requerimiento_id: Number(reqId),
       page: 1,
       per_page: 50,
     };
 
-    // 1) intentamos con activos
     try {
-      const res = await postJSON(ENDPOINTS.CCP_LIST, { ...base, status: 1 });
-      const arr = Array.isArray(res?.data) ? res.data : [];
-      if (arr.length) return arr[0];
-    } catch (e) {
-      warn("[CCP] list activos error:", e);
-    }
+      const res = await postJSON(ENDPOINTS.CCP_LIST, payload);
+      let arr = Array.isArray(res?.data) ? res.data : [];
 
-    // 2) si no hay activos, probamos inactivos
-    try {
-      const res = await postJSON(ENDPOINTS.CCP_LIST, { ...base, status: 0 });
-      const arr = Array.isArray(res?.data) ? res.data : [];
-      if (arr.length) return arr[0];
-    } catch (e) {
-      warn("[CCP] list inactivos error:", e);
-    }
+      if (!arr.length) return null;
 
-    return null;
+      // Ordenar por fecha de creación desc (más reciente primero) y luego id desc
+      arr.sort((a, b) => {
+        const da = Date.parse(a.created_at || "") || 0;
+        const db = Date.parse(b.created_at || "") || 0;
+        if (db !== da) return db - da;
+        const ia = Number(a.id) || 0;
+        const ib = Number(b.id) || 0;
+        return ib - ia;
+      });
+
+      // Preferimos el que esté activo (status 1); si no, el más reciente
+      const activo = arr.find((item) => Number(item.status) === 1);
+      return activo || arr[0];
+    } catch (e) {
+      warn("[CCP] listCCPByReqId error:", e);
+      return null;
+    }
   }
 
+  // Siempre crea un nuevo motivo (no edita anteriores)
   async function upsertCCP({
     requerimiento_id,
     comentario,
-    tipo = 2,
-    status = 1,
+    tipo = 2, // 1 = pausa, 2 = cancelación
+    status = 1, // 1 = activo, 0 = inactivo
   }) {
     const { empleado_id } = getUserAndEmpleadoFromSession();
-    const existente = await listCCPByReqId(requerimiento_id).catch(() => null);
 
-    if (existente && existente.id) {
-      // update
-      const payload = {
-        id: Number(existente.id),
-        comentario:
-          comentario != null ? String(comentario).trim() : existente.comentario,
-        updated_by: empleado_id || 1,
-      };
-      if (typeof status === "number") payload.status = status;
+    const payload = {
+      requerimiento_id: Number(requerimiento_id),
+      empleado_id: empleado_id || null,
+      tipo: Number(tipo),
+      comentario: comentario != null ? String(comentario).trim() : "",
+      status: typeof status === "number" ? status : 1,
+      created_by: empleado_id || 1,
+    };
 
-      const res = await sendJSON(ENDPOINTS.CCP_UPDATE, payload, "PUT");
-      return res?.data ?? res;
-    } else {
-      // insert (sigue siendo POST normal)
-      const payload = {
-        requerimiento_id: Number(requerimiento_id),
-        empleado_id: empleado_id || null,
-        tipo: Number(tipo), // 2 = tipo CCP (pausa/cancelación)
-        comentario: comentario != null ? String(comentario).trim() : "",
-        status: typeof status === "number" ? status : 1,
-        created_by: empleado_id || 1,
-      };
-      const res = await postJSON(ENDPOINTS.CCP_CREATE, payload);
-      return res?.data ?? res;
-    }
+    log("[CCP] creando nuevo motivo CCP", payload);
+
+    const res = await postJSON(ENDPOINTS.CCP_CREATE, payload);
+    return res?.data ?? res;
   }
 
+  // Marca como inactivo (status 0) el motivo más reciente del requerimiento
   async function deactivateCCPForReq(requerimiento_id) {
     const { empleado_id } = getUserAndEmpleadoFromSession();
     const existente = await listCCPByReqId(requerimiento_id).catch(() => null);
@@ -527,12 +497,12 @@
         // 1) Actualizamos estatus del requerimiento
         await updateReqStatus({ id, estatus: next, motivo });
 
-        // 2) Guardamos/actualizamos motivo CCP (status 1 = activo)
+        // 2) Creamos nuevo motivo CCP (tipo 1 = pausa, status 1 = activo)
         try {
           await upsertCCP({
             requerimiento_id: id,
             comentario: motivo,
-            tipo: 2,
+            tipo: 1, // PAUSA
             status: 1,
           });
         } catch (e) {
@@ -563,12 +533,12 @@
         // 1) Actualizamos estatus del requerimiento
         await updateReqStatus({ id, estatus: next, motivo });
 
-        // 2) Guardamos/actualizamos motivo CCP (activo)
+        // 2) Creamos nuevo motivo CCP (tipo 2 = cancelación, activo)
         try {
           await upsertCCP({
             requerimiento_id: id,
             comentario: motivo,
-            tipo: 2,
+            tipo: 2, // CANCELACIÓN
             status: 1,
           });
         } catch (e) {
