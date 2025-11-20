@@ -1,13 +1,37 @@
 <?php
-// u_ccp.php  (update comentario_cancelacion_pausa; soft delete con status=0)
+// --- CORS robusto (poner ANTES de cualquier output) ---
+$allowed = [
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com',
+  'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net',
+];
+
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
-  header("Access-Control-Allow-Origin: $origin"); header("Vary: Origin");
+$host   = ($_SERVER['REQUEST_SCHEME'] ?? 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+
+// Preferir Origin si viene; si no, considerar el host (same-origin)
+$reflect = '';
+if ($origin && in_array($origin, $allowed, true)) {
+  $reflect = $origin;
+} elseif ($host && in_array($host, $allowed, true)) {
+  $reflect = $host;
 }
+if ($reflect) {
+  header("Access-Control-Allow-Origin: $reflect");
+  header("Vary: Origin");
+}
+
+header("Access-Control-Allow-Credentials: true"); // si usas cookies/sesión
 header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+
+// Responder preflight siempre con los headers ya puestos
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+  http_response_code(204);
+  exit;
+}
+// --- fin CORS ---
 
 header('Content-Type: application/json'); date_default_timezone_set('America/Mexico_City');
 $method = $_SERVER['REQUEST_METHOD'] ?? ''; if ($method!=='PUT' && $method!=='PATCH') { http_response_code(405); echo json_encode(["ok"=>false,"error"=>"Usa PUT o PATCH"]); exit; }
