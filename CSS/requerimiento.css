@@ -1067,17 +1067,17 @@ body.modal-open { overflow: hidden; }
 
 
 /* Botón primario genérico */
-.btn, .fase-add {
-  appearance: none;
-  font: inherit;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  color: #111827;
-  cursor: pointer;
-  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
-}
+/*.btn, .fase-add {*/
+  /* appearance: none; */
+  /* font: inherit; */
+  /* padding: 10px 14px; */
+  /* border-radius: 10px; */
+  /* border: 1px solid #d1d5db; */
+  /* background: #ffffff; */
+  /* color: #111827; */
+  /* cursor: pointer; */
+  /* transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; */
+/*}*/
 .btn:hover, .btn-submit:hover, .fase-add:hover {
   border-color: #004393;
   box-shadow: 0 1px 0 rgba(0,0,0,.02), 0 0 0 4px rgba(0,67,147,.12);

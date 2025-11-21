@@ -1,329 +1,612 @@
-// /JS/tareas.js git commit -m "avance pequeño en view tareas V1"
+// /JS/tareas.js – Demo local tablero de tareas (sin endpoints)
 "use strict";
 
 /* ============================================================================
-   Configuración
+   Config
    ========================================================================== */
 const KB = {
-  STORAGE_KEY: "kanban_demo_v2",
   DEBUG: true,
+  CURRENT_USER_ID: 12, // demo: para "Solo mis tareas"
 
-  // Columnas lógicas del estado
-  COLUMNS: [
-    { id: "todo",    title: "Por Hacer",   statusCode: 1 },
-    { id: "proceso", title: "En proceso",  statusCode: 2 },
-    { id: "revisar", title: "Por revisar", statusCode: 3 },
-    { id: "hecho",   title: "Hecho",       statusCode: 4 },
-  ],
+  STATUS: {
+    TODO: 1,
+    PROCESO: 2,
+    REVISAR: 3,
+    HECHO: 4,
+    PAUSA: 5,
+  },
 };
 
-const MAP_ID_TO_STATUS = { todo: 0, proceso: 3, revisar: 1, hecho: 6 };
-const MAP_STATUS_TO_ID = { 0: "todo", 3: "proceso", 1: "revisar", 6: "hecho" };
+const log = (...a) => KB.DEBUG && console.log("[KB]", ...a);
+const warn = (...a) => KB.DEBUG && console.warn("[KB]", ...a);
 
 /* ============================================================================
    Helpers
    ========================================================================== */
-const $  = (sel, root=document) => root.querySelector(sel);
-const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-const log  = (...a)=> KB.DEBUG && console.log("[KB]", ...a);
-const warn = (...a)=> KB.DEBUG && console.warn("[KB]", ...a);
 
-function uid() { return "k" + Math.random().toString(36).slice(2, 9); }
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-function formatDateMX(v) {
-  if (!v) return "—";
-  const d = new Date(String(v).replace(" ", "T"));
-  if (isNaN(d)) return v;
-  return d.toLocaleDateString("es-MX",{ year:"numeric", month:"2-digit", day:"2-digit" });
+function formatDateMX(str) {
+  if (!str) return "—";
+  const d = new Date(String(str).replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("es-MX", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function diffDays(startStr) {
+  if (!startStr) return null;
+  const start = new Date(String(startStr).replace(" ", "T"));
+  if (Number.isNaN(start.getTime())) return null;
+  const now = new Date();
+  const ms = now.getTime() - start.getTime();
+  const days = Math.floor(ms / 86400000);
+  return days < 0 ? 0 : days;
+}
+
+function calcAgeChip(task) {
+  const base = task.fecha_inicio || task.created_at;
+  const d = diffDays(base);
+  if (d == null) return null;
+  const score = Math.min(10, Math.max(1, d + 1)); // 1..10
+  return { score, days: d };
 }
 
 /* ============================================================================
-   Estado / Persistencia
+   Mock data (demo local)
    ========================================================================== */
-let State = {
-  items: {}, // id -> item
-  lanes: {   // ids en orden por columna
-    todo:    [],
-    proceso: [],
-    revisar: [],
-    hecho:   [],
-  },
-  selectedId: null,
+
+// Procesos de demo (solo para mostrar nombre de proceso)
+const MOCK_PROCESOS = {
+  9: "Proceso: Fuga de agua",
+  10: "Proceso: Bacheo",
+  11: "Proceso: Poda de árbol",
+  12: "Proceso: Manual",
+  13: "Proceso: Difusor",
 };
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(KB.STORAGE_KEY);
-    if (!raw) return null;
-    const st = JSON.parse(raw);
-    if (!st || !st.items || !st.lanes) return null;
-    return st;
-  } catch { return null; }
+// Tareas de demo (basadas en tu JSON)
+const MOCK_TAREAS = [
+  {
+    id: 4,
+    proceso_id: 9,
+    asignado_a: 12,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García ANALISTA",
+    titulo: "hola soy una tarea insertada desde postman 1",
+    descripcion: "tarea test 1",
+    esfuerzo: 2,
+    fecha_inicio: "2025-10-28 13:00:00",
+    fecha_fin: "2025-10-28 15:00:00",
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-07 18:29:18",
+    created_by: 12,
+    created_by_nombre: "Juan Pablo García ANALISTA",
+    autoriza_nombre: "Pablo Agustín Director",
+  },
+  {
+    id: 5,
+    proceso_id: 9,
+    asignado_a: 12,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García ANALISTA",
+    titulo: "hola soy una tarea insertada desde postman 2",
+    descripcion: "tarea test 1",
+    esfuerzo: 2,
+    fecha_inicio: "2025-10-28 13:00:00",
+    fecha_fin: "2025-10-28 15:00:00",
+    status: KB.STATUS.REVISAR,
+    created_at: "2025-11-07 19:54:57",
+    created_by: 12,
+    created_by_nombre: "Juan Pablo García ANALISTA",
+    autoriza_nombre: "Pablo Agustín Director",
+  },
+  {
+    id: 6,
+    proceso_id: 9,
+    asignado_a: 12,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García ANALISTA",
+    titulo: "hola soy una tarea insertada desde postman 3",
+    descripcion: "tarea test 1",
+    esfuerzo: 2,
+    fecha_inicio: "2025-10-28 13:00:00",
+    fecha_fin: "2025-10-28 15:00:00",
+    status: KB.STATUS.PROCESO,
+    created_at: "2025-11-07 20:01:32",
+    created_by: 12,
+    created_by_nombre: "Juan Pablo García ANALISTA",
+    autoriza_nombre: "Pablo Agustín Director",
+  },
+  {
+    id: 7,
+    proceso_id: 10,
+    asignado_a: 13,
+    asignado_nombre: "Juan Manuel",
+    asignado_apellidos: "Perez Rodriguez",
+    titulo: "hola soy una tarea 2",
+    descripcion: "detalle",
+    esfuerzo: 10,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-12 02:16:05",
+    created_by: 15,
+    created_by_nombre: "Administrador",
+    autoriza_nombre: "Director Obras Públicas",
+  },
+  {
+    id: 8,
+    proceso_id: 10,
+    asignado_a: 5,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García Casillas",
+    titulo: "hola soy una tarea 3",
+    descripcion: "detalle 3",
+    esfuerzo: 10,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-12 02:26:48",
+    created_by: 15,
+    created_by_nombre: "Administrador",
+    autoriza_nombre: "Director Obras Públicas",
+  },
+  {
+    id: 9,
+    proceso_id: 11,
+    asignado_a: 6,
+    asignado_nombre: "Luis Enrique",
+    asignado_apellidos: "Mendez Fernandez",
+    titulo: "Rellenar bache",
+    descripcion: "Es necesario rellenar el bache con el material indicado",
+    esfuerzo: 4,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-12 12:06:32",
+    created_by: 15,
+    created_by_nombre: "Admin SAMAPA",
+    autoriza_nombre: "Director SAMAPA",
+  },
+  {
+    id: 10,
+    proceso_id: 11,
+    asignado_a: 6,
+    asignado_nombre: "Luis Enrique",
+    asignado_apellidos: "Mendez Fernandez",
+    titulo: "Aplanado del bache",
+    descripcion: "Es necesario aplanar el bache para poder circular",
+    esfuerzo: 2,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.PROCESO,
+    created_at: "2025-11-12 12:07:04",
+    created_by: 15,
+    created_by_nombre: "Admin SAMAPA",
+    autoriza_nombre: "Director SAMAPA",
+  },
+  {
+    id: 11,
+    proceso_id: 12,
+    asignado_a: 2,
+    asignado_nombre: "Pablo Agustin",
+    asignado_apellidos: "de Dios Garcia",
+    titulo: "manual",
+    descripcion: "proceso 1",
+    esfuerzo: 5,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-12 16:25:31",
+    created_by: 2,
+    created_by_nombre: "Pablo Agustín",
+    autoriza_nombre: "Presidencia",
+  },
+  {
+    id: 12,
+    proceso_id: 13,
+    asignado_a: 2,
+    asignado_nombre: "Pablo Agustin",
+    asignado_apellidos: "de Dios Garcia",
+    titulo: "cambio del difusor",
+    descripcion:
+      "esta es una tarea para cambio de difusor, es necesario subir evidencia",
+    esfuerzo: 3,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.REVISAR,
+    created_at: "2025-11-17 12:29:34",
+    created_by: 2,
+    created_by_nombre: "Pablo Agustín",
+    autoriza_nombre: "Presidencia",
+  },
+  {
+    id: 13,
+    proceso_id: 13,
+    asignado_a: 2,
+    asignado_nombre: "Pablo Agustin",
+    asignado_apellidos: "de Dios Garcia",
+    titulo: "cambio de alca....",
+    descripcion: "esta descripción",
+    esfuerzo: 1,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.PROCESO,
+    created_at: "2025-11-17 20:21:03",
+    created_by: 2,
+    created_by_nombre: "Pablo Agustín",
+    autoriza_nombre: "Presidencia",
+  },
+  {
+    id: 14,
+    proceso_id: 9,
+    asignado_a: 7,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García DIRECTOR",
+    titulo: "tarea 20/11",
+    descripcion: "detalle",
+    esfuerzo: 10,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.PAUSA,
+    created_at: "2025-11-20 10:57:33",
+    created_by: 15,
+    created_by_nombre: "Administrador",
+    autoriza_nombre: "Director SAMAPA",
+  },
+].map((t, idx) => ({
+  ...t,
+  folio: `REQ-${String(15000 + t.id).padStart(9, "0")}`,
+  proceso_titulo: MOCK_PROCESOS[t.proceso_id] || `Proceso ${t.proceso_id}`,
+  // display largo asignado
+  asignado_display: t.asignado_display || `${t.asignado_nombre} ${t.asignado_apellidos}`,
+}));
+
+/* ============================================================================
+   State
+   ========================================================================== */
+
+const State = {
+  tasks: MOCK_TAREAS,
+  selectedId: null,
+  filters: {
+    mine: true,        // "Solo mis tareas" activo por defecto (como en tu captura)
+    search: "",
+  },
+};
+
+/* ============================================================================
+   DOM refs
+   ========================================================================== */
+
+const COL_IDS = {
+  [KB.STATUS.TODO]: "#kb-col-1",
+  [KB.STATUS.PROCESO]: "#kb-col-2",
+  [KB.STATUS.REVISAR]: "#kb-col-3",
+  [KB.STATUS.HECHO]: "#kb-col-4",
+  [KB.STATUS.PAUSA]: "#kb-col-5",
+};
+
+const CNT_IDS = {
+  [KB.STATUS.TODO]: "#kb-cnt-1",
+  [KB.STATUS.PROCESO]: "#kb-cnt-2",
+  [KB.STATUS.REVISAR]: "#kb-cnt-3",
+  [KB.STATUS.HECHO]: "#kb-cnt-4",
+  [KB.STATUS.PAUSA]: "#kb-cnt-5",
+};
+
+let dragging = false;
+
+/* ============================================================================
+   Render cards
+   ========================================================================== */
+
+function passesFilters(task) {
+  // Solo mis tareas
+  if (State.filters.mine && task.asignado_a !== KB.CURRENT_USER_ID) return false;
+
+  // Buscar por folio o proceso
+  const q = State.filters.search.trim().toLowerCase();
+  if (q) {
+    const hay =
+      task.folio.toLowerCase().includes(q) ||
+      task.proceso_titulo.toLowerCase().includes(q) ||
+      String(task.id).includes(q);
+    if (!hay) return false;
+  }
+
+  return true;
 }
-function saveState() {
-  try { localStorage.setItem(KB.STORAGE_KEY, JSON.stringify(State)); }
-  catch(e){ warn("No se pudo guardar en localStorage:", e); }
+
+function createCard(task) {
+  const age = calcAgeChip(task);
+
+  const art = document.createElement("article");
+  art.className = "kb-card";
+  art.dataset.id = String(task.id);
+
+  // Contenido principal
+  const main = document.createElement("div");
+  main.className = "kb-task-main";
+
+  // Línea título: {proceso} / {id}
+  const titleLine = document.createElement("div");
+  titleLine.className = "kb-task-title-line";
+
+  const spProceso = document.createElement("span");
+  spProceso.className = "kb-task-proceso";
+  spProceso.textContent = task.proceso_titulo;
+
+  const spSep = document.createElement("span");
+  spSep.className = "kb-task-sep";
+  spSep.textContent = "/";
+
+  const spId = document.createElement("span");
+  spId.className = "kb-task-id";
+  spId.textContent = `T-${task.id}`;
+
+  titleLine.append(spProceso, spSep, spId);
+
+  // Líneas de detalle
+  const lines = document.createElement("div");
+  lines.className = "kb-task-lines";
+
+  // Folio
+  const lineFolio = document.createElement("div");
+  lineFolio.className = "kb-task-line";
+  lineFolio.innerHTML =
+    `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio}</span>`;
+
+  // Asignado
+  const lineAsig = document.createElement("div");
+  lineAsig.className = "kb-task-line";
+  lineAsig.innerHTML =
+    `<span class="kb-task-label">Asignado a:</span> <span class="kb-task-value kb-task-asignado">${task.asignado_display}</span>`;
+
+  // Fecha de proceso
+  const lineFecha = document.createElement("div");
+  lineFecha.className = "kb-task-line";
+  lineFecha.innerHTML =
+    `<span class="kb-task-label">Fecha de proceso:</span> <span class="kb-task-value">${formatDateMX(task.fecha_inicio || task.created_at)}</span>`;
+
+  lines.append(lineFolio, lineAsig, lineFecha);
+  main.append(titleLine, lines);
+  art.appendChild(main);
+
+  // Contador de días (no en HECHO)
+  if (task.status !== KB.STATUS.HECHO && age) {
+    const chip = document.createElement("div");
+    chip.className = `kb-age-chip kb-age-${age.score}`;
+    chip.textContent = String(age.score);
+    chip.title = `${age.days} día${age.days === 1 ? "" : "s"} en proceso`;
+    art.appendChild(chip);
+  }
+
+  // Click → abrir drawer (si no viene de un drag)
+  art.addEventListener("click", () => {
+    if (dragging) return;
+    openDetails(task.id);
+  });
+
+  return art;
+}
+
+function renderBoard() {
+  // Limpiar columnas y contadores
+  Object.values(COL_IDS).forEach((sel) => {
+    const col = $(sel);
+    if (col) col.innerHTML = "";
+  });
+  Object.entries(CNT_IDS).forEach(([status, sel]) => {
+    const lbl = $(sel);
+    if (lbl) lbl.textContent = "(0)";
+  });
+
+  // Pintar tareas
+  for (const task of State.tasks) {
+    if (!passesFilters(task)) continue;
+    const colSel = COL_IDS[task.status];
+    const col = colSel ? $(colSel) : null;
+    if (!col) continue;
+
+    const card = createCard(task);
+    col.appendChild(card);
+
+    const cntSel = CNT_IDS[task.status];
+    const cntEl = cntSel ? $(cntSel) : null;
+    if (cntEl) {
+      const current = Number((cntEl.textContent || "").replace(/[()]/g, "")) || 0;
+      cntEl.textContent = `(${current + 1})`;
+    }
+  }
+
+  highlightSelected();
 }
 
 /* ============================================================================
-   Seed localhost
+   Drawer de detalle
    ========================================================================== */
-function seedMock() {
-  const d = (iso)=> iso;
 
-  const mk = (o)=> {
-    const id = o.id || uid();
-    return [id, {
-      id,
-      folio: o.folio || null,
-      tramite: o.tramite || "Otros",
-      descripcion: o.descripcion || "",
-      asignado: o.asignado || "(el usuario)",
-      contacto: o.contacto || "—",
-      tel: o.tel || "—",
-      direccion: o.direccion || "—",
-      creado: o.creado || d("2025-10-01"),
-      evidencias: Array.isArray(o.evidencias) ? o.evidencias : [],
-    }];
-  };
-
-  const sampleImg = "/ASSETS/demo/evid1.jpg";
-
-  const rows = [
-    { id:"9001", folio:"REQ-000009001", tramite:"Fuga de agua",
-      descripcion:"Vimos una fuga de agua en una casa amarilla de dos pisos; ya lleva más de 3 horas tirando agua.",
-      asignado:"(el usuario)", contacto:"Luis Enrique Mendez", tel:"33 3333 3333",
-      direccion:"Vicente Guerrero #13, 45850, Centro", creado:d("2025-09-02"), evidencias:[sampleImg] },
-    { id:"9002", folio:"REQ-000009002", tramite:"Fuga de drenaje",
-      descripcion:"Sale agua con olor a drenaje frente a la guardería.",
-      asignado:"(el usuario)", contacto:"Elsa Diana Rubio", tel:"33 3816 0436",
-      direccion:"Independencia, Ixtlahuacán", creado:d("2025-09-02") },
-    { id:"9003", folio:"REQ-000009003", tramite:"No disponemos de agua",
-      descripcion:"Dos días sin agua por ruptura de mangueras.",
-      asignado:"(el usuario)", contacto:"Oscar Contreras", tel:"33 1546 8423",
-      direccion:"Jesús Barajas 49, Luis García", creado:d("2025-09-02") },
-    { id:"9004", folio:"REQ-000009004", tramite:"Reportar Bache",
-      descripcion:"Bache grande que se llena de agua y afecta el transíto.",
-      asignado:"(el usuario)", contacto:"María Fernanda", tel:"33 2217 8987",
-      direccion:"Privada La Lima 30-7, Puerta del Sol", creado:d("2025-10-08") },
-    { id:"9005", folio:"REQ-000009005", tramite:"Lámpara Apagada",
-      descripcion:"Luminaria frente al domicilio no enciende.",
-      asignado:"(el usuario)", contacto:"Alberto Ascencio", tel:"33 1450 3516",
-      direccion:"Privada F. I. Madero #220", creado:d("2025-10-02") },
-    { id:"9006", folio:"REQ-000009006", tramite:"Otros",
-      descripcion:"Solicitud general.",
-      asignado:"(el usuario)", contacto:"Pamela Montes", tel:"33 2761 5370",
-      direccion:"Loma Azul #200", creado:d("2025-10-08") },
-    { id:"9007", folio:"REQ-000009007", tramite:"Fuga de agua",
-      descripcion:"Fuga en banqueta frente a #76.",
-      asignado:"(el usuario)", contacto:"Santiago Manzo", tel:"33 1752 9218",
-      direccion:"Olivo Japonés #76, Valle de los Olivos", creado:d("2025-10-23") },
-    { id:"9008", folio:"REQ-000009008", tramite:"Fuga de drenaje",
-      descripcion:"Olor a drenaje en esquina.",
-      asignado:"(el usuario)", contacto:"Sandra C. Andrade", tel:"33 1215 8080",
-      direccion:"Camino a la Estación #305", creado:d("2025-10-20") },
-    { id:"9009", folio:"REQ-000009009", tramite:"Otros",
-      descripcion:"Petición varias.",
-      asignado:"(el usuario)", contacto:"Nayeli Ochoa", tel:"33 1721 2434",
-      direccion:"C. Cristóbal Colón #85", creado:d("2025-10-02") },
-    { id:"9010", folio:"REQ-000009010", tramite:"No disponemos de agua",
-      descripcion:"Varias viviendas afectadas.",
-      asignado:"(el usuario)", contacto:"Antonio Carmona", tel:"33 3198 0882",
-      direccion:"García Herrera #19", creado:d("2025-10-03") },
-  ];
-
-  const items = {};
-  rows.forEach(r => { const [id, obj] = mk(r); items[id] = obj; });
-
-  const ids = Object.keys(items);
-  return {
-    items,
-    lanes: {
-      todo:    ids.slice(0, 4), // 4
-      proceso: ids.slice(4, 7), // 3
-      revisar: ids.slice(7, 9), // 2
-      hecho:   ids.slice(9),    // 1
-    },
-    selectedId: ids[0] || null,
-  };
-}
-
-/* ============================================================================
-   Render sobre TU HTML existente (#kb-col-0, #kb-col-3, #kb-col-1, #kb-col-6)
-   ========================================================================== */
-function getListElByStatus(statusCode) {
-  // ids: kb-col-0, kb-col-3, kb-col-1, kb-col-6
-  return document.getElementById(`kb-col-${statusCode}`);
-}
-function setCount(statusCode, n) {
-  const el = document.getElementById(`kb-cnt-${statusCode}`);
-  if (el) el.textContent = `(${n})`;
-}
-
-function renderAll() {
-  // limpiar columnas
-  KB.COLUMNS.forEach(c => {
-    const list = getListElByStatus(c.statusCode);
-    if (list) list.innerHTML = "";
-  });
-
-  // pintar tarjetas según State.lanes
-  KB.COLUMNS.forEach(c => {
-    const ids = State.lanes[c.id] || [];
-    const list = getListElByStatus(c.statusCode);
-    if (!list) return;
-    ids.forEach(id => {
-      const item = State.items[id];
-      if (item) list.appendChild(cardEl(item));
-    });
-    setCount(c.statusCode, ids.length);
-  });
-
-  bindDnD();
-}
-
-function updateCountsOnly() {
-  KB.COLUMNS.forEach(c => {
-    setCount(c.statusCode, (State.lanes[c.id] || []).length);
-  });
-}
-
-function cardEl(item) {
-  const el = document.createElement("article");
-  el.className = "kb-card";
-  el.draggable = true;
-  el.setAttribute("data-id", item.id);
-  el.innerHTML = `
-    <div class="kb-card-bar"></div>
-    <div class="kb-card-title">${item.tramite || "—"}</div>
-    <div class="kb-card-meta">
-      <div class="line"><span class="muted">Asignado a:</span> ${item.asignado || "(el usuario)"}</div>
-      <div class="line"><span class="muted">Fecha Solicitado:</span> ${formatDateMX(item.creado)}</div>
-    </div>
-  `;
-
-  el.addEventListener("click", () => {
-    State.selectedId = item.id;
-    showDetails(item);
-    highlightSelected();
-  });
-  el.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("text/plain", item.id);
-    e.dataTransfer.effectAllowed = "move";
-    el.classList.add("is-dragging");
-  });
-  el.addEventListener("dragend", () => el.classList.remove("is-dragging"));
-  return el;
+function getTaskById(id) {
+  return State.tasks.find((t) => String(t.id) === String(id));
 }
 
 function highlightSelected() {
-  $$(".kb-card").forEach(c => c.classList.remove("is-selected"));
-  if (State.selectedId) {
-    const sel = $(`.kb-card[data-id="${CSS.escape(State.selectedId)}"]`);
-    sel?.classList.add("is-selected");
+  const cards = $$(".kb-card");
+  cards.forEach((c) => c.classList.remove("is-selected"));
+  if (!State.selectedId) return;
+  const sel = $(`.kb-card[data-id="${State.selectedId}"]`);
+  if (sel) sel.classList.add("is-selected");
+}
+
+function fillDetails(task) {
+  $("#kb-d-folio").textContent = task.folio || "—";
+  $("#kb-d-proceso").textContent = task.proceso_titulo || "—";
+  $("#kb-d-tarea").textContent = task.titulo || "—";
+  $("#kb-d-asignado").textContent = task.asignado_display || "—";
+  $("#kb-d-esfuerzo").textContent =
+    task.esfuerzo != null ? `${task.esfuerzo} h` : "—";
+  $("#kb-d-desc").textContent = task.descripcion || "—";
+  $("#kb-d-creado-por").textContent = task.created_by_nombre || "—";
+  $("#kb-d-autoriza").textContent = task.autoriza_nombre || "—";
+
+  // Evidencias demo: solo placeholders
+  const evidWrap = $("#kb-d-evidencias");
+  if (evidWrap) {
+    evidWrap.innerHTML = "";
+    for (let i = 0; i < 3; i++) {
+      const ph = document.createElement("div");
+      ph.className = "kb-evid-placeholder";
+      evidWrap.appendChild(ph);
+    }
+  }
+}
+
+function openDetails(id) {
+  const task = getTaskById(id);
+  if (!task) return;
+  State.selectedId = task.id;
+
+  fillDetails(task);
+  highlightSelected();
+
+  // Mostrar cuerpo y ocultar texto vacío
+  $("#kb-d-empty").hidden = true;
+  $("#kb-d-body").hidden = false;
+
+  // Abrir drawer + overlay
+  $("#kb-details").classList.add("is-open");
+  $("#kb-details").setAttribute("aria-hidden", "false");
+  $("#kb-d-overlay").classList.add("is-open");
+  $("#kb-d-overlay").hidden = false;
+}
+
+function closeDetails() {
+  State.selectedId = null;
+  highlightSelected();
+
+  $("#kb-details").classList.remove("is-open");
+  $("#kb-details").setAttribute("aria-hidden", "true");
+  $("#kb-d-overlay").classList.remove("is-open");
+  $("#kb-d-overlay").hidden = true;
+}
+
+/* ============================================================================
+   Filtros rápidos (toolbar)
+   ========================================================================== */
+
+function setupToolbar() {
+  const chipMine = $('.kb-chip[data-filter="mine"]');
+  const chipRecent = $('.kb-chip[data-filter="recent"]');
+  const inputSearch = $("#kb-filter-search");
+  const btnClear = $("#kb-filter-clear");
+
+  if (chipMine) {
+    chipMine.classList.toggle("is-active", State.filters.mine);
+    chipMine.addEventListener("click", () => {
+      State.filters.mine = !State.filters.mine;
+      chipMine.classList.toggle("is-active", State.filters.mine);
+      renderBoard();
+    });
+  }
+
+  if (chipRecent) {
+    // Por ahora "Recientes" no hace nada especial en demo
+    chipRecent.addEventListener("click", () => {
+      chipRecent.classList.toggle("is-active");
+      // TODO: lógica de recientes si quieres
+    });
+  }
+
+  if (inputSearch) {
+    inputSearch.addEventListener("input", () => {
+      State.filters.search = inputSearch.value || "";
+      renderBoard();
+    });
+  }
+
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      State.filters.mine = false;
+      State.filters.search = "";
+      if (chipMine) chipMine.classList.remove("is-active");
+      if (chipRecent) chipRecent.classList.remove("is-active");
+      if (inputSearch) inputSearch.value = "";
+      renderBoard();
+    });
   }
 }
 
 /* ============================================================================
-   Panel de detalles (usa el HTML existente)
+   Drag & drop (Sortable)
    ========================================================================== */
-function showDetails(row) {
-  const panel = $("#kb-details");
-  const empty = $(".kb-d-empty", panel);
-  const body  = $(".kb-d-body", panel);
 
-  if (!row) { empty.hidden = false; body.hidden = true; return; }
-  empty.hidden = true; body.hidden = false;
-
-  $("#kb-d-title").textContent     = row.tramite || "—";
-  $("#kb-d-desc").textContent      = row.descripcion || "—";
-  $("#kb-d-asignado").textContent  = row.asignado || "(el usuario)";
-  $("#kb-d-contacto").textContent  = row.contacto || "—";
-  $("#kb-d-creado").textContent    = formatDateMX(row.creado);
-  $("#kb-d-tel").textContent       = row.tel || "—";
-  $("#kb-d-direccion").textContent = row.direccion || "—";
-
-  const wrap = $("#kb-d-evidencias");
-  wrap.innerHTML = "";
-  const evids = Array.isArray(row.evidencias) ? row.evidencias : [];
-  if (!evids.length) {
-    wrap.innerHTML = `<div class="muted" style="color:#6b7a78;font-size:.85rem;">Sin evidencias</div>`;
-  } else {
-    evids.forEach((src, i) => {
-      const img = new Image();
-      img.alt = `Evidencia ${i+1}`;
-      img.src = src;
-      wrap.appendChild(img);
-    });
+function setupDragAndDrop() {
+  const lists = $$(".kb-list");
+  if (!window.Sortable || !lists.length) {
+    warn("SortableJS no disponible o sin listas");
+    return;
   }
-}
 
-/* ============================================================================
-   Drag & Drop (sobre .kb-list existentes)
-   ========================================================================== */
-function bindDnD() {
-  $$(".kb-list").forEach(list => {
-    list.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      list.classList.add("is-over");
-    });
-    list.addEventListener("dragleave", () => list.classList.remove("is-over"));
-    list.addEventListener("drop", (e) => {
-      e.preventDefault();
-      list.classList.remove("is-over");
-      const id = e.dataTransfer.getData("text/plain");
-      if (!id) return;
+  lists.forEach((list) => {
+    new Sortable(list, {
+      group: "kb-tasks",
+      animation: 150,
+      ghostClass: "kb-card-ghost",
+      dragClass: "kb-card-drag",
+      onStart() {
+        dragging = true;
+      },
+      onEnd(evt) {
+        setTimeout(() => {
+          dragging = false;
+        }, 0);
 
-      // mover en DOM
-      const card = document.querySelector(`.kb-card[data-id="${CSS.escape(id)}"]`);
-      if (card) list.appendChild(card);
+        const itemEl = evt.item;
+        const id = itemEl.dataset.id;
+        const task = getTaskById(id);
+        if (!task) return;
 
-      // columna destino según data-status / id
-      let statusCode = null;
-      const ds = list.getAttribute("data-status");
-      if (ds != null) statusCode = Number(ds);
-      if (statusCode == null) {
-        const m = list.id && list.id.match(/kb-col-(\d+)/);
-        if (m) statusCode = Number(m[1]);
-      }
-      const colId = MAP_STATUS_TO_ID[statusCode] || "todo";
+        const col = evt.to.closest(".kb-col");
+        if (!col) return;
+        const newStatus = Number(col.dataset.status);
+        if (!newStatus || newStatus === task.status) return;
 
-      moveCardToColumn(id, colId);
-      State.selectedId = id;
-      showDetails(State.items[id]);
-      highlightSelected();
-      updateCountsOnly();
-      saveState();
+        task.status = newStatus;
+        renderBoard();
+        if (State.selectedId === task.id) {
+          // si ya estaba abierto, actualiza highlight
+          highlightSelected();
+        }
+      },
     });
   });
-}
-
-function moveCardToColumn(cardId, colId) {
-  Object.keys(State.lanes).forEach(k => {
-    State.lanes[k] = State.lanes[k].filter(id => id !== cardId);
-  });
-  if (!State.lanes[colId]) State.lanes[colId] = [];
-  State.lanes[colId].push(cardId);
-  log("mover", { cardId, colId, lanes: State.lanes });
 }
 
 /* ============================================================================
    Init
    ========================================================================== */
-window.addEventListener("DOMContentLoaded", () => {
+
+document.addEventListener("DOMContentLoaded", () => {
   try {
-    // Cargar o sembrar
-    const stored = loadState();
-    State = stored || seedMock();
-    if (!stored) saveState();
+    setupToolbar();
+    renderBoard();
+    setupDragAndDrop();
 
-    // Pintar en TU HTML actual
-    renderAll();
-    highlightSelected();
-    if (State.selectedId) showDetails(State.items[State.selectedId]);
+    // Cierre del drawer
+    const btnClose = $("#kb-d-close");
+    const overlay = $("#kb-d-overlay");
+    if (btnClose) btnClose.addEventListener("click", closeDetails);
+    if (overlay) overlay.addEventListener("click", closeDetails);
 
-    log("kanban listo V2", { items: Object.keys(State.items).length });
+    log("Tablero de tareas demo listo", {
+      tareas: State.tasks.length,
+    });
   } catch (e) {
     console.error("[KB] init error:", e);
   }

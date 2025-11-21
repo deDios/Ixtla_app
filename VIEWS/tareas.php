@@ -89,35 +89,71 @@
                     <span id="hs-profile-badge" class="badge">—</span>
                 </section>
 
-                <!-- se actulizaron los filtros ahora deberian coincidir con los esperados 
-                <nav id="hs-states" class="hs-states" aria-label="Estados">
-                    <button class="item is-active" data-status="todos" role="radio" aria-checked="true">
-                        <span class="label">Todos</span><span class="count" id="cnt-todos">(0)</span>
-                    </button>
-                    <button class="item" data-status="solicitud" role="radio" aria-checked="false">
-                        <span class="label">Solicitud</span><span class="count" id="cnt-solicitud">(0)</span>
-                    </button>
-                    <button class="item" data-status="revision" role="radio" aria-checked="false">
-                        <span class="label">Revisión</span><span class="count" id="cnt-revision">(0)</span>
-                    </button>
-                    <button class="item" data-status="asignacion" role="radio" aria-checked="false">
-                        <span class="label">Asignación</span><span class="count" id="cnt-asignacion">(0)</span>
-                    </button>
-                    <button class="item" data-status="proceso" role="radio" aria-checked="false">
-                        <span class="label">En proceso</span><span class="count" id="cnt-proceso">(0)</span>
-                    </button>
-                    <button class="item" data-status="pausado" role="radio" aria-checked="false">
-                        <span class="label">Pausado</span><span class="count" id="cnt-pausado">(0)</span>
-                    </button>
-                    <button class="item" data-status="cancelado" role="radio" aria-checked="false">
-                        <span class="label">Cancelado</span><span class="count" id="cnt-cancelado">(0)</span>
-                    </button>
-                    <button class="item" data-status="finalizado" role="radio" aria-checked="false">
-                        <span class="label">Finalizado</span><span class="count" id="cnt-finalizado">(0)</span>
-                    </button>
-                </nav>
-                -->
+                <!-- Filtros en sidebar (Departamentos / Empleados) -->
+                <section class="kb-sidebar-filters" aria-label="Filtros de tablero">
+                    <div class="kb-filters-head">
+                        <h4>Filtros</h4>
+                        <button type="button" class="kb-filter-clear" id="kb-sidebar-clear">
+                            Limpiar filtros
+                        </button>
+                    </div>
 
+                    <!-- Filtro múltiple: Departamentos -->
+                    <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-departamentos"
+                        data-filter="departamentos">
+                        <span class="kb-filter-label">Departamentos</span>
+
+                        <!-- Trigger del combo múltiple -->
+                        <button type="button" class="kb-multi-trigger" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="kb-multi-placeholder">Seleccionar departamentos…</span>
+                            <span class="kb-multi-summary" hidden>—</span>
+                            <span class="kb-multi-caret">▾</span>
+                        </button>
+
+                        <!-- Menú desplegable -->
+                        <div class="kb-multi-menu">
+                            <div class="kb-multi-search">
+                                <input type="text" class="kb-multi-search-input" placeholder="Buscar departamento…">
+                            </div>
+                            <ul class="kb-multi-options" role="listbox">
+                                <!-- Opciones se llenan desde JS -->
+                                <li>
+                                    <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
+                                        — Sin datos: se llenará desde JS —
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Filtro múltiple: Empleados -->
+                    <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-empleados"
+                        data-filter="empleados">
+                        <span class="kb-filter-label">Empleados</span>
+
+                        <!-- Trigger del combo múltiple -->
+                        <button type="button" class="kb-multi-trigger" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="kb-multi-placeholder">Seleccionar empleados…</span>
+                            <span class="kb-multi-summary" hidden>—</span>
+                            <span class="kb-multi-caret">▾</span>
+                        </button>
+
+                        <!-- Menú desplegable -->
+                        <div class="kb-multi-menu">
+                            <div class="kb-multi-search">
+                                <input type="text" class="kb-multi-search-input" placeholder="Buscar empleado…">
+                            </div>
+                            <ul class="kb-multi-options" role="listbox">
+                                <!-- Opciones se llenan desde JS -->
+                                <li>
+                                    <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
+                                        — Sin datos: se llenará desde JS —
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
             </aside>
 
             <!-- MAIN -->
@@ -215,169 +251,183 @@
                         <div class="kb-list" id="kb-col-4" aria-describedby="kb-h-4"></div>
                     </section>
 
-                    <!-- Panel de detalles -->
-                    <aside class="kb-details" id="kb-details" aria-label="Detalle de la asignación">
-
-                        <!-- Estado vacío por defecto -->
-                        <p class="kb-d-empty" id="kb-d-empty">
-                            Selecciona una tarjeta para ver el detalle de la asignación.
-                        </p>
-
-                        <!-- Cuerpo del detalle (se muestra cuando hay tarea seleccionada) -->
-                        <div class="kb-d-body" id="kb-d-body" hidden>
-
-                            <h3>Detalle de la asignación</h3>
-
-                            <!-- Asunto / título (usa row.tramite) -->
-                            <div class="kb-d-field">
-                                <strong>Asunto:</strong>
-                                <span id="kb-d-title">—</span>
-                            </div>
-
-                            <!-- Descripción -->
-                            <div class="kb-d-field">
-                                <strong>Descripción de la tarea:</strong>
-                                <p class="kb-d-desc" id="kb-d-desc">
-                                    Aquí irá la descripción larga de la tarea.
-                                </p>
-                            </div>
-
-                            <!-- Asignado -->
-                            <div class="kb-d-field">
-                                <strong>Asignado a:</strong>
-                                <span id="kb-d-asignado">—</span>
-                            </div>
-
-                            <!-- Contacto / reportado por -->
-                            <div class="kb-d-field">
-                                <strong>Reporta a:</strong>
-                                <span id="kb-d-contacto">—</span>
-                            </div>
-
-                            <!-- Fecha del reporte -->
-                            <div class="kb-d-field">
-                                <strong>Fecha del reporte:</strong>
-                                <span id="kb-d-creado">—</span>
-                            </div>
-
-                            <!-- Teléfono -->
-                            <div class="kb-d-field">
-                                <strong>Teléfono de contacto:</strong>
-                                <span id="kb-d-tel">—</span>
-                            </div>
-
-                            <!-- Dirección -->
-                            <div class="kb-d-field">
-                                <strong>Dirección:</strong>
-                                <span id="kb-d-direccion">—</span>
-                            </div>
-
-                            <!-- Evidencias -->
-                            <div class="kb-d-field">
-                                <strong>Evidencias:</strong>
-                                <div class="kb-evid-grid" id="kb-d-evidencias">
-                                    <!--
-                    Placeholders de ejemplo: el JS los va a limpiar cuando pinte evidencias reales,
-                    pero sirven para ver cómo se comporta el grid.
-                -->
-                                    <div class="kb-evid-placeholder"></div>
-                                    <div class="kb-evid-placeholder"></div>
-                                    <div class="kb-evid-placeholder"></div>
-                                </div>
-                            </div>
-
-                            <!-- Comentarios (mismo componente visual que en requerimiento.php) -->
-                            <div class="kb-d-field">
-                                <strong>Comentarios:</strong>
-
-                                <section class="demo-comments">
-                                    <div class="demo-card">
-                                        <div class="head">
-                                            <h4>Comentarios</h4>
-                                        </div>
-
-                                        <!-- Composer -->
-                                        <div class="composer" aria-label="Escribir comentario">
-                                            <div class="composer-wrap">
-                                                <textarea id="kb-comment-input"
-                                                    placeholder="Escribe un comentario…"></textarea>
-
-                                                <!--
-                                Aquí, en tareas.js, cuando el comentario venga desde una tarea
-                                vamos a concatenar al inicio:
-                                "Tarea-{id}: <texto…>"
-                                para luego detectarlo y pintarlo como badge (.task-tag) al renderizar.
-                            -->
-                                                <button class="send-fab" type="button" id="kb-comment-send"
-                                                    aria-label="Enviar comentario">
-                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                        <path fill="currentColor"
-                                                            d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                            <div class="hint">
-                                                Presiona <strong>Enter</strong> para enviar <br>
-                                                o <br>
-                                                da clic en el botón
-                                            </div>
-                                        </div>
-
-                                        <!-- Feed -->
-                                        <div class="c-feed" id="kb-comments-feed" aria-live="polite">
-                                            <div class="empty" id="kb-comments-empty">
-                                                Aún no hay comentarios para este requerimiento.
-                                            </div>
-
-                                            <article class="msg">
-                                                <img class="avatar" alt="" src="/ASSETS/user/userImgs/img_14.png">
-                                                <div>
-                                                    <div class="who">
-                                                        <span class="name">Juan Pablo</span>
-                                                        <span class="time">hace 8 h</span>
-                                                    </div>
-                                                    <div class="text"
-                                                        style="white-space:pre-wrap;word-break:break-word;">
-                                                        Este es un comentario normal sin relación con una tarea
-                                                        específica.
-                                                    </div>
-                                                </div>
-                                            </article>
-
-
-                                            <article class="msg">
-                                                <img class="avatar" alt="" src="/ASSETS/user/userImgs/img_14.png">
-                                                <div>
-                                                    <div class="who">
-                                                        <span class="name">Pablo Agustin</span>
-                                                        <span class="time">hace 2 h</span>
-                                                    </div>
-                                                    <div class="text has-task"
-                                                        style="white-space:pre-wrap;word-break:break-word;">
-                                                        <span class="task-tag">TAREA-09</span>
-                                                        No se puede atender hoy por lluvia.
-                                                    </div>
-                                                </div>
-                                            </article>
-
-
-
-
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        </div><!-- /.kb-d-body -->
-                    </aside><!-- /.kb-details -->
-
+                    <!-- En pausa = status 5 -->
+                    <section class="kb-col" data-status="5" aria-labelledby="kb-h-5">
+                        <header class="kb-header" id="kb-h-5">
+                            <h3>En pausa</h3>
+                            <span class="kb-count" id="kb-cnt-5">(0)</span>
+                        </header>
+                        <div class="kb-list" id="kb-col-5" aria-describedby="kb-h-5"></div>
+                    </section>
 
                 </div><!-- /.kb-board -->
+
+                <!-- Overlay para el drawer de detalles -->
+                <div id="kb-d-overlay" class="kb-d-overlay" hidden></div>
+
+                <!-- Overlay para el drawer de detalles -->
+                <div id="kb-d-overlay" class="kb-d-overlay" hidden></div>
+
+                <!-- Drawer de detalles -->
+                <aside class="kb-details" id="kb-details" aria-label="Detalle de la asignación" aria-hidden="true">
+
+                    <header class="kb-d-head">
+                        <h3 class="kb-d-heading">Detalle de la tarea</h3>
+                        <button type="button" id="kb-d-close" class="kb-d-close" aria-label="Cerrar detalle">✕</button>
+                    </header>
+
+                    <!-- Estado vacío por defecto -->
+                    <p class="kb-d-empty" id="kb-d-empty">
+                        Selecciona una tarjeta para ver el detalle de la tarea.
+                    </p>
+
+                    <!-- Cuerpo del detalle (se muestra cuando hay tarea seleccionada) -->
+                    <div class="kb-d-body" id="kb-d-body" hidden>
+
+                        <!-- Folio -->
+                        <div class="kb-d-field">
+                            <strong>Folio:</strong>
+                            <span id="kb-d-folio">—</span>
+                        </div>
+
+                        <!-- Proceso -->
+                        <div class="kb-d-field">
+                            <strong>Proceso:</strong>
+                            <span id="kb-d-proceso">—</span>
+                        </div>
+
+                        <!-- Tarea (título de la tarea) -->
+                        <div class="kb-d-field">
+                            <strong>Tarea:</strong>
+                            <span id="kb-d-tarea">—</span>
+                        </div>
+
+                        <!-- Asignado a -->
+                        <div class="kb-d-field">
+                            <strong>Asignado a:</strong>
+                            <span id="kb-d-asignado">—</span>
+                        </div>
+
+                        <!-- Esfuerzo (hrs) -->
+                        <div class="kb-d-field">
+                            <strong>Esfuerzo (hrs):</strong>
+                            <span id="kb-d-esfuerzo">—</span>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div class="kb-d-field">
+                            <strong>Descripción:</strong>
+                            <p class="kb-d-desc" id="kb-d-desc">—</p>
+                        </div>
+
+                        <!-- Creado por -->
+                        <div class="kb-d-field">
+                            <strong>Creado por:</strong>
+                            <span id="kb-d-creado-por">—</span>
+                        </div>
+
+                        <!-- Quien autoriza -->
+                        <div class="kb-d-field">
+                            <strong>Quien autoriza:</strong>
+                            <span id="kb-d-autoriza">—</span>
+                        </div>
+
+                        <!-- Evidencias -->
+                        <div class="kb-d-field">
+                            <strong>Evidencias:</strong>
+                            <div class="kb-evid-grid" id="kb-d-evidencias">
+                                <!-- Placeholders de ejemplo: el JS los va a limpiar cuando pinte evidencias reales -->
+                                <div class="kb-evid-placeholder"></div>
+                                <div class="kb-evid-placeholder"></div>
+                                <div class="kb-evid-placeholder"></div>
+                            </div>
+                        </div>
+
+                        <!-- Comentarios -->
+                        <div class="kb-d-field">
+                            <strong>Comentarios:</strong>
+
+                            <section class="demo-comments">
+                                <div class="demo-card">
+                                    <div class="head">
+                                        <h4>Comentarios</h4>
+                                    </div>
+
+                                    <!-- Composer -->
+                                    <div class="composer" aria-label="Escribir comentario">
+                                        <div class="composer-wrap">
+                                            <textarea id="kb-comment-input"
+                                                placeholder="Escribe un comentario…"></textarea>
+
+                                            <!--
+                En tareas.js, cuando el comentario venga desde una tarea
+                concatenaremos al inicio:
+                "TAREA-{id}:: <texto…>"
+                para luego detectarlo y pintarlo como badge (.task-tag).
+              -->
+                                            <button class="send-fab" type="button" id="kb-comment-send"
+                                                aria-label="Enviar comentario">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path fill="currentColor"
+                                                        d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div class="hint">
+                                            Presiona <strong>Enter</strong> para enviar <br>
+                                            o <br>
+                                            da clic en el botón
+                                        </div>
+                                    </div>
+
+                                    <!-- Feed -->
+                                    <div class="c-feed" id="kb-comments-feed" aria-live="polite">
+                                        <div class="empty" id="kb-comments-empty">
+                                            Aún no hay comentarios para este requerimiento.
+                                        </div>
+
+                                        <!-- Ejemplos estáticos, se pueden eliminar cuando conectemos API -->
+                                        <article class="msg">
+                                            <img class="avatar" alt="" src="/ASSETS/user/userImgs/img_14.png">
+                                            <div>
+                                                <div class="who">
+                                                    <span class="name">Juan Pablo</span>
+                                                    <span class="time">hace 8 h</span>
+                                                </div>
+                                                <div class="text" style="white-space:pre-wrap;word-break:break-word;">
+                                                    Este es un comentario normal sin relación con una tarea específica.
+                                                </div>
+                                            </div>
+                                        </article>
+
+                                        <article class="msg">
+                                            <img class="avatar" alt="" src="/ASSETS/user/userImgs/img_14.png">
+                                            <div>
+                                                <div class="who">
+                                                    <span class="name">Pablo Agustin</span>
+                                                    <span class="time">hace 2 h</span>
+                                                </div>
+                                                <div class="text has-task"
+                                                    style="white-space:pre-wrap;word-break:break-word;">
+                                                    <span class="task-tag">TAREA-09</span>
+                                                    No se puede atender hoy por lluvia.
+                                                </div>
+                                            </div>
+                                        </article>
+
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                    </div><!-- /.kb-d-body -->
+                </aside><!-- /.kb-details -->
+
 
             </section>
 
         </div>
     </main>
-
 
     <!-- Pie de pagina -->
     <footer id="site-footer">
@@ -405,19 +455,6 @@
             </div>
         </div>
     </footer>
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     <!-- ESPACIO PARA MODALES -->
     <div id="modal-perfil" class="modal-overlay" aria-hidden="true">
@@ -497,8 +534,6 @@
                 <button type="submit" class="btn-submit">Guardar cambios</button>
             </form>
 
-
-
             <p class="modal-note">
                 Tus datos están seguros con nosotros. Al guardar aceptas nuestras políticas de privacidad y condiciones
                 de uso.
@@ -506,9 +541,6 @@
             <p class="modal-copy">© 2025 GodCode. Todos los derechos reservados.</p>
         </div>
     </div>
-
-
-
 
     <!-- Modal editor de Avatar  -->
     <div class="eda-overlay" id="eda-overlay" aria-hidden="true">
@@ -564,13 +596,6 @@
         </div>
     </div>
 
-
-
-
-
-
-
-
     <!-- Guard para la página de home
 <script type="module">
     import {
@@ -589,7 +614,6 @@
     <!-- SortableJS -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
     <script type="module" src="/JS/tareas.js"></script>
-
 
     <!-- bundle para que cargue bien el sidebar -->
     <script type="module" src="/JS/auth/session.js"></script>
