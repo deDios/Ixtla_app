@@ -95,11 +95,27 @@ const MOCK_PROCESOS = {
   13: "Proceso: Difusor",
 };
 
+// Departamentos demo para combos del sidebar
+const MOCK_DEPARTAMENTOS = [
+  { id: 1, nombre: "SAMAPA" },
+  { id: 2, nombre: "Obras Públicas" },
+  { id: 3, nombre: "Alumbrado Público" },
+];
+
+// Empleados demo para combos del sidebar
+const MOCK_EMPLEADOS = [
+  { id: 12, nombre: "Juan Pablo García ANALISTA" },
+  { id: 6, nombre: "Luis Enrique Méndez Fernández" },
+  { id: 2, nombre: "Pablo Agustín de Dios García" },
+  { id: 7, nombre: "Juan Pablo García DIRECTOR" },
+];
+
 // Tareas de demo (basadas en tu JSON)
 const MOCK_TAREAS = [
   {
     id: 4,
     proceso_id: 9,
+    departamento_id: 1,
     asignado_a: 12,
     asignado_nombre: "Juan Pablo",
     asignado_apellidos: "García ANALISTA",
@@ -117,6 +133,7 @@ const MOCK_TAREAS = [
   {
     id: 5,
     proceso_id: 9,
+    departamento_id: 1,
     asignado_a: 12,
     asignado_nombre: "Juan Pablo",
     asignado_apellidos: "García ANALISTA",
@@ -134,6 +151,7 @@ const MOCK_TAREAS = [
   {
     id: 6,
     proceso_id: 9,
+    departamento_id: 1,
     asignado_a: 12,
     asignado_nombre: "Juan Pablo",
     asignado_apellidos: "García ANALISTA",
@@ -151,6 +169,7 @@ const MOCK_TAREAS = [
   {
     id: 7,
     proceso_id: 10,
+    departamento_id: 2,
     asignado_a: 13,
     asignado_nombre: "Juan Manuel",
     asignado_apellidos: "Perez Rodriguez",
@@ -168,6 +187,7 @@ const MOCK_TAREAS = [
   {
     id: 8,
     proceso_id: 10,
+    departamento_id: 2,
     asignado_a: 5,
     asignado_nombre: "Juan Pablo",
     asignado_apellidos: "García Casillas",
@@ -185,6 +205,7 @@ const MOCK_TAREAS = [
   {
     id: 9,
     proceso_id: 11,
+    departamento_id: 3,
     asignado_a: 6,
     asignado_nombre: "Luis Enrique",
     asignado_apellidos: "Mendez Fernandez",
@@ -202,6 +223,7 @@ const MOCK_TAREAS = [
   {
     id: 10,
     proceso_id: 11,
+    departamento_id: 3,
     asignado_a: 6,
     asignado_nombre: "Luis Enrique",
     asignado_apellidos: "Mendez Fernandez",
@@ -219,6 +241,7 @@ const MOCK_TAREAS = [
   {
     id: 11,
     proceso_id: 12,
+    departamento_id: 1,
     asignado_a: 2,
     asignado_nombre: "Pablo Agustin",
     asignado_apellidos: "de Dios Garcia",
@@ -236,6 +259,7 @@ const MOCK_TAREAS = [
   {
     id: 12,
     proceso_id: 13,
+    departamento_id: 1,
     asignado_a: 2,
     asignado_nombre: "Pablo Agustin",
     asignado_apellidos: "de Dios Garcia",
@@ -254,6 +278,7 @@ const MOCK_TAREAS = [
   {
     id: 13,
     proceso_id: 13,
+    departamento_id: 1,
     asignado_a: 2,
     asignado_nombre: "Pablo Agustin",
     asignado_apellidos: "de Dios Garcia",
@@ -271,6 +296,7 @@ const MOCK_TAREAS = [
   {
     id: 14,
     proceso_id: 9,
+    departamento_id: 1,
     asignado_a: 7,
     asignado_nombre: "Juan Pablo",
     asignado_apellidos: "García DIRECTOR",
@@ -304,6 +330,8 @@ const State = {
   filters: {
     mine: true, // "Solo mis tareas" activo por defecto (como en tu captura)
     search: "",
+    deptIds: new Set(), // departamentos seleccionados (sidebar)
+    employeeIds: new Set(), // empleados seleccionados (sidebar)
   },
 };
 
@@ -346,6 +374,18 @@ function passesFilters(task) {
       task.proceso_titulo.toLowerCase().includes(q) ||
       String(task.id).includes(q);
     if (!hay) return false;
+  }
+
+  // Filtro por departamentos (multi)
+  const deptIds = State.filters.deptIds;
+  if (deptIds && deptIds.size > 0) {
+    if (!deptIds.has(task.departamento_id)) return false;
+  }
+
+  // Filtro por empleados (multi)
+  const empIds = State.filters.employeeIds;
+  if (empIds && empIds.size > 0) {
+    if (!empIds.has(task.asignado_a)) return false;
   }
 
   return true;
@@ -527,6 +567,143 @@ function closeDetails() {
 }
 
 /* ============================================================================
+   MULTISELECT "TIPO JIRA" – Sidebar
+   ========================================================================== */
+
+function buildMultiSelect(config) {
+  const root =
+    typeof config.root === "string"
+      ? document.querySelector(config.root)
+      : config.root;
+  if (!root) return;
+
+  const trigger = root.querySelector(".kb-multi-trigger");
+  const placeholder = root.querySelector(".kb-multi-placeholder");
+  const summary = root.querySelector(".kb-multi-summary");
+  const menu = root.querySelector(".kb-multi-menu");
+  const list = root.querySelector(".kb-multi-options");
+  const searchInput = root.querySelector(".kb-multi-search-input");
+
+  if (!trigger || !menu || !list) return;
+
+  // Construir opciones
+  list.innerHTML = "";
+  config.items.forEach((item) => {
+    const li = document.createElement("li");
+    const label = document.createElement("label");
+    label.className = "kb-multi-option";
+
+    const chk = document.createElement("input");
+    chk.type = "checkbox";
+    chk.value = String(item.id);
+
+    const span = document.createElement("span");
+    span.textContent = item.nombre;
+
+    label.append(chk, span);
+    li.append(label);
+    list.append(li);
+  });
+
+  function getSelectedIds() {
+    return Array.from(
+      list.querySelectorAll("input[type=checkbox]:checked")
+    ).map((c) => Number(c.value));
+  }
+
+  function toggleMenu(open) {
+    const isOpen = open != null ? open : !menu.classList.contains("is-open");
+    menu.classList.toggle("is-open", isOpen);
+    trigger.setAttribute("aria-expanded", String(isOpen));
+  }
+
+  // Abrir / cerrar menú
+  trigger.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    toggleMenu();
+  });
+
+  document.addEventListener("click", () => {
+    if (menu.classList.contains("is-open")) {
+      toggleMenu(false);
+    }
+  });
+
+  // Evitar cierre al hacer clic dentro
+  menu.addEventListener("click", (ev) => ev.stopPropagation());
+
+  // Buscar dentro del combo
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      const q = searchInput.value.trim().toLowerCase();
+      list.querySelectorAll("li").forEach((li) => {
+        const txt = li.textContent.toLowerCase();
+        li.style.display = txt.includes(q) ? "" : "none";
+      });
+    });
+  }
+
+  // Cuando cambia la selección
+  list.addEventListener("change", () => {
+    const ids = getSelectedIds();
+    if (typeof config.onChange === "function") {
+      config.onChange(ids);
+    }
+    updateMultiSummary(root);
+  });
+
+  // Estado inicial
+  updateMultiSummary(root);
+}
+
+function updateMultiSummary(root) {
+  if (!root) return;
+  const placeholder = root.querySelector(".kb-multi-placeholder");
+  const summary = root.querySelector(".kb-multi-summary");
+  const list = root.querySelector(".kb-multi-options");
+  if (!list || !placeholder || !summary) return;
+
+  const checked = list.querySelectorAll("input[type=checkbox]:checked");
+  const count = checked.length;
+
+  if (count === 0) {
+    placeholder.hidden = false;
+    summary.hidden = true;
+  } else {
+    placeholder.hidden = true;
+    summary.hidden = false;
+    if (count === 1) {
+      const label = checked[0].closest("label");
+      summary.textContent = label ? label.textContent.trim() : "1 seleccionado";
+    } else {
+      summary.textContent = `${count} seleccionados`;
+    }
+  }
+}
+
+function initSidebarFilters() {
+  // Departamentos
+  buildMultiSelect({
+    root: "#kb-filter-departamentos",
+    items: MOCK_DEPARTAMENTOS,
+    onChange(selectedIds) {
+      State.filters.deptIds = new Set(selectedIds);
+      renderBoard();
+    },
+  });
+
+  // Empleados
+  buildMultiSelect({
+    root: "#kb-filter-empleados",
+    items: MOCK_EMPLEADOS,
+    onChange(selectedIds) {
+      State.filters.employeeIds = new Set(selectedIds);
+      renderBoard();
+    },
+  });
+}
+
+/* ============================================================================
    Filtros rápidos (toolbar)
    ========================================================================== */
 
@@ -562,11 +739,30 @@ function setupToolbar() {
 
   if (btnClear) {
     btnClear.addEventListener("click", () => {
+      // Reset filtros rápidos
       State.filters.mine = false;
       State.filters.search = "";
+
+      // Reset filtros de sidebar
+      State.filters.deptIds.clear();
+      State.filters.employeeIds.clear();
+
       if (chipMine) chipMine.classList.remove("is-active");
       if (chipRecent) chipRecent.classList.remove("is-active");
       if (inputSearch) inputSearch.value = "";
+
+      // Limpiar checkboxes de combos
+      $$("#kb-filter-departamentos input[type=checkbox]").forEach(
+        (chk) => (chk.checked = false)
+      );
+      $$("#kb-filter-empleados input[type=checkbox]").forEach(
+        (chk) => (chk.checked = false)
+      );
+
+      // Actualizar textos de resumen en combos
+      updateMultiSummary($("#kb-filter-departamentos"));
+      updateMultiSummary($("#kb-filter-empleados"));
+
       renderBoard();
     });
   }
@@ -625,6 +821,7 @@ function setupDragAndDrop() {
 document.addEventListener("DOMContentLoaded", () => {
   try {
     setupToolbar();
+    initSidebarFilters();
     renderBoard();
     setupDragAndDrop();
 

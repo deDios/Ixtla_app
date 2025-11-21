@@ -1077,7 +1077,7 @@
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.18s ease-out, visibility 0.18s ease-out;
-  z-index: 55;
+  z-index: 1090;
 }
 
 .kb-d-overlay.is-open {
@@ -1106,7 +1106,7 @@
   transform: translateX(8px);
   opacity: 0;
   pointer-events: none;
-  z-index: 60;
+  z-index: 1100;
   transition:
     opacity 0.18s ease-out,
     transform 0.18s ease-out;
@@ -1361,4 +1361,9 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   vertical-align: baseline;
+}
+
+
+.kb-filter-field--multi .kb-multi-trigger[aria-expanded="true"] + .kb-multi-menu {
+  display: block;
 }
