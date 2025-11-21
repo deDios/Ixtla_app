@@ -50,10 +50,36 @@ function diffDays(startStr) {
 
 function calcAgeChip(task) {
   const base = task.fecha_inicio || task.created_at;
-  const d = diffDays(base);
+  const d = diffDays(base); // 0,1,2,...
   if (d == null) return null;
-  const score = Math.min(10, Math.max(1, d + 1)); // 1..10
-  return { score, days: d };
+
+  // Días reales transcurridos (no negativos)
+  const realDays = d < 0 ? 0 : d;
+
+  // Índice de paleta: 1–9 según días, 10 = rojo (10+ días)
+  let paletteIndex;
+  if (realDays >= 10) {
+    paletteIndex = 10; // 10 días o más → siempre rojo pastel
+  } else if (realDays === 0) {
+    paletteIndex = 1; // hoy mismo → primer color
+  } else {
+    paletteIndex = realDays; // 1..9 días
+  }
+
+  // Número que se ve en la card:
+  // 0..99 → el número; 100+ → "99+"
+  let display;
+  if (realDays >= 100) {
+    display = "99+";
+  } else {
+    display = String(Math.min(realDays, 99));
+  }
+
+  return {
+    classIndex: paletteIndex, // para kb-age-X
+    display, // texto que se ve
+    realDays, // para tooltip
+  };
 }
 
 /* ============================================================================
@@ -264,7 +290,8 @@ const MOCK_TAREAS = [
   folio: `REQ-${String(15000 + t.id).padStart(9, "0")}`,
   proceso_titulo: MOCK_PROCESOS[t.proceso_id] || `Proceso ${t.proceso_id}`,
   // display largo asignado
-  asignado_display: t.asignado_display || `${t.asignado_nombre} ${t.asignado_apellidos}`,
+  asignado_display:
+    t.asignado_display || `${t.asignado_nombre} ${t.asignado_apellidos}`,
 }));
 
 /* ============================================================================
@@ -275,7 +302,7 @@ const State = {
   tasks: MOCK_TAREAS,
   selectedId: null,
   filters: {
-    mine: true,        // "Solo mis tareas" activo por defecto (como en tu captura)
+    mine: true, // "Solo mis tareas" activo por defecto (como en tu captura)
     search: "",
   },
 };
@@ -308,7 +335,8 @@ let dragging = false;
 
 function passesFilters(task) {
   // Solo mis tareas
-  if (State.filters.mine && task.asignado_a !== KB.CURRENT_USER_ID) return false;
+  if (State.filters.mine && task.asignado_a !== KB.CURRENT_USER_ID)
+    return false;
 
   // Buscar por folio o proceso
   const q = State.filters.search.trim().toLowerCase();
@@ -359,20 +387,19 @@ function createCard(task) {
   // Folio
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML =
-    `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio}</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio}</span>`;
 
   // Asignado
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
-  lineAsig.innerHTML =
-    `<span class="kb-task-label">Asignado a:</span> <span class="kb-task-value kb-task-asignado">${task.asignado_display}</span>`;
+  lineAsig.innerHTML = `<span class="kb-task-label">Asignado a:</span> <span class="kb-task-value kb-task-asignado">${task.asignado_display}</span>`;
 
   // Fecha de proceso
   const lineFecha = document.createElement("div");
   lineFecha.className = "kb-task-line";
-  lineFecha.innerHTML =
-    `<span class="kb-task-label">Fecha de proceso:</span> <span class="kb-task-value">${formatDateMX(task.fecha_inicio || task.created_at)}</span>`;
+  lineFecha.innerHTML = `<span class="kb-task-label">Fecha de proceso:</span> <span class="kb-task-value">${formatDateMX(
+    task.fecha_inicio || task.created_at
+  )}</span>`;
 
   lines.append(lineFolio, lineAsig, lineFecha);
   main.append(titleLine, lines);
@@ -381,9 +408,11 @@ function createCard(task) {
   // Contador de días (no en HECHO)
   if (task.status !== KB.STATUS.HECHO && age) {
     const chip = document.createElement("div");
-    chip.className = `kb-age-chip kb-age-${age.score}`;
-    chip.textContent = String(age.score);
-    chip.title = `${age.days} día${age.days === 1 ? "" : "s"} en proceso`;
+    chip.className = `kb-age-chip kb-age-${age.classIndex}`;
+    chip.textContent = String(age.display);
+    chip.title = `${age.realDays} día${
+      age.realDays === 1 ? "" : "s"
+    } en proceso`;
     art.appendChild(chip);
   }
 
@@ -420,7 +449,8 @@ function renderBoard() {
     const cntSel = CNT_IDS[task.status];
     const cntEl = cntSel ? $(cntSel) : null;
     if (cntEl) {
-      const current = Number((cntEl.textContent || "").replace(/[()]/g, "")) || 0;
+      const current =
+        Number((cntEl.textContent || "").replace(/[()]/g, "")) || 0;
       cntEl.textContent = `(${current + 1})`;
     }
   }

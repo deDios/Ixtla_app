@@ -1063,6 +1063,170 @@
 
 
 
+/*parche drawer*/
+/* ==========================================================================
+   Drawer detalle de tarea – v2
+   ======================================================================= */
+
+/* Overlay detrás del drawer */
+.kb-d-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 32, 30, 0.28);
+  backdrop-filter: blur(1px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease-out, visibility 0.18s ease-out;
+  z-index: 55;
+}
+
+.kb-d-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Contenedor principal del drawer */
+.kb-details {
+  position: fixed;
+  top: 72px;
+  right: 1.75rem;
+  bottom: 1.75rem;
+  width: min(460px, calc(100% - 2.5rem));
+
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #dde7e5;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.14);
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* header fijo, body scrolleable */
+  padding: 0;
+
+  transform: translateX(8px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 60;
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.18s ease-out;
+}
+
+/* Estado abierto */
+.kb-details.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+/* Header del drawer (título + botón cerrar) */
+.kb-details .kb-d-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid #e5ece9;
+}
+
+.kb-d-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #243532;
+}
+
+/* Botón de cierre */
+.kb-d-close {
+  border-radius: 8px;
+  border: 1px solid #d4e2df;
+  background: #f7faf9;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: #50615e;
+  cursor: pointer;
+  transition:
+    background 0.15s ease-out,
+    color 0.15s ease-out,
+    border-color 0.15s ease-out,
+    box-shadow 0.15s ease-out;
+}
+
+.kb-d-close:hover {
+  background: #eaf3f1;
+  border-color: #c1d6d2;
+  color: #253532;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Cuerpo scrolleable del drawer */
+.kb-d-body {
+  padding: 0.85rem 1.1rem 1.1rem;
+  overflow-y: auto;
+}
+
+.kb-d-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kb-d-body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #c9d6d3;
+}
+
+/* Campos de detalle (redefinimos un poco para que se vean mejor) */
+.kb-d-field {
+  margin: 0.45rem 0 0.8rem;
+}
+
+.kb-d-field strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #788885;
+}
+
+.kb-d-field span,
+.kb-d-field p {
+  font-size: 0.9rem;
+  color: #243532;
+}
+
+/* Variante para cuando agrupes dos campos en una fila (si la usas) */
+.kb-d-field--double {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+}
+
+/* Separador suave entre bloques (detalles / evidencias / comentarios) */
+.kb-d-section-sep {
+  margin: 0.75rem 0;
+  border: 0;
+  border-top: 1px dashed #e0e7e5;
+}
+
+/* Ajuste ligero para el widget de comentarios dentro del drawer */
+.kb-d-field .demo-comments {
+  margin-top: 0.35rem;
+}
+
+/* Versión mobile: drawer tipo bottom sheet */
+@media (max-width: 900px) {
+  .kb-details {
+    top: 64px;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+  }
+}
 
 
 
