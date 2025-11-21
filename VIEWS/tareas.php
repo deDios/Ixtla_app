@@ -123,83 +123,258 @@
             <!-- MAIN -->
             <section class="hs-main">
 
-                <!-- KANBAN -->
-                <div class="kb-wrap">
-                    <div class="kb-board" id="kb-board">
+                <!-- Header de filtros rápidos -->
+                <section class="kb-toolbar" aria-label="Filtros de tareas">
+                    <div class="kb-toolbar-main">
+                        <div class="kb-toolbar-title">
+                            <h2>Tareas</h2>
+                            <span class="kb-toolbar-sub">Filtros rápidos</span>
+                        </div>
 
-                        <!-- Por Hacer = estatus 0 -->
-                        <section class="kb-col" data-status="0" aria-labelledby="kb-h-0">
-                            <header class="kb-header" id="kb-h-0">
-                                <h3>Por Hacer</h3><span class="kb-count" id="kb-cnt-0">(0)</span>
-                            </header>
-                            <div class="kb-list" id="kb-col-0" aria-describedby="kb-h-0"></div>
-                        </section>
+                        <div class="kb-toolbar-chips">
+                            <button type="button" class="kb-chip is-active" data-filter="mine">
+                                Solo mis tareas
+                            </button>
+                            <button type="button" class="kb-chip" data-filter="recent">
+                                Recientes
+                            </button>
+                        </div>
+                    </div>
 
-                        <!-- En proceso = estatus 3 -->
-                        <section class="kb-col" data-status="3" aria-labelledby="kb-h-3">
-                            <header class="kb-header" id="kb-h-3">
-                                <h3>En proceso</h3><span class="kb-count" id="kb-cnt-3">(0)</span>
-                            </header>
-                            <div class="kb-list" id="kb-col-3" aria-describedby="kb-h-3"></div>
-                        </section>
+                    <div class="kb-toolbar-filters">
+                        <div class="kb-filter-field">
+                            <label for="kb-filter-search">Buscar</label>
+                            <input type="search" id="kb-filter-search" class="kb-filter-input" placeholder="Folio"
+                                autocomplete="off" />
+                        </div>
 
-                        <!-- Por revisar = estatus 1 -->
-                        <section class="kb-col" data-status="1" aria-labelledby="kb-h-1">
-                            <header class="kb-header" id="kb-h-1">
-                                <h3>Por revisar</h3><span class="kb-count" id="kb-cnt-1">(0)</span>
-                            </header>
-                            <div class="kb-list" id="kb-col-1" aria-describedby="kb-h-1"></div>
-                        </section>
+                        <div class="kb-filter-field">
+                            <label for="kb-filter-proceso">Proceso</label>
+                            <select id="kb-filter-proceso" class="kb-filter-input">
+                                <option value="">Todos</option>
+                                <option value="agua">Agua potable</option>
+                                <option value="alumbrado">Alumbrado</option>
+                                <option value="bacheo">Bache</option>
+                                <!-- luego estos vendrán del backend -->
+                            </select>
+                        </div>
 
-                        <!-- Hecho = estatus 6 -->
-                        <section class="kb-col" data-status="6" aria-labelledby="kb-h-6">
-                            <header class="kb-header" id="kb-h-6">
-                                <h3>Hecho</h3><span class="kb-count" id="kb-cnt-6">(0)</span>
-                            </header>
-                            <div class="kb-list" id="kb-col-6" aria-describedby="kb-h-6"></div>
-                        </section>
+                        <div class="kb-filter-field">
+                            <label for="kb-filter-asignado">Status</label>
+                            <select id="kb-filter-asignado" class="kb-filter-input">
+                                <option value="">Por hacer</option>
+                                <option value="me">En Proceso</option>
+                                <option value="">Por revisar</option>
+                                <option value="me">Hecho</option>
+                                <!-- luego llenamos con empleados reales -->
+                            </select>
+                        </div>
 
-                        <!-- Panel de detalles -->
-                        <aside class="kb-details" id="kb-details">
-                            <div class="kb-d-empty">Selecciona una tarjeta para ver sus detalles</div>
+                        <button type="button" class="kb-filter-clear" id="kb-filter-clear">
+                            Limpiar filtros
+                        </button>
+                    </div>
+                </section>
 
-                            <div class="kb-d-body" hidden>
-                                <h3>Detalles de la asignación</h3>
+                <!-- Tablero Kanban -->
+                <div class="kb-board" id="kb-board">
 
-                                <p class="kb-d-field"><strong>Reporte:</strong><br><span id="kb-d-title">—</span></p>
+                    <!-- Por Hacer = status 1 -->
+                    <section class="kb-col" data-status="1" aria-labelledby="kb-h-1">
+                        <header class="kb-header" id="kb-h-1">
+                            <h3>Por hacer</h3>
+                            <span class="kb-count" id="kb-cnt-1">(0)</span>
+                        </header>
+                        <div class="kb-list" id="kb-col-1" aria-describedby="kb-h-1"></div>
+                    </section>
 
-                                <p class="kb-d-field"><strong>Descripción:</strong><br><span id="kb-d-desc">—</span></p>
+                    <!-- En proceso = status 2 -->
+                    <section class="kb-col" data-status="2" aria-labelledby="kb-h-2">
+                        <header class="kb-header" id="kb-h-2">
+                            <h3>En proceso</h3>
+                            <span class="kb-count" id="kb-cnt-2">(0)</span>
+                        </header>
+                        <div class="kb-list" id="kb-col-2" aria-describedby="kb-h-2"></div>
+                    </section>
 
-                                <p class="kb-d-field"><strong>Asignado a:</strong><br><span id="kb-d-asignado">—</span>
+                    <!-- Por revisar = status 3 -->
+                    <section class="kb-col" data-status="3" aria-labelledby="kb-h-3">
+                        <header class="kb-header" id="kb-h-3">
+                            <h3>Por revisar</h3>
+                            <span class="kb-count" id="kb-cnt-3">(0)</span>
+                        </header>
+                        <div class="kb-list" id="kb-col-3" aria-describedby="kb-h-3"></div>
+                    </section>
+
+                    <!-- Hecho = status 4 -->
+                    <section class="kb-col" data-status="4" aria-labelledby="kb-h-4">
+                        <header class="kb-header" id="kb-h-4">
+                            <h3>Hecho</h3>
+                            <span class="kb-count" id="kb-cnt-4">(0)</span>
+                        </header>
+                        <div class="kb-list" id="kb-col-4" aria-describedby="kb-h-4"></div>
+                    </section>
+
+                    <!-- Panel de detalles -->
+                    <aside class="kb-details" id="kb-details" aria-label="Detalle de la asignación">
+
+                        <!-- Estado vacío por defecto -->
+                        <p class="kb-d-empty" id="kb-d-empty">
+                            Selecciona una tarjeta para ver el detalle de la asignación.
+                        </p>
+
+                        <!-- Cuerpo del detalle (se muestra cuando hay tarea seleccionada) -->
+                        <div class="kb-d-body" id="kb-d-body" hidden>
+
+                            <h3>Detalle de la asignación</h3>
+
+                            <!-- Asunto / título (usa row.tramite) -->
+                            <div class="kb-d-field">
+                                <strong>Asunto:</strong>
+                                <span id="kb-d-title">—</span>
+                            </div>
+
+                            <!-- Descripción -->
+                            <div class="kb-d-field">
+                                <strong>Descripción de la tarea:</strong>
+                                <p class="kb-d-desc" id="kb-d-desc">
+                                    Aquí irá la descripción larga de la tarea.
                                 </p>
+                            </div>
 
-                                <p class="kb-d-field"><strong>Reportado por:</strong><br><span
-                                        id="kb-d-contacto">—</span></p>
+                            <!-- Asignado -->
+                            <div class="kb-d-field">
+                                <strong>Asignado a:</strong>
+                                <span id="kb-d-asignado">—</span>
+                            </div>
 
-                                <p class="kb-d-field"><strong>Fecha de solicitado:</strong><br><span
-                                        id="kb-d-creado">—</span></p>
+                            <!-- Contacto / reportado por -->
+                            <div class="kb-d-field">
+                                <strong>Reporta a:</strong>
+                                <span id="kb-d-contacto">—</span>
+                            </div>
 
-                                <p class="kb-d-field"><strong>Dirección:</strong><br><span id="kb-d-direccion">—</span>
-                                </p>
+                            <!-- Fecha del reporte -->
+                            <div class="kb-d-field">
+                                <strong>Fecha del reporte:</strong>
+                                <span id="kb-d-creado">—</span>
+                            </div>
 
-                                <p class="kb-d-field"><strong>Teléfono del contacto:</strong><br><span
-                                        id="kb-d-tel">—</span></p>
+                            <!-- Teléfono -->
+                            <div class="kb-d-field">
+                                <strong>Teléfono de contacto:</strong>
+                                <span id="kb-d-tel">—</span>
+                            </div>
 
-                                <div class="kb-d-field">
-                                    <strong>Evidencias:</strong>
-                                    <div id="kb-d-evidencias" class="kb-evid-grid"></div>
+                            <!-- Dirección -->
+                            <div class="kb-d-field">
+                                <strong>Dirección:</strong>
+                                <span id="kb-d-direccion">—</span>
+                            </div>
+
+                            <!-- Evidencias -->
+                            <div class="kb-d-field">
+                                <strong>Evidencias:</strong>
+                                <div class="kb-evid-grid" id="kb-d-evidencias">
+                                    <!--
+                    Placeholders de ejemplo: el JS los va a limpiar cuando pinte evidencias reales,
+                    pero sirven para ver cómo se comporta el grid.
+                -->
+                                    <div class="kb-evid-placeholder"></div>
+                                    <div class="kb-evid-placeholder"></div>
+                                    <div class="kb-evid-placeholder"></div>
                                 </div>
                             </div>
-                        </aside>
+
+                            <!-- Comentarios (mismo componente visual que en requerimiento.php) -->
+                            <div class="kb-d-field">
+                                <strong>Comentarios:</strong>
+
+                                <section class="demo-comments">
+                                    <div class="demo-card">
+                                        <div class="head">
+                                            <h4>Comentarios</h4>
+                                        </div>
+
+                                        <!-- Composer -->
+                                        <div class="composer" aria-label="Escribir comentario">
+                                            <div class="composer-wrap">
+                                                <textarea id="kb-comment-input"
+                                                    placeholder="Escribe un comentario…"></textarea>
+
+                                                <!--
+                                Aquí, en tareas.js, cuando el comentario venga desde una tarea
+                                vamos a concatenar al inicio:
+                                "Tarea-{id}: <texto…>"
+                                para luego detectarlo y pintarlo como badge (.task-tag) al renderizar.
+                            -->
+                                                <button class="send-fab" type="button" id="kb-comment-send"
+                                                    aria-label="Enviar comentario">
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path fill="currentColor"
+                                                            d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                            <div class="hint">
+                                                Presiona <strong>Enter</strong> para enviar <br>
+                                                o <br>
+                                                da clic en el botón
+                                            </div>
+                                        </div>
+
+                                        <!-- Feed -->
+                                        <div class="c-feed" id="kb-comments-feed" aria-live="polite">
+                                            <div class="empty" id="kb-comments-empty">
+                                                Aún no hay comentarios para este requerimiento.
+                                            </div>
+
+                                            <article class="msg">
+                                                <img class="avatar" alt="" src="/ASSETS/user/userImgs/img_14.png">
+                                                <div>
+                                                    <div class="who">
+                                                        <span class="name">Juan Pablo</span>
+                                                        <span class="time">hace 8 h</span>
+                                                    </div>
+                                                    <div class="text"
+                                                        style="white-space:pre-wrap;word-break:break-word;">
+                                                        Este es un comentario normal sin relación con una tarea
+                                                        específica.
+                                                    </div>
+                                                </div>
+                                            </article>
 
 
-                    </div>
-                </div>
+                                            <article class="msg">
+                                                <img class="avatar" alt="" src="/ASSETS/user/userImgs/img_14.png">
+                                                <div>
+                                                    <div class="who">
+                                                        <span class="name">Pablo Agustin</span>
+                                                        <span class="time">hace 2 h</span>
+                                                    </div>
+                                                    <div class="text has-task"
+                                                        style="white-space:pre-wrap;word-break:break-word;">
+                                                        <span class="task-tag">TAREA-09</span>
+                                                        No se puede atender hoy por lluvia.
+                                                    </div>
+                                                </div>
+                                            </article>
 
 
 
+
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                        </div><!-- /.kb-d-body -->
+                    </aside><!-- /.kb-details -->
+
+
+                </div><!-- /.kb-board -->
 
             </section>
+
         </div>
     </main>
 
@@ -391,7 +566,7 @@
 
 
 
-    
+
 
 
 

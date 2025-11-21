@@ -10,10 +10,10 @@ const KB = {
 
   // Columnas lógicas del estado
   COLUMNS: [
-    { id: "todo",    title: "Por Hacer",   statusCode: 0 },
-    { id: "proceso", title: "En proceso",  statusCode: 3 },
-    { id: "revisar", title: "Por revisar", statusCode: 1 },
-    { id: "hecho",   title: "Hecho",       statusCode: 6 },
+    { id: "todo",    title: "Por Hacer",   statusCode: 1 },
+    { id: "proceso", title: "En proceso",  statusCode: 2 },
+    { id: "revisar", title: "Por revisar", statusCode: 3 },
+    { id: "hecho",   title: "Hecho",       statusCode: 4 },
   ],
 };
 
@@ -42,7 +42,7 @@ function formatDateMX(v) {
    ========================================================================== */
 let State = {
   items: {}, // id -> item
-  lanes: {   // ids en orden por columna lógica
+  lanes: {   // ids en orden por columna
     todo:    [],
     proceso: [],
     revisar: [],
@@ -66,7 +66,7 @@ function saveState() {
 }
 
 /* ============================================================================
-   Seed local (demo)
+   Seed localhost
    ========================================================================== */
 function seedMock() {
   const d = (iso)=> iso;
@@ -103,7 +103,7 @@ function seedMock() {
       asignado:"(el usuario)", contacto:"Oscar Contreras", tel:"33 1546 8423",
       direccion:"Jesús Barajas 49, Luis García", creado:d("2025-09-02") },
     { id:"9004", folio:"REQ-000009004", tramite:"Reportar Bache",
-      descripcion:"Bache grande que se llena de agua y afecta el tránsito.",
+      descripcion:"Bache grande que se llena de agua y afecta el transíto.",
       asignado:"(el usuario)", contacto:"María Fernanda", tel:"33 2217 8987",
       direccion:"Privada La Lima 30-7, Puerta del Sol", creado:d("2025-10-08") },
     { id:"9005", folio:"REQ-000009005", tramite:"Lámpara Apagada",
@@ -323,7 +323,7 @@ window.addEventListener("DOMContentLoaded", () => {
     highlightSelected();
     if (State.selectedId) showDetails(State.items[State.selectedId]);
 
-    log("kanban listo", { items: Object.keys(State.items).length });
+    log("kanban listo V2", { items: Object.keys(State.items).length });
   } catch (e) {
     console.error("[KB] init error:", e);
   }
