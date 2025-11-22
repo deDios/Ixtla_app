@@ -1,4 +1,4 @@
-// /JS/tareas.js – Tablero de tareas (kanban) listo para API real
+// /JS/tareas.js – Tablero de tareas (kanban) SOLO con API real
 "use strict";
 
 /* ==========================================================================
@@ -203,7 +203,11 @@ function mapRawTask(raw) {
     titulo: raw.titulo || raw.titulo_tarea || "Tarea sin título",
     descripcion: raw.descripcion || raw.detalle || "",
     esfuerzo:
-      raw.esfuerzo != null ? Number(raw.esfuerzo) : raw.horas != null ? Number(raw.horas) : null,
+      raw.esfuerzo != null
+        ? Number(raw.esfuerzo)
+        : raw.horas != null
+        ? Number(raw.horas)
+        : null,
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
     status,
@@ -217,227 +221,12 @@ function mapRawTask(raw) {
 }
 
 /* ==========================================================================
-   DEMO TASKS (mantenemos mientras probamos UI)
-   ========================================================================== */
-
-// NOTA: esta sección es el mismo mock que ya veníamos usando,
-// solo para que la vista no se rompa mientras probamos integraciones.
-
-const MOCK_PROCESOS = {
-  9: "Proceso: Fuga de agua",
-  10: "Proceso: Bacheo",
-  11: "Proceso: Poda de árbol",
-  12: "Proceso: Manual",
-  13: "Proceso: Difusor",
-};
-
-const MOCK_TAREAS = [
-  {
-    id: 4,
-    proceso_id: 9,
-    asignado_a: 12,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García ANALISTA",
-    titulo: "hola soy una tarea insertada desde postman 1",
-    descripcion: "tarea test 1",
-    esfuerzo: 2,
-    fecha_inicio: "2025-10-28 13:00:00",
-    fecha_fin: "2025-10-28 15:00:00",
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-07 18:29:18",
-    created_by: 12,
-    created_by_nombre: "Juan Pablo García ANALISTA",
-    autoriza_nombre: "Pablo Agustín Director",
-  },
-  {
-    id: 5,
-    proceso_id: 9,
-    asignado_a: 12,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García ANALISTA",
-    titulo: "hola soy una tarea insertada desde postman 2",
-    descripcion: "tarea test 1",
-    esfuerzo: 2,
-    fecha_inicio: "2025-10-28 13:00:00",
-    fecha_fin: "2025-10-28 15:00:00",
-    status: KB.STATUS.REVISAR,
-    created_at: "2025-11-07 19:54:57",
-    created_by: 12,
-    created_by_nombre: "Juan Pablo García ANALISTA",
-    autoriza_nombre: "Pablo Agustín Director",
-  },
-  {
-    id: 6,
-    proceso_id: 9,
-    asignado_a: 12,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García ANALISTA",
-    titulo: "hola soy una tarea insertada desde postman 3",
-    descripcion: "tarea test 1",
-    esfuerzo: 2,
-    fecha_inicio: "2025-10-28 13:00:00",
-    fecha_fin: "2025-10-28 15:00:00",
-    status: KB.STATUS.PROCESO,
-    created_at: "2025-11-07 20:01:32",
-    created_by: 12,
-    created_by_nombre: "Juan Pablo García ANALISTA",
-    autoriza_nombre: "Pablo Agustín Director",
-  },
-  {
-    id: 7,
-    proceso_id: 10,
-    asignado_a: 13,
-    asignado_nombre: "Juan Manuel",
-    asignado_apellidos: "Perez Rodriguez",
-    titulo: "hola soy una tarea 2",
-    descripcion: "detalle",
-    esfuerzo: 10,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-12 02:16:05",
-    created_by: 15,
-    created_by_nombre: "Administrador",
-    autoriza_nombre: "Director Obras Públicas",
-  },
-  {
-    id: 8,
-    proceso_id: 10,
-    asignado_a: 5,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García Casillas",
-    titulo: "hola soy una tarea 3",
-    descripcion: "detalle 3",
-    esfuerzo: 10,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-12 02:26:48",
-    created_by: 15,
-    created_by_nombre: "Administrador",
-    autoriza_nombre: "Director Obras Públicas",
-  },
-  {
-    id: 9,
-    proceso_id: 11,
-    asignado_a: 6,
-    asignado_nombre: "Luis Enrique",
-    asignado_apellidos: "Mendez Fernandez",
-    titulo: "Rellenar bache",
-    descripcion: "Es necesario rellenar el bache con el material indicado",
-    esfuerzo: 4,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-12 12:06:32",
-    created_by: 15,
-    created_by_nombre: "Admin SAMAPA",
-    autoriza_nombre: "Director SAMAPA",
-  },
-  {
-    id: 10,
-    proceso_id: 11,
-    asignado_a: 6,
-    asignado_nombre: "Luis Enrique",
-    asignado_apellidos: "Mendez Fernandez",
-    titulo: "Aplanado del bache",
-    descripcion: "Es necesario aplanar el bache para poder circular",
-    esfuerzo: 2,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.PROCESO,
-    created_at: "2025-11-12 12:07:04",
-    created_by: 15,
-    created_by_nombre: "Admin SAMAPA",
-    autoriza_nombre: "Director SAMAPA",
-  },
-  {
-    id: 11,
-    proceso_id: 12,
-    asignado_a: 2,
-    asignado_nombre: "Pablo Agustin",
-    asignado_apellidos: "de Dios Garcia",
-    titulo: "manual",
-    descripcion: "proceso 1",
-    esfuerzo: 5,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-12 16:25:31",
-    created_by: 2,
-    created_by_nombre: "Pablo Agustín",
-    autoriza_nombre: "Presidencia",
-  },
-  {
-    id: 12,
-    proceso_id: 13,
-    asignado_a: 2,
-    asignado_nombre: "Pablo Agustin",
-    asignado_apellidos: "de Dios Garcia",
-    titulo: "cambio del difusor",
-    descripcion:
-      "esta es una tarea para cambio de difusor, es necesario subir evidencia",
-    esfuerzo: 3,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.REVISAR,
-    created_at: "2025-11-17 12:29:34",
-    created_by: 2,
-    created_by_nombre: "Pablo Agustín",
-    autoriza_nombre: "Presidencia",
-  },
-  {
-    id: 13,
-    proceso_id: 13,
-    asignado_a: 2,
-    asignado_nombre: "Pablo Agustin",
-    asignado_apellidos: "de Dios Garcia",
-    titulo: "cambio de alca....",
-    descripcion: "esta descripción",
-    esfuerzo: 1,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.PROCESO,
-    created_at: "2025-11-17 20:21:03",
-    created_by: 2,
-    created_by_nombre: "Pablo Agustín",
-    autoriza_nombre: "Presidencia",
-  },
-  {
-    id: 14,
-    proceso_id: 9,
-    asignado_a: 7,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García DIRECTOR",
-    titulo: "tarea 20/11",
-    descripcion: "detalle",
-    esfuerzo: 10,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.PAUSA,
-    created_at: "2025-11-20 10:57:33",
-    created_by: 15,
-    created_by_nombre: "Administrador",
-    autoriza_nombre: "Director SAMAPA",
-  },
-].map((t) => ({
-  ...t,
-  folio: `REQ-${String(15000 + t.id).padStart(9, "0")}`,
-  proceso_titulo: MOCK_PROCESOS[t.proceso_id] || `Proceso ${t.proceso_id}`,
-  asignado_display:
-    t.asignado_display || `${t.asignado_nombre} ${t.asignado_apellidos}`,
-}));
-
-/* ==========================================================================
    Fetch de datos reales (TAREAS, EMPLEADOS, DEPARTAMENTOS)
    ========================================================================== */
 
 async function fetchTareasFromApi() {
-  // TODO: activar API real cuando quieras dejar de usar MOCK_TAREAS
-  // Ejemplo de payload; puedes ajustar filtros en backend:
+  // Payload base; puedes ajustar en backend después (sin filtro de status aquí)
   const payload = {
-    // status: null,            // opcional: todos los estatus
-    // asignado_a: KB.CURRENT_USER_ID, // opcional
     page: 1,
     page_size: 200,
   };
@@ -539,6 +328,7 @@ function passesFilters(task) {
     }
   }
 
+  // Importante: aquí YA NO hay filtro por status
   return true;
 }
 
@@ -557,8 +347,7 @@ function createMultiFilter(fieldEl, key, options) {
   const list = fieldEl.querySelector(".kb-multi-options");
 
   const stateSet =
-    State.filters[key] ||
-    (State.filters[key] = new Set());
+    State.filters[key] || (State.filters[key] = new Set());
 
   function renderOptions() {
     if (!list) return;
@@ -591,7 +380,9 @@ function createMultiFilter(fieldEl, key, options) {
         if (selected.length === 1) {
           summaryEl.textContent = selected[0].label;
         } else {
-          summaryEl.textContent = `${selected[0].label} +${selected.length - 1}`;
+          summaryEl.textContent = `${selected[0].label} +${
+            selected.length - 1
+          }`;
         }
       }
     }
@@ -606,7 +397,9 @@ function createMultiFilter(fieldEl, key, options) {
 
     // Actualizar UI de opciones
     if (list) {
-      const li = list.querySelector(`.kb-multi-option[data-value="${value}"]`);
+      const li = list.querySelector(
+        `.kb-multi-option[data-value="${value}"]`
+      );
       if (li) li.classList.toggle("is-selected", stateSet.has(value));
     }
 
@@ -829,7 +622,7 @@ function fillDetails(task) {
   $("#kb-d-creado-por").textContent = task.created_by_nombre || "—";
   $("#kb-d-autoriza").textContent = task.autoriza_nombre || "—";
 
-  // Evidencias demo: solo placeholders
+  // Evidencias demo: solo placeholders (de momento)
   const evidWrap = $("#kb-d-evidencias");
   if (evidWrap) {
     evidWrap.innerHTML = "";
@@ -890,7 +683,7 @@ function setupToolbar() {
   if (chipRecent) {
     chipRecent.addEventListener("click", () => {
       chipRecent.classList.toggle("is-active");
-      // Por ahora recientes no aplica lógica extra
+      // Por ahora "recientes" no aplica lógica extra
     });
   }
 
@@ -918,7 +711,6 @@ function setupToolbar() {
    ========================================================================== */
 
 async function persistTaskStatus(task, newStatus) {
-  // TODO: cuando quieras que persista en backend, activa este bloque
   const payload = {
     id: task.id,
     status: newStatus,
@@ -970,7 +762,6 @@ function setupDragAndDrop() {
           highlightSelected();
         }
 
-        // Persistencia (opcional / activable)
         await persistTaskStatus(task, newStatus);
       },
     });
@@ -1004,23 +795,17 @@ async function init() {
     }
   });
 
-  // Index de departamentos (si vienen de la API)
+  // Index de departamentos
   depts.forEach((d) => {
     if (d?.id != null) {
       State.departamentosIndex.set(d.id, d);
     }
   });
 
-  // Construir opciones de filtros solo con lo que aparece en tareas
-  // (de momento usamos MOCK_TAREAS; cuando actives API real, se alimentará de ahí)
-  // 3) TAREAS
-  // === DEMO: usamos MOCK_TAREAS ================================
-  State.tasks = MOCK_TAREAS.slice();
-  // === REAL: cuando estés listo, cambia la línea anterior por:
-  // State.tasks = await fetchTareasFromApi();
-  // =============================================================
+  // 3) TAREAS reales desde API (sin mocks)
+  State.tasks = await fetchTareasFromApi();
 
-  // Construir opciones de combos en base a tareas cargadas
+  // 4) Construir opciones de combos en base a tareas cargadas
   const deptIdsSet = new Set();
   const empIdsSet = new Set();
 
@@ -1048,7 +833,7 @@ async function init() {
     return { value: id, label };
   });
 
-  // 4) Instanciar combos multi
+  // 5) Instanciar combos multi
   setupSidebarFilters();
 
   const fieldDept = $("#kb-filter-departamentos");
@@ -1060,7 +845,7 @@ async function init() {
     createMultiFilter(fieldEmp, "empleados", empOptions);
   }
 
-  // 5) Toolbar, board, drag & drop, drawer
+  // 6) Toolbar, board, drag & drop, drawer
   setupToolbar();
   renderBoard();
   setupDragAndDrop();
