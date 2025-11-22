@@ -1,4 +1,4 @@
-// /JS/tareas.js – Tablero de tareas (kanban) SOLO con API real
+// /JS/tareas.js – Tablero de tareas (kanban) listo para API real
 "use strict";
 
 /* ==========================================================================
@@ -203,11 +203,7 @@ function mapRawTask(raw) {
     titulo: raw.titulo || raw.titulo_tarea || "Tarea sin título",
     descripcion: raw.descripcion || raw.detalle || "",
     esfuerzo:
-      raw.esfuerzo != null
-        ? Number(raw.esfuerzo)
-        : raw.horas != null
-        ? Number(raw.horas)
-        : null,
+      raw.esfuerzo != null ? Number(raw.esfuerzo) : raw.horas != null ? Number(raw.horas) : null,
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
     status,
@@ -225,8 +221,10 @@ function mapRawTask(raw) {
    ========================================================================== */
 
 async function fetchTareasFromApi() {
-  // Payload base; puedes ajustar en backend después (sin filtro de status aquí)
+  // Payload base para listar tareas (ajustable en backend)
   const payload = {
+    // status: null,                  // opcional: todos los estatus
+    // asignado_a: KB.CURRENT_USER_ID // opcional: solo mías
     page: 1,
     page_size: 200,
   };
@@ -239,7 +237,7 @@ async function fetchTareasFromApi() {
       return [];
     }
     const mapped = json.data.map(mapRawTask);
-    log("TAREAS mapeadas", mapped.length);
+    log("TAREAS mapeadas", mapped.length, mapped);
     return mapped;
   } catch (e) {
     console.error("[KB] Error al listar tareas:", e);
@@ -260,10 +258,12 @@ async function fetchDepartamentos() {
       warn("Respuesta inesperada DEPTS LIST", json);
       return [];
     }
-    return json.data.map((d) => ({
+    const list = json.data.map((d) => ({
       id: Number(d.id),
       nombre: d.nombre || `Depto ${d.id}`,
     }));
+    log("Departamentos mapeados:", list.length, list);
+    return list;
   } catch (e) {
     console.error("[KB] Error al listar departamentos:", e);
     return [];
@@ -280,7 +280,7 @@ async function fetchEmpleadosForFilters() {
       page_size: 500,
     });
     const data = Array.isArray(res?.data) ? res.data : [];
-    log("Empleados para filtros:", data.length);
+    log("Empleados para filtros:", data.length, data);
     return data;
   } catch (e) {
     console.error("[KB] Error al buscar empleados:", e);
@@ -328,7 +328,6 @@ function passesFilters(task) {
     }
   }
 
-  // Importante: aquí YA NO hay filtro por status
   return true;
 }
 
@@ -347,7 +346,8 @@ function createMultiFilter(fieldEl, key, options) {
   const list = fieldEl.querySelector(".kb-multi-options");
 
   const stateSet =
-    State.filters[key] || (State.filters[key] = new Set());
+    State.filters[key] ||
+    (State.filters[key] = new Set());
 
   function renderOptions() {
     if (!list) return;
@@ -380,9 +380,7 @@ function createMultiFilter(fieldEl, key, options) {
         if (selected.length === 1) {
           summaryEl.textContent = selected[0].label;
         } else {
-          summaryEl.textContent = `${selected[0].label} +${
-            selected.length - 1
-          }`;
+          summaryEl.textContent = `${selected[0].label} +${selected.length - 1}`;
         }
       }
     }
@@ -397,9 +395,7 @@ function createMultiFilter(fieldEl, key, options) {
 
     // Actualizar UI de opciones
     if (list) {
-      const li = list.querySelector(
-        `.kb-multi-option[data-value="${value}"]`
-      );
+      const li = list.querySelector(`.kb-multi-option[data-value="${value}"]`);
       if (li) li.classList.toggle("is-selected", stateSet.has(value));
     }
 
@@ -549,9 +545,7 @@ function createCard(task) {
     const chip = document.createElement("div");
     chip.className = `kb-age-chip kb-age-${age.classIndex}`;
     chip.textContent = String(age.display);
-    chip.title = `${age.realDays} día${
-      age.realDays === 1 ? "" : "s"
-    } en proceso`;
+    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"} en proceso`;
     art.appendChild(chip);
   }
 
@@ -622,7 +616,7 @@ function fillDetails(task) {
   $("#kb-d-creado-por").textContent = task.created_by_nombre || "—";
   $("#kb-d-autoriza").textContent = task.autoriza_nombre || "—";
 
-  // Evidencias demo: solo placeholders (de momento)
+  // Evidencias demo: solo placeholders
   const evidWrap = $("#kb-d-evidencias");
   if (evidWrap) {
     evidWrap.innerHTML = "";
@@ -638,6 +632,8 @@ function openDetails(id) {
   const task = getTaskById(id);
   if (!task) return;
   State.selectedId = task.id;
+
+  log("Abrir detalle de tarea:", task);
 
   fillDetails(task);
   highlightSelected();
@@ -676,6 +672,7 @@ function setupToolbar() {
     chipMine.addEventListener("click", () => {
       State.filters.mine = !State.filters.mine;
       chipMine.classList.toggle("is-active", State.filters.mine);
+      log("Filtro 'Solo mis tareas' →", State.filters.mine);
       renderBoard();
     });
   }
@@ -683,13 +680,15 @@ function setupToolbar() {
   if (chipRecent) {
     chipRecent.addEventListener("click", () => {
       chipRecent.classList.toggle("is-active");
-      // Por ahora "recientes" no aplica lógica extra
+      // Por ahora recientes no aplica lógica extra
+      log("Filtro 'Recientes' toggled:", chipRecent.classList.contains("is-active"));
     });
   }
 
   if (inputSearch) {
     inputSearch.addEventListener("input", () => {
       State.filters.search = inputSearch.value || "";
+      log("Filtro search →", State.filters.search);
       renderBoard();
     });
   }
@@ -701,6 +700,7 @@ function setupToolbar() {
       if (chipMine) chipMine.classList.remove("is-active");
       if (chipRecent) chipRecent.classList.remove("is-active");
       if (inputSearch) inputSearch.value = "";
+      log("Filtros rápidos limpiados");
       renderBoard();
     });
   }
@@ -715,13 +715,38 @@ async function persistTaskStatus(task, newStatus) {
     id: task.id,
     status: newStatus,
   };
+  const url = API_TAREAS.UPDATE;
 
   try {
-    log("TAREA UPDATE status →", API_TAREAS.UPDATE, payload);
-    const res = await postJSON(API_TAREAS.UPDATE, payload);
-    log("Respuesta UPDATE tarea:", res);
+    log("TAREA UPDATE status →", url, payload);
+    const res = await fetch(url, {
+      method: "PUT", // ← el backend pide PUT o PATCH
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (_) {
+      // puede no regresar JSON; lo ignoramos
+    }
+
+    log("Respuesta UPDATE tarea:", {
+      httpStatus: res.status,
+      ok: res.ok,
+      data,
+    });
+
+    if (!res.ok || (data && data.ok === false)) {
+      console.error("[KB] Error en respuesta UPDATE tarea:", data);
+      // Aquí podríamos revertir el status en memoria si lo necesitas
+    }
   } catch (e) {
     console.error("[KB] Error al actualizar status de tarea:", e);
+    // Igual, podríamos revertir el status si hace falta
   }
 }
 
@@ -756,12 +781,16 @@ function setupDragAndDrop() {
         const newStatus = Number(col.dataset.status);
         if (!newStatus || newStatus === task.status) return;
 
+        const oldStatus = task.status;
         task.status = newStatus;
+        log("DragEnd → tarea", task.id, "de", oldStatus, "a", newStatus);
+
         renderBoard();
         if (State.selectedId === task.id) {
           highlightSelected();
         }
 
+        // Persistencia en backend
         await persistTaskStatus(task, newStatus);
       },
     });
@@ -782,7 +811,7 @@ async function init() {
     console.error("[KB] Error leyendo Session.getIds():", e);
   }
 
-  // 2) Empleados y departamentos para filtros
+  // 2) Empleados y departamentos para filtros (en paralelo)
   const [empleados, depts] = await Promise.all([
     fetchEmpleadosForFilters(),
     fetchDepartamentos(),
@@ -794,18 +823,21 @@ async function init() {
       State.empleadosIndex.set(emp.id, emp);
     }
   });
+  log("Index empleados cargado:", State.empleadosIndex.size);
 
-  // Index de departamentos
+  // Index de departamentos (si vienen de la API)
   depts.forEach((d) => {
     if (d?.id != null) {
       State.departamentosIndex.set(d.id, d);
     }
   });
+  log("Index departamentos cargado:", State.departamentosIndex.size);
 
-  // 3) TAREAS reales desde API (sin mocks)
+  // 3) TAREAS desde API real
   State.tasks = await fetchTareasFromApi();
+  log("State.tasks inicial:", State.tasks);
 
-  // 4) Construir opciones de combos en base a tareas cargadas
+  // Construir opciones de combos en base a tareas cargadas
   const deptIdsSet = new Set();
   const empIdsSet = new Set();
 
@@ -825,6 +857,7 @@ async function init() {
     const label = dep ? dep.nombre : `Depto ${id}`;
     return { value: id, label };
   });
+  log("Opciones filtro Departamentos:", deptOptions);
 
   // Opciones de Empleados
   const empOptions = Array.from(empIdsSet).map((id) => {
@@ -832,8 +865,9 @@ async function init() {
     const label = emp ? emp.nombre_completo : `Empleado ${id}`;
     return { value: id, label };
   });
+  log("Opciones filtro Empleados:", empOptions);
 
-  // 5) Instanciar combos multi
+  // 4) Instanciar combos multi
   setupSidebarFilters();
 
   const fieldDept = $("#kb-filter-departamentos");
@@ -845,7 +879,7 @@ async function init() {
     createMultiFilter(fieldEmp, "empleados", empOptions);
   }
 
-  // 6) Toolbar, board, drag & drop, drawer
+  // 5) Toolbar, board, drag & drop, drawer
   setupToolbar();
   renderBoard();
   setupDragAndDrop();

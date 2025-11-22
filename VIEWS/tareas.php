@@ -195,17 +195,6 @@
                             </select>
                         </div>
 
-                        <div class="kb-filter-field">
-                            <label for="kb-filter-asignado">Status</label>
-                            <select id="kb-filter-asignado" class="kb-filter-input">
-                                <option value="">Por hacer</option>
-                                <option value="me">En Proceso</option>
-                                <option value="">Por revisar</option>
-                                <option value="me">Hecho</option>
-                                <!-- luego llenamos con empleados reales -->
-                            </select>
-                        </div>
-
                         <button type="button" class="kb-filter-clear" id="kb-filter-clear">
                             Limpiar filtros
                         </button>
