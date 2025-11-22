@@ -1,12 +1,23 @@
-// /JS/tareas.js – Demo local tablero de tareas (sin endpoints)
+// /JS/tareas.js – Tablero de tareas (kanban) listo para API real
 "use strict";
 
-/* ============================================================================
+/* ==========================================================================
+   Imports (módulos compartidos)
+   ========================================================================== */
+
+import { Session } from "./auth/session.js";
+import { postJSON } from "./api/http.js";
+import { searchEmpleados } from "./api/usuarios.js";
+
+/* ==========================================================================
    Config
    ========================================================================== */
+
 const KB = {
   DEBUG: true,
-  CURRENT_USER_ID: 12, // demo: para "Solo mis tareas"
+
+  // Se sobreescribe con el empleado logueado (Session.getIds())
+  CURRENT_USER_ID: null,
 
   STATUS: {
     TODO: 1,
@@ -17,10 +28,25 @@ const KB = {
   },
 };
 
+// Fallback de endpoints (mismo host que en Planeación)
+const API_FBK = {
+  HOST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net",
+};
+
+// Endpoints específicos que nos interesan aquí
+const API_TAREAS = {
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tarea_proceso.php`,
+  UPDATE: `${API_FBK.HOST}/db/WEB/ixtla01_u_tarea_proceso.php`,
+};
+
+const API_DEPTS = {
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_departamento.php`,
+};
+
 const log = (...a) => KB.DEBUG && console.log("[KB]", ...a);
 const warn = (...a) => KB.DEBUG && console.warn("[KB]", ...a);
 
-/* ============================================================================
+/* ==========================================================================
    Helpers
    ========================================================================== */
 
@@ -48,26 +74,28 @@ function diffDays(startStr) {
   return days < 0 ? 0 : days;
 }
 
+/**
+ * Calcula el “chip” de edad en días:
+ * - realDays: días exactos transcurridos
+ * - classIndex: 1–9 = paleta, 10 = rojo (10+ días)
+ * - display: "0".."99" o "99+"
+ */
 function calcAgeChip(task) {
   const base = task.fecha_inicio || task.created_at;
   const d = diffDays(base); // 0,1,2,...
   if (d == null) return null;
 
-  // Días reales transcurridos (no negativos)
   const realDays = d < 0 ? 0 : d;
 
-  // Índice de paleta: 1–9 según días, 10 = rojo (10+ días)
   let paletteIndex;
   if (realDays >= 10) {
-    paletteIndex = 10; // 10 días o más → siempre rojo pastel
+    paletteIndex = 10; // 10+ días → rojo pastel permanente
   } else if (realDays === 0) {
-    paletteIndex = 1; // hoy mismo → primer color
+    paletteIndex = 1; // hoy → primer color
   } else {
     paletteIndex = realDays; // 1..9 días
   }
 
-  // Número que se ve en la card:
-  // 0..99 → el número; 100+ → "99+"
   let display;
   if (realDays >= 100) {
     display = "99+";
@@ -76,268 +104,30 @@ function calcAgeChip(task) {
   }
 
   return {
-    classIndex: paletteIndex, // para kb-age-X
-    display, // texto que se ve
-    realDays, // para tooltip
+    classIndex: paletteIndex,
+    display,
+    realDays,
   };
 }
 
-/* ============================================================================
-   Mock data (demo local)
-   ========================================================================== */
-
-// Procesos de demo (solo para mostrar nombre de proceso)
-const MOCK_PROCESOS = {
-  9: "Proceso: Fuga de agua",
-  10: "Proceso: Bacheo",
-  11: "Proceso: Poda de árbol",
-  12: "Proceso: Manual",
-  13: "Proceso: Difusor",
-};
-
-// Departamentos demo para combos del sidebar
-const MOCK_DEPARTAMENTOS = [
-  { id: 1, nombre: "SAMAPA" },
-  { id: 2, nombre: "Obras Públicas" },
-  { id: 3, nombre: "Alumbrado Público" },
-];
-
-// Empleados demo para combos del sidebar
-const MOCK_EMPLEADOS = [
-  { id: 12, nombre: "Juan Pablo García ANALISTA" },
-  { id: 6, nombre: "Luis Enrique Méndez Fernández" },
-  { id: 2, nombre: "Pablo Agustín de Dios García" },
-  { id: 7, nombre: "Juan Pablo García DIRECTOR" },
-];
-
-// Tareas de demo (basadas en tu JSON)
-const MOCK_TAREAS = [
-  {
-    id: 4,
-    proceso_id: 9,
-    departamento_id: 1,
-    asignado_a: 12,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García ANALISTA",
-    titulo: "hola soy una tarea insertada desde postman 1",
-    descripcion: "tarea test 1",
-    esfuerzo: 2,
-    fecha_inicio: "2025-10-28 13:00:00",
-    fecha_fin: "2025-10-28 15:00:00",
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-07 18:29:18",
-    created_by: 12,
-    created_by_nombre: "Juan Pablo García ANALISTA",
-    autoriza_nombre: "Pablo Agustín Director",
-  },
-  {
-    id: 5,
-    proceso_id: 9,
-    departamento_id: 1,
-    asignado_a: 12,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García ANALISTA",
-    titulo: "hola soy una tarea insertada desde postman 2",
-    descripcion: "tarea test 1",
-    esfuerzo: 2,
-    fecha_inicio: "2025-10-28 13:00:00",
-    fecha_fin: "2025-10-28 15:00:00",
-    status: KB.STATUS.REVISAR,
-    created_at: "2025-11-07 19:54:57",
-    created_by: 12,
-    created_by_nombre: "Juan Pablo García ANALISTA",
-    autoriza_nombre: "Pablo Agustín Director",
-  },
-  {
-    id: 6,
-    proceso_id: 9,
-    departamento_id: 1,
-    asignado_a: 12,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García ANALISTA",
-    titulo: "hola soy una tarea insertada desde postman 3",
-    descripcion: "tarea test 1",
-    esfuerzo: 2,
-    fecha_inicio: "2025-10-28 13:00:00",
-    fecha_fin: "2025-10-28 15:00:00",
-    status: KB.STATUS.PROCESO,
-    created_at: "2025-11-07 20:01:32",
-    created_by: 12,
-    created_by_nombre: "Juan Pablo García ANALISTA",
-    autoriza_nombre: "Pablo Agustín Director",
-  },
-  {
-    id: 7,
-    proceso_id: 10,
-    departamento_id: 2,
-    asignado_a: 13,
-    asignado_nombre: "Juan Manuel",
-    asignado_apellidos: "Perez Rodriguez",
-    titulo: "hola soy una tarea 2",
-    descripcion: "detalle",
-    esfuerzo: 10,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-12 02:16:05",
-    created_by: 15,
-    created_by_nombre: "Administrador",
-    autoriza_nombre: "Director Obras Públicas",
-  },
-  {
-    id: 8,
-    proceso_id: 10,
-    departamento_id: 2,
-    asignado_a: 5,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García Casillas",
-    titulo: "hola soy una tarea 3",
-    descripcion: "detalle 3",
-    esfuerzo: 10,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-12 02:26:48",
-    created_by: 15,
-    created_by_nombre: "Administrador",
-    autoriza_nombre: "Director Obras Públicas",
-  },
-  {
-    id: 9,
-    proceso_id: 11,
-    departamento_id: 3,
-    asignado_a: 6,
-    asignado_nombre: "Luis Enrique",
-    asignado_apellidos: "Mendez Fernandez",
-    titulo: "Rellenar bache",
-    descripcion: "Es necesario rellenar el bache con el material indicado",
-    esfuerzo: 4,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-12 12:06:32",
-    created_by: 15,
-    created_by_nombre: "Admin SAMAPA",
-    autoriza_nombre: "Director SAMAPA",
-  },
-  {
-    id: 10,
-    proceso_id: 11,
-    departamento_id: 3,
-    asignado_a: 6,
-    asignado_nombre: "Luis Enrique",
-    asignado_apellidos: "Mendez Fernandez",
-    titulo: "Aplanado del bache",
-    descripcion: "Es necesario aplanar el bache para poder circular",
-    esfuerzo: 2,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.PROCESO,
-    created_at: "2025-11-12 12:07:04",
-    created_by: 15,
-    created_by_nombre: "Admin SAMAPA",
-    autoriza_nombre: "Director SAMAPA",
-  },
-  {
-    id: 11,
-    proceso_id: 12,
-    departamento_id: 1,
-    asignado_a: 2,
-    asignado_nombre: "Pablo Agustin",
-    asignado_apellidos: "de Dios Garcia",
-    titulo: "manual",
-    descripcion: "proceso 1",
-    esfuerzo: 5,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.TODO,
-    created_at: "2025-11-12 16:25:31",
-    created_by: 2,
-    created_by_nombre: "Pablo Agustín",
-    autoriza_nombre: "Presidencia",
-  },
-  {
-    id: 12,
-    proceso_id: 13,
-    departamento_id: 1,
-    asignado_a: 2,
-    asignado_nombre: "Pablo Agustin",
-    asignado_apellidos: "de Dios Garcia",
-    titulo: "cambio del difusor",
-    descripcion:
-      "esta es una tarea para cambio de difusor, es necesario subir evidencia",
-    esfuerzo: 3,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.REVISAR,
-    created_at: "2025-11-17 12:29:34",
-    created_by: 2,
-    created_by_nombre: "Pablo Agustín",
-    autoriza_nombre: "Presidencia",
-  },
-  {
-    id: 13,
-    proceso_id: 13,
-    departamento_id: 1,
-    asignado_a: 2,
-    asignado_nombre: "Pablo Agustin",
-    asignado_apellidos: "de Dios Garcia",
-    titulo: "cambio de alca....",
-    descripcion: "esta descripción",
-    esfuerzo: 1,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.PROCESO,
-    created_at: "2025-11-17 20:21:03",
-    created_by: 2,
-    created_by_nombre: "Pablo Agustín",
-    autoriza_nombre: "Presidencia",
-  },
-  {
-    id: 14,
-    proceso_id: 9,
-    departamento_id: 1,
-    asignado_a: 7,
-    asignado_nombre: "Juan Pablo",
-    asignado_apellidos: "García DIRECTOR",
-    titulo: "tarea 20/11",
-    descripcion: "detalle",
-    esfuerzo: 10,
-    fecha_inicio: null,
-    fecha_fin: null,
-    status: KB.STATUS.PAUSA,
-    created_at: "2025-11-20 10:57:33",
-    created_by: 15,
-    created_by_nombre: "Administrador",
-    autoriza_nombre: "Director SAMAPA",
-  },
-].map((t, idx) => ({
-  ...t,
-  folio: `REQ-${String(15000 + t.id).padStart(9, "0")}`,
-  proceso_titulo: MOCK_PROCESOS[t.proceso_id] || `Proceso ${t.proceso_id}`,
-  // display largo asignado
-  asignado_display:
-    t.asignado_display || `${t.asignado_nombre} ${t.asignado_apellidos}`,
-}));
-
-/* ============================================================================
+/* ==========================================================================
    State
    ========================================================================== */
 
 const State = {
-  tasks: MOCK_TAREAS,
+  tasks: [],
   selectedId: null,
   filters: {
-    mine: true, // "Solo mis tareas" activo por defecto (como en tu captura)
+    mine: true, // "Solo mis tareas" por defecto
     search: "",
-    deptIds: new Set(), // departamentos seleccionados (sidebar)
-    employeeIds: new Set(), // empleados seleccionados (sidebar)
+    departamentos: new Set(), // ids de departamento
+    empleados: new Set(), // ids de empleado
   },
-};
 
-/* ============================================================================
-   DOM refs
-   ========================================================================== */
+  // Para filtros de combos
+  empleadosIndex: new Map(), // id_empleado → empleado normalizado
+  departamentosIndex: new Map(), // id_depto → { id, nombre }
+};
 
 const COL_IDS = {
   [KB.STATUS.TODO]: "#kb-col-1",
@@ -357,39 +147,559 @@ const CNT_IDS = {
 
 let dragging = false;
 
-/* ============================================================================
-   Render cards
+// Referencias a los combos multi (para limpiar UI)
+const MultiFilters = {
+  departamentos: null,
+  empleados: null,
+};
+
+/* ==========================================================================
+   Normalización de datos desde API
+   ========================================================================== */
+
+function mapRawTask(raw) {
+  const id = Number(raw.id);
+  const status =
+    raw.status != null
+      ? Number(raw.status)
+      : raw.estatus != null
+      ? Number(raw.estatus)
+      : KB.STATUS.TODO;
+
+  const proceso_id =
+    raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
+
+  const asignado_a =
+    raw.asignado_a != null
+      ? Number(raw.asignado_a)
+      : raw.empleado_id != null
+      ? Number(raw.empleado_id)
+      : null;
+
+  const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
+  const asignado_apellidos =
+    raw.asignado_apellidos || raw.empleado_apellidos || "";
+
+  const asignado_display =
+    raw.asignado_display ||
+    [asignado_nombre, asignado_apellidos].filter(Boolean).join(" ") ||
+    "—";
+
+  const folio =
+    raw.folio ||
+    raw.requerimiento_folio ||
+    `REQ-${String(15000 + (id || 0)).padStart(9, "0")}`;
+
+  const proceso_titulo =
+    raw.proceso_titulo ||
+    raw.proceso_nombre ||
+    (proceso_id ? `Proceso ${proceso_id}` : "Proceso");
+
+  return {
+    id,
+    proceso_id,
+    asignado_a,
+    asignado_display,
+    titulo: raw.titulo || raw.titulo_tarea || "Tarea sin título",
+    descripcion: raw.descripcion || raw.detalle || "",
+    esfuerzo:
+      raw.esfuerzo != null ? Number(raw.esfuerzo) : raw.horas != null ? Number(raw.horas) : null,
+    fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
+    fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
+    status,
+    created_at: raw.created_at || null,
+    created_by: raw.created_by != null ? Number(raw.created_by) : null,
+    created_by_nombre: raw.created_by_nombre || raw.creado_por_nombre || "—",
+    autoriza_nombre: raw.autoriza_nombre || raw.autorizado_por || "—",
+    folio,
+    proceso_titulo,
+  };
+}
+
+/* ==========================================================================
+   DEMO TASKS (mantenemos mientras probamos UI)
+   ========================================================================== */
+
+// NOTA: esta sección es el mismo mock que ya veníamos usando,
+// solo para que la vista no se rompa mientras probamos integraciones.
+
+const MOCK_PROCESOS = {
+  9: "Proceso: Fuga de agua",
+  10: "Proceso: Bacheo",
+  11: "Proceso: Poda de árbol",
+  12: "Proceso: Manual",
+  13: "Proceso: Difusor",
+};
+
+const MOCK_TAREAS = [
+  {
+    id: 4,
+    proceso_id: 9,
+    asignado_a: 12,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García ANALISTA",
+    titulo: "hola soy una tarea insertada desde postman 1",
+    descripcion: "tarea test 1",
+    esfuerzo: 2,
+    fecha_inicio: "2025-10-28 13:00:00",
+    fecha_fin: "2025-10-28 15:00:00",
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-07 18:29:18",
+    created_by: 12,
+    created_by_nombre: "Juan Pablo García ANALISTA",
+    autoriza_nombre: "Pablo Agustín Director",
+  },
+  {
+    id: 5,
+    proceso_id: 9,
+    asignado_a: 12,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García ANALISTA",
+    titulo: "hola soy una tarea insertada desde postman 2",
+    descripcion: "tarea test 1",
+    esfuerzo: 2,
+    fecha_inicio: "2025-10-28 13:00:00",
+    fecha_fin: "2025-10-28 15:00:00",
+    status: KB.STATUS.REVISAR,
+    created_at: "2025-11-07 19:54:57",
+    created_by: 12,
+    created_by_nombre: "Juan Pablo García ANALISTA",
+    autoriza_nombre: "Pablo Agustín Director",
+  },
+  {
+    id: 6,
+    proceso_id: 9,
+    asignado_a: 12,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García ANALISTA",
+    titulo: "hola soy una tarea insertada desde postman 3",
+    descripcion: "tarea test 1",
+    esfuerzo: 2,
+    fecha_inicio: "2025-10-28 13:00:00",
+    fecha_fin: "2025-10-28 15:00:00",
+    status: KB.STATUS.PROCESO,
+    created_at: "2025-11-07 20:01:32",
+    created_by: 12,
+    created_by_nombre: "Juan Pablo García ANALISTA",
+    autoriza_nombre: "Pablo Agustín Director",
+  },
+  {
+    id: 7,
+    proceso_id: 10,
+    asignado_a: 13,
+    asignado_nombre: "Juan Manuel",
+    asignado_apellidos: "Perez Rodriguez",
+    titulo: "hola soy una tarea 2",
+    descripcion: "detalle",
+    esfuerzo: 10,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-12 02:16:05",
+    created_by: 15,
+    created_by_nombre: "Administrador",
+    autoriza_nombre: "Director Obras Públicas",
+  },
+  {
+    id: 8,
+    proceso_id: 10,
+    asignado_a: 5,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García Casillas",
+    titulo: "hola soy una tarea 3",
+    descripcion: "detalle 3",
+    esfuerzo: 10,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-12 02:26:48",
+    created_by: 15,
+    created_by_nombre: "Administrador",
+    autoriza_nombre: "Director Obras Públicas",
+  },
+  {
+    id: 9,
+    proceso_id: 11,
+    asignado_a: 6,
+    asignado_nombre: "Luis Enrique",
+    asignado_apellidos: "Mendez Fernandez",
+    titulo: "Rellenar bache",
+    descripcion: "Es necesario rellenar el bache con el material indicado",
+    esfuerzo: 4,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-12 12:06:32",
+    created_by: 15,
+    created_by_nombre: "Admin SAMAPA",
+    autoriza_nombre: "Director SAMAPA",
+  },
+  {
+    id: 10,
+    proceso_id: 11,
+    asignado_a: 6,
+    asignado_nombre: "Luis Enrique",
+    asignado_apellidos: "Mendez Fernandez",
+    titulo: "Aplanado del bache",
+    descripcion: "Es necesario aplanar el bache para poder circular",
+    esfuerzo: 2,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.PROCESO,
+    created_at: "2025-11-12 12:07:04",
+    created_by: 15,
+    created_by_nombre: "Admin SAMAPA",
+    autoriza_nombre: "Director SAMAPA",
+  },
+  {
+    id: 11,
+    proceso_id: 12,
+    asignado_a: 2,
+    asignado_nombre: "Pablo Agustin",
+    asignado_apellidos: "de Dios Garcia",
+    titulo: "manual",
+    descripcion: "proceso 1",
+    esfuerzo: 5,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.TODO,
+    created_at: "2025-11-12 16:25:31",
+    created_by: 2,
+    created_by_nombre: "Pablo Agustín",
+    autoriza_nombre: "Presidencia",
+  },
+  {
+    id: 12,
+    proceso_id: 13,
+    asignado_a: 2,
+    asignado_nombre: "Pablo Agustin",
+    asignado_apellidos: "de Dios Garcia",
+    titulo: "cambio del difusor",
+    descripcion:
+      "esta es una tarea para cambio de difusor, es necesario subir evidencia",
+    esfuerzo: 3,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.REVISAR,
+    created_at: "2025-11-17 12:29:34",
+    created_by: 2,
+    created_by_nombre: "Pablo Agustín",
+    autoriza_nombre: "Presidencia",
+  },
+  {
+    id: 13,
+    proceso_id: 13,
+    asignado_a: 2,
+    asignado_nombre: "Pablo Agustin",
+    asignado_apellidos: "de Dios Garcia",
+    titulo: "cambio de alca....",
+    descripcion: "esta descripción",
+    esfuerzo: 1,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.PROCESO,
+    created_at: "2025-11-17 20:21:03",
+    created_by: 2,
+    created_by_nombre: "Pablo Agustín",
+    autoriza_nombre: "Presidencia",
+  },
+  {
+    id: 14,
+    proceso_id: 9,
+    asignado_a: 7,
+    asignado_nombre: "Juan Pablo",
+    asignado_apellidos: "García DIRECTOR",
+    titulo: "tarea 20/11",
+    descripcion: "detalle",
+    esfuerzo: 10,
+    fecha_inicio: null,
+    fecha_fin: null,
+    status: KB.STATUS.PAUSA,
+    created_at: "2025-11-20 10:57:33",
+    created_by: 15,
+    created_by_nombre: "Administrador",
+    autoriza_nombre: "Director SAMAPA",
+  },
+].map((t) => ({
+  ...t,
+  folio: `REQ-${String(15000 + t.id).padStart(9, "0")}`,
+  proceso_titulo: MOCK_PROCESOS[t.proceso_id] || `Proceso ${t.proceso_id}`,
+  asignado_display:
+    t.asignado_display || `${t.asignado_nombre} ${t.asignado_apellidos}`,
+}));
+
+/* ==========================================================================
+   Fetch de datos reales (TAREAS, EMPLEADOS, DEPARTAMENTOS)
+   ========================================================================== */
+
+async function fetchTareasFromApi() {
+  // TODO: activar API real cuando quieras dejar de usar MOCK_TAREAS
+  // Ejemplo de payload; puedes ajustar filtros en backend:
+  const payload = {
+    // status: null,            // opcional: todos los estatus
+    // asignado_a: KB.CURRENT_USER_ID, // opcional
+    page: 1,
+    page_size: 200,
+  };
+
+  try {
+    log("TAREAS LIST →", API_TAREAS.LIST, payload);
+    const json = await postJSON(API_TAREAS.LIST, payload);
+    if (!json || !Array.isArray(json.data)) {
+      warn("Respuesta inesperada de TAREAS LIST", json);
+      return [];
+    }
+    const mapped = json.data.map(mapRawTask);
+    log("TAREAS mapeadas", mapped.length);
+    return mapped;
+  } catch (e) {
+    console.error("[KB] Error al listar tareas:", e);
+    return [];
+  }
+}
+
+async function fetchDepartamentos() {
+  try {
+    const payload = {
+      status: 1,
+      page: 1,
+      page_size: 100,
+    };
+    log("DEPTS LIST →", API_DEPTS.LIST, payload);
+    const json = await postJSON(API_DEPTS.LIST, payload);
+    if (!json || !Array.isArray(json.data)) {
+      warn("Respuesta inesperada DEPTS LIST", json);
+      return [];
+    }
+    return json.data.map((d) => ({
+      id: Number(d.id),
+      nombre: d.nombre || `Depto ${d.id}`,
+    }));
+  } catch (e) {
+    console.error("[KB] Error al listar departamentos:", e);
+    return [];
+  }
+}
+
+async function fetchEmpleadosForFilters() {
+  try {
+    // Traemos empleados activos con cuenta activa
+    const res = await searchEmpleados({
+      status_empleado: 1,
+      status_cuenta: 1,
+      page: 1,
+      page_size: 500,
+    });
+    const data = Array.isArray(res?.data) ? res.data : [];
+    log("Empleados para filtros:", data.length);
+    return data;
+  } catch (e) {
+    console.error("[KB] Error al buscar empleados:", e);
+    return [];
+  }
+}
+
+/* ==========================================================================
+   Filtros / combos
    ========================================================================== */
 
 function passesFilters(task) {
   // Solo mis tareas
-  if (State.filters.mine && task.asignado_a !== KB.CURRENT_USER_ID)
+  if (
+    State.filters.mine &&
+    KB.CURRENT_USER_ID != null &&
+    task.asignado_a !== KB.CURRENT_USER_ID
+  ) {
     return false;
+  }
 
-  // Buscar por folio o proceso
+  // Buscar por folio, proceso o id
   const q = State.filters.search.trim().toLowerCase();
   if (q) {
     const hay =
-      task.folio.toLowerCase().includes(q) ||
-      task.proceso_titulo.toLowerCase().includes(q) ||
+      (task.folio || "").toLowerCase().includes(q) ||
+      (task.proceso_titulo || "").toLowerCase().includes(q) ||
       String(task.id).includes(q);
     if (!hay) return false;
   }
 
-  // Filtro por departamentos (multi)
-  const deptIds = State.filters.deptIds;
-  if (deptIds && deptIds.size > 0) {
-    if (!deptIds.has(task.departamento_id)) return false;
+  // Filtro por empleados
+  if (State.filters.empleados.size) {
+    if (!task.asignado_a || !State.filters.empleados.has(task.asignado_a)) {
+      return false;
+    }
   }
 
-  // Filtro por empleados (multi)
-  const empIds = State.filters.employeeIds;
-  if (empIds && empIds.size > 0) {
-    if (!empIds.has(task.asignado_a)) return false;
+  // Filtro por departamentos (desde empleadosIndex)
+  if (State.filters.departamentos.size) {
+    const emp = State.empleadosIndex.get(task.asignado_a);
+    const deptId = emp?.departamento_id || null;
+    if (!deptId || !State.filters.departamentos.has(deptId)) {
+      return false;
+    }
   }
 
   return true;
 }
+
+/* --------------------------------------------------------------------------
+   Multi select (Departamentos / Empleados) tipo Jira
+   -------------------------------------------------------------------------- */
+
+function createMultiFilter(fieldEl, key, options) {
+  if (!fieldEl) return;
+
+  const trigger = fieldEl.querySelector(".kb-multi-trigger");
+  const placeholderEl = fieldEl.querySelector(".kb-multi-placeholder");
+  const summaryEl = fieldEl.querySelector(".kb-multi-summary");
+  const menu = fieldEl.querySelector(".kb-multi-menu");
+  const searchInput = fieldEl.querySelector(".kb-multi-search-input");
+  const list = fieldEl.querySelector(".kb-multi-options");
+
+  const stateSet =
+    State.filters[key] ||
+    (State.filters[key] = new Set());
+
+  function renderOptions() {
+    if (!list) return;
+    list.innerHTML = "";
+    options.forEach((opt) => {
+      const li = document.createElement("li");
+      li.className = "kb-multi-option";
+      li.dataset.value = String(opt.value);
+      li.textContent = opt.label;
+      if (stateSet.has(opt.value)) {
+        li.classList.add("is-selected");
+      }
+      li.addEventListener("click", () => toggleValue(opt.value));
+      list.appendChild(li);
+    });
+  }
+
+  function updateSummary() {
+    const selected = options.filter((opt) => stateSet.has(opt.value));
+    if (!selected.length) {
+      if (placeholderEl) placeholderEl.hidden = false;
+      if (summaryEl) {
+        summaryEl.hidden = true;
+        summaryEl.textContent = "";
+      }
+    } else {
+      if (placeholderEl) placeholderEl.hidden = true;
+      if (summaryEl) {
+        summaryEl.hidden = false;
+        if (selected.length === 1) {
+          summaryEl.textContent = selected[0].label;
+        } else {
+          summaryEl.textContent = `${selected[0].label} +${selected.length - 1}`;
+        }
+      }
+    }
+  }
+
+  function toggleValue(value) {
+    if (stateSet.has(value)) {
+      stateSet.delete(value);
+    } else {
+      stateSet.add(value);
+    }
+
+    // Actualizar UI de opciones
+    if (list) {
+      const li = list.querySelector(`.kb-multi-option[data-value="${value}"]`);
+      if (li) li.classList.toggle("is-selected", stateSet.has(value));
+    }
+
+    updateSummary();
+    renderBoard();
+  }
+
+  function openMenu() {
+    if (!menu || !trigger) return;
+    trigger.setAttribute("aria-expanded", "true");
+    menu.hidden = false;
+    fieldEl.classList.add("is-open");
+  }
+
+  function closeMenu() {
+    if (!menu || !trigger) return;
+    trigger.setAttribute("aria-expanded", "false");
+    menu.hidden = true;
+    fieldEl.classList.remove("is-open");
+  }
+
+  function toggleMenu() {
+    const expanded = trigger.getAttribute("aria-expanded") === "true";
+    if (expanded) {
+      closeMenu();
+    } else {
+      openMenu();
+      if (searchInput) searchInput.focus();
+    }
+  }
+
+  if (trigger) {
+    trigger.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      toggleMenu();
+    });
+  }
+
+  if (searchInput && list) {
+    searchInput.addEventListener("input", () => {
+      const q = searchInput.value.trim().toLowerCase();
+      const items = list.querySelectorAll(".kb-multi-option");
+      items.forEach((li) => {
+        const label = (li.textContent || "").toLowerCase();
+        li.hidden = q && !label.includes(q);
+      });
+    });
+  }
+
+  document.addEventListener("click", (ev) => {
+    if (!fieldEl.contains(ev.target)) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      closeMenu();
+    }
+  });
+
+  // Inicializar
+  renderOptions();
+  updateSummary();
+
+  MultiFilters[key] = {
+    clear() {
+      stateSet.clear();
+      updateSummary();
+      const items = list?.querySelectorAll(".kb-multi-option") || [];
+      items.forEach((li) => li.classList.remove("is-selected"));
+    },
+  };
+}
+
+function setupSidebarFilters() {
+  const btnClear = $("#kb-sidebar-clear");
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      State.filters.departamentos.clear();
+      State.filters.empleados.clear();
+
+      if (MultiFilters.departamentos) MultiFilters.departamentos.clear();
+      if (MultiFilters.empleados) MultiFilters.empleados.clear();
+
+      renderBoard();
+    });
+  }
+}
+
+/* ==========================================================================
+   Render de cards
+   ========================================================================== */
 
 function createCard(task) {
   const age = calcAgeChip(task);
@@ -398,11 +708,10 @@ function createCard(task) {
   art.className = "kb-card";
   art.dataset.id = String(task.id);
 
-  // Contenido principal
   const main = document.createElement("div");
   main.className = "kb-task-main";
 
-  // Línea título: {proceso} / {id}
+  // Título: {proceso} / {id}
   const titleLine = document.createElement("div");
   titleLine.className = "kb-task-title-line";
 
@@ -424,17 +733,14 @@ function createCard(task) {
   const lines = document.createElement("div");
   lines.className = "kb-task-lines";
 
-  // Folio
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
   lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio}</span>`;
 
-  // Asignado
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
   lineAsig.innerHTML = `<span class="kb-task-label">Asignado a:</span> <span class="kb-task-value kb-task-asignado">${task.asignado_display}</span>`;
 
-  // Fecha de proceso
   const lineFecha = document.createElement("div");
   lineFecha.className = "kb-task-line";
   lineFecha.innerHTML = `<span class="kb-task-label">Fecha de proceso:</span> <span class="kb-task-value">${formatDateMX(
@@ -456,7 +762,6 @@ function createCard(task) {
     art.appendChild(chip);
   }
 
-  // Click → abrir drawer (si no viene de un drag)
   art.addEventListener("click", () => {
     if (dragging) return;
     openDetails(task.id);
@@ -471,12 +776,11 @@ function renderBoard() {
     const col = $(sel);
     if (col) col.innerHTML = "";
   });
-  Object.entries(CNT_IDS).forEach(([status, sel]) => {
+  Object.entries(CNT_IDS).forEach(([, sel]) => {
     const lbl = $(sel);
     if (lbl) lbl.textContent = "(0)";
   });
 
-  // Pintar tareas
   for (const task of State.tasks) {
     if (!passesFilters(task)) continue;
     const colSel = COL_IDS[task.status];
@@ -498,7 +802,7 @@ function renderBoard() {
   highlightSelected();
 }
 
-/* ============================================================================
+/* ==========================================================================
    Drawer de detalle
    ========================================================================== */
 
@@ -545,11 +849,9 @@ function openDetails(id) {
   fillDetails(task);
   highlightSelected();
 
-  // Mostrar cuerpo y ocultar texto vacío
   $("#kb-d-empty").hidden = true;
   $("#kb-d-body").hidden = false;
 
-  // Abrir drawer + overlay
   $("#kb-details").classList.add("is-open");
   $("#kb-details").setAttribute("aria-hidden", "false");
   $("#kb-d-overlay").classList.add("is-open");
@@ -566,144 +868,7 @@ function closeDetails() {
   $("#kb-d-overlay").hidden = true;
 }
 
-/* ============================================================================
-   MULTISELECT "TIPO JIRA" – Sidebar
-   ========================================================================== */
-
-function buildMultiSelect(config) {
-  const root =
-    typeof config.root === "string"
-      ? document.querySelector(config.root)
-      : config.root;
-  if (!root) return;
-
-  const trigger = root.querySelector(".kb-multi-trigger");
-  const placeholder = root.querySelector(".kb-multi-placeholder");
-  const summary = root.querySelector(".kb-multi-summary");
-  const menu = root.querySelector(".kb-multi-menu");
-  const list = root.querySelector(".kb-multi-options");
-  const searchInput = root.querySelector(".kb-multi-search-input");
-
-  if (!trigger || !menu || !list) return;
-
-  // Construir opciones
-  list.innerHTML = "";
-  config.items.forEach((item) => {
-    const li = document.createElement("li");
-    const label = document.createElement("label");
-    label.className = "kb-multi-option";
-
-    const chk = document.createElement("input");
-    chk.type = "checkbox";
-    chk.value = String(item.id);
-
-    const span = document.createElement("span");
-    span.textContent = item.nombre;
-
-    label.append(chk, span);
-    li.append(label);
-    list.append(li);
-  });
-
-  function getSelectedIds() {
-    return Array.from(
-      list.querySelectorAll("input[type=checkbox]:checked")
-    ).map((c) => Number(c.value));
-  }
-
-  function toggleMenu(open) {
-    const isOpen = open != null ? open : !menu.classList.contains("is-open");
-    menu.classList.toggle("is-open", isOpen);
-    trigger.setAttribute("aria-expanded", String(isOpen));
-  }
-
-  // Abrir / cerrar menú
-  trigger.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    toggleMenu();
-  });
-
-  document.addEventListener("click", () => {
-    if (menu.classList.contains("is-open")) {
-      toggleMenu(false);
-    }
-  });
-
-  // Evitar cierre al hacer clic dentro
-  menu.addEventListener("click", (ev) => ev.stopPropagation());
-
-  // Buscar dentro del combo
-  if (searchInput) {
-    searchInput.addEventListener("input", () => {
-      const q = searchInput.value.trim().toLowerCase();
-      list.querySelectorAll("li").forEach((li) => {
-        const txt = li.textContent.toLowerCase();
-        li.style.display = txt.includes(q) ? "" : "none";
-      });
-    });
-  }
-
-  // Cuando cambia la selección
-  list.addEventListener("change", () => {
-    const ids = getSelectedIds();
-    if (typeof config.onChange === "function") {
-      config.onChange(ids);
-    }
-    updateMultiSummary(root);
-  });
-
-  // Estado inicial
-  updateMultiSummary(root);
-}
-
-function updateMultiSummary(root) {
-  if (!root) return;
-  const placeholder = root.querySelector(".kb-multi-placeholder");
-  const summary = root.querySelector(".kb-multi-summary");
-  const list = root.querySelector(".kb-multi-options");
-  if (!list || !placeholder || !summary) return;
-
-  const checked = list.querySelectorAll("input[type=checkbox]:checked");
-  const count = checked.length;
-
-  if (count === 0) {
-    placeholder.hidden = false;
-    summary.hidden = true;
-  } else {
-    placeholder.hidden = true;
-    summary.hidden = false;
-    if (count === 1) {
-      const label = checked[0].closest("label");
-      summary.textContent = label ? label.textContent.trim() : "1 seleccionado";
-    } else {
-      summary.textContent = `${count} seleccionados`;
-    }
-  }
-}
-
-function initSidebarFilters() {
-  // Departamentos
-  buildMultiSelect({
-    root: "#kb-filter-departamentos",
-    items: MOCK_DEPARTAMENTOS,
-    onChange(selectedIds) {
-      State.filters.deptIds = new Set(selectedIds);
-      renderBoard();
-    },
-  });
-
-  // Empleados
-  buildMultiSelect({
-    root: "#kb-filter-empleados",
-    items: MOCK_EMPLEADOS,
-    onChange(selectedIds) {
-      State.filters.employeeIds = new Set(selectedIds);
-      renderBoard();
-    },
-  });
-}
-
-/* ============================================================================
+/* ==========================================================================
    Filtros rápidos (toolbar)
    ========================================================================== */
 
@@ -723,10 +888,9 @@ function setupToolbar() {
   }
 
   if (chipRecent) {
-    // Por ahora "Recientes" no hace nada especial en demo
     chipRecent.addEventListener("click", () => {
       chipRecent.classList.toggle("is-active");
-      // TODO: lógica de recientes si quieres
+      // Por ahora recientes no aplica lógica extra
     });
   }
 
@@ -739,38 +903,35 @@ function setupToolbar() {
 
   if (btnClear) {
     btnClear.addEventListener("click", () => {
-      // Reset filtros rápidos
       State.filters.mine = false;
       State.filters.search = "";
-
-      // Reset filtros de sidebar
-      State.filters.deptIds.clear();
-      State.filters.employeeIds.clear();
-
       if (chipMine) chipMine.classList.remove("is-active");
       if (chipRecent) chipRecent.classList.remove("is-active");
       if (inputSearch) inputSearch.value = "";
-
-      // Limpiar checkboxes de combos
-      $$("#kb-filter-departamentos input[type=checkbox]").forEach(
-        (chk) => (chk.checked = false)
-      );
-      $$("#kb-filter-empleados input[type=checkbox]").forEach(
-        (chk) => (chk.checked = false)
-      );
-
-      // Actualizar textos de resumen en combos
-      updateMultiSummary($("#kb-filter-departamentos"));
-      updateMultiSummary($("#kb-filter-empleados"));
-
       renderBoard();
     });
   }
 }
 
-/* ============================================================================
+/* ==========================================================================
    Drag & drop (Sortable)
    ========================================================================== */
+
+async function persistTaskStatus(task, newStatus) {
+  // TODO: cuando quieras que persista en backend, activa este bloque
+  const payload = {
+    id: task.id,
+    status: newStatus,
+  };
+
+  try {
+    log("TAREA UPDATE status →", API_TAREAS.UPDATE, payload);
+    const res = await postJSON(API_TAREAS.UPDATE, payload);
+    log("Respuesta UPDATE tarea:", res);
+  } catch (e) {
+    console.error("[KB] Error al actualizar status de tarea:", e);
+  }
+}
 
 function setupDragAndDrop() {
   const lists = $$(".kb-list");
@@ -788,7 +949,7 @@ function setupDragAndDrop() {
       onStart() {
         dragging = true;
       },
-      onEnd(evt) {
+      async onEnd(evt) {
         setTimeout(() => {
           dragging = false;
         }, 0);
@@ -806,35 +967,116 @@ function setupDragAndDrop() {
         task.status = newStatus;
         renderBoard();
         if (State.selectedId === task.id) {
-          // si ya estaba abierto, actualiza highlight
           highlightSelected();
         }
+
+        // Persistencia (opcional / activable)
+        await persistTaskStatus(task, newStatus);
       },
     });
   });
 }
 
-/* ============================================================================
+/* ==========================================================================
    Init
    ========================================================================== */
 
-document.addEventListener("DOMContentLoaded", () => {
+async function init() {
+  // 1) Session → empleado actual
   try {
-    setupToolbar();
-    initSidebarFilters();
-    renderBoard();
-    setupDragAndDrop();
-
-    // Cierre del drawer
-    const btnClose = $("#kb-d-close");
-    const overlay = $("#kb-d-overlay");
-    if (btnClose) btnClose.addEventListener("click", closeDetails);
-    if (overlay) overlay.addEventListener("click", closeDetails);
-
-    log("Tablero de tareas demo listo", {
-      tareas: State.tasks.length,
-    });
+    const ids = Session?.getIds ? Session.getIds() : null;
+    KB.CURRENT_USER_ID = ids?.id_empleado || null;
+    log("Session ids:", ids, "CURRENT_USER_ID:", KB.CURRENT_USER_ID);
   } catch (e) {
-    console.error("[KB] init error:", e);
+    console.error("[KB] Error leyendo Session.getIds():", e);
   }
+
+  // 2) Empleados y departamentos para filtros
+  const [empleados, depts] = await Promise.all([
+    fetchEmpleadosForFilters(),
+    fetchDepartamentos(),
+  ]);
+
+  // Index de empleados
+  empleados.forEach((emp) => {
+    if (emp?.id != null) {
+      State.empleadosIndex.set(emp.id, emp);
+    }
+  });
+
+  // Index de departamentos (si vienen de la API)
+  depts.forEach((d) => {
+    if (d?.id != null) {
+      State.departamentosIndex.set(d.id, d);
+    }
+  });
+
+  // Construir opciones de filtros solo con lo que aparece en tareas
+  // (de momento usamos MOCK_TAREAS; cuando actives API real, se alimentará de ahí)
+  // 3) TAREAS
+  // === DEMO: usamos MOCK_TAREAS ================================
+  State.tasks = MOCK_TAREAS.slice();
+  // === REAL: cuando estés listo, cambia la línea anterior por:
+  // State.tasks = await fetchTareasFromApi();
+  // =============================================================
+
+  // Construir opciones de combos en base a tareas cargadas
+  const deptIdsSet = new Set();
+  const empIdsSet = new Set();
+
+  for (const t of State.tasks) {
+    if (t.asignado_a != null) {
+      empIdsSet.add(t.asignado_a);
+      const emp = State.empleadosIndex.get(t.asignado_a);
+      if (emp?.departamento_id != null) {
+        deptIdsSet.add(emp.departamento_id);
+      }
+    }
+  }
+
+  // Opciones de Departamentos
+  const deptOptions = Array.from(deptIdsSet).map((id) => {
+    const dep = State.departamentosIndex.get(id);
+    const label = dep ? dep.nombre : `Depto ${id}`;
+    return { value: id, label };
+  });
+
+  // Opciones de Empleados
+  const empOptions = Array.from(empIdsSet).map((id) => {
+    const emp = State.empleadosIndex.get(id);
+    const label = emp ? emp.nombre_completo : `Empleado ${id}`;
+    return { value: id, label };
+  });
+
+  // 4) Instanciar combos multi
+  setupSidebarFilters();
+
+  const fieldDept = $("#kb-filter-departamentos");
+  const fieldEmp = $("#kb-filter-empleados");
+  if (fieldDept && deptOptions.length) {
+    createMultiFilter(fieldDept, "departamentos", deptOptions);
+  }
+  if (fieldEmp && empOptions.length) {
+    createMultiFilter(fieldEmp, "empleados", empOptions);
+  }
+
+  // 5) Toolbar, board, drag & drop, drawer
+  setupToolbar();
+  renderBoard();
+  setupDragAndDrop();
+
+  const btnClose = $("#kb-d-close");
+  const overlay = $("#kb-d-overlay");
+  if (btnClose) btnClose.addEventListener("click", closeDetails);
+  if (overlay) overlay.addEventListener("click", closeDetails);
+
+  log("Tablero de tareas listo", {
+    tareas: State.tasks.length,
+    empleados: State.empleadosIndex.size,
+    departamentos: State.departamentosIndex.size,
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  init().catch((e) => console.error("[KB] init error:", e));
 });

@@ -254,7 +254,7 @@
                     <!-- En pausa = status 5 -->
                     <section class="kb-col" data-status="5" aria-labelledby="kb-h-5">
                         <header class="kb-header" id="kb-h-5">
-                            <h3>En pausa</h3>
+                            <h3>Bloqueado</h3>
                             <span class="kb-count" id="kb-cnt-5">(0)</span>
                         </header>
                         <div class="kb-list" id="kb-col-5" aria-describedby="kb-h-5"></div>
