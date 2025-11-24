@@ -1,4 +1,4 @@
-// /JS/tareas.js – Tablero de tareas (kanban) listo para API real
+// /JS/tareas.js – Tablero de tareas (kanban) con API real
 "use strict";
 
 /* ==========================================================================
@@ -41,6 +41,10 @@ const API_TAREAS = {
 
 const API_DEPTS = {
   LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_departamento.php`,
+};
+
+const API_PROCESOS = {
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_proceso_requerimiento.php`,
 };
 
 const log = (...a) => KB.DEBUG && console.log("[KB]", ...a);
@@ -127,6 +131,7 @@ const State = {
   // Para filtros de combos
   empleadosIndex: new Map(), // id_empleado → empleado normalizado
   departamentosIndex: new Map(), // id_depto → { id, nombre }
+  procesosIndex: new Map(), // id_proceso → { id, descripcion, requerimiento_id }
 };
 
 const COL_IDS = {
@@ -203,7 +208,11 @@ function mapRawTask(raw) {
     titulo: raw.titulo || raw.titulo_tarea || "Tarea sin título",
     descripcion: raw.descripcion || raw.detalle || "",
     esfuerzo:
-      raw.esfuerzo != null ? Number(raw.esfuerzo) : raw.horas != null ? Number(raw.horas) : null,
+      raw.esfuerzo != null
+        ? Number(raw.esfuerzo)
+        : raw.horas != null
+        ? Number(raw.horas)
+        : null,
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
     status,
@@ -217,14 +226,13 @@ function mapRawTask(raw) {
 }
 
 /* ==========================================================================
-   Fetch de datos reales (TAREAS, EMPLEADOS, DEPARTAMENTOS)
+   Fetch de datos reales (TAREAS, EMPLEADOS, DEPARTAMENTOS, PROCESOS)
    ========================================================================== */
 
 async function fetchTareasFromApi() {
-  // Payload base para listar tareas (ajustable en backend)
   const payload = {
     // status: null,                  // opcional: todos los estatus
-    // asignado_a: KB.CURRENT_USER_ID // opcional: solo mías
+    // asignado_a: KB.CURRENT_USER_ID // opcional
     page: 1,
     page_size: 200,
   };
@@ -232,6 +240,8 @@ async function fetchTareasFromApi() {
   try {
     log("TAREAS LIST →", API_TAREAS.LIST, payload);
     const json = await postJSON(API_TAREAS.LIST, payload);
+    log("TAREAS LIST respuesta cruda:", json);
+
     if (!json || !Array.isArray(json.data)) {
       warn("Respuesta inesperada de TAREAS LIST", json);
       return [];
@@ -248,22 +258,27 @@ async function fetchTareasFromApi() {
 async function fetchDepartamentos() {
   try {
     const payload = {
-      status: 1,
+      // usamos "all: true" para traer también status 0 (ej. Presidencia)
+      all: true,
+      // si en un futuro quieres paginar:
       page: 1,
       page_size: 100,
     };
     log("DEPTS LIST →", API_DEPTS.LIST, payload);
     const json = await postJSON(API_DEPTS.LIST, payload);
+    log("DEPTS LIST respuesta cruda:", json);
+
     if (!json || !Array.isArray(json.data)) {
       warn("Respuesta inesperada DEPTS LIST", json);
       return [];
     }
-    const list = json.data.map((d) => ({
+    const out = json.data.map((d) => ({
       id: Number(d.id),
       nombre: d.nombre || `Depto ${d.id}`,
+      status: d.status != null ? Number(d.status) : null,
     }));
-    log("Departamentos mapeados:", list.length, list);
-    return list;
+    log("Departamentos normalizados:", out.length, out);
+    return out;
   } catch (e) {
     console.error("[KB] Error al listar departamentos:", e);
     return [];
@@ -273,17 +288,53 @@ async function fetchDepartamentos() {
 async function fetchEmpleadosForFilters() {
   try {
     // Traemos empleados activos con cuenta activa
-    const res = await searchEmpleados({
+    const payload = {
       status_empleado: 1,
       status_cuenta: 1,
       page: 1,
       page_size: 500,
-    });
+    };
+    log("[Empleados] payload búsqueda:", payload);
+    const res = await searchEmpleados(payload);
     const data = Array.isArray(res?.data) ? res.data : [];
     log("Empleados para filtros:", data.length, data);
     return data;
   } catch (e) {
     console.error("[KB] Error al buscar empleados:", e);
+    return [];
+  }
+}
+
+async function fetchProcesosCatalog() {
+  try {
+    const payload = {
+      status: 1,
+      page: 1,
+      page_size: 200,
+      // OJO: el endpoint no respeta bien "id", así que traemos lote
+      // y luego filtramos por id en el cliente.
+    };
+    log("PROCESOS LIST →", API_PROCESOS.LIST, payload);
+    const json = await postJSON(API_PROCESOS.LIST, payload);
+    log("PROCESOS LIST respuesta cruda:", json);
+
+    if (!json || !Array.isArray(json.data)) {
+      warn("Respuesta inesperada PROCESOS LIST", json);
+      return [];
+    }
+
+    const out = json.data.map((p) => ({
+      id: Number(p.id),
+      descripcion: p.descripcion || "",
+      requerimiento_id:
+        p.requerimiento_id != null ? Number(p.requerimiento_id) : null,
+      status: p.status != null ? Number(p.status) : null,
+    }));
+
+    log("Procesos normalizados:", out.length, out);
+    return out;
+  } catch (e) {
+    console.error("[KB] Error al listar procesos:", e);
     return [];
   }
 }
@@ -500,7 +551,7 @@ function createCard(task) {
   const main = document.createElement("div");
   main.className = "kb-task-main";
 
-  // Título: {proceso} / {id}
+  // Título: {proceso} / T-{id}
   const titleLine = document.createElement("div");
   titleLine.className = "kb-task-title-line";
 
@@ -545,7 +596,9 @@ function createCard(task) {
     const chip = document.createElement("div");
     chip.className = `kb-age-chip kb-age-${age.classIndex}`;
     chip.textContent = String(age.display);
-    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"} en proceso`;
+    chip.title = `${age.realDays} día${
+      age.realDays === 1 ? "" : "s"
+    } en proceso`;
     art.appendChild(chip);
   }
 
@@ -633,8 +686,6 @@ function openDetails(id) {
   if (!task) return;
   State.selectedId = task.id;
 
-  log("Abrir detalle de tarea:", task);
-
   fillDetails(task);
   highlightSelected();
 
@@ -672,7 +723,6 @@ function setupToolbar() {
     chipMine.addEventListener("click", () => {
       State.filters.mine = !State.filters.mine;
       chipMine.classList.toggle("is-active", State.filters.mine);
-      log("Filtro 'Solo mis tareas' →", State.filters.mine);
       renderBoard();
     });
   }
@@ -681,14 +731,12 @@ function setupToolbar() {
     chipRecent.addEventListener("click", () => {
       chipRecent.classList.toggle("is-active");
       // Por ahora recientes no aplica lógica extra
-      log("Filtro 'Recientes' toggled:", chipRecent.classList.contains("is-active"));
     });
   }
 
   if (inputSearch) {
     inputSearch.addEventListener("input", () => {
       State.filters.search = inputSearch.value || "";
-      log("Filtro search →", State.filters.search);
       renderBoard();
     });
   }
@@ -700,7 +748,6 @@ function setupToolbar() {
       if (chipMine) chipMine.classList.remove("is-active");
       if (chipRecent) chipRecent.classList.remove("is-active");
       if (inputSearch) inputSearch.value = "";
-      log("Filtros rápidos limpiados");
       renderBoard();
     });
   }
@@ -715,38 +762,13 @@ async function persistTaskStatus(task, newStatus) {
     id: task.id,
     status: newStatus,
   };
-  const url = API_TAREAS.UPDATE;
 
   try {
-    log("TAREA UPDATE status →", url, payload);
-    const res = await fetch(url, {
-      method: "PUT", // ← el backend pide PUT o PATCH
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    let data = null;
-    try {
-      data = await res.json();
-    } catch (_) {
-      // puede no regresar JSON; lo ignoramos
-    }
-
-    log("Respuesta UPDATE tarea:", {
-      httpStatus: res.status,
-      ok: res.ok,
-      data,
-    });
-
-    if (!res.ok || (data && data.ok === false)) {
-      console.error("[KB] Error en respuesta UPDATE tarea:", data);
-      // Aquí podríamos revertir el status en memoria si lo necesitas
-    }
+    log("TAREA UPDATE status →", API_TAREAS.UPDATE, payload);
+    const res = await postJSON(API_TAREAS.UPDATE, payload);
+    log("Respuesta UPDATE tarea:", res);
   } catch (e) {
     console.error("[KB] Error al actualizar status de tarea:", e);
-    // Igual, podríamos revertir el status si hace falta
   }
 }
 
@@ -781,10 +803,7 @@ function setupDragAndDrop() {
         const newStatus = Number(col.dataset.status);
         if (!newStatus || newStatus === task.status) return;
 
-        const oldStatus = task.status;
         task.status = newStatus;
-        log("DragEnd → tarea", task.id, "de", oldStatus, "a", newStatus);
-
         renderBoard();
         if (State.selectedId === task.id) {
           highlightSelected();
@@ -811,10 +830,12 @@ async function init() {
     console.error("[KB] Error leyendo Session.getIds():", e);
   }
 
-  // 2) Empleados y departamentos para filtros (en paralelo)
-  const [empleados, depts] = await Promise.all([
+  // 2) Empleados, departamentos, procesos y tareas en paralelo
+  const [empleados, depts, procesos, tareas] = await Promise.all([
     fetchEmpleadosForFilters(),
     fetchDepartamentos(),
+    fetchProcesosCatalog(),
+    fetchTareasFromApi(),
   ]);
 
   // Index de empleados
@@ -823,21 +844,53 @@ async function init() {
       State.empleadosIndex.set(emp.id, emp);
     }
   });
-  log("Index empleados cargado:", State.empleadosIndex.size);
+  log("Index empleados:", State.empleadosIndex);
 
-  // Index de departamentos (si vienen de la API)
+  // Index de departamentos
   depts.forEach((d) => {
     if (d?.id != null) {
       State.departamentosIndex.set(d.id, d);
     }
   });
-  log("Index departamentos cargado:", State.departamentosIndex.size);
+  log("Index departamentos:", State.departamentosIndex);
 
-  // 3) TAREAS desde API real
-  State.tasks = await fetchTareasFromApi();
-  log("State.tasks inicial:", State.tasks);
+  // Index de procesos
+  procesos.forEach((p) => {
+    if (p?.id != null) {
+      State.procesosIndex.set(p.id, p);
+    }
+  });
+  log("Index procesos:", State.procesosIndex);
 
-  // Construir opciones de combos en base a tareas cargadas
+  // 3) Enriquecer tareas con descripción de proceso
+  const tareasEnriquecidas = tareas.map((t) => {
+    if (t.proceso_id == null) return t;
+    const proc = State.procesosIndex.get(t.proceso_id);
+    if (!proc) return t;
+
+    const tituloProc =
+      proc.descripcion && proc.descripcion.trim().length
+        ? proc.descripcion.trim()
+        : t.proceso_titulo;
+
+    const merged = {
+      ...t,
+      proceso_titulo: tituloProc,
+    };
+
+    log(
+      "Tarea enriquecida con proceso:",
+      { tarea_id: t.id, proceso_id: t.proceso_id },
+      { antes: t.proceso_titulo, despues: merged.proceso_titulo }
+    );
+
+    return merged;
+  });
+
+  State.tasks = tareasEnriquecidas;
+  log("TAREAS finales en state:", State.tasks.length, State.tasks);
+
+  // 4) Construir opciones de combos en base a tareas cargadas
   const deptIdsSet = new Set();
   const empIdsSet = new Set();
 
@@ -851,7 +904,10 @@ async function init() {
     }
   }
 
-  // Opciones de Departamentos
+  log("DeptIds en tareas:", Array.from(deptIdsSet));
+  log("EmpIds en tareas:", Array.from(empIdsSet));
+
+  // Opciones de Departamentos (solo los que aparecen en tareas)
   const deptOptions = Array.from(deptIdsSet).map((id) => {
     const dep = State.departamentosIndex.get(id);
     const label = dep ? dep.nombre : `Depto ${id}`;
@@ -867,7 +923,7 @@ async function init() {
   });
   log("Opciones filtro Empleados:", empOptions);
 
-  // 4) Instanciar combos multi
+  // 5) Instanciar combos multi
   setupSidebarFilters();
 
   const fieldDept = $("#kb-filter-departamentos");
@@ -879,7 +935,7 @@ async function init() {
     createMultiFilter(fieldEmp, "empleados", empOptions);
   }
 
-  // 5) Toolbar, board, drag & drop, drawer
+  // 6) Toolbar, board, drag & drop, drawer
   setupToolbar();
   renderBoard();
   setupDragAndDrop();
@@ -893,6 +949,7 @@ async function init() {
     tareas: State.tasks.length,
     empleados: State.empleadosIndex.size,
     departamentos: State.departamentosIndex.size,
+    procesos: State.procesosIndex.size,
   });
 }
 
