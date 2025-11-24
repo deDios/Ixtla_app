@@ -1,4 +1,4 @@
-// /JS/tareas.js – Tablero de tareas (kanban) con API real
+// /JS/tareas.js – Tablero de tareas (kanban) con API real + jerarquías
 "use strict";
 
 /* ==========================================================================
@@ -28,12 +28,21 @@ const KB = {
   },
 };
 
-// Fallback de endpoints (mismo host que en Planeación)
+// Departamentos especiales
+const PRES_DEPT_IDS = [6]; // Presidencia (no mostrar en filtro)
+
+/** Info del usuario actual (viewer) */
+const Viewer = {
+  deptId: null,
+  roles: [],
+  isAdmin: false,
+  isPres: false,
+};
+
 const API_FBK = {
   HOST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net",
 };
 
-// Endpoints específicos que nos interesan aquí
 const API_TAREAS = {
   LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tarea_proceso.php`,
   UPDATE: `${API_FBK.HOST}/db/WEB/ixtla01_u_tarea_proceso.php`,
@@ -78,34 +87,21 @@ function diffDays(startStr) {
   return days < 0 ? 0 : days;
 }
 
-/**
- * Calcula el “chip” de edad en días:
- * - realDays: días exactos transcurridos
- * - classIndex: 1–9 = paleta, 10 = rojo (10+ días)
- * - display: "0".."99" o "99+"
- */
 function calcAgeChip(task) {
   const base = task.fecha_inicio || task.created_at;
-  const d = diffDays(base); // 0,1,2,...
+  const d = diffDays(base);
   if (d == null) return null;
 
   const realDays = d < 0 ? 0 : d;
 
   let paletteIndex;
-  if (realDays >= 10) {
-    paletteIndex = 10; // 10+ días → rojo pastel permanente
-  } else if (realDays === 0) {
-    paletteIndex = 1; // hoy → primer color
-  } else {
-    paletteIndex = realDays; // 1..9 días
-  }
+  if (realDays >= 10) paletteIndex = 10;
+  else if (realDays === 0) paletteIndex = 1;
+  else paletteIndex = realDays;
 
   let display;
-  if (realDays >= 100) {
-    display = "99+";
-  } else {
-    display = String(Math.min(realDays, 99));
-  }
+  if (realDays >= 100) display = "99+";
+  else display = String(Math.min(realDays, 99));
 
   return {
     classIndex: paletteIndex,
@@ -122,16 +118,15 @@ const State = {
   tasks: [],
   selectedId: null,
   filters: {
-    mine: true, // "Solo mis tareas" por defecto
+    mine: true,
     search: "",
-    departamentos: new Set(), // ids de departamento
-    empleados: new Set(), // ids de empleado
+    departamentos: new Set(), // ids
+    empleados: new Set(), // ids
   },
 
-  // Para filtros de combos
-  empleadosIndex: new Map(), // id_empleado → empleado normalizado
-  departamentosIndex: new Map(), // id_depto → { id, nombre }
-  procesosIndex: new Map(), // id_proceso → { id, descripcion, requerimiento_id }
+  empleadosIndex: new Map(), // id_empleado → empleado
+  departamentosIndex: new Map(), // id_depto → depto
+  procesosIndex: new Map(), // id_proceso → proceso
 };
 
 const COL_IDS = {
@@ -152,7 +147,6 @@ const CNT_IDS = {
 
 let dragging = false;
 
-// Referencias a los combos multi (para limpiar UI)
 const MultiFilters = {
   departamentos: null,
   empleados: null,
@@ -226,13 +220,11 @@ function mapRawTask(raw) {
 }
 
 /* ==========================================================================
-   Fetch de datos reales (TAREAS, EMPLEADOS, DEPARTAMENTOS, PROCESOS)
+   Fetch de datos (TAREAS, EMPLEADOS, DEPARTAMENTOS, PROCESOS)
    ========================================================================== */
 
 async function fetchTareasFromApi() {
   const payload = {
-    // status: null,                  // opcional: todos los estatus
-    // asignado_a: KB.CURRENT_USER_ID // opcional
     page: 1,
     page_size: 200,
   };
@@ -258,9 +250,7 @@ async function fetchTareasFromApi() {
 async function fetchDepartamentos() {
   try {
     const payload = {
-      // usamos "all: true" para traer también status 0 (ej. Presidencia)
-      all: true,
-      // si en un futuro quieres paginar:
+      all: true, // todos los deptos, incluso status 0 (Presidencia)
       page: 1,
       page_size: 100,
     };
@@ -298,9 +288,10 @@ async function fetchEmpleadosForFilters() {
     const res = await searchEmpleados(payload);
     log("[Empleados] respuesta searchEmpleados:", res);
 
+    // IMPORTANTE: searchEmpleados devuelve {items, total, ...}
     const data = Array.isArray(res?.items) ? res.items : [];
 
-    log("Empleados para filtros:", data.length, data);
+    log("Empleados para filtros (sin jerarquía aún):", data.length, data);
     return data;
   } catch (e) {
     console.error("[KB] Error al buscar empleados:", e);
@@ -308,15 +299,12 @@ async function fetchEmpleadosForFilters() {
   }
 }
 
-
 async function fetchProcesosCatalog() {
   try {
     const payload = {
       status: 1,
       page: 1,
       page_size: 200,
-      // OJO: el endpoint no respeta bien "id", así que traemos lote
-      // y luego filtramos por id en el cliente.
     };
     log("PROCESOS LIST →", API_PROCESOS.LIST, payload);
     const json = await postJSON(API_PROCESOS.LIST, payload);
@@ -348,7 +336,6 @@ async function fetchProcesosCatalog() {
    ========================================================================== */
 
 function passesFilters(task) {
-  // Solo mis tareas
   if (
     State.filters.mine &&
     KB.CURRENT_USER_ID != null &&
@@ -357,7 +344,6 @@ function passesFilters(task) {
     return false;
   }
 
-  // Buscar por folio, proceso o id
   const q = State.filters.search.trim().toLowerCase();
   if (q) {
     const hay =
@@ -367,14 +353,12 @@ function passesFilters(task) {
     if (!hay) return false;
   }
 
-  // Filtro por empleados
   if (State.filters.empleados.size) {
     if (!task.asignado_a || !State.filters.empleados.has(task.asignado_a)) {
       return false;
     }
   }
 
-  // Filtro por departamentos (desde empleadosIndex)
   if (State.filters.departamentos.size) {
     const emp = State.empleadosIndex.get(task.asignado_a);
     const deptId = emp?.departamento_id || null;
@@ -387,7 +371,7 @@ function passesFilters(task) {
 }
 
 /* --------------------------------------------------------------------------
-   Multi select (Departamentos / Empleados) tipo Jira
+   Multi select (Departamentos / Empleados)
    -------------------------------------------------------------------------- */
 
 function createMultiFilter(fieldEl, key, options) {
@@ -448,7 +432,6 @@ function createMultiFilter(fieldEl, key, options) {
       stateSet.add(value);
     }
 
-    // Actualizar UI de opciones
     if (list) {
       const li = list.querySelector(`.kb-multi-option[data-value="${value}"]`);
       if (li) li.classList.toggle("is-selected", stateSet.has(value));
@@ -512,7 +495,6 @@ function createMultiFilter(fieldEl, key, options) {
     }
   });
 
-  // Inicializar
   renderOptions();
   updateSummary();
 
@@ -555,7 +537,6 @@ function createCard(task) {
   const main = document.createElement("div");
   main.className = "kb-task-main";
 
-  // Título: {proceso} / T-{id}
   const titleLine = document.createElement("div");
   titleLine.className = "kb-task-title-line";
 
@@ -573,7 +554,6 @@ function createCard(task) {
 
   titleLine.append(spProceso, spSep, spId);
 
-  // Líneas de detalle
   const lines = document.createElement("div");
   lines.className = "kb-task-lines";
 
@@ -595,7 +575,6 @@ function createCard(task) {
   main.append(titleLine, lines);
   art.appendChild(main);
 
-  // Contador de días (no en HECHO)
   if (task.status !== KB.STATUS.HECHO && age) {
     const chip = document.createElement("div");
     chip.className = `kb-age-chip kb-age-${age.classIndex}`;
@@ -615,7 +594,6 @@ function createCard(task) {
 }
 
 function renderBoard() {
-  // Limpiar columnas y contadores
   Object.values(COL_IDS).forEach((sel) => {
     const col = $(sel);
     if (col) col.innerHTML = "";
@@ -647,7 +625,7 @@ function renderBoard() {
 }
 
 /* ==========================================================================
-   Drawer de detalle
+   Drawer
    ========================================================================== */
 
 function getTaskById(id) {
@@ -673,7 +651,6 @@ function fillDetails(task) {
   $("#kb-d-creado-por").textContent = task.created_by_nombre || "—";
   $("#kb-d-autoriza").textContent = task.autoriza_nombre || "—";
 
-  // Evidencias demo: solo placeholders
   const evidWrap = $("#kb-d-evidencias");
   if (evidWrap) {
     evidWrap.innerHTML = "";
@@ -713,7 +690,7 @@ function closeDetails() {
 }
 
 /* ==========================================================================
-   Filtros rápidos (toolbar)
+   Toolbar
    ========================================================================== */
 
 function setupToolbar() {
@@ -727,6 +704,7 @@ function setupToolbar() {
     chipMine.addEventListener("click", () => {
       State.filters.mine = !State.filters.mine;
       chipMine.classList.toggle("is-active", State.filters.mine);
+      log("Filtro 'Solo mis tareas' →", State.filters.mine);
       renderBoard();
     });
   }
@@ -734,13 +712,14 @@ function setupToolbar() {
   if (chipRecent) {
     chipRecent.addEventListener("click", () => {
       chipRecent.classList.toggle("is-active");
-      // Por ahora recientes no aplica lógica extra
+      log("Filtro 'Recientes' toggled:", chipRecent.classList.contains("is-active"));
     });
   }
 
   if (inputSearch) {
     inputSearch.addEventListener("input", () => {
       State.filters.search = inputSearch.value || "";
+      log("Filtro search →", State.filters.search);
       renderBoard();
     });
   }
@@ -752,13 +731,14 @@ function setupToolbar() {
       if (chipMine) chipMine.classList.remove("is-active");
       if (chipRecent) chipRecent.classList.remove("is-active");
       if (inputSearch) inputSearch.value = "";
+      log("Filtros rápidos limpiados");
       renderBoard();
     });
   }
 }
 
 /* ==========================================================================
-   Drag & drop (Sortable)
+   Drag & drop
    ========================================================================== */
 
 async function persistTaskStatus(task, newStatus) {
@@ -807,13 +787,15 @@ function setupDragAndDrop() {
         const newStatus = Number(col.dataset.status);
         if (!newStatus || newStatus === task.status) return;
 
+        const oldStatus = task.status;
         task.status = newStatus;
+        log("DragEnd → tarea", task.id, "de", oldStatus, "a", newStatus);
+
         renderBoard();
         if (State.selectedId === task.id) {
           highlightSelected();
         }
 
-        // Persistencia en backend
         await persistTaskStatus(task, newStatus);
       },
     });
@@ -824,17 +806,53 @@ function setupDragAndDrop() {
    Init
    ========================================================================== */
 
-async function init() {
-  // 1) Session → empleado actual
+function hydrateViewerFromSession() {
   try {
     const ids = Session?.getIds ? Session.getIds() : null;
     KB.CURRENT_USER_ID = ids?.id_empleado || null;
-    log("Session ids:", ids, "CURRENT_USER_ID:", KB.CURRENT_USER_ID);
+    log("Session.getIds():", ids, "CURRENT_USER_ID:", KB.CURRENT_USER_ID);
   } catch (e) {
     console.error("[KB] Error leyendo Session.getIds():", e);
   }
 
-  // 2) Empleados, departamentos, procesos y tareas en paralelo
+  let full = null;
+  try {
+    full = Session?.get ? Session.get() : null;
+  } catch (e) {
+    console.warn("[KB] Session.get() no disponible o falló:", e);
+  }
+  log("Session.get() completo:", full);
+
+  const deptId =
+    full?.empleado?.departamento_id ??
+    full?.departamento_id ??
+    null;
+
+  const rolesRaw = full?.roles ?? full?.user?.roles ?? [];
+  const roles = Array.isArray(rolesRaw)
+    ? rolesRaw
+    : String(rolesRaw || "")
+        .split(/[,\s]+/)
+        .map((r) => r.trim())
+        .filter(Boolean);
+
+  Viewer.deptId = deptId != null ? Number(deptId) : null;
+  Viewer.roles = roles;
+  Viewer.isAdmin = roles.includes("ADMIN");
+  Viewer.isPres =
+    Viewer.deptId != null && PRES_DEPT_IDS.includes(Viewer.deptId);
+
+  log("Viewer info:", {
+    deptId: Viewer.deptId,
+    roles: Viewer.roles,
+    isAdmin: Viewer.isAdmin,
+    isPres: Viewer.isPres,
+  });
+}
+
+async function init() {
+  hydrateViewerFromSession();
+
   const [empleados, depts, procesos, tareas] = await Promise.all([
     fetchEmpleadosForFilters(),
     fetchDepartamentos(),
@@ -842,15 +860,15 @@ async function init() {
     fetchTareasFromApi(),
   ]);
 
-  // Index de empleados
+  // Index empleados (para depto de tareas)
   empleados.forEach((emp) => {
     if (emp?.id != null) {
       State.empleadosIndex.set(emp.id, emp);
     }
   });
-  log("Index empleados:", State.empleadosIndex);
+  log("Index empleados (global):", State.empleadosIndex);
 
-  // Index de departamentos
+  // Index departamentos
   depts.forEach((d) => {
     if (d?.id != null) {
       State.departamentosIndex.set(d.id, d);
@@ -858,7 +876,7 @@ async function init() {
   });
   log("Index departamentos:", State.departamentosIndex);
 
-  // Index de procesos
+  // Index procesos
   procesos.forEach((p) => {
     if (p?.id != null) {
       State.procesosIndex.set(p.id, p);
@@ -866,7 +884,7 @@ async function init() {
   });
   log("Index procesos:", State.procesosIndex);
 
-  // 3) Enriquecer tareas con descripción de proceso
+  // Enriquecer tareas con descripción de proceso
   const tareasEnriquecidas = tareas.map((t) => {
     if (t.proceso_id == null) return t;
     const proc = State.procesosIndex.get(t.proceso_id);
@@ -894,40 +912,74 @@ async function init() {
   State.tasks = tareasEnriquecidas;
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
 
-  // 4) Construir opciones de combos en base a tareas cargadas
-  const deptIdsSet = new Set();
-  const empIdsSet = new Set();
+  // ==========================
+  //   JERARQUÍAS / FILTROS
+  // ==========================
 
-  for (const t of State.tasks) {
-    if (t.asignado_a != null) {
-      empIdsSet.add(t.asignado_a);
-      const emp = State.empleadosIndex.get(t.asignado_a);
-      if (emp?.departamento_id != null) {
-        deptIdsSet.add(emp.departamento_id);
-      }
-    }
+  // a) Departamentos permitidos para el usuario
+  const allowedDeptIds = new Set();
+
+  if (Viewer.isAdmin || Viewer.isPres) {
+    // Puede ver todos los departamentos
+    depts.forEach((d) => {
+      if (d?.id != null) allowedDeptIds.add(d.id);
+    });
+  } else if (Viewer.deptId != null) {
+    allowedDeptIds.add(Viewer.deptId);
   }
 
-  log("DeptIds en tareas:", Array.from(deptIdsSet));
-  log("EmpIds en tareas:", Array.from(empIdsSet));
+  // Quitar Presidencia del combo de departamentos
+  PRES_DEPT_IDS.forEach((id) => allowedDeptIds.delete(id));
 
-  // Opciones de Departamentos (solo los que aparecen en tareas)
-  const deptOptions = Array.from(deptIdsSet).map((id) => {
+  log(
+    "allowedDeptIds para filtros (sin Presidencia):",
+    Array.from(allowedDeptIds)
+  );
+
+  // b) Empleados visibles según jerarquía
+  let empleadosForFilter = [];
+
+  if (Viewer.isAdmin || Viewer.isPres) {
+    empleadosForFilter = empleados;
+  } else if (Viewer.deptId != null) {
+    empleadosForFilter = empleados.filter(
+      (e) => Number(e.departamento_id) === Viewer.deptId
+    );
+  } else {
+    empleadosForFilter = empleados;
+  }
+
+  log(
+    "Empleados visibles para combo (tras jerarquía):",
+    empleadosForFilter.length,
+    empleadosForFilter
+  );
+
+  // c) Opciones de Departamentos (todas las permitidas)
+  const deptOptions = Array.from(allowedDeptIds).map((id) => {
     const dep = State.departamentosIndex.get(id);
     const label = dep ? dep.nombre : `Depto ${id}`;
     return { value: id, label };
   });
   log("Opciones filtro Departamentos:", deptOptions);
 
-  // Opciones de Empleados
-  const empOptions = Array.from(empIdsSet).map((id) => {
-    const emp = State.empleadosIndex.get(id);
-    const label = emp ? emp.nombre_completo : `Empleado ${id}`;
-    return { value: id, label };
+  // d) Opciones de Empleados
+  const empOptions = empleadosForFilter.map((emp) => {
+    const label =
+      emp.nombre_completo ||
+      [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
+      `Empleado ${emp.id}`;
+    return {
+      value: emp.id,
+      label,
+    };
   });
   log("Opciones filtro Empleados:", empOptions);
 
-  // 5) Instanciar combos multi
+  // ==========================
+  //   UI
+  // ==========================
+
   setupSidebarFilters();
 
   const fieldDept = $("#kb-filter-departamentos");
@@ -939,7 +991,6 @@ async function init() {
     createMultiFilter(fieldEmp, "empleados", empOptions);
   }
 
-  // 6) Toolbar, board, drag & drop, drawer
   setupToolbar();
   renderBoard();
   setupDragAndDrop();
