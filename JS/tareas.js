@@ -287,7 +287,6 @@ async function fetchDepartamentos() {
 
 async function fetchEmpleadosForFilters() {
   try {
-    // Traemos empleados activos con cuenta activa
     const payload = {
       status_empleado: 1,
       status_cuenta: 1,
@@ -295,8 +294,12 @@ async function fetchEmpleadosForFilters() {
       page_size: 500,
     };
     log("[Empleados] payload búsqueda:", payload);
+
     const res = await searchEmpleados(payload);
-    const data = Array.isArray(res?.data) ? res.data : [];
+    log("[Empleados] respuesta searchEmpleados:", res);
+
+    const data = Array.isArray(res?.items) ? res.items : [];
+
     log("Empleados para filtros:", data.length, data);
     return data;
   } catch (e) {
@@ -304,6 +307,7 @@ async function fetchEmpleadosForFilters() {
     return [];
   }
 }
+
 
 async function fetchProcesosCatalog() {
   try {
