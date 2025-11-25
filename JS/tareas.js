@@ -1,4 +1,4 @@
-// /JS/tareas.js – Tablero de tareas (kanban) con API real
+// /JS/tareas.js – Tablero de tareas (kanban) con API real + jerarquías
 "use strict";
 
 /* ==========================================================================
@@ -16,6 +16,7 @@ import { searchEmpleados } from "./api/usuarios.js";
 const KB = {
   DEBUG: true,
 
+  // Se sobreescribe con el empleado logueado (Session.getIds())
   CURRENT_USER_ID: null,
 
   STATUS: {
@@ -38,27 +39,26 @@ const Viewer = {
   isPres: false,
 };
 
-// Host base
-const API_HOST =
-  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
+const API_FBK = {
+  HOST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net",
+};
 
 const API_TAREAS = {
-  LIST: `${API_HOST}/db/WEB/ixtla01_c_tarea_proceso.php`,
-  UPDATE: `${API_HOST}/db/WEB/ixtla01_u_tarea_proceso.php`,
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tarea_proceso.php`,
+  UPDATE: `${API_FBK.HOST}/db/WEB/ixtla01_u_tarea_proceso.php`,
 };
 
 const API_DEPTS = {
-  LIST: `${API_HOST}/db/WEB/ixtla01_c_departamento.php`,
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_departamento.php`,
 };
 
 const API_PROCESOS = {
-  LIST: `${API_HOST}/db/WEB/ixtla01_c_proceso_requerimiento.php`,
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_proceso_requerimiento.php`,
 };
 
 const API_TRAMITES = {
-  LIST: `${API_HOST}/DB/WEB/ixtla01_c_tramite.php`,
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tramite.php`,
 };
-
 
 const log = (...a) => KB.DEBUG && console.log("[KB]", ...a);
 const warn = (...a) => KB.DEBUG && console.warn("[KB]", ...a);
@@ -106,37 +106,6 @@ function diffDays(startStr) {
   return days < 0 ? 0 : days;
 }
 
-function parseDateSafe(str) {
-  if (!str) return null;
-  const d = new Date(String(str).replace(" ", "T"));
-  if (Number.isNaN(d.getTime())) return null;
-  return d;
-}
-
-/**
- * Devuelve true si la fecha está dentro de la semana actual
- * (lunes 00:00 a lunes siguiente 00:00).
- */
-function isInCurrentWeek(dateStr) {
-  const d = parseDateSafe(dateStr);
-  if (!d) return false;
-
-  const now = new Date();
-
-  // 0=domingo, 1=lunes, ...
-  const nowDay = now.getDay();
-  const diffToMonday = nowDay === 0 ? -6 : 1 - nowDay;
-
-  const monday = new Date(now);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(now.getDate() + diffToMonday);
-
-  const nextMonday = new Date(monday);
-  nextMonday.setDate(monday.getDate() + 7);
-
-  return d >= monday && d < nextMonday;
-}
-
 function calcAgeChip(task) {
   const base = task.fecha_inicio || task.created_at;
   const d = diffDays(base);
@@ -168,15 +137,18 @@ const State = {
   tasks: [],
   selectedId: null,
   filters: {
-    mine: true,      // "Solo mis tareas"
+    mine: true,
     search: "",
-    departamentos: new Set(), // ids
-    empleados: new Set(), // ids
+    departamentos: new Set(), // ids de departamento
+    empleados: new Set(), // ids de empleado
+    procesos: new Set(), // ids de proceso
+    tramites: new Set(), // ids de trámite
   },
 
-  empleadosIndex: new Map(), // id_empleado → empleado
+  empleadosIndex: new Map(),     // id_empleado → empleado
   departamentosIndex: new Map(), // id_depto → depto
-  procesosIndex: new Map(), // id_proceso → proceso
+  procesosIndex: new Map(),      // id_proceso → proceso
+  tramitesIndex: new Map(),      // id_tramite → trámite
 };
 
 const COL_IDS = {
@@ -210,7 +182,6 @@ const MultiFilters = {
 
 function mapRawTask(raw) {
   const id = Number(raw.id);
-
   const status =
     raw.status != null
       ? Number(raw.status)
@@ -220,16 +191,6 @@ function mapRawTask(raw) {
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
-
-  // 👇 aquí intento cubrir posibles nombres de campo para trámite
-  const tramite_id =
-    raw.tramite_id != null
-      ? Number(raw.tramite_id)
-      : raw.tramite != null
-      ? Number(raw.tramite)
-      : raw.tramiteId != null
-      ? Number(raw.tramiteId)
-      : null;
 
   const asignado_a =
     raw.asignado_a != null
@@ -261,11 +222,10 @@ function mapRawTask(raw) {
     raw.proceso_nombre ||
     (proceso_id ? `Proceso ${proceso_id}` : "Proceso");
 
-  const tramite_nombre = raw.tramite_nombre || null;
-
   return {
     id,
     proceso_id,
+    requerimiento_id,
     asignado_a,
     asignado_display,
     titulo: raw.titulo || raw.titulo_tarea || "Tarea sin título",
@@ -405,6 +365,38 @@ async function fetchProcesosCatalog() {
   }
 }
 
+async function fetchTramitesCatalog() {
+  try {
+    const payload = {
+      estatus: 1,
+      all: true,
+    };
+    log("TRÁMITES LIST →", API_TRAMITES.LIST, payload);
+    const json = await postJSON(API_TRAMITES.LIST, payload);
+    log("TRÁMITES LIST respuesta cruda:", json);
+
+    if (!json || !Array.isArray(json.data)) {
+      warn("Respuesta inesperada TRÁMITES LIST", json);
+      return [];
+    }
+
+    const out = json.data.map((t) => ({
+      id: Number(t.id),
+      departamento_id:
+        t.departamento_id != null ? Number(t.departamento_id) : null,
+      nombre: t.nombre || `Trámite ${t.id}`,
+      descripcion: t.descripcion || "",
+      estatus: t.estatus != null ? Number(t.estatus) : null,
+    }));
+
+    log("Trámites normalizados:", out.length, out);
+    return out;
+  } catch (e) {
+    console.error("[KB] Error al listar trámites:", e);
+    return [];
+  }
+}
+
 /* ==========================================================================
    Filtros / combos
    ========================================================================== */
@@ -419,6 +411,7 @@ function passesFilters(task) {
     return false;
   }
 
+  // Search
   const q = State.filters.search.trim().toLowerCase();
   if (q) {
     const hay =
@@ -429,12 +422,14 @@ function passesFilters(task) {
     if (!hay) return false;
   }
 
+  // Empleados
   if (State.filters.empleados.size) {
     if (!task.asignado_a || !State.filters.empleados.has(task.asignado_a)) {
       return false;
     }
   }
 
+  // Departamentos (a través del empleado asignado)
   if (State.filters.departamentos.size) {
     const emp = State.empleadosIndex.get(task.asignado_a);
     const deptId = emp?.departamento_id || null;
@@ -475,7 +470,8 @@ function createMultiFilter(fieldEl, key, options) {
   const list = fieldEl.querySelector(".kb-multi-options");
 
   const stateSet =
-    State.filters[key] || (State.filters[key] = new Set());
+    State.filters[key] ||
+    (State.filters[key] = new Set());
 
   function renderOptions() {
     if (!list) return;
@@ -508,9 +504,7 @@ function createMultiFilter(fieldEl, key, options) {
         if (selected.length === 1) {
           summaryEl.textContent = selected[0].label;
         } else {
-          summaryEl.textContent = `${selected[0].label} +${
-            selected.length - 1
-          }`;
+          summaryEl.textContent = `${selected[0].label} +${selected.length - 1}`;
         }
       }
     }
@@ -782,48 +776,6 @@ function closeDetails() {
 }
 
 /* ==========================================================================
-   Filtro por Trámite (select en la toolbar)
-   ========================================================================== */
-
-function setupTramiteFilter() {
-  const sel = $("#kb-filter-proceso"); // mismo select, ahora es Trámite
-  if (!sel) {
-    log("No encontré #kb-filter-proceso en el DOM");
-    return;
-  }
-
-  // Dejar sólo la opción "Todos" (value="")
-  sel.querySelectorAll("option:not([value=''])").forEach((opt) => opt.remove());
-
-  const options = [];
-  State.tramitesIndex.forEach((tram, id) => {
-    if (tram.estatus != null && Number(tram.estatus) !== 1) return;
-    const label = tram.nombre || `Trámite ${id}`;
-    options.push({ id, label });
-  });
-
-  options.sort((a, b) =>
-    a.label.localeCompare(b.label, "es", { sensitivity: "base" })
-  );
-
-  for (const opt of options) {
-    const o = document.createElement("option");
-    o.value = String(opt.id);
-    o.textContent = opt.label;
-    sel.appendChild(o);
-  }
-
-  log("Filtro Trámite – opciones cargadas:", options);
-
-  sel.addEventListener("change", () => {
-    const val = sel.value;
-    State.filters.tramiteId = val ? Number(val) : null;
-    log("Filtro Trámite →", State.filters.tramiteId);
-    renderBoard();
-  });
-}
-
-/* ==========================================================================
    Toolbar
    ========================================================================== */
 
@@ -844,10 +796,12 @@ function setupToolbar() {
   }
 
   if (chipRecent) {
-    chipRecent.classList.toggle("is-active", State.filters.recent);
     chipRecent.addEventListener("click", () => {
       chipRecent.classList.toggle("is-active");
-      log("Filtro 'Recientes' toggled:", chipRecent.classList.contains("is-active"));
+      log(
+        "Filtro 'Recientes' toggled:",
+        chipRecent.classList.contains("is-active")
+      );
     });
   }
 
@@ -863,16 +817,9 @@ function setupToolbar() {
     btnClear.addEventListener("click", () => {
       State.filters.mine = false;
       State.filters.search = "";
-      State.filters.recent = false;
-      State.filters.tramiteId = null;
-
       if (chipMine) chipMine.classList.remove("is-active");
       if (chipRecent) chipRecent.classList.remove("is-active");
       if (inputSearch) inputSearch.value = "";
-
-      const selectTramite = $("#kb-filter-proceso");
-      if (selectTramite) selectTramite.value = "";
-
       log("Filtros rápidos limpiados");
       renderBoard();
     });
@@ -961,12 +908,14 @@ function hydrateViewerFromSession() {
   try {
     full = Session?.get ? Session.get() : null;
   } catch (e) {
-    warn("[KB] Session.get() no disponible o falló:", e);
+    console.warn("[KB] Session.get() no disponible o falló:", e);
   }
   log("Session.get() completo:", full);
 
   const deptId =
-    full?.empleado?.departamento_id ?? full?.departamento_id ?? null;
+    full?.empleado?.departamento_id ??
+    full?.departamento_id ??
+    null;
 
   const rolesRaw = full?.roles ?? full?.user?.roles ?? [];
   const roles = Array.isArray(rolesRaw)
@@ -1025,26 +974,69 @@ async function init() {
   });
   log("Index procesos:", State.procesosIndex);
 
-  // Enriquecer tareas con descripción de proceso
+  // Index trámites
+  tramites.forEach((t) => {
+    if (t?.id != null) {
+      State.tramitesIndex.set(t.id, t);
+    }
+  });
+  log("Index trámites:", State.tramitesIndex);
+
+  // ==========================
+  //   Enriquecer tareas
+  // ==========================
   const tareasEnriquecidas = tareas.map((t) => {
-    if (t.proceso_id == null) return t;
-    const proc = State.procesosIndex.get(t.proceso_id);
-    if (!proc) return t;
+    const proc =
+      t.proceso_id != null ? State.procesosIndex.get(t.proceso_id) : null;
+
+    let requerimiento_id = t.requerimiento_id;
+    if (!requerimiento_id && proc?.requerimiento_id != null) {
+      requerimiento_id = Number(proc.requerimiento_id);
+    }
+
+    const tramiteFromProc =
+      proc?.tramite_id != null ? State.tramitesIndex.get(proc.tramite_id) : null;
+
+    const tramite_id =
+      tramiteFromProc?.id ??
+      (proc?.tramite_id != null ? Number(proc.tramite_id) : null);
+
+    const tramite_nombre =
+      tramiteFromProc?.nombre ||
+      proc?.tramite_nombre ||
+      null;
 
     const tituloProc =
-      proc.descripcion && proc.descripcion.trim().length
+      proc && proc.descripcion && proc.descripcion.trim().length
         ? proc.descripcion.trim()
         : t.proceso_titulo;
+
+    const folioReal =
+      t.folio ||
+      proc?.folio ||
+      (requerimiento_id != null ? formatFolio(null, requerimiento_id) : null);
 
     const merged = {
       ...t,
       proceso_titulo: tituloProc,
+      requerimiento_id,
+      folio: folioReal || "—",
+      tramite_id,
+      tramite_nombre,
     };
 
     log(
-      "Tarea enriquecida con proceso:",
-      { tarea_id: t.id, proceso_id: t.proceso_id },
-      { antes: t.proceso_titulo, despues: merged.proceso_titulo }
+      "Tarea enriquecida con proceso/requerimiento/trámite:",
+      {
+        tarea_id: t.id,
+        proceso_id: t.proceso_id,
+        req_id: requerimiento_id,
+        tramite_id,
+      },
+      {
+        folioAntes: t.folio,
+        folioDespues: merged.folio,
+      }
     );
 
     return merged;
@@ -1169,7 +1161,6 @@ async function init() {
     createMultiFilter(fieldTram, "tramites", tramOptions);
   }
 
-  setupTramiteFilter(); 
   setupToolbar();
   renderBoard();
   setupDragAndDrop();
