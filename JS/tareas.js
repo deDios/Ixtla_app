@@ -95,8 +95,7 @@ function formatFolio(folio, id) {
   if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
     return String(folio).trim();
 
-  const digits = String(folio ?? "")
-    .match(/\d+/)?.[0];
+  const digits = String(folio ?? "").match(/\d+/)?.[0];
 
   if (digits) return "REQ-" + digits.padStart(11, "0");
   if (id != null) return "REQ-" + String(id).padStart(11, "0");
@@ -152,10 +151,10 @@ const State = {
     tramiteId: null,
   },
 
-  empleadosIndex: new Map(),   // id_empleado → empleado
+  empleadosIndex: new Map(), // id_empleado → empleado
   departamentosIndex: new Map(), // id_depto → depto
-  procesosIndex: new Map(),    // id_proceso → proceso
-  tramitesIndex: new Map(),    // id_tramite → tramite
+  procesosIndex: new Map(), // id_proceso → proceso
+  tramitesIndex: new Map(), // id_tramite → tramite
 };
 
 const COL_IDS = {
@@ -229,7 +228,7 @@ function mapRawTask(raw) {
 
   const tramite_nombre = raw.tramite_nombre || "";
 
-  // OJO: aquí ya no inventamos folios; usamos helper y dejamos que
+  // Aquí ya no inventamos folios; usamos helper y dejamos que
   // el enriquecido por requerimiento termine de amarrarlos si hace falta.
   const folio = formatFolio(
     raw.folio || raw.requerimiento_folio || null,
@@ -1141,7 +1140,10 @@ async function init() {
 
     // por si algún día vienen folio / tramite en el proceso
     if (!merged.folio && proc.requerimiento_folio) {
-      merged.folio = formatFolio(proc.requerimiento_folio, proc.requerimiento_id);
+      merged.folio = formatFolio(
+        proc.requerimiento_folio,
+        proc.requerimiento_id
+      );
     }
 
     return merged;
