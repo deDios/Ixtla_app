@@ -81,21 +81,6 @@ function formatDateMX(str) {
   });
 }
 
-/**
- * Formatea un folio al estilo REQ-00000000000 usando la misma lógica de home.js
- */
-function formatFolio(folio, id) {
-  const raw = folio != null ? String(folio).trim() : "";
-  if (raw && /^REQ-\d+$/i.test(raw)) return raw;
-
-  const digits = String(folio ?? "").match(/\d+/)?.[0];
-  if (digits) return "REQ-" + digits.padStart(11, "0");
-
-  if (id != null) return "REQ-" + String(id).padStart(11, "0");
-
-  return "—";
-}
-
 function diffDays(startStr) {
   if (!startStr) return null;
   const start = new Date(String(startStr).replace(" ", "T"));
@@ -129,6 +114,35 @@ function calcAgeChip(task) {
   };
 }
 
+/**
+ * Arma el folio usando primero el folio real (si viene),
+ * luego el id del requerimiento, y como último fallback el id de la tarea.
+ * Siempre formatea como REQ-00000001234 (11 dígitos).
+ */
+function formatFolioFromRaw(raw, id) {
+  const rawFolio = raw.folio ?? raw.requerimiento_folio ?? null;
+  const reqId = raw.requerimiento_id ?? raw.id_requerimiento ?? null;
+
+  let digits = null;
+
+  if (rawFolio) {
+    const m = String(rawFolio).match(/\d+/);
+    if (m && m[0]) digits = m[0];
+  }
+
+  if (!digits && reqId != null) {
+    digits = String(reqId);
+  }
+
+  if (!digits && id != null) {
+    digits = String(id);
+  }
+
+  if (!digits) return "—";
+
+  return "REQ-" + digits.padStart(11, "0");
+}
+
 /* ==========================================================================
    State
    ========================================================================== */
@@ -139,16 +153,16 @@ const State = {
   filters: {
     mine: true,
     search: "",
-    departamentos: new Set(), // ids de departamento
-    empleados: new Set(), // ids de empleado
-    procesos: new Set(), // ids de proceso
-    tramites: new Set(), // ids de trámite
+    departamentos: new Set(), // ids
+    empleados: new Set(), // ids
+    procesoId: null, // id de proceso (combo Proceso)
+    tramiteId: null, // id de trámite (combo Trámite)
   },
 
-  empleadosIndex: new Map(),     // id_empleado → empleado
+  empleadosIndex: new Map(), // id_empleado → empleado
   departamentosIndex: new Map(), // id_depto → depto
-  procesosIndex: new Map(),      // id_proceso → proceso
-  tramitesIndex: new Map(),      // id_tramite → trámite
+  procesosIndex: new Map(), // id_proceso → proceso
+  tramitesIndex: new Map(), // id_tramite → tramite
 };
 
 const COL_IDS = {
@@ -172,8 +186,6 @@ let dragging = false;
 const MultiFilters = {
   departamentos: null,
   empleados: null,
-  procesos: null,
-  tramites: null,
 };
 
 /* ==========================================================================
@@ -192,6 +204,13 @@ function mapRawTask(raw) {
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
 
+  const tramite_id =
+    raw.tramite_id != null
+      ? Number(raw.tramite_id)
+      : raw.tipo_tramite_id != null
+      ? Number(raw.tipo_tramite_id)
+      : null;
+
   const asignado_a =
     raw.asignado_a != null
       ? Number(raw.asignado_a)
@@ -208,14 +227,7 @@ function mapRawTask(raw) {
     [asignado_nombre, asignado_apellidos].filter(Boolean).join(" ") ||
     "—";
 
-  const folio_raw = raw.folio || raw.requerimiento_folio || null;
-
-  const requerimiento_id =
-    raw.requerimiento_id != null
-      ? Number(raw.requerimiento_id)
-      : raw.req_id != null
-      ? Number(raw.req_id)
-      : null;
+  const folio = formatFolioFromRaw(raw, id);
 
   const proceso_titulo =
     raw.proceso_titulo ||
@@ -225,7 +237,7 @@ function mapRawTask(raw) {
   return {
     id,
     proceso_id,
-    requerimiento_id,
+    tramite_id,
     asignado_a,
     asignado_display,
     titulo: raw.titulo || raw.titulo_tarea || "Tarea sin título",
@@ -243,10 +255,8 @@ function mapRawTask(raw) {
     created_by: raw.created_by != null ? Number(raw.created_by) : null,
     created_by_nombre: raw.created_by_nombre || raw.creado_por_nombre || "—",
     autoriza_nombre: raw.autoriza_nombre || raw.autorizado_por || "—",
-    folio: folio_raw, // se normaliza/enriquece después
+    folio,
     proceso_titulo,
-    tramite_id: null,
-    tramite_nombre: null,
   };
 }
 
@@ -281,7 +291,7 @@ async function fetchTareasFromApi() {
 async function fetchDepartamentos() {
   try {
     const payload = {
-      all: true,
+      all: true, // todos los deptos, incluso status 0 (Presidencia)
       page: 1,
       page_size: 100,
     };
@@ -319,6 +329,7 @@ async function fetchEmpleadosForFilters() {
     const res = await searchEmpleados(payload);
     log("[Empleados] respuesta searchEmpleados:", res);
 
+    // IMPORTANTE: searchEmpleados devuelve {items, total, ...}
     const data = Array.isArray(res?.items) ? res.items : [];
 
     log("Empleados para filtros (sin jerarquía aún):", data.length, data);
@@ -350,11 +361,7 @@ async function fetchProcesosCatalog() {
       descripcion: p.descripcion || "",
       requerimiento_id:
         p.requerimiento_id != null ? Number(p.requerimiento_id) : null,
-      folio: p.folio || p.requerimiento_folio || null,
       status: p.status != null ? Number(p.status) : null,
-      tramite_id:
-        p.tramite_id != null ? Number(p.tramite_id) : null,
-      tramite_nombre: p.tramite_nombre || null,
     }));
 
     log("Procesos normalizados:", out.length, out);
@@ -382,10 +389,7 @@ async function fetchTramitesCatalog() {
 
     const out = json.data.map((t) => ({
       id: Number(t.id),
-      departamento_id:
-        t.departamento_id != null ? Number(t.departamento_id) : null,
-      nombre: t.nombre || `Trámite ${t.id}`,
-      descripcion: t.descripcion || "",
+      nombre: t.nombre || t.descripcion || `Trámite ${t.id}`,
       estatus: t.estatus != null ? Number(t.estatus) : null,
     }));
 
@@ -411,25 +415,24 @@ function passesFilters(task) {
     return false;
   }
 
-  // Search
+  // Buscar (folio / proceso / id)
   const q = State.filters.search.trim().toLowerCase();
   if (q) {
     const hay =
       (task.folio || "").toLowerCase().includes(q) ||
       (task.proceso_titulo || "").toLowerCase().includes(q) ||
-      (task.tramite_nombre || "").toLowerCase().includes(q) ||
       String(task.id).includes(q);
     if (!hay) return false;
   }
 
-  // Empleados
+  // Filtro por empleados
   if (State.filters.empleados.size) {
     if (!task.asignado_a || !State.filters.empleados.has(task.asignado_a)) {
       return false;
     }
   }
 
-  // Departamentos (a través del empleado asignado)
+  // Filtro por departamentos (del empleado asignado)
   if (State.filters.departamentos.size) {
     const emp = State.empleadosIndex.get(task.asignado_a);
     const deptId = emp?.departamento_id || null;
@@ -438,25 +441,21 @@ function passesFilters(task) {
     }
   }
 
-  // Procesos
-  if (State.filters.procesos.size) {
-    if (!task.proceso_id || !State.filters.procesos.has(task.proceso_id)) {
-      return false;
-    }
+  // Filtro por proceso (combo Proceso)
+  if (State.filters.procesoId && task.proceso_id !== State.filters.procesoId) {
+    return false;
   }
 
-  // Trámites
-  if (State.filters.tramites.size) {
-    if (!task.tramite_id || !State.filters.tramites.has(task.tramite_id)) {
-      return false;
-    }
+  // Filtro por trámite (combo Trámite)
+  if (State.filters.tramiteId && task.tramite_id !== State.filters.tramiteId) {
+    return false;
   }
 
   return true;
 }
 
 /* --------------------------------------------------------------------------
-   Multi select (Departamentos / Empleados / Procesos / Trámites)
+   Multi select (Departamentos / Empleados)
    -------------------------------------------------------------------------- */
 
 function createMultiFilter(fieldEl, key, options) {
@@ -469,9 +468,7 @@ function createMultiFilter(fieldEl, key, options) {
   const searchInput = fieldEl.querySelector(".kb-multi-search-input");
   const list = fieldEl.querySelector(".kb-multi-options");
 
-  const stateSet =
-    State.filters[key] ||
-    (State.filters[key] = new Set());
+  const stateSet = State.filters[key] || (State.filters[key] = new Set());
 
   function renderOptions() {
     if (!list) return;
@@ -504,7 +501,9 @@ function createMultiFilter(fieldEl, key, options) {
         if (selected.length === 1) {
           summaryEl.textContent = selected[0].label;
         } else {
-          summaryEl.textContent = `${selected[0].label} +${selected.length - 1}`;
+          summaryEl.textContent = `${selected[0].label} +${
+            selected.length - 1
+          }`;
         }
       }
     }
@@ -597,16 +596,36 @@ function setupSidebarFilters() {
   const btnClear = $("#kb-sidebar-clear");
   if (btnClear) {
     btnClear.addEventListener("click", () => {
-      ["departamentos", "empleados", "procesos", "tramites"].forEach((k) => {
-        const set = State.filters[k];
-        if (set && set.clear) set.clear();
-        else if (set instanceof Set) set.clear();
-        if (MultiFilters[k]) MultiFilters[k].clear();
-      });
+      State.filters.departamentos.clear();
+      State.filters.empleados.clear();
+
+      if (MultiFilters.departamentos) MultiFilters.departamentos.clear();
+      if (MultiFilters.empleados) MultiFilters.empleados.clear();
 
       renderBoard();
     });
   }
+}
+
+/* ==========================================================================
+   Helpers para selects simples (Proceso / Trámite)
+   ========================================================================== */
+
+function fillSimpleSelect(selectEl, options, { placeholder = "Todos" } = {}) {
+  if (!selectEl) return;
+  selectEl.innerHTML = "";
+
+  const optAll = document.createElement("option");
+  optAll.value = "";
+  optAll.textContent = placeholder;
+  selectEl.appendChild(optAll);
+
+  options.forEach((opt) => {
+    const o = document.createElement("option");
+    o.value = String(opt.value);
+    o.textContent = opt.label;
+    selectEl.appendChild(o);
+  });
 }
 
 /* ==========================================================================
@@ -645,7 +664,7 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio || "—"}</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio}</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -665,9 +684,7 @@ function createCard(task) {
     const chip = document.createElement("div");
     chip.className = `kb-age-chip kb-age-${age.classIndex}`;
     chip.textContent = String(age.display);
-    chip.title = `${age.realDays} día${
-      age.realDays === 1 ? "" : "s"
-    } en proceso`;
+    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"} en proceso`;
     art.appendChild(chip);
   }
 
@@ -817,9 +834,18 @@ function setupToolbar() {
     btnClear.addEventListener("click", () => {
       State.filters.mine = false;
       State.filters.search = "";
+      State.filters.procesoId = null;
+      State.filters.tramiteId = null;
+
+      const selProceso = $("#kb-filter-proceso");
+      const selTramite = $("#kb-filter-tramite");
+      if (selProceso) selProceso.value = "";
+      if (selTramite) selTramite.value = "";
+
       if (chipMine) chipMine.classList.remove("is-active");
       if (chipRecent) chipRecent.classList.remove("is-active");
       if (inputSearch) inputSearch.value = "";
+
       log("Filtros rápidos limpiados");
       renderBoard();
     });
@@ -912,10 +938,7 @@ function hydrateViewerFromSession() {
   }
   log("Session.get() completo:", full);
 
-  const deptId =
-    full?.empleado?.departamento_id ??
-    full?.departamento_id ??
-    null;
+  const deptId = full?.empleado?.departamento_id ?? full?.departamento_id ?? null;
 
   const rolesRaw = full?.roles ?? full?.user?.roles ?? [];
   const roles = Array.isArray(rolesRaw)
@@ -950,7 +973,7 @@ async function init() {
     fetchTareasFromApi(),
   ]);
 
-  // Index empleados
+  // Index empleados (para depto de tareas)
   empleados.forEach((emp) => {
     if (emp?.id != null) {
       State.empleadosIndex.set(emp.id, emp);
@@ -982,62 +1005,23 @@ async function init() {
   });
   log("Index trámites:", State.tramitesIndex);
 
-  // ==========================
-  //   Enriquecer tareas
-  // ==========================
+  // Enriquecer tareas con descripción de proceso (si existe en catálogo)
   const tareasEnriquecidas = tareas.map((t) => {
-    const proc =
-      t.proceso_id != null ? State.procesosIndex.get(t.proceso_id) : null;
+    let merged = t;
 
-    let requerimiento_id = t.requerimiento_id;
-    if (!requerimiento_id && proc?.requerimiento_id != null) {
-      requerimiento_id = Number(proc.requerimiento_id);
-    }
-
-    const tramiteFromProc =
-      proc?.tramite_id != null ? State.tramitesIndex.get(proc.tramite_id) : null;
-
-    const tramite_id =
-      tramiteFromProc?.id ??
-      (proc?.tramite_id != null ? Number(proc.tramite_id) : null);
-
-    const tramite_nombre =
-      tramiteFromProc?.nombre ||
-      proc?.tramite_nombre ||
-      null;
-
-    const tituloProc =
-      proc && proc.descripcion && proc.descripcion.trim().length
-        ? proc.descripcion.trim()
-        : t.proceso_titulo;
-
-    const folioReal =
-      t.folio ||
-      proc?.folio ||
-      (requerimiento_id != null ? formatFolio(null, requerimiento_id) : null);
-
-    const merged = {
-      ...t,
-      proceso_titulo: tituloProc,
-      requerimiento_id,
-      folio: folioReal || "—",
-      tramite_id,
-      tramite_nombre,
-    };
-
-    log(
-      "Tarea enriquecida con proceso/requerimiento/trámite:",
-      {
-        tarea_id: t.id,
-        proceso_id: t.proceso_id,
-        req_id: requerimiento_id,
-        tramite_id,
-      },
-      {
-        folioAntes: t.folio,
-        folioDespues: merged.folio,
+    if (t.proceso_id != null) {
+      const proc = State.procesosIndex.get(t.proceso_id);
+      if (proc) {
+        const tituloProc =
+          proc.descripcion && proc.descripcion.trim().length
+            ? proc.descripcion.trim()
+            : t.proceso_titulo;
+        merged = {
+          ...merged,
+          proceso_titulo: tituloProc,
+        };
       }
-    );
+    }
 
     return merged;
   });
@@ -1053,6 +1037,7 @@ async function init() {
   const allowedDeptIds = new Set();
 
   if (Viewer.isAdmin || Viewer.isPres) {
+    // Puede ver todos los departamentos
     depts.forEach((d) => {
       if (d?.id != null) allowedDeptIds.add(d.id);
     });
@@ -1060,6 +1045,7 @@ async function init() {
     allowedDeptIds.add(Viewer.deptId);
   }
 
+  // Quitar Presidencia del combo de departamentos
   PRES_DEPT_IDS.forEach((id) => allowedDeptIds.delete(id));
 
   log(
@@ -1086,7 +1072,7 @@ async function init() {
     empleadosForFilter
   );
 
-  // c) Opciones de Departamentos
+  // c) Opciones de Departamentos (todas las permitidas)
   const deptOptions = Array.from(allowedDeptIds).map((id) => {
     const dep = State.departamentosIndex.get(id);
     const label = dep ? dep.nombre : `Depto ${id}`;
@@ -1107,58 +1093,60 @@ async function init() {
   });
   log("Opciones filtro Empleados:", empOptions);
 
-  // e) Opciones de PROCESOS (solo los que tienen al menos una tarea)
-  const usedProcIds = new Set(
-    State.tasks.map((t) => t.proceso_id).filter((v) => v != null)
-  );
-  const procOptions = Array.from(usedProcIds).map((id) => {
-    const proc = State.procesosIndex.get(id);
-    const desc = proc?.descripcion?.trim() || `Proceso ${id}`;
-    const folioTxt =
-      proc?.requerimiento_id != null
-        ? formatFolio(null, proc.requerimiento_id)
-        : proc?.folio
-        ? formatFolio(proc.folio, null)
-        : null;
-
-    const label = folioTxt ? `${folioTxt} · ${desc}` : desc;
-    return { value: id, label };
+  // e) Opciones de PROCESOS para combo Proceso (solo procesos que existen)
+  const procesosOptions = procesos.map((p) => {
+    const label =
+      p.descripcion && p.descripcion.trim().length
+        ? p.descripcion.trim()
+        : `Proceso ${p.id}`;
+    return { value: p.id, label };
   });
-  log("Opciones filtro Procesos:", procOptions);
+  log("[KB] Opciones filtro Procesos:", procesosOptions);
 
-  // f) Opciones de TRÁMITES (solo los que realmente aparecen en tareas)
-  const usedTramIds = new Set(
-    State.tasks.map((t) => t.tramite_id).filter((v) => v != null)
-  );
-  const tramOptions = Array.from(usedTramIds).map((id) => {
-    const tram = State.tramitesIndex.get(id);
-    const label = tram?.nombre || `Trámite ${id}`;
-    return { value: id, label };
-  });
-  log("Opciones filtro Trámites:", tramOptions);
+  // f) Opciones de TRÁMITES para combo Trámite
+  const tramitesOptions = tramites.map((t) => ({
+    value: t.id,
+    label: t.nombre,
+  }));
+  log("[KB] Opciones filtro Trámites:", tramitesOptions);
 
   // ==========================
-  //   UI: combos + tablero
+  //   UI
   // ==========================
 
   setupSidebarFilters();
 
   const fieldDept = $("#kb-filter-departamentos");
   const fieldEmp = $("#kb-filter-empleados");
-  const fieldProc = $("#kb-filter-procesos");
-  const fieldTram = $("#kb-filter-tramites");
-
   if (fieldDept && deptOptions.length) {
     createMultiFilter(fieldDept, "departamentos", deptOptions);
   }
   if (fieldEmp && empOptions.length) {
     createMultiFilter(fieldEmp, "empleados", empOptions);
   }
-  if (fieldProc && procOptions.length) {
-    createMultiFilter(fieldProc, "procesos", procOptions);
+
+  // Combos simples Proceso / Trámite
+  const selProceso = $("#kb-filter-proceso");
+  const selTramite = $("#kb-filter-tramite");
+
+  if (selProceso) {
+    fillSimpleSelect(selProceso, procesosOptions, { placeholder: "Todos" });
+    selProceso.addEventListener("change", () => {
+      const v = selProceso.value;
+      State.filters.procesoId = v ? Number(v) : null;
+      log("Filtro Proceso →", State.filters.procesoId);
+      renderBoard();
+    });
   }
-  if (fieldTram && tramOptions.length) {
-    createMultiFilter(fieldTram, "tramites", tramOptions);
+
+  if (selTramite) {
+    fillSimpleSelect(selTramite, tramitesOptions, { placeholder: "Todos" });
+    selTramite.addEventListener("change", () => {
+      const v = selTramite.value;
+      State.filters.tramiteId = v ? Number(v) : null;
+      log("Filtro Trámite →", State.filters.tramiteId);
+      renderBoard();
+    });
   }
 
   setupToolbar();

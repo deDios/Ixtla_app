@@ -184,7 +184,6 @@
                                 autocomplete="off" />
                         </div>
 
-                        <!-- Proceso -->
                         <div class="kb-filter-field">
                             <label for="kb-filter-proceso">Proceso</label>
                             <select id="kb-filter-proceso" class="kb-filter-input">
@@ -192,7 +191,6 @@
                             </select>
                         </div>
 
-                        <!-- Trámite -->
                         <div class="kb-filter-field">
                             <label for="kb-filter-tramite">Trámite</label>
                             <select id="kb-filter-tramite" class="kb-filter-input">
