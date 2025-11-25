@@ -60,6 +60,10 @@ const API_TRAMITES = {
   LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tramite.php`,
 };
 
+const API_REQ = {
+  GET: `${API_FBK.HOST}/db/WEB/ixtla01_c_requerimiento.php`,
+};
+
 const log = (...a) => KB.DEBUG && console.log("[KB]", ...a);
 const warn = (...a) => KB.DEBUG && console.warn("[KB]", ...a);
 
@@ -79,6 +83,24 @@ function formatDateMX(str) {
     month: "2-digit",
     day: "2-digit",
   });
+}
+
+/**
+ * Formato estándar de folio de requerimiento.
+ * - Si ya viene como REQ-########### lo respeta.
+ * - Si trae solo dígitos, los rellena a 11.
+ * - Si no hay nada, usa el id como respaldo.
+ */
+function formatFolio(folio, id) {
+  if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
+    return String(folio).trim();
+
+  const digits = String(folio ?? "")
+    .match(/\d+/)?.[0];
+
+  if (digits) return "REQ-" + digits.padStart(11, "0");
+  if (id != null) return "REQ-" + String(id).padStart(11, "0");
+  return "—";
 }
 
 function diffDays(startStr) {
@@ -114,24 +136,6 @@ function calcAgeChip(task) {
   };
 }
 
-/**
- * MISMO formato que en Home:
- * - Si ya viene "REQ-###########" válido, lo respeta.
- * - Si solo vienen dígitos, arma "REQ-" + 11 dígitos.
- * - Si no hay folio, usa el id como fallback.
- */
-function formatFolio(folio, id) {
-  if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
-    return String(folio).trim();
-
-  const digits = String(folio ?? "").match(/\d+/)?.[0];
-  if (digits) return "REQ-" + digits.padStart(11, "0");
-
-  if (id != null) return "REQ-" + String(id).padStart(11, "0");
-
-  return "—";
-}
-
 /* ==========================================================================
    State
    ========================================================================== */
@@ -144,14 +148,14 @@ const State = {
     search: "",
     departamentos: new Set(), // ids
     empleados: new Set(), // ids
-    procesoId: null, // id de proceso (combo Proceso)
-    tramiteId: null, // id de trámite (combo Trámite)
+    procesoId: null,
+    tramiteId: null,
   },
 
-  empleadosIndex: new Map(), // id_empleado → empleado
+  empleadosIndex: new Map(),   // id_empleado → empleado
   departamentosIndex: new Map(), // id_depto → depto
-  procesosIndex: new Map(), // id_proceso → proceso
-  tramitesIndex: new Map(), // id_tramite → tramite
+  procesosIndex: new Map(),    // id_proceso → proceso
+  tramitesIndex: new Map(),    // id_tramite → tramite
 };
 
 const COL_IDS = {
@@ -177,6 +181,9 @@ const MultiFilters = {
   empleados: null,
 };
 
+// cache para requerimientos (folio, tramite, etc.)
+const ReqCache = new Map(); // reqId → data o null
+
 /* ==========================================================================
    Normalización de datos desde API
    ========================================================================== */
@@ -193,13 +200,6 @@ function mapRawTask(raw) {
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
-
-  const tramite_id =
-    raw.tramite_id != null
-      ? Number(raw.tramite_id)
-      : raw.tipo_tramite_id != null
-      ? Number(raw.tipo_tramite_id)
-      : null;
 
   const asignado_a =
     raw.asignado_a != null
@@ -220,19 +220,21 @@ function mapRawTask(raw) {
   const requerimiento_id =
     raw.requerimiento_id != null
       ? Number(raw.requerimiento_id)
-      : raw.id_requerimiento != null
-      ? Number(raw.id_requerimiento)
+      : raw.req_id != null
+      ? Number(raw.req_id)
       : null;
 
-  // ⬇️ AQUÍ EL CAMBIO IMPORTANTE: NO se genera nada artificial,
-  // solo se usa lo que venga de la API (tarea o requerimiento).
-  const folioRaw =
-    raw.folio ??
-    raw.requerimiento_folio ??
-    raw.requerimiento?.folio ??
-    null;
+  const tramite_id =
+    raw.tramite_id != null ? Number(raw.tramite_id) : null;
 
-  const folio = folioRaw ? String(folioRaw).trim() : null;
+  const tramite_nombre = raw.tramite_nombre || "";
+
+  // OJO: aquí ya no inventamos folios; usamos helper y dejamos que
+  // el enriquecido por requerimiento termine de amarrarlos si hace falta.
+  const folio = formatFolio(
+    raw.folio || raw.requerimiento_folio || null,
+    requerimiento_id
+  );
 
   const proceso_titulo =
     raw.proceso_titulo ||
@@ -242,7 +244,6 @@ function mapRawTask(raw) {
   return {
     id,
     proceso_id,
-    tramite_id,
     asignado_a,
     asignado_display,
     titulo: raw.titulo || raw.titulo_tarea || "Tarea sin título",
@@ -260,15 +261,16 @@ function mapRawTask(raw) {
     created_by: raw.created_by != null ? Number(raw.created_by) : null,
     created_by_nombre: raw.created_by_nombre || raw.creado_por_nombre || "—",
     autoriza_nombre: raw.autoriza_nombre || raw.autorizado_por || "—",
-    folio,                // ← folio real o null
+    folio,
     proceso_titulo,
     requerimiento_id,
+    tramite_id,
+    tramite_nombre,
   };
 }
 
-
 /* ==========================================================================
-   Fetch de datos (TAREAS, EMPLEADOS, DEPARTAMENTOS, PROCESOS, TRÁMITES)
+   Fetch de datos (TAREAS, EMPLEADOS, DEPARTAMENTOS, PROCESOS, TRÁMITES, REQS)
    ========================================================================== */
 
 async function fetchTareasFromApi() {
@@ -336,6 +338,7 @@ async function fetchEmpleadosForFilters() {
     const res = await searchEmpleados(payload);
     log("[Empleados] respuesta searchEmpleados:", res);
 
+    // IMPORTANTE: searchEmpleados devuelve {items, total, ...}
     const data = Array.isArray(res?.items) ? res.items : [];
 
     log("Empleados para filtros (sin jerarquía aún):", data.length, data);
@@ -363,13 +366,12 @@ async function fetchProcesosCatalog() {
     }
 
     const out = json.data.map((p) => ({
-      ...p,
       id: Number(p.id),
       descripcion: p.descripcion || "",
       requerimiento_id:
         p.requerimiento_id != null ? Number(p.requerimiento_id) : null,
       status: p.status != null ? Number(p.status) : null,
-      folio: p.folio || p.requerimiento_folio || null,
+      // por si algún día viene folio directo
       requerimiento_folio: p.requerimiento_folio || null,
     }));
 
@@ -398,7 +400,8 @@ async function fetchTramitesCatalog() {
 
     const out = json.data.map((t) => ({
       id: Number(t.id),
-      nombre: t.nombre || t.descripcion || `Trámite ${t.id}`,
+      nombre: t.nombre || `Trámite ${t.id}`,
+      descripcion: t.descripcion || "",
       estatus: t.estatus != null ? Number(t.estatus) : null,
     }));
 
@@ -410,11 +413,78 @@ async function fetchTramitesCatalog() {
   }
 }
 
+async function fetchRequerimientoById(id) {
+  if (!id) return null;
+  if (ReqCache.has(id)) return ReqCache.get(id);
+
+  try {
+    const payload = { id };
+    log("REQ GET →", API_REQ.GET, payload);
+    const json = await postJSON(API_REQ.GET, payload);
+    const data = json?.data || null;
+    ReqCache.set(id, data || null);
+    log("REQ GET resp (id=" + id + "):", data);
+    return data;
+  } catch (e) {
+    console.error("[KB] Error al consultar requerimiento:", e);
+    ReqCache.set(id, null);
+    return null;
+  }
+}
+
+/**
+ * Enriquecer tareas con datos del requerimiento (folio real + tramite)
+ * usando requerimiento_id que viene desde el proceso.
+ */
+async function enrichTasksWithRequerimientos(tasks) {
+  const idsToFetch = new Set();
+
+  for (const t of tasks) {
+    if (!t.requerimiento_id) continue;
+
+    const hasFolio = t.folio && t.folio !== "—";
+    if (!hasFolio && !ReqCache.has(t.requerimiento_id)) {
+      idsToFetch.add(t.requerimiento_id);
+    }
+  }
+
+  if (idsToFetch.size) {
+    log("EnrichReq → ids a consultar:", Array.from(idsToFetch));
+    await Promise.all(
+      Array.from(idsToFetch).map((id) => fetchRequerimientoById(id))
+    );
+  }
+
+  const enriched = tasks.map((t) => {
+    if (!t.requerimiento_id) return t;
+    const req = ReqCache.get(t.requerimiento_id);
+    if (!req) return t;
+
+    const folioReal = formatFolio(req.folio, req.id);
+
+    return {
+      ...t,
+      folio: folioReal,
+      tramite_id:
+        t.tramite_id != null ? t.tramite_id : req.tramite_id ?? t.tramite_id,
+      tramite_nombre:
+        t.tramite_nombre ||
+        req.tramite_nombre ||
+        t.tramite_nombre ||
+        "",
+    };
+  });
+
+  log("TAREAS enriquecidas con requerimientos:", enriched);
+  return enriched;
+}
+
 /* ==========================================================================
    Filtros / combos
    ========================================================================== */
 
 function passesFilters(task) {
+  // Solo mis tareas
   if (
     State.filters.mine &&
     KB.CURRENT_USER_ID != null &&
@@ -423,6 +493,7 @@ function passesFilters(task) {
     return false;
   }
 
+  // Search (folio, proceso, id)
   const q = State.filters.search.trim().toLowerCase();
   if (q) {
     const hay =
@@ -432,12 +503,14 @@ function passesFilters(task) {
     if (!hay) return false;
   }
 
+  // Filtro por empleado
   if (State.filters.empleados.size) {
     if (!task.asignado_a || !State.filters.empleados.has(task.asignado_a)) {
       return false;
     }
   }
 
+  // Filtro por departamento (según empleado asignado)
   if (State.filters.departamentos.size) {
     const emp = State.empleadosIndex.get(task.asignado_a);
     const deptId = emp?.departamento_id || null;
@@ -446,12 +519,18 @@ function passesFilters(task) {
     }
   }
 
-  if (State.filters.procesoId && task.proceso_id !== State.filters.procesoId) {
-    return false;
+  // Filtro por proceso
+  if (State.filters.procesoId != null) {
+    if (!task.proceso_id || task.proceso_id !== State.filters.procesoId) {
+      return false;
+    }
   }
 
-  if (State.filters.tramiteId && task.tramite_id !== State.filters.tramiteId) {
-    return false;
+  // Filtro por trámite (usamos tramite_id que viene del req)
+  if (State.filters.tramiteId != null) {
+    if (!task.tramite_id || task.tramite_id !== State.filters.tramiteId) {
+      return false;
+    }
   }
 
   return true;
@@ -471,7 +550,8 @@ function createMultiFilter(fieldEl, key, options) {
   const searchInput = fieldEl.querySelector(".kb-multi-search-input");
   const list = fieldEl.querySelector(".kb-multi-options");
 
-  const stateSet = State.filters[key] || (State.filters[key] = new Set());
+  const stateSet =
+    State.filters[key] || (State.filters[key] = new Set());
 
   function renderOptions() {
     if (!list) return;
@@ -520,7 +600,9 @@ function createMultiFilter(fieldEl, key, options) {
     }
 
     if (list) {
-      const li = list.querySelector(`.kb-multi-option[data-value="${value}"]`);
+      const li = list.querySelector(
+        `.kb-multi-option[data-value="${value}"]`
+      );
       if (li) li.classList.toggle("is-selected", stateSet.has(value));
     }
 
@@ -611,27 +693,6 @@ function setupSidebarFilters() {
 }
 
 /* ==========================================================================
-   Helpers para selects simples (Proceso / Trámite)
-   ========================================================================== */
-
-function fillSimpleSelect(selectEl, options, { placeholder = "Todos" } = {}) {
-  if (!selectEl) return;
-  selectEl.innerHTML = "";
-
-  const optAll = document.createElement("option");
-  optAll.value = "";
-  optAll.textContent = placeholder;
-  selectEl.appendChild(optAll);
-
-  options.forEach((opt) => {
-    const o = document.createElement("option");
-    o.value = String(opt.value);
-    o.textContent = opt.label;
-    selectEl.appendChild(o);
-  });
-}
-
-/* ==========================================================================
    Render de cards
    ========================================================================== */
 
@@ -667,9 +728,7 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML =
-    `<span class="kb-task-label">Folio:</span> ` +
-    `<span class="kb-task-value kb-task-folio">${task.folio || "—"}</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio || "—"}</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -689,7 +748,9 @@ function createCard(task) {
     const chip = document.createElement("div");
     chip.className = `kb-age-chip kb-age-${age.classIndex}`;
     chip.textContent = String(age.display);
-    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"} en proceso`;
+    chip.title = `${age.realDays} día${
+      age.realDays === 1 ? "" : "s"
+    } en proceso`;
     art.appendChild(chip);
   }
 
@@ -798,8 +859,48 @@ function closeDetails() {
 }
 
 /* ==========================================================================
-   Toolbar
+   Toolbar (chips + search + combos proceso / trámite)
    ========================================================================== */
+
+function setupToolbarCombos({ procesosOptions, tramitesOptions }) {
+  const selProc = $("#kb-filter-proceso");
+  const selTram = $("#kb-filter-tramite");
+
+  if (selProc) {
+    selProc.innerHTML =
+      '<option value="">Todos</option>' +
+      procesosOptions
+        .map(
+          (o) => `<option value="${o.value}">${o.label}</option>`
+        )
+        .join("");
+    selProc.addEventListener("change", () => {
+      const v = selProc.value;
+      State.filters.procesoId = v ? Number(v) : null;
+      log("Filtro ProcesoId →", State.filters.procesoId);
+      renderBoard();
+    });
+  }
+
+  if (selTram) {
+    selTram.innerHTML =
+      '<option value="">Todos</option>' +
+      tramitesOptions
+        .map(
+          (o) => `<option value="${o.value}">${o.label}</option>`
+        )
+        .join("");
+    selTram.addEventListener("change", () => {
+      const v = selTram.value;
+      State.filters.tramiteId = v ? Number(v) : null;
+      log("Filtro TramiteId →", State.filters.tramiteId);
+      renderBoard();
+    });
+  }
+
+  log("[KB] Opciones filtro Procesos:", procesosOptions);
+  log("[KB] Opciones filtro Trámites:", tramitesOptions);
+}
 
 function setupToolbar() {
   const chipMine = $('.kb-chip[data-filter="mine"]');
@@ -824,6 +925,7 @@ function setupToolbar() {
         "Filtro 'Recientes' toggled:",
         chipRecent.classList.contains("is-active")
       );
+      // de momento solo visual; no afecta pipeline aún
     });
   }
 
@@ -842,14 +944,14 @@ function setupToolbar() {
       State.filters.procesoId = null;
       State.filters.tramiteId = null;
 
-      const selProceso = $("#kb-filter-proceso");
-      const selTramite = $("#kb-filter-tramite");
-      if (selProceso) selProceso.value = "";
-      if (selTramite) selTramite.value = "";
-
       if (chipMine) chipMine.classList.remove("is-active");
       if (chipRecent) chipRecent.classList.remove("is-active");
       if (inputSearch) inputSearch.value = "";
+
+      const selProc = $("#kb-filter-proceso");
+      const selTram = $("#kb-filter-tramite");
+      if (selProc) selProc.value = "";
+      if (selTram) selTram.value = "";
 
       log("Filtros rápidos limpiados");
       renderBoard();
@@ -943,7 +1045,10 @@ function hydrateViewerFromSession() {
   }
   log("Session.get() completo:", full);
 
-  const deptId = full?.empleado?.departamento_id ?? full?.departamento_id ?? null;
+  const deptId =
+    full?.empleado?.departamento_id ??
+    full?.departamento_id ??
+    null;
 
   const rolesRaw = full?.roles ?? full?.user?.roles ?? [];
   const roles = Array.isArray(rolesRaw)
@@ -970,7 +1075,7 @@ function hydrateViewerFromSession() {
 async function init() {
   hydrateViewerFromSession();
 
-  const [empleados, depts, procesos, tramites, tareas] = await Promise.all([
+  const [empleados, depts, procesos, tramites, tareasRaw] = await Promise.all([
     fetchEmpleadosForFilters(),
     fetchDepartamentos(),
     fetchProcesosCatalog(),
@@ -978,6 +1083,7 @@ async function init() {
     fetchTareasFromApi(),
   ]);
 
+  // Index empleados (para depto de tareas)
   empleados.forEach((emp) => {
     if (emp?.id != null) {
       State.empleadosIndex.set(emp.id, emp);
@@ -985,6 +1091,7 @@ async function init() {
   });
   log("Index empleados (global):", State.empleadosIndex);
 
+  // Index departamentos
   depts.forEach((d) => {
     if (d?.id != null) {
       State.departamentosIndex.set(d.id, d);
@@ -992,6 +1099,7 @@ async function init() {
   });
   log("Index departamentos:", State.departamentosIndex);
 
+  // Index procesos
   procesos.forEach((p) => {
     if (p?.id != null) {
       State.procesosIndex.set(p.id, p);
@@ -999,6 +1107,7 @@ async function init() {
   });
   log("Index procesos:", State.procesosIndex);
 
+  // Index trámites
   tramites.forEach((t) => {
     if (t?.id != null) {
       State.tramitesIndex.set(t.id, t);
@@ -1006,57 +1115,53 @@ async function init() {
   });
   log("Index trámites:", State.tramitesIndex);
 
-  // Enriquecer tareas con proceso y folio real del requerimiento
-  const tareasEnriquecidas = tareas.map((t) => {
-    let merged = t;
+  // ==========================
+  //   Enriquecer tareas
+  // ==========================
 
-    if (t.proceso_id != null) {
-      const proc = State.procesosIndex.get(t.proceso_id);
-      if (proc) {
-        const tituloProc =
-          proc.descripcion && proc.descripcion.trim().length
-            ? proc.descripcion.trim()
-            : t.proceso_titulo;
+  // Enriquecer con descripción de proceso + req_id
+  const tareasConProceso = tareasRaw.map((t) => {
+    if (t.proceso_id == null) return t;
+    const proc = State.procesosIndex.get(t.proceso_id);
+    if (!proc) return t;
 
-        const reqId =
-          proc.requerimiento_id ??
-          merged.requerimiento_id ??
-          null;
+    const tituloProc =
+      proc.descripcion && proc.descripcion.trim().length
+        ? proc.descripcion.trim()
+        : t.proceso_titulo;
 
-        // ⬇️ Solo usamos los folios reales que vengan del proceso o de la tarea
-        const folioProcRaw =
-          proc.requerimiento_folio ??
-          proc.folio ??
-          null;
+    const merged = {
+      ...t,
+      proceso_titulo: tituloProc,
+    };
 
-        const folioFinal =
-          (folioProcRaw && String(folioProcRaw).trim()) ||
-          (merged.folio && String(merged.folio).trim()) ||
-          null; // si no hay nada, se quedará "—" en la UI
+    if (!merged.requerimiento_id && proc.requerimiento_id) {
+      merged.requerimiento_id = proc.requerimiento_id;
+    }
 
-        merged = {
-          ...merged,
-          proceso_titulo: tituloProc,
-          requerimiento_id: reqId ?? merged.requerimiento_id ?? null,
-          folio: folioFinal,
-        };
-      }
+    // por si algún día vienen folio / tramite en el proceso
+    if (!merged.folio && proc.requerimiento_folio) {
+      merged.folio = formatFolio(proc.requerimiento_folio, proc.requerimiento_id);
     }
 
     return merged;
   });
 
+  // Enriquecer con folio real y trámite desde requerimiento
+  const tareasFinales = await enrichTasksWithRequerimientos(tareasConProceso);
 
-  State.tasks = tareasEnriquecidas;
+  State.tasks = tareasFinales;
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
 
   // ==========================
   //   JERARQUÍAS / FILTROS
   // ==========================
 
+  // a) Departamentos permitidos para el usuario
   const allowedDeptIds = new Set();
 
   if (Viewer.isAdmin || Viewer.isPres) {
+    // Puede ver todos los departamentos
     depts.forEach((d) => {
       if (d?.id != null) allowedDeptIds.add(d.id);
     });
@@ -1064,6 +1169,7 @@ async function init() {
     allowedDeptIds.add(Viewer.deptId);
   }
 
+  // Quitar Presidencia del combo de departamentos
   PRES_DEPT_IDS.forEach((id) => allowedDeptIds.delete(id));
 
   log(
@@ -1071,6 +1177,7 @@ async function init() {
     Array.from(allowedDeptIds)
   );
 
+  // b) Empleados visibles según jerarquía
   let empleadosForFilter = [];
 
   if (Viewer.isAdmin || Viewer.isPres) {
@@ -1089,6 +1196,7 @@ async function init() {
     empleadosForFilter
   );
 
+  // c) Opciones de Departamentos (todas las permitidas)
   const deptOptions = Array.from(allowedDeptIds).map((id) => {
     const dep = State.departamentosIndex.get(id);
     const label = dep ? dep.nombre : `Depto ${id}`;
@@ -1096,6 +1204,7 @@ async function init() {
   });
   log("Opciones filtro Departamentos:", deptOptions);
 
+  // d) Opciones de Empleados
   const empOptions = empleadosForFilter.map((emp) => {
     const label =
       emp.nombre_completo ||
@@ -1108,20 +1217,27 @@ async function init() {
   });
   log("Opciones filtro Empleados:", empOptions);
 
+  // e) Opciones de Procesos (para combo)
   const procesosOptions = procesos.map((p) => {
-    const label =
-      p.descripcion && p.descripcion.trim().length
-        ? p.descripcion.trim()
-        : `Proceso ${p.id}`;
+    const base = p.descripcion?.trim() || `Proceso ${p.id}`;
+    // si tenemos req en cache podemos mostrar su folio
+    const req = p.requerimiento_id
+      ? ReqCache.get(p.requerimiento_id)
+      : null;
+    const folioTxt = req ? formatFolio(req.folio, req.id) : "";
+    const label = folioTxt ? `${folioTxt} · ${base}` : base;
     return { value: p.id, label };
   });
-  log("[KB] Opciones filtro Procesos:", procesosOptions);
 
+  // f) Opciones de Trámites (para combo)
   const tramitesOptions = tramites.map((t) => ({
     value: t.id,
-    label: t.nombre,
+    label: t.nombre || `Trámite ${t.id}`,
   }));
-  log("[KB] Opciones filtro Trámites:", tramitesOptions);
+
+  // ==========================
+  //   UI
+  // ==========================
 
   setupSidebarFilters();
 
@@ -1134,30 +1250,8 @@ async function init() {
     createMultiFilter(fieldEmp, "empleados", empOptions);
   }
 
-  const selProceso = $("#kb-filter-proceso");
-  const selTramite = $("#kb-filter-tramite");
-
-  if (selProceso) {
-    fillSimpleSelect(selProceso, procesosOptions, { placeholder: "Todos" });
-    selProceso.addEventListener("change", () => {
-      const v = selProceso.value;
-      State.filters.procesoId = v ? Number(v) : null;
-      log("Filtro Proceso →", State.filters.procesoId);
-      renderBoard();
-    });
-  }
-
-  if (selTramite) {
-    fillSimpleSelect(selTramite, tramitesOptions, { placeholder: "Todos" });
-    selTramite.addEventListener("change", () => {
-      const v = selTramite.value;
-      State.filters.tramiteId = v ? Number(v) : null;
-      log("Filtro Trámite →", State.filters.tramiteId);
-      renderBoard();
-    });
-  }
-
   setupToolbar();
+  setupToolbarCombos({ procesosOptions, tramitesOptions });
   renderBoard();
   setupDragAndDrop();
 
