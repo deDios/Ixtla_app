@@ -327,13 +327,29 @@
                         <!-- Evidencias -->
                         <div class="kb-d-field">
                             <strong>Evidencias:</strong>
+
                             <div class="kb-evid-grid" id="kb-d-evidencias">
-                                <!-- Placeholders de ejemplo: el JS los va a limpiar cuando pinte evidencias reales -->
                                 <div class="kb-evid-placeholder"></div>
                                 <div class="kb-evid-placeholder"></div>
                                 <div class="kb-evid-placeholder"></div>
                             </div>
+
+                            <!-- NUEVO: acciones de evidencias -->
+                            <div class="kb-evid-actions">
+                                <!-- input oculto para elegir archivos -->
+                                <input type="file" id="kb-evid-input" accept="image/*,video/*,application/pdf" multiple
+                                    hidden>
+
+                                <button type="button" id="kb-evid-upload" class="kb-evid-upload-btn">
+                                    Subir archivo…
+                                </button>
+
+                                <span class="kb-evid-hint">
+                                    Puedes adjuntar imágenes, videos o PDFs (p.ej. fotos del reporte).
+                                </span>
+                            </div>
                         </div>
+
 
                         <!-- Comentarios -->
                         <div class="kb-d-field">

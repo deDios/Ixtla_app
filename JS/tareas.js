@@ -64,8 +64,16 @@ const API_REQ = {
   GET: `${API_FBK.HOST}/db/WEB/ixtla01_c_requerimiento.php`,
 };
 
+// ENDPOINTS DE MEDIA DE REQUERIMIENTOS (ajusta si tus rutas reales cambian)
+const API_MEDIA = {
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_requerimiento_media.php`,
+  UPLOAD: `${API_FBK.HOST}/db/WEB/ixtla01_i_requerimiento_media.php`,
+};
+
 const log = (...a) => KB.DEBUG && console.log("[KB]", ...a);
 const warn = (...a) => KB.DEBUG && console.warn("[KB]", ...a);
+const toast = (m, t = "info") =>
+  window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
 /* ==========================================================================
    Helpers
@@ -223,12 +231,11 @@ function mapRawTask(raw) {
       ? Number(raw.req_id)
       : null;
 
-  const tramite_id =
-    raw.tramite_id != null ? Number(raw.tramite_id) : null;
+  const tramite_id = raw.tramite_id != null ? Number(raw.tramite_id) : null;
 
   const tramite_nombre = raw.tramite_nombre || "";
 
-  // Aquí ya no inventamos folios; usamos helper y dejamos que
+  // OJO: aquí ya no inventamos folios; usamos helper y dejamos que
   // el enriquecido por requerimiento termine de amarrarlos si hace falta.
   const folio = formatFolio(
     raw.folio || raw.requerimiento_folio || null,
@@ -467,15 +474,193 @@ async function enrichTasksWithRequerimientos(tasks) {
       tramite_id:
         t.tramite_id != null ? t.tramite_id : req.tramite_id ?? t.tramite_id,
       tramite_nombre:
-        t.tramite_nombre ||
-        req.tramite_nombre ||
-        t.tramite_nombre ||
-        "",
+        t.tramite_nombre || req.tramite_nombre || t.tramite_nombre || "",
     };
   });
 
   log("TAREAS enriquecidas con requerimientos:", enriched);
   return enriched;
+}
+
+/* ==========================================================================
+   Media / Evidencias de requerimiento
+   ========================================================================== */
+
+function normalizarMediaItem(raw) {
+  if (!raw) return null;
+
+  const id = Number(raw.id ?? raw.media_id ?? raw.archivo_id ?? 0) || null;
+
+  const url =
+    raw.url ||
+    raw.archivo_url ||
+    raw.ruta ||
+    raw.path ||
+    raw.archivo ||
+    "";
+
+  const nombre = raw.nombre || raw.titulo || raw.descripcion || "Archivo";
+
+  if (!url) return null;
+
+  return { id, url, nombre, raw };
+}
+
+async function fetchMediaForRequerimiento(reqId) {
+  if (!reqId) return [];
+
+  const payload = { requerimiento_id: reqId };
+
+  try {
+    log("MEDIA LIST →", API_MEDIA.LIST, payload);
+    const res = await postJSON(API_MEDIA.LIST, payload);
+    log("MEDIA LIST respuesta cruda:", res);
+
+    const data = Array.isArray(res?.data) ? res.data : [];
+    const out = data.map(normalizarMediaItem).filter(Boolean);
+
+    log("Media normalizada para req", reqId, ":", out);
+    return out;
+  } catch (e) {
+    console.error("[KB] Error al listar media:", e);
+    return [];
+  }
+}
+
+function paintEvidencias(mediaList) {
+  const wrap = $("#kb-d-evidencias");
+  if (!wrap) return;
+
+  wrap.innerHTML = "";
+
+  if (!mediaList.length) {
+    // Sin media -> placeholders
+    for (let i = 0; i < 3; i++) {
+      const ph = document.createElement("div");
+      ph.className = "kb-evid-placeholder";
+      wrap.appendChild(ph);
+    }
+    return;
+  }
+
+  mediaList.slice(0, 3).forEach((item) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "kb-evid-thumb";
+    btn.title = item.nombre;
+
+    const isImg = /\.(png|jpe?g|webp|gif|bmp)$/i.test(item.url);
+
+    if (isImg) {
+      const img = document.createElement("img");
+      img.src = item.url;
+      img.alt = item.nombre;
+      btn.appendChild(img);
+    } else {
+      const span = document.createElement("span");
+      span.className = "kb-evid-file-icon";
+      span.textContent = "📎";
+      btn.appendChild(span);
+
+      const label = document.createElement("span");
+      label.className = "kb-evid-file-name";
+      label.textContent = item.nombre;
+      btn.appendChild(label);
+    }
+
+    btn.addEventListener("click", () => {
+      window.open(item.url, "_blank");
+    });
+
+    wrap.appendChild(btn);
+  });
+}
+
+async function loadEvidenciasForTask(task) {
+  const wrap = $("#kb-d-evidencias");
+  if (!wrap) return;
+
+  // Estado inicial: placeholders mientras carga
+  wrap.innerHTML = "";
+  for (let i = 0; i < 3; i++) {
+    const ph = document.createElement("div");
+    ph.className = "kb-evid-placeholder is-loading";
+    wrap.appendChild(ph);
+  }
+
+  if (!task?.requerimiento_id) {
+    log("Tarea sin requerimiento_id, no se cargan evidencias:", task?.id);
+    return;
+  }
+
+  const media = await fetchMediaForRequerimiento(task.requerimiento_id);
+  paintEvidencias(media);
+}
+
+async function uploadMediaForTask(task, files) {
+  if (!task?.requerimiento_id || !files?.length) return;
+
+  const reqId = task.requerimiento_id;
+
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append("requerimiento_id", reqId);
+    fd.append("archivo", file);
+
+    try {
+      log("MEDIA UPLOAD →", API_MEDIA.UPLOAD, {
+        requerimiento_id: reqId,
+        name: file.name,
+        size: file.size,
+      });
+
+      const resp = await fetch(API_MEDIA.UPLOAD, {
+        method: "POST",
+        body: fd,
+      });
+
+      const json = await resp.json().catch(() => null);
+      log("MEDIA UPLOAD respuesta:", json);
+
+      if (json?.ok === false) {
+        toast(`No se pudo subir "${file.name}"`, "error");
+      }
+    } catch (e) {
+      console.error("[KB] Error al subir media:", e);
+      toast(`Error al subir "${file.name}"`, "error");
+    }
+  }
+
+  toast("Evidencia subida correctamente", "success");
+  await loadEvidenciasForTask(task);
+}
+
+function setupEvidenciasUpload() {
+  const btn = $("#kb-evid-upload");
+  const input = $("#kb-evid-input");
+  if (!btn || !input) return;
+
+  btn.addEventListener("click", () => {
+    if (!State.selectedId) {
+      toast("Selecciona primero una tarea del tablero.", "warning");
+      return;
+    }
+    input.value = "";
+    input.click();
+  });
+
+  input.addEventListener("change", async () => {
+    const files = Array.from(input.files || []);
+    if (!files.length) return;
+
+    const task = getTaskById(State.selectedId);
+    if (!task) {
+      toast("No se encontró la tarea seleccionada.", "error");
+      return;
+    }
+
+    await uploadMediaForTask(task, files);
+  });
 }
 
 /* ==========================================================================
@@ -549,8 +734,7 @@ function createMultiFilter(fieldEl, key, options) {
   const searchInput = fieldEl.querySelector(".kb-multi-search-input");
   const list = fieldEl.querySelector(".kb-multi-options");
 
-  const stateSet =
-    State.filters[key] || (State.filters[key] = new Set());
+  const stateSet = State.filters[key] || (State.filters[key] = new Set());
 
   function renderOptions() {
     if (!list) return;
@@ -727,7 +911,9 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio || "—"}</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${
+    task.folio || "—"
+  }</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -838,6 +1024,11 @@ function openDetails(id) {
   fillDetails(task);
   highlightSelected();
 
+  // Cargar evidencias reales del requerimiento asociado a la tarea
+  loadEvidenciasForTask(task).catch((e) =>
+    console.error("[KB] Error cargando evidencias:", e)
+  );
+
   $("#kb-d-empty").hidden = true;
   $("#kb-d-body").hidden = false;
 
@@ -869,9 +1060,7 @@ function setupToolbarCombos({ procesosOptions, tramitesOptions }) {
     selProc.innerHTML =
       '<option value="">Todos</option>' +
       procesosOptions
-        .map(
-          (o) => `<option value="${o.value}">${o.label}</option>`
-        )
+        .map((o) => `<option value="${o.value}">${o.label}</option>`)
         .join("");
     selProc.addEventListener("change", () => {
       const v = selProc.value;
@@ -885,9 +1074,7 @@ function setupToolbarCombos({ procesosOptions, tramitesOptions }) {
     selTram.innerHTML =
       '<option value="">Todos</option>' +
       tramitesOptions
-        .map(
-          (o) => `<option value="${o.value}">${o.label}</option>`
-        )
+        .map((o) => `<option value="${o.value}">${o.label}</option>`)
         .join("");
     selTram.addEventListener("change", () => {
       const v = selTram.value;
@@ -1045,15 +1232,13 @@ function hydrateViewerFromSession() {
   log("Session.get() completo:", full);
 
   const deptId =
-    full?.empleado?.departamento_id ??
-    full?.departamento_id ??
-    null;
+    full?.empleado?.departamento_id ?? full?.departamento_id ?? null;
 
   const rolesRaw = full?.roles ?? full?.user?.roles ?? [];
   const roles = Array.isArray(rolesRaw)
     ? rolesRaw
     : String(rolesRaw || "")
-        .split(/[,\s]+/)
+        .split(/[,\s]+/g)
         .map((r) => r.trim())
         .filter(Boolean);
 
@@ -1138,7 +1323,6 @@ async function init() {
       merged.requerimiento_id = proc.requerimiento_id;
     }
 
-    // por si algún día vienen folio / tramite en el proceso
     if (!merged.folio && proc.requerimiento_folio) {
       merged.folio = formatFolio(
         proc.requerimiento_folio,
@@ -1163,7 +1347,6 @@ async function init() {
   const allowedDeptIds = new Set();
 
   if (Viewer.isAdmin || Viewer.isPres) {
-    // Puede ver todos los departamentos
     depts.forEach((d) => {
       if (d?.id != null) allowedDeptIds.add(d.id);
     });
@@ -1222,10 +1405,7 @@ async function init() {
   // e) Opciones de Procesos (para combo)
   const procesosOptions = procesos.map((p) => {
     const base = p.descripcion?.trim() || `Proceso ${p.id}`;
-    // si tenemos req en cache podemos mostrar su folio
-    const req = p.requerimiento_id
-      ? ReqCache.get(p.requerimiento_id)
-      : null;
+    const req = p.requerimiento_id ? ReqCache.get(p.requerimiento_id) : null;
     const folioTxt = req ? formatFolio(req.folio, req.id) : "";
     const label = folioTxt ? `${folioTxt} · ${base}` : base;
     return { value: p.id, label };
@@ -1261,6 +1441,9 @@ async function init() {
   const overlay = $("#kb-d-overlay");
   if (btnClose) btnClose.addEventListener("click", closeDetails);
   if (overlay) overlay.addEventListener("click", closeDetails);
+
+  // Wiring para subir evidencias desde el detalle de la tarea
+  setupEvidenciasUpload();
 
   log("Tablero de tareas listo", {
     tareas: State.tasks.length,
