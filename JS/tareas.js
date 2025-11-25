@@ -66,8 +66,10 @@ const API_REQ = {
 
 // ENDPOINTS DE MEDIA DE REQUERIMIENTOS (ajusta si tus rutas reales cambian)
 const API_MEDIA = {
-  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_requerimiento_media.php`,
-  UPLOAD: `${API_FBK.HOST}/db/WEB/ixtla01_i_requerimiento_media.php`,
+  //DB\WEB\ixtla01_c_requerimiento_img.php
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_requerimiento_img.php`,
+  //DB\WEB\ixtla01_in_requerimiento_img.php
+  UPLOAD: `${API_FBK.HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,
 };
 
 const log = (...a) => KB.DEBUG && console.log("[KB]", ...a);
