@@ -59,9 +59,6 @@ const API_TRAMITES = {
   LIST: `${API_HOST}/DB/WEB/ixtla01_c_tramite.php`,
 };
 
-const API_TRAMITES = {
-  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tramite.php`,
-};
 
 const log = (...a) => KB.DEBUG && console.log("[KB]", ...a);
 const warn = (...a) => KB.DEBUG && console.warn("[KB]", ...a);
