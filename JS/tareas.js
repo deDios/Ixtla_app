@@ -224,11 +224,15 @@ function mapRawTask(raw) {
       ? Number(raw.id_requerimiento)
       : null;
 
-  // folio desde la tarea si viene algo, si no se arma con req_id o id tarea
-  const folio = formatFolio(
-    raw.folio ?? raw.requerimiento_folio ?? raw.requerimiento?.folio,
-    requerimiento_id ?? id
-  );
+  // ⬇️ AQUÍ EL CAMBIO IMPORTANTE: NO se genera nada artificial,
+  // solo se usa lo que venga de la API (tarea o requerimiento).
+  const folioRaw =
+    raw.folio ??
+    raw.requerimiento_folio ??
+    raw.requerimiento?.folio ??
+    null;
+
+  const folio = folioRaw ? String(folioRaw).trim() : null;
 
   const proceso_titulo =
     raw.proceso_titulo ||
@@ -256,11 +260,12 @@ function mapRawTask(raw) {
     created_by: raw.created_by != null ? Number(raw.created_by) : null,
     created_by_nombre: raw.created_by_nombre || raw.creado_por_nombre || "—",
     autoriza_nombre: raw.autoriza_nombre || raw.autorizado_por || "—",
-    folio,
+    folio,                // ← folio real o null
     proceso_titulo,
     requerimiento_id,
   };
 }
+
 
 /* ==========================================================================
    Fetch de datos (TAREAS, EMPLEADOS, DEPARTAMENTOS, PROCESOS, TRÁMITES)
@@ -662,7 +667,9 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio}</span>`;
+  lineFolio.innerHTML =
+    `<span class="kb-task-label">Folio:</span> ` +
+    `<span class="kb-task-value kb-task-folio">${task.folio || "—"}</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -1016,15 +1023,16 @@ async function init() {
           merged.requerimiento_id ??
           null;
 
-        const folioSrc =
-          proc.folio ||
-          proc.requerimiento_folio ||
-          merged.folio;
+        // ⬇️ Solo usamos los folios reales que vengan del proceso o de la tarea
+        const folioProcRaw =
+          proc.requerimiento_folio ??
+          proc.folio ??
+          null;
 
-        const folioFinal = formatFolio(
-          folioSrc,
-          reqId ?? merged.requerimiento_id ?? merged.id
-        );
+        const folioFinal =
+          (folioProcRaw && String(folioProcRaw).trim()) ||
+          (merged.folio && String(merged.folio).trim()) ||
+          null; // si no hay nada, se quedará "—" en la UI
 
         merged = {
           ...merged,
@@ -1037,6 +1045,7 @@ async function init() {
 
     return merged;
   });
+
 
   State.tasks = tareasEnriquecidas;
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
