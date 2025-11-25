@@ -1155,7 +1155,7 @@ async function init() {
     createMultiFilter(fieldEmp, "empleados", empOptions);
   }
 
-  setupTramiteFilter(); 
+  setupTramiteFilter(); // 👈 ahora el select es de Trámite
   setupToolbar();
   renderBoard();
   setupDragAndDrop();
