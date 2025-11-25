@@ -184,13 +184,18 @@
                                 autocomplete="off" />
                         </div>
 
+                        <!-- Proceso -->
                         <div class="kb-filter-field">
                             <label for="kb-filter-proceso">Proceso</label>
                             <select id="kb-filter-proceso" class="kb-filter-input">
-                                <option value="">Todos</option>
-                                <option value="agua">Agua potable</option>
-                                <option value="alumbrado">Alumbrado</option>
-                                <option value="bacheo">Bache</option>
+                                <!-- luego estos vendrán del backend -->
+                            </select>
+                        </div>
+
+                        <!-- Trámite -->
+                        <div class="kb-filter-field">
+                            <label for="kb-filter-tramite">Trámite</label>
+                            <select id="kb-filter-tramite" class="kb-filter-input">
                                 <!-- luego estos vendrán del backend -->
                             </select>
                         </div>
