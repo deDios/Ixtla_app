@@ -1230,7 +1230,11 @@ async function init() {
   if (overlay) overlay.addEventListener("click", closeDetails);
 
   // Wiring para subir evidencias desde el detalle de la tarea
-  setupEvidenciasUpload();
+  if (typeof setupEvidenciasUpload === "function") {
+    setupEvidenciasUpload();
+  } else {
+    log("setupEvidenciasUpload no está definida, se omite wiring de media");
+  }
 
   log("Tablero de tareas listo", {
     tareas: State.tasks.length,

@@ -34,7 +34,7 @@ import { postJSON } from "../api/http.js";
   let CURRENT_TASK = null; // { id, requerimiento_id, ... }
 
   /* ======================================
-   *  Session helpers (copiados de ReqView)
+   *  Session helpers
    * ======================================*/
 
   function readCookiePayload() {
