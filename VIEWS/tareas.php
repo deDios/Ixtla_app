@@ -372,46 +372,70 @@
                             <div class="kb-d-field">
                                 <strong>Comentarios:</strong>
 
-                                <section class="demo-comments">
-                                    <div class="demo-card">
+                                <!-- ================== COMENTARIOS TAREA ================== -->
+                                <section class="kb-d-section">
+                                    <div class="kb-d-field">
+                                        <strong>Comentarios:</strong>
 
-                                        <div class="head">
-                                            <h4>Comentarios</h4>
-                                        </div>
+                                        <section class="demo-comments">
+                                            <div class="demo-card">
 
-                                        <!-- Composer demo -->
-                                        <div class="composer">
-                                            <div class="avatar">
-                                                <span>JP</span>
-                                            </div>
-                                            <div class="body">
-                                                <textarea rows="2"
-                                                    placeholder="Escribe un comentario sobre esta tarea…"></textarea>
-                                                <div class="footer">
-                                                    <button type="button" class="btn primary">Comentar</button>
-                                                    <span class="hint">Demostración, aún sin conexión a backend.</span>
+                                                <!-- Header del widget -->
+                                                <div class="head">
+                                                    <h4>Comentarios de la tarea</h4>
+                                                    <span class="pill" id="kb-comments-count">0 comentarios</span>
                                                 </div>
-                                            </div>
-                                        </div>
 
-                                        <!-- Lista de comentarios demo -->
-                                        <div class="comments-list">
-                                            <article class="comment">
-                                                <div class="avatar"><span>GC</span></div>
-                                                <div class="content">
-                                                    <div class="meta">
-                                                        <span class="author">GodCode Demo</span>
-                                                        <span class="time">Hace 2 h</span>
+                                                <!-- Composer -->
+                                                <div class="composer">
+                                                    <div class="composer-wrap">
+                                                        <textarea id="kb-comment-text" rows="2"
+                                                            placeholder="Escribe un comentario sobre esta tarea…"></textarea>
+
+                                                        <!-- Botón flotante con SVG (enviar) -->
+                                                        <button type="button" class="send-fab" id="kb-comment-send"
+                                                            title="Enviar comentario">
+                                                            <svg viewBox="0 0 20 20" aria-hidden="true">
+                                                                <path d="M2.3 17.7l15.4-7.7L2.3 2.3 2 8.5l8 1.5-8 1.5z"
+                                                                    fill="currentColor" />
+                                                            </svg>
+                                                        </button>
                                                     </div>
-                                                    <div class="text">
-                                                        Este es un comentario de ejemplo en el detalle de la tarea.
+
+                                                    <div class="actions">
+                                                        <button type="button" class="btn primary" id="kb-comment-btn">
+                                                            Comentar
+                                                        </button>
+                                                        <span class="hint">Pulsa Ctrl + Enter para enviar.</span>
                                                     </div>
                                                 </div>
-                                            </article>
-                                        </div>
 
+                                                <!-- Feed de comentarios -->
+                                                <div class="c-feed" id="kb-comments-feed">
+                                                    <p class="empty">Aún no hay comentarios para esta tarea.</p>
+
+          <article class="msg">
+            <div class="avatar"><span>JP</span></div>
+            <div class="body">
+              <div class="who">
+                <span class="name">Juan Pablo García</span>
+                <span class="time">Hace 2 h</span>
+              </div>
+              <div class="text">
+                <span class="task-tag">Tarea-15142</span>
+                <p class="comment-body">
+                  Texto del comentario relacionado a esta tarea…
+                </p>
+              </div>
+            </div>
+          </article>
+                                                </div>
+
+                                            </div>
+                                        </section>
                                     </div>
                                 </section>
+
                             </div>
                         </section>
 

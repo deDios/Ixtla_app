@@ -1377,6 +1377,89 @@
   }
 }
 
+/* ==============================
+   Drawer tareas – Evidencias
+   Normalizar tamaños de thumbs
+   ============================== */
+
+#kb-d-evidencias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+
+/* Thumbnail de evidencia (imágenes, pdf, etc.) */
+#kb-d-evidencias .kb-evid-thumb {
+  position: relative;
+  width: 96px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #d4dfdc;
+  background: #f7faf9;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.06s ease,
+    border-color 0.15s ease;
+}
+
+#kb-d-evidencias .kb-evid-thumb:hover {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .06);
+  border-color: #b8d1cb;
+}
+
+#kb-d-evidencias .kb-evid-thumb:active {
+  transform: translateY(1px);
+}
+
+/* Imagen dentro del thumb */
+#kb-d-evidencias .kb-evid-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;   /* recorta manteniendo proporción */
+  display: block;
+}
+
+/* Archivos no imagen (PDF, DOC, etc.) */
+#kb-d-evidencias .kb-evid-file-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  color: #9ca3af;
+}
+
+/* Placeholders vacíos para cuando no hay media o mientras carga */
+#kb-d-evidencias .kb-evid-placeholder {
+  width: 96px;
+  height: 80px;
+  border-radius: 8px;
+  border: 1px dashed #d4dfdc;
+  background: #f9fbfa;
+}
+
+#kb-d-evidencias .kb-evid-placeholder.is-loading {
+  animation: kbEvidPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes kbEvidPulse {
+  from { background-color: #f3f7f6; }
+  to   { background-color: #e6efec; }
+}
+
+/* Asegurar que el botón "Subir archivo…" quede alineado en la misma grilla */
+.kb-d-media-actions {
+  margin-top: 0.45rem;
+}
+
+.kb-d-media-actions .kb-media-upload {
+  width: 96px;
+  height: 80px;
+}
 
 
 
