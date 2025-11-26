@@ -66,9 +66,9 @@ const API_REQ = {
 
 // ENDPOINTS DE MEDIA DE REQUERIMIENTOS (ajusta si tus rutas reales cambian)
 const API_MEDIA = {
-  //DB\WEB\ixtla01_c_requerimiento_img.php
+  // DB\WEB\ixtla01_c_requerimiento_img.php
   LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_requerimiento_img.php`,
-  //DB\WEB\ixtla01_in_requerimiento_img.php
+  // DB\WEB\ixtla01_in_requerimiento_img.php
   UPLOAD: `${API_FBK.HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,
 };
 
@@ -508,10 +508,54 @@ function normalizarMediaItem(raw) {
   return { id, url, nombre, raw };
 }
 
+/**
+ * Resolver folio real para un requerimiento dado su ID.
+ * Usa:
+ *  - State.tasks (si ya viene folio en alguna tarea)
+ *  - ReqCache (si ya se consultó el requerimiento)
+ *  - fetchRequerimientoById como último recurso
+ */
+async function getFolioForRequerimiento(reqId) {
+  const id = Number(reqId);
+  if (!id) return null;
+
+  // 1) Intentar desde las tareas en memoria
+  const fromTask =
+    (State.tasks || []).find(
+      (t) => Number(t.requerimiento_id) === id
+    ) || null;
+
+  if (fromTask?.folio && fromTask.folio !== "—") {
+    return fromTask.folio;
+  }
+
+  // 2) Intentar desde el caché de requerimientos
+  if (ReqCache.has(id)) {
+    const reqCached = ReqCache.get(id);
+    if (reqCached) {
+      return formatFolio(reqCached.folio, reqCached.id);
+    }
+  }
+
+  // 3) Último recurso: consultar al backend
+  const req = await fetchRequerimientoById(id);
+  if (!req) return null;
+
+  return formatFolio(req.folio, req.id);
+}
+
 async function fetchMediaForRequerimiento(reqId) {
   if (!reqId) return [];
 
-  const payload = { requerimiento_id: reqId };
+  // Resolver folio real a partir del requerimiento_id
+  const folio = await getFolioForRequerimiento(reqId);
+
+  if (!folio) {
+    warn("MEDIA LIST → no se pudo resolver folio para reqId", reqId);
+    return [];
+  }
+
+  const payload = { folio };
 
   try {
     log("MEDIA LIST →", API_MEDIA.LIST, payload);
@@ -604,14 +648,26 @@ async function uploadMediaForTask(task, files) {
 
   const reqId = task.requerimiento_id;
 
+  // Resolver folio del requerimiento antes de subir
+  const folio = await getFolioForRequerimiento(reqId);
+
+  if (!folio) {
+    toast("No se pudo obtener el folio del requerimiento.", "error");
+    return;
+  }
+
   for (const file of files) {
     const fd = new FormData();
+
+    // Enviamos ambos por si el backend usa alguno de los dos
     fd.append("requerimiento_id", reqId);
+    fd.append("folio", folio);
     fd.append("archivo", file);
 
     try {
       log("MEDIA UPLOAD →", API_MEDIA.UPLOAD, {
         requerimiento_id: reqId,
+        folio,
         name: file.name,
         size: file.size,
       });
