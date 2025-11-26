@@ -1565,21 +1565,19 @@
 
 
 
-/* BLOQUE IMPORTANTE PARA COMENTARIOS */
-.demo-comments .msg {
-  padding: 10px 14px;
-}
-
-/* Texto del comentario: NO respetar saltos de línea viejos */
+/* FIX layout comentarios en drawer de tareas
+   (badge arriba, texto abajo, sin desbordes) */
 .demo-comments .msg .text {
-  white-space: normal !important;   /* pisa el pre-wrap inline */
+  display: block !important;      /* deja de ser flex */
+  white-space: normal !important; /* evita el pre-wrap raro */
   word-break: break-word;
   font-size: 14px;
   line-height: 1.4;
   margin-top: 4px;
+  text-align: left;
 }
 
-/* Badge de tarea (ya lo tenías, lo dejo para que esté junto) */
+/* Badge "TAREA-xxxx" en línea, pegado al inicio */
 .demo-comments .msg .text .task-tag {
   display: inline-block;
   margin-right: 6px;
@@ -1594,7 +1592,9 @@
   vertical-align: baseline;
 }
 
-
-.kb-filter-field--multi .kb-multi-trigger[aria-expanded="true"] + .kb-multi-menu {
+/* Párrafo del comentario como bloque debajo del badge */
+.demo-comments .msg .text .comment-body {
   display: block;
+  margin: 4px 0 0;
+  white-space: normal;
 }

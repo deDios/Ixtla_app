@@ -367,75 +367,69 @@
 
                         <hr class="kb-d-section-sep" />
 
-                        <!-- ================== COMENTARIOS (DEMO) ================== -->
+                        <!-- ================== COMENTARIOS TAREA ================== -->
                         <section class="kb-d-section">
                             <div class="kb-d-field">
                                 <strong>Comentarios:</strong>
 
-                                <!-- ================== COMENTARIOS TAREA ================== -->
-                                <section class="kb-d-section">
-                                    <div class="kb-d-field">
-                                        <strong>Comentarios:</strong>
+                                <section class="demo-comments">
+                                    <div class="demo-card">
 
-                                        <section class="demo-comments">
-                                            <div class="demo-card">
+                                        <!-- Header del widget -->
+                                        <div class="head">
+                                            <h4>Comentarios de la tarea</h4>
+                                            <span class="pill" id="kb-comments-count">0 comentarios</span>
+                                        </div>
 
-                                                <!-- Header del widget -->
-                                                <div class="head">
-                                                    <h4>Comentarios de la tarea</h4>
-                                                    <span class="pill" id="kb-comments-count">0 comentarios</span>
-                                                </div>
+                                        <!-- Composer -->
+                                        <div class="composer">
+                                            <div class="composer-wrap">
+                                                <textarea id="kb-comment-text" rows="2"
+                                                    placeholder="Escribe un comentario sobre esta tarea…"></textarea>
 
-                                                <!-- Composer -->
-                                                <div class="composer">
-                                                    <div class="composer-wrap">
-                                                        <textarea id="kb-comment-text" rows="2"
-                                                            placeholder="Escribe un comentario sobre esta tarea…"></textarea>
-
-                                                        <!-- Botón flotante con SVG (enviar) -->
-                                                        <button type="button" class="send-fab" id="kb-comment-send"
-                                                            title="Enviar comentario">
-                                                            <svg viewBox="0 0 20 20" aria-hidden="true">
-                                                                <path d="M2.3 17.7l15.4-7.7L2.3 2.3 2 8.5l8 1.5-8 1.5z"
-                                                                    fill="currentColor" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-
-                                                    <div class="actions">
-                                                        <button type="button" class="btn primary" id="kb-comment-btn">
-                                                            Comentar
-                                                        </button>
-                                                        <span class="hint">Pulsa Ctrl + Enter para enviar.</span>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Feed de comentarios -->
-                                                <div class="c-feed" id="kb-comments-feed">
-                                                    <p class="empty">Aún no hay comentarios para esta tarea.</p>
-
-                                                    <article class="msg">
-                                                        <div class="avatar"><span>JP</span></div>
-                                                        <div class="body">
-                                                            <div class="who">
-                                                                <span class="name">Juan Pablo García</span>
-                                                                <span class="time">Hace 2 h</span>
-                                                            </div>
-                                                            <div class="text">
-                                                                <span class="task-tag">Tarea-15142</span>
-                                                                <p class="comment-body">
-                                                                    Texto del comentario relacionado a esta tarea…
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </article>
-                                                </div>
-
+                                                <!-- Botón flotante con SVG (enviar) -->
+                                                <button type="button" class="send-fab" id="kb-comment-send"
+                                                    title="Enviar comentario">
+                                                    <svg viewBox="0 0 20 20" aria-hidden="true">
+                                                        <path d="M2.3 17.7l15.4-7.7L2.3 2.3 2 8.5l8 1.5-8 1.5z"
+                                                            fill="currentColor" />
+                                                    </svg>
+                                                </button>
                                             </div>
-                                        </section>
+
+                                            <div class="actions">
+                                                <button type="button" class="btn primary" id="kb-comment-btn">
+                                                    Comentar
+                                                </button>
+                                                <span class="hint">Pulsa Ctrl + Enter para enviar.</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Feed de comentarios -->
+                                        <div class="c-feed" id="kb-comments-feed">
+                                            <p class="empty">Aún no hay comentarios para esta tarea.</p>
+
+                                            <article class="msg">
+                                                <div class="avatar">
+                                                    <img src="/ASSETS/user/img_user1.png" alt="Juan Pablo García">
+                                                </div>
+                                                <div class="body">
+                                                    <div class="who">
+                                                        <span class="name">Juan Pablo García</span>
+                                                        <span class="time">Hace 2 h</span>
+                                                    </div>
+                                                    <div class="text">
+                                                        <span class="task-tag">Tarea-15142</span>
+                                                        <p class="comment-body">
+                                                            Texto del comentario relacionado a esta tarea…
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        </div>
+
                                     </div>
                                 </section>
-
                             </div>
                         </section>
 
