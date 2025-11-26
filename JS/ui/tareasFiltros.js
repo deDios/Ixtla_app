@@ -1,22 +1,36 @@
-// /JS/ui/tareasFiltros.js – UI de filtros del tablero de tareas
+// /JS/ui/tareasFiltros.js
 "use strict";
 
 /**
- * Módulo de filtros para el tablero de tareas.
+ * Módulo de UI de filtros del tablero de tareas.
  *
- * Recibe State, helpers y un callback renderBoard()
- * para no acoplarse a los detalles del tablero.
+ * Se encarga de:
+ *  - Sidebar (multi-combos de Departamentos y Empleados)
+ *  - Toolbar (chips, búsqueda, combos Proceso / Trámite)
+ *  - Filtros dinámicos: updateAvailableOptions(tasks)
+ *
+ * Recibe helpers y state desde tareas.js para no duplicar lógica.
  */
+
 export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) {
-  // Multi select (Departamentos / Empleados)
+  /* ========================================================================
+   * Estado local del módulo
+   * ======================================================================*/
+
   const MultiFilters = {
     departamentos: null,
     empleados: null,
   };
 
-  /* ------------------------------------------------------------------------
-   * Multi select (Departamentos / Empleados)
-   * ---------------------------------------------------------------------- */
+  // refs de UI que usaremos también en updateAvailableOptions
+  let fieldDept = null;
+  let fieldEmp = null;
+  let selProc = null;
+  let selTram = null;
+
+  /* ========================================================================
+   * Helpers multi-combo sidebar
+   * ======================================================================*/
 
   function createMultiFilter(fieldEl, key, options) {
     if (!fieldEl) return;
@@ -77,9 +91,7 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
       }
 
       if (list) {
-        const li = list.querySelector(
-          `.kb-multi-option[data-value="${value}"]`
-        );
+        const li = list.querySelector(`.kb-multi-option[data-value="${value}"]`);
         if (li) li.classList.toggle("is-selected", stateSet.has(value));
       }
 
@@ -169,13 +181,13 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
     }
   }
 
-  /* ------------------------------------------------------------------------
-   * Toolbar (chips + search + combos proceso / trámite)
-   * ---------------------------------------------------------------------- */
+  /* ========================================================================
+   * Toolbar (chips + búsqueda + combos proceso / trámite)
+   * ======================================================================*/
 
   function setupToolbarCombos({ procesosOptions, tramitesOptions }) {
-    const selProc = $("#kb-filter-proceso");
-    const selTram = $("#kb-filter-tramite");
+    selProc = $("#kb-filter-proceso");
+    selTram = $("#kb-filter-tramite");
 
     if (selProc) {
       selProc.innerHTML =
@@ -183,6 +195,7 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
         procesosOptions
           .map((o) => `<option value="${o.value}">${o.label}</option>`)
           .join("");
+
       selProc.addEventListener("change", () => {
         const v = selProc.value;
         State.filters.procesoId = v ? Number(v) : null;
@@ -197,6 +210,7 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
         tramitesOptions
           .map((o) => `<option value="${o.value}">${o.label}</option>`)
           .join("");
+
       selTram.addEventListener("change", () => {
         const v = selTram.value;
         State.filters.tramiteId = v ? Number(v) : null;
@@ -255,8 +269,6 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
         if (chipRecent) chipRecent.classList.remove("is-active");
         if (inputSearch) inputSearch.value = "";
 
-        const selProc = $("#kb-filter-proceso");
-        const selTram = $("#kb-filter-tramite");
         if (selProc) selProc.value = "";
         if (selTram) selTram.value = "";
 
@@ -266,30 +278,159 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
     }
   }
 
-  /* ------------------------------------------------------------------------
+  /* ========================================================================
+   * Filtros dinámicos – se llama desde renderBoard()
+   * ======================================================================*/
+
+  /**
+   * Actualiza qué opciones están visibles en los filtros, según las tareas
+   * que cumplen SOLO:
+   *    - filtro "mine"
+   *    - filtro de búsqueda (search)
+   *
+   * El resto de filtros (dept/emp/proceso/trámite) se aplican en passesFilters
+   * dentro de tareas.js; aquí solo construimos el "universo" disponible.
+   */
+  function updateAvailableOptions(tasks) {
+    if (!Array.isArray(tasks)) return;
+
+    // Si no hay tareas (por ejemplo, filtro deja 0), mostramos todas las opciones.
+    const noUniverse = tasks.length === 0;
+
+    // ---------------- Departamentos ----------------
+    if (fieldDept) {
+      const visibleDeptIds = new Set();
+      for (const t of tasks) {
+        const emp = State.empleadosIndex.get(t.asignado_a);
+        const deptId = emp?.departamento_id;
+        if (deptId != null) visibleDeptIds.add(Number(deptId));
+      }
+
+      const stateSet = State.filters.departamentos || new Set();
+      const list = fieldDept.querySelector(".kb-multi-options");
+      if (list) {
+        list.querySelectorAll(".kb-multi-option").forEach((li) => {
+          const value = Number(li.dataset.value);
+          if (noUniverse) {
+            li.hidden = false;
+          } else if (
+            visibleDeptIds.has(value) ||
+            stateSet.has(value) // no ocultar los seleccionados
+          ) {
+            li.hidden = false;
+          } else {
+            li.hidden = true;
+          }
+        });
+      }
+    }
+
+    // ---------------- Empleados ----------------
+    if (fieldEmp) {
+      const visibleEmpIds = new Set();
+      for (const t of tasks) {
+        if (t.asignado_a != null) visibleEmpIds.add(Number(t.asignado_a));
+      }
+
+      const stateSet = State.filters.empleados || new Set();
+      const list = fieldEmp.querySelector(".kb-multi-options");
+      if (list) {
+        list.querySelectorAll(".kb-multi-option").forEach((li) => {
+          const value = Number(li.dataset.value);
+          if (noUniverse) {
+            li.hidden = false;
+          } else if (
+            visibleEmpIds.has(value) ||
+            stateSet.has(value) // mantener visibles los seleccionados
+          ) {
+            li.hidden = false;
+          } else {
+            li.hidden = true;
+          }
+        });
+      }
+    }
+
+    // ---------------- Procesos ----------------
+    if (selProc) {
+      const visibleProcIds = new Set();
+      for (const t of tasks) {
+        if (t.proceso_id != null) visibleProcIds.add(Number(t.proceso_id));
+      }
+
+      const selectedProcId = State.filters.procesoId;
+
+      selProc.querySelectorAll("option").forEach((opt) => {
+        if (!opt.value) {
+          opt.hidden = false; // opción "Todos"
+          return;
+        }
+        const value = Number(opt.value);
+        if (noUniverse) {
+          opt.hidden = false;
+        } else if (
+          visibleProcIds.has(value) ||
+          (selectedProcId != null && selectedProcId === value)
+        ) {
+          opt.hidden = false;
+        } else {
+          opt.hidden = true;
+        }
+      });
+    }
+
+    // ---------------- Trámites ----------------
+    if (selTram) {
+      const visibleTramIds = new Set();
+      for (const t of tasks) {
+        if (t.tramite_id != null) visibleTramIds.add(Number(t.tramite_id));
+      }
+
+      const selectedTramId = State.filters.tramiteId;
+
+      selTram.querySelectorAll("option").forEach((opt) => {
+        if (!opt.value) {
+          opt.hidden = false; // "Todos"
+          return;
+        }
+        const value = Number(opt.value);
+        if (noUniverse) {
+          opt.hidden = false;
+        } else if (
+          visibleTramIds.has(value) ||
+          (selectedTramId != null && selectedTramId === value)
+        ) {
+          opt.hidden = false;
+        } else {
+          opt.hidden = true;
+        }
+      });
+    }
+  }
+
+  /* ========================================================================
    * API pública del módulo
-   * ---------------------------------------------------------------------- */
+   * ======================================================================*/
 
   function init({ deptOptions, empOptions, procesosOptions, tramitesOptions }) {
-    // Sidebar (botón limpiar)
     setupSidebarFilters();
 
-    // Combos multi-select
-    const fieldDept = $("#kb-filter-departamentos");
-    const fieldEmp = $("#kb-filter-empleados");
-    if (fieldDept && deptOptions.length) {
+    fieldDept = $("#kb-filter-departamentos");
+    fieldEmp = $("#kb-filter-empleados");
+
+    if (fieldDept && Array.isArray(deptOptions) && deptOptions.length) {
       createMultiFilter(fieldDept, "departamentos", deptOptions);
     }
-    if (fieldEmp && empOptions.length) {
+    if (fieldEmp && Array.isArray(empOptions) && empOptions.length) {
       createMultiFilter(fieldEmp, "empleados", empOptions);
     }
 
-    // Toolbar principal
     setupToolbar();
     setupToolbarCombos({ procesosOptions, tramitesOptions });
   }
 
   return {
     init,
+    updateAvailableOptions,
   };
 }

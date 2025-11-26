@@ -186,6 +186,7 @@ const CNT_IDS = {
 };
 
 let dragging = false;
+let FiltersModule = null;
 
 // cache para requerimientos (folio, tramite, etc.)
 const ReqCache = new Map(); // reqId → data o null
@@ -490,6 +491,29 @@ async function enrichTasksWithRequerimientos(tasks) {
    Filtros / combos (lógica de negocio)
    ========================================================================== */
 
+function passesBaseFilters(task) {
+  // Solo mis tareas
+  if (
+    State.filters.mine &&
+    KB.CURRENT_USER_ID != null &&
+    task.asignado_a !== KB.CURRENT_USER_ID
+  ) {
+    return false;
+  }
+
+  // Search (folio, proceso, id)
+  const q = State.filters.search.trim().toLowerCase();
+  if (q) {
+    const hay =
+      (task.folio || "").toLowerCase().includes(q) ||
+      (task.proceso_titulo || "").toLowerCase().includes(q) ||
+      String(task.id).includes(q);
+    if (!hay) return false;
+  }
+
+  return true;
+}
+
 function passesFilters(task) {
   // Solo mis tareas
   if (
@@ -648,8 +672,12 @@ function renderBoard() {
     if (lbl) lbl.textContent = "(0)";
   });
 
+  // 1) Tareas visibles
+  const visibleTasks = [];
   for (const task of State.tasks) {
     if (!passesFilters(task)) continue;
+    visibleTasks.push(task);
+
     const colSel = COL_IDS[task.status];
     const col = colSel ? $(colSel) : null;
     if (!col) continue;
@@ -667,6 +695,12 @@ function renderBoard() {
   }
 
   highlightSelected();
+
+  // 2) Actualizar filtros dinámicos según tareas que cumplen mine + búsqueda
+  if (FiltersModule && FiltersModule.updateAvailableOptions) {
+    const universeTasks = State.tasks.filter(passesBaseFilters);
+    FiltersModule.updateAvailableOptions(universeTasks);
+  }
 }
 
 /* ==========================================================================
@@ -953,7 +987,7 @@ async function init() {
   //   UI – Filtros + tablero
   // ==========================
 
-  const FiltersModule = createTaskFiltersModule({
+  FiltersModule = createTaskFiltersModule({
     State,
     KB,
     log,
