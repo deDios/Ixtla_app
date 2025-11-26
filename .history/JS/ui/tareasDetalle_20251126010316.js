@@ -14,25 +14,11 @@ export function createTaskDetailsModule({
   getTaskById,
   API_MEDIA,
   postJSON,
-  Session,
 }) {
   const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
-  /* ========================================================================\
-   * Endpoints (AJUSTA ESTAS URLS A TU ENTORNO REAL)
-   * ======================================================================== */
-  const API_ROOT = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB";
-  const ENDPOINTS = {
-      // Endpoint para LISTAR comentarios
-      COMMENTS_LIST: `${API_ROOT}/ixtla01_c_comentarios.php`,
-      // Endpoint para INSERTAR comentarios
-      COMMENTS_INSERT: `${API_ROOT}/ixtla01_i_comentario.php`,
-  };
-
 
   /* ========================================================================
-     Media / Evidencias (Lógica Original del Usuario)
+     Media / Evidencias
      ====================================================================== */
 
   function normalizarMediaItem(raw) {
@@ -57,6 +43,10 @@ export function createTaskDetailsModule({
 
   /**
    * Resolver folio real para un requerimiento dado su ID.
+   * Usa:
+   *  - State.tasks (si ya viene folio en alguna tarea)
+   *  - ReqCache (si ya se consultó el requerimiento)
+   *  - fetchRequerimientoById como último recurso
    */
   async function getFolioForRequerimiento(reqId) {
     const id = Number(reqId);
@@ -263,169 +253,8 @@ export function createTaskDetailsModule({
     });
   }
 
-
-  /* ========================================================================\
-     Comentarios: Lógica de Carga y Renderizado (NUEVO)
-     ======================================================================== */
-
-  /** Renderiza un solo item de comentario. */
-  function paintCommentItem(item) {
-      const fecha = item.fecha_registro ? new Date(item.fecha_registro).toLocaleString() : 'Fecha desconocida';
-      const autor = item.empleado_nombre || 'Usuario Desconocido';
-      const cuerpo = item.comentario || '';
-      const avatar = item.empleado_avatar_url || '/ASSETS/user/img_user1.png'; 
-
-      return `
-          <article class="kb-d-comment-item" data-comment-id="${item.id}">
-              <div class="kb-d-comment-meta">
-                  <img class="kb-d-comment-avatar" src="${avatar}" alt="Avatar de ${autor}">
-                  <div class="kb-d-comment-info">
-                      <span class="kb-d-comment-author">${autor}</span>
-                      <time class="kb-d-comment-date">${fecha}</time>
-                  </div>
-              </div>
-              <p class="kb-d-comment-body">${cuerpo}</p>
-          </article>
-      `;
-  }
-
-  /** Renderiza la lista completa de comentarios. */
-  function paintComentarios(list) {
-      const container = $("#kb-d-comentarios"); 
-      if (!container) return;
-
-      if (!list || list.length === 0) {
-          container.innerHTML = `<p class="kb-d-no-data">Sin comentarios.</p>`;
-          return;
-      }
-      
-      // Ordenar para mostrar los más antiguos arriba
-      list.sort((a, b) => new Date(a.fecha_registro) - new Date(b.fecha_registro));
-
-      container.innerHTML = list.map(paintCommentItem).join("");
-      // Desplazar al final para ver los comentarios más recientes
-      container.scrollTop = container.scrollHeight; 
-  }
-
-  /** Carga los comentarios para el requerimiento asociado a la tarea. */
-  async function loadComentariosForTask(task) {
-      const requerimientoId = Number(task.requerimiento_id); 
-      const container = $("#kb-d-comentarios");
-      if (container) container.innerHTML = '<p class="kb-d-loading">Cargando comentarios...</p>';
-
-
-      if (!requerimientoId) {
-          paintComentarios([]); 
-          return;
-      }
-
-      try {
-          const resp = await postJSON(ENDPOINTS.COMMENTS_LIST, {
-              id: requerimientoId, // ID del requerimiento
-          });
-
-          const comments = resp.comentarios || [];
-          paintComentarios(comments);
-          return comments; 
-      } catch (e) {
-          warn("[KB] Error cargando comentarios:", e);
-          if (container) container.innerHTML = `<p class="kb-d-error">Error al cargar comentarios. Intente de nuevo.</p>`;
-          return [];
-      }
-  }
-
-
-  /* ========================================================================\
-     Comentarios: Lógica de Inserción (NUEVO)
-     ======================================================================== */
-
-  /** Maneja el envío del formulario para agregar un nuevo comentario. */
-  async function handleNewComment(e) {
-      e.preventDefault();
-      
-      const form = e.currentTarget;
-      const input = $("#kb-d-comment-input");
-      const btn = $('button[type="submit"]', form);
-      const tarea = getTaskById(State.selectedId);
-
-      if (!tarea || !input || !btn) return;
-      
-      const requerimientoId = Number(tarea.requerimiento_id); 
-      const comentario = input.value.trim();
-      // Obtenemos el ID del usuario logueado usando la sesión
-      const empleadoId = Session.getIds()?.empleado_id; 
-
-      if (!comentario) {
-          toast("El comentario no puede estar vacío.", "warning");
-          return;
-      }
-      if (!requerimientoId) {
-          toast("No se encontró el requerimiento asociado. No se puede comentar.", "error");
-          return;
-      }
-      if (!empleadoId) {
-          toast("No se pudo identificar al usuario actual. Por favor, recargue.", "error");
-          return;
-      }
-
-      // Deshabilitar UI durante el envío
-      btn.disabled = true;
-      input.disabled = true;
-      btn.textContent = 'Enviando...';
-
-      try {
-          const payload = {
-              requerimiento_id: requerimientoId,
-              empleado_id: empleadoId,
-              comentario: comentario,
-          };
-
-          const resp = await postJSON(ENDPOINTS.COMMENTS_INSERT, payload);
-
-          if (resp.ok || resp.id) {
-              // 1. Éxito: Limpiar campo
-              toast("Comentario agregado.", "success");
-              input.value = ""; 
-              
-              // 2. Actualización en tiempo real: recargar la lista
-              await loadComentariosForTask(tarea);
-          } else {
-              toast(resp.msg || "Error al guardar el comentario.", "error");
-          }
-
-      } catch (error) {
-          warn("[KB] Error al insertar comentario:", error);
-          toast("Error de conexión al agregar el comentario.", "error");
-      } finally {
-          // Restaurar UI
-          btn.disabled = false;
-          input.disabled = false;
-          btn.textContent = 'Enviar';
-      }
-  }
-
-  /** Inicializa los listeners del formulario de comentarios. */
-  function setupCommentForm(task) {
-      const form = $("#kb-d-comment-form"); 
-      
-      // 1. Limpiar el listener existente (para evitar duplicados)
-      if (form) {
-          form.removeEventListener("submit", handleNewComment);
-          
-          // 2. Asignar el nuevo listener
-          form.addEventListener("submit", handleNewComment);
-
-          // 3. Ocultar el formulario si no hay requerimiento válido
-          form.hidden = !task.requerimiento_id;
-      }
-      // 4. Limpiar el campo de texto
-      const input = $("#kb-d-comment-input"); 
-      if (input) input.value = '';
-  }
-
-
   /* ========================================================================
-     Drawer – Detalle de la tarea (Lógica Original del Usuario)
+     Drawer – Detalle de la tarea
      ====================================================================== */
 
   function fillDetails(task) {
@@ -469,19 +298,9 @@ export function createTaskDetailsModule({
     fillDetails(task);
     highlightSelected();
 
-    // Carga de Evidencias (Existente)
     loadEvidenciasForTask(task).catch((e) =>
       console.error("[KB] Error cargando evidencias:", e)
     );
-    
-    // Carga de Comentarios (NUEVO)
-    loadComentariosForTask(task).catch((e) =>
-        console.error("[KB] Error cargando comentarios:", e)
-    );
-    
-    // Configuración del Formulario de Comentarios (NUEVO)
-    setupCommentForm(task);
-
 
     const empty = $("#kb-d-empty");
     const body = $("#kb-d-body");
@@ -504,11 +323,6 @@ export function createTaskDetailsModule({
   function closeDetails() {
     State.selectedId = null;
     highlightSelected();
-    
-    // Limpiar el contenedor de comentarios al cerrar (NUEVO)
-    const commentsContainer = $("#kb-d-comentarios");
-    if (commentsContainer) commentsContainer.innerHTML = '';
-
 
     const aside = $("#kb-details");
     const overlay = $("#kb-d-overlay");
@@ -528,6 +342,5 @@ export function createTaskDetailsModule({
     closeDetails,
     setupEvidenciasUpload,
     loadEvidenciasForTask,
-    loadComentariosForTask, 
   };
 }

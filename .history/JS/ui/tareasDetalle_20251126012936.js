@@ -14,10 +14,10 @@ export function createTaskDetailsModule({
   getTaskById,
   API_MEDIA,
   postJSON,
-  Session,
+  Session, // 👈 Se agregó el módulo Session
 }) {
   const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel)); // 👈 Agregado para comentarios
 
   /* ========================================================================\
    * Endpoints (AJUSTA ESTAS URLS A TU ENTORNO REAL)

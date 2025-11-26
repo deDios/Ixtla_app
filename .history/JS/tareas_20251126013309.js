@@ -1117,21 +1117,20 @@ async function init() {
   //   Módulo de Detalle
   // ==========================
 
-  // **Importante:** Se agrega 'Session' para el manejo de comentarios.
-  DetailsModule = createTaskDetailsModule({
-    State,
-    KB,
-    ReqCache,
-    fetchRequerimientoById,
-    formatFolio,
-    log,
-    warn,
-    toast,
-    highlightSelected,
-    getTaskById,
-    API_MEDIA,
-    postJSON,
-    Session, 
+  const DetailsModule = createTaskDetailsModule({
+  State,
+  KB,
+  ReqCache,
+  fetchRequerimientoById,
+  formatFolio,
+  log,
+  warn,
+  toast,
+  highlightSelected,
+  getTaskById,
+  API_MEDIA,
+  postJSON,
+  Session, 
   });
 
   // ==========================
@@ -1244,7 +1243,6 @@ async function init() {
   });
 }
 
-// Inicializa el tablero una vez que el DOM esté completamente cargado.
 document.addEventListener("DOMContentLoaded", () => {
   init().catch((e) => console.error("[KB] init error:", e));
 });
