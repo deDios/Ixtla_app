@@ -28,7 +28,7 @@ export function createTaskDetailsModule({
       //db\WEB\ixtla01_c_comentario_requerimiento.php
       COMMENTS_LIST: `${API_ROOT}/ixtla01_c_comentario_requerimiento.php`,
       // Endpoint para INSERTAR comentarios
-      COMMENTS_INSERT: `${API_ROOT}/ixtla01_i_comentario_requerimiento.php`,
+      COMMENTS_INSERT: `${API_ROOT}/ixtla01_i_comentario.php`,
   };
 
 
