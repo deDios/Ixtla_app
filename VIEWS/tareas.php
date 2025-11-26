@@ -414,21 +414,21 @@
                                                 <div class="c-feed" id="kb-comments-feed">
                                                     <p class="empty">Aún no hay comentarios para esta tarea.</p>
 
-          <article class="msg">
-            <div class="avatar"><span>JP</span></div>
-            <div class="body">
-              <div class="who">
-                <span class="name">Juan Pablo García</span>
-                <span class="time">Hace 2 h</span>
-              </div>
-              <div class="text">
-                <span class="task-tag">Tarea-15142</span>
-                <p class="comment-body">
-                  Texto del comentario relacionado a esta tarea…
-                </p>
-              </div>
-            </div>
-          </article>
+                                                    <article class="msg">
+                                                        <div class="avatar"><span>JP</span></div>
+                                                        <div class="body">
+                                                            <div class="who">
+                                                                <span class="name">Juan Pablo García</span>
+                                                                <span class="time">Hace 2 h</span>
+                                                            </div>
+                                                            <div class="text">
+                                                                <span class="task-tag">Tarea-15142</span>
+                                                                <p class="comment-body">
+                                                                    Texto del comentario relacionado a esta tarea…
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </article>
                                                 </div>
 
                                             </div>
