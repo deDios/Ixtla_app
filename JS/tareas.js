@@ -8,7 +8,7 @@
 import { Session } from "./auth/session.js";
 import { postJSON } from "./api/http.js";
 import { searchEmpleados } from "./api/usuarios.js";
-import { createTaskDetailsModule } from "./ui/tareasDetalle.js";
+import "./ui/tareasDetalle.js";
 
 /* ==========================================================================
    Config
@@ -606,9 +606,7 @@ function createMultiFilter(fieldEl, key, options) {
     }
 
     if (list) {
-      const li = list.querySelector(
-        `.kb-multi-option[data-value="${value}"]`
-      );
+      const li = list.querySelector(`.kb-multi-option[data-value="${value}"]`);
       if (li) li.classList.toggle("is-selected", stateSet.has(value));
     }
 
@@ -716,8 +714,30 @@ function highlightSelected() {
 
 // Wrappers para el módulo de detalle
 function openDetails(id) {
-  if (!DetailsModule) return;
-  DetailsModule.openDetails(id);
+  const task = getTaskById(id);
+  if (!task) return;
+  State.selectedId = task.id;
+
+  fillDetails(task);
+  highlightSelected();
+
+  // Cargar evidencias reales del requerimiento asociado a la tarea
+  loadEvidenciasForTask(task).catch((e) =>
+    console.error("[KB] Error cargando evidencias:", e)
+  );
+
+  // 👇 nuevo: cargar comentarios de esta tarea
+  if (window.KBTaskComments && KBTaskComments.openForTask) {
+    KBTaskComments.openForTask(task);
+  }
+
+  $("#kb-d-empty").hidden = true;
+  $("#kb-d-body").hidden = false;
+
+  $("#kb-details").classList.add("is-open");
+  $("#kb-details").setAttribute("aria-hidden", "false");
+  $("#kb-d-overlay").classList.add("is-open");
+  $("#kb-d-overlay").hidden = false;
 }
 
 function closeDetails() {
