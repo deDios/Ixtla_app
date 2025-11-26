@@ -1598,3 +1598,31 @@
   margin: 4px 0 0;
   white-space: normal;
 }
+
+/* ============================================
+   Avatar en comentarios del drawer de tareas
+   ============================================ */
+.demo-comments .msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.demo-comments .msg .avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e5e7eb;        
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.demo-comments .msg .avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;       
+}
