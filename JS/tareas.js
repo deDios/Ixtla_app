@@ -8,7 +8,7 @@
 import { Session } from "./auth/session.js";
 import { postJSON } from "./api/http.js";
 import { searchEmpleados } from "./api/usuarios.js";
-import "./ui/tareasDetalle.js";
+import { createTaskDetailsModule } from "./ui/tareasDetalle.js";
 
 /* ==========================================================================
    Config
@@ -606,7 +606,9 @@ function createMultiFilter(fieldEl, key, options) {
     }
 
     if (list) {
-      const li = list.querySelector(`.kb-multi-option[data-value="${value}"]`);
+      const li = list.querySelector(
+        `.kb-multi-option[data-value="${value}"]`
+      );
       if (li) li.classList.toggle("is-selected", stateSet.has(value));
     }
 
@@ -712,68 +714,16 @@ function highlightSelected() {
   if (sel) sel.classList.add("is-selected");
 }
 
-function fillDetails(task) {
-  $("#kb-d-folio").textContent = task.folio || "—";
-  $("#kb-d-proceso").textContent = task.proceso_titulo || "—";
-  $("#kb-d-tarea").textContent = task.titulo || "—";
-  $("#kb-d-asignado").textContent = task.asignado_display || "—";
-
-  $("#kb-d-esfuerzo").textContent =
-    task.esfuerzo != null ? `${task.esfuerzo} h` : "—";
-
-  $("#kb-d-desc").textContent = task.descripcion || "—";
-  $("#kb-d-creado-por").textContent = task.created_by_nombre || "—";
-  $("#kb-d-autoriza").textContent = task.autoriza_nombre || "—";
-
-}
-
-
 // Wrappers para el módulo de detalle
 function openDetails(id) {
-  const task = getTaskById(id);
-  if (!task) return;
-  State.selectedId = task.id;
-
-  fillDetails(task);
-  highlightSelected();
-
-  // Evidencias reales del requerimiento asociado a la tarea
-  loadEvidenciasForTask(task).catch((e) =>
-    console.error("[KB] Error cargando evidencias:", e)
-  );
-
-  // Comentarios por tarea (badge TAREA-xxxx)
-  if (window.KBTaskComments?.openForTask) {
-    KBTaskComments.openForTask(task);
-  }
-
-  $("#kb-d-empty").hidden = true;
-  $("#kb-d-body").hidden = false;
-
-  $("#kb-details").classList.add("is-open");
-  $("#kb-details").setAttribute("aria-hidden", "false");
-  $("#kb-d-overlay").classList.add("is-open");
-  $("#kb-d-overlay").hidden = false;
+  if (!DetailsModule) return;
+  DetailsModule.openDetails(id);
 }
-
 
 function closeDetails() {
-  State.selectedId = null;
-  highlightSelected();
-
-  const drawer = $("#kb-details");
-  const overlay = $("#kb-d-overlay");
-
-  if (drawer) {
-    drawer.classList.remove("is-open");
-    drawer.setAttribute("aria-hidden", "true");
-  }
-  if (overlay) {
-    overlay.classList.remove("is-open");
-    overlay.hidden = true;
-  }
+  if (!DetailsModule) return;
+  DetailsModule.closeDetails();
 }
-
 
 function createCard(task) {
   const age = calcAgeChip(task);
@@ -1164,6 +1114,25 @@ async function init() {
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
 
   // ==========================
+  //   Módulo de Detalle
+  // ==========================
+
+  DetailsModule = createTaskDetailsModule({
+    State,
+    KB,
+    ReqCache,
+    fetchRequerimientoById,
+    formatFolio,
+    log,
+    warn,
+    toast,
+    highlightSelected,
+    getTaskById,
+    API_MEDIA,
+    postJSON,
+  });
+
+  // ==========================
   //   JERARQUÍAS / FILTROS
   // ==========================
 
@@ -1260,11 +1229,8 @@ async function init() {
   if (btnClose) btnClose.addEventListener("click", closeDetails);
   if (overlay) overlay.addEventListener("click", closeDetails);
 
-  // Wiring para subir evidencias desde el detalle de la tarea
-  if (typeof setupEvidenciasUpload === "function") {
-    setupEvidenciasUpload();
-  } else {
-    log("setupEvidenciasUpload no está definida, se omite wiring de media");
+  if (DetailsModule && DetailsModule.setupEvidenciasUpload) {
+    DetailsModule.setupEvidenciasUpload();
   }
 
   log("Tablero de tareas listo", {
