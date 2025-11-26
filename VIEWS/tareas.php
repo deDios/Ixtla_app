@@ -260,6 +260,10 @@
                 <!-- Overlay para el drawer de detalles -->
                 <div id="kb-d-overlay" class="kb-d-overlay" hidden></div>
 
+
+
+
+
                 <!-- Drawer de detalles -->
                 <aside class="kb-details" id="kb-details" aria-label="Detalle de la asignación" aria-hidden="true">
 
@@ -276,160 +280,144 @@
                     <!-- Cuerpo del detalle (se muestra cuando hay tarea seleccionada) -->
                     <div class="kb-d-body" id="kb-d-body" hidden>
 
-                        <!-- Folio -->
-                        <div class="kb-d-field">
-                            <strong>Folio:</strong>
-                            <span id="kb-d-folio">—</span>
+                        <!-- ================== DATOS PRINCIPALES ================== -->
+                        <div class="kb-d-section">
+
+                            <!-- Folio -->
+                            <div class="kb-d-field">
+                                <strong>Folio:</strong>
+                                <span id="kb-d-folio">—</span>
+                            </div>
+
+                            <!-- Proceso -->
+                            <div class="kb-d-field">
+                                <strong>Proceso:</strong>
+                                <span id="kb-d-proceso">—</span>
+                            </div>
+
+                            <!-- Tarea (título de la tarea) -->
+                            <div class="kb-d-field">
+                                <strong>Tarea:</strong>
+                                <span id="kb-d-tarea">—</span>
+                            </div>
+
+                            <!-- Asignado a -->
+                            <div class="kb-d-field">
+                                <strong>Asignado a:</strong>
+                                <span id="kb-d-asignado">—</span>
+                            </div>
+
+                            <!-- Esfuerzo -->
+                            <div class="kb-d-field">
+                                <strong>Esfuerzo (hrs):</strong>
+                                <span id="kb-d-esfuerzo">—</span>
+                            </div>
+
+                            <!-- Descripción -->
+                            <div class="kb-d-field">
+                                <strong>Descripción:</strong>
+                                <p class="kb-d-desc" id="kb-d-desc">—</p>
+                            </div>
+
+                            <!-- Creado por -->
+                            <div class="kb-d-field">
+                                <strong>Creado por:</strong>
+                                <span id="kb-d-creado-por">—</span>
+                            </div>
+
+                            <!-- Quien autoriza -->
+                            <div class="kb-d-field">
+                                <strong>Quien autoriza:</strong>
+                                <span id="kb-d-autoriza">—</span>
+                            </div>
                         </div>
 
-                        <!-- Proceso -->
-                        <div class="kb-d-field">
-                            <strong>Proceso:</strong>
-                            <span id="kb-d-proceso">—</span>
-                        </div>
+                        <hr class="kb-d-section-sep" />
 
-                        <!-- Tarea (título de la tarea) -->
-                        <div class="kb-d-field">
-                            <strong>Tarea:</strong>
-                            <span id="kb-d-tarea">—</span>
-                        </div>
+                        <!-- ================== EVIDENCIAS ================== -->
+                        <section class="kb-d-section kb-d-section--media">
 
-                        <!-- Asignado a -->
-                        <div class="kb-d-field">
-                            <strong>Asignado a:</strong>
-                            <span id="kb-d-asignado">—</span>
-                        </div>
+                            <div class="kb-d-media-head">
+                                <h4 class="kb-d-media-title">Evidencias</h4>
+                                <span class="kb-d-media-hint">
+                                    Puedes adjuntar imágenes, videos o PDFs (p.ej. fotos del reporte).
+                                </span>
+                            </div>
 
-                        <!-- Esfuerzo (hrs) -->
-                        <div class="kb-d-field">
-                            <strong>Esfuerzo (hrs):</strong>
-                            <span id="kb-d-esfuerzo">—</span>
-                        </div>
-
-                        <!-- Descripción -->
-                        <div class="kb-d-field">
-                            <strong>Descripción:</strong>
-                            <p class="kb-d-desc" id="kb-d-desc">—</p>
-                        </div>
-
-                        <!-- Creado por -->
-                        <div class="kb-d-field">
-                            <strong>Creado por:</strong>
-                            <span id="kb-d-creado-por">—</span>
-                        </div>
-
-                        <!-- Quien autoriza -->
-                        <div class="kb-d-field">
-                            <strong>Quien autoriza:</strong>
-                            <span id="kb-d-autoriza">—</span>
-                        </div>
-
-                        <!-- Evidencias -->
-                        <div class="kb-d-field">
-                            <strong>Evidencias:</strong>
-
-                            <div class="kb-evid-grid" id="kb-d-evidencias">
+                            <!-- Grid de thumbnails (se llena desde JS) -->
+                            <div class="kb-evid-grid kb-d-media-grid" id="kb-d-evidencias">
                                 <div class="kb-evid-placeholder"></div>
                                 <div class="kb-evid-placeholder"></div>
                                 <div class="kb-evid-placeholder"></div>
                             </div>
 
-                            <!-- NUEVO: acciones de evidencias -->
-                            <div class="kb-evid-actions">
+                            <!-- Acciones de evidencias -->
+                            <div class="kb-evid-actions kb-d-media-actions">
                                 <!-- input oculto para elegir archivos -->
                                 <input type="file" id="kb-evid-input" accept="image/*,video/*,application/pdf" multiple
                                     hidden>
 
-                                <button type="button" id="kb-evid-upload" class="kb-evid-upload-btn">
-                                    Subir archivo…
+                                <!-- Botón tipo tile, usa el CSS .kb-media-upload -->
+                                <button type="button" id="kb-evid-upload" class="kb-evid-upload-btn kb-media-upload">
+                                    <span>Subir archivo…</span>
                                 </button>
-
-                                <span class="kb-evid-hint">
-                                    Puedes adjuntar imágenes, videos o PDFs (p.ej. fotos del reporte).
-                                </span>
                             </div>
-                        </div>
 
+                        </section>
 
-                        <!-- Comentarios -->
-                        <div class="kb-d-field">
-                            <strong>Comentarios:</strong>
+                        <hr class="kb-d-section-sep" />
 
-                            <section class="demo-comments">
-                                <div class="demo-card">
-                                    <div class="head">
-                                        <h4>Comentarios</h4>
-                                    </div>
+                        <!-- ================== COMENTARIOS (DEMO) ================== -->
+                        <section class="kb-d-section">
+                            <div class="kb-d-field">
+                                <strong>Comentarios:</strong>
 
-                                    <!-- Composer -->
-                                    <div class="composer" aria-label="Escribir comentario">
-                                        <div class="composer-wrap">
-                                            <textarea id="kb-comment-input"
-                                                placeholder="Escribe un comentario…"></textarea>
+                                <section class="demo-comments">
+                                    <div class="demo-card">
 
-                                            <!--
-                En tareas.js, cuando el comentario venga desde una tarea
-                concatenaremos al inicio:
-                "TAREA-{id}:: <texto…>"
-                para luego detectarlo y pintarlo como badge (.task-tag).
-              -->
-                                            <button class="send-fab" type="button" id="kb-comment-send"
-                                                aria-label="Enviar comentario">
-                                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                    <path fill="currentColor"
-                                                        d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <div class="hint">
-                                            Presiona <strong>Enter</strong> para enviar <br>
-                                            o <br>
-                                            da clic en el botón
-                                        </div>
-                                    </div>
-
-                                    <!-- Feed -->
-                                    <div class="c-feed" id="kb-comments-feed" aria-live="polite">
-                                        <div class="empty" id="kb-comments-empty">
-                                            Aún no hay comentarios para este requerimiento.
+                                        <div class="head">
+                                            <h4>Comentarios</h4>
                                         </div>
 
-                                        <!-- Ejemplos estáticos, se pueden eliminar cuando conectemos API -->
-                                        <article class="msg">
-                                            <img class="avatar" alt="" src="/ASSETS/user/userImgs/img_14.png">
-                                            <div>
-                                                <div class="who">
-                                                    <span class="name">Juan Pablo</span>
-                                                    <span class="time">hace 8 h</span>
-                                                </div>
-                                                <div class="text" style="white-space:pre-wrap;word-break:break-word;">
-                                                    Este es un comentario normal sin relación con una tarea específica.
+                                        <!-- Composer demo -->
+                                        <div class="composer">
+                                            <div class="avatar">
+                                                <span>JP</span>
+                                            </div>
+                                            <div class="body">
+                                                <textarea rows="2"
+                                                    placeholder="Escribe un comentario sobre esta tarea…"></textarea>
+                                                <div class="footer">
+                                                    <button type="button" class="btn primary">Comentar</button>
+                                                    <span class="hint">Demostración, aún sin conexión a backend.</span>
                                                 </div>
                                             </div>
-                                        </article>
+                                        </div>
 
-                                        <article class="msg">
-                                            <img class="avatar" alt="" src="/ASSETS/user/userImgs/img_14.png">
-                                            <div>
-                                                <div class="who">
-                                                    <span class="name">Pablo Agustin</span>
-                                                    <span class="time">hace 2 h</span>
+                                        <!-- Lista de comentarios demo -->
+                                        <div class="comments-list">
+                                            <article class="comment">
+                                                <div class="avatar"><span>GC</span></div>
+                                                <div class="content">
+                                                    <div class="meta">
+                                                        <span class="author">GodCode Demo</span>
+                                                        <span class="time">Hace 2 h</span>
+                                                    </div>
+                                                    <div class="text">
+                                                        Este es un comentario de ejemplo en el detalle de la tarea.
+                                                    </div>
                                                 </div>
-                                                <div class="text has-task"
-                                                    style="white-space:pre-wrap;word-break:break-word;">
-                                                    <span class="task-tag">TAREA-09</span>
-                                                    No se puede atender hoy por lluvia.
-                                                </div>
-                                            </div>
-                                        </article>
+                                            </article>
+                                        </div>
 
                                     </div>
-                                </div>
-                            </section>
-                        </div>
+                                </section>
+                            </div>
+                        </section>
 
                     </div><!-- /.kb-d-body -->
-                </aside><!-- /.kb-details -->
+                </aside>
+
 
 
             </section>
@@ -621,7 +609,7 @@
 
     <!-- SortableJS -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
-    
+
     <script type="module" src="/JS/tareas.js"></script>
 
     <!-- bundle para que cargue bien el sidebar -->
