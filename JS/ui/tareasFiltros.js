@@ -12,7 +12,14 @@
  * Recibe helpers y state desde tareas.js para no duplicar lógica.
  */
 
-export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) {
+export function createTaskFiltersModule({
+  State,
+  KB,
+  log,
+  renderBoard,
+  $,
+  $$,
+}) {
   /* ========================================================================
    * Estado local del módulo
    * ======================================================================*/
@@ -91,7 +98,9 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
       }
 
       if (list) {
-        const li = list.querySelector(`.kb-multi-option[data-value="${value}"]`);
+        const li = list.querySelector(
+          `.kb-multi-option[data-value="${value}"]`
+        );
         if (li) li.classList.toggle("is-selected", stateSet.has(value));
       }
 
@@ -229,7 +238,9 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
     const inputSearch = $("#kb-filter-search");
     const btnClear = $("#kb-filter-clear");
 
+    // --- Solo mis tareas ---
     if (chipMine) {
+      // ahora State.filters.mine ya viene en false por defecto
       chipMine.classList.toggle("is-active", State.filters.mine);
       chipMine.addEventListener("click", () => {
         State.filters.mine = !State.filters.mine;
@@ -239,17 +250,23 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
       });
     }
 
+    // --- Recientes (últimos 15 días) ---
     if (chipRecent) {
+      const isActive = State.filters.recentDays != null;
+      chipRecent.classList.toggle("is-active", isActive);
+
       chipRecent.addEventListener("click", () => {
-        chipRecent.classList.toggle("is-active");
-        log(
-          "Filtro 'Recientes' toggled:",
-          chipRecent.classList.contains("is-active")
-        );
-        // de momento solo visual; no afecta pipeline aún
+        const nowActive = !chipRecent.classList.contains("is-active");
+        chipRecent.classList.toggle("is-active", nowActive);
+
+        // si está activo, usamos 15 días; si no, desactivamos el filtro
+        State.filters.recentDays = nowActive ? 15 : null;
+        log("Filtro 'Recientes (últimos días)' →", State.filters.recentDays);
+        renderBoard();
       });
     }
 
+    // --- Búsqueda ---
     if (inputSearch) {
       inputSearch.addEventListener("input", () => {
         State.filters.search = inputSearch.value || "";
@@ -258,12 +275,14 @@ export function createTaskFiltersModule({ State, KB, log, renderBoard, $, $$ }) 
       });
     }
 
+    // --- Limpiar filtros rápidos ---
     if (btnClear) {
       btnClear.addEventListener("click", () => {
         State.filters.mine = false;
         State.filters.search = "";
         State.filters.procesoId = null;
         State.filters.tramiteId = null;
+        State.filters.recentDays = null; 
 
         if (chipMine) chipMine.classList.remove("is-active");
         if (chipRecent) chipRecent.classList.remove("is-active");

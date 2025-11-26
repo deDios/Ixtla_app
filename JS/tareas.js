@@ -155,7 +155,8 @@ const State = {
   tasks: [],
   selectedId: null,
   filters: {
-    mine: true,
+    mine: false, 
+    recentDays: null,
     search: "",
     departamentos: new Set(), // ids
     empleados: new Set(), // ids
@@ -532,6 +533,17 @@ function passesFilters(task) {
       (task.proceso_titulo || "").toLowerCase().includes(q) ||
       String(task.id).includes(q);
     if (!hay) return false;
+  }
+
+  // Filtro "recientes" (últimos N días, por ahora 15)
+  const recentDays = State.filters.recentDays;
+  if (recentDays != null) {
+    const baseDateStr = task.fecha_inicio || task.created_at;
+    const d = diffDays(baseDateStr);
+    // si no tiene fecha o es más viejo que N días, se excluye
+    if (d == null || d > recentDays) {
+      return false;
+    }
   }
 
   // Filtro por empleado
