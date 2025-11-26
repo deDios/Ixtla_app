@@ -51,33 +51,21 @@ export function createTaskDetailsModule({
     return { usuario_id, empleado_id };
   }
 
-  const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
+const relShort = (when) => {
+  if (!when) return "—";
+  const t = Date.parse(String(when).replace("T", " ").replace(/-/g, "/"));
+  const diff = Date.now() - (Number.isFinite(t) ? t : Date.now());
+  const s = Math.max(0, Math.floor(diff / 1000));
+  if (s < 10) return "ahora";
+  if (s < 60) return `hace ${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `hace ${h} h`;
+  const d = Math.floor(h / 24);
+  return `hace ${d} d`;
+};
 
-  const relShort = (when) => {
-    if (!when) return "—";
-    const t = Date.parse(String(when).replace("T", " ").replace(/-/g, "/"));
-    const diff = Date.now() - (Number.isFinite(t) ? t : Date.now());
-    const s = Math.max(0, Math.floor(diff / 1000));
-    if (s < 10) return "ahora";
-    if (s < 60) return `hace ${s}s`;
-    const m = Math.floor(s / 60);
-    if (m < 60) return `hace ${m} min`;
-    const h = Math.floor(m / 60);
-    if (h < 48) return `hace ${h} h`;
-    const d = Math.floor(h / 24);
-    return `hace ${d} d`;
-  };
-
-  function makeAvatarSourcesByUsuarioId(usuarioId) {
-    const v = `?v=${Date.now()}`;
-    const cand = [];
-    if (usuarioId) {
-      cand.push(`/ASSETS/user/userImgs/img_${usuarioId}.png${v}`);
-      cand.push(`/ASSETS/user/userImgs/img_${usuarioId}.jpg${v}`);
-    }
-    cand.push(DEFAULT_AVATAR);
-    return cand;
-  }
 
   /* ==========================================================================
    *  Endpoints de comentarios (mismo host, rutas relativas)

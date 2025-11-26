@@ -51,32 +51,28 @@ export function createTaskDetailsModule({
     return { usuario_id, empleado_id };
   }
 
-  const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
-
-  const relShort = (when) => {
+  function relShort(when) {
     if (!when) return "—";
-    const t = Date.parse(String(when).replace("T", " ").replace(/-/g, "/"));
-    const diff = Date.now() - (Number.isFinite(t) ? t : Date.now());
-    const s = Math.max(0, Math.floor(diff / 1000));
-    if (s < 10) return "ahora";
-    if (s < 60) return `hace ${s}s`;
-    const m = Math.floor(s / 60);
-    if (m < 60) return `hace ${m} min`;
-    const h = Math.floor(m / 60);
-    if (h < 48) return `hace ${h} h`;
-    const d = Math.floor(h / 24);
-    return `hace ${d} d`;
-  };
+    const t = Date.parse(String(when).replace(" ", "T"));
+    if (Number.isNaN(t)) return when;
 
-  function makeAvatarSourcesByUsuarioId(usuarioId) {
-    const v = `?v=${Date.now()}`;
-    const cand = [];
-    if (usuarioId) {
-      cand.push(`/ASSETS/user/userImgs/img_${usuarioId}.png${v}`);
-      cand.push(`/ASSETS/user/userImgs/img_${usuarioId}.jpg${v}`);
-    }
-    cand.push(DEFAULT_AVATAR);
-    return cand;
+    const diffMs = Date.now() - t;
+    const sec = Math.floor(diffMs / 1000);
+    const min = Math.floor(sec / 60);
+    const hr = Math.floor(min / 60);
+    const day = Math.floor(hr / 24);
+
+    if (sec < 60) return "Hace unos segundos";
+    if (min < 60) return `Hace ${min} min`;
+    if (hr < 24) return `Hace ${hr} h`;
+    if (day === 1) return "Hace 1 día";
+    if (day < 7) return `Hace ${day} días`;
+    const d = new Date(t);
+    return d.toLocaleDateString("es-MX", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   }
 
   /* ==========================================================================
