@@ -726,7 +726,6 @@ function openDetails(id) {
     console.error("[KB] Error cargando evidencias:", e)
   );
 
-  // 👇 nuevo: cargar comentarios de esta tarea
   if (window.KBTaskComments && KBTaskComments.openForTask) {
     KBTaskComments.openForTask(task);
   }
@@ -1134,25 +1133,6 @@ async function init() {
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
 
   // ==========================
-  //   Módulo de Detalle
-  // ==========================
-
-  DetailsModule = createTaskDetailsModule({
-    State,
-    KB,
-    ReqCache,
-    fetchRequerimientoById,
-    formatFolio,
-    log,
-    warn,
-    toast,
-    highlightSelected,
-    getTaskById,
-    API_MEDIA,
-    postJSON,
-  });
-
-  // ==========================
   //   JERARQUÍAS / FILTROS
   // ==========================
 
@@ -1249,9 +1229,8 @@ async function init() {
   if (btnClose) btnClose.addEventListener("click", closeDetails);
   if (overlay) overlay.addEventListener("click", closeDetails);
 
-  if (DetailsModule && DetailsModule.setupEvidenciasUpload) {
-    DetailsModule.setupEvidenciasUpload();
-  }
+  // Wiring para subir evidencias desde el detalle de la tarea
+  setupEvidenciasUpload();
 
   log("Tablero de tareas listo", {
     tareas: State.tasks.length,
