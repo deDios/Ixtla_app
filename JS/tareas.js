@@ -939,13 +939,10 @@ async function init() {
   });
   log("Opciones filtro Empleados:", empOptions);
 
-  const procesosOptions = procesos.map((p) => {
-    const base = p.descripcion?.trim() || `Proceso ${p.id}`;
-    const req = p.requerimiento_id ? ReqCache.get(p.requerimiento_id) : null;
-    const folioTxt = req ? formatFolio(req.folio, req.id) : "";
-    const label = folioTxt ? `${folioTxt} · ${base}` : base;
-    return { value: p.id, label };
-  });
+  const procesosOptions = procesos.map((p) => ({
+    value: p.id,
+    label: p.descripcion?.trim() || `Proceso ${p.id}`,
+  }));
 
   const tramitesOptions = tramites.map((t) => ({
     value: t.id,
