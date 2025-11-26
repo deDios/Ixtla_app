@@ -712,6 +712,22 @@ function highlightSelected() {
   if (sel) sel.classList.add("is-selected");
 }
 
+function fillDetails(task) {
+  $("#kb-d-folio").textContent = task.folio || "—";
+  $("#kb-d-proceso").textContent = task.proceso_titulo || "—";
+  $("#kb-d-tarea").textContent = task.titulo || "—";
+  $("#kb-d-asignado").textContent = task.asignado_display || "—";
+
+  $("#kb-d-esfuerzo").textContent =
+    task.esfuerzo != null ? `${task.esfuerzo} h` : "—";
+
+  $("#kb-d-desc").textContent = task.descripcion || "—";
+  $("#kb-d-creado-por").textContent = task.created_by_nombre || "—";
+  $("#kb-d-autoriza").textContent = task.autoriza_nombre || "—";
+
+}
+
+
 // Wrappers para el módulo de detalle
 function openDetails(id) {
   const task = getTaskById(id);
@@ -721,12 +737,13 @@ function openDetails(id) {
   fillDetails(task);
   highlightSelected();
 
-  // Cargar evidencias reales del requerimiento asociado a la tarea
+  // Evidencias reales del requerimiento asociado a la tarea
   loadEvidenciasForTask(task).catch((e) =>
     console.error("[KB] Error cargando evidencias:", e)
   );
 
-  if (window.KBTaskComments && KBTaskComments.openForTask) {
+  // Comentarios por tarea (badge TAREA-xxxx)
+  if (window.KBTaskComments?.openForTask) {
     KBTaskComments.openForTask(task);
   }
 
@@ -739,10 +756,24 @@ function openDetails(id) {
   $("#kb-d-overlay").hidden = false;
 }
 
+
 function closeDetails() {
-  if (!DetailsModule) return;
-  DetailsModule.closeDetails();
+  State.selectedId = null;
+  highlightSelected();
+
+  const drawer = $("#kb-details");
+  const overlay = $("#kb-d-overlay");
+
+  if (drawer) {
+    drawer.classList.remove("is-open");
+    drawer.setAttribute("aria-hidden", "true");
+  }
+  if (overlay) {
+    overlay.classList.remove("is-open");
+    overlay.hidden = true;
+  }
 }
+
 
 function createCard(task) {
   const age = calcAgeChip(task);
