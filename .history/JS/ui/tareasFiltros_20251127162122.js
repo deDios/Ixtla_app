@@ -82,8 +82,9 @@ export function createTaskFiltersModule({
           if (selected.length === 1) {
             summaryEl.textContent = selected[0].label;
           } else {
-            summaryEl.textContent = `${selected[0].label} +${selected.length - 1
-              }`;
+            summaryEl.textContent = `${selected[0].label} +${
+              selected.length - 1
+            }`;
           }
         }
       }
@@ -281,7 +282,7 @@ export function createTaskFiltersModule({
         State.filters.search = "";
         State.filters.procesoId = null;
         State.filters.tramiteId = null;
-        State.filters.recentDays = null;
+        State.filters.recentDays = null; 
 
         if (chipMine) chipMine.classList.remove("is-active");
         if (chipRecent) chipRecent.classList.remove("is-active");
@@ -316,38 +317,38 @@ export function createTaskFiltersModule({
     const noUniverse = tasks.length === 0;
 
     // ---------------- Departamentos ----------------
-    // ---------------- Departamentos ----------------
-    if (fieldDept) {
-      const visibleDeptIds = new Set();
+      // ---------------- Departamentos ----------------
+  if (fieldDept) {
+    const visibleDeptIds = new Set();
 
-      // Usamos el departamento de la TAREA / REQUERIMIENTO,
-      // NO el del empleado asignado.
-      for (const t of tasks) {
-        if (t.departamento_id != null) {
-          visibleDeptIds.add(Number(t.departamento_id));
-        }
-      }
-
-      const stateSet = State.filters.departamentos || new Set();
-      const list = fieldDept.querySelector(".kb-multi-options");
-      if (list) {
-        list.querySelectorAll(".kb-multi-option").forEach((li) => {
-          const value = Number(li.dataset.value);
-          if (noUniverse) {
-            // Si no hay tareas (por ejemplo, filtros dejaron 0),
-            // mostramos todas las opciones
-            li.hidden = false;
-          } else if (
-            visibleDeptIds.has(value) ||
-            stateSet.has(value) // mantener visibles los que ya están seleccionados
-          ) {
-            li.hidden = false;
-          } else {
-            li.hidden = true;
-          }
-        });
+    // Usamos el departamento de la TAREA / REQUERIMIENTO,
+    // NO el del empleado asignado.
+    for (const t of tasks) {
+      if (t.departamento_id != null) {
+        visibleDeptIds.add(Number(t.departamento_id));
       }
     }
+
+    const stateSet = State.filters.departamentos || new Set();
+    const list = fieldDept.querySelector(".kb-multi-options");
+    if (list) {
+      list.querySelectorAll(".kb-multi-option").forEach((li) => {
+        const value = Number(li.dataset.value);
+        if (noUniverse) {
+          // Si no hay tareas (por ejemplo, filtros dejaron 0),
+          // mostramos todas las opciones
+          li.hidden = false;
+        } else if (
+          visibleDeptIds.has(value) ||
+          stateSet.has(value) // mantener visibles los que ya están seleccionados
+        ) {
+          li.hidden = false;
+        } else {
+          li.hidden = true;
+        }
+      });
+    }
+  }
 
 
     // ---------------- Empleados ----------------
