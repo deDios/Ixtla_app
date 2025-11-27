@@ -309,7 +309,7 @@ export function createTaskFiltersModule({
    * El resto de filtros (dept/emp/proceso/trámite) se aplican en passesFilters
    * dentro de tareas.js; aquí solo construimos el "universo" disponible.
    */
-  function updateAvailableOptions(tasks) {
+    function updateAvailableOptions(tasks) {
     if (!Array.isArray(tasks)) return;
 
     // Si no hay tareas (por ejemplo, filtro deja 0), mostramos todas las opciones,

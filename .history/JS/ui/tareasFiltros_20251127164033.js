@@ -312,15 +312,16 @@ export function createTaskFiltersModule({
   function updateAvailableOptions(tasks) {
     if (!Array.isArray(tasks)) return;
 
-    // Si no hay tareas (por ejemplo, filtro deja 0), mostramos todas las opciones,
-    // pero igualmente usamos el estilo visual.
+    // Si no hay tareas (por ejemplo, filtro deja 0), mostramos todas las opciones.
     const noUniverse = tasks.length === 0;
 
+    // ---------------- Departamentos ----------------
     // ---------------- Departamentos ----------------
     if (fieldDept) {
       const visibleDeptIds = new Set();
 
-      // Usamos el departamento de la TAREA / REQUERIMIENTO
+      // Usamos el departamento de la TAREA / REQUERIMIENTO,
+      // NO el del empleado asignado.
       for (const t of tasks) {
         if (t.departamento_id != null) {
           visibleDeptIds.add(Number(t.departamento_id));
@@ -329,15 +330,25 @@ export function createTaskFiltersModule({
 
       const stateSet = State.filters.departamentos || new Set();
       const list = fieldDept.querySelector(".kb-multi-options");
-
-      reorderFilterOptions(
-        list,
-        visibleDeptIds,
-        stateSet,
-        noUniverse,
-        "Departamentos sin tareas en la vista"
-      );
+      if (list) {
+        list.querySelectorAll(".kb-multi-option").forEach((li) => {
+          const value = Number(li.dataset.value);
+          if (noUniverse) {
+            // Si no hay tareas (por ejemplo, filtros dejaron 0),
+            // mostramos todas las opciones
+            li.hidden = false;
+          } else if (
+            visibleDeptIds.has(value) ||
+            stateSet.has(value) // mantener visibles los que ya están seleccionados
+          ) {
+            li.hidden = false;
+          } else {
+            li.hidden = true;
+          }
+        });
+      }
     }
+
 
     // ---------------- Empleados ----------------
     if (fieldEmp) {
@@ -348,14 +359,21 @@ export function createTaskFiltersModule({
 
       const stateSet = State.filters.empleados || new Set();
       const list = fieldEmp.querySelector(".kb-multi-options");
-
-      reorderFilterOptions(
-        list,
-        visibleEmpIds,
-        stateSet,
-        noUniverse,
-        "Empleados sin tareas en la vista"
-      );
+      if (list) {
+        list.querySelectorAll(".kb-multi-option").forEach((li) => {
+          const value = Number(li.dataset.value);
+          if (noUniverse) {
+            li.hidden = false;
+          } else if (
+            visibleEmpIds.has(value) ||
+            stateSet.has(value) // mantener visibles los seleccionados
+          ) {
+            li.hidden = false;
+          } else {
+            li.hidden = true;
+          }
+        });
+      }
     }
 
     // ---------------- Procesos ----------------
@@ -413,6 +431,48 @@ export function createTaskFiltersModule({
         }
       });
     }
+
+      // Reordena opciones: primero las activas, abajo las "apagadas"
+  function reorderFilterOptions(list, activeSet, stateSet, noUniverse, dividerLabel) {
+    if (!list) return;
+
+    const items = Array.from(list.querySelectorAll(".kb-multi-option"));
+    const enabled = [];
+    const disabled = [];
+
+    items.forEach((li) => {
+      const value = Number(li.dataset.value);
+      const isActive =
+        noUniverse ||
+        activeSet.has(value) ||
+        stateSet.has(value); // mantener visibles las seleccionadas
+
+      li.classList.toggle("is-disabled", !isActive);
+
+      if (isActive) {
+        enabled.push(li);
+      } else {
+        disabled.push(li);
+      }
+    });
+
+    // Limpiar divisores previos
+    Array.from(list.querySelectorAll(".kb-multi-divider")).forEach((d) =>
+      d.remove()
+    );
+
+    // Reordenar en el DOM (no se pierden listeners)
+    enabled.forEach((li) => list.appendChild(li));
+
+    if (disabled.length) {
+      const divider = document.createElement("li");
+      divider.className = "kb-multi-divider";
+      divider.textContent = dividerLabel || "Sin tareas en la vista actual";
+      list.appendChild(divider);
+      disabled.forEach((li) => list.appendChild(li));
+    }
+  }
+
   }
 
   /* ========================================================================
