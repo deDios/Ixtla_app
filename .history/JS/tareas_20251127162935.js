@@ -724,9 +724,7 @@ function renderBoard() {
 
   // 2) Actualizar filtros dinámicos según tareas que cumplen mine + búsqueda
   if (FiltersModule && FiltersModule.updateAvailableOptions) {
-    // Usamos passesFilters para que Proceso, Trámite, Departamentos y Empleados
-    // afecten el universo con el que se recalculan las opciones.
-    const universeTasks = State.tasks.filter(passesFilters);
+    const universeTasks = State.tasks.filter(passesBaseFilters);
     FiltersModule.updateAvailableOptions(universeTasks);
   }
 }
