@@ -320,20 +320,11 @@ async function fetchDepartamentos() {
       warn("Respuesta inesperada DEPTS LIST", json);
       return [];
     }
-
     const out = json.data.map((d) => ({
       id: Number(d.id),
       nombre: d.nombre || `Depto ${d.id}`,
       status: d.status != null ? Number(d.status) : null,
-
-      director: d.director != null ? Number(d.director) : null,
-      director_nombre: d.director_nombre || d.primera_nombre || "",
-      director_apellidos: d.director_apellidos || d.primera_apellidos || "",
-
-      primera_nombre: d.primera_nombre || "",
-      primera_apellidos: d.primera_apellidos || "",
     }));
-
     log("Departamentos normalizados:", out.length, out);
     return out;
   } catch (e) {

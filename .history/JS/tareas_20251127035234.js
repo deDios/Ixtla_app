@@ -268,7 +268,8 @@ function mapRawTask(raw) {
     created_at: raw.created_at || null,
     created_by: raw.created_by != null ? Number(raw.created_by) : null,
     created_by_nombre: raw.created_by_nombre || raw.creado_por_nombre || "—",
-    autoriza_nombre: raw.autoriza_nombre || raw.autorizado_por || "—",
+    autoriza_id: null,
+  autoriza_nombre: null,
     folio,
     proceso_titulo,
     requerimiento_id,
@@ -320,20 +321,11 @@ async function fetchDepartamentos() {
       warn("Respuesta inesperada DEPTS LIST", json);
       return [];
     }
-
     const out = json.data.map((d) => ({
       id: Number(d.id),
       nombre: d.nombre || `Depto ${d.id}`,
       status: d.status != null ? Number(d.status) : null,
-
-      director: d.director != null ? Number(d.director) : null,
-      director_nombre: d.director_nombre || d.primera_nombre || "",
-      director_apellidos: d.director_apellidos || d.primera_apellidos || "",
-
-      primera_nombre: d.primera_nombre || "",
-      primera_apellidos: d.primera_apellidos || "",
     }));
-
     log("Departamentos normalizados:", out.length, out);
     return out;
   } catch (e) {

@@ -326,10 +326,12 @@ async function fetchDepartamentos() {
       nombre: d.nombre || `Depto ${d.id}`,
       status: d.status != null ? Number(d.status) : null,
 
+      // 👇 NUEVO: datos del director (quien autoriza)
       director: d.director != null ? Number(d.director) : null,
       director_nombre: d.director_nombre || d.primera_nombre || "",
       director_apellidos: d.director_apellidos || d.primera_apellidos || "",
 
+      // opcionales, por si los quieres en otro lado
       primera_nombre: d.primera_nombre || "",
       primera_apellidos: d.primera_apellidos || "",
     }));
@@ -341,6 +343,7 @@ async function fetchDepartamentos() {
     return [];
   }
 }
+
 
 async function fetchEmpleadosForFilters() {
   try {
