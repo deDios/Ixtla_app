@@ -492,6 +492,7 @@ export function createTaskDetailsModule({
       return;
     }
 
+    // 🔽🔽 AQUÍ es donde ordenamos: primero los más recientes
     const ordered = [...all].sort((a, b) => {
       const aDate = Date.parse(a.created_at || a.fecha || "") || 0;
       const bDate = Date.parse(b.created_at || b.fecha || "") || 0;
@@ -500,7 +501,7 @@ export function createTaskDetailsModule({
 
     for (const c of ordered) {
       const originalText = c.comentario || c.texto || "";
-      const { tag, cleanText } = parseTaskTagFromComment(originalText);
+      const { tag, cleanText } = parseTaskTagFromComment(originalText, tareaId);
       const texto = cleanText || originalText;
 
       let display =
