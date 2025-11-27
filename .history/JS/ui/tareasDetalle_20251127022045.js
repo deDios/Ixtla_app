@@ -106,8 +106,8 @@ export function createTaskDetailsModule({
     const arr = Array.isArray(raw)
       ? raw
       : Array.isArray(raw?.rows)
-        ? raw.rows
-        : [];
+      ? raw.rows
+      : [];
     log("[KB] Comentarios crudos:", arr);
     return arr;
   }
@@ -225,8 +225,8 @@ export function createTaskDetailsModule({
       const arr = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.rows)
-          ? raw.rows
-          : [];
+        ? raw.rows
+        : [];
 
       return arr
         .map(normalizarMediaItem)
@@ -449,147 +449,147 @@ export function createTaskDetailsModule({
   }
 
   function renderTaskComments(task, items) {
-    const feed = $("#kb-comments-feed");
-    const lblCount = $("#kb-comments-count");
-    if (!feed) return;
+  const feed = $("#kb-comments-feed");
+  const lblCount = $("#kb-comments-count");
+  if (!feed) return;
 
-    feed.innerHTML = "";
+  feed.innerHTML = "";
 
-    if (!task) {
-      const p = document.createElement("p");
-      p.className = "empty";
-      p.textContent = "Selecciona una tarea para ver sus comentarios.";
-      feed.appendChild(p);
-      if (lblCount) lblCount.textContent = "0 comentarios";
-      return;
-    }
-
-    const tareaId = task.id;
-    const reqId = task.requerimiento_id;
-
-    if (!reqId) {
-      const p = document.createElement("p");
-      p.className = "empty";
-      p.textContent =
-        "Esta tarea no está ligada a un requerimiento, no hay comentarios.";
-      feed.appendChild(p);
-      if (lblCount) lblCount.textContent = "0 comentarios";
-      return;
-    }
-
-    const all = Array.isArray(items) ? items : [];
-
-    if (!all.length) {
-      const p = document.createElement("p");
-      p.className = "empty";
-      p.textContent = "Aún no hay comentarios para esta tarea.";
-      feed.appendChild(p);
-      if (lblCount) lblCount.textContent = "0 comentarios";
-      return;
-    }
-
-    // 🔽🔽 AQUÍ es donde ordenamos: primero los más recientes
-    const ordered = [...all].sort((a, b) => {
-      const aDate = Date.parse(a.created_at || a.fecha || "") || 0;
-      const bDate = Date.parse(b.created_at || b.fecha || "") || 0;
-      return bDate - aDate; // b primero si es más nuevo
-    });
-
-    for (const c of ordered) {
-      const originalText = c.comentario || c.texto || "";
-      const { tag, cleanText } = parseTaskTagFromComment(originalText, tareaId);
-      const texto = cleanText || originalText;
-
-      let display =
-        c.empleado_display ||
-        [c.empleado_nombre, c.empleado_apellidos].filter(Boolean).join(" ").trim() ||
-        c.nombre ||
-        c.autor ||
-        "—";
-
-      const cuando = relShort(c.created_at || c.fecha || "");
-
-      const usuarioId =
-        (Number(c.created_by) > 0 && Number(c.created_by)) ||
-        (Number(c.cuenta_id) > 0 && Number(c.cuenta_id)) ||
-        null;
-
-      const sources = makeAvatarSourcesByUsuarioId(usuarioId);
-
-      const article = document.createElement("article");
-      article.className = "msg";
-
-      const avatarWrap = document.createElement("div");
-      avatarWrap.className = "avatar";
-      const img = document.createElement("img");
-      img.alt = display || "";
-      avatarWrap.appendChild(img);
-
-      let i = 0;
-      const tryNext = () => {
-        if (i >= sources.length) {
-          img.src = DEFAULT_AVATAR;
-          return;
-        }
-        img.onerror = () => {
-          i++;
-          tryNext();
-        };
-        img.src = sources[i];
-      };
-      tryNext();
-
-      const body = document.createElement("div");
-      body.className = "body";
-
-      const who = document.createElement("div");
-      who.className = "who";
-
-      const nameEl = document.createElement("span");
-      nameEl.className = "name";
-      nameEl.textContent = display;
-
-      const timeEl = document.createElement("span");
-      timeEl.className = "time";
-      timeEl.textContent = cuando;
-
-      who.appendChild(nameEl);
-      who.appendChild(timeEl);
-
-      const textWrap = document.createElement("div");
-      textWrap.className = "text";
-      textWrap.style.whiteSpace = "pre-wrap";
-      textWrap.style.wordBreak = "break-word";
-
-      if (tag) {
-        const badge = document.createElement("span");
-        badge.className = "task-tag";
-        badge.textContent = tag;
-        textWrap.appendChild(badge);
-      }
-
-      const p = document.createElement("p");
-      p.className = "comment-body";
-      p.textContent = texto;
-      textWrap.appendChild(p);
-
-      body.appendChild(who);
-      body.appendChild(textWrap);
-
-      article.appendChild(avatarWrap);
-      article.appendChild(body);
-
-      feed.appendChild(article);
-    }
-
-    if (lblCount) {
-      const total = all.length;
-      lblCount.textContent = total === 1 ? "1 comentario" : `${total} comentarios`;
-    }
-
-    const scroller = feed.parentElement || feed;
-    scroller.scrollTo({ top: 0, behavior: "auto" });
+  if (!task) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Selecciona una tarea para ver sus comentarios.";
+    feed.appendChild(p);
+    if (lblCount) lblCount.textContent = "0 comentarios";
+    return;
   }
+
+  const tareaId = task.id;
+  const reqId = task.requerimiento_id;
+
+  if (!reqId) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent =
+      "Esta tarea no está ligada a un requerimiento, no hay comentarios.";
+    feed.appendChild(p);
+    if (lblCount) lblCount.textContent = "0 comentarios";
+    return;
+  }
+
+  const all = Array.isArray(items) ? items : [];
+
+  if (!all.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Aún no hay comentarios para esta tarea.";
+    feed.appendChild(p);
+    if (lblCount) lblCount.textContent = "0 comentarios";
+    return;
+  }
+
+  // 🔽🔽 AQUÍ es donde ordenamos: primero los más recientes
+  const ordered = [...all].sort((a, b) => {
+    const aDate = Date.parse(a.created_at || a.fecha || "") || 0;
+    const bDate = Date.parse(b.created_at || b.fecha || "") || 0;
+    return bDate - aDate; // b primero si es más nuevo
+  });
+
+  for (const c of ordered) {
+    const originalText = c.comentario || c.texto || "";
+    const { tag, cleanText } = parseTaskTagFromComment(originalText, tareaId);
+    const texto = cleanText || originalText;
+
+    let display =
+      c.empleado_display ||
+      [c.empleado_nombre, c.empleado_apellidos].filter(Boolean).join(" ").trim() ||
+      c.nombre ||
+      c.autor ||
+      "—";
+
+    const cuando = relShort(c.created_at || c.fecha || "");
+
+    const usuarioId =
+      (Number(c.created_by) > 0 && Number(c.created_by)) ||
+      (Number(c.cuenta_id) > 0 && Number(c.cuenta_id)) ||
+      null;
+
+    const sources = makeAvatarSourcesByUsuarioId(usuarioId);
+
+    const article = document.createElement("article");
+    article.className = "msg";
+
+    const avatarWrap = document.createElement("div");
+    avatarWrap.className = "avatar";
+    const img = document.createElement("img");
+    img.alt = display || "";
+    avatarWrap.appendChild(img);
+
+    let i = 0;
+    const tryNext = () => {
+      if (i >= sources.length) {
+        img.src = DEFAULT_AVATAR;
+        return;
+      }
+      img.onerror = () => {
+        i++;
+        tryNext();
+      };
+      img.src = sources[i];
+    };
+    tryNext();
+
+    const body = document.createElement("div");
+    body.className = "body";
+
+    const who = document.createElement("div");
+    who.className = "who";
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "name";
+    nameEl.textContent = display;
+
+    const timeEl = document.createElement("span");
+    timeEl.className = "time";
+    timeEl.textContent = cuando;
+
+    who.appendChild(nameEl);
+    who.appendChild(timeEl);
+
+    const textWrap = document.createElement("div");
+    textWrap.className = "text";
+    textWrap.style.whiteSpace = "pre-wrap";
+    textWrap.style.wordBreak = "break-word";
+
+    if (tag) {
+      const badge = document.createElement("span");
+      badge.className = "task-tag";
+      badge.textContent = tag;
+      textWrap.appendChild(badge);
+    }
+
+    const p = document.createElement("p");
+    p.className = "comment-body";
+    p.textContent = texto;
+    textWrap.appendChild(p);
+
+    body.appendChild(who);
+    body.appendChild(textWrap);
+
+    article.appendChild(avatarWrap);
+    article.appendChild(body);
+
+    feed.appendChild(article);
+  }
+
+  if (lblCount) {
+    const total = all.length;
+    lblCount.textContent = total === 1 ? "1 comentario" : `${total} comentarios`;
+  }
+
+  const scroller = feed.parentElement || feed;
+  scroller.scrollTo({ top: 0, behavior: "auto" });
+}
 
 
   async function loadComentariosDeTarea(taskOrId) {

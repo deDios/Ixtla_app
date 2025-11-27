@@ -106,8 +106,8 @@ export function createTaskDetailsModule({
     const arr = Array.isArray(raw)
       ? raw
       : Array.isArray(raw?.rows)
-        ? raw.rows
-        : [];
+      ? raw.rows
+      : [];
     log("[KB] Comentarios crudos:", arr);
     return arr;
   }
@@ -225,8 +225,8 @@ export function createTaskDetailsModule({
       const arr = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.rows)
-          ? raw.rows
-          : [];
+        ? raw.rows
+        : [];
 
       return arr
         .map(normalizarMediaItem)
@@ -488,18 +488,20 @@ export function createTaskDetailsModule({
       return;
     }
 
-    // 🔽🔽 AQUÍ es donde ordenamos: primero los más recientes
+    // Orden igual que en requerimientoView: más nuevos arriba
     const ordered = [...all].sort((a, b) => {
       const aDate = Date.parse(a.created_at || a.fecha || "") || 0;
       const bDate = Date.parse(b.created_at || b.fecha || "") || 0;
-      return bDate - aDate; // b primero si es más nuevo
+      return bDate - aDate;
     });
 
     for (const c of ordered) {
       const originalText = c.comentario || c.texto || "";
+      // Detectamos prefix Tarea-{id} y limpiamos texto
       const { tag, cleanText } = parseTaskTagFromComment(originalText, tareaId);
       const texto = cleanText || originalText;
 
+      // Normalizar nombre como en requerimientoView
       let display =
         c.empleado_display ||
         [c.empleado_nombre, c.empleado_apellidos].filter(Boolean).join(" ").trim() ||
@@ -509,6 +511,7 @@ export function createTaskDetailsModule({
 
       const cuando = relShort(c.created_at || c.fecha || "");
 
+      // Mismo cálculo de usuarioId que en requerimientoView
       const usuarioId =
         (Number(c.created_by) > 0 && Number(c.created_by)) ||
         (Number(c.cuenta_id) > 0 && Number(c.cuenta_id)) ||
@@ -519,6 +522,7 @@ export function createTaskDetailsModule({
       const article = document.createElement("article");
       article.className = "msg";
 
+      // Avatar con mismo comportamiento (fallbacks)
       const avatarWrap = document.createElement("div");
       avatarWrap.className = "avatar";
       const img = document.createElement("img");
@@ -539,6 +543,7 @@ export function createTaskDetailsModule({
       };
       tryNext();
 
+      // Body
       const body = document.createElement("div");
       body.className = "body";
 
@@ -558,9 +563,11 @@ export function createTaskDetailsModule({
 
       const textWrap = document.createElement("div");
       textWrap.className = "text";
+      // Misma forma de mostrar texto: pre-wrap + break-word
       textWrap.style.whiteSpace = "pre-wrap";
       textWrap.style.wordBreak = "break-word";
 
+      // Badge TAREA-#### solo si el comentario trae el prefijo
       if (tag) {
         const badge = document.createElement("span");
         badge.className = "task-tag";
@@ -584,13 +591,14 @@ export function createTaskDetailsModule({
 
     if (lblCount) {
       const total = all.length;
-      lblCount.textContent = total === 1 ? "1 comentario" : `${total} comentarios`;
+      lblCount.textContent =
+        total === 1 ? "1 comentario" : `${total} comentarios`;
     }
 
+    // Igual que en requerimientoView: subir scroll al inicio
     const scroller = feed.parentElement || feed;
     scroller.scrollTo({ top: 0, behavior: "auto" });
   }
-
 
   async function loadComentariosDeTarea(taskOrId) {
     const task =

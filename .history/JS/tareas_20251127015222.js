@@ -9,7 +9,6 @@ import { Session } from "./auth/session.js";
 import { postJSON } from "./api/http.js";
 import { searchEmpleados } from "./api/usuarios.js";
 import { createTaskDetailsModule } from "./ui/tareasDetalle.js";
-import { createTaskFiltersModule } from "./ui/tareasFiltros.js";
 
 /* ==========================================================================
    Config
@@ -155,8 +154,7 @@ const State = {
   tasks: [],
   selectedId: null,
   filters: {
-    mine: false,
-    recentDays: null,
+    mine: true,
     search: "",
     departamentos: new Set(), // ids
     empleados: new Set(), // ids
@@ -187,7 +185,11 @@ const CNT_IDS = {
 };
 
 let dragging = false;
-let FiltersModule = null;
+
+const MultiFilters = {
+  departamentos: null,
+  empleados: null,
+};
 
 // cache para requerimientos (folio, tramite, etc.)
 const ReqCache = new Map(); // reqId → data o null
@@ -474,11 +476,7 @@ async function enrichTasksWithRequerimientos(tasks) {
       ...t,
       folio: folioReal,
       tramite_id:
-        t.tramite_id != null
-          ? Number(t.tramite_id)
-          : req.tramite_id != null
-            ? Number(req.tramite_id)
-            : null,
+        t.tramite_id != null ? t.tramite_id : req.tramite_id ?? t.tramite_id,
       tramite_nombre:
         t.tramite_nombre || req.tramite_nombre || t.tramite_nombre || "",
     };
@@ -489,31 +487,8 @@ async function enrichTasksWithRequerimientos(tasks) {
 }
 
 /* ==========================================================================
-   Filtros / combos (lógica de negocio)
+   Filtros / combos
    ========================================================================== */
-
-function passesBaseFilters(task) {
-  // Solo mis tareas
-  if (
-    State.filters.mine &&
-    KB.CURRENT_USER_ID != null &&
-    task.asignado_a !== KB.CURRENT_USER_ID
-  ) {
-    return false;
-  }
-
-  // Search (folio, proceso, id)
-  const q = State.filters.search.trim().toLowerCase();
-  if (q) {
-    const hay =
-      (task.folio || "").toLowerCase().includes(q) ||
-      (task.proceso_titulo || "").toLowerCase().includes(q) ||
-      String(task.id).includes(q);
-    if (!hay) return false;
-  }
-
-  return true;
-}
 
 function passesFilters(task) {
   // Solo mis tareas
@@ -533,17 +508,6 @@ function passesFilters(task) {
       (task.proceso_titulo || "").toLowerCase().includes(q) ||
       String(task.id).includes(q);
     if (!hay) return false;
-  }
-
-  // Filtro "recientes" (últimos N días, por ahora 15)
-  const recentDays = State.filters.recentDays;
-  if (recentDays != null) {
-    const baseDateStr = task.fecha_inicio || task.created_at;
-    const d = diffDays(baseDateStr);
-    // si no tiene fecha o es más viejo que N días, se excluye
-    if (d == null || d > recentDays) {
-      return false;
-    }
   }
 
   // Filtro por empleado
@@ -577,6 +541,160 @@ function passesFilters(task) {
   }
 
   return true;
+}
+
+/* --------------------------------------------------------------------------
+   Multi select (Departamentos / Empleados)
+   -------------------------------------------------------------------------- */
+
+function createMultiFilter(fieldEl, key, options) {
+  if (!fieldEl) return;
+
+  const trigger = fieldEl.querySelector(".kb-multi-trigger");
+  const placeholderEl = fieldEl.querySelector(".kb-multi-placeholder");
+  const summaryEl = fieldEl.querySelector(".kb-multi-summary");
+  const menu = fieldEl.querySelector(".kb-multi-menu");
+  const searchInput = fieldEl.querySelector(".kb-multi-search-input");
+  const list = fieldEl.querySelector(".kb-multi-options");
+
+  const stateSet = State.filters[key] || (State.filters[key] = new Set());
+
+  function renderOptions() {
+    if (!list) return;
+    list.innerHTML = "";
+    options.forEach((opt) => {
+      const li = document.createElement("li");
+      li.className = "kb-multi-option";
+      li.dataset.value = String(opt.value);
+      li.textContent = opt.label;
+      if (stateSet.has(opt.value)) {
+        li.classList.add("is-selected");
+      }
+      li.addEventListener("click", () => toggleValue(opt.value));
+      list.appendChild(li);
+    });
+  }
+
+  function updateSummary() {
+    const selected = options.filter((opt) => stateSet.has(opt.value));
+    if (!selected.length) {
+      if (placeholderEl) placeholderEl.hidden = false;
+      if (summaryEl) {
+        summaryEl.hidden = true;
+        summaryEl.textContent = "";
+      }
+    } else {
+      if (placeholderEl) placeholderEl.hidden = true;
+      if (summaryEl) {
+        summaryEl.hidden = false;
+        if (selected.length === 1) {
+          summaryEl.textContent = selected[0].label;
+        } else {
+          summaryEl.textContent = `${selected[0].label} +${selected.length - 1
+            }`;
+        }
+      }
+    }
+  }
+
+  function toggleValue(value) {
+    if (stateSet.has(value)) {
+      stateSet.delete(value);
+    } else {
+      stateSet.add(value);
+    }
+
+    if (list) {
+      const li = list.querySelector(
+        `.kb-multi-option[data-value="${value}"]`
+      );
+      if (li) li.classList.toggle("is-selected", stateSet.has(value));
+    }
+
+    updateSummary();
+    renderBoard();
+  }
+
+  function openMenu() {
+    if (!menu || !trigger) return;
+    trigger.setAttribute("aria-expanded", "true");
+    menu.hidden = false;
+    fieldEl.classList.add("is-open");
+  }
+
+  function closeMenu() {
+    if (!menu || !trigger) return;
+    trigger.setAttribute("aria-expanded", "false");
+    menu.hidden = true;
+    fieldEl.classList.remove("is-open");
+  }
+
+  function toggleMenu() {
+    const expanded = trigger.getAttribute("aria-expanded") === "true";
+    if (expanded) {
+      closeMenu();
+    } else {
+      openMenu();
+      if (searchInput) searchInput.focus();
+    }
+  }
+
+  if (trigger) {
+    trigger.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      toggleMenu();
+    });
+  }
+
+  if (searchInput && list) {
+    searchInput.addEventListener("input", () => {
+      const q = searchInput.value.trim().toLowerCase();
+      const items = list.querySelectorAll(".kb-multi-option");
+      items.forEach((li) => {
+        const label = (li.textContent || "").toLowerCase();
+        li.hidden = q && !label.includes(q);
+      });
+    });
+  }
+
+  document.addEventListener("click", (ev) => {
+    if (!fieldEl.contains(ev.target)) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      closeMenu();
+    }
+  });
+
+  renderOptions();
+  updateSummary();
+
+  MultiFilters[key] = {
+    clear() {
+      stateSet.clear();
+      updateSummary();
+      const items = list?.querySelectorAll(".kb-multi-option") || [];
+      items.forEach((li) => li.classList.remove("is-selected"));
+    },
+  };
+}
+
+function setupSidebarFilters() {
+  const btnClear = $("#kb-sidebar-clear");
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      State.filters.departamentos.clear();
+      State.filters.empleados.clear();
+
+      if (MultiFilters.departamentos) MultiFilters.departamentos.clear();
+      if (MultiFilters.empleados) MultiFilters.empleados.clear();
+
+      renderBoard();
+    });
+  }
 }
 
 /* ==========================================================================
@@ -682,12 +800,8 @@ function renderBoard() {
     if (lbl) lbl.textContent = "(0)";
   });
 
-  // 1) Tareas visibles
-  const visibleTasks = [];
   for (const task of State.tasks) {
     if (!passesFilters(task)) continue;
-    visibleTasks.push(task);
-
     const colSel = COL_IDS[task.status];
     const col = colSel ? $(colSel) : null;
     if (!col) continue;
@@ -705,11 +819,102 @@ function renderBoard() {
   }
 
   highlightSelected();
+}
 
-  // 2) Actualizar filtros dinámicos según tareas que cumplen mine + búsqueda
-  if (FiltersModule && FiltersModule.updateAvailableOptions) {
-    const universeTasks = State.tasks.filter(passesBaseFilters);
-    FiltersModule.updateAvailableOptions(universeTasks);
+/* ==========================================================================
+   Toolbar (chips + search + combos proceso / trámite)
+   ========================================================================== */
+
+function setupToolbarCombos({ procesosOptions, tramitesOptions }) {
+  const selProc = $("#kb-filter-proceso");
+  const selTram = $("#kb-filter-tramite");
+
+  if (selProc) {
+    selProc.innerHTML =
+      '<option value="">Todos</option>' +
+      procesosOptions
+        .map((o) => `<option value="${o.value}">${o.label}</option>`)
+        .join("");
+    selProc.addEventListener("change", () => {
+      const v = selProc.value;
+      State.filters.procesoId = v ? Number(v) : null;
+      log("Filtro ProcesoId →", State.filters.procesoId);
+      renderBoard();
+    });
+  }
+
+  if (selTram) {
+    selTram.innerHTML =
+      '<option value="">Todos</option>' +
+      tramitesOptions
+        .map((o) => `<option value="${o.value}">${o.label}</option>`)
+        .join("");
+    selTram.addEventListener("change", () => {
+      const v = selTram.value;
+      State.filters.tramiteId = v ? Number(v) : null;
+      log("Filtro TramiteId →", State.filters.tramiteId);
+      renderBoard();
+    });
+  }
+
+  log("[KB] Opciones filtro Procesos:", procesosOptions);
+  log("[KB] Opciones filtro Trámites:", tramitesOptions);
+}
+
+function setupToolbar() {
+  const chipMine = $('.kb-chip[data-filter="mine"]');
+  const chipRecent = $('.kb-chip[data-filter="recent"]');
+  const inputSearch = $("#kb-filter-search");
+  const btnClear = $("#kb-filter-clear");
+
+  if (chipMine) {
+    chipMine.classList.toggle("is-active", State.filters.mine);
+    chipMine.addEventListener("click", () => {
+      State.filters.mine = !State.filters.mine;
+      chipMine.classList.toggle("is-active", State.filters.mine);
+      log("Filtro 'Solo mis tareas' →", State.filters.mine);
+      renderBoard();
+    });
+  }
+
+  if (chipRecent) {
+    chipRecent.addEventListener("click", () => {
+      chipRecent.classList.toggle("is-active");
+      log(
+        "Filtro 'Recientes' toggled:",
+        chipRecent.classList.contains("is-active")
+      );
+      // de momento solo visual; no afecta pipeline aún
+    });
+  }
+
+  if (inputSearch) {
+    inputSearch.addEventListener("input", () => {
+      State.filters.search = inputSearch.value || "";
+      log("Filtro search →", State.filters.search);
+      renderBoard();
+    });
+  }
+
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      State.filters.mine = false;
+      State.filters.search = "";
+      State.filters.procesoId = null;
+      State.filters.tramiteId = null;
+
+      if (chipMine) chipMine.classList.remove("is-active");
+      if (chipRecent) chipRecent.classList.remove("is-active");
+      if (inputSearch) inputSearch.value = "";
+
+      const selProc = $("#kb-filter-proceso");
+      const selTram = $("#kb-filter-tramite");
+      if (selProc) selProc.value = "";
+      if (selTram) selTram.value = "";
+
+      log("Filtros rápidos limpiados");
+      renderBoard();
+    });
   }
 }
 
@@ -967,6 +1172,7 @@ async function init() {
   State.tasks = tareasConPersonas;
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
 
+
   // ==========================
   //   Módulo de Detalle
   // ==========================
@@ -1045,10 +1251,13 @@ async function init() {
   });
   log("Opciones filtro Empleados:", empOptions);
 
-  const procesosOptions = procesos.map((p) => ({
-    value: p.id,
-    label: p.descripcion?.trim() || `Proceso ${p.id}`,
-  }));
+  const procesosOptions = procesos.map((p) => {
+    const base = p.descripcion?.trim() || `Proceso ${p.id}`;
+    const req = p.requerimiento_id ? ReqCache.get(p.requerimiento_id) : null;
+    const folioTxt = req ? formatFolio(req.folio, req.id) : "";
+    const label = folioTxt ? `${folioTxt} · ${base}` : base;
+    return { value: p.id, label };
+  });
 
   const tramitesOptions = tramites.map((t) => ({
     value: t.id,
@@ -1056,25 +1265,22 @@ async function init() {
   }));
 
   // ==========================
-  //   UI – Filtros + tablero
+  //   UI
   // ==========================
 
-  FiltersModule = createTaskFiltersModule({
-    State,
-    KB,
-    log,
-    renderBoard,
-    $,
-    $$,
-  });
+  setupSidebarFilters();
 
-  FiltersModule.init({
-    deptOptions,
-    empOptions,
-    procesosOptions,
-    tramitesOptions,
-  });
+  const fieldDept = $("#kb-filter-departamentos");
+  const fieldEmp = $("#kb-filter-empleados");
+  if (fieldDept && deptOptions.length) {
+    createMultiFilter(fieldDept, "departamentos", deptOptions);
+  }
+  if (fieldEmp && empOptions.length) {
+    createMultiFilter(fieldEmp, "empleados", empOptions);
+  }
 
+  setupToolbar();
+  setupToolbarCombos({ procesosOptions, tramitesOptions });
   renderBoard();
   setupDragAndDrop();
 
