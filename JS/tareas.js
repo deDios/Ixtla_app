@@ -206,8 +206,8 @@ function mapRawTask(raw) {
     raw.status != null
       ? Number(raw.status)
       : raw.estatus != null
-        ? Number(raw.estatus)
-        : KB.STATUS.TODO;
+      ? Number(raw.estatus)
+      : KB.STATUS.TODO;
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
@@ -216,8 +216,8 @@ function mapRawTask(raw) {
     raw.asignado_a != null
       ? Number(raw.asignado_a)
       : raw.empleado_id != null
-        ? Number(raw.empleado_id)
-        : null;
+      ? Number(raw.empleado_id)
+      : null;
 
   const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
   const asignado_apellidos =
@@ -232,8 +232,8 @@ function mapRawTask(raw) {
     raw.requerimiento_id != null
       ? Number(raw.requerimiento_id)
       : raw.req_id != null
-        ? Number(raw.req_id)
-        : null;
+      ? Number(raw.req_id)
+      : null;
 
   const tramite_id = raw.tramite_id != null ? Number(raw.tramite_id) : null;
 
@@ -260,8 +260,8 @@ function mapRawTask(raw) {
       raw.esfuerzo != null
         ? Number(raw.esfuerzo)
         : raw.horas != null
-          ? Number(raw.horas)
-          : null,
+        ? Number(raw.horas)
+        : null,
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
     status,
@@ -486,8 +486,8 @@ async function enrichTasksWithRequerimientos(tasks) {
         t.tramite_id != null
           ? Number(t.tramite_id)
           : req.tramite_id != null
-            ? Number(req.tramite_id)
-            : null,
+          ? Number(req.tramite_id)
+          : null,
       tramite_nombre:
         t.tramite_nombre || req.tramite_nombre || t.tramite_nombre || "",
     };
@@ -647,8 +647,9 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio || "—"
-    }</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${
+    task.folio || "—"
+  }</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -668,8 +669,9 @@ function createCard(task) {
     const chip = document.createElement("div");
     chip.className = `kb-age-chip kb-age-${age.classIndex}`;
     chip.textContent = String(age.display);
-    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"
-      } en proceso`;
+    chip.title = `${age.realDays} día${
+      age.realDays === 1 ? "" : "s"
+    } en proceso`;
     art.appendChild(chip);
   }
 
@@ -717,7 +719,7 @@ function renderBoard() {
 
   // 2) Actualizar filtros dinámicos según tareas que cumplen mine + búsqueda
   if (FiltersModule && FiltersModule.updateAvailableOptions) {
-    const universeTasks = State.tasks.filter(passesBaseFilters);
+    const universeTasks = State.tasks.filter(passesFilters);
     FiltersModule.updateAvailableOptions(universeTasks);
   }
 }
@@ -815,9 +817,9 @@ function hydrateViewerFromSession() {
   const roles = Array.isArray(rolesRaw)
     ? rolesRaw
     : String(rolesRaw || "")
-      .split(/[,\s]+/g)
-      .map((r) => r.trim())
-      .filter(Boolean);
+        .split(/[,\s]+/g)
+        .map((r) => r.trim())
+        .filter(Boolean);
 
   Viewer.deptId = deptId != null ? Number(deptId) : null;
   Viewer.roles = roles;
@@ -921,7 +923,10 @@ async function init() {
     // ---------- CREADO POR ----------
     let created_by_nombre = t.created_by_nombre;
 
-    if ((!created_by_nombre || created_by_nombre === "—") && t.created_by != null) {
+    if (
+      (!created_by_nombre || created_by_nombre === "—") &&
+      t.created_by != null
+    ) {
       const emp = State.empleadosIndex.get(t.created_by);
       if (emp) {
         created_by_nombre =
@@ -949,8 +954,7 @@ async function init() {
       if (dep) {
         autoriza_id = dep.director ?? autoriza_id;
 
-        const dirNombre =
-          dep.director_nombre || dep.primera_nombre || "";
+        const dirNombre = dep.director_nombre || dep.primera_nombre || "";
         const dirApellidos =
           dep.director_apellidos || dep.primera_apellidos || "";
 
