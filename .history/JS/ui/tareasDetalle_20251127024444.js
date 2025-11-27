@@ -828,23 +828,12 @@ export function createTaskDetailsModule({
     if (procEl) procEl.textContent = task.proceso_titulo || "—";
     if (tareaEl) tareaEl.textContent = task.titulo || `Tarea ${task.id}`;
     if (asigEl) asigEl.textContent = task.asignado_display || "—";
-    if (esfEl) esfEl.textContent =
-      task.esfuerzo != null ? `${task.esfuerzo}` : "—";
+    if (esfEl)
+      esfEl.textContent = task.esfuerzo != null ? `${task.esfuerzo}` : "—";
     if (descEl) descEl.textContent = task.descripcion || "—";
-
-    // Creado por: asumimos que ya viene resuelto en la tarea
-    if (creadoPorEl) {
-      creadoPorEl.textContent =
-        task.created_by_nombre ||
-        task.creado_por_nombre ||
-        task.creado_por_display ||
-        "—";
-    }
-
-    // Quien autoriza lo dejaremos en "—" de momento, luego lo rellenamos async
-    if (autorizaEl) {
-      autorizaEl.textContent = task.autoriza_nombre || "—";
-    }
+    if (creadoPorEl)
+      creadoPorEl.textContent = task.created_by_nombre || "—";
+    if (autorizaEl) autorizaEl.textContent = task.autoriza_nombre || "—";
   }
 
   function openDetails(taskOrId) {
@@ -866,28 +855,15 @@ export function createTaskDetailsModule({
     if (empty) empty.hidden = true;
     if (body) body.hidden = false;
 
-    // Pintamos datos básicos
     fillDetails(task);
     setupTaskCommentsComposer();
 
-    // Cargamos evidencias y comentarios
     loadEvidenciasForTask(task).catch((e) =>
       console.error("[KB] Error al cargar evidencias:", e)
     );
     loadComentariosDeTarea(task).catch((e) =>
       console.error("[KB] Error al cargar comentarios:", e)
     );
-
-    // Resolver y pintar "Quien autoriza" (director del departamento)
-    resolveAutorizaNombre(task)
-      .then((nombre) => {
-        if (!nombre) return;
-        const autorizaEl = $("#kb-d-autoriza");
-        if (autorizaEl) autorizaEl.textContent = nombre;
-      })
-      .catch((e) =>
-        console.error("[KB] Error al resolver quien autoriza:", e)
-      );
 
     const aside = $("#kb-details");
     const overlay = $("#kb-d-overlay");

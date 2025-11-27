@@ -847,7 +847,7 @@ export function createTaskDetailsModule({
     }
   }
 
-  function openDetails(taskOrId) {
+    function openDetails(taskOrId) {
     const task =
       typeof taskOrId === "object" && taskOrId
         ? taskOrId

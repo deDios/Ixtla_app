@@ -866,28 +866,15 @@ export function createTaskDetailsModule({
     if (empty) empty.hidden = true;
     if (body) body.hidden = false;
 
-    // Pintamos datos básicos
     fillDetails(task);
     setupTaskCommentsComposer();
 
-    // Cargamos evidencias y comentarios
     loadEvidenciasForTask(task).catch((e) =>
       console.error("[KB] Error al cargar evidencias:", e)
     );
     loadComentariosDeTarea(task).catch((e) =>
       console.error("[KB] Error al cargar comentarios:", e)
     );
-
-    // Resolver y pintar "Quien autoriza" (director del departamento)
-    resolveAutorizaNombre(task)
-      .then((nombre) => {
-        if (!nombre) return;
-        const autorizaEl = $("#kb-d-autoriza");
-        if (autorizaEl) autorizaEl.textContent = nombre;
-      })
-      .catch((e) =>
-        console.error("[KB] Error al resolver quien autoriza:", e)
-      );
 
     const aside = $("#kb-details");
     const overlay = $("#kb-d-overlay");

@@ -847,68 +847,7 @@ export function createTaskDetailsModule({
     }
   }
 
-  function openDetails(taskOrId) {
-    const task =
-      typeof taskOrId === "object" && taskOrId
-        ? taskOrId
-        : getTaskById(taskOrId);
-
-    if (!task) {
-      toast("No se encontró la tarea seleccionada.", "warning");
-      return;
-    }
-
-    State.selectedId = task.id;
-    highlightSelected();
-
-    const empty = $("#kb-d-empty");
-    const body = $("#kb-d-body");
-    if (empty) empty.hidden = true;
-    if (body) body.hidden = false;
-
-    // Pintamos datos básicos
-    fillDetails(task);
-    setupTaskCommentsComposer();
-
-    // Cargamos evidencias y comentarios
-    loadEvidenciasForTask(task).catch((e) =>
-      console.error("[KB] Error al cargar evidencias:", e)
-    );
-    loadComentariosDeTarea(task).catch((e) =>
-      console.error("[KB] Error al cargar comentarios:", e)
-    );
-
-    // Resolver y pintar "Quien autoriza" (director del departamento)
-    resolveAutorizaNombre(task)
-      .then((nombre) => {
-        if (!nombre) return;
-        const autorizaEl = $("#kb-d-autoriza");
-        if (autorizaEl) autorizaEl.textContent = nombre;
-      })
-      .catch((e) =>
-        console.error("[KB] Error al resolver quien autoriza:", e)
-      );
-
-    const aside = $("#kb-details");
-    const overlay = $("#kb-d-overlay");
-
-    if (aside) {
-      aside.classList.add("is-open");
-      aside.setAttribute("aria-hidden", "false");
-    }
-    if (overlay) {
-      overlay.classList.add("is-open");
-      overlay.hidden = false;
-    }
-
-    const btnClose = $("#kb-d-close");
-    if (btnClose && !btnClose._kbBound) {
-      btnClose._kbBound = true;
-      btnClose.addEventListener("click", () => {
-        closeDetails();
-      });
-    }
-  }
+  
 
   function closeDetails() {
     State.selectedId = null;
