@@ -111,60 +111,6 @@ function isPrivilegedForTask(task) {
   return false;
 }
 
-/**
- * Reglas de movimiento:
- * - Admin / Pres / Director: pueden mover la tarea a cualquier estado.
- * - Resto (jefe/analista/etc.):
- *   - Solo sobre tareas que les están asignadas.
- *   - NO pueden mover a HECHO.
- *   - NO pueden hacer retrocesos (solo avanzar o mandar a PAUSA/BLOQUEADO).
- *
- * Flujo principal:
- *   TODO (1) -> PROCESO (2) -> REVISAR (3) -> HECHO (4)
- *   PAUSA (5) es el "bloqueado".
- */
-function canMoveTask(task, oldStatus, newStatus) {
-  if (oldStatus === newStatus) return true;
-
-  const privileged = isPrivilegedForTask(task);
-  if (privileged) return true;
-
-  // Si no es privilegiado, sólo puede tocar sus propias tareas
-  const isOwner =
-    KB.CURRENT_USER_ID != null &&
-    task.asignado_a != null &&
-    Number(task.asignado_a) === Number(KB.CURRENT_USER_ID);
-
-  if (!isOwner) {
-    return false;
-  }
-
-  // Jefe/analista/normal sobre su propia tarea:
-
-  // 1) Nunca puede mandar a HECHO
-  if (newStatus === KB.STATUS.HECHO) {
-    return false;
-  }
-
-  // 2) Puede mandar la tarea a PAUSA/BLOQUEADO desde cualquier estado
-  //    (excepto HECHO, que consideramos cerrado)
-  if (newStatus === KB.STATUS.PAUSA && oldStatus !== KB.STATUS.HECHO) {
-    return true;
-  }
-
-  // 3) Movimientos hacia adelante en el flujo
-  if (oldStatus === KB.STATUS.TODO && newStatus === KB.STATUS.PROCESO) {
-    return true;
-  }
-
-  if (oldStatus === KB.STATUS.PROCESO && newStatus === KB.STATUS.REVISAR) {
-    return true;
-  }
-
-  // Todo lo demás (retrocesos, saltos raros) queda bloqueado
-  return false;
-}
-
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
