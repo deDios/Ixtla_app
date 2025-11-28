@@ -93,19 +93,19 @@ export function createTaskFiltersModule({
         li.appendChild(row);
 
         // click en el checkbox
-        check.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          toggleValue(opt.value);
-        });
+check.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  toggleValue(opt.value);
+});
 
-        // click en toda la fila (texto, meta, etc.)
-        row.addEventListener("click", (ev) => {
-          // si fue directamente el checkbox, ya se maneja arriba
-          if (ev.target.closest("input[type=checkbox]")) return;
-          ev.preventDefault();
-          ev.stopPropagation();
-          toggleValue(opt.value);
-        });
+// click en toda la fila (texto, meta, etc.)
+row.addEventListener("click", (ev) => {
+  // si fue directamente el checkbox, ya se maneja arriba
+  if (ev.target.closest("input[type=checkbox]")) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  toggleValue(opt.value);
+});
 
         // click en toda la fila
         li.addEventListener("click", (ev) => {
@@ -137,8 +137,9 @@ export function createTaskFiltersModule({
           if (selected.length === 1) {
             summaryEl.textContent = selected[0].label;
           } else {
-            summaryEl.textContent = `${selected[0].label} +${selected.length - 1
-              }`;
+            summaryEl.textContent = `${selected[0].label} +${
+              selected.length - 1
+            }`;
           }
         }
       }
