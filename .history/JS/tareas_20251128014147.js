@@ -128,9 +128,8 @@ function diffDays(startStr) {
 }
 
 function calcAgeChip(task) {
-  // Prioridad: status_since (desde cuándo está en este status)
+  // Prioridad: updated_at (última vez que se tocó la tarea en BD)
   const base =
-    task.status_since ||
     task.updated_at ||
     task.fecha_inicio ||
     task.created_at;
@@ -155,6 +154,7 @@ function calcAgeChip(task) {
     realDays,
   };
 }
+
 
 
 /* ==========================================================================

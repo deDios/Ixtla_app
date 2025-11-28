@@ -128,9 +128,8 @@ function diffDays(startStr) {
 }
 
 function calcAgeChip(task) {
-  // Prioridad: status_since (desde cuándo está en este status)
+  // Prioridad: updated_at (última vez que se tocó la tarea en BD)
   const base =
-    task.status_since ||
     task.updated_at ||
     task.fecha_inicio ||
     task.created_at;
@@ -155,6 +154,7 @@ function calcAgeChip(task) {
     realDays,
   };
 }
+
 
 
 /* ==========================================================================
@@ -867,8 +867,8 @@ async function persistTaskStatus(task, newStatus) {
 
   const payload = {
     id: task.id,
-    status: newStatus,      // si el backend usa 'estatus', cámbialo aquí
-    updated_by: updatedBy,  // <--- dato obligatorio
+    status: newStatus,     // si el backend usa 'estatus', cámbialo aquí
+    updated_by: updatedBy, // <--- dato obligatorio
   };
 
   try {
@@ -876,25 +876,14 @@ async function persistTaskStatus(task, newStatus) {
     const res = await patchJSON(API_TAREAS.UPDATE, payload);
     log("Respuesta UPDATE tarea:", res);
 
-    if (!res || res.ok === false) {
-      toast(
-        res?.error || "No se pudo actualizar el status de la tarea.",
-        "error"
-      );
-      return;
+    if (res && res.ok === false) {
+      toast(res.error || "No se pudo actualizar el status de la tarea.", "error");
     }
-
-    task.status = newStatus;
-    task.updated_at = new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", " ");
   } catch (e) {
     console.error("[KB] Error al actualizar status de tarea:", e);
     toast("Error al actualizar el status de la tarea.", "error");
   }
 }
-
 
 
 function setupDragAndDrop() {
