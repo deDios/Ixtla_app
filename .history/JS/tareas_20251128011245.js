@@ -209,8 +209,8 @@ function mapRawTask(raw) {
     raw.status != null
       ? Number(raw.status)
       : raw.estatus != null
-        ? Number(raw.estatus)
-        : KB.STATUS.TODO;
+      ? Number(raw.estatus)
+      : KB.STATUS.TODO;
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
@@ -219,8 +219,8 @@ function mapRawTask(raw) {
     raw.asignado_a != null
       ? Number(raw.asignado_a)
       : raw.empleado_id != null
-        ? Number(raw.empleado_id)
-        : null;
+      ? Number(raw.empleado_id)
+      : null;
 
   const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
   const asignado_apellidos =
@@ -235,8 +235,8 @@ function mapRawTask(raw) {
     raw.requerimiento_id != null
       ? Number(raw.requerimiento_id)
       : raw.req_id != null
-        ? Number(raw.req_id)
-        : null;
+      ? Number(raw.req_id)
+      : null;
 
   const tramite_id = raw.tramite_id != null ? Number(raw.tramite_id) : null;
 
@@ -263,8 +263,8 @@ function mapRawTask(raw) {
       raw.esfuerzo != null
         ? Number(raw.esfuerzo)
         : raw.horas != null
-          ? Number(raw.horas)
-          : null,
+        ? Number(raw.horas)
+        : null,
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
     status,
@@ -489,8 +489,8 @@ async function enrichTasksWithRequerimientos(tasks) {
         t.tramite_id != null
           ? Number(t.tramite_id)
           : req.tramite_id != null
-            ? Number(req.tramite_id)
-            : null,
+          ? Number(req.tramite_id)
+          : null,
       tramite_nombre:
         t.tramite_nombre || req.tramite_nombre || t.tramite_nombre || "",
     };
@@ -657,8 +657,9 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio || "—"
-    }</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${
+    task.folio || "—"
+  }</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -678,8 +679,9 @@ function createCard(task) {
     const chip = document.createElement("div");
     chip.className = `kb-age-chip kb-age-${age.classIndex}`;
     chip.textContent = String(age.display);
-    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"
-      } en proceso`;
+    chip.title = `${age.realDays} día${
+      age.realDays === 1 ? "" : "s"
+    } en proceso`;
     art.appendChild(chip);
   }
 
@@ -807,34 +809,9 @@ function canMoveTask(fromStatus, toStatus) {
    ========================================================================== */
 
 async function persistTaskStatus(task, newStatus) {
-  // Intentamos obtener el id de empleado que está moviendo la tarjeta
-  let updatedBy = KB.CURRENT_USER_ID;
-
-  if (!updatedBy) {
-    try {
-      const ids = Session?.getIds ? Session.getIds() : null;
-      updatedBy = ids?.id_empleado ?? null;
-    } catch (e) {
-      console.warn("[KB] No se pudo leer Session.getIds() para updated_by:", e);
-    }
-  }
-
-  if (!updatedBy) {
-    warn("No se pudo determinar updated_by, se cancela update", {
-      taskId: task.id,
-      newStatus,
-    });
-    toast(
-      "No se pudo identificar al usuario que actualiza la tarea. Revisa tu sesión.",
-      "warning"
-    );
-    return;
-  }
-
   const payload = {
     id: task.id,
-    status: newStatus,     // si el backend usa 'estatus', cámbialo aquí
-    updated_by: updatedBy, // <--- dato obligatorio
+    status: newStatus,
   };
 
   try {
@@ -842,15 +819,18 @@ async function persistTaskStatus(task, newStatus) {
     const res = await patchJSON(API_TAREAS.UPDATE, payload);
     log("Respuesta UPDATE tarea:", res);
 
+    // Si la API regresa ok=false, lo tratamos como error lógico
     if (res && res.ok === false) {
-      toast(res.error || "No se pudo actualizar el status de la tarea.", "error");
+      throw new Error(res.error || "No se pudo actualizar la tarea");
     }
+
+    return res;
   } catch (e) {
     console.error("[KB] Error al actualizar status de tarea:", e);
-    toast("Error al actualizar el status de la tarea.", "error");
+    toast("No se pudo actualizar el estado de la tarea.", "error");
+    throw e;
   }
 }
-
 
 function setupDragAndDrop() {
   const lists = $$(".kb-list");
@@ -960,9 +940,9 @@ function hydrateViewerFromSession() {
   const roles = Array.isArray(rolesRaw)
     ? rolesRaw
     : String(rolesRaw || "")
-      .split(/[,\s]+/g)
-      .map((r) => r.trim())
-      .filter(Boolean);
+        .split(/[,\s]+/g)
+        .map((r) => r.trim())
+        .filter(Boolean);
 
   Viewer.deptId = deptId != null ? Number(deptId) : null;
   Viewer.roles = roles;
