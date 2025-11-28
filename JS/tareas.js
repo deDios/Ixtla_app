@@ -1,8 +1,8 @@
-// /JS/tareas.js – Tablero de tareas (kanban) con API real + jerarquías
+// /JS/tareas.js 
 "use strict";
 
 /* ==========================================================================
-   Imports (módulos compartidos)
+   Imports
    ========================================================================== */
 
 import { Session } from "./auth/session.js";
@@ -85,42 +85,6 @@ const toast = (m, t = "info") =>
 /* ==========================================================================
    Helpers
    ========================================================================== */
-
-/* ==========================================================================
-   Reglas de negocio: quién puede mover qué
-   ========================================================================== */
-
-/**
- * Determina si el viewer actual es "privilegiado" para esta tarea:
- * - Admin
- * - Presidencia
- * - Director del departamento dueño del requerimiento/tarea
- */
-function isPrivilegedForTask(task) {
-  const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
-
-  // Admin o Presidencia → súper permisos
-  if (roles.includes("ADMIN") || roles.includes("PRES")) {
-    return true;
-  }
-
-  // Director del departamento de la tarea
-  const deptId = task.departamento_id ?? null;
-  if (!deptId) return false;
-
-  const dep = State.departamentosIndex.get(deptId);
-  if (!dep) return false;
-
-  if (
-    dep.director != null &&
-    KB.CURRENT_USER_ID != null &&
-    Number(dep.director) === Number(KB.CURRENT_USER_ID)
-  ) {
-    return true;
-  }
-
-  return false;
-}
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -819,6 +783,38 @@ function isBlockedStatus(status) {
 }
 
 /**
+ * Determina si el viewer actual es "privilegiado" para esta tarea:
+ * - Admin
+ * - Presidencia
+ * - Director del departamento dueño del requerimiento/tarea
+ */
+function isPrivilegedForTask(task) {
+  const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
+
+  // Admin o Presidencia → súper permisos
+  if (roles.includes("ADMIN") || roles.includes("PRES")) {
+    return true;
+  }
+
+  // Director del departamento de la tarea
+  const deptId = task.departamento_id ?? null;
+  if (!deptId) return false;
+
+  const dep = State.departamentosIndex.get(deptId);
+  if (!dep) return false;
+
+  if (
+    dep.director != null &&
+    KB.CURRENT_USER_ID != null &&
+    Number(dep.director) === Number(KB.CURRENT_USER_ID)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Reglas de movimiento entre columnas según rol.
  * - Director/Admin: pueden todo.
  * - Jefes/Analistas:
@@ -881,20 +877,114 @@ function canMoveTask(task, oldStatus, newStatus) {
   // Mapa explícito de movimientos permitidos para JEFE/ANALISTA
   const allowedMoves = new Set([
     // Flujo progresivo principal
-    `${S.TODO}->${S.PROCESO}`,    // 1 → 2  (Por hacer → En proceso)
-    `${S.TODO}->${S.REVISAR}`,    // 1 → 3  (Por hacer → Por revisar)
+    `${S.TODO}->${S.PROCESO}`, // 1 → 2  (Por hacer → En proceso)
+    `${S.TODO}->${S.REVISAR}`, // 1 → 3  (Por hacer → Por revisar)
     `${S.PROCESO}->${S.REVISAR}`, // 2 → 3  (En proceso → Por revisar)
 
     // Hacia bloqueado
-    `${S.TODO}->${S.PAUSA}`,      // 1 → 5  (Por hacer → Bloqueado)
-    `${S.PROCESO}->${S.PAUSA}`,   // 2 → 5  (En proceso → Bloqueado)
-    `${S.REVISAR}->${S.PAUSA}`,   // 3 → 5  (Por revisar → Bloqueado)
+    `${S.TODO}->${S.PAUSA}`, // 1 → 5  (Por hacer → Bloqueado)
+    `${S.PROCESO}->${S.PAUSA}`, // 2 → 5  (En proceso → Bloqueado)
+    `${S.REVISAR}->${S.PAUSA}`, // 3 → 5  (Por revisar → Bloqueado)
 
     // Desde bloqueado de regreso al flujo
-    `${S.PAUSA}->${S.PROCESO}`,   // 5 → 2  (Bloqueado → En proceso)
+    `${S.PAUSA}->${S.PROCESO}`, // 5 → 2  (Bloqueado → En proceso)
   ]);
 
   return allowedMoves.has(key);
+}
+
+/**
+ * Label legible para cada status (para mensajes).
+ */
+function getStatusLabel(status) {
+  const S = KB.STATUS;
+  switch (status) {
+    case S.TODO:
+      return "Por hacer";
+    case S.PROCESO:
+      return "En proceso";
+    case S.REVISAR:
+      return "Por revisar";
+    case S.HECHO:
+      return "Hecho";
+    case S.PAUSA:
+      return "Bloqueado";
+    default:
+      return "Desconocido";
+  }
+}
+
+/**
+ * Mensaje amigable cuando NO se puede mover una tarea,
+ * según jerarquía + estados.
+ */
+function getDeniedMoveMessage(task, oldStatus, newStatus) {
+  const S = KB.STATUS;
+
+  const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
+  const rolesUpper = roles.map((r) => String(r).toUpperCase());
+
+  const isAdminOrPres = Viewer.isAdmin || Viewer.isPres;
+  const isJefe = Viewer.isJefe || rolesUpper.some((r) => r.includes("JEFE"));
+  const isAnalista =
+    Viewer.isAnalista || rolesUpper.some((r) => r.includes("ANALISTA"));
+
+  // Por seguridad: si realmente fuera privilegiado, no deberíamos estar aquí,
+  // pero cubrimos el caso por si a futuro cambian reglas.
+  if (isAdminOrPres) {
+    return "No se pudo mover la tarea por una regla de negocio. Revisa el flujo de estados.";
+  }
+
+  // ¿La tarea es "mía"?
+  const isOwner =
+    KB.CURRENT_USER_ID != null &&
+    task.asignado_a != null &&
+    Number(task.asignado_a) === Number(KB.CURRENT_USER_ID);
+
+  // ¿La tarea es de mi departamento?
+  const sameDept =
+    Viewer.deptId != null &&
+    task.departamento_id != null &&
+    Number(task.departamento_id) === Number(Viewer.deptId);
+
+  // Caso 1: no puede ni tocar la tarjeta
+  if (!isOwner && !sameDept) {
+    if (isJefe) {
+      return "Solo puedes mover tareas de tu departamento o tareas que estén asignadas a ti.";
+    }
+    if (isAnalista) {
+      return "Solo puedes mover tareas que estén asignadas a ti.";
+    }
+    return "No tienes permisos para mover esta tarea con tu rol actual.";
+  }
+
+  // Caso 2: intento de mandar a HECHO sin ser director/admin
+  if (newStatus === S.HECHO) {
+    return 'Solo el director de tu departamento o un administrador puede colocar la tarea en "Hecho".';
+  }
+
+  // Caso 3: la tarjeta está en Bloqueado y la quieren mandar a otro lado
+  // que NO sea "En proceso".
+  if (oldStatus === S.PAUSA && newStatus !== S.PROCESO) {
+    return 'Para sacar una tarea de "Bloqueado", colócala primero en el estado de "En proceso".';
+  }
+
+  // Caso 4: están intentando ir hacia atrás en el flujo
+  const orderOld = STATUS_ORDER[oldStatus] ?? null;
+  const orderNew = STATUS_ORDER[newStatus] ?? null;
+  if (
+    orderOld != null &&
+    orderNew != null &&
+    orderNew < orderOld &&
+    oldStatus !== S.PAUSA
+  ) {
+    return 'No puedes regresar la tarea a un estado anterior. El flujo permitido es: "Por hacer" → "En proceso" → "Por revisar" → "Hecho".';
+  }
+
+  // Caso genérico: movimiento raro no contemplado
+  const fromLabel = getStatusLabel(oldStatus);
+  const toLabel = getStatusLabel(newStatus);
+  return `No puedes mover la tarea desde "${fromLabel}" hacia "${toLabel}" con tu rol actual.`;
 }
 
 /* ==========================================================================
@@ -1009,15 +1099,19 @@ function setupDragAndDrop() {
             }
           }
 
+          // Mensaje más específico según jerarquía + estados
+          const msg = getDeniedMoveMessage(task, oldStatus, newStatus);
           toast(
-            "No tienes permisos para mover esta tarea a ese estado.",
+            msg || "No tienes permisos para mover esta tarea a ese estado.",
             "warning"
           );
+
           log("Movimiento NO permitido", {
             taskId: task.id,
             oldStatus,
             newStatus,
             viewer: KB.CURRENT_USER_ID,
+            reason: msg,
           });
           return;
         }

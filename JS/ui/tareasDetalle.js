@@ -1,4 +1,4 @@
-// /JS/ui/tareasDetalle.js – Lógica del drawer de detalle de tarea
+// /JS/ui/tareasDetalle.js – Logica del drawer de detalle de tarea
 "use strict";
 
 export function createTaskDetailsModule({
