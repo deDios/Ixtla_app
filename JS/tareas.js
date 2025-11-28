@@ -1,8 +1,8 @@
-// /JS/tareas.js 
+// /JS/tareas.js – Tablero de tareas (kanban) con API real + jerarquías
 "use strict";
 
 /* ==========================================================================
-   Imports
+   Imports (módulos compartidos)
    ========================================================================== */
 
 import { Session } from "./auth/session.js";
@@ -39,9 +39,11 @@ const Viewer = {
   roles: [],
   isAdmin: false,
   isPres: false,
-  isDirector: false,
+  isDirector: false,       // desde catálogo de departamentos
+  isPrimeraLinea: false,   // desde catálogo de departamentos
   isJefe: false,
   isAnalista: false,
+  subordinates: new Set(), // ids de empleados subordinados (para JEFE)
 };
 
 const API_FBK = {
@@ -205,6 +207,139 @@ const ReqCache = new Map(); // reqId → data o null
 let DetailsModule = null;
 
 /* ==========================================================================
+   Jerarquías / helpers jerárquicos
+   ========================================================================== */
+
+/**
+ * Determina si el viewer actual es "privilegiado" para esta tarea:
+ * - Admin
+ * - Presidencia
+ * - Director del departamento dueño del requerimiento/tarea
+ */
+function isPrivilegedForTask(task) {
+  const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
+
+  // Admin o Presidencia → súper permisos
+  if (roles.includes("ADMIN") || roles.includes("PRES")) {
+    return true;
+  }
+
+  // Director del departamento de la tarea (por catálogo de departamentos)
+  const deptId = task.departamento_id ?? null;
+  if (!deptId) return false;
+
+  const dep = State.departamentosIndex.get(deptId);
+  if (!dep) return false;
+
+  if (
+    dep.director != null &&
+    KB.CURRENT_USER_ID != null &&
+    Number(dep.director) === Number(KB.CURRENT_USER_ID)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Construye el conjunto de subordinados (en cascada) de un jefe dado.
+ * Ajusta el campo bossIdRaw al que use tu backend: reporta_a_id / jefe_id / etc.
+ */
+function buildSubordinateSet(rootId, empleados) {
+  const subs = new Set();
+  if (!rootId) return subs;
+
+  const byBoss = new Map();
+
+  empleados.forEach((e) => {
+    // AJUSTA ESTE CAMPO AL REAL DE TU API:
+    const bossIdRaw = e.reporta_a_id ?? e.reporta_a ?? e.jefe_id ?? null;
+    if (bossIdRaw == null) return;
+
+    const bossId = Number(bossIdRaw);
+    if (!byBoss.has(bossId)) {
+      byBoss.set(bossId, []);
+    }
+    byBoss.get(bossId).push(e);
+  });
+
+  const queue = [Number(rootId)];
+
+  while (queue.length) {
+    const boss = queue.shift();
+    const list = byBoss.get(boss) || [];
+
+    for (const emp of list) {
+      const empId = Number(emp.id);
+      if (!subs.has(empId)) {
+        subs.add(empId);
+        queue.push(empId); // por si este también tiene gente a su cargo
+      }
+    }
+  }
+
+  subs.delete(Number(rootId));
+  return subs;
+}
+
+/**
+ * Reglas de visibilidad de tareas según jerarquía:
+ *
+ *  - admin/pres: todas las tareas
+ *  - director/primera línea: todas las tareas de su departamento
+ *  - jefe: sus tareas + subordinados
+ *  - analista: solo sus tareas
+ */
+function canViewTask(task) {
+  const currentUserId =
+    KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
+
+  const taskDeptId =
+    task.departamento_id != null ? Number(task.departamento_id) : null;
+  const viewerDeptId =
+    Viewer.deptId != null ? Number(Viewer.deptId) : null;
+
+  const isOwner =
+    currentUserId != null &&
+    task.asignado_a != null &&
+    Number(task.asignado_a) === currentUserId;
+
+  const isSubordinateTask =
+    task.asignado_a != null &&
+    Viewer.subordinates instanceof Set &&
+    Viewer.subordinates.has(Number(task.asignado_a));
+
+  const sameDept =
+    taskDeptId != null &&
+    viewerDeptId != null &&
+    taskDeptId === viewerDeptId;
+
+  // 1) ADMIN / PRES → todas las tareas
+  if (Viewer.isAdmin || Viewer.isPres) {
+    return true;
+  }
+
+  // 2) DIRECTOR / PRIMERA LÍNEA → tareas de su departamento
+  if (Viewer.isDirector || Viewer.isPrimeraLinea) {
+    return sameDept;
+  }
+
+  // 3) JEFE → sus tareas + subordinados
+  if (Viewer.isJefe) {
+    return isOwner || isSubordinateTask;
+  }
+
+  // 4) ANALISTA → solo sus tareas
+  if (Viewer.isAnalista) {
+    return isOwner;
+  }
+
+  // 5) Rol desconocido → comportamiento analista
+  return isOwner;
+}
+
+/* ==========================================================================
    Normalización de datos desde API
    ========================================================================== */
 
@@ -342,6 +477,8 @@ async function fetchDepartamentos() {
       director_nombre: d.director_nombre || d.primera_nombre || "",
       director_apellidos: d.director_apellidos || d.primera_apellidos || "",
 
+      primera_linea:
+        d.primera_linea != null ? Number(d.primera_linea) : null,
       primera_nombre: d.primera_nombre || "",
       primera_apellidos: d.primera_apellidos || "",
     }));
@@ -537,7 +674,12 @@ function passesBaseFilters(task) {
 }
 
 function passesFilters(task) {
-  // Solo mis tareas
+  // 0) Visibilidad por jerarquía
+  if (!canViewTask(task)) {
+    return false;
+  }
+
+  // 1) Solo mis tareas
   if (
     State.filters.mine &&
     KB.CURRENT_USER_ID != null &&
@@ -546,7 +688,7 @@ function passesFilters(task) {
     return false;
   }
 
-  // Search (folio, proceso, id)
+  // 2) Search (folio, proceso, id)
   const q = State.filters.search.trim().toLowerCase();
   if (q) {
     const hay =
@@ -556,7 +698,7 @@ function passesFilters(task) {
     if (!hay) return false;
   }
 
-  // Filtro "recientes" (últimos N días, por ahora 15)
+  // 3) Filtro "recientes" (últimos N días, por ahora 15)
   const recentDays = State.filters.recentDays;
   if (recentDays != null) {
     const baseDateStr = task.fecha_inicio || task.created_at;
@@ -567,14 +709,14 @@ function passesFilters(task) {
     }
   }
 
-  // Filtro por empleado
+  // 4) Filtro por empleado
   if (State.filters.empleados.size) {
     if (!task.asignado_a || !State.filters.empleados.has(task.asignado_a)) {
       return false;
     }
   }
 
-  // Filtro por departamento (según empleado asignado)
+  // 5) Filtro por departamento (según empleado asignado)
   if (State.filters.departamentos.size) {
     let deptId = task.departamento_id ?? null;
 
@@ -590,14 +732,14 @@ function passesFilters(task) {
     }
   }
 
-  // Filtro por proceso
+  // 6) Filtro por proceso
   if (State.filters.procesoId != null) {
     if (!task.proceso_id || task.proceso_id !== State.filters.procesoId) {
       return false;
     }
   }
 
-  // Filtro por trámite (usamos tramite_id que viene del req)
+  // 7) Filtro por trámite (usamos tramite_id que viene del req)
   if (State.filters.tramiteId != null) {
     if (!task.tramite_id || task.tramite_id !== State.filters.tramiteId) {
       return false;
@@ -783,61 +925,29 @@ function isBlockedStatus(status) {
 }
 
 /**
- * Determina si el viewer actual es "privilegiado" para esta tarea:
- * - Admin
- * - Presidencia
- * - Director del departamento dueño del requerimiento/tarea
- */
-function isPrivilegedForTask(task) {
-  const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
-
-  // Admin o Presidencia → súper permisos
-  if (roles.includes("ADMIN") || roles.includes("PRES")) {
-    return true;
-  }
-
-  // Director del departamento de la tarea
-  const deptId = task.departamento_id ?? null;
-  if (!deptId) return false;
-
-  const dep = State.departamentosIndex.get(deptId);
-  if (!dep) return false;
-
-  if (
-    dep.director != null &&
-    KB.CURRENT_USER_ID != null &&
-    Number(dep.director) === Number(KB.CURRENT_USER_ID)
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
  * Reglas de movimiento entre columnas según rol.
  * - Director/Admin: pueden todo.
  * - Jefes/Analistas:
  *   - No pueden mandar a HECHO.
  *   - Pueden mandar a PAUSA desde cualquier estado.
  *   - No pueden regresar hacia atrás en el flujo (TODO → PROCESO → REVISAR → HECHO).
- *   - Desde PAUSA pueden volver al flujo (salvo HECHO).
+ *   - Desde PAUSA solo pueden volver a PROCESO.
+ *
+ * Devuelve {allowed: boolean, message?: string}
+ * para poder mostrar toasts más específicos.
  */
 function canMoveTask(task, oldStatus, newStatus) {
-  if (oldStatus === newStatus) return true;
+  if (oldStatus === newStatus) {
+    return { allowed: true };
+  }
 
   const S = KB.STATUS;
 
   const privileged = isPrivilegedForTask(task);
   if (privileged) {
     // Admin / Pres / Director del depto → pueden hacer cualquier movimiento
-    return true;
+    return { allowed: true };
   }
-
-  // ==============================
-  //  Usuarios NO privilegiados
-  //  (JEFE, ANALISTA, etc.)
-  // ==============================
 
   const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
 
@@ -847,6 +957,12 @@ function canMoveTask(task, oldStatus, newStatus) {
     task.asignado_a != null &&
     Number(task.asignado_a) === Number(KB.CURRENT_USER_ID);
 
+  // ¿La tarea es de un subordinado?
+  const isSubordinateTask =
+    task.asignado_a != null &&
+    Viewer.subordinates instanceof Set &&
+    Viewer.subordinates.has(Number(task.asignado_a));
+
   // ¿La tarea es de mi departamento?
   const sameDept =
     Viewer.deptId != null &&
@@ -854,22 +970,46 @@ function canMoveTask(task, oldStatus, newStatus) {
     Number(task.departamento_id) === Number(Viewer.deptId);
 
   // Regla de quién puede tocar la tarjeta:
-  //  - JEFE: puede mover cualquier tarea de su departamento
+  //  - JEFE: puede mover cualquier tarea de su equipo (sus tareas + subordinados)
   //  - Otros (ANALISTA, etc.): solo sus propias tareas
   let canTouch = false;
-  if (roles.includes("JEFE")) {
-    canTouch = sameDept || isOwner;
+  const isJefe = Viewer.isJefe;
+  const isAnalista = Viewer.isAnalista;
+
+  if (isJefe) {
+    canTouch = isOwner || isSubordinateTask;
   } else {
+    // Analista u otro rol no privilegiado
     canTouch = isOwner;
   }
 
   if (!canTouch) {
-    return false;
+    if (isJefe) {
+      return {
+        allowed: false,
+        message:
+          "Solo puedes mover tus tareas o las de tu equipo a cargo.",
+      };
+    }
+    if (isAnalista) {
+      return {
+        allowed: false,
+        message: "Solo puedes mover tareas que estén asignadas a ti.",
+      };
+    }
+    return {
+      allowed: false,
+      message: "No tienes permisos para mover esta tarea.",
+    };
   }
 
   // Nunca pueden mandar a HECHO (4)
   if (newStatus === S.HECHO) {
-    return false;
+    return {
+      allowed: false,
+      message:
+        "Solo el director de tu departamento puede colocar la tarea en \"Hecho\".",
+    };
   }
 
   const key = `${oldStatus}->${newStatus}`;
@@ -890,101 +1030,41 @@ function canMoveTask(task, oldStatus, newStatus) {
     `${S.PAUSA}->${S.PROCESO}`, // 5 → 2  (Bloqueado → En proceso)
   ]);
 
-  return allowedMoves.has(key);
-}
-
-/**
- * Label legible para cada status (para mensajes).
- */
-function getStatusLabel(status) {
-  const S = KB.STATUS;
-  switch (status) {
-    case S.TODO:
-      return "Por hacer";
-    case S.PROCESO:
-      return "En proceso";
-    case S.REVISAR:
-      return "Por revisar";
-    case S.HECHO:
-      return "Hecho";
-    case S.PAUSA:
-      return "Bloqueado";
-    default:
-      return "Desconocido";
-  }
-}
-
-/**
- * Mensaje amigable cuando NO se puede mover una tarea,
- * según jerarquía + estados.
- */
-function getDeniedMoveMessage(task, oldStatus, newStatus) {
-  const S = KB.STATUS;
-
-  const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
-  const rolesUpper = roles.map((r) => String(r).toUpperCase());
-
-  const isAdminOrPres = Viewer.isAdmin || Viewer.isPres;
-  const isJefe = Viewer.isJefe || rolesUpper.some((r) => r.includes("JEFE"));
-  const isAnalista =
-    Viewer.isAnalista || rolesUpper.some((r) => r.includes("ANALISTA"));
-
-  // Por seguridad: si realmente fuera privilegiado, no deberíamos estar aquí,
-  // pero cubrimos el caso por si a futuro cambian reglas.
-  if (isAdminOrPres) {
-    return "No se pudo mover la tarea por una regla de negocio. Revisa el flujo de estados.";
+  if (allowedMoves.has(key)) {
+    return { allowed: true };
   }
 
-  // ¿La tarea es "mía"?
-  const isOwner =
-    KB.CURRENT_USER_ID != null &&
-    task.asignado_a != null &&
-    Number(task.asignado_a) === Number(KB.CURRENT_USER_ID);
-
-  // ¿La tarea es de mi departamento?
-  const sameDept =
-    Viewer.deptId != null &&
-    task.departamento_id != null &&
-    Number(task.departamento_id) === Number(Viewer.deptId);
-
-  // Caso 1: no puede ni tocar la tarjeta
-  if (!isOwner && !sameDept) {
-    if (isJefe) {
-      return "Solo puedes mover tareas de tu departamento o tareas que estén asignadas a ti.";
-    }
-    if (isAnalista) {
-      return "Solo puedes mover tareas que estén asignadas a ti.";
-    }
-    return "No tienes permisos para mover esta tarea con tu rol actual.";
-  }
-
-  // Caso 2: intento de mandar a HECHO sin ser director/admin
-  if (newStatus === S.HECHO) {
-    return 'Solo el director de tu departamento o un administrador puede colocar la tarea en "Hecho".';
-  }
-
-  // Caso 3: la tarjeta está en Bloqueado y la quieren mandar a otro lado
-  // que NO sea "En proceso".
-  if (oldStatus === S.PAUSA && newStatus !== S.PROCESO) {
-    return 'Para sacar una tarea de "Bloqueado", colócala primero en el estado de "En proceso".';
-  }
-
-  // Caso 4: están intentando ir hacia atrás en el flujo
-  const orderOld = STATUS_ORDER[oldStatus] ?? null;
-  const orderNew = STATUS_ORDER[newStatus] ?? null;
+  // Mensajes específicos según el tipo de movimiento
+  // 1) Intento de regresar hacia atrás en el flujo
+  const oldOrder = STATUS_ORDER[oldStatus] ?? null;
+  const newOrder = STATUS_ORDER[newStatus] ?? null;
   if (
-    orderOld != null &&
-    orderNew != null &&
-    orderNew < orderOld &&
-    oldStatus !== S.PAUSA
+    oldOrder != null &&
+    newOrder != null &&
+    newOrder < oldOrder &&
+    !isBlockedStatus(oldStatus)
   ) {
-    return 'No puedes regresar la tarea a un estado anterior. El flujo permitido es: "Por hacer" → "En proceso" → "Por revisar" → "Hecho".';
+    return {
+      allowed: false,
+      message:
+        "No puedes regresar la tarea a un estado anterior en el flujo de trabajo.",
+    };
   }
 
-  // Caso genérico: movimiento raro no contemplado
-  const fromLabel = getStatusLabel(oldStatus);
-  const toLabel = getStatusLabel(newStatus);
-  return `No puedes mover la tarea desde "${fromLabel}" hacia "${toLabel}" con tu rol actual.`;
+  // 2) Movimientos raros desde/ hacia Bloqueado
+  if (oldStatus === S.PAUSA && newStatus !== S.PROCESO) {
+    return {
+      allowed: false,
+      message:
+        "Para reactivar una tarea bloqueada, colócala primero en \"En proceso\".",
+    };
+  }
+
+  // 3) Cualquier otra combinación no contemplada
+  return {
+    allowed: false,
+    message: "No tienes permisos para mover esta tarea a ese estado.",
+  };
 }
 
 /* ==========================================================================
@@ -1083,7 +1163,9 @@ function setupDragAndDrop() {
         // ================================
         // Validar permisos antes de mover
         // ================================
-        if (!canMoveTask(task, oldStatus, newStatus)) {
+        const result = canMoveTask(task, oldStatus, newStatus);
+
+        if (!result.allowed) {
           // Revertir visualmente la tarjeta a su columna original
           const fromList = evt.from;
           if (fromList && itemEl) {
@@ -1099,19 +1181,15 @@ function setupDragAndDrop() {
             }
           }
 
-          // Mensaje más específico según jerarquía + estados
-          const msg = getDeniedMoveMessage(task, oldStatus, newStatus);
-          toast(
-            msg || "No tienes permisos para mover esta tarea a ese estado.",
-            "warning"
-          );
-
+          const msg =
+            result.message ||
+            "No tienes permisos para mover esta tarea a ese estado.";
+          toast(msg, "warning");
           log("Movimiento NO permitido", {
             taskId: task.id,
             oldStatus,
             newStatus,
             viewer: KB.CURRENT_USER_ID,
-            reason: msg,
           });
           return;
         }
@@ -1177,20 +1255,25 @@ function hydrateViewerFromSession() {
   Viewer.deptId = deptId != null ? Number(deptId) : null;
   Viewer.roles = roles;
   Viewer.isAdmin = roles.includes("ADMIN");
+
+  // Presidencia por depto especial
   Viewer.isPres =
     Viewer.deptId != null && PRES_DEPT_IDS.includes(Viewer.deptId);
 
   const rolesUpper = Viewer.roles.map((r) => String(r).toUpperCase());
-  Viewer.isDirector = rolesUpper.some((r) => r.includes("DIRECTOR"));
   Viewer.isJefe = rolesUpper.some((r) => r.includes("JEFE"));
   Viewer.isAnalista = rolesUpper.some((r) => r.includes("ANALISTA"));
 
-  log("Viewer info:", {
+  // Estos se ajustan después usando el catálogo de departamentos
+  Viewer.isDirector = false;
+  Viewer.isPrimeraLinea = false;
+  Viewer.subordinates = new Set();
+
+  log("Viewer info (pre-dept):", {
     deptId: Viewer.deptId,
     roles: Viewer.roles,
     isAdmin: Viewer.isAdmin,
     isPres: Viewer.isPres,
-    isDirector: Viewer.isDirector,
     isJefe: Viewer.isJefe,
     isAnalista: Viewer.isAnalista,
   });
@@ -1207,6 +1290,49 @@ async function init() {
     fetchTareasFromApi(),
   ]);
 
+  // ==========================
+  //   Jerarquías desde Departamentos
+  // ==========================
+  const currentIdNum =
+    KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
+
+  if (currentIdNum != null) {
+    let deptFromDeptTable =
+      Viewer.deptId != null ? Number(Viewer.deptId) : null;
+    let isDirector = false;
+    let isPrimera = false;
+
+    depts.forEach((d) => {
+      const dirId = d.director != null ? Number(d.director) : null;
+      const primeraId =
+        d.primera_linea != null ? Number(d.primera_linea) : null;
+
+      if (dirId === currentIdNum) {
+        isDirector = true;
+        if (!deptFromDeptTable) deptFromDeptTable = Number(d.id);
+      }
+      if (primeraId === currentIdNum) {
+        isPrimera = true;
+        if (!deptFromDeptTable) deptFromDeptTable = Number(d.id);
+      }
+    });
+
+    Viewer.isDirector = isDirector;
+    Viewer.isPrimeraLinea = isPrimera;
+
+    // Si por alguna razón Session no traía deptId,
+    // lo inferimos del catálogo de departamentos
+    if (!Viewer.deptId && deptFromDeptTable) {
+      Viewer.deptId = deptFromDeptTable;
+    }
+
+    log("Viewer info (post-dept):", {
+      deptId: Viewer.deptId,
+      isDirector: Viewer.isDirector,
+      isPrimeraLinea: Viewer.isPrimeraLinea,
+    });
+  }
+
   // Index empleados (para depto de tareas)
   empleados.forEach((emp) => {
     if (emp?.id != null) {
@@ -1214,6 +1340,19 @@ async function init() {
     }
   });
   log("Index empleados (global):", State.empleadosIndex);
+
+  // Subordinados (solo aplica realmente a JEFE, pero lo construimos siempre)
+  if (KB.CURRENT_USER_ID != null) {
+    Viewer.subordinates = buildSubordinateSet(KB.CURRENT_USER_ID, empleados);
+    log(
+      "Subordinados del viewer:",
+      KB.CURRENT_USER_ID,
+      "=>",
+      Array.from(Viewer.subordinates)
+    );
+  } else {
+    Viewer.subordinates = new Set();
+  }
 
   // Index departamentos
   depts.forEach((d) => {
