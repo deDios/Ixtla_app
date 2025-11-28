@@ -135,30 +135,30 @@ export function createTaskFiltersModule({
     }
 
     function toggleValue(value) {
-      if (stateSet.has(value)) {
-        stateSet.delete(value);
-      } else {
-        stateSet.add(value);
+  if (stateSet.has(value)) {
+    stateSet.delete(value);
+  } else {
+    stateSet.add(value);
+  }
+
+  if (list) {
+    const li = list.querySelector(
+      `.kb-multi-option[data-value="${value}"]`
+    );
+    if (li) {
+      const isSel = stateSet.has(value);
+      li.classList.toggle("is-selected", isSel);
+
+      const cb = li.querySelector(".kb-multi-checkbox");
+      if (cb) {
+        cb.classList.toggle("is-checked", isSel);
       }
-
-      if (list) {
-        const li = list.querySelector(
-          `.kb-multi-option[data-value="${value}"]`
-        );
-        if (li) {
-          const isSel = stateSet.has(value);
-          li.classList.toggle("is-selected", isSel);
-
-          const cb = li.querySelector(".kb-multi-checkbox");
-          if (cb) {
-            cb.classList.toggle("is-checked", isSel);
-          }
-        }
-      }
-
-      updateSummary();
-      renderBoard();
     }
+  }
+
+  updateSummary();
+  renderBoard();
+}
 
 
     function openMenu() {
@@ -406,87 +406,87 @@ export function createTaskFiltersModule({
     const noUniverse = tasks.length === 0;
 
     // ---------------- Departamentos ----------------
-    if (fieldDept) {
-      const visibleDeptIds = new Set();
-      const countsDept = new Map();
+if (fieldDept) {
+  const visibleDeptIds = new Set();
+  const countsDept = new Map();
 
-      // Usamos el departamento de la TAREA / REQUERIMIENTO,
-      // NO el del empleado asignado.
-      for (const t of tasks) {
-        if (t.departamento_id != null) {
-          const id = Number(t.departamento_id);
-          visibleDeptIds.add(id);
-          countsDept.set(id, (countsDept.get(id) || 0) + 1);
-        }
-      }
-
-      const stateSet = State.filters.departamentos || new Set();
-      const list = fieldDept.querySelector(".kb-multi-options");
-      if (list) {
-        list.querySelectorAll(".kb-multi-option").forEach((li) => {
-          const value = Number(li.dataset.value);
-
-          // contador
-          const c = countsDept.get(value) || 0;
-          const countSpan = li.querySelector(".kb-multi-count");
-          if (countSpan) {
-            countSpan.textContent = String(c);
-          }
-
-          if (noUniverse) {
-            li.hidden = false;
-          } else if (
-            visibleDeptIds.has(value) ||
-            stateSet.has(value) // mantener visibles los que ya están seleccionados
-          ) {
-            li.hidden = false;
-          } else {
-            li.hidden = true;
-          }
-        });
-      }
+  // Usamos el departamento de la TAREA / REQUERIMIENTO,
+  // NO el del empleado asignado.
+  for (const t of tasks) {
+    if (t.departamento_id != null) {
+      const id = Number(t.departamento_id);
+      visibleDeptIds.add(id);
+      countsDept.set(id, (countsDept.get(id) || 0) + 1);
     }
+  }
+
+  const stateSet = State.filters.departamentos || new Set();
+  const list = fieldDept.querySelector(".kb-multi-options");
+  if (list) {
+    list.querySelectorAll(".kb-multi-option").forEach((li) => {
+      const value = Number(li.dataset.value);
+
+      // contador
+      const c = countsDept.get(value) || 0;
+      const countSpan = li.querySelector(".kb-multi-count");
+      if (countSpan) {
+        countSpan.textContent = String(c);
+      }
+
+      if (noUniverse) {
+        li.hidden = false;
+      } else if (
+        visibleDeptIds.has(value) ||
+        stateSet.has(value) // mantener visibles los que ya están seleccionados
+      ) {
+        li.hidden = false;
+      } else {
+        li.hidden = true;
+      }
+    });
+  }
+}
 
 
     // ---------------- Empleados ----------------
-    if (fieldEmp) {
-      const visibleEmpIds = new Set();
-      const countsEmp = new Map();
+if (fieldEmp) {
+  const visibleEmpIds = new Set();
+  const countsEmp = new Map();
 
-      for (const t of tasks) {
-        if (t.asignado_a != null) {
-          const id = Number(t.asignado_a);
-          visibleEmpIds.add(id);
-          countsEmp.set(id, (countsEmp.get(id) || 0) + 1);
-        }
-      }
-
-      const stateSet = State.filters.empleados || new Set();
-      const list = fieldEmp.querySelector(".kb-multi-options");
-      if (list) {
-        list.querySelectorAll(".kb-multi-option").forEach((li) => {
-          const value = Number(li.dataset.value);
-
-          // contador
-          const c = countsEmp.get(value) || 0;
-          const countSpan = li.querySelector(".kb-multi-count");
-          if (countSpan) {
-            countSpan.textContent = String(c);
-          }
-
-          if (noUniverse) {
-            li.hidden = false;
-          } else if (
-            visibleEmpIds.has(value) ||
-            stateSet.has(value) // mantener visibles los seleccionados
-          ) {
-            li.hidden = false;
-          } else {
-            li.hidden = true;
-          }
-        });
-      }
+  for (const t of tasks) {
+    if (t.asignado_a != null) {
+      const id = Number(t.asignado_a);
+      visibleEmpIds.add(id);
+      countsEmp.set(id, (countsEmp.get(id) || 0) + 1);
     }
+  }
+
+  const stateSet = State.filters.empleados || new Set();
+  const list = fieldEmp.querySelector(".kb-multi-options");
+  if (list) {
+    list.querySelectorAll(".kb-multi-option").forEach((li) => {
+      const value = Number(li.dataset.value);
+
+      // contador
+      const c = countsEmp.get(value) || 0;
+      const countSpan = li.querySelector(".kb-multi-count");
+      if (countSpan) {
+        countSpan.textContent = String(c);
+      }
+
+      if (noUniverse) {
+        li.hidden = false;
+      } else if (
+        visibleEmpIds.has(value) ||
+        stateSet.has(value) // mantener visibles los seleccionados
+      ) {
+        li.hidden = false;
+      } else {
+        li.hidden = true;
+      }
+    });
+  }
+}
 
 
     // ---------------- Procesos ----------------

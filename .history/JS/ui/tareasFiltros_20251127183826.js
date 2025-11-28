@@ -145,21 +145,12 @@ export function createTaskFiltersModule({
         const li = list.querySelector(
           `.kb-multi-option[data-value="${value}"]`
         );
-        if (li) {
-          const isSel = stateSet.has(value);
-          li.classList.toggle("is-selected", isSel);
-
-          const cb = li.querySelector(".kb-multi-checkbox");
-          if (cb) {
-            cb.classList.toggle("is-checked", isSel);
-          }
-        }
+        if (li) li.classList.toggle("is-selected", stateSet.has(value));
       }
 
       updateSummary();
       renderBoard();
     }
-
 
     function openMenu() {
       if (!menu || !trigger) return;
@@ -408,86 +399,44 @@ export function createTaskFiltersModule({
     // ---------------- Departamentos ----------------
     if (fieldDept) {
       const visibleDeptIds = new Set();
-      const countsDept = new Map();
 
-      // Usamos el departamento de la TAREA / REQUERIMIENTO,
-      // NO el del empleado asignado.
+      // Usamos el departamento de la TAREA / REQUERIMIENTO
       for (const t of tasks) {
         if (t.departamento_id != null) {
-          const id = Number(t.departamento_id);
-          visibleDeptIds.add(id);
-          countsDept.set(id, (countsDept.get(id) || 0) + 1);
+          visibleDeptIds.add(Number(t.departamento_id));
         }
       }
 
       const stateSet = State.filters.departamentos || new Set();
       const list = fieldDept.querySelector(".kb-multi-options");
-      if (list) {
-        list.querySelectorAll(".kb-multi-option").forEach((li) => {
-          const value = Number(li.dataset.value);
 
-          // contador
-          const c = countsDept.get(value) || 0;
-          const countSpan = li.querySelector(".kb-multi-count");
-          if (countSpan) {
-            countSpan.textContent = String(c);
-          }
-
-          if (noUniverse) {
-            li.hidden = false;
-          } else if (
-            visibleDeptIds.has(value) ||
-            stateSet.has(value) // mantener visibles los que ya están seleccionados
-          ) {
-            li.hidden = false;
-          } else {
-            li.hidden = true;
-          }
-        });
-      }
+      reorderFilterOptions(
+        list,
+        visibleDeptIds,
+        stateSet,
+        noUniverse,
+        "Departamentos sin tareas en la vista"
+      );
     }
-
 
     // ---------------- Empleados ----------------
     if (fieldEmp) {
       const visibleEmpIds = new Set();
-      const countsEmp = new Map();
-
       for (const t of tasks) {
-        if (t.asignado_a != null) {
-          const id = Number(t.asignado_a);
-          visibleEmpIds.add(id);
-          countsEmp.set(id, (countsEmp.get(id) || 0) + 1);
-        }
+        if (t.asignado_a != null) visibleEmpIds.add(Number(t.asignado_a));
       }
 
       const stateSet = State.filters.empleados || new Set();
       const list = fieldEmp.querySelector(".kb-multi-options");
-      if (list) {
-        list.querySelectorAll(".kb-multi-option").forEach((li) => {
-          const value = Number(li.dataset.value);
 
-          // contador
-          const c = countsEmp.get(value) || 0;
-          const countSpan = li.querySelector(".kb-multi-count");
-          if (countSpan) {
-            countSpan.textContent = String(c);
-          }
-
-          if (noUniverse) {
-            li.hidden = false;
-          } else if (
-            visibleEmpIds.has(value) ||
-            stateSet.has(value) // mantener visibles los seleccionados
-          ) {
-            li.hidden = false;
-          } else {
-            li.hidden = true;
-          }
-        });
-      }
+      reorderFilterOptions(
+        list,
+        visibleEmpIds,
+        stateSet,
+        noUniverse,
+        "Empleados sin tareas en la vista"
+      );
     }
-
 
     // ---------------- Procesos ----------------
     if (selProc) {
