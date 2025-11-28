@@ -816,47 +816,60 @@ function isBlockedStatus(status) {
  *   - No pueden regresar hacia atrás en el flujo (TODO → PROCESO → REVISAR → HECHO).
  *   - Desde PAUSA pueden volver al flujo (salvo HECHO).
  */
-function canMoveTask(fromStatus, toStatus) {
-  // mismo status, no hay cambio real
-  if (fromStatus === toStatus) return true;
+function canMoveTask(task, oldStatus, newStatus) {
+  if (oldStatus === newStatus) return true;
 
-  const { isAdmin, isDirector } = Viewer;
-  const isPowerUser = isAdmin || isDirector;
-
-  // Directores / Admin → sin restricciones
-  if (isPowerUser) return true;
-
-  // A partir de aquí: jefes / analistas / resto
-
-  // No pueden mandar a HECHO
-  if (toStatus === KB.STATUS.HECHO) {
-    return false;
-  }
-
-  // Pueden mandar a PAUSA desde cualquier estado
-  if (isBlockedStatus(toStatus)) {
+  const privileged = isPrivilegedForTask(task);
+  if (privileged) {
+    // Admin / Pres / Director del depto: pueden hacer cualquier movimiento
     return true;
   }
 
-  // Si están en PAUSA, pueden volver al flujo (TODOS menos HECHO)
-  if (isBlockedStatus(fromStatus)) {
-    return true;
-  }
+  // ===========================
+  //  Usuarios NO privilegiados
+  //  (JEFE, ANALISTA, etc.)
+  // ===========================
 
-  const fromOrder = STATUS_ORDER[fromStatus];
-  const toOrder = STATUS_ORDER[toStatus];
+  // Solo pueden mover sus propias tareas
+  const isOwner =
+    KB.CURRENT_USER_ID != null &&
+    task.asignado_a != null &&
+    Number(task.asignado_a) === Number(KB.CURRENT_USER_ID);
 
-  // Si ambos forman parte del flujo, no se permite ir hacia atrás
-  if (
-    typeof fromOrder === "number" &&
-    typeof toOrder === "number" &&
-    toOrder < fromOrder
-  ) {
+  if (!isOwner) {
     return false;
   }
 
-  // Cualquier movimiento hacia adelante en el flujo está permitido
-  return true;
+  // 1) Nunca pueden mandar a HECHO
+  if (newStatus === KB.STATUS.HECHO) {
+    return false;
+  }
+
+  // 2) Nunca pueden retroceder estados
+  //    (cualquier movimiento donde el destino sea menor al origen)
+  if (newStatus < oldStatus) {
+    return false;
+  }
+
+  // 3) Pueden mandar la tarea a PAUSA/BLOQUEADO
+  //    desde cualquier estado que no sea HECHO
+  if (newStatus === KB.STATUS.PAUSA && oldStatus !== KB.STATUS.HECHO) {
+    return true;
+  }
+
+  // 4) Avances válidos en el flujo principal:
+  //    TODO (1) -> PROCESO (2)
+  //    PROCESO (2) -> REVISAR (3)
+  if (oldStatus === KB.STATUS.TODO && newStatus === KB.STATUS.PROCESO) {
+    return true;
+  }
+
+  if (oldStatus === KB.STATUS.PROCESO && newStatus === KB.STATUS.REVISAR) {
+    return true;
+  }
+
+  // Todo lo demás queda bloqueado para jefe/analista
+  return false;
 }
 
 /* ==========================================================================
