@@ -128,12 +128,7 @@ function diffDays(startStr) {
 }
 
 function calcAgeChip(task) {
-  // 1) Base principal: desde cuándo está en ESTE status
-  const base =
-    task.status_since || // si lo gestiona el backend o lo seteamos al mover
-    task.fecha_inicio || // fallback: inicio del proceso
-    task.created_at;     // último recurso: creación de la tarea
-
+  const base = task.fecha_inicio || task.created_at;
   const d = diffDays(base);
   if (d == null) return null;
 
@@ -154,7 +149,6 @@ function calcAgeChip(task) {
     realDays,
   };
 }
-
 
 /* ==========================================================================
    State
@@ -889,38 +883,56 @@ function setupDragAndDrop() {
         const task = getTaskById(id);
         if (!task) return;
 
-        const col = evt.to.closest(".kb-col");
-        if (!col) return;
-        const newStatus = Number(col.dataset.status);
-        if (!newStatus || newStatus === task.status) return;
+        const fromCol = evt.from.closest(".kb-col");
+        const toCol = evt.to.closest(".kb-col");
+        if (!fromCol || !toCol) return;
+
+        const fromStatus = Number(fromCol.dataset.status);
+        const newStatus = Number(toCol.dataset.status);
+
+        if (!newStatus || !fromStatus || newStatus === fromStatus) {
+          // Nada que persistir
+          renderBoard();
+          return;
+        }
+
+        // Validar permisos según jerarquía
+        if (!canMoveTask(fromStatus, newStatus)) {
+          // Revertir visualmente al estado original
+          if (fromCol !== toCol) {
+            const cards = Array.from(
+              fromCol.querySelectorAll(".kb-card")
+            );
+            const refNode = cards[evt.oldIndex] || null;
+            fromCol.insertBefore(itemEl, refNode);
+          }
+
+          toast(
+            "No tienes permiso para mover esta tarea a ese estado.",
+            "warning"
+          );
+          return;
+        }
 
         const oldStatus = task.status;
         task.status = newStatus;
 
-        const nowIso = new Date().toISOString().slice(0, 19).replace("T", " ");
-        task.status_since = nowIso;
+        try {
+          await persistTaskStatus(task, newStatus);
+        } catch (e) {
+          // Backend falló → regresar estado y re-render
+          task.status = oldStatus;
+          renderBoard();
+          return;
+        }
 
-        log(
-          "DragEnd → tarea",
-          task.id,
-          "de",
-          oldStatus,
-          "a",
-          newStatus,
-          "status_since:",
-          task.status_since
-        );
+        log("DragEnd → tarea", task.id, "de", fromStatus, "a", newStatus);
 
-        // Re-pintar columnas y contador de días
         renderBoard();
         if (State.selectedId === task.id) {
           highlightSelected();
         }
-
-        // Persistir cambio en backend
-        await persistTaskStatus(task, newStatus);
       },
-
     });
   });
 }

@@ -880,46 +880,47 @@ function setupDragAndDrop() {
         dragging = true;
       },
       async onEnd(evt) {
-        setTimeout(() => {
-          dragging = false;
-        }, 0);
+  setTimeout(() => {
+    dragging = false;
+  }, 0);
 
-        const itemEl = evt.item;
-        const id = itemEl.dataset.id;
-        const task = getTaskById(id);
-        if (!task) return;
+  const itemEl = evt.item;
+  const id = itemEl.dataset.id;
+  const task = getTaskById(id);
+  if (!task) return;
 
-        const col = evt.to.closest(".kb-col");
-        if (!col) return;
-        const newStatus = Number(col.dataset.status);
-        if (!newStatus || newStatus === task.status) return;
+  const col = evt.to.closest(".kb-col");
+  if (!col) return;
+  const newStatus = Number(col.dataset.status);
+  if (!newStatus || newStatus === task.status) return;
 
-        const oldStatus = task.status;
-        task.status = newStatus;
+  const oldStatus = task.status;
+  task.status = newStatus;
 
-        const nowIso = new Date().toISOString().slice(0, 19).replace("T", " ");
-        task.status_since = nowIso;
+  // 👇 Reiniciamos "desde cuándo está en este status" en el cliente
+  const nowIso = new Date().toISOString().slice(0, 19).replace("T", " ");
+  task.status_since = nowIso;
 
-        log(
-          "DragEnd → tarea",
-          task.id,
-          "de",
-          oldStatus,
-          "a",
-          newStatus,
-          "status_since:",
-          task.status_since
-        );
+  log(
+    "DragEnd → tarea",
+    task.id,
+    "de",
+    oldStatus,
+    "a",
+    newStatus,
+    "status_since:",
+    task.status_since
+  );
 
-        // Re-pintar columnas y contador de días
-        renderBoard();
-        if (State.selectedId === task.id) {
-          highlightSelected();
-        }
+  // Re-pintar columnas y contador de días
+  renderBoard();
+  if (State.selectedId === task.id) {
+    highlightSelected();
+  }
 
-        // Persistir cambio en backend
-        await persistTaskStatus(task, newStatus);
-      },
+  // Persistir cambio en backend
+  await persistTaskStatus(task, newStatus);
+},
 
     });
   });

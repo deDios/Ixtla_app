@@ -897,6 +897,7 @@ function setupDragAndDrop() {
         const oldStatus = task.status;
         task.status = newStatus;
 
+        // 👇 Reiniciamos "desde cuándo está en este status" en el cliente
         const nowIso = new Date().toISOString().slice(0, 19).replace("T", " ");
         task.status_since = nowIso;
 
