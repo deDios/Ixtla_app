@@ -623,6 +623,7 @@
     -->
 
     <script src="/JS/JSglobal.js"></script>
+    <script src="/JS/components.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
 
     <!-- SortableJS -->
