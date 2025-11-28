@@ -4,64 +4,72 @@
 
   // ===== Helpers (desde requerimientoView o fallback) =====
   const H = window._rvHelpers || {};
-  const $  = H.$  || ((s, r=document)=>r.querySelector(s));
-  const $$ = H.$$ || ((s, r=document)=>Array.from(r.querySelectorAll(s)));
-  const toast = H.toast || ((m,t="info")=>console.log("[toast]", t, m));
-  const setAccordionOpen = window.setAccordionOpen || ((h,b,open)=>{ b.hidden=!open; });
+  const $ = H.$ || ((s, r = document) => r.querySelector(s));
+  const $$ = H.$$ || ((s, r = document) => Array.from(r.querySelectorAll(s)));
+  const toast = H.toast || ((m, t = "info") => console.log("[toast]", t, m));
+  const setAccordionOpen =
+    window.setAccordionOpen ||
+    ((h, b, open) => {
+      b.hidden = !open;
+    });
 
-  const log  = (...a)=>console.log("[Planeación]", ...a);
-  const warn = (...a)=>console.warn("[Planeación]", ...a);
-  const err  = (...a)=>console.error("[Planeación]", ...a);
+  const log = (...a) => console.log("[Planeación]", ...a);
+  const warn = (...a) => console.warn("[Planeación]", ...a);
+  const err = (...a) => console.error("[Planeación]", ...a);
 
   // ===== Selectores / referencias de UI =====
   const SEL = {
     toolbar: {
       addProceso: "#btn-add-proceso",
-      addTarea:   "#btn-add-tarea",
+      addTarea: "#btn-add-tarea",
     },
     planeacionList: "#planeacion-list",
 
     // Modal Nueva Tarea
-    modalT:        "#modal-tarea",
-    formT:         "#form-tarea",
-    selProceso:    "#tarea-proceso",
-    inpTitulo:     "#tarea-titulo",
-    inpEsfuerzo:   "#tarea-esfuerzo",
-    selAsignado:   "#tarea-asignado",
-    txtDesc:       "#tarea-desc",
+    modalT: "#modal-tarea",
+    formT: "#form-tarea",
+    selProceso: "#tarea-proceso",
+    inpTitulo: "#tarea-titulo",
+    inpEsfuerzo: "#tarea-esfuerzo",
+    selAsignado: "#tarea-asignado",
+    txtDesc: "#tarea-desc",
 
     // Modal Nuevo Proceso
-    modalP:        "#modal-proceso",
-    formP:         "#form-proceso",
-    inpPTitulo:    "#proceso-titulo",
-    inpPInicio:    "#proceso-inicio",
+    modalP: "#modal-proceso",
+    formP: "#form-proceso",
+    inpPTitulo: "#proceso-titulo",
+    inpPInicio: "#proceso-inicio",
   };
 
   // ===== Estado interno / flags =====
   let _boundToolbar = false;
-  let _boundModalT  = false;
-  let _boundModalP  = false;
+  let _boundModalT = false;
+  let _boundModalP = false;
 
   // ====== API endpoints ======
   const API_FBK = {
     PROCESOS: {
-      CREATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_proceso_requerimiento.php",
-      UPDATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_proceso_requerimiento.php",
-      LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_proceso_requerimiento.php",
+      CREATE:
+        "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_proceso_requerimiento.php",
+      UPDATE:
+        "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_proceso_requerimiento.php",
+      LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_proceso_requerimiento.php",
     },
     TAREAS: {
-      CREATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_tarea_proceso.php",
-      UPDATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_tarea_proceso.php",
-      LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tarea_proceso.php",
+      CREATE:
+        "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_tarea_proceso.php",
+      UPDATE:
+        "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_tarea_proceso.php",
+      LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tarea_proceso.php",
     },
     EMPLEADOS: {
-      LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
+      LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
     },
     DEPTS: {
-      LIST:   "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
-    }
+      LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
+    },
   };
-  const API = (window.API || API_FBK);
+  const API = window.API || API_FBK;
 
   async function postJSON(url, body) {
     const group = `[HTTP][Planeación] ${url}`;
@@ -70,16 +78,22 @@
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(body || {})
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body || {}),
       });
       const txt = await res.text();
       let json = null;
-      try { json = JSON.parse(txt); } catch {}
+      try {
+        json = JSON.parse(txt);
+      } catch {}
       console.log("← status:", res.status, "json:", json || txt);
       console.groupEnd();
       if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-      if (json?.ok === false) throw new Error(json?.error || "Operación no exitosa");
+      if (json?.ok === false)
+        throw new Error(json?.error || "Operación no exitosa");
       return json ?? {};
     } catch (e) {
       console.groupEnd();
@@ -89,9 +103,13 @@
 
   // ===== Session helper =====
   function safeGetSession() {
-    try { if (window.Session?.get) return window.Session.get(); } catch {}
     try {
-      const pair = document.cookie.split("; ").find(c => c.startsWith("ix_emp="));
+      if (window.Session?.get) return window.Session.get();
+    } catch {}
+    try {
+      const pair = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("ix_emp="));
       if (!pair) return null;
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
@@ -101,7 +119,9 @@
   }
   function getEmpleadoId() {
     const s = safeGetSession();
-    return s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null;
+    return (
+      s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario ?? s?.cuenta_id ?? null
+    );
   }
   function getDeptId() {
     const s = safeGetSession();
@@ -109,30 +129,39 @@
   }
   function getRoles() {
     const s = safeGetSession();
-    const r = Array.isArray(s?.roles) ? s.roles.map(x => String(x).toUpperCase()) : [];
+    const r = Array.isArray(s?.roles)
+      ? s.roles.map((x) => String(x).toUpperCase())
+      : [];
     return r;
   }
 
   // ===== Utilidades =====
   function collectProcesos() {
-    return $$('#planeacion-list .exp-accordion--fase[data-proceso-id]');
+    return $$("#planeacion-list .exp-accordion--fase[data-proceso-id]");
   }
   function todayISO() {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
   function fmtMXDate(s) {
     if (!s) return "—";
-    const parts = String(s).slice(0, 19).replace("T"," ").split(" ")[0].split("-");
+    const parts = String(s)
+      .slice(0, 19)
+      .replace("T", " ")
+      .split(" ")[0]
+      .split("-");
     if (parts.length !== 3) return s;
-    const [Y,M,D] = parts;
+    const [Y, M, D] = parts;
     return `${D}/${M}/${Y}`;
   }
-  function escapeHtml(s="") {
+  function escapeHtml(s = "") {
     return String(s)
-      .replaceAll("&","&amp;").replaceAll("<","&lt;")
-      .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
   }
 
   /* =========================================================================
@@ -140,39 +169,54 @@
    * =========================================================================*/
   function normalizeEmpleadoFromAPI(r) {
     const reporta_a =
-      (r.reporta_a != null ? r.reporta_a : (r.cuenta && r.cuenta.reporta_a != null ? r.cuenta.reporta_a : null));
-    const roles = Array.isArray(r.cuenta?.roles) ? r.cuenta.roles.map(x => x?.codigo).filter(Boolean) : [];
-    const rolCodes = roles.map(x => String(x).toUpperCase());
+      r.reporta_a != null
+        ? r.reporta_a
+        : r.cuenta && r.cuenta.reporta_a != null
+        ? r.cuenta.reporta_a
+        : null;
+    const roles = Array.isArray(r.cuenta?.roles)
+      ? r.cuenta.roles.map((x) => x?.codigo).filter(Boolean)
+      : [];
+    const rolCodes = roles.map((x) => String(x).toUpperCase());
     return {
       id: Number(r.id),
       nombre: String(r.nombre || "").trim(),
       apellidos: String(r.apellidos || "").trim(),
       full: [r.nombre, r.apellidos].filter(Boolean).join(" ").trim(),
-      departamento_id: (r.departamento_id != null ? Number(r.departamento_id) : null),
-      reporta_a: (reporta_a != null ? Number(reporta_a) : null),
+      departamento_id:
+        r.departamento_id != null ? Number(r.departamento_id) : null,
+      reporta_a: reporta_a != null ? Number(reporta_a) : null,
       rolCodes,
     };
   }
   async function fetchEmpleadosAll() {
     log("[RBAC] fetchEmpleadosAll");
-    const j = await postJSON(API.EMPLEADOS.LIST, { page: 1, page_size: 500, status: 1 });
+    const j = await postJSON(API.EMPLEADOS.LIST, {
+      page: 1,
+      page_size: 500,
+      status: 1,
+    });
     const arr = Array.isArray(j?.data) ? j.data : [];
     const norm = arr.map(normalizeEmpleadoFromAPI);
     return norm;
   }
   async function fetchDepartamentos() {
-    const j = await postJSON(API.DEPTS.LIST, { page: 1, page_size: 200, status: 1 });
+    const j = await postJSON(API.DEPTS.LIST, {
+      page: 1,
+      page_size: 200,
+      status: 1,
+    });
     const arr = Array.isArray(j?.data) ? j.data : [];
-    return arr.map(d => ({
+    return arr.map((d) => ({
       id: Number(d.id),
       nombre: String(d.nombre || "").trim(),
-      director: (d.director != null ? Number(d.director) : null),
-      primera_linea: (d.primera_linea != null ? Number(d.primera_linea) : null),
+      director: d.director != null ? Number(d.director) : null,
+      primera_linea: d.primera_linea != null ? Number(d.primera_linea) : null,
     }));
   }
   function getReportesTransitivos(universe, jefeId) {
     const mapByBoss = new Map();
-    universe.forEach(emp => {
+    universe.forEach((emp) => {
       const boss = emp.reporta_a != null ? Number(emp.reporta_a) : null;
       if (boss == null) return;
       if (!mapByBoss.has(boss)) mapByBoss.set(boss, []);
@@ -194,12 +238,15 @@
     return out;
   }
   async function buildAsignablesList() {
-    const yoId   = Number(getEmpleadoId());
+    const yoId = Number(getEmpleadoId());
     const deptId = Number(getDeptId());
-    const roles  = getRoles();
+    const roles = getRoles();
     const isAdmin = roles.includes("ADMIN");
     const isDirector = roles.includes("DIRECTOR");
-    const isPL = roles.includes("PRIMERA_LINEA") || roles.includes("PL") || roles.includes("PRIMERA LINEA");
+    const isPL =
+      roles.includes("PRIMERA_LINEA") ||
+      roles.includes("PL") ||
+      roles.includes("PRIMERA LINEA");
     const isJefe = roles.includes("JEFE");
     const isAnalista = roles.includes("ANALISTA");
 
@@ -213,29 +260,35 @@
     if (isDirector || isPL) {
       const depts = await fetchDepartamentos();
       const visibleDeptIds = new Set(
-        depts.filter(d => d.director === yoId || d.primera_linea === yoId).map(d => d.id)
+        depts
+          .filter((d) => d.director === yoId || d.primera_linea === yoId)
+          .map((d) => d.id)
       );
       if (deptId) visibleDeptIds.add(deptId);
 
-      const inDepts = universe.filter(e => visibleDeptIds.has(Number(e.departamento_id)));
+      const inDepts = universe.filter((e) =>
+        visibleDeptIds.has(Number(e.departamento_id))
+      );
       const reports = getReportesTransitivos(universe, yoId);
-      const self = universe.find(e => e.id === yoId);
+      const self = universe.find((e) => e.id === yoId);
 
       const map = new Map();
-      [...inDepts, ...reports, ...(self ? [self] : [])].forEach(e => map.set(e.id, e));
+      [...inDepts, ...reports, ...(self ? [self] : [])].forEach((e) =>
+        map.set(e.id, e)
+      );
       return Array.from(map.values());
     }
 
     if (isJefe) {
-      const self = universe.find(e => e.id === yoId);
-      const direct = universe.filter(e => e.reporta_a === yoId);
+      const self = universe.find((e) => e.id === yoId);
+      const direct = universe.filter((e) => e.reporta_a === yoId);
       const map = new Map();
       if (self) map.set(self.id, self);
-      direct.forEach(e => map.set(e.id, e));
+      direct.forEach((e) => map.set(e.id, e));
       return Array.from(map.values());
     }
 
-    const self = universe.find(e => e.id === yoId);
+    const self = universe.find((e) => e.id === yoId);
     return self ? [self] : [];
   }
   async function populateAsignadoSelect() {
@@ -245,7 +298,7 @@
     sel.innerHTML = `<option value="" disabled selected>Selecciona responsable…</option>`;
 
     const visibles = await buildAsignablesList();
-    visibles.sort((a,b) => (a.full || "").localeCompare(b.full || "", "es"));
+    visibles.sort((a, b) => (a.full || "").localeCompare(b.full || "", "es"));
 
     const yoId = Number(getEmpleadoId());
     const roles = getRoles();
@@ -269,29 +322,53 @@
   }
 
   // ====== LAYER: Procesos / Tareas (LIST / CREATE) ======
-  async function listProcesos(requerimiento_id, { status=1, page=1, page_size=100 } = {}) {
-    const payload = { requerimiento_id: Number(requerimiento_id), status, page, page_size };
+  async function listProcesos(
+    requerimiento_id,
+    { page = 1, page_size = 100 } = {}
+  ) {
+    const payload = {
+      requerimiento_id: Number(requerimiento_id),
+      page,
+      page_size,
+    };
     const j = await postJSON(API.PROCESOS.LIST, payload);
     const arr = Array.isArray(j?.data) ? j.data : [];
     return arr.map(normalizeProceso);
   }
-  async function createProceso({ requerimiento_id, descripcion, empleado_id, created_by }) {
+
+  async function createProceso({
+    requerimiento_id,
+    descripcion,
+    empleado_id,
+    created_by,
+  }) {
     const payload = {
       requerimiento_id: Number(requerimiento_id),
       empleado_id: empleado_id ?? null,
       descripcion: String(descripcion || "").trim(),
       status: 1,
-      created_by: created_by ?? empleado_id ?? null
+      created_by: created_by ?? empleado_id ?? null,
     };
     return postJSON(API.PROCESOS.CREATE, payload);
   }
-  async function listTareas(proceso_id, { status=1, page=1, page_size=100 } = {}) {
-    const payload = { proceso_id: Number(proceso_id), status, page, page_size };
+
+  async function listTareas(proceso_id, { page = 1, page_size = 100 } = {}) {
+    const payload = { proceso_id: Number(proceso_id), page, page_size };
     const j = await postJSON(API.TAREAS.LIST, payload);
     const arr = Array.isArray(j?.data) ? j.data : [];
     return arr.map(normalizeTarea);
   }
-  async function createTarea({ proceso_id, titulo, esfuerzo, asignado_a, descripcion, fecha_inicio, fecha_fin, created_by }) {
+
+  async function createTarea({
+    proceso_id,
+    titulo,
+    esfuerzo,
+    asignado_a,
+    descripcion,
+    fecha_inicio,
+    fecha_fin,
+    created_by,
+  }) {
     const payload = {
       proceso_id: Number(proceso_id),
       asignado_a: asignado_a != null ? Number(asignado_a) : null,
@@ -301,7 +378,7 @@
       fecha_inicio: fecha_inicio || null,
       fecha_fin: fecha_fin || null,
       status: 1,
-      created_by: created_by ?? asignado_a ?? null
+      created_by: created_by ?? asignado_a ?? null,
     };
     return postJSON(API.TAREAS.CREATE, payload);
   }
@@ -312,7 +389,10 @@
       id: Number(r.id),
       reqId: Number(r.requerimiento_id),
       empleado_id: r.empleado_id != null ? Number(r.empleado_id) : null,
-      empleado_display: r.empleado_display || [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ") || "—",
+      empleado_display:
+        r.empleado_display ||
+        [r.empleado_nombre, r.empleado_apellidos].filter(Boolean).join(" ") ||
+        "—",
       titulo: (r.descripcion || "").trim() || "Proceso",
       descripcion: (r.descripcion || "").trim() || "",
       status: r.status != null ? Number(r.status) : 1,
@@ -325,7 +405,10 @@
       id: Number(r.id),
       proceso_id: Number(r.proceso_id),
       asignado_a: r.asignado_a != null ? Number(r.asignado_a) : null,
-      asignado_display: r.asignado_display || [r.asignado_nombre, r.asignado_apellidos].filter(Boolean).join(" ") || "—",
+      asignado_display:
+        r.asignado_display ||
+        [r.asignado_nombre, r.asignado_apellidos].filter(Boolean).join(" ") ||
+        "—",
       titulo: (r.titulo || "").trim() || "Tarea",
       descripcion: (r.descripcion || "").trim() || "",
       esfuerzo: Number(r.esfuerzo) || 0,
@@ -340,7 +423,7 @@
   /* =========================================================================
    *  PORCENTAJES (basado 100% en status de tarea)
    * =========================================================================*/
-  const SCORE_BY_STATUS = { 0:0, 1:0, 2:0.50, 3:0.80, 4:1.00 };
+  const SCORE_BY_STATUS = { 0: 0, 1: 0, 2: 0.5, 3: 0.8, 4: 1.0 };
   function taskPct(t) {
     const s = Number(t.status ?? 0);
     const score = SCORE_BY_STATUS[s] ?? 0;
@@ -360,7 +443,8 @@
     if (!head || !body || !chev) return;
 
     const initOpen = head.getAttribute("aria-expanded") === "true";
-    body.hidden = !initOpen; if (!initOpen) body.style.height = "0px";
+    body.hidden = !initOpen;
+    if (!initOpen) body.style.height = "0px";
 
     head.addEventListener("click", (e) => {
       if (!e.target.closest(".chev")) return;
@@ -429,14 +513,25 @@
     const table = sec.querySelector(".exp-table--planeacion");
     if (!table) return;
 
-    const STATUS_TEXT = { 0:"Inactivo", 1:"Por hacer", 2:"En proceso", 3:"Por revisar", 4:"Hecho" };
+    const STATUS_TEXT = {
+      0: "Inactivo",
+      1: "Por hacer",
+      2: "En proceso",
+      3: "Por revisar",
+      4: "Hecho",
+    };
     const s = Number(t.status ?? 0);
     const badgeText = STATUS_TEXT[s] || "—";
     const badgeClass =
-      s === 4 ? "is-success" :
-      s === 3 ? "is-info" :
-      s === 2 ? "is-info" :
-      (s === 0 || s === 1) ? "is-muted" : "is-info";
+      s === 4
+        ? "is-success"
+        : s === 3
+        ? "is-info"
+        : s === 2
+        ? "is-info"
+        : s === 0 || s === 1
+        ? "is-muted"
+        : "is-info";
 
     const pct = taskPct(t);
 
@@ -476,7 +571,10 @@
     host.innerHTML = "";
 
     try {
-      const procesos = await listProcesos(requerimiento_id, { status: 1, page: 1, page_size: 100 });
+      const procesos = await listProcesos(requerimiento_id, {
+        page: 1,
+        page_size: 100,
+      });
 
       if (!procesos.length) {
         const empty = document.createElement("div");
@@ -492,8 +590,8 @@
         if (!sec) continue;
 
         try {
-          const tareas = await listTareas(p.id, { status: 1, page: 1, page_size: 100 });
-          tareas.forEach(t => addTareaRow(sec, t));
+          const tareas = await listTareas(p.id, { page: 1, page_size: 100 });
+          tareas.forEach((t) => addTareaRow(sec, t));
           updateProcesoHeaderStats(sec, tareas);
         } catch (e) {
           warn("Error listando tareas del proceso", p.id, e);
@@ -531,26 +629,40 @@
     openOverlay(modal);
 
     if (!_boundModalT) {
-      modal.addEventListener("click", (e)=>{ if (e.target === modal) closeOverlay(modal); });
-      modalContent.addEventListener("click", (e)=>{ if (e.target.closest(".modal-close")) closeOverlay(modal); }, { capture: true });
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeOverlay(modal);
+      });
+      modalContent.addEventListener(
+        "click",
+        (e) => {
+          if (e.target.closest(".modal-close")) closeOverlay(modal);
+        },
+        { capture: true }
+      );
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && modal.classList.contains("open")) closeOverlay(modal);
+        if (e.key === "Escape" && modal.classList.contains("open"))
+          closeOverlay(modal);
       });
       bindSubmitNuevaTarea();
       _boundModalT = true;
     }
 
-    populateAsignadoSelect().catch((e)=>warn("populateAsignadoSelect error:", e));
+    populateAsignadoSelect().catch((e) =>
+      warn("populateAsignadoSelect error:", e)
+    );
     setTimeout(() => $(SEL.selProceso)?.focus(), 30);
   }
   function fillProcesoSelect(preferId = null) {
-    const sel = $(SEL.selProceso); if (!sel) return;
-    sel.innerHTML = '<option value="" disabled selected>Selecciona un proceso…</option>';
+    const sel = $(SEL.selProceso);
+    if (!sel) return;
+    sel.innerHTML =
+      '<option value="" disabled selected>Selecciona un proceso…</option>';
     const procesos = collectProcesos();
     procesos.forEach((sec) => {
-      const id = sec.getAttribute('data-proceso-id');
-      const title = sec.querySelector('.fase-title')?.textContent?.trim() || `Proceso`;
-      const opt = document.createElement('option');
+      const id = sec.getAttribute("data-proceso-id");
+      const title =
+        sec.querySelector(".fase-title")?.textContent?.trim() || `Proceso`;
+      const opt = document.createElement("option");
       opt.value = id;
       opt.textContent = title;
       sel.appendChild(opt);
@@ -565,15 +677,31 @@
       e.preventDefault();
 
       const procesoId = $(SEL.selProceso)?.value || "";
-      const titulo    = ($(SEL.inpTitulo)?.value || "").trim();
-      const esfuerzo  = Number($(SEL.inpEsfuerzo)?.value || 0);
-      const asignadoId= $(SEL.selAsignado)?.value || "";
-      const desc      = ($(SEL.txtDesc)?.value || "").trim();
+      const titulo = ($(SEL.inpTitulo)?.value || "").trim();
+      const esfuerzo = Number($(SEL.inpEsfuerzo)?.value || 0);
+      const asignadoId = $(SEL.selAsignado)?.value || "";
+      const desc = ($(SEL.txtDesc)?.value || "").trim();
 
-      if (!procesoId) { toast("Selecciona un proceso.", "warning"); $(SEL.selProceso)?.focus(); return; }
-      if (!titulo)    { toast("Escribe un título.", "warning"); $(SEL.inpTitulo)?.focus(); return; }
-      if (!(esfuerzo > 0)) { toast("Define el esfuerzo (mínimo 1).", "warning"); $(SEL.inpEsfuerzo)?.focus(); return; }
-      if (!asignadoId) { toast("Selecciona un responsable.", "warning"); $(SEL.selAsignado)?.focus(); return; }
+      if (!procesoId) {
+        toast("Selecciona un proceso.", "warning");
+        $(SEL.selProceso)?.focus();
+        return;
+      }
+      if (!titulo) {
+        toast("Escribe un título.", "warning");
+        $(SEL.inpTitulo)?.focus();
+        return;
+      }
+      if (!(esfuerzo > 0)) {
+        toast("Define el esfuerzo (mínimo 1).", "warning");
+        $(SEL.inpEsfuerzo)?.focus();
+        return;
+      }
+      if (!asignadoId) {
+        toast("Selecciona un responsable.", "warning");
+        $(SEL.selAsignado)?.focus();
+        return;
+      }
 
       const empleadoId = getEmpleadoId();
 
@@ -586,9 +714,10 @@
           descripcion: desc || null,
           fecha_inicio: null,
           fecha_fin: null,
-          created_by: empleadoId ?? Number(asignadoId)
+          created_by: empleadoId ?? Number(asignadoId),
         });
-        if (res?.ok === false) throw new Error(res?.error || "No se pudo crear la tarea");
+        if (res?.ok === false)
+          throw new Error(res?.error || "No se pudo crear la tarea");
         toast("Tarea creada", "success");
 
         // Cerrar modal
@@ -596,11 +725,20 @@
         if (modal) closeOverlay(modal);
 
         // Refrescar tabla del proceso
-        const sec = $(`#planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(String(procesoId))}"]`);
+        const sec = $(
+          `#planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(
+            String(procesoId)
+          )}"]`
+        );
         if (sec) {
-          const tareas = await listTareas(Number(procesoId), { status:1, page:1, page_size:100 });
-          sec.querySelectorAll(".exp-table--planeacion .exp-row").forEach(r => r.remove());
-          tareas.forEach(t => addTareaRow(sec, t));
+          const tareas = await listTareas(Number(procesoId), {
+            page: 1,
+            page_size: 100,
+          });
+          sec
+            .querySelectorAll(".exp-table--planeacion .exp-row")
+            .forEach((r) => r.remove());
+          tareas.forEach((t) => addTareaRow(sec, t));
           updateProcesoHeaderStats(sec, tareas);
         } else {
           const req = window.__REQ__;
@@ -632,10 +770,19 @@
     openOverlay(modal);
 
     if (!_boundModalP) {
-      modal.addEventListener("click", (e)=>{ if (e.target === modal) closeOverlay(modal); });
-      content.addEventListener("click", (e)=>{ if (e.target.closest(".modal-close")) closeOverlay(modal); }, { capture: true });
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeOverlay(modal);
+      });
+      content.addEventListener(
+        "click",
+        (e) => {
+          if (e.target.closest(".modal-close")) closeOverlay(modal);
+        },
+        { capture: true }
+      );
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && modal.classList.contains("open")) closeOverlay(modal);
+        if (e.key === "Escape" && modal.classList.contains("open"))
+          closeOverlay(modal);
       });
       bindSubmitNuevoProceso();
       _boundModalP = true;
@@ -649,7 +796,11 @@
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const titulo = ($(SEL.inpPTitulo)?.value || "").trim();
-      if (!titulo) { toast("Escribe un título para el proceso.", "warning"); $(SEL.inpPTitulo)?.focus(); return; }
+      if (!titulo) {
+        toast("Escribe un título para el proceso.", "warning");
+        $(SEL.inpPTitulo)?.focus();
+        return;
+      }
       await makeProcesoFromAPI(titulo);
 
       const modal = document.querySelector(SEL.modalP);
@@ -658,7 +809,10 @@
   }
   async function makeProcesoFromAPI(titulo) {
     const req = window.__REQ__;
-    if (!req?.id) { toast("No hay requerimiento cargado.", "danger"); return; }
+    if (!req?.id) {
+      toast("No hay requerimiento cargado.", "danger");
+      return;
+    }
     const empleadoId = getEmpleadoId();
 
     try {
@@ -666,9 +820,10 @@
         requerimiento_id: Number(req.id),
         descripcion: titulo,
         empleado_id: empleadoId ?? null,
-        created_by: empleadoId ?? null
+        created_by: empleadoId ?? null,
       });
-      if (res?.ok === false) throw new Error(res?.error || "No se pudo crear el proceso");
+      if (res?.ok === false)
+        throw new Error(res?.error || "No se pudo crear el proceso");
       toast("Proceso creado", "success");
       await renderProcesosYtareas(req.id);
     } catch (e) {
@@ -682,21 +837,26 @@
     if (_boundToolbar) return;
 
     const btnProceso = document.querySelector(SEL.toolbar.addProceso);
-    const btnTarea   = document.querySelector(SEL.toolbar.addTarea);
+    const btnTarea = document.querySelector(SEL.toolbar.addTarea);
 
     btnProceso?.addEventListener("click", (e) => {
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
       openProcesoModal();
     });
 
     btnTarea?.addEventListener("click", (e) => {
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
       const procesos = collectProcesos();
       if (procesos.length === 0) {
         toast("Primero crea un proceso.", "warning");
         return;
       }
-      const prefer = (procesos.length === 1) ? (procesos[0].getAttribute("data-proceso-id")) : null;
+      const prefer =
+        procesos.length === 1
+          ? procesos[0].getAttribute("data-proceso-id")
+          : null;
       openTareaModal({ preferProcesoId: prefer });
     });
 
@@ -707,14 +867,18 @@
   // ===== API pública =====
   window.Planeacion = {
     async init() {
-      $$('#planeacion-list .exp-accordion--fase').forEach(bindProcessAccordion);
+      $$("#planeacion-list .exp-accordion--fase").forEach(bindProcessAccordion);
       bindToolbar();
 
-      document.addEventListener("req:loaded", async (e) => {
-        const req = e?.detail || window.__REQ__;
-        if (!req?.id) return;
-        await renderProcesosYtareas(Number(req.id));
-      }, { once: true });
+      document.addEventListener(
+        "req:loaded",
+        async (e) => {
+          const req = e?.detail || window.__REQ__;
+          if (!req?.id) return;
+          await renderProcesosYtareas(Number(req.id));
+        },
+        { once: true }
+      );
 
       if (window.__REQ__?.id) {
         await renderProcesosYtareas(Number(window.__REQ__.id));
@@ -722,15 +886,19 @@
       log("init OK (API conectada)");
     },
     reload: async () => {
-      const req = window.__REQ__; if (req?.id) await renderProcesosYtareas(Number(req.id));
-    }
+      const req = window.__REQ__;
+      if (req?.id) await renderProcesosYtareas(Number(req.id));
+    },
   };
 
   // ==== AUTO-INIT (asegura que el módulo arranque) ====
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => window.Planeacion.init(), { once: true });
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => window.Planeacion.init(),
+      { once: true }
+    );
   } else {
     window.Planeacion.init();
   }
-
 })();
