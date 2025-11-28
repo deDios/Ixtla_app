@@ -686,33 +686,33 @@ function createCard(task) {
   art.appendChild(main);
 
   if (task.status !== KB.STATUS.HECHO && age) {
-    const chip = document.createElement("div");
-    chip.className = `kb-age-chip kb-age-${age.classIndex}`;
-    chip.textContent = String(age.display);
+  const chip = document.createElement("div");
+  chip.className = `kb-age-chip kb-age-${age.classIndex}`;
+  chip.textContent = String(age.display);
 
-    // Texto del tooltip según el status actual
-    let statusLabel = "en proceso";
-    switch (task.status) {
-      case KB.STATUS.TODO:
-        statusLabel = "en por hacer";
-        break;
-      case KB.STATUS.PROCESO:
-        statusLabel = "en proceso";
-        break;
-      case KB.STATUS.REVISAR:
-        statusLabel = "en revisión";
-        break;
-      case KB.STATUS.PAUSA:
-        statusLabel = "en bloqueado";
-        break;
-      case KB.STATUS.HECHO:
-        statusLabel = "en terminado";
-        break;
-    }
-
-    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"} ${statusLabel}`;
-    art.appendChild(chip);
+  // Texto del tooltip según el status actual
+  let statusLabel = "en proceso";
+  switch (task.status) {
+    case KB.STATUS.TODO:
+      statusLabel = "en por hacer";
+      break;
+    case KB.STATUS.PROCESO:
+      statusLabel = "en proceso";
+      break;
+    case KB.STATUS.REVISAR:
+      statusLabel = "en revisión";
+      break;
+    case KB.STATUS.PAUSA:
+      statusLabel = "en bloqueado";
+      break;
+    case KB.STATUS.HECHO:
+      statusLabel = "en terminado";
+      break;
   }
+
+  chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"} ${statusLabel}`;
+  art.appendChild(chip);
+}
 
 
   art.addEventListener("click", () => {
