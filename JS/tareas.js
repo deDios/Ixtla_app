@@ -830,7 +830,7 @@ function canMoveTask(task, oldStatus, newStatus) {
   //  (JEFE, ANALISTA, etc.)
   // ===========================
 
-  // Solo pueden mover sus propias tareas
+  // Solo pueden mover SUS propias tareas
   const isOwner =
     KB.CURRENT_USER_ID != null &&
     task.asignado_a != null &&
@@ -840,36 +840,31 @@ function canMoveTask(task, oldStatus, newStatus) {
     return false;
   }
 
-  // 1) Nunca pueden mandar a HECHO
+  // Nunca pueden mandar a HECHO
   if (newStatus === KB.STATUS.HECHO) {
     return false;
   }
 
-  // 2) Nunca pueden retroceder estados
-  //    (cualquier movimiento donde el destino sea menor al origen)
-  if (newStatus < oldStatus) {
-    return false;
-  }
+  const S = KB.STATUS;
+  const key = `${oldStatus}->${newStatus}`;
 
-  // 3) Pueden mandar la tarea a PAUSA/BLOQUEADO
-  //    desde cualquier estado que no sea HECHO
-  if (newStatus === KB.STATUS.PAUSA && oldStatus !== KB.STATUS.HECHO) {
-    return true;
-  }
+  // Mapa explícito de movimientos permitidos para jefe/analista
+  const allowedMoves = new Set([
+    // Flujo progresivo principal
+    `${S.TODO}->${S.PROCESO}`, // Por hacer → En proceso
+    `${S.TODO}->${S.REVISAR}`, // Por hacer → Por revisar
+    `${S.PROCESO}->${S.REVISAR}`, // En proceso → Por revisar
 
-  // 4) Avances válidos en el flujo principal:
-  //    TODO (1) -> PROCESO (2)
-  //    PROCESO (2) -> REVISAR (3)
-  if (oldStatus === KB.STATUS.TODO && newStatus === KB.STATUS.PROCESO) {
-    return true;
-  }
+    // Hacia bloqueado
+    `${S.TODO}->${S.PAUSA}`, // Por hacer → Bloqueado
+    `${S.PROCESO}->${S.PAUSA}`, // En proceso → Bloqueado
+    `${S.REVISAR}->${S.PAUSA}`, // Por revisar → Bloqueado
 
-  if (oldStatus === KB.STATUS.PROCESO && newStatus === KB.STATUS.REVISAR) {
-    return true;
-  }
+    // Desde bloqueado de regreso al flujo
+    `${S.PAUSA}->${S.PROCESO}`, // Bloqueado → En proceso
+  ]);
 
-  // Todo lo demás queda bloqueado para jefe/analista
-  return false;
+  return allowedMoves.has(key);
 }
 
 /* ==========================================================================
