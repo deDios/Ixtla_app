@@ -86,6 +86,85 @@ const toast = (m, t = "info") =>
    Helpers
    ========================================================================== */
 
+/* ==========================================================================
+   Reglas de negocio: quién puede mover qué
+   ========================================================================== */
+
+/**
+ * Determina si el viewer actual es "privilegiado" para esta tarea:
+ * - Admin
+ * - Presidencia
+ * - Director del departamento dueño del requerimiento/tarea
+ */
+function isPrivilegedForTask(task) {
+  if (Viewer.isAdmin || Viewer.isPres) return true;
+
+  // Director del depto (autoriza_id viene del catálogo de departamentos)
+  if (
+    KB.CURRENT_USER_ID != null &&
+    task.autoriza_id != null &&
+    Number(task.autoriza_id) === Number(KB.CURRENT_USER_ID)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Reglas de movimiento:
+ * - Admin / Pres / Director: pueden mover la tarea a cualquier estado.
+ * - Resto (jefe/analista/etc.):
+ *   - Solo sobre tareas que les están asignadas.
+ *   - NO pueden mover a HECHO.
+ *   - NO pueden hacer retrocesos (solo avanzar o mandar a PAUSA/BLOQUEADO).
+ *
+ * Flujo principal:
+ *   TODO (1) -> PROCESO (2) -> REVISAR (3) -> HECHO (4)
+ *   PAUSA (5) es el "bloqueado".
+ */
+function canMoveTask(task, oldStatus, newStatus) {
+  if (oldStatus === newStatus) return true;
+
+  const privileged = isPrivilegedForTask(task);
+  if (privileged) return true;
+
+  // Si no es privilegiado, sólo puede tocar sus propias tareas
+  const isOwner =
+    KB.CURRENT_USER_ID != null &&
+    task.asignado_a != null &&
+    Number(task.asignado_a) === Number(KB.CURRENT_USER_ID);
+
+  if (!isOwner) {
+    return false;
+  }
+
+  // Jefe/analista/normal sobre su propia tarea:
+
+  // 1) Nunca puede mandar a HECHO
+  if (newStatus === KB.STATUS.HECHO) {
+    return false;
+  }
+
+  // 2) Puede mandar la tarea a PAUSA/BLOQUEADO desde cualquier estado
+  //    (excepto HECHO, que consideramos cerrado)
+  if (newStatus === KB.STATUS.PAUSA && oldStatus !== KB.STATUS.HECHO) {
+    return true;
+  }
+
+  // 3) Movimientos hacia adelante en el flujo
+  if (oldStatus === KB.STATUS.TODO && newStatus === KB.STATUS.PROCESO) {
+    return true;
+  }
+
+  if (oldStatus === KB.STATUS.PROCESO && newStatus === KB.STATUS.REVISAR) {
+    return true;
+  }
+
+  // Todo lo demás (retrocesos, saltos raros) queda bloqueado
+  return false;
+}
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -156,7 +235,6 @@ function calcAgeChip(task) {
   };
 }
 
-
 /* ==========================================================================
    State
    ========================================================================== */
@@ -216,8 +294,8 @@ function mapRawTask(raw) {
     raw.status != null
       ? Number(raw.status)
       : raw.estatus != null
-        ? Number(raw.estatus)
-        : KB.STATUS.TODO;
+      ? Number(raw.estatus)
+      : KB.STATUS.TODO;
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
@@ -226,8 +304,8 @@ function mapRawTask(raw) {
     raw.asignado_a != null
       ? Number(raw.asignado_a)
       : raw.empleado_id != null
-        ? Number(raw.empleado_id)
-        : null;
+      ? Number(raw.empleado_id)
+      : null;
 
   const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
   const asignado_apellidos =
@@ -242,8 +320,8 @@ function mapRawTask(raw) {
     raw.requerimiento_id != null
       ? Number(raw.requerimiento_id)
       : raw.req_id != null
-        ? Number(raw.req_id)
-        : null;
+      ? Number(raw.req_id)
+      : null;
 
   const tramite_id = raw.tramite_id != null ? Number(raw.tramite_id) : null;
 
@@ -270,8 +348,8 @@ function mapRawTask(raw) {
       raw.esfuerzo != null
         ? Number(raw.esfuerzo)
         : raw.horas != null
-          ? Number(raw.horas)
-          : null,
+        ? Number(raw.horas)
+        : null,
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
     status,
@@ -286,10 +364,7 @@ function mapRawTask(raw) {
     tramite_id,
     tramite_nombre,
 
-    status_since:
-      raw.status_since ||
-      raw.fecha_status ||
-      null,
+    status_since: raw.status_since || raw.fecha_status || null,
   };
 }
 
@@ -502,8 +577,8 @@ async function enrichTasksWithRequerimientos(tasks) {
         t.tramite_id != null
           ? Number(t.tramite_id)
           : req.tramite_id != null
-            ? Number(req.tramite_id)
-            : null,
+          ? Number(req.tramite_id)
+          : null,
       tramite_nombre:
         t.tramite_nombre || req.tramite_nombre || t.tramite_nombre || "",
     };
@@ -670,8 +745,9 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio || "—"
-    }</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${
+    task.folio || "—"
+  }</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -712,10 +788,11 @@ function createCard(task) {
         break;
     }
 
-    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"} ${statusLabel}`;
+    chip.title = `${age.realDays} día${
+      age.realDays === 1 ? "" : "s"
+    } ${statusLabel}`;
     art.appendChild(chip);
   }
-
 
   art.addEventListener("click", () => {
     if (dragging) return;
@@ -867,8 +944,8 @@ async function persistTaskStatus(task, newStatus) {
 
   const payload = {
     id: task.id,
-    status: newStatus,      // si el backend usa 'estatus', cámbialo aquí
-    updated_by: updatedBy,  // <--- dato obligatorio
+    status: newStatus, // si el backend usa 'estatus', cámbialo aquí
+    updated_by: updatedBy, // <--- dato obligatorio
   };
 
   try {
@@ -885,17 +962,12 @@ async function persistTaskStatus(task, newStatus) {
     }
 
     task.status = newStatus;
-    task.updated_at = new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", " ");
+    task.updated_at = new Date().toISOString().slice(0, 19).replace("T", " ");
   } catch (e) {
     console.error("[KB] Error al actualizar status de tarea:", e);
     toast("Error al actualizar el status de la tarea.", "error");
   }
 }
-
-
 
 function setupDragAndDrop() {
   const lists = $$(".kb-list");
@@ -923,17 +995,53 @@ function setupDragAndDrop() {
         const task = getTaskById(id);
         if (!task) return;
 
-        const col = evt.to.closest(".kb-col");
-        if (!col) return;
-        const newStatus = Number(col.dataset.status);
-        if (!newStatus || newStatus === task.status) return;
+        const fromCol = evt.from.closest(".kb-col");
+        const toCol = evt.to.closest(".kb-col");
+        if (!toCol || !fromCol) return;
 
         const oldStatus = task.status;
+        const newStatus = Number(toCol.dataset.status);
+
+        if (!newStatus || newStatus === oldStatus) {
+          return;
+        }
+
+        // ================================
+        // Validar permisos antes de mover
+        // ================================
+        if (!canMoveTask(task, oldStatus, newStatus)) {
+          // Revertir visualmente la tarjeta a su columna original
+          const fromList = evt.from;
+          if (fromList && itemEl) {
+            // Intentamos regresarla a su índice original
+            if (
+              typeof evt.oldIndex === "number" &&
+              evt.oldIndex >= 0 &&
+              evt.oldIndex < fromList.children.length
+            ) {
+              fromList.insertBefore(itemEl, fromList.children[evt.oldIndex]);
+            } else {
+              fromList.appendChild(itemEl);
+            }
+          }
+
+          toast(
+            "No tienes permisos para mover esta tarea a ese estado.",
+            "warning"
+          );
+          log("Movimiento NO permitido", {
+            taskId: task.id,
+            oldStatus,
+            newStatus,
+            viewer: KB.CURRENT_USER_ID,
+          });
+          return;
+        }
+
+        // ================================
+        // Movimiento permitido
+        // ================================
         task.status = newStatus;
-
-        const nowIso = new Date().toISOString().slice(0, 19).replace("T", " ");
-        task.status_since = nowIso;
-
         log(
           "DragEnd → tarea",
           task.id,
@@ -942,19 +1050,16 @@ function setupDragAndDrop() {
           "a",
           newStatus,
           "status_since:",
-          task.status_since
+          task.status_since || task.updated_at || task.created_at
         );
 
-        // Re-pintar columnas y contador de días
         renderBoard();
         if (State.selectedId === task.id) {
           highlightSelected();
         }
 
-        // Persistir cambio en backend
         await persistTaskStatus(task, newStatus);
       },
-
     });
   });
 }
@@ -987,9 +1092,9 @@ function hydrateViewerFromSession() {
   const roles = Array.isArray(rolesRaw)
     ? rolesRaw
     : String(rolesRaw || "")
-      .split(/[,\s]+/g)
-      .map((r) => r.trim())
-      .filter(Boolean);
+        .split(/[,\s]+/g)
+        .map((r) => r.trim())
+        .filter(Boolean);
 
   Viewer.deptId = deptId != null ? Number(deptId) : null;
   Viewer.roles = roles;
