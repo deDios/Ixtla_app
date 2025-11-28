@@ -97,13 +97,24 @@ const toast = (m, t = "info") =>
  * - Director del departamento dueño del requerimiento/tarea
  */
 function isPrivilegedForTask(task) {
-  if (Viewer.isAdmin || Viewer.isPres) return true;
+  const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
 
-  // Director del depto (autoriza_id viene del catálogo de departamentos)
+  // Admin o Presidencia → súper permisos
+  if (roles.includes("ADMIN") || roles.includes("PRES")) {
+    return true;
+  }
+
+  // Director del departamento de la tarea
+  const deptId = task.departamento_id ?? null;
+  if (!deptId) return false;
+
+  const dep = State.departamentosIndex.get(deptId);
+  if (!dep) return false;
+
   if (
+    dep.director != null &&
     KB.CURRENT_USER_ID != null &&
-    task.autoriza_id != null &&
-    Number(task.autoriza_id) === Number(KB.CURRENT_USER_ID)
+    Number(dep.director) === Number(KB.CURRENT_USER_ID)
   ) {
     return true;
   }
@@ -819,49 +830,68 @@ function isBlockedStatus(status) {
 function canMoveTask(task, oldStatus, newStatus) {
   if (oldStatus === newStatus) return true;
 
+  const S = KB.STATUS;
+
   const privileged = isPrivilegedForTask(task);
   if (privileged) {
-    // Admin / Pres / Director del depto: pueden hacer cualquier movimiento
+    // Admin / Pres / Director del depto → pueden hacer cualquier movimiento
     return true;
   }
 
-  // ===========================
+  // ==============================
   //  Usuarios NO privilegiados
   //  (JEFE, ANALISTA, etc.)
-  // ===========================
+  // ==============================
 
-  // Solo pueden mover SUS propias tareas
+  const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
+
+  // ¿La tarea es "mía"?
   const isOwner =
     KB.CURRENT_USER_ID != null &&
     task.asignado_a != null &&
     Number(task.asignado_a) === Number(KB.CURRENT_USER_ID);
 
-  if (!isOwner) {
+  // ¿La tarea es de mi departamento?
+  const sameDept =
+    Viewer.deptId != null &&
+    task.departamento_id != null &&
+    Number(task.departamento_id) === Number(Viewer.deptId);
+
+  // Regla de quién puede tocar la tarjeta:
+  //  - JEFE: puede mover cualquier tarea de su departamento
+  //  - Otros (ANALISTA, etc.): solo sus propias tareas
+  let canTouch = false;
+  if (roles.includes("JEFE")) {
+    canTouch = sameDept || isOwner;
+  } else {
+    canTouch = isOwner;
+  }
+
+  if (!canTouch) {
     return false;
   }
 
-  // Nunca pueden mandar a HECHO
-  if (newStatus === KB.STATUS.HECHO) {
+  // Nunca pueden mandar a HECHO (4)
+  if (newStatus === S.HECHO) {
     return false;
   }
 
-  const S = KB.STATUS;
   const key = `${oldStatus}->${newStatus}`;
 
-  // Mapa explícito de movimientos permitidos para jefe/analista
+  // Mapa explícito de movimientos permitidos para JEFE/ANALISTA
   const allowedMoves = new Set([
     // Flujo progresivo principal
-    `${S.TODO}->${S.PROCESO}`, // Por hacer → En proceso
-    `${S.TODO}->${S.REVISAR}`, // Por hacer → Por revisar
-    `${S.PROCESO}->${S.REVISAR}`, // En proceso → Por revisar
+    `${S.TODO}->${S.PROCESO}`,    // 1 → 2  (Por hacer → En proceso)
+    `${S.TODO}->${S.REVISAR}`,    // 1 → 3  (Por hacer → Por revisar)
+    `${S.PROCESO}->${S.REVISAR}`, // 2 → 3  (En proceso → Por revisar)
 
     // Hacia bloqueado
-    `${S.TODO}->${S.PAUSA}`, // Por hacer → Bloqueado
-    `${S.PROCESO}->${S.PAUSA}`, // En proceso → Bloqueado
-    `${S.REVISAR}->${S.PAUSA}`, // Por revisar → Bloqueado
+    `${S.TODO}->${S.PAUSA}`,      // 1 → 5  (Por hacer → Bloqueado)
+    `${S.PROCESO}->${S.PAUSA}`,   // 2 → 5  (En proceso → Bloqueado)
+    `${S.REVISAR}->${S.PAUSA}`,   // 3 → 5  (Por revisar → Bloqueado)
 
     // Desde bloqueado de regreso al flujo
-    `${S.PAUSA}->${S.PROCESO}`, // Bloqueado → En proceso
+    `${S.PAUSA}->${S.PROCESO}`,   // 5 → 2  (Bloqueado → En proceso)
   ]);
 
   return allowedMoves.has(key);
