@@ -598,8 +598,8 @@ export function createTaskFiltersModule({
       });
     }
   }
-
-  /* ========================================================================
+  
+    /* ========================================================================
    * API pública del módulo
    * ======================================================================*/
 
@@ -609,84 +609,41 @@ export function createTaskFiltersModule({
 
     const sidebarFiltersBox = $("#kb-sidebar-filters");
 
-    // Si ni siquiera existe el contenedor, salimos
+    // Si no existe el contenedor de sidebar, sólo montamos toolbar
     if (!sidebarFiltersBox) {
       setupToolbar();
       setupToolbarCombos({ procesosOptions, tramitesOptions });
       return;
     }
 
-    // ==============================
-    //  Visibilidad por jerarquía
-    // ==============================
-    const viewer = KB.VIEWER || {};
+    // IMPORTANTE:
+    // Toda la lógica de "quién ve qué filtros" ya la hace tareas.js
+    // (roles, jerarquías, etc.). Aquí NO volvemos a ocultar nada
+    // ni tocamos display del sidebar. Sólo inicializamos los combos
+    // que sigan visibles en el DOM.
 
-    const isAdminOrPres = !!(viewer.isAdmin || viewer.isPres);
-    const isDirectorOrPrimera = !!(viewer.isDirector || viewer.isPrimeraLinea);
-    const isJefe = !!viewer.isJefe;
-    const isAnalista = !!viewer.isAnalista;
-    const hasSubordinates = !!viewer.hasSubordinates;
-
-    // Reglas:
-    // admin/pres      → ven ambos filtros
-    // director/1a     → sólo empleados
-    // jefe            → empleados sólo si tiene subordinados
-    // analista        → no ve ningún filtro en sidebar
-    const canSeeDeptFilter = isAdminOrPres;
-    const canSeeEmpFilter =
-      isAdminOrPres || isDirectorOrPrimera || (isJefe && hasSubordinates);
-
-    // Si NO puede ver NINGÚN filtro, dejamos el contenedor
-    // oculto (CSS ya tiene display:none) y sólo montamos toolbar.
-    if (!canSeeDeptFilter && !canSeeEmpFilter) {
-      sidebarFiltersBox.style.display = "none";
-      sidebarFiltersBox.setAttribute("aria-hidden", "true");
-
-      setupToolbar();
-      setupToolbarCombos({ procesosOptions, tramitesOptions });
-      log("[KB] Sidebar filters ocultos para este rol", { viewer });
-      return;
-    }
-
-    // En este punto, SÍ tiene al menos 1 filtro → mostramos el bloque
-    sidebarFiltersBox.style.display = ""; // deja que el CSS normal decida (block)
-    sidebarFiltersBox.removeAttribute("aria-hidden");
-
-    // Botón "Limpiar filtros" y lógica de reset sólo tienen sentido
-    // si el bloque está visible:
+    // Botón "Limpiar filtros" (sólo tiene sentido si el bloque está visible)
     setupSidebarFilters();
 
-    // Ocultar completamente Departamentos si no aplica
-    if (fieldDept && !canSeeDeptFilter) {
-      fieldDept.style.display = "none";
-      fieldDept.setAttribute("aria-hidden", "true");
-    }
-
-    // Ocultar completamente Empleados si no aplica
-    if (fieldEmp && !canSeeEmpFilter) {
-      fieldEmp.style.display = "none";
-      fieldEmp.setAttribute("aria-hidden", "true");
-    }
-
-    // ==============================
-    //  Inicializar multi-combos
-    // ==============================
-
-    if (
+    // ¿El campo de Departamentos está visible? (tareas.js pudo poner display:none)
+    const canUseDept =
       fieldDept &&
-      canSeeDeptFilter &&
+      getComputedStyle(fieldDept).display !== "none" &&
       Array.isArray(deptOptions) &&
-      deptOptions.length
-    ) {
+      deptOptions.length > 0;
+
+    if (canUseDept) {
       createMultiFilter(fieldDept, "departamentos", deptOptions);
     }
 
-    if (
+    // ¿El campo de Empleados está visible?
+    const canUseEmp =
       fieldEmp &&
-      canSeeEmpFilter &&
+      getComputedStyle(fieldEmp).display !== "none" &&
       Array.isArray(empOptions) &&
-      empOptions.length
-    ) {
+      empOptions.length > 0;
+
+    if (canUseEmp) {
       createMultiFilter(fieldEmp, "empleados", empOptions);
     }
 
@@ -694,10 +651,9 @@ export function createTaskFiltersModule({
     setupToolbar();
     setupToolbarCombos({ procesosOptions, tramitesOptions });
 
-    log("[KB] Filtros sidebar visibles:", {
-      canSeeDeptFilter,
-      canSeeEmpFilter,
-      viewer,
+    log("[KB] Filtros sidebar inicializados (UI)", {
+      deptOptions: canUseDept ? deptOptions.length : 0,
+      empOptions: canUseEmp ? empOptions.length : 0,
     });
   }
 
