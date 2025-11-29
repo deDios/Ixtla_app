@@ -1211,6 +1211,81 @@ function hydrateViewerFromSession() {
   });
 }
 
+/* ==========================================================================
+   Sidebar: visibilidad de filtros según jerarquía
+   ========================================================================== */
+
+function applySidebarPermissions() {
+  const sidebarContainer = $("#kb-sidebar-filters");
+  const deptField = $("#kb-filter-departamentos");
+  const empField = $("#kb-filter-empleados");
+
+  if (!sidebarContainer) return;
+
+  // --- 1) Calcular permisos base por rol ---
+  const isAdmin = !!Viewer.isAdmin;
+  const isPres = !!Viewer.isPres;
+  const isDirector = !!Viewer.isDirector;
+  const isJefe = !!Viewer.isJefe;
+  const isAnalista = !!Viewer.isAnalista;
+
+  // Por ahora no complicamos con subordinados:
+  const hasSubordinates = true; // TODO: calcular real si lo necesitas luego
+
+  let canSeeDept = false;
+  let canSeeEmp = false;
+
+  if (isAdmin || isPres) {
+    // Admin / Presidencia → ven ambos filtros
+    canSeeDept = true;
+    canSeeEmp = true;
+  } else if (isDirector) {
+    // Director / Primera línea → solo empleados
+    canSeeEmp = true;
+  } else if (isJefe) {
+    // Jefe → solo empleados (si tiene subordinados, por ahora asumimos que sí)
+    canSeeEmp = hasSubordinates;
+  } else if (isAnalista) {
+    // Analista → nada
+    canSeeDept = false;
+    canSeeEmp = false;
+  }
+
+  const canSeeSidebar = canSeeDept || canSeeEmp;
+
+  // --- 2) Reset de estilos inline (quitamos display previo) ---
+  sidebarContainer.style.removeProperty("display");
+  sidebarContainer.removeAttribute("aria-hidden");
+  if (deptField) deptField.style.removeProperty("display");
+  if (empField) empField.style.removeProperty("display");
+
+  // --- 3) Aplicar visibilidad final ---
+  if (!canSeeSidebar) {
+    sidebarContainer.style.display = "none";
+    sidebarContainer.setAttribute("aria-hidden", "true");
+  } else {
+    // Se muestra el contenedor de filtros
+    sidebarContainer.style.display = "flex";
+    sidebarContainer.setAttribute("aria-hidden", "false");
+  }
+
+  if (deptField) {
+    if (!canSeeDept) {
+      deptField.style.display = "none";
+    } else {
+      deptField.style.display = ""; // deja que el CSS ponga flex
+    }
+  }
+
+  if (empField) {
+    if (!canSeeEmp) {
+      empField.style.display = "none";
+    } else {
+      empField.style.display = "";
+    }
+  }
+}
+
 /** Construir índice de subordinados en base al catálogo de empleados */
 function buildSubordinatesIndex(empleados) {
   SubordinateIds.clear();

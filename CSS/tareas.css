@@ -1818,7 +1818,6 @@
   color: #cbd5e1;
 }
 
-/* Checkbox realmente inactivo y gris */
 .kb-multi-option.is-disabled input[type="checkbox"] {
   pointer-events: none;
   accent-color: #d1d5db;
