@@ -107,9 +107,8 @@ export function createTaskFiltersModule({
           toggleValue(opt.value);
         });
 
-        // click en toda la fila
+        // click en toda la fila (fallback)
         li.addEventListener("click", (ev) => {
-          // si el origen fue el propio checkbox, ya se manejó arriba
           if (ev.target.closest("input[type=checkbox]")) return;
           toggleValue(opt.value);
         });
@@ -137,8 +136,9 @@ export function createTaskFiltersModule({
           if (selected.length === 1) {
             summaryEl.textContent = selected[0].label;
           } else {
-            summaryEl.textContent = `${selected[0].label} +${selected.length - 1
-              }`;
+            summaryEl.textContent = `${selected[0].label} +${
+              selected.length - 1
+            }`;
           }
         }
       }
@@ -382,12 +382,11 @@ export function createTaskFiltersModule({
 
       const tagSpan = li.querySelector(".kb-multi-tag");
       if (tagSpan) {
-        tagSpan.textContent = count === 0 ? "SIN TAREAS" : "";
+        tagSpan.textContent = count === 0 ? "SIN TAREAS EN LA VISTA" : "";
       }
 
       if (count > 0) {
         li.dataset.hasTasks = "1";
-        withoutTasks.splice(withoutTasks.indexOf(li), 1);
         withTasks.push(li);
       } else {
         li.dataset.hasTasks = "0";
@@ -424,9 +423,11 @@ export function createTaskFiltersModule({
   /**
    * Actualiza qué opciones están visibles / cómo se presentan en los filtros.
    *
-   * Para contadores y grupos (con tareas / sin tareas) usamos TODAS
-   * las tareas del tablero (State.tasks) para evitar que, al filtrar por
-   * un departamento, el resto parezca quedar "sin tareas".
+   * NUEVO COMPORTAMIENTO:
+   *  - El filtro que se está usando (departamentos o empleados) NO
+   *    deshabilita sus propias opciones por efecto de los filtros.
+   *  - El otro filtro sí se recalcula en función de las tareas visibles
+   *    (las que ya pasaron por passesFilters en tareas.js).
    */
   function updateAvailableOptions(tasks) {
     if (!Array.isArray(tasks)) return;
@@ -434,11 +435,33 @@ export function createTaskFiltersModule({
     const allTasks =
       Array.isArray(State.tasks) && State.tasks.length ? State.tasks : tasks;
 
+    const hasDeptFilter =
+      State.filters.departamentos &&
+      State.filters.departamentos.size &&
+      State.filters.departamentos.size > 0;
+
+    const hasEmpFilter =
+      State.filters.empleados &&
+      State.filters.empleados.size &&
+      State.filters.empleados.size > 0;
+
+    // Si hay filtro de empleados pero NO de deptos,
+    // entonces los deptos se calculan con las tareas visibles (tasks).
+    // En cualquier otro caso, usan todas las tareas del tablero.
+    const tasksForDeptCounts =
+      hasEmpFilter && !hasDeptFilter ? tasks : allTasks;
+
+    // Si hay filtro de deptos pero NO de empleados,
+    // entonces los empleados se calculan con las tareas visibles (tasks).
+    // En cualquier otro caso, usan todas las tareas del tablero.
+    const tasksForEmpCounts =
+      hasDeptFilter && !hasEmpFilter ? tasks : allTasks;
+
     // ---------------- Departamentos ----------------
     if (fieldDept) {
       const countsDept = new Map();
 
-      for (const t of allTasks) {
+      for (const t of tasksForDeptCounts) {
         if (t.departamento_id != null) {
           const id = Number(t.departamento_id);
           countsDept.set(id, (countsDept.get(id) || 0) + 1);
@@ -465,6 +488,10 @@ export function createTaskFiltersModule({
           const cb = li.querySelector(".kb-multi-check");
           if (cb) cb.checked = isSelected;
 
+          // Importante:
+          // - Si el depto no tiene tareas y NO está seleccionado,
+          //   se inhabilita solo según la fuente de datos elegida
+          //   (tasksForDeptCounts).
           if (count === 0 && !isSelected) {
             li.classList.add("is-disabled");
             li.setAttribute("aria-disabled", "true");
@@ -484,7 +511,7 @@ export function createTaskFiltersModule({
     if (fieldEmp) {
       const countsEmp = new Map();
 
-      for (const t of allTasks) {
+      for (const t of tasksForEmpCounts) {
         if (t.asignado_a != null) {
           const id = Number(t.asignado_a);
           countsEmp.set(id, (countsEmp.get(id) || 0) + 1);
