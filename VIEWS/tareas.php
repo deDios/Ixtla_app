@@ -90,7 +90,7 @@
                 </section>
 
                 <!-- Filtros en sidebar (Departamentos / Empleados) -->
-                <section class="kb-sidebar-filters" aria-label="Filtros de tablero">
+                <section id="kb-sidebar-filters" class="kb-sidebar-filters" aria-label="Filtros de tablero">
                     <div class="kb-filters-head">
                         <h4>Filtros</h4>
                         <button type="button" class="kb-filter-clear" id="kb-sidebar-clear">
