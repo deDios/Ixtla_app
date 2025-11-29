@@ -1246,6 +1246,20 @@ function buildSubordinatesIndex(empleados) {
 async function init() {
   hydrateViewerFromSession();
 
+  // --------------------------------------------------------------------
+  // 1) Evitar flicker del sidebar: lo dejamos oculto hasta decidir rol
+  // --------------------------------------------------------------------
+  const sidebarFiltersEl = $(".kb-sidebar-filters");
+  const sidebarDeptFieldEl = $("#kb-filter-departamentos");
+  const sidebarEmpFieldEl = $("#kb-filter-empleados");
+
+  if (sidebarFiltersEl) {
+    sidebarFiltersEl.classList.add("kb-filters-boot-hidden");
+  }
+
+  // --------------------------------------------------------------------
+  // 2) Cargar datos base
+  // --------------------------------------------------------------------
   const [empleados, depts, procesos, tramites, tareasRaw] = await Promise.all([
     fetchEmpleadosForFilters(),
     fetchDepartamentos(),
@@ -1254,7 +1268,9 @@ async function init() {
     fetchTareasFromApi(),
   ]);
 
-  // Index empleados (para depto de tareas)
+  // --------------------------------------------------------------------
+  // 3) Indexes globales
+  // --------------------------------------------------------------------
   empleados.forEach((emp) => {
     if (emp?.id != null) {
       State.empleadosIndex.set(emp.id, emp);
@@ -1262,7 +1278,6 @@ async function init() {
   });
   log("Index empleados (global):", State.empleadosIndex);
 
-  // Index departamentos
   depts.forEach((d) => {
     if (d?.id != null) {
       State.departamentosIndex.set(d.id, d);
@@ -1270,7 +1285,6 @@ async function init() {
   });
   log("Index departamentos:", State.departamentosIndex);
 
-  // Index procesos
   procesos.forEach((p) => {
     if (p?.id != null) {
       State.procesosIndex.set(p.id, p);
@@ -1278,7 +1292,6 @@ async function init() {
   });
   log("Index procesos:", State.procesosIndex);
 
-  // Index trámites
   tramites.forEach((t) => {
     if (t?.id != null) {
       State.tramitesIndex.set(t.id, t);
@@ -1286,10 +1299,9 @@ async function init() {
   });
   log("Index trámites:", State.tramitesIndex);
 
-  // ==========================
-  //   Enriquecer tareas
-  // ==========================
-
+  // --------------------------------------------------------------------
+  // 4) Enriquecer tareas con info de proceso / requerimiento
+  // --------------------------------------------------------------------
   const tareasConProceso = tareasRaw.map((t) => {
     if (t.proceso_id == null) return t;
     const proc = State.procesosIndex.get(t.proceso_id);
@@ -1321,12 +1333,9 @@ async function init() {
 
   const tareasFinales = await enrichTasksWithRequerimientos(tareasConProceso);
 
-  // ==========================================================
-  //  Enriquecer tareas con:
-  //  - creado_por (nombre)
-  //  - departamento_id (desde el req)
-  //  - quien autoriza (director del depto)
-  // ==========================================================
+  // --------------------------------------------------------------------
+  // 5) Enriquecer con creado_por, depto, director (autoriza)
+  // --------------------------------------------------------------------
   const tareasConPersonas = tareasFinales.map((t) => {
     // ---------- CREADO POR ----------
     let created_by_nombre = t.created_by_nombre;
@@ -1346,7 +1355,6 @@ async function init() {
     // ---------- DEPARTAMENTO + DIRECTOR (QUIEN AUTORIZA) ----------
     let deptId = t.departamento_id ?? null;
 
-    // si no viene en la tarea, lo sacamos del requerimiento
     if (!deptId && t.requerimiento_id) {
       const req = ReqCache.get(t.requerimiento_id);
       if (req?.departamento_id != null) {
@@ -1388,10 +1396,9 @@ async function init() {
   State.tasks = tareasConPersonas;
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
 
-  // ==========================
-  //   Módulo de Detalle
-  // ==========================
-
+  // --------------------------------------------------------------------
+  // 6) Módulo de detalle
+  // --------------------------------------------------------------------
   DetailsModule = createTaskDetailsModule({
     State,
     KB,
@@ -1407,19 +1414,29 @@ async function init() {
     postJSON,
   });
 
-  // ======================================================
-  //   JERARQUÍAS / VISIBILIDAD DE FILTROS DEL SIDEBAR
-  // ======================================================
+  // --------------------------------------------------------------------
+  // 7) Jerarquías: normalizar roles + director/primera desde departamentos
+  // --------------------------------------------------------------------
+  const roles =
+    Array.isArray(Viewer.roles) && Viewer.roles.length
+      ? Viewer.roles.map((r) => String(r).toUpperCase())
+      : [];
 
-  // Ajustar flags de director/primera línea con base en catálogo de deptos
+  // Normalizar flags a partir de roles
+  Viewer.isAdmin = Viewer.isAdmin || roles.includes("ADMIN");
+  Viewer.isPres = Viewer.isPres || roles.includes("PRES");
+  Viewer.isDirector = Viewer.isDirector || roles.includes("DIRECTOR");
+  Viewer.isJefe = Viewer.isJefe || roles.includes("JEFE");
+  Viewer.isAnalista = Viewer.isAnalista || roles.includes("ANALISTA");
+
+  // Director / primera línea con catálogo de departamentos
   if (KB.CURRENT_USER_ID != null && depts.length) {
     let isDirectorFromDepts = false;
     let isPrimeraLineaFromDepts = false;
 
     depts.forEach((d) => {
       if (!d) return;
-      const dirId =
-        d.director != null ? Number(d.director) : null;
+      const dirId = d.director != null ? Number(d.director) : null;
       const primeraId =
         d.primera_linea != null ? Number(d.primera_linea) : null;
 
@@ -1435,17 +1452,16 @@ async function init() {
     Viewer.isPrimeraLinea = !!isPrimeraLineaFromDepts;
   }
 
-  log("Viewer (después de catálogo de deptos):", Viewer);
-
-  const sidebarFiltersEl = $(".kb-sidebar-filters");
-  const sidebarDeptFieldEl = $("#kb-filter-departamentos");
-  const sidebarEmpFieldEl = $("#kb-filter-empleados");
+  log("Viewer (después de roles + deptos):", Viewer);
 
   const isAdminOrPres = Viewer.isAdmin || Viewer.isPres;
   const isDirectorOrPrimera = Viewer.isDirector || Viewer.isPrimeraLinea;
   const isJefe = Viewer.isJefe;
   const isAnalista = Viewer.isAnalista;
 
+  // --------------------------------------------------------------------
+  // 8) Decidir quién ve qué filtros del sidebar
+  // --------------------------------------------------------------------
   let canSeeSidebar = true;
   let canSeeDeptFilter = true;
   let canSeeEmpFilter = true;
@@ -1456,33 +1472,33 @@ async function init() {
     canSeeDeptFilter = true;
     canSeeEmpFilter = true;
   } else if (isDirectorOrPrimera) {
-    // Director / Primera línea → solo filtro de empleados
+    // Director / Primera línea → solo empleados
     canSeeSidebar = true;
     canSeeDeptFilter = false;
     canSeeEmpFilter = true;
   } else if (isJefe) {
-    // Jefe → solo filtro de empleados (simplificado)
+    // Jefe → solo empleados (simplificado, sin checar subordinados por ahora)
     canSeeSidebar = true;
     canSeeDeptFilter = false;
     canSeeEmpFilter = true;
   } else if (isAnalista) {
-    // Analista → no ve filtros del sidebar
+    // Analista → nada del sidebar
     canSeeSidebar = false;
     canSeeDeptFilter = false;
     canSeeEmpFilter = false;
   } else {
-    // Otros roles (por ahora) sin filtros
+    // Otros / default → sin filtros
     canSeeSidebar = false;
     canSeeDeptFilter = false;
     canSeeEmpFilter = false;
   }
 
-  // Aplicar visibilidad en el DOM
+  // Aplicar visibilidad real
   if (sidebarFiltersEl) {
     if (!canSeeSidebar) {
-      sidebarFiltersEl.style.display = "none";
+      sidebarFiltersEl.classList.add("is-hidden-by-role");
     } else {
-      sidebarFiltersEl.style.removeProperty("display");
+      sidebarFiltersEl.classList.remove("is-hidden-by-role");
     }
   }
 
@@ -1502,15 +1518,16 @@ async function init() {
     }
   }
 
-  // ==========================
-  //   Opciones para filtros
-  // ==========================
-
+  // --------------------------------------------------------------------
+  // 9) Construir opciones para filtros (solo si los puede ver)
+  // --------------------------------------------------------------------
   const allowedDeptIds = new Set();
 
   if (isAdminOrPres) {
     depts.forEach((d) => {
-      if (d?.id != null) allowedDeptIds.add(Number(d.id));
+      if (d?.id != null) {
+        allowedDeptIds.add(Number(d.id));
+      }
     });
   } else if (Viewer.deptId != null) {
     allowedDeptIds.add(Number(Viewer.deptId));
@@ -1573,10 +1590,9 @@ async function init() {
     label: t.nombre || `Trámite ${t.id}`,
   }));
 
-  // ==========================
-  //   UI – Filtros + tablero
-  // ==========================
-
+  // --------------------------------------------------------------------
+  // 10) UI – Filtros + tablero
+  // --------------------------------------------------------------------
   FiltersModule = createTaskFiltersModule({
     State,
     KB,
@@ -1592,6 +1608,17 @@ async function init() {
     procesosOptions,
     tramitesOptions,
   });
+
+  // Sidebar listo → quitar clase de boot y mostrar si aplica
+  if (sidebarFiltersEl) {
+    sidebarFiltersEl.classList.remove("kb-filters-boot-hidden");
+    if (
+      canSeeSidebar &&
+      !sidebarFiltersEl.classList.contains("is-hidden-by-role")
+    ) {
+      sidebarFiltersEl.classList.add("kb-filters-ready");
+    }
+  }
 
   renderBoard();
   setupDragAndDrop();

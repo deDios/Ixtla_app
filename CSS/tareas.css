@@ -1824,13 +1824,29 @@
   accent-color: #d1d5db;
 }
 
-#kb-sidebar-filters {
-  display: none;
+
+
+/* ============================================
+   Sidebar filtros – visibilidad por rol
+   ============================================ */
+
+/* Estado inicial: oculto mientras JS decide permisos */
+.kb-sidebar-filters.kb-filters-boot-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
+/* Sidebar visible y usable una vez que JS terminó */
+.kb-sidebar-filters.kb-filters-ready {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
 
-
-
+/* Oculto por rol (analista, etc.) */
+.kb-sidebar-filters.is-hidden-by-role {
+  display: none !important;
+}
 
 
 
