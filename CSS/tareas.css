@@ -458,7 +458,7 @@
 }
 
 /* Thumbnail de evidencia */
-#kb-d-evidencias .kb-evid-thumb {
+/*#kb-d-evidencias .kb-evid-thumb {*/
   /* position: relative; */
   /* width: 96px; */
   /* height: 80px; */
@@ -475,7 +475,7 @@
     box-shadow 0.15s ease,
     transform 0.06s ease,
     border-color 0.15s ease; */
-}
+/*}*/
 
 #kb-d-evidencias .kb-evid-thumb:hover {
   box-shadow: 0 3px 8px rgba(0, 0, 0, .06);
@@ -1730,9 +1730,9 @@
 }
 
 /* Tile "Subir archivo…" con el mismo look que las demás */
-.kb-d-media-actions {
+/*.kb-d-media-actions {*/
   /* margin-top: 0.75rem; */
-}
+/*}*/
 
 .kb-d-media-actions .kb-media-upload,
 .kb-d-media-actions .kb-evid-upload-btn {
