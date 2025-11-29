@@ -1824,8 +1824,9 @@
   accent-color: #d1d5db;
 }
 
-
-
+#kb-sidebar-filters {
+  display: none;
+}
 
 
 

@@ -604,10 +604,17 @@ export function createTaskFiltersModule({
    * ======================================================================*/
 
   function init({ deptOptions, empOptions, procesosOptions, tramitesOptions }) {
-    setupSidebarFilters();
-
     fieldDept = $("#kb-filter-departamentos");
     fieldEmp = $("#kb-filter-empleados");
+
+    const sidebarFiltersBox = $("#kb-sidebar-filters");
+
+    // Si ni siquiera existe el contenedor, salimos
+    if (!sidebarFiltersBox) {
+      setupToolbar();
+      setupToolbarCombos({ procesosOptions, tramitesOptions });
+      return;
+    }
 
     // ==============================
     //  Visibilidad por jerarquía
@@ -629,13 +636,33 @@ export function createTaskFiltersModule({
     const canSeeEmpFilter =
       isAdminOrPres || isDirectorOrPrimera || (isJefe && hasSubordinates);
 
-    // Ocultar completamente el bloque de Departamentos si no le toca
+    // Si NO puede ver NINGÚN filtro, dejamos el contenedor
+    // oculto (CSS ya tiene display:none) y sólo montamos toolbar.
+    if (!canSeeDeptFilter && !canSeeEmpFilter) {
+      sidebarFiltersBox.style.display = "none";
+      sidebarFiltersBox.setAttribute("aria-hidden", "true");
+
+      setupToolbar();
+      setupToolbarCombos({ procesosOptions, tramitesOptions });
+      log("[KB] Sidebar filters ocultos para este rol", { viewer });
+      return;
+    }
+
+    // En este punto, SÍ tiene al menos 1 filtro → mostramos el bloque
+    sidebarFiltersBox.style.display = ""; // deja que el CSS normal decida (block)
+    sidebarFiltersBox.removeAttribute("aria-hidden");
+
+    // Botón "Limpiar filtros" y lógica de reset sólo tienen sentido
+    // si el bloque está visible:
+    setupSidebarFilters();
+
+    // Ocultar completamente Departamentos si no aplica
     if (fieldDept && !canSeeDeptFilter) {
       fieldDept.style.display = "none";
       fieldDept.setAttribute("aria-hidden", "true");
     }
 
-    // Ocultar completamente el bloque de Empleados si no le toca
+    // Ocultar completamente Empleados si no aplica
     if (fieldEmp && !canSeeEmpFilter) {
       fieldEmp.style.display = "none";
       fieldEmp.setAttribute("aria-hidden", "true");
@@ -663,6 +690,7 @@ export function createTaskFiltersModule({
       createMultiFilter(fieldEmp, "empleados", empOptions);
     }
 
+    // Toolbar (chips, búsqueda, combos proceso/trámite)
     setupToolbar();
     setupToolbarCombos({ procesosOptions, tramitesOptions });
 
