@@ -452,8 +452,7 @@ export function createTaskFiltersModule({
     // Si hay filtro de deptos pero NO de empleados,
     // entonces los empleados se calculan con las tareas visibles (tasks).
     // En cualquier otro caso, usan todas las tareas del tablero.
-    const tasksForEmpCounts =
-      hasDeptFilter && !hasEmpFilter ? tasks : allTasks;
+    const tasksForEmpCounts = hasDeptFilter && !hasEmpFilter ? tasks : allTasks;
 
     // ---------------- Departamentos ----------------
     if (fieldDept && !fieldDept.hidden) {
@@ -610,45 +609,68 @@ export function createTaskFiltersModule({
     fieldDept = $("#kb-filter-departamentos");
     fieldEmp = $("#kb-filter-empleados");
 
-    // === Visibilidad según jerarquía ===
+    // ==============================
+    //  Visibilidad por jerarquía
+    // ==============================
     const viewer = KB.VIEWER || {};
-    const canSeeDeptFilter = viewer.isAdmin || viewer.isPres;
-    const canSeeEmpFilter =
-      viewer.isAdmin ||
-      viewer.isPres ||
-      viewer.isDirector ||
-      viewer.isPrimeraLinea ||
-      (viewer.isJefe && viewer.hasSubordinates);
 
-    // Departamentos
-    if (fieldDept) {
-      if (canSeeDeptFilter && Array.isArray(deptOptions) && deptOptions.length) {
-        fieldDept.hidden = false;
-        createMultiFilter(fieldDept, "departamentos", deptOptions);
-      } else {
-        fieldDept.hidden = true;
-        // limpiar filtro si no tiene permiso
-        if (State.filters.departamentos) {
-          State.filters.departamentos.clear();
-        }
-      }
+    const isAdminOrPres = !!(viewer.isAdmin || viewer.isPres);
+    const isDirectorOrPrimera = !!(viewer.isDirector || viewer.isPrimeraLinea);
+    const isJefe = !!viewer.isJefe;
+    const isAnalista = !!viewer.isAnalista;
+    const hasSubordinates = !!viewer.hasSubordinates;
+
+    // Reglas:
+    // admin/pres      → ven ambos filtros
+    // director/1a     → sólo empleados
+    // jefe            → empleados sólo si tiene subordinados
+    // analista        → no ve ningún filtro en sidebar
+    const canSeeDeptFilter = isAdminOrPres;
+    const canSeeEmpFilter =
+      isAdminOrPres || isDirectorOrPrimera || (isJefe && hasSubordinates);
+
+    // Ocultar completamente el bloque de Departamentos si no le toca
+    if (fieldDept && !canSeeDeptFilter) {
+      fieldDept.style.display = "none";
+      fieldDept.setAttribute("aria-hidden", "true");
     }
 
-    // Empleados
-    if (fieldEmp) {
-      if (canSeeEmpFilter && Array.isArray(empOptions) && empOptions.length) {
-        fieldEmp.hidden = false;
-        createMultiFilter(fieldEmp, "empleados", empOptions);
-      } else {
-        fieldEmp.hidden = true;
-        if (State.filters.empleados) {
-          State.filters.empleados.clear();
-        }
-      }
+    // Ocultar completamente el bloque de Empleados si no le toca
+    if (fieldEmp && !canSeeEmpFilter) {
+      fieldEmp.style.display = "none";
+      fieldEmp.setAttribute("aria-hidden", "true");
+    }
+
+    // ==============================
+    //  Inicializar multi-combos
+    // ==============================
+
+    if (
+      fieldDept &&
+      canSeeDeptFilter &&
+      Array.isArray(deptOptions) &&
+      deptOptions.length
+    ) {
+      createMultiFilter(fieldDept, "departamentos", deptOptions);
+    }
+
+    if (
+      fieldEmp &&
+      canSeeEmpFilter &&
+      Array.isArray(empOptions) &&
+      empOptions.length
+    ) {
+      createMultiFilter(fieldEmp, "empleados", empOptions);
     }
 
     setupToolbar();
     setupToolbarCombos({ procesosOptions, tramitesOptions });
+
+    log("[KB] Filtros sidebar visibles:", {
+      canSeeDeptFilter,
+      canSeeEmpFilter,
+      viewer,
+    });
   }
 
   return {
