@@ -1270,33 +1270,6 @@ async function init() {
   });
   log("Index departamentos:", State.departamentosIndex);
 
-  // ==========================================================
-  //  Jerarquía extendida para UI (sidebar filtros)
-  // ==========================================================
-  Viewer.isPrimeraLinea = false;
-  Viewer.hasSubordinates = false;
-
-  // Detectar si es primera línea de su departamento
-  if (KB.CURRENT_USER_ID != null && Viewer.deptId != null) {
-    const myDept = State.departamentosIndex.get(Viewer.deptId);
-    if (myDept && myDept.primera_linea != null) {
-      Viewer.isPrimeraLinea =
-        Number(myDept.primera_linea) === Number(KB.CURRENT_USER_ID);
-    }
-  }
-
-  // Detectar si el JEFE tiene subordinados (empleados del mismo depto diferentes a él)
-  if (Viewer.isJefe && Viewer.deptId != null) {
-    Viewer.hasSubordinates = empleados.some((e) => {
-      if (!e || e.id == null) return false;
-      if (Number(e.id) === Number(KB.CURRENT_USER_ID)) return false;
-      return Number(e.departamento_id) === Number(Viewer.deptId);
-    });
-  }
-
-  // Exponer el viewer completo para módulos de UI (filtros, etc.)
-  KB.VIEWER = { ...Viewer };
-
   // Index procesos
   procesos.forEach((p) => {
     if (p?.id != null) {
@@ -1434,18 +1407,113 @@ async function init() {
     postJSON,
   });
 
+  // ======================================================
+  //   JERARQUÍAS / VISIBILIDAD DE FILTROS DEL SIDEBAR
+  // ======================================================
+
+  // Ajustar flags de director/primera línea con base en catálogo de deptos
+  if (KB.CURRENT_USER_ID != null && depts.length) {
+    let isDirectorFromDepts = false;
+    let isPrimeraLineaFromDepts = false;
+
+    depts.forEach((d) => {
+      if (!d) return;
+      const dirId =
+        d.director != null ? Number(d.director) : null;
+      const primeraId =
+        d.primera_linea != null ? Number(d.primera_linea) : null;
+
+      if (dirId === Number(KB.CURRENT_USER_ID)) {
+        isDirectorFromDepts = true;
+      }
+      if (primeraId === Number(KB.CURRENT_USER_ID)) {
+        isPrimeraLineaFromDepts = true;
+      }
+    });
+
+    Viewer.isDirector = Viewer.isDirector || isDirectorFromDepts;
+    Viewer.isPrimeraLinea = !!isPrimeraLineaFromDepts;
+  }
+
+  log("Viewer (después de catálogo de deptos):", Viewer);
+
+  const sidebarFiltersEl = $(".kb-sidebar-filters");
+  const sidebarDeptFieldEl = $("#kb-filter-departamentos");
+  const sidebarEmpFieldEl = $("#kb-filter-empleados");
+
+  const isAdminOrPres = Viewer.isAdmin || Viewer.isPres;
+  const isDirectorOrPrimera = Viewer.isDirector || Viewer.isPrimeraLinea;
+  const isJefe = Viewer.isJefe;
+  const isAnalista = Viewer.isAnalista;
+
+  let canSeeSidebar = true;
+  let canSeeDeptFilter = true;
+  let canSeeEmpFilter = true;
+
+  if (isAdminOrPres) {
+    // Admin / Presidencia → ve todo
+    canSeeSidebar = true;
+    canSeeDeptFilter = true;
+    canSeeEmpFilter = true;
+  } else if (isDirectorOrPrimera) {
+    // Director / Primera línea → solo filtro de empleados
+    canSeeSidebar = true;
+    canSeeDeptFilter = false;
+    canSeeEmpFilter = true;
+  } else if (isJefe) {
+    // Jefe → solo filtro de empleados (simplificado)
+    canSeeSidebar = true;
+    canSeeDeptFilter = false;
+    canSeeEmpFilter = true;
+  } else if (isAnalista) {
+    // Analista → no ve filtros del sidebar
+    canSeeSidebar = false;
+    canSeeDeptFilter = false;
+    canSeeEmpFilter = false;
+  } else {
+    // Otros roles (por ahora) sin filtros
+    canSeeSidebar = false;
+    canSeeDeptFilter = false;
+    canSeeEmpFilter = false;
+  }
+
+  // Aplicar visibilidad en el DOM
+  if (sidebarFiltersEl) {
+    if (!canSeeSidebar) {
+      sidebarFiltersEl.style.display = "none";
+    } else {
+      sidebarFiltersEl.style.removeProperty("display");
+    }
+  }
+
+  if (sidebarDeptFieldEl) {
+    if (!canSeeDeptFilter) {
+      sidebarDeptFieldEl.style.display = "none";
+    } else {
+      sidebarDeptFieldEl.style.removeProperty("display");
+    }
+  }
+
+  if (sidebarEmpFieldEl) {
+    if (!canSeeEmpFilter) {
+      sidebarEmpFieldEl.style.display = "none";
+    } else {
+      sidebarEmpFieldEl.style.removeProperty("display");
+    }
+  }
+
   // ==========================
-  //   JERARQUÍAS / FILTROS
+  //   Opciones para filtros
   // ==========================
 
   const allowedDeptIds = new Set();
 
-  if (Viewer.isAdmin || Viewer.isPres) {
+  if (isAdminOrPres) {
     depts.forEach((d) => {
-      if (d?.id != null) allowedDeptIds.add(d.id);
+      if (d?.id != null) allowedDeptIds.add(Number(d.id));
     });
   } else if (Viewer.deptId != null) {
-    allowedDeptIds.add(Viewer.deptId);
+    allowedDeptIds.add(Number(Viewer.deptId));
   }
 
   // Quitar Presidencia del combo de departamentos
@@ -1458,11 +1526,11 @@ async function init() {
 
   let empleadosForFilter = [];
 
-  if (Viewer.isAdmin || Viewer.isPres) {
+  if (isAdminOrPres) {
     empleadosForFilter = empleados;
   } else if (Viewer.deptId != null) {
     empleadosForFilter = empleados.filter(
-      (e) => Number(e.departamento_id) === Viewer.deptId
+      (e) => Number(e.departamento_id) === Number(Viewer.deptId)
     );
   } else {
     empleadosForFilter = empleados;
@@ -1474,24 +1542,26 @@ async function init() {
     empleadosForFilter
   );
 
-  const deptOptions = Array.from(allowedDeptIds).map((id) => {
-    const dep = State.departamentosIndex.get(id);
-    const label = dep ? dep.nombre : `Depto ${id}`;
-    return { value: id, label };
-  });
-  log("Opciones filtro Departamentos:", deptOptions);
+  const deptOptions = canSeeDeptFilter
+    ? Array.from(allowedDeptIds).map((id) => {
+        const dep = State.departamentosIndex.get(id);
+        const label = dep ? dep.nombre : `Depto ${id}`;
+        return { value: id, label };
+      })
+    : [];
 
-  const empOptions = empleadosForFilter.map((emp) => {
-    const label =
-      emp.nombre_completo ||
-      [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
-      `Empleado ${emp.id}`;
-    return {
-      value: emp.id,
-      label,
-    };
-  });
-  log("Opciones filtro Empleados:", empOptions);
+  const empOptions = canSeeEmpFilter
+    ? empleadosForFilter.map((emp) => {
+        const label =
+          emp.nombre_completo ||
+          [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
+          `Empleado ${emp.id}`;
+        return {
+          value: emp.id,
+          label,
+        };
+      })
+    : [];
 
   const procesosOptions = procesos.map((p) => ({
     value: p.id,
