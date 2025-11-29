@@ -222,8 +222,7 @@ function buildSubordinatesIndex(empleados) {
   empleados.forEach((emp) => {
     if (!emp) return;
 
-    const jefeId =
-      emp.jefe_id != null ? Number(emp.jefe_id) : null;
+    const jefeId = emp.jefe_id != null ? Number(emp.jefe_id) : null;
     const jefeDirectoId =
       emp.jefe_directo_id != null ? Number(emp.jefe_directo_id) : null;
 
@@ -1239,7 +1238,18 @@ async function init() {
   hydrateViewerFromSession();
 
   // --------------------------------------------------------------------
-  // 1) Cargar datos base
+  // 1) Evitar flicker del sidebar: lo dejamos oculto hasta decidir rol
+  // --------------------------------------------------------------------
+  const sidebarFiltersEl = $(".kb-sidebar-filters");
+  const sidebarDeptFieldEl = $("#kb-filter-departamentos");
+  const sidebarEmpFieldEl = $("#kb-filter-empleados");
+
+  if (sidebarFiltersEl) {
+    sidebarFiltersEl.classList.add("kb-filters-boot-hidden");
+  }
+
+  // --------------------------------------------------------------------
+  // 2) Cargar datos base
   // --------------------------------------------------------------------
   const [empleados, depts, procesos, tramites, tareasRaw] = await Promise.all([
     fetchEmpleadosForFilters(),
@@ -1250,7 +1260,7 @@ async function init() {
   ]);
 
   // --------------------------------------------------------------------
-  // 2) Indexes globales
+  // 3) Indexes globales
   // --------------------------------------------------------------------
   empleados.forEach((emp) => {
     if (emp?.id != null) {
@@ -1258,9 +1268,6 @@ async function init() {
     }
   });
   log("Index empleados (global):", State.empleadosIndex);
-
-  // Detectar subordinados (para reglas de Jefe)
-  buildSubordinatesIndex(empleados);
 
   depts.forEach((d) => {
     if (d?.id != null) {
@@ -1284,7 +1291,7 @@ async function init() {
   log("Index trámites:", State.tramitesIndex);
 
   // --------------------------------------------------------------------
-  // 3) Enriquecer tareas con info de proceso / requerimiento
+  // 4) Enriquecer tareas con info de proceso / requerimiento
   // --------------------------------------------------------------------
   const tareasConProceso = tareasRaw.map((t) => {
     if (t.proceso_id == null) return t;
@@ -1318,7 +1325,7 @@ async function init() {
   const tareasFinales = await enrichTasksWithRequerimientos(tareasConProceso);
 
   // --------------------------------------------------------------------
-  // 4) Enriquecer con creado_por, depto, director (autoriza)
+  // 5) Enriquecer con creado_por, depto, director (autoriza)
   // --------------------------------------------------------------------
   const tareasConPersonas = tareasFinales.map((t) => {
     // ---------- CREADO POR ----------
@@ -1381,7 +1388,7 @@ async function init() {
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
 
   // --------------------------------------------------------------------
-  // 5) Módulo de detalle
+  // 6) Módulo de detalle
   // --------------------------------------------------------------------
   DetailsModule = createTaskDetailsModule({
     State,
@@ -1399,7 +1406,7 @@ async function init() {
   });
 
   // --------------------------------------------------------------------
-  // 6) Jerarquías: normalizar roles + director/primera desde departamentos
+  // 7) Jerarquías: normalizar roles + director/primera desde departamentos
   // --------------------------------------------------------------------
   const roles =
     Array.isArray(Viewer.roles) && Viewer.roles.length
@@ -1438,24 +1445,110 @@ async function init() {
 
   log("Viewer (después de roles + deptos):", Viewer);
 
-  // Exponer snapshot de jerarquía a tareasFiltros.js
+  // --------------------------------------------------------------------
+  // 8) Decidir quién ve qué filtros del sidebar
+  // --------------------------------------------------------------------
+  // Detectar subordinados del viewer
+  let hasSubordinates = false;
+
+  if (
+    KB.CURRENT_USER_ID != null &&
+    Array.isArray(empleados) &&
+    empleados.length
+  ) {
+    const myId = Number(KB.CURRENT_USER_ID);
+
+    for (const emp of empleados) {
+      if (!emp) continue;
+
+      // Ajusta estos campos según tu payload real
+      const bossId =
+        emp.jefe_id ??
+        emp.jefe ??
+        emp.superior_id ??
+        emp.jefe_inmediato ??
+        null;
+
+      if (bossId != null && Number(bossId) === myId) {
+        hasSubordinates = true;
+        break;
+      }
+    }
+  }
+
+  // Exponer snapshot para otros módulos
   KB.VIEWER = {
-    deptId: Viewer.deptId,
-    roles: Viewer.roles,
-    isAdmin: Viewer.isAdmin,
-    isPres: Viewer.isPres,
-    isDirector: Viewer.isDirector,
-    isPrimeraLinea: Viewer.isPrimeraLinea,
-    isJefe: Viewer.isJefe,
-    isAnalista: Viewer.isAnalista,
-    hasSubordinates: SubordinateIds.size > 0,
+    ...Viewer,
+    hasSubordinates,
   };
-  log("KB.VIEWER expuesto a filtros:", KB.VIEWER);
 
   const isAdminOrPres = Viewer.isAdmin || Viewer.isPres;
+  const isDirectorOrPrimera = Viewer.isDirector || Viewer.isPrimeraLinea;
+  const isJefe = Viewer.isJefe;
+  const isAnalista = Viewer.isAnalista;
+
+  let canSeeSidebar = false;
+  let canSeeDeptFilter = false;
+  let canSeeEmpFilter = false;
+
+  if (isAdminOrPres) {
+    // Admin / Presidencia → ven ambos filtros
+    canSeeSidebar = true;
+    canSeeDeptFilter = true;
+    canSeeEmpFilter = true;
+  } else if (isDirectorOrPrimera) {
+    // Director / Primera línea → sólo empleados
+    canSeeSidebar = true;
+    canSeeDeptFilter = false;
+    canSeeEmpFilter = true;
+  } else if (isJefe) {
+    // Jefe → sólo empleados y sólo si tiene subordinados
+    canSeeSidebar = hasSubordinates;
+    canSeeDeptFilter = false;
+    canSeeEmpFilter = hasSubordinates;
+  } else if (isAnalista) {
+    // Analista → ningún filtro de sidebar
+    canSeeSidebar = false;
+    canSeeDeptFilter = false;
+    canSeeEmpFilter = false;
+  } else {
+    // Otros roles → sin filtros de sidebar
+    canSeeSidebar = false;
+    canSeeDeptFilter = false;
+    canSeeEmpFilter = false;
+  }
+
+  // Aplicar visibilidad real en el DOM
+  if (sidebarFiltersEl) {
+    if (!canSeeSidebar) {
+      sidebarFiltersEl.classList.add("is-hidden-by-role");
+    } else {
+      sidebarFiltersEl.classList.remove("is-hidden-by-role");
+    }
+  }
+
+  if (sidebarDeptFieldEl) {
+    if (!canSeeDeptFilter) {
+      sidebarDeptFieldEl.style.display = "none";
+      sidebarDeptFieldEl.setAttribute("aria-hidden", "true");
+    } else {
+      sidebarDeptFieldEl.style.removeProperty("display");
+      sidebarDeptFieldEl.removeAttribute("aria-hidden");
+    }
+  }
+
+  if (sidebarEmpFieldEl) {
+    if (!canSeeEmpFilter) {
+      sidebarEmpFieldEl.style.display = "none";
+      sidebarEmpFieldEl.setAttribute("aria-hidden", "true");
+    } else {
+      sidebarEmpFieldEl.style.removeProperty("display");
+      sidebarEmpFieldEl.removeAttribute("aria-hidden");
+    }
+  }
 
   // --------------------------------------------------------------------
-  // 7) Construir opciones base para filtros (sin decidir visibilidad)
+  // 9) Construir opciones para filtros (solo si los puede ver)
   // --------------------------------------------------------------------
   const allowedDeptIds = new Set();
 
@@ -1495,22 +1588,26 @@ async function init() {
     empleadosForFilter
   );
 
-  const deptOptions = Array.from(allowedDeptIds).map((id) => {
-    const dep = State.departamentosIndex.get(id);
-    const label = dep ? dep.nombre : `Depto ${id}`;
-    return { value: id, label };
-  });
+  const deptOptions = canSeeDeptFilter
+    ? Array.from(allowedDeptIds).map((id) => {
+        const dep = State.departamentosIndex.get(id);
+        const label = dep ? dep.nombre : `Depto ${id}`;
+        return { value: id, label };
+      })
+    : [];
 
-  const empOptions = empleadosForFilter.map((emp) => {
-    const label =
-      emp.nombre_completo ||
-      [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
-      `Empleado ${emp.id}`;
-    return {
-      value: emp.id,
-      label,
-    };
-  });
+  const empOptions = canSeeEmpFilter
+    ? empleadosForFilter.map((emp) => {
+        const label =
+          emp.nombre_completo ||
+          [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
+          `Empleado ${emp.id}`;
+        return {
+          value: emp.id,
+          label,
+        };
+      })
+    : [];
 
   const procesosOptions = procesos.map((p) => ({
     value: p.id,
@@ -1523,7 +1620,7 @@ async function init() {
   }));
 
   // --------------------------------------------------------------------
-  // 8) UI – Filtros + tablero
+  // 10) UI – Filtros + tablero
   // --------------------------------------------------------------------
   FiltersModule = createTaskFiltersModule({
     State,
@@ -1540,6 +1637,17 @@ async function init() {
     procesosOptions,
     tramitesOptions,
   });
+
+  // Sidebar listo → quitar clase de boot y mostrar si aplica
+  if (sidebarFiltersEl) {
+    sidebarFiltersEl.classList.remove("kb-filters-boot-hidden");
+    if (
+      canSeeSidebar &&
+      !sidebarFiltersEl.classList.contains("is-hidden-by-role")
+    ) {
+      sidebarFiltersEl.classList.add("kb-filters-ready");
+    }
+  }
 
   renderBoard();
   setupDragAndDrop();
