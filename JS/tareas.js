@@ -1,4 +1,4 @@
-// /JS/tareas.js 
+// /JS/tareas.js
 "use strict";
 
 /* ==========================================================================
@@ -351,8 +351,7 @@ async function fetchDepartamentos() {
       director_nombre: d.director_nombre || d.primera_nombre || "",
       director_apellidos: d.director_apellidos || d.primera_apellidos || "",
 
-      primera_linea:
-        d.primera_linea != null ? Number(d.primera_linea) : null,
+      primera_linea: d.primera_linea != null ? Number(d.primera_linea) : null,
       primera_nombre: d.primera_nombre || "",
       primera_apellidos: d.primera_apellidos || "",
     }));
@@ -564,24 +563,6 @@ const STATUS_ORDER = {
   [KB.STATUS.HECHO]: 4,
 };
 
-function statusLabel(status) {
-  const S = KB.STATUS;
-  switch (status) {
-    case S.TODO:
-      return "por hacer";
-    case S.PROCESO:
-      return "en proceso";
-    case S.REVISAR:
-      return "por revisar";
-    case S.HECHO:
-      return "hecho";
-    case S.PAUSA:
-      return "bloqueado";
-    default:
-      return "desconocido";
-  }
-}
-
 /** Mensaje de por qué NO se puede mover una tarea */
 function getForbiddenMoveMessage(task, oldStatus, newStatus) {
   const S = KB.STATUS;
@@ -718,14 +699,12 @@ function canMoveTask(task, oldStatus, newStatus) {
 function canViewTask(task) {
   if (!task) return false;
 
-  const myId =
-    KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
+  const myId = KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
 
   // Admin / Pres → todo
   if (Viewer.isAdmin || Viewer.isPres) return true;
 
-  const taskOwnerId =
-    task.asignado_a != null ? Number(task.asignado_a) : null;
+  const taskOwnerId = task.asignado_a != null ? Number(task.asignado_a) : null;
   const sameOwner = myId != null && taskOwnerId === myId;
 
   const deptId =
@@ -1051,10 +1030,7 @@ async function persistTaskStatus(task, newStatus, oldStatus) {
   };
 
   // Si entra a EN PROCESO, actualizamos fecha_inicio
-  if (
-    oldStatus !== KB.STATUS.PROCESO &&
-    newStatus === KB.STATUS.PROCESO
-  ) {
+  if (oldStatus !== KB.STATUS.PROCESO && newStatus === KB.STATUS.PROCESO) {
     const now = nowAsSqlDateTime();
     payload.fecha_inicio = now;
     task.fecha_inicio = now;
@@ -1294,30 +1270,32 @@ async function init() {
   });
   log("Index departamentos:", State.departamentosIndex);
 
-  // Detectar si el viewer es primera línea de algún departamento
+  // ==========================================================
+  //  Jerarquía extendida para UI (sidebar filtros)
+  // ==========================================================
   Viewer.isPrimeraLinea = false;
-  if (KB.CURRENT_USER_ID != null) {
-    const myId = Number(KB.CURRENT_USER_ID);
-    depts.forEach((dep) => {
-      if (dep.primera_linea != null && Number(dep.primera_linea) === myId) {
-        Viewer.isPrimeraLinea = true;
-        if (Viewer.deptId == null) {
-          Viewer.deptId = dep.id;
-        }
-      }
+  Viewer.hasSubordinates = false;
+
+  // Detectar si es primera línea de su departamento
+  if (KB.CURRENT_USER_ID != null && Viewer.deptId != null) {
+    const myDept = State.departamentosIndex.get(Viewer.deptId);
+    if (myDept && myDept.primera_linea != null) {
+      Viewer.isPrimeraLinea =
+        Number(myDept.primera_linea) === Number(KB.CURRENT_USER_ID);
+    }
+  }
+
+  // Detectar si el JEFE tiene subordinados (empleados del mismo depto diferentes a él)
+  if (Viewer.isJefe && Viewer.deptId != null) {
+    Viewer.hasSubordinates = empleados.some((e) => {
+      if (!e || e.id == null) return false;
+      if (Number(e.id) === Number(KB.CURRENT_USER_ID)) return false;
+      return Number(e.departamento_id) === Number(Viewer.deptId);
     });
   }
 
-  log("Viewer info (con primera línea):", {
-    deptId: Viewer.deptId,
-    roles: Viewer.roles,
-    isAdmin: Viewer.isAdmin,
-    isPres: Viewer.isPres,
-    isDirector: Viewer.isDirector,
-    isPrimeraLinea: Viewer.isPrimeraLinea,
-    isJefe: Viewer.isJefe,
-    isAnalista: Viewer.isAnalista,
-  });
+  // Exponer el viewer completo para módulos de UI (filtros, etc.)
+  KB.VIEWER = { ...Viewer };
 
   // Index procesos
   procesos.forEach((p) => {
@@ -1436,9 +1414,6 @@ async function init() {
 
   State.tasks = tareasConPersonas;
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
-
-  // Construir índice de subordinados
-  buildSubordinatesIndex(empleados);
 
   // ==========================
   //   Módulo de Detalle

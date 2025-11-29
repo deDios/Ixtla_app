@@ -423,11 +423,9 @@ export function createTaskFiltersModule({
   /**
    * Actualiza qué opciones están visibles / cómo se presentan en los filtros.
    *
-   * NUEVO COMPORTAMIENTO:
-   *  - El filtro que se está usando (departamentos o empleados) NO
-   *    deshabilita sus propias opciones por efecto de los filtros.
-   *  - El otro filtro sí se recalcula en función de las tareas visibles
-   *    (las que ya pasaron por passesFilters en tareas.js).
+   * - El filtro que se está usando (departamentos o empleados) NO
+   *   deshabilita sus propias opciones.
+   * - El otro filtro sí se recalcula con base en las tareas visibles.
    */
   function updateAvailableOptions(tasks) {
     if (!Array.isArray(tasks)) return;
@@ -458,7 +456,7 @@ export function createTaskFiltersModule({
       hasDeptFilter && !hasEmpFilter ? tasks : allTasks;
 
     // ---------------- Departamentos ----------------
-    if (fieldDept) {
+    if (fieldDept && !fieldDept.hidden) {
       const countsDept = new Map();
 
       for (const t of tasksForDeptCounts) {
@@ -488,10 +486,6 @@ export function createTaskFiltersModule({
           const cb = li.querySelector(".kb-multi-check");
           if (cb) cb.checked = isSelected;
 
-          // Importante:
-          // - Si el depto no tiene tareas y NO está seleccionado,
-          //   se inhabilita solo según la fuente de datos elegida
-          //   (tasksForDeptCounts).
           if (count === 0 && !isSelected) {
             li.classList.add("is-disabled");
             li.setAttribute("aria-disabled", "true");
@@ -500,15 +494,13 @@ export function createTaskFiltersModule({
             li.removeAttribute("aria-disabled");
           }
 
-          // nunca los ocultamos aquí; la visibilidad por permisos
-          // ya viene dada por las opciones iniciales
           li.hidden = false;
         });
       }
     }
 
     // ---------------- Empleados ----------------
-    if (fieldEmp) {
+    if (fieldEmp && !fieldEmp.hidden) {
       const countsEmp = new Map();
 
       for (const t of tasksForEmpCounts) {
@@ -618,11 +610,41 @@ export function createTaskFiltersModule({
     fieldDept = $("#kb-filter-departamentos");
     fieldEmp = $("#kb-filter-empleados");
 
-    if (fieldDept && Array.isArray(deptOptions) && deptOptions.length) {
-      createMultiFilter(fieldDept, "departamentos", deptOptions);
+    // === Visibilidad según jerarquía ===
+    const viewer = KB.VIEWER || {};
+    const canSeeDeptFilter = viewer.isAdmin || viewer.isPres;
+    const canSeeEmpFilter =
+      viewer.isAdmin ||
+      viewer.isPres ||
+      viewer.isDirector ||
+      viewer.isPrimeraLinea ||
+      (viewer.isJefe && viewer.hasSubordinates);
+
+    // Departamentos
+    if (fieldDept) {
+      if (canSeeDeptFilter && Array.isArray(deptOptions) && deptOptions.length) {
+        fieldDept.hidden = false;
+        createMultiFilter(fieldDept, "departamentos", deptOptions);
+      } else {
+        fieldDept.hidden = true;
+        // limpiar filtro si no tiene permiso
+        if (State.filters.departamentos) {
+          State.filters.departamentos.clear();
+        }
+      }
     }
-    if (fieldEmp && Array.isArray(empOptions) && empOptions.length) {
-      createMultiFilter(fieldEmp, "empleados", empOptions);
+
+    // Empleados
+    if (fieldEmp) {
+      if (canSeeEmpFilter && Array.isArray(empOptions) && empOptions.length) {
+        fieldEmp.hidden = false;
+        createMultiFilter(fieldEmp, "empleados", empOptions);
+      } else {
+        fieldEmp.hidden = true;
+        if (State.filters.empleados) {
+          State.filters.empleados.clear();
+        }
+      }
     }
 
     setupToolbar();
