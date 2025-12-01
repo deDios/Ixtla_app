@@ -537,8 +537,8 @@
                 ? "is-muted"
                 : "is-info";
 
-    const rawPct = taskPct(t);              
-    const pct = s === 5 ? 100 : rawPct;         
+    const rawPct = taskPct(t);                  // este es el que usa el proceso
+    const pct = s === 5 ? 100 : rawPct;         // visual: bloqueada siempre al 100%
     const progressExtraClass = s === 5 ? " warning" : "";
 
     const row = document.createElement("div");

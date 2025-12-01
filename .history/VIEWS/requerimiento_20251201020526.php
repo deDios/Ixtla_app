@@ -181,26 +181,35 @@
                 <!-- Encabezado -->
                 <header class="exp-head">
 
-                    <div class="exp-title">
-                        <h1>Fuga de agua</h1>
-                        <div id="req-actions" class="exp-actions"></div>
+                    <!-- Fila 1: título + meta -->
+                    <div class="exp-head-main">
+                        <div class="exp-title">
+                            <h1>Reporte Otros</h1>
+                        </div>
+
+                        <dl class="exp-meta">
+                            <div>
+                                <dt>Contacto</dt>
+                                <dd>Juan test</dd>
+                            </div>
+                            <div>
+                                <dt>Encargado</dt>
+                                <dd>Pablo Agustin de Dios Garcia</dd>
+                            </div>
+                            <div>
+                                <dt>Fecha de solicitado</dt>
+                                <dd>2025-11-04 18:47:45</dd>
+                            </div>
+                        </dl>
                     </div>
 
-                    <dl class="exp-meta">
-                        <div>
-                            <dt>Contacto</dt>
-                            <dd>Luis Enrique Mendez</dd>
-                        </div>
-                        <div>
-                            <dt>Encargado</dt>
-                            <dd>Juan Pablo</dd>
-                        </div>
-                        <div>
-                            <dt>Fecha de solicitado</dt>
-                            <dd>04/06/2025 12:30pm</dd>
-                        </div>
-                    </dl>
+                    <!-- Fila 2: botones, renglón propio -->
+                    <div class="exp-head-actions">
+                        <div id="req-actions" class="exp-actions"></div>
+                    </div>
                 </header>
+
+
 
                 <!-- Stepper -->
                 <div class="container">
@@ -251,15 +260,44 @@
                             <div class="exp-field"><label>Nombre del Requerimiento:</label>
                                 <div class="exp-val">Fuga de agua</div>
                             </div>
-                            <div class="exp-field"><label>Líder del Departamento:</label>
+                            <div class="exp-field"><label>Director:</label>
                                 <div class="exp-val"><a>Juan Pablo</a></div>
                             </div>
                             <div class="exp-field"><label>Asignado:</label>
                                 <div class="exp-val"><a>Luis Enrique Mendez</a></div>
                             </div>
-                            <div class="exp-field"><label>Estatus:</label>
-                                <div class="exp-val"><span class="exp-badge is-info">En proceso</span></div>
+
+                            <div class="exp-field">
+                                <label>Estatus:</label>
+                                <div class="exp-val" id="req-status"
+                                    style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+
+                                    <!-- Bloque de estatus -->
+                                    <div class="status-main" style="display:inline-flex; align-items:center; gap:8px;">
+                                        <span data-role="status-badge" class="exp-badge is-info">—</span>
+                                        <!-- botón + combo para cambiar el status -->
+                                        <div class="status-tools"
+                                            style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
+                                            <button type="button" class="btn-xs" data-role="status-btn">Cambiar</button>
+                                            <select class="status-select" data-role="status-select" hidden>
+                                                <option value="0">Solicitud</option>
+                                                <option value="1">Revisión</option>
+                                                <option value="2">Asignación</option>
+                                                <option value="3">Proceso</option>
+                                                <option value="4">Pausado</option>
+                                                <option value="5">Cancelado</option>
+                                                <option value="6">Finalizado</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
+                            <div class="exp-field" id="req-motivo-field">
+                                <label>Motivo de Pausa/Cancelación:</label>
+                                <div class="exp-val" id="req-motivo-wrap">—</div>
+                            </div>
+
                             <div class="exp-field exp-field--full">
                                 <label>Descripción:</label>
                                 <div class="exp-val exp-preline">
@@ -279,147 +317,96 @@
                     </section>
 
                     <!-- Panel: Planeacion -->
-<section class="exp-pane" role="tabpanel" data-tab="planeacion">
+                    <section class="exp-pane" role="tabpanel" data-tab="planeacion">
 
-  <!-- Toolbar superior: Nuevo proceso -->
-  <div class="planeacion-toolbar" role="group" aria-label="Acciones de planeación">
-    <span class="ptb-label">Nuevo proceso</span>
-    <button id="btn-nuevo-proceso" class="btn-circle" type="button" aria-label="Nuevo proceso">+</button>
-  </div>
+                        <!-- ===== HEADER TOOLBAR ===== -->
+                        <div class="planeacion-toolbar">
+                            <h3 class="planeacion-title">Planeación</h3>
+                            <button id="btn-add-proceso" class="fase-add" type="button">Nuevo proceso +</button>
+                            <button id="btn-add-tarea" class="fase-add" type="button">Nueva tarea +</button>
+                        </div>
 
-  <!-- Proceso 1 -->
-  <section class="exp-accordion exp-accordion--fase">
-    <button class="exp-acc-head" type="button" aria-expanded="true">
-      <div class="fase-head">
-        <span class="fase-title">Proceso 1</span>
-        <small class="fase-meta">10 actividades</small>
-      </div>
+                        <!-- ===== CONTENEDOR DE PROCESOS ===== -->
+                        <div id="planeacion-list">
+                            <!-- Acordeón de proceso -->
+                            <section class="exp-accordion exp-accordion--fase" data-proceso-id="p1">
+                                <!-- HEADER del acordeón -->
+                                <button class="exp-acc-head" type="button" aria-expanded="true">
+                                    <div class="fase-left">
+                                        <div class="fase-head">
+                                            <span class="fase-title">Proceso</span>
+                                            <small class="fase-meta">10 actividades</small>
+                                        </div>
+                                    </div>
 
-      <!-- Acción dentro del título de fase -->
-      <div class="fase-tools">
-        <span class="tool-label">Nueva tarea</span>
-        <button class="btn-circle btn-add-tarea" type="button" aria-label="Nueva tarea">+</button>
-      </div>
+                                    <div class="fase-right">
+                                        <span class="fase-label">Estatus</span>
+                                        <span class="exp-progress" aria-label="70%">
+                                            <span class="bar" style="width:70%"></span>
+                                            <span class="pct">70%</span>
+                                        </span>
+                                        <span class="fase-label">Fecha de inicio</span>
+                                        <span class="fase-date">02/06/2025</span>
+                                        <span class="chev" aria-hidden="true"></span>
+                                    </div>
+                                </button>
 
-      <div class="fase-right">
-        <span class="fase-label">Estatus</span>
-        <span class="exp-progress" aria-label="70%">
-          <span class="bar" style="width:70%"></span>
-          <span class="pct">70%</span>
-        </span>
-        <span class="fase-label">Fecha de inicio</span>
-        <span class="fase-date">02/06/2025</span>
-        <span class="chev" aria-hidden="true"></span>
-      </div>
-    </button>
+                                <!-- CUERPO del acordeón -->
+                                <div class="exp-acc-body">
+                                    <div class="exp-table exp-table--planeacion is-card">
+                                        <div class="exp-thead">
+                                            <div>Actividad</div>
+                                            <div>Responsable</div>
+                                            <div>Estatus</div>
+                                            <div>Porcentaje</div>
+                                            <div>Fecha de inicio</div>
+                                        </div>
 
-    <div class="exp-acc-body">
-      <div class="exp-table exp-table--planeacion is-card">
-        <div class="exp-thead">
-          <div>Actividad</div>
-          <div>Responsable</div>
-          <div>Estatus</div>
-          <div>Porcentaje</div>
-          <div>Fecha de inicio</div>
-        </div>
+                                        <div class="exp-row">
+                                            <div class="actividad">Reparación de Llave</div>
+                                            <div class="responsable">Juan Pablo</div>
+                                            <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
+                                            <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                        style="width:70%"></span></span></div>
+                                            <div class="fecha">02/06/2025</div>
+                                        </div>
 
-        <div class="exp-row">
-          <div class="actividad">Reparación de Llave</div>
-          <div class="responsable">Juan Pablo</div>
-          <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
-          <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:70%"></span></span></div>
-          <div class="fecha">02/06/2025</div>
-        </div>
+                                        <div class="exp-row">
+                                            <div class="actividad">Revisión de toma</div>
+                                            <div class="responsable">Juan Pablo</div>
+                                            <div class="estatus"><span class="exp-badge is-success">Finalizado</span>
+                                            </div>
+                                            <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                        style="width:100%"></span></span></div>
+                                            <div class="fecha">10/06/2025</div>
+                                        </div>
 
-        <div class="exp-row">
-          <div class="actividad">Revisión de toma</div>
-          <div class="responsable">Juan Pablo</div>
-          <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-          <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:100%"></span></span></div>
-          <div class="fecha">10/06/2025</div>
-        </div>
+                                        <div class="exp-row">
+                                            <div class="actividad">Cierre de Toma</div>
+                                            <div class="responsable">Juan Pablo</div>
+                                            <div class="estatus"><span class="exp-badge is-success">Finalizado</span>
+                                            </div>
+                                            <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
+                                                        style="width:100%"></span></span></div>
+                                            <div class="fecha">10/05/2025</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
 
-        <div class="exp-row">
-          <div class="actividad">Cierre de Toma</div>
-          <div class="responsable">Juan Pablo</div>
-          <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-          <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:100%"></span></span></div>
-          <div class="fecha">10/05/2025</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Proceso 2 -->
-  <section class="exp-accordion exp-accordion--fase">
-    <button class="exp-acc-head" type="button" aria-expanded="true">
-      <div class="fase-head">
-        <span class="fase-title">Proceso 2</span>
-        <small class="fase-meta">10 actividades</small>
-      </div>
-
-      <!-- Acción dentro del título de fase -->
-      <div class="fase-tools">
-        <span class="tool-label">Nueva tarea</span>
-        <button class="btn-circle btn-add-tarea" type="button" aria-label="Nueva tarea">+</button>
-      </div>
-
-      <div class="fase-right">
-        <span class="fase-label">Estatus</span>
-        <span class="exp-progress" aria-label="70%">
-          <span class="bar" style="width:70%"></span>
-          <span class="pct">70%</span>
-        </span>
-        <span class="fase-label">Fecha de inicio</span>
-        <span class="fase-date">02/06/2025</span>
-        <span class="chev" aria-hidden="true"></span>
-      </div>
-    </button>
-
-    <div class="exp-acc-body">
-      <div class="exp-table exp-table--planeacion is-card">
-        <div class="exp-thead">
-          <div>Actividad</div>
-          <div>Responsable</div>
-          <div>Estatus</div>
-          <div>Porcentaje</div>
-          <div>Fecha de inicio</div>
-        </div>
-
-        <div class="exp-row">
-          <div class="actividad">Reparación de Llave</div>
-          <div class="responsable">Juan Pablo</div>
-          <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
-          <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:70%"></span></span></div>
-          <div class="fecha">02/06/2025</div>
-        </div>
-
-        <div class="exp-row">
-          <div class="actividad">Revisión de toma</div>
-          <div class="responsable">Juan Pablo</div>
-          <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-          <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:100%"></span></span></div>
-          <div class="fecha">10/06/2025</div>
-        </div>
-
-        <div class="exp-row">
-          <div class="actividad">Cierre de Toma</div>
-          <div class="responsable">Juan Pablo</div>
-          <div class="estatus"><span class="exp-badge is-success">Finalizado</span></div>
-          <div class="porcentaje"><span class="exp-progress xs"><span class="bar" style="width:100%"></span></span></div>
-          <div class="fecha">10/05/2025</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-</section>
-
+                    </section>
                 </div>
                 <!-- /exp-panes -->
 
+                <!-- Toolbar arriba -->
+                <div class="planeacion-toolbar evid-toolbar">
+                    <h3 class="planeacion-title">Evidencias</h3>
+                    <button id="btn-open-evid-modal" class="fase-add" type="button">Subir imágenes +</button>
+                </div>
+
                 <!-- Evidencias -->
-                <section class="exp-accordion">
+                <section class="exp-accordion exp-accordion--evidencias" data-acc="evidencias">
                     <button class="exp-acc-head" type="button" aria-expanded="true">
                         <span>Evidencias</span>
                         <span class="chev" aria-hidden="true"></span>
@@ -432,16 +419,13 @@
                                 <div>Quien lo cargo</div>
                                 <div>Última modificación <span class="sort"></span></div>
                             </div>
-
-                            <a class="exp-row" href="#">
-                                <div class="file"><img class="ico" src="/ASSETS/filetypes/img.png"
-                                        alt=""><span>Evidencia Fuga de Agua</span></div>
-                                <div class="who">Luis Enrique</div>
-                                <div class="date">02 de Septiembre del 2025 a las 14:25</div>
-                            </a>
+                            <!-- filas -->
                         </div>
                     </div>
                 </section>
+
+
+
             </section>
         </div>
     </main>
@@ -604,8 +588,7 @@
         </div>
     </div>
 
-
-    <!-- Modal genérico para Pausar / Cancelar -->
+    <!-- Modal generico para Pausar / Cancelar -->
     <div id="modal-estado" class="modal-overlay" aria-hidden="true">
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="estado-title">
             <button class="modal-close" type="button" aria-label="Cerrar">×</button>
@@ -624,107 +607,168 @@
         </div>
     </div>
 
+    <!-- Modal: Nueva tarea -->
+    <div id="modal-tarea" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="tarea-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+            <h2 id="tarea-title">Nueva tarea</h2>
+
+            <form id="form-tarea" novalidate>
+                <div class="form-row">
+                    <label for="tarea-proceso">Proceso</label>
+                    <!-- Se llena por JS con los procesos detectados; value = data-proceso-id -->
+                    <select id="tarea-proceso" name="proceso" required>
+                        <option value="" disabled selected>Selecciona un proceso…</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <label for="tarea-titulo">Título</label>
+                    <input type="text" id="tarea-titulo" name="titulo" maxlength="150" required
+                        placeholder="Ej. Reparar válvula principal">
+                </div>
+
+                <div class="form-row split">
+                    <div>
+                        <label for="tarea-esfuerzo">Esfuerzo (horas)</label>
+                        <input type="number" id="tarea-esfuerzo" name="esfuerzo" min="1" step="1" required
+                            placeholder="1">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <label for="tarea-asignado">Responsable</label>
+                    <select id="tarea-asignado" name="tarea-asignado" required>
+                        <option value="" disabled selected>Selecciona responsable…</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <label for="tarea-desc">Descripción</label>
+                    <textarea id="tarea-desc" name="descripcion" rows="4"
+                        placeholder="Detalles de la tarea…"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <button type="submit" class="btn-submit">Crear tarea</button>
+                </div>
+            </form>
+
+            <p class="modal-note">La tarea se agregará al proceso seleccionado.</p>
+        </div>
+    </div>
+
+
+
+    <!-- Modal: Visor de Evidencias -->
+    <div id="modal-media" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content">
+            <button class="modal-close" aria-label="Cerrar">&times;</button>
+            <div class="media-head" style="margin-bottom:10px;">
+                <h3 id="media-title" style="margin:0; font-size:1.05rem; font-weight:700;"></h3>
+                <div id="media-meta" style="color:#6b7280; font-size:.85rem; margin-top:4px;"></div>
+            </div>
+            <div class="media-body">
+                <img id="media-img" alt=""
+                    style="max-width:100%; height:auto; display:block; margin:0 auto; border-radius:8px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Nuevo proceso -->
+    <div id="modal-proceso" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="proceso-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+            <h2 id="proceso-title">Nuevo proceso</h2>
+
+            <form id="form-proceso" novalidate>
+                <div class="form-row">
+                    <label for="proceso-titulo">Título / Descripción</label>
+                    <input type="text" id="proceso-titulo" name="titulo" maxlength="150" required
+                        placeholder="Ej. Se asignó a Jurídico">
+                </div>
+
+                <div class="form-row">
+                    <label for="proceso-inicio">Fecha de inicio</label>
+                    <input type="date" id="proceso-inicio" name="fecha_inicio">
+                </div>
+
+                <div class="form-row">
+                    <button type="submit" class="btn-submit">Crear proceso</button>
+                </div>
+            </form>
+
+            <p class="modal-note">recuerda que todavia no se hacen los cambios con los endpoints.</p>
+        </div>
+    </div>
+
+
+    <!-- Modal: Subir evidencias -->
+    <div id="ix-evid-modal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-evid-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+            <div class="ix-modal__header">
+                <h2 id="ix-evid-title">Subir evidencias</h2>
+            </div>
+
+            <div class="ix-modal__body">
+                <form id="ix-evid-form" class="ix-form" novalidate>
+                    <div class="ix-form__row">
+                        <div class="ix-field ix-field--full">
+                            <label class="ix-field__label" for="ix-evidencia">Evidencia</label>
+
+                            <div class="ix-upload" id="ix-upload-zone" data-js="upload">
+                                <button type="button" id="ix-evidencia-cta" class="ix-upload-btn" title="Subir imágenes"
+                                    aria-label="Subir imágenes">
+                                    Subir imágenes
+                                </button>
+
+                                <input id="ix-evidencia" type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                                    multiple hidden>
+
+                                <div class="ix-upload__hint">
+                                    Arrastra imágenes o haz click para seleccionar (JPG/PNG/WebP/HEIC · máx 1 MB c/u ·
+                                    hasta 3)
+                                </div>
+
+                                <div class="ix-gallery" id="ix-evidencia-previews" aria-live="polite"></div>
+                            </div>
+
+                            <small class="ix-help" id="ix-err-evidencia" hidden></small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="ix-modal__footer">
+                <button type="button" class="btn" id="ix-evid-cancel">Cancelar</button>
+                <button type="button" class="btn blue" id="ix-evid-save" disabled>Subir</button>
+            </div>
+        </div>
+    </div>
+ 
+
 
     <script src="/JS/JSglobal.js"></script>
-    <script src="/JS/requerimientoView.js"></script>
     <script src="/JS/components.js"></script>
 
-    <!-- bundle para que cargue bien el sidebar -->
     <script type="module" src="/JS/auth/session.js"></script>
+    <script type="module" src="/JS/auth/requerimientoGuard.js"></script>
+
+    <script src="/JS/requerimientoView.js"></script>
+    <script src="/JS/ui/requerimientoDetalle.js"></script>
+    <script src="/JS/ui/requerimientoPlaneacion.js"></script>
+
+    <script type="module" src="/JS/api/media.js"></script>
+    <script type="module" src="/JS/api/mediaRequerimientos.js"></script>
+
+    <!-- bundle para que cargue bien el sidebar -->
     <script type="module" src="/JS/ui/sidebar.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
 
-    <!-- tabs suaves -->
-    <script>
-    (() => {
-        const tabs = Array.from(document.querySelectorAll('.exp-tab'));
-        const panes = Array.from(document.querySelectorAll('.exp-pane'));
-        const host = document.querySelector('.exp-panes');
-        if (!tabs.length || !panes.length || !host) return;
-
-        function setActive(i) {
-            const cur = document.querySelector('.exp-pane.is-active');
-            const oldH = cur ? cur.offsetHeight : host.offsetHeight;
-            host.style.height = oldH + 'px';
-
-            tabs.forEach(t => t.classList.remove('is-active'));
-            panes.forEach(p => p.classList.remove('is-active'));
-            tabs[i].classList.add('is-active');
-            panes[i].classList.add('is-active');
-
-            const newH = panes[i].offsetHeight;
-            requestAnimationFrame(() => {
-                host.style.height = newH + 'px';
-                setTimeout(() => host.style.height = 'auto', 200);
-            });
-
-            // Accesibilidad
-            tabs.forEach((t, idx) => t.setAttribute('aria-selected', String(idx === i)));
-        }
-
-        tabs.forEach((t, i) => t.addEventListener('click', e => {
-            e.preventDefault();
-            setActive(i);
-        }));
-    })();
-    </script>
-
-
-
-
-
-    <script>
-    (() => {
-        // 1) Numerar “Proceso 1, 2, 3…”
-        const titles = document.querySelectorAll('.exp-accordion--fase .fase-title');
-        titles.forEach((el, i) => {
-            const txt = el.textContent.trim();
-            // Solo renombrar si inicia con "Proceso" sin número final
-            if (/^Proceso(\s*\d+)?$/i.test(txt)) el.textContent = `Proceso ${i+1}`;
-        });
-
-        // 2) (Opcional) Inyectar “Nueva tarea +” si no editaste el HTML
-        document.querySelectorAll('.exp-accordion--fase > .exp-acc-head').forEach(head => {
-            if (!head.querySelector('.fase-tools')) {
-                const tools = document.createElement('div');
-                tools.className = 'fase-tools';
-                tools.innerHTML = `<span class="tool-label">Nueva tarea</span>
-                         <button class="btn-circle btn-add-tarea" type="button" aria-label="Nueva tarea">+</button>`;
-                const right = head.querySelector('.fase-right');
-                right ? head.insertBefore(tools, right) : head.appendChild(tools);
-            }
-        });
-
-        // 3) (Opcional) Inyectar toolbar superior si no la pusiste en HTML
-        const planeacionPane = document.querySelector(
-                '.exp-pane[data-tab="planeacion"], .exp-pane[data-tab="Planeación"]') ||
-            document.querySelector('.exp-pane:nth-of-type(3)');
-        if (planeacionPane && !document.querySelector('.planeacion-toolbar')) {
-            const tb = document.createElement('div');
-            tb.className = 'planeacion-toolbar';
-            tb.innerHTML =
-                `<span class="ptb-label">Nuevo proceso</span>
-                    <button id="btn-nuevo-proceso" class="btn-circle" type="button" aria-label="Nuevo proceso">+</button>`;
-            planeacionPane.prepend(tb);
-        }
-
-        // 4) Clics (placeholder)
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('#btn-nuevo-proceso')) {
-                (window.gcToast?.info?.('Nuevo proceso (placeholder)')) ?? console.log('Nuevo proceso');
-                // TODO: clonar plantilla de proceso y anexar
-            }
-            if (e.target.closest('.btn-add-tarea')) {
-                (window.gcToast?.info?.('Nueva tarea (placeholder)')) ?? console.log('Nueva tarea');
-                // TODO: abrir modal/añadir fila a la tabla del proceso
-            }
-        });
-    })();
-    </script>
-
-
-
-
+    <!-- Animaciones y utilidades de esta vista -->
+    <script type="module" src="/JS/ui/animacionesDeViewDetalle.js"></script>
 
 
 </body>
