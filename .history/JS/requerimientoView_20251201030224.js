@@ -1102,7 +1102,6 @@
     await loadComentarios(reqId);
     interceptComposer(reqId);
     renderActions(getCurrentStatusCode());
-    await injectFinalizeButtonIfReady();
   }
 
   if (document.readyState === "loading") {

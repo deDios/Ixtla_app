@@ -328,30 +328,28 @@
     paintStepper(code);
   }
 
-  // === recargar requerimiento y refrescar UI (header + tabs) ===
-    async function reloadReqUI() {
+  // === NUEVO: recargar requerimiento y refrescar UI (header + tabs) ===
+  async function reloadReqUI() {
     const id = __CURRENT_REQ_ID__;
     if (!id) return;
 
     try {
       const req = await getRequerimientoById(id);
 
+      // Guardamos la versión fresca en global por si otros módulos la usan
       window.__REQ__ = req;
 
+      // Header y contacto
       paintHeaderMeta(req);
       paintContacto(req);
       updateStatusUI(req.estatus_code);
 
+      // Notificamos a Detalles / Planeación para que repinten
       document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
-
-      // Regenera acciones y revisa si debe aparecer "Finalizar"
-      renderActions(req.estatus_code);
-      await injectFinalizeButtonIfReady();
     } catch (e) {
       err("Error al recargar requerimiento después de actualizar estado:", e);
     }
   }
-
 
   /* ======================================
    *  Acciones de estatus
@@ -649,24 +647,6 @@
         didUpdate = true;
         updateStatusUI(next);
         toast("Reabierto (Revisión)", "info");
-      }else if (act === "finish-req") {
-        // Finalizar requerimiento (estatus 6)
-        const ready = await areAllProcesosAndTasksDone(id);
-        if (!ready) {
-          toast(
-            "Aún hay procesos o tareas pendientes. Revisa la planeación antes de finalizar.",
-            "warning"
-          );
-          return;
-        }
-
-        next = 6;
-        // updateReqStatus ya setea cerrado_en con now cuando estatus === 6
-        await updateReqStatus({ id, estatus: next });
-
-        didUpdate = true;
-        updateStatusUI(next);
-        toast("Requerimiento finalizado", "success");
       }
 
       // Si realmente hicimos un update, recargamos el requerimiento completo
@@ -1102,7 +1082,6 @@
     await loadComentarios(reqId);
     interceptComposer(reqId);
     renderActions(getCurrentStatusCode());
-    await injectFinalizeButtonIfReady();
   }
 
   if (document.readyState === "loading") {

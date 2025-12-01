@@ -328,30 +328,28 @@
     paintStepper(code);
   }
 
-  // === recargar requerimiento y refrescar UI (header + tabs) ===
-    async function reloadReqUI() {
+  // === NUEVO: recargar requerimiento y refrescar UI (header + tabs) ===
+  async function reloadReqUI() {
     const id = __CURRENT_REQ_ID__;
     if (!id) return;
 
     try {
       const req = await getRequerimientoById(id);
 
+      // Guardamos la versión fresca en global por si otros módulos la usan
       window.__REQ__ = req;
 
+      // Header y contacto
       paintHeaderMeta(req);
       paintContacto(req);
       updateStatusUI(req.estatus_code);
 
+      // Notificamos a Detalles / Planeación para que repinten
       document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
-
-      // Regenera acciones y revisa si debe aparecer "Finalizar"
-      renderActions(req.estatus_code);
-      await injectFinalizeButtonIfReady();
     } catch (e) {
       err("Error al recargar requerimiento después de actualizar estado:", e);
     }
   }
-
 
   /* ======================================
    *  Acciones de estatus
@@ -649,7 +647,7 @@
         didUpdate = true;
         updateStatusUI(next);
         toast("Reabierto (Revisión)", "info");
-      }else if (act === "finish-req") {
+      } else if (act === "finish-req") {
         // Finalizar requerimiento (estatus 6)
         const ready = await areAllProcesosAndTasksDone(id);
         if (!ready) {
@@ -667,280 +665,280 @@
         didUpdate = true;
         updateStatusUI(next);
         toast("Requerimiento finalizado", "success");
+
+
+        // Si realmente hicimos un update, recargamos el requerimiento completo
+        if (didUpdate) {
+          await reloadReqUI();
+        }
+      } catch (e) {
+        if (e !== "cancel") {
+          err(e);
+          toast("No se pudo actualizar el estado.", "danger");
+        }
       }
 
-      // Si realmente hicimos un update, recargamos el requerimiento completo
-      if (didUpdate) {
-        await reloadReqUI();
-      }
-    } catch (e) {
-      if (e !== "cancel") {
-        err(e);
-        toast("No se pudo actualizar el estado.", "danger");
-      }
+      renderActions(next);
     }
-
-    renderActions(next);
-  }
 
   /* ======================================
    *  Requerimiento: fetch + normalize
    * (se mantiene aquí; Detalles se pinta en módulo aparte)
    * ======================================*/
   async function getRequerimientoById(id) {
-    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, { id });
-    const data = res?.data ?? res;
-    const raw = Array.isArray(data) ? data[0] || {} : data || {};
+      const res = await postJSON(ENDPOINTS.REQUERIMIENTO_GET, { id });
+      const data = res?.data ?? res;
+      const raw = Array.isArray(data) ? data[0] || {} : data || {};
 
-    // Fechas base desde el backend
-    const creado_at = String(
-      raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? ""
-    ).trim();
-    const fecha_limite =
-      raw.fecha_limite != null && raw.fecha_limite !== ""
-        ? String(raw.fecha_limite).trim()
-        : null;
-    const cerrado_en =
-      raw.cerrado_en != null && raw.cerrado_en !== ""
-        ? String(raw.cerrado_en).trim()
-        : null;
+      // Fechas base desde el backend
+      const creado_at = String(
+        raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? ""
+      ).trim();
+      const fecha_limite =
+        raw.fecha_limite != null && raw.fecha_limite !== ""
+          ? String(raw.fecha_limite).trim()
+          : null;
+      const cerrado_en =
+        raw.cerrado_en != null && raw.cerrado_en !== ""
+          ? String(raw.cerrado_en).trim()
+          : null;
 
-    return {
-      id: String(raw.id ?? raw.requerimiento_id ?? ""),
-      folio: String(raw.folio ?? ""),
-      departamento_id:
-        raw.departamento_id != null ? Number(raw.departamento_id) : null,
-      departamento_nombre: String(raw.departamento_nombre || "").trim(),
-      tramite_id: raw.tramite_id != null ? Number(raw.tramite_id) : null,
-      tramite_nombre: String(raw.tramite_nombre || "").trim(),
-      asignado_id: raw.asignado_a != null ? String(raw.asignado_a) : null,
-      asignado_full: String(raw.asignado_nombre_completo || "").trim(),
-      asunto: String(raw.asunto || "").trim(),
-      descripcion: String(raw.descripcion || "").trim(),
-      prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
-      estatus_code:
-        raw.estatus != null
-          ? Number(raw.estatus)
-          : raw.status != null
-            ? Number(raw.status)
-            : 0,
-      canal: raw.canal != null ? Number(raw.canal) : null,
-      contacto_nombre: String(raw.contacto_nombre || "").trim(),
-      contacto_telefono: String(raw.contacto_telefono || "").trim(),
-      contacto_email: String(raw.contacto_email || "").trim(),
-      contacto_calle: String(raw.contacto_calle || "").trim(),
-      contacto_colonia: String(raw.contacto_colonia || "").trim(),
-      contacto_cp: String(raw.contacto_cp || "").trim(),
+      return {
+        id: String(raw.id ?? raw.requerimiento_id ?? ""),
+        folio: String(raw.folio ?? ""),
+        departamento_id:
+          raw.departamento_id != null ? Number(raw.departamento_id) : null,
+        departamento_nombre: String(raw.departamento_nombre || "").trim(),
+        tramite_id: raw.tramite_id != null ? Number(raw.tramite_id) : null,
+        tramite_nombre: String(raw.tramite_nombre || "").trim(),
+        asignado_id: raw.asignado_a != null ? String(raw.asignado_a) : null,
+        asignado_full: String(raw.asignado_nombre_completo || "").trim(),
+        asunto: String(raw.asunto || "").trim(),
+        descripcion: String(raw.descripcion || "").trim(),
+        prioridad: raw.prioridad != null ? Number(raw.prioridad) : null,
+        estatus_code:
+          raw.estatus != null
+            ? Number(raw.estatus)
+            : raw.status != null
+              ? Number(raw.status)
+              : 0,
+        canal: raw.canal != null ? Number(raw.canal) : null,
+        contacto_nombre: String(raw.contacto_nombre || "").trim(),
+        contacto_telefono: String(raw.contacto_telefono || "").trim(),
+        contacto_email: String(raw.contacto_email || "").trim(),
+        contacto_calle: String(raw.contacto_calle || "").trim(),
+        contacto_colonia: String(raw.contacto_colonia || "").trim(),
+        contacto_cp: String(raw.contacto_cp || "").trim(),
 
-      // Fechas
-      creado_at,
-      fecha_inicio: fecha_limite, // alias semántico
-      fecha_fin: cerrado_en,
-      cerrado_en,
+        // Fechas
+        creado_at,
+        fecha_inicio: fecha_limite, // alias semántico
+        fecha_fin: cerrado_en,
+        cerrado_en,
 
-      raw,
-    };
-  }
-
-  /* ======================================
-   *  UI: Header/meta + Contacto (se quedan)
-   * ======================================*/
-  function paintContacto(req) {
-    const p = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
-    if (!p) return;
-    const set = (labelText, val) => {
-      const row = Array.from(p.querySelectorAll(".exp-field")).find((r) => {
-        const txt = (r.querySelector("label")?.textContent || "")
-          .trim()
-          .toLowerCase();
-        return txt.startsWith(labelText.toLowerCase());
-      });
-      const dd = row?.querySelector(".exp-val");
-      if (!dd) return;
-      if (labelText.toLowerCase().includes("correo")) {
-        const a = dd.querySelector("a") || document.createElement("a");
-        a.textContent = val || "—";
-        if (val) a.href = `mailto:${val}`;
-        else a.removeAttribute("href");
-        if (!dd.contains(a)) {
-          dd.innerHTML = "";
-          dd.appendChild(a);
-        }
-      } else {
-        dd.textContent = val || "—";
-      }
-    };
-    set("Nombre", req.contacto_nombre || "—");
-    set("Teléfono", req.contacto_telefono || "—");
-    set(
-      "Dirección del reporte",
-      [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", ")
-    );
-    set("Correo", req.contacto_email || "—");
-    set("C.P", req.contacto_cp || "—");
-  }
-
-  function paintHeaderMeta(req) {
-    const ddC = $(".exp-meta > div:nth-child(1) dd");
-    const ddE = $(".exp-meta > div:nth-child(2) dd");
-    const ddF = $(".exp-meta > div:nth-child(3) dd");
-    if (ddC) ddC.textContent = req.contacto_nombre || "—";
-    const asignado =
-      req.asignado_id && (req.asignado_full || "").trim()
-        ? req.asignado_full
-        : "Sin asignar";
-    if (ddE) ddE.textContent = asignado;
-    if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
-  }
-
-  /* ======================================
-   *  Comentarios
-   * ======================================*/
-  async function listComentariosAPI({
-    requerimiento_id,
-    status = 1,
-    page = 1,
-    page_size = 100,
-  }) {
-    const payload = {
-      requerimiento_id: Number(requerimiento_id),
-      status,
-      page,
-      page_size,
-    };
-    const res = await postJSON(ENDPOINTS.COMENT_LIST, payload);
-    const raw = res?.data ?? res?.items ?? res;
-    return Array.isArray(raw) ? raw : Array.isArray(raw?.rows) ? raw.rows : [];
-  }
-  async function createComentarioAPI({
-    requerimiento_id,
-    comentario,
-    status = 1,
-    created_by,
-    empleado_id,
-  }) {
-    const payload = {
-      requerimiento_id: Number(requerimiento_id),
-      comentario,
-      status,
-      created_by: Number(created_by),
-      empleado_id: empleado_id != null ? Number(empleado_id) : null,
-    };
-    return await postJSON(ENDPOINTS.COMENT_CREATE, payload);
-  }
-  const firstTwo = (full = "") =>
-    String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") ||
-    "—";
-
-  function makeAvatarSourcesByUsuarioId(usuarioId) {
-    const v = `?v=${Date.now()}`;
-    const cand = [];
-    if (usuarioId) {
-      cand.push(`/ASSETS/user/userImgs/img_${usuarioId}.png${v}`);
-      cand.push(`/ASSETS/user/userImgs/img_${usuarioId}.jpg${v}`);
+        raw,
+      };
     }
-    cand.push(DEFAULT_AVATAR);
-    return cand;
-  }
 
-  // === NUEVO: parseo de badges tipo "Tarea-{id}" ===
-  function buildCommentTextWithTaskTags(text) {
-    const frag = document.createDocumentFragment();
-    const str = String(text || "");
+    /* ======================================
+     *  UI: Header/meta + Contacto (se quedan)
+     * ======================================*/
+    function paintContacto(req) {
+      const p = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
+      if (!p) return;
+      const set = (labelText, val) => {
+        const row = Array.from(p.querySelectorAll(".exp-field")).find((r) => {
+          const txt = (r.querySelector("label")?.textContent || "")
+            .trim()
+            .toLowerCase();
+          return txt.startsWith(labelText.toLowerCase());
+        });
+        const dd = row?.querySelector(".exp-val");
+        if (!dd) return;
+        if (labelText.toLowerCase().includes("correo")) {
+          const a = dd.querySelector("a") || document.createElement("a");
+          a.textContent = val || "—";
+          if (val) a.href = `mailto:${val}`;
+          else a.removeAttribute("href");
+          if (!dd.contains(a)) {
+            dd.innerHTML = "";
+            dd.appendChild(a);
+          }
+        } else {
+          dd.textContent = val || "—";
+        }
+      };
+      set("Nombre", req.contacto_nombre || "—");
+      set("Teléfono", req.contacto_telefono || "—");
+      set(
+        "Dirección del reporte",
+        [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", ")
+      );
+      set("Correo", req.contacto_email || "—");
+      set("C.P", req.contacto_cp || "—");
+    }
 
-    // Mismo patrón que en tareas: Tarea-123, Tarea-15142, etc.
-    const re = /(Tarea-\d+)/g;
-    let lastIndex = 0;
-    let match;
+    function paintHeaderMeta(req) {
+      const ddC = $(".exp-meta > div:nth-child(1) dd");
+      const ddE = $(".exp-meta > div:nth-child(2) dd");
+      const ddF = $(".exp-meta > div:nth-child(3) dd");
+      if (ddC) ddC.textContent = req.contacto_nombre || "—";
+      const asignado =
+        req.asignado_id && (req.asignado_full || "").trim()
+          ? req.asignado_full
+          : "Sin asignar";
+      if (ddE) ddE.textContent = asignado;
+      if (ddF) ddF.textContent = (req.creado_at || "—").replace("T", " ");
+    }
 
-    while ((match = re.exec(str)) !== null) {
-      const idx = match.index;
+    /* ======================================
+     *  Comentarios
+     * ======================================*/
+    async function listComentariosAPI({
+      requerimiento_id,
+      status = 1,
+      page = 1,
+      page_size = 100,
+    }) {
+      const payload = {
+        requerimiento_id: Number(requerimiento_id),
+        status,
+        page,
+        page_size,
+      };
+      const res = await postJSON(ENDPOINTS.COMENT_LIST, payload);
+      const raw = res?.data ?? res?.items ?? res;
+      return Array.isArray(raw) ? raw : Array.isArray(raw?.rows) ? raw.rows : [];
+    }
+    async function createComentarioAPI({
+      requerimiento_id,
+      comentario,
+      status = 1,
+      created_by,
+      empleado_id,
+    }) {
+      const payload = {
+        requerimiento_id: Number(requerimiento_id),
+        comentario,
+        status,
+        created_by: Number(created_by),
+        empleado_id: empleado_id != null ? Number(empleado_id) : null,
+      };
+      return await postJSON(ENDPOINTS.COMENT_CREATE, payload);
+    }
+    const firstTwo = (full = "") =>
+      String(full).trim().split(/\s+/).filter(Boolean).slice(0, 2).join(" ") ||
+      "—";
 
-      // Texto antes del badge
-      if (idx > lastIndex) {
+    function makeAvatarSourcesByUsuarioId(usuarioId) {
+      const v = `?v=${Date.now()}`;
+      const cand = [];
+      if (usuarioId) {
+        cand.push(`/ASSETS/user/userImgs/img_${usuarioId}.png${v}`);
+        cand.push(`/ASSETS/user/userImgs/img_${usuarioId}.jpg${v}`);
+      }
+      cand.push(DEFAULT_AVATAR);
+      return cand;
+    }
+
+    // === NUEVO: parseo de badges tipo "Tarea-{id}" ===
+    function buildCommentTextWithTaskTags(text) {
+      const frag = document.createDocumentFragment();
+      const str = String(text || "");
+
+      // Mismo patrón que en tareas: Tarea-123, Tarea-15142, etc.
+      const re = /(Tarea-\d+)/g;
+      let lastIndex = 0;
+      let match;
+
+      while ((match = re.exec(str)) !== null) {
+        const idx = match.index;
+
+        // Texto antes del badge
+        if (idx > lastIndex) {
+          frag.appendChild(
+            document.createTextNode(str.slice(lastIndex, idx))
+          );
+        }
+
+        // El propio badge
+        const span = document.createElement("span");
+        span.className = "task-tag";
+        span.textContent = match[1];
+        frag.appendChild(span);
+
+        lastIndex = re.lastIndex;
+      }
+
+      // Resto del texto después del último badge
+      if (lastIndex < str.length) {
         frag.appendChild(
-          document.createTextNode(str.slice(lastIndex, idx))
+          document.createTextNode(str.slice(lastIndex))
         );
       }
 
-      // El propio badge
-      const span = document.createElement("span");
-      span.className = "task-tag";
-      span.textContent = match[1];
-      frag.appendChild(span);
-
-      lastIndex = re.lastIndex;
+      return frag;
     }
 
-    // Resto del texto después del último badge
-    if (lastIndex < str.length) {
-      frag.appendChild(
-        document.createTextNode(str.slice(lastIndex))
-      );
-    }
+    async function renderCommentsList(items = []) {
+      const feed = $(".c-feed");
+      if (!feed) return;
+      feed.innerHTML = "";
 
-    return frag;
-  }
+      const ordered = [...items].sort((a, b) => {
+        const aDate = Date.parse(a.created_at || a.fecha || "") || 0;
+        const bDate = Date.parse(b.created_at || b.fecha || "") || 0;
+        return bDate - aDate; // descendente (nuevo → viejo)
+      });
 
-  async function renderCommentsList(items = []) {
-    const feed = $(".c-feed");
-    if (!feed) return;
-    feed.innerHTML = "";
-
-    const ordered = [...items].sort((a, b) => {
-      const aDate = Date.parse(a.created_at || a.fecha || "") || 0;
-      const bDate = Date.parse(b.created_at || b.fecha || "") || 0;
-      return bDate - aDate; // descendente (nuevo → viejo)
-    });
-
-    for (const r of ordered) {
-      let display = "";
-      try {
-        const empId = Number(r.empleado_id) > 0 ? Number(r.empleado_id) : null;
-        if (empId) display = (await getEmpleadoById(empId))?.nombre || "";
-      } catch { }
-      if (!display) {
-        display =
-          r.empleado_display ||
-          [r.empleado_nombre, r.empleado_apellidos]
-            .filter(Boolean)
-            .join(" ")
-            .trim() ||
-          r.nombre ||
-          r.autor ||
-          "—";
-      }
-      const texto = r.comentario || r.texto || "";
-      const cuando = relShort(r.created_at || r.fecha || "");
-      const usuarioId =
-        (Number(r.created_by) > 0 && Number(r.created_by)) ||
-        (Number(r.cuenta_id) > 0 && Number(r.cuenta_id)) ||
-        null;
-      const sources = makeAvatarSourcesByUsuarioId(usuarioId);
-
-      const art = document.createElement("article");
-      art.className = "msg";
-
-      const img = document.createElement("img");
-      img.className = "avatar";
-      img.alt = "";
-      let i = 0;
-      const tryNext = () => {
-        if (i >= sources.length) {
-          img.src = DEFAULT_AVATAR;
-          return;
+      for (const r of ordered) {
+        let display = "";
+        try {
+          const empId = Number(r.empleado_id) > 0 ? Number(r.empleado_id) : null;
+          if (empId) display = (await getEmpleadoById(empId))?.nombre || "";
+        } catch { }
+        if (!display) {
+          display =
+            r.empleado_display ||
+            [r.empleado_nombre, r.empleado_apellidos]
+              .filter(Boolean)
+              .join(" ")
+              .trim() ||
+            r.nombre ||
+            r.autor ||
+            "—";
         }
-        img.onerror = () => {
-          i++;
-          tryNext();
-        };
-        img.src = sources[i];
-      };
-      tryNext();
-      art.appendChild(img);
+        const texto = r.comentario || r.texto || "";
+        const cuando = relShort(r.created_at || r.fecha || "");
+        const usuarioId =
+          (Number(r.created_by) > 0 && Number(r.created_by)) ||
+          (Number(r.cuenta_id) > 0 && Number(r.cuenta_id)) ||
+          null;
+        const sources = makeAvatarSourcesByUsuarioId(usuarioId);
 
-      const box = document.createElement("div");
-      box.innerHTML = `
+        const art = document.createElement("article");
+        art.className = "msg";
+
+        const img = document.createElement("img");
+        img.className = "avatar";
+        img.alt = "";
+        let i = 0;
+        const tryNext = () => {
+          if (i >= sources.length) {
+            img.src = DEFAULT_AVATAR;
+            return;
+          }
+          img.onerror = () => {
+            i++;
+            tryNext();
+          };
+          img.src = sources[i];
+        };
+        tryNext();
+        art.appendChild(img);
+
+        const box = document.createElement("div");
+        box.innerHTML = `
         <div class="who">
           <span class="name">${firstTwo(display)}</span>
           <span class="time">${cuando}</span>
@@ -948,164 +946,163 @@
         <div class="text" style="white-space:pre-wrap;word-break:break-word;"></div>
       `;
 
-      const textEl = $(".text", box);
-      textEl.textContent = "";
-      // Aquí se inserta el texto con badges tipo "Tarea-123"
-      textEl.appendChild(buildCommentTextWithTaskTags(texto));
+        const textEl = $(".text", box);
+        textEl.textContent = "";
+        // Aquí se inserta el texto con badges tipo "Tarea-123"
+        textEl.appendChild(buildCommentTextWithTaskTags(texto));
 
-      art.appendChild(box);
+        art.appendChild(box);
 
-      feed.appendChild(art);
-    }
-
-    const scroller = feed.parentElement || feed;
-    scroller.scrollTo({ top: 0, behavior: "auto" });
-  }
-
-  async function loadComentarios(reqId) {
-    try {
-      const arr = await listComentariosAPI({
-        requerimiento_id: reqId,
-        status: 1,
-        page: 1,
-        page_size: 100,
-      });
-      const ids = Array.from(
-        new Set(arr.map((r) => Number(r.empleado_id) || null).filter(Boolean))
-      );
-      await Promise.all(ids.map((id) => getEmpleadoById(id).catch(() => null)));
-      await renderCommentsList(arr);
-    } catch (e) {
-      warn("Error listando comentarios:", e);
-      await renderCommentsList([]);
-    }
-  }
-
-  function interceptComposer(reqId) {
-    const ta = $(".composer textarea");
-    const btn = $(".composer .send-fab");
-    if (!ta || !btn) return;
-    const { usuario_id, empleado_id } = getUserAndEmpleadoFromSession();
-    const send = async () => {
-      const texto = (ta.value || "").trim();
-      if (!texto) return;
-      if (!usuario_id) {
-        toast("No se encontró tu usuario en la sesión.", "danger");
-        return;
+        feed.appendChild(art);
       }
-      btn.disabled = true;
+
+      const scroller = feed.parentElement || feed;
+      scroller.scrollTo({ top: 0, behavior: "auto" });
+    }
+
+    async function loadComentarios(reqId) {
       try {
-        await createComentarioAPI({
+        const arr = await listComentariosAPI({
           requerimiento_id: reqId,
-          comentario: texto,
           status: 1,
-          created_by: usuario_id,
-          empleado_id: empleado_id,
+          page: 1,
+          page_size: 100,
         });
-        ta.value = "";
-        await loadComentarios(reqId);
+        const ids = Array.from(
+          new Set(arr.map((r) => Number(r.empleado_id) || null).filter(Boolean))
+        );
+        await Promise.all(ids.map((id) => getEmpleadoById(id).catch(() => null)));
+        await renderCommentsList(arr);
       } catch (e) {
-        err("crear comentario:", e);
-        toast("No se pudo enviar el comentario.", "danger");
-      } finally {
-        btn.disabled = false;
+        warn("Error listando comentarios:", e);
+        await renderCommentsList([]);
       }
-    };
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      send();
-    });
-    ta.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+    }
+
+    function interceptComposer(reqId) {
+      const ta = $(".composer textarea");
+      const btn = $(".composer .send-fab");
+      if (!ta || !btn) return;
+      const { usuario_id, empleado_id } = getUserAndEmpleadoFromSession();
+      const send = async () => {
+        const texto = (ta.value || "").trim();
+        if (!texto) return;
+        if (!usuario_id) {
+          toast("No se encontró tu usuario en la sesión.", "danger");
+          return;
+        }
+        btn.disabled = true;
+        try {
+          await createComentarioAPI({
+            requerimiento_id: reqId,
+            comentario: texto,
+            status: 1,
+            created_by: usuario_id,
+            empleado_id: empleado_id,
+          });
+          ta.value = "";
+          await loadComentarios(reqId);
+        } catch (e) {
+          err("crear comentario:", e);
+          toast("No se pudo enviar el comentario.", "danger");
+        } finally {
+          btn.disabled = false;
+        }
+      };
+      btn.addEventListener("click", (e) => {
         e.preventDefault();
         send();
-      }
-    });
-  }
-
-  /* ======================================
-   *  Reset + Boot
-   * ======================================*/
-  function resetTemplate() {
-    const contactVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
-    contactVals.forEach((n) => {
-      const a = n.querySelector("a");
-      if (a) {
-        a.textContent = "—";
-        a.removeAttribute("href");
-      } else n.textContent = "—";
-    });
-
-    // No tocamos el tab "detalles" aquí (lo rellenará el nuevo módulo)
-
-    const h1 = $(".exp-title h1");
-    if (h1) h1.textContent = "—";
-    $$(".exp-meta dd").forEach((dd) => (dd.textContent = "—"));
-    const feed = $(".c-feed");
-    if (feed) feed.innerHTML = "";
-  }
-
-  let __CURRENT_REQ_ID__ = null;
-  window.__defineGetter__ &&
-    Object.defineProperty(window, "__CURRENT_REQ_ID__", {
-      get: () => __CURRENT_REQ_ID__,
-    });
-
-  async function boot() {
-    resetTemplate();
-
-    // stepper (UI deja estatus en este archivo)
-    const stepItems = $$(".step-menu li");
-    stepItems.forEach((li) => {
-      //li.addEventListener("click", () => {
-      //  stepItems.forEach((x) => x.classList.remove("current"));
-      //  li.classList.add("current");
-      //  updateStatusUI(Number(li.dataset.status));
-      //  renderActions(Number(li.dataset.status));
-      //});
-    });
-
-    const params = new URL(window.location.href).searchParams;
-    const reqId = params.get("id");
-    __CURRENT_REQ_ID__ = reqId;
-    if (!reqId) {
-      warn("Sin ?id=");
-      return;
+      });
+      ta.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          send();
+        }
+      });
     }
 
-    try {
-      const req = await getRequerimientoById(reqId);
+    /* ======================================
+     *  Reset + Boot
+     * ======================================*/
+    function resetTemplate() {
+      const contactVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
+      contactVals.forEach((n) => {
+        const a = n.querySelector("a");
+        if (a) {
+          a.textContent = "—";
+          a.removeAttribute("href");
+        } else n.textContent = "—";
+      });
 
-      // Título y meta + contacto
+      // No tocamos el tab "detalles" aquí (lo rellenará el nuevo módulo)
+
       const h1 = $(".exp-title h1");
-      if (h1)
-        h1.textContent = req.asunto || req.tramite_nombre || "Requerimiento";
-      paintHeaderMeta(req);
-      paintContacto(req);
-
-      // Estatus inicial (badge/select/stepper)
-      updateStatusUI(req.estatus_code);
-      const sel = $('#req-status [data-role="status-select"]');
-      if (sel) sel.value = String(req.estatus_code ?? 0);
-
-      // Aviso a otros módulos (Detalles, Planeación, Evidencias…)
-      try {
-        window.__REQ__ = req;
-        document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
-      } catch (e) {
-        warn("req:loaded dispatch err:", e);
-      }
-    } catch (e) {
-      err("Error consultando requerimiento:", e);
+      if (h1) h1.textContent = "—";
+      $$(".exp-meta dd").forEach((dd) => (dd.textContent = "—"));
+      const feed = $(".c-feed");
+      if (feed) feed.innerHTML = "";
     }
 
-    await loadComentarios(reqId);
-    interceptComposer(reqId);
-    renderActions(getCurrentStatusCode());
-    await injectFinalizeButtonIfReady();
-  }
+    let __CURRENT_REQ_ID__ = null;
+    window.__defineGetter__ &&
+      Object.defineProperty(window, "__CURRENT_REQ_ID__", {
+        get: () => __CURRENT_REQ_ID__,
+      });
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
-  } else boot();
-})();
+    async function boot() {
+      resetTemplate();
+
+      // stepper (UI deja estatus en este archivo)
+      const stepItems = $$(".step-menu li");
+      stepItems.forEach((li) => {
+        //li.addEventListener("click", () => {
+        //  stepItems.forEach((x) => x.classList.remove("current"));
+        //  li.classList.add("current");
+        //  updateStatusUI(Number(li.dataset.status));
+        //  renderActions(Number(li.dataset.status));
+        //});
+      });
+
+      const params = new URL(window.location.href).searchParams;
+      const reqId = params.get("id");
+      __CURRENT_REQ_ID__ = reqId;
+      if (!reqId) {
+        warn("Sin ?id=");
+        return;
+      }
+
+      try {
+        const req = await getRequerimientoById(reqId);
+
+        // Título y meta + contacto
+        const h1 = $(".exp-title h1");
+        if (h1)
+          h1.textContent = req.asunto || req.tramite_nombre || "Requerimiento";
+        paintHeaderMeta(req);
+        paintContacto(req);
+
+        // Estatus inicial (badge/select/stepper)
+        updateStatusUI(req.estatus_code);
+        const sel = $('#req-status [data-role="status-select"]');
+        if (sel) sel.value = String(req.estatus_code ?? 0);
+
+        // Aviso a otros módulos (Detalles, Planeación, Evidencias…)
+        try {
+          window.__REQ__ = req;
+          document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
+        } catch (e) {
+          warn("req:loaded dispatch err:", e);
+        }
+      } catch (e) {
+        err("Error consultando requerimiento:", e);
+      }
+
+      await loadComentarios(reqId);
+      interceptComposer(reqId);
+      renderActions(getCurrentStatusCode());
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot, { once: true });
+    } else boot();
+  }) ();
