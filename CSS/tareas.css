@@ -459,19 +459,19 @@
 
 /* Thumbnail de evidencia */
 /*#kb-d-evidencias .kb-evid-thumb {*/
-  /* position: relative; */
-  /* width: 96px; */
-  /* height: 80px; */
-  /* border-radius: 8px; */
-  /* overflow: hidden; */
-  /* border: 1px solid #d4dfdc; */
-  /* background: #f7faf9; */
-  /* box-shadow: 0 1px 2px rgba(0, 0, 0, .04); */
-  /* cursor: pointer; */
-  /* display: flex; */
-  /* align-items: center; */
-  /* justify-content: center; */
-  /* transition:
+/* position: relative; */
+/* width: 96px; */
+/* height: 80px; */
+/* border-radius: 8px; */
+/* overflow: hidden; */
+/* border: 1px solid #d4dfdc; */
+/* background: #f7faf9; */
+/* box-shadow: 0 1px 2px rgba(0, 0, 0, .04); */
+/* cursor: pointer; */
+/* display: flex; */
+/* align-items: center; */
+/* justify-content: center; */
+/* transition:
     box-shadow 0.15s ease,
     transform 0.06s ease,
     border-color 0.15s ease; */
@@ -1731,7 +1731,7 @@
 
 /* Tile "Subir archivo…" con el mismo look que las demás */
 /*.kb-d-media-actions {*/
-  /* margin-top: 0.75rem; */
+/* margin-top: 0.75rem; */
 /*}*/
 
 .kb-d-media-actions .kb-media-upload,
@@ -1805,7 +1805,8 @@
 }
 
 .kb-multi-option.is-disabled:hover {
-  background: transparent; /* que no cambie al pasar el mouse */
+  background: transparent;
+  /* que no cambie al pasar el mouse */
 }
 
 .kb-multi-option.is-disabled .kb-multi-name {
@@ -1914,6 +1915,7 @@
 
 /* Caja del modal */
 #modal-media .modal-content {
+  opacity: 1;
   position: relative;
   max-width: min(92vw, 980px);
   max-height: 90vh;
@@ -1921,7 +1923,7 @@
   background: #fff !important;
   border-radius: 12px;
   padding: 16px 16px 20px;
-  box-shadow: 0 12px 48px rgba(0,0,0,.28);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, .28);
 }
 
 /* Botón cerrar (“X”) */
