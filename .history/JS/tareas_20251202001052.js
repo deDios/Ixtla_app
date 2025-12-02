@@ -210,58 +210,30 @@ let FiltersModule = null;
 // cache para requerimientos (folio, tramite, etc.)
 const ReqCache = new Map(); // reqId → data o null
 
-// Subordinados detectados para el viewer (empleados que le reportan, directo o en cascada)
+// Subordinados detectados para el viewer (empleados que le reportan)
 const SubordinateIds = new Set();
 
-// Helper para calcular subordinados según la data de empleados (usando cuenta.reporta_a)
+// Helper para calcular subordinados según la data de empleados
 function buildSubordinatesIndex(empleados) {
   SubordinateIds.clear();
-  const myId =
-    KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
-  if (!myId || !Array.isArray(empleados) || !empleados.length) return;
-
-  // Mapa bossId → [subordinados directos]
-  const bossMap = new Map();
+  const myId = KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
+  if (!myId || !Array.isArray(empleados)) return;
 
   empleados.forEach((emp) => {
     if (!emp) return;
 
-    const empId = emp.id != null ? Number(emp.id) : null;
-    const bossId =
-      emp.cuenta?.reporta_a != null
-        ? Number(emp.cuenta.reporta_a)
-        : null;
+    const jefeId = emp.jefe_id != null ? Number(emp.jefe_id) : null;
+    const jefeDirectoId =
+      emp.jefe_directo_id != null ? Number(emp.jefe_directo_id) : null;
 
-    if (empId == null || bossId == null) return;
-
-    if (!bossMap.has(bossId)) {
-      bossMap.set(bossId, []);
-    }
-    bossMap.get(bossId).push(empId);
-  });
-
-  // Recorrido en amplitud para obtener subordinados en cascada
-  const queue = [myId];
-  const visited = new Set();
-
-  while (queue.length) {
-    const current = queue.shift();
-    if (visited.has(current)) continue;
-    visited.add(current);
-
-    const directSubs = bossMap.get(current) || [];
-    for (const subId of directSubs) {
-      if (!SubordinateIds.has(subId)) {
-        SubordinateIds.add(subId);
-        queue.push(subId);
+    if (jefeId === myId || jefeDirectoId === myId) {
+      if (emp.id != null) {
+        SubordinateIds.add(Number(emp.id));
       }
     }
-  }
+  });
 
-  log(
-    "Subordinados detectados para viewer (reporta_a):",
-    Array.from(SubordinateIds)
-  );
+  log("Subordinados detectados para viewer:", Array.from(SubordinateIds));
 }
 
 // Módulo del drawer (se inicializa en init)
@@ -1269,12 +1241,8 @@ async function init() {
   // 1) Evitar flicker del sidebar: lo dejamos oculto hasta decidir rol
   // --------------------------------------------------------------------
   const sidebarFiltersEl = $(".kb-sidebar-filters");
-  const sidebarDeptFieldEl = "#kb-filter-departamentos"
-    ? $("#kb-filter-departamentos")
-    : null;
-  const sidebarEmpFieldEl = "#kb-filter-empleados"
-    ? $("#kb-filter-empleados")
-    : null;
+  const sidebarDeptFieldEl = $("#kb-filter-departamentos");
+  const sidebarEmpFieldEl = $("#kb-filter-empleados");
 
   if (sidebarFiltersEl) {
     sidebarFiltersEl.classList.add("kb-filters-boot-hidden");
@@ -1478,10 +1446,35 @@ async function init() {
   log("Viewer (después de roles + deptos):", Viewer);
 
   // --------------------------------------------------------------------
-  // 8) Jerarquía de subordinados (usando cuenta.reporta_a)
+  // 8) Decidir quién ve qué filtros del sidebar
   // --------------------------------------------------------------------
-  buildSubordinatesIndex(empleados);
-  const hasSubordinates = SubordinateIds.size > 0;
+  // Detectar subordinados del viewer
+  let hasSubordinates = false;
+
+  if (
+    KB.CURRENT_USER_ID != null &&
+    Array.isArray(empleados) &&
+    empleados.length
+  ) {
+    const myId = Number(KB.CURRENT_USER_ID);
+
+    for (const emp of empleados) {
+      if (!emp) continue;
+
+      // Ajusta estos campos según tu payload real
+      const bossId =
+        emp.jefe_id ??
+        emp.jefe ??
+        emp.superior_id ??
+        emp.jefe_inmediato ??
+        null;
+
+      if (bossId != null && Number(bossId) === myId) {
+        hasSubordinates = true;
+        break;
+      }
+    }
+  }
 
   // Exponer snapshot para otros módulos
   KB.VIEWER = {
@@ -1581,31 +1574,12 @@ async function init() {
 
   if (isAdminOrPres) {
     empleadosForFilter = empleados;
-  } else if (isDirectorOrPrimera && Viewer.deptId != null) {
-    // Director / primera línea → todos los empleados de su depto
+  } else if (Viewer.deptId != null) {
     empleadosForFilter = empleados.filter(
       (e) => Number(e.departamento_id) === Number(Viewer.deptId)
     );
-  } else if (isJefe) {
-    // Jefe → él mismo + subordinados (idealmente dentro de su depto)
-    const myId =
-      KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
-    empleadosForFilter = empleados.filter((e) => {
-      const id = e.id != null ? Number(e.id) : null;
-      if (id == null) return false;
-
-      const deptOk =
-        Viewer.deptId == null ||
-        Number(e.departamento_id) === Number(Viewer.deptId);
-
-      return (
-        deptOk &&
-        (id === myId || SubordinateIds.has(id))
-      );
-    });
   } else {
-    // Analista / otros → sin combo de empleados
-    empleadosForFilter = [];
+    empleadosForFilter = empleados;
   }
 
   log(
