@@ -520,7 +520,7 @@
       2: "En proceso",
       3: "Por revisar",
       4: "Hecho",
-      5: "Bloqueada",
+      5: "Bloqueada", 
     };
     const s = Number(t.status ?? 0);
     const badgeText = STATUS_TEXT[s] || "—";
