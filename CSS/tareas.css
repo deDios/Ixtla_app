@@ -1870,3 +1870,82 @@
 
 
 
+/* ==========================
+   Modal de evidencias / media
+   ========================== */
+
+#modal-media .media-body img {
+  max-height: min(72vh, 900px);
+  object-fit: contain;
+}
+
+/* Overlay específico de #modal-media */
+#modal-media.modal-overlay {
+  position: fixed;
+  inset: 0;
+
+  /* oculto por defecto */
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+
+  /* backdrop */
+  background: rgba(17, 24, 39, .60) !important;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+
+  /* por encima de todo lo demás */
+  z-index: 9000 !important;
+  transition: opacity .18s ease, visibility .18s ease;
+}
+
+/* Estados abierto (clase .open o aria-hidden=false) */
+#modal-media.modal-overlay[aria-hidden="false"],
+#modal-media.modal-overlay.open {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Caja del modal */
+#modal-media .modal-content {
+  position: relative;
+  max-width: min(92vw, 980px);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff !important;
+  border-radius: 12px;
+  padding: 16px 16px 20px;
+  box-shadow: 0 12px 48px rgba(0,0,0,.28);
+}
+
+/* Botón cerrar (“X”) */
+#modal-media .modal-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: 0;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Imagen principal */
+#modal-media img#media-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 8px;
+}
+
+/* Evitar scroll del body cuando el modal está abierto */
+body.me-modal-open {
+  overflow: hidden;
+}

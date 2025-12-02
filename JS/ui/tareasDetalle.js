@@ -1,6 +1,8 @@
 // /JS/ui/tareasDetalle.js – Logica del drawer de detalle de tarea
 "use strict";
 
+import { listMedia, uploadMedia, setupMedia } from "/JS/api/media.js";
+
 export function createTaskDetailsModule({
   State,
   KB,
@@ -12,7 +14,6 @@ export function createTaskDetailsModule({
   toast,
   highlightSelected,
   getTaskById,
-  API_MEDIA,
   postJSON,
 }) {
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -190,8 +191,8 @@ export function createTaskDetailsModule({
       const arr = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.data)
-          ? raw.data
-          : [];
+        ? raw.data
+        : [];
 
       if (!arr.length) {
         warn("[KB] DEPTO GET sin arreglo de departamentos para id:", departamentoId);
@@ -233,10 +234,6 @@ export function createTaskDetailsModule({
     }
   }
 
-
-
-
-
   async function listComentariosAPI({
     requerimiento_id,
     status = 1,
@@ -255,8 +252,8 @@ export function createTaskDetailsModule({
     const arr = Array.isArray(raw)
       ? raw
       : Array.isArray(raw?.rows)
-        ? raw.rows
-        : [];
+      ? raw.rows
+      : [];
     log("[KB] Comentarios crudos:", arr);
     return arr;
   }
@@ -280,7 +277,7 @@ export function createTaskDetailsModule({
   }
 
   /* ==========================================================================
-   *  Media / Evidencias
+   *  Media / Evidencias (usando /JS/api/media.js)
    * ========================================================================*/
 
   function normalizarMediaItem(raw) {
@@ -294,30 +291,40 @@ export function createTaskDetailsModule({
       raw.ruta ||
       raw.path ||
       raw.archivo ||
+      raw.src ||
       "";
 
-    const nombre = raw.nombre || raw.titulo || raw.descripcion || "Archivo";
+    const nombre =
+      raw.nombre ||
+      raw.titulo ||
+      raw.descripcion ||
+      raw.name ||
+      raw.filename ||
+      "Archivo";
 
-    const tipo =
-      raw.tipo ||
-      raw.mime_type ||
-      (typeof raw.extension === "string" ? raw.extension.toLowerCase() : "") ||
+    const created_at =
+      raw.created_at ||
+      raw.fecha ||
+      raw.fecha_creacion ||
+      raw.updated_at ||
       "";
 
-    const created_at = raw.created_at || raw.fecha || raw.fecha_creacion || "";
     const created_by =
       raw.created_by_display ||
       raw.created_by_nombre ||
       raw.subido_por ||
+      raw.quien ||
+      raw.quien_cargo ||
+      raw.created_by_name ||
+      raw.created_by ||
       "";
 
     return {
       id,
-      url,
-      nombre,
-      tipo,
-      created_at,
-      created_by,
+      url: String(url).trim(),
+      nombre: String(nombre).trim(),
+      created_at: String(created_at).trim(),
+      created_by: String(created_by).trim(),
     };
   }
 
@@ -363,21 +370,23 @@ export function createTaskDetailsModule({
       return [];
     }
 
-    const payload = { folio };
-
     try {
-      log("MEDIA LIST →", API_MEDIA.LIST, payload);
-      const res = await postJSON(API_MEDIA.LIST, payload);
-      log("MEDIA LIST respuesta cruda:", res);
+      log("[KB] listMedia() desde tareasDetalle, folio:", folio);
+      const res = await listMedia(folio, null, 1, 100);
 
-      const raw = res?.data ?? res?.items ?? res;
-      const arr = Array.isArray(raw)
-        ? raw
-        : Array.isArray(raw?.rows)
-          ? raw.rows
-          : [];
+      const rawList = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res?.items)
+        ? res.items
+        : Array.isArray(res?.rows)
+        ? res.rows
+        : Array.isArray(res?.data?.rows)
+        ? res.data.rows
+        : [];
 
-      return arr
+      const items = rawList
         .map(normalizarMediaItem)
         .filter(Boolean)
         .sort((a, b) => {
@@ -385,11 +394,173 @@ export function createTaskDetailsModule({
           const tb = Date.parse(b.created_at || "") || 0;
           return tb - ta;
         });
+
+      return items;
     } catch (e) {
-      console.error("[KB] Error al listar media:", e);
+      console.error("[KB] Error al listar media (listMedia):", e);
       toast("No se pudieron cargar las evidencias.", "error");
       return [];
     }
+  }
+
+  // ===== Helpers para preview (reusando la idea de requerimientoView) =====
+
+  function isImageUrl(u = "") {
+    const clean = (u.split("?")[0] || "").toLowerCase();
+    return /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(clean);
+  }
+
+  function ensurePreviewModal() {
+    if (document.getElementById("modal-media")) return;
+
+    if (!document.getElementById("media-modal-css")) {
+      const style = document.createElement("style");
+      style.id = "media-modal-css";
+      style.textContent = `
+        #modal-media.modal-overlay {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(17,24,39,.6);
+          -webkit-backdrop-filter: blur(1px);
+          backdrop-filter: blur(1px);
+          z-index: 99999;
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity .15s ease;
+        }
+        #modal-media[aria-hidden="false"] {
+          opacity: 1;
+          visibility: visible;
+        }
+        #modal-media .modal-content {
+          position: relative;
+          max-width: min(92vw, 980px);
+          max-height: 90vh;
+          overflow: auto;
+          background: #fff;
+          border-radius: 12px;
+          padding: 16px 16px 20px;
+          box-shadow: 0 12px 48px rgba(0,0,0,.28);
+        }
+        #modal-media .modal-close {
+          position: absolute;
+          top: 8px;
+          right: 10px;
+          border: 0;
+          background: transparent;
+          font-size: 28px;
+          line-height: 1;
+          cursor: pointer;
+        }
+        #modal-media .media-body { margin-top: 8px; }
+        #modal-media img#media-img {
+          max-width: 100%;
+          height: auto;
+          display: block;
+          margin: 0 auto;
+          border-radius: 8px;
+        }
+        body.me-modal-open { overflow: hidden; }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const wrap = document.createElement("div");
+    wrap.innerHTML = `
+      <div id="modal-media" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content">
+          <button class="modal-close" aria-label="Cerrar">&times;</button>
+          <div class="media-head" style="margin-bottom:10px;">
+            <h3 id="media-title" style="margin:0; font-size:1.05rem; font-weight:700;"></h3>
+            <div id="media-meta" style="color:#6b7280; font-size:.85rem; margin-top:4px;"></div>
+          </div>
+          <div class="media-body">
+            <img id="media-img" alt="">
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap.firstElementChild);
+  }
+
+  function openPreview({ src, title, who, date }) {
+    ensurePreviewModal();
+    const overlay = document.getElementById("modal-media");
+    const img = document.getElementById("media-img");
+    const ttl = document.getElementById("media-title");
+    const meta = document.getElementById("media-meta");
+    const closeBtn = overlay.querySelector(".modal-close");
+
+    img.src = src;
+    ttl.textContent = title || "Evidencia";
+    meta.textContent = [who, date].filter(Boolean).join(" • ");
+
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("me-modal-open");
+
+    const close = () => {
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("me-modal-open");
+      img.src = "";
+      overlay.removeEventListener("click", onBackdrop);
+      closeBtn.removeEventListener("click", close);
+      document.removeEventListener("keydown", onEsc);
+    };
+    const onBackdrop = (e) => {
+      if (e.target === overlay) close();
+    };
+    const onEsc = (e) => {
+      if (e.key === "Escape") close();
+    };
+
+    overlay.addEventListener("click", onBackdrop);
+    closeBtn.addEventListener("click", close);
+    document.addEventListener("keydown", onEsc);
+  }
+
+  function bindMediaPreviewForGrid() {
+    const wrap = $("#kb-d-evidencias");
+    if (!wrap || wrap.__previewBound) return;
+    wrap.__previewBound = true;
+
+    wrap.addEventListener("click", (e) => {
+      const card = e.target.closest(".kb-evid-item");
+      if (!card) return;
+
+      const src =
+        card.getAttribute("data-src") ||
+        card.dataset.src ||
+        "";
+
+      if (!src) return;
+
+      // Si no es imagen → abre en pestaña nueva
+      if (!isImageUrl(src)) {
+        window.open(src, "_blank", "noopener");
+        return;
+      }
+
+      e.preventDefault();
+
+      openPreview({
+        src,
+        title:
+          card.getAttribute("data-title") ||
+          card.dataset.title ||
+          card.querySelector(".kb-evid-name")?.textContent ||
+          "Evidencia",
+        who:
+          card.getAttribute("data-who") ||
+          card.dataset.who ||
+          "",
+        date:
+          card.getAttribute("data-date") ||
+          card.dataset.date ||
+          "",
+      });
+    });
   }
 
   function renderMediaGrid(items) {
@@ -403,6 +574,8 @@ export function createTaskDetailsModule({
       empty.className = "kb-evid-empty";
       empty.textContent = "Aún no hay evidencias para este requerimiento.";
       wrap.appendChild(empty);
+
+      bindMediaPreviewForGrid();
       return;
     }
 
@@ -410,6 +583,11 @@ export function createTaskDetailsModule({
       const card = document.createElement("button");
       card.type = "button";
       card.className = "kb-evid-item";
+
+      if (it.url) card.setAttribute("data-src", it.url);
+      if (it.nombre) card.setAttribute("data-title", it.nombre);
+      if (it.created_by) card.setAttribute("data-who", it.created_by);
+      if (it.created_at) card.setAttribute("data-date", it.created_at);
 
       const thumb = document.createElement("div");
       thumb.className = "kb-evid-thumb";
@@ -443,14 +621,10 @@ export function createTaskDetailsModule({
       card.appendChild(thumb);
       card.appendChild(meta);
 
-      card.addEventListener("click", () => {
-        if (it.url) {
-          window.open(it.url, "_blank", "noopener");
-        }
-      });
-
       wrap.appendChild(card);
     }
+
+    bindMediaPreviewForGrid();
   }
 
   async function loadEvidenciasForTask(taskOrId) {
@@ -467,7 +641,6 @@ export function createTaskDetailsModule({
     const reqId = task.requerimiento_id;
     const wrap = $("#kb-d-evidencias");
     if (wrap) {
-      // placeholders de carga
       wrap.innerHTML = "";
       for (let i = 0; i < 3; i++) {
         const ph = document.createElement("div");
@@ -484,8 +657,6 @@ export function createTaskDetailsModule({
     if (!task?.requerimiento_id || !files?.length) return;
 
     const reqId = task.requerimiento_id;
-
-    // Resolver folio del requerimiento antes de subir
     const folio = await getFolioForRequerimiento(reqId);
 
     if (!folio) {
@@ -493,41 +664,39 @@ export function createTaskDetailsModule({
       return;
     }
 
-    for (const file of files) {
-      const fd = new FormData();
+    // Opcional: detectar status para carpeta destino (mismo patrón de requerimientoView)
+    const status = (() => {
+      const sel = document.querySelector('#req-status [data-role="status-select"]');
+      if (sel) return Number(sel.value || 0);
+      const cur = document.querySelector(".step-menu li.current");
+      return cur ? Number(cur.getAttribute("data-status")) : 0;
+    })();
 
-      // Enviamos ambos por si el backend usa alguno de los dos
-      fd.append("requerimiento_id", reqId);
-      fd.append("folio", folio);
-      fd.append("archivo", file);
-
+    try {
+      log("[KB] setupMedia() →", folio);
       try {
-        log("MEDIA UPLOAD →", API_MEDIA.UPLOAD, {
-          requerimiento_id: reqId,
-          folio,
-          name: file.name,
-          size: file.size,
-        });
-
-        const resp = await fetch(API_MEDIA.UPLOAD, {
-          method: "POST",
-          body: fd,
-        });
-
-        const json = await resp.json().catch(() => null);
-        log("MEDIA UPLOAD respuesta:", json);
-
-        if (json?.ok === false) {
-          toast(`No se pudo subir "${file.name}"`, "error");
-        }
+        await setupMedia(folio);
       } catch (e) {
-        console.error("[KB] Error al subir media:", e);
-        toast(`Error al subir "${file.name}"`, "error");
+        // si falla no rompemos, uploadMedia puede seguir si el backend lo maneja
+        console.warn("[KB] setupMedia() falló (no crítico):", e);
       }
-    }
 
-    toast("Evidencia subida correctamente", "success");
-    await loadEvidenciasForTask(task);
+      log("[KB] uploadMedia() → folio, status, files:", folio, status, files);
+      const out = await uploadMedia({ folio, status, files });
+
+      const saved = out?.saved?.length || 0;
+      const failed = out?.failed?.length || 0;
+      const skipped = out?.skipped?.length || 0;
+
+      if (saved) toast(`Subida exitosa: ${saved} archivo(s).`, "success");
+      if (failed) toast(`Fallo servidor: ${failed} archivo(s).`, "danger");
+      if (skipped) toast(`Descartados localmente: ${skipped}.`, "warn");
+
+      await loadEvidenciasForTask(task);
+    } catch (e) {
+      console.error("[KB] Error en uploadMedia():", e);
+      toast("No se pudo subir la evidencia.", "error");
+    }
   }
 
   let evidenciasBound = false;
@@ -588,11 +757,9 @@ export function createTaskDetailsModule({
       };
     }
 
-    const tareaId = match[1]; // el número capturado
+    const tareaId = match[1];
 
-    // Quitamos el prefijo encontrado del texto
     let cleanText = text.slice(match[0].length).trim();
-    // Limpiar separadores tipo ":" "-" "–" extra al inicio
     cleanText = cleanText.replace(/^[:\-–\s]+/, "").trim();
 
     return {
@@ -617,7 +784,6 @@ export function createTaskDetailsModule({
       return;
     }
 
-    const tareaId = task.id;
     const reqId = task.requerimiento_id;
 
     if (!reqId) {
@@ -644,7 +810,7 @@ export function createTaskDetailsModule({
     const ordered = [...all].sort((a, b) => {
       const aDate = Date.parse(a.created_at || a.fecha || "") || 0;
       const bDate = Date.parse(b.created_at || b.fecha || "") || 0;
-      return bDate - aDate; // b primero si es más nuevo
+      return bDate - aDate;
     });
 
     for (const c of ordered) {
@@ -742,7 +908,6 @@ export function createTaskDetailsModule({
     const scroller = feed.parentElement || feed;
     scroller.scrollTo({ top: 0, behavior: "auto" });
   }
-
 
   async function loadComentariosDeTarea(taskOrId) {
     const task =
@@ -906,7 +1071,6 @@ export function createTaskDetailsModule({
       task.esfuerzo != null ? `${task.esfuerzo}` : "—";
     if (descEl) descEl.textContent = task.descripcion || "—";
 
-    // Creado por: asumimos que ya viene resuelto en la tarea
     if (creadoPorEl) {
       creadoPorEl.textContent =
         task.created_by_nombre ||
@@ -915,7 +1079,6 @@ export function createTaskDetailsModule({
         "—";
     }
 
-    // Quien autoriza lo dejaremos en "—" de momento, luego lo rellenamos async
     if (autorizaEl) {
       autorizaEl.textContent = task.autoriza_nombre || "—";
     }
@@ -940,11 +1103,9 @@ export function createTaskDetailsModule({
     if (empty) empty.hidden = true;
     if (body) body.hidden = false;
 
-    // Pintamos datos básicos
     fillDetails(task);
     setupTaskCommentsComposer();
 
-    // Cargamos evidencias y comentarios
     loadEvidenciasForTask(task).catch((e) =>
       console.error("[KB] Error al cargar evidencias:", e)
     );
@@ -952,7 +1113,6 @@ export function createTaskDetailsModule({
       console.error("[KB] Error al cargar comentarios:", e)
     );
 
-    // Resolver y pintar "Quien autoriza" (director del departamento)
     resolveAutorizaNombre(task)
       .then((nombre) => {
         if (!nombre) return;

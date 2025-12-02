@@ -126,6 +126,7 @@ function formatFolio(folio, id) {
   return "—";
 }
 
+/** Diferencia en días entre una fecha y ahora */
 function diffDays(startStr) {
   if (!startStr) return null;
   const start = new Date(String(startStr).replace(" ", "T"));
@@ -136,6 +137,7 @@ function diffDays(startStr) {
   return days < 0 ? 0 : days;
 }
 
+/** Cálculo del chip de edad por días en el status */
 function calcAgeChip(task) {
   // Prioridad: status_since (desde cuándo está en este status)
   const base =
@@ -210,58 +212,36 @@ let FiltersModule = null;
 // cache para requerimientos (folio, tramite, etc.)
 const ReqCache = new Map(); // reqId → data o null
 
-// Subordinados detectados para el viewer (empleados que le reportan, directo o en cascada)
+// Subordinados detectados para el viewer (empleados que le reportan)
 const SubordinateIds = new Set();
 
-// Helper para calcular subordinados según la data de empleados (usando cuenta.reporta_a)
+/**
+ * Calcular subordinados según payload de empleados
+ * Usa varios posibles campos: reporta_a / reporta_a_id / jefe_id / jefe_directo_id
+ */
 function buildSubordinatesIndex(empleados) {
   SubordinateIds.clear();
-  const myId =
-    KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
-  if (!myId || !Array.isArray(empleados) || !empleados.length) return;
-
-  // Mapa bossId → [subordinados directos]
-  const bossMap = new Map();
+  const myId = KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
+  if (!myId || !Array.isArray(empleados)) return;
 
   empleados.forEach((emp) => {
     if (!emp) return;
 
-    const empId = emp.id != null ? Number(emp.id) : null;
-    const bossId =
-      emp.cuenta?.reporta_a != null
-        ? Number(emp.cuenta.reporta_a)
-        : null;
+    const reportsTo =
+      emp.reporta_a_id ??
+      emp.reporta_a ??
+      emp.jefe_id ??
+      emp.jefe_directo_id ??
+      null;
 
-    if (empId == null || bossId == null) return;
+    const bossId = reportsTo != null ? Number(reportsTo) : null;
 
-    if (!bossMap.has(bossId)) {
-      bossMap.set(bossId, []);
+    if (bossId === myId && emp.id != null) {
+      SubordinateIds.add(Number(emp.id));
     }
-    bossMap.get(bossId).push(empId);
   });
 
-  // Recorrido en amplitud para obtener subordinados en cascada
-  const queue = [myId];
-  const visited = new Set();
-
-  while (queue.length) {
-    const current = queue.shift();
-    if (visited.has(current)) continue;
-    visited.add(current);
-
-    const directSubs = bossMap.get(current) || [];
-    for (const subId of directSubs) {
-      if (!SubordinateIds.has(subId)) {
-        SubordinateIds.add(subId);
-        queue.push(subId);
-      }
-    }
-  }
-
-  log(
-    "Subordinados detectados para viewer (reporta_a):",
-    Array.from(SubordinateIds)
-  );
+  log("Subordinados detectados para viewer (reporta_a):", Array.from(SubordinateIds));
 }
 
 // Módulo del drawer (se inicializa en init)
@@ -394,6 +374,7 @@ async function fetchDepartamentos() {
     }
 
     const out = json.data.map((d) => ({
+
       id: Number(d.id),
       nombre: d.nombre || `Depto ${d.id}`,
       status: d.status != null ? Number(d.status) : null,
@@ -626,10 +607,7 @@ function getForbiddenMoveMessage(task, oldStatus, newStatus) {
 
   // Intento de mandar a HECHO
   if (newStatus === S.HECHO) {
-    if (isAnalista) {
-      return 'Solo el director de tu departamento puede colocar la tarea en "hecho".';
-    }
-    if (isJefe) {
+    if (isAnalista || isJefe) {
       return 'Solo el director de tu departamento puede colocar la tarea en "hecho".';
     }
     return 'No tienes permisos para colocar esta tarea en "hecho".';
@@ -669,6 +647,11 @@ function getForbiddenMoveMessage(task, oldStatus, newStatus) {
  *   - Pueden mandar a PAUSA desde cualquier estado.
  *   - No pueden regresar hacia atrás en el flujo (TODO → PROCESO → REVISAR → HECHO).
  *   - Desde PAUSA pueden volver al flujo (salvo HECHO).
+ *
+ *  Mapa explícito de movimientos permitidos:
+ *    1 → 2, 1 → 3, 2 → 3
+ *    1/2/3 → 5
+ *    5 → 2
  */
 function canMoveTask(task, oldStatus, newStatus) {
   if (oldStatus === newStatus) return true;
@@ -785,29 +768,6 @@ function canViewTask(task) {
    6) Filtros (lógica de negocio)
    ========================================================================== */
 
-function passesBaseFilters(task) {
-  // Solo mis tareas
-  if (
-    State.filters.mine &&
-    KB.CURRENT_USER_ID != null &&
-    task.asignado_a !== KB.CURRENT_USER_ID
-  ) {
-    return false;
-  }
-
-  // Search (folio / proceso / id)
-  const q = State.filters.search.trim().toLowerCase();
-  if (q) {
-    const hay =
-      (task.folio || "").toLowerCase().includes(q) ||
-      (task.proceso_titulo || "").toLowerCase().includes(q) ||
-      String(task.id).includes(q);
-    if (!hay) return false;
-  }
-
-  return true;
-}
-
 function passesFilters(task) {
   // Solo mis tareas
   if (
@@ -828,7 +788,7 @@ function passesFilters(task) {
     if (!hay) return false;
   }
 
-  // Filtro "recientes" (últimos N días, por ahora 15)
+  // Filtro "recientes" (últimos N días)
   const recentDays = State.filters.recentDays;
   if (recentDays != null) {
     const baseDateStr = task.fecha_inicio || task.created_at;
@@ -996,6 +956,7 @@ function createCard(task) {
 }
 
 function renderBoard() {
+  // Limpiar columnas y contadores
   Object.values(COL_IDS).forEach((sel) => {
     const col = $(sel);
     if (col) col.innerHTML = "";
@@ -1031,7 +992,7 @@ function renderBoard() {
 
   highlightSelected();
 
-  // 2) Actualizar filtros dinámicos según tareas que cumplen mine + búsqueda + jerarquía
+  // 2) Actualizar filtros dinámicos según tareas que cumplen jerarquía + filtros
   if (FiltersModule && FiltersModule.updateAvailableOptions) {
     const universeTasks = State.tasks.filter(
       (t) => canViewTask(t) && passesFilters(t)
@@ -1077,7 +1038,7 @@ async function persistTaskStatus(task, newStatus, oldStatus) {
   const payload = {
     id: task.id,
     status: newStatus, // si el backend usa 'estatus', cámbialo aquí
-    updated_by: updatedBy, // <--- dato obligatorio
+    updated_by: updatedBy,
   };
 
   // Si entra a EN PROCESO, actualizamos fecha_inicio
@@ -1269,12 +1230,8 @@ async function init() {
   // 1) Evitar flicker del sidebar: lo dejamos oculto hasta decidir rol
   // --------------------------------------------------------------------
   const sidebarFiltersEl = $(".kb-sidebar-filters");
-  const sidebarDeptFieldEl = "#kb-filter-departamentos"
-    ? $("#kb-filter-departamentos")
-    : null;
-  const sidebarEmpFieldEl = "#kb-filter-empleados"
-    ? $("#kb-filter-empleados")
-    : null;
+  const sidebarDeptFieldEl = $("#kb-filter-departamentos");
+  const sidebarEmpFieldEl = $("#kb-filter-empleados");
 
   if (sidebarFiltersEl) {
     sidebarFiltersEl.classList.add("kb-filters-boot-hidden");
@@ -1300,6 +1257,9 @@ async function init() {
     }
   });
   log("Index empleados (global):", State.empleadosIndex);
+
+  // Subordinados de viewer
+  buildSubordinatesIndex(empleados);
 
   depts.forEach((d) => {
     if (d?.id != null) {
@@ -1478,9 +1438,9 @@ async function init() {
   log("Viewer (después de roles + deptos):", Viewer);
 
   // --------------------------------------------------------------------
-  // 8) Jerarquía de subordinados (usando cuenta.reporta_a)
+  // 8) Decidir quién ve qué filtros del sidebar
   // --------------------------------------------------------------------
-  buildSubordinatesIndex(empleados);
+  // Detectar subordinados del viewer
   const hasSubordinates = SubordinateIds.size > 0;
 
   // Exponer snapshot para otros módulos
@@ -1581,31 +1541,12 @@ async function init() {
 
   if (isAdminOrPres) {
     empleadosForFilter = empleados;
-  } else if (isDirectorOrPrimera && Viewer.deptId != null) {
-    // Director / primera línea → todos los empleados de su depto
+  } else if (Viewer.deptId != null) {
     empleadosForFilter = empleados.filter(
       (e) => Number(e.departamento_id) === Number(Viewer.deptId)
     );
-  } else if (isJefe) {
-    // Jefe → él mismo + subordinados (idealmente dentro de su depto)
-    const myId =
-      KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
-    empleadosForFilter = empleados.filter((e) => {
-      const id = e.id != null ? Number(e.id) : null;
-      if (id == null) return false;
-
-      const deptOk =
-        Viewer.deptId == null ||
-        Number(e.departamento_id) === Number(Viewer.deptId);
-
-      return (
-        deptOk &&
-        (id === myId || SubordinateIds.has(id))
-      );
-    });
   } else {
-    // Analista / otros → sin combo de empleados
-    empleadosForFilter = [];
+    empleadosForFilter = empleados;
   }
 
   log(
