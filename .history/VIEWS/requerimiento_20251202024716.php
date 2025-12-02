@@ -183,17 +183,18 @@
 
                     <!-- Fila 1: título + meta -->
                     <div class="exp-meta-item">
-                        <span class="exp-meta-label">Folio</span>
-                        <span class="exp-meta-value" id="req-contacto">—</span>
-                    </div>
-                    <div class="exp-meta-item">
-                        <span class="exp-meta-label">Departamento</span>
-                        <span class="exp-meta-value" id="req-encargado">—</span>
-                    </div>
-                    <div class="exp-meta-item">
-                        <span class="exp-meta-label">Fecha de solicitud</span>
-                        <span class="exp-meta-value" id="req-fecha-solicitud">—</span>
-                    </div>
+    <span class="exp-meta-label">Folio</span>
+    <span class="exp-meta-value" id="req-contacto">—</span>
+</div>
+<div class="exp-meta-item">
+    <span class="exp-meta-label">Departamento</span>
+    <span class="exp-meta-value" id="req-encargado">—</span>
+</div>
+<div class="exp-meta-item">
+    <span class="exp-meta-label">Fecha de solicitud</span>
+    <span class="exp-meta-value" id="req-fecha-solicitud">—</span>
+</div>
+
 
                     <!-- Fila 2: botones, renglón propio -->
                     <div class="exp-head-actions">
@@ -739,7 +740,7 @@
             </div>
         </div>
     </div>
-
+ 
 
 
     <script src="/JS/JSglobal.js"></script>

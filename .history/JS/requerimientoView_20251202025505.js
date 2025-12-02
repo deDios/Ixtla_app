@@ -908,38 +908,31 @@
   }
 
   function paintHeaderMeta(req) {
-    const folioEl = document.querySelector("#req-contacto");
-    const deptEl = document.querySelector("#req-encargado");
-    const fechaEl = document.querySelector("#req-fecha-solicitud");
+    const ddC = $(".exp-meta > div:nth-child(1) dd"); // antes Contacto → ahora Folio
+    const ddE = $(".exp-meta > div:nth-child(2) dd"); // antes Encargado → ahora Departamento
+    const ddF = $(".exp-meta > div:nth-child(3) dd"); // Fecha de solicitud
 
-    // 1) Folio (REQ-000…)
-    if (folioEl) {
-      folioEl.textContent = formatReqFolio(req.folio, req.id);
+    // 1) FOLIO (REQ-000...)
+    if (ddC) {
+      ddC.textContent = formatFolio(req.folio, req.id);
     }
 
-    // 2) Departamento (SAMAPA...)
-    if (deptEl) {
+    // 2) DEPARTAMENTO (SAMAPA ...)
+    if (ddE) {
       const depNombre =
         (req.departamento_nombre && req.departamento_nombre.trim()) ||
         (req.raw?.departamento_nombre &&
           String(req.raw.departamento_nombre).trim()) ||
         "—";
-
-      deptEl.textContent = depNombre || "—";
+      ddE.textContent = depNombre || "—";
     }
 
-    // 3) Fecha de solicitud
-    if (fechaEl) {
-      const rawFecha =
-        (req.creado_at && String(req.creado_at)) ||
-        (req.raw?.fecha_creacion && String(req.raw.fecha_creacion)) ||
-        "";
-
-      fechaEl.textContent = rawFecha
-        ? rawFecha.replace("T", " ")
-        : "—";
+    // 3) FECHA DE SOLICITUD (igual que antes)
+    if (ddF) {
+      ddF.textContent = (req.creado_at || "—").replace("T", " ");
     }
   }
+
 
   /* ======================================
    *  Comentarios

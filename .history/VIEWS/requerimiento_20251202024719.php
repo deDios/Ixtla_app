@@ -195,6 +195,7 @@
                         <span class="exp-meta-value" id="req-fecha-solicitud">—</span>
                     </div>
 
+
                     <!-- Fila 2: botones, renglón propio -->
                     <div class="exp-head-actions">
                         <div id="req-actions" class="exp-actions"></div>
