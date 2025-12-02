@@ -116,7 +116,7 @@
         const t = await postJSON(ENDPOINTS.TAREAS_LIST, {
           proceso_id: Number(pr.id),
           page: 1,
-          page_size: 50,
+          page_size: 200,
         });
 
         log(
