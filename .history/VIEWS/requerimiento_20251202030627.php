@@ -189,28 +189,25 @@
 
                         <dl class="exp-meta">
                             <div>
-                                <dt>Folio</dt>
-                                <dd id="req-folio">—</dd>
+                                <dt>Contacto</dt>
+                                <dd>Juan test</dd>
                             </div>
                             <div>
-                                <dt>Departamento</dt>
-                                <dd id="req-departamento">—</dd>
+                                <dt>Encargado</dt>
+                                <dd>Pablo Agustin de Dios Garcia</dd>
                             </div>
                             <div>
-                                <dt>Fecha de solicitud</dt>
-                                <dd id="req-fecha-solicitud">—</dd>
+                                <dt>Fecha de solicitado</dt>
+                                <dd>2025-11-04 18:47:45</dd>
                             </div>
                         </dl>
                     </div>
 
                     <!-- Fila 2: botones, renglón propio -->
                     <div class="exp-head-actions">
-                        <div id="req-actions" class="exp-actions">
-                            <!-- los botones se rellenan por JS, deja este contenedor -->
-                        </div>
+                        <div id="req-actions" class="exp-actions"></div>
                     </div>
                 </header>
-
 
 
 
@@ -750,7 +747,7 @@
             </div>
         </div>
     </div>
-
+ 
 
 
     <script src="/JS/JSglobal.js"></script>

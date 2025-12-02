@@ -181,35 +181,35 @@
                 <!-- Encabezado -->
                 <header class="exp-head">
 
-                    <!-- Fila 1: título + meta -->
-                    <div class="exp-head-main">
-                        <div class="exp-title">
-                            <h1>Reporte Otros</h1>
-                        </div>
+  <!-- Fila 1: título + meta -->
+  <div class="exp-head-main">
+    <div class="exp-title">
+      <h1>Reporte Otros</h1>
+    </div>
 
-                        <dl class="exp-meta">
-                            <div>
-                                <dt>Folio</dt>
-                                <dd id="req-folio">—</dd>
-                            </div>
-                            <div>
-                                <dt>Departamento</dt>
-                                <dd id="req-departamento">—</dd>
-                            </div>
-                            <div>
-                                <dt>Fecha de solicitud</dt>
-                                <dd id="req-fecha-solicitud">—</dd>
-                            </div>
-                        </dl>
-                    </div>
+    <dl class="exp-meta">
+      <div>
+        <dt>Folio</dt>
+        <dd id="req-folio">—</dd>
+      </div>
+      <div>
+        <dt>Departamento</dt>
+        <dd id="req-departamento">—</dd>
+      </div>
+      <div>
+        <dt>Fecha de solicitud</dt>
+        <dd id="req-fecha-solicitud">—</dd>
+      </div>
+    </dl>
+  </div>
 
-                    <!-- Fila 2: botones, renglón propio -->
-                    <div class="exp-head-actions">
-                        <div id="req-actions" class="exp-actions">
-                            <!-- los botones se rellenan por JS, deja este contenedor -->
-                        </div>
-                    </div>
-                </header>
+  <!-- Fila 2: botones, renglón propio -->
+  <div class="exp-head-actions">
+    <div id="req-actions" class="exp-actions">
+      <!-- los botones se rellenan por JS, deja este contenedor -->
+    </div>
+  </div>
+</header>
 
 
 
@@ -750,7 +750,7 @@
             </div>
         </div>
     </div>
-
+ 
 
 
     <script src="/JS/JSglobal.js"></script>
