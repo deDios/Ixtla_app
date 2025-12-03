@@ -238,59 +238,60 @@
                 <div class="exp-panes">
                     <!-- Panel: Contacto -->
                     <section class="exp-pane" role="tabpanel" data-tab="Contacto">
-                        <div class="exp-grid" id="req-contacto-grid">
-                            <!-- Nombre -->
-                            <div class="exp-field">
-                                <label>Nombre de contacto:</label>
-                                <div class="exp-val">
-                                    <span id="req-contacto-nombre">—</span>
-                                </div>
-                            </div>
+    <div class="exp-grid" id="req-contacto-grid">
+        <!-- Nombre -->
+        <div class="exp-field">
+            <label>Nombre de contacto:</label>
+            <div class="exp-val">
+                <span id="req-contacto-nombre">—</span>
+            </div>
+        </div>
 
-                            <!-- Teléfono -->
-                            <div class="exp-field">
-                                <label>Teléfono:</label>
-                                <div class="exp-val">
-                                    <span id="req-contacto-telefono">—</span>
-                                </div>
-                            </div>
+        <!-- Teléfono -->
+        <div class="exp-field">
+            <label>Teléfono:</label>
+            <div class="exp-val">
+                <span id="req-contacto-telefono">—</span>
+            </div>
+        </div>
 
-                            <!-- Correo -->
-                            <div class="exp-field">
-                                <label>Correo electrónico:</label>
-                                <div class="exp-val">
-                                    <span id="req-contacto-correo">—</span>
-                                </div>
-                            </div>
+        <!-- Correo -->
+        <div class="exp-field">
+            <label>Correo electrónico:</label>
+            <div class="exp-val">
+                <span id="req-contacto-correo">—</span>
+            </div>
+        </div>
 
-                            <!-- Calle / domicilio -->
-                            <div class="exp-field">
-                                <label>Calle y número:</label>
-                                <div class="exp-val">
-                                    <!-- mapea a contacto_calle -->
-                                    <span id="req-contacto-calle">—</span>
-                                </div>
-                            </div>
+        <!-- Calle / domicilio -->
+        <div class="exp-field">
+            <label>Calle y número:</label>
+            <div class="exp-val">
+                <!-- mapea a contacto_calle -->
+                <span id="req-contacto-calle">—</span>
+            </div>
+        </div>
 
-                            <!-- C.P. -->
-                            <div class="exp-field">
-                                <label>C.P.:</label>
-                                <div class="exp-val">
-                                    <!-- mapea a contacto_cp -->
-                                    <span id="req-contacto-cp">—</span>
-                                </div>
-                            </div>
+        <!-- C.P. -->
+        <div class="exp-field">
+            <label>C.P.:</label>
+            <div class="exp-val">
+                <!-- mapea a contacto_cp -->
+                <span id="req-contacto-cp">—</span>
+            </div>
+        </div>
 
-                            <!-- Colonia -->
-                            <div class="exp-field">
-                                <label>Colonia:</label>
-                                <div class="exp-val">
-                                    <!-- mapea a contacto_colonia -->
-                                    <span id="req-contacto-colonia">—</span>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
+        <!-- Colonia -->
+        <div class="exp-field">
+            <label>Colonia:</label>
+            <div class="exp-val">
+                <!-- mapea a contacto_colonia -->
+                <span id="req-contacto-colonia">—</span>
+            </div>
+        </div>
+    </div>
+</section>
+
 
                     <!-- Panel: Detalles -->
                     <section class="exp-pane" role="tabpanel" data-tab="detalles">

@@ -861,7 +861,7 @@
   /* ======================================
    *  UI: Header/meta + Contacto
    * ======================================*/
-  function paintContacto(req) {
+   function paintContacto(req) {
     const pane = document.querySelector('.exp-pane[role="tabpanel"][data-tab="Contacto"]');
     if (!pane) return;
 
@@ -873,12 +873,12 @@
     };
 
     // Campos de contacto (del JSON normalizado en getRequerimientoById)
-    setText("#req-contacto-nombre", req.contacto_nombre);
+    setText("#req-contacto-nombre",   req.contacto_nombre);
     setText("#req-contacto-telefono", req.contacto_telefono);
-    setText("#req-contacto-correo", req.contacto_email);
-    setText("#req-contacto-calle", req.contacto_calle);
-    setText("#req-contacto-cp", req.contacto_cp);
-    setText("#req-contacto-colonia", req.contacto_colonia);
+    setText("#req-contacto-correo",   req.contacto_email);
+    setText("#req-contacto-calle",    req.contacto_calle);
+    setText("#req-contacto-cp",       req.contacto_cp);
+    setText("#req-contacto-colonia",  req.contacto_colonia);
   }
 
   // helper simple para folio, por si viene raro

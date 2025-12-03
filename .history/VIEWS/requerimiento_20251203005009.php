@@ -292,6 +292,7 @@
                         </div>
                     </section>
 
+
                     <!-- Panel: Detalles -->
                     <section class="exp-pane" role="tabpanel" data-tab="detalles">
                         <div class="exp-grid">
