@@ -236,66 +236,62 @@
 
                 <!-- WRAPPER: evita salto entre tabs -->
                 <div class="exp-panes">
-
-
-
                     <!-- Panel: Contacto -->
                     <section class="exp-pane" role="tabpanel" data-tab="Contacto">
                         <div class="exp-grid">
-                            <!-- Nombre -->
                             <div class="exp-field">
-                                <label>Nombre de contacto</label>
-                                <div class="exp-val" data-contact-display="nombre">—</div>
+                                <label>Nombre</label>
+                                <div class="exp-val">—</div>
                             </div>
 
-                            <!-- Teléfono -->
                             <div class="exp-field">
                                 <label>Teléfono</label>
-                                <div class="exp-val" data-contact-display="telefono">—</div>
+                                <div class="exp-val">—</div>
                             </div>
 
-                            <!-- Domicilio -->
                             <div class="exp-field">
                                 <label>Domicilio</label>
-                                <div class="exp-val" data-contact-display="calle">—</div>
+                                <div class="exp-val">—</div>
                             </div>
 
-                            <!-- Correo -->
                             <div class="exp-field">
-                                <label>Correo electrónico</label>
-                                <div class="exp-val" data-contact-display="correo">—</div>
+                                <label>Correo</label>
+                                <div class="exp-val">—</div>
                             </div>
 
-                            <!-- C.P. (editable) -->
-                            <div class="exp-field exp-field--editable" data-contact-field="cp">
-                                <label for="contact-cp">C.P.:</label>
-
-                                <!-- lectura -->
-                                <div class="exp-val contact-read">
-                                    <span data-contact-display="cp">—</span>
-                                    <button type="button" class="icon-btn contact-edit-trigger" data-contact-edit="cp"
-                                        aria-label="Editar C.P." title="Editar C.P.">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <!-- C.P. -->
+                            <div class="exp-field" data-field="cp">
+                                <label>C.P.:</label>
+                                <div class="exp-val exp-val--editable">
+                                    <span class="exp-val-text" data-role="contacto-cp-val">—</span>
+                                    <button type="button" class="icon-btn contact-edit-btn" data-edit="cp"
+                                        title="Editar C.P." aria-label="Editar C.P.">
+                                        <!-- mismo SVG de lápiz que usas en Asignado -->
+                                        <svg viewBox="0 0 16 16" aria-hidden="true">
                                             <path
-                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0L15 4.25l3.75 3.75 1.96-1.96z">
-                                            </path>
+                                                d="M11.3 1.3a1 1 0 0 1 1.4 0l2 2a1 1 0 0 1 0 1.4l-7.5 7.5-3.2.8.8-3.2z" />
                                         </svg>
                                     </button>
                                 </div>
+                            </div>
 
-                                <!-- edición (combo de CPs global) -->
-                                <div class="contact-edit contact-edit--cp" data-contact-edit-wrapper="cp" hidden>
-                                    <div class="contact-edit-row">
-                                        <select id="contact-cp" name="contacto_cp" class="ix-select ix-select--quiet"
-                                            data-role="cp-select">
-                                            <option value="">Selecciona C.P.</option>
-                                            <!-- opciones desde JS con ixtla01_c_cpcolonia.php (all:true) -->
-                                        </select>
-                                    </div>
+                            <!-- Colonia -->
+                            <div class="exp-field" data-field="colonia">
+                                <label>Colonia:</label>
+                                <div class="exp-val exp-val--editable">
+                                    <span class="exp-val-text" data-role="contacto-colonia-val">—</span>
+                                    <button type="button" class="icon-btn contact-edit-btn" data-edit="colonia"
+                                        title="Editar colonia" aria-label="Editar colonia">
+                                        <!-- mismo SVG -->
+                                        <svg viewBox="0 0 16 16" aria-hidden="true">
+                                            <path
+                                                d="M11.3 1.3a1 1 0 0 1 1.4 0l2 2a1 1 0 0 1 0 1.4l-7.5 7.5-3.2.8.8-3.2z" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Colonia (editable, depende del C.P.) -->
+
                             <div class="exp-field exp-field--editable" data-contact-field="colonia">
                                 <label for="contact-colonia">Colonia:</label>
 
@@ -304,6 +300,7 @@
                                     <span data-contact-display="colonia">—</span>
                                     <button type="button" class="icon-btn contact-edit-trigger"
                                         data-contact-edit="colonia" aria-label="Editar colonia" title="Editar colonia">
+                                        <!-- mismo SVG de lápiz -->
                                         <svg viewBox="0 0 24 24" aria-hidden="true">
                                             <path
                                                 d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0L15 4.25l3.75 3.75 1.96-1.96z">
@@ -312,24 +309,20 @@
                                     </button>
                                 </div>
 
-                                <!-- edición (combo dependiente del CP) -->
+                                <!-- edición (combo dependiente del C.P.) -->
                                 <div class="contact-edit contact-edit--colonia" data-contact-edit-wrapper="colonia"
                                     hidden>
                                     <div class="contact-edit-row">
                                         <select id="contact-colonia" name="contacto_colonia"
                                             class="ix-select ix-select--quiet" data-role="colonia-select">
                                             <option value="">Selecciona colonia</option>
-                                            <!-- opciones desde JS con ixtla01_c_cpcolonia.php cp: {cp} -->
+                                            <!-- opciones se llenan desde JS con el endpoint cpcolonia (por CP) -->
                                         </select>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </section>
-
-
-
-
 
                     <!-- Panel: Detalles -->
                     <section class="exp-pane" role="tabpanel" data-tab="detalles">

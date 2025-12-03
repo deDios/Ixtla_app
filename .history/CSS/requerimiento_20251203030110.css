@@ -1335,46 +1335,25 @@ body.modal-open { overflow: hidden; }
 
 
 
-/* =========================================
-   CONTACTO – edición inline (C.P. / Colonia)
-   ==========================================*/
-
-/* Texto + lápiz en la misma línea */
-.exp-pane[data-tab="Contacto"] .exp-field--editable .exp-val.contact-read {
-  display: flex;
+/* Campos de contacto editables: valor + lápiz en la misma línea */
+.exp-pane[data-tab="Contacto"] .exp-field.exp-field--editable .exp-val.contact-read {
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-/* Que el texto ocupe el ancho y el lápiz quede a la derecha */
-.exp-pane[data-tab="Contacto"] .exp-field--editable 
-  .exp-val.contact-read [data-contact-display] {
-  flex: 1;
-}
-
-/* Botón de lápiz estilo "Asignado" (por si aquí no lo agarra) */
-.exp-pane[data-tab="Contacto"] .contact-edit-trigger.icon-btn {
+/* Botón de lápiz del contacto, mismo look que Asignado */
+.exp-pane[data-tab="Contacto"] .exp-field.exp-field--editable .icon-btn.contact-edit-trigger {
   width: 28px;
   height: 28px;
-  padding: 0;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
 }
 
-/* Contenedor del modo edición (selects) */
-.exp-pane[data-tab="Contacto"] .contact-edit {
+/* El bloque de edición queda debajo del valor, con un poco de espacio */
+.exp-pane[data-tab="Contacto"] .exp-field.exp-field--editable .contact-edit {
   margin-top: 0.35rem;
 }
-
-/* Fila interna del select para que no se pegue a los bordes */
-.exp-pane[data-tab="Contacto"] .contact-edit-row {
-  display: flex;
-  align-items: center;
-}
-
-.exp-pane[data-tab="Contacto"] .contact-edit-row select {
-  width: 100%;
-}
-
