@@ -76,9 +76,6 @@
     CCP_CREATE: "https://ixtla-app.com/db/web/ixtla01_i_ccp.php",
     CCP_UPDATE: "https://ixtla-app.com/db/web/ixtla01_u_ccp.php",
     CCP_LIST: "https://ixtla-app.com/db/web/ixtla01_c_ccp.php",
-    // Catálogo de CP/colonia
-    CP_COLONIA:
-      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
   };
 
   /* ======================================
@@ -280,7 +277,7 @@
   function safeGetSession() {
     try {
       if (window.Session?.get) return window.Session.get();
-    } catch {}
+    } catch { }
     return readCookiePayload() || null;
   }
   function getUserAndEmpleadoFromSession() {
@@ -330,26 +327,26 @@
    *  UI: Stepper / estatus
    * ======================================*/
   const statusLabel = (s) =>
-    ({
-      0: "Solicitud",
-      1: "Revisión",
-      2: "Asignación",
-      3: "Proceso",
-      4: "Pausado",
-      5: "Cancelado",
-      6: "Finalizado",
-    }[Number(s)] || "—");
+  ({
+    0: "Solicitud",
+    1: "Revisión",
+    2: "Asignación",
+    3: "Proceso",
+    4: "Pausado",
+    5: "Cancelado",
+    6: "Finalizado",
+  }[Number(s)] || "—");
 
   const statusBadgeClass = (s) =>
-    ({
-      0: "is-muted",
-      1: "is-info",
-      2: "is-info",
-      3: "is-info",
-      4: "is-warning",
-      5: "is-danger",
-      6: "is-success",
-    }[Number(s)] || "is-info");
+  ({
+    0: "is-muted",
+    1: "is-info",
+    2: "is-info",
+    3: "is-info",
+    4: "is-warning",
+    5: "is-danger",
+    6: "is-success",
+  }[Number(s)] || "is-info");
 
   function paintStepper(next) {
     $$(".step-menu li").forEach((li) => {
@@ -400,7 +397,6 @@
 
       paintHeaderMeta(req);
       paintContacto(req);
-      setupContactoCpColoniaEditor(req);
       updateStatusUI(req.estatus_code);
 
       document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
@@ -579,12 +575,9 @@
     }
 
     const ready = await areAllProcesosAndTasksDone(id);
-    log(
-      "injectFinalizeButtonIfReady() → resultado areAllProcesosAndTasksDone:",
-      {
-        ready,
-      }
-    );
+    log("injectFinalizeButtonIfReady() → resultado areAllProcesosAndTasksDone:", {
+      ready,
+    });
 
     if (!ready) {
       if (existing) {
@@ -602,9 +595,7 @@
       return;
     }
 
-    log(
-      "injectFinalizeButtonIfReady() → creando botón Finalizar requerimiento"
-    );
+    log("injectFinalizeButtonIfReady() → creando botón Finalizar requerimiento");
 
     const btn = makeBtn("Finalizar requerimiento", "success", "finish-req");
     btn.dataset.act = "finish-req";
@@ -767,9 +758,7 @@
         updateStatusUI(next);
         toast("Reabierto (Revisión)", "info");
       } else if (act === "finish-req") {
-        log(
-          "onAction('finish-req') → verificando procesos/tareas antes de finalizar"
-        );
+        log("onAction('finish-req') → verificando procesos/tareas antes de finalizar");
 
         const ready = await areAllProcesosAndTasksDone(id);
         log("onAction('finish-req') → ready =", ready);
@@ -846,8 +835,8 @@
         raw.estatus != null
           ? Number(raw.estatus)
           : raw.status != null
-          ? Number(raw.status)
-          : 0,
+            ? Number(raw.status)
+            : 0,
       canal: raw.canal != null ? Number(raw.canal) : null,
       contacto_nombre: String(raw.contacto_nombre || "").trim(),
       contacto_telefono: String(raw.contacto_telefono || "").trim(),
@@ -870,24 +859,18 @@
   }
 
   /* ======================================
-   *  UI: Header/meta + Contacto
-   * ======================================*/
+ *  UI: Header/meta + Contacto
+ * ======================================*/
   function paintContacto(req) {
     // 1) Localizar el pane de Contacto de forma tolerante
     const pane =
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
-      ) ||
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="contacto"]'
-      );
+      document.querySelector('.exp-pane[role="tabpanel"][data-tab="Contacto"]') ||
+      document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
 
     if (!pane) return;
 
-    const p = pane.querySelector(".exp-grid");
+    const p = pane.querySelector('.exp-grid');
     if (!p) return;
-
-    const isEditing = p.dataset.editingCpColonia === "1";
 
     const set = (labelText, val) => {
       const row = Array.from(p.querySelectorAll(".exp-field")).find((r) => {
@@ -900,18 +883,8 @@
       const dd = row?.querySelector(".exp-val");
       if (!dd) return;
 
-      const lower = labelText.toLowerCase();
-
-      // Si estamos en modo edición de CP/colonia, no pisar los selects
-      if (
-        isEditing &&
-        (lower.startsWith("c.p") || lower.startsWith("cp") || lower.startsWith("colonia"))
-      ) {
-        return;
-      }
-
       // Correo como link
-      if (lower.includes("correo")) {
+      if (labelText.toLowerCase().includes("correo")) {
         let a = dd.querySelector("a");
         if (!a) {
           a = document.createElement("a");
@@ -961,296 +934,6 @@
     }
   }
 
-  /* ======================================
-   *  Contacto: edición C.P. + Colonia
-   * ======================================*/
-
-  // Cache catálogo CP/colonia
-  let CP_COLONIA_CACHE = null;
-
-  async function ensureCpCatalog() {
-    if (CP_COLONIA_CACHE) return CP_COLONIA_CACHE;
-    try {
-      log("[CP] Cargando catálogo CP/colonia…");
-      const res = await postJSON(ENDPOINTS.CP_COLONIA, { all: true });
-      const rows = Array.isArray(res?.data) ? res.data : [];
-      const map = new Map();
-
-      rows.forEach((r) => {
-        const cp = String(r.cp || "").trim();
-        const col = String(r.colonia || "").trim();
-        if (!cp || !col) return;
-        if (!map.has(cp)) map.set(cp, []);
-        map.get(cp).push(col);
-      });
-
-      const cps = Array.from(map.keys()).sort();
-
-      CP_COLONIA_CACHE = { map, cps };
-      log("[CP] Catálogo listo:", CP_COLONIA_CACHE);
-      return CP_COLONIA_CACHE;
-    } catch (e) {
-      warn("[CP] Error cargando catálogo CP/colonia:", e);
-      throw e;
-    }
-  }
-
-  async function updateReqContacto(id, changes) {
-    const { empleado_id } = getUserAndEmpleadoFromSession();
-    const body = {
-      id: Number(id),
-      updated_by: empleado_id || null,
-      ...changes,
-    };
-    log("[Contacto] updateReqContacto() → payload:", body);
-    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
-    log("[Contacto] updateReqContacto() → resp:", res);
-    return res?.data ?? res;
-  }
-
-  function setupContactoCpColoniaEditor(req) {
-    const pane =
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
-      ) ||
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="contacto"]'
-      );
-    if (!pane) return;
-    const grid = pane.querySelector(".exp-grid");
-    if (!grid) return;
-
-    const rowCp = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const txt = (r.querySelector("label")?.textContent || "")
-        .trim()
-        .toLowerCase();
-      return txt.startsWith("c.p") || txt.startsWith("cp");
-    });
-    if (!rowCp) return;
-
-    let btn = rowCp.querySelector('[data-contact-edit="cp"]');
-    if (!btn) {
-      // Creamos el botón si no existe (fallback)
-      btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "icon-btn";
-      btn.dataset.contactEdit = "cp";
-      btn.title = "Editar C.P. y colonia";
-      btn.setAttribute("aria-label", "Editar C.P. y colonia");
-      // Si ya tienes un SVG en el HTML no se usará esto.
-      btn.innerHTML = "✏️";
-      const val = rowCp.querySelector(".exp-val");
-      if (val) val.appendChild(btn);
-    }
-
-    if (btn._cpEditBound) return;
-    btn._cpEditBound = true;
-
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const r = window.__REQ__ || req;
-      if (!r) return;
-      await openCpColoniaEditor(r);
-    });
-  }
-
-  async function openCpColoniaEditor(req) {
-    const pane =
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
-      ) ||
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="contacto"]'
-      );
-    if (!pane) return;
-    const grid = pane.querySelector(".exp-grid");
-    if (!grid) return;
-
-    if (grid.dataset.editingCpColonia === "1") {
-      return;
-    }
-    grid.dataset.editingCpColonia = "1";
-
-    const rowCp = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const txt = (r.querySelector("label")?.textContent || "")
-        .trim()
-        .toLowerCase();
-      return txt.startsWith("c.p") || txt.startsWith("cp");
-    });
-    const rowCol = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const txt = (r.querySelector("label")?.textContent || "")
-        .trim()
-        .toLowerCase();
-      return txt.startsWith("colonia");
-    });
-
-    if (!rowCp || !rowCol) {
-      warn(
-        "[CP] No se encontraron filas de C.P. o Colonia para edición, cancelando."
-      );
-      delete grid.dataset.editingCpColonia;
-      return;
-    }
-
-    const ddCp = rowCp.querySelector(".exp-val");
-    const ddCol = rowCol.querySelector(".exp-val");
-    if (!ddCp || !ddCol) {
-      delete grid.dataset.editingCpColonia;
-      return;
-    }
-
-    ddCp.innerHTML = "";
-    ddCol.innerHTML = "";
-
-    let catalog;
-    try {
-      catalog = await ensureCpCatalog();
-    } catch (e) {
-      toast("No se pudo cargar el catálogo de C.P. y colonia.", "danger");
-      delete grid.dataset.editingCpColonia;
-      paintContacto(req);
-      setupContactoCpColoniaEditor(req);
-      return;
-    }
-
-    const { map, cps } = catalog;
-
-    const cpSelect = document.createElement("select");
-    cpSelect.className = "exp-input";
-    cpSelect.setAttribute("aria-label", "Seleccionar C.P.");
-
-    const colSelect = document.createElement("select");
-    colSelect.className = "exp-input";
-    colSelect.setAttribute("aria-label", "Seleccionar colonia");
-
-    // Helper para llenar colonias según CP
-    const fillColonias = (cp, selectedCol) => {
-      const colonias = map.get(cp) || [];
-      colSelect.innerHTML = "";
-      const opt0 = document.createElement("option");
-      opt0.value = "";
-      opt0.disabled = false;
-      opt0.textContent = "Selecciona colonia";
-      colSelect.appendChild(opt0);
-
-      colonias.forEach((c) => {
-        const o = document.createElement("option");
-        o.value = c;
-        o.textContent = c;
-        colSelect.appendChild(o);
-      });
-
-      if (selectedCol && colonias.includes(selectedCol)) {
-        colSelect.value = selectedCol;
-      } else {
-        colSelect.value = "";
-      }
-    };
-
-    // Llenar CPs
-    const optCp0 = document.createElement("option");
-    optCp0.value = "";
-    optCp0.disabled = false;
-    optCp0.textContent = "Selecciona C.P.";
-    cpSelect.appendChild(optCp0);
-
-    cps.forEach((cp) => {
-      const o = document.createElement("option");
-      o.value = cp;
-      o.textContent = cp;
-      cpSelect.appendChild(o);
-    });
-
-    const originalCp = (req.contacto_cp || "").trim();
-    const originalCol = (req.contacto_colonia || "").trim();
-
-    if (originalCp && cps.includes(originalCp)) {
-      cpSelect.value = originalCp;
-      fillColonias(originalCp, originalCol);
-    } else {
-      cpSelect.value = "";
-      fillColonias("", "");
-    }
-
-    cpSelect.addEventListener("change", () => {
-      const cp = cpSelect.value;
-      fillColonias(cp, "");
-    });
-
-    ddCp.appendChild(cpSelect);
-    ddCol.appendChild(colSelect);
-
-    const actions = document.createElement("div");
-    actions.className = "exp-edit-actions";
-
-    const btnCancel = document.createElement("button");
-    btnCancel.type = "button";
-    btnCancel.className = "btn-xs";
-    btnCancel.textContent = "Cancelar";
-
-    const btnSave = document.createElement("button");
-    btnSave.type = "button";
-    btnSave.className = "btn-xs primary";
-    btnSave.textContent = "Guardar";
-
-    actions.appendChild(btnCancel);
-    actions.appendChild(btnSave);
-    ddCol.appendChild(actions);
-
-    btnCancel.addEventListener("click", () => {
-      delete grid.dataset.editingCpColonia;
-      paintContacto(req);
-      setupContactoCpColoniaEditor(req);
-    });
-
-    btnSave.addEventListener("click", async () => {
-      const newCp = (cpSelect.value || "").trim();
-      const newCol = (colSelect.value || "").trim();
-
-      const patch = {};
-
-      // Regla 1: si cambia el CP, colonia es obligatoria
-      if (newCp && newCp !== originalCp) {
-        if (!newCol) {
-          toast("Selecciona una colonia para el C.P. elegido.", "warning");
-          return;
-        }
-        patch.contacto_cp = newCp;
-        patch.contacto_colonia = newCol;
-      } else if (newCol && newCol !== originalCol) {
-        // Regla 2: si solo cambia colonia, se manda solo colonia
-        patch.contacto_colonia = newCol;
-      }
-
-      // Si no hay cambios reales
-      if (!Object.keys(patch).length) {
-        delete grid.dataset.editingCpColonia;
-        paintContacto(req);
-        setupContactoCpColoniaEditor(req);
-        return;
-      }
-
-      btnSave.disabled = true;
-      btnSave.textContent = "Guardando…";
-
-      try {
-        await updateReqContacto(req.id, patch);
-        toast("Contacto actualizado correctamente.", "success");
-
-        const merged = { ...req, ...patch };
-        window.__REQ__ = merged;
-
-        delete grid.dataset.editingCpColonia;
-        paintContacto(merged);
-        setupContactoCpColoniaEditor(merged);
-      } catch (e) {
-        err("[CP] Error al actualizar C.P./colonia:", e);
-        toast("No se pudo actualizar el C.P. / colonia.", "danger");
-        btnSave.disabled = false;
-        btnSave.textContent = "Guardar";
-      }
-    });
-  }
 
   /* ======================================
    *  Comentarios
@@ -1353,7 +1036,7 @@
       try {
         const empId = Number(r.empleado_id) > 0 ? Number(r.empleado_id) : null;
         if (empId) display = (await getEmpleadoById(empId))?.nombre || "";
-      } catch {}
+      } catch { }
       if (!display) {
         display =
           r.empleado_display ||
@@ -1381,7 +1064,7 @@
       img.alt = "";
       let i = 0;
       const tryNext = () => {
-       	if (i >= sources.length) {
+        if (i >= sources.length) {
           img.src = DEFAULT_AVATAR;
           return;
         }
@@ -1490,13 +1173,6 @@
       } else n.textContent = "—";
     });
 
-    const grid = document.querySelector(
-      '.exp-pane[data-tab="Contacto"] .exp-grid'
-    );
-    if (grid && grid.dataset.editingCpColonia) {
-      delete grid.dataset.editingCpColonia;
-    }
-
     const h1 = $(".exp-title h1");
     if (h1) h1.textContent = "—";
     $$(".exp-meta dd").forEach((dd) => (dd.textContent = "—"));
@@ -1535,7 +1211,6 @@
         h1.textContent = req.asunto || req.tramite_nombre || "Requerimiento";
       paintHeaderMeta(req);
       paintContacto(req);
-      setupContactoCpColoniaEditor(req);
 
       updateStatusUI(req.estatus_code);
       const sel = $('#req-status [data-role="status-select"]');

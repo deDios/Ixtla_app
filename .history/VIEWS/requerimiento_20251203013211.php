@@ -238,43 +238,56 @@
                 <div class="exp-panes">
                     <!-- Panel: Contacto -->
                     <section class="exp-pane" role="tabpanel" data-tab="Contacto">
-                        <div class="exp-grid">
+                        <div class="exp-grid" id="req-contacto-grid">
+                            <!-- Nombre -->
                             <div class="exp-field">
-                                <label>Nombre</label>
-                                <div class="exp-val">—</div>
+                                <label>Nombre de contacto:</label>
+                                <div class="exp-val">
+                                    <span id="req-contacto-nombre">—</span>
+                                </div>
                             </div>
 
+                            <!-- Teléfono -->
                             <div class="exp-field">
-                                <label>Teléfono</label>
-                                <div class="exp-val">—</div>
+                                <label>Teléfono:</label>
+                                <div class="exp-val">
+                                    <span id="req-contacto-telefono">—</span>
+                                </div>
                             </div>
 
+                            <!-- Correo -->
                             <div class="exp-field">
-                                <label>Domicilio</label>
-                                <div class="exp-val">—</div>
+                                <label>Correo electrónico:</label>
+                                <div class="exp-val">
+                                    <span id="req-contacto-correo">—</span>
+                                </div>
                             </div>
 
+                            <!-- Calle / domicilio -->
                             <div class="exp-field">
-                                <label>Correo</label>
-                                <div class="exp-val">—</div>
+                                <label>Domicilio:</label>
+                                <div class="exp-val">
+                                    <!-- mapea a contacto_calle -->
+                                    <span id="req-contacto-calle">—</span>
+                                </div>
                             </div>
 
-                            <!-- C.P. con botón de edición -->
+                            <!-- C.P. -->
                             <div class="exp-field">
-                                <label>C.P.</label>
-                                <div class="exp-val">—</div>
-                                <button type="button" class="icon-btn contact-edit-btn" data-contact-edit="cp"
-                                    title="Editar C.P. y colonia" aria-label="Editar C.P. y colonia">
-                                    <!-- usa tu mismo SVG de lápiz que en otros lados -->
-                                    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                                        <path d="M11.3 1.3l3.4 3.4-8.5 8.5-3.7.4.4-3.7z"></path>
-                                    </svg>
-                                </button>
+                                <label>C.P.:</label>
+                                <div class="exp-val">
+                                    <!-- mapea a contacto_cp -->
+                                    <span id="req-contacto-cp">—</span>
+                                </div>
                             </div>
 
+                            <!-- Colonia -->
                             <div class="exp-field">
-                                <label>Colonia</label>
-                                <div class="exp-val">—</div>
+                                <label>Colonia:</label>
+                                <div class="exp-val">
+                                    <!-- mapea a contacto_colonia -->
+                                    <span id="req-contacto-colonia">—</span>
+                                </div>
                             </div>
                         </div>
                     </section>
