@@ -859,19 +859,11 @@
   }
 
   /* ======================================
- *  UI: Header/meta + Contacto
- * ======================================*/
+   *  UI: Header/meta + Contacto
+   * ======================================*/
   function paintContacto(req) {
-    // 1) Localizar el pane de Contacto de forma tolerante
-    const pane =
-      document.querySelector('.exp-pane[role="tabpanel"][data-tab="Contacto"]') ||
-      document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
-
-    if (!pane) return;
-
-    const p = pane.querySelector('.exp-grid');
+    const p = $('.exp-pane[role="tabpanel"][data-tab="Contacto"] .exp-grid');
     if (!p) return;
-
     const set = (labelText, val) => {
       const row = Array.from(p.querySelectorAll(".exp-field")).find((r) => {
         const txt = (r.querySelector("label")?.textContent || "")
@@ -879,33 +871,29 @@
           .toLowerCase();
         return txt.startsWith(labelText.toLowerCase());
       });
-
       const dd = row?.querySelector(".exp-val");
       if (!dd) return;
-
-      // Correo como link
       if (labelText.toLowerCase().includes("correo")) {
-        let a = dd.querySelector("a");
-        if (!a) {
-          a = document.createElement("a");
-          dd.innerHTML = "";
-          dd.appendChild(a);
-        }
+        const a = dd.querySelector("a") || document.createElement("a");
         a.textContent = val || "—";
         if (val) a.href = `mailto:${val}`;
         else a.removeAttribute("href");
+        if (!dd.contains(a)) {
+          dd.innerHTML = "";
+          dd.appendChild(a);
+        }
       } else {
         dd.textContent = val || "—";
       }
     };
-
-    // 2) Mapear campos al nuevo layout
-    set("Nombre de contacto", req.contacto_nombre || "—");
+    set("Nombre", req.contacto_nombre || "—");
     set("Teléfono", req.contacto_telefono || "—");
-    set("Correo electrónico", req.contacto_email || "—");
-    set("Calle y número", req.contacto_calle || "—");
-    set("C.P.", req.contacto_cp || "—");
-    set("Colonia", req.contacto_colonia || "—");
+    set(
+      "Dirección del reporte",
+      [req.contacto_calle, req.contacto_colonia].filter(Boolean).join(", ")
+    );
+    set("Correo", req.contacto_email || "—");
+    set("C.P", req.contacto_cp || "—");
   }
 
   function paintHeaderMeta(req) {
