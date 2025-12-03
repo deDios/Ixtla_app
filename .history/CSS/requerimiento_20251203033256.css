@@ -1348,7 +1348,7 @@ body.modal-open { overflow: hidden; }
     cursor: pointer;
     transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
     vertical-align: middle;
-    font-size: 0;      
+    font-size: 0;       /* 🔒 mata cualquier emoji/texto dentro */
     line-height: 1;
 }
 
