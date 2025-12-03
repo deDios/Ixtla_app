@@ -268,32 +268,37 @@
 
                             <!-- C.P. (editable con combo) -->
                             <div class="exp-field exp-field--editable" data-contact-field="cp">
-                                <label for="contact-cp">C.P.:</label>
+    <label for="contact-cp">C.P.:</label>
 
-                                <!-- lectura -->
-                                <div class="exp-val contact-read">
-                                    45860
-                                    <button type="button" class="icon-btn" data-contact-edit="cp"
-                                        title="Editar C.P. y colonia" aria-label="Editar C.P. y colonia">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path fill="currentColor"
-                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
-                                            </path>
-                                        </svg>
-                                    </button>
-                                </div>
+    <!-- lectura -->
+    <div class="exp-val contact-read">
+        45860
+        <button
+            type="button"
+            class="icon-btn"
+            data-contact-edit="cp"
+            title="Editar C.P. y colonia"
+            aria-label="Editar C.P. y colonia"
+        >
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                    fill="currentColor"
+                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z"
+                ></path>
+            </svg>
+        </button>
+    </div>
 
-                                <!-- edición (combo de C.P.) -->
-                                <div class="contact-edit contact-edit--cp" data-contact-edit-wrapper="cp" hidden>
-                                    <div class="contact-edit-row">
-                                        <select id="contact-cp" name="contacto_cp" class="ix-select ix-select--quiet"
-                                            data-role="cp-select">
-                                            <option value="">Selecciona C.P.</option>
-                                            <!-- opciones se llenan desde JS con ixtla01_c_cpcolonia (all:true) -->
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
+    <!-- edición (combo de C.P.) -->
+    <div class="contact-edit contact-edit--cp" data-contact-edit-wrapper="cp" hidden>
+        <div class="contact-edit-row">
+            <select id="contact-cp" name="contacto_cp" class="ix-select ix-select--quiet" data-role="cp-select">
+                <option value="">Selecciona C.P.</option>
+                <!-- opciones se llenan desde JS con ixtla01_c_cpcolonia (all:true) -->
+            </select>
+        </div>
+    </div>
+</div>
 
 
                             <!-- Colonia (editable dependiente del C.P.) -->
