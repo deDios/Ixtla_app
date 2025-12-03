@@ -1038,6 +1038,7 @@
       btn.title = "Editar C.P. y colonia";
       btn.setAttribute("aria-label", "Editar C.P. y colonia");
 
+      // 🔧 Usar el mismo SVG que el botón de "Asignado"
       btn.innerHTML = `
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
           <path fill="currentColor"

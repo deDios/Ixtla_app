@@ -1037,7 +1037,7 @@
       btn.dataset.contactEdit = "cp";
       btn.title = "Editar C.P. y colonia";
       btn.setAttribute("aria-label", "Editar C.P. y colonia");
-
+      // Si ya tienes un SVG en el HTML no se usará esto.
       btn.innerHTML = `
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
           <path fill="currentColor"
@@ -1045,7 +1045,6 @@
           </path>
         </svg>
       `;
-
       const val = rowCp.querySelector(".exp-val");
       if (val) val.appendChild(btn);
     }
