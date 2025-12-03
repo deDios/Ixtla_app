@@ -298,11 +298,11 @@
                                         <select id="contact-cp" name="contacto_cp" class="ix-select ix-select--quiet"
                                             data-role="cp-select">
                                             <option value="">Selecciona C.P.</option>
+                                            <!-- opciones se llenan desde JS con ixtla01_c_cpcolonia (all:true) -->
                                         </select>
                                     </div>
                                 </div>
                             </div>
-
 
                             <!-- Colonia (editable dependiente del C.P.) -->
                             <div class="exp-field exp-field--editable" data-contact-field="colonia">
