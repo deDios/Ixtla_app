@@ -1623,25 +1623,40 @@
    *  Reset + Boot
    * ======================================*/
   function resetTemplate() {
-    const contactVals = $$('.exp-pane[data-tab="Contacto"] .exp-grid .exp-val');
-    contactVals.forEach((n) => {
-      const a = n.querySelector("a");
-      if (a) {
-        a.textContent = "—";
-        a.removeAttribute("href");
-      } else n.textContent = "—";
-    });
+    const pane =
+      document.querySelector('.exp-pane[data-tab="Contacto"]') ||
+      document.querySelector('.exp-pane[data-tab="contacto"]');
 
-    const grid = document.querySelector(
-      '.exp-pane[data-tab="Contacto"] .exp-grid'
-    );
-    if (grid && grid.dataset.editingCpColonia) {
-      delete grid.dataset.editingCpColonia;
+    if (pane) {
+      const contactVals = pane.querySelectorAll(".exp-grid .exp-val");
+      contactVals.forEach((dd) => {
+        // Correo
+        const a = dd.querySelector('a[data-contact-text], a[href^="mailto:"]');
+        if (a) {
+          a.textContent = "—";
+          a.removeAttribute("href");
+        }
+
+        // Cualquier span con data-contact-text (nombre, tel, calle, cp, colonia)
+        const span = dd.querySelector("[data-contact-text]");
+        if (span) {
+          span.textContent = "—";
+        }
+
+        // OJO: ya no dd.textContent = "—" para no borrar los botones
+      });
+
+      const grid = pane.querySelector(".exp-grid");
+      if (grid && grid.dataset.editingCpColonia) {
+        delete grid.dataset.editingCpColonia;
+      }
     }
 
     const h1 = $(".exp-title h1");
     if (h1) h1.textContent = "—";
+
     $$(".exp-meta dd").forEach((dd) => (dd.textContent = "—"));
+
     const feed = $(".c-feed");
     if (feed) feed.innerHTML = "";
   }
