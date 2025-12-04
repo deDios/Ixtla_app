@@ -342,6 +342,7 @@
 
   const statusBadgeClass = (s) =>
     ({
+
       0: "is-muted",
       1: "is-info",
       2: "is-info",
@@ -401,6 +402,7 @@
       paintHeaderMeta(req);
       paintContacto(req);
       setupContactoCpColoniaEditor(req);
+      setupContactoBasicEditors(req);
       updateStatusUI(req.estatus_code);
 
       document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
@@ -870,7 +872,7 @@
   }
 
   /* ======================================
-   *  UI: Header/meta + Contacto
+   *  UI: Header/meta + Contacto (pintado)
    * ======================================*/
   function paintContacto(req) {
     // 1) Localizar el pane de Contacto de forma tolerante
@@ -905,7 +907,9 @@
       // Si estamos en modo edición de CP/colonia, no pisar los selects
       if (
         isEditing &&
-        (lower.startsWith("c.p") || lower.startsWith("cp") || lower.startsWith("colonia"))
+        (lower.startsWith("c.p") ||
+          lower.startsWith("cp") ||
+          lower.startsWith("colonia"))
       ) {
         return;
       }
@@ -944,7 +948,6 @@
     if (ddFolio) {
       let folio = (req.folio || "").trim();
       if (!folio && req.id) {
-        // fallback sencillo, ajusta si necesitas otro formato
         folio = `REQ-${String(req.id).padStart(10, "0")}`;
       }
       ddFolio.textContent = folio || "—";
@@ -959,6 +962,176 @@
     if (ddFecha) {
       ddFecha.textContent = (req.creado_at || "—").replace("T", " ");
     }
+  }
+
+  /* ======================================
+   *  Contacto: edición básica
+   *  (Nombre, Teléfono, Correo, Domicilio)
+   * ======================================*/
+
+  async function updateReqContacto(id, changes) {
+    const { empleado_id } = getUserAndEmpleadoFromSession();
+    const body = {
+      id: Number(id),
+      updated_by: empleado_id || null,
+      ...changes,
+    };
+    log("[Contacto] updateReqContacto() → payload:", body);
+    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
+    log("[Contacto] updateReqContacto() → resp:", res);
+    return res?.data ?? res;
+  }
+
+  function setupContactoBasicEditors(req) {
+    const pane =
+      document.querySelector(
+        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
+      ) ||
+      document.querySelector(
+        '.exp-pane[role="tabpanel"][data-tab="contacto"]'
+      );
+    if (!pane) return;
+    const grid = pane.querySelector(".exp-grid");
+    if (!grid) return;
+
+    const config = [
+      {
+        match: "nombre de contacto",
+        key: "contacto_nombre",
+        type: "text",
+      },
+      {
+        match: "teléfono",
+        key: "contacto_telefono",
+        type: "tel",
+      },
+      {
+        match: "correo",
+        key: "contacto_email",
+        type: "email",
+      },
+      {
+        match: "domicilio",
+        key: "contacto_calle",
+        type: "text",
+      },
+    ];
+
+    const makeEditBtn = () => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "icon-btn";
+      btn.title = "Editar campo de contacto";
+      btn.setAttribute("aria-label", "Editar campo de contacto");
+      btn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+          </path>
+        </svg>
+      `;
+      return btn;
+    };
+
+    config.forEach((cfg) => {
+      const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
+        const txt = (r.querySelector("label")?.textContent || "")
+          .trim()
+          .toLowerCase();
+        return txt.startsWith(cfg.match);
+      });
+      if (!row) return;
+
+      const dd = row.querySelector(".exp-val");
+      if (!dd) return;
+
+      if (dd.dataset.basicEditBound === "1") return;
+      dd.dataset.basicEditBound = "1";
+
+      const btn = makeEditBtn();
+      dd.appendChild(btn);
+
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (dd.dataset.editing === "1") return;
+        dd.dataset.editing = "1";
+
+        const a = dd.querySelector("a");
+        const originalVal =
+          (a ? a.textContent : dd.textContent || "").trim() || "—";
+
+        dd.innerHTML = "";
+
+        const input = document.createElement("input");
+        input.type = cfg.type || "text";
+        input.className = "exp-input";
+        input.value =
+          (req && req[cfg.key] != null && String(req[cfg.key]).trim()) ||
+          (originalVal === "—" ? "" : originalVal);
+        input.placeholder = originalVal === "—" ? "" : originalVal;
+
+        const actions = document.createElement("div");
+        actions.className = "exp-edit-actions";
+
+        const btnCancel = document.createElement("button");
+        btnCancel.type = "button";
+        btnCancel.className = "btn-xs";
+        btnCancel.textContent = "Cancelar";
+
+        const btnSave = document.createElement("button");
+        btnSave.type = "button";
+        btnSave.className = "btn-xs primary";
+        btnSave.textContent = "Guardar";
+
+        actions.appendChild(btnCancel);
+        actions.appendChild(btnSave);
+
+        dd.appendChild(input);
+        dd.appendChild(actions);
+
+        const restoreView = (nextReq) => {
+          delete dd.dataset.editing;
+          paintContacto(nextReq || req);
+          setupContactoCpColoniaEditor(nextReq || req);
+          setupContactoBasicEditors(nextReq || req);
+        };
+
+        btnCancel.addEventListener("click", () => {
+          restoreView(req);
+        });
+
+        btnSave.addEventListener("click", async () => {
+          const newVal = input.value.trim();
+          const currentVal =
+            (req && req[cfg.key] != null && String(req[cfg.key]).trim()) ||
+            (originalVal === "—" ? "" : originalVal);
+
+          if (newVal === currentVal) {
+            restoreView(req);
+            return;
+          }
+
+          btnSave.disabled = true;
+          btnSave.textContent = "Guardando…";
+
+          try {
+            const patch = { [cfg.key]: newVal };
+            await updateReqContacto(req.id, patch);
+            toast("Contacto actualizado correctamente.", "success");
+
+            const merged = { ...req, ...patch };
+            window.__REQ__ = merged;
+            restoreView(merged);
+          } catch (e) {
+            err("[Contacto] Error al actualizar campo:", e);
+            toast("No se pudo actualizar el contacto.", "danger");
+            btnSave.disabled = false;
+            btnSave.textContent = "Guardar";
+          }
+        });
+      });
+    });
   }
 
   /* ======================================
@@ -993,19 +1166,6 @@
       warn("[CP] Error cargando catálogo CP/colonia:", e);
       throw e;
     }
-  }
-
-  async function updateReqContacto(id, changes) {
-    const { empleado_id } = getUserAndEmpleadoFromSession();
-    const body = {
-      id: Number(id),
-      updated_by: empleado_id || null,
-      ...changes,
-    };
-    log("[Contacto] updateReqContacto() → payload:", body);
-    const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
-    log("[Contacto] updateReqContacto() → resp:", res);
-    return res?.data ?? res;
   }
 
   function setupContactoCpColoniaEditor(req) {
@@ -1084,12 +1244,14 @@
         .toLowerCase();
       return txt.startsWith("c.p") || txt.startsWith("cp");
     });
-    const rowCol = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const txt = (r.querySelector("label")?.textContent || "")
-        .trim()
-        .toLowerCase();
-      return txt.startsWith("colonia");
-    });
+    const rowCol = Array.from(grid.querySelectorAll(".exp-field")).find(
+      (r) => {
+        const txt = (r.querySelector("label")?.textContent || "")
+          .trim()
+          .toLowerCase();
+        return txt.startsWith("colonia");
+      }
+    );
 
     if (!rowCp || !rowCol) {
       warn(
@@ -1117,6 +1279,7 @@
       delete grid.dataset.editingCpColonia;
       paintContacto(req);
       setupContactoCpColoniaEditor(req);
+      setupContactoBasicEditors(req);
       return;
     }
 
@@ -1208,6 +1371,7 @@
       delete grid.dataset.editingCpColonia;
       paintContacto(req);
       setupContactoCpColoniaEditor(req);
+      setupContactoBasicEditors(req);
     });
 
     btnSave.addEventListener("click", async () => {
@@ -1234,6 +1398,7 @@
         delete grid.dataset.editingCpColonia;
         paintContacto(req);
         setupContactoCpColoniaEditor(req);
+        setupContactoBasicEditors(req);
         return;
       }
 
@@ -1250,6 +1415,7 @@
         delete grid.dataset.editingCpColonia;
         paintContacto(merged);
         setupContactoCpColoniaEditor(merged);
+        setupContactoBasicEditors(merged);
       } catch (e) {
         err("[CP] Error al actualizar C.P./colonia:", e);
         toast("No se pudo actualizar el C.P. / colonia.", "danger");
@@ -1322,9 +1488,7 @@
       const idx = match.index;
 
       if (idx > lastIndex) {
-        frag.appendChild(
-          document.createTextNode(str.slice(lastIndex, idx))
-        );
+        frag.appendChild(document.createTextNode(str.slice(lastIndex, idx)));
       }
 
       const span = document.createElement("span");
@@ -1336,9 +1500,7 @@
     }
 
     if (lastIndex < str.length) {
-      frag.appendChild(
-        document.createTextNode(str.slice(lastIndex))
-      );
+      frag.appendChild(document.createTextNode(str.slice(lastIndex)));
     }
 
     return frag;
@@ -1388,7 +1550,7 @@
       img.alt = "";
       let i = 0;
       const tryNext = () => {
-       	if (i >= sources.length) {
+        if (i >= sources.length) {
           img.src = DEFAULT_AVATAR;
           return;
         }
@@ -1543,6 +1705,7 @@
       paintHeaderMeta(req);
       paintContacto(req);
       setupContactoCpColoniaEditor(req);
+      setupContactoBasicEditors(req);
 
       updateStatusUI(req.estatus_code);
       const sel = $('#req-status [data-role="status-select"]');

@@ -251,75 +251,49 @@
                             <!-- Nombre -->
                             <div class="exp-field">
                                 <label>Nombre de contacto:</label>
-                                <div class="exp-val" data-role="contacto-nombre-val">Requerimiento prueba</div>
+                                <div class="exp-val" data-role="contacto-nombre-val">
+                                    Requerimiento prueba
+                                </div>
                             </div>
 
                             <!-- Teléfono -->
                             <div class="exp-field">
                                 <label>Teléfono:</label>
-                                <div class="exp-val" data-role="contacto-telefono-val">3322578320</div>
+                                <div class="exp-val" data-role="contacto-telefono-val">
+                                    -
+                                </div>
                             </div>
 
                             <!-- Correo -->
                             <div class="exp-field">
                                 <label>Correo electrónico:</label>
                                 <div class="exp-val" data-role="contacto-email-val">
-                                    <a href="mailto:jackstriker26@gmail.com">jackstriker26@gmail.com</a>
+                                    <a href="mailto:jackstriker26@gmail.com">-</a>
                                 </div>
                             </div>
 
                             <!-- Domicilio -->
                             <div class="exp-field">
                                 <label>Domicilio:</label>
-                                <div class="exp-val" data-role="contacto-calle-val">San Antonio Tlayacapan</div>
-                            </div>
-
-                            <!-- C.P. (editable con combo) -->
-                            <div class="exp-field exp-field--editable" data-contact-field="cp">
-                                <label for="contact-cp">C.P.:</label>
-
-                                <!-- lectura -->
-                                <div class="exp-val contact-read">
-                                    45860
-                                    <button type="button" class="icon-btn" data-contact-edit="cp"
-                                        title="Editar C.P. y colonia" aria-label="Editar C.P. y colonia">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path fill="currentColor"
-                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
-                                            </path>
-                                        </svg>
-                                    </button>
-                                </div>
-
-                                <!-- edición -->
-                                <div class="contact-edit contact-edit--cp" data-contact-edit-wrapper="cp" hidden>
-                                    <div class="contact-edit-row">
-                                        <select id="contact-cp" name="contacto_cp" class="ix-select ix-select--quiet"
-                                            data-role="cp-select">
-                                            <option value="">Selecciona C.P.</option>
-                                        </select>
-                                    </div>
+                                <div class="exp-val" data-role="contacto-calle-val">
+                                    -
                                 </div>
                             </div>
 
+                            <!-- C.P. -->
+                            <div class="exp-field">
+                                <label>C.P.:</label>
+                                <div class="exp-val" data-role="contacto-cp-val">
+                                    -
+                                    <!-- El botón lápiz se inyecta por JS con setupContactoCpColoniaEditor -->
+                                </div>
+                            </div>
 
-                            <!-- Colonia (editable dependiente del C.P.) -->
-                            <div class="exp-field exp-field--editable" data-contact-field="colonia">
-                                <label for="contact-colonia">Colonia:</label>
-
-                                <!-- lectura -->
-                                <div class="exp-val contact-read">Atequiza</div>
-
-                                <!-- edición (combo dependiente del C.P.) -->
-                                <div class="contact-edit contact-edit--colonia" data-contact-edit-wrapper="colonia"
-                                    hidden>
-                                    <div class="contact-edit-row">
-                                        <select id="contact-colonia" name="contacto_colonia"
-                                            class="ix-select ix-select--quiet" data-role="colonia-select">
-                                            <option value="">Selecciona colonia</option>
-                                            <!-- opciones se llenan desde JS usando cpcolonia(cp) -->
-                                        </select>
-                                    </div>
+                            <!-- Colonia -->
+                            <div class="exp-field">
+                                <label>Colonia:</label>
+                                <div class="exp-val" data-role="contacto-colonia-val">
+                                    -
                                 </div>
                             </div>
                         </div>
