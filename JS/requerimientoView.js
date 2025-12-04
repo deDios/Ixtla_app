@@ -342,7 +342,6 @@
 
   const statusBadgeClass = (s) =>
     ({
-
       0: "is-muted",
       1: "is-info",
       2: "is-info",
@@ -872,7 +871,7 @@
   }
 
   /* ======================================
-   *  UI: Header/meta + Contacto (pintado)
+   *  UI: Header/meta + Contacto
    * ======================================*/
   function paintContacto(req) {
     // 1) Localizar el pane de Contacto de forma tolerante
@@ -880,9 +879,7 @@
       document.querySelector(
         '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
       ) ||
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="contacto"]'
-      );
+      document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
 
     if (!pane) return;
 
@@ -891,7 +888,7 @@
 
     const isEditing = p.dataset.editingCpColonia === "1";
 
-    const set = (labelText, val) => {
+    const set = (labelText, val, keyName) => {
       const row = Array.from(p.querySelectorAll(".exp-field")).find((r) => {
         const txt = (r.querySelector("label")?.textContent || "")
           .trim()
@@ -914,29 +911,41 @@
         return;
       }
 
-      // Correo como link
+      // Correo como link (manteniendo el lápiz)
       if (lower.includes("correo")) {
-        let a = dd.querySelector("a");
+        let a = dd.querySelector("a[data-contact-text]");
         if (!a) {
           a = document.createElement("a");
-          dd.innerHTML = "";
-          dd.appendChild(a);
+          a.setAttribute("data-contact-text", keyName || "contacto_email");
+          // NO tocamos otros nodos (como el botón)
+          dd.insertBefore(a, dd.firstChild);
         }
         a.textContent = val || "—";
         if (val) a.href = `mailto:${val}`;
         else a.removeAttribute("href");
-      } else {
-        dd.textContent = val || "—";
+        return;
       }
+
+      // Para el resto, intentamos escribir dentro del span marcado
+      if (keyName) {
+        const span = dd.querySelector(`[data-contact-text="${keyName}"]`);
+        if (span) {
+          span.textContent = val || "—";
+          return;
+        }
+      }
+
+      // Fallback legacy (por si algún campo no tiene span)
+      dd.textContent = val || "—";
     };
 
     // 2) Mapear campos al nuevo layout
-    set("Nombre de contacto", req.contacto_nombre || "—");
-    set("Teléfono", req.contacto_telefono || "—");
-    set("Correo electrónico", req.contacto_email || "—");
-    set("Domicilio", req.contacto_calle || "—");
-    set("C.P.", req.contacto_cp || "—");
-    set("Colonia", req.contacto_colonia || "—");
+    set("Nombre de contacto", req.contacto_nombre || "—", "contacto_nombre");
+    set("Teléfono", req.contacto_telefono || "—", "contacto_telefono");
+    set("Correo electrónico", req.contacto_email || "—", "contacto_email");
+    set("Domicilio", req.contacto_calle || "—", "contacto_calle");
+    set("C.P.", req.contacto_cp || "—", "contacto_cp");
+    set("Colonia", req.contacto_colonia || "—", "contacto_colonia");
   }
 
   function paintHeaderMeta(req) {
@@ -987,89 +996,58 @@
       document.querySelector(
         '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
       ) ||
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="contacto"]'
-      );
+      document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
     if (!pane) return;
     const grid = pane.querySelector(".exp-grid");
     if (!grid) return;
 
-    const config = [
-      {
-        match: "nombre de contacto",
-        key: "contacto_nombre",
-        type: "text",
-      },
-      {
-        match: "teléfono",
-        key: "contacto_telefono",
-        type: "tel",
-      },
-      {
-        match: "correo",
-        key: "contacto_email",
-        type: "email",
-      },
-      {
-        match: "domicilio",
-        key: "contacto_calle",
-        type: "text",
-      },
-    ];
-
-    const makeEditBtn = () => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "icon-btn";
-      btn.title = "Editar campo de contacto";
-      btn.setAttribute("aria-label", "Editar campo de contacto");
-      btn.innerHTML = `
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
-          </path>
-        </svg>
-      `;
-      return btn;
+    const typeByKey = {
+      contacto_nombre: "text",
+      contacto_telefono: "tel",
+      contacto_email: "email",
+      contacto_calle: "text",
     };
 
-    config.forEach((cfg) => {
-      const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-        const txt = (r.querySelector("label")?.textContent || "")
-          .trim()
-          .toLowerCase();
-        return txt.startsWith(cfg.match);
-      });
-      if (!row) return;
+    const buttons = grid.querySelectorAll(
+      'button.icon-btn[data-contact-basic-edit="1"]'
+    );
 
-      const dd = row.querySelector(".exp-val");
+    buttons.forEach((btn) => {
+      if (btn._bound) return;
+      btn._bound = true;
+
+      const key = btn.dataset.contactKey;
+      if (!key) return;
+
+      const type = typeByKey[key] || "text";
+      const field = btn.closest(".exp-field");
+      if (!field) return;
+      const dd = field.querySelector(".exp-val");
       if (!dd) return;
-
-      if (dd.dataset.basicEditBound === "1") return;
-      dd.dataset.basicEditBound = "1";
-
-      const btn = makeEditBtn();
-      dd.appendChild(btn);
 
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         if (dd.dataset.editing === "1") return;
         dd.dataset.editing = "1";
 
-        const a = dd.querySelector("a");
-        const originalVal =
-          (a ? a.textContent : dd.textContent || "").trim() || "—";
+        const originalHTML = dd.innerHTML;
+
+        const a = dd.querySelector("a[data-contact-text]");
+        const span = dd.querySelector(`[data-contact-text="${key}"]`);
+        const currentFromDOM = (a || span || dd).textContent.trim() || "—";
 
         dd.innerHTML = "";
 
         const input = document.createElement("input");
-        input.type = cfg.type || "text";
+        input.type = type;
         input.className = "exp-input";
-        input.value =
-          (req && req[cfg.key] != null && String(req[cfg.key]).trim()) ||
-          (originalVal === "—" ? "" : originalVal);
-        input.placeholder = originalVal === "—" ? "" : originalVal;
+
+        const currentVal =
+          (req && req[key] != null && String(req[key]).trim()) ||
+          (currentFromDOM === "—" ? "" : currentFromDOM);
+
+        input.value = currentVal;
+        input.placeholder = currentFromDOM === "—" ? "" : currentFromDOM;
 
         const actions = document.createElement("div");
         actions.className = "exp-edit-actions";
@@ -1091,6 +1069,7 @@
         dd.appendChild(actions);
 
         const restoreView = (nextReq) => {
+          dd.innerHTML = originalHTML;
           delete dd.dataset.editing;
           paintContacto(nextReq || req);
           setupContactoCpColoniaEditor(nextReq || req);
@@ -1103,11 +1082,11 @@
 
         btnSave.addEventListener("click", async () => {
           const newVal = input.value.trim();
-          const currentVal =
-            (req && req[cfg.key] != null && String(req[cfg.key]).trim()) ||
-            (originalVal === "—" ? "" : originalVal);
+          const originalVal =
+            (req && req[key] != null && String(req[key]).trim()) ||
+            (currentFromDOM === "—" ? "" : currentFromDOM);
 
-          if (newVal === currentVal) {
+          if (newVal === originalVal) {
             restoreView(req);
             return;
           }
@@ -1116,7 +1095,7 @@
           btnSave.textContent = "Guardando…";
 
           try {
-            const patch = { [cfg.key]: newVal };
+            const patch = { [key]: newVal };
             await updateReqContacto(req.id, patch);
             toast("Contacto actualizado correctamente.", "success");
 
@@ -1173,9 +1152,7 @@
       document.querySelector(
         '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
       ) ||
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="contacto"]'
-      );
+      document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
     if (!pane) return;
     const grid = pane.querySelector(".exp-grid");
     if (!grid) return;
@@ -1226,9 +1203,7 @@
       document.querySelector(
         '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
       ) ||
-      document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="contacto"]'
-      );
+      document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
     if (!pane) return;
     const grid = pane.querySelector(".exp-grid");
     if (!grid) return;
@@ -1244,14 +1219,12 @@
         .toLowerCase();
       return txt.startsWith("c.p") || txt.startsWith("cp");
     });
-    const rowCol = Array.from(grid.querySelectorAll(".exp-field")).find(
-      (r) => {
-        const txt = (r.querySelector("label")?.textContent || "")
-          .trim()
-          .toLowerCase();
-        return txt.startsWith("colonia");
-      }
-    );
+    const rowCol = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
+      const txt = (r.querySelector("label")?.textContent || "")
+        .trim()
+        .toLowerCase();
+      return txt.startsWith("colonia");
+    });
 
     if (!rowCp || !rowCol) {
       warn(
