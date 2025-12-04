@@ -1358,3 +1358,85 @@ body.modal-open { overflow: hidden; }
 }
 
 
+
+
+
+
+
+
+/* ================================
+ *  Contacto – modo edición inline (verde pastel)
+ * ================================*/
+
+/* Tarjetita suave cuando el campo está en edición */
+.home-samapa .exp-view .exp-field .exp-val[data-editing="1"],
+.home-samapa .exp-view .exp-grid[data-editing-cp-colonia="1"] .exp-val {
+  /* background: #ecfdf3; */              /* verde muy clarito */
+  padding: 0.5rem 0.85rem;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px #e5e7eb inset;
+}
+
+/* Inputs / selects dentro del modo edición */
+.home-samapa .exp-view .exp-val[data-editing="1"] .exp-input,
+.home-samapa .exp-view .exp-grid[data-editing-cp-colonia="1"] .exp-input {
+  width: 100%;
+  max-width: 380px;
+  font-size: 0.9rem;
+  padding: 0.38rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #c4e5d3;        /* borde verde suave */
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease,
+              background-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+/* Focus discreto en verde */
+.home-samapa .exp-view .exp-val[data-editing="1"] .exp-input:focus,
+.home-samapa .exp-view .exp-grid[data-editing-cp-colonia="1"] .exp-input:focus {
+  border-color: #6ee7b7;                         /* verde pastel */
+  box-shadow: 0 0 0 1px rgba(110, 231, 183, 0.55);
+  background-color: #f4fdf8;
+}
+
+/* Fila de botones Cancelar / Guardar */
+.home-samapa .exp-view .exp-edit-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+/* Botón base: ghost gris/verdoso muy suave */
+.home-samapa .exp-view .exp-edit-actions .btn-xs {
+  padding: 0.25rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background-color: #f9fafb;
+  color: #4b5563;
+}
+
+/* Hover sutil con toque verde */
+.home-samapa .exp-view .exp-edit-actions .btn-xs:hover {
+  background-color: #e5f7ee;
+}
+
+/* Botón Guardar en verde pastel*/
+.home-samapa .exp-view .exp-edit-actions .btn-xs.primary {
+  border-color: #bbf7d0;
+  background-color: #dcfce7;      
+  color: #166534;                  
+  font-weight: 500;
+}
+
+.home-samapa .exp-view .exp-edit-actions .btn-xs.primary:hover {
+  background-color: #bbf7d0;
+  border-color: #86efac;
+}
+
+:root {
+    --ix-bg: #f9f9f900;
+}

@@ -899,9 +899,12 @@
       const dd = row?.querySelector(".exp-val");
       if (!dd) return;
 
+      if (dd.dataset.editing === "1") {
+        return;
+      }
+
       const lower = labelText.toLowerCase();
 
-      // Si estamos en modo edición de CP/colonia, no pisar los selects
       if (
         isEditing &&
         (lower.startsWith("c.p") ||
@@ -914,15 +917,22 @@
       // Correo como link (manteniendo el lápiz)
       if (lower.includes("correo")) {
         let a = dd.querySelector("a[data-contact-text]");
+
         if (!a) {
           a = document.createElement("a");
           a.setAttribute("data-contact-text", keyName || "contacto_email");
           // NO tocamos otros nodos (como el botón)
           dd.insertBefore(a, dd.firstChild);
         }
+
         a.textContent = val || "—";
-        if (val) a.href = `mailto:${val}`;
-        else a.removeAttribute("href");
+
+        if (val) {
+          a.href = `mailto:${val}`;
+        } else {
+          a.removeAttribute("href");
+        }
+
         return;
       }
 
