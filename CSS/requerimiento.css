@@ -1455,3 +1455,10 @@ body.modal-open { overflow: hidden; }
   border: 1px solid #cbe7d9; 
   background-color: #f9fffb;  
 }
+
+/* Botones deshabilitados en Planeación (Solicitud / Revision) */
+.planeacion-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}

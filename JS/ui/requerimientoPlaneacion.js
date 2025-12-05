@@ -848,21 +848,26 @@
 
     const btnProceso = document.querySelector(SEL.toolbar.addProceso);
     const btnTarea = document.querySelector(SEL.toolbar.addTarea);
-
     const deptId = Number(getDeptId());
     const roles = getRoles();
-    const PRES_DEPT_IDS = [6]; // Presidencia
     const isAdmin = roles.includes("ADMIN");
+    //const PRES_DEPT_IDS = [6]; // Presidencia
 
-    if (PRES_DEPT_IDS.includes(deptId) && !isAdmin) {
-      if (btnProceso) btnProceso.style.display = "none";
-      if (btnTarea) btnTarea.style.display = "none";
+    // el if de presidencia por si acaso lo dejo
 
-      _boundToolbar = true;
-      log("Toolbar oculta para Presidencia sin rol ADMIN (dept:", deptId, ")");
-      return;
-    }
+    //if (PRES_DEPT_IDS.includes(deptId) && !isAdmin) {
+    //  if (btnProceso) btnProceso.style.display = "none";
+    //  if (btnTarea) btnTarea.style.display = "none";
+    //  _boundToolbar = true;
+    //  console.log(
+    //    "[Planeación] Toolbar oculta para Presidencia sin rol ADMIN (dept:",
+    //    deptId,
+    //    ")"
+    //  );
+    //  return;
+    //}
 
+    // Normal: se enlazan los botones
     btnProceso?.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -885,7 +890,80 @@
     });
 
     _boundToolbar = true;
-    log("Toolbar enlazada");
+    console.log("[Planeación] Toolbar enlazada");
+  }
+
+  /* habilitar / deshabilitar toolbar según estatus del requerimiento */
+  function updateToolbarForReq(req) {
+    const btnProceso = document.querySelector(SEL.toolbar.addProceso);
+    const btnTarea = document.querySelector(SEL.toolbar.addTarea);
+    if (!btnProceso && !btnTarea) return;
+
+    const code =
+      req && req.estatus_code != null
+        ? Number(req.estatus_code)
+        : req && req.estatus != null
+        ? Number(req.estatus)
+        : req && req.raw && req.raw.estatus != null
+        ? Number(req.raw.estatus)
+        : null;
+
+    // Deshabilitar en: Solicitud (0) y Revisión (1)
+    const disable = code === 0 || code === 1;
+
+    [btnProceso, btnTarea].forEach((btn) => {
+      if (!btn) return;
+      if (disable) {
+        btn.setAttribute("disabled", "true");
+        btn.classList.add("planeacion-btn-disabled");
+        btn.title = "No disponible en estatus Solicitud / Revisión.";
+      } else {
+        btn.removeAttribute("disabled");
+        btn.classList.remove("planeacion-btn-disabled");
+        btn.title = "";
+      }
+    });
+
+    console.log(
+      "[Toolbar] estatus req =",
+      code,
+      "disable planeación:",
+      disable
+    );
+  }
+
+  /* habilitar / deshabilitar toolbar según estatus del requerimiento */
+  function updateToolbarForReq(req) {
+    const btnProceso = document.querySelector(SEL.toolbar.addProceso);
+    const btnTarea = document.querySelector(SEL.toolbar.addTarea);
+    if (!btnProceso && !btnTarea) return;
+
+    const code =
+      req && req.estatus_code != null
+        ? Number(req.estatus_code)
+        : req && req.estatus != null
+        ? Number(req.estatus)
+        : req && req.raw && req.raw.estatus != null
+        ? Number(req.raw.estatus)
+        : null;
+
+    // Deshabilitar en: Solicitud (0) y Revisión (1)
+    const disable = code === 0 || code === 1;
+
+    [btnProceso, btnTarea].forEach((btn) => {
+      if (!btn) return;
+      if (disable) {
+        btn.setAttribute("disabled", "true");
+        btn.classList.add("planeacion-btn-disabled");
+        btn.title = "No disponible en estatus Solicitud / Revisión.";
+      } else {
+        btn.removeAttribute("disabled");
+        btn.classList.remove("planeacion-btn-disabled");
+        btn.title = "";
+      }
+    });
+
+    log("[Toolbar] estatus req =", code, "disable planeación:", disable);
   }
 
   // ===== API pública =====
@@ -899,14 +977,21 @@
         async (e) => {
           const req = e?.detail || window.__REQ__;
           if (!req?.id) return;
+
+          // nuevo: actualizar estado de los botones según el estatus del req
+          updateToolbarForReq(req);
+
           await renderProcesosYtareas(Number(req.id));
         },
         { once: true }
       );
 
+      // Fallback si __REQ__ ya estaba listo antes
       if (window.__REQ__?.id) {
+        updateToolbarForReq(window.__REQ__);
         await renderProcesosYtareas(Number(window.__REQ__.id));
       }
+
       log("init OK (API conectada)");
     },
     reload: async () => {
