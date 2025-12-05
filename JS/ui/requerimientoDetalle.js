@@ -28,6 +28,9 @@
       "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
     REQ_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",
     CCP_LIST: "https://ixtla-app.com/db/web/ixtla01_c_ccp.php",
+    // Catálogo de trámites (para editar "Trámite")
+    TRAMITES_LIST:
+      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_tramite.php",
   };
 
   async function postJSON(url, body) {
@@ -294,37 +297,65 @@
   }
 
   /* =========================
+   * Helpers Detalles (grid + filas)
+   * ========================= */
+
+  function findDetallesGrid() {
+    return (
+      $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid') ||
+      $('.exp-pane[role="tabpanel"][data-tab="Detalles"] .exp-grid')
+    );
+  }
+
+  function findRowByLabel(grid, labels) {
+    if (!grid) return null;
+    const lowers = labels.map((l) => String(l).toLowerCase());
+    return (
+      Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
+        const t = (r.querySelector("label")?.textContent || "")
+          .trim()
+          .toLowerCase();
+        return lowers.some((lbl) => t.startsWith(lbl));
+      }) || null
+    );
+  }
+
+  /* =========================
    * Pintar TAB "detalles"
    * ========================= */
 
-  function putDetalle(labelStartsWith, value) {
-    const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+  function putDetalle(labelStartsWith, value, keyName) {
+    const grid = findDetallesGrid();
     if (!grid) return false;
 
-    const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const t = (r.querySelector("label")?.textContent || "")
-        .trim()
-        .toLowerCase();
-      return t.startsWith(labelStartsWith.toLowerCase());
-    });
-
+    const row = findRowByLabel(grid, [labelStartsWith]);
     const dd = row?.querySelector(".exp-val");
     if (!dd) return false;
 
-    dd.textContent = value ?? "—";
+    // Si está en modo edición, no pisar el contenido
+    if (dd.dataset.editing === "1") return false;
+
+    let target = null;
+    if (keyName) {
+      target = dd.querySelector(`[data-detalle-text="${keyName}"]`);
+    }
+    if (!target) {
+      target = dd.querySelector("[data-detalle-text]");
+    }
+
+    if (target) {
+      target.textContent = value ?? "—";
+    } else {
+      dd.textContent = value ?? "—";
+    }
     return true;
   }
 
   function attachAsignarButton() {
-    const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+    const grid = findDetallesGrid();
     if (!grid) return null;
 
-    const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const t = (r.querySelector("label")?.textContent || "")
-        .trim()
-        .toLowerCase();
-      return t.startsWith("asignado");
-    });
+    const row = findRowByLabel(grid, ["asignado"]);
     if (!row) return null;
 
     const dd = row.querySelector(".exp-val");
@@ -353,11 +384,15 @@
   async function paintDetalles(req) {
     log("[Detalles] pintando con req:", req?.id, req);
 
-    // Nombre del Requerimiento
-    putDetalle(
-      "Nombre del Requerimiento",
-      req.asunto || req.tramite_nombre || "—"
-    );
+    // Trámite (antes "Nombre del Requerimiento")
+    const tituloReq = req.tramite_nombre || req.asunto || "—";
+    // Intentar first "Trámite", luego legacy "Nombre del Requerimiento"
+    if (
+      !putDetalle("Trámite", tituloReq, "tramite") &&
+      !putDetalle("Tramite", tituloReq, "tramite")
+    ) {
+      putDetalle("Nombre del Requerimiento", tituloReq, "tramite");
+    }
 
     // Departamento + Director
     try {
@@ -385,7 +420,7 @@
     attachAsignarButton();
 
     // Descripción
-    putDetalle("Descripción", req.descripcion || "—");
+    putDetalle("Descripción", req.descripcion || "—", "descripcion");
 
     // Código numérico de estatus
     const est = Number(
@@ -413,12 +448,347 @@
   }
 
   function resetDetallesSkeleton() {
-    const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+    const grid = findDetallesGrid();
     if (!grid) return;
     $$(".exp-field .exp-val", grid).forEach((n) => {
       if (n.id === "req-status") return; // NO tocar estatus (lo maneja otro JS)
-      n.textContent = "—";
+      if (n.dataset.editing === "1") return;
+
+      const span = n.querySelector("[data-detalle-text]");
+      if (span) {
+        span.textContent = "—";
+      } else if (!n.querySelector("button")) {
+        // Solo si no tiene botones fijos
+        n.textContent = "—";
+      }
     });
+  }
+
+  /* =========================
+   * Detalles: edición Trámite + Descripción
+   * ========================= */
+
+  async function updateReqDetalles(id, changes) {
+    const updated_by = getEmpleadoId() ?? null;
+    const payload = {
+      id: Number(id),
+      updated_by,
+      ...changes,
+    };
+    log("[Detalles] updateReqDetalles() payload", payload);
+    const res = await postJSON(ENDPOINTS.REQ_UPDATE, payload);
+    return res?.data ?? res;
+  }
+
+  async function fetchTramitesByDept(departamento_id) {
+    const payload = {
+      estatus: 1,
+      all: true,
+    };
+    if (departamento_id) payload.departamento_id = Number(departamento_id);
+
+    log("[Trámite] fetchTramitesByDept payload", payload);
+    const res = await postJSON(ENDPOINTS.TRAMITES_LIST, payload);
+    const arr = Array.isArray(res?.data) ? res.data : [];
+    return arr.map((t) => ({
+      id: Number(t.id),
+      nombre: String(t.nombre || "").trim(),
+      descripcion: String(t.descripcion || "").trim(),
+    }));
+  }
+
+  async function openTramiteEditor(req) {
+    const grid = findDetallesGrid();
+    if (!grid) return;
+    const row = findRowByLabel(grid, [
+      "trámite",
+      "tramite",
+      "nombre del requerimiento",
+    ]);
+    if (!row) return;
+    const dd = row.querySelector(".exp-val");
+    if (!dd) return;
+
+    if (dd.dataset.editing === "1") return;
+    dd.dataset.editing = "1";
+
+    const originalHTML = dd.innerHTML;
+
+    const currentName =
+      (req.tramite_nombre || req.asunto || "").trim() || "—";
+    const select = document.createElement("select");
+    select.className = "exp-input";
+    select.setAttribute("aria-label", "Seleccionar trámite");
+
+    const actions = document.createElement("div");
+    actions.className = "exp-edit-actions";
+
+    const btnCancel = document.createElement("button");
+    btnCancel.type = "button";
+    btnCancel.className = "btn-xs";
+    btnCancel.textContent = "Cancelar";
+
+    const btnSave = document.createElement("button");
+    btnSave.type = "button";
+    btnSave.className = "btn-xs primary";
+    btnSave.textContent = "Guardar";
+
+    actions.appendChild(btnCancel);
+    actions.appendChild(btnSave);
+
+    dd.innerHTML = "";
+    dd.appendChild(select);
+    dd.appendChild(actions);
+
+    const restoreView = (mergedReq) => {
+      dd.innerHTML = originalHTML;
+      delete dd.dataset.editing;
+
+      const finalReq = mergedReq || req;
+
+      // Actualizamos solo el span del trámite
+      const span = dd.querySelector('[data-detalle-text="tramite"]');
+      const val = finalReq.tramite_nombre || finalReq.asunto || "—";
+      if (span) span.textContent = val;
+
+      // Re-wire de botones
+      setupDetallesEditors(finalReq);
+    };
+
+    btnCancel.addEventListener("click", () => {
+      restoreView(req);
+    });
+
+    try {
+      const tramites = await fetchTramitesByDept(req.departamento_id);
+      if (!tramites.length) {
+        toast("No se encontraron trámites para este departamento.", "warning");
+        restoreView(req);
+        return;
+      }
+
+      // Llenar opciones
+      const opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.disabled = true;
+      opt0.textContent = "Selecciona un trámite…";
+      select.appendChild(opt0);
+
+      let selectedId = req.tramite_id != null ? Number(req.tramite_id) : null;
+
+      tramites.forEach((t) => {
+        const o = document.createElement("option");
+        o.value = String(t.id);
+        o.textContent = t.nombre || `Trámite #${t.id}`;
+        select.appendChild(o);
+      });
+
+      if (selectedId) {
+        select.value = String(selectedId);
+      } else {
+        // Intento por nombre actual
+        const match = tramites.find(
+          (t) =>
+            t.nombre.toLowerCase() === currentName.toLowerCase() ||
+            t.nombre.toLowerCase().startsWith(currentName.toLowerCase())
+        );
+        if (match) select.value = String(match.id);
+        else select.value = "";
+      }
+    } catch (e) {
+      warn("[Trámite] error cargando trámites:", e);
+      toast("No se pudieron cargar los trámites.", "danger");
+      restoreView(req);
+      return;
+    }
+
+    btnSave.addEventListener("click", async () => {
+      const val = select.value;
+      if (!val) {
+        select.focus();
+        return;
+      }
+
+      const newId = Number(val);
+      const selectedOpt = select.querySelector(
+        `option[value="${CSS.escape(String(newId))}"]`
+      );
+      const newName = selectedOpt?.textContent || `Trámite #${newId}`;
+
+      const originalId = req.tramite_id != null ? Number(req.tramite_id) : null;
+      const originalName =
+        (req.tramite_nombre || req.asunto || "").trim() || "";
+
+      if (newId === originalId || newName === originalName) {
+        restoreView(req);
+        return;
+      }
+
+      btnSave.disabled = true;
+      btnSave.textContent = "Guardando…";
+
+      try {
+        // Actualizamos tramite_id y de paso asunto para mantener título consistente
+        await updateReqDetalles(req.id, {
+          tramite_id: newId,
+          asunto: newName,
+        });
+
+        toast("Trámite actualizado correctamente.", "success");
+
+        const merged = {
+          ...req,
+          tramite_id: newId,
+          tramite_nombre: newName,
+          asunto: newName,
+        };
+
+        if (window.__REQ__ && String(window.__REQ__.id) === String(req.id)) {
+          window.__REQ__ = { ...window.__REQ__, ...merged };
+        }
+
+        // Actualizamos el título principal
+        const h1 = $(".exp-title h1");
+        if (h1) h1.textContent = newName || "Requerimiento";
+
+        restoreView(merged);
+      } catch (e) {
+        err("[Trámite] error al actualizar trámite:", e);
+        toast("No se pudo actualizar el trámite.", "danger");
+        btnSave.disabled = false;
+        btnSave.textContent = "Guardar";
+      }
+    });
+  }
+
+  function openDescripcionEditor(req) {
+    const grid = findDetallesGrid();
+    if (!grid) return;
+    const row = findRowByLabel(grid, ["descripción", "descripcion"]);
+    if (!row) return;
+    const dd = row.querySelector(".exp-val");
+    if (!dd) return;
+
+    if (dd.dataset.editing === "1") return;
+    dd.dataset.editing = "1";
+
+    const originalHTML = dd.innerHTML;
+
+    const spanCurrent = dd.querySelector('[data-detalle-text="descripcion"]');
+    const currentFromDOM =
+      (spanCurrent?.textContent || "").trim() || req.descripcion || "";
+
+    dd.innerHTML = "";
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "exp-input";
+    textarea.rows = 3;
+    textarea.value = currentFromDOM;
+    textarea.placeholder = "Escribe la descripción…";
+
+    const actions = document.createElement("div");
+    actions.className = "exp-edit-actions";
+
+    const btnCancel = document.createElement("button");
+    btnCancel.type = "button";
+    btnCancel.className = "btn-xs";
+    btnCancel.textContent = "Cancelar";
+
+    const btnSave = document.createElement("button");
+    btnSave.type = "button";
+    btnSave.className = "btn-xs primary";
+    btnSave.textContent = "Guardar";
+
+    actions.appendChild(btnCancel);
+    actions.appendChild(btnSave);
+
+    dd.appendChild(textarea);
+    dd.appendChild(actions);
+
+    const restoreView = (mergedReq) => {
+      dd.innerHTML = originalHTML;
+      delete dd.dataset.editing;
+
+      const finalReq = mergedReq || req;
+      const span = dd.querySelector('[data-detalle-text="descripcion"]');
+      if (span) span.textContent = finalReq.descripcion || "—";
+
+      setupDetallesEditors(finalReq);
+    };
+
+    btnCancel.addEventListener("click", () => {
+      restoreView(req);
+    });
+
+    btnSave.addEventListener("click", async () => {
+      const newVal = (textarea.value || "").trim();
+      const originalVal = (req.descripcion || "").trim();
+
+      if (newVal === originalVal) {
+        restoreView(req);
+        return;
+      }
+
+      btnSave.disabled = true;
+      btnSave.textContent = "Guardando…";
+
+      try {
+        await updateReqDetalles(req.id, { descripcion: newVal });
+        toast("Descripción actualizada correctamente.", "success");
+
+        const merged = { ...req, descripcion: newVal };
+
+        if (window.__REQ__ && String(window.__REQ__.id) === String(req.id)) {
+          window.__REQ__ = { ...window.__REQ__, descripcion: newVal };
+        }
+
+        restoreView(merged);
+      } catch (e) {
+        err("[Descripción] error al actualizar:", e);
+        toast("No se pudo actualizar la descripción.", "danger");
+        btnSave.disabled = false;
+        btnSave.textContent = "Guardar";
+      }
+    });
+  }
+
+  function setupDetallesEditors(req) {
+    const grid = findDetallesGrid();
+    if (!grid) return;
+
+    // Trámite
+    const rowTramite = findRowByLabel(grid, [
+      "trámite",
+      "tramite",
+      "nombre del requerimiento",
+    ]);
+    if (rowTramite) {
+      const btn = rowTramite.querySelector(
+        'button.icon-btn[data-detalle-edit="tramite"]'
+      );
+      if (btn && !btn._bound) {
+        btn._bound = true;
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          openTramiteEditor(req || window.__REQ__ || {});
+        });
+      }
+    }
+
+    // Descripción
+    const rowDesc = findRowByLabel(grid, ["descripción", "descripcion"]);
+    if (rowDesc) {
+      const btn = rowDesc.querySelector(
+        'button.icon-btn[data-detalle-edit="descripcion"]'
+      );
+      if (btn && !btn._bound) {
+        btn._bound = true;
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          openDescripcionEditor(req || window.__REQ__ || {});
+        });
+      }
+    }
   }
 
   /* =========================
@@ -699,16 +1069,10 @@
   }
 
   async function refreshAsignadoUI(asignadoId) {
-    const grid = $('.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-grid');
+    const grid = findDetallesGrid();
     if (!grid) return;
 
-    const row = Array.from(grid.querySelectorAll(".exp-field")).find((r) => {
-      const t = (r.querySelector("label")?.textContent || "")
-        .trim()
-        .toLowerCase();
-      return t.startsWith("asignado");
-    });
-
+    const row = findRowByLabel(grid, ["asignado"]);
     const dd = row?.querySelector(".exp-val");
     if (dd) {
       const sel = document.querySelector("#modal-asignar-req #asignar-select");
@@ -747,6 +1111,7 @@
           resetDetallesSkeleton();
           await paintDetalles(req);
           await paintMotivoCCP(req);
+          setupDetallesEditors(req);
         } catch (error) {
           warn("[Boot] error al pintar Detalle/CCP:", error);
         }
@@ -762,6 +1127,7 @@
       resetDetallesSkeleton();
       paintDetalles(req)
         .then(() => paintMotivoCCP(req))
+        .then(() => setupDetallesEditors(req))
         .catch((error) => warn("[Boot] paintDetalles fallback error:", error));
     }
   }

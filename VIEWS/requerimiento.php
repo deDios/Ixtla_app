@@ -380,9 +380,25 @@
                     <!-- Panel: Detalles -->
                     <section class="exp-pane" role="tabpanel" data-tab="detalles">
                         <div class="exp-grid">
-                            <div class="exp-field"><label>Nombre del Requerimiento:</label>
-                                <div class="exp-val">Fuga de agua</div>
+
+                            <!-- Campo Trámite -->
+                            <div class="exp-field">
+                                <label>Trámite:</label>
+                                <div class="exp-val">
+                                    <span data-detalle-text="tramite">Reporte Fuga de agua</span>
+
+                                    <!-- Botón de editar, SIEMPRE en el HTML -->
+                                    <button type="button" class="icon-btn" data-detalle-edit="tramite"
+                                        title="Editar trámite" aria-label="Editar trámite">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
+
                             <div class="exp-field"><label>Director:</label>
                                 <div class="exp-val"><a>Juan Pablo</a></div>
                             </div>
@@ -421,15 +437,26 @@
                                 <div class="exp-val" id="req-motivo-wrap">—</div>
                             </div>
 
-                            <div class="exp-field exp-field--full">
+                            <!-- Campo Descripción -->
+                            <div class="exp-field">
                                 <label>Descripción:</label>
-                                <div class="exp-val exp-preline">
-                                    Vimos una fuga de agua en una casa amarilla de dos pisos, lleva más de 3 horas
-                                    tirando
-                                    agua y no parece que se encuentren los propietarios. Nos preocupa porque es agua
-                                    limpia.
+                                <div class="exp-val">
+                                    <span data-detalle-text="descripcion">
+                                        Texto de descripción del requerimiento…
+                                    </span>
+
+                                    <!-- Botón de editar, también directo en el HTML -->
+                                    <button type="button" class="icon-btn" data-detalle-edit="descripcion"
+                                        title="Editar descripción" aria-label="Editar descripción">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+                                            </path>
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
+
                             <div class="exp-field"><label>Fecha de inicio:</label>
                                 <div class="exp-val">02/09/2025</div>
                             </div>
@@ -438,6 +465,12 @@
                             </div>
                         </div>
                     </section>
+
+
+
+
+
+
 
                     <!-- Panel: Planeacion -->
                     <section class="exp-pane" role="tabpanel" data-tab="planeacion">
