@@ -53,16 +53,14 @@
         "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_proceso_requerimiento.php",
       UPDATE:
         "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_proceso_requerimiento.php",
-      LIST:
-        "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_proceso_requerimiento.php",
+      LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_proceso_requerimiento.php",
     },
     TAREAS: {
       CREATE:
         "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_tarea_proceso.php",
       UPDATE:
         "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_tarea_proceso.php",
-      LIST:
-        "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tarea_proceso.php",
+      LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tarea_proceso.php",
     },
     EMPLEADOS: {
       LIST: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
@@ -166,9 +164,7 @@
       .replaceAll("'", "&#039;");
   }
 
-  /* =========================================================================
-   * Empleados + RBAC para poblar el SELECT de asignado
-   * =========================================================================*/
+  // ====== Empleados + RBAC para SELECT de asignado ======
   function normalizeEmpleadoFromAPI(r) {
     const reporta_a =
       r.reporta_a != null
@@ -385,7 +381,7 @@
     return postJSON(API.TAREAS.CREATE, payload);
   }
 
-  // ===== Normalizadores
+  // ===== Normalizadores =====
   function normalizeProceso(r = {}) {
     return {
       id: Number(r.id),
@@ -425,7 +421,12 @@
   /* =========================================================================
    *  PORCENTAJES (basado 100% en status de tarea)
    * =========================================================================*/
-  // ⬇ status → score (0–1). Nota: 5 (Bloqueada) lo tratamos especial en la UI
+  // 0: Inactivo    → 0%
+  // 1: Por hacer   → 0%
+  // 2: En proceso  → 50%
+  // 3: Por revisar → 80%
+  // 4: Hecho       → 100%
+  // 5: Bloqueada   → 0% (pero se pinta como 100% solo a nivel de UI)
   const SCORE_BY_STATUS = { 0: 0, 1: 0, 2: 0.5, 3: 0.8, 4: 1.0, 5: 0 };
   function taskPct(t) {
     const s = Number(t.status ?? 0);
@@ -436,6 +437,50 @@
     if (!tareas.length) return 0;
     const sum = tareas.reduce((acc, t) => acc + taskPct(t), 0);
     return Math.round(sum / tareas.length);
+  }
+
+  /* =========================================================================
+   *  ESTATUS DEL REQ + TOOLBAR
+   * =========================================================================*/
+
+  function getReqStatusCode(req) {
+    if (!req) req = window.__REQ__ || null;
+    if (!req) return null;
+
+    return req.estatus_code != null
+      ? Number(req.estatus_code)
+      : req.estatus != null
+      ? Number(req.estatus)
+      : req.raw && req.raw.estatus != null
+      ? Number(req.raw.estatus)
+      : null;
+  }
+
+  // Regla: botones de procesos/tareas NO habilitados en
+  // estatus Solicitud (0) ni Revisión (1). En los demás, sí.
+  function updateToolbarForReq(req) {
+    const btnProceso = document.querySelector(SEL.toolbar.addProceso);
+    const btnTarea = document.querySelector(SEL.toolbar.addTarea);
+    if (!btnProceso && !btnTarea) return;
+
+    const code = getReqStatusCode(req);
+
+    const disable = code === 0 || code === 1;
+
+    [btnProceso, btnTarea].forEach((btn) => {
+      if (!btn) return;
+      if (disable) {
+        btn.setAttribute("disabled", "true");
+        btn.classList.add("planeacion-btn-disabled");
+        btn.title = "No disponible en estatus Solicitud / Revisión.";
+      } else {
+        btn.removeAttribute("disabled");
+        btn.classList.remove("planeacion-btn-disabled");
+        btn.title = "";
+      }
+    });
+
+    log("[Toolbar] estatus req =", code, "disable planeación:", disable);
   }
 
   /* ====== Pintado de UI (reutiliza tu markup) ====== */
@@ -530,7 +575,7 @@
       s === 4
         ? "is-success"
         : s === 5
-        ? "is-warning" // badge amarillo para bloqueada
+        ? "is-warning"
         : s === 3
         ? "is-info"
         : s === 2
@@ -540,7 +585,7 @@
         : "is-info";
 
     const rawPct = taskPct(t);
-    const pct = s === 5 ? 100 : rawPct; // Bloqueada se muestra como 100% bloqueada
+    const pct = s === 5 ? 100 : rawPct;
     const progressExtraClass = s === 5 ? " warning" : "";
 
     const row = document.createElement("div");
@@ -569,15 +614,13 @@
     const total = tareas.length;
     const pct = processPct(tareas);
 
-    meta.textContent = `${total} ${
-      total === 1 ? "actividad" : "actividades"
-    }`;
+    meta.textContent = `${total} ${total === 1 ? "actividad" : "actividades"}`;
     pctBar.style.width = `${pct}%`;
     pctTxt.textContent = `${pct}%`;
     pctBar.parentElement?.setAttribute("aria-label", `${pct}%`);
   }
 
-  // ===== Carga/Render: Procesos + Tareas
+  // ===== Carga/Render: Procesos + Tareas =====
   async function renderProcesosYtareas(requerimiento_id) {
     const host = $(SEL.planeacionList);
     if (!host) return;
@@ -734,11 +777,9 @@
           throw new Error(res?.error || "No se pudo crear la tarea");
         toast("Tarea creada", "success");
 
-        // Cerrar modal
         const modal = document.querySelector(SEL.modalT);
         if (modal) closeOverlay(modal);
 
-        // Refrescar tabla del proceso
         const sec = $(
           `#planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(
             String(procesoId)
@@ -846,57 +887,12 @@
     }
   }
 
-  // ===== Helpers de estatus de requerimiento (toolbar) =====
-  function getReqStatusCode(req) {
-    if (!req) req = window.__REQ__ || null;
-    if (!req) return null;
-
-    return req.estatus_code != null
-      ? Number(req.estatus_code)
-      : req.estatus != null
-      ? Number(req.estatus)
-      : req.raw && req.raw.estatus != null
-      ? Number(req.raw.estatus)
-      : null;
-  }
-
-  // Habilita / deshabilita botones de "Nuevo proceso" y "Nueva tarea" segun el estatus
-  function updateToolbarForReq(req) {
-    const btnProceso = document.querySelector(SEL.toolbar.addProceso);
-    const btnTarea = document.querySelector(SEL.toolbar.addTarea);
-    if (!btnProceso && !btnTarea) return;
-
-    const code = getReqStatusCode(req);
-
-    // Regla: Botones NO habilitados en Solicitud (0) ni Revisión (1)
-    const disable = code === 0 || code === 1;
-
-    [btnProceso, btnTarea].forEach((btn) => {
-      if (!btn) return;
-      if (disable) {
-        btn.setAttribute("disabled", "true");
-        btn.classList.add("planeacion-btn-disabled");
-        btn.title = "No disponible en estatus Solicitud / Revisión.";
-      } else {
-        btn.removeAttribute("disabled");
-        btn.classList.remove("planeacion-btn-disabled");
-        btn.title = "";
-      }
-    });
-
-    log("[Toolbar] estatus req =", code, "disable planeación:", disable);
-  }
-
   // ===== Toolbar (botones principales) =====
   function bindToolbar() {
     if (_boundToolbar) return;
 
     const btnProceso = document.querySelector(SEL.toolbar.addProceso);
     const btnTarea = document.querySelector(SEL.toolbar.addTarea);
-
-    const deptId = Number(getDeptId());
-    const roles = getRoles();
-    const isAdmin = roles.includes("ADMIN");
 
     //const PRES_DEPT_IDS = [6]; // Presidencia
 
@@ -944,29 +940,20 @@
       $$("#planeacion-list .exp-accordion--fase").forEach(bindProcessAccordion);
       bindToolbar();
 
-      // Cuando la vista cargue el requerimiento por primera vez
+      // Actualizar planeación y toolbar CADA vez que llegue un req
       document.addEventListener(
         "req:loaded",
         async (e) => {
           const req = e?.detail || window.__REQ__;
           if (!req?.id) return;
 
-          // Ajustar toolbar según estatus actual
           updateToolbarForReq(req);
-
           await renderProcesosYtareas(Number(req.id));
         },
-        { once: true }
+        { passive: true }
       );
 
-      // Reaccionar a cambios de estatus en tiempo real
-      document.addEventListener("req:status-changed", (e) => {
-        const req = e?.detail || window.__REQ__;
-        if (!req) return;
-        updateToolbarForReq(req);
-      });
-
-      // Fallback si ya estaba el req cargado al entrar al módulo
+      // Fallback si __REQ__ ya está listo al cargar este JS
       if (window.__REQ__?.id) {
         updateToolbarForReq(window.__REQ__);
         await renderProcesosYtareas(Number(window.__REQ__.id));
@@ -976,15 +963,20 @@
     },
     reload: async () => {
       const req = window.__REQ__;
-      if (req?.id) await renderProcesosYtareas(Number(req.id));
+      if (req?.id) {
+        updateToolbarForReq(req);
+        await renderProcesosYtareas(Number(req.id));
+      }
     },
   };
 
   // ==== AUTO-INIT ====
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => window.Planeacion.init(), {
-      once: true,
-    });
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => window.Planeacion.init(),
+      { once: true }
+    );
   } else {
     window.Planeacion.init();
   }
