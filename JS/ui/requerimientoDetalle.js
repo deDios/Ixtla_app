@@ -514,8 +514,7 @@
 
     const originalHTML = dd.innerHTML;
 
-    const currentName =
-      (req.tramite_nombre || req.asunto || "").trim() || "—";
+    const currentName = (req.tramite_nombre || req.asunto || "").trim() || "—";
     const select = document.createElement("select");
     select.className = "exp-input";
     select.setAttribute("aria-label", "Seleccionar trámite");
@@ -681,7 +680,7 @@
     dd.innerHTML = "";
 
     const textarea = document.createElement("textarea");
-    textarea.className = "exp-input";
+    textarea.className = "exp-input exp-textarea";
     textarea.rows = 3;
     textarea.value = currentFromDOM;
     textarea.placeholder = "Escribe la descripción…";

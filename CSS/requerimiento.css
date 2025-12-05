@@ -1440,3 +1440,18 @@ body.modal-open { overflow: hidden; }
 :root {
     --ix-bg: #f9f9f900;
 }
+
+
+/* Textarea de descripción en Detalles: altura fija + scroll interno */
+.exp-pane[role="tabpanel"][data-tab="detalles"] .exp-val .exp-textarea {
+  height: 120px;          
+  max-height: 120px;      
+  overflow-y: auto;      
+  resize: none;           
+
+  line-height: 1.4;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #cbe7d9; 
+  background-color: #f9fffb;  
+}
