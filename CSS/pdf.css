@@ -1,11 +1,10 @@
-/* Encabezado posicionable */
+
 .exp-head { position: relative; }
 
-/* Botón flotante de descarga */
 .exp-fab-download{
   position: absolute;
-  top: 18px;        /* ajusta fino si lo quieres más alto/bajo */
-  right: 18px;      /* ajusta fino si lo quieres más a la orilla */
+  top: 18px;       
+  right: 18px;      
   width: 40px;
   height: 40px;
   border-radius: 999px;

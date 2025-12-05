@@ -13,7 +13,6 @@ function allRows(containerSel, rowSel){
 }
 
 function buildHTMLExpediente() {
-  // Meta
   const folio = txt("#req-folio") || "REQ-0000000000";
   const depto = txt("#req-departamento") || "—";
   const fecha = txt("#req-fecha-solicitud") || "—";
@@ -38,7 +37,7 @@ function buildHTMLExpediente() {
     motivoPC: document.querySelector('#req-motivo-wrap')?.textContent?.trim() || "—",
   };
 
-  // Planeación (lee la tabla/accordion visible)
+  // Planeación 
   const procSecciones = allRows('#planeacion-list','section.exp-accordion--fase');
   const planeacion = procSecciones.map(sec => {
     const procTitulo = sec.querySelector('.fase-title')?.textContent?.trim() || 'Proceso';
@@ -141,7 +140,6 @@ function openPrintable() {
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const w = window.open(url, "_blank", "noopener,noreferrer");
-  // Si el popup blocker lo impide, ofrecer descarga del HTML
   if (!w) {
     const a = document.createElement('a');
     a.href = url;
@@ -159,5 +157,4 @@ export function initExpedienteButton(){
   }
 }
 
-// Auto-init si se carga directo
 document.addEventListener("DOMContentLoaded", initExpedienteButton);
