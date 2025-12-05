@@ -1,0 +1,23 @@
+/* Encabezado posicionable */
+.exp-head { position: relative; }
+
+/* Botón flotante de descarga */
+.exp-fab-download{
+  position: absolute;
+  top: 18px;        /* ajusta fino si lo quieres más alto/bajo */
+  right: 18px;      /* ajusta fino si lo quieres más a la orilla */
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #10b981;     /* verde */
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(0,0,0,.18);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.exp-fab-download:hover{ transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.22); }
+.exp-fab-download:active{ transform: translateY(0); box-shadow: 0 6px 12px rgba(0,0,0,.18); }
