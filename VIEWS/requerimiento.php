@@ -402,8 +402,20 @@
                             <div class="exp-field"><label>Director:</label>
                                 <div class="exp-val"><a>Juan Pablo</a></div>
                             </div>
-                            <div class="exp-field"><label>Asignado:</label>
-                                <div class="exp-val"><a>Luis Enrique Mendez</a></div>
+
+                            <div class="exp-field">
+                                <label>Asignado:</label>
+                                <div class="exp-val">
+                                    <span data-detalle-text="asignado">Analista SAMAPA</span>
+
+                                    <button type="button" class="icon-btn" title="Asignar requerimiento"
+                                        aria-label="Asignar requerimiento" data-act="assign-req">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="exp-field">
