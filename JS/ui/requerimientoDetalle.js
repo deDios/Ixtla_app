@@ -351,7 +351,11 @@
     return true;
   }
 
-  function attachAsignarButton() {
+  function attachAsignarButton(req) {
+    if (!req && window.__REQ__) {
+      req = window.__REQ__;
+    }
+
     const grid = findDetallesGrid();
     if (!grid) return null;
 
@@ -361,23 +365,30 @@
     const dd = row.querySelector(".exp-val");
     if (!dd) return null;
 
-    if (dd.querySelector('[data-act="assign-req"]')) return dd;
+    const btn = dd.querySelector('[data-act="assign-req"]');
+    if (!btn) return dd;
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "icon-btn";
-    btn.style.marginLeft = "8px";
-    btn.setAttribute("title", "Asignar requerimiento");
-    btn.setAttribute("aria-label", "Asignar requerimiento");
-    btn.dataset.act = "assign-req";
-    btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-        <path fill="currentColor"
-          d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z"/>
-      </svg>
-    `;
-    dd.appendChild(btn);
-    btn.addEventListener("click", openAsignarModal);
+    const est =
+      req && req.estatus_code != null
+        ? Number(req.estatus_code)
+        : req && req.estatus != null
+        ? Number(req.estatus)
+        : req && req.raw && req.raw.estatus != null
+        ? Number(req.raw.estatus)
+        : null;
+
+    // Oculto en: 0 (Solicitud), 1 (Revisión), 6 (Finalizado)
+    if (est === 0 || est === 1 || est === 6 || est == null) {
+      btn.style.display = "none";
+    } else {
+      btn.style.display = "";
+    }
+
+    if (!btn._bound) {
+      btn._bound = true;
+      btn.addEventListener("click", openAsignarModal);
+    }
+
     return dd;
   }
 
@@ -417,7 +428,7 @@
         ? req.asignado_full
         : "Sin asignar";
     putDetalle("Asignado", asignado);
-    attachAsignarButton();
+    attachAsignarButton(req);
 
     // Descripción
     putDetalle("Descripción", req.descripcion || "—", "descripcion");
@@ -1079,8 +1090,14 @@
         ? sel.querySelector(`option[value="${CSS.escape(String(asignadoId))}"]`)
         : null;
       const display = opt?.textContent || `Empleado #${asignadoId}`;
-      dd.textContent = display;
-      attachAsignarButton();
+
+      const span =
+        dd.querySelector('[data-detalle-text="asignado"]') ||
+        dd.querySelector("[data-detalle-text]") ||
+        dd;
+      span.textContent = display;
+
+      attachAsignarButton(window.__REQ__ || null);
     }
 
     const ddE = $(".exp-meta > div:nth-child(2) dd");
