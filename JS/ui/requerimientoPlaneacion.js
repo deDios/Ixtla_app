@@ -88,7 +88,7 @@
       let json = null;
       try {
         json = JSON.parse(txt);
-      } catch { }
+      } catch {}
       console.log("← status:", res.status, "json:", json || txt);
       console.groupEnd();
       if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
@@ -105,7 +105,7 @@
   function safeGetSession() {
     try {
       if (window.Session?.get) return window.Session.get();
-    } catch { }
+    } catch {}
     try {
       const pair = document.cookie
         .split("; ")
@@ -114,7 +114,7 @@
       const raw = decodeURIComponent(pair.split("=")[1] || "");
       const json = JSON.parse(decodeURIComponent(escape(atob(raw))));
       if (json && typeof json === "object") return json;
-    } catch { }
+    } catch {}
     return null;
   }
   function getEmpleadoId() {
@@ -172,8 +172,8 @@
       r.reporta_a != null
         ? r.reporta_a
         : r.cuenta && r.cuenta.reporta_a != null
-          ? r.cuenta.reporta_a
-          : null;
+        ? r.cuenta.reporta_a
+        : null;
     const roles = Array.isArray(r.cuenta?.roles)
       ? r.cuenta.roles.map((x) => x?.codigo).filter(Boolean)
       : [];
@@ -528,17 +528,17 @@
       s === 4
         ? "is-success"
         : s === 5
-          ? "is-warning" // ⬅ badge amarillo para bloqueada
-          : s === 3
-            ? "is-info"
-            : s === 2
-              ? "is-info"
-              : s === 0 || s === 1
-                ? "is-muted"
-                : "is-info";
+        ? "is-warning" // ⬅ badge amarillo para bloqueada
+        : s === 3
+        ? "is-info"
+        : s === 2
+        ? "is-info"
+        : s === 0 || s === 1
+        ? "is-muted"
+        : "is-info";
 
-    const rawPct = taskPct(t);              
-    const pct = s === 5 ? 100 : rawPct;         
+    const rawPct = taskPct(t);
+    const pct = s === 5 ? 100 : rawPct;
     const progressExtraClass = s === 5 ? " warning" : "";
 
     const row = document.createElement("div");
@@ -737,8 +737,8 @@
         // Refrescar tabla del proceso
         const sec = $(`
           #planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(
-          String(procesoId)
-        )}"]
+            String(procesoId)
+          )}"]
         `);
         if (sec) {
           const tareas = await listTareas(Number(procesoId), {
@@ -848,6 +848,18 @@
 
     const btnProceso = document.querySelector(SEL.toolbar.addProceso);
     const btnTarea = document.querySelector(SEL.toolbar.addTarea);
+
+    const deptId = Number(getDeptId());
+    const PRES_DEPT_IDS = [6]; // el id de presidencia
+
+    if (PRES_DEPT_IDS.includes(deptId)) {
+      if (btnProceso) btnProceso.style.display = "none";
+      if (btnTarea) btnTarea.style.display = "none";
+
+      _boundToolbar = true; 
+      log("Toolbar oculta para departamento Presidencia (id:", deptId, ")");
+      return;
+    }
 
     btnProceso?.addEventListener("click", (e) => {
       e.preventDefault();
