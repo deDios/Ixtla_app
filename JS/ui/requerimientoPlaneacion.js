@@ -842,7 +842,7 @@
     }
   }
 
-  // ===== Toolbar (botones principales) =====
+  // ===== Toolbar =====
   function bindToolbar() {
     if (_boundToolbar) return;
 
@@ -850,14 +850,16 @@
     const btnTarea = document.querySelector(SEL.toolbar.addTarea);
 
     const deptId = Number(getDeptId());
-    const PRES_DEPT_IDS = [6]; // el id de presidencia
+    const roles = getRoles();
+    const PRES_DEPT_IDS = [6]; // Presidencia
+    const isAdmin = roles.includes("ADMIN");
 
-    if (PRES_DEPT_IDS.includes(deptId)) {
+    if (PRES_DEPT_IDS.includes(deptId) && !isAdmin) {
       if (btnProceso) btnProceso.style.display = "none";
       if (btnTarea) btnTarea.style.display = "none";
 
-      _boundToolbar = true; 
-      log("Toolbar oculta para departamento Presidencia (id:", deptId, ")");
+      _boundToolbar = true;
+      log("Toolbar oculta para Presidencia sin rol ADMIN (dept:", deptId, ")");
       return;
     }
 
