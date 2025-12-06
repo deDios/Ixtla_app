@@ -48,6 +48,44 @@ import {
     return /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(clean);
   }
 
+  function isImageUrl(u = "") {
+    const clean = (u.split("?")[0] || "").toLowerCase();
+    return /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(clean);
+  }
+
+  // Link “puro”: URL http(s) sin extensión de archivo conocida
+  function isPlainLink(u = "") {
+    if (!u) return false;
+    const url = String(u).trim();
+    if (!/^https?:\/\//i.test(url)) return false; // no es http(s)
+
+    const clean = (url.split("?")[0] || "").toLowerCase();
+    const m = clean.match(/\.([a-z0-9]+)$/i);
+    const ext = m && m[1] ? m[1].toLowerCase() : "";
+
+    // si NO hay extensión, lo tratamos como link “puro”
+    if (!ext) return true;
+
+    // extensiones típicas de archivo (pdf, doc, zip, etc.) => no es link “puro”
+    const fileExts = [
+      "pdf",
+      "doc",
+      "docx",
+      "xls",
+      "xlsx",
+      "ppt",
+      "pptx",
+      "zip",
+      "rar",
+      "7z",
+      "mp4",
+      "webm",
+      "mov",
+      "m4v",
+    ];
+    return !fileExts.includes(ext);
+  }
+
   function iconFor(url = "") {
     const ext =
       (url.split("?")[0].match(/\.([a-z0-9]+)$/i) || [])[1]?.toLowerCase() ||
@@ -70,42 +108,87 @@ import {
   }
 
   function addRow(table, item) {
-    const a = document.createElement("a");
-    a.className = "exp-row";
-    a.href = item.url || "#";
-    a.target = "_blank";
-    a.setAttribute("data-src", item.url || "");
-    a.setAttribute("data-title", item.nombre || "Archivo");
-    a.setAttribute("data-who", item.quien || "—");
-    a.setAttribute("data-date", item.fecha || "—");
+    const url = item.url || "";
+    const name = item.nombre || "Archivo";
+    const who = item.quien || "—";
+    const fecha = item.fecha || "—";
 
-    const useThumb = isImageUrl(item.url);
-    const imgSrc = useThumb ? item.url || "" : iconFor(item.url);
-    const imgClass = useThumb ? "ico is-thumb" : "ico";
+    const useThumb = isImageUrl(url);
+    const isLinkOnly = !useThumb && isPlainLink(url);
 
-    a.innerHTML = `
-    <div class="file">
-      <img class="${imgClass}" src="${imgSrc}" alt="" loading="lazy" decoding="async">
-      <span>${item.nombre || "Archivo"}</span>
-    </div>
-    <div class="who">${item.quien || "—"}</div>
-    <div class="date">${item.fecha || "—"}</div>
-  `;
+    const row = document.createElement("a");
+    row.className = "exp-row";
+    row.href = url || "#";
+    row.target = "_blank";
+    row.setAttribute("data-src", url || "");
+    row.setAttribute("data-title", name);
+    row.setAttribute("data-who", who);
+    row.setAttribute("data-date", fecha);
 
-    const img = a.querySelector("img");
+    const fileDiv = document.createElement("div");
+    fileDiv.className = "file";
 
-    if (useThumb && img) {
-      const fallbackSrc = iconFor(item.url);
-      const onError = () => {
-        img.removeEventListener("error", onError); // evita bucles
-        img.classList.remove("is-thumb");
-        img.src = fallbackSrc;
-        img.style.objectFit = "contain";
-      };
-      img.addEventListener("error", onError);
+    if (isLinkOnly) {
+      // ======== FILA PARA ENLACES (Drive, Mega, etc.) =========
+      const icon = document.createElement("span");
+      icon.className = "ico is-link";
+      icon.textContent = "🔗";
+      icon.setAttribute("aria-hidden", "true");
+
+      const a = document.createElement("a");
+      a.className = "evid-link";
+      a.href = url || "#";
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.title = url || name;
+      a.textContent = url || name;
+
+      fileDiv.appendChild(icon);
+      fileDiv.appendChild(a);
+
+      // Que toda la fila sea clickable SIN interferir con el <a>
+      row.addEventListener("click", (e) => {
+        if (e.target.tagName.toLowerCase() !== "a" && url) {
+          window.open(url, "_blank", "noopener");
+        }
+      });
+    } else {
+      // ======== IMÁGENES u otros archivos (con ícono) =========
+      const img = document.createElement("img");
+      const imgSrc = useThumb ? url : iconFor(url);
+      const imgClass = useThumb ? "ico is-thumb" : "ico";
+
+      img.className = imgClass;
+      img.src = imgSrc;
+      img.alt = "";
+      img.loading = "lazy";
+      img.decoding = "async";
+
+      // Fallback: si el ícono/thumbnail falla, ocultamos la imagen
+      img.addEventListener("error", () => {
+        img.style.display = "none";
+      });
+
+      const span = document.createElement("span");
+      span.textContent = name;
+
+      fileDiv.appendChild(img);
+      fileDiv.appendChild(span);
     }
 
-    table.appendChild(a);
+    const whoDiv = document.createElement("div");
+    whoDiv.className = "who";
+    whoDiv.textContent = who;
+
+    const dateDiv = document.createElement("div");
+    dateDiv.className = "date";
+    dateDiv.textContent = fecha;
+
+    row.appendChild(fileDiv);
+    row.appendChild(whoDiv);
+    row.appendChild(dateDiv);
+
+    table.appendChild(row);
   }
 
   function renderList(list = []) {

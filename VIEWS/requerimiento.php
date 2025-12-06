@@ -885,7 +885,7 @@
                         Imágenes
                     </button>
                     <button type="button" class="ix-tab" id="ix-tab-link" data-mode="link">
-                        Enlaces
+                        Enlace
                     </button>
                 </div>
             </div>
