@@ -4,14 +4,16 @@ const TAG = "[API:Media]";
 /* ====== Config ====== */
 const HOST = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
 const ENDPOINTS = {
-  //DB\WEB\ixtla01_u_requerimiento_folders.php
+  // DB\WEB\ixtla01_u_requerimiento_folders.php
   setup:  `${HOST}/db/WEB/ixtla01_u_requerimiento_folders.php`, // crea /ASSETS/requerimientos/<folio>/{0..6}
-  list:   `${HOST}/db/WEB/ixtla01_c_requerimiento_img.php`,      // lista imágenes por folio/estatus
-  upload: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,    // subida (multipart/form-data)
+  // db/WEB/ixtla01_c_requerimiento_img.php
+  list:   `${HOST}/db/WEB/ixtla01_c_requerimiento_img.php`,      // lista evidencias (archivos + links) por folio/estatus
+  // db/WEB/ixtla01_in(s)_requerimiento_img.php
+  upload: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,     // subida: multipart = archivos, JSON = links
 };
 
 const FETCH_TIMEOUT = 15000;
-const MAX_MB       = 1; // límite del servidor
+const MAX_MB       = 1; // límite del servidor (1 MB por imagen)
 const ACCEPT_MIME  = ["image/jpeg","image/png","image/webp","image/heic","image/heif"];
 
 /* ====== Helpers ====== */
@@ -57,8 +59,13 @@ export async function setupMedia(folio, { create_status_txt = true, force_status
 }
 
 /**
- * Lista imágenes del folio; si pasas status, filtra por estado.
- * Devuelve el JSON del backend (esperado: { ok, data:[{name,url,...}], ... }).
+ * Lista evidencias del folio.
+ *
+ * 🔹 Ahora el backend puede regresar:
+ *   - kind: "file" → archivos físicos (imágenes, pdf, etc.)
+ *   - kind: "link" → enlaces guardados en links.json (Drive, Mega, etc.)
+ *
+ * Devuelve el JSON del backend (esperado: { ok, data:[{name,url,kind,...}], ... }).
  */
 export async function listMedia(folio, status = null, page = 1, per_page = 100) {
   if (!/^REQ-\d{10}$/.test(String(folio || ""))) throw new Error("Folio inválido");
@@ -72,9 +79,12 @@ export async function listMedia(folio, status = null, page = 1, per_page = 100) 
 }
 
 /**
- * Sube imágenes al folio/estatus. Hace validación local (≤1MB y MIME permitido).
- * Acepta FileList o Array<File>.
- * Retorna el JSON del backend con un campo extra "skipped" para archivos descartados localmente.
+ * Sube imágenes al folio/estatus.
+ *
+ * 🔹 Usa multipart/form-data (modo "file" del endpoint PHP).
+ * 🔹 Hace validación local (≤1MB y MIME permitido).
+ * 🔹 Acepta FileList o Array<File>.
+ * 🔹 Retorna el JSON del backend con un campo extra "skipped" para archivos descartados localmente.
  */
 export async function uploadMedia({ folio, status = 0, files }) {
   if (!/^REQ-\d{10}$/.test(String(folio || ""))) throw new Error("Folio inválido");
@@ -127,5 +137,68 @@ export async function uploadMedia({ folio, status = 0, files }) {
   } finally { done(); }
 }
 
-export const Media = { setupMedia, listMedia, uploadMedia };
+/**
+ * Sube un LINK de evidencia (URL externa) al folio/estatus.
+ *
+ * 🔹 Usa application/json (modo "link" del endpoint PHP).
+ * 🔹 No sube archivos, solo registra un enlace (Drive, Mega, etc.) en links.json.
+ *
+ * Parámetros:
+ *   - folio:  string "REQ-0000000000"
+ *   - status: int (0..6) → carpeta del requerimiento
+ *   - url:    string URL válida (https://...)
+ *   - label:  string (opcional) texto amigable para mostrar en la UI;
+ *             si se omite, el backend usará la propia URL como label.
+ *
+ * Respuesta esperada del backend:
+ *   {
+ *     ok: true,
+ *     folio: "REQ-0000000000",
+ *     status: 2,
+ *     type: "link",
+ *     saved: [ { id, url, label, estatus, created_at } ],
+ *     failed: []
+ *   }
+ */
+export async function uploadMediaLink({ folio, status = 0, url, label = "" }) {
+  if (!/^REQ-\d{10}$/.test(String(folio || ""))) {
+    throw new Error("Folio inválido");
+  }
+  const st = Number(status);
+  if (!Number.isInteger(st) || st < 0 || st > 6) {
+    throw new Error("Status inválido (0..6)");
+  }
+
+  const cleanUrl = String(url || "").trim();
+  if (!cleanUrl) {
+    throw new Error("URL requerida");
+  }
+
+  // Validación básica de URL en front (no sustituye la del backend)
+  try {
+    // new URL lanza si es inválida
+    // eslint-disable-next-line no-new
+    new URL(cleanUrl);
+  } catch {
+    throw new Error("URL inválida");
+  }
+
+  const payload = {
+    folio,
+    status: st,
+    url: cleanUrl,
+    label: String(label || "").trim(),
+  };
+
+  const { signal, done } = withTimeout();
+  try {
+    // El endpoint detecta Content-Type: application/json y guarda en links.json
+    const json = await postJSON(ENDPOINTS.upload, payload, { signal });
+    return json;
+  } finally {
+    done();
+  }
+}
+
+export const Media = { setupMedia, listMedia, uploadMedia, uploadMediaLink };
 export default Media;

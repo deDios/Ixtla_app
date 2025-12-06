@@ -1,5 +1,5 @@
 // /JS/api/mediaRequerimientos.js
-import { listMedia, uploadMedia, setupMedia } from "/JS/api/media.js";
+import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/media.js";
 
 (() => {
   "use strict";
@@ -108,7 +108,7 @@ import { listMedia, uploadMedia, setupMedia } from "/JS/api/media.js";
     const nombre = r.nombre ?? r.name ?? r.titulo ?? r.filename ?? "Archivo";
     const url = r.url ?? r.src ?? r.path ?? "";
     const quien = r.quien ?? r.quien_cargo ?? r.subido_por ?? r.created_by_name ?? r.created_by ?? "—";
-    const fecha = r.fecha ?? r.created_at ?? r.updated_at ?? "";
+    const fecha = r.fecha ?? r.created_at ?? r.updated_at ?? r.modified_at ?? "";
     return {
       nombre: String(nombre).trim(),
       url: String(url).trim(),
@@ -360,110 +360,240 @@ import { listMedia, uploadMedia, setupMedia } from "/JS/api/media.js";
   }
 
   /* ========================================================================
-   * Modal de subida: abrir/cerrar, drag&drop, previews y upload
+   * Modal de subida: abrir/cerrar, drag&drop, previews y upload (file + link)
    * ======================================================================*/
   (() => {
-    const openBtn = document.getElementById('btn-open-evid-modal');
-    const overlay = document.getElementById('ix-evid-modal');
-    const form    = document.getElementById('ix-evid-form');
-    const input   = document.getElementById('ix-evidencia');
-    const cta     = document.getElementById('ix-evidencia-cta');
-    const previews= document.getElementById('ix-evidencia-previews');
-    const err     = document.getElementById('ix-err-evidencia');
-    const saveBtn = document.getElementById('ix-evid-save');
-    const cancel  = document.getElementById('ix-evid-cancel');
-    const closeX  = overlay?.querySelector('.modal-close');
+    const openBtn = document.getElementById("btn-open-evid-modal");
+    const overlay = document.getElementById("ix-evid-modal");
+    const form    = document.getElementById("ix-evid-form");
+    const input   = document.getElementById("ix-evidencia");
+    const cta     = document.getElementById("ix-evidencia-cta");
+    const previews= document.getElementById("ix-evidencia-previews");
+    const errFile = document.getElementById("ix-err-evidencia");
+    const saveBtn = document.getElementById("ix-evid-save");
+    const cancel  = document.getElementById("ix-evid-cancel");
+    const closeX  = overlay?.querySelector(".modal-close");
+
+    // Grupos por modo
+    const fileGroup = document.getElementById("ix-file-group");
+    const urlGroup  = document.getElementById("ix-url-group");
+    const urlInput  = document.getElementById("ix-url-input");
+    const errUrl    = document.getElementById("ix-err-url");
+
+    // Tabs
+    const tabFile = document.getElementById("ix-tab-file");
+    const tabLink = document.getElementById("ix-tab-link");
+
+    const dropZone = document.getElementById("ix-upload-zone");
 
     const MAX_MB = 1;
     const ACCEPT = new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);
 
+    let filesBuffer = []; // Array<File> (máx 3)
+    let currentMode = "file"; // "file" | "link"
+
+    function resetErrors() {
+      if (errFile) {
+        errFile.hidden = true;
+        errFile.textContent = "";
+      }
+      if (errUrl) {
+        errUrl.hidden = true;
+        errUrl.textContent = "";
+      }
+    }
+
+    function showFileError(message) {
+      if (!errFile) return;
+      errFile.hidden = false;
+      errFile.textContent = message;
+      setTimeout(() => {
+        errFile.hidden = true;
+        errFile.textContent = "";
+      }, 3500);
+    }
+
+    function showUrlError(message) {
+      if (!errUrl) return;
+      errUrl.hidden = false;
+      errUrl.textContent = message;
+      setTimeout(() => {
+        errUrl.hidden = true;
+        errUrl.textContent = "";
+      }, 3500);
+    }
+
+    function updateSaveBtnState() {
+      if (!saveBtn) return;
+      if (currentMode === "file") {
+        saveBtn.disabled = filesBuffer.length === 0;
+      } else {
+        const val = (urlInput?.value || "").trim();
+        saveBtn.disabled = !val;
+      }
+    }
+
+    function setMode(mode) {
+      currentMode = mode === "link" ? "link" : "file";
+
+      // Tabs UI
+      if (tabFile && tabLink) {
+        tabFile.classList.toggle("is-active", currentMode === "file");
+        tabLink.classList.toggle("is-active", currentMode === "link");
+      }
+
+      // Mostrar/ocultar grupos
+      if (fileGroup) {
+        fileGroup.hidden = currentMode !== "file";
+      }
+      if (urlGroup) {
+        urlGroup.hidden = currentMode !== "link";
+      }
+
+      // Cuando cambio de modo, limpio errores
+      resetErrors();
+
+      // Si paso a link, no necesito previews ni archivos
+      if (currentMode === "link") {
+        filesBuffer = [];
+        if (previews) previews.innerHTML = "";
+        if (dropZone) dropZone.classList.remove("is-max");
+      }
+
+      updateSaveBtnState();
+    }
+
     function open() {
       if (!overlay) return;
-      form?.reset(); previews.innerHTML = ""; err.hidden = true; err.textContent = ""; saveBtn.disabled = true;
-      overlay.setAttribute('aria-hidden', 'false');
-      document.body.classList.add('me-modal-open');
+      form?.reset();
+      filesBuffer = [];
+      if (previews) previews.innerHTML = "";
+      if (dropZone) dropZone.classList.remove("is-max");
+      resetErrors();
+
+      // Siempre iniciar en modo imágenes (o si quieres, comentar esta línea para recordar el último modo)
+      setMode("file");
+
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("me-modal-open");
     }
     function close() {
-      overlay?.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('me-modal-open');
+      overlay?.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("me-modal-open");
     }
 
-    openBtn?.addEventListener('click', open);
-    cancel?.addEventListener('click', close);
-    closeX?.addEventListener('click', close);
-    overlay?.addEventListener('click', (e)=>{ if (e.target === overlay) close(); });
-    document.addEventListener('keydown', (e)=>{
-      if (overlay && overlay.getAttribute('aria-hidden')==='false' && e.key==='Escape') close();
+    openBtn?.addEventListener("click", open);
+    cancel?.addEventListener("click", close);
+    closeX?.addEventListener("click", close);
+    overlay?.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (overlay && overlay.getAttribute("aria-hidden") === "false" && e.key === "Escape") close();
     });
 
-    // click -> input
-    cta?.addEventListener('click', ()=> input?.click());
+    // Tabs: cambiar de modo
+    tabFile?.addEventListener("click", () => setMode("file"));
+    tabLink?.addEventListener("click", () => setMode("link"));
 
-    // drag & drop
-    const dropZone = document.getElementById('ix-upload-zone');
-    dropZone?.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classList.add('is-drag'); });
-    dropZone?.addEventListener('dragleave', ()=> dropZone.classList.remove('is-drag'));
-    dropZone?.addEventListener('drop', (e)=>{
-      e.preventDefault(); dropZone.classList.remove('is-drag');
+    // click -> input (solo tiene sentido en modo file)
+    cta?.addEventListener("click", () => {
+      if (currentMode !== "file") return;
+      input?.click();
+    });
+
+    // drag & drop (solo se considera en modo file)
+    dropZone?.addEventListener("dragover", (e) => {
+      if (currentMode !== "file") return;
+      e.preventDefault();
+      dropZone.classList.add("is-drag");
+    });
+    dropZone?.addEventListener("dragleave", () => {
+      if (currentMode !== "file") return;
+      dropZone.classList.remove("is-drag");
+    });
+    dropZone?.addEventListener("drop", (e) => {
+      if (currentMode !== "file") return;
+      e.preventDefault();
+      dropZone.classList.remove("is-drag");
       handleFiles(e.dataTransfer.files);
     });
 
-    input?.addEventListener('change', ()=> handleFiles(input.files));
+    input?.addEventListener("change", () => handleFiles(input.files));
 
-    let filesBuffer = []; // Array<File> (máx 3)
     function handleFiles(list) {
+      if (currentMode !== "file") return;
+
       const arr = Array.from(list || []);
       for (const f of arr) {
         if (filesBuffer.length >= 3) break;
-        const tooBig = f.size > MAX_MB*1024*1024;
+        const tooBig = f.size > MAX_MB * 1024 * 1024;
         const badMime = !ACCEPT.has(f.type);
         if (tooBig || badMime) {
-          showError(tooBig ? `“${f.name}” excede ${MAX_MB} MB` : `“${f.name}” no es un tipo permitido (${f.type || 'desconocido'})`);
+          showFileError(
+            tooBig
+              ? `“${f.name}” excede ${MAX_MB} MB`
+              : `“${f.name}” no es un tipo permitido (${f.type || "desconocido"})`
+          );
           continue;
         }
         filesBuffer.push(f);
       }
       renderPreviews();
+      updateSaveBtnState();
     }
 
     function renderPreviews() {
+      if (!previews) return;
       previews.innerHTML = "";
       filesBuffer.forEach((f, idx) => {
-        const fig = document.createElement('figure');
-        const img = document.createElement('img');
+        const fig = document.createElement("figure");
+        const img = document.createElement("img");
         img.alt = f.name;
         img.loading = "lazy";
         img.decoding = "async";
         img.src = URL.createObjectURL(f);
-        const del = document.createElement('button');
-        del.type = "button"; del.setAttribute('aria-label','Eliminar imagen'); del.textContent = "×";
-        del.addEventListener('click', () => {
-          filesBuffer.splice(idx,1);
+        const del = document.createElement("button");
+        del.type = "button";
+        del.setAttribute("aria-label", "Eliminar imagen");
+        del.textContent = "×";
+        del.addEventListener("click", () => {
+          filesBuffer.splice(idx, 1);
           renderPreviews();
+          updateSaveBtnState();
         });
-        fig.appendChild(img); fig.appendChild(del);
+        fig.appendChild(img);
+        fig.appendChild(del);
         previews.appendChild(fig);
       });
-      saveBtn.disabled = filesBuffer.length === 0;
-      if (filesBuffer.length >= 3) dropZone?.classList.add('is-max'); else dropZone?.classList.remove('is-max');
+      if (dropZone) {
+        if (filesBuffer.length >= 3) dropZone.classList.add("is-max");
+        else dropZone.classList.remove("is-max");
+      }
     }
 
-    function showError(message) {
-      err.hidden = false; err.textContent = message;
-      setTimeout(()=>{ err.hidden = true; err.textContent = ""; }, 3500);
-    }
+    // validar URL en vivo para habilitar botón en modo link
+    urlInput?.addEventListener("input", () => {
+      if (currentMode !== "link") return;
+      resetErrors();
+      updateSaveBtnState();
+    });
 
-    // Subir
-    saveBtn?.addEventListener('click', async () => {
+    // Subir (imágenes o link según el modo actual)
+    saveBtn?.addEventListener("click", async () => {
       const folio = window.__MEDIA_FOLIO__ || null;
-      if (!folio) { showError("No hay folio del requerimiento."); return; }
+      if (!folio) {
+        if (currentMode === "file") showFileError("No hay folio del requerimiento.");
+        else showUrlError("No hay folio del requerimiento.");
+        return;
+      }
 
       // status actual de la vista (carpeta destino)
       const status = (() => {
         const sel = document.querySelector('#req-status [data-role="status-select"]');
         if (sel) return Number(sel.value || 0);
-        const cur = document.querySelector('.step-menu li.current');
-        return cur ? Number(cur.getAttribute('data-status')) : 0;
+        const cur = document.querySelector(".step-menu li.current");
+        return cur ? Number(cur.getAttribute("data-status")) : 0;
       })();
 
       try {
@@ -472,27 +602,68 @@ import { listMedia, uploadMedia, setupMedia } from "/JS/api/media.js";
         // asegura carpetas (idempotente)
         try { await setupMedia(folio); } catch {}
 
-        const out = await uploadMedia({ folio, status, files: filesBuffer });
-        const saved = out?.saved?.length || 0;
-        const failed = out?.failed?.length || 0;
-        const skipped= out?.skipped?.length || 0;
+        if (currentMode === "file") {
+          // ========== MODO IMÁGENES ==========
+          if (!filesBuffer.length) {
+            showFileError("Selecciona al menos una imagen.");
+            return;
+          }
 
-        if (saved) toast(`Subida exitosa: ${saved} archivo(s).`, 'success');
-        if (failed) toast(`Fallo servidor: ${failed} archivo(s).`, 'danger');
-        if (skipped) toast(`Descartados localmente: ${skipped}.`, 'warn');
+          const out = await uploadMedia({ folio, status, files: filesBuffer });
+          const saved = out?.saved?.length || 0;
+          const failed = out?.failed?.length || 0;
+          const skipped = out?.skipped?.length || 0;
+
+          if (saved) toast(`Subida exitosa: ${saved} archivo(s).`, "success");
+          if (failed) toast(`Fallo servidor: ${failed} archivo(s).`, "danger");
+          if (skipped) toast(`Descartados localmente: ${skipped}.`, "warn");
+        } else {
+          // ========== MODO LINK ==========
+          const val = (urlInput?.value || "").trim();
+          if (!val) {
+            showUrlError("Escribe un enlace válido.");
+            return;
+          }
+
+          // Validación básica en front; el backend también valida
+          try {
+            // eslint-disable-next-line no-new
+            new URL(val);
+          } catch {
+            showUrlError("El enlace no parece válido.");
+            return;
+          }
+
+          const res = await uploadMediaLink({ folio, status, url: val });
+          const ok = !!res?.ok && Array.isArray(res?.saved) && res.saved.length > 0;
+          if (ok) {
+            toast("Enlace agregado correctamente.", "success");
+          } else {
+            showUrlError(res?.error || "No se pudo registrar el enlace.");
+            return;
+          }
+        }
 
         // refrescar lista
-        if (folio && typeof loadByFolio === 'function') await loadByFolio(folio);
+        if (folio && typeof loadByFolio === "function") {
+          await loadByFolio(folio);
+        }
 
         filesBuffer = [];
+        if (previews) previews.innerHTML = "";
+        if (urlInput) urlInput.value = "";
+        updateSaveBtnState();
         close();
       } catch (e) {
-        console.error('[Evidencias] upload error:', e);
-        showError('No se pudo subir la evidencia. Revisa tamaño/tipo o intenta más tarde.');
+        console.error("[Evidencias] upload error:", e);
+        if (currentMode === "file") {
+          showFileError("No se pudo subir la evidencia. Revisa tamaño/tipo o intenta más tarde.");
+        } else {
+          showUrlError("No se pudo registrar el enlace. Intenta más tarde.");
+        }
       } finally {
         saveBtn.disabled = false;
       }
     });
   })();
-
 })();

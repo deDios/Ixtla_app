@@ -94,11 +94,16 @@ function rate_limit_or_die(string $bucket, int $windowSec=60, int $maxHits=5, in
 }
 rate_limit_or_die('requerimiento_upload');
 
-/* ===== Content-Type: multipart/form-data ===== */
+/* ===== Detectar modo: archivo o link ===== */
 $ct = $_SERVER['CONTENT_TYPE'] ?? '';
-if (stripos($ct, 'multipart/form-data') === false) {
+$mode = null;
+if (stripos($ct, 'multipart/form-data') !== false) {
+  $mode = 'file';
+} elseif (stripos($ct, 'application/json') !== false) {
+  $mode = 'link';
+} else {
   http_response_code(415);
-  echo json_encode(["ok"=>false,"error"=>"Content-Type debe ser multipart/form-data"]); exit;
+  echo json_encode(["ok"=>false,"error"=>"Content-Type debe ser multipart/form-data o application/json"]); exit;
 }
 
 /* ===== Conexión BD ===== */
@@ -122,10 +127,27 @@ $EXT_FOR_MIME = [
   'image/heif' => 'heif',
 ];
 
-/* ===== Entrada ===== */
-$folio     = isset($_POST['folio'])  ? strtoupper(trim($_POST['folio'])) : null;
-$statusRaw = isset($_POST['status']) ? trim($_POST['status'])            : null;
+/* ===== Entrada (compartida) ===== */
+$folio     = null;
+$statusRaw = null;
+$url       = null;
+$label     = '';
 
+if ($mode === 'file') {
+  // Como estaba antes: desde $_POST
+  $folio     = isset($_POST['folio'])  ? strtoupper(trim($_POST['folio'])) : null;
+  $statusRaw = isset($_POST['status']) ? trim($_POST['status'])            : null;
+} else {
+  // Modo link: JSON en el body
+  $raw = file_get_contents('php://input') ?: '';
+  $data = json_decode($raw, true) ?: [];
+  $folio     = isset($data['folio'])  ? strtoupper(trim((string)$data['folio'])) : null;
+  $statusRaw = isset($data['status']) ? trim((string)$data['status'])           : null;
+  $url       = isset($data['url'])    ? trim((string)$data['url'])              : null;
+  $label     = isset($data['label'])  ? trim((string)$data['label'])            : '';
+}
+
+/* ===== Validaciones de folio/status ===== */
 if (!$folio || !preg_match('/^REQ-\d{10}$/', $folio)) {
   http_response_code(400); echo json_encode(["ok"=>false,"error"=>"Folio inválido. Formato: REQ-0000000000"]); exit;
 }
@@ -134,6 +156,17 @@ if ($statusRaw === null || !preg_match('/^-?\d+$/', $statusRaw)) {
 }
 $status = (int)$statusRaw;
 if ($status < 0 || $status > 6) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"Status inválido (0..6)."]); exit; }
+
+/* ===== Validación extra para links ===== */
+if ($mode === 'link') {
+  if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
+    http_response_code(400);
+    echo json_encode(["ok"=>false,"error"=>"URL inválida."]); exit;
+  }
+  if ($label === '') {
+    $label = $url;
+  }
+}
 
 /* ===== Validar folio en BD ===== */
 $st = $con->prepare("SELECT id FROM requerimiento WHERE folio=? LIMIT 1");
@@ -183,14 +216,7 @@ function sanitize_filename($name){
   return trim($n,'._-') ?: 'file';
 }
 
-/* ===== Archivos ===== */
-$files=[];
-if (isset($_FILES['files'])) $files=array_merge($files, normalize_files_array($_FILES['files']));
-if (isset($_FILES['file']))  $files=array_merge($files, normalize_files_array($_FILES['file']));
-if (empty($files)) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"No se recibieron archivos. Usa 'files' o 'file' (multipart/form-data)."]); exit; }
-if (count($files) > $MAX_FILES) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"Máximo {$MAX_FILES} archivos por solicitud."]); exit; }
-
-/* ===== Paths ===== */
+/* ===== Paths (compartido) ===== */
 $webroot = realpath("/home/site/wwwroot");
 if (!$webroot) { http_response_code(500); echo json_encode(["ok"=>false,"error"=>"No se pudo resolver webroot"]); exit; }
 $baseAssets = $webroot . DIRECTORY_SEPARATOR . "ASSETS" . DIRECTORY_SEPARATOR . "requerimientos";
@@ -203,7 +229,74 @@ catch(Throwable $e){ http_response_code(500); echo json_encode(["ok"=>false,"err
 $publicBase = 'https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net';
 $baseUrl    = rtrim($publicBase,'/')."/ASSETS/requerimientos/{$folio}/".(string)$status."/";
 
-/* ===== Proceso ===== */
+/* ===== Modo LINK: guardar en links.json y salir ===== */
+if ($mode === 'link') {
+  $linksPath = $stepDir . DIRECTORY_SEPARATOR . "links.json";
+  $links = [
+    "folio"  => $folio,
+    "status" => $status,
+    "links"  => []
+  ];
+
+  if (is_file($linksPath)) {
+    $rawLinks = @file_get_contents($linksPath);
+    $j = @json_decode($rawLinks, true);
+    if (is_array($j) && isset($j['links']) && is_array($j['links'])) {
+      $links = $j;
+    }
+  }
+
+  $existing = isset($links['links']) && is_array($links['links']) ? $links['links'] : [];
+  $maxId = 0;
+  foreach ($existing as $row) {
+    $idRow = isset($row['id']) ? (int)$row['id'] : 0;
+    if ($idRow > $maxId) $maxId = $idRow;
+  }
+  $newId = $maxId + 1;
+  $now   = date('Y-m-d H:i:s');
+
+  $newLink = [
+    "id"         => $newId,
+    "url"        => $url,
+    "label"      => $label,
+    "estatus"    => 1, // 1 = activo, 0 = inactivo
+    "created_at" => $now,
+  ];
+
+  $links['folio']  = $folio;
+  $links['status'] = $status;
+  if (!isset($links['links']) || !is_array($links['links'])) {
+    $links['links'] = [];
+  }
+  $links['links'][] = $newLink;
+
+  @file_put_contents(
+    $linksPath,
+    json_encode($links, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)
+  );
+
+  http_response_code(200);
+  echo json_encode([
+    "ok"     => true,
+    "folio"  => $folio,
+    "status" => $status,
+    "type"   => "link",
+    "saved"  => [$newLink],
+    "failed" => [],
+  ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+  exit;
+}
+
+/* ===== Modo FILE: igual que antes ===== */
+
+/* Archivos */
+$files=[];
+if (isset($_FILES['files'])) $files=array_merge($files, normalize_files_array($_FILES['files']));
+if (isset($_FILES['file']))  $files=array_merge($files, normalize_files_array($_FILES['file']));
+if (empty($files)) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"No se recibieron archivos. Usa 'files' o 'file' (multipart/form-data)."]); exit; }
+if (count($files) > $MAX_FILES) { http_response_code(400); echo json_encode(["ok"=>false,"error"=>"Máximo {$MAX_FILES} archivos por solicitud."]); exit; }
+
+/* Proceso */
 $finfo  = new finfo(FILEINFO_MIME_TYPE);
 $saved  = [];
 $failed = [];
@@ -235,7 +328,7 @@ foreach ($files as $f) {
   $saved[] = ["name"=>$final,"url"=>$destUrl,"path"=>$destPath,"size"=>$size,"mime"=>$mime,"status_dir"=>(string)$status];
 }
 
-/* ===== Respuesta ===== */
+/* Respuesta */
 $ok = count($saved) > 0;
 if (!$ok) {
   // Si todos fallaron por tamaño → 413; si no, 400.

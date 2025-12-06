@@ -872,16 +872,28 @@
 
 
     <!-- Modal: Subir evidencias -->
-    <div id="ix-evid-modal" class="modal-overlay" aria-hidden="true">
+    <div id="ix-evid-modal" class="modal-overlay" aria-hidden="false">
         <div class="modal-content ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-evid-title">
             <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+
             <div class="ix-modal__header">
                 <h2 id="ix-evid-title">Subir evidencias</h2>
+
+                <!-- NUEVO: tabs para elegir Imágenes / Enlaces -->
+                <div class="ix-modal__tabs">
+                    <button type="button" class="ix-tab is-active" id="ix-tab-file" data-mode="file">
+                        Imágenes
+                    </button>
+                    <button type="button" class="ix-tab" id="ix-tab-link" data-mode="link">
+                        Enlaces
+                    </button>
+                </div>
             </div>
 
             <div class="ix-modal__body">
-                <form id="ix-evid-form" class="ix-form" novalidate>
-                    <div class="ix-form__row">
+                <form id="ix-evid-form" class="ix-form" novalidate="">
+                    <!-- MODO IMÁGENES (como ya lo tienes) -->
+                    <div class="ix-form__row" id="ix-file-group">
                         <div class="ix-field ix-field--full">
                             <label class="ix-field__label" for="ix-evidencia">Evidencia</label>
 
@@ -904,6 +916,16 @@
                             </div>
 
                             <small class="ix-help" id="ix-err-evidencia" hidden></small>
+                        </div>
+                    </div>
+
+                    <!-- NUEVO: MODO ENLACES (Drive, Mega, etc.) -->
+                    <div class="ix-form__row" id="ix-url-group" hidden>
+                        <div class="ix-field ix-field--full">
+                            <label class="ix-field__label" for="ix-url-input">Enlace (Drive, Mega, etc.)</label>
+                            <input id="ix-url-input" type="url" class="ix-input"
+                                placeholder="https://drive.google.com/..." autocomplete="off">
+                            <small class="ix-help" id="ix-err-url" hidden></small>
                         </div>
                     </div>
                 </form>
