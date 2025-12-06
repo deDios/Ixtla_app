@@ -590,6 +590,15 @@ export function createTaskDetailsModule({
     });
   }
 
+    function getDomainFromUrl(url) {
+    try {
+      const u = new URL(url);
+      return (u.hostname || "").replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  }
+
   function renderMediaGrid(items) {
     const wrap = $("#kb-d-evidencias");
     if (!wrap) return;
@@ -607,41 +616,35 @@ export function createTaskDetailsModule({
     }
 
     for (const it of items) {
+      const url = String(it.url || "").trim();
+      const isImg = isImageUrl(url);
+
       const card = document.createElement("button");
       card.type = "button";
       card.className = "kb-evid-item";
 
-      if (it.url) card.setAttribute("data-src", it.url);
+      if (url) card.setAttribute("data-src", url);
       if (it.nombre) card.setAttribute("data-title", it.nombre);
       if (it.created_by) card.setAttribute("data-who", it.created_by);
       if (it.created_at) card.setAttribute("data-date", it.created_at);
-      if (it.url) card.title = it.url;
 
       const thumb = document.createElement("div");
       thumb.className = "kb-evid-thumb";
 
-      if (it.url) {
+      if (isImg && url) {
         const img = document.createElement("img");
+        img.src = url;
         img.alt = it.nombre || "Archivo";
         img.loading = "lazy";
-
-        const useThumb = isImageUrl(it.url);
-
-        if (useThumb) {
-          img.src = it.url;
-          img.classList.add("is-thumb");
-          const fallback = iconFor(it.url);
-          img.addEventListener("error", () => {
-            img.classList.remove("is-thumb");
-            img.src = fallback;
-          });
-        } else {
-          img.src = iconFor(it.url);
-        }
-
+        img.classList.add("is-thumb");
         thumb.appendChild(img);
       } else {
-        thumb.textContent = "Archivo";
+        // Link / archivo no imagen → iconito bonito
+        const icon = document.createElement("span");
+        icon.className = "kb-evid-file-icon";
+        icon.textContent = "🔗";
+        thumb.classList.add("is-link");
+        thumb.appendChild(icon);
       }
 
       const meta = document.createElement("div");
@@ -649,13 +652,21 @@ export function createTaskDetailsModule({
 
       const title = document.createElement("div");
       title.className = "kb-evid-name";
-      title.textContent = it.nombre || "Archivo";
+      title.textContent = it.nombre || (url ? getDomainFromUrl(url) : "Archivo");
 
       const info = document.createElement("div");
       info.className = "kb-evid-info";
+
+      const host = url ? getDomainFromUrl(url) : "";
       const by = it.created_by || "";
       const when = relShort(it.created_at);
-      info.textContent = by ? `${by} · ${when}` : when;
+
+      const parts = [];
+      if (host) parts.push(host);
+      if (by) parts.push(by);
+      if (when) parts.push(when);
+
+      info.textContent = parts.join(" • ");
 
       meta.appendChild(title);
       meta.appendChild(info);

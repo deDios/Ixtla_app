@@ -2035,3 +2035,21 @@ body.me-modal-open {
   border: 1px solid #e3e9f0;
   background: #ffffff;
 }
+
+/* Diferenciar imágenes reales vs enlaces/archivos genéricos */
+#kb-d-evidencias .kb-evid-thumb img.is-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Enlaces / archivos no imagen: thumb con estilo de link */
+#kb-d-evidencias .kb-evid-thumb.is-link {
+  background: #eff6ff;
+  border-style: dashed;
+}
+
+#kb-d-evidencias .kb-evid-thumb.is-link .kb-evid-file-icon {
+  font-size: 1.9rem;
+  color: #2563eb;
+}
