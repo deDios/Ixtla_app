@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="/CSS/tareas.css">
+    <link rel="stylesheet" href="/CSS/requerimiento.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
