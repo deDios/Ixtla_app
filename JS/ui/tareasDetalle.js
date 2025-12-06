@@ -405,9 +405,36 @@ export function createTaskDetailsModule({
 
   // ===== Helpers para preview (reusando la idea de requerimientoView) =====
 
+
+
+
+
+
+
+
+
+
+
+
+    // ===== Helpers para preview (reusando la idea de requerimientoView) =====
+
   function isImageUrl(u = "") {
     const clean = (u.split("?")[0] || "").toLowerCase();
     return /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(clean);
+  }
+
+  function iconFor(url = "") {
+    const ext =
+      (url.split("?")[0].match(/\.([a-z0-9]+)$/i) || [])[1]?.toLowerCase() ||
+      "";
+
+    if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif"].includes(ext))
+      return "/ASSETS/filetypes/img.png";
+    if (["mp4", "webm", "mov", "m4v"].includes(ext))
+      return "/ASSETS/filetypes/video.png";
+    if (ext === "pdf") return "/ASSETS/filetypes/pdf.png";
+
+    return "/ASSETS/filetypes/file.png";
   }
 
   function ensurePreviewModal() {
@@ -588,15 +615,30 @@ export function createTaskDetailsModule({
       if (it.nombre) card.setAttribute("data-title", it.nombre);
       if (it.created_by) card.setAttribute("data-who", it.created_by);
       if (it.created_at) card.setAttribute("data-date", it.created_at);
+      if (it.url) card.title = it.url;
 
       const thumb = document.createElement("div");
       thumb.className = "kb-evid-thumb";
 
       if (it.url) {
         const img = document.createElement("img");
-        img.src = it.url;
         img.alt = it.nombre || "Archivo";
         img.loading = "lazy";
+
+        const useThumb = isImageUrl(it.url);
+
+        if (useThumb) {
+          img.src = it.url;
+          img.classList.add("is-thumb");
+          const fallback = iconFor(it.url);
+          img.addEventListener("error", () => {
+            img.classList.remove("is-thumb");
+            img.src = fallback;
+          });
+        } else {
+          img.src = iconFor(it.url);
+        }
+
         thumb.appendChild(img);
       } else {
         thumb.textContent = "Archivo";
@@ -626,6 +668,17 @@ export function createTaskDetailsModule({
 
     bindMediaPreviewForGrid();
   }
+
+
+
+
+
+
+
+
+
+
+
 
   async function loadEvidenciasForTask(taskOrId) {
     const task =
