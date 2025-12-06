@@ -698,6 +698,10 @@
 
     <script type="module" src="/JS/tareas.js"></script>
 
+    <!-- media -->
+    <script type="module" src="/JS/api/media.js"></script>
+    <script type="module" src="/JS/api/mediaRequerimientos.js"></script>
+
     <!-- bundle para que cargue bien el sidebar -->
     <script type="module" src="/JS/auth/session.js"></script>
     <script type="module" src="/JS/ui/sidebar.js"></script>

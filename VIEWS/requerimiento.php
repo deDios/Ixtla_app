@@ -892,7 +892,7 @@
 
             <div class="ix-modal__body">
                 <form id="ix-evid-form" class="ix-form" novalidate="">
-                    <!-- MODO IMÁGENES (como ya lo tienes) -->
+                    <!-- MODO IMÁGENES -->
                     <div class="ix-form__row" id="ix-file-group">
                         <div class="ix-field ix-field--full">
                             <label class="ix-field__label" for="ix-evidencia">Evidencia</label>

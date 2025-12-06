@@ -858,6 +858,12 @@ function highlightSelected() {
 // Wrappers para el módulo de detalle
 function openDetails(id) {
   if (!DetailsModule) return;
+
+  const task = getTaskById(id);
+  if (task && MediaUI && MediaUI.setCurrentTask) {
+    MediaUI.setCurrentTask(task);
+  }
+
   DetailsModule.openDetails(id);
 }
 
@@ -1169,6 +1175,436 @@ function setupDragAndDrop() {
   });
 }
 
+
+// ======================================================================
+// MEDIA / EVIDENCIAS – Modal "Subir evidencias" (Imágenes / Enlace)
+// ======================================================================
+const MediaUI = (() => {
+  const TAG = "[Media]";
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const log = (...a) => console.log(TAG, ...a);
+  const err = (...a) => console.error(TAG, ...a);
+  const toast = (m, t = "info") =>
+    window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
+
+  // Referencias DOM
+  let btnOpenDrawerUpload;      // #kb-evid-upload (tile del drawer)
+  let modal;                    // #ix-evid-modal
+  let modalCloseBtn;            // .modal-close
+  let btnCancel;                // #ix-evid-cancel
+  let btnSave;                  // #ix-evid-save
+
+  let tabFile;                  // #ix-tab-file
+  let tabLink;                  // #ix-tab-link
+  let fileGroup;                // #ix-file-group
+  let urlGroup;                 // #ix-url-group
+
+  let uploadZone;               // #ix-upload-zone
+  let ctaFileBtn;               // #ix-evidencia-cta
+  let fileInput;                // #ix-evidencia
+  let previewsWrap;             // #ix-evidencia-previews
+  let errFiles;                 // #ix-err-evidencia
+
+  let urlInput;                 // #ix-url-input
+  let errUrl;                   // #ix-err-url
+
+  // Estado interno
+  let currentTaskId = null;
+  let mode = "file"; // "file" | "link"
+  let selectedFiles = [];
+
+  const MAX_FILES = 3;
+  const MAX_SIZE_MB = 1;
+
+  // ------------------------------------------------
+  // API pública para que tareas.js le diga la tarea
+  // ------------------------------------------------
+  function setCurrentTask(task) {
+    currentTaskId = task && task.id ? task.id : null;
+    log("setCurrentTask →", currentTaskId);
+  }
+
+  // Inicializar listeners (llamar UNA vez en boot)
+  function init() {
+    btnOpenDrawerUpload = $("#kb-evid-upload");
+    if (!btnOpenDrawerUpload) {
+      log("No hay #kb-evid-upload en esta vista, MediaUI inactivo");
+      return;
+    }
+
+    modal = $("#ix-evid-modal");
+    if (!modal) {
+      log("No hay #ix-evid-modal, MediaUI inactivo");
+      return;
+    }
+
+    modalCloseBtn = modal.querySelector(".modal-close");
+    btnCancel = $("#ix-evid-cancel");
+    btnSave = $("#ix-evid-save");
+
+    tabFile = $("#ix-tab-file");
+    tabLink = $("#ix-tab-link");
+    fileGroup = $("#ix-file-group");
+    urlGroup = $("#ix-url-group");
+
+    uploadZone = $("#ix-upload-zone");
+    ctaFileBtn = $("#ix-evidencia-cta");
+    fileInput = $("#ix-evidencia");
+    previewsWrap = $("#ix-evidencia-previews");
+    errFiles = $("#ix-err-evidencia");
+
+    urlInput = $("#ix-url-input");
+    errUrl = $("#ix-err-url");
+
+    // Abrir modal desde el drawer
+    btnOpenDrawerUpload.addEventListener("click", onOpenClick);
+
+    // Tabs (Imágenes / Enlace)
+    tabFile?.addEventListener("click", () => switchMode("file"));
+    tabLink?.addEventListener("click", () => switchMode("link"));
+
+    // Cerrar modal
+    modalCloseBtn?.addEventListener("click", closeModal);
+    btnCancel?.addEventListener("click", closeModal);
+
+    // Fondo: cerrar al click fuera
+    modal.addEventListener("click", (ev) => {
+      if (ev.target === modal) closeModal();
+    });
+
+    // Botón de subir (confirmación)
+    btnSave?.addEventListener("click", onSave);
+
+    // Selección de archivos
+    ctaFileBtn?.addEventListener("click", () => fileInput?.click());
+    fileInput?.addEventListener("change", onFilesSelected);
+
+    // Drag & drop
+    if (uploadZone) {
+      uploadZone.addEventListener("dragover", (ev) => {
+        ev.preventDefault();
+        uploadZone.classList.add("is-dragover");
+      });
+      uploadZone.addEventListener("dragleave", () =>
+        uploadZone.classList.remove("is-dragover")
+      );
+      uploadZone.addEventListener("drop", (ev) => {
+        ev.preventDefault();
+        uploadZone.classList.remove("is-dragover");
+        if (ev.dataTransfer?.files?.length) {
+          handleFiles(ev.dataTransfer.files);
+        }
+      });
+    }
+
+    // URL (modo enlace)
+    urlInput?.addEventListener("input", validateUrl);
+
+    log("MediaUI inicializado");
+  }
+
+  // -----------------------
+  // Abrir / cerrar modal
+  // -----------------------
+  function onOpenClick() {
+    if (!currentTaskId) {
+      toast("Primero selecciona una tarea para subir evidencias.", "warning");
+      return;
+    }
+    resetState();
+    openModal();
+  }
+
+  function openModal() {
+    if (!modal) return;
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("me-modal-open");
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("me-modal-open");
+    resetState();
+  }
+
+  function resetState() {
+    // modo por defecto: archivos
+    mode = "file";
+    selectedFiles = [];
+    if (fileInput) fileInput.value = "";
+    if (urlInput) urlInput.value = "";
+
+    if (previewsWrap) previewsWrap.innerHTML = "";
+    hideError(errFiles);
+    hideError(errUrl);
+
+    // tabs
+    tabFile?.classList.add("is-active");
+    tabLink?.classList.remove("is-active");
+    if (fileGroup) fileGroup.hidden = false;
+    if (urlGroup) urlGroup.hidden = true;
+
+    updateSaveEnabled();
+  }
+
+  // -----------------------
+  // Tabs de modo
+  // -----------------------
+  function switchMode(next) {
+    if (mode === next) return;
+    mode = next;
+
+    const isFile = mode === "file";
+
+    tabFile?.classList.toggle("is-active", isFile);
+    tabLink?.classList.toggle("is-active", !isFile);
+
+    if (fileGroup) fileGroup.hidden = !isFile;
+    if (urlGroup) urlGroup.hidden = isFile;
+
+    updateSaveEnabled();
+  }
+
+  // -----------------------
+  // Archivos (imágenes)
+// -----------------------
+  function onFilesSelected(ev) {
+    const files = ev.target.files;
+    if (!files) return;
+    handleFiles(files);
+  }
+
+  function handleFiles(fileList) {
+    hideError(errFiles);
+    selectedFiles = [];
+
+    const arr = Array.from(fileList || []);
+    if (!arr.length) {
+      updatePreviews();
+      updateSaveEnabled();
+      return;
+    }
+
+    const problems = [];
+    for (const f of arr) {
+      if (selectedFiles.length >= MAX_FILES) break;
+
+      const sizeMb = f.size / (1024 * 1024);
+      if (sizeMb > MAX_SIZE_MB) {
+        problems.push(`"${f.name}" excede ${MAX_SIZE_MB} MB`);
+        continue;
+      }
+
+      // Validaciones extra si quieres (tipo mime, etc.)
+      selectedFiles.push(f);
+    }
+
+    if (!selectedFiles.length) {
+      showError(
+        errFiles,
+        problems.length
+          ? problems.join(". ")
+          : "Los archivos seleccionados no son válidos."
+      );
+    } else if (problems.length) {
+      showError(
+        errFiles,
+        problems.join(". ") +
+          " Solo se subirán los archivos válidos restantes."
+      );
+    }
+
+    updatePreviews();
+    updateSaveEnabled();
+  }
+
+  function updatePreviews() {
+    if (!previewsWrap) return;
+    previewsWrap.innerHTML = "";
+
+    if (!selectedFiles.length) return;
+
+    selectedFiles.forEach((file) => {
+      const item = document.createElement("div");
+      item.className = "ix-thumb";
+
+      const img = document.createElement("img");
+      img.alt = file.name;
+      img.loading = "lazy";
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+
+      const caption = document.createElement("div");
+      caption.className = "ix-thumb__name";
+      caption.textContent = file.name;
+
+      item.appendChild(img);
+      item.appendChild(caption);
+      previewsWrap.appendChild(item);
+    });
+  }
+
+  // -----------------------
+  // URL (enlace externo)
+// -----------------------
+  function validateUrl() {
+    hideError(errUrl);
+    const value = (urlInput?.value || "").trim();
+
+    if (!value) {
+      updateSaveEnabled();
+      return;
+    }
+
+    try {
+      // Validación simple con URL nativa
+      // (acepta http/https, Drive, Mega, etc.)
+      // Si falla lanzará excepción.
+      // eslint-disable-next-line no-new
+      new URL(value);
+      // válido → sin error
+    } catch {
+      showError(errUrl, "Ingresa una URL válida (ej. https://drive.google.com/...)");
+    }
+
+    updateSaveEnabled();
+  }
+
+  // -----------------------
+  // Habilitar / deshabilitar botón "Subir"
+// -----------------------
+  function updateSaveEnabled() {
+    if (!btnSave) return;
+
+    let enabled = false;
+
+    if (mode === "file") {
+      enabled = selectedFiles.length > 0 && !errFiles?.hidden === true;
+      // ojo: errFiles.hidden === true → sin error
+      if (errFiles && !errFiles.hidden) {
+        enabled = selectedFiles.length > 0;
+      }
+    } else {
+      const value = (urlInput?.value || "").trim();
+      enabled = !!value && (!errUrl || errUrl.hidden);
+    }
+
+    btnSave.disabled = !enabled;
+  }
+
+  // -----------------------
+  // Guardar: subir al backend
+  // -----------------------
+  async function onSave() {
+    if (!currentTaskId) {
+      toast("No hay tarea seleccionada.", "error");
+      return;
+    }
+
+    try {
+      if (mode === "file") {
+        await uploadFiles();
+      } else {
+        await uploadLink();
+      }
+
+      closeModal();
+
+      // IMPORTANTE: refrescar las evidencias del drawer
+      if (typeof loadEvidenciasForTask === "function") {
+        loadEvidenciasForTask(currentTaskId);
+      }
+    } catch (e) {
+      err("Error al subir evidencias:", e);
+      toast("Ocurrió un error al subir las evidencias.", "error");
+    }
+  }
+
+  async function uploadFiles() {
+    if (!selectedFiles.length) return;
+
+    const fd = new FormData();
+    fd.append("tarea_id", currentTaskId);
+
+    selectedFiles.forEach((f) => {
+      fd.append("files[]", f);
+    });
+
+    // TODO: AJUSTA ESTA URL Y NOMBRES DE CAMPOS A TU ENDPOINT REAL
+    const url = "/DB/WEB/ixtlaXX_i_tarea_evidencia.php";
+
+    log("Subiendo archivos…", { tarea_id: currentTaskId, total: selectedFiles.length });
+
+    const res = await fetch(url, {
+      method: "POST",
+      body: fd,
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || "Error HTTP al subir evidencias");
+    }
+
+    toast("Evidencias subidas correctamente.", "success");
+  }
+
+  async function uploadLink() {
+    const value = (urlInput?.value || "").trim();
+    if (!value) return;
+
+    // TODO: AJUSTA ESTA URL Y PAYLOAD AL ENDPOINT REAL PARA ENLACES
+    const payload = {
+      tarea_id: currentTaskId,
+      url: value,
+      tipo: "link",
+    };
+
+    const url = "/DB/WEB/ixtlaXX_i_tarea_evidencia_link.php";
+
+    log("Registrando enlace de evidencia…", payload);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || "Error HTTP al registrar enlace");
+    }
+
+    toast("Enlace registrado como evidencia.", "success");
+  }
+
+  // -----------------------
+  // Helpers de errores
+  // -----------------------
+  function showError(el, msg) {
+    if (!el) return;
+    el.textContent = msg || "";
+    el.hidden = false;
+  }
+
+  function hideError(el) {
+    if (!el) return;
+    el.textContent = "";
+    el.hidden = true;
+  }
+
+  // API pública
+  return {
+    init,
+    setCurrentTask,
+  };
+})();
+
 /* ==========================================================================
    9) Init: sesión, jerarquías, filtros, detalle
    ========================================================================== */
@@ -1397,6 +1833,11 @@ async function init() {
     postJSON,
   });
 
+  // 6.1) Módulo de evidencias (modal Imágenes/Enlace)
+  if (MediaUI && MediaUI.init) {
+    MediaUI.init();
+  }
+
   // --------------------------------------------------------------------
   // 7) Jerarquías: normalizar roles + director/primera desde departamentos
   // --------------------------------------------------------------------
@@ -1623,10 +2064,11 @@ async function init() {
   const overlay = $("#kb-d-overlay");
   if (btnClose) btnClose.addEventListener("click", closeDetails);
   if (overlay) overlay.addEventListener("click", closeDetails);
-
-  if (DetailsModule && DetailsModule.setupEvidenciasUpload) {
-    DetailsModule.setupEvidenciasUpload();
-  }
+  
+  // DEPRECATED
+  //if (DetailsModule && DetailsModule.setupEvidenciasUpload) {
+  //  DetailsModule.setupEvidenciasUpload();
+  //}
 
   log("Tablero de tareas listo", {
     tareas: State.tasks.length,
