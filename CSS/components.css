@@ -185,3 +185,229 @@
 
 
 /*-------------------------------------- fin del css para el component de carrusel -------------------*/
+
+
+
+
+
+/*---------------------------------------- css para el modal de media ------------------------------------*/
+/* ================= Modal Evidencias – header, tabs, form, footer ================= */
+
+/* Reusar layout del modal “report” */
+#ix-evid-modal,
+#ix-evid-modal * {
+  box-sizing: border-box;
+}
+
+#ix-evid-modal .ix-modal__dialog {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(360px, 94vw, 680px);
+  max-height: calc(100dvh - 12vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  color: #1f2937;
+  border-radius: 16px;
+  border: 1px solid #e6e8eb;
+  box-shadow: 0 18px 40px rgba(16, 24, 40, .16);
+}
+
+#ix-evid-modal .ix-modal__header {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid #e6e8eb;
+}
+
+#ix-evid-modal .ix-modal__body {
+  padding: 20px 24px 22px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+#ix-evid-modal .ix-modal__footer {
+  padding: 14px 22px;
+  border-top: 1px solid #e6e8eb;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+#ix-evid-modal.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, .6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .15s ease;
+}
+
+#ix-evid-modal[aria-hidden="false"] {
+  opacity: 1;
+  visibility: visible;
+}
+
+#ix-evid-modal .modal-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: 0;
+  background: transparent;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+/* Encabezado: título centrado y barra de tabs a lo ancho */
+#ix-evid-modal .ix-modal__header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  padding: 20px 24px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+#ix-evid-modal .ix-modal__header h2 {
+  margin: 0;
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: .01em;
+  font-size: clamp(1.3rem, 1.1rem + 0.4vw, 1.6rem);
+  color: #111827;
+}
+
+/* Barra de tabs a ancho completo, estilo “Google dialog” */
+#ix-evid-modal .ix-modal__tabs {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding-top: 6px;
+  padding-bottom: 2px;
+  background: transparent;
+}
+
+/* Tabs tipo pill, discretos pero claros */
+#ix-evid-modal .ix-tab {
+  position: relative;
+  border: 0;
+  background: transparent;
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-size: .9rem;
+  font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
+  transition:
+    background .16s ease,
+    color .16s ease,
+    box-shadow .16s ease,
+    transform .08s ease;
+}
+
+#ix-evid-modal .ix-tab:hover {
+  background: #f3f4f6;
+}
+
+#ix-evid-modal .ix-tab:active {
+  transform: translateY(1px);
+}
+
+/* Tab activo: texto azul y pill blanca con sombra suave */
+#ix-evid-modal .ix-tab.is-active {
+  background: #ffffff;
+  color: #6aa995;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .16);
+}
+
+/* Pequeño “indicator” bajo el tab activo, muy Google */
+#ix-evid-modal .ix-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 36px;
+  height: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #6aa995;
+}
+
+/* Input URL más formal / Material-like */
+#ix-evid-modal .ix-field__label {
+  font-weight: 600;
+  font-size: .9rem;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+#ix-evid-modal .ix-input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  padding: 9px 11px;
+  font-size: .95rem;
+  color: #111827;
+  outline: none;
+  background: #ffffff;
+  transition:
+    border-color .15s ease,
+    box-shadow .15s ease,
+    background .15s ease;
+}
+
+#ix-evid-modal .ix-input::placeholder {
+  color: #9ca3af;
+}
+
+#ix-evid-modal .ix-input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, .25);
+  background: #ffffff;
+}
+
+/* Mensajes de ayuda / error */
+#ix-evid-modal .ix-help {
+  display: block;
+  margin-top: 4px;
+  font-size: .8rem;
+  color: #b91c1c;
+  /* rojo suave para errores */
+}
+
+/* Footer: botones homogéneos tipo diálogo */
+#ix-evid-modal .ix-modal__footer {
+  padding: 14px 22px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+#ix-evid-modal .ix-modal__footer .btn {
+  min-width: 110px;
+  height: 40px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+/* Botón Cancelar estilo “texto + pill gris” */
+#ix-evid-modal .ix-modal__footer .btn:first-child {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+/* Botón Subir deshabilitado más claro y sin sombra */
+#ix-evid-modal #ix-evid-save[disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
