@@ -1,14 +1,25 @@
 // /JS/api/mediaRequerimientos.js
-import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/media.js";
+import {
+  listMedia,
+  uploadMedia,
+  uploadMediaLink,
+  setupMedia,
+} from "/JS/api/media.js";
 
 (() => {
   "use strict";
 
   /* ================= Helpers base ================= */
   const hasRV = !!window._rvHelpers;
-  const $ = hasRV ? window._rvHelpers.$ : (s, r = document) => r.querySelector(s);
-  const $$ = hasRV ? window._rvHelpers.$$ : (s, r = document) => Array.from(r.querySelectorAll(s));
-  const toast = hasRV ? window._rvHelpers.toast : (m, t = "info") => console.log("[toast]", t, m);
+  const $ = hasRV
+    ? window._rvHelpers.$
+    : (s, r = document) => r.querySelector(s);
+  const $$ = hasRV
+    ? window._rvHelpers.$$
+    : (s, r = document) => Array.from(r.querySelectorAll(s));
+  const toast = hasRV
+    ? window._rvHelpers.toast
+    : (m, t = "info") => console.log("[toast]", t, m);
   const log = (...a) => console.log("[MediaGlue]", ...a);
   const warn = (...a) => console.warn("[MediaGlue]", ...a);
 
@@ -17,7 +28,9 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
     const res = await fetch(input, init);
     const text = await res.text();
     let json = null;
-    try { json = JSON.parse(text); } catch {}
+    try {
+      json = JSON.parse(text);
+    } catch {}
     return { res, json, text };
   }
 
@@ -36,9 +49,15 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
   }
 
   function iconFor(url = "") {
-    const ext = (url.split("?")[0].match(/\.([a-z0-9]+)$/i) || [])[1]?.toLowerCase() || "";
-    if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif"].includes(ext)) return "/ASSETS/filetypes/img.png";
-    if (["mp4", "webm", "mov", "m4v"].includes(ext)) return "/ASSETS/filetypes/video.png";
+    const ext =
+      (url.split("?")[0].match(/\.([a-z0-9]+)$/i) || [])[1]?.toLowerCase() ||
+      "";
+    if (
+      ["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif"].includes(ext)
+    )
+      return "/ASSETS/filetypes/img.png";
+    if (["mp4", "webm", "mov", "m4v"].includes(ext))
+      return "/ASSETS/filetypes/video.png";
     if (ext === "pdf") return "/ASSETS/filetypes/pdf.png";
     return "/ASSETS/filetypes/file.png";
   }
@@ -61,25 +80,30 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
     a.setAttribute("data-date", item.fecha || "—");
 
     const useThumb = isImageUrl(item.url);
-    const imgSrc = useThumb ? (item.url || "") : iconFor(item.url);
+    const imgSrc = useThumb ? item.url || "" : iconFor(item.url);
     const imgClass = useThumb ? "ico is-thumb" : "ico";
 
     a.innerHTML = `
-      <div class="file">
-        <img class="${imgClass}" src="${imgSrc}" alt="" loading="lazy" decoding="async">
-        <span>${item.nombre || "Archivo"}</span>
-      </div>
-      <div class="who">${item.quien || "—"}</div>
-      <div class="date">${item.fecha || "—"}</div>
-    `;
+    <div class="file">
+      <img class="${imgClass}" src="${imgSrc}" alt="" loading="lazy" decoding="async">
+      <span>${item.nombre || "Archivo"}</span>
+    </div>
+    <div class="who">${item.quien || "—"}</div>
+    <div class="date">${item.fecha || "—"}</div>
+  `;
 
-    // Fallback: si la miniatura falla, vuelve al ícono genérico
-    const img = a.querySelector("img.ico");
-    img.onerror = () => {
-      img.classList.remove("is-thumb");
-      img.src = iconFor(item.url);
-      img.style.objectFit = "contain";
-    };
+    const img = a.querySelector("img");
+
+    if (useThumb && img) {
+      const fallbackSrc = iconFor(item.url);
+      const onError = () => {
+        img.removeEventListener("error", onError); // evita bucles
+        img.classList.remove("is-thumb");
+        img.src = fallbackSrc;
+        img.style.objectFit = "contain";
+      };
+      img.addEventListener("error", onError);
+    }
 
     table.appendChild(a);
   }
@@ -107,8 +131,15 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
     // Soporta { nombre|name|titulo|filename, url|src|path, quien|subido_por|created_by(_name), fecha|created_at|updated_at }
     const nombre = r.nombre ?? r.name ?? r.titulo ?? r.filename ?? "Archivo";
     const url = r.url ?? r.src ?? r.path ?? "";
-    const quien = r.quien ?? r.quien_cargo ?? r.subido_por ?? r.created_by_name ?? r.created_by ?? "—";
-    const fecha = r.fecha ?? r.created_at ?? r.updated_at ?? r.modified_at ?? "";
+    const quien =
+      r.quien ??
+      r.quien_cargo ??
+      r.subido_por ??
+      r.created_by_name ??
+      r.created_by ??
+      "—";
+    const fecha =
+      r.fecha ?? r.created_at ?? r.updated_at ?? r.modified_at ?? "";
     return {
       nombre: String(nombre).trim(),
       url: String(url).trim(),
@@ -238,7 +269,8 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
     table.addEventListener("click", (e) => {
       const row = e.target.closest(".exp-row");
       if (!row) return;
-      const href = row.getAttribute("data-src") || row.getAttribute("href") || "";
+      const href =
+        row.getAttribute("data-src") || row.getAttribute("href") || "";
       if (!/\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(href)) {
         // no es imagen → deja que abra en otra pestaña
         return;
@@ -246,9 +278,18 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
       e.preventDefault();
       openPreview({
         src: href,
-        title: row.getAttribute("data-title") || row.querySelector(".file span")?.textContent || "Evidencia",
-        who: row.getAttribute("data-who") || row.querySelector(".who")?.textContent || "",
-        date: row.getAttribute("data-date") || row.querySelector(".date")?.textContent || "",
+        title:
+          row.getAttribute("data-title") ||
+          row.querySelector(".file span")?.textContent ||
+          "Evidencia",
+        who:
+          row.getAttribute("data-who") ||
+          row.querySelector(".who")?.textContent ||
+          "",
+        date:
+          row.getAttribute("data-date") ||
+          row.querySelector(".date")?.textContent ||
+          "",
       });
     });
   }
@@ -258,7 +299,10 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
     const url = "/db/WEB/ixtla01_c_requerimiento.php";
     const { res, json, text } = await fetchJsonSafe(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify({ id: Number(id) || id }),
     });
 
@@ -274,7 +318,11 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
       null;
 
     const folio = row?.folio || row?.FOLIO || null;
-    if (!folio) console.warn("[MediaGlue] No se encontró folio en respuesta:", json ?? text?.slice(0, 160));
+    if (!folio)
+      console.warn(
+        "[MediaGlue] No se encontró folio en respuesta:",
+        json ?? text?.slice(0, 160)
+      );
     return folio;
   }
 
@@ -315,7 +363,9 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
     let folio =
       document.querySelector("[data-folio]")?.getAttribute("data-folio") ||
       (window.__REQ__ && window.__REQ__.folio) ||
-      document.querySelector("[data-req-folio]")?.getAttribute("data-req-folio") ||
+      document
+        .querySelector("[data-req-folio]")
+        ?.getAttribute("data-req-folio") ||
       null;
 
     // 2) si no hay folio, intenta derivarlo con ?id=###
@@ -326,22 +376,32 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
           folio = await fetchFolioById(id);
           // opcional: cachearlo en el DOM para otros módulos
           if (folio) {
-            (document.documentElement || document.body).setAttribute("data-folio", folio);
+            (document.documentElement || document.body).setAttribute(
+              "data-folio",
+              folio
+            );
           }
         } catch (e) {
-          console.warn("[MediaGlue] Error resolviendo folio por id:", e?.message || e);
+          console.warn(
+            "[MediaGlue] Error resolviendo folio por id:",
+            e?.message || e
+          );
         }
       }
     }
 
     // 3) (opcional) regex si el folio está impreso en el título
     if (!folio) {
-      const m = (document.querySelector(".exp-title h1")?.innerText || "").match(/\bREQ-\d{6,}\b/i);
+      const m = (
+        document.querySelector(".exp-title h1")?.innerText || ""
+      ).match(/\bREQ-\d{6,}\b/i);
       if (m) folio = m[0];
     }
 
     if (!folio) {
-      warn("No encontré folio (REQ-##########). Si es posible, injéctalo como data-folio en el HTML.");
+      warn(
+        "No encontré folio (REQ-##########). Si es posible, injéctalo como data-folio en el HTML."
+      );
       bindPreviewClicks(); // aún permite preview de filas estáticas
       return;
     }
@@ -354,7 +414,13 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => { boot(); }, { once: true });
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => {
+        boot();
+      },
+      { once: true }
+    );
   } else {
     boot();
   }
@@ -365,20 +431,20 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
   (() => {
     const openBtn = document.getElementById("btn-open-evid-modal");
     const overlay = document.getElementById("ix-evid-modal");
-    const form    = document.getElementById("ix-evid-form");
-    const input   = document.getElementById("ix-evidencia");
-    const cta     = document.getElementById("ix-evidencia-cta");
-    const previews= document.getElementById("ix-evidencia-previews");
+    const form = document.getElementById("ix-evid-form");
+    const input = document.getElementById("ix-evidencia");
+    const cta = document.getElementById("ix-evidencia-cta");
+    const previews = document.getElementById("ix-evidencia-previews");
     const errFile = document.getElementById("ix-err-evidencia");
     const saveBtn = document.getElementById("ix-evid-save");
-    const cancel  = document.getElementById("ix-evid-cancel");
-    const closeX  = overlay?.querySelector(".modal-close");
+    const cancel = document.getElementById("ix-evid-cancel");
+    const closeX = overlay?.querySelector(".modal-close");
 
     // Grupos por modo
     const fileGroup = document.getElementById("ix-file-group");
-    const urlGroup  = document.getElementById("ix-url-group");
-    const urlInput  = document.getElementById("ix-url-input");
-    const errUrl    = document.getElementById("ix-err-url");
+    const urlGroup = document.getElementById("ix-url-group");
+    const urlInput = document.getElementById("ix-url-input");
+    const errUrl = document.getElementById("ix-err-url");
 
     // Tabs
     const tabFile = document.getElementById("ix-tab-file");
@@ -387,7 +453,13 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
     const dropZone = document.getElementById("ix-upload-zone");
 
     const MAX_MB = 1;
-    const ACCEPT = new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif"]);
+    const ACCEPT = new Set([
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/heic",
+      "image/heif",
+    ]);
 
     let filesBuffer = []; // Array<File> (máx 3)
     let currentMode = "file"; // "file" | "link"
@@ -489,7 +561,12 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
       if (e.target === overlay) close();
     });
     document.addEventListener("keydown", (e) => {
-      if (overlay && overlay.getAttribute("aria-hidden") === "false" && e.key === "Escape") close();
+      if (
+        overlay &&
+        overlay.getAttribute("aria-hidden") === "false" &&
+        e.key === "Escape"
+      )
+        close();
     });
 
     // Tabs: cambiar de modo
@@ -533,7 +610,9 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
           showFileError(
             tooBig
               ? `“${f.name}” excede ${MAX_MB} MB`
-              : `“${f.name}” no es un tipo permitido (${f.type || "desconocido"})`
+              : `“${f.name}” no es un tipo permitido (${
+                  f.type || "desconocido"
+                })`
           );
           continue;
         }
@@ -583,14 +662,17 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
     saveBtn?.addEventListener("click", async () => {
       const folio = window.__MEDIA_FOLIO__ || null;
       if (!folio) {
-        if (currentMode === "file") showFileError("No hay folio del requerimiento.");
+        if (currentMode === "file")
+          showFileError("No hay folio del requerimiento.");
         else showUrlError("No hay folio del requerimiento.");
         return;
       }
 
       // status actual de la vista (carpeta destino)
       const status = (() => {
-        const sel = document.querySelector('#req-status [data-role="status-select"]');
+        const sel = document.querySelector(
+          '#req-status [data-role="status-select"]'
+        );
         if (sel) return Number(sel.value || 0);
         const cur = document.querySelector(".step-menu li.current");
         return cur ? Number(cur.getAttribute("data-status")) : 0;
@@ -600,7 +682,9 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
         saveBtn.disabled = true;
 
         // asegura carpetas (idempotente)
-        try { await setupMedia(folio); } catch {}
+        try {
+          await setupMedia(folio);
+        } catch {}
 
         if (currentMode === "file") {
           // ========== MODO IMÁGENES ==========
@@ -635,7 +719,8 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
           }
 
           const res = await uploadMediaLink({ folio, status, url: val });
-          const ok = !!res?.ok && Array.isArray(res?.saved) && res.saved.length > 0;
+          const ok =
+            !!res?.ok && Array.isArray(res?.saved) && res.saved.length > 0;
           if (ok) {
             toast("Enlace agregado correctamente.", "success");
           } else {
@@ -657,7 +742,9 @@ import { listMedia, uploadMedia, uploadMediaLink, setupMedia } from "/JS/api/med
       } catch (e) {
         console.error("[Evidencias] upload error:", e);
         if (currentMode === "file") {
-          showFileError("No se pudo subir la evidencia. Revisa tamaño/tipo o intenta más tarde.");
+          showFileError(
+            "No se pudo subir la evidencia. Revisa tamaño/tipo o intenta más tarde."
+          );
         } else {
           showUrlError("No se pudo registrar el enlace. Intenta más tarde.");
         }

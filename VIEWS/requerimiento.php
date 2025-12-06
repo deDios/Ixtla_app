@@ -871,7 +871,7 @@
     </div>
 
 
-    <!-- Modal: Subir evidencias -->
+    <!-- Modal: Subir evidencias V2 -->
     <div id="ix-evid-modal" class="modal-overlay" aria-hidden="false">
         <div class="modal-content ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-evid-title">
             <button class="modal-close" type="button" aria-label="Cerrar">×</button>
