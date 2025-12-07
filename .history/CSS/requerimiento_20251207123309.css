@@ -2385,23 +2385,25 @@ body.modal-open {
 
 
 
-/* ================= botón "Generar expediente" ================= */
+/* ================= Tabs + botón "Generar expediente" ================= */
 
 .exp-view .exp-tabs-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 10px; 
+  margin-top: 10px; /* mismo margen que ya tenías en .exp-tabs */
 }
 
+/* el nav de tabs se adapta al ancho disponible */
 .exp-view .exp-tabs-bar .exp-tabs {
   flex: 1 1 auto;
-  margin-top: 0; 
+  margin-top: 0; /* para que no se duplique el margen */
 }
 
+/* Botón "Generar expediente" – aislado para que no herede .btn ni cosas raras */
 .exp-view #btn-expediente {
-  all: unset;                
+  all: unset;                /* limpia cualquier estilo global raro */
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -2431,6 +2433,7 @@ body.modal-open {
   transform: translateY(1px);
 }
 
+/* Iconito más compacto */
 .exp-view #btn-expediente .exp-expediente-icon {
   width: 18px;
   height: 18px;
