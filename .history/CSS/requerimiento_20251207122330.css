@@ -2385,21 +2385,21 @@ body.modal-open {
 
 
 
-/* Barra de tabs + botón "Generar expediente" */
-.exp-view .exp-tabs-bar {
+/* Barra de tabs + acción a la derecha */
+.exp-tabs-bar {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-top: 10px; 
+  margin-top: 1.5rem; /* o el mismo margen que tuviera antes .exp-tabs */
 }
 
-.exp-view .exp-tabs-bar .exp-tabs {
+/* El nav se expande y deja el botón pegado a la derecha */
+.exp-tabs-bar .exp-tabs {
   flex: 1;
-  margin-top: 0;
 }
 
 /* Botón "Generar expediente" */
-.exp-view .exp-expediente-btn {
+.exp-expediente-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -2419,16 +2419,16 @@ body.modal-open {
     transform 0.05s ease;
 }
 
-.exp-view .exp-expediente-btn:hover {
+.exp-expediente-btn:hover {
   background-color: #f3f4f6;
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.12);
 }
 
-.exp-view .exp-expediente-btn:active {
+.exp-expediente-btn:active {
   transform: translateY(1px);
 }
 
-.exp-view .exp-expediente-icon {
+.exp-expediente-icon {
   width: 18px;
   height: 18px;
 }

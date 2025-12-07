@@ -227,12 +227,27 @@
                     </ul>
                 </div>
 
-                <!-- Tabs -->
-                <nav class="exp-tabs" role="tablist" aria-label="Secciones">
-                    <button class="exp-tab is-active" role="tab" aria-selected="true">Contacto</button>
-                    <button class="exp-tab" role="tab" aria-selected="false">Detalles</button>
-                    <button class="exp-tab" role="tab" aria-selected="false">Planeación</button>
-                </nav>
+                <!-- Tabs + botón Generar expediente -->
+                <div class="exp-tabs-bar">
+                    <nav class="exp-tabs" role="tablist" aria-label="Secciones">
+                        <button class="exp-tab is-active" role="tab" aria-selected="true">Contacto</button>
+                        <button class="exp-tab" role="tab" aria-selected="false">Detalles</button>
+                        <button class="exp-tab" role="tab" aria-selected="false">Planeación</button>
+                    </nav>
+
+                    <button type="button" class="exp-expediente-btn" id="btn-expediente">
+                        <svg class="exp-expediente-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" fill="none"
+                                stroke="currentColor" stroke-width="1.5" />
+                            <path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.5" />
+                            <path d="M8 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            <path d="M8 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            <path d="M9 18h6a.6.6 0 0 0 .6-.6v-1.8A.6.6 0 0 0 15 15h-6v3z" fill="currentColor"
+                                opacity=".12" />
+                        </svg>
+                        <span>Generar expediente</span>
+                    </button>
+                </div>
 
                 <!-- WRAPPER: evita salto entre tabs -->
                 <div class="exp-panes">
@@ -850,15 +865,11 @@
             <h2 id="proceso-title">Nuevo proceso</h2>
 
             <form id="form-proceso" novalidate>
+
                 <div class="form-row">
                     <label for="proceso-titulo">Título / Descripción</label>
                     <input type="text" id="proceso-titulo" name="titulo" maxlength="150" required
                         placeholder="Ej. Se asignó a Jurídico">
-                </div>
-
-                <div class="form-row">
-                    <label for="proceso-inicio">Fecha de inicio</label>
-                    <input type="date" id="proceso-inicio" name="fecha_inicio">
                 </div>
 
                 <div class="form-row">

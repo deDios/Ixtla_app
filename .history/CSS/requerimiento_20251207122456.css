@@ -2385,16 +2385,18 @@ body.modal-open {
 
 
 
-/* Barra de tabs + botón "Generar expediente" */
+/* Barra de tabs + botón "Generar expediente" (no pisa estilos previos) */
 .exp-view .exp-tabs-bar {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-top: 10px; 
+  margin-top: 10px; /* usa el mismo margen que ya tenías en .exp-tabs */
 }
 
+/* El nav de tabs se expande y deja el botón pegado a la derecha */
 .exp-view .exp-tabs-bar .exp-tabs {
   flex: 1;
+  /* anulamos solo el margin-top dentro de la barra, para no duplicar */
   margin-top: 0;
 }
 

@@ -181,26 +181,38 @@
                 <!-- Encabezado -->
                 <header class="exp-head">
 
-                    <div class="exp-title">
-                        <h1>Fuga de agua</h1>
-                        <div id="req-actions" class="exp-actions"></div>
+                    <!-- Fila 1: título + meta -->
+                    <div class="exp-head-main">
+                        <div class="exp-title">
+                            <h1>Reporte Otros</h1>
+                        </div>
+
+                        <dl class="exp-meta">
+                            <div>
+                                <dt>Folio</dt>
+                                <dd id="req-folio">—</dd>
+                            </div>
+                            <div>
+                                <dt>Departamento</dt>
+                                <dd id="req-departamento">—</dd>
+                            </div>
+                            <div>
+                                <dt>Fecha de solicitud</dt>
+                                <dd id="req-fecha-solicitud">—</dd>
+                            </div>
+                        </dl>
                     </div>
 
-                    <dl class="exp-meta">
-                        <div>
-                            <dt>Contacto</dt>
-                            <dd>Luis Enrique Mendez</dd>
+                    <!-- Fila 2: botones, renglón propio -->
+                    <div class="exp-head-actions">
+                        <div id="req-actions" class="exp-actions">
+                            <!-- los botones se rellenan por JS, deja este contenedor -->
                         </div>
-                        <div>
-                            <dt>Encargado</dt>
-                            <dd>Juan Pablo</dd>
-                        </div>
-                        <div>
-                            <dt>Fecha de solicitado</dt>
-                            <dd>04/06/2025 12:30pm</dd>
-                        </div>
-                    </dl>
+                    </div>
                 </header>
+
+
+
 
                 <!-- Stepper -->
                 <div class="container">
@@ -215,81 +227,267 @@
                     </ul>
                 </div>
 
-                <!-- Tabs -->
-                <nav class="exp-tabs" role="tablist" aria-label="Secciones">
-                    <button class="exp-tab is-active" role="tab" aria-selected="true">Contacto</button>
-                    <button class="exp-tab" role="tab" aria-selected="false">Detalles</button>
-                    <button class="exp-tab" role="tab" aria-selected="false">Planeación</button>
-                </nav>
+                <!-- Tabs + botón Generar expediente -->
+                <div class="exp-tabs-bar">
+                    <nav class="exp-tabs" role="tablist" aria-label="Secciones">
+                        <button class="exp-tab is-active" role="tab" aria-selected="true">Contacto</button>
+                        <button class="exp-tab" role="tab" aria-selected="false">Detalles</button>
+                        <button class="exp-tab" role="tab" aria-selected="false">Planeación</button>
+                    </nav>
+
+                    <button type="button" class="exp-expediente-btn" id="btn-expediente">
+                        <svg class="exp-expediente-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <!-- Hoja con esquina doblada -->
+                            <path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" fill="none"
+                                stroke="currentColor" stroke-width="1.5" />
+                            <path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.5" />
+                            <!-- Lineas tipo texto -->
+                            <path d="M8 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            <path d="M8 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            <!-- Mini “PDF” estilizado -->
+                            <path d="M9 18h6a.6.6 0 0 0 .6-.6v-1.8A.6.6 0 0 0 15 15h-6v3z" fill="currentColor"
+                                opacity=".12" />
+                        </svg>
+                        <span>Generar expediente</span>
+                    </button>
+                </div>
+
 
                 <!-- WRAPPER: evita salto entre tabs -->
                 <div class="exp-panes">
+
+
+
+
+
+
+
+
+
                     <!-- Panel: Contacto -->
                     <section class="exp-pane is-active" role="tabpanel" data-tab="Contacto">
                         <div class="exp-grid">
-                            <div class="exp-field"><label>Nombre:</label>
-                                <div class="exp-val">Luis Enrique Mendez</div>
-                            </div>
-                            <div class="exp-field"><label>Teléfono:</label>
-                                <div class="exp-val">33 3333 3333</div>
-                            </div>
-                            <div class="exp-field"><label>Dirección del reporte:</label>
-                                <div class="exp-val">Vicente Guerrero #13, Centro</div>
-                            </div>
-                            <div class="exp-field"><label>Correo:</label>
-                                <div class="exp-val"><a href="mailto:correo@ejemplo.com">correo@ejemplo.com</a></div>
-                            </div>
-                            <div class="exp-field"><label>C.P:</label>
-                                <div class="exp-val">45850</div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Panel: Detalles -->
-                    <section class="exp-pane" role="tabpanel" data-tab="detalles">
-                        <div class="exp-grid">
-                            <div class="exp-field"><label>Nombre del Requerimiento:</label>
-                                <div class="exp-val">Fuga de agua</div>
-                            </div>
-                            <div class="exp-field"><label>Líder del Departamento:</label>
-                                <div class="exp-val"><a>Juan Pablo</a></div>
-                            </div>
-                            <div class="exp-field"><label>Asignado:</label>
-                                <div class="exp-val"><a>Luis Enrique Mendez</a></div>
-                            </div>
-
+                            <!-- Nombre -->
                             <div class="exp-field">
-                                <label>Estatus:</label>
-                                <div class="exp-val" id="req-status">
-                                    <!-- Badge que actualizamos por JS -->
-                                    <span data-role="status-badge" class="exp-badge is-info">—</span>
+                                <label>Nombre de contacto:</label>
+                                <div class="exp-val" data-role="contacto-nombre-val">
+                                    <span data-contact-text="contacto_nombre">Requerimiento prueba</span>
+                                    <button type="button" class="icon-btn" data-contact-basic-edit="1"
+                                        data-contact-key="contacto_nombre" title="Editar nombre de contacto"
+                                        aria-label="Editar nombre de contacto">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
 
-                                    <!-- boton + combo para cambiar el status, de momento no actualiza realmente-->
-                                    <div class="status-tools"
-                                        style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
-                                        <button type="button" class="btn-xs" data-role="status-btn">Cambiar</button>
-                                        <select class="status-select" data-role="status-select" hidden>
-                                            <option value="0">Solicitud</option>
-                                            <option value="1">Revisión</option>
-                                            <option value="2">Asignación</option>
-                                            <option value="3">Proceso</option>
-                                            <option value="4">Pausado</option>
-                                            <option value="5">Cancelado</option>
-                                            <option value="6">Finalizado</option>
+                            <!-- Teléfono -->
+                            <div class="exp-field">
+                                <label>Teléfono:</label>
+                                <div class="exp-val" data-role="contacto-telefono-val">
+                                    <span data-contact-text="contacto_telefono">3322578320</span>
+                                    <button type="button" class="icon-btn" data-contact-basic-edit="1"
+                                        data-contact-key="contacto_telefono" title="Editar teléfono"
+                                        aria-label="Editar teléfono">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Correo -->
+                            <div class="exp-field">
+                                <label>Correo electrónico:</label>
+                                <div class="exp-val" data-role="contacto-email-val">
+                                    <a href="mailto:jackstriker26@gmail.com" data-contact-text="contacto_email">
+                                        jackstriker26@gmail.com
+                                    </a>
+                                    <button type="button" class="icon-btn" data-contact-basic-edit="1"
+                                        data-contact-key="contacto_email" title="Editar correo electrónico"
+                                        aria-label="Editar correo electrónico">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Domicilio -->
+                            <div class="exp-field">
+                                <label>Domicilio:</label>
+                                <div class="exp-val" data-role="contacto-calle-val">
+                                    <span data-contact-text="contacto_calle">San Antonio Tlayacapan</span>
+                                    <button type="button" class="icon-btn" data-contact-basic-edit="1"
+                                        data-contact-key="contacto_calle" title="Editar domicilio"
+                                        aria-label="Editar domicilio">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- C.P. (dejas tu botón como ya lo tenías) -->
+                            <div class="exp-field exp-field--editable" data-contact-field="cp">
+                                <label for="contact-cp">C.P.:</label>
+
+                                <!-- lectura -->
+                                <div class="exp-val contact-read">
+                                    <span data-contact-text="contacto_cp">45877</span>
+                                    <button type="button" class="icon-btn" data-contact-edit="cp"
+                                        title="Editar C.P. y colonia" aria-label="Editar C.P. y colonia">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- edición CP (como ya la tenías) -->
+                                <div class="contact-edit contact-edit--cp" data-contact-edit-wrapper="cp" hidden>
+                                    <div class="contact-edit-row">
+                                        <select id="contact-cp" name="contacto_cp" class="ix-select ix-select--quiet"
+                                            data-role="cp-select">
+                                            <option value="">Selecciona C.P.</option>
                                         </select>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="exp-field exp-field--full">
-                                <label>Descripción:</label>
-                                <div class="exp-val exp-preline">
-                                    Vimos una fuga de agua en una casa amarilla de dos pisos, lleva más de 3 horas
-                                    tirando
-                                    agua y no parece que se encuentren los propietarios. Nos preocupa porque es agua
-                                    limpia.
+                            <!-- Colonia (igual que antes) -->
+                            <div class="exp-field exp-field--editable" data-contact-field="colonia">
+                                <label for="contact-colonia">Colonia:</label>
+
+                                <!-- lectura -->
+                                <div class="exp-val contact-read">
+                                    <span data-contact-text="contacto_colonia">Valle de los Olivos</span>
+                                </div>
+
+                                <!-- edición -->
+                                <div class="contact-edit contact-edit--colonia" data-contact-edit-wrapper="colonia"
+                                    hidden>
+                                    <div class="contact-edit-row">
+                                        <select id="contact-colonia" name="contacto_colonia"
+                                            class="ix-select ix-select--quiet" data-role="colonia-select">
+                                            <option value="">Selecciona colonia</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+                    </section>
+
+
+
+
+
+
+
+
+
+                    <!-- Panel: Detalles -->
+                    <section class="exp-pane" role="tabpanel" data-tab="detalles">
+                        <div class="exp-grid">
+
+                            <!-- Campo Trámite -->
+                            <div class="exp-field">
+                                <label>Trámite:</label>
+                                <div class="exp-val">
+                                    <span data-detalle-text="tramite">Reporte Fuga de agua</span>
+
+                                    <!-- Botón de editar, SIEMPRE en el HTML -->
+                                    <button type="button" class="icon-btn" data-detalle-edit="tramite"
+                                        title="Editar trámite" aria-label="Editar trámite">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="exp-field"><label>Director:</label>
+                                <div class="exp-val"><a>Juan Pablo</a></div>
+                            </div>
+
+                            <div class="exp-field">
+                                <label>Asignado:</label>
+                                <div class="exp-val">
+                                    <span data-detalle-text="asignado">Analista SAMAPA</span>
+
+                                    <button type="button" class="icon-btn" title="Asignar requerimiento"
+                                        aria-label="Asignar requerimiento" data-act="assign-req">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="exp-field">
+                                <label>Estatus:</label>
+                                <div class="exp-val" id="req-status"
+                                    style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+
+                                    <!-- Bloque de estatus -->
+                                    <div class="status-main" style="display:inline-flex; align-items:center; gap:8px;">
+                                        <span data-role="status-badge" class="exp-badge is-info">—</span>
+                                        <!-- botón + combo para cambiar el status -->
+                                        <div class="status-tools"
+                                            style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
+                                            <button type="button" class="btn-xs" data-role="status-btn">Cambiar</button>
+                                            <select class="status-select" data-role="status-select" hidden>
+                                                <option value="0">Solicitud</option>
+                                                <option value="1">Revisión</option>
+                                                <option value="2">Asignación</option>
+                                                <option value="3">Proceso</option>
+                                                <option value="4">Pausado</option>
+                                                <option value="5">Cancelado</option>
+                                                <option value="6">Finalizado</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="exp-field" id="req-motivo-field">
+                                <label>Motivo de Pausa/Cancelación:</label>
+                                <div class="exp-val" id="req-motivo-wrap">—</div>
+                            </div>
+
+                            <!-- Campo Descripción -->
+                            <div class="exp-field">
+                                <label>Descripción:</label>
+                                <div class="exp-val">
+                                    <span data-detalle-text="descripcion">
+                                        Texto de descripción del requerimiento…
+                                    </span>
+
+                                    <!-- Botón de editar, también directo en el HTML -->
+                                    <button type="button" class="icon-btn" data-detalle-edit="descripcion"
+                                        title="Editar descripción" aria-label="Editar descripción">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path fill="currentColor"
+                                                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
                             <div class="exp-field"><label>Fecha de inicio:</label>
                                 <div class="exp-val">02/09/2025</div>
                             </div>
@@ -298,6 +496,12 @@
                             </div>
                         </div>
                     </section>
+
+
+
+
+
+
 
                     <!-- Panel: Planeacion -->
                     <section class="exp-pane" role="tabpanel" data-tab="planeacion">
@@ -382,6 +586,12 @@
                 </div>
                 <!-- /exp-panes -->
 
+                <!-- Toolbar arriba -->
+                <div class="planeacion-toolbar evid-toolbar">
+                    <h3 class="planeacion-title">Evidencias</h3>
+                    <button id="btn-open-evid-modal" class="fase-add" type="button">Subir imágenes +</button>
+                </div>
+
                 <!-- Evidencias -->
                 <section class="exp-accordion exp-accordion--evidencias" data-acc="evidencias">
                     <button class="exp-acc-head" type="button" aria-expanded="true">
@@ -396,16 +606,11 @@
                                 <div>Quien lo cargo</div>
                                 <div>Última modificación <span class="sort"></span></div>
                             </div>
-
-                            <a class="exp-row" href="#">
-                                <div class="file"><img class="ico" src="/ASSETS/filetypes/img.png"
-                                        alt=""><span>Evidencia Fuga de Agua</span></div>
-                                <div class="who">Luis Enrique</div>
-                                <div class="date">02 de Septiembre del 2025 a las 14:25</div>
-                            </a>
+                            <!-- filas -->
                         </div>
                     </div>
                 </section>
+
 
 
             </section>
@@ -619,12 +824,14 @@
                 </div>
 
                 <div class="form-row">
-  <label for="tarea-asignado">Asignado a (opcional)</label>
-  <input type="text" id="tarea-asignado" name="asignado_nombre" placeholder="Nombre responsable">
-</div>
+                    <label for="tarea-asignado">Responsable</label>
+                    <select id="tarea-asignado" name="tarea-asignado" required>
+                        <option value="" disabled selected>Selecciona responsable…</option>
+                    </select>
+                </div>
 
                 <div class="form-row">
-                    <label for="tarea-desc">Descripción (opcional)</label>
+                    <label for="tarea-desc">Descripción</label>
                     <textarea id="tarea-desc" name="descripcion" rows="4"
                         placeholder="Detalles de la tarea…"></textarea>
                 </div>
@@ -662,15 +869,11 @@
             <h2 id="proceso-title">Nuevo proceso</h2>
 
             <form id="form-proceso" novalidate>
+
                 <div class="form-row">
                     <label for="proceso-titulo">Título / Descripción</label>
                     <input type="text" id="proceso-titulo" name="titulo" maxlength="150" required
                         placeholder="Ej. Se asignó a Jurídico">
-                </div>
-
-                <div class="form-row">
-                    <label for="proceso-inicio">Fecha de inicio</label>
-                    <input type="date" id="proceso-inicio" name="fecha_inicio">
                 </div>
 
                 <div class="form-row">
@@ -683,18 +886,89 @@
     </div>
 
 
+    <!-- Modal: Subir evidencias V2 -->
+    <div id="ix-evid-modal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-evid-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+
+            <div class="ix-modal__header">
+                <h2 id="ix-evid-title">Subir evidencias</h2>
+
+                <!-- NUEVO: tabs para elegir Imágenes / Enlaces -->
+                <div class="ix-modal__tabs">
+                    <button type="button" class="ix-tab is-active" id="ix-tab-file" data-mode="file">
+                        Imágenes
+                    </button>
+                    <button type="button" class="ix-tab" id="ix-tab-link" data-mode="link">
+                        Enlace
+                    </button>
+                </div>
+            </div>
+
+            <div class="ix-modal__body">
+                <form id="ix-evid-form" class="ix-form" novalidate="">
+                    <!-- MODO IMÁGENES -->
+                    <div class="ix-form__row" id="ix-file-group">
+                        <div class="ix-field ix-field--full">
+                            <label class="ix-field__label" for="ix-evidencia">Evidencia</label>
+
+                            <div class="ix-upload" id="ix-upload-zone" data-js="upload">
+                                <button type="button" id="ix-evidencia-cta" class="ix-upload-btn" title="Subir imágenes"
+                                    aria-label="Subir imágenes">
+                                    Subir imágenes
+                                </button>
+
+                                <input id="ix-evidencia" type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                                    multiple hidden>
+
+                                <div class="ix-upload__hint">
+                                    Arrastra imágenes o haz click para seleccionar (JPG/PNG/WebP/HEIC · máx 1 MB c/u ·
+                                    hasta 3)
+                                </div>
+
+                                <div class="ix-gallery" id="ix-evidencia-previews" aria-live="polite"></div>
+                            </div>
+
+                            <small class="ix-help" id="ix-err-evidencia" hidden></small>
+                        </div>
+                    </div>
+
+                    <!-- NUEVO: MODO ENLACES (Drive, Mega, etc.) -->
+                    <div class="ix-form__row" id="ix-url-group" hidden>
+                        <div class="ix-field ix-field--full">
+                            <label class="ix-field__label" for="ix-url-input">Enlace (Drive, Mega, etc.)</label>
+                            <input id="ix-url-input" type="url" class="ix-input"
+                                placeholder="https://drive.google.com/..." autocomplete="off">
+                            <small class="ix-help" id="ix-err-url" hidden></small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="ix-modal__footer">
+                <button type="button" class="btn" id="ix-evid-cancel">Cancelar</button>
+                <button type="button" class="btn blue" id="ix-evid-save" disabled>Subir</button>
+            </div>
+        </div>
+    </div>
+
+
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>
+
+    <script type="module" src="/JS/auth/session.js"></script>
+    <script type="module" src="/JS/auth/requerimientoGuard.js"></script>
+
     <script src="/JS/requerimientoView.js"></script>
+    <script src="/JS/ui/requerimientoDetalle.js"></script>
     <script src="/JS/ui/requerimientoPlaneacion.js"></script>
 
     <script type="module" src="/JS/api/media.js"></script>
     <script type="module" src="/JS/api/mediaRequerimientos.js"></script>
 
-
     <!-- bundle para que cargue bien el sidebar -->
-    <script type="module" src="/JS/auth/session.js"></script>
     <script type="module" src="/JS/ui/sidebar.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
 
