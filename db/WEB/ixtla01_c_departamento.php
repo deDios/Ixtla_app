@@ -1,24 +1,31 @@
 <?php
-/* ===== CORS (poner literalmente al inicio del archivo) ===== */
-$origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
-$method  = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed = [
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com'
+];
 
-/* Preflight */
-if ($method === 'OPTIONS') {
-  if ($origin && in_array($origin, $ALLOWED, true)) {
-    header("Access-Control-Allow-Origin: $origin");
-    header("Vary: Origin");
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS'); 
-    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-TRACE-LABEL');
-    header('Access-Control-Max-Age: 86400');
-    http_response_code(204);
-  } else {
-    // Origin no permitido => no revelar CORS. Puedes usar 403 explícito si prefieres:
-    http_response_code(403);
-  }
+if (in_array($origin, $allowed, true)) {
+  header("Access-Control-Allow-Origin: $origin");
+  header("Access-Control-Allow-Credentials: true");
+  header("Vary: Origin");
+}
+
+header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+$reqHeaders = $_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'] ?? '';
+if ($reqHeaders) {
+  header("Access-Control-Allow-Headers: $reqHeaders");
+} else {
+  header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept");
+}
+
+header("Access-Control-Max-Age: 86400");
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+  http_response_code(204);
   exit;
 }
+
 
 
 /* Respuestas normales: si origin permitido, habilita CORS */
