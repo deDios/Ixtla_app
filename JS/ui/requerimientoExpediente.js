@@ -80,17 +80,7 @@
             const labelEl = field.querySelector("label");
             const valEl = field.querySelector(".exp-val");
             const label = labelEl ? labelEl.textContent.trim() : "";
-
-            let value = "";
-            if (valEl) {
-                // 🔧 Caso especial: Estatus → solo el badge actual
-                if (valEl.id === "req-status") {
-                    const badge = valEl.querySelector("[data-role='status-badge']");
-                    value = badge ? badge.textContent.trim() : valEl.textContent.trim();
-                } else {
-                    value = valEl.textContent.trim();
-                }
-            }
+            const value = valEl ? valEl.textContent.trim() : "";
 
             if (label || value) {
                 rows.push({ label, value });
@@ -143,7 +133,7 @@
     }
 
     function collectEvidencias() {
-        // (Se deja por compatibilidad, pero ya no se usará en el PDF)
+        // Heurística: busca un acordeón cuyo título diga “Evidencias”
         const accordions = $$(".exp-view .exp-accordion");
         let evidAccordion = null;
 
@@ -235,10 +225,11 @@
                   <td>${escapeHtml(t.actividad || "")}</td>
                   <td>${escapeHtml(t.responsable || "")}</td>
                   <td>${escapeHtml(t.estatus || "")}</td>
+                  <td>${escapeHtml(t.porcentaje || "")}</td>
                   <td>${escapeHtml(t.fecha || "")}</td>
                 </tr>`
                         )
-                        .join("") || `<tr><td colspan="4">Sin tareas registradas.</td></tr>`;
+                        .join("") || `<tr><td colspan="5">Sin tareas registradas.</td></tr>`;
 
                 return `
           <div class="fase-block">
@@ -246,13 +237,12 @@
               <span class="fase-title">${escapeHtml(
                     fase.title || `Fase ${idx + 1}`
                 )}</span>
-              ${
-                  fase.meta
-                      ? `<span class="fase-meta">${escapeHtml(
+              ${fase.meta
+                        ? `<span class="fase-meta">${escapeHtml(
                             fase.meta
                         )}</span>`
-                      : ""
-              }
+                        : ""
+                    }
             </div>
             <table class="fase-table">
               <thead>
@@ -260,6 +250,7 @@
                   <th>Actividad</th>
                   <th>Responsable</th>
                   <th>Estatus</th>
+                  <th>%</th>
                   <th>Fecha</th>
                 </tr>
               </thead>
@@ -281,7 +272,6 @@
     }
 
     function renderEvidenciasSection(rows) {
-        // Ya no se usa, pero se deja por si luego quieres reactivarlo.
         if (!rows || !rows.length) return "";
         const body = rows
             .map(
@@ -313,8 +303,7 @@
         const contacto = collectGridRowsByTab("contacto");
         const detalles = collectGridRowsByTab("detalles");
         const planeacion = collectPlaneacion();
-        // 🔧 evidencias ya no se usan en el PDF:
-        // const evidencias = collectEvidencias();
+        const evidencias = collectEvidencias();
 
         const now = new Date();
         const fechaGen = now.toLocaleString("es-MX", {
@@ -336,7 +325,7 @@
             detalles
         );
         const planeacionSection = renderPlaneacionSection(planeacion);
-        // const evidenciasSection = renderEvidenciasSection(evidencias);
+        const evidenciasSection = renderEvidenciasSection(evidencias);
 
         return `
 <!DOCTYPE html>
@@ -480,7 +469,7 @@
   ${contactoSection}
   ${detallesSection}
   ${planeacionSection}
-  <!-- Evidencias removidas del expediente -->
+  ${evidenciasSection}
 
   <div class="footer-note">
     Expediente generado automáticamente desde Ixtla App.
