@@ -193,7 +193,8 @@
         const tareasRows =
           (fase.tareas || [])
             .map(
-              (t) => `<tr>
+              (t) =>
+                `<tr>
                   <td>${escapeHtml(t.actividad || "")}</td>
                   <td>${escapeHtml(t.responsable || "")}</td>
                   <td>${escapeHtml(t.estatus || "")}</td>
@@ -273,18 +274,14 @@
   <meta charset="utf-8">
   <title>${escapeHtml(tituloDoc)}</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     body {
       margin: 24px;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       color: #111827;
       font-size: 13px;
     }
-    h1, h2, h3 {
-      margin: 0 0 .4rem;
-    }
+    h1, h2, h3 { margin: 0 0 .4rem; }
     .exp-header {
       border-bottom: 2px solid #e5e7eb;
       padding-bottom: 10px;
@@ -382,10 +379,7 @@
       font-size: 11px;
       color: #6b7280;
     }
-
-    @page {
-      margin: 20mm;
-    }
+    @page { margin: 20mm; }
   </style>
 </head>
 <body>
