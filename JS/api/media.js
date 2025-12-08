@@ -2,19 +2,26 @@
 const TAG = "[API:Media]";
 
 /* ====== Config ====== */
-const HOST = "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
+const HOST =
+  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
 const ENDPOINTS = {
   // DB\WEB\ixtla01_u_requerimiento_folders.php
-  setup:  `${HOST}/db/WEB/ixtla01_u_requerimiento_folders.php`, // crea /ASSETS/requerimientos/<folio>/{0..6}
+  setup: `${HOST}/db/WEB/ixtla01_u_requerimiento_folders.php`, // crea /ASSETS/requerimientos/<folio>/{0..6}
   // db/WEB/ixtla01_c_requerimiento_img.php
-  list:   `${HOST}/db/WEB/ixtla01_c_requerimiento_img.php`,      // lista evidencias (archivos + links) por folio/estatus
+  list: `${HOST}/db/WEB/ixtla01_c_requerimiento_img.php`, // lista evidencias (archivos + links) por folio/estatus
   // db/WEB/ixtla01_in(s)_requerimiento_img.php
-  upload: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,     // subida: multipart = archivos, JSON = links
+  upload: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`, // subida: multipart = archivos, JSON = links
 };
 
 const FETCH_TIMEOUT = 15000;
-const MAX_MB       = 1; // límite del servidor (1 MB por imagen)
-const ACCEPT_MIME  = ["image/jpeg","image/png","image/webp","image/heic","image/heif"];
+const MAX_MB = 1; // límite del servidor (1 MB por imagen)
+const ACCEPT_MIME = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+];
 
 /* ====== Helpers ====== */
 function withTimeout(ms = FETCH_TIMEOUT) {
@@ -26,13 +33,18 @@ function withTimeout(ms = FETCH_TIMEOUT) {
 async function postJSON(url, body, { signal } = {}) {
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json;charset=utf-8", "Accept": "application/json" },
+    headers: {
+      "Content-Type": "application/json;charset=utf-8",
+      Accept: "application/json",
+    },
     body: JSON.stringify(body || {}),
     signal,
   });
   // intenta parsear JSON incluso en HTTP no-OK para rescatar mensaje de error del backend
   let json = null;
-  try { json = await res.json(); } catch {}
+  try {
+    json = await res.json();
+  } catch {}
   if (!res.ok || json?.ok === false) {
     const msg = json?.error || `HTTP ${res.status}`;
     throw new Error(msg);
@@ -42,7 +54,7 @@ async function postJSON(url, body, { signal } = {}) {
 
 function toArray(files) {
   if (!files) return [];
-  return (files instanceof FileList) ? Array.from(files) : Array.from(files);
+  return files instanceof FileList ? Array.from(files) : Array.from(files);
 }
 
 /* ====== API ====== */
@@ -50,12 +62,22 @@ function toArray(files) {
 /**
  * Crea (si no existen) las carpetas del folio: 0..6 y status.txt.
  */
-export async function setupMedia(folio, { create_status_txt = true, force_status_txt = false } = {}) {
-  if (!/^REQ-\d{10}$/.test(String(folio || ""))) throw new Error("Folio inválido");
+export async function setupMedia(
+  folio,
+  { create_status_txt = true, force_status_txt = false } = {}
+) {
+  if (!/^REQ-\d{10}$/.test(String(folio || "")))
+    throw new Error("Folio inválido");
   const { signal, done } = withTimeout();
   try {
-    return await postJSON(ENDPOINTS.setup, { folio, create_status_txt, force_status_txt }, { signal });
-  } finally { done(); }
+    return await postJSON(
+      ENDPOINTS.setup,
+      { folio, create_status_txt, force_status_txt },
+      { signal }
+    );
+  } finally {
+    done();
+  }
 }
 
 /**
@@ -67,15 +89,23 @@ export async function setupMedia(folio, { create_status_txt = true, force_status
  *
  * Devuelve el JSON del backend (esperado: { ok, data:[{name,url,kind,...}], ... }).
  */
-export async function listMedia(folio, status = null, page = 1, per_page = 100) {
-  if (!/^REQ-\d{10}$/.test(String(folio || ""))) throw new Error("Folio inválido");
+export async function listMedia(
+  folio,
+  status = null,
+  page = 1,
+  per_page = 100
+) {
+  if (!/^REQ-\d{10}$/.test(String(folio || "")))
+    throw new Error("Folio inválido");
   const payload = { folio, page, per_page };
   if (status !== null && status !== undefined) payload.status = Number(status);
 
   const { signal, done } = withTimeout();
   try {
     return await postJSON(ENDPOINTS.list, payload, { signal });
-  } finally { done(); }
+  } finally {
+    done();
+  }
 }
 
 /**
@@ -87,9 +117,11 @@ export async function listMedia(folio, status = null, page = 1, per_page = 100) 
  * 🔹 Retorna el JSON del backend con un campo extra "skipped" para archivos descartados localmente.
  */
 export async function uploadMedia({ folio, status = 0, files }) {
-  if (!/^REQ-\d{10}$/.test(String(folio || ""))) throw new Error("Folio inválido");
+  if (!/^REQ-\d{10}$/.test(String(folio || "")))
+    throw new Error("Folio inválido");
   const st = Number(status);
-  if (!Number.isInteger(st) || st < 0 || st > 6) throw new Error("Status inválido (0..6)");
+  if (!Number.isInteger(st) || st < 0 || st > 6)
+    throw new Error("Status inválido (0..6)");
 
   const arr = toArray(files);
   if (!arr.length) throw new Error("Sin archivos a subir");
@@ -103,38 +135,57 @@ export async function uploadMedia({ folio, status = 0, files }) {
     if (tooBig || badMime) {
       skipped.push({
         name: f.name,
-        error: tooBig ? `Excede ${MAX_MB} MB` : `Tipo no permitido (${f.type || "desconocido"})`
+        error: tooBig
+          ? `Excede ${MAX_MB} MB`
+          : `Tipo no permitido (${f.type || "desconocido"})`,
       });
     } else {
       send.push(f);
     }
   }
-  if (!send.length) return { ok: false, folio, status: st, saved: [], failed: [], skipped };
+  if (!send.length)
+    return { ok: false, folio, status: st, saved: [], failed: [], skipped };
 
   // multipart
   const fd = new FormData();
   fd.append("folio", folio);
   fd.append("status", String(st));
-  send.forEach(f => fd.append("files[]", f, f.name));
+  send.forEach((f) => fd.append("files[]", f, f.name));
 
   const { signal, done } = withTimeout();
   try {
-    const res = await fetch(ENDPOINTS.upload, { method: "POST", body: fd, signal });
+    const res = await fetch(ENDPOINTS.upload, {
+      method: "POST",
+      body: fd,
+      signal,
+    });
     let json = null;
-    try { json = await res.json(); } catch {}
+    try {
+      json = await res.json();
+    } catch {}
 
     // arma respuesta consistente
-    const saved  = json?.saved  || [];
+    const saved = json?.saved || [];
     const failed = json?.failed || [];
 
-    const ok = (json?.ok === true) || (saved.length > 0 && res.ok);
+    const ok = json?.ok === true || (saved.length > 0 && res.ok);
     if (!ok) {
       const msg = json?.error || `Error upload (HTTP ${res.status})`;
       console.warn(TAG, msg, { json });
     }
 
-    return { ok, folio, status: st, saved, failed, skipped, httpStatus: res.status };
-  } finally { done(); }
+    return {
+      ok,
+      folio,
+      status: st,
+      saved,
+      failed,
+      skipped,
+      httpStatus: res.status,
+    };
+  } finally {
+    done();
+  }
 }
 
 /**
@@ -174,15 +225,8 @@ export async function uploadMediaLink({ folio, status = 0, url, label = "" }) {
     throw new Error("URL requerida");
   }
 
-  // Validación básica de URL en front (no sustituye la del backend)
-  try {
-    // new URL lanza si es inválida
-    // eslint-disable-next-line no-new
-    new URL(cleanUrl);
-  } catch {
-    throw new Error("URL inválida");
-  }
-
+  // Ya no validamos el formato de la URL aquí.
+  // El backend decidirá si la acepta o no.
   const payload = {
     folio,
     status: st,

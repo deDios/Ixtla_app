@@ -787,17 +787,10 @@ import {
         } else {
           // ========== MODO LINK ==========
           const val = (urlInput?.value || "").trim();
-          if (!val) {
-            showUrlError("Escribe un enlace válido.");
-            return;
-          }
 
-          // Validación básica en front; el backend también valida
-          try {
-            // eslint-disable-next-line no-new
-            new URL(val);
-          } catch {
-            showUrlError("El enlace no parece válido.");
+          // ahora con que no este vacio
+          if (!val) {
+            showUrlError("Escribe un enlace.");
             return;
           }
 
