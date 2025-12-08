@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/../db/WEB/ix_guard.php'; // ajusta la ruta
+ix_require_session();
+?>
 <!DOCTYPE html>
 <html lang="es">
 
