@@ -12,8 +12,6 @@ if (in_array($origin, $allowed, true)) {
 }
 
 header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
-
-// Recomendado: reflejar headers solicitados por el preflight
 $reqHeaders = $_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'] ?? '';
 if ($reqHeaders) {
   header("Access-Control-Allow-Headers: $reqHeaders");
