@@ -554,7 +554,7 @@
         {
           home: {
             label: "Home",
-            href: "/VIEWS/UAT/home.php",
+            href: "/VIEWS/home copy.php",
             // Todas estas vistas heredan de home
             matchers: [
               "home.php",
