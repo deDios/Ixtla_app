@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../db/WEB/ix_guard.php'; // ajusta la ruta
+require_once __DIR__ . '/../JS/auth/ix_guard.php';
 ix_require_session();
 ?>
 <!DOCTYPE html>

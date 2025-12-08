@@ -1,12 +1,10 @@
 <?php
 // /db/WEB/ix_guard.php
-// Guard sencillo basado en la cookie "ix_emp" que genera Session.js
 
 declare(strict_types=1);
 
 function ix_require_session(array $options = []): void
 {
-    // Ruta al login (ajústala si tu login está en otro lugar)
     $loginUrl   = $options['login_url']   ?? '/VIEWS/Login.php';
     $cookieName = $options['cookie_name'] ?? 'ix_emp';
 
@@ -51,7 +49,7 @@ function ix_require_session(array $options = []): void
         exit;
     }
 
-    // 3) Validar expiración (exp en milisegundos, como en Session.js) :contentReference[oaicite:1]{index=1}
+    // Validar expiración (exp en milisegundos, como en Session.js) :contentReference[oaicite:1]{index=1}
     if (isset($payload['exp']) && is_numeric($payload['exp'])) {
         $nowMs = (int) round(microtime(true) * 1000);
         if ($nowMs > (int) $payload['exp']) {
@@ -62,7 +60,7 @@ function ix_require_session(array $options = []): void
         }
     }
 
-    // 4) Validar que al menos haya algún id (empleado o cuenta)
+    // Validar que al menos haya algún id (empleado o cuenta)
     $empleadoId = $payload['empleado_id'] ?? $payload['id_empleado'] ?? null;
     $cuentaId   = $payload['cuenta_id']   ?? $payload['id_cuenta']   ?? $payload['id_usuario'] ?? null;
 
@@ -72,7 +70,7 @@ function ix_require_session(array $options = []): void
         exit;
     }
 
-    // 5) Exponer sesión para PHP por si la necesitas en la vista
+    // Exponer sesión para PHP por si la necesitas en la vista
     $GLOBALS['ix_session'] = $payload;
 }
 
