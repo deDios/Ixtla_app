@@ -1424,30 +1424,6 @@ export function createTaskDetailsModule({
     fillDetails(task);
     setupTaskCommentsComposer();
 
-    const btnExp = $("#kb-btn-expediente");
-    if (btnExp && !btnExp._kbBound) {
-      btnExp._kbBound = true;
-      btnExp.addEventListener("click", async () => {
-        if (!State.selectedId) {
-          toast("Selecciona primero una tarjeta para generar el expediente.", "warning");
-          return;
-        }
-        try {
-          await generarExpedienteDeTarea(State.selectedId);
-        } catch (e) {
-          console.error("[KB] Error al generar expediente de tarea:", e);
-          toast("No se pudo generar el expediente de la tarea.", "danger");
-        }
-      });
-    }
-
-    loadEvidenciasForTask(task).catch((e) =>
-      console.error("[KB] Error al cargar evidencias:", e)
-    );
-    loadComentariosDeTarea(task).catch((e) =>
-      console.error("[KB] Error al cargar comentarios:", e)
-    );
-
     loadEvidenciasForTask(task).catch((e) =>
       console.error("[KB] Error al cargar evidencias:", e)
     );

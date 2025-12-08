@@ -191,8 +191,8 @@ export function createTaskDetailsModule({
       const arr = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.data)
-          ? raw.data
-          : [];
+        ? raw.data
+        : [];
 
       if (!arr.length) {
         warn("[KB] DEPTO GET sin arreglo de departamentos para id:", departamentoId);
@@ -252,8 +252,8 @@ export function createTaskDetailsModule({
     const arr = Array.isArray(raw)
       ? raw
       : Array.isArray(raw?.rows)
-        ? raw.rows
-        : [];
+      ? raw.rows
+      : [];
     log("[KB] Comentarios crudos:", arr);
     return arr;
   }
@@ -377,14 +377,14 @@ export function createTaskDetailsModule({
       const rawList = Array.isArray(res)
         ? res
         : Array.isArray(res?.data)
-          ? res.data
-          : Array.isArray(res?.items)
-            ? res.items
-            : Array.isArray(res?.rows)
-              ? res.rows
-              : Array.isArray(res?.data?.rows)
-                ? res.data.rows
-                : [];
+        ? res.data
+        : Array.isArray(res?.items)
+        ? res.items
+        : Array.isArray(res?.rows)
+        ? res.rows
+        : Array.isArray(res?.data?.rows)
+        ? res.data.rows
+        : [];
 
       const items = rawList
         .map(normalizarMediaItem)
@@ -416,7 +416,7 @@ export function createTaskDetailsModule({
 
 
 
-  // ===== Helpers para preview (reusando la idea de requerimientoView) =====
+    // ===== Helpers para preview (reusando la idea de requerimientoView) =====
 
   function isImageUrl(u = "") {
     const clean = (u.split("?")[0] || "").toLowerCase();
@@ -590,7 +590,7 @@ export function createTaskDetailsModule({
     });
   }
 
-  function getDomainFromUrl(url) {
+    function getDomainFromUrl(url) {
     try {
       const u = new URL(url);
       return (u.hostname || "").replace(/^www\./, "");
@@ -1101,7 +1101,7 @@ export function createTaskDetailsModule({
     });
   }
 
-  // =======================================================================
+    // =======================================================================
   //  Generar expediente de la tarea (solo datos principales)
   // =======================================================================
   async function generarExpedienteDeTarea(taskOrId) {
@@ -1423,30 +1423,6 @@ export function createTaskDetailsModule({
 
     fillDetails(task);
     setupTaskCommentsComposer();
-
-    const btnExp = $("#kb-btn-expediente");
-    if (btnExp && !btnExp._kbBound) {
-      btnExp._kbBound = true;
-      btnExp.addEventListener("click", async () => {
-        if (!State.selectedId) {
-          toast("Selecciona primero una tarjeta para generar el expediente.", "warning");
-          return;
-        }
-        try {
-          await generarExpedienteDeTarea(State.selectedId);
-        } catch (e) {
-          console.error("[KB] Error al generar expediente de tarea:", e);
-          toast("No se pudo generar el expediente de la tarea.", "danger");
-        }
-      });
-    }
-
-    loadEvidenciasForTask(task).catch((e) =>
-      console.error("[KB] Error al cargar evidencias:", e)
-    );
-    loadComentariosDeTarea(task).catch((e) =>
-      console.error("[KB] Error al cargar comentarios:", e)
-    );
 
     loadEvidenciasForTask(task).catch((e) =>
       console.error("[KB] Error al cargar evidencias:", e)
