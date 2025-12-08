@@ -1353,15 +1353,6 @@ export function createTaskDetailsModule({
     <div>Este expediente fue generado desde el tablero de tareas de Ixtla.</div>
     <div>Solo incluye los <strong>datos principales</strong> de la tarea (sin evidencias ni comentarios).</div>
   </div>
-   <script>
-    window.addEventListener('load', function () {
-      try { window.focus(); } catch (e) {}
-      // Pequeño delay para asegurar que todo renderizó
-      setTimeout(function () {
-        window.print();
-      }, 300);
-    });
-  </script>
 </body>
 </html>`;
 
