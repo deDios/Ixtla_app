@@ -3,40 +3,16 @@
 // Consulta de proceso_requerimiento (detalle o listado filtrado/paginado)
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-$allowlist = [
-  'https://ixtla-app.com',
-  'https://www.ixtla-app.com',
-];
-
-if (in_array($origin, $allowlist, true)) {
+if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
   header("Access-Control-Allow-Origin: $origin");
-  header("Access-Control-Allow-Credentials: true");
   header("Vary: Origin");
 }
-
 header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
 
-// Preflight
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
-  http_response_code(204);
-  exit;
-}
-
-header('Content-Type: application/json; charset=utf-8');
-date_default_timezone_set('America/Mexico_City');
-
-$method = $_SERVER['REQUEST_METHOD'] ?? '';
-if ($method !== 'GET' && $method !== 'POST') {
-  http_response_code(405);
-  echo json_encode(["ok"=>false,"error"=>"Método no permitido, usa GET o POST"]);
-  exit;
-}
-
-
-header('Content-Type: application/json; charset=utf-8');
+header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
 
 $method = $_SERVER['REQUEST_METHOD'] ?? '';

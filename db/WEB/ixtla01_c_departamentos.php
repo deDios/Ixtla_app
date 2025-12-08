@@ -1,34 +1,22 @@
 <?php
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+/* ===== CORS (poner literalmente al inicio del archivo) ===== */
+$origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
+$method  = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
 
-$allowlist = [
-  'https://ixtla-app.com',
-  'https://www.ixtla-app.com',
-];
-
-if (in_array($origin, $allowlist, true)) {
-  header("Access-Control-Allow-Origin: $origin");
-  header("Access-Control-Allow-Credentials: true");
-  header("Vary: Origin");
-}
-
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Max-Age: 86400");
-
-// Preflight
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
-  http_response_code(204);
-  exit;
-}
-
-header('Content-Type: application/json; charset=utf-8');
-date_default_timezone_set('America/Mexico_City');
-
-$method = $_SERVER['REQUEST_METHOD'] ?? '';
-if ($method !== 'GET' && $method !== 'POST') {
-  http_response_code(405);
-  echo json_encode(["ok"=>false,"error"=>"Método no permitido, usa GET o POST"]);
+/* Preflight */
+if ($method === 'OPTIONS') {
+  if ($origin && in_array($origin, $ALLOWED, true)) {
+    header("Access-Control-Allow-Origin: $origin");
+    header("Vary: Origin");
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS'); // solo lo que usas aquí
+    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-TRACE-LABEL');
+    header('Access-Control-Max-Age: 86400');
+    http_response_code(204);
+  } else {
+    // Origin no permitido => no revelar CORS. Puedes usar 403 explícito si prefieres:
+    http_response_code(403);
+  }
   exit;
 }
 
