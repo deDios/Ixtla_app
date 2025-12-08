@@ -496,63 +496,50 @@
      * ========================= */
 
     function openPrintWindow(html) {
-        const safeHtml = String(html || "");
-        log("[ReqExpediente] Longitud HTML:", safeHtml.length);
+    const safeHtml = String(html || "");
+    log("[ReqExpediente] Longitud HTML:", safeHtml.length);
 
-        // 1) Intento normal: nueva pestaña
-        const win = window.open("", "_blank");
+    const win = window.open("", "_blank");
 
-        if (!win) {
-            // 2) Fallback: misma pestaña si se bloquean popups
-            warn("[ReqExpediente] Popup bloqueado; usando fallback same-tab");
-
-            toast(
-                "Tu navegador bloqueó la ventana nueva. Abriré el expediente en esta pestaña.",
-                "warning"
-            );
-
-            try {
-                const blob = new Blob([safeHtml], { type: "text/html;charset=utf-8" });
-                const url = URL.createObjectURL(blob);
-                window.location.href = url; // reemplaza la vista actual
-            } catch (e) {
-                err("[ReqExpediente] Error en fallback same-tab:", e);
-                toast("No se pudo mostrar el expediente.", "error");
-            }
-
-            return;
-        }
-
-        // Si sí nos dejó abrir la nueva pestaña:
-        try {
-            win.document.open();
-            win.document.write(safeHtml);
-            win.document.close();
-        } catch (e) {
-            err("Error usando document.write en ventana de impresión:", e);
-            try {
-                win.document.body.innerHTML =
-                    "<pre style='font-family:monospace; white-space:pre-wrap;'>" +
-                    safeHtml.replace(/[&<>]/g, (c) =>
-                        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])
-                    ) +
-                    "</pre>";
-            } catch (e2) {
-                err("Error también al usar innerHTML:", e2);
-                win.document.body.innerHTML =
-                    "<p>Ocurrió un error al generar el expediente.</p>";
-            }
-        }
-
-        setTimeout(() => {
-            try {
-                win.focus();
-                win.print();
-            } catch (e) {
-                err("Error al enviar a impresión:", e);
-            }
-        }, 400);
+    if (!win) {
+        // ❌ sin fallback de cambiar window.location
+        warn("[ReqExpediente] Popup bloqueado; expediente no se pudo abrir en nueva pestaña.");
+        toast(
+            "Tu navegador bloqueó la ventana del expediente. Por favor permite ventanas emergentes para Ixtla App.",
+            "warning"
+        );
+        return;
     }
+
+    try {
+        win.document.open();
+        win.document.write(safeHtml);
+        win.document.close();
+    } catch (e) {
+        err("Error usando document.write en ventana de impresión:", e);
+        try {
+            win.document.body.innerHTML =
+                "<pre style='font-family:monospace; white-space:pre-wrap;'>" +
+                safeHtml.replace(/[&<>]/g, (c) =>
+                    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])
+                ) +
+                "</pre>";
+        } catch (e2) {
+            err("Error también al usar innerHTML:", e2);
+            win.document.body.innerHTML =
+                "<p>Ocurrió un error al generar el expediente.</p>";
+        }
+    }
+
+    setTimeout(() => {
+        try {
+            win.focus();
+            win.print();
+        } catch (e) {
+            err("Error al enviar a impresión:", e);
+        }
+    }, 400);
+}
 
     function onGenerateExpedienteClick() {
         const req = getReqFromGlobal();
