@@ -523,6 +523,12 @@ import {
     const cancel = document.getElementById("ix-evid-cancel");
     const closeX = overlay?.querySelector(".modal-close");
 
+    if (form) {
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+      });
+    }
+
     // Grupos por modo
     const fileGroup = document.getElementById("ix-file-group");
     const urlGroup = document.getElementById("ix-url-group");
