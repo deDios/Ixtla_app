@@ -12,7 +12,7 @@
     },
     ROUTES: {
       publicHome: "/index.php",
-      appHome: "/VIEWS/UAT/home.php",
+      appHome: "/VIEWS/home copy.php",
       login: "/VIEWS/login.php",
     },
     ASSETS: {

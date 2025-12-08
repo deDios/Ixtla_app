@@ -6,8 +6,7 @@ import { setSession } from "/JS/auth/session.js";
 
   /* -------------- CONFIG -------------- */
   const ENDPOINT    = "/DB/WEB/ixtla01_auth_login.php";
-  //VIEWS\home copy.php
-  const REDIRECT_OK = "/VIEWS/home copy.php";
+  const REDIRECT_OK = "/VIEWS/UAT/home.php";
 
   const RECAPTCHA = {
     enabled: false,
