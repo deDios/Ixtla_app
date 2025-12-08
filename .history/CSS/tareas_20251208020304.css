@@ -2065,8 +2065,8 @@ body.me-modal-open {
 /* Botón "Generar PDF" en el detalle de la tarea */
 .kb-details .kb-d-section-head {
   display: flex;
-  justify-content: flex-end;   
-  margin-bottom: 0.35rem;      
+  justify-content: flex-end;   /* lo manda hasta la derecha */
+  margin-bottom: 0.35rem;      /* pequeño espacio antes del Folio */
 }
 
 .kb-details .kb-d-export-btn {
