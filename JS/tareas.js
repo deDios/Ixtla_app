@@ -241,7 +241,10 @@ function buildSubordinatesIndex(empleados) {
     }
   });
 
-  log("Subordinados detectados para viewer (reporta_a):", Array.from(SubordinateIds));
+  log(
+    "Subordinados detectados para viewer (reporta_a):",
+    Array.from(SubordinateIds)
+  );
 }
 
 // Módulo del drawer (se inicializa en init)
@@ -374,7 +377,6 @@ async function fetchDepartamentos() {
     }
 
     const out = json.data.map((d) => ({
-
       id: Number(d.id),
       nombre: d.nombre || `Depto ${d.id}`,
       status: d.status != null ? Number(d.status) : null,
@@ -564,8 +566,13 @@ async function enrichTasksWithRequerimientos(tasks) {
 function isPrivilegedForTask(task) {
   const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
 
-  // Admin o Presidencia → súper permisos
-  if (roles.includes("ADMIN") || roles.includes("PRES")) {
+  // Admin o Presidencia → super permisos
+  if (
+    roles.includes("ADMIN") ||
+    roles.includes("PRES") ||
+    Viewer.isAdmin ||
+    Viewer.isPres
+  ) {
     return true;
   }
 
@@ -1175,7 +1182,6 @@ function setupDragAndDrop() {
   });
 }
 
-
 // ======================================================================
 // MEDIA / EVIDENCIAS – Modal "Subir evidencias" (Imágenes / Enlace)
 // ======================================================================
@@ -1189,25 +1195,25 @@ const MediaUI = (() => {
     window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
   // Referencias DOM
-  let btnOpenDrawerUpload;      // #kb-evid-upload (tile del drawer)
-  let modal;                    // #ix-evid-modal
-  let modalCloseBtn;            // .modal-close
-  let btnCancel;                // #ix-evid-cancel
-  let btnSave;                  // #ix-evid-save
+  let btnOpenDrawerUpload; // #kb-evid-upload (tile del drawer)
+  let modal; // #ix-evid-modal
+  let modalCloseBtn; // .modal-close
+  let btnCancel; // #ix-evid-cancel
+  let btnSave; // #ix-evid-save
 
-  let tabFile;                  // #ix-tab-file
-  let tabLink;                  // #ix-tab-link
-  let fileGroup;                // #ix-file-group
-  let urlGroup;                 // #ix-url-group
+  let tabFile; // #ix-tab-file
+  let tabLink; // #ix-tab-link
+  let fileGroup; // #ix-file-group
+  let urlGroup; // #ix-url-group
 
-  let uploadZone;               // #ix-upload-zone
-  let ctaFileBtn;               // #ix-evidencia-cta
-  let fileInput;                // #ix-evidencia
-  let previewsWrap;             // #ix-evidencia-previews
-  let errFiles;                 // #ix-err-evidencia
+  let uploadZone; // #ix-upload-zone
+  let ctaFileBtn; // #ix-evidencia-cta
+  let fileInput; // #ix-evidencia
+  let previewsWrap; // #ix-evidencia-previews
+  let errFiles; // #ix-err-evidencia
 
-  let urlInput;                 // #ix-url-input
-  let errUrl;                   // #ix-err-url
+  let urlInput; // #ix-url-input
+  let errUrl; // #ix-err-url
 
   // Estado interno
   let currentTaskId = null;
@@ -1369,7 +1375,7 @@ const MediaUI = (() => {
 
   // -----------------------
   // Archivos (imágenes)
-// -----------------------
+  // -----------------------
   function onFilesSelected(ev) {
     const files = ev.target.files;
     if (!files) return;
@@ -1411,8 +1417,7 @@ const MediaUI = (() => {
     } else if (problems.length) {
       showError(
         errFiles,
-        problems.join(". ") +
-          " Solo se subirán los archivos válidos restantes."
+        problems.join(". ") + " Solo se subirán los archivos válidos restantes."
       );
     }
 
@@ -1452,7 +1457,7 @@ const MediaUI = (() => {
 
   // -----------------------
   // URL (enlace externo)
-// -----------------------
+  // -----------------------
   function validateUrl() {
     hideError(errUrl);
     const value = (urlInput?.value || "").trim();
@@ -1470,7 +1475,10 @@ const MediaUI = (() => {
       new URL(value);
       // válido → sin error
     } catch {
-      showError(errUrl, "Ingresa una URL válida (ej. https://drive.google.com/...)");
+      showError(
+        errUrl,
+        "Ingresa una URL válida (ej. https://drive.google.com/...)"
+      );
     }
 
     updateSaveEnabled();
@@ -1478,7 +1486,7 @@ const MediaUI = (() => {
 
   // -----------------------
   // Habilitar / deshabilitar botón "Subir"
-// -----------------------
+  // -----------------------
   function updateSaveEnabled() {
     if (!btnSave) return;
 
@@ -1539,7 +1547,10 @@ const MediaUI = (() => {
     // TODO: AJUSTA ESTA URL Y NOMBRES DE CAMPOS A TU ENDPOINT REAL
     const url = "/DB/WEB/ixtlaXX_i_tarea_evidencia.php";
 
-    log("Subiendo archivos…", { tarea_id: currentTaskId, total: selectedFiles.length });
+    log("Subiendo archivos…", {
+      tarea_id: currentTaskId,
+      total: selectedFiles.length,
+    });
 
     const res = await fetch(url, {
       method: "POST",
@@ -2064,7 +2075,7 @@ async function init() {
   const overlay = $("#kb-d-overlay");
   if (btnClose) btnClose.addEventListener("click", closeDetails);
   if (overlay) overlay.addEventListener("click", closeDetails);
-  
+
   // DEPRECATED
   //if (DetailsModule && DetailsModule.setupEvidenciasUpload) {
   //  DetailsModule.setupEvidenciasUpload();

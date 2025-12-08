@@ -585,7 +585,7 @@
                 <!-- Toolbar arriba -->
                 <div class="planeacion-toolbar evid-toolbar">
                     <h3 class="planeacion-title">Evidencias</h3>
-                    <button id="btn-open-evid-modal" class="fase-add" type="button">Subir imágenes +</button>
+                    <button id="btn-open-evid-modal" class="fase-add" type="button">Subir evidencias +</button>
                 </div>
 
                 <!-- Evidencias -->
