@@ -1,5 +1,5 @@
 <?php
-/* ===== CORS (poner literalmente al inicio del archivo) ===== */
+/* ===== CORS ===== */
 $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
 $method  = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $ALLOWED = ['https://ixtla-app.com','https://www.ixtla-app.com'];
