@@ -709,6 +709,7 @@
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>
+    <script type="module" src="/JS/ui/avatar-edit.js"></script>
 
     <!-- SortableJS -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
