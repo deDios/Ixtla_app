@@ -547,6 +547,8 @@
   (function SubnavOperativo() {
     "use strict";
 
+    console.log("[SubnavOps] IIFE init. path:", location.pathname);
+
     /* ================= Config ================= */
     const CFG = {
       // Rutas para el subnav (orden de render)
@@ -560,6 +562,7 @@
               "home.php",
               "home copy.php",
               "requerimiento.php",
+              "Tareas.php",
               /^\/VIEWS\/requerimiento\/\d+$/i,
             ],
           },
@@ -854,10 +857,23 @@
     }
 
     function mount() {
-      const isOperative = isOperativeLike();
+      const operative = isOperativeLike();
+      const activeKey = resolveActiveSectionKey();
+      console.log("[SubnavOps] mount()", {
+        operative,
+        activeKey,
+        curPath: curPath(),
+        curLast: curLast(),
+      });
+
       subnavs.forEach((nav) => {
-        if (isOperative) renderOperative(nav);
-        else restoreOriginal(nav);
+        if (operative) {
+          console.log("[SubnavOps] renderOperative() sobre nav:", nav);
+          renderOperative(nav);
+        } else {
+          console.log("[SubnavOps] restoreOriginal() sobre nav:", nav);
+          restoreOriginal(nav);
+        }
       });
     }
 
