@@ -2,7 +2,7 @@
 "use strict";
 
 const COOKIE_NAME   = "ix_emp";
-const COOKIE_TTL_MS = 20 * 60 * 1000; // 20 minutos
+const COOKIE_TTL_MS = 60 * 60 * 1000; // 60 minutos
 
 // ---- Debug toggle
 const DEBUG = false;

@@ -1460,25 +1460,12 @@ const MediaUI = (() => {
   // -----------------------
   function validateUrl() {
     hideError(errUrl);
+
     const value = (urlInput?.value || "").trim();
 
     if (!value) {
       updateSaveEnabled();
       return;
-    }
-
-    try {
-      // Validación simple con URL nativa
-      // (acepta http/https, Drive, Mega, etc.)
-      // Si falla lanzará excepción.
-      // eslint-disable-next-line no-new
-      new URL(value);
-      // válido → sin error
-    } catch {
-      showError(
-        errUrl,
-        "Ingresa una URL válida (ej. https://drive.google.com/...)"
-      );
     }
 
     updateSaveEnabled();
