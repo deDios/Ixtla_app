@@ -588,7 +588,7 @@
         url: "/VIEWS/whats_asesores.php",
         allowedEmpIds: Array.isArray(window.NAV_CHAT_ALLOWED)
           ? window.NAV_CHAT_ALLOWED.slice()
-          : [6, 5, 4, 2, 1], // ← whitelist por defecto
+          : [6, 5, 4, 2, 1, 15], // ← whitelist por defecto
         cookieName: "ix_emp",
       },
     };
