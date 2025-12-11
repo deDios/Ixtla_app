@@ -1,5 +1,5 @@
 <?php
-// /db/WEB/ix_guard.php
+// JS/auth/ix_guard.php
 
 declare(strict_types=1);
 
