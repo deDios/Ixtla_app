@@ -420,7 +420,10 @@ ix_require_session();
 
   <script type="module">
     import { guardPage } from "/JS/auth/guard.js";
-    guardPage({ allowEmpIds:[6,5,4,2,1], stealth:false, redirectTo:"/VIEWS/home.php" });
+    guardPage({ allowEmpIds:[6,5,4,2,1,15], stealth:false, redirectTo:"/VIEWS/home copy.php" });
   </script>
+
+  <script type="module" src="/JS/auth/session.js"></script>
+
 </body>
 </html>
