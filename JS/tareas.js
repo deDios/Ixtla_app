@@ -4,7 +4,7 @@
 /* ==========================================================================
    1) Imports (módulos compartidos)
    ========================================================================== */
-
+import { setupMedia, uploadMedia, uploadMediaLink } from "./api/media.js";
 import { Session } from "./auth/session.js";
 import { postJSON, patchJSON } from "./api/http.js";
 import { searchEmpleados } from "./api/usuarios.js";
@@ -1217,18 +1217,54 @@ const MediaUI = (() => {
 
   // Estado interno
   let currentTaskId = null;
+  let currentFolio = null; // folio REQ-##########
+  let currentStatus = 0; // 0..6 (lo derivaremos del status de la tarea)
   let mode = "file"; // "file" | "link"
   let selectedFiles = [];
 
   const MAX_FILES = 3;
   const MAX_SIZE_MB = 1;
 
+  // Normaliza cualquier folio tipo "REQ-123", "REQ-0000000123" a REQ-0000000123 (10 dígitos)
+  function normalizeFolio(anyFolio) {
+    const m = String(anyFolio || "").match(/\d+/);
+    if (!m) return null;
+    const digits = m[0];
+    const padded = digits.slice(-10).padStart(10, "0");
+    return `REQ-${padded}`;
+  }
+
   // ------------------------------------------------
   // API pública para que tareas.js le diga la tarea
   // ------------------------------------------------
   function setCurrentTask(task) {
     currentTaskId = task && task.id ? task.id : null;
-    log("setCurrentTask →", currentTaskId);
+
+    let fol = null;
+
+    if (task) {
+      // 1) Intentar con el folio que ya trae la tarea
+      if (task.folio) {
+        fol = normalizeFolio(task.folio);
+      }
+
+      // 2) Si no, intentamos leerlo desde ReqCache usando requerimiento_id
+      if (!fol && task.requerimiento_id && typeof ReqCache !== "undefined") {
+        const req = ReqCache.get?.(task.requerimiento_id);
+        if (req?.folio) {
+          fol = normalizeFolio(req.folio);
+        }
+      }
+    }
+
+    currentFolio = fol;
+    currentStatus = task && task.status != null ? Number(task.status) || 0 : 0;
+
+    log("setCurrentTask →", {
+      taskId: currentTaskId,
+      folio: currentFolio,
+      statusFolder: currentStatus,
+    });
   }
 
   // Inicializar listeners (llamar UNA vez en boot)
@@ -1316,6 +1352,13 @@ const MediaUI = (() => {
   function onOpenClick() {
     if (!currentTaskId) {
       toast("Primero selecciona una tarea para subir evidencias.", "warning");
+      return;
+    }
+    if (!currentFolio) {
+      toast(
+        "No se encontró el folio del requerimiento para esta tarea.",
+        "warning"
+      );
       return;
     }
     resetState();
@@ -1523,60 +1566,69 @@ const MediaUI = (() => {
 
   async function uploadFiles() {
     if (!selectedFiles.length) return;
+    if (!currentFolio) {
+      throw new Error("Sin folio del requerimiento para esta tarea.");
+    }
 
-    const fd = new FormData();
-    fd.append("tarea_id", currentTaskId);
+    const statusFolder = Number(currentStatus ?? 0) || 0;
 
-    selectedFiles.forEach((f) => {
-      fd.append("files[]", f);
-    });
-
-    const url = API_TAREA_MEDIA.UPLOAD_FILES;
+    // Asegura carpetas del folio (idempotente)
+    try {
+      await setupMedia(currentFolio, { create_status_txt: true });
+    } catch (e) {
+      log("setupMedia falló (no crítico):", e);
+    }
 
     log("Subiendo archivos…", {
-      tarea_id: currentTaskId,
+      folio: currentFolio,
+      status: statusFolder,
       total: selectedFiles.length,
     });
 
-    const res = await fetch(url, {
-      method: "POST",
-      body: fd,
+    const out = await uploadMedia({
+      folio: currentFolio,
+      status: statusFolder,
+      files: selectedFiles,
     });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.ok === false) {
-      throw new Error(data.error || "Error HTTP al subir evidencias");
-    }
+    const saved = out?.saved?.length || 0;
+    const failed = out?.failed?.length || 0;
+    const skipped = out?.skipped?.length || 0;
 
-    toast("Evidencias subidas correctamente.", "success");
+    if (saved) toast(`Evidencias subidas: ${saved} archivo(s).`, "success");
+    if (failed) toast(`Fallo servidor: ${failed} archivo(s).`, "danger");
+    if (skipped) toast(`Descartados localmente: ${skipped}.`, "warn");
   }
 
-  async function uploadLink() {
+    async function uploadLink() {
     const value = (urlInput?.value || "").trim();
     if (!value) return;
-
-    const payload = {
-      tarea_id: currentTaskId,
-      url: value,
-      tipo: "link",
-    };
-
-    const url = API_TAREA_MEDIA.UPLOAD_LINK;
-
-    log("Registrando enlace de evidencia…", payload);
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.ok === false) {
-      throw new Error(data.error || "Error HTTP al registrar enlace");
+    if (!currentFolio) {
+      throw new Error("Sin folio del requerimiento para esta tarea.");
     }
 
-    toast("Enlace registrado como evidencia.", "success");
+    const statusFolder = Number(currentStatus ?? 0) || 0;
+
+    // Igual que en archivos: aseguramos carpetas (por si acaso)
+    try {
+      await setupMedia(currentFolio, { create_status_txt: true });
+    } catch (e) {
+      log("setupMedia (link) falló (no crítico):", e);
+    }
+
+    const res = await uploadMediaLink({
+      folio: currentFolio,
+      status: statusFolder,
+      url: value,
+    });
+
+    const ok =
+      !!res?.ok && Array.isArray(res?.saved) && res.saved.length > 0;
+    if (ok) {
+      toast("Enlace registrado como evidencia.", "success");
+    } else {
+      throw new Error(res?.error || "No se pudo registrar el enlace.");
+    }
   }
 
   async function uploadLink() {
