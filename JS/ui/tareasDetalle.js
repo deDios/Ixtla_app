@@ -1,4 +1,4 @@
-// /JS/ui/tareasDetalle.js – Logica del drawer de detalle de tarea
+// /JS/ui/tareasDetalle.js – Lógica del drawer de detalle de tarea
 "use strict";
 
 import { listMedia, uploadMedia, setupMedia } from "/JS/api/media.js";
@@ -18,9 +18,9 @@ export function createTaskDetailsModule({
 }) {
   const $ = (sel, root = document) => root.querySelector(sel);
 
-  /* ==========================================================================
+  /* ========================================================================
    *  Helpers de sesión (copiados de requerimientoView.js)
-   * ========================================================================*/
+   * ======================================================================*/
 
   function readCookiePayload() {
     try {
@@ -80,31 +80,27 @@ export function createTaskDetailsModule({
     return cand;
   }
 
-  /* ==========================================================================
-   *  Endpoints de comentarios (mismo host, rutas relativas)
-   * ========================================================================*/
+  /* ========================================================================
+   *  Endpoints de comentarios
+   * ======================================================================*/
 
   const ENDPOINTS = {
     COMENT_LIST: "/db/WEB/ixtla01_c_comentario_requerimiento.php",
     COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
   };
 
-  // Nuevo: endpoint de departamentos
   const API_DEPARTAMENTOS = "/db/WEB/ixtla01_c_departamento.php";
 
   // Resuelve y cachea el nombre de quien autoriza (director del departamento)
   async function resolveAutorizaNombre(task) {
     log("[KB] resolveAutorizaNombre() task:", task);
-
     if (!task) return null;
 
-    // Si ya lo resolvimos antes, reutilizar
     if (task.autoriza_nombre && task.autoriza_nombre !== "—") {
       log("[KB] autoriza ya cacheado en la tarea:", task.autoriza_nombre);
       return task.autoriza_nombre;
     }
 
-    // 1) Resolver departamento_id desde varias posibles props de la tarea
     let departamentoId =
       task.departamento_id ??
       task.departamento ??
@@ -113,9 +109,11 @@ export function createTaskDetailsModule({
       task.deptId ??
       null;
 
-    log("[KB] resolveAutorizaNombre() dept id inicial desde tarea:", departamentoId);
+    log(
+      "[KB] resolveAutorizaNombre() dept id inicial desde tarea:",
+      departamentoId
+    );
 
-    // Si no viene en la tarea, lo sacamos del requerimiento
     if (!departamentoId && task.requerimiento_id) {
       try {
         let req =
@@ -148,10 +146,13 @@ export function createTaskDetailsModule({
       return null;
     }
 
-    // 2) Intentar primero leer del índice de departamentos ya cargado en KB
     try {
       const deptIdx =
-        (KB && (KB.deptIndex || KB.indexDepartamentos || KB.deptsIdx || KB.departamentosIdx)) ||
+        (KB &&
+          (KB.deptIndex ||
+            KB.indexDepartamentos ||
+            KB.deptsIdx ||
+            KB.departamentosIdx)) ||
         null;
 
       if (deptIdx && typeof deptIdx.get === "function") {
@@ -178,7 +179,6 @@ export function createTaskDetailsModule({
       warn("[KB] Error leyendo índice de departamentos en KB:", e);
     }
 
-    // 3) Si por algo no está en el índice, consultar al backend
     try {
       const payload = { id: Number(departamentoId) };
       log("[KB] DEPTO GET →", API_DEPARTAMENTOS, payload);
@@ -186,20 +186,18 @@ export function createTaskDetailsModule({
       const res = await postJSON(API_DEPARTAMENTOS, payload);
       log("[KB] DEPTO GET respuesta cruda:", res);
 
-      // En tu endpoint real: { ok, count, data: [ ... ] }
       const raw = res?.data ?? res?.items ?? res?.rows ?? res;
       const arr = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.data)
-          ? raw.data
-          : [];
+        ? raw.data
+        : [];
 
       if (!arr.length) {
-        warn("[KB] DEPTO GET sin arreglo de departamentos para id:", departamentoId);
+        warn("[KB] DEPTO GET sin arreglo para id:", departamentoId);
         return null;
       }
 
-      // Buscar por id exacto dentro del arreglo
       const d =
         arr.find((row) => Number(row.id) === Number(departamentoId)) ||
         arr[0] ||
@@ -224,7 +222,6 @@ export function createTaskDetailsModule({
         return null;
       }
 
-      // cachear en la tarea para siguientes aperturas
       task.autoriza_nombre = nombreDirector;
       log("[KB] autoriza resuelto desde API:", nombreDirector);
       return nombreDirector;
@@ -252,8 +249,8 @@ export function createTaskDetailsModule({
     const arr = Array.isArray(raw)
       ? raw
       : Array.isArray(raw?.rows)
-        ? raw.rows
-        : [];
+      ? raw.rows
+      : [];
     log("[KB] Comentarios crudos:", arr);
     return arr;
   }
@@ -276,9 +273,9 @@ export function createTaskDetailsModule({
     return await postJSON(ENDPOINTS.COMENT_CREATE, payload);
   }
 
-  /* ==========================================================================
+  /* ========================================================================
    *  Media / Evidencias (usando /JS/api/media.js)
-   * ========================================================================*/
+   * ======================================================================*/
 
   function normalizarMediaItem(raw) {
     if (!raw) return null;
@@ -303,11 +300,7 @@ export function createTaskDetailsModule({
       "Archivo";
 
     const created_at =
-      raw.created_at ||
-      raw.fecha ||
-      raw.fecha_creacion ||
-      raw.updated_at ||
-      "";
+      raw.created_at || raw.fecha || raw.fecha_creacion || raw.updated_at || "";
 
     const created_by =
       raw.created_by_display ||
@@ -331,7 +324,6 @@ export function createTaskDetailsModule({
   async function getFolioForRequerimiento(reqId) {
     if (!reqId) return null;
 
-    // 1) Buscar en las tareas cargadas
     if (Array.isArray(State.tasks) && State.tasks.length) {
       const found = State.tasks.find(
         (t) => Number(t.requerimiento_id) === Number(reqId)
@@ -341,7 +333,6 @@ export function createTaskDetailsModule({
       }
     }
 
-    // 2) Buscar en cache de requerimientos
     if (ReqCache && typeof ReqCache.get === "function") {
       const reqCached = ReqCache.get(reqId);
       if (reqCached?.folio || reqCached?.id) {
@@ -349,7 +340,6 @@ export function createTaskDetailsModule({
       }
     }
 
-    // 3) Último recurso: consultar al backend
     try {
       const req = await fetchRequerimientoById(reqId);
       if (!req) return null;
@@ -360,33 +350,55 @@ export function createTaskDetailsModule({
     }
   }
 
+  // === AQUÍ ampliamos para traer TODAS las páginas de media ===
   async function fetchMediaForRequerimiento(reqId) {
     if (!reqId) return [];
 
     const folio = await getFolioForRequerimiento(reqId);
-
     if (!folio) {
-      warn("MEDIA LIST → no se pudo resolver folio para reqId", reqId);
+      warn("[KB] MEDIA LIST → no se pudo resolver folio para reqId", reqId);
       return [];
     }
 
+    const perPage = 50; // 50 por página, se puede subir si hace falta
+    const maxPages = 10; // por seguridad: hasta 500 evidencias
+    let page = 1;
+    const allRaw = [];
+
     try {
       log("[KB] listMedia() desde tareasDetalle, folio:", folio);
-      const res = await listMedia(folio, null, 1, 100);
 
-      const rawList = Array.isArray(res)
-        ? res
-        : Array.isArray(res?.data)
+      while (page <= maxPages) {
+        const res = await listMedia(folio, null, page, perPage);
+        const rawList = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.data)
           ? res.data
           : Array.isArray(res?.items)
-            ? res.items
-            : Array.isArray(res?.rows)
-              ? res.rows
-              : Array.isArray(res?.data?.rows)
-                ? res.data.rows
-                : [];
+          ? res.items
+          : Array.isArray(res?.rows)
+          ? res.rows
+          : Array.isArray(res?.data?.rows)
+          ? res.data.rows
+          : [];
 
-      const items = rawList
+        log(
+          `[KB] listMedia folio=${folio} page=${page} → ${rawList.length} registros`
+        );
+
+        if (!rawList.length) break;
+
+        allRaw.push(...rawList);
+
+        // Si devuelve menos que perPage asumimos que ya no hay más páginas
+        if (rawList.length < perPage) break;
+
+        page += 1;
+      }
+
+      log("[KB] Total evidencias combinadas:", allRaw.length);
+
+      const items = allRaw
         .map(normalizarMediaItem)
         .filter(Boolean)
         .sort((a, b) => {
@@ -403,20 +415,7 @@ export function createTaskDetailsModule({
     }
   }
 
-  // ===== Helpers para preview (reusando la idea de requerimientoView) =====
-
-
-
-
-
-
-
-
-
-
-
-
-  // ===== Helpers para preview (reusando la idea de requerimientoView) =====
+  /* ===== Helpers para preview ===== */
 
   function isImageUrl(u = "") {
     const clean = (u.split("?")[0] || "").toLowerCase();
@@ -428,7 +427,9 @@ export function createTaskDetailsModule({
       (url.split("?")[0].match(/\.([a-z0-9]+)$/i) || [])[1]?.toLowerCase() ||
       "";
 
-    if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif"].includes(ext))
+    if (
+      ["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif"].includes(ext)
+    )
       return "/ASSETS/filetypes/img.png";
     if (["mp4", "webm", "mov", "m4v"].includes(ext))
       return "/ASSETS/filetypes/video.png";
@@ -556,14 +557,10 @@ export function createTaskDetailsModule({
       const card = e.target.closest(".kb-evid-item");
       if (!card) return;
 
-      const src =
-        card.getAttribute("data-src") ||
-        card.dataset.src ||
-        "";
+      const src = card.getAttribute("data-src") || card.dataset.src || "";
 
       if (!src) return;
 
-      // Si no es imagen → abre en pestaña nueva
       if (!isImageUrl(src)) {
         window.open(src, "_blank", "noopener");
         return;
@@ -578,14 +575,8 @@ export function createTaskDetailsModule({
           card.dataset.title ||
           card.querySelector(".kb-evid-name")?.textContent ||
           "Evidencia",
-        who:
-          card.getAttribute("data-who") ||
-          card.dataset.who ||
-          "",
-        date:
-          card.getAttribute("data-date") ||
-          card.dataset.date ||
-          "",
+        who: card.getAttribute("data-who") || card.dataset.who || "",
+        date: card.getAttribute("data-date") || card.dataset.date || "",
       });
     });
   }
@@ -639,7 +630,6 @@ export function createTaskDetailsModule({
         img.classList.add("is-thumb");
         thumb.appendChild(img);
       } else {
-        // Link / archivo no imagen → iconito bonito
         const icon = document.createElement("span");
         icon.className = "kb-evid-file-icon";
         icon.textContent = "🔗";
@@ -652,7 +642,8 @@ export function createTaskDetailsModule({
 
       const title = document.createElement("div");
       title.className = "kb-evid-name";
-      title.textContent = it.nombre || (url ? getDomainFromUrl(url) : "Archivo");
+      title.textContent =
+        it.nombre || (url ? getDomainFromUrl(url) : "Archivo");
 
       const info = document.createElement("div");
       info.className = "kb-evid-info";
@@ -679,17 +670,6 @@ export function createTaskDetailsModule({
 
     bindMediaPreviewForGrid();
   }
-
-
-
-
-
-
-
-
-
-
-
 
   async function loadEvidenciasForTask(taskOrId) {
     const task =
@@ -728,9 +708,10 @@ export function createTaskDetailsModule({
       return;
     }
 
-    // Opcional: detectar status para carpeta destino (mismo patrón de requerimientoView)
     const status = (() => {
-      const sel = document.querySelector('#req-status [data-role="status-select"]');
+      const sel = document.querySelector(
+        '#req-status [data-role="status-select"]'
+      );
       if (sel) return Number(sel.value || 0);
       const cur = document.querySelector(".step-menu li.current");
       return cur ? Number(cur.getAttribute("data-status")) : 0;
@@ -741,7 +722,6 @@ export function createTaskDetailsModule({
       try {
         await setupMedia(folio);
       } catch (e) {
-        // si falla no rompemos, uploadMedia puede seguir si el backend lo maneja
         console.warn("[KB] setupMedia() falló (no crítico):", e);
       }
 
@@ -799,26 +779,19 @@ export function createTaskDetailsModule({
     });
   }
 
-  /* ==========================================================================
+  /* ========================================================================
    *  Comentarios de la tarea (Tarea-{id})
-   * ========================================================================*/
+   * ======================================================================*/
 
   function parseTaskTagFromComment(rawComment) {
     const text = String(rawComment || "").trim();
     if (!text) {
-      return {
-        tag: null,
-        cleanText: "",
-      };
+      return { tag: null, cleanText: "" };
     }
 
-    // Detecta "Tarea-123 " al inicio (sin importar mayúsculas/minúsculas)
     const match = text.match(/^Tarea-(\d+)\b\s*/i);
     if (!match) {
-      return {
-        tag: null,
-        cleanText: text,
-      };
+      return { tag: null, cleanText: text };
     }
 
     const tareaId = match[1];
@@ -884,7 +857,10 @@ export function createTaskDetailsModule({
 
       let display =
         c.empleado_display ||
-        [c.empleado_nombre, c.empleado_apellidos].filter(Boolean).join(" ").trim() ||
+        [c.empleado_nombre, c.empleado_apellidos]
+          .filter(Boolean)
+          .join(" ")
+          .trim() ||
         c.nombre ||
         c.autor ||
         "—";
@@ -966,7 +942,8 @@ export function createTaskDetailsModule({
 
     if (lblCount) {
       const total = all.length;
-      lblCount.textContent = total === 1 ? "1 comentario" : `${total} comentarios`;
+      lblCount.textContent =
+        total === 1 ? "1 comentario" : `${total} comentarios`;
     }
 
     const scroller = feed.parentElement || feed;
@@ -1105,7 +1082,6 @@ export function createTaskDetailsModule({
   //  Generar expediente de la tarea (solo datos principales)
   // =======================================================================
   async function generarExpedienteDeTarea(taskOrId) {
-    // Abrir la ventana LO PRIMERO, antes de cualquier await
     const win = window.open("", "_blank");
     if (!win) {
       toast(
@@ -1115,7 +1091,6 @@ export function createTaskDetailsModule({
       return;
     }
 
-    // Resolver la tarea a partir de id u objeto
     const task =
       taskOrId && typeof taskOrId === "object"
         ? taskOrId
@@ -1125,13 +1100,10 @@ export function createTaskDetailsModule({
       toast("No se encontró la tarea seleccionada.", "warning");
       try {
         win.close();
-      } catch (e) {
-        /* ignore */
-      }
+      } catch (e) {}
       return;
     }
 
-    // Intentar traer el requerimiento para folio / depto / trámite (opcional)
     let req = null;
     if (task.requerimiento_id) {
       try {
@@ -1148,18 +1120,15 @@ export function createTaskDetailsModule({
       }
     }
 
-    // Folio: si hay req usamos el real, si no lo que traiga la task
     let folio = task.folio || "—";
     if (req && (req.folio || req.id != null)) {
       try {
         folio = formatFolio ? formatFolio(req.folio, req.id) : folio;
       } catch (e) {
-        // si por algo formatFolio no está disponible, ignoramos
         console.error("[KB] Error usando formatFolio en expediente:", e);
       }
     }
 
-    // Status legible
     const S = KB.STATUS || {};
     const statusLabels = {
       [S.TODO]: "Por hacer",
@@ -1170,12 +1139,10 @@ export function createTaskDetailsModule({
     };
     const statusLabel = statusLabels[task.status] || "—";
 
-    // Fechas principales
     const fechaCreacion = task.created_at || "—";
     const fechaInicio = task.fecha_inicio || "—";
     const fechaFin = task.fecha_fin || "—";
 
-    // Textos de apoyo
     const tramite = task.tramite_nombre || req?.tramite_nombre || "—";
     const proceso = task.proceso_titulo || "—";
     const tituloTarea = task.titulo || `Tarea ${task.id}`;
@@ -1191,14 +1158,10 @@ export function createTaskDetailsModule({
       task.departamento_nombre ||
       "—";
 
-    // Descripción corta
     const descripcion =
       task.descripcion ||
       task.desc ||
       "Sin descripción registrada para esta tarea.";
-
-    // IMPORTANTE: NO incluimos evidencias ni comentarios aquí.
-    // Solo datos principales de la tarea / requerimiento.
 
     const today = new Date();
     const fechaHoy = today.toLocaleDateString("es-MX", {
@@ -1356,7 +1319,6 @@ export function createTaskDetailsModule({
    <script>
     window.addEventListener('load', function () {
       try { window.focus(); } catch (e) {}
-      // Pequeño delay para asegurar que todo renderizó
       setTimeout(function () {
         window.print();
       }, 300);
@@ -1365,7 +1327,6 @@ export function createTaskDetailsModule({
 </body>
 </html>`;
 
-    // Usar la ventana ya abierta al inicio
     win.document.open();
     win.document.write(html);
     win.document.close();
@@ -1373,9 +1334,9 @@ export function createTaskDetailsModule({
     win.print();
   }
 
-  /* ==========================================================================
+  /* ========================================================================
    *  Detalle de la tarea (datos principales + abrir/cerrar drawer)
-   * ========================================================================*/
+   * ======================================================================*/
 
   function fillDetails(task) {
     const folioEl = $("#kb-d-folio");
@@ -1403,8 +1364,8 @@ export function createTaskDetailsModule({
     if (procEl) procEl.textContent = task.proceso_titulo || "—";
     if (tareaEl) tareaEl.textContent = task.titulo || `Tarea ${task.id}`;
     if (asigEl) asigEl.textContent = task.asignado_display || "—";
-    if (esfEl) esfEl.textContent =
-      task.esfuerzo != null ? `${task.esfuerzo}` : "—";
+    if (esfEl)
+      esfEl.textContent = task.esfuerzo != null ? `${task.esfuerzo}` : "—";
     if (descEl) descEl.textContent = task.descripcion || "—";
 
     if (creadoPorEl) {
@@ -1447,7 +1408,10 @@ export function createTaskDetailsModule({
       btnExp._kbBound = true;
       btnExp.addEventListener("click", async () => {
         if (!State.selectedId) {
-          toast("Selecciona primero una tarjeta para generar el expediente.", "warning");
+          toast(
+            "Selecciona primero una tarjeta para generar el expediente.",
+            "warning"
+          );
           return;
         }
         try {
@@ -1466,22 +1430,13 @@ export function createTaskDetailsModule({
       console.error("[KB] Error al cargar comentarios:", e)
     );
 
-    loadEvidenciasForTask(task).catch((e) =>
-      console.error("[KB] Error al cargar evidencias:", e)
-    );
-    loadComentariosDeTarea(task).catch((e) =>
-      console.error("[KB] Error al cargar comentarios:", e)
-    );
-
     resolveAutorizaNombre(task)
       .then((nombre) => {
         if (!nombre) return;
         const autorizaEl = $("#kb-d-autoriza");
         if (autorizaEl) autorizaEl.textContent = nombre;
       })
-      .catch((e) =>
-        console.error("[KB] Error al resolver quien autoriza:", e)
-      );
+      .catch((e) => console.error("[KB] Error al resolver quien autoriza:", e));
 
     const aside = $("#kb-details");
     const overlay = $("#kb-d-overlay");
