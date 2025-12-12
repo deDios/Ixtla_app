@@ -671,10 +671,10 @@ function canMoveTask(task, oldStatus, newStatus) {
     return true;
   }
 
-  // ==============================
+  // ================================
   //  Usuarios NO privilegiados
   //  (JEFE, ANALISTA, etc.)
-  // ==============================
+  // ================================
 
   const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
 
@@ -1523,14 +1523,13 @@ const MediaUI = (() => {
     let enabled = false;
 
     if (mode === "file") {
-      enabled = selectedFiles.length > 0 && !errFiles?.hidden === true;
-      // ojo: errFiles.hidden === true → sin error
-      if (errFiles && !errFiles.hidden) {
-        enabled = selectedFiles.length > 0;
-      }
+      const hasFiles = selectedFiles.length > 0;
+      const hasError = errFiles && !errFiles.hidden;
+      enabled = hasFiles && !hasError;
     } else {
       const value = (urlInput?.value || "").trim();
-      enabled = !!value && (!errUrl || errUrl.hidden);
+      const hasError = errUrl && !errUrl.hidden;
+      enabled = !!value && !hasError;
     }
 
     btnSave.disabled = !enabled;
@@ -1600,7 +1599,7 @@ const MediaUI = (() => {
     if (skipped) toast(`Descartados localmente: ${skipped}.`, "warn");
   }
 
-    async function uploadLink() {
+  async function uploadLink() {
     const value = (urlInput?.value || "").trim();
     if (!value) return;
     if (!currentFolio) {
@@ -1622,42 +1621,12 @@ const MediaUI = (() => {
       url: value,
     });
 
-    const ok =
-      !!res?.ok && Array.isArray(res?.saved) && res.saved.length > 0;
+    const ok = !!res?.ok && Array.isArray(res?.saved) && res.saved.length > 0;
     if (ok) {
       toast("Enlace registrado como evidencia.", "success");
     } else {
       throw new Error(res?.error || "No se pudo registrar el enlace.");
     }
-  }
-
-  async function uploadLink() {
-    const value = (urlInput?.value || "").trim();
-    if (!value) return;
-
-    // TODO: AJUSTA ESTA URL Y PAYLOAD AL ENDPOINT REAL PARA ENLACES
-    const payload = {
-      tarea_id: currentTaskId,
-      url: value,
-      tipo: "link",
-    };
-
-    const url = API_TAREA_MEDIA.UPLOAD_LINK;
-
-    log("Registrando enlace de evidencia…", payload);
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.ok === false) {
-      throw new Error(data.error || "Error HTTP al registrar enlace");
-    }
-
-    toast("Enlace registrado como evidencia.", "success");
   }
 
   // -----------------------
@@ -2141,11 +2110,6 @@ async function init() {
   const overlay = $("#kb-d-overlay");
   if (btnClose) btnClose.addEventListener("click", closeDetails);
   if (overlay) overlay.addEventListener("click", closeDetails);
-
-  // DEPRECATED
-  //if (DetailsModule && DetailsModule.setupEvidenciasUpload) {
-  //  DetailsModule.setupEvidenciasUpload();
-  //}
 
   log("Tablero de tareas listo", {
     tareas: State.tasks.length,
