@@ -1531,8 +1531,7 @@ const MediaUI = (() => {
       fd.append("files[]", f);
     });
 
-    // TODO: AJUSTA ESTA URL Y NOMBRES DE CAMPOS A TU ENDPOINT REAL
-    const url = "/DB/WEB/ixtlaXX_i_tarea_evidencia.php";
+    const url = API_TAREA_MEDIA.UPLOAD_FILES;
 
     log("Subiendo archivos…", {
       tarea_id: currentTaskId,
@@ -1556,6 +1555,34 @@ const MediaUI = (() => {
     const value = (urlInput?.value || "").trim();
     if (!value) return;
 
+    const payload = {
+      tarea_id: currentTaskId,
+      url: value,
+      tipo: "link",
+    };
+
+    const url = API_TAREA_MEDIA.UPLOAD_LINK;
+
+    log("Registrando enlace de evidencia…", payload);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || "Error HTTP al registrar enlace");
+    }
+
+    toast("Enlace registrado como evidencia.", "success");
+  }
+
+  async function uploadLink() {
+    const value = (urlInput?.value || "").trim();
+    if (!value) return;
+
     // TODO: AJUSTA ESTA URL Y PAYLOAD AL ENDPOINT REAL PARA ENLACES
     const payload = {
       tarea_id: currentTaskId,
@@ -1563,7 +1590,7 @@ const MediaUI = (() => {
       tipo: "link",
     };
 
-    const url = "/DB/WEB/ixtlaXX_i_tarea_evidencia_link.php";
+    const url = API_TAREA_MEDIA.UPLOAD_LINK;
 
     log("Registrando enlace de evidencia…", payload);
 
