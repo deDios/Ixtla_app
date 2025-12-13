@@ -576,7 +576,7 @@ function isPrivilegedForTask(task) {
     return true;
   }
 
-  // Director / Primera línea del departamento
+  // Director / Primera línea del departamento de la tarea → permisos tipo admin pero acotados al depto
   const deptId = task?.departamento_id ?? null;
   if (!deptId) return false;
 
@@ -1181,7 +1181,7 @@ function setupDragAndDrop() {
 }
 
 // ======================================================================
-// MEDIA / EVIDENCIAS + Modal "Subir evidencias" (Imágenes / Enlace)
+// MEDIA / EVIDENCIAS – Modal "Subir evidencias" (Imágenes / Enlace)
 // ======================================================================
 const MediaUI = (() => {
   const TAG = "[Media]";
