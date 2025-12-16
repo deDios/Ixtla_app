@@ -62,6 +62,42 @@
     return sendJSON(url, body, "POST");
   }
 
+  async function resolveDeptLeadFlags({
+    empleadoId,
+    roles,
+    fetchDepartamentos,
+  }) {
+    let isDirector = roles.includes("DIRECTOR");
+    let isPrimeraLinea = roles.some((r) =>
+      ["PRIMERA_LINEA", "PRIMERA LINEA", "PL"].includes(r)
+    );
+
+    let isDirectorFromDepts = false;
+    let isPLFromDepts = false;
+
+    try {
+      const depts = await fetchDepartamentos();
+
+      (depts || []).forEach((d) => {
+        if (Number(d.director) === Number(empleadoId)) {
+          isDirectorFromDepts = true;
+        }
+        if (Number(d.primera_linea) === Number(empleadoId)) {
+          isPLFromDepts = true;
+        }
+      });
+    } catch (e) {
+      console.warn("[RBAC] No se pudieron resolver deptos", e);
+    }
+
+    return {
+      isDirector: isDirector || isDirectorFromDepts,
+      isPrimeraLinea: isPrimeraLinea || isPLFromDepts,
+      isAutoridad:
+        isDirector || isPrimeraLinea || isDirectorFromDepts || isPLFromDepts,
+    };
+  }
+
   /* ======================================
    *  Config / endpoints
    * ======================================*/

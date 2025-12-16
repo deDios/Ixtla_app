@@ -235,60 +235,132 @@
     }
     return out;
   }
+
   async function buildAsignablesList() {
-    const yoId = Number(getEmpleadoId());
-    const deptId = Number(getDeptId());
+    const yoIdRaw = getEmpleadoId();
+    const deptIdRaw = getDeptId();
+
+    const yoId = yoIdRaw != null ? Number(yoIdRaw) : null;
+    const deptId = deptIdRaw != null ? Number(deptIdRaw) : null;
+
     const roles = getRoles();
     const isAdmin = roles.includes("ADMIN");
-    const isDirector = roles.includes("DIRECTOR");
-    const isPL =
+
+    // (roles + lookup por departamentos)
+    let isDirector = roles.includes("DIRECTOR");
+    let isPL =
       roles.includes("PRIMERA_LINEA") ||
       roles.includes("PL") ||
       roles.includes("PRIMERA LINEA");
+
     const isJefe = roles.includes("JEFE");
-    const isAnalista = roles.includes("ANALISTA");
+    const isAnalista = roles.includes("ANALISTA"); // (se usa despues en populateAsignadoSelect)
 
     const universe = await fetchEmpleadosAll();
 
     if (isAdmin) return universe;
 
     const PRES_DEPT_IDS = [6];
-    if (PRES_DEPT_IDS.includes(deptId)) return universe;
+    if (deptId && PRES_DEPT_IDS.includes(deptId)) return universe;
 
+    // ==============================
+    // 1) Detectar DIRECTOR / PRIMERA_LINEA por JSON de departamentos
+    // ==============================
+    let depts = [];
+    try {
+      depts = await fetchDepartamentos();
+    } catch (e) {
+      warn(
+        "[RBAC] No se pudieron cargar departamentos para detectar director/PL:",
+        e
+      );
+      depts = [];
+    }
+
+    if (yoId) {
+      const isDirectorFromDepts = depts.some(
+        (d) => Number(d.director) === yoId
+      );
+      const isPLFromDepts = depts.some((d) => Number(d.primera_linea) === yoId);
+
+      if (!isDirector && isDirectorFromDepts) {
+        isDirector = true;
+        log(
+          "[RBAC] DIRECTOR detectado por departamentos (aunque no venga en roles). yoId=",
+          yoId
+        );
+      }
+
+      if (!isPL && isPLFromDepts) {
+        isPL = true;
+        log(
+          "[RBAC] PRIMERA_LINEA detectado por departamentos (aunque no venga en roles). yoId=",
+          yoId
+        );
+      }
+    }
+
+    // ==============================
+    // 2) Director y Primera línea => MISMAS REGLAS
+    // ==============================
     if (isDirector || isPL) {
-      const depts = await fetchDepartamentos();
       const visibleDeptIds = new Set(
         depts
-          .filter((d) => d.director === yoId || d.primera_linea === yoId)
-          .map((d) => d.id)
+          .filter(
+            (d) =>
+              Number(d.director) === yoId || Number(d.primera_linea) === yoId
+          )
+          .map((d) => Number(d.id))
       );
+
       if (deptId) visibleDeptIds.add(deptId);
 
       const inDepts = universe.filter((e) =>
         visibleDeptIds.has(Number(e.departamento_id))
       );
-      const reports = getReportesTransitivos(universe, yoId);
-      const self = universe.find((e) => e.id === yoId);
+
+      const reports = yoId ? getReportesTransitivos(universe, yoId) : [];
+      const self = yoId ? universe.find((e) => e.id === yoId) : null;
 
       const map = new Map();
       [...inDepts, ...reports, ...(self ? [self] : [])].forEach((e) =>
         map.set(e.id, e)
       );
+
+      log("[RBAC] Asignables (DIR/PL)", {
+        yoId,
+        deptId,
+        isDirector,
+        isPL,
+        visibleDeptIds: Array.from(visibleDeptIds),
+        count: map.size,
+      });
+
       return Array.from(map.values());
     }
 
-    if (isJefe) {
+    // ==============================
+    // 3) JEFE => self + reportes directos
+    // ==============================
+    if (isJefe && yoId) {
       const self = universe.find((e) => e.id === yoId);
       const direct = universe.filter((e) => e.reporta_a === yoId);
+
       const map = new Map();
       if (self) map.set(self.id, self);
       direct.forEach((e) => map.set(e.id, e));
+
+      log("[RBAC] Asignables (JEFE)", { yoId, deptId, count: map.size });
       return Array.from(map.values());
     }
 
-    const self = universe.find((e) => e.id === yoId);
+    // ==============================
+    // 4) Default => solo self
+    // ==============================
+    const self = yoId ? universe.find((e) => e.id === yoId) : null;
     return self ? [self] : [];
   }
+
   async function populateAsignadoSelect() {
     const sel = $(SEL.selAsignado);
     if (!sel) return;

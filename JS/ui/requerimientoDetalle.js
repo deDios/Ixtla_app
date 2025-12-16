@@ -183,12 +183,18 @@
   }
 
   async function buildAsignablesList() {
-    const yoId = Number(getEmpleadoId());
-    const deptId = Number(getDeptId());
+    const yoIdRaw = getEmpleadoId();
+    const deptIdRaw = getDeptId();
+
+    const yoId = yoIdRaw != null ? Number(yoIdRaw) : null;
+    const deptId = deptIdRaw != null ? Number(deptIdRaw) : null;
+
     const roles = getRoles();
     const isAdmin = roles.includes("ADMIN");
-    const isDirector = roles.includes("DIRECTOR");
-    const isPL =
+
+    // Roles (pueden NO traer PRIMERA_LINEA aunque sí lo sea en deptos)
+    let isDirector = roles.includes("DIRECTOR");
+    let isPL =
       roles.includes("PRIMERA_LINEA") ||
       roles.includes("PL") ||
       roles.includes("PRIMERA LINEA");
@@ -198,22 +204,73 @@
     if (isAdmin) return universe;
 
     const PRES_DEPT_IDS = [6];
-    if (PRES_DEPT_IDS.includes(deptId)) return universe;
+    if (deptId != null && PRES_DEPT_IDS.includes(deptId)) return universe;
 
+    // ============================
+    // PARCHE: Director/Primera Línea por catálogo de departamentos
+    // ============================
+    let depts = [];
+    let isDirectorFromDepts = false;
+    let isPLFromDepts = false;
+
+    // Solo intentamos si tengo yoId
+    if (yoId != null) {
+      try {
+        depts = await fetchDepartamentosRBAC();
+
+        isDirectorFromDepts = depts.some((d) => Number(d.director) === yoId);
+        isPLFromDepts = depts.some((d) => Number(d.primera_linea) === yoId);
+
+        // Fusionar flags
+        isDirector = isDirector || isDirectorFromDepts;
+        isPL = isPL || isPLFromDepts;
+
+        log("[RBAC] flags (roles + deptos):", {
+          yoId,
+          deptId,
+          roles,
+          isDirector,
+          isPL,
+          isDirectorFromDepts,
+          isPLFromDepts,
+        });
+      } catch (e) {
+        warn("[RBAC] No se pudieron cargar deptos para resolver liderazgo:", e);
+      }
+    } else {
+      warn("[RBAC] No hay yoId en sesión, asignables limitados.");
+    }
+
+    // === Autoridad: Director o Primera Línea (equivalentes) ===
     if (isDirector || isPL) {
-      const depts = await fetchDepartamentosRBAC();
+      // Usar deptos si están disponibles; si no, intentamos cargar aquí (fallback)
+      if (!Array.isArray(depts) || !depts.length) {
+        try {
+          depts = await fetchDepartamentosRBAC();
+        } catch (e) {
+          warn("[RBAC] fallback deptos falló:", e);
+          depts = [];
+        }
+      }
+
       const visibleDeptIds = new Set(
-        depts
-          .filter((d) => d.director === yoId || d.primera_linea === yoId)
-          .map((d) => d.id)
+        (depts || [])
+          .filter(
+            (d) =>
+              Number(d.director) === yoId || Number(d.primera_linea) === yoId
+          )
+          .map((d) => Number(d.id))
       );
-      if (deptId) visibleDeptIds.add(deptId);
+
+      if (deptId != null) visibleDeptIds.add(deptId);
 
       const inDepts = universe.filter((e) =>
         visibleDeptIds.has(Number(e.departamento_id))
       );
-      const reports = getReportesTransitivos(universe, yoId);
-      const self = universe.find((e) => e.id === yoId);
+
+      const reports =
+        yoId != null ? getReportesTransitivos(universe, yoId) : [];
+      const self = yoId != null ? universe.find((e) => e.id === yoId) : null;
 
       const map = new Map();
       [...inDepts, ...reports, ...(self ? [self] : [])].forEach((e) =>
@@ -223,16 +280,20 @@
       return Array.from(map.values());
     }
 
-    if (isJefe) {
+    // Jefe: solo self + direct reports
+    if (isJefe && yoId != null) {
       const self = universe.find((e) => e.id === yoId);
       const direct = universe.filter((e) => e.reporta_a === yoId);
+
       const map = new Map();
       if (self) map.set(self.id, self);
       direct.forEach((e) => map.set(e.id, e));
+
       return Array.from(map.values());
     }
 
-    const self = universe.find((e) => e.id === yoId);
+    // Default: solo self
+    const self = yoId != null ? universe.find((e) => e.id === yoId) : null;
     return self ? [self] : [];
   }
 
@@ -1016,8 +1077,9 @@
 
       const roles = getRoles();
       const isAnalista = roles.includes("ANALISTA");
-      const yoId = Number(getEmpleadoId());
-      if (isAnalista && yoId) {
+      const yoIdRaw = getEmpleadoId(); //Ajuste para evitar valores raros V1g
+      const yoId = yoIdRaw != null ? Number(yoIdRaw) : null;
+      if (isAnalista && yoId != null) {
         sel.value = String(yoId);
         sel.setAttribute("disabled", "true");
         sel.title = "Como Analista solo puedes asignarte a ti mismo.";
