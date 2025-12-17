@@ -1,119 +1,94 @@
 // /JS/ui/sidebar.js
-// Sidebar universal: perfil (avatar + nombre + depto) + modal perfil + editor avatar (UI)
-// Compatible con layouts: hs-* (requerimiento) y home-sidebar/profile-card (home legacy)
 "use strict";
 
-/* ========================================================================== */
-/* Imports                                                                     */
-/* ========================================================================== */
-import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
+/* ============================================================================
+   Sidebar Module (perfil + avatar + modal perfil)
+   - Funciona en Home (sidebar con filtros) y en Requerimiento (sidebar con comments)
+   - Siempre: avatar + nombre + badge depto + editar perfil + editor avatar
+   ========================================================================== */
 
-/* ========================================================================== */
-/* Config                                                                      */
-/* ========================================================================== */
-const CFG = {
-  DEBUG: true,
-  DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
-  DEPT_API:
-    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
-  DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
+const TAG = "[Sidebar]";
+const dev = true;
 
-  // Detecta el “scheme” según HTML presente
-  SCHEMES: [
-    {
-      key: "hs",
-      root: ".hs-sidebar",
-      profileWrap: ".hs-profile",
-      avatar: "#hs-avatar",
-      name: "#hs-profile-name",
-      badge: "#hs-profile-badge",
-      openers: [".edit-profile", '[data-open="#modal-perfil"]'],
-      avatarEditBtn: ".avatar-edit",
-    },
-    {
-      key: "homeLegacy",
-      root: ".home-sidebar",
-      profileWrap: ".home-sidebar .profile-card",
-      avatar: ".home-sidebar .profile-card img.avatar",
-      name: "#h-user-nombre",
-      badge: ".home-sidebar .profile-card .profile-dep",
-      openers: [
-        ".home-sidebar .profile-card .profile-link",
-        '[data-open="#modal-perfil"]',
-      ],
-      avatarEditBtn: null, // en home legacy no hay botón lápiz por defecto
-    },
-  ],
-
-  MODAL: {
-    id: "modal-perfil",
-    form: "#form-perfil",
-    close: ".modal-close",
-    content: ".modal-content",
-
-    // Inputs (según tu HTML) :contentReference[oaicite:1]{index=1}
-    inp: {
-      nombre: "#perfil-nombre",
-      apellidos: "#perfil-apellidos",
-      email: "#perfil-email",
-      tel: "#perfil-telefono",
-      pass: "#perfil-password",
-      pass2: "#perfil-password2",
-      depto: "#perfil-departamento",
-      reporta: "#perfil-reporta",
-      status: "#perfil-status",
-    },
-  },
-
-  AVATAR_EDITOR: {
-    overlay: "#eda-overlay",
-    close: "#eda-close",
-    cancel: "#eda-cancel",
-    save: "#eda-save",
-    choose: "#eda-choose",
-    drop: "#eda-drop",
-    file: "#eda-file",
-    previewImg: "#eda-preview-img",
-    recentsGrid: "#eda-recents-grid",
-    maxBytes: 1_000_000,
-    allowed: [
-      "image/png",
-      "image/jpeg",
-      "image/webp",
-      "image/heic",
-      "image/heif",
-    ],
-    recentsKey: "ix_avatar_recents_v1",
-    recentsMax: 8,
-  },
-
-  // Extras opcionales (si hay filtros en ese sidebar)
-  FILTERS: {
-    group: "#hs-states",
-    items: "#hs-states .item",
-    legend: "#hs-legend-status",
-    search: "#hs-search",
-  },
-};
-
-/* ========================================================================== */
-/* Helpers                                                                     */
-/* ========================================================================== */
-const log = (...a) => CFG.DEBUG && console.log("[Sidebar]", ...a);
-const warn = (...a) => CFG.DEBUG && console.warn("[Sidebar]", ...a);
-const err = (...a) => CFG.DEBUG && console.error("[Sidebar]", ...a);
+const log = (...a) => dev && console.log(TAG, ...a);
+const warn = (...a) => dev && console.warn(TAG, ...a);
+const err = (...a) => dev && console.error(TAG, ...a);
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-
 const toast = (m, t = "info") =>
   window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
-function setText(selOrEl, txt) {
-  const el = typeof selOrEl === "string" ? $(selOrEl) : selOrEl;
-  if (el) el.textContent = String(txt ?? "");
-}
+/* =========================
+ * Config
+ * ========================= */
+const API_BASE =
+  "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/";
+const ENDPOINTS = {
+  avatarUpload: API_BASE + "ixtla01_u_usuario_avatar.php",
+};
 
+const CFG = {
+  DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
+
+  // Soporta 2 layouts:
+  // - Home.php:  img.avatar + #h-user-nombre + .profile-dep
+  // - Requerimiento.php: #hs-avatar + #hs-profile-name + #hs-profile-badge
+  SEL: {
+    // wrappers detectores
+    homeSidebar: ".home-sidebar",
+    hsSidebar: ".hs-sidebar",
+
+    // perfil (Home)
+    homeAvatar: ".home-sidebar .profile-card img.avatar",
+    homeName: "#h-user-nombre",
+    homeBadge: ".home-sidebar .profile-card .profile-dep",
+
+    // perfil (HS/Requerimiento)
+    hsAvatar: "#hs-avatar",
+    hsName: "#hs-profile-name",
+    hsBadge: "#hs-profile-badge",
+
+    // modal perfil
+    modalId: "modal-perfil",
+
+    // Form fields (según tu HTML del modal; si no existen, el módulo no truena)
+    fNombre: "#perfil-nombre",
+    fApellidos: "#perfil-apellidos",
+    fEmail: "#perfil-email",
+    fTelefono: "#perfil-telefono",
+    fPuesto: "#perfil-puesto",
+    fDep: "#perfil-dep",
+    fUsuario: "#perfil-usuario",
+    fReporta: "#perfil-reporta",
+    fStatus: "#perfil-status",
+
+    // contraseña (si la tienes en el modal)
+    fPw1: "#perfil-password",
+    fPw2: "#perfil-password2",
+
+    // Avatar editor (EDA) — viene en tu HTML del requerimiento
+    edaOverlay: "#eda-overlay",
+    edaClose: "#eda-close",
+    edaCancel: "#eda-cancel",
+    edaSave: "#eda-save",
+    edaDrop: "#eda-drop",
+    edaFile: "#eda-file",
+    edaPreviewImg: "#eda-preview img, #eda-preview-img, .eda-preview img",
+    edaRecentsGrid: "#eda-recents-grid",
+    avatarEditBtn: ".avatar-edit",
+  },
+
+  // Deptos fallback (por si el endpoint no está o falla)
+  DEPT_API: API_BASE + "ixtla01_c_departamento.php",
+  DEPT_FALLBACK_NAMES: {
+    6: "Presidencia",
+  },
+};
+
+/* =========================
+ * Session helpers
+ * ========================= */
 function readCookiePayload() {
   try {
     const name = "ix_emp=";
@@ -121,40 +96,58 @@ function readCookiePayload() {
     if (!pair) return null;
     const raw = decodeURIComponent(pair.slice(name.length));
     return JSON.parse(decodeURIComponent(escape(atob(raw))));
-  } catch {
+  } catch (e) {
+    warn("readCookiePayload() fallo:", e);
     return null;
   }
 }
 
-function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
-  try {
-    const json = JSON.stringify(obj || {});
-    const b64 = btoa(unescape(encodeURIComponent(json)));
-    const maxAge = Math.max(1, Math.floor(maxAgeDays * 86400));
-    document.cookie = `ix_emp=${encodeURIComponent(
-      b64
-    )}; path=/; max-age=${maxAge}; samesite=lax`;
-  } catch {}
-}
-
-function getSession() {
+function getSessionLike() {
   return window.Session?.get?.() || readCookiePayload() || null;
 }
 
-function setSession(next) {
+function getUsuarioIdFromSession(s) {
+  return (
+    s?.id_usuario ?? s?.usuario_id ?? s?.empleado_id ?? s?.id_empleado ?? null
+  );
+}
+
+/* =========================
+ * Dept name resolver (cache)
+ * ========================= */
+const __DEPT_CACHE = new Map();
+
+async function resolveDeptName(deptId, api = CFG.DEPT_API) {
+  if (!deptId) return "—";
+  const idNum = Number(deptId);
+
+  if (CFG.DEPT_FALLBACK_NAMES[idNum]) return CFG.DEPT_FALLBACK_NAMES[idNum];
+  if (__DEPT_CACHE.has(idNum)) return __DEPT_CACHE.get(idNum);
+
   try {
-    window.Session?.set?.(next);
-  } catch {}
-  writeCookiePayload(next);
-}
-
-function detectScheme() {
-  for (const s of CFG.SCHEMES) {
-    if ($(s.root) && $(s.profileWrap) && $(s.avatar)) return s;
+    const res = await fetch(api, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const json = await res.json();
+    const found = (json?.data || []).find((d) => Number(d.id) === idNum);
+    const name = found?.nombre || `Depto ${deptId}`;
+    __DEPT_CACHE.set(idNum, name);
+    return name;
+  } catch (e) {
+    warn("resolveDeptName() fallback:", e);
+    return `Depto ${deptId}`;
   }
-  return null;
 }
 
+/* =========================
+ * Avatar loader (fallback)
+ * ========================= */
 function setAvatarImage(
   imgEl,
   sessionLike,
@@ -162,7 +155,7 @@ function setAvatarImage(
 ) {
   if (!imgEl) return;
 
-  // Si ya existe helper global, úsalo (tú ya lo manejas en tu proyecto)
+  // si tienes helper global en tu proyecto
   if (window.gcSetAvatarSrc) {
     window.gcSetAvatarSrc(imgEl, sessionLike);
     return;
@@ -175,6 +168,7 @@ function setAvatarImage(
     ? [
         `/ASSETS/user/userImgs/img_${idu}.png`,
         `/ASSETS/user/userImgs/img_${idu}.jpg`,
+        `/ASSETS/user/userImgs/img_${idu}.webp`,
       ]
     : [];
 
@@ -193,479 +187,673 @@ function setAvatarImage(
   tryNext();
 }
 
-/* ========================================================================== */
-/* Dept name cache                                                             */
-/* ========================================================================== */
-const __DEPT_CACHE = new Map();
+/* =========================
+ * Detect DOM (home vs hs)
+ * ========================= */
+function pickProfileEls() {
+  const isHS =
+    !!$(CFG.SEL.hsSidebar) || !!$(CFG.SEL.hsAvatar) || !!$(CFG.SEL.hsName);
+  const isHome = !!$(CFG.SEL.homeSidebar) || !!$(CFG.SEL.homeName);
 
-async function resolveDeptName(deptId) {
-  if (!deptId) return "—";
-  const idNum = Number(deptId);
-
-  if (CFG.DEPT_FALLBACK_NAMES[idNum]) return CFG.DEPT_FALLBACK_NAMES[idNum];
-  if (__DEPT_CACHE.has(idNum)) return __DEPT_CACHE.get(idNum);
-
-  try {
-    const res = await fetch(CFG.DEPT_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
-    });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const json = await res.json();
-    const found = (json?.data || []).find((d) => Number(d.id) === idNum);
-    const name = found?.nombre || `Depto ${deptId}`;
-    __DEPT_CACHE.set(idNum, name);
-    return name;
-  } catch {
-    return `Depto ${deptId}`;
+  if (isHS) {
+    return {
+      mode: "hs",
+      avatar: $(CFG.SEL.hsAvatar),
+      name: $(CFG.SEL.hsName),
+      badge: $(CFG.SEL.hsBadge),
+    };
   }
+
+  if (isHome) {
+    return {
+      mode: "home",
+      avatar: $(CFG.SEL.homeAvatar),
+      name: $(CFG.SEL.homeName),
+      badge: $(CFG.SEL.homeBadge),
+    };
+  }
+
+  return { mode: "none", avatar: null, name: null, badge: null };
 }
 
-/* ========================================================================== */
-/* Perfil: hidratar sidebar                                                    */
-/* ========================================================================== */
-async function refreshProfile(sess = null) {
-  const s = sess || getSession();
-  if (!s) return;
-
-  const scheme = detectScheme();
-  if (!scheme) return;
-
-  const fullName =
-    [s.nombre, s.apellidos].filter(Boolean).join(" ").trim() || "—";
-  setText(scheme.name, fullName);
-
-  const deptId = s?.departamento_id ?? s?.dept_id ?? null;
-  setText(scheme.badge, await resolveDeptName(deptId));
-
-  const avatarEl = $(scheme.avatar);
-  setAvatarImage(avatarEl, {
-    id_usuario: s.id_usuario ?? s.usuario_id ?? s.id_empleado ?? s.empleado_id,
-    avatarUrl: s.avatarUrl || s.avatar,
-    nombre: s.nombre,
-    apellidos: s.apellidos,
-  });
-
-  log("Perfil OK", { scheme: scheme.key, fullName, deptId });
-}
-
-/* ========================================================================== */
-/* Modal perfil: open/close + prefill + submit                                 */
-/* ========================================================================== */
-function wireProfileModal() {
-  const modal = document.getElementById(CFG.MODAL.id);
+/* =========================
+ * Modal open/close (perfil)
+ * ========================= */
+function wireProfileModalOpeners() {
+  const modal = document.getElementById(CFG.SEL.modalId);
   if (!modal) return;
 
-  const form = $(CFG.MODAL.form, modal);
-  const closeBtn = $(CFG.MODAL.close, modal);
-  const content = $(CFG.MODAL.content, modal);
+  const openers = document.querySelectorAll(
+    `.edit-profile,[data-open="#${CFG.SEL.modalId}"]`
+  );
+  const closeBtn = modal.querySelector(".modal-close");
+  const content = modal.querySelector(".modal-content");
 
-  const I = CFG.MODAL.inp;
-  const inpNombre = $(I.nombre, modal);
-  const inpApellidos = $(I.apellidos, modal);
-  const inpEmail = $(I.email, modal);
-  const inpTel = $(I.tel, modal);
-  const inpPass = $(I.pass, modal);
-  const inpPass2 = $(I.pass2, modal);
-  const inpDepto = $(I.depto, modal);
-  const inpReporta = $(I.reporta, modal);
-  const inpStatus = $(I.status, modal);
-
-  let empleadoActual = null;
-
-  const open = async () => {
+  const open = () => {
     modal.classList.add("active");
-    modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
-
-    const sess = getSession();
-    const empId = sess?.empleado_id ?? null;
-    if (!empId) {
-      warn("[Perfil] sin empleado_id en sesión");
-      return;
-    }
-
-    try {
-      empleadoActual = await getEmpleadoById(empId);
-
-      if (inpNombre) inpNombre.value = empleadoActual?.nombre || "";
-      if (inpApellidos) inpApellidos.value = empleadoActual?.apellidos || "";
-      if (inpEmail)
-        inpEmail.value = (empleadoActual?.email || "").toLowerCase();
-      if (inpTel) inpTel.value = empleadoActual?.telefono || "";
-
-      // IMPORTANTÍSIMO: no precargar password (solo se cambia si escribe)
-      if (inpPass) inpPass.value = "";
-      if (inpPass2) inpPass2.value = "";
-
-      const deptId = empleadoActual?.departamento_id ?? sess?.dept_id ?? null;
-      if (inpDepto) inpDepto.value = await resolveDeptName(deptId);
-
-      // Reporta a: en tu API viene en "cuenta.reporta_a" :contentReference[oaicite:2]{index=2}
-      if (inpReporta) {
-        const rep =
-          empleadoActual?.cuenta?.reporta_a ??
-          empleadoActual?.reporta_a ??
-          null;
-        inpReporta.value = rep ? `Empleado #${rep}` : "—";
-      }
-
-      if (inpStatus) {
-        const st = Number(empleadoActual?.status);
-        inpStatus.value = st === 1 ? "Activo" : "Inactivo";
-      }
-    } catch (e) {
-      err("[Perfil] prefill error:", e);
-      toast("No se pudo cargar tu perfil.", "error");
-    }
+    const first = modal.querySelector(
+      "input,button,select,textarea,[tabindex]:not([tabindex='-1'])"
+    );
+    first?.focus?.();
   };
 
   const close = () => {
     modal.classList.remove("active");
-    modal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
   };
 
-  // Wire openers según scheme + fallback genérico
-  const scheme = detectScheme();
-  const openerSelectors = Array.from(
-    new Set([
-      ...(scheme?.openers || []),
-      ".edit-profile",
-      `[data-open="#${CFG.MODAL.id}"]`,
-    ])
+  openers.forEach((el) =>
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      open();
+    })
   );
-  openerSelectors.forEach((sel) => {
-    $$(sel).forEach((el) =>
-      el.addEventListener("click", (e) => {
-        e.preventDefault();
-        open();
-      })
-    );
-  });
 
   closeBtn?.addEventListener("click", (e) => {
     e.preventDefault();
     close();
   });
+
   modal.addEventListener("mousedown", (e) => {
     if (e.target === modal && content && !content.contains(e.target)) close();
   });
+
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && modal.classList.contains("active")) close();
   });
+}
 
+/* =========================
+ * API Usuarios (lazy import)
+ * ========================= */
+let UsuariosAPI = null;
+
+async function loadUsuariosApi() {
+  if (UsuariosAPI) return UsuariosAPI;
+
+  // Si lo expones global (opcional)
+  if (window.APIUsuarios) {
+    UsuariosAPI = window.APIUsuarios;
+    return UsuariosAPI;
+  }
+
+  // Import dinámico (evita romper vistas donde no está)
+  try {
+    const mod = await import("/JS/api/usuarios.js");
+    UsuariosAPI = mod;
+    return UsuariosAPI;
+  } catch (e) {
+    warn(
+      "No pude importar /JS/api/usuarios.js (se sigue sin guardar perfil):",
+      e
+    );
+    UsuariosAPI = null;
+    return null;
+  }
+}
+
+/* =========================
+ * Hidratar perfil + form
+ * ========================= */
+function fillModalFromSession(modal, s, deptName) {
+  if (!modal || !s) return;
+
+  const setVal = (sel, v) => {
+    const el = $(sel, modal);
+    if (!el) return;
+    el.value = v ?? "";
+  };
+
+  setVal(CFG.SEL.fNombre, s.nombre ?? "");
+  setVal(CFG.SEL.fApellidos, s.apellidos ?? "");
+  setVal(CFG.SEL.fEmail, s.email ?? "");
+  setVal(CFG.SEL.fTelefono, s.telefono ?? "");
+  setVal(CFG.SEL.fPuesto, s.puesto ?? "");
+  setVal(CFG.SEL.fDep, deptName ?? "");
+  setVal(CFG.SEL.fUsuario, s.username ?? s.usuario ?? "");
+  setVal(CFG.SEL.fReporta, s.reporta_a_nombre ?? "");
+  setVal(CFG.SEL.fStatus, s.status ?? "");
+}
+
+async function hydrateProfile() {
+  const els = pickProfileEls();
+  if (els.mode === "none") {
+    warn("No detecté sidebar en DOM (skip).");
+    return;
+  }
+
+  const s = getSessionLike();
+  if (!s) {
+    warn("Sin sesión (Session.get o cookie ix_emp).");
+    return;
+  }
+
+  const usuario_id = getUsuarioIdFromSession(s);
+  const nombre =
+    [s?.nombre, s?.apellidos].filter(Boolean).join(" ").trim() || "—";
+  const deptId = s?.departamento_id ?? s?.dept_id ?? null;
+  const deptName = await resolveDeptName(deptId, CFG.DEPT_API);
+
+  if (els.name) els.name.textContent = nombre;
+  if (els.badge) els.badge.textContent = deptName || "—";
+
+  setAvatarImage(els.avatar, {
+    id_usuario: usuario_id,
+    avatarUrl: s.avatarUrl || s.avatar,
+    nombre: s.nombre,
+    apellidos: s.apellidos,
+  });
+
+  // modal: precarga valores
+  const modal = document.getElementById(CFG.SEL.modalId);
+  if (modal) fillModalFromSession(modal, s, deptName);
+
+  log("Perfil OK", { mode: els.mode, usuario_id, nombre, deptId, deptName });
+}
+
+/* =========================
+ * Guardar perfil (modal)
+ * ========================= */
+function wireProfileSave() {
+  const modal = document.getElementById(CFG.SEL.modalId);
+  if (!modal) return;
+
+  const form = modal.querySelector("form");
   if (!form) return;
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const sess = getSession() || {};
-    const empId = Number(sess?.empleado_id || 0);
-    if (!empId) return;
-
-    const pass = (inpPass?.value || "").trim();
-    const pass2 = (inpPass2?.value || "").trim();
-
-    // Si intentó cambiar password, validar
-    if (pass || pass2) {
-      if (pass.length < 6) {
-        toast("La contraseña debe tener al menos 6 caracteres.", "warning");
-        return;
-      }
-      if (pass !== pass2) {
-        toast("Las contraseñas no coinciden.", "warning");
-        return;
-      }
+    const s = getSessionLike();
+    const usuario_id = getUsuarioIdFromSession(s);
+    if (!usuario_id) {
+      toast("No hay usuario_id en sesión.", "warning");
+      return;
     }
 
-    const payload = {
-      // TU API exige patch.id, NO empleado_id
-      id: empId,
-      nombre: (inpNombre?.value || "").trim(),
-      apellidos: (inpApellidos?.value || "").trim(),
-      email: (inpEmail?.value || "").trim(),
-      telefono: (inpTel?.value || "").trim(),
-      ...(pass ? { password: pass } : {}),
-      updated_by: Number(sess?.empleado_id || 0) || null,
-    };
+    const nombre = $(CFG.SEL.fNombre, modal)?.value?.trim() ?? "";
+    const apellidos = $(CFG.SEL.fApellidos, modal)?.value?.trim() ?? "";
+    const email = $(CFG.SEL.fEmail, modal)?.value?.trim() ?? "";
+    const telefono = $(CFG.SEL.fTelefono, modal)?.value?.trim() ?? "";
 
-    log("[Perfil] updateEmpleado payload:", payload);
+    const pw1 = $(CFG.SEL.fPw1, modal)?.value ?? "";
+    const pw2 = $(CFG.SEL.fPw2, modal)?.value ?? "";
+
+    log("Guardar perfil submit", {
+      usuario_id,
+      nombre,
+      apellidos,
+      email,
+      telefono,
+      wantsPw: !!pw1 || !!pw2,
+    });
 
     try {
-      await updateEmpleado(payload);
+      const api = await loadUsuariosApi();
+      if (!api?.updatePerfilBasico) {
+        toast("API de usuarios no disponible para guardar perfil.", "warning");
+        return;
+      }
 
-      // Actualizar “sesión” local (sin password)
-      const next = {
-        ...sess,
-        empleado_id: empId,
-        nombre: payload.nombre || sess.nombre,
-        apellidos: payload.apellidos || sess.apellidos,
-        email: payload.email || sess.email,
-        telefono: payload.telefono || sess.telefono,
-      };
+      // 1) Perfil básico
+      const updated = await api.updatePerfilBasico({
+        id: Number(usuario_id),
+        nombre,
+        apellidos,
+        email,
+        telefono,
+        updated_by: Number(usuario_id),
+      });
 
-      setSession(next);
-      window.gcRefreshHeader?.(next);
+      // 2) Password (opcional)
+      if (pw1 || pw2) {
+        if (pw1 !== pw2) throw new Error("Las contraseñas no coinciden.");
+        if (!api?.changePassword)
+          throw new Error("changePassword() no disponible en API usuarios.");
 
-      await refreshProfile(next);
+        await api.changePassword({
+          id: Number(usuario_id),
+          password: pw1,
+          updated_by: Number(usuario_id),
+        });
 
-      toast("Perfil actualizado.", "success");
-      close();
+        // limpia campos pw
+        if ($(CFG.SEL.fPw1, modal)) $(CFG.SEL.fPw1, modal).value = "";
+        if ($(CFG.SEL.fPw2, modal)) $(CFG.SEL.fPw2, modal).value = "";
+      }
+
+      toast("Perfil actualizado correctamente.", "success");
+
+      // refresca sidebar con lo nuevo (sin depender de re-login)
+      await hydrateProfile();
+
+      log("Perfil actualizado OK", updated);
     } catch (e2) {
-      err("[Perfil] update error:", e2);
-      toast("Error al actualizar perfil.", "error");
+      err("Error guardando perfil:", e2);
+      toast(e2?.message || "No se pudo guardar el perfil.", "error");
     }
   });
 }
 
-/* ========================================================================== */
-/* Editor Avatar (UI)                                                          */
-/* NOTA: aquí SOLO wiring UI. El upload real lo conectas donde dice TODO.      */
-/* ========================================================================== */
-function wireAvatarEditor() {
-  const overlay = $(CFG.AVATAR_EDITOR.overlay);
-  if (!overlay) return;
+/* =========================
+ * Avatar Editor (EDA)
+ * ========================= */
 
-  const closeBtn = $(CFG.AVATAR_EDITOR.close);
-  const cancelBtn = $(CFG.AVATAR_EDITOR.cancel);
-  const saveBtn = $(CFG.AVATAR_EDITOR.save);
-  const chooseBtn = $(CFG.AVATAR_EDITOR.choose);
-  const drop = $(CFG.AVATAR_EDITOR.drop);
-  const fileInput = $(CFG.AVATAR_EDITOR.file);
-  const previewImg = $(CFG.AVATAR_EDITOR.previewImg);
-  const recentsGrid = $(CFG.AVATAR_EDITOR.recentsGrid);
+// Si el navegador puede decodificar, intentamos comprimir a <= 1MB.
+// Si NO puede decodificar (ej HEIC en Chrome Windows), subimos el archivo tal cual y dejamos que el PHP lo procese.
+// (Si el PHP tiene Imagick, lo va a leer; si no, te regresará 415.)
+async function compressIfNeeded(file, targetBytes = 1024 * 1024) {
+  const meta = { name: file?.name, type: file?.type, size: file?.size };
 
-  let currentFile = null;
+  if (!file || file.size <= targetBytes) {
+    log("compressIfNeeded: skip (ya <= 1MB)", meta);
+    return { file, didCompress: false, reason: "already_small" };
+  }
 
-  const readRecents = () => {
-    try {
-      return JSON.parse(
-        localStorage.getItem(CFG.AVATAR_EDITOR.recentsKey) || "[]"
-      );
-    } catch {
-      return [];
-    }
-  };
+  // Intento de decode
+  let bitmap = null;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch (e) {
+    warn(
+      "compressIfNeeded: createImageBitmap FALLÓ (formato no decodificable por browser)",
+      {
+        ...meta,
+        error: String(e?.message || e),
+      }
+    );
 
-  const writeRecents = (arr) => {
-    try {
-      localStorage.setItem(CFG.AVATAR_EDITOR.recentsKey, JSON.stringify(arr));
-    } catch {}
-  };
+    // no podemos comprimir en cliente
+    return { file, didCompress: false, reason: "browser_cant_decode" };
+  }
 
-  const paintRecents = () => {
-    if (!recentsGrid) return;
-    const recents = readRecents();
-    recentsGrid.innerHTML = "";
+  // Canvas
+  const maxBox = 1024;
+  const w = bitmap.width;
+  const h = bitmap.height;
+  const factor = Math.min(1, maxBox / Math.max(w, h));
+  const tw = Math.max(1, Math.round(w * factor));
+  const th = Math.max(1, Math.round(h * factor));
 
-    if (!recents.length) {
-      recentsGrid.innerHTML = `<div class="eda-empty">Sin recientes</div>`;
-      return;
-    }
+  const canvas = document.createElement("canvas");
+  canvas.width = tw;
+  canvas.height = th;
+  const ctx = canvas.getContext("2d", { alpha: true });
 
-    recents.forEach((src) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "eda-recent";
-      btn.innerHTML = `<img alt="Reciente" src="${src}">`;
-      btn.addEventListener("click", () => {
-        if (previewImg) previewImg.src = src;
-        if (saveBtn) saveBtn.disabled = false;
-        currentFile = null; // usando imagen previa (base64) por ahora
-      });
-      recentsGrid.appendChild(btn);
+  ctx.drawImage(bitmap, 0, 0, tw, th);
+
+  // Intento: JPG (más control por quality) manteniendo peso bajo
+  let quality = 0.85;
+  let outBlob = null;
+
+  for (let i = 0; i < 10; i++) {
+    outBlob = await new Promise((res) =>
+      canvas.toBlob(res, "image/jpeg", quality)
+    );
+    const size = outBlob?.size ?? 0;
+
+    log("compressIfNeeded: iter", {
+      i,
+      quality,
+      inSize: file.size,
+      outSize: size,
+      tw,
+      th,
     });
-  };
+
+    if (size > 0 && size <= targetBytes) break;
+
+    // baja quality agresivo
+    quality = Math.max(0.4, quality - 0.08);
+    if (quality <= 0.4 && i >= 6) break;
+  }
+
+  // fallback: si no logró bajar
+  if (!outBlob || outBlob.size > targetBytes) {
+    warn("compressIfNeeded: no se logró <=1MB; se sube original", {
+      ...meta,
+      outSize: outBlob?.size,
+    });
+    return { file, didCompress: false, reason: "cant_reach_target" };
+  }
+
+  const outFile = new File([outBlob], "avatar.jpg", { type: "image/jpeg" });
+  return { file: outFile, didCompress: true, reason: "compressed_to_jpeg" };
+}
+
+function previewFileInImg(file, imgEl) {
+  if (!file || !imgEl) return;
+  try {
+    const url = URL.createObjectURL(file);
+    imgEl.onload = () => URL.revokeObjectURL(url);
+    imgEl.onerror = () => URL.revokeObjectURL(url);
+    imgEl.src = url;
+  } catch (e) {
+    warn("previewFileInImg falló:", e);
+  }
+}
+
+function wireAvatarEditor() {
+  const overlay = $(CFG.SEL.edaOverlay);
+  const btnEdit = $(CFG.SEL.avatarEditBtn); // en HS sidebar
+  const input = $(CFG.SEL.edaFile);
+  const btnClose = $(CFG.SEL.edaClose);
+  const btnCancel = $(CFG.SEL.edaCancel);
+  const btnSave = $(CFG.SEL.edaSave);
+  const drop = $(CFG.SEL.edaDrop);
+
+  if (!overlay || !input || !btnSave) {
+    // Si esta vista no tiene EDA, no hacemos nada.
+    return;
+  }
+
+  // Para "formatos raros": mejor no restringir tanto el file picker.
+  // Si tu HTML tiene accept limitado, aquí lo abrimos:
+  try {
+    input.setAttribute("accept", "image/*,.heic,.heif,.webp,.png,.jpg,.jpeg");
+  } catch {}
+
+  let pickedOriginal = null;
+  let pickedToUpload = null;
 
   const open = () => {
     overlay.classList.add("active");
     overlay.setAttribute("aria-hidden", "false");
-    document.body.classList.add("modal-open");
-    paintRecents();
+    btnSave.disabled = true;
+    pickedOriginal = null;
+    pickedToUpload = null;
+    log("EDA: open()");
   };
 
   const close = () => {
     overlay.classList.remove("active");
     overlay.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("modal-open");
-    currentFile = null;
-    if (saveBtn) saveBtn.disabled = true;
-    if (previewImg) previewImg.removeAttribute("src");
+    btnSave.disabled = true;
+    // IMPORTANT: reset input para que el mismo archivo dispare change la siguiente vez
+    input.value = "";
+    log("EDA: close()");
   };
 
-  // Abrir desde botón lápiz (solo en scheme hs)
-  const scheme = detectScheme();
-  if (scheme?.avatarEditBtn) {
-    $$(scheme.avatarEditBtn).forEach((b) =>
-      b.addEventListener("click", (e) => {
-        e.preventDefault();
-        open();
-      })
-    );
-  }
-
-  closeBtn?.addEventListener("click", close);
-  cancelBtn?.addEventListener("click", close);
-  overlay.addEventListener("mousedown", (e) => {
-    if (e.target === overlay) close();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && overlay.classList.contains("active")) close();
+  // Abrir EDA al click en el lapicito (si existe)
+  btnEdit?.addEventListener("click", (e) => {
+    e.preventDefault();
+    open();
   });
 
-  const validateFile = (f) => {
-    if (!f) return "Archivo inválido.";
-    if (!CFG.AVATAR_EDITOR.allowed.includes(f.type))
-      return "Formato no permitido.";
-    if (f.size > CFG.AVATAR_EDITOR.maxBytes) return "El archivo excede 1MB.";
-    return null;
-  };
+  btnClose?.addEventListener("click", (e) => {
+    e.preventDefault();
+    close();
+  });
 
-  const setFile = async (f) => {
-    const msg = validateFile(f);
-    if (msg) {
-      toast(msg, "warning");
-      return;
-    }
+  btnCancel?.addEventListener("click", (e) => {
+    e.preventDefault();
+    close();
+  });
 
-    currentFile = f;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (previewImg) previewImg.src = String(reader.result || "");
-      if (saveBtn) saveBtn.disabled = false;
-
-      // Guardar en recientes (base64)
-      const src = String(reader.result || "");
-      if (src.startsWith("data:")) {
-        const recents = readRecents();
-        const next = [src, ...recents.filter((x) => x !== src)].slice(
-          0,
-          CFG.AVATAR_EDITOR.recentsMax
-        );
-        writeRecents(next);
-        paintRecents();
-      }
-    };
-    reader.readAsDataURL(f);
-  };
-
-  chooseBtn?.addEventListener("click", () => fileInput?.click());
-  fileInput?.addEventListener("change", () => {
-    const f = fileInput.files?.[0];
-    if (f) setFile(f);
-    fileInput.value = "";
+  // Click en dropzone abre file picker
+  drop?.addEventListener("click", (e) => {
+    e.preventDefault();
+    log("EDA: drop click -> input.click()");
+    input.click();
   });
 
   // Drag & drop
-  if (drop) {
-    drop.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      drop.classList.add("is-drag");
-    });
-    drop.addEventListener("dragleave", () => drop.classList.remove("is-drag"));
-    drop.addEventListener("drop", (e) => {
-      e.preventDefault();
-      drop.classList.remove("is-drag");
-      const f = e.dataTransfer?.files?.[0];
-      if (f) setFile(f);
-    });
-  }
-
-  // Paste Ctrl+V
-  window.addEventListener("paste", (e) => {
-    if (!overlay.classList.contains("active")) return;
-    const item = Array.from(e.clipboardData?.items || []).find(
-      (it) => it.kind === "file"
-    );
-    const f = item?.getAsFile?.();
-    if (f) setFile(f);
+  drop?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    drop.classList.add("is-drag");
+  });
+  drop?.addEventListener("dragleave", () => drop.classList.remove("is-drag"));
+  drop?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    drop.classList.remove("is-drag");
+    const f = e.dataTransfer?.files?.[0] || null;
+    if (f) handlePick(f, "drop");
   });
 
-  // Guardar (aquí se conecta tu upload real)
-  saveBtn?.addEventListener("click", async () => {
-    if (saveBtn.disabled) return;
+  // Change del input
+  input.addEventListener("change", () => {
+    const f = input.files?.[0] || null;
+    log("EDA: input change", {
+      hasFile: !!f,
+      name: f?.name,
+      type: f?.type,
+      size: f?.size,
+    });
+    if (f) handlePick(f, "picker");
+  });
 
-    const sess = getSession() || {};
-    const id_usuario = sess?.id_usuario ?? null;
+  async function handlePick(file, from) {
+    pickedOriginal = file;
 
-    // TODO: aquí debes llamar tu endpoint real para subir avatar y obtener URL/ruta final.
-    //  - Si tu backend guarda la imagen con nombre por id_usuario, luego solo refrescamos el avatar:
-    //    setSession({ ...sess, avatarUrl: null }) y refreshProfile()
-    //  - Si retorna una URL: setSession({ ...sess, avatarUrl: url })
+    // Preview (si hay IMG)
+    const imgPrev = $(CFG.SEL.edaPreviewImg) || $("#hs-avatar"); // fallback: no ideal, pero útil
+    if (imgPrev) previewFileInImg(file, imgPrev);
 
-    toast("Avatar guardado (hook listo). Falta conectar upload real.", "info");
+    // Cliente: compresión si > 1MB (si el browser puede decode)
+    const {
+      file: maybeCompressed,
+      didCompress,
+      reason,
+    } = await compressIfNeeded(file, 1024 * 1024);
 
-    // Refrescar avatar en sidebar
-    await refreshProfile();
-    close();
+    pickedToUpload = maybeCompressed;
+
+    btnSave.disabled = false;
+
+    log("EDA: picked", {
+      from,
+      original: { name: file.name, type: file.type, size: file.size },
+      toUpload: {
+        name: pickedToUpload.name,
+        type: pickedToUpload.type,
+        size: pickedToUpload.size,
+      },
+      didCompress,
+      reason,
+    });
+
+    if (
+      file.size > 1024 * 1024 &&
+      !didCompress &&
+      reason !== "browser_cant_decode"
+    ) {
+      toast(
+        "La imagen pesa > 1MB y no pude comprimirla en navegador. Se intentará en servidor.",
+        "warning"
+      );
+    }
+    if (!didCompress && reason === "browser_cant_decode") {
+      toast(
+        "Formato no decodificable por el navegador. Se subirá tal cual para que el servidor lo procese.",
+        "info"
+      );
+    }
+  }
+
+  btnSave.addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    const s = getSessionLike();
+    const usuario_id = getUsuarioIdFromSession(s);
+    if (!usuario_id) {
+      toast("No hay usuario_id en sesión.", "warning");
+      return;
+    }
+    if (!pickedToUpload) {
+      toast("Selecciona una imagen primero.", "info");
+      return;
+    }
+
+    btnSave.disabled = true;
+
+    const fd = new FormData();
+    fd.append("usuario_id", String(usuario_id));
+    fd.append("avatar", pickedToUpload, pickedToUpload.name);
+
+    log("EDA: upload start", {
+      usuario_id,
+      file: {
+        name: pickedToUpload.name,
+        type: pickedToUpload.type,
+        size: pickedToUpload.size,
+      },
+      endpoint: ENDPOINTS.avatarUpload,
+    });
+
+    try {
+      const res = await fetch(ENDPOINTS.avatarUpload, {
+        method: "POST",
+        body: fd,
+      });
+      const text = await res.text().catch(() => "");
+      let json = null;
+      try {
+        json = text ? JSON.parse(text) : null;
+      } catch {
+        json = null;
+      }
+
+      log("EDA: upload response", {
+        ok: res.ok,
+        status: res.status,
+        json,
+        raw: text,
+      });
+
+      if (!res.ok || !json?.ok) {
+        const msg = json?.error || `Error subiendo avatar (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+
+      toast("Avatar actualizado.", "success");
+
+      // refresca avatar en sidebar (cache bust)
+      await hydrateProfile();
+
+      close();
+    } catch (e2) {
+      err("EDA: upload error", e2);
+      toast(e2?.message || "No se pudo actualizar el avatar.", "error");
+      btnSave.disabled = false;
+    }
   });
 }
 
-/* ========================================================================== */
-/* Filtros opcionales: solo expone hook (no impone lógica)                     */
-/* ========================================================================== */
-const FilterState = { onChange: null, timer: null };
-
-function initOptionalFilters() {
-  const group = $(CFG.FILTERS.group);
-  if (!group) return;
-
-  const items = $$(CFG.FILTERS.items, group);
-  group.addEventListener("click", (e) => {
-    const btn = e.target.closest(".item");
-    if (!btn) return;
-    const key = btn.dataset.status || "todos";
-    FilterState.onChange?.({ type: "filter", value: key });
-  });
-
-  const input = $(CFG.FILTERS.search);
-  if (input) {
-    input.addEventListener("input", (e) => {
-      clearTimeout(FilterState.timer);
-      const val = (e.target.value || "").trim();
-      FilterState.timer = setTimeout(() => {
-        FilterState.onChange?.({ type: "search", value: val });
-      }, 250);
-    });
-  }
-}
-
-/* ========================================================================== */
-/* API pública                                                                 */
-/* ========================================================================== */
-const API = {
-  async refreshProfile(sess) {
-    await refreshProfile(sess);
-  },
-  resolveDeptName,
-  onChange(fn) {
-    FilterState.onChange = typeof fn === "function" ? fn : null;
-  },
-  openProfileModal() {
-    document.querySelector(`[data-open="#${CFG.MODAL.id}"]`)?.click?.();
-  },
+/* =========================
+ * Filtros opcionales (si existen)
+ * - Si no hay filtros, no rompe (requerimiento sidebar comments)
+ * ========================= */
+const STATUS_LABEL = {
+  todos: "Todos los status",
+  solicitud: "Solicitud",
+  revision: "Revisión",
+  asignacion: "Asignación",
+  proceso: "En proceso",
+  pausado: "Pausado",
+  cancelado: "Cancelado",
+  finalizado: "Finalizado",
 };
 
-/* ========================================================================== */
-/* Boot                                                                        */
-/* ========================================================================== */
-async function boot() {
-  await refreshProfile();
-  wireProfileModal();
-  wireAvatarEditor();
-  initOptionalFilters();
-
-  window.IxSidebar = API;
-  log("boot OK");
+function normalizeStatusKey(k) {
+  if (!k) return "";
+  let s = String(k)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[\s_-]+/g, "");
+  if (s === "enproceso") return "proceso";
+  if (s === "revision") return "revision";
+  if (s === "asignacion") return "asignacion";
+  return s;
 }
 
-window.addEventListener("DOMContentLoaded", boot);
+const State = {
+  filterKey: "todos",
+  onChange: null,
+};
 
-export default API;
-export { API as IxSidebar };
+function initOptionalFiltersIfPresent() {
+  // Home (tu primer HTML) usa .status-item, pero tu home real (copy) usa nav.item[data-status]
+  const buttons =
+    $$(".status-item") ||
+    $$("nav.status-nav .item[data-status]") ||
+    $$('[data-status][role="radio"]');
+
+  if (!buttons || buttons.length === 0) return;
+
+  const setActive = (btn) => {
+    buttons.forEach((b) => b.classList.remove("active", "is-active"));
+    btn.classList.add("active", "is-active");
+  };
+
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const raw =
+        btn.getAttribute("data-status") ||
+        btn.querySelector(".label")?.textContent ||
+        "todos";
+      const key = normalizeStatusKey(raw);
+      State.filterKey = key || "todos";
+      setActive(btn);
+      log("Filtro sidebar:", State.filterKey);
+      State.onChange?.(State.filterKey);
+    });
+  });
+}
+
+/* =========================
+ * Public API
+ * ========================= */
+export function IxSidebar_onFilterChange(fn) {
+  State.onChange = typeof fn === "function" ? fn : null;
+}
+
+export function IxSidebar_getFilter() {
+  return State.filterKey;
+}
+
+export async function IxSidebar_refreshProfile(sess) {
+  // si te pasan una sesión nueva desde otra vista, úsala
+  if (sess && typeof sess === "object") {
+    try {
+      const els = pickProfileEls();
+      const usuario_id = getUsuarioIdFromSession(sess);
+      const nombre =
+        [sess?.nombre, sess?.apellidos].filter(Boolean).join(" ").trim() || "—";
+      const deptId = sess?.departamento_id ?? sess?.dept_id ?? null;
+      const deptName = await resolveDeptName(deptId, CFG.DEPT_API);
+
+      els.name && (els.name.textContent = nombre);
+      els.badge && (els.badge.textContent = deptName || "—");
+      setAvatarImage(els.avatar, {
+        id_usuario: usuario_id,
+        avatarUrl: sess.avatarUrl || sess.avatar,
+      });
+
+      log("refreshProfile(sess) OK", { usuario_id, nombre, deptName });
+    } catch (e) {
+      warn("IxSidebar_refreshProfile error:", e);
+    }
+    return;
+  }
+
+  // si no te pasan nada, hidrata normal
+  await hydrateProfile();
+}
+
+/* =========================
+ * Boot
+ * ========================= */
+async function bootSidebar() {
+  wireProfileModalOpeners();
+  wireProfileSave();
+  wireAvatarEditor();
+
+  await hydrateProfile();
+  initOptionalFiltersIfPresent();
+
+  log("bootSidebar OK");
+}
+
+bootSidebar();
