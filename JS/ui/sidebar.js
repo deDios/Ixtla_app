@@ -8,30 +8,35 @@ import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
  * ====================================== */
 const TAG = "[Sidebar]";
 const DEBUG = true;
-const $ = (s, r = document) => r.querySelector(s);
-const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const log = (...a) => DEBUG && console.log(TAG, ...a);
 const warn = (...a) => DEBUG && console.warn(TAG, ...a);
 const err = (...a) => console.error(TAG, ...a);
 const toast = (m, t = "info") =>
   window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
+const $ = (s, r = document) => r.querySelector(s);
+
 /* ======================================
- * Selectores comunes del sidebar
+ * Config (copiado de home.js en lo esencial)
  * ====================================== */
+const CONFIG = {
+  DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
+  DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
+  DEPT_ENDPOINT:
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
+};
+
 const SEL = {
   avatar: "#hs-avatar",
   profileName: "#hs-profile-name",
   profileBadge: "#hs-profile-badge",
-  profileSection: ".hs-profile",
 
-  // Modal perfil (tu producción)
   modalPerfil: "#modal-perfil",
   formPerfil: "#form-perfil",
 };
 
 /* ======================================
- * Cookie sesión (igual al patrón de home.js)
+ * Cookie sesión (mismo patrón de home.js)
  * ====================================== */
 function readCookiePayload() {
   try {
@@ -54,7 +59,7 @@ function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
       b64
     )}; path=/; max-age=${maxAge}; samesite=lax`;
   } catch (e) {
-    warn("No pude escribir cookie ix_emp:", e);
+    warn("No se pudo escribir cookie ix_emp:", e);
   }
 }
 
@@ -70,13 +75,11 @@ function cacheBust(url) {
 /* ======================================
  * Avatar (solo set src, NO upload)
  * ====================================== */
-const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
-
 function setAvatarSrc(img, idUsuario) {
   if (!img) return;
   const id = Number(idUsuario);
   if (!id) {
-    img.src = DEFAULT_AVATAR;
+    img.src = CONFIG.DEFAULT_AVATAR;
     return;
   }
 
@@ -90,7 +93,7 @@ function setAvatarSrc(img, idUsuario) {
   const tryNext = () => {
     if (i >= candidates.length) {
       img.onerror = null;
-      img.src = DEFAULT_AVATAR;
+      img.src = CONFIG.DEFAULT_AVATAR;
       return;
     }
     img.onerror = () => {
@@ -104,18 +107,57 @@ function setAvatarSrc(img, idUsuario) {
 }
 
 /* ======================================
- * Departamento (fallback simple)
- * (si en tu sesión ya viene dept_name, úsalo)
+ * Resolver nombre de departamento (igual home.js)
  * ====================================== */
-async function resolveDeptNameFromSessionOrEmp(session, empleado) {
-  if (session?.dept_name) return session.dept_name;
+const __DEPT_CACHE = new Map();
 
-  // si empleado trae depto textual
-  if (empleado?.departamento_nombre) return empleado.departamento_nombre;
+async function resolveDeptName(deptId) {
+  if (!deptId) return "—";
 
-  // si no, usa id numérico como fallback visible
-  const deptId = session?.dept_id ?? empleado?.departamento_id ?? null;
-  return deptId ? `Depto ${deptId}` : "—";
+  const key = Number(deptId);
+  if (CONFIG.DEPT_FALLBACK_NAMES[key]) return CONFIG.DEPT_FALLBACK_NAMES[key];
+  if (__DEPT_CACHE.has(key)) return __DEPT_CACHE.get(key);
+
+  try {
+    const res = await fetch(CONFIG.DEPT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const json = await res.json();
+    const arr = json?.data || [];
+    const found = arr.find((d) => Number(d.id) === key);
+    const name = found?.nombre ? String(found.nombre) : `Depto ${deptId}`;
+    __DEPT_CACHE.set(key, name);
+    return name;
+  } catch (e) {
+    warn("resolveDeptName() fallback:", deptId, e);
+    return `Depto ${deptId}`;
+  }
+}
+
+/* ======================================
+ * Resolver "Reporta a" (por cuenta.reporta_a)
+ * ====================================== */
+async function resolveReportaA(empleado) {
+  const reportaId = empleado?.cuenta?.reporta_a ?? null;
+  if (!reportaId) return "—";
+
+  try {
+    const jefe = await getEmpleadoById(reportaId);
+    const nombre = [jefe?.nombre, jefe?.apellidos]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    return nombre || `Empleado #${reportaId}`;
+  } catch (e) {
+    warn("resolveReportaA() error:", reportaId, e);
+    return `Empleado #${reportaId}`;
+  }
 }
 
 /* ======================================
@@ -123,42 +165,35 @@ async function resolveDeptNameFromSessionOrEmp(session, empleado) {
  * ====================================== */
 async function hydrateSidebar() {
   const s = getSessionSafe();
-  const empleadoId = s?.empleado_id ?? null;
-  const deptId = s?.dept_id ?? null;
   const idUsuario = s?.id_usuario ?? s?.empleado_id ?? null;
+  const deptId = s?.dept_id ?? s?.departamento_id ?? null;
 
-  // Nombre (si viene en sesión)
   const nombre =
     [s?.nombre, s?.apellidos].filter(Boolean).join(" ").trim() || "—";
   const nameEl = $(SEL.profileName);
   if (nameEl) nameEl.textContent = nombre;
 
-  // Avatar (solo src)
   const img = $(SEL.avatar);
   if (img) setAvatarSrc(img, idUsuario);
 
-  // Badge dept (mejoramos cuando abrimos modal y ya tenemos empleado)
   const badge = $(SEL.profileBadge);
-  if (badge) badge.textContent = deptId ? `Depto ${deptId}` : "—";
+  if (badge) badge.textContent = await resolveDeptName(deptId);
 
-  log("hydrateSidebar()", { empleadoId, deptId, idUsuario, nombre });
+  log("hydrateSidebar()", { idUsuario, deptId, nombre });
 }
 
 /* ======================================
- * Modal Perfil (MISMO PATRÓN DE home.js)
+ * Modal Perfil (open/close + prefill + submit)
  * ====================================== */
 function wirePerfilModal() {
   const modal = $(SEL.modalPerfil);
-  if (!modal) {
-    log("No hay #modal-perfil en esta vista (OK).");
-    return;
-  }
+  if (!modal) return;
 
   const content = modal.querySelector(".modal-content");
   const closeBtn = modal.querySelector(".modal-close");
   const form = modal.querySelector(SEL.formPerfil);
 
-  // Inputs (IDs reales en tu HTML)
+  // Inputs (IDs reales del modal de producción)
   const inpNombre = modal.querySelector("#perfil-nombre");
   const inpApellidos = modal.querySelector("#perfil-apellidos");
   const inpEmail = modal.querySelector("#perfil-email");
@@ -170,15 +205,7 @@ function wirePerfilModal() {
   const inpReporta = modal.querySelector("#perfil-reporta");
   const inpStatus = modal.querySelector("#perfil-status");
 
-  // 🔑 Este es el punto clave: empleadoActual vive en el closure, como home.js
   let empleadoActual = null;
-
-  const focusFirst = () => {
-    const first = modal.querySelector(
-      "input,button,select,textarea,[tabindex]:not([tabindex='-1'])"
-    );
-    first?.focus?.();
-  };
 
   const open = async () => {
     modal.classList.add("active");
@@ -186,18 +213,17 @@ function wirePerfilModal() {
 
     const s = getSessionSafe();
     const empId = s?.empleado_id ?? null;
+
     if (!empId) {
-      warn("[Perfil] Sin empleado_id en sesión");
       toast("No se detectó tu sesión.", "warning");
       return;
     }
 
     try {
-      // 1) Traer empleado actual (igual que home.js)
       empleadoActual = await getEmpleadoById(empId);
-      log("[Perfil] empleado actual:", empleadoActual);
+      log("empleadoActual:", empleadoActual);
 
-      // 2) Prefill editables
+      // Editables
       if (inpNombre) inpNombre.value = empleadoActual?.nombre || "";
       if (inpApellidos) inpApellidos.value = empleadoActual?.apellidos || "";
       if (inpEmail)
@@ -206,48 +232,29 @@ function wirePerfilModal() {
       if (inpPass) inpPass.value = "";
       if (inpPass2) inpPass2.value = "";
 
-      // 3) Readonly fields
-      if (inpDepto)
-        inpDepto.value = await resolveDeptNameFromSessionOrEmp(
-          s,
-          empleadoActual
-        );
+      // Departamento: usa empleado.departamento_id (prioridad) y fallback 6=Presidencia
+      const deptId =
+        empleadoActual?.departamento_id ??
+        s?.dept_id ??
+        s?.departamento_id ??
+        null;
+      const deptName = await resolveDeptName(deptId);
+      if (inpDepto) inpDepto.value = deptName;
 
-      // Reporta a (si backend trae un id o texto)
-      let reportaTxt = "—";
-      const reportaId =
-        empleadoActual?.cuenta?.reporta_a ?? empleadoActual?.reporta_a ?? null;
+      // Badge sidebar: también lo sincronizamos
+      const badge = $(SEL.profileBadge);
+      if (badge) badge.textContent = deptName;
 
-      if (
-        typeof empleadoActual?.reporta_a_nombre === "string" &&
-        empleadoActual.reporta_a_nombre.trim()
-      ) {
-        reportaTxt = empleadoActual.reporta_a_nombre.trim();
-      } else if (reportaId) {
-        try {
-          const jefe = await getEmpleadoById(reportaId);
-          reportaTxt =
-            [jefe?.nombre, jefe?.apellidos].filter(Boolean).join(" ") ||
-            `Empleado #${reportaId}`;
-        } catch {
-          reportaTxt = `Empleado #${reportaId}`;
-        }
-      }
-      if (inpReporta) inpReporta.value = reportaTxt;
+      // Reporta a: usa empleado.cuenta.reporta_a
+      if (inpReporta) inpReporta.value = await resolveReportaA(empleadoActual);
 
-      // Status
+      // Status readonly
       if (inpStatus) {
         const st = Number(empleadoActual?.status);
         inpStatus.value = st === 1 ? "Activo" : "Inactivo";
       }
-
-      // 4) Refresca badge dept con algo más bonito si ya tenemos
-      const badge = $(SEL.profileBadge);
-      if (badge && inpDepto?.value) badge.textContent = inpDepto.value;
-
-      focusFirst();
     } catch (e) {
-      err("[Perfil] error al abrir:", e);
+      err("open perfil error:", e);
       toast("No se pudo cargar tu perfil.", "error");
     }
   };
@@ -257,16 +264,15 @@ function wirePerfilModal() {
     document.body.classList.remove("modal-open");
   };
 
-  // Openers (tu producción)
-  const openers = document.querySelectorAll(
-    `.edit-profile,[data-open="#modal-perfil"]`
-  );
-  openers.forEach((btn) =>
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      open();
-    })
-  );
+  // Openers (tu HTML actual)
+  document
+    .querySelectorAll(`.edit-profile,[data-open="#modal-perfil"]`)
+    .forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        open();
+      });
+    });
 
   closeBtn?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -281,7 +287,7 @@ function wirePerfilModal() {
     if (e.key === "Escape" && modal.classList.contains("active")) close();
   });
 
-  // Guardar (igual patrón home.js: usa empleadoActual del closure)
+  // Submit (usa empleadoActual del closure → mismo patrón que home.js)
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -291,7 +297,6 @@ function wirePerfilModal() {
       return;
     }
 
-    // password opcional
     const p1 = (inpPass?.value || "").trim();
     const p2 = (inpPass2?.value || "").trim();
     if ((p1 || p2) && p1 !== p2) {
@@ -299,55 +304,47 @@ function wirePerfilModal() {
       return;
     }
 
-    const nombre = (inpNombre?.value || "").trim();
-    let apellidos = (inpApellidos?.value || "").trim();
-    // mismo “fallback” que usabas en home: si metes todo en nombre
-    if (!apellidos && nombre.includes(" ")) {
-      const parts = nombre.split(/\s+/);
-      apellidos = parts.slice(1).join(" ");
-    }
-
     const payload = {
       id: empleadoActual.id,
-      nombre,
-      apellidos,
+      nombre: (inpNombre?.value || "").trim(),
+      apellidos: (inpApellidos?.value || "").trim(),
       email: (inpEmail?.value || "").trim().toLowerCase(),
       telefono: (inpTelefono?.value || "").trim(),
       ...(p1 ? { password: p1 } : {}),
     };
 
-    log("[Perfil] update payload:", payload);
+    log("updateEmpleado payload:", payload);
 
     try {
-      await updateEmpleado(payload);
+      const updated = await updateEmpleado(payload);
+      log("updateEmpleado OK:", updated);
 
-      // 1) UI sidebar inmediata
+      // UI sidebar inmediata
       const full =
         [payload.nombre, payload.apellidos].filter(Boolean).join(" ").trim() ||
         "—";
       const nameEl = $(SEL.profileName);
       if (nameEl) nameEl.textContent = full;
 
-      // 2) Persistir sesión cookie (sin recargar)
+      // Persistir sesión cookie para que otras views lo lean
       const s = getSessionSafe();
-      const next = {
+      writeCookiePayload({
         ...s,
         nombre: payload.nombre || s.nombre,
         apellidos: payload.apellidos || s.apellidos,
         email: payload.email || s.email,
         telefono: payload.telefono || s.telefono,
-      };
-      writeCookiePayload(next);
+      });
 
       toast("Perfil actualizado correctamente.", "success");
       close();
     } catch (e2) {
-      err("[Perfil] error al actualizar:", e2);
+      err("update perfil error:", e2);
       toast("Error al actualizar perfil. Intenta de nuevo.", "error");
     }
   });
 
-  log("wirePerfilModal(): OK", { openers: openers.length });
+  log("wirePerfilModal(): OK");
 }
 
 /* ======================================
