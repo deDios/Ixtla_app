@@ -562,7 +562,6 @@
               "home.php",
               "home copy.php",
               "requerimiento.php",
-              "Tareas.php",
               /^\/VIEWS\/requerimiento\/\d+$/i,
             ],
           },

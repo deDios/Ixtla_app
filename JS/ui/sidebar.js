@@ -17,7 +17,7 @@ const toast = (m, t = "info") =>
 const $ = (s, r = document) => r.querySelector(s);
 
 /* ======================================
- * Config (copiado de home.js en lo esencial)
+ * Config
  * ====================================== */
 const CONFIG = {
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
@@ -36,7 +36,7 @@ const SEL = {
 };
 
 /* ======================================
- * Cookie sesión (mismo patrón de home.js)
+ * Cookie sesión
  * ====================================== */
 function readCookiePayload() {
   try {
@@ -107,7 +107,7 @@ function setAvatarSrc(img, idUsuario) {
 }
 
 /* ======================================
- * Resolver nombre de departamento (igual home.js)
+ * Resolver nombre de departamento
  * ====================================== */
 const __DEPT_CACHE = new Map();
 
@@ -193,7 +193,7 @@ function wirePerfilModal() {
   const closeBtn = modal.querySelector(".modal-close");
   const form = modal.querySelector(SEL.formPerfil);
 
-  // Inputs (IDs reales del modal de producción)
+  // Inputs 
   const inpNombre = modal.querySelector("#perfil-nombre");
   const inpApellidos = modal.querySelector("#perfil-apellidos");
   const inpEmail = modal.querySelector("#perfil-email");
@@ -241,7 +241,7 @@ function wirePerfilModal() {
       const deptName = await resolveDeptName(deptId);
       if (inpDepto) inpDepto.value = deptName;
 
-      // Badge sidebar: también lo sincronizamos
+      // Badge sidebar
       const badge = $(SEL.profileBadge);
       if (badge) badge.textContent = deptName;
 
@@ -264,7 +264,7 @@ function wirePerfilModal() {
     document.body.classList.remove("modal-open");
   };
 
-  // Openers (tu HTML actual)
+  // Openers
   document
     .querySelectorAll(`.edit-profile,[data-open="#modal-perfil"]`)
     .forEach((btn) => {
@@ -287,7 +287,7 @@ function wirePerfilModal() {
     if (e.key === "Escape" && modal.classList.contains("active")) close();
   });
 
-  // Submit (usa empleadoActual del closure → mismo patrón que home.js)
+  // Submit
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -326,7 +326,7 @@ function wirePerfilModal() {
       const nameEl = $(SEL.profileName);
       if (nameEl) nameEl.textContent = full;
 
-      // Persistir sesión cookie para que otras views lo lean
+      // Persistir sesion cookie para que otras views lo lean
       const s = getSessionSafe();
       writeCookiePayload({
         ...s,
