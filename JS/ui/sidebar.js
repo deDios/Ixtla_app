@@ -11,7 +11,8 @@ const DEBUG = true;
 const log = (...a) => DEBUG && console.log(TAG, ...a);
 const warn = (...a) => DEBUG && console.warn(TAG, ...a);
 const err = (...a) => DEBUG && console.error(TAG, ...a);
-const toast = (m, t = "info") => (window.gcToast ? gcToast(m, t) : log("[toast]", t, m));
+const toast = (m, t = "info") =>
+  window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
 /* ========================================================================== */
 /* Selectores tolerantes (Home / Requerimiento / otras)                        */
@@ -31,10 +32,18 @@ const SEL = {
   // Badge / departamento
   deptCandidates: ["#hs-dept-badge", ".profile-dep.badge", ".profile-dep"],
   // Openers del modal perfil
-  perfilOpeners: ['a[href="#perfil"]', "[data-open-perfil]", "[data-act='open-perfil']"],
+  perfilOpeners: [
+    '[data-open="#modal-perfil"]',
+    '[data-open="modal-perfil"]',
+    ".edit-profile",
+    'a[href="#perfil"]',
+    "[data-open-perfil]",
+    "[data-act='open-perfil']",
+  ],
   // Modal perfil
   modalPerfil: "#modal-perfil",
-  modalClose: "#modal-perfil .modal-close, #modal-perfil [data-close], #modal-perfil .btn-close",
+  modalClose:
+    "#modal-perfil .modal-close, #modal-perfil [data-close], #modal-perfil .btn-close",
   formPerfil: "#form-perfil",
 };
 
@@ -58,7 +67,9 @@ function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
     const json = JSON.stringify(obj || {});
     const b64 = btoa(unescape(encodeURIComponent(json)));
     const maxAge = Math.max(1, Math.floor(maxAgeDays * 86400));
-    document.cookie = `ix_emp=${encodeURIComponent(b64)}; path=/; max-age=${maxAge}; samesite=lax`;
+    document.cookie = `ix_emp=${encodeURIComponent(
+      b64
+    )}; path=/; max-age=${maxAge}; samesite=lax`;
   } catch (e) {
     warn("No pude escribir cookie ix_emp:", e);
   }
@@ -147,7 +158,8 @@ function updateSidebarProfileUI(sess) {
   const nameEl = pickFirst(SEL.nameCandidates);
   const deptEl = pickFirst(SEL.deptCandidates);
 
-  const nombre = [sess?.nombre, sess?.apellidos].filter(Boolean).join(" ").trim() || "—";
+  const nombre =
+    [sess?.nombre, sess?.apellidos].filter(Boolean).join(" ").trim() || "—";
   const deptName =
     sess?.departamento_nombre ||
     sess?.dept_name ||
@@ -165,18 +177,21 @@ function updateSidebarProfileUI(sess) {
 /* Modal Perfil                                                                */
 /* ========================================================================== */
 function isOpen(modal) {
-  return modal?.getAttribute("aria-hidden") === "false" || modal?.classList.contains("is-open");
+  return (
+    modal?.getAttribute("aria-hidden") === "false" ||
+    modal?.classList.contains("is-open")
+  );
 }
 
 function openModal(modal) {
-  if (!modal) return;
+  modal.classList.add("active");
   modal.classList.add("is-open");
   modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
 }
 
 function closeModal(modal) {
-  if (!modal) return;
+  modal.classList.remove("active");
   modal.classList.remove("is-open");
   modal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
@@ -211,22 +226,29 @@ function wirePerfilModal() {
   }
 
   // Openers
-  $$(SEL.perfilOpeners).forEach((a) => {
-    a.addEventListener("click", (e) => {
+  $$(SEL.perfilOpeners).forEach((el) => {
+    el.addEventListener("click", (e) => {
       e.preventDefault();
+
+      const modalSel = el.getAttribute("data-open") || "#modal-perfil";
+      const modal =
+        document.querySelector(modalSel) ||
+        document.querySelector("#modal-perfil");
+      if (!modal) return;
+
       const sess = getSession();
-      if (!sess) {
-        toast("No hay sesión activa.", "warning");
-        return;
-      }
+      if (!sess) return toast("No hay sesión activa.", "warning");
+
       fillPerfilFormFromSession(sess);
       openModal(modal);
-      log("Modal perfil abierto.");
+      log("Modal perfil abierto por", modalSel);
     });
   });
 
   // Close: botón
-  $$(SEL.modalClose).forEach((btn) => btn.addEventListener("click", () => closeModal(modal)));
+  $$(SEL.modalClose).forEach((btn) =>
+    btn.addEventListener("click", () => closeModal(modal))
+  );
 
   // Close: click overlay (si tu overlay es el #modal-perfil)
   modal.addEventListener("click", (e) => {
@@ -319,7 +341,8 @@ function wirePerfilModal() {
         telefono: telefono || cur.telefono,
         // conserva ids/roles/depto
         empleado_id: cur.empleado_id ?? cur.id_empleado ?? id,
-        departamento_id: cur.departamento_id ?? cur.dept_id ?? cur.departamento_id,
+        departamento_id:
+          cur.departamento_id ?? cur.dept_id ?? cur.departamento_id,
         roles: cur.roles ?? [],
         id_usuario: cur.id_usuario ?? cur.usuario_id ?? cur.id_usuario,
       };
@@ -336,7 +359,9 @@ function wirePerfilModal() {
       window.gcRefreshHeader?.(next);
 
       // 5) Notificar a otros módulos (por si requerimientos/tareas escuchan)
-      window.dispatchEvent(new CustomEvent("ix:perfil-updated", { detail: next }));
+      window.dispatchEvent(
+        new CustomEvent("ix:perfil-updated", { detail: next })
+      );
 
       toast("Perfil actualizado correctamente.", "exito");
       closeModal(modal);
