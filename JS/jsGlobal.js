@@ -702,43 +702,44 @@
 
     function maybeAddChatLink() {
       // Log de entrada
-      console.log("[ChatLink] maybeAddChatLink() → start");
+      //console.log("[ChatLink] maybeAddChatLink() → start");
 
       // 1) Revisar config básica
       if (!CFG.CHAT.enabled || !CFG.CHAT.url) {
-        console.log("[ChatLink] CHAT deshabilitado o sin URL", {
+        console.log( /*"[ChatLink] CHAT deshabilitado o sin URL"*/ "con1", {
           enabled: CFG.CHAT.enabled,
           url: CFG.CHAT.url,
         });
         return;
       }
-      console.log("[ChatLink] CHAT habilitado con URL:", CFG.CHAT.url);
+      //console.log("[ChatLink] CHAT habilitado con URL:", CFG.CHAT.url);
 
       // 2) Leer sesión desde cookie
       const sess = readIxSession(CFG.CHAT.cookieName);
       console.log(
-        "[ChatLink] Sesión leída desde cookie",
+        "con2",
+        /*"[ChatLink] Sesión leída desde cookie",*/
         CFG.CHAT.cookieName,
         sess
       );
 
       const empIdRaw = sess?.empleado_id ?? sess?.id_empleado;
       const empId = Number(empIdRaw ?? NaN);
-      console.log("[ChatLink] empIdRaw:", empIdRaw, "→ empId (Number):", empId);
+      //console.log("[ChatLink] empIdRaw:", empIdRaw, "→ empId (Number):", empId);
 
       // 3) Validar que el ID sea numérico
       if (!Number.isFinite(empId)) {
-        console.log("[ChatLink] empId no válido, NO es candidato a ver Chat.");
+        //console.log("[ChatLink] empId no válido, NO es candidato a ver Chat.");
         return;
       }
 
       // 4) Ver si está en la lista de permitidos
       const isAllowed = CFG.CHAT.allowedEmpIds.includes(empId);
-      console.log("[ChatLink] ¿empId permitido?", {
-        empId,
-        allowedEmpIds: CFG.CHAT.allowedEmpIds,
-        isAllowed,
-      });
+     // console.log(/*"[ChatLink] ¿empId permitido?"*/"con3", {
+     //   empId,
+     //   allowedEmpIds: CFG.CHAT.allowedEmpIds,
+     //   isAllowed,
+     // });
 
       if (!isAllowed) {
         console.log(
@@ -756,17 +757,17 @@
       const navs = document.querySelectorAll(
         "#mobile-menu .nav-left, .subnav .nav-left"
       );
-      console.log("[ChatLink] NavLeft hosts encontrados:", navs.length);
+      //console.log("[ChatLink] NavLeft hosts encontrados:", navs.length);
 
       navs.forEach((navLeft) => {
         if (!navLeft) return;
 
         const already = navLeft.querySelector("#link-chat");
         if (already) {
-          console.log(
-            "[ChatLink] Ya existe #link-chat en este nav, se omite.",
-            navLeft
-          );
+        //  console.log(
+        //    "[ChatLink] Ya existe #link-chat en este nav, se omite.",
+        //    navLeft
+        //  );
           return;
         }
 
@@ -778,10 +779,10 @@
         a.rel = "noopener";
 
         navLeft.appendChild(a);
-        console.log("[ChatLink] Link de Chat agregado en navLeft:", navLeft);
+        //console.log("[ChatLink] Link de Chat agregado en navLeft:", navLeft);
       });
 
-      console.log("[ChatLink] maybeAddChatLink() → end");
+      //console.log("[ChatLink] maybeAddChatLink() → end");
     }
 
     /* ================= Render ================= */

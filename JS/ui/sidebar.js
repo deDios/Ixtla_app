@@ -16,7 +16,7 @@ const CFG = {
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
   DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
 
-  // Detecta el layout del sidebar (home vs hs)
+  // Detecta el layout del sidebar
   SCHEMES: [
     {
       key: "hs",
