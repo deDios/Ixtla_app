@@ -1,56 +1,64 @@
 // /JS/ui/sidebar.js
-// Sidebar global: hidrata perfil + modal "Administrar perfil" (NO avatar upload)
-// Requiere: /JS/auth/session.js (window.Session), /JS/api/usuarios.js (updatePerfilBasico, changePassword)
+// ================= Ixtla – Sidebar (perfil + modal perfil + filtros opcionales) =================
 "use strict";
 
-import { updatePerfilBasico, changePassword } from "../api/usuarios.js";
+import { Session } from "/JS/auth/session.js";
+import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
 
+/* -------------------- Config -------------------- */
+const CFG = {
+  DEBUG: true,
+  DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
+
+  // Endpoint para resolver nombres de departamento (fallback si no existe usuarios.js)
+  DEPT_API:
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
+  DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
+
+  SEL: {
+    avatar: "#hs-avatar",
+    profileName: "#hs-profile-name",
+    profileBadge: "#hs-profile-badge",
+    profileSection: ".hs-profile",
+
+    modalId: "modal-perfil",
+
+    // Filtros (opcionales)
+    statusGroup: "#hs-states",
+    statusItems: "#hs-states .item",
+    legendStatus: "#hs-legend-status",
+    searchInput: "#hs-search",
+    cnt: {
+      todos: "#cnt-todos",
+      solicitud: "#cnt-solicitud",
+      revision: "#cnt-revision",
+      asignacion: "#cnt-asignacion",
+      proceso: "#cnt-proceso",
+      pausado: "#cnt-pausado",
+      cancelado: "#cnt-cancelado",
+      finalizado: "#cnt-finalizado",
+    },
+  },
+};
+
+/* -------------------- Helpers -------------------- */
 const TAG = "[Sidebar]";
-const DEBUG = true;
+const log = (...a) => CFG.DEBUG && console.log(TAG, ...a);
+const warn = (...a) => CFG.DEBUG && console.warn(TAG, ...a);
+const err = (...a) => console.error(TAG, ...a);
 
-const log = (...a) => DEBUG && console.log(TAG, ...a);
-const warn = (...a) => DEBUG && console.warn(TAG, ...a);
-const err = (...a) => DEBUG && console.error(TAG, ...a);
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
 const toast = (m, t = "info") =>
   window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
-/* ========================================================================== */
-/* Selectores tolerantes (Home / Requerimiento / otras)                        */
-/* ========================================================================== */
-const SEL = {
-  // Avatar en sidebar (puede ser id o class)
-  avatarCandidates: [
-    "#hs-avatar",
-    ".home-sidebar .profile-card img.avatar",
-    ".home-sidebar .profile-card .avatar",
-    ".profile-card img.avatar",
-    ".profile-card .avatar",
-    "aside .profile-card img",
-  ],
-  // Nombre en sidebar
-  nameCandidates: ["#hs-profile-name", "#h-user-nombre", ".profile-name"],
-  // Badge / departamento
-  deptCandidates: ["#hs-dept-badge", ".profile-dep.badge", ".profile-dep"],
-  // Openers del modal perfil
-  perfilOpeners: [
-    '[data-open="#modal-perfil"]',
-    '[data-open="modal-perfil"]',
-    ".edit-profile",
-    'a[href="#perfil"]',
-    "[data-open-perfil]",
-    "[data-act='open-perfil']",
-  ],
-  // Modal perfil
-  modalPerfil: "#modal-perfil",
-  modalClose:
-    "#modal-perfil .modal-close, #modal-perfil [data-close], #modal-perfil .btn-close",
-  formPerfil: "#form-perfil",
+const setText = (sel, txt) => {
+  const el = $(sel);
+  if (el) el.textContent = String(txt ?? "—");
 };
 
-/* ========================================================================== */
-/* Cookie fallback (igual que Home)                                            */
-/* ========================================================================== */
-function readCookiePayload() {
+function readCookieSession() {
   try {
     const name = "ix_emp=";
     const pair = document.cookie.split("; ").find((c) => c.startsWith(name));
@@ -62,244 +70,202 @@ function readCookiePayload() {
   }
 }
 
-function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
-  try {
-    const json = JSON.stringify(obj || {});
-    const b64 = btoa(unescape(encodeURIComponent(json)));
-    const maxAge = Math.max(1, Math.floor(maxAgeDays * 86400));
-    document.cookie = `ix_emp=${encodeURIComponent(
-      b64
-    )}; path=/; max-age=${maxAge}; samesite=lax`;
-  } catch (e) {
-    warn("No pude escribir cookie ix_emp:", e);
-  }
-}
-
-function getSession() {
+function getSessionSafe() {
   // 1) Session module
+  try {
+    const s = Session?.get?.();
+    if (s) return s;
+  } catch {}
+  // 2) window.Session (por si lo cargas en otro bundle)
   try {
     const s = window.Session?.get?.();
     if (s) return s;
   } catch {}
-  // 2) cookie fallback
-  return readCookiePayload();
-}
-
-/* ========================================================================== */
-/* Helpers DOM                                                                 */
-/* ========================================================================== */
-const $ = (s, r = document) => r.querySelector(s);
-const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-
-function pickFirst(selectors, root = document) {
-  for (const s of selectors) {
-    const el = $(s, root);
-    if (el) return el;
-  }
-  return null;
-}
-
-function setText(el, text) {
-  if (!el) return;
-  el.textContent = text ?? "—";
+  // 3) cookie ix_emp
+  return readCookieSession();
 }
 
 function cacheBust(url) {
-  if (!url) return "";
+  if (!url) return url;
   const base = String(url).split("?")[0];
   return base + (base.includes("?") ? "&" : "?") + "v=" + Date.now();
 }
 
-function resolveUserId(sess) {
-  return (
-    sess?.id_usuario ??
-    sess?.usuario_id ??
-    sess?.id_empleado ??
-    sess?.empleado_id ??
-    null
-  );
+/** Construye la ruta de avatar local (tu patrón actual en producción) */
+function buildAvatarUrl(id_usuario) {
+  if (!id_usuario) return CFG.DEFAULT_AVATAR;
+  return `/ASSETS/user/userImgs/img_${id_usuario}.png`;
 }
 
-function setSidebarAvatarFromSession(sess) {
-  const img = pickFirst(SEL.avatarCandidates);
-  if (!img) return;
+function setAvatarImage(
+  imgEl,
+  { id_usuario, avatarUrl, nombre, apellidos } = {}
+) {
+  if (!imgEl) return;
+  const alt = [nombre, apellidos].filter(Boolean).join(" ").trim() || "Avatar";
+  imgEl.alt = alt;
 
-  // Si avatar-edit.js expone helper global, úsalo; si no, fallback a candidatos por id
-  const idu = resolveUserId(sess);
-  const candidates = [];
+  const url =
+    avatarUrl ||
+    imgEl.getAttribute("data-src-resolved") ||
+    buildAvatarUrl(id_usuario) ||
+    CFG.DEFAULT_AVATAR;
 
-  // 1) si en sesión viene avatarUrl/avatar
-  const direct = sess?.avatarUrl || sess?.avatar;
-  if (direct) candidates.push(direct);
+  imgEl.src = cacheBust(url);
 
-  // 2) fallback a rutas conocidas (ajusta si tu path final es distinto)
-  if (idu) {
-    candidates.push(`/ASSETS/user/userImgs/img_${idu}.png`);
-    candidates.push(`/ASSETS/user/userImgs/img_${idu}.jpg`);
-    candidates.push(`/ASSETS/user/userImgs/img_${idu}.webp`);
-  }
-
-  // 3) default
-  const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
-  candidates.push(DEFAULT_AVATAR);
-
-  let i = 0;
-  const tryNext = () => {
-    const src = candidates[i++];
-    if (!src) return;
-    img.onerror = () => tryNext();
-    img.src = cacheBust(src);
+  // fallback si el archivo no existe
+  imgEl.onerror = () => {
+    imgEl.onerror = null;
+    imgEl.src = CFG.DEFAULT_AVATAR;
   };
-
-  tryNext();
 }
 
-function updateSidebarProfileUI(sess) {
-  const nameEl = pickFirst(SEL.nameCandidates);
-  const deptEl = pickFirst(SEL.deptCandidates);
+/* -------------------- Dept resolver (para badge) -------------------- */
+const __DEPT_CACHE = new Map();
 
-  const nombre =
-    [sess?.nombre, sess?.apellidos].filter(Boolean).join(" ").trim() || "—";
-  const deptName =
-    sess?.departamento_nombre ||
-    sess?.dept_name ||
-    sess?.departamento ||
-    sess?.dep_nombre ||
-    ""; // si lo traes en sesión
+async function resolveDeptName(deptId) {
+  if (!deptId) return "—";
+  const idNum = Number(deptId);
 
-  setText(nameEl, nombre);
-  if (deptEl) setText(deptEl, deptName || deptEl.textContent || "—");
+  if (CFG.DEPT_FALLBACK_NAMES[idNum]) return CFG.DEPT_FALLBACK_NAMES[idNum];
+  if (__DEPT_CACHE.has(idNum)) return __DEPT_CACHE.get(idNum);
 
-  setSidebarAvatarFromSession(sess);
+  try {
+    const res = await fetch(CFG.DEPT_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const json = await res.json();
+    const list = Array.isArray(json?.data) ? json.data : [];
+    for (const d of list) __DEPT_CACHE.set(Number(d.id), d.nombre);
+    return __DEPT_CACHE.get(idNum) || "—";
+  } catch (e) {
+    warn("resolveDeptName() fallback:", e);
+    return "—";
+  }
 }
 
-/* ========================================================================== */
-/* Modal Perfil                                                                */
-/* ========================================================================== */
-function isOpen(modal) {
-  return (
-    modal?.getAttribute("aria-hidden") === "false" ||
-    modal?.classList.contains("is-open")
-  );
+/* -------------------- PERFIL (siempre) -------------------- */
+async function refreshProfile(sess = null) {
+  const s = sess || getSessionSafe();
+  if (!s) return;
+
+  const id_usuario =
+    s.id_usuario ?? s.usuario_id ?? s.empleado_id ?? s.id_empleado;
+  const name = [s.nombre, s.apellidos].filter(Boolean).join(" ").trim();
+
+  if (name) setText(CFG.SEL.profileName, name);
+
+  const avatarEl = $(CFG.SEL.avatar);
+  setAvatarImage(avatarEl, {
+    id_usuario,
+    avatarUrl: s.avatarUrl || s.avatar,
+    nombre: s.nombre,
+    apellidos: s.apellidos,
+  });
+
+  // badge dept
+  const badgeEl = $(CFG.SEL.profileBadge);
+  if (badgeEl) {
+    const deptId = s.dept_id ?? s.departamento_id ?? s.deptId;
+    badgeEl.textContent = await resolveDeptName(deptId);
+  }
 }
 
+/* -------------------- MODAL PERFIL (opcional) -------------------- */
 function openModal(modal) {
+  if (!modal) return;
   modal.classList.add("active");
-  modal.classList.add("is-open");
-  modal.setAttribute("aria-hidden", "false");
+  modal.removeAttribute("aria-hidden");
   document.body.classList.add("modal-open");
 }
 
 function closeModal(modal) {
+  if (!modal) return;
   modal.classList.remove("active");
-  modal.classList.remove("is-open");
   modal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
 }
 
-function fillPerfilFormFromSession(sess) {
-  const form = $(SEL.formPerfil);
-  if (!form) return;
+function wireModalClose(modal) {
+  if (!modal) return;
 
-  const setVal = (id, v) => {
-    const el = document.getElementById(id);
-    if (el && v != null) el.value = String(v);
-  };
+  const closeBtns = [
+    ...modal.querySelectorAll(
+      '[data-close="1"], .modal-close, .btn-close, .close'
+    ),
+  ];
 
-  // OJO: tu input es name="correo" pero en backend se llama email.
-  setVal("perfil-nombre", sess?.nombre || "");
-  setVal("perfil-apellidos", sess?.apellidos || "");
-  setVal("perfil-email", sess?.email || sess?.correo || "");
-  setVal("perfil-telefono", sess?.telefono || "");
-
-  // Limpia password fields (opcional)
-  setVal("perfil-password", "");
-  setVal("perfil-password2", "");
-}
-
-function wirePerfilModal() {
-  const modal = $(SEL.modalPerfil);
-  const form = $(SEL.formPerfil);
-  if (!modal || !form) {
-    log("No hay modal-perfil en esta vista (OK).");
-    return;
-  }
-
-  // Openers
-  $$(SEL.perfilOpeners).forEach((el) => {
-    el.addEventListener("click", (e) => {
-      e.preventDefault();
-
-      const modalSel = el.getAttribute("data-open") || "#modal-perfil";
-      const modal =
-        document.querySelector(modalSel) ||
-        document.querySelector("#modal-perfil");
-      if (!modal) return;
-
-      const sess = getSession();
-      if (!sess) return toast("No hay sesión activa.", "warning");
-
-      fillPerfilFormFromSession(sess);
-      openModal(modal);
-      log("Modal perfil abierto por", modalSel);
-    });
-  });
-
-  // Close: botón
-  $$(SEL.modalClose).forEach((btn) =>
-    btn.addEventListener("click", () => closeModal(modal))
+  closeBtns.forEach((b) =>
+    b.addEventListener("click", () => closeModal(modal), { passive: true })
   );
 
-  // Close: click overlay (si tu overlay es el #modal-perfil)
   modal.addEventListener("click", (e) => {
     if (e.target === modal) closeModal(modal);
   });
 
-  // Close: ESC
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && isOpen(modal)) closeModal(modal);
+    if (e.key === "Escape" && modal.classList.contains("active"))
+      closeModal(modal);
   });
+}
 
-  // Submit
+async function fillPerfilModal(modal, empleadoId) {
+  const $m = (sel) => modal.querySelector(sel);
+
+  try {
+    log("fillPerfilModal() empleadoId:", empleadoId);
+    const emp = await getEmpleadoById(empleadoId); // tu API
+    if (!emp) throw new Error("Empleado no encontrado");
+
+    // OJO: no precargamos password
+    const deptName = await resolveDeptName(emp.departamento_id);
+
+    const set = (id, v) => {
+      const el = $m("#" + id);
+      if (el) el.value = v ?? "";
+    };
+
+    set("perfil-nombre", emp.nombre);
+    set("perfil-apellidos", emp.apellidos);
+    set("perfil-email", emp.correo);
+    set("perfil-telefono", emp.telefono);
+
+    set("perfil-depto", deptName);
+    set("perfil-reporta", emp.reporta_a_nombre || "");
+    set("perfil-status", emp.status);
+
+    // limpia passwords
+    set("perfil-password", "");
+    set("perfil-password2", "");
+  } catch (e) {
+    warn("fillPerfilModal() error:", e);
+    toast("No se pudo cargar tu perfil.", "warning");
+  }
+}
+
+function wirePerfilSubmit(modal, empleadoId) {
+  const form = modal.querySelector("form");
+  if (!form) return;
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const sess = getSession();
-    const id = sess?.empleado_id ?? sess?.id_empleado ?? sess?.id ?? null;
-    const updated_by = sess?.empleado_id ?? null;
+    const fd = new FormData(form);
+    const payload = Object.fromEntries(fd.entries());
 
-    if (!id) {
-      toast("No pude detectar tu empleado_id en sesión.", "error");
-      warn("Sesión sin empleado_id:", sess);
-      return;
-    }
+    const pass1 = String(payload.password || "").trim();
+    const pass2 = String(payload.password2 || "").trim();
 
-    const nombre = ($("#perfil-nombre")?.value || "").trim();
-    const apellidos = ($("#perfil-apellidos")?.value || "").trim();
-    const correo = ($("#perfil-email")?.value || "").trim();
-    const telefono = ($("#perfil-telefono")?.value || "").trim();
-
-    const pass1 = ($("#perfil-password")?.value || "").trim();
-    const pass2 = ($("#perfil-password2")?.value || "").trim();
-
-    log("Submit perfil:", {
-      id,
-      nombre,
-      apellidos,
-      email: correo,
-      telefono,
-      wantsPasswordChange: !!pass1,
-      updated_by,
-    });
-
-    if (!nombre || !apellidos) {
-      toast("Nombre y apellidos son obligatorios.", "warning");
-      return;
-    }
-
+    // validación rápida
     if (pass1 || pass2) {
-      if (pass1.length < 8) {
-        toast("La contraseña debe tener al menos 8 caracteres.", "warning");
+      if (pass1.length < 6) {
+        toast("La contraseña debe tener al menos 6 caracteres.", "warning");
         return;
       }
       if (pass1 !== pass2) {
@@ -308,99 +274,148 @@ function wirePerfilModal() {
       }
     }
 
-    // UI lock
-    const btn = form.querySelector('button[type="submit"]');
-    btn && (btn.disabled = true);
+    const req = {
+      id: empleadoId,
+      nombre: payload.nombre?.trim(),
+      apellidos: payload.apellidos?.trim(),
+      correo: payload.correo?.trim(),
+      telefono: payload.telefono?.trim(),
+      ...(pass1 ? { password: pass1 } : {}), // solo si escribió
+    };
 
     try {
-      // 1) Perfil básico
-      const emp = await updatePerfilBasico({
-        id,
-        nombre,
-        apellidos,
-        email: correo,
-        telefono,
-        updated_by,
-      });
+      log("updateEmpleado() payload:", req);
+      await updateEmpleado(req);
 
-      log("updatePerfilBasico OK:", emp);
+      toast("Perfil actualizado", "exito");
 
-      // 2) Password (opcional)
-      if (pass1) {
-        const emp2 = await changePassword({ id, password: pass1, updated_by });
-        log("changePassword OK:", emp2);
-      }
-
-      // 3) Persistir sesión (Session + cookie) para que TODA la UI se actualice sin reload
-      const cur = sess || {};
-      const next = {
-        ...cur,
-        nombre,
-        apellidos,
-        email: correo || cur.email,
-        telefono: telefono || cur.telefono,
-        // conserva ids/roles/depto
-        empleado_id: cur.empleado_id ?? cur.id_empleado ?? id,
-        departamento_id:
-          cur.departamento_id ?? cur.dept_id ?? cur.departamento_id,
-        roles: cur.roles ?? [],
-        id_usuario: cur.id_usuario ?? cur.usuario_id ?? cur.id_usuario,
-      };
-
+      // refresca UI sidebar con datos nuevos
+      const s = getSessionSafe() || {};
+      const merged = { ...s, ...req };
       try {
-        window.Session?.set?.(next);
-      } catch (se) {
-        warn("Session.set falló:", se);
-      }
-      writeCookiePayload(next);
+        // si tu Session soporta set/update, úsalo
+        Session?.set?.(merged);
+      } catch {}
+      await refreshProfile(merged);
 
-      // 4) Refrescar sidebar + header si existen hooks
-      updateSidebarProfileUI(next);
-      window.gcRefreshHeader?.(next);
-
-      // 5) Notificar a otros módulos (por si requerimientos/tareas escuchan)
-      window.dispatchEvent(
-        new CustomEvent("ix:perfil-updated", { detail: next })
-      );
-
-      toast("Perfil actualizado correctamente.", "exito");
       closeModal(modal);
     } catch (e2) {
-      err("Error actualizando perfil:", e2);
-      toast("Error al actualizar perfil. Revisa consola.", "error");
-    } finally {
-      btn && (btn.disabled = false);
+      err("updateEmpleado() error:", e2);
+      toast("No se pudo actualizar el perfil.", "error");
     }
   });
-
-  log("Modal perfil cableado.");
 }
 
-/* ========================================================================== */
-/* Boot                                                                        */
-/* ========================================================================== */
-function boot() {
-  const sess = getSession();
-  if (!sess) {
-    warn("Sin sesión (ix_emp) para hidratar sidebar.");
-  } else {
-    updateSidebarProfileUI(sess);
-    log("Sidebar perfil hidratado:", {
-      nombre: [sess.nombre, sess.apellidos].filter(Boolean).join(" "),
-      empleado_id: sess.empleado_id ?? sess.id_empleado,
-      id_usuario: resolveUserId(sess),
-    });
+function wireProfileModalOpeners() {
+  const modal = document.getElementById(CFG.SEL.modalId);
+  if (!modal) {
+    log("No hay #modal-perfil en esta vista (OK).");
+    return;
   }
 
-  wirePerfilModal();
+  wireModalClose(modal);
+
+  // Botones que abren el modal
+  const openers = document.querySelectorAll(
+    `.edit-profile, [data-open="#${CFG.SEL.modalId}"]`
+  );
+
+  openers.forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+
+      const s = getSessionSafe();
+      const empleadoId = s?.empleado_id ?? s?.id_empleado ?? s?.id_usuario;
+      if (!empleadoId) {
+        toast("No se detectó tu sesión.", "warning");
+        return;
+      }
+
+      openModal(modal);
+      await fillPerfilModal(modal, empleadoId);
+      wirePerfilSubmit(modal, empleadoId); // idempotente: si te preocupa duplicar, avísame y lo blindamos
+    });
+  });
+
+  log("Modal perfil cableado:", openers.length, "openers");
 }
 
-boot();
+/* -------------------- FILTROS (opcionales) -------------------- */
+function normalizeStatusKey(k) {
+  if (!k) return "todos";
+  let s = String(k)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[\s_-]+/g, "");
+  if (s === "enproceso") return "proceso";
+  return s;
+}
 
-/* ========================================================================== */
-/* API pública                       */
-/* ========================================================================== */
-export function IxSidebar_refresh() {
-  const sess = getSession();
-  if (sess) updateSidebarProfileUI(sess);
+function applyActiveUI(filterKey) {
+  const group = $(CFG.SEL.statusGroup);
+  if (!group) return;
+  $$(CFG.SEL.statusItems, group).forEach((btn) => {
+    const active = normalizeStatusKey(btn.dataset.status) === filterKey;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-checked", active ? "true" : "false");
+    btn.tabIndex = active ? 0 : -1;
+  });
+}
+
+const S = {
+  filterKey: "todos",
+  onChange: null,
+};
+
+function bindFiltersIfExist() {
+  const group = $(CFG.SEL.statusGroup);
+  if (!group) return;
+
+  group.addEventListener("click", (e) => {
+    const btn = e.target.closest(CFG.SEL.statusItems);
+    if (!btn) return;
+    const key = normalizeStatusKey(btn.dataset.status);
+    S.filterKey = key;
+    applyActiveUI(key);
+    S.onChange?.({ type: "filter", value: key });
+  });
+
+  // initial UI
+  applyActiveUI(S.filterKey);
+}
+
+/* -------------------- Public API (por si la vista quiere usarlo) -------------------- */
+export const Sidebar = {
+  refreshProfile,
+  setCounts(map = {}) {
+    const wrap = (n) => (n == null ? "" : `(${n})`);
+    setText(CFG.SEL.cnt.todos, wrap(map.todos));
+    setText(CFG.SEL.cnt.solicitud, wrap(map.solicitud));
+    setText(CFG.SEL.cnt.revision, wrap(map.revision));
+    setText(CFG.SEL.cnt.asignacion, wrap(map.asignacion));
+    setText(CFG.SEL.cnt.proceso, wrap(map.proceso));
+    setText(CFG.SEL.cnt.pausado, wrap(map.pausado));
+    setText(CFG.SEL.cnt.cancelado, wrap(map.cancelado));
+    setText(CFG.SEL.cnt.finalizado, wrap(map.finalizado));
+  },
+  onChange(fn) {
+    S.onChange = fn;
+  },
+};
+
+window.IxtlaSidebar = Sidebar;
+
+/* -------------------- Boot -------------------- */
+async function bootSidebar() {
+  log("boot()");
+  await refreshProfile();
+  wireProfileModalOpeners();
+  bindFiltersIfExist();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootSidebar);
+} else {
+  bootSidebar();
 }
