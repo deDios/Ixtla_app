@@ -368,6 +368,43 @@
     );
   }
 
+  /* =========================
+   * Bloqueo de edición (Detalles)
+   * Solo editable en Solicitud/Revisión (0/1)
+   * Nota: NO tocar botón "Asignado" (data-act="assign-req")
+   * ========================= */
+
+  function getReqStatusCode(req) {
+    if (!req) req = window.__REQ__ || null;
+    if (!req) return null;
+
+    return req.estatus_code != null
+      ? Number(req.estatus_code)
+      : req.estatus != null
+      ? Number(req.estatus)
+      : req.raw && req.raw.estatus != null
+      ? Number(req.raw.estatus)
+      : null;
+  }
+
+  function isEditableDetalles(req) {
+    const code = getReqStatusCode(req);
+    return code === 0 || code === 1; // Solicitud / Revisión
+  }
+
+  function applyDetallesEditVisibility(req) {
+    const editable = isEditableDetalles(req);
+    const grid = findDetallesGrid();
+    if (!grid) return;
+
+    // SOLO ocultamos los lápices de Trámite y Descripción
+    grid
+      .querySelectorAll(
+        'button.icon-btn[data-detalle-edit="tramite"], button.icon-btn[data-detalle-edit="descripcion"]'
+      )
+      .forEach((b) => (b.style.display = editable ? "" : "none"));
+  }
+
   function findRowByLabel(grid, labels) {
     if (!grid) return null;
     const lowers = labels.map((l) => String(l).toLowerCase());
@@ -490,6 +527,7 @@
         : "Sin asignar";
     putDetalle("Asignado", asignado);
     attachAsignarButton(req);
+    applyDetallesEditVisibility(req);
 
     // Descripción
     putDetalle("Descripción", req.descripcion || "—", "descripcion");
@@ -624,6 +662,8 @@
 
       // Re-wire de botones
       setupDetallesEditors(finalReq);
+      applyDetallesEditVisibility(finalReq);
+      applyDetallesEditVisibility(finalReq);
     };
 
     btnCancel.addEventListener("click", () => {
@@ -785,6 +825,7 @@
       if (span) span.textContent = finalReq.descripcion || "—";
 
       setupDetallesEditors(finalReq);
+      applyDetallesEditVisibility(finalReq);
     };
 
     btnCancel.addEventListener("click", () => {
@@ -826,6 +867,8 @@
   function setupDetallesEditors(req) {
     const grid = findDetallesGrid();
     if (!grid) return;
+
+    applyDetallesEditVisibility(req);
 
     // Trámite
     const rowTramite = findRowByLabel(grid, [
