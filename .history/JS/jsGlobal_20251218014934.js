@@ -1,4 +1,4 @@
-// JS Global (Ixtla App) — versión consolidada y segura para todas las views
+// JS Global
 (() => {
   "use strict";
   if (window.__gcGlobalInit) return;
@@ -17,6 +17,7 @@
     },
     ASSETS: {
       DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
+      // IMPORTANTE: carpeta donde guardamos "img_{id}.png"
       AVATAR_BASE: "/ASSETS/user/userImgs",
     },
     SOCIAL: {
@@ -32,7 +33,7 @@
     },
   };
 
-  const CFG = (function merge(base) {
+  const CFG = (function merge(base, ext) {
     const out = structuredClone
       ? structuredClone(base)
       : JSON.parse(JSON.stringify(base));
@@ -50,9 +51,9 @@
     }
     deepMerge(out, src);
     return out;
-  })(GC_DEFAULT_CONFIG);
+  })(GC_DEFAULT_CONFIG, window.GC_CONFIG);
 
-  /* ===================== HELPERS PATHS ===================== */
+  /* ===== Helpers de rutas/paths ===== */
   const abs = (p) => new URL(p, window.location.origin).pathname;
   const join = (...parts) =>
     parts
@@ -72,14 +73,16 @@
   const routeAppHome = CFG.ROUTES?.appHome
     ? abs(CFG.ROUTES.appHome)
     : view("home.php");
-  const routeLogin = CFG.ROUTES?.login ? abs(CFG.ROUTES.login) : view("login.php");
+  const routeLogin = CFG.ROUTES?.login
+    ? abs(CFG.ROUTES.login)
+    : view("login.php");
 
   const DEFAULT_AVATAR = abs(
     CFG.ASSETS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png"
   );
   const AVATAR_BASE = abs(CFG.ASSETS.AVATAR_BASE || "/ASSETS/user/userImgs");
 
-  /* ===================== SESIÓN (COOKIE ix_emp) ===================== */
+  /* ===================== SESIÓN ===================== */
   function getIxSession() {
     try {
       const m = document.cookie
@@ -92,7 +95,6 @@
       return null;
     }
   }
-
   function clearIxSession() {
     document.cookie =
       "ix_emp=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
@@ -148,7 +150,7 @@
     tryNext();
   }
 
-  /* ===================== AVATAR HELPERS ===================== */
+  // === Avatar helpers ===
   function gcAvatarUrlFor(id) {
     if (id == null) return DEFAULT_AVATAR;
     return `${AVATAR_BASE}/img_${id}.png`;
@@ -159,6 +161,11 @@
     const id =
       session?.id_usuario != null ? String(session.id_usuario).trim() : null;
 
+    // Orden de preferencia:
+    // 1) URL directa (si vino de la respuesta del upload)
+    // 2) NUEVO: img_{id}.png
+    // 3) LEGACY: user_{id}.png
+    // 4) DEFAULT
     const candidates = [
       ...(cookieUrl ? [cookieUrl] : []),
       ...(id ? [`${AVATAR_BASE}/img_${id}`] : []),
@@ -178,20 +185,24 @@
     imgEl.loading = "lazy";
   }
 
+  // Refrescar todas las vistas conocidas con un URL (opcional) o tomando la sesión
   function gcRefreshAvatarEverywhere(url, sessionOverride) {
     const session = sessionOverride || getIxSession();
 
+    // Header desktop
     document.querySelectorAll(".actions .img-perfil").forEach((img) => {
       if (url) img.src = withBust(url);
       else setAvatarSrc(img, session);
     });
 
+    // Header móvil
     const mobImg = document.querySelector(".user-icon-mobile img");
     if (mobImg) {
       if (url) mobImg.src = withBust(url);
       else setAvatarSrc(mobImg, session);
     }
 
+    // Cualquier avatar visible en la vista (por ejemplo el del sidebar)
     const side = document.getElementById("hs-avatar");
     if (side) {
       if (url) side.src = withBust(url);
@@ -199,6 +210,7 @@
     }
   }
 
+  // Exponer helpers
   window.gcSetAvatarSrc = setAvatarSrc;
   window.gcAvatarUrlFor = gcAvatarUrlFor;
   window.gcRefreshAvatarEverywhere = gcRefreshAvatarEverywhere;
@@ -206,6 +218,7 @@
   window.gcRefreshHeader = function gcRefreshHeader(sessionOverride) {
     const session = sessionOverride || getIxSession();
 
+    // Desktop header
     const wrap = document.querySelector(".actions .user-icon");
     if (wrap) {
       const emailSpan = wrap.querySelector(".user-email");
@@ -214,6 +227,7 @@
       if (img) setAvatarSrc(img, session);
     }
 
+    // Mobile header
     const mobImg = document.querySelector(".user-icon-mobile img");
     if (mobImg) setAvatarSrc(mobImg, session);
 
@@ -222,14 +236,18 @@
     );
   };
 
+  // Escucha global: cuando el editor de avatar suba una imagen, refrescamos
   document.addEventListener("gc:avatar-updated", (e) => {
-    const url = e?.detail?.url || null;
+    const url = e?.detail?.url || null; // ej. "/ASSETS/user/userImgs/img_12.png"
     gcRefreshAvatarEverywhere(url);
   });
 
-  /* ===================== VH MOBILE ===================== */
+  // CSS var --vh para layouts móviles
   const applyVH = () =>
-    document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
+    document.documentElement.style.setProperty(
+      "--vh",
+      `${window.innerHeight * 0.01}px`
+    );
   applyVH();
   window.addEventListener("resize", applyVH);
 
@@ -273,7 +291,7 @@
     window.addEventListener("scroll", onScroll, { passive: true });
   });
 
-  /* ===================== TOPBAR (avatar, dropdown, mobile) ===================== */
+  /* ===================== TOPBAR (avatar, dropdown, móvil) ===================== */
   document.addEventListener("DOMContentLoaded", () => {
     const session = getIxSession();
     const isLogged = !!(session?.email || session?.nombre);
@@ -292,25 +310,26 @@
         wrap.setAttribute("aria-haspopup", "true");
         wrap.setAttribute("aria-expanded", "false");
         wrap.innerHTML = `
-          <span class="user-email"></span>
+          <span class="user-email">${emailShown}</span>
           <img alt="Perfil" title="Perfil" class="img-perfil" />
           <div class="dropdown-menu" id="user-dropdown" role="menu" aria-hidden="true">
             <ul>
               <li role="menuitem" tabindex="-1">
-                <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
+                <img src="${asset(
+          "/user/userMenu/homebtn.png"
+        )}" alt="" aria-hidden="true" />
                 Ir a Home
               </li>
               <li id="logout-btn" role="menuitem" tabindex="-1">
-                <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
+                <img src="${asset(
+          "/user/userMenu/logoutbtn.png"
+        )}" alt="" aria-hidden="true" />
                 Logout
               </li>
             </ul>
           </div>`;
         actions.appendChild(wrap);
         actions.classList.add("mostrar");
-
-        const emailSpan = wrap.querySelector(".user-email");
-        if (emailSpan) emailSpan.textContent = emailShown;
 
         const img = wrap.querySelector("img.img-perfil");
         if (img) setAvatarSrc(img, session);
@@ -347,7 +366,10 @@
 
         if (!sessionStorage.getItem("bienvenidaMostrada")) {
           try {
-            window.gcToast?.(`Bienvenido, ${session.nombre || "usuario"}`, "exito");
+            window.gcToast?.(
+              `Bienvenido, ${session.nombre || "usuario"}`,
+              "exito"
+            );
           } catch { }
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
@@ -357,7 +379,10 @@
         loginIcon.innerHTML = `<img src="${withBust(
           DEFAULT_AVATAR
         )}" alt="Usuario" title="Iniciar sesión" class="img-perfil" />`;
-        loginIcon.addEventListener("click", () => (window.location.href = routeLogin));
+        loginIcon.addEventListener(
+          "click",
+          () => (window.location.href = routeLogin)
+        );
         actions.appendChild(loginIcon);
         actions.classList.add("mostrar");
       }
@@ -390,11 +415,15 @@
         dropdownMobile.innerHTML = `
           <ul>
             <li>
-              <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
+              <img src="${asset(
+          "/user/userMenu/homebtn.png"
+        )}" alt="" aria-hidden="true" />
               Ir a Home
             </li>
             <li id="logout-btn-mobile">
-              <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
+              <img src="${asset(
+          "/user/userMenu/logoutbtn.png"
+        )}" alt="" aria-hidden="true" />
               Logout
             </li>
           </ul>`;
@@ -403,37 +432,42 @@
         const reposition = () => {
           const rect = mob.getBoundingClientRect();
           dropdownMobile.style.top = `${rect.bottom + window.scrollY}px`;
-          // Medimos ya visible (si está active). Si no, fallback a 180.
-          const w = dropdownMobile.offsetWidth || 180;
-          const left = Math.max(8, rect.right - w);
+          const left = Math.max(
+            8,
+            rect.right - (dropdownMobile.offsetWidth || 180)
+          );
           dropdownMobile.style.left = `${left + window.scrollX}px`;
         };
 
         mobImg?.addEventListener("click", (e) => {
           e.stopPropagation();
           const willOpen = !dropdownMobile.classList.contains("active");
-          if (willOpen) {
-            dropdownMobile.classList.add("active");
-            reposition();
-          } else {
-            dropdownMobile.classList.remove("active");
-          }
+          if (willOpen) reposition();
+          dropdownMobile.classList.toggle("active", willOpen);
         });
 
-        document.addEventListener("click", () => dropdownMobile.classList.remove("active"));
+        document.addEventListener("click", () =>
+          dropdownMobile.classList.remove("active")
+        );
         document.addEventListener("keydown", (e) => {
           if (e.key === "Escape") dropdownMobile.classList.remove("active");
         });
         const onRepositionIfOpen = () => {
           if (dropdownMobile.classList.contains("active")) reposition();
         };
-        window.addEventListener("resize", onRepositionIfOpen, { passive: true });
-        window.addEventListener("scroll", onRepositionIfOpen, { passive: true });
-
-        dropdownMobile.querySelector("li:first-child")?.addEventListener("click", (e) => {
-          e.stopPropagation();
-          window.location.href = routeAppHome;
+        window.addEventListener("resize", onRepositionIfOpen, {
+          passive: true,
         });
+        window.addEventListener("scroll", onRepositionIfOpen, {
+          passive: true,
+        });
+
+        dropdownMobile
+          .querySelector("li:first-child")
+          ?.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.location.href = routeAppHome;
+          });
         dropdownMobile
           .querySelector("#logout-btn-mobile")
           ?.addEventListener("click", () => {
@@ -444,75 +478,59 @@
 
         setAvatarSrc(mobImg, session);
       } else {
-        mob.addEventListener("click", () => (window.location.href = routeLogin));
+        mob.addEventListener(
+          "click",
+          () => (window.location.href = routeLogin)
+        );
       }
     }
   });
 
-  /* ===================== SOCIAL BINDER (GLOBAL) ===================== */
-  const DEFAULT_SOCIAL = Object.assign({}, GC_DEFAULT_CONFIG.SOCIAL);
-
-  function getSocialMap() {
-    // Prioridad: NAV_SOCIAL (por vista) > GC_CONFIG.SOCIAL > defaults
-    return Object.assign(
-      {},
-      DEFAULT_SOCIAL,
-      (window.GC_CONFIG && window.GC_CONFIG.SOCIAL) || {},
-      window.NAV_SOCIAL || {}
-    );
-  }
-
-  function attachSocialClicks(root) {
-    if (!root) return;
-    const socialMap = getSocialMap();
-
-    root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
-      // NO confiar en data-social-bound (puede venir marcado desde HTML)
-      if (el.dataset.gcSocialBound === "1") return;
-
-      const img = el.querySelector("img") || el;
-      const key = (img.alt || "").trim().toLowerCase();
-      const url = socialMap[key];
-      if (!url) return;
-
-      el.style.cursor = "pointer";
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        window.open(url, "_blank", "noopener");
-      });
-
-      if (!/^(a|button)$/i.test(el.tagName)) {
-        el.tabIndex = 0;
-        el.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            window.open(url, "_blank", "noopener");
-          }
-        });
-      }
-
-      el.dataset.gcSocialBound = "1";
-    });
-  }
-
-  /* ===================== SUBNAV + REDES (NO depende de data-subnav-init) ===================== */
+  /* ===================== SUBNAV + REDES ===================== */
   document.addEventListener("DOMContentLoaded", () => {
     const header = document.getElementById("header");
     if (!header) return;
-
-    // OJO: data-subnav-init puede venir "1" desde backend. NO usarlo para cortar lógica.
     if (header.dataset.gcSubnavBound === "1") return;
     header.dataset.gcSubnavBound = "1";
 
     const nav = header.querySelector(".subnav");
 
-    // Bind socials en subnav y barra móvil
+    const socialMap = Object.assign({}, CFG.SOCIAL, window.NAV_SOCIAL || {});
+    const attachSocialClicks = (root) => {
+      if (!root) return;
+      root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
+        if (el.dataset.socialBound === "1") return;
+        const img = el.querySelector("img") || el;
+        const key = (img.alt || "").trim().toLowerCase();
+        const url = socialMap[key];
+        if (!url) return;
+
+        el.style.cursor = "pointer";
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.open(url, "_blank", "noopener");
+        });
+
+        if (!/^(a|button)$/i.test(el.tagName)) {
+          el.tabIndex = 0;
+          el.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              window.open(url, "_blank", "noopener");
+            }
+          });
+        }
+
+        el.dataset.socialBound = "1";
+      });
+    };
+
     attachSocialClicks(nav);
     attachSocialClicks(header.querySelector(".social-bar-mobile"));
 
     // Logo → Home público
     const logoBtn = document.getElementById("logo-btn");
-    if (logoBtn && logoBtn.dataset.logoBound !== "1") {
+    if (logoBtn) {
       logoBtn.style.cursor = "pointer";
       const goPublicHome = () => (window.location.href = routePublicHome);
       logoBtn.addEventListener("click", goPublicHome);
@@ -522,46 +540,67 @@
           goPublicHome();
         }
       });
-      logoBtn.dataset.logoBound = "1";
     }
   });
 
-  /* ===================== SUBNAV OPERATIVO (render + active + chat) ===================== */
+  // ------------------------------------- Subnav Operativo — secciones + active + chat
   (function SubnavOperativo() {
     "use strict";
 
-    const CFG_OPS = {
+    console.log("[SubnavOps] IIFE init. path:", location.pathname);
+
+    /* ================= Config ================= */
+    const CFG = {
+      // Rutas para el subnav (orden de render)
       SECTIONS: Object.assign(
         {
           home: {
             label: "Home",
             href: "/VIEWS/home.php",
-            matchers: ["home.php", "requerimiento.php", /^\/VIEWS\/requerimiento\/\d+$/i],
+            // Todas estas vistas heredan de home
+            matchers: [
+              "home.php",
+              "requerimiento.php",
+              /^\/VIEWS\/requerimiento\/\d+$/i,
+            ],
           },
           tareas: {
             label: "Tareas",
             href: "/VIEWS/Tareas.php",
             matchers: ["tareas.php"],
           },
+          // se pueden añadir mas (sin tocar HTML)
+          // reportes: { label:"Reportes", href:"/VIEWS/Reportes.php", matchers:["reportes.php"] },
         },
         window.NAV_SECTIONS || {}
       ),
+
+      SOCIAL: Object.assign(
+        {}, // defaults vacíos (rellena si tienes URLs globales)
+        (window.GC_CONFIG && window.GC_CONFIG.SOCIAL) || {},
+        (window.CFG && window.CFG.SOCIAL) || {}
+      ),
+
       CHAT: {
         enabled: true,
         url: "/VIEWS/whats_asesores.php",
         allowedEmpIds: Array.isArray(window.NAV_CHAT_ALLOWED)
           ? window.NAV_CHAT_ALLOWED.slice()
-          : [6, 5, 4, 2, 1, 15],
+          : [6, 5, 4, 2, 1, 15], // ← whitelist por defecto
         cookieName: "ix_emp",
       },
     };
 
+    /* ================= Utils ================= */
     const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
     const normPath = (u) => {
       try {
         const url = new URL(u, location.origin);
-        return decodeURIComponent(url.pathname.toLowerCase().replace(/\/+$/, ""));
+        return decodeURIComponent(
+          url.pathname.toLowerCase().replace(/\/+$/, "")
+        );
       } catch {
         return "";
       }
@@ -571,20 +610,26 @@
       decodeURIComponent((curPath().split("/").pop() || "").toLowerCase());
 
     function matchOne(m) {
+      // m puede ser string (último segmento) o RegExp (contra pathname completo)
       if (typeof m === "string") return curLast() === m.toLowerCase();
       if (m instanceof RegExp) return m.test(curPath());
       return false;
     }
 
     function resolveActiveSectionKey() {
-      for (const [key, sec] of Object.entries(CFG_OPS.SECTIONS)) {
+      // 1) Emparejar por matchers (incluye hijas)
+      for (const [key, sec] of Object.entries(CFG.SECTIONS)) {
         if ((sec.matchers || []).some(matchOne)) return key;
       }
-      for (const [key, sec] of Object.entries(CFG_OPS.SECTIONS)) {
-        const last = decodeURIComponent((normPath(sec.href).split("/").pop() || "").toLowerCase());
+      // 2) Fallback por href (último segmento)
+      for (const [key, sec] of Object.entries(CFG.SECTIONS)) {
+        const last = decodeURIComponent(
+          (normPath(sec.href).split("/").pop() || "").toLowerCase()
+        );
         if (curLast() === last) return key;
       }
-      for (const [key, sec] of Object.entries(CFG_OPS.SECTIONS)) {
+      // 3) Fallback por path exacto
+      for (const [key, sec] of Object.entries(CFG.SECTIONS)) {
         if (normPath(sec.href) === curPath()) return key;
       }
       return null;
@@ -603,16 +648,44 @@
       }
     }
 
+    /* ================= Social ================= */
     function getSocialMarkup(nav) {
       const existing = nav.querySelector(".social-icons");
       if (existing) return existing.outerHTML;
       return `
-        <div class="social-icons">
-          <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
-          <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
-          <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
-          <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
-        </div>`;
+      <div class="social-icons">
+        <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
+        <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
+        <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
+        <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
+      </div>`;
+    }
+
+    function bindSocialClicks(root) {
+      const socialMap = CFG.SOCIAL || {};
+      root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
+        if (el.dataset.socialBound === "1") return;
+        const img = el.querySelector("img") || el;
+        const key = (img.alt || "").trim().toLowerCase();
+        const url = socialMap[key];
+        if (!url) return;
+
+        el.style.cursor = "pointer";
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          window.open(url, "_blank", "noopener");
+        });
+        if (!/^(a|button)$/i.test(el.tagName)) {
+          el.tabIndex = 0;
+          el.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              window.open(url, "_blank", "noopener");
+            }
+          });
+        }
+        el.dataset.socialBound = "1";
+      });
     }
 
     function ensureNavLeftHosts() {
@@ -626,35 +699,94 @@
     }
 
     function maybeAddChatLink() {
-      if (!CFG_OPS.CHAT.enabled || !CFG_OPS.CHAT.url) return;
+      // Log de entrada
+      //console.log("[ChatLink] maybeAddChatLink() → start");
 
-      const sess = readIxSession(CFG_OPS.CHAT.cookieName);
+      // 1) Revisar config básica
+      if (!CFG.CHAT.enabled || !CFG.CHAT.url) {
+        console.log( /*"[ChatLink] CHAT deshabilitado o sin URL"*/ "con1", {
+          enabled: CFG.CHAT.enabled,
+          url: CFG.CHAT.url,
+        });
+        return;
+      }
+      //console.log("[ChatLink] CHAT habilitado con URL:", CFG.CHAT.url);
+
+      // 2) Leer sesión desde cookie
+      const sess = readIxSession(CFG.CHAT.cookieName);
+      console.log(
+        "con2",
+        /*"[ChatLink] Sesión leída desde cookie",*/
+        CFG.CHAT.cookieName,
+        sess
+      );
+
       const empIdRaw = sess?.empleado_id ?? sess?.id_empleado;
       const empId = Number(empIdRaw ?? NaN);
-      if (!Number.isFinite(empId)) return;
+      //console.log("[ChatLink] empIdRaw:", empIdRaw, "→ empId (Number):", empId);
 
-      const isAllowed = CFG_OPS.CHAT.allowedEmpIds.includes(empId);
-      if (!isAllowed) return;
+      // 3) Validar que el ID sea numérico
+      if (!Number.isFinite(empId)) {
+        //console.log("[ChatLink] empId no válido, NO es candidato a ver Chat.");
+        return;
+      }
 
+      // 4) Ver si está en la lista de permitidos
+      const isAllowed = CFG.CHAT.allowedEmpIds.includes(empId);
+      // console.log(/*"[ChatLink] ¿empId permitido?"*/"con3", {
+      //   empId,
+      //   allowedEmpIds: CFG.CHAT.allowedEmpIds,
+      //   isAllowed,
+      // });
+
+      if (!isAllowed) {
+        console.log(
+          "[ChatLink] empId no está en allowedEmpIds, NO se agrega link de Chat."
+        );
+        return;
+      }
+
+      // 5) Ya es candidato → procedemos a insertar el link
+      console.log(
+        "[ChatLink] empId ES candidato, se intentará agregar link de Chat."
+      );
       ensureNavLeftHosts();
-      const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
+
+      const navs = document.querySelectorAll(
+        "#mobile-menu .nav-left, .subnav .nav-left"
+      );
+      //console.log("[ChatLink] NavLeft hosts encontrados:", navs.length);
 
       navs.forEach((navLeft) => {
         if (!navLeft) return;
-        if (navLeft.querySelector("#link-chat")) return;
+
+        const already = navLeft.querySelector("#link-chat");
+        if (already) {
+          //  console.log(
+          //    "[ChatLink] Ya existe #link-chat en este nav, se omite.",
+          //    navLeft
+          //  );
+          return;
+        }
 
         const a = document.createElement("a");
         a.id = "link-chat";
-        a.href = CFG_OPS.CHAT.url;
+        a.href = CFG.CHAT.url;
         a.textContent = "Chat";
         a.target = "_blank";
         a.rel = "noopener";
+
         navLeft.appendChild(a);
+        //console.log("[ChatLink] Link de Chat agregado en navLeft:", navLeft);
       });
+
+      //console.log("[ChatLink] maybeAddChatLink() → end");
     }
 
+    /* ================= Render ================= */
     function mkLink(label, href, isActive) {
-      return `<a href="${href}" class="${isActive ? "active" : ""}">${label}</a>`;
+      return `<a href="${href}" class="${isActive ? "active" : ""
+        }">${label}</a>`;
     }
 
     function mirrorActiveToMobile() {
@@ -664,7 +796,10 @@
       if (!activeHref) return;
       const target = normPath(activeHref);
       document.querySelectorAll("#mobile-menu a").forEach((a) => {
-        a.classList.toggle("active", normPath(a.getAttribute("href") || "") === target);
+        a.classList.toggle(
+          "active",
+          normPath(a.getAttribute("href") || "") === target
+        );
       });
     }
 
@@ -681,15 +816,15 @@
 
     function renderOperative(nav) {
       const activeKey = resolveActiveSectionKey();
-      const left = Object.entries(CFG_OPS.SECTIONS)
+      const left = Object.entries(CFG.SECTIONS)
         .map(([key, sec]) => mkLink(sec.label, sec.href, key === activeKey))
         .join("");
 
-      nav.innerHTML = `<div class="nav-left">${left}</div>${getSocialMarkup(nav)}`;
+      nav.innerHTML = `<div class="nav-left">${left}</div>${getSocialMarkup(
+        nav
+      )}`;
 
-      // IMPORTANTÍSIMO: bind socials después del render (usa el binder global)
-      attachSocialClicks(nav);
-
+      bindSocialClicks(nav);
       ensureLogoNavigates();
       maybeAddChatLink();
       mirrorActiveToMobile();
@@ -697,33 +832,46 @@
 
     function restoreOriginal(nav) {
       if (nav.dataset.originalHtml) nav.innerHTML = nav.dataset.originalHtml;
-
-      // Re-bindea socials también al restaurar (por si venían “marcados”)
-      attachSocialClicks(nav);
-
+      bindSocialClicks(nav);
       ensureLogoNavigates();
       mirrorActiveToMobile();
     }
 
+    /* ================= Mount ================= */
     const header = document.getElementById("header");
     if (!header) return;
 
     const subnavs = Array.from(header.querySelectorAll(".subnav"));
     if (!subnavs.length) return;
 
+    // Guarda HTML original (para restaurar si no aplica)
     subnavs.forEach((nav) => {
       if (!nav.dataset.originalHtml) nav.dataset.originalHtml = nav.innerHTML;
     });
 
     function isOperativeLike() {
+      // Considera "operativo" si la sección activa existe (home/tareas/…)
       return !!resolveActiveSectionKey() || /home\.php/i.test(curLast());
     }
 
     function mount() {
       const operative = isOperativeLike();
+      const activeKey = resolveActiveSectionKey();
+      console.log("[SubnavOps] mount()", {
+        operative,
+        activeKey,
+        curPath: curPath(),
+        curLast: curLast(),
+      });
+
       subnavs.forEach((nav) => {
-        if (operative) renderOperative(nav);
-        else restoreOriginal(nav);
+        if (operative) {
+          console.log("[SubnavOps] renderOperative() sobre nav:", nav);
+          renderOperative(nav);
+        } else {
+          console.log("[SubnavOps] restoreOriginal() sobre nav:", nav);
+          restoreOriginal(nav);
+        }
       });
     }
 
@@ -739,14 +887,15 @@
           try {
             maybeAddChatLink();
             mirrorActiveToMobile();
-            // Si alguien reinyecta HTML, re-bindea socials
-            subnavs.forEach((nav) => attachSocialClicks(nav));
           } catch { }
         }
       });
       obs.observe(header, { childList: true, subtree: true });
     }
 
+    // API opcional por si necesitas refrescar manualmente
     window.SubnavOps = { refresh: mount };
   })();
+
+  // ------------------------------------- fin subnav operativo
 })();
