@@ -348,7 +348,7 @@
         if (!sessionStorage.getItem("bienvenidaMostrada")) {
           try {
             window.gcToast?.(`Bienvenido, ${session.nombre || "usuario"}`, "exito");
-          } catch { }
+          } catch {}
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
@@ -776,7 +776,7 @@
               fixOperativeSocialHitbox(nav);
               attachSocialClicks(nav);
             });
-          } catch { }
+          } catch {}
         }
       });
       obs.observe(header, { childList: true, subtree: true });
