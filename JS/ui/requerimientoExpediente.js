@@ -68,9 +68,41 @@
     return { title, folio, meta };
   }
 
+  function normTab(s) {
+    return String(s || "")
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  function findPaneByTab(tabName) {
+    const wanted = normTab(tabName);
+    // Match exact (fast path)
+    let root = $(`.exp-pane[role="tabpanel"][data-tab="${tabName}"]`);
+    if (root) return root;
+
+    // Common variants (Contacto/Detalles casing)
+    root =
+      $(
+        `.exp-pane[role="tabpanel"][data-tab="${String(
+          tabName || ""
+        ).toLowerCase()}"]`
+      ) ||
+      $(
+        `.exp-pane[role="tabpanel"][data-tab="${String(
+          tabName || ""
+        ).toUpperCase()}"]`
+      );
+    if (root) return root;
+
+    // Robust path: scan all panes and compare normalized data-tab
+    const panes = $$(".exp-pane[role='tabpanel'][data-tab]");
+    return panes.find((p) => normTab(p.dataset.tab) === wanted) || null;
+  }
+
   function collectGridRowsByTab(tabName) {
-    const pane = `.exp-pane[role="tabpanel"][data-tab="${tabName}"]`;
-    const root = $(pane);
+    const root = findPaneByTab(tabName);
     if (!root) return [];
 
     const rows = [];
@@ -215,130 +247,6 @@
     `;
   }
 
-  function renderContactoSection(rows) {
-    if (!rows || !rows.length) return "";
-
-    const norm = (s = "") =>
-      String(s)
-        .normalize("NFD")
-        .replace(/\p{Diacritic}/gu, "")
-        .toLowerCase()
-        .replace(/[:.]/g, "")
-        .trim();
-
-    const pick = (m, keys) => {
-      for (const k of keys) {
-        const v = m[norm(k)];
-        if (v != null && String(v).trim() !== "") return String(v).trim();
-      }
-      return "";
-    };
-
-    // Mapear rows por label normalizado
-    const map = {};
-    rows.forEach((r) => {
-      const k = norm(r.label || "");
-      const v = String(r.value || "").trim();
-      if (k) map[k] = v;
-    });
-
-    const nombre = pick(map, [
-      "Nombre de contacto",
-      "Nombre contacto",
-      "Nombre",
-    ]);
-    const telefono = pick(map, [
-      "Telefono",
-      "Teléfono",
-      "Telefono de contacto",
-      "Teléfono de contacto",
-    ]);
-    const correo = pick(map, [
-      "Correo electronico",
-      "Correo electrónico",
-      "Email",
-      "E-mail",
-    ]);
-    const domicilio = pick(map, [
-      "Domicilio",
-      "Calle",
-      "Direccion",
-      "Dirección",
-    ]);
-    const colonia = pick(map, ["Colonia"]);
-    const cp = pick(map, ["C P", "CP", "Codigo postal", "Código postal"]);
-
-    const other = rows
-      .filter((r) => {
-        const k = norm(r.label || "");
-        return ![
-          norm("Nombre de contacto"),
-          norm("Nombre contacto"),
-          norm("Nombre"),
-          norm("Telefono"),
-          norm("Teléfono"),
-          norm("Telefono de contacto"),
-          norm("Teléfono de contacto"),
-          norm("Correo electronico"),
-          norm("Correo electrónico"),
-          norm("Email"),
-          norm("E-mail"),
-          norm("Domicilio"),
-          norm("Calle"),
-          norm("Direccion"),
-          norm("Dirección"),
-          norm("Colonia"),
-          norm("C P"),
-          norm("CP"),
-          norm("Codigo postal"),
-          norm("Código postal"),
-        ].includes(k);
-      })
-      .filter((r) => String(r.value || "").trim() !== "");
-
-    const rowsHtml = [
-      nombre ? `<tr><th>Nombre</th><td>${escapeHtml(nombre)}</td></tr>` : "",
-      telefono
-        ? `<tr><th>Teléfono</th><td>${escapeHtml(telefono)}</td></tr>`
-        : "",
-      correo ? `<tr><th>Correo</th><td>${escapeHtml(correo)}</td></tr>` : "",
-    ]
-      .filter(Boolean)
-      .join("");
-
-    const addrParts = [];
-    if (domicilio) addrParts.push(escapeHtml(domicilio));
-    if (colonia) addrParts.push(`Colonia: ${escapeHtml(colonia)}`);
-    if (cp) addrParts.push(`C.P.: ${escapeHtml(cp)}`);
-
-    const addressHtml = addrParts.length
-      ? `<tr><th>Dirección</th><td>${addrParts.join("<br>")}</td></tr>`
-      : "";
-
-    const otherHtml = other
-      .map(
-        (r) => `<tr>
-            <th>${escapeHtml(String(r.label || "").replace(/:\s*$/, ""))}</th>
-            <td>${escapeHtml(r.value || "")}</td>
-          </tr>`
-      )
-      .join("");
-
-    const body = `${rowsHtml}${addressHtml}${otherHtml}`;
-    if (!body.trim()) return "";
-
-    return `
-      <section class="section">
-        <h2 class="section-title">Contacto</h2>
-        <table>
-          <tbody>
-            ${body}
-          </tbody>
-        </table>
-      </section>
-    `;
-  }
-
   function renderPlaneacionSection(fases) {
     if (!fases || !fases.length) return "";
     const bloques = fases
@@ -441,7 +349,7 @@
       ? `Expediente ${header.folio}`
       : "Expediente de requerimiento";
 
-    const contactoSection = renderContactoSection(contacto);
+    const contactoSection = renderSimpleTableSection("Contacto", contacto);
     const detallesSection = renderSimpleTableSection(
       "Detalles del requerimiento",
       detalles
