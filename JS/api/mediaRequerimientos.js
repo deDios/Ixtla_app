@@ -114,11 +114,27 @@ import {
     const fecha = item.fecha || "—";
 
     const useThumb = isImageUrl(url);
-    const isLinkOnly = !useThumb && isPlainLink(url);
+
+    // (aunque el texto no sea una URL válida). Imágenes siguen con preview modal.
+    const isLinkOnly = !useThumb && !!String(url || "").trim();
+
+    // Canoniza href:
+    // - si ya trae esquema (http:, https:, mailto:, etc) → se respeta
+    // - si es relativo (/ruta, ./, ../) → se respeta
+    // - si es "texto" (urlfalsa, enlacefalso.com) → se prefija https://
+    const rawHref = String(url || "").trim();
+    const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(rawHref);
+    const isRelative =
+      /^\/?[^\s]*$/.test(rawHref) && /^(\/|\.\/|\.\.\/)/.test(rawHref);
+    const linkHref = !rawHref
+      ? "#"
+      : hasScheme || isRelative
+      ? rawHref
+      : "https://" + rawHref;
 
     const row = document.createElement("a");
     row.className = "exp-row";
-    row.href = url || "#";
+    row.href = linkHref;
     row.target = "_blank";
     row.setAttribute("data-src", url || "");
     row.setAttribute("data-title", name);
@@ -137,7 +153,7 @@ import {
 
       const a = document.createElement("a");
       a.className = "evid-link";
-      a.href = url || "#";
+      a.href = linkHref;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
       a.title = url || name;
