@@ -2436,3 +2436,12 @@ body.modal-open {
   width: 18px;
   height: 18px;
 }
+
+
+
+/* Cuando el req NO es editable (fuera de Solicitud/Revisión), ocultar solo lápices */
+body.req-locked button.icon-btn[data-contact-basic-edit="1"],
+body.req-locked button.icon-btn[data-contact-edit="cp"],
+body.req-locked button.icon-btn[data-detalle-edit] {
+  display: none !important;
+}

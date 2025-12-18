@@ -34,6 +34,45 @@
   /* ======================================
    *  HTTP helpers
    * ======================================*/
+  function getReqStatusCode(req) {
+    if (!req) req = window.__REQ__ || null;
+    if (!req) return null;
+
+    return req.estatus_code != null
+      ? Number(req.estatus_code)
+      : req.estatus != null
+      ? Number(req.estatus)
+      : req.raw && req.raw.estatus != null
+      ? Number(req.raw.estatus)
+      : null;
+  }
+
+  function isEditableContacto(req) {
+    const code = getReqStatusCode(req);
+    return code === 0 || code === 1; // Solicitud / Revisión
+  }
+
+  function applyContactoEditVisibility(req) {
+    const editable = isEditableContacto(req);
+
+    // Solo afectar botones de "Contacto"
+    const pane =
+      document.querySelector(
+        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
+      ) ||
+      document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
+
+    if (!pane) return;
+
+    const btns = pane.querySelectorAll(
+      'button.icon-btn[data-contact-basic-edit="1"], button.icon-btn[data-contact-edit="cp"]'
+    );
+
+    btns.forEach((b) => {
+      b.style.display = editable ? "" : "none";
+    });
+  }
+
   async function sendJSON(url, body, method = "POST") {
     try {
       const res = await fetch(url, {
@@ -439,6 +478,7 @@
       setupContactoCpColoniaEditor(req);
       setupContactoBasicEditors(req);
       updateStatusUI(req.estatus_code);
+      applyContactoEditVisibility(req);
 
       document.dispatchEvent(new CustomEvent("req:loaded", { detail: req }));
 
@@ -449,6 +489,10 @@
       err("Error al recargar requerimiento después de actualizar estado:", e);
     }
   }
+
+  document.addEventListener("req:loaded", (ev) => {
+    applyContactoEditVisibility(ev?.detail || window.__REQ__ || null);
+  });
 
   /* ======================================
    *  Acciones de estatus
@@ -1120,10 +1164,12 @@
           paintContacto(nextReq || req);
           setupContactoCpColoniaEditor(nextReq || req);
           setupContactoBasicEditors(nextReq || req);
+          applyContactoEditVisibility(nextReq || req);
         };
 
         btnCancel.addEventListener("click", () => {
           restoreView(req);
+          applyContactoEditVisibility(req);
         });
 
         btnSave.addEventListener("click", async () => {
@@ -1134,6 +1180,7 @@
 
           if (newVal === originalVal) {
             restoreView(req);
+            applyContactoEditVisibility(merged);
             return;
           }
 
