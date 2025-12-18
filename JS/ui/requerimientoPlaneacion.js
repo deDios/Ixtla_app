@@ -45,6 +45,7 @@
   let _boundToolbar = false;
   let _boundModalT = false;
   let _boundModalP = false;
+  let _creatingProceso = false;
 
   // ====== API endpoints ======
   const API_FBK = {
@@ -885,7 +886,13 @@
     if (!modal || !content) {
       const titulo = window.prompt("Título / Descripción del nuevo proceso:");
       if (!titulo) return;
-      makeProcesoFromAPI(titulo);
+
+      if (_creatingProceso) return;
+      _creatingProceso = true;
+
+      Promise.resolve(makeProcesoFromAPI(titulo)).finally(() => {
+        _creatingProceso = false;
+      });
       return;
     }
 
@@ -917,23 +924,44 @@
 
     setTimeout(() => $(SEL.inpPTitulo)?.focus(), 30);
   }
+
   function bindSubmitNuevoProceso() {
     const form = document.querySelector(SEL.formP);
     if (!form) return;
+
+    if (form.dataset.boundSubmitProceso === "1") return;
+    form.dataset.boundSubmitProceso = "1";
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const titulo = ($(SEL.inpPTitulo)?.value || "").trim();
-      if (!titulo) {
-        toast("Escribe un título para el proceso.", "warning");
-        $(SEL.inpPTitulo)?.focus();
-        return;
-      }
-      await makeProcesoFromAPI(titulo);
 
-      const modal = document.querySelector(SEL.modalP);
-      if (modal) closeOverlay(modal);
+      if (_creatingProceso) return;
+      _creatingProceso = true;
+
+      const btnSubmit = form.querySelector(
+        'button[type="submit"], .btn-submit'
+      );
+      if (btnSubmit) btnSubmit.disabled = true;
+
+      try {
+        const titulo = ($(SEL.inpPTitulo)?.value || "").trim();
+        if (!titulo) {
+          toast("Escribe un título para el proceso.", "warning");
+          $(SEL.inpPTitulo)?.focus();
+          return;
+        }
+
+        await makeProcesoFromAPI(titulo);
+
+        const modal = document.querySelector(SEL.modalP);
+        if (modal) closeOverlay(modal);
+      } finally {
+        _creatingProceso = false;
+        if (btnSubmit) btnSubmit.disabled = false;
+      }
     });
   }
+
   async function makeProcesoFromAPI(titulo) {
     const req = window.__REQ__;
     if (!req?.id) {
