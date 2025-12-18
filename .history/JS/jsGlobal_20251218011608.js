@@ -316,14 +316,14 @@
             <ul>
               <li role="menuitem" tabindex="-1">
                 <img src="${asset(
-          "/user/userMenu/homebtn.png"
-        )}" alt="" aria-hidden="true" />
+                  "/user/userMenu/homebtn.png"
+                )}" alt="" aria-hidden="true" />
                 Ir a Home
               </li>
               <li id="logout-btn" role="menuitem" tabindex="-1">
                 <img src="${asset(
-          "/user/userMenu/logoutbtn.png"
-        )}" alt="" aria-hidden="true" />
+                  "/user/userMenu/logoutbtn.png"
+                )}" alt="" aria-hidden="true" />
                 Logout
               </li>
             </ul>
@@ -370,7 +370,7 @@
               `Bienvenido, ${session.nombre || "usuario"}`,
               "exito"
             );
-          } catch { }
+          } catch {}
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
@@ -416,14 +416,14 @@
           <ul>
             <li>
               <img src="${asset(
-          "/user/userMenu/homebtn.png"
-        )}" alt="" aria-hidden="true" />
+                "/user/userMenu/homebtn.png"
+              )}" alt="" aria-hidden="true" />
               Ir a Home
             </li>
             <li id="logout-btn-mobile">
               <img src="${asset(
-          "/user/userMenu/logoutbtn.png"
-        )}" alt="" aria-hidden="true" />
+                "/user/userMenu/logoutbtn.png"
+              )}" alt="" aria-hidden="true" />
               Logout
             </li>
           </ul>`;
@@ -733,11 +733,11 @@
 
       // 4) Ver si está en la lista de permitidos
       const isAllowed = CFG.CHAT.allowedEmpIds.includes(empId);
-      // console.log(/*"[ChatLink] ¿empId permitido?"*/"con3", {
-      //   empId,
-      //   allowedEmpIds: CFG.CHAT.allowedEmpIds,
-      //   isAllowed,
-      // });
+     // console.log(/*"[ChatLink] ¿empId permitido?"*/"con3", {
+     //   empId,
+     //   allowedEmpIds: CFG.CHAT.allowedEmpIds,
+     //   isAllowed,
+     // });
 
       if (!isAllowed) {
         console.log(
@@ -762,10 +762,10 @@
 
         const already = navLeft.querySelector("#link-chat");
         if (already) {
-          //  console.log(
-          //    "[ChatLink] Ya existe #link-chat en este nav, se omite.",
-          //    navLeft
-          //  );
+        //  console.log(
+        //    "[ChatLink] Ya existe #link-chat en este nav, se omite.",
+        //    navLeft
+        //  );
           return;
         }
 
@@ -785,8 +785,9 @@
 
     /* ================= Render ================= */
     function mkLink(label, href, isActive) {
-      return `<a href="${href}" class="${isActive ? "active" : ""
-        }">${label}</a>`;
+      return `<a href="${href}" class="${
+        isActive ? "active" : ""
+      }">${label}</a>`;
     }
 
     function mirrorActiveToMobile() {
@@ -887,7 +888,7 @@
           try {
             maybeAddChatLink();
             mirrorActiveToMobile();
-          } catch { }
+          } catch {}
         }
       });
       obs.observe(header, { childList: true, subtree: true });

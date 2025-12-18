@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/../JS/auth/ix_guard.php';
+ix_require_session();
+?>
 <!DOCTYPE html>
 <html lang="es">
 
@@ -9,7 +13,6 @@
     <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="icon" href="/favicon.ico">
-
 </head>
 
 <body>
@@ -22,45 +25,32 @@
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
-                <!-- El JSglobal reemplaza este avatar cuando hay sesión -->
                 <div class="user-icon-mobile" onclick="window.location.href='/VIEWS/login.php'">
                     <img src="/ASSETS/user/img_user1.png" alt="Usuario" />
                 </div>
             </div>
         </div>
 
-
-        <!-- Top bar: logo a la izquierda, acciones (Hamburguesa) a la derecha -->
         <div class="top-bar" id="top-bar">
             <div id="logo-btn" class="logo" title="Ir al inicio" aria-label="Ir al inicio">
-                <!-- logo del header -->
                 <img class="logo-marca" src="/ASSETS/main_logo.png"
                     alt="Ixtlahuacán de los Membrillos - Ayuntamiento" />
             </div>
-
-
             <div class="actions">
                 <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
-                    onclick="window.location.href=this.getAttribute('href')">
-                    Contacto
-                </button>
+                    onclick="window.location.href=this.getAttribute('href')">Contacto</button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
                 </button>
-                <!-- El JSglobal inyecta aquí el avatar desktop si hay sesión -->
             </div>
         </div>
 
-
-        <!-- Subnav -- links a la izquierda, redes + avatar a la derecha -->
         <nav id="mobile-menu" class="subnav" aria-label="Navegación secundaria">
             <div class="nav-left">
                 <a href="/index.php">Inicio</a>
                 <a href="/VIEWS/tramiteDepartamento.php">Trámites y Seguimiento</a>
             </div>
-
-
             <div class="social-icons">
                 <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
                 <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
@@ -70,136 +60,155 @@
         </nav>
     </header>
 
+    <main class="home-samapa">
+        <div class="hs-wrap">
 
-
-
-
-    <main id="home" class="ix-home" aria-labelledby="home-title">
-        <div class="ix-wrap">
-
-            <div class="home-grid">
-                <!-- Sidebar -->
-                <aside class="home-sidebar">
-                    <section class="profile-card" aria-label="Perfil">
-                        <img class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
-
-                        <a class="profile-link" href="#perfil">Administrar perfil ></a>
-
-                        <!-- Nombre del empleado -->
-                        <h3 id="h-user-nombre" class="profile-name">—</h3>
-
-                        <span class="profile-dash" aria-hidden="true"></span>
-
-                        <!-- badge de departamento -->
-                        <button type="button" class="profile-dep badge" aria-label="Dependencia actual">
-                        </button>
-                    </section>
-
-                    <nav class="status-block" aria-label="Estados">
-                        <div class="status-nav">
-                            <button class="status-item active">
-                                <span class="label">Todos</span>
-                                <span class="count">(50)</span>
-                            </button>
-
-                            <button class="status-item">
-                                <span class="label">Solicitud</span>
-                                <span class="count">(0)</span>
-                            </button>
-
-                            <button class="status-item">
-                                <span class="label">Revisión</span>
-                                <span class="count">(0)</span>
-                            </button>
-
-                            <button class="status-item">
-                                <span class="label">Asignación</span>
-                                <span class="count">(0)</span>
-                            </button>
-
-                            <button class="status-item">
-                                <span class="label">En proceso</span>
-                                <span class="count">(0)</span>
-                            </button>
-
-                            <button class="status-item">
-                                <span class="label">Pausado</span>
-                                <span class="count">(0)</span>
-                            </button>
-
-                            <button class="status-item">
-                                <span class="label">Cancelado</span>
-                                <span class="count">(0)</span>
-                            </button>
-
-                            <button class="status-item">
-                                <span class="label">Finalizado</span>
-                                <span class="count">(0)</span>
-                            </button>
+            <!-- SIDEBAR -->
+            <aside class="hs-sidebar">
+                <section class="hs-profile" aria-label="Perfil">
+                    <div class="avatar-shell">
+                        <div class="avatar-circle">
+                            <img id="hs-avatar" class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
                         </div>
-                    </nav>
-                </aside>
 
-
-                <!-- Panel principal -->
-                <section class="home-main" aria-label="Contenido principal">
-                    <!-- graficos -->
-                    <div class="charts-row">
-                        <section class="chart-card" aria-labelledby="chart-year-title">
-                            <h3 id="chart-year-title">Gráfico de este Año</h3>
-                            <div class="chart-wrap">
-                                <canvas id="chart-year" width="600" height="260"></canvas>
-                                <div class="chart-skeleton" aria-hidden="true"></div>
-                            </div>
-                        </section>
-
-                        <section class="chart-card" aria-labelledby="chart-month-title">
-                            <h3 id="chart-month-title">Gráfico de este mes</h3>
-                            <div class="chart-wrap">
-                                <canvas id="chart-month" width="420" height="260"></canvas>
-                                <div class="chart-skeleton" aria-hidden="true"></div>
-                            </div>
-                        </section>
+                        <!-- Botón editar avatar (igual que en GodCode) -->
+                        <button type="button" class="icon-btn avatar-edit" aria-label="Cambiar foto"
+                            title="Cambiar foto">
+                            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                <path
+                                    d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z"
+                                    fill="currentColor"></path>
+                            </svg>
+                        </button>
                     </div>
 
-                    <!-- Tabla de trámites -->
-                    <section class="table-card" aria-labelledby="tbl-title">
-                        <div class="table-head">
-                            <h3 id="tbl-title">Trámites</h3>
-                            <div class="table-tools">
-                                <div class="input-search">
-                                    <input id="tbl-search" type="search" placeholder="Buscar por nombre o status…" />
-                                </div>
-                                <div class="legend">
-                                    <span>Requerimientos: <strong id="tbl-total">0</strong></span>
-                                    <span>·</span>
-                                    <span>Status: <strong id="tbl-status-label">Todos los status</strong></span>
-                                </div>
+                    <h3 id="hs-profile-name" class="name">—</h3>
+
+                    <button type="button" class="gc-btn gc-btn-ghost edit-profile" data-open="#modal-perfil"
+                        aria-haspopup="dialog" aria-controls="modal-perfil">
+                        Administrar perfil ›
+                    </button>
+
+                    <span id="hs-profile-badge" class="badge">—</span>
+                </section>
+
+                <!-- se actulizaron los filtros ahora deberian coincidir con los esperados -->
+                <nav id="hs-states" class="hs-states" aria-label="Estados">
+                    <button class="item is-active" data-status="todos" role="radio" aria-checked="true">
+                        <span class="label">Todos</span><span class="count" id="cnt-todos">(0)</span>
+                    </button>
+                    <button class="item" data-status="solicitud" role="radio" aria-checked="false">
+                        <span class="label">Solicitud</span><span class="count" id="cnt-solicitud">(0)</span>
+                    </button>
+                    <button class="item" data-status="revision" role="radio" aria-checked="false">
+                        <span class="label">Revisión</span><span class="count" id="cnt-revision">(0)</span>
+                    </button>
+                    <button class="item" data-status="asignacion" role="radio" aria-checked="false">
+                        <span class="label">Asignación</span><span class="count" id="cnt-asignacion">(0)</span>
+                    </button>
+                    <button class="item" data-status="proceso" role="radio" aria-checked="false">
+                        <span class="label">En proceso</span><span class="count" id="cnt-proceso">(0)</span>
+                    </button>
+                    <button class="item" data-status="pausado" role="radio" aria-checked="false">
+                        <span class="label">Pausado</span><span class="count" id="cnt-pausado">(0)</span>
+                    </button>
+                    <button class="item" data-status="cancelado" role="radio" aria-checked="false">
+                        <span class="label">Cancelado</span><span class="count" id="cnt-cancelado">(0)</span>
+                    </button>
+                    <button class="item" data-status="finalizado" role="radio" aria-checked="false">
+                        <span class="label">Finalizado</span><span class="count" id="cnt-finalizado">(0)</span>
+                    </button>
+                </nav>
+
+            </aside>
+
+            <!-- MAIN -->
+            <section class="hs-main">
+
+                <!-- CHARTS -->
+                <div class="hs-charts" id="hs-charts">
+
+                    <!-- Línea (año actual, sin título) -->
+                    <section class="hs-card" aria-labelledby="y-desc">
+                        <div class="hs-chart-wrap" style="position:relative;">
+                            <canvas id="chart-year" width="600" height="240" aria-describedby="y-desc"></canvas>
+                            <!-- Tooltip (lo usa LineChart) -->
+                            <div class="chart-tip"
+                                style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
                             </div>
                         </div>
+                        <p id="y-desc" class="sr-only">Serie mensual de requerimientos creados durante el año actual.
+                        </p>
+                    </section>
 
-                        <div id="tbl-skeleton" class="skeleton-list" aria-hidden="true"></div>
+                    <!-- Donut -->
+                    <section class="hs-card" aria-labelledby="m-desc">
+                        <div class="hs-donut">
+                            <!-- Columna: gráfico -->
+                            <div class="hs-chart-wrap" style="position:relative;">
+                                <canvas id="chart-month" width="380" height="240" aria-describedby="m-desc"></canvas>
+                                <!-- Tooltip (lo usa DonutChart) -->
+                                <div class="chart-tip"
+                                    style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
+                                </div>
+                            </div>
 
-                        <div class="table-wrap" id="tbl-wrap" hidden>
-                            <table class="gc-table" aria-describedby="tbl-title">
-                                <thead>
-                                    <tr>
-                                        <th>Requerimiento</th>
-                                        <th>Contacto</th>
-                                        <th>Teléfono</th>
-                                        <th>Departamento</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbl-body"></tbody>
-                            </table>
-                            <div class="pagination" id="tbl-pag"></div>
+                            <!-- Columna: leyenda (scrollable) -->
+                            <aside class="hs-donut-legend" aria-label="Tipos de requerimiento">
+                                <div id="donut-legend" class="legend" aria-live="polite"></div>
+                            </aside>
                         </div>
 
-                        <p id="tbl-empty" class="muted" hidden>No hay elementos para mostrar.</p>
+                        <p id="m-desc" class="sr-only">
+                            Requerimientos.
+                        </p>
                     </section>
+
+
+                </div>
+
+                <!-- TABLA -->
+                <section class="hs-table">
+                    <div class="hs-head">
+                        <h3 style="margin:0;">Trámites</h3>
+                        <div class="hs-tools">
+                            <div class="search" role="search">
+                                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path fill="currentColor"
+                                        d="M10 4a6 6 0 0 1 4.472 9.931l4.298 4.297l-1.414 1.415l-4.297-4.298A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8" />
+                                </svg>
+                                <input id="hs-search" type="search" placeholder="Buscar por folio, ID (#123) o status…"
+                                    aria-label="Buscar">
+                            </div>
+                            <div class="legend">
+                                <span>Requerimientos: <strong id="hs-legend-total">0</strong></span>
+                                <span style="margin:0 .4rem;">·</span>
+                                <span>Status: <strong id="hs-legend-status">Todos los status</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="hs-table-wrap" class="table-wrap">
+                        <table class="gc" aria-describedby="hs-search">
+                            <thead>
+                                <tr>
+                                    <th>Folio</th>
+                                    <th>Departamento</th>
+                                    <th>Tipo de trámite</th>
+                                    <th>Asignado</th>
+                                    <th>Teléfono</th>
+                                    <th>Estatus</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hs-table-body"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paginación -->
+                    <nav id="hs-pager" class="hs-pager" aria-label="Paginación"></nav>
                 </section>
-            </div>
+
+            </section>
         </div>
     </main>
 
@@ -211,7 +220,6 @@
                 <img class="brand-lockup" src="/ASSETS/main_logo_al_frente.png"
                     alt="Ixtlahuacán de los Membrillos - Ayuntamiento">
             </div>
-
             <div class="footer-cols">
                 <div class="col left">
                     <div class="left-inner">
@@ -243,181 +251,156 @@
 
 
 
-    <!-- ESPACIO PARA MODALES -->
-    <!-- Overlay -->
-    <div class="ix-drawer-overlay" data-drawer="overlay" hidden></div>
 
-    <!-- Drawer -->
-    <section aria-label="Panel de trámite">
-        <aside class="ix-drawer" role="dialog" aria-modal="true" aria-labelledby="ix-drw-title" data-drawer="panel">
 
-            <!-- Header -->
-            <header class="ixd-head">
-                <h3 id="ix-drw-title" class="ixd-folio" data-field="folio">REQ-0000000000</h3>
-                <button class="ixd-close" data-drawer="close" aria-label="Cerrar">Cerrar</button>
-            </header>
 
-            <!-- Meta del requerimiento -->
-            <div class="ixd-meta">
-                <div><strong>Trámite:</strong> <span data-field="tramite_nombre">—</span></div>
-                <div><strong>Depto:</strong> <span data-field="departamento_nombre">—</span></div>
-                <div><strong>Asignado a:</strong> <span data-field="asignado_nombre_completo">—</span></div>
-                <div><strong>Creado:</strong> <span data-field="created_at">—</span></div>
+
+
+
+    <!-- MODALES -->
+    <div id="modal-perfil" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="perfil-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+            <h2 id="perfil-title">Administrar perfil</h2>
+
+            <form id="form-perfil" novalidate>
+                <!-- Nombre / Apellidos -->
+                <div class="form-row split">
+                    <div>
+                        <label for="perfil-nombre">Nombre</label>
+                        <input type="text" id="perfil-nombre" name="nombre" autocomplete="given-name">
+                    </div>
+                    <div>
+                        <label for="perfil-apellidos">Apellidos</label>
+                        <input type="text" id="perfil-apellidos" name="apellidos" autocomplete="family-name">
+                    </div>
+                </div>
+
+                <!-- Correo / Teléfono -->
+                <div class="form-row split">
+                    <div>
+                        <label for="perfil-email">Correo electrónico</label>
+                        <input type="email" id="perfil-email" name="correo" autocomplete="email">
+                    </div>
+                    <div>
+                        <label for="perfil-telefono">Teléfono</label>
+                        <input type="tel" id="perfil-telefono" name="telefono" autocomplete="tel">
+                    </div>
+                </div>
+
+                <!-- Contraseña / Confirmar -->
+                <div class="form-row split">
+                    <div>
+                        <label for="perfil-password">
+                            Contraseña
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext">Deja vacío si no deseas cambiarla.</span>
+                            </span>
+                        </label>
+                        <input type="password" id="perfil-password" name="password" autocomplete="new-password"
+                            placeholder="Opcional">
+                    </div>
+                    <div>
+                        <label for="perfil-password2">Confirmar contraseña</label>
+                        <input type="password" id="perfil-password2" name="password2" autocomplete="new-password"
+                            placeholder="Opcional">
+                    </div>
+                </div>
+
+                <!-- Sección informativa -->
+                <h3 class="form-section-title">INFORMACIÓN DEL EMPLEADO</h3>
+
+                <!-- Departamento / Reporta a (solo lectura) -->
+                <div class="form-row split">
+                    <div>
+                        <label for="perfil-departamento">Departamento</label>
+                        <input type="text" id="perfil-departamento" name="departamento" class="is-readonly" readonly
+                            aria-readonly="true">
+                    </div>
+                    <div>
+                        <label for="perfil-reporta">Reporta a</label>
+                        <input type="text" id="perfil-reporta" name="reporta_a_nombre" class="is-readonly" readonly
+                            aria-readonly="true">
+                    </div>
+                </div>
+
+                <!-- Status (solo lectura) -->
+                <div class="form-row">
+                    <label for="perfil-status">Status</label>
+                    <input type="text" id="perfil-status" name="status" class="is-readonly" readonly
+                        aria-readonly="true">
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="btn-submit">Guardar cambios</button>
+            </form>
+
+
+
+            <p class="modal-note">
+                Tus datos están seguros con nosotros. Al guardar aceptas nuestras políticas de privacidad y condiciones
+                de uso.
+            </p>
+            <p class="modal-copy">© 2025 GodCode. Todos los derechos reservados.</p>
+        </div>
+    </div>
+
+
+
+
+    <!-- Modal editor de Avatar  -->
+    <div class="eda-overlay" id="eda-overlay" aria-hidden="true">
+        <div class="eda-modal" role="dialog" aria-modal="true" aria-labelledby="eda-title">
+            <div class="eda-header">
+                <div class="eda-title" id="eda-title">Editar avatar</div>
+                <div class="eda-actions">
+                    <button class="btn" id="eda-close" type="button">Cerrar</button>
+                </div>
             </div>
 
-            <!-- Cuerpo -->
-            <div class="ixd-body">
-                <!-- Asunto -->
-                <div class="ixd-field">
-                    <label>Asunto</label>
-                    <p data-field="asunto">—</p>
-                    <input class="ixd-input" name="asunto" type="text" data-edit hidden />
-                </div>
-
-                <!-- Descripción -->
-                <div class="ixd-field">
-                    <label>Descripción</label>
-                    <p data-field="descripcion">—</p>
-                    <textarea class="ixd-input" name="descripcion" rows="4" data-edit hidden></textarea>
-                </div>
-
-                <!-- Prioridad / Canal -->
-                <div class="ixd-grid2">
-                    <div class="ixd-field">
-                        <label>Prioridad</label>
-                        <p data-field="prioridad">—</p>
-                        <select class="ixd-input" name="prioridad" data-edit hidden>
-                            <option value="1">Baja</option>
-                            <option value="2">Media</option>
-                            <option value="3">Alta</option>
-                        </select>
+            <div class="eda-body">
+                <!-- Lado izquierdo: Dropzone + Vista previa -->
+                <div class="eda-left">
+                    <div class="eda-drop" id="eda-drop" aria-label="Zona para arrastrar y soltar imágenes">
+                        <div class="eda-drop-cta">
+                            <strong>Arrastra una imagen</strong> o
+                            <button class="btn btn-outline" id="eda-choose" type="button">Elegir archivo</button>
+                            <div class="eda-hint">También puedes pegar con <kbd>Ctrl</kbd>+<kbd>V</kbd></div>
+                        </div>
                     </div>
-                    <div class="ixd-field">
-                        <label>Canal</label>
-                        <p data-field="canal">—</p>
-                        <input class="ixd-input" name="canal" type="number" data-edit hidden />
+
+                    <div class="eda-preview">
+                        <div class="eda-preview-wrap">
+                            <img id="eda-preview-img" alt="Vista previa" />
+                            <div class="eda-mask" aria-hidden="true"></div>
+                        </div>
                     </div>
                 </div>
 
-                <h4 class="ixd-sub">Contacto</h4>
-
-                <!-- Contacto: nombre / teléfono -->
-                <div class="ixd-grid2">
-                    <div class="ixd-field">
-                        <label>Nombre</label>
-                        <p data-field="contacto_nombre">—</p>
-                        <input class="ixd-input" name="contacto_nombre" type="text" data-edit hidden />
-                    </div>
-                    <div class="ixd-field">
-                        <label>Teléfono</label>
-                        <p data-field="contacto_telefono">—</p>
-                        <input class="ixd-input" name="contacto_telefono" type="tel" data-edit hidden />
+                <!-- Lado derecho: Recientes (mini-historial local) -->
+                <div class="eda-right">
+                    <div class="eda-recents">
+                        <div class="eda-recents-title">Recientes</div>
+                        <div class="eda-recents-grid" id="eda-recents-grid">
+                            <div class="eda-empty">Sin recientes</div>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Contacto: email / cp -->
-                <div class="ixd-grid2">
-                    <div class="ixd-field">
-                        <label>Email</label>
-                        <p data-field="contacto_email">—</p>
-                        <input class="ixd-input" name="contacto_email" type="email" data-edit hidden />
-                    </div>
-                    <div class="ixd-field">
-                        <label>Código Postal</label>
-                        <p data-field="contacto_cp">—</p>
-                        <!-- Select CP (cargado por JS en edición) -->
-                        <select class="ixd-input" name="contacto_cp" data-edit hidden></select>
-                    </div>
-                </div>
-
-                <!-- Contacto: calle -->
-                <div class="ixd-field">
-                    <label>Calle</label>
-                    <p data-field="contacto_calle">—</p>
-                    <input class="ixd-input" name="contacto_calle" type="text" data-edit hidden />
-                </div>
-
-                <!-- Contacto: colonia -->
-                <div class="ixd-field">
-                    <label>Colonia</label>
-                    <p data-field="contacto_colonia">—</p>
-                    <!-- Select Colonia dependiente de CP (JS en edición) -->
-                    <select class="ixd-input" name="contacto_colonia" data-edit hidden></select>
-                </div>
-
-                <!-- Estatus -->
-                <div class="ixd-field">
-                    <label>Estatus</label>
-                    <p data-field="estatus">—</p>
-                    <select class="ixd-input" name="estatus" data-edit hidden>
-                        <option value="0">Solicitud</option>
-                        <option value="1">Revisión</option>
-                        <option value="2">Asignación</option>
-                        <option value="3">En proceso</option>
-                        <option value="4">Pausado</option>
-                        <option value="5">Cancelado</option>
-                        <option value="6">Finalizado</option>
-                    </select>
-                </div>
-
-                <!-- Galería / Evidencia -->
-                <h4 class="ixd-sub">Galería</h4>
-
-                <!-- ÚNICO select: Ver evidencia de estado -->
-                <div class="ixd-uploadRow">
-                    <label>Ver evidencia de estado:
-                        <select data-img="viewStatus">
-                            <option value="0">Solicitud</option>
-                            <option value="1">Revisión</option>
-                            <option value="2">Asignación</option>
-                            <option value="3">En proceso</option>
-                            <option value="4">Pausado</option>
-                            <option value="5">Cancelado</option>
-                            <option value="6">Finalizado</option>
-                        </select>
-                    </label>
-                </div>
-
-                <!-- Imagen principal -->
-                <div class="ixd-imgBlock">
-                    <img data-img="hero" src="" alt="Evidencia" loading="lazy" />
-                    <button class="ixd-pencil" type="button" data-img="pick" title="Cambiar imagen"
-                        aria-label="Cambiar imagen">✎</button>
-                    <input type="file" accept="image/*" data-img="file" hidden />
-                </div>
-
-                <!-- Previews locales -->
-                <div class="ixd-previews" data-img="previews" aria-live="polite" aria-atomic="true"></div>
-
-                <!-- Boton Subir -->
-                <div class="ixd-uploadRow">
-                    <button class="btn" data-img="uploadBtn" type="button">Subir</button>
-                </div>
-
-                <!-- Grid de evidencias -->
-                <div class="ixd-gallery">
-                    <div class="ixd-grid" data-img="grid"></div>
-                    <p class="muted" data-img="empty" hidden>No hay imágenes para este estado.</p>
-                </div>
-
-                <!-- Hidden para update -->
-                <input type="hidden" name="id" data-field="id" value="" />
-                <input type="hidden" name="updated_by" value="0" />
             </div>
 
-            <!-- Footer -->
-            <footer class="ixd-actions ixd-actions--footer">
-                <button class="btn ixd-edit" data-action="editar" type="button">Editar</button>
-                <button class="btn primary ixd-save" data-action="guardar" type="button" style="display:none"
-                    disabled>Guardar</button>
-                <button class="btn ixd-cancel" data-action="cancelar" type="button"
-                    style="display:none">Cancelar</button>
-                <button class="btn warning ixd-pause" data-action="pausar" type="button">Pausar</button>
-                <button class="btn danger ixd-del" data-action="eliminar" type="button">Eliminar</button>
-            </footer>
-        </aside>
-    </section>
+            <div class="eda-footer">
+                <div class="eda-hint">JPG, PNG, WebP, HEIC/HEIF · Máx 1MB</div>
+                <div class="eda-actions">
+                    <button class="btn" id="eda-cancel" type="button">Cancelar</button>
+                    <button class="btn blue" id="eda-save" type="button" disabled>Guardar</button>
+                </div>
+            </div>
 
+            <!-- Input real (oculto). El JS se encarga de activarlo. -->
+            <input type="file" id="eda-file" accept="image/png, image/jpeg, image/webp, image/heic, image/heif"
+                hidden />
+        </div>
+    </div>
 
 
 
@@ -428,20 +411,24 @@
 
 
     
+    <!-- Guard para la página de home
 
+    -->
     <script type="module">
     import {
         guardPage
-    } from "/JS/auth/guard.js?v=2";
+    } from "/JS/auth/guard.js";
     guardPage({
         stealth: false,
-        redirectTo: "/VIEWS/Login.php"
+        redirectTo: "/VIEWS/login.php"
     });
     </script>
 
     <script src="/JS/JSglobal.js"></script>
-    <script src="/JS/components.js"></script>
     <script type="module" src="/JS/home.js"></script>
+    <script type="module" src="/JS/ui/avatar-edit.js"></script>
+
+
 </body>
 
 </html>
