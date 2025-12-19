@@ -201,7 +201,7 @@ export class LineChart {
     if (isLegacy) {
       return [
         {
-          name: "Serie",
+          name: "Reqs",
           data: raw.map((v) => Number(v || 0)),
         },
       ];
