@@ -1528,3 +1528,211 @@ table.gc td:nth-child(6) {
     width: 140px;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+/* parche mobile pero solo es prueba*/
+
+@media (max-width: 768px) {
+
+  .home-samapa .hs-sidebar {
+    position: static !important;
+    top: auto !important;
+    align-self: auto !important;
+    z-index: auto !important;
+  }
+
+  .home-samapa .hs-wrap {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .home-samapa .hs-charts {
+    grid-template-columns: 1fr !important;
+    max-height: none !important;
+    height: auto !important;
+    gap: 12px !important;
+  }
+
+  .home-samapa .hs-card,
+  .home-samapa .hs-chart {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .home-samapa .hs-chart-wrap {
+    height: 240px !important;
+    min-height: 240px !important;
+  }
+
+  .home-samapa .hs-donut {
+    gap: 10px !important;
+  }
+
+  .home-samapa .hs-legend {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .home-samapa canvas {
+    display: block !important;
+  }
+
+  .home-samapa .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .home-samapa table.gc {
+    min-width: 720px;
+  }
+}
+
+
+
+
+
+
+
+
+/* ============================
+   Donut
+   ============================ */
+
+.hs-donut-legend {
+  max-height: 190px;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  justify-self: center;
+  align-self: center;
+
+  padding-right: 6px;
+}
+
+.hs-donut-legend {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, .18) transparent;
+}
+
+.hs-donut-legend::-webkit-scrollbar {
+  width: 6px;
+}
+
+.hs-donut-legend::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hs-donut-legend::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, .18);
+  border-radius: 999px;
+}
+
+.hs-donut-legend:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, .28);
+}
+
+.hs-donut-legend {
+  position: relative;
+}
+
+.hs-donut-legend::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  display: block;
+  height: 18px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
+}
+
+
+/* =========================================================
+   PULIDO MOBILE – Donut card (centrado + menos espacio muerto)
+   ========================================================= */
+@media (max-width: 768px) {
+
+  .home-samapa .hs-card {
+    padding: 12px !important;
+  }
+
+  .home-samapa .hs-donut {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    min-height: 0 !important;
+  }
+
+  /* Zona del gráfico: tamaño controlado */
+  .home-samapa .hs-donut .hs-chart {
+    width: 100% !important;
+    max-width: 320px !important;
+    height: 260px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Canvas: que llene su contenedor sin “romper” */
+  .home-samapa .hs-donut canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+  }
+
+  .home-samapa .hs-donut-legend {
+    width: 100% !important;
+    max-width: 360px !important;
+    margin: 0 auto !important;
+    padding: 8px 6px 6px !important;
+
+    max-height: 288px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+
+    border-top: 1px solid #eef2f7;
+  }
+
+  .home-samapa .hs-donut-legend::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .home-samapa .hs-donut-legend::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .home-samapa .hs-donut-legend::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, .18);
+    border-radius: 999px;
+  }
+
+  .home-samapa .hs-donut-legend:hover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, .28);
+  }
+
+  /* Hint sutil de scroll (fade abajo) */
+  .home-samapa .hs-donut-legend::after {
+    content: "";
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    display: block;
+    height: 16px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
+  }
+}
+
+:root {
+  --ix-bg: #f9f9f900;
+}
