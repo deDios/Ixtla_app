@@ -197,6 +197,7 @@ ix_require_session();
                                     <th>Tipo de trámite</th>
                                     <th>Asignado</th>
                                     <th>Teléfono</th>
+                                    <th>Solicitado</th>
                                     <th>Estatus</th>
                                 </tr>
                             </thead>

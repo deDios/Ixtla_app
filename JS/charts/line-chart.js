@@ -75,7 +75,7 @@ export class LineChart {
 
     // Estado hover
     this._hoverX = -1;
-    this._hoverSeries = -1; // ✅ serie activa por cercanía al mouse
+    this._hoverSeries = -1;
     this._ptsBySeries = [];
 
     // Normaliza series (legacy / multi)
@@ -88,7 +88,7 @@ export class LineChart {
   }
 
   /* =========================
-   *  API pública
+   *  API publica
    * ========================= */
   update({
     labels,
@@ -222,14 +222,14 @@ export class LineChart {
     const years = list.length && list.every((s) => /^\d{4}$/.test(s.name));
     if (years) list.sort((a, b) => Number(a.name) - Number(b.name));
 
-    // Limita a los últimos linecount
+    // Limita a los ultimos linecount
     if (list.length > this.linecount) return list.slice(-this.linecount);
 
     return list;
   }
 
   _hashColor(label) {
-    // Regla especial para series por año (YYYY):
+    // ajuste pero lo demas se queda si en algun momento se llega a ocupar
     // - la más reciente (última) verde
     // - la anterior (penúltima) gris
     // (solo cuando hay 2+ series y parecen años)
