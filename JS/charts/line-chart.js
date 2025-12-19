@@ -70,8 +70,9 @@ export class LineChart {
     this.colorGrid = "rgba(203,213,225,.5)";
     this.colorHover = "#111827";
 
-    // Estado hover: índice de X
+    // Estado hover
     this._hoverX = -1;
+    this._hoverSeries = -1; // ✅ serie activa por cercanía al mouse
     this._ptsBySeries = [];
 
     // Normaliza series (legacy / multi)
@@ -109,6 +110,7 @@ export class LineChart {
 
     this._setupCanvasScale();
     this._hoverX = -1;
+    this._hoverSeries = -1;
     this.tip.style.opacity = "0";
     this.draw();
     this._renderLegend();
@@ -116,7 +118,6 @@ export class LineChart {
 
   /* =========================
    *  Helper (para Home): agrupar por año/mes
-   *  items: array de requerimientos del API
    * ========================= */
   static buildYearSeries(
     items,
@@ -139,7 +140,6 @@ export class LineChart {
     const map = new Map(); // year -> [12]
 
     for (const r of items || []) {
-      // intenta varias llaves comunes
       const raw =
         r?.[dateKey] ??
         r?.created_at ??
@@ -154,7 +154,7 @@ export class LineChart {
       if (Number.isNaN(d.getTime())) continue;
 
       const y = d.getFullYear();
-      const m = d.getMonth(); // 0-11
+      const m = d.getMonth();
 
       if (!map.has(y)) map.set(y, Array(12).fill(0));
       map.get(y)[m] += 1;
@@ -186,7 +186,7 @@ export class LineChart {
     const d = document.createElement("div");
     d.className = "chart-tip";
     d.style.cssText =
-      "position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;white-space:pre;";
+      "position:absolute;pointer-events:none;padding:.5rem .6rem;border-radius:.6rem;background:#111827;color:#fff;font:12px/1.25 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;white-space:nowrap;box-shadow:0 12px 30px rgba(0,0,0,.18);";
     this.wrap.appendChild(d);
     return d;
   }
@@ -264,33 +264,78 @@ export class LineChart {
       if (!this._ptsBySeries.length) return;
 
       const rect = this.c.getBoundingClientRect();
-      const x = e.clientX - rect.left;
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
 
+      // Índice X (mes) por cercanía usando la primera serie como referencia
       const ref = this._ptsBySeries[0] || [];
       if (!ref.length) return;
 
       let idx = 0,
-        best = Infinity;
+        bestX = Infinity;
       for (let i = 0; i < ref.length; i++) {
-        const dx = Math.abs(ref[i].x - x);
-        if (dx < best) {
-          best = dx;
+        const dx = Math.abs(ref[i].x - mx);
+        if (dx < bestX) {
+          bestX = dx;
           idx = i;
         }
       }
       this._hoverX = idx;
 
-      const label = this.labels?.[idx] ?? `#${idx + 1}`;
-      const lines = [`${label}`];
-      this.series.forEach((s) => {
-        const v = s.data?.[idx] ?? 0;
-        lines.push(`${s.name}: ${v}`);
-      });
-      this.tip.textContent = lines.join("\n");
+      // Serie más cercana al cursor (por distancia en Y en ese mismo idx)
+      let bestS = -1,
+        bestD = Infinity;
+      for (let si = 0; si < this._ptsBySeries.length; si++) {
+        const pts = this._ptsBySeries[si] || [];
+        const p = pts[idx];
+        if (!p) continue;
+        const dy = Math.abs(p.y - my);
+        if (dy < bestD) {
+          bestD = dy;
+          bestS = si;
+        }
+      }
+      this._hoverSeries = bestS;
 
-      const p = ref[idx];
-      this.tip.style.left = `${p.x}px`;
-      this.tip.style.top = `${p.y}px`;
+      const label = this.labels?.[idx] ?? `#${idx + 1}`;
+
+      // Orden tooltip: serie activa primero
+      const order = this.series.map((_, i) => i);
+      if (bestS >= 0) {
+        order.sort((a, b) => (a === bestS ? -1 : b === bestS ? 1 : 0));
+      }
+
+      const rows = order
+        .map((si) => {
+          const s = this.series[si];
+          const v = s?.data?.[idx] ?? 0;
+          const color = this._hashColor(s?.name);
+          const isActive = si === bestS;
+
+          return `
+          <div style="display:flex;align-items:center;gap:.45rem;${
+            isActive ? "font-weight:700;" : ""
+          }">
+            <span style="width:.6rem;height:.6rem;border-radius:999px;background:${color};display:inline-block;"></span>
+            <span>${s.name}</span>
+            <span style="opacity:.9;">:</span>
+            <span>${v}</span>
+          </div>
+        `;
+        })
+        .join("");
+
+      this.tip.innerHTML = `
+        <div style="font-weight:700;margin-bottom:.25rem;">${label}</div>
+        <div style="display:grid;gap:.2rem;">${rows}</div>
+      `;
+
+      // Ancla del tooltip: punto de la serie activa (o serie 0)
+      const anchorSeries = bestS >= 0 ? bestS : 0;
+      const anchor = (this._ptsBySeries[anchorSeries] || [])[idx] || ref[idx];
+
+      this.tip.style.left = `${anchor.x}px`;
+      this.tip.style.top = `${anchor.y}px`;
       this.tip.style.opacity = "1";
 
       this.draw(true);
@@ -298,6 +343,7 @@ export class LineChart {
 
     this.c.addEventListener("mouseleave", () => {
       this._hoverX = -1;
+      this._hoverSeries = -1;
       this.tip.style.opacity = "0";
       this.draw();
     });
@@ -383,7 +429,7 @@ export class LineChart {
     }
 
     // puntos por serie
-    this._ptsBySeries = this.series.map((s, si) => {
+    this._ptsBySeries = this.series.map((s) => {
       const n = Math.max(this.labels.length, s.data.length);
       const data = s.data || [];
       return Array.from({ length: n }, (_, i) => ({
@@ -391,13 +437,10 @@ export class LineChart {
         y: toY(data[i] ?? 0),
         val: data[i] ?? 0,
         label: this.labels?.[i] ?? `#${i + 1}`,
-        seriesName: s.name,
-        seriesIdx: si,
-        pointIdx: i,
       }));
     });
 
-    // Dibuja líneas
+    // Dibuja líneas + dots
     this.series.forEach((s, si) => {
       const pts = this._ptsBySeries[si] || [];
       if (!pts.length) return;
@@ -415,9 +458,14 @@ export class LineChart {
 
       if (this.showDots) {
         pts.forEach((p, i) => {
-          const isHover = this._hoverX === i;
+          const isSameX = this._hoverX === i;
+          const isHover =
+            this._hoverX === i &&
+            (this._hoverSeries < 0 || this._hoverSeries === si);
+
           ctx.fillStyle = isHover ? this.colorHover : color;
-          const r = isHover ? 4.5 : 3;
+          const r = isHover ? 5 : isSameX ? 4 : 3;
+
           ctx.beginPath();
           ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
           ctx.fill();

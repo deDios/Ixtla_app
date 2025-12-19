@@ -12,8 +12,8 @@ const CONFIG = {
   PRESIDENCIA_DEPT_IDS: [6], // ids que ven TODO
   DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
 
-  // ✅ NUEVO: cuántas líneas (años) máximo queremos en el chart lineal
-  LINECOUNT: 5,
+  // contador de lineas para el linechart
+  LINECOUNT: 2,
 
   STATUS_KEY_BY_CODE: {
     0: "solicitud",
