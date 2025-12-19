@@ -24,16 +24,18 @@ export class LineChart {
       ? labelsFromDS
       : [];
 
-    // series puede ser:
-    // 1) [1,2,3] (legacy)
-    // 2) [{name:"2024", data:[...]}, ...] (multi)
     const rawSeries = Array.isArray(opts.series)
       ? opts.series
       : Array.isArray(seriesFromDS)
       ? seriesFromDS
       : [];
 
-    this.maxLines = Number.isFinite(opts.maxLines) ? opts.maxLines : 5;
+    // Control: cuántas líneas máximo mostrar (años más recientes)
+    this.linecount = Number.isFinite(opts.linecount)
+      ? opts.linecount
+      : Number.isFinite(opts.maxLines)
+      ? opts.maxLines
+      : 5;
 
     // Opciones visuales
     this.showDots = opts.showDots !== false;
@@ -42,11 +44,11 @@ export class LineChart {
     this.yTicks = Number.isFinite(opts.yTicks) ? opts.yTicks : 5;
     this.maxYHint = Number.isFinite(opts.maxY) ? opts.maxY : null;
 
-    // Leyenda opcional
+    // Leyenda opcional (si existe un ul/div .chart-legend dentro del wrapper)
     this.legendEl =
       opts.legendEl || this.wrap.querySelector(".chart-legend") || null;
 
-    // Colores base (deterministas por nombre)
+    // Paleta (determinista por nombre de serie)
     this.palette =
       Array.isArray(opts.colors) && opts.colors.length
         ? opts.colors
@@ -68,13 +70,12 @@ export class LineChart {
     this.colorGrid = "rgba(203,213,225,.5)";
     this.colorHover = "#111827";
 
-    // Normaliza series
-    this.series = this._normalizeSeries(rawSeries);
-
-    // Estado hover: índice de X (mes)
+    // Estado hover: índice de X
     this._hoverX = -1;
-    // pts: [{x,y,val,label,seriesName,seriesIdx,pointIdx}]
     this._ptsBySeries = [];
+
+    // Normaliza series (legacy / multi)
+    this.series = this._normalizeSeries(rawSeries);
 
     this._setupCanvasScale();
     this._bind();
@@ -93,10 +94,10 @@ export class LineChart {
     yTicks,
     showGrid,
     showDots,
-    maxLines,
+    linecount,
   } = {}) {
     if (Array.isArray(labels)) this.labels = labels.slice();
-    if (Number.isFinite(maxLines)) this.maxLines = maxLines;
+    if (Number.isFinite(linecount)) this.linecount = linecount;
 
     if (Array.isArray(series)) this.series = this._normalizeSeries(series);
 
@@ -111,6 +112,63 @@ export class LineChart {
     this.tip.style.opacity = "0";
     this.draw();
     this._renderLegend();
+  }
+
+  /* =========================
+   *  Helper (para Home): agrupar por año/mes
+   *  items: array de requerimientos del API
+   * ========================= */
+  static buildYearSeries(
+    items,
+    { linecount = 5, dateKey = "created_at" } = {}
+  ) {
+    const labels = [
+      "Ene",
+      "Feb",
+      "Mar",
+      "Abr",
+      "May",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dic",
+    ];
+    const map = new Map(); // year -> [12]
+
+    for (const r of items || []) {
+      // intenta varias llaves comunes
+      const raw =
+        r?.[dateKey] ??
+        r?.created_at ??
+        r?.fecha_creacion ??
+        r?.createdAt ??
+        r?.created ??
+        null;
+
+      if (!raw) continue;
+
+      const d = new Date(String(raw).replace(" ", "T"));
+      if (Number.isNaN(d.getTime())) continue;
+
+      const y = d.getFullYear();
+      const m = d.getMonth(); // 0-11
+
+      if (!map.has(y)) map.set(y, Array(12).fill(0));
+      map.get(y)[m] += 1;
+    }
+
+    const years = Array.from(map.keys()).sort((a, b) => a - b);
+    const lastYears = years.slice(-Math.max(1, linecount));
+
+    const series = lastYears.map((y) => ({
+      name: String(y),
+      data: map.get(y),
+    }));
+
+    return { labels, series };
   }
 
   /* =========================
@@ -146,8 +204,8 @@ export class LineChart {
       ];
     }
 
-    // Nuevo: [{name, data}]
-    const list = raw
+    // Nuevo: [{name, data}] o [{name, series}]
+    const list = (raw || [])
       .filter((s) => s && (Array.isArray(s.data) || Array.isArray(s.series)))
       .map((s, i) => {
         const dataArr = Array.isArray(s.data) ? s.data : s.series;
@@ -157,12 +215,12 @@ export class LineChart {
         };
       });
 
-    // Ordena por año si parecen años (2024, 2025, etc.)
-    const years = list.every((s) => /^\d{4}$/.test(s.name));
+    // Si parecen años, ordena por año
+    const years = list.length && list.every((s) => /^\d{4}$/.test(s.name));
     if (years) list.sort((a, b) => Number(a.name) - Number(b.name));
 
-    // Limita a las últimas maxLines (las más recientes)
-    if (list.length > this.maxLines) return list.slice(-this.maxLines);
+    // Limita a los últimos linecount
+    if (list.length > this.linecount) return list.slice(-this.linecount);
 
     return list;
   }
@@ -208,7 +266,6 @@ export class LineChart {
       const rect = this.c.getBoundingClientRect();
       const x = e.clientX - rect.left;
 
-      // buscamos el índice X (mes) más cercano usando la primera serie como referencia
       const ref = this._ptsBySeries[0] || [];
       if (!ref.length) return;
 
@@ -223,16 +280,14 @@ export class LineChart {
       }
       this._hoverX = idx;
 
-      // tooltip con todas las series en ese X
       const label = this.labels?.[idx] ?? `#${idx + 1}`;
       const lines = [`${label}`];
-      this.series.forEach((s, si) => {
+      this.series.forEach((s) => {
         const v = s.data?.[idx] ?? 0;
         lines.push(`${s.name}: ${v}`);
       });
       this.tip.textContent = lines.join("\n");
 
-      // colocación basada en punto ref
       const p = ref[idx];
       this.tip.style.left = `${p.x}px`;
       this.tip.style.top = `${p.y}px`;
@@ -296,7 +351,7 @@ export class LineChart {
 
     if (!this.series?.length) return;
 
-    // --- max global (todas las series) ---
+    // max global (todas las series)
     const allVals = this.series.flatMap((s) => s.data || []);
     const rawMax = Math.max(0, ...allVals);
     const hinted = this.maxYHint != null ? this.maxYHint : rawMax;
@@ -327,7 +382,7 @@ export class LineChart {
       }
     }
 
-    // Mapea puntos por serie
+    // puntos por serie
     this._ptsBySeries = this.series.map((s, si) => {
       const n = Math.max(this.labels.length, s.data.length);
       const data = s.data || [];
@@ -358,7 +413,6 @@ export class LineChart {
       });
       ctx.stroke();
 
-      // puntos (hover en el X)
       if (this.showDots) {
         pts.forEach((p, i) => {
           const isHover = this._hoverX === i;
@@ -385,7 +439,7 @@ export class LineChart {
       }
     }
 
-    // labels X
+    // labels X (mes)
     if (this.labels?.length) {
       ctx.fillStyle = "#334155";
       ctx.font = "12px system-ui, sans-serif";
