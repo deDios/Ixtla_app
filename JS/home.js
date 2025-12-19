@@ -96,6 +96,24 @@ const setText = (sel, txt) => {
   if (el) el.textContent = txt;
 };
 
+function isMobileAccordion() {
+  return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+}
+
+function chevronSvg() {
+  // SVG sencillo y reconocible
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"></path>
+    </svg>
+  `;
+}
+
+function safeTxt(v, fallback = "—") {
+  const s = String(v ?? "").trim();
+  return s ? s : fallback;
+}
+
 function formatFolio(folio, id) {
   if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
     return String(folio).trim();
@@ -430,6 +448,9 @@ const State = {
   table: null,
   __page: 1,
   __lastTotal: 0, // ← total para el pager
+  // Accordion table (mobile)
+  __expandedRowId: null, // guarda el id del requerimiento expandido
+  __expandedWasOpen: false, // (opcional) por si luego quieres recordar toggle
 };
 
 let Charts = { line: null, donut: null };
@@ -947,20 +968,99 @@ function refreshCurrentPageDecorations() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
-  tbody.querySelectorAll("tr.hs-gap").forEach((tr) => tr.remove());
+  // Limpia filas expandibles anteriores
+  tbody.querySelectorAll("tr.hs-row-expand").forEach((tr) => tr.remove());
 
-  // marca visual
-  Array.from(tbody.querySelectorAll("tr")).forEach((tr) => {
+  // Marca filas y asegura expander en mobile
+  const trs = Array.from(tbody.querySelectorAll("tr")).filter(
+    (tr) =>
+      !tr.classList.contains("hs-gap") &&
+      !tr.classList.contains("hs-row-expand")
+  );
+
+  const pageRows = State.table?.getRawRows?.() || [];
+
+  trs.forEach((tr, i) => {
     tr.classList.add("is-clickable");
+
+    // En tu HTML ya viene data-row-idx (mejor usarlo) :contentReference[oaicite:3]{index=3}
+    const domIdx = tr.getAttribute("data-row-idx");
+    const idx = domIdx != null ? parseInt(domIdx, 10) : i;
+    const row = pageRows[idx] || null;
+
+    // En desktop: nada extra
+    if (!isMobileAccordion()) {
+      tr.classList.remove("is-open");
+      return;
+    }
+
+    // Asegura botón expander dentro del primer <td>
+    const firstTd = tr.querySelector("td");
+    if (firstTd && !firstTd.querySelector(".hs-expander")) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "hs-expander";
+      btn.setAttribute("aria-label", "Ver más detalles");
+      btn.setAttribute("title", "Ver más detalles"); // tooltip nativo (discreto)
+      btn.innerHTML = chevronSvg();
+      firstTd.appendChild(btn);
+    }
+
+    // Si esta fila es la expandida, reabre (persistencia al paginar/ordenar)
+    const rowId = row?.id ?? row?.__raw?.id ?? null;
+    const shouldOpen = rowId != null && State.__expandedRowId === rowId;
+
+    tr.classList.toggle("is-open", !!shouldOpen);
+
+    if (shouldOpen && row) {
+      const exp = document.createElement("tr");
+      exp.className = "hs-row-expand";
+
+      const td = document.createElement("td");
+      td.colSpan = 7; // tus columnas son 7 :contentReference[oaicite:4]{index=4}
+
+      const raw = row.__raw || row;
+      const depto = safeTxt(
+        raw.departamento ||
+          raw.depto ||
+          raw.depto_nombre ||
+          raw.departamento_nombre
+      );
+      const asign = safeTxt(
+        raw.asignadoFull || raw.asignadoNombre || raw.asignado
+      );
+      const tel = safeTxt(raw.tel);
+      const solicitado = safeTxt(
+        formatDateMXShort(
+          raw.creado ||
+            raw.raw?.created_at ||
+            raw.created_at ||
+            raw.fecha_creacion
+        )
+      );
+
+      td.innerHTML = `
+        <div class="hs-expand-grid">
+          <div class="hs-kv"><div class="hs-k">Departamento</div><div class="hs-v">${depto}</div></div>
+          <div class="hs-kv"><div class="hs-k">Asignado</div><div class="hs-v">${asign}</div></div>
+          <div class="hs-kv"><div class="hs-k">Teléfono</div><div class="hs-v">${tel}</div></div>
+          <div class="hs-kv"><div class="hs-k">Solicitado</div><div class="hs-v">${solicitado}</div></div>
+        </div>
+        <div class="hs-expand-actions">
+          <button type="button" class="hs-open-btn" data-open-req="${rowId}">
+            Abrir
+          </button>
+        </div>
+      `;
+
+      exp.appendChild(td);
+      tr.insertAdjacentElement("afterend", exp);
+    }
   });
 
-  // (opcional) gaps si quieres altura fija
-  const pageRows = State.table?.getRawRows?.() || [];
+  // (opcional) logs y gaps como ya tenías
   const realCount = pageRows.length;
   const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
-  if (gaps > 0) {
-    // Si quisieras filas fantasma, agrega aquí <tr class="hs-gap">…
-  }
   log("gaps añadidos:", gaps, "reales en página:", realCount);
 }
 
@@ -970,21 +1070,97 @@ function setupRowClickDelegation() {
   if (!tbody) return;
 
   tbody.addEventListener("click", (e) => {
+    // 1) Botón "Abrir" dentro del panel expandido (subfila)
+    const openBtn = e.target.closest("[data-open-req]");
+    if (openBtn) {
+      const id = openBtn.getAttribute("data-open-req");
+      if (id) {
+        window.location.href = `/VIEWS/requerimiento.php?id=${encodeURIComponent(
+          id
+        )}`;
+      }
+      return;
+    }
+
+    // 2) Detecta fila objetivo
     const tr = e.target.closest("tr");
-    if (!tr || tr.classList.contains("hs-gap")) return;
+    if (!tr) return;
 
-    // Resuelve índice visible dentro del DOM actual
-    const rowsInDom = Array.from(tbody.querySelectorAll("tr"));
-    const idx = rowsInDom.indexOf(tr);
-    if (idx < 0) return;
+    // Ignora filas “gap” y la subfila expandida
+    if (tr.classList.contains("hs-gap")) return;
+    if (tr.classList.contains("hs-row-expand")) return;
 
-    // Obtén la fila cruda correspondiente a la página actual
+    // 3) Mobile: comportamiento accordion (toggle), NO navegar al tocar fila
+    const mobile =
+      typeof isMobileAccordion === "function" && isMobileAccordion();
+
+    if (mobile) {
+      const clickedExpander = !!e.target.closest(".hs-expander");
+
+      // Si tocó un control interactivo distinto al expander, no togglear
+      // (evita conflictos si en el futuro metes links/botones dentro de la fila)
+      const interactive = e.target.closest(
+        "a,button,input,select,textarea,label"
+      );
+      if (interactive && !clickedExpander) return;
+
+      const pageRows = State.table?.getRawRows?.() || [];
+
+      // Preferimos data-row-idx (lo pinta tu createTable)
+      let idx = -1;
+      const domIdx = tr.getAttribute("data-row-idx");
+      if (domIdx != null && domIdx !== "") idx = parseInt(domIdx, 10);
+
+      // Fallback: índice basado en DOM (solo rows reales)
+      if (!Number.isFinite(idx) || idx < 0) {
+        const realRowsInDom = Array.from(tbody.querySelectorAll("tr")).filter(
+          (row) =>
+            !row.classList.contains("hs-gap") &&
+            !row.classList.contains("hs-row-expand")
+        );
+        idx = realRowsInDom.indexOf(tr);
+      }
+
+      if (idx < 0 || idx >= pageRows.length) return;
+
+      const raw = pageRows[idx];
+      const id = raw?.id || raw?.__raw?.id;
+      if (!id) return;
+
+      // Solo 1 abierta a la vez (persistimos id)
+      State.__expandedRowId = State.__expandedRowId === id ? null : id;
+
+      // Re-pinta acordeón en la página actual (sin refetch)
+      if (typeof refreshCurrentPageDecorations === "function") {
+        refreshCurrentPageDecorations();
+      }
+
+      e.preventDefault();
+      return;
+    }
+
+    // 4) Desktop: comportamiento actual (navegar al detalle)
     const pageRows = State.table?.getRawRows?.() || [];
-    const raw = pageRows[idx];
 
+    let idx = -1;
+    const domIdx = tr.getAttribute("data-row-idx");
+    if (domIdx != null && domIdx !== "") idx = parseInt(domIdx, 10);
+
+    if (!Number.isFinite(idx) || idx < 0) {
+      const rowsInDom = Array.from(tbody.querySelectorAll("tr")).filter(
+        (row) => !row.classList.contains("hs-gap")
+      );
+      idx = rowsInDom.indexOf(tr);
+    }
+
+    if (idx < 0 || idx >= pageRows.length) return;
+
+    const raw = pageRows[idx];
     const id = raw?.id || raw?.__raw?.id;
     if (id) {
-      window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
+      window.location.href = `/VIEWS/requerimiento.php?id=${encodeURIComponent(
+        id
+      )}`;
     }
   });
 }

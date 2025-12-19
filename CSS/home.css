@@ -1545,7 +1545,6 @@ table.gc td:nth-child(6) {
 
 @media (max-width: 768px) {
 
-  /* 1) Sidebar: en mobile NO sticky (evita overlay con charts) */
   .home-samapa .hs-sidebar {
     position: static !important;
     top: auto !important;
@@ -1553,34 +1552,30 @@ table.gc td:nth-child(6) {
     z-index: auto !important;
   }
 
-  /* 2) Asegurar layout en columna y gaps claros */
   .home-samapa .hs-wrap {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
 
-  /* 3) Charts: sin límite de altura (causaba “ensimado”) */
   .home-samapa .hs-charts {
+    display: none;
     grid-template-columns: 1fr !important;
     max-height: none !important;
     height: auto !important;
     gap: 12px !important;
   }
 
-  /* 4) Cards/charts: permitir que crezcan según contenido */
   .home-samapa .hs-card,
   .home-samapa .hs-chart {
     height: auto !important;
     min-height: 0 !important;
   }
 
-  /* 5) Line chart: altura estable en mobile */
   .home-samapa .hs-chart-wrap {
     height: 240px !important;
     min-height: 240px !important;
   }
 
-  /* 6) Donut: dejar que la leyenda respire (2 filas si hace falta) */
   .home-samapa .hs-donut {
     gap: 10px !important;
   }
@@ -1590,18 +1585,15 @@ table.gc td:nth-child(6) {
     overflow: visible !important;
   }
 
-  /* 7) Canvas responsive (evita tamaños raros por atributos width/height) */
   .home-samapa canvas {
     display: block !important;
   }
 
-  /* 8) Tabla: scroll horizontal controlado (sin romper layout) */
   .home-samapa .table-wrap {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
   }
 
-  /* opcional: ayuda a que la tabla no “aplane” columnas */
   .home-samapa table.gc {
     min-width: 720px;
   }
@@ -1618,27 +1610,22 @@ table.gc td:nth-child(6) {
    Donut: leyenda con ~9 items + scroll sutil
    ============================ */
 
-/* 1) Limitar a ~9 renglones (ajusta si tus items son más altos/bajos) */
 .hs-donut-legend{
   max-height: 190px;
   overflow-y: auto;
   overflow-x: hidden;
 
-  /* que se mantenga centrada (si ya lo hace, no afecta) */
   justify-self: center;
   align-self: center;
 
-  /* deja un poquito de espacio para scrollbar */
   padding-right: 6px;
 }
 
-/* 2) Scrollbar sutil (Firefox) */
 .hs-donut-legend{
   scrollbar-width: thin;
   scrollbar-color: rgba(0,0,0,.18) transparent;
 }
 
-/* 3) Scrollbar sutil (Chrome/Edge/Safari) */
 .hs-donut-legend::-webkit-scrollbar{
   width: 6px;
 }
@@ -1653,12 +1640,10 @@ table.gc td:nth-child(6) {
   background: rgba(0,0,0,.28); /* un pelín más visible al hover */
 }
 
-/* 4) “Hint” de scroll sin llamar la atención: fade abajo */
 .hs-donut-legend{
   position: relative;
 }
 
-/* si no quieres el fade, puedes borrar este bloque */
 .hs-donut-legend::after{
   content: "";
   position: sticky;
@@ -1676,12 +1661,10 @@ table.gc td:nth-child(6) {
    ========================================================= */
 @media (max-width: 768px) {
 
-  /* Card un poco más compacta (quita el “aire” raro) */
   .home-samapa .hs-card {
     padding: 12px !important;
   }
 
-  /* Donut: forzar layout vertical y centrado */
   .home-samapa .hs-donut {
     display: flex !important;
     flex-direction: column !important;
@@ -1691,37 +1674,32 @@ table.gc td:nth-child(6) {
     min-height: 0 !important;
   }
 
-  /* Zona del gráfico: tamaño controlado (evita “cuadros”/espacio raro alrededor) */
   .home-samapa .hs-donut .hs-chart {
     width: 100% !important;
-    max-width: 320px !important;   /* ajusta 280–360 si quieres */
-    height: 260px !important;      /* ajusta 240–300 si quieres */
+    max-width: 320px !important; 
+    height: 260px !important;  
     margin: 0 auto !important;
   }
 
-  /* Canvas: que llene su contenedor sin “romper” */
   .home-samapa .hs-donut canvas {
     width: 100% !important;
     height: 100% !important;
     display: block !important;
   }
 
-  /* Leyenda: centrada, ancho razonable, scroll sutil */
   .home-samapa .hs-donut-legend {
     width: 100% !important;
-    max-width: 360px !important;     /* para que no se vaya full ancho */
+    max-width: 360px !important;
     margin: 0 auto !important;
     padding: 8px 6px 6px !important;
 
-    /* tope para que “quepan” aprox 9 items y el resto sea scroll */
     max-height: 288px !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
 
-    border-top: 1px solid #eef2f7;   /* separa visualmente de la dona */
+    border-top: 1px solid #eef2f7;
   }
 
-  /* Scrollbar discreto (Chrome/Edge/Safari) */
   .home-samapa .hs-donut-legend::-webkit-scrollbar { width: 6px; }
   .home-samapa .hs-donut-legend::-webkit-scrollbar-track { background: transparent; }
   .home-samapa .hs-donut-legend::-webkit-scrollbar-thumb {
@@ -1732,7 +1710,6 @@ table.gc td:nth-child(6) {
     background: rgba(0,0,0,.28);
   }
 
-  /* Hint sutil de scroll (fade abajo) */
   .home-samapa .hs-donut-legend::after {
     content: "";
     position: sticky;
@@ -1761,3 +1738,117 @@ table.gc td:nth-child(6) {
 
 
 
+
+
+
+
+
+
+/*----------------- parche para  la datatable en mobile -----------------------*/
+/* =========================================================
+   Tabla mobile: modo "accordion row"
+   - Deja 3 cols visibles: Folio (1), Trámite (3), Estatus (7)
+   - El resto se muestra dentro del panel expandible
+   ========================================================= */
+@media (max-width: 720px) {
+  .hs-table table.gc thead {
+    display: none;
+  }
+
+  /* Oculta columnas que mandaremos al accordion */
+  .hs-table table.gc tbody td:nth-child(2), /* Departamento */
+  .hs-table table.gc tbody td:nth-child(4), /* Asignado */
+  .hs-table table.gc tbody td:nth-child(5), /* Teléfono */
+  .hs-table table.gc tbody td:nth-child(6)  /* Solicitado */ {
+    display: none;
+  }
+
+  .hs-table table.gc tbody tr.is-clickable td {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    vertical-align: middle;
+  }
+
+  .hs-table table.gc tbody tr.is-clickable td:nth-child(1) {
+    position: relative;
+    padding-right: 44px; 
+    font-weight: 600;
+  }
+
+  .hs-expander {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .hs-expander:active {
+    transform: translateY(-50%) scale(0.98);
+  }
+  .hs-expander svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    transition: transform .2s ease;
+  }
+  tr.is-open .hs-expander svg {
+    transform: rotate(180deg);
+  }
+
+  /* Row expandible insertada por JS */
+  .hs-row-expand {
+    background: #fbfbfc;
+  }
+  .hs-row-expand td {
+    padding: 10px 12px 14px;
+    border-top: 1px solid #eef0f3;
+  }
+
+  /* Contenido del panel */
+  .hs-expand-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+  }
+  .hs-kv {
+    display: grid;
+    gap: 2px;
+  }
+  .hs-k {
+    font-size: 12px;
+    color: #6b7280;
+  }
+  .hs-v {
+    font-size: 14px;
+    color: #111827;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Acción “Abrir” */
+  .hs-expand-actions {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .hs-open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 600;
+  }
+}
