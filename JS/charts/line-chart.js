@@ -65,6 +65,9 @@ export class LineChart {
             "#0ea5e9",
           ];
 
+    this.colorNewest = opts.colorNewest || "#16a34a"; // verde para la actual
+    this.colorPrev = opts.colorPrev || "#94a3b8"; // gris para la anterior
+
     // Estilo
     this.colorAxis = "#cbd5e1";
     this.colorGrid = "rgba(203,213,225,.5)";
@@ -226,10 +229,30 @@ export class LineChart {
   }
 
   _hashColor(label) {
+    // Regla especial para series por año (YYYY):
+    // - la más reciente (última) verde
+    // - la anterior (penúltima) gris
+    // (solo cuando hay 2+ series y parecen años)
+    const isYear = label && /^\d{4}$/.test(String(label));
+
+    if (isYear && Array.isArray(this.series) && this.series.length) {
+      const years = this.series.every((s) => /^\d{4}$/.test(String(s.name)));
+      if (years) {
+        const idx = this.series.findIndex(
+          (s) => String(s.name) === String(label)
+        );
+        const last = this.series.length - 1;
+        if (idx === last) return this.colorNewest; // más reciente
+        if (idx === last - 1) return this.colorPrev; // anterior
+        // otros (si linecount > 2) caen a paleta normal
+      }
+    }
+
+    // Default determinista por nombre
     if (!label) return this.palette[0];
     let h = 0;
-    for (let i = 0; i < label.length; i++)
-      h = (h * 31 + label.charCodeAt(i)) >>> 0;
+    const str = String(label);
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
     return this.palette[h % this.palette.length];
   }
 
