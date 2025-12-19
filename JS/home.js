@@ -12,6 +12,9 @@ const CONFIG = {
   PRESIDENCIA_DEPT_IDS: [6], // ids que ven TODO
   DEPT_FALLBACK_NAMES: { 6: "Presidencia" },
 
+  // ✅ NUEVO: cuántas líneas (años) máximo queremos en el chart lineal
+  LINECOUNT: 5,
+
   STATUS_KEY_BY_CODE: {
     0: "solicitud",
     1: "revision",
@@ -377,7 +380,6 @@ function initProfileModal() {
       refreshSidebarFromSession(sess);
 
       close();
-      // Refrescar la página para garantizar que toda la UI tome los cambios
       setTimeout(() => {
         try {
           window.location.reload();
@@ -418,7 +420,7 @@ const State = {
   },
   table: null,
   __page: 1,
-  __lastTotal: 0, // ← total para el pager
+  __lastTotal: 0,
 };
 
 let Charts = { line: null, donut: null };
@@ -521,6 +523,7 @@ function readSession() {
     };
     return State.session;
   }
+
   const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
   const dept_id = s?.departamento_id ?? null;
   const roles = Array.isArray(s?.roles)
@@ -587,7 +590,7 @@ async function hydrateProfileFromSession() {
 }
 
 /* ============================================================================
-   SIDEBAR
+   SIDEBAR (sin cambios)
    ========================================================================== */
 function applySidebarVisibilityByRole() {
   const { isAdmin, isPres, isDir, soyPL, isJefe, isAnal } = State.rbac;
@@ -606,8 +609,6 @@ function applySidebarVisibilityByRole() {
     if (shouldLock && lockSet.has(key)) {
       btn.setAttribute("aria-disabled", "true");
       btn.classList.add("is-locked");
-      // Si prefieres ocultarlos en lugar de bloquear:
-      // btn.classList.add("is-hidden");
     }
   });
 }
@@ -629,7 +630,7 @@ function initSidebar(onChange) {
     if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
 
     btn.addEventListener("click", () => {
-      if (btn.getAttribute("aria-disabled") === "true") return; // respeta lock
+      if (btn.getAttribute("aria-disabled") === "true") return;
       items.forEach((b) => {
         b.classList.remove("is-active");
         b.setAttribute("aria-checked", "false");
@@ -687,7 +688,7 @@ function initSearch(onChange) {
 }
 
 /* ============================================================================
-   TABLA (Folio, Departamento, Tipo de trámite, Asignado, Teléfono, Estatus)
+   TABLA (sin cambios)
    ========================================================================== */
 function buildTable() {
   State.table = createTable({
@@ -696,7 +697,6 @@ function buildTable() {
     pagSel: null,
     pageSize: CONFIG.PAGE_SIZE,
     columns: [
-      // 1) Folio (numérico)
       {
         key: "folio",
         title: "Folio",
@@ -712,8 +712,6 @@ function buildTable() {
           return digits ? "REQ-" + digits.padStart(11, "0") : "—";
         },
       },
-
-      // 2) Departamento (alfabético)
       {
         key: "departamento",
         title: "Departamento",
@@ -735,8 +733,6 @@ function buildTable() {
           r.raw?.departamento?.nombre ||
           "—",
       },
-
-      // 3) Tipo de trámite (alfabético)
       {
         key: "tramite",
         title: "Tipo de trámite",
@@ -744,8 +740,6 @@ function buildTable() {
         accessor: (r) => normText(r.tramite || r.asunto || "—"),
         render: (v, r) => r.tramite || r.asunto || "—",
       },
-
-      // 4) Asignado (usar solo nombre – sin apellidos – y ordenar alfabético)
       {
         key: "asignado",
         title: "Asignado",
@@ -753,8 +747,6 @@ function buildTable() {
         accessor: (r) => r.asignadoNombre || r.asignado || "Sin asignar",
         render: (v, r) => v || r.asignado || "Sin asignar",
       },
-
-      // 5) Teléfono de contacto (numérico por dígitos)
       {
         key: "tel",
         title: "Teléfono",
@@ -762,8 +754,6 @@ function buildTable() {
         accessor: (r) => digitsNumber(r.tel),
         render: (v, r) => (r.tel ? r.tel : "—"),
       },
-
-      // 6) Estatus (alfabético por label; badge con data-k normalizado)
       {
         key: "status",
         title: "Estatus",
@@ -784,7 +774,7 @@ function buildTable() {
 }
 
 /* ============================================================================
-   LEYENDAS / CONTEOS
+   LEYENDAS / CONTEOS (sin cambios)
    ========================================================================== */
 function updateLegendTotals(n) {
   setText(SEL.legendTotal, String(n ?? 0));
@@ -831,10 +821,9 @@ function computeCounts(rows) {
 }
 
 /* ============================================================================
-   PAGINACIÓN (compacta con elipsis)
+   PAGINACIÓN (sin cambios)
    ========================================================================== */
 async function loadPageAndRender({ page }) {
-  // Mueve solo la página de la tabla + UI del pager
   const total = State.__lastTotal || 0;
   const perPage = CONFIG.PAGE_SIZE;
   const pages = Math.max(1, Math.ceil(total / perPage));
@@ -853,7 +842,7 @@ function renderPagerClassic(total) {
   const perPage = CONFIG.PAGE_SIZE;
   const pages = Math.max(1, Math.ceil(total / perPage));
   const cur = Math.min(Math.max(1, State.__page || 1), pages);
-  const WIN = 2; // cuántos a cada lado del actual
+  const WIN = 2;
 
   const btn = (label, p, { active = false, disabled = false } = {}) =>
     `<button class="btn ${active ? "primary" : ""}" data-p="${
@@ -901,31 +890,24 @@ function renderPagerClassic(total) {
 }
 
 /* ============================================================================
-   GAPS + CLICK DELEGADO
+   GAPS + CLICK DELEGADO (sin cambios)
    ========================================================================== */
-/* SOLO estilos/gaps: NO añadir listeners por fila (se pierden al ordenar) */
 function refreshCurrentPageDecorations() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
   tbody.querySelectorAll("tr.hs-gap").forEach((tr) => tr.remove());
 
-  // marca visual
   Array.from(tbody.querySelectorAll("tr")).forEach((tr) => {
     tr.classList.add("is-clickable");
   });
 
-  // (opcional) gaps si quieres altura fija
   const pageRows = State.table?.getRawRows?.() || [];
   const realCount = pageRows.length;
   const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
-  if (gaps > 0) {
-    // Si quisieras filas fantasma, agrega aquí <tr class="hs-gap">…
-  }
   log("gaps añadidos:", gaps, "reales en página:", realCount);
 }
 
-/* Delegación permanente: mantiene los clicks aunque se regenere el <tbody> */
 function setupRowClickDelegation() {
   const tbody = document.querySelector(SEL.tableBody);
   if (!tbody) return;
@@ -934,12 +916,10 @@ function setupRowClickDelegation() {
     const tr = e.target.closest("tr");
     if (!tr || tr.classList.contains("hs-gap")) return;
 
-    // Resuelve índice visible dentro del DOM actual
     const rowsInDom = Array.from(tbody.querySelectorAll("tr"));
     const idx = rowsInDom.indexOf(tr);
     if (idx < 0) return;
 
-    // Obtén la fila cruda correspondiente a la página actual
     const pageRows = State.table?.getRawRows?.() || [];
     const raw = pageRows[idx];
 
@@ -979,7 +959,7 @@ function refreshSidebarFromSession(sess) {
 }
 
 /* ============================================================================
-   PIPELINE + RENDER
+   PIPELINE + RENDER (sin cambios)
    ========================================================================== */
 function applyPipelineAndRender() {
   const all = State.rows || [];
@@ -1038,7 +1018,7 @@ function applyPipelineAndRender() {
 
   refreshCurrentPageDecorations();
 
-  State.__lastTotal = filtered.length; // para el pager
+  State.__lastTotal = filtered.length;
   renderPagerClassic(filtered.length);
 
   log("pipeline", {
@@ -1053,18 +1033,63 @@ function applyPipelineAndRender() {
 }
 
 /* ============================================================================
-   CHARTS — helpers + render
+   CHARTS — helpers + render (✅ actualizado)
    ========================================================================== */
-function computeYearSeries(rows) {
-  const now = new Date();
-  const y = now.getFullYear();
-  const series = Array(12).fill(0);
-  for (const r of rows) {
-    const iso = String(r.creado || r.raw?.created_at || "").replace(" ", "T");
-    const d = new Date(iso);
-    if (!isNaN(d) && d.getFullYear() === y) series[d.getMonth()]++;
+function getReqDate(r) {
+  // parseReq te deja r.raw, y el backend suele traer created_at
+  const raw =
+    r?.raw?.created_at ??
+    r?.raw?.fecha_creacion ??
+    r?.created_at ??
+    r?.fecha_creacion ??
+    r?.creado ??
+    null;
+
+  if (!raw) return null;
+
+  const d = new Date(String(raw).replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+/** ✅ Multi-serie: 1 línea por año, limitado por CONFIG.LINECOUNT */
+function computeYearMultiSeries(rows, linecount = 5) {
+  const labels = [
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+  ];
+  const map = new Map(); // year -> [12]
+
+  for (const r of rows || []) {
+    const d = getReqDate(r);
+    if (!d) continue;
+
+    const y = d.getFullYear();
+    const m = d.getMonth();
+
+    if (!map.has(y)) map.set(y, Array(12).fill(0));
+    map.get(y)[m] += 1;
   }
-  return series;
+
+  const years = Array.from(map.keys()).sort((a, b) => a - b);
+  const last = years.slice(-Math.max(1, linecount));
+
+  const series = last.map((y) => ({
+    name: String(y),
+    data: map.get(y),
+  }));
+
+  return { labels, series };
 }
 
 function computeStatusDistributionAll(rows) {
@@ -1076,17 +1101,14 @@ function computeStatusDistributionAll(rows) {
       .replace(/[\s_-]+/g, " ")
       .trim();
 
-  const by = new Map(); 
+  const by = new Map();
   for (const r of rows) {
     const raw = r.tramite || r.asunto || r.raw?.tramite || r.raw?.asunto || "";
-    const display = (String(raw).trim() || "Otros");
+    const display = String(raw).trim() || "Otros";
     const key = toKey(display) || "otros";
     const cur = by.get(key);
-    if (cur) {
-      cur.value += 1;
-    } else {
-      by.set(key, { label: display, value: 1 });
-    }
+    if (cur) cur.value += 1;
+    else by.set(key, { label: display, value: 1 });
   }
   const items = Array.from(by.values()).sort((a, b) => b.value - a.value);
   const total = items.reduce((acc, it) => acc + it.value, 0);
@@ -1094,50 +1116,61 @@ function computeStatusDistributionAll(rows) {
 }
 
 function drawChartsFromRows(rows) {
-  const labels = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  const yearSeries = computeYearSeries(rows);
-  const donutAgg   = computeStatusDistributionAll(rows);  // ← usa donutAgg
+  const donutAgg = computeStatusDistributionAll(rows);
 
-  const $line  = $(SEL.chartYear);
+  const $line = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
 
+  // ✅ arma series multi-año
+  const linecount = Number(CONFIG.LINECOUNT) || 5;
+  const lineAgg = computeYearMultiSeries(rows, linecount);
+
   log("CHARTS — input (rows length):", rows.length);
-  log("CHARTS — year series:", { labels, series: yearSeries });
+  log("CHARTS — line multi series:", { linecount, ...lineAgg });
   log("CHARTS — donut distribution:", donutAgg);
 
-  try { Charts?.line?.destroy?.(); } catch {}
-  try { Charts?.donut?.destroy?.(); } catch {}
+  try {
+    Charts?.line?.destroy?.();
+  } catch {}
+  try {
+    Charts?.donut?.destroy?.();
+  } catch {}
 
   if ($line) {
     try {
       Charts.line = new LineChart($line, {
-        labels,
-        series: yearSeries,
+        labels: lineAgg.labels,
+        series: lineAgg.series,
+        linecount, // ✅ controla cuántas líneas dibuja
         showGrid: true,
         headroom: 0.2,
         yTicks: 6,
       });
-      log("CHARTS — LineChart render ok");
-    } catch (e) { err("LineChart error:", e); }
+      log("CHARTS — LineChart multi render ok");
+    } catch (e) {
+      err("LineChart error:", e);
+    }
   }
 
   if ($donut) {
     try {
       Charts.donut = new DonutChart($donut, {
-        data: donutAgg.items,     // ← usa donutAgg
-        total: donutAgg.total,    // ← usa donutAgg
+        data: donutAgg.items,
+        total: donutAgg.total,
         legendEl: $(SEL.donutLegend) || null,
         showPercLabels: true,
       });
       log("CHARTS — DonutChart render ok", { total: donutAgg.total });
-    } catch (e) { err("DonutChart error:", e); }
+    } catch (e) {
+      err("DonutChart error:", e);
+    }
   }
 
   document.querySelectorAll(".hs-chart-skeleton")?.forEach((el) => el.remove());
 }
 
 /* ============================================================================
-   RBAC + fetch + dedupe + visibilidad por rol
+   RBAC + fetch + dedupe + visibilidad por rol (sin cambios)
    ========================================================================== */
 function dedupeById(...lists) {
   const map = new Map();
@@ -1184,7 +1217,6 @@ async function fetchMineAndTeam(plan) {
   return dedupeById(...lists);
 }
 
-/** Todos los requerimientos del departamento */
 async function fetchDeptAll(deptId, perPage = 200, maxPages = 50) {
   if (!deptId) return [];
   const url =
@@ -1212,26 +1244,6 @@ async function fetchDeptAll(deptId, perPage = 200, maxPages = 50) {
   return all;
 }
 
-/** Visibilidad por rol */
-function filterRoleVisibility(
-  items,
-  { isAdmin, isPres, isDir, soyPL, isJefe, isAnal }
-) {
-  if (isAdmin || isPres) return items;
-  if (isDir || soyPL || isJefe || isAnal) {
-    const hide = new Set(["solicitud", "revision"]);
-    return items.filter(
-      (r) =>
-        !hide.has(normalizeStatusKey(r?.estatus_key || r?.estatus || "")) &&
-        !hide.has(normalizeStatusKey(r?.estatus?.key || ""))
-    );
-  }
-  return items;
-}
-
-/* ============================================================================
-   CARGA PRINCIPAL
-   ========================================================================== */
 async function loadScopeData() {
   const { empleado_id: viewerId, dept_id, roles } = State.session;
   if (!viewerId) {
@@ -1282,16 +1294,10 @@ async function loadScopeData() {
     items = await fetchMineAndTeam({ mineId: plan.mineId, teamIds: [] });
   }
 
-  // Dedup
   const deduped = dedupeById(items);
-
-  // HIDRATAR nombres del asignado ANTES del parse
   await hydrateAsignadoFields(deduped);
-
-  // Map UI
   const uiRows = deduped.map(parseReq);
 
-  // Visibilidad por rol a nivel UI
   let visibleRows = uiRows;
   if (!(isAdmin || isPres)) {
     if (isDir || soyPL || isJefe || isAnal) {
@@ -1304,42 +1310,6 @@ async function loadScopeData() {
 
   State.universe = deduped;
   State.rows = visibleRows;
-
-  // DEBUG “Sin asignar”
-  try {
-    const sinAsignar = State.rows
-      .filter((r) => (r.asignado || "").toLowerCase() === "sin asignar")
-      .slice(0, 5);
-    if (sinAsignar.length) {
-      console.warn(
-        "[Home][DEBUG] Ejemplos 'Sin asignar' (máx 5):",
-        sinAsignar.map((r) => ({
-          id: r.id,
-          asignado: r.asignado,
-          asignadoNombre: r.asignadoNombre,
-          asignadoApellidos: r.asignadoApellidos,
-          asignadoFull: r.asignadoFull,
-          raw_asignado: r.raw?.asignado,
-          raw_asignado_a: r.raw?.asignado_a,
-          raw_asignado_nombre: r.raw?.asignado_nombre,
-          raw_asignado_apellidos: r.raw?.asignado_apellidos,
-          raw_asignado_nombre_completo: r.raw?.asignado_nombre_completo,
-        }))
-      );
-    }
-  } catch {}
-
-  log(
-    "items UI-mapped (preview):",
-    State.rows.slice(0, 5).map((r) => ({
-      id: r.id,
-      tramite: r.tramite,
-      departamento: r.departamento || r.raw?.departamento?.nombre,
-      asignado: r.asignado,
-      tel: r.tel,
-      estatus: r.estatus?.label,
-    }))
-  );
 
   computeCounts(State.rows);
   updateLegendTotals(State.rows.length);
