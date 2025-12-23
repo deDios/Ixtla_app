@@ -44,24 +44,13 @@
   }
 }
 
-/* ---------- Base ---------- */
-html,
-body {
-  height: 100%;
-}
-
-body {
-  overflow-y: auto;
-  overflow-x: hidden;
-  scroll-behavior: smooth;
-  background: #fff;
-}
+/* ---------- Base (scoped) ---------- */
 
 main.home-samapa {
   color: var(--hs-text);
   padding: 16px 0 24px;
-  padding-top: 5rem;
-  /* debajo del header/subnav de la plantilla */
+  /* padding-top manejado por plantilla.css */
+/* debajo del header/subnav de la plantilla */
   color-scheme: light;
   /* fuerza tema claro aquí */
   --hs-card-bg: #fff !important;
@@ -1541,8 +1530,7 @@ table.gc td:nth-child(6) {
 
 
 
-/* parche mobile pero solo es prueba*/
-
+/* ---------- Mobile (<=768px) ---------- */
 @media (max-width: 768px) {
 
   .home-samapa .hs-sidebar {
@@ -1588,16 +1576,8 @@ table.gc td:nth-child(6) {
   .home-samapa canvas {
     display: block !important;
   }
-
-  .home-samapa .table-wrap {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .home-samapa table.gc {
-    min-width: 720px;
-  }
 }
+
 
 
 
@@ -1726,105 +1706,87 @@ table.gc td:nth-child(6) {
     --ix-bg: #f9f9f900;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*----------------- parche para  la datatable en mobile -----------------------*/
 /* =========================================================
-   DataTable mobile: modo "accordion row" (limpio)
-   - Visibles: Folio (1), Estatus (7)
-   - + Columna final: Chevron (expandir)
+   Tabla mobile: modo "accordion row"
+   - Deja 3 cols visibles: Folio (1), Trámite (3), Estatus (7)
    - El resto se muestra dentro del panel expandible
    ========================================================= */
-
 @media (max-width: 720px) {
-  /* Oculta encabezado */
   .hs-table table.gc thead {
     display: none;
   }
 
-  /* Asegura que la tabla NO se comporte como "wide table" en mobile */
-  .hs-table .table-wrap {
-    overflow-x: hidden;
-  }
-  .hs-table table.gc {
-    width: 100%;
-    min-width: 0;
-    table-layout: fixed;
-  }
-
-  /* Oculta columnas que van al panel expandible */
+  /* Oculta columnas que mandaremos al accordion */
   .hs-table table.gc tbody td:nth-child(2), /* Departamento */
-  .hs-table table.gc tbody td:nth-child(3), /* Trámite */
   .hs-table table.gc tbody td:nth-child(4), /* Asignado */
   .hs-table table.gc tbody td:nth-child(5), /* Teléfono */
   .hs-table table.gc tbody td:nth-child(6)  /* Solicitado */ {
     display: none;
   }
 
-  /* Ajuste general de celdas */
-  .hs-table table.gc tbody td {
-    padding: 12px 10px;
+  .hs-table table.gc tbody tr.is-clickable td {
+    padding-top: 12px;
+    padding-bottom: 12px;
     vertical-align: middle;
   }
 
-  /* Folio */
-  .hs-table table.gc tbody td:nth-child(1) {
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  /* Estatus */
-  .hs-table table.gc tbody td:nth-child(7) {
-    white-space: nowrap;
-  }
-
-  /* Columna REAL para el chevron (la agrega el JS al final de cada fila) */
-  .hs-table table.gc tbody td.hs-cell-expander {
-    width: 44px;
-    padding: 10px 8px;
-    text-align: right;
-    white-space: nowrap;
+  .hs-table table.gc tbody tr.is-clickable td:nth-child(1) {
+    position: relative;
+    padding-right: 44px; 
+    font-weight: 600;
   }
 
   .hs-expander {
-    appearance: none;
-    width: 32px;
-    height: 32px;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
     border-radius: 999px;
     border: 1px solid #e5e7eb;
     background: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: inline-grid;
+    place-items: center;
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease,
-      box-shadow 0.15s ease, transform 0.05s ease;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
   }
-
-  .hs-expander:hover {
-    background: #f9fafb;
-    border-color: #cbd5e1;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
-  }
-
   .hs-expander:active {
-    transform: scale(0.98);
+    transform: translateY(-50%) scale(0.98);
   }
-
   .hs-expander svg {
     width: 16px;
     height: 16px;
     display: block;
-    transition: transform 0.2s ease;
+    transition: transform .2s ease;
   }
-
-  /* Giro del chevron cuando el row está abierto */
-  .hs-table table.gc tbody tr.is-open .hs-expander svg {
+  tr.is-open .hs-expander svg {
     transform: rotate(180deg);
   }
 
-  /* Fila expandible insertada por JS */
+  /* Row expandible insertada por JS */
   .hs-row-expand {
     background: #fbfbfc;
   }
-
   .hs-row-expand td {
     padding: 10px 12px 14px;
     border-top: 1px solid #eef0f3;
@@ -1836,18 +1798,14 @@ table.gc td:nth-child(6) {
     grid-template-columns: 1fr 1fr;
     gap: 10px 12px;
   }
-
   .hs-kv {
     display: grid;
     gap: 2px;
-    min-width: 0;
   }
-
   .hs-k {
     font-size: 12px;
     color: #6b7280;
   }
-
   .hs-v {
     font-size: 14px;
     color: #111827;
@@ -1856,13 +1814,12 @@ table.gc td:nth-child(6) {
     white-space: nowrap;
   }
 
-  /* Acción opcional dentro del panel (si la usas) */
+  /* Acción “Abrir” */
   .hs-expand-actions {
     margin-top: 10px;
     display: flex;
     justify-content: flex-end;
   }
-
   .hs-open-btn {
     display: inline-flex;
     align-items: center;
@@ -1872,7 +1829,190 @@ table.gc td:nth-child(6) {
     border: 1px solid #e5e7eb;
     background: #fff;
     cursor: pointer;
-    font-weight: 700;
+    font-weight: 600;
+  }
+}
+
+/* =========================================================
+   Fix definitivo mobile: sin overflow y pager en wrap
+   - Mantiene plantilla.css intacto
+   ========================================================= */
+@media (max-width: 720px) {
+  /* Evita que el grid-item crezca por contenido */
+  main.home-samapa .hs-wrap,
+  main.home-samapa .hs-main {
+    min-width: 0;
+  }
+
+  /* La página debe scrollear; la tabla no debe encerrar el scroll */
+  main.home-samapa .table-wrap {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Neutraliza anchos de desktop que empujan el viewport */
+  main.home-samapa .hs-table table.gc th:nth-child(1),
+  main.home-samapa .hs-table table.gc td:nth-child(1),
+  main.home-samapa .hs-table table.gc th:nth-child(7),
+  main.home-samapa .hs-table table.gc td:nth-child(7) {
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  /* Folio: ellipsis para no empujar */
+  main.home-samapa .hs-table table.gc td:nth-child(1) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 1px; /* fuerza ellipsis en layouts apretados */
+  }
+
+  /* Badge de estatus compacto */
+  main.home-samapa .badge-status {
+    padding: 4px 8px !important;
+    min-width: 0 !important;
+  }
+
+  /* Paginación: wrap para que “Pág. x de y” no se corte */
+  main.home-samapa #hs-pager.hs-pager {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    max-width: 100% !important;
+  }
+  main.home-samapa #hs-pager .muted {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    text-align: center !important;
+    margin-left: 0 !important;
+  }
+  main.home-samapa #hs-pager input[data-goto] {
+    width: 4rem !important;
+    margin-left: 0 !important;
+  }
+
+  /* Cinturón: por si queda 1px de overflow */
+  main.home-samapa,
+  main.home-samapa .hs-wrap,
+  main.home-samapa .hs-main {
+    overflow-x: clip;
+  }
+}
+
+
+/* =========================================================
+   HOTFIX MOBILE (scoped) – evita desfase por min-width de desktop
+   - Fuerza table-layout fixed
+   - Neutraliza min-width/width heredados
+   - Deja SOLO: Folio (1) + Estatus (7) + Chevron (col extra)
+   ========================================================= */
+@media (max-width: 720px) {
+  main.home-samapa .hs-table table.gc {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  /* Neutraliza anchos heredados (desktop) */
+  main.home-samapa .hs-table table.gc th,
+  main.home-samapa .hs-table table.gc td {
+    min-width: 0 !important;
+    width: auto !important;
+  }
+
+  /* Oculta TODO excepto Folio (1) y Estatus (7) */
+  main.home-samapa .hs-table table.gc tbody td:nth-child(2),
+  main.home-samapa .hs-table table.gc tbody td:nth-child(3),
+  main.home-samapa .hs-table table.gc tbody td:nth-child(4),
+  main.home-samapa .hs-table table.gc tbody td:nth-child(5),
+  main.home-samapa .hs-table table.gc tbody td:nth-child(6) {
+    display: none !important;
+  }
+
+  /* Folio: ocupa lo que se pueda, con ellipsis */
+  main.home-samapa .hs-table table.gc tbody td:nth-child(1) {
+    width: 60% !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Estatus: compacto */
+  main.home-samapa .hs-table table.gc tbody td:nth-child(7) {
+    width: 40% !important;
+    white-space: nowrap;
+  }
+
+  /* Columna real del chevron */
+  main.home-samapa .hs-table table.gc tbody td.hs-cell-expander {
+    width: 44px !important;
+    padding: 10px 8px !important;
+    text-align: right;
+  }
+
+  /* El badge no debe empujar */
+  main.home-samapa .badge-status {
+    max-width: 100%;
+    min-width: 0 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Pager: wrap para que no empuje a la derecha */
+  main.home-samapa #hs-pager.hs-pager {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    max-width: 100% !important;
+  }
+  main.home-samapa #hs-pager .muted {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    text-align: center !important;
+    margin-left: 0 !important;
+  }
+
+  /* Importante: si la tabla tenía scroll interno, evítalo en mobile */
+  main.home-samapa .table-wrap {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+
+/* ===== Mobile: mostrar THEAD solo para Folio + Status ===== */
+@media (max-width: 720px) {
+  .home-samapa .hs-table table.gc thead {
+    display: table-header-group !important;
+  }
+
+  /* Oculta todos los TH por defecto... */
+  .home-samapa .hs-table table.gc thead th {
+    display: none !important;
+  }
+
+  /* ...y muestra solo Folio (1) y Status (7) */
+  .home-samapa .hs-table table.gc thead th:nth-child(1),
+  .home-samapa .hs-table table.gc thead th:nth-child(7) {
+    display: table-cell !important;
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 800;
+    padding: 10px 12px;
+    background: #fff;
+    border-bottom: 1px solid #eef0f3;
+    white-space: nowrap;
+  }
+
+  /* Header para chevron: si agregamos la columna extra al final */
+  .home-samapa .hs-table table.gc thead th.hs-th-expander {
+    display: table-cell !important;
+    width: 44px;
+    padding: 10px 8px;
+    background: #fff;
+    border-bottom: 1px solid #eef0f3;
   }
 }
 
