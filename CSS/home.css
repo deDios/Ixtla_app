@@ -1726,87 +1726,105 @@ table.gc td:nth-child(6) {
     --ix-bg: #f9f9f900;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*----------------- parche para  la datatable en mobile -----------------------*/
 /* =========================================================
-   Tabla mobile: modo "accordion row"
-   - Deja 3 cols visibles: Folio (1), Trámite (3), Estatus (7)
+   DataTable mobile: modo "accordion row" (limpio)
+   - Visibles: Folio (1), Estatus (7)
+   - + Columna final: Chevron (expandir)
    - El resto se muestra dentro del panel expandible
    ========================================================= */
+
 @media (max-width: 720px) {
+  /* Oculta encabezado */
   .hs-table table.gc thead {
     display: none;
   }
 
-  /* Oculta columnas que mandaremos al accordion */
+  /* Asegura que la tabla NO se comporte como "wide table" en mobile */
+  .hs-table .table-wrap {
+    overflow-x: hidden;
+  }
+  .hs-table table.gc {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  /* Oculta columnas que van al panel expandible */
   .hs-table table.gc tbody td:nth-child(2), /* Departamento */
+  .hs-table table.gc tbody td:nth-child(3), /* Trámite */
   .hs-table table.gc tbody td:nth-child(4), /* Asignado */
   .hs-table table.gc tbody td:nth-child(5), /* Teléfono */
   .hs-table table.gc tbody td:nth-child(6)  /* Solicitado */ {
     display: none;
   }
 
-  .hs-table table.gc tbody tr.is-clickable td {
-    padding-top: 12px;
-    padding-bottom: 12px;
+  /* Ajuste general de celdas */
+  .hs-table table.gc tbody td {
+    padding: 12px 10px;
     vertical-align: middle;
   }
 
-  .hs-table table.gc tbody tr.is-clickable td:nth-child(1) {
-    position: relative;
-    padding-right: 44px; 
-    font-weight: 600;
+  /* Folio */
+  .hs-table table.gc tbody td:nth-child(1) {
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* Estatus */
+  .hs-table table.gc tbody td:nth-child(7) {
+    white-space: nowrap;
+  }
+
+  /* Columna REAL para el chevron (la agrega el JS al final de cada fila) */
+  .hs-table table.gc tbody td.hs-cell-expander {
+    width: 44px;
+    padding: 10px 8px;
+    text-align: right;
+    white-space: nowrap;
   }
 
   .hs-expander {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 28px;
-    height: 28px;
+    appearance: none;
+    width: 32px;
+    height: 32px;
     border-radius: 999px;
     border: 1px solid #e5e7eb;
     background: #fff;
-    display: inline-grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    transition: background 0.15s ease, border-color 0.15s ease,
+      box-shadow 0.15s ease, transform 0.05s ease;
   }
+
+  .hs-expander:hover {
+    background: #f9fafb;
+    border-color: #cbd5e1;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  }
+
   .hs-expander:active {
-    transform: translateY(-50%) scale(0.98);
+    transform: scale(0.98);
   }
+
   .hs-expander svg {
     width: 16px;
     height: 16px;
     display: block;
-    transition: transform .2s ease;
+    transition: transform 0.2s ease;
   }
-  tr.is-open .hs-expander svg {
+
+  /* Giro del chevron cuando el row está abierto */
+  .hs-table table.gc tbody tr.is-open .hs-expander svg {
     transform: rotate(180deg);
   }
 
-  /* Row expandible insertada por JS */
+  /* Fila expandible insertada por JS */
   .hs-row-expand {
     background: #fbfbfc;
   }
+
   .hs-row-expand td {
     padding: 10px 12px 14px;
     border-top: 1px solid #eef0f3;
@@ -1818,14 +1836,18 @@ table.gc td:nth-child(6) {
     grid-template-columns: 1fr 1fr;
     gap: 10px 12px;
   }
+
   .hs-kv {
     display: grid;
     gap: 2px;
+    min-width: 0;
   }
+
   .hs-k {
     font-size: 12px;
     color: #6b7280;
   }
+
   .hs-v {
     font-size: 14px;
     color: #111827;
@@ -1834,12 +1856,13 @@ table.gc td:nth-child(6) {
     white-space: nowrap;
   }
 
-  /* Acción “Abrir” */
+  /* Acción opcional dentro del panel (si la usas) */
   .hs-expand-actions {
     margin-top: 10px;
     display: flex;
     justify-content: flex-end;
   }
+
   .hs-open-btn {
     display: inline-flex;
     align-items: center;
@@ -1849,6 +1872,7 @@ table.gc td:nth-child(6) {
     border: 1px solid #e5e7eb;
     background: #fff;
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 700;
   }
 }
+

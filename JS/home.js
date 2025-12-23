@@ -988,22 +988,36 @@ function refreshCurrentPageDecorations() {
     const idx = domIdx != null ? parseInt(domIdx, 10) : i;
     const row = pageRows[idx] || null;
 
-    // En desktop: nada extra
+    // Asegura columna FINAL para el chevron (REAL, sin absolute en el folio)
+    // En mobile agregamos un <td class="hs-cell-expander"> al final de la fila.
+    // En desktop lo removemos para no alterar el layout original.
+    const existingExpTd = tr.querySelector("td.hs-cell-expander");
     if (!isMobileAccordion()) {
+      // Limpia si venimos de mobile → desktop
+      if (existingExpTd) existingExpTd.remove();
+      tr.querySelectorAll(".hs-expander").forEach((b) => b.remove());
       tr.classList.remove("is-open");
       return;
     }
 
-    // Asegura botón expander dentro del primer <td>
-    const firstTd = tr.querySelector("td");
-    if (firstTd && !firstTd.querySelector(".hs-expander")) {
+    // Mobile: asegurar celda final + botón
+    let expTd = existingExpTd;
+    if (!expTd) {
+      expTd = document.createElement("td");
+      expTd.className = "hs-cell-expander";
+      tr.appendChild(expTd);
+    } else {
+      expTd.classList.add("hs-cell-expander");
+    }
+
+    if (!expTd.querySelector(".hs-expander")) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "hs-expander";
       btn.setAttribute("aria-label", "Ver más detalles");
       btn.setAttribute("title", "Ver más detalles"); // tooltip nativo (discreto)
       btn.innerHTML = chevronSvg();
-      firstTd.appendChild(btn);
+      expTd.appendChild(btn);
     }
 
     // Si esta fila es la expandida, reabre (persistencia al paginar/ordenar)
@@ -1017,7 +1031,7 @@ function refreshCurrentPageDecorations() {
       exp.className = "hs-row-expand";
 
       const td = document.createElement("td");
-      td.colSpan = 7; // tus columnas son 7 :contentReference[oaicite:4]{index=4}
+      td.colSpan = 8; // 7 columnas + chevron final :contentReference[oaicite:4]{index=4}
 
       const raw = row.__raw || row;
       const depto = safeTxt(
