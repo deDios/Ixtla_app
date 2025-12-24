@@ -2424,3 +2424,8 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander{
     box-sizing: border-box !important;
   }
 }
+
+
+main.home-samapa{
+  padding-top: 5rem;
+}
