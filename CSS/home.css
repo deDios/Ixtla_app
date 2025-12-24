@@ -1901,6 +1901,10 @@ table.gc td:nth-child(6) {
   }
 }
 
+main.home-samapa{
+  padding-top: 5rem;
+}
+
 
 /* =========================================================
    HOTFIX MOBILE (scoped) – evita desfase por min-width de desktop
@@ -2425,7 +2429,63 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander{
   }
 }
 
+@media (max-width: 720px) {
+  /* El head donde viven el h3 + hs-tools */
+  main.home-samapa .hs-head{
+    display: flex;
+    flex-direction: column;   /* <- apilado (estándar) */
+    align-items: flex-start;
+    gap: 10px;
+  }
 
-main.home-samapa{
-  padding-top: 5rem;
+  /* Tools también en columna */
+  main.home-samapa .hs-tools{
+    width: 100%;
+    display: flex;
+    flex-direction: column;   /* <- apilado */
+    gap: 10px;
+    min-width: 0;
+  }
+
+  /* Search ocupa todo el ancho */
+  main.home-samapa .hs-tools .search{
+    width: 100%;
+    min-width: 0;
+  }
+
+  main.home-samapa .hs-tools .search input{
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* La leyenda: que haga wrap bonito (2 líneas si hace falta) */
+  main.home-samapa .hs-tools .legend{
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    line-height: 1.25;
+  }
+
+  /* Evita que "Todos los status" empuje y se corte feo */
+  main.home-samapa #hs-legend-status{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    display: inline-block;
+    vertical-align: bottom;
+  }
+}
+
+@media (max-width: 720px) {
+  main.home-samapa .hs-tools .search{
+    max-width: 320px;       
+    margin: 0 auto;       
+  }
+
+  main.home-samapa .hs-tools .search input{
+    width: 100%;
+  }
 }
