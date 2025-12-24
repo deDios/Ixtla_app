@@ -837,19 +837,6 @@ function buildTable() {
           return `<span class="badge-status" data-k="${keyNorm}">${label}</span>`;
         },
       },
-      // 8) Chevron (mobile accordion)
-      {
-        key: "__expander",
-        title: "",
-        sortable: false,
-        accessor: () => "",
-        render: () => {
-          if (!isMobileAccordion()) return "";
-          return `<button type="button" class="hs-expander" aria-label="Ver más detalles" title="Ver más detalles">
-            ${chevronSvg()}
-          </button>`;
-        },
-      },
     ],
   });
   State.table.setPageSize?.(CONFIG.PAGE_SIZE);
@@ -993,13 +980,6 @@ function refreshCurrentPageDecorations() {
 
   const pageRows = State.table?.getRawRows?.() || [];
 
-  // En mobile: marca el TH del chevron (última columna) para estilos
-  if (isMobileAccordion()) {
-    const table = tbody.closest("table");
-    const ths = table ? table.querySelectorAll("thead th") : null;
-    if (ths && ths.length) ths[ths.length - 1].classList.add("hs-th-expander");
-  }
-
   trs.forEach((tr, i) => {
     tr.classList.add("is-clickable");
 
@@ -1014,19 +994,35 @@ function refreshCurrentPageDecorations() {
       return;
     }
 
-    // Asegura botón expander en la ÚLTIMA columna (chevron real)
-    const lastTd = tr.querySelector("td:last-child");
-    if (lastTd) lastTd.classList.add("hs-cell-expander");
-    if (lastTd && !lastTd.querySelector(".hs-expander")) {
-      // Si el render ya lo pintó, no hacemos nada.
-      // Si por alguna razón no se pintó, lo agregamos como fallback.
+    // Asegura columna + botón expander (estructura SIEMPRE; CSS decide visibilidad)
+    // 1) Header: agrega un <th> al final si no existe
+    const tableEl = tbody.closest("table");
+    const theadTr = tableEl?.querySelector("thead tr");
+    if (theadTr && !theadTr.querySelector(".hs-th-expander")) {
+      const th = document.createElement("th");
+      th.className = "hs-th-expander";
+      th.setAttribute("aria-label", "Detalles");
+      th.textContent = ""; // header vacío (solo ícono)
+      theadTr.appendChild(th);
+    }
+
+    // 2) Body: agrega un <td> al final por fila si no existe
+    let expTd = tr.querySelector("td.hs-cell-expander");
+    if (!expTd) {
+      expTd = document.createElement("td");
+      expTd.className = "hs-cell-expander";
+      tr.appendChild(expTd);
+    }
+
+    // 3) Botón dentro del td expander
+    if (!expTd.querySelector(".hs-expander")) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "hs-expander";
       btn.setAttribute("aria-label", "Ver más detalles");
-      btn.setAttribute("title", "Ver más detalles");
+      btn.setAttribute("title", "Ver más detalles"); // tooltip nativo (discreto)
       btn.innerHTML = chevronSvg();
-      lastTd.appendChild(btn);
+      expTd.appendChild(btn);
     }
 
     // Si esta fila es la expandida, reabre (persistencia al paginar/ordenar)
@@ -1040,7 +1036,7 @@ function refreshCurrentPageDecorations() {
       exp.className = "hs-row-expand";
 
       const td = document.createElement("td");
-            td.colSpan = 8; // 7 columnas + chevron
+      td.colSpan = tr.children.length || 8; // columnas actuales (incluye expander) :contentReference[oaicite:4]{index=4}
 
       const raw = row.__raw || row;
       const depto = safeTxt(
@@ -1120,8 +1116,15 @@ function setupRowClickDelegation() {
     if (mobile) {
       const clickedExpander = !!e.target.closest(".hs-expander");
 
-      // Mobile: SOLO abrir/cerrar con el chevron
+      // Estándar: en mobile SOLO togglear si tocó el chevron
       if (!clickedExpander) return;
+
+      // Si tocó un control interactivo distinto al expander, no togglear
+      // (evita conflictos si en el futuro metes links/botones dentro de la fila)
+      const interactive = e.target.closest(
+        "a,button,input,select,textarea,label"
+      );
+      if (interactive && !clickedExpander) return;
 
       const pageRows = State.table?.getRawRows?.() || [];
 

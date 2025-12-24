@@ -50,7 +50,7 @@ main.home-samapa {
   color: var(--hs-text);
   padding: 16px 0 24px;
   /* padding-top manejado por plantilla.css */
-/* debajo del header/subnav de la plantilla */
+  /* debajo del header/subnav de la plantilla */
   color-scheme: light;
   /* fuerza tema claro aquí */
   --hs-card-bg: #fff !important;
@@ -1590,7 +1590,7 @@ table.gc td:nth-child(6) {
    Donut: leyenda con ~9 items + scroll sutil
    ============================ */
 
-.hs-donut-legend{
+.hs-donut-legend {
   max-height: 190px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -1601,30 +1601,34 @@ table.gc td:nth-child(6) {
   padding-right: 6px;
 }
 
-.hs-donut-legend{
+.hs-donut-legend {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0,0,0,.18) transparent;
+  scrollbar-color: rgba(0, 0, 0, .18) transparent;
 }
 
-.hs-donut-legend::-webkit-scrollbar{
+.hs-donut-legend::-webkit-scrollbar {
   width: 6px;
 }
-.hs-donut-legend::-webkit-scrollbar-track{
+
+.hs-donut-legend::-webkit-scrollbar-track {
   background: transparent;
 }
-.hs-donut-legend::-webkit-scrollbar-thumb{
-  background: rgba(0,0,0,.18);
+
+.hs-donut-legend::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, .18);
   border-radius: 999px;
 }
-.hs-donut-legend:hover::-webkit-scrollbar-thumb{
-  background: rgba(0,0,0,.28); /* un pelín más visible al hover */
+
+.hs-donut-legend:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, .28);
+  /* un pelín más visible al hover */
 }
 
-.hs-donut-legend{
+.hs-donut-legend {
   position: relative;
 }
 
-.hs-donut-legend::after{
+.hs-donut-legend::after {
   content: "";
   position: sticky;
   bottom: 0;
@@ -1632,7 +1636,7 @@ table.gc td:nth-child(6) {
   display: block;
   height: 18px;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
 }
 
 
@@ -1656,8 +1660,8 @@ table.gc td:nth-child(6) {
 
   .home-samapa .hs-donut .hs-chart {
     width: 100% !important;
-    max-width: 320px !important; 
-    height: 260px !important;  
+    max-width: 320px !important;
+    height: 260px !important;
     margin: 0 auto !important;
   }
 
@@ -1680,14 +1684,21 @@ table.gc td:nth-child(6) {
     border-top: 1px solid #eef2f7;
   }
 
-  .home-samapa .hs-donut-legend::-webkit-scrollbar { width: 6px; }
-  .home-samapa .hs-donut-legend::-webkit-scrollbar-track { background: transparent; }
+  .home-samapa .hs-donut-legend::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .home-samapa .hs-donut-legend::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   .home-samapa .hs-donut-legend::-webkit-scrollbar-thumb {
-    background: rgba(0,0,0,.18);
+    background: rgba(0, 0, 0, .18);
     border-radius: 999px;
   }
+
   .home-samapa .hs-donut-legend:hover::-webkit-scrollbar-thumb {
-    background: rgba(0,0,0,.28);
+    background: rgba(0, 0, 0, .28);
   }
 
   .home-samapa .hs-donut-legend::after {
@@ -1698,12 +1709,12 @@ table.gc td:nth-child(6) {
     display: block;
     height: 16px;
     pointer-events: none;
-    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
   }
 }
 
 :root {
-    --ix-bg: #f9f9f900;
+  --ix-bg: #f9f9f900;
 }
 
 
@@ -1736,10 +1747,16 @@ table.gc td:nth-child(6) {
   }
 
   /* Oculta columnas que mandaremos al accordion */
-  .hs-table table.gc tbody td:nth-child(2), /* Departamento */
-  .hs-table table.gc tbody td:nth-child(4), /* Asignado */
-  .hs-table table.gc tbody td:nth-child(5), /* Teléfono */
-  .hs-table table.gc tbody td:nth-child(6)  /* Solicitado */ {
+  .hs-table table.gc tbody td:nth-child(2),
+  /* Departamento */
+  .hs-table table.gc tbody td:nth-child(4),
+  /* Asignado */
+  .hs-table table.gc tbody td:nth-child(5),
+  /* Teléfono */
+  .hs-table table.gc tbody td:nth-child(6)
+
+  /* Solicitado */
+    {
     display: none;
   }
 
@@ -1751,7 +1768,7 @@ table.gc td:nth-child(6) {
 
   .hs-table table.gc tbody tr.is-clickable td:nth-child(1) {
     position: relative;
-    padding-right: 44px; 
+    padding-right: 44px;
     font-weight: 600;
   }
 
@@ -1770,15 +1787,18 @@ table.gc td:nth-child(6) {
     cursor: pointer;
     transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
   }
+
   .hs-expander:active {
     transform: translateY(-50%) scale(0.98);
   }
+
   .hs-expander svg {
     width: 16px;
     height: 16px;
     display: block;
     transition: transform .2s ease;
   }
+
   tr.is-open .hs-expander svg {
     transform: rotate(180deg);
   }
@@ -1787,6 +1807,7 @@ table.gc td:nth-child(6) {
   .hs-row-expand {
     background: #fbfbfc;
   }
+
   .hs-row-expand td {
     padding: 10px 12px 14px;
     border-top: 1px solid #eef0f3;
@@ -1798,14 +1819,17 @@ table.gc td:nth-child(6) {
     grid-template-columns: 1fr 1fr;
     gap: 10px 12px;
   }
+
   .hs-kv {
     display: grid;
     gap: 2px;
   }
+
   .hs-k {
     font-size: 12px;
     color: #6b7280;
   }
+
   .hs-v {
     font-size: 14px;
     color: #111827;
@@ -1820,6 +1844,7 @@ table.gc td:nth-child(6) {
     display: flex;
     justify-content: flex-end;
   }
+
   .hs-open-btn {
     display: inline-flex;
     align-items: center;
@@ -1838,6 +1863,7 @@ table.gc td:nth-child(6) {
    - Mantiene plantilla.css intacto
    ========================================================= */
 @media (max-width: 720px) {
+
   /* Evita que el grid-item crezca por contenido */
   main.home-samapa .hs-wrap,
   main.home-samapa .hs-main {
@@ -1864,7 +1890,8 @@ table.gc td:nth-child(6) {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 1px; /* fuerza ellipsis en layouts apretados */
+    max-width: 1px;
+    /* fuerza ellipsis en layouts apretados */
   }
 
   /* Badge de estatus compacto */
@@ -1882,12 +1909,14 @@ table.gc td:nth-child(6) {
     justify-content: center !important;
     max-width: 100% !important;
   }
+
   main.home-samapa #hs-pager .muted {
     flex: 0 0 100% !important;
     width: 100% !important;
     text-align: center !important;
     margin-left: 0 !important;
   }
+
   main.home-samapa #hs-pager input[data-goto] {
     width: 4rem !important;
     margin-left: 0 !important;
@@ -1967,6 +1996,7 @@ table.gc td:nth-child(6) {
     gap: 10px !important;
     max-width: 100% !important;
   }
+
   main.home-samapa #hs-pager .muted {
     flex: 0 0 100% !important;
     width: 100% !important;
@@ -1982,21 +2012,41 @@ table.gc td:nth-child(6) {
 }
 
 
-/* ===== Mobile: mostrar THEAD solo para Folio + Status ===== */
+/* ============================================================================
+   Responsive estándar (Progressive Enhancement)
+   - Estructura (chevron + panel) existe siempre (JS)
+   - CSS decide visibilidad por breakpoint
+   ========================================================================== */
+
+/* Desktop/tablet: NO mostrar columna chevron ni panel expandible */
+.home-samapa .hs-th-expander,
+.home-samapa .hs-cell-expander,
+.home-samapa tr.hs-row-expand {
+  display: none;
+}
+
+/* Mobile: mostrar chevron y permitir panel */
 @media (max-width: 720px) {
+
+  /* Mostrar columna chevron */
+  .home-samapa .hs-th-expander,
+  .home-samapa .hs-cell-expander {
+    display: table-cell;
+  }
+
+  /* Mostrar header SOLO Folio + Estatus + columna chevron */
   .home-samapa .hs-table table.gc thead {
-    display: table-header-group !important;
+    display: table-header-group;
   }
 
-  /* Oculta todos los TH por defecto... */
   .home-samapa .hs-table table.gc thead th {
-    display: none !important;
+    display: none;
   }
 
-  /* ...y muestra solo Folio (1) y Status (7) */
   .home-samapa .hs-table table.gc thead th:nth-child(1),
-  .home-samapa .hs-table table.gc thead th:nth-child(7) {
-    display: table-cell !important;
+  .home-samapa .hs-table table.gc thead th:nth-child(7),
+  .home-samapa .hs-table table.gc thead th.hs-th-expander {
+    display: table-cell;
     font-size: 12px;
     color: #6b7280;
     font-weight: 800;
@@ -2006,13 +2056,56 @@ table.gc td:nth-child(6) {
     white-space: nowrap;
   }
 
-  /* Header para chevron: si agregamos la columna extra al final */
   .home-samapa .hs-table table.gc thead th.hs-th-expander {
-    display: table-cell !important;
     width: 44px;
     padding: 10px 8px;
+  }
+
+  /* Estilos del botón chevron */
+  .home-samapa .hs-cell-expander {
+    width: 44px;
+    padding: 10px 8px;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .home-samapa .hs-expander {
+    appearance: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
     background: #fff;
-    border-bottom: 1px solid #eef0f3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .05s ease;
+  }
+
+  .home-samapa .hs-expander:hover {
+    background: #f9fafb;
+    border-color: #cbd5e1;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, .04);
+  }
+
+  .home-samapa .hs-expander:active {
+    transform: scale(0.98);
+  }
+
+  .home-samapa .hs-expander svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    transition: transform .2s ease;
+  }
+
+  .home-samapa tr.is-open .hs-expander svg {
+    transform: rotate(180deg);
+  }
+
+  /* Panel expandible: solo visible cuando la fila está abierta */
+  .home-samapa tr.is-open+tr.hs-row-expand {
+    display: table-row;
   }
 }
-
