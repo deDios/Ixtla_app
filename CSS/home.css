@@ -1776,7 +1776,7 @@ table.gc td:nth-child(6) {
   .hs-expander svg {
     width: 16px;
     height: 16px;
-    display: block;
+    /*! display: block; */
     transition: transform .2s ease;
   }
   tr.is-open .hs-expander svg {
@@ -2056,7 +2056,7 @@ table.gc td:nth-child(6) {
   .home-samapa .hs-expander svg {
     width: 16px;
     height: 16px;
-    display: block;
+    /*! display: block; */
     transition: transform .2s ease;
   }
   .home-samapa tr.is-open .hs-expander svg { transform: rotate(180deg); }
@@ -2150,6 +2150,277 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander{
   main.home-samapa .hs-expander svg{
     width: 18px;
     height: 18px;
-    display: block;
+    /*! display: block; */
+  }
+}
+
+
+@media (max-width: 720px) {
+  main.home-samapa .hs-table table.gc tbody tr { position: static !important; }
+  main.home-samapa .hs-table table.gc tbody td.hs-cell-expander { 
+    position: static !important;
+    display: table-cell !important;
+    vertical-align: middle !important;
+  }
+  main.home-samapa .hs-expander {
+    position: static !important;
+    float: none !important;
+    margin-left: auto;
+    display: inline-flex !important;
+  }
+}
+
+
+/* ===== ACOMODO FINAL: columna chevron fija y alineada ===== */
+@media (max-width: 720px) {
+  /* Tabla fija para que el navegador NO reparta el ancho al azar */
+  main.home-samapa .hs-table table.gc {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  /* Oculta columnas no usadas en mobile (ajusta si tu CSS ya lo hace) */
+  main.home-samapa .hs-table table.gc thead th:not(:nth-child(1)):not(:nth-child(7)):not(.hs-th-expander),
+  main.home-samapa .hs-table table.gc tbody td:not(:nth-child(1)):not(:nth-child(7)):not(.hs-cell-expander) {
+    display: none !important;
+  }
+
+  /* Folio: ocupa lo restante, con ellipsis */
+  main.home-samapa .hs-table table.gc thead th:nth-child(1),
+  main.home-samapa .hs-table table.gc tbody td:nth-child(1) {
+    width: auto !important;
+    min-width: 0 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Estatus: ancho controlado */
+  main.home-samapa .hs-table table.gc thead th:nth-child(7),
+  main.home-samapa .hs-table table.gc tbody td:nth-child(7) {
+    width: 120px !important; /* si quieres más compacto: 110px */
+    min-width: 0 !important;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  /* Chevron: SIEMPRE una columna real y chiquita */
+  main.home-samapa .hs-table table.gc thead th.hs-th-expander,
+  main.home-samapa .hs-table table.gc tbody td.hs-cell-expander {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    padding: 8px 6px !important;
+    text-align: right !important;
+    vertical-align: middle !important;
+  }
+
+  /* Botón centrado dentro de su celda, sin “flotar” */
+  main.home-samapa .hs-table .hs-expander {
+    position: static !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+    width: 34px;
+    height: 34px;
+  }
+}
+
+
+@media (max-width: 720px) {
+  /* Columna expander: centra el botón de forma normal */
+  main.home-samapa td.hs-cell-expander{
+    padding: 0 !important;
+    vertical-align: middle !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Botón expander: elimina herencia de la versión absoluta */
+  main.home-samapa .hs-expander{
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    transform: none !important; /* <- ESTE es el fix clave */
+    margin: 0 !important;
+  }
+}
+
+
+/* ==========================================================================
+   Parche FINAL (v3) – Tabla responsive tipo "accordion" (solo HOME / mobile)
+   - Mantiene 2 columnas visibles: Folio + Estatus
+   - 3ra col: chevron (expander) al final (sin posiciones absolutas)
+   - Evita desbordes y alinea headers
+   ========================================================================== */
+@media (max-width: 720px) {
+  main.home-samapa .hs-table,
+  main.home-samapa .hs-table .table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden; /* no scroll lateral en mobile */
+  }
+
+  main.home-samapa table.gc {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed; /* consistente en Edge mobile */
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  /* ====== HEADERS (solo Folio + Estatus) ====== */
+  main.home-samapa table.gc thead {
+    display: table-header-group; /* IMPORTANT: mostrar headers */
+  }
+  main.home-samapa table.gc thead th {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Oculta columnas no esenciales (2..6) */
+  main.home-samapa table.gc thead th:nth-child(2),
+  main.home-samapa table.gc thead th:nth-child(3),
+  main.home-samapa table.gc thead th:nth-child(4),
+  main.home-samapa table.gc thead th:nth-child(5),
+  main.home-samapa table.gc thead th:nth-child(6),
+  main.home-samapa table.gc tbody td:nth-child(2),
+  main.home-samapa table.gc tbody td:nth-child(3),
+  main.home-samapa table.gc tbody td:nth-child(4),
+  main.home-samapa table.gc tbody td:nth-child(5),
+  main.home-samapa table.gc tbody td:nth-child(6) {
+    display: none !important;
+  }
+
+  /* Anchos de las 3 columnas restantes: Folio (1), Estatus (7), Chevron (8) */
+  main.home-samapa table.gc thead th:nth-child(1),
+  main.home-samapa table.gc tbody td:nth-child(1) {
+    width: 58%;
+  }
+  main.home-samapa table.gc thead th:nth-child(7),
+  main.home-samapa table.gc tbody td:nth-child(7) {
+    width: calc(42% - 56px);
+  }
+  main.home-samapa table.gc thead th:nth-child(8),
+  main.home-samapa table.gc tbody td:nth-child(8) {
+    width: 56px; /* columna chevron fija */
+  }
+
+  /* ====== CELDAS VISIBLES ====== */
+  main.home-samapa table.gc tbody td:nth-child(1) {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Estatus: que no empuje el layout */
+  main.home-samapa table.gc tbody td:nth-child(7) .status-pill,
+  main.home-samapa table.gc tbody td:nth-child(7) .hs-status,
+  main.home-samapa table.gc tbody td:nth-child(7) .badge,
+  main.home-samapa table.gc tbody td:nth-child(7) button,
+  main.home-samapa table.gc tbody td:nth-child(7) span {
+    max-width: 100%;
+  }
+
+  /* ====== CHEVRON (expander) ====== */
+  main.home-samapa table.gc tbody td.hs-cell-expander,
+  main.home-samapa table.gc tbody td:nth-child(8) {
+    padding: 10px 10px 10px 6px;
+    text-align: right;
+    vertical-align: middle;
+  }
+
+  main.home-samapa table.gc button.hs-expander {
+    position: relative !important; /* evitar "amontonado" por reglas viejas */
+    inset: auto !important;
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    margin-left: auto; /* empuja a la derecha dentro del TD */
+    transform: none !important; /* evita el matrix(...) */
+  }
+
+  /* Estado abierto/cerrado (si tu JS usa aria-expanded) */
+  main.home-samapa table.gc tr[aria-expanded="true"] button.hs-expander svg,
+  main.home-samapa table.gc tr.is-open button.hs-expander svg {
+    transform: rotate(180deg);
+  }
+
+  /* ====== FILA EXPANDIDA (panel) ====== */
+  main.home-samapa table.gc tr.hs-row-expand td,
+  main.home-samapa table.gc td.hs-expand-cell {
+    padding: 12px 14px 16px;
+  }
+
+  main.home-samapa .hs-expand-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+  }
+
+  /* En pantallas muy angostas, una sola columna */
+  @media (max-width: 380px) {
+    main.home-samapa .hs-expand-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Botón Abrir dentro del panel */
+  main.home-samapa .hs-expand-actions,
+  main.home-samapa .hs-expand-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+  main.home-samapa .hs-expand-actions .btn,
+  main.home-samapa .hs-expand-footer .btn,
+  main.home-samapa .hs-expand-actions button,
+  main.home-samapa .hs-expand-footer button {
+    max-width: 100%;
+  }
+}
+
+/* ================================
+   FIX: limitar contenedor tabla (mobile)
+   - evita que la tabla exceda el viewport
+   - alinea headers con body
+   ================================ */
+@media (max-width: 720px) {
+  /* El bloque que envuelve TODO el módulo de tabla */
+  main.home-samapa .hs-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Wrapper real (según tu HTML puede ser .table-wrap) */
+  main.home-samapa .hs-table .table-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Tabla: encaja 1:1 con wrapper */
+  main.home-samapa .hs-table table.gc {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-spacing: 0 !important;
+    border-collapse: separate !important;
+  }
+
+  /* Celdas: nunca empujar ancho */
+  main.home-samapa .hs-table table.gc th,
+  main.home-samapa .hs-table table.gc td {
+    min-width: 0 !important;
+    box-sizing: border-box !important;
   }
 }
