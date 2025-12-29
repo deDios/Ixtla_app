@@ -29,24 +29,20 @@
 /* ====== Card ====== */
 .ix-card{
   background:#fff;border-radius:14px;border:1px solid #f1f5f9;
-  box-shadow:0 1px 3px rgba(0,0,0,.06);padding:16px;min-width:0
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+  padding:16px;min-width:0;
+  display:flex;           /* clave para ocupar ancho */
+  flex-direction:column;  /* apilar contenido */
 }
-
-/* Título centrado (como DIV) — reforzado para ganar a estilos base */
-.ix-card > .ix-card-title{
-  display:block;
-  width:100%;
-  margin:2px 0 12px 0;
-  text-align:center !important;
-  font-size:1.05rem;
-  font-weight:800;
-  color:#0f172a;
-}
+.ix-card > *{ width:100%; }             /* los hijos ocupan 100% del ancho */
+.ix-card:not(.ix-card--donut){ text-align:initial; } /* evitar centrado no deseado */
 
 /* ====== Tabla simple ====== */
+.ix-table{ width:100%; display:block; }
 .ix-table .ix-thead,
 .ix-table .ix-row{
-  display:grid;align-items:center;gap:8px
+  display:grid;align-items:center;gap:8px;
+  grid-template-columns:1fr 100px 100px 100px; /* 4 columnas: Trámite, A, C, T */
 }
 .ix-thead{
   font-weight:700;color:#111827;border-bottom:1px solid #f1f5f9;
@@ -55,12 +51,17 @@
 .ix-row{padding:10px 0;border-bottom:1px dashed #f3f4f6;color:#111827}
 .ta-right{text-align:right}
 
-/* 4 columnas (Trámite, Abiertos, Cerrados, Total) */
+/* (si tu JS añade estas clases, siguen siendo compatibles) */
 .ix-thead--4cols{grid-template-columns:1fr 100px 100px 100px}
 .ix-row--4cols{grid-template-columns:1fr 100px 100px 100px}
 
 /* ====== Tarjetas de estatus ====== */
-.ix-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ix-cards{
+  width:100%;
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); /* se adapta al ancho */
+  gap:10px;
+}
 .ix-badge{
   display:flex;justify-content:space-between;align-items:center;
   padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #eef2f7
