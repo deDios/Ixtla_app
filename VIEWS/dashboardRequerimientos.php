@@ -10,14 +10,13 @@ ix_require_session();
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.ico">
 
-  <!-- Estilos base que ya usas -->
+  <!-- Estilos base -->
   <link rel="stylesheet" href="/CSS/plantilla.css">
   <link rel="stylesheet" href="/CSS/components.css">
   <!-- Estilos del dashboard -->
   <link rel="stylesheet" href="/CSS/dashboard.css">
 </head>
 <body>
-  <!-- Header existente -->
   <header id="header" data-link-home="/index.php"></header>
 
   <main class="ix-dashboard">
@@ -34,11 +33,9 @@ ix_require_session();
       </div>
     </header>
 
-    <!-- Filtros por Departamento (chips) -->
+    <!-- Filtros por Departamento -->
     <section class="ix-dept-chips" aria-label="Filtrar por departamento">
-      <div class="ix-chips-scroll" id="chips-departamentos" role="tablist" aria-label="Departamentos">
-        <!-- Se inyectan por JS -->
-      </div>
+      <div class="ix-chips-scroll" id="chips-departamentos" role="tablist" aria-label="Departamentos"></div>
     </section>
 
     <!-- Grid principal -->
@@ -52,16 +49,23 @@ ix_require_session();
             <div class="ta-right">Cerrados</div>
             <div class="ta-right">Total</div>
           </div>
-          <div class="ix-tbody" id="tbl-tramites-body"><!-- rows por JS --></div>
+          <div class="ix-tbody" id="tbl-tramites-body"></div>
         </div>
       </article>
 
-      <!-- (2) Tarjetas por estatus -->
+      <!-- (2) Estatus + (2b) Donut replicado con data labels -->
       <article class="ix-card">
-        <div id="cards-estatus" class="ix-cards"><!-- 7 tarjetas por JS --></div>
+        <div id="cards-estatus" class="ix-cards"></div>
+
+        <!-- Donut replicado debajo del estatus con data labels -->
+        <div class="ix-donut ix-donut--fullcenter ix-donut--under-status">
+          <canvas id="donut-open-close-2" width="320" height="320"
+                  aria-label="Distribución Abiertos vs Cerrados (con etiquetas)" role="img"></canvas>
+          <div class="ix-donut-legend" id="legend-open-close-2"></div>
+        </div>
       </article>
 
-      <!-- (3) Abiertos vs Cerrados (centrado y sin título) -->
+      <!-- (3) Donut original (sin data labels) -->
       <article class="ix-card ix-card--donut">
         <div class="ix-donut ix-donut--fullcenter">
           <canvas id="donut-open-close" width="340" height="340"

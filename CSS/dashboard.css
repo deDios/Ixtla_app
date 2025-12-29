@@ -31,18 +31,18 @@
   background:#fff;border-radius:14px;border:1px solid #f1f5f9;
   box-shadow:0 1px 3px rgba(0,0,0,.06);
   padding:16px;min-width:0;
-  display:flex;           /* clave para ocupar ancho */
-  flex-direction:column;  /* apilar contenido */
+  display:flex;
+  flex-direction:column;
 }
-.ix-card > *{ width:100%; }             /* los hijos ocupan 100% del ancho */
-.ix-card:not(.ix-card--donut){ text-align:initial; } /* evitar centrado no deseado */
+.ix-card > *{ width:100%; }
+.ix-card:not(.ix-card--donut){ text-align:initial; }
 
 /* ====== Tabla simple ====== */
 .ix-table{ width:100%; display:block; }
 .ix-table .ix-thead,
 .ix-table .ix-row{
   display:grid;align-items:center;gap:8px;
-  grid-template-columns:1fr 100px 100px 100px; /* 4 columnas: Trámite, A, C, T */
+  grid-template-columns:1fr 100px 100px 100px;
 }
 .ix-thead{
   font-weight:700;color:#111827;border-bottom:1px solid #f1f5f9;
@@ -51,7 +51,7 @@
 .ix-row{padding:10px 0;border-bottom:1px dashed #f3f4f6;color:#111827}
 .ta-right{text-align:right}
 
-/* (si tu JS añade estas clases, siguen siendo compatibles) */
+/* Compatibilidad con clases previas */
 .ix-thead--4cols{grid-template-columns:1fr 100px 100px 100px}
 .ix-row--4cols{grid-template-columns:1fr 100px 100px 100px}
 
@@ -59,7 +59,7 @@
 .ix-cards{
   width:100%;
   display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); /* se adapta al ancho */
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
   gap:10px;
 }
 .ix-badge{
@@ -68,7 +68,7 @@
 }
 .ix-badge .n{font-size:1.25rem;font-weight:800;color:#0f172a}
 
-/* ====== Donut centrada ====== */
+/* ====== Donuts ====== */
 .ix-card--donut{
   display:flex;
   align-items:center !important;
@@ -76,11 +76,15 @@
 }
 .ix-donut{display:flex;gap:14px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
 .ix-donut--fullcenter{justify-content:center !important;align-items:center !important}
-#donut-open-close{display:block;margin:0 auto}
+#donut-open-close,
+#donut-open-close-2{display:block;margin:0 auto}
 .ix-donut-legend{width:100%;text-align:center}
 .ix-donut-legend div{margin:4px 0;font-size:.95rem}
 .ix-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
 .ix-dot.open{background:#22c55e}.ix-dot.closed{background:#475569}
+
+/* Espaciado para el donut bajo estatus */
+.ix-donut--under-status{ margin-top:16px; padding-top:8px; border-top:1px dashed #eef2f7; }
 
 /* ====== Responsive ====== */
 @media (max-width:1100px){
