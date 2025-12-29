@@ -10,14 +10,13 @@ ix_require_session();
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.ico">
 
-  <!-- Estilos base que ya usas -->
+  <!-- Estilos base existentes -->
   <link rel="stylesheet" href="/CSS/plantilla.css">
   <link rel="stylesheet" href="/CSS/components.css">
-  <!-- Estilos propios del dashboard -->
+  <!-- Estilos del dashboard -->
   <link rel="stylesheet" href="/CSS/dashboard.css">
 </head>
 <body>
-  <!-- Header existente si lo tienes como include -->
   <header id="header" data-link-home="/index.php"></header>
 
   <main class="ix-dashboard">
@@ -27,7 +26,6 @@ ix_require_session();
         <p class="ix-subtitle">Resumen operativo por trámite, estatus y estado (abierto/cerrado)</p>
       </div>
       <div class="ix-filtros">
-        <!-- Mes (YYYY-MM) -->
         <label class="ix-filter">
           <span>Mes:</span>
           <input type="month" id="filtro-mes">
@@ -35,53 +33,42 @@ ix_require_session();
       </div>
     </header>
 
-    <!-- Filtros por Departamento (chips) -->
+    <!-- Filtros por Departamento -->
     <section class="ix-dept-chips" aria-label="Filtrar por departamento">
-      <div class="ix-chips-scroll" id="chips-departamentos" role="tablist" aria-label="Departamentos">
-        <!-- Se inyectan chips por JS. Incluye “Todos” como chip 0 -->
-      </div>
+      <div class="ix-chips-scroll" id="chips-departamentos" role="tablist" aria-label="Departamentos"></div>
     </section>
 
     <!-- Grid principal -->
     <section class="ix-dash-grid">
-      <!-- Tabla izquierda -->
+      <!-- (1) Tabla por trámite -->
       <article class="ix-card">
-        <div class="ix-card-head">
+        <div class="ix-card-head ix-card-head--center">
           <h3>Requerimientos por trámite</h3>
-          <small id="meta-tramites" class="ix-meta"></small>
         </div>
 
         <div class="ix-table" id="tbl-tramites">
-          <div class="ix-thead">
+          <div class="ix-thead ix-thead--4cols">
             <div>Trámite</div>
-            <div class="ta-right">#</div>
+            <div class="ta-right">Abiertos</div>
+            <div class="ta-right">Cerrados</div>
+            <div class="ta-right">Total</div>
           </div>
-          <div class="ix-tbody" id="tbl-tramites-body">
-            <!-- rows por JS -->
-          </div>
+          <div class="ix-tbody" id="tbl-tramites-body"></div>
         </div>
       </article>
 
-      <!-- Tarjetas por estatus -->
+      <!-- (2) Tarjetas por estatus -->
       <article class="ix-card">
-        <div class="ix-card-head">
+        <div class="ix-card-head ix-card-head--center">
           <h3>Estatus</h3>
-          <small id="meta-estatus" class="ix-meta"></small>
         </div>
-        <div id="cards-estatus" class="ix-cards">
-          <!-- 7 tarjetas fijas por JS -->
-        </div>
+        <div id="cards-estatus" class="ix-cards"></div>
       </article>
 
-      <!-- Abiertos vs Cerrados -->
+      <!-- (3) Abiertos vs Cerrados (sin título) -->
       <article class="ix-card">
-        <div class="ix-card-head">
-          <h3>Abiertos vs Cerrados</h3>
-          <small id="meta-openclose" class="ix-meta"></small>
-        </div>
-
-        <div class="ix-donut">
-          <canvas id="donut-open-close" width="320" height="320"
+        <div class="ix-donut ix-donut--centered">
+          <canvas id="donut-open-close" width="340" height="340"
                   aria-label="Distribución Abiertos vs Cerrados" role="img"></canvas>
           <div class="ix-donut-legend" id="legend-open-close"></div>
         </div>

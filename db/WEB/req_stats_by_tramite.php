@@ -9,36 +9,35 @@ $con->query("SET time_zone='-06:00'");
 
 $in        = json_decode(file_get_contents("php://input"), true) ?? [];
 $deptId    = isset($in['departamento_id']) && $in['departamento_id'] !== '' ? (int)$in['departamento_id'] : null;
-$monthText = isset($in['month']) ? trim($in['month']) : null;     // "YYYY-MM" o null
+$monthText = isset($in['month']) ? trim($in['month']) : null;   // "YYYY-MM"
 
 $where  = [];
 $params = [];
 $types  = "";
 
-/* Filtro por departamento: sobre el departamento del requerimiento */
-if ($deptId !== null) {
-  $where[] = "r.departamento_id = ?";
-  $types  .= "i";
-  $params[] = $deptId;
-}
-
-/* Filtro por mes (YYYY-MM) sobre created_at */
-if ($monthText && preg_match('/^\d{4}-\d{2}$/', $monthText)) {
+/* Filtros */
+if ($deptId !== null) { $where[] = "r.departamento_id = ?"; $types.="i"; $params[] = $deptId; }
+if ($monthText && preg_match('/^\d{4}-\d{2}$/',$monthText)) {
   $where[] = "DATE_FORMAT(r.created_at,'%Y-%m') = ?";
-  $types  .= "s";
-  $params[] = $monthText;
+  $types  .= "s"; $params[] = $monthText;
 }
 
-/* JOIN para nombre del trámite; si viene NULL, lo reportamos como '—' */
+/* Estatus abiertos/cerrados */
+$openList   = "0,1,2,3,4";
+$closedList = "5,6";
+
+/* Conteo por trámite */
 $sql = "
   SELECT
     COALESCE(t.nombre, '—') AS tramite,
-    COUNT(*)                AS total
+    SUM(CASE WHEN r.estatus IN ($openList)   THEN 1 ELSE 0 END) AS abiertos,
+    SUM(CASE WHEN r.estatus IN ($closedList) THEN 1 ELSE 0 END) AS cerrados,
+    COUNT(*)                                                    AS total
   FROM requerimiento r
   LEFT JOIN tramite t ON t.id = r.tramite_id
 ";
-if ($where) { $sql .= " WHERE " . implode(" AND ", $where); }
-$sql .= " GROUP BY COALESCE(t.nombre, '—') ORDER BY total DESC, tramite ASC";
+if ($where) { $sql .= " WHERE ".implode(" AND ", $where); }
+$sql .= " GROUP BY COALESCE(t.nombre,'—') ORDER BY total DESC, tramite ASC";
 
 $st = $con->prepare($sql);
 if (!$st) { echo json_encode(["ok"=>false,"error"=>"Prepare failed"]); exit; }
@@ -49,8 +48,10 @@ $rs = $st->get_result();
 $out = [];
 while ($row = $rs->fetch_assoc()) {
   $out[] = [
-    "tramite" => $row["tramite"],
-    "total"   => (int)$row["total"]
+    "tramite"  => $row["tramite"],
+    "abiertos" => (int)$row["abiertos"],
+    "cerrados" => (int)$row["cerrados"],
+    "total"    => (int)$row["total"],
   ];
 }
 $st->close(); $con->close();
