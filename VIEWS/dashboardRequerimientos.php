@@ -95,5 +95,7 @@ ix_require_session();
   <script type="module" src="/JS/ui/dashboardRequerimientos.js"></script>
   <!-- JS nuevo SOLO para el mapa -->
   <script type="module" src="/JS/ui/mapRequerimientos.js"></script>
+  <script type="module" src="/JS/ui/mapRequerimientos_points.js"></script>
+
 </body>
 </html>
