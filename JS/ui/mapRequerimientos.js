@@ -1,16 +1,23 @@
-/* Mapa por colonias (choropleth con fallback a puntos) */
+/* Mapa por colonias (choropleth con fallback a puntos)
+   - Conteos por colonia/cp desde /db/web/req_stats_by_cpcolonia.php
+   - Si no existe /static/geo/colonias.geojson -> dibuja puntos usando /db/web/ixtla01_c_cpcolonia_latlon.php
+*/
 (() => {
   // ---------- Endpoints ----------
   const GEOJSON_URL = "/static/geo/colonias.geojson";                 // choropleth (si existe)
-  const DATA_URL    = "/db/web/req_stats_by_colonia.php";             // GET ?departamento_id=&month=
+  const DATA_URL    = "/db/web/req_stats_by_cpcolonia.php";           // GET ?departamento_id=&month=
   const LATLON_URL  = "/db/web/ixtla01_c_cpcolonia_latlon.php";       // POST { all:1, estatus:1, page_size:10000 }
 
   // Cómo identificar la colonia en el GeoJSON y en tu dataset de negocio
   const pickKeyFromFeature = f =>
     (f?.properties?.colonia_id ?? f?.properties?.nombre ?? "").toString().trim().toUpperCase();
+
+  // El API nuevo regresa { colonia, cp, total }
+  // Clave: preferimos colonia; si no hay, usamos CP
   const pickKeyFromRow = r =>
-    (r?.colonia_id ?? r?.colonia ?? "").toString().trim().toUpperCase();
-  const pickCount = r => Number(r?.count ?? r?.total ?? 0);
+    (r?.colonia ?? r?.cp ?? "").toString().trim().toUpperCase();
+
+  const pickCount = r => Number(r?.total ?? 0);
 
   // DOM
   const mapEl    = document.getElementById("map-colonias");
@@ -49,12 +56,7 @@
 
   function renderLegend(max, mode = "areas") {
     if (!legendEl) return;
-    const steps = PALETTE.length;
-    const labels = [];
-    for (let i = 0; i < steps; i++) {
-      labels.push({ color: PALETTE[i] });
-    }
-    const scale = labels.map(l => `<span style="background:${l.color}"></span>`).join("");
+    const scale = PALETTE.map(c => `<span style="background:${c}"></span>`).join("");
     legendEl.innerHTML = `
       <div>Requerimientos por colonia ${mode === "points" ? "(puntos)" : "(áreas)"}</div>
       <div class="scale" aria-hidden="true">${scale}</div>
@@ -62,7 +64,7 @@
     `;
   }
 
-  // --------- Core: carga datos de negocio (conteos por colonia) ----------
+  // --------- Core: carga datos de negocio (conteos por colonia/cp) ----------
   async function fetchCounts() {
     const url = `${DATA_URL}?${qs({ departamento_id: getSelectedDept(), month: getSelectedMonth() })}`;
     const resp = await fetch(url, { credentials: "include" });
@@ -144,7 +146,8 @@
     // construir puntos
     const group = L.layerGroup();
     rows.forEach(r => {
-      const key = (r?.colonia ?? "").toString().trim().toUpperCase();
+      // clave para empatar con counts: colonia (upper) o cp
+      const key = (r?.colonia ?? r?.cp ?? "").toString().trim().toUpperCase();
       const n   = counts.get(key) || 0;
       const lat = (r?.lat != null) ? Number(r.lat) : NaN;
       const lon = (r?.lon != null) ? Number(r.lon) : NaN;
@@ -158,7 +161,8 @@
         radius, color: "#334155", weight: 1,
         fillColor: fill, fillOpacity: 0.85
       });
-      m.bindTooltip(`${r.colonia}<br><strong>${n}</strong> req.`, { sticky:true });
+      const label = r.colonia ? `${r.colonia}` : (r.cp ? `CP ${r.cp}` : "Colonia");
+      m.bindTooltip(`${label}<br><strong>${n}</strong> req.`, { sticky:true });
       group.addLayer(m);
     });
 
