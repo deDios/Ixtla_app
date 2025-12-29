@@ -15,6 +15,20 @@ ix_require_session();
   <link rel="stylesheet" href="/CSS/components.css">
   <!-- Estilos del dashboard -->
   <link rel="stylesheet" href="/CSS/dashboard.css">
+
+  <!-- Leaflet (mapa) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+    defer
+  ></script>
 </head>
 <body>
   <header id="header" data-link-home="/index.php"></header>
@@ -40,24 +54,25 @@ ix_require_session();
 
     <!-- Grid principal -->
     <section class="ix-dash-grid">
-      <!-- (1) Tabla por trámite -->
-      <article class="ix-card">
-        <div class="ix-table" id="tbl-tramites">
-          <div class="ix-thead ix-thead--4cols">
-            <div>Trámite</div>
-            <div class="ta-right">Abiertos</div>
-            <div class="ta-right">Cerrados</div>
-            <div class="ta-right">Total</div>
+      <!-- (1) Tabla por trámite (con scroll interno) -->
+      <article class="ix-card ix-card--equal">
+        <div class="ix-fill-scroll">
+          <div class="ix-table" id="tbl-tramites">
+            <div class="ix-thead ix-thead--4cols">
+              <div>Trámite</div>
+              <div class="ta-right">Abiertos</div>
+              <div class="ta-right">Cerrados</div>
+              <div class="ta-right">Total</div>
+            </div>
+            <div class="ix-tbody" id="tbl-tramites-body"></div>
           </div>
-          <div class="ix-tbody" id="tbl-tramites-body"></div>
         </div>
       </article>
 
-      <!-- (2) Estatus + (2b) Donut replicado con data labels -->
-      <article class="ix-card">
+      <!-- (2) Estatus + Donut replicado con data labels -->
+      <article class="ix-card ix-card--equal">
         <div id="cards-estatus" class="ix-cards"></div>
 
-        <!-- Donut replicado debajo del estatus con data labels -->
         <div class="ix-donut ix-donut--fullcenter ix-donut--under-status">
           <canvas id="donut-open-close-2" width="320" height="320"
                   aria-label="Distribución Abiertos vs Cerrados (con etiquetas)" role="img"></canvas>
@@ -65,12 +80,11 @@ ix_require_session();
         </div>
       </article>
 
-      <!-- (3) Donut original (sin data labels) -->
-      <article class="ix-card ix-card--donut">
-        <div class="ix-donut ix-donut--fullcenter">
-          <canvas id="donut-open-close" width="340" height="340"
-                  aria-label="Distribución Abiertos vs Cerrados" role="img"></canvas>
-          <div class="ix-donut-legend" id="legend-open-close"></div>
+      <!-- (3) MAPA por colonias (con scroll interno si hace falta) -->
+      <article class="ix-card ix-card--equal">
+        <div class="ix-fill-scroll">
+          <div id="map-colonias" aria-label="Mapa por colonias"></div>
+          <div id="map-legend" class="map-legend" aria-hidden="true"></div>
         </div>
       </article>
     </section>
@@ -79,5 +93,7 @@ ix_require_session();
   <script src="/JS/JSglobal.js"></script>
   <script type="module" src="/JS/auth/session.js"></script>
   <script type="module" src="/JS/ui/dashboardRequerimientos.js"></script>
+  <!-- JS nuevo SOLO para el mapa -->
+  <script type="module" src="/JS/ui/mapRequerimientos.js"></script>
 </body>
 </html>
