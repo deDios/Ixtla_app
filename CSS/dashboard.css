@@ -72,6 +72,38 @@
 .ix-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
 .ix-dot.open{background:#22c55e}.ix-dot.closed{background:#475569}
 
+/* --- FIX títulos centrados en cards 1 y 2 --- */
+.ix-card .ix-card-title{
+  display:block;
+  width:100%;
+  margin:2px 0 12px 0;
+  text-align:center !important;   /* fuerza el centrado */
+  font-size:1.05rem;
+  font-weight:800;
+  color:#0f172a;
+}
+
+/* Si algún reset está aplicando display:flex al contenedor, aseguremos que el título no hereda justificación lateral */
+.ix-card{ text-align:initial; }
+.ix-card > .ix-card-title{ align-self:center; }
+
+/* --- FIX donut totalmente centrado (card 3) --- */
+.ix-card--donut{
+  display:flex;
+  align-items:center !important;
+  justify-content:center !important;
+}
+.ix-card--donut .ix-donut{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+#donut-open-close{ display:block; margin:0 auto; }
+.ix-donut-legend{ width:100%; text-align:center; }
+
+
 /* ====== Responsive ====== */
 @media (max-width:1100px){
   .ix-dash-grid{grid-template-columns:1fr}
