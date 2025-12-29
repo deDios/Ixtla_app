@@ -1,6 +1,5 @@
 // /JS/ui/mapRequerimientos_points.js
 (() => {
-  // Endpoints
   const API_POINTS = "/db/web/ixtla01_c_cpcolonia_latlon.php"; // POST JSON
 
   // DOM
@@ -8,7 +7,7 @@
   const legendEl = document.getElementById("map-legend");
   if (!mapEl) return;
 
-  // Filtros existentes (reusar DOM del dashboard)
+  // Filtros (reuso del dashboard)
   const getSelectedDept = () => {
     const sel = document.querySelector(".ix-dept-chips .ix-chip[aria-selected='true']");
     const v = sel?.dataset?.dept ?? "";
@@ -16,34 +15,28 @@
   };
   const getSelectedMonth = () => (document.getElementById("filtro-mes")?.value || "").trim();
 
-  // Leaflet map
+  // Leaflet base
   const map = L.map(mapEl, { zoomControl: true, attributionControl: false });
-  // Tiles (si deseas callejero; si no, deja comentado)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19
-  }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
   let groupLayer = L.layerGroup().addTo(map);
 
-  // Paleta y helpers de escala
+  // Escala y helpers
   const PALETTE = ["#e8f7ef","#bfead2","#95ddb6","#6bcf99","#41c27d","#22b468","#1a8f53","#146b3f","#0e482c"];
   const colorFor = (value, max) => {
     if (max <= 0) return "#94a3b8";
     const idx = Math.min(PALETTE.length - 1, Math.floor((value / max) * (PALETTE.length - 1)));
     return PALETTE[idx];
   };
-  // radio (metros) según conteo
   const radiusFor = (value, max) => {
-    if (max <= 0) return 80;
-    // entre 80 y 400 metros
+    if (max <= 0) return 80;             // metros
     const minR = 80, maxR = 400;
     return minR + (maxR - minR) * (value / max);
   };
 
   function renderLegend(max) {
     if (!legendEl) return;
-    const steps = PALETTE.length;
-    const blocks = Array.from({length: steps}, (_, i) => `<span style="background:${PALETTE[i]}"></span>`).join("");
+    const blocks = PALETTE.map(c => `<span style="background:${c}"></span>`).join("");
     legendEl.innerHTML = `
       <div>Requerimientos por colonia (puntos)</div>
       <div class="scale">${blocks}</div>
@@ -53,9 +46,16 @@
 
   async function fetchPoints() {
     const body = {
-      departamento_id: getSelectedDept(),
-      month: getSelectedMonth() || null
+      departamento_id: getSelectedDept(),             // null = Todos
+      month: (getSelectedMonth() || null),            // null = todos los meses/años
+      page_size: 10000,
+      only_with_data: 1
     };
+    // Remueve claves vacías
+    Object.keys(body).forEach(k => {
+      if (body[k] === null || body[k] === '' || body[k] === undefined) delete body[k];
+    });
+
     const r = await fetch(API_POINTS, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -64,7 +64,7 @@
     });
     if (!r.ok) {
       const t = await r.text().catch(()=> "");
-      throw new Error(`HTTP ${r.status} ${API_POINTS} :: ${t}`);
+      throw new Error(`HTTP ${r.status} :: ${t}`);
     }
     const j = await r.json();
     return Array.isArray(j?.data) ? j.data : [];
@@ -75,19 +75,18 @@
     groupLayer.clearLayers();
 
     if (!rows.length) {
-      // Fallback bounds (Ixtlahuacán centro aprox)
-      map.setView([20.55,-103.2], 12);
+      map.setView([20.55,-103.2], 12);   // centro aprox
       renderLegend(0);
       return;
     }
 
     let max = 0;
-    rows.forEach(r => { if (r.total > max) max = r.total; });
+    rows.forEach(r => { const n = Number(r.total||0); if (n > max) max = n; });
 
     const bounds = [];
     rows.forEach(r => {
       const lat = Number(r.lat), lon = Number(r.lon), total = Number(r.total || 0);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || total <= 0) return;
 
       const circle = L.circle([lat, lon], {
         radius: radiusFor(total, max),
@@ -102,7 +101,6 @@
         { sticky: true, direction: "auto", opacity: 0.95 }
       );
 
-      // Etiqueta flotante opcional (data label “soft”)
       const label = L.marker([lat, lon], {
         icon: L.divIcon({
           className: "ix-map-count",
@@ -118,15 +116,12 @@
       bounds.push([lat, lon]);
     });
 
-    if (bounds.length) {
-      map.fitBounds(bounds, { padding: [20,20] });
-    }
+    if (bounds.length) map.fitBounds(bounds, { padding: [20,20] });
     renderLegend(max);
-    // Recalcular tamaño del mapa por si el contenedor cambió
     setTimeout(() => map.invalidateSize(), 0);
   }
 
-  // Escuchar cambios en filtros existentes
+  // Listeners de filtros existentes
   document.addEventListener("click", (ev) => {
     const t = ev.target;
     if (t?.classList?.contains("ix-chip")) {
