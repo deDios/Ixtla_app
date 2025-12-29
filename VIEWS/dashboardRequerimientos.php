@@ -45,8 +45,6 @@ ix_require_session();
     <section class="ix-dash-grid">
       <!-- (1) Tabla por trámite -->
       <article class="ix-card">
-        <div class="ix-card-title">Requerimientos por trámite</div>
-
         <div class="ix-table" id="tbl-tramites">
           <div class="ix-thead ix-thead--4cols">
             <div>Trámite</div>
@@ -60,7 +58,6 @@ ix_require_session();
 
       <!-- (2) Tarjetas por estatus -->
       <article class="ix-card">
-        <div class="ix-card-title">Estatus</div>
         <div id="cards-estatus" class="ix-cards"><!-- 7 tarjetas por JS --></div>
       </article>
 
