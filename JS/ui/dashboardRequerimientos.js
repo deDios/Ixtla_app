@@ -1,229 +1,203 @@
-// /JS/ui/dashboardRequerimientos.js
-const $  = (s, r=document)=>r.querySelector(s);
-const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
-
-/* ===== Endpoints =====
-   Ajusta si ya tienes nombres específicos.
-   - c_departamento.php debe devolver una lista: [{id:1,nombre:"SAMAPA"}, ...]
-   - El resto como se describió antes.
+/* Dashboard de Requerimientos
+   - Chips por Departamento (filtro)
+   - Tabla: requerimientos por trámite
+   - Tarjetas por Estatus (0..6, siempre con ceros)
+   - Abiertos vs Cerrados
 */
-const API = {
-  departamentos: "/db/web/c_departamento.php",
-  byTramite:    "/db/web/req_stats_by_tramite.php",
-  byStatus:     "/db/web/req_stats_by_status.php",
-  openClosed:   "/db/web/req_stats_open_closed.php",
-  // Si prefieres un solo overview, podrías agregar:
-  // overview: "/db/web/req_stats_overview.php"
-};
 
-/* ===== Estatus fijos 0..6 ===== */
-const STATUS = [
-  { id:0, label:"Solicitud"   },
-  { id:1, label:"Revisión"    },
-  { id:2, label:"Asignación"  },
-  { id:3, label:"En proceso"  },
-  { id:4, label:"Pausado"     },
-  { id:5, label:"Cancelado"   },
-  { id:6, label:"Finalizado"  }
-];
-
-/* ===== Estado de filtros ===== */
-let state = {
-  departamento_id: "",         // vacío = Todos
-  month: ""                    // YYYY-MM
-};
-
-/* ===== Helpers ===== */
-function qs(paramsObj){
-  const p = new URLSearchParams();
-  if (paramsObj.departamento_id) p.set("departamento_id", paramsObj.departamento_id);
-  if (paramsObj.month)           p.set("month", paramsObj.month);
-  const q = p.toString();
-  return q ? `?${q}` : "";
-}
-async function fetchJSON(url){
-  const r = await fetch(url, { credentials:"include" });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
-}
-
-/* ===== Chips de Departamentos ===== */
-function buildDeptChips(items){
-  const wrap = $("#chips-departamentos");
-  wrap.innerHTML = "";
-
-  // Chip "Todos"
-  const all = document.createElement("button");
-  all.type = "button";
-  all.role = "tab";
-  all.className = "ix-chip";
-  all.dataset.deptId = "";
-  all.setAttribute("aria-selected", state.departamento_id === "" ? "true" : "false");
-  all.innerHTML = `Todos`;
-  wrap.appendChild(all);
-
-  items.forEach(it=>{
-    const b = document.createElement("button");
-    b.type = "button";
-    b.role = "tab";
-    b.className = "ix-chip";
-    b.dataset.deptId = String(it.id);
-    b.setAttribute("aria-selected", state.departamento_id === String(it.id) ? "true" : "false");
-    b.innerHTML = `<span class="ix-name">${it.nombre ?? "Depto"}</span>`;
-    wrap.appendChild(b);
-  });
-
-  wrap.addEventListener("click", ev=>{
-    const btn = ev.target.closest(".ix-chip");
-    if (!btn) return;
-    const id = btn.dataset.deptId ?? "";
-    if (id === state.departamento_id) return;
-
-    state.departamento_id = id;
-    // actualizar aria-selected
-    $$(".ix-chip", wrap).forEach(c=>c.setAttribute("aria-selected", c===btn ? "true":"false"));
-    loadAll().catch(console.error);
-  });
-
-  // navegación por teclado (izq/der)
-  wrap.addEventListener("keydown", ev=>{
-    if (ev.key !== "ArrowRight" && ev.key !== "ArrowLeft") return;
-    const chips = $$(".ix-chip", wrap);
-    const i = chips.findIndex(c=>c.getAttribute("aria-selected")==="true");
-    let j = i >= 0 ? i : 0;
-    j = ev.key === "ArrowRight" ? Math.min(j+1, chips.length-1) : Math.max(j-1, 0);
-    chips[j].focus();
-    chips[j].click();
-    ev.preventDefault();
-  });
-}
-
-/* ===== Tabla por trámite ===== */
-function paintTableByTramite(rows){
-  const body = $("#tbl-tramites-body");
-  body.innerHTML = "";
-  if (!rows?.length){
-    const empty = document.createElement("div");
-    empty.className = "ix-row";
-    empty.innerHTML = `<div>Sin datos</div><div class="ta-right">0</div>`;
-    body.appendChild(empty);
-    $("#meta-tramites").textContent = "";
-    return;
-  }
-  const total = rows.reduce((a,r)=>a + Number(r.total||0), 0);
-  $("#meta-tramites").textContent = `Total: ${total}`;
-
-  const frag = document.createDocumentFragment();
-  rows.forEach(r=>{
-    const row = document.createElement("div");
-    row.className = "ix-row";
-    row.innerHTML = `<div>${r.tramite ?? "—"}</div><div class="ta-right">${Number(r.total||0)}</div>`;
-    frag.appendChild(row);
-  });
-  body.appendChild(frag);
-}
-
-/* ===== Tarjetas por estatus ===== */
-function paintCardsByStatus(map){
-  const wrap = $("#cards-estatus");
-  wrap.innerHTML = "";
-  const total = STATUS.reduce((a,s)=>a + Number(map?.[s.id] ?? 0), 0);
-  $("#meta-estatus").textContent = `Total: ${total}`;
-
-  const frag = document.createDocumentFragment();
-  STATUS.forEach(s=>{
-    const n = Number(map?.[s.id] ?? 0);
-    const card = document.createElement("div");
-    card.className = "ix-badge";
-    card.innerHTML = `<span>${s.label}</span><span class="n">${n}</span>`;
-    frag.appendChild(card);
-  });
-  wrap.appendChild(frag);
-}
-
-/* ===== Donut Abiertos/Cerrados ===== */
-function paintDonutOpenClosed(data){
-  const abiertos = Number(data?.abiertos ?? 0);
-  const cerrados = Number(data?.cerrados ?? 0);
-  const total = Math.max(1, abiertos + cerrados);
-
-  $("#meta-openclose").textContent = `Total: ${abiertos+cerrados}`;
-
-  const canvas = $("#donut-open-close");
-  const ctx = canvas.getContext("2d");
-  const cx = canvas.width/2, cy = canvas.height/2, r = Math.min(cx,cy)-8;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  const drawSlice = (start, frac) => {
-    const end = start + frac * Math.PI*2;
-    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,end); ctx.closePath(); ctx.fill();
-    return end;
+(function () {
+  // ======= Config =======
+  const API = {
+    departamentos: "/db/web/ixtla01_c_departamentos.php",
+    byTramite: "/db/web/req_stats_by_tramite.php",
+    byStatus: "/db/web/req_stats_by_status.php",
+    openClosed: "/db/web/req_stats_open_closed.php",
   };
 
-  // Abiertos
-  ctx.fillStyle = "#22c55e";
-  let ang = drawSlice(-Math.PI/2, abiertos/total);
-  // Cerrados
-  ctx.fillStyle = "#475569";
-  drawSlice(ang, cerrados/total);
+  // Elementos del DOM (ids esperados en el HTML)
+  const $chipsWrap = document.querySelector("#chip-dept-container");
+  const $monthInput = document.querySelector("#filtro-mes"); // type="month" (YYYY-MM)
 
-  // agujero
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.beginPath(); ctx.arc(cx,cy, r*0.55, 0, Math.PI*2); ctx.fill();
-  ctx.globalCompositeOperation = "source-over";
+  // Tabla por trámite
+  const $tblBody = document.querySelector("#tbl-tramites-body");
 
-  // leyenda
-  const legend = $("#legend-open-close");
-  legend.innerHTML = `
-    <div><span class="ix-dot open"></span><strong>Abiertos:</strong> ${abiertos}</div>
-    <div><span class="ix-dot closed"></span><strong>Cerrados:</strong> ${cerrados}</div>
-  `;
-}
+  // Estatus (totales 0..6): coloca spans con estos ids en el HTML
+  const STATUS_IDS = {
+    0: "#stat_0",
+    1: "#stat_1",
+    2: "#stat_2",
+    3: "#stat_3",
+    4: "#stat_4",
+    5: "#stat_5",
+    6: "#stat_6",
+  };
 
-/* ===== Carga de datos ===== */
-async function loadAll(){
-  const q = qs(state);
+  // Abiertos vs cerrados
+  const $open = document.querySelector("#kpi_open");
+  const $closed = document.querySelector("#kpi_closed");
 
-  // Opción con 3 endpoints
-  const [byTramite, byStatus, openClosed] = await Promise.all([
-    fetchJSON(`${API.byTramite}${q}`),
-    fetchJSON(`${API.byStatus}${q}`),
-    fetchJSON(`${API.openClosed}${q}`)
-  ]);
+  // Estado del filtro
+  let currentDept = null; // null => Todos
+  let currentMonth = null; // "YYYY-MM" o null
 
-  paintTableByTramite(byTramite?.data || byTramite || []);
-  paintCardsByStatus(byStatus?.data || byStatus || {});
-  paintDonutOpenClosed(openClosed?.data || openClosed || {});
-}
-
-/* ===== Inicializar filtros ===== */
-function initFilters(){
-  // Mes
-  const mes = $("#filtro-mes");
-  mes.addEventListener("change", ()=>{
-    state.month = mes.value || "";
-    loadAll().catch(console.error);
-  });
-}
-
-/* ===== Cargar departamentos y armar chips ===== */
-async function initDepartments(){
-  try{
-    const data = await fetchJSON(API.departamentos);
-    // Normaliza posibles formatos: {data:[...]} o [...]
-    const list = Array.isArray(data) ? data : (data?.data || []);
-    // Espera objetos {id, nombre}
-    buildDeptChips(list);
-  }catch(e){
-    console.error("[dashboard] departamentos:", e);
-    // Si falla, al menos pinta el chip "Todos"
-    buildDeptChips([]);
+  // ======= Utils =======
+  async function fetchJSON(url, opts = undefined) {
+    const r = await fetch(url, {
+      method: (opts && opts.method) || "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(opts && opts.headers),
+      },
+      body: opts && opts.body ? JSON.stringify(opts.body) : undefined,
+      credentials: "include",
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "(sin cuerpo)");
+      throw new Error(`HTTP ${r.status} en ${url} :: ${t}`);
+    }
+    return r.json();
   }
-}
 
-/* ===== Boot ===== */
-document.addEventListener("DOMContentLoaded", async ()=>{
-  initFilters();
-  await initDepartments();
-  await loadAll().catch(console.error);
-});
+  function setActiveChip(id) {
+    const chips = $chipsWrap.querySelectorAll(".chip");
+    chips.forEach((c) => c.classList.remove("is-active"));
+    const sel =
+      id === null ? $chipsWrap.querySelector('[data-dept=""]') : $chipsWrap.querySelector(`[data-dept="${id}"]`);
+    if (sel) sel.classList.add("is-active");
+  }
+
+  function clearTable() {
+    if ($tblBody) $tblBody.innerHTML = "";
+  }
+
+  function renderTable(rows) {
+    clearTable();
+    if (!Array.isArray(rows) || !rows.length) return;
+    const frag = document.createDocumentFragment();
+    rows.forEach((r) => {
+      const tr = document.createElement("div");
+      tr.className = "exp-row";
+      tr.innerHTML = `
+        <div>${escapeHTML(r.tramite)}</div>
+        <div class="ta-right">${Number(r.total || 0)}</div>
+      `;
+      frag.appendChild(tr);
+    });
+    $tblBody.appendChild(frag);
+  }
+
+  function escapeHTML(str) {
+    if (str == null) return "";
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function renderStatus(statsObj) {
+    // Asegura 0..6 con ceros
+    for (let i = 0; i <= 6; i++) {
+      const val = Number(statsObj?.[i] || 0);
+      const el = document.querySelector(STATUS_IDS[i]);
+      if (el) el.textContent = String(val);
+    }
+  }
+
+  function renderOpenClosed(data) {
+    if ($open) $open.textContent = String(Number(data?.open || 0));
+    if ($closed) $closed.textContent = String(Number(data?.closed || 0));
+  }
+
+  function buildDeptChips(depts) {
+    // Limpia
+    $chipsWrap.innerHTML = "";
+
+    // Chip "Todos"
+    const all = document.createElement("button");
+    all.type = "button";
+    all.className = "chip is-active";
+    all.textContent = "Todos";
+    all.dataset.dept = "";
+    all.addEventListener("click", () => {
+      currentDept = null;
+      setActiveChip(null);
+      reloadAll();
+    });
+    $chipsWrap.appendChild(all);
+
+    // Chips por depto
+    if (Array.isArray(depts)) {
+      depts.forEach((d) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip";
+        b.dataset.dept = String(d.id);
+        b.textContent = d.nombre;
+        b.addEventListener("click", () => {
+          currentDept = String(d.id);
+          setActiveChip(d.id);
+          reloadAll();
+        });
+        $chipsWrap.appendChild(b);
+      });
+    }
+  }
+
+  // ======= Cargas =======
+  async function initDepartments() {
+    try {
+      const resp = await fetchJSON(API.departamentos);
+      const list = Array.isArray(resp?.data)
+        ? resp.data.map((d) => ({ id: String(d.id), nombre: d.nombre }))
+        : [];
+      buildDeptChips(list);
+    } catch (e) {
+      console.error("[dashboard] departamentos:", e);
+      buildDeptChips([]);
+    }
+  }
+
+  async function loadByTramite() {
+    const body = { departamento_id: currentDept ? Number(currentDept) : null, month: currentMonth || null };
+    const resp = await fetchJSON(API.byTramite, { method: "POST", body });
+    const rows = Array.isArray(resp?.data) ? resp.data : [];
+    renderTable(rows);
+  }
+
+  async function loadByStatus() {
+    const body = { departamento_id: currentDept ? Number(currentDept) : null, month: currentMonth || null };
+    const resp = await fetchJSON(API.byStatus, { method: "POST", body });
+    // resp.data = { "0":n0, "1":n1, ... "6":n6 }
+    renderStatus(resp?.data || {});
+  }
+
+  async function loadOpenClosed() {
+    const body = { departamento_id: currentDept ? Number(currentDept) : null, month: currentMonth || null };
+    const resp = await fetchJSON(API.openClosed, { method: "POST", body });
+    renderOpenClosed(resp?.data || {});
+  }
+
+  async function reloadAll() {
+    try {
+      await Promise.all([loadByTramite(), loadByStatus(), loadOpenClosed()]);
+    } catch (e) {
+      console.error("[dashboard] reloadAll:", e);
+    }
+  }
+
+  // ======= Inicialización =======
+  document.addEventListener("DOMContentLoaded", async () => {
+    // mes
+    if ($monthInput) {
+      $monthInput.addEventListener("change", () => {
+        const val = ($monthInput.value || "").trim(); // espera "YYYY-MM"
+        currentMonth = val || null;
+        reloadAll();
+      });
+    }
+    await initDepartments();
+    await reloadAll();
+  });
+})();
