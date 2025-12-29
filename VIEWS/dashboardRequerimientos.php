@@ -10,13 +10,14 @@ ix_require_session();
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.ico">
 
-  <!-- Estilos base existentes -->
+  <!-- Estilos base que ya usas -->
   <link rel="stylesheet" href="/CSS/plantilla.css">
   <link rel="stylesheet" href="/CSS/components.css">
-  <!-- Estilos del dashboard -->
+  <!-- Estilos propios del dashboard -->
   <link rel="stylesheet" href="/CSS/dashboard.css">
 </head>
 <body>
+  <!-- Header existente -->
   <header id="header" data-link-home="/index.php"></header>
 
   <main class="ix-dashboard">
@@ -33,18 +34,18 @@ ix_require_session();
       </div>
     </header>
 
-    <!-- Filtros por Departamento -->
+    <!-- Filtros por Departamento (chips) -->
     <section class="ix-dept-chips" aria-label="Filtrar por departamento">
-      <div class="ix-chips-scroll" id="chips-departamentos" role="tablist" aria-label="Departamentos"></div>
+      <div class="ix-chips-scroll" id="chips-departamentos" role="tablist" aria-label="Departamentos">
+        <!-- Se inyectan por JS -->
+      </div>
     </section>
 
     <!-- Grid principal -->
     <section class="ix-dash-grid">
       <!-- (1) Tabla por trámite -->
       <article class="ix-card">
-        <div class="ix-card-head ix-card-head--center">
-          <h3>Requerimientos por trámite</h3>
-        </div>
+        <h3 class="ix-card-title">Requerimientos por trámite</h3>
 
         <div class="ix-table" id="tbl-tramites">
           <div class="ix-thead ix-thead--4cols">
@@ -53,21 +54,19 @@ ix_require_session();
             <div class="ta-right">Cerrados</div>
             <div class="ta-right">Total</div>
           </div>
-          <div class="ix-tbody" id="tbl-tramites-body"></div>
+          <div class="ix-tbody" id="tbl-tramites-body"><!-- rows por JS --></div>
         </div>
       </article>
 
       <!-- (2) Tarjetas por estatus -->
       <article class="ix-card">
-        <div class="ix-card-head ix-card-head--center">
-          <h3>Estatus</h3>
-        </div>
-        <div id="cards-estatus" class="ix-cards"></div>
+        <h3 class="ix-card-title">Estatus</h3>
+        <div id="cards-estatus" class="ix-cards"><!-- 7 tarjetas por JS --></div>
       </article>
 
-      <!-- (3) Abiertos vs Cerrados (sin título) -->
-      <article class="ix-card">
-        <div class="ix-donut ix-donut--centered">
+      <!-- (3) Abiertos vs Cerrados (centrado y sin título) -->
+      <article class="ix-card ix-card--donut">
+        <div class="ix-donut ix-donut--fullcenter">
           <canvas id="donut-open-close" width="340" height="340"
                   aria-label="Distribución Abiertos vs Cerrados" role="img"></canvas>
           <div class="ix-donut-legend" id="legend-open-close"></div>
