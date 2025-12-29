@@ -137,6 +137,11 @@
   transform: translate(-50%, -6px);
 }
 
+/* Desaturar/elevar contraste del layer base (opcional) */
+.leaflet-tile-pane {
+  filter: grayscale(100%) contrast(105%);
+}
+
 
 /* ====== Responsive ====== */
 @media (max-width:1100px){
