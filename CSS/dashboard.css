@@ -1,0 +1,61 @@
+/* Layout general */
+.ix-dashboard{padding:20px}
+.ix-dash-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:10px}
+.ix-title{margin:0;font-size:1.5rem;font-weight:800;color:#0f172a}
+.ix-subtitle{margin:.2rem 0 0;color:#64748b}
+
+/* Filtros */
+.ix-filtros{display:flex;gap:12px;align-items:center}
+.ix-filter{display:flex;gap:8px;align-items:center;font-size:.95rem;color:#334155}
+
+/* Chips de Departamentos */
+.ix-dept-chips{margin:6px 0 16px 0}
+.ix-chips-scroll{display:flex;gap:8px;overflow:auto;padding:4px 2px}
+.ix-chip{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid #e2e8f0;background:#f8fafc;color:#0f172a;
+  padding:8px 12px;border-radius:999px;cursor:pointer;white-space:nowrap;
+  transition:background .15s,border-color .15s,box-shadow .15s
+}
+.ix-chip:hover{background:#eef2ff;border-color:#c7d2fe}
+.ix-chip[aria-selected="true"]{
+  background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 1px 0 rgba(0,0,0,.06)
+}
+.ix-chip .ix-n{opacity:.85;font-weight:700}
+
+/* Grid principal */
+.ix-dash-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:16px}
+.ix-card{
+  background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px;min-width:0
+}
+.ix-card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.ix-card h3{margin:0 0 2px 0;font-size:1.05rem;color:#0f172a}
+.ix-meta{color:#64748b}
+
+/* Tabla simple */
+.ix-table .ix-thead,.ix-table .ix-row{
+  display:grid;grid-template-columns:1fr 80px;align-items:center;gap:8px
+}
+.ix-thead{font-weight:600;color:#334155;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-bottom:6px}
+.ix-row{padding:8px 0;border-bottom:1px dashed #f1f5f9}
+.ta-right{text-align:right}
+
+/* Tarjetas de estatus */
+.ix-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ix-badge{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #eef2f7
+}
+.ix-badge .n{font-size:1.25rem;font-weight:800;color:#0f172a}
+
+/* Donut */
+.ix-donut{display:flex;gap:14px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
+.ix-donut-legend div{margin:4px 0;font-size:.95rem}
+.ix-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.ix-dot.open{background:#22c55e}.ix-dot.closed{background:#475569}
+
+/* Responsive */
+@media (max-width:1100px){
+  .ix-dash-grid{grid-template-columns:1fr}
+  .ix-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
