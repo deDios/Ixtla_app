@@ -13,7 +13,7 @@ ix_require_session();
   <!-- Estilos base que ya usas -->
   <link rel="stylesheet" href="/CSS/plantilla.css">
   <link rel="stylesheet" href="/CSS/components.css">
-  <!-- Estilos propios del dashboard -->
+  <!-- Estilos del dashboard -->
   <link rel="stylesheet" href="/CSS/dashboard.css">
 </head>
 <body>
@@ -45,7 +45,7 @@ ix_require_session();
     <section class="ix-dash-grid">
       <!-- (1) Tabla por trámite -->
       <article class="ix-card">
-        <h3 class="ix-card-title">Requerimientos por trámite</h3>
+        <div class="ix-card-title">Requerimientos por trámite</div>
 
         <div class="ix-table" id="tbl-tramites">
           <div class="ix-thead ix-thead--4cols">
@@ -60,7 +60,7 @@ ix_require_session();
 
       <!-- (2) Tarjetas por estatus -->
       <article class="ix-card">
-        <h3 class="ix-card-title">Estatus</h3>
+        <div class="ix-card-title">Estatus</div>
         <div id="cards-estatus" class="ix-cards"><!-- 7 tarjetas por JS --></div>
       </article>
 
