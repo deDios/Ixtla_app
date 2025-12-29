@@ -2,7 +2,7 @@
 (() => {
   // ---------- Config ----------
   const GEOJSON_URL = "/static/geo/colonias.geojson";
-  const DATA_URL    = "/db/web/req_stats_by_colonia.php"; // GET ?departamento_id=&month=
+  const DATA_URL    = "/db/web/ixtla01_c_cpcolonia_latlon.php";
 
   // Cómo identificar la colonia en el GeoJSON y en el dataset
   const pickKeyFromFeature = f =>
