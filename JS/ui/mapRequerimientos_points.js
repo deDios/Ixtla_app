@@ -7,24 +7,23 @@
   const legendEl = document.getElementById("map-legend");
   if (!mapEl) return;
 
-  // Filtros (reuso del dashboard)
+  // Estado global compartido (si no existe, créalo)
+  if (!window.ixFilters) window.ixFilters = { tramite: null };
+
+  // Filtros del header/chips (reuso del dashboard)
   const getSelectedDept = () => {
     const sel = document.querySelector(".ix-dept-chips .ix-chip[aria-selected='true']");
     const v = sel?.dataset?.dept ?? "";
     return v === "" ? null : Number(v);
   };
-  const getSelectedMonth = () => (document.getElementById("filtro-mes")?.value || "").trim();
+  const getSelectedMonth   = () => (document.getElementById("filtro-mes")?.value || "").trim();
+  const getSelectedTramite = () => (window.ixFilters?.tramite ? String(window.ixFilters.tramite) : null);
 
   // Leaflet base - estilo plano (Carto Positron)
   const map = L.map(mapEl, { zoomControl: true, attributionControl: false });
   L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    {
-      maxZoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> ' +
-        '&copy; <a href="https://carto.com/attributions">CARTO</a>'
-    }
+    { maxZoom: 19 }
   ).addTo(map);
 
   let groupLayer = L.layerGroup().addTo(map);
@@ -32,7 +31,7 @@
   // ====== Color (monocromo verde, intensidad por valor) ======
   const H = 142, S = 62;
   function colorFor(value, max) {
-    if (!max || max <= 0) return "hsl(210 5% 75%)";
+    if (!max || max <= 0) return "hsl(210 5% 75%)"; // gris suave
     const t = Math.pow(value / max, 0.60);
     const L = 92 - t * 52; // 92% -> ~40%
     return `hsl(${H} ${S}% ${Math.max(38, Math.min(92, L))}%)`;
@@ -40,7 +39,7 @@
 
   // ====== Radio fijo en metros (tamaño uniforme) ======
   const R_FIXED = 90;          // círculo ~90 m
-  const R_HALO  = R_FIXED*1.2; // halo suave alrededor
+  const R_HALO  = R_FIXED * 1.2; // halo suave alrededor
 
   function renderLegend(max) {
     if (!legendEl) return;
@@ -49,7 +48,7 @@
       return;
     }
     const steps = 9;
-    const chips = Array.from({length: steps}, (_, i) => {
+    const chips = Array.from({ length: steps }, (_, i) => {
       const v = Math.round((i / (steps - 1)) * max);
       return `<span style="background:${colorFor(v, max)}"></span>`;
     }).join("");
@@ -62,8 +61,9 @@
 
   async function fetchPoints() {
     const body = {
-      departamento_id: getSelectedDept() ?? undefined, // undefined = Todos
-      month: (getSelectedMonth() || undefined),        // undefined = todos los meses/años
+      departamento_id: getSelectedDept() ?? undefined,
+      month: (getSelectedMonth() || undefined),
+      tramite: (getSelectedTramite() || undefined),   // <<< filtro por trámite
       page_size: 10000,
       only_with_data: 1
     };
@@ -74,7 +74,7 @@
       body: JSON.stringify(body)
     });
     if (!r.ok) {
-      const t = await r.text().catch(()=> "");
+      const t = await r.text().catch(() => "");
       throw new Error(`HTTP ${r.status} :: ${t}`);
     }
     const j = await r.json();
@@ -86,13 +86,13 @@
     groupLayer.clearLayers();
 
     if (!rows.length) {
-      map.setView([20.55,-103.2], 12);
+      map.setView([20.55, -103.2], 12);   // centro aprox
       renderLegend(0);
       return;
     }
 
     let max = 0;
-    rows.forEach(r => { const n = Number(r.total||0); if (n > max) max = n; });
+    rows.forEach(r => { const n = Number(r.total || 0); if (n > max) max = n; });
 
     const bounds = [];
     rows.forEach(r => {
@@ -132,8 +132,8 @@
         icon: L.divIcon({
           className: "ix-map-count",
           html: `<div>${total}</div>`,
-          iconSize: [24,24],
-          iconAnchor: [12,24]
+          iconSize: [24, 24],
+          iconAnchor: [12, 24]
         }),
         interactive: false
       });
@@ -144,12 +144,12 @@
       bounds.push([lat, lon]);
     });
 
-    if (bounds.length) map.fitBounds(bounds, { padding: [20,20] });
+    if (bounds.length) map.fitBounds(bounds, { padding: [20, 20] });
     renderLegend(max);
     setTimeout(() => map.invalidateSize(), 0);
   }
 
-  // Listeners
+  // Listeners: chips/mes y CAMBIO DE FILTROS GLOBALES (incluye trámite)
   document.addEventListener("click", (ev) => {
     const t = ev.target;
     if (t?.classList?.contains("ix-chip")) {
@@ -158,6 +158,11 @@
   });
   const month = document.getElementById("filtro-mes");
   if (month) month.addEventListener("change", () => loadAndRender().catch(console.error));
+
+  // Se recarga cuando alguien cambie window.ixFilters (como la tabla de trámites)
+  window.addEventListener("ix:filters-changed", () => {
+    loadAndRender().catch(console.error);
+  });
 
   // Primera carga
   document.addEventListener("DOMContentLoaded", () => {

@@ -117,6 +117,19 @@
 /* Desaturar/elevar contraste del layer base (opcional) */
 .leaflet-tile-pane { filter: grayscale(100%) contrast(105%); }
 
+/* Fila clicable y selección del trámite */
+#tbl-tramites .ix-row {
+  cursor: pointer;
+}
+#tbl-tramites .ix-row:hover {
+  background: #f8fafc;
+}
+#tbl-tramites .ix-row.ix-row--selected {
+  background: #eff6ff;                /* azul muy claro */
+  box-shadow: inset 4px 0 0 #2563eb;  /* barrita azul izquierda */
+}
+
+
 /* ====== Responsive ====== */ 
 @media (max-width:1100px){
   .ix-dash-grid{grid-template-columns:1fr}

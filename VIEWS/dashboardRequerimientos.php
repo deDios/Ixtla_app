@@ -92,5 +92,8 @@ ix_require_session();
   <script type="module" src="/JS/auth/session.js"></script>
   <script type="module" src="/JS/ui/dashboardRequerimientos.js"></script>
   <script type="module" src="/JS/ui/mapRequerimientos_points.js"></script>
+
+  <!-- NUEVO: hace la tabla seleccionable y publica el filtro -->
+  <script type="module" src="/JS/ui/tableTramiteFilter.js"></script>
 </body>
 </html>
