@@ -1,16 +1,16 @@
-/* ====== Layout general ====== */
-.ix-dashboard{padding:20px}
-.ix-dash-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:10px}
-.ix-title{margin:0;font-size:1.5rem;font-weight:800;color:#0f172a}
-.ix-subtitle{margin:.2rem 0 0;color:#64748b}
+/* ====== Layout general ====== */ 
+.ix-dashboard{padding:20px} 
+.ix-dash-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:10px} 
+.ix-title{margin:0;font-size:1.5rem;font-weight:800;color:#0f172a} 
+.ix-subtitle{margin:.2rem 0 0;color:#64748b} 
 
-/* ====== Filtros ====== */
-.ix-filtros{display:flex;gap:12px;align-items:center}
-.ix-filter{display:flex;gap:8px;align-items:center;font-size:.95rem;color:#334155}
+/* ====== Filtros ====== */ 
+.ix-filtros{display:flex;gap:12px;align-items:center} 
+.ix-filter{display:flex;gap:8px;align-items:center;font-size:.95rem;color:#334155} 
 
-/* ====== Chips de Departamentos ====== */
-.ix-dept-chips{margin:6px 0 16px 0}
-.ix-chips-scroll{display:flex;gap:8px;overflow:auto;padding:4px 2px}
+/* ====== Chips de Departamentos ====== */ 
+.ix-dept-chips{margin:6px 0 16px 0} 
+.ix-chips-scroll{display:flex;gap:8px;overflow:auto;padding:4px 2px} 
 .ix-chip{
   display:inline-flex;align-items:center;gap:8px;
   border:1px solid #e2e8f0;background:#f8fafc;color:#0f172a;
@@ -23,7 +23,7 @@
 }
 .ix-chip .ix-n{opacity:.85;font-weight:700}
 
-/* ====== Grid principal ====== */
+/* ====== Grid principal ====== */ 
 .ix-dash-grid{
   display:grid;
   grid-template-columns:1.2fr 1fr 1fr;
@@ -31,7 +31,7 @@
   align-items:stretch;            /* <-- clave para igualar alturas */
 }
 
-/* ====== Card ====== */
+/* ====== Card ====== */ 
 .ix-card{
   background:#fff;border-radius:14px;border:1px solid #f1f5f9;
   box-shadow:0 1px 3px rgba(0,0,0,.06);
@@ -44,14 +44,14 @@
 }
 .ix-card > *{ width:100%; }
 
-/* Contenedor con scroll (para tabla y mapa) */
+/* Contenedor con scroll (para tabla y mapa) */ 
 .ix-fill-scroll{
   flex:1 1 auto;
   min-height:0;                   /* necesario para que funcione overflow con flex */
   overflow:auto;
 }
 
-/* ====== Tabla simple ====== */
+/* ====== Tabla simple ====== */ 
 .ix-table{ width:100%; display:block; }
 .ix-table .ix-thead,
 .ix-table .ix-row{
@@ -67,11 +67,11 @@
 .ix-row{padding:10px 0;border-bottom:1px dashed #f3f4f6;color:#111827}
 .ta-right{text-align:right}
 
-/* Compatibilidad con clases previas */
+/* Compatibilidad con clases previas */ 
 .ix-thead--4cols{grid-template-columns:1fr 100px 100px 100px}
 .ix-row--4cols{grid-template-columns:1fr 100px 100px 100px}
 
-/* ====== Tarjetas de estatus ====== */
+/* ====== Tarjetas de estatus ====== */ 
 .ix-cards{
   width:100%;
   display:grid;
@@ -84,7 +84,7 @@
 }
 .ix-badge .n{font-size:1.25rem;font-weight:800;color:#0f172a}
 
-/* ====== Donuts ====== */
+/* ====== Donuts ====== */ 
 .ix-donut{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap}
 .ix-donut--fullcenter{justify-content:center !important;align-items:center !important}
 #donut-open-close,#donut-open-close-2{display:block;margin:0 auto}
@@ -94,7 +94,7 @@
 .ix-dot.open{background:#22c55e}.ix-dot.closed{background:#475569}
 .ix-donut--under-status{ margin-top:16px; padding-top:8px; border-top:1px dashed #eef2f7; }
 
-/* ====== Mapa ====== */
+/* ====== Mapa ====== */ 
 #map-colonias{
   height: 100%;                    /* ocupa todo el alto disponible dentro del card */
   min-height: 420px;               /* mínimo cómodo */
@@ -121,10 +121,8 @@
   display:block; width:40px; height:10px;
 }
 
-/* etiqueta pequeña con el número sobre el punto */
-.leaflet-div-icon.ix-map-count {
-  background: transparent; border: 0;
-}
+/* etiqueta pequeña con el número sobre el punto */ 
+.leaflet-div-icon.ix-map-count { background: transparent; border: 0; }
 .leaflet-div-icon.ix-map-count > div{
   background: rgba(255,255,255,.85);
   color: #0f172a;
@@ -137,11 +135,16 @@
   transform: translate(-50%, -6px);
 }
 
+/* Desaturar/elevar contraste del layer base (opcional) */
+.leaflet-tile-pane {
+  filter: grayscale(100%) contrast(105%);
+}
 
-
-/* ====== Responsive ====== */
+/* ====== Responsive ====== */ 
 @media (max-width:1100px){
   .ix-dash-grid{grid-template-columns:1fr}
   .ix-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
   .ix-card--equal{min-height:520px}
 }
+
+
