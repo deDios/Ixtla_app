@@ -54,7 +54,7 @@ ix_require_session();
 
     <!-- Grid principal -->
     <section class="ix-dash-grid">
-      <!-- (1) Tabla por trámite (con scroll interno) -->
+      <!-- (1) Tabla por trámite -->
       <article class="ix-card ix-card--equal">
         <div class="ix-fill-scroll">
           <div class="ix-table" id="tbl-tramites">
@@ -69,18 +69,16 @@ ix_require_session();
         </div>
       </article>
 
-      <!-- (2) Estatus + Donut replicado con data labels -->
+      <!-- (2) Estatus + Donut -->
       <article class="ix-card ix-card--equal">
         <div id="cards-estatus" class="ix-cards"></div>
-
         <div class="ix-donut ix-donut--fullcenter ix-donut--under-status">
-          <canvas id="donut-open-close-2" width="320" height="320"
-                  aria-label="Distribución Abiertos vs Cerrados (con etiquetas)" role="img"></canvas>
+          <canvas id="donut-open-close-2" width="320" height="320" aria-label="Distribución Abiertos vs Cerrados (con etiquetas)" role="img"></canvas>
           <div class="ix-donut-legend" id="legend-open-close-2"></div>
         </div>
       </article>
 
-      <!-- (3) MAPA por colonias (con scroll interno si hace falta) -->
+      <!-- (3) Mapa -->
       <article class="ix-card ix-card--equal">
         <div class="ix-fill-scroll">
           <div id="map-colonias" aria-label="Mapa por colonias"></div>
@@ -93,8 +91,6 @@ ix_require_session();
   <script src="/JS/JSglobal.js"></script>
   <script type="module" src="/JS/auth/session.js"></script>
   <script type="module" src="/JS/ui/dashboardRequerimientos.js"></script>
-  <!-- JS nuevo SOLO para el mapa -->
   <script type="module" src="/JS/ui/mapRequerimientos_points.js"></script>
-
 </body>
 </html>
