@@ -142,19 +142,16 @@
   filter: grayscale(100%) contrast(105%);
 }
 
-/* Badge fijo para el mapa (círculo verde con número centrado) */
-.leaflet-div-icon.ix-map-badge {
-  background: transparent;
-  border: 0;
-}
+/* Badge fijo para el mapa (círculo verde con número) */
+.leaflet-div-icon.ix-map-badge { background: transparent; border: 0; }
 
-.leaflet-div-icon.ix-map-badge > div {
-  width: 46px;              /* diámetro visual del badge */
-  height: 46px;
+.leaflet-div-icon.ix-map-badge > div{
+  width: 56px;               /* mismo valor que iconSize en JS */
+  height: 56px;
   border-radius: 999px;
-  background: #22c55e;      /* verde */
-  border: 4px solid #ffffff;/* aro blanco */
-  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  background: #22c55e;       /* verde */
+  border: 5px solid #ffffff; /* aro blanco */
+  box-shadow: 0 2px 4px rgba(0,0,0,.25);
 
   display: flex;
   align-items: center;
@@ -162,11 +159,13 @@
 
   color: #ffffff;
   font-weight: 800;
-  font-size: 20px;          /* tamaño fijo del número */
+  font-size: 24px;           /* número grande y fijo */
   line-height: 1;
 }
 
-/* Si quieres una versión un poco más grande, duplica y usa 56px/24px */
+/* Desaturar/elevar contraste del layer base (opcional) */
+.leaflet-tile-pane { filter: grayscale(100%) contrast(105%); }
+
 
 
 /* ====== Responsive ====== */

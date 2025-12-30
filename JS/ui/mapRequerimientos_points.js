@@ -27,6 +27,12 @@
     }
   ).addTo(map);
 
+  // Pane dedicado para asegurar que los badges estén por encima
+  const BADGE_PANE = "badgePane";
+  map.createPane(BADGE_PANE);
+  map.getPane(BADGE_PANE).style.zIndex = 750;      // > markerPane (600) y overlayPane (400)
+  map.getPane(BADGE_PANE).style.pointerEvents = "auto";
+
   let groupLayer = L.layerGroup().addTo(map);
 
   function renderLegend(max) {
@@ -77,21 +83,33 @@
       const lat = Number(r.lat), lon = Number(r.lon), total = Number(r.total || 0);
       if (!Number.isFinite(lat) || !Number.isFinite(lon) || total <= 0) return;
 
+      // (opcional) halo sutil para depurar que el punto está
+      const halo = L.circle([lat, lon], {
+        radius: 55,                // fijo, muy discreto
+        color: "transparent",
+        weight: 0,
+        fillColor: "#000",
+        fillOpacity: 0.06,
+        pane: BADGE_PANE
+      });
+
       // Marcador HTML de tamaño fijo (badge circular verde con número)
       const marker = L.marker([lat, lon], {
+        pane: BADGE_PANE,
         icon: L.divIcon({
-          className: "ix-map-badge",
+          className: "ix-map-badge",   // ver CSS
           html: `<div>${total}</div>`,
-          iconSize: [46, 46],  // debe coincidir con el CSS del badge
-          iconAnchor: [23, 23] // centra el badge en el punto
+          iconSize: [56, 56],          // diámetro del badge (coincidir con CSS)
+          iconAnchor: [28, 28]         // centra el badge en el punto
         })
       });
 
       marker.bindTooltip(
         `<strong>${r.colonia}</strong><br>CP ${r.cp}<br><strong>${total}</strong> requerimiento${total === 1 ? "" : "s"}`,
-        { sticky: true, direction: "auto", opacity: 0.96 }
+        { sticky: true, direction: "auto", opacity: 0.96, pane: BADGE_PANE }
       );
 
+      halo.addTo(groupLayer);
       marker.addTo(groupLayer);
       bounds.push([lat, lon]);
     });
