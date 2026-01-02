@@ -2445,3 +2445,76 @@ body.req-locked button.icon-btn[data-contact-edit="cp"],
 body.req-locked button.icon-btn[data-detalle-edit] {
   display: none !important;
 }
+
+
+/* =========================================================
+   PATCH MOBILE 
+   ========================================================= */
+@media (max-width: 720px) {
+
+  .exp-view .exp-tabs-bar{
+    display: flex;
+    flex-direction: column;   
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .exp-view .exp-tabs{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .exp-view .exp-tab{
+    flex: 1 1 auto;    
+    min-width: 110px;      
+    text-align: center;
+  }
+
+  .exp-view .exp-expediente-btn{
+    width: 100%;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 390px){
+    .exp-view .exp-expediente-btn span{ display: none; }
+    .exp-view .exp-expediente-btn{
+      justify-content: center;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+  }
+
+  .exp-view .planeacion-toolbar{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .exp-view .planeacion-title{
+    flex: 1 1 100%;       
+    margin: 0;
+  }
+
+  .exp-view .planeacion-toolbar .fase-add{
+    flex: 1 1 48%;           
+    min-width: 150px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 360px){
+    .exp-view .planeacion-toolbar .fase-add{
+      flex: 1 1 100%;
+    }
+  }
+
+  .exp-view .step-menu{
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .exp-view .step-menu::-webkit-scrollbar{ display:none; }
+}
