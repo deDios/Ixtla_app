@@ -1296,14 +1296,28 @@ function applyPipelineAndRender() {
    ========================================================================== */
 function computeYearSeries(rows) {
   const now = new Date();
-  const y = now.getFullYear();
-  const series = Array(12).fill(0);
+  const y0 = now.getFullYear();
+  const y1 = y0 - 1;
+
+  const s0 = Array(12).fill(0); // año actual
+  const s1 = Array(12).fill(0); // año pasado
+
   for (const r of rows) {
     const iso = String(r.creado || r.raw?.created_at || "").replace(" ", "T");
     const d = new Date(iso);
-    if (!isNaN(d) && d.getFullYear() === y) series[d.getMonth()]++;
+    if (isNaN(d)) continue;
+
+    const m = d.getMonth();
+    const y = d.getFullYear();
+
+    if (y === y0) s0[m]++;
+    else if (y === y1) s1[m]++;
   }
-  return series;
+
+  return [
+    { name: String(y0), data: s0 },
+    { name: String(y1), data: s1 },
+  ];
 }
 
 function computeStatusDistributionAll(rows) {
@@ -1348,7 +1362,7 @@ function drawChartsFromRows(rows) {
     "Dic",
   ];
   const yearSeries = computeYearSeries(rows);
-  const donutAgg = computeStatusDistributionAll(rows); // ← usa donutAgg
+  const donutAgg = computeStatusDistributionAll(rows);
 
   const $line = $(SEL.chartYear);
   const $donut = $(SEL.chartMonth);
@@ -1366,13 +1380,16 @@ function drawChartsFromRows(rows) {
 
   if ($line) {
     try {
+
       Charts.line = new LineChart($line, {
         labels,
         series: yearSeries,
+        linecount: 2, // aqui indico cuantas series deben de ser
         showGrid: true,
         headroom: 0.2,
         yTicks: 6,
       });
+
       log("CHARTS — LineChart render ok");
     } catch (e) {
       err("LineChart error:", e);
