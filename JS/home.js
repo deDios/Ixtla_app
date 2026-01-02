@@ -1036,7 +1036,9 @@ function refreshCurrentPageDecorations() {
       exp.className = "hs-row-expand";
 
       const td = document.createElement("td");
-      td.colSpan = tr.children.length || 8; // columnas actuales (incluye expander) :contentReference[oaicite:4]{index=4}
+      const isMobile =
+        typeof isMobileAccordion === "function" && isMobileAccordion();
+      td.colSpan = isMobile ? 3 : tr.children.length || 8;
 
       const raw = row.__raw || row;
       const depto = safeTxt(
@@ -1380,7 +1382,6 @@ function drawChartsFromRows(rows) {
 
   if ($line) {
     try {
-
       Charts.line = new LineChart($line, {
         labels,
         series: yearSeries,
