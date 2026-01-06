@@ -109,7 +109,7 @@ function renderResult(row){
   const {date,time}=formatDateTime(row.created_at); setText(elDate,date); setText(elTime,time);
 
   const key = statusKeyFromRow(row);
-  // guardamos referencia del requerimiento actual
+  // guardamos referencia del requerimiento actual (para evitar updates tardíos)
   try{ pResult && (pResult.dataset.requerimientoId = String(row?.id || row?.requerimiento_id || "")); }catch{}
 
   if (isSubStatus(key)) {
@@ -140,7 +140,7 @@ function pickLatestCCP(data, wantedTipo){
   if(!Array.isArray(data) || !data.length) return null;
   const rows = data.filter(r => Number(r?.tipo) === Number(wantedTipo) && Number(r?.status) === 1);
   if(!rows.length) return null;
-  // normalmente viene del más nuevo al mas viejo, pero por seguridad ordenamos por created_at
+  // normalmente viene del más nuevo al más viejo, pero por seguridad ordenamos por created_at
   rows.sort((a,b)=> String(b?.created_at||"").localeCompare(String(a?.created_at||"")));
   return rows[0] || null;
 }
@@ -151,12 +151,16 @@ const queryCCP = (requerimiento_id, opts={})=>{
     page: opts.page || 1,
     per_page: opts.per_page || 50,
   };
+
+// stub para evitar ReferenceError si el archivo se copia incompleto
+function refreshSubStatusMessageFromCCP(){ /* noop */ }
+
   return withTimeout(sig=>fetchJSON(ENDPOINT_CCP,payload,sig));
 };
 
 let __ccpToken = 0;
 
-async function refreshSubStatusMessageFromCCP(requerimientoId, subKey){
+refreshSubStatusMessageFromCCP = async function(requerimientoId, subKey){
   const myToken = ++__ccpToken;
   try{
     const r = await queryCCP(requerimientoId);
