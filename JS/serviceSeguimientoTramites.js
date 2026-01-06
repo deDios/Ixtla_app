@@ -1,6 +1,7 @@
 (()=>{"use strict";
 /* ============= Config ============= */
 const ENDPOINT="https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_requerimiento.php";
+const ENDPOINT_CCP="https://ixtla-app.com/db/web/ixtla01_c_ccp.php";
 const FETCH_TIMEOUT=12000, IX_DEBUG_TRACK=true; // colocar false antes del sabado
 
 /* ============= Helpers ============= */
@@ -108,8 +109,13 @@ function renderResult(row){
   const {date,time}=formatDateTime(row.created_at); setText(elDate,date); setText(elTime,time);
 
   const key = statusKeyFromRow(row);
+  // guardamos referencia del requerimiento actual
+  try{ pResult && (pResult.dataset.requerimientoId = String(row?.id || row?.requerimiento_id || "")); }catch{}
+
   if (isSubStatus(key)) {
     setSubStatusOnly(key);
+    const reqId = Number(row?.id || row?.requerimiento_id);
+    if(Number.isFinite(reqId) && reqId>0){ refreshSubStatusMessageFromCCP(reqId, key); }
   } else {
     const step = stepFromKey(key);
     setStepsActive(step);
@@ -120,17 +126,61 @@ function renderResult(row){
 function renderNotFound(){showPanel(pError)}
 
 /* ============= fetch ============= */
-async function fetchJSON(body,signal){
-  const res=await fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(body),signal});
+async function fetchJSON(endpoint,body,signal){
+  const res=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(body),signal});
   const http=res.status; if(!res.ok) throw new Error(`HTTP ${http}`);
   const json=await res.json(); return {http,json};
 }
-const queryByFolio=folio=>withTimeout(sig=>fetchJSON({folio},sig));
+const queryByFolio=folio=>withTimeout(sig=>fetchJSON(ENDPOINT,{folio},sig));
 const queryList=(depId,opts={})=>{
   const payload={};
+
+/* ============= CCP (comentarios de pausa/cancelación) ============= */
+function pickLatestCCP(data, wantedTipo){
+  if(!Array.isArray(data) || !data.length) return null;
+  const rows = data.filter(r => Number(r?.tipo) === Number(wantedTipo) && Number(r?.status) === 1);
+  if(!rows.length) return null;
+  // normalmente viene del más nuevo al mas viejo, pero por seguridad ordenamos por created_at
+  rows.sort((a,b)=> String(b?.created_at||"").localeCompare(String(a?.created_at||"")));
+  return rows[0] || null;
+}
+const queryCCP = (requerimiento_id, opts={})=>{
+  const payload = {
+    requerimiento_id,
+    status: 1,
+    page: opts.page || 1,
+    per_page: opts.per_page || 50,
+  };
+  return withTimeout(sig=>fetchJSON(ENDPOINT_CCP,payload,sig));
+};
+
+let __ccpToken = 0;
+
+async function refreshSubStatusMessageFromCCP(requerimientoId, subKey){
+  const myToken = ++__ccpToken;
+  try{
+    const r = await queryCCP(requerimientoId);
+    if(myToken !== __ccpToken) return; // stale
+    if(!r?.json?.ok) return;
+
+    const wantedTipo = subKey === "cancelado" ? 2 : 1;
+    const hit = pickLatestCCP(r.json.data, wantedTipo);
+    const msg = String(hit?.comentario || "").trim();
+    if(!msg) return;
+
+    if(stepDescText){
+      stepDescText.textContent = msg;
+      resetStepDescClasses();
+      if(subKey==="pausado")   stepDescText.classList.add("ix-stepdesc--warning");
+      if(subKey==="cancelado") stepDescText.classList.add("ix-stepdesc--danger");
+    }
+  }catch(ex){
+    warn("CCP no disponible:", ex?.message || ex);
+  }
+}
   if(Number.isInteger(depId)) payload.departamento_id=depId;
   if(opts.all===true) payload.all=true; else { payload.page=opts.page||1; payload.per_page=opts.per_page||50; }
-  return withTimeout(sig=>fetchJSON(payload,sig));
+  return withTimeout(sig=>fetchJSON(ENDPOINT,payload,sig));
 };
 
 /* ============= Submit flow ============= */
