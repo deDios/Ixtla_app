@@ -17,7 +17,7 @@ ix_require_session();
 </head>
 
 <body>
-    <!-- /VIEWS/UAT/tareas.php -->
+    <!-- VIEWS/UAT/tareas.php -->
     <!-- Tope de pagina -->
     <header id="header" data-link-home="/index.php">
         <div class="social-bar-mobile">
