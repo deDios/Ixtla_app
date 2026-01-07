@@ -707,7 +707,7 @@ ix_require_session();
 
     <script type="module" src="/JS/UAT/tareas.js"></script>
 
-    <script src="/JS/expedienteTareas.js"></script>
+    <script src="/JS/ui/expedienteTareas.js"></script>
 
     <!-- media -->
     <script type="module" src="/JS/api/media.js"></script>
