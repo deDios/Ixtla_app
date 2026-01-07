@@ -8,8 +8,8 @@ import { setupMedia, uploadMedia, uploadMediaLink } from "./api/media.js";
 import { Session } from "./auth/session.js";
 import { postJSON, patchJSON } from "./api/http.js";
 import { searchEmpleados } from "./api/usuarios.js";
-import { createTaskDetailsModule } from "./JS/UAT/ui/tareasDetalle.js";
-import { createTaskFiltersModule } from "./JS/UAT/ui/tareasFiltros.js";
+import { createTaskDetailsModule } from "./ui/tareasDetalle.js";
+import { createTaskFiltersModule } from "./ui/tareasFiltros.js";
 
 /* ==========================================================================
    2) Config + helpers genéricos
