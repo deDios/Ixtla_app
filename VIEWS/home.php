@@ -109,6 +109,10 @@ ix_require_session();
                     <button class="item" data-status="proceso" role="radio" aria-checked="false">
                         <span class="label">En proceso</span><span class="count" id="cnt-proceso">(0)</span>
                     </button>
+                    <button type="button" class="item" data-status="activo" role="radio" aria-checked="false">
+                        <span class="label">Activo</span>
+                        <span class="count" id="cnt-activo">(0)</span>
+                    </button>
                     <button class="item" data-status="pausado" role="radio" aria-checked="false">
                         <span class="label">Pausado</span><span class="count" id="cnt-pausado">(0)</span>
                     </button>
@@ -411,7 +415,7 @@ ix_require_session();
 
 
 
-    
+
     <!-- Guard para la página de home
 
     -->

@@ -81,6 +81,7 @@ const SIDEBAR_KEYS = [
   "revision",
   "asignacion",
   "proceso",
+  "activo",
   "pausado",
   "cancelado",
   "finalizado",
@@ -852,6 +853,7 @@ function updateLegendTotals(n) {
 function updateLegendStatus() {
   const map = {
     todos: "Todos los status",
+    activo: "Activo",
     solicitud: "Solicitud",
     revision: "Revisión",
     asignacion: "Asignación",
@@ -866,6 +868,7 @@ function updateLegendStatus() {
 function computeCounts(rows) {
   const c = {
     todos: 0,
+    activo: 0,
     solicitud: 0,
     revision: 0,
     asignacion: 0,
@@ -874,13 +877,19 @@ function computeCounts(rows) {
     cancelado: 0,
     finalizado: 0,
   };
+
   rows.forEach((r) => {
     c.todos++;
     const k = normalizeStatusKey(r.estatus?.key || "");
+
     if (k in c) c[k]++;
+
+    if (k !== "pausado" && k !== "cancelado" && k !== "finalizado") c.activo++;
   });
+
   State.counts = c;
   setText("#cnt-todos", `(${c.todos})`);
+  setText("#cnt-activo", `(${c.activo})`);
   setText("#cnt-solicitud", `(${c.solicitud})`);
   setText("#cnt-revision", `(${c.revision})`);
   setText("#cnt-asignacion", `(${c.asignacion})`);
@@ -1225,10 +1234,18 @@ function applyPipelineAndRender() {
   let filtered = all;
 
   if (State.filterKey !== "todos") {
-    filtered = filtered.filter(
-      (r) => normalizeStatusKey(r.estatus?.key) === State.filterKey
-    );
+    if (State.filterKey === "activo") {
+      filtered = filtered.filter((r) => {
+        const k = normalizeStatusKey(r.estatus?.key || "");
+        return k !== "pausado" && k !== "cancelado" && k !== "finalizado";
+      });
+    } else {
+      filtered = filtered.filter(
+        (r) => normalizeStatusKey(r.estatus?.key) === State.filterKey
+      );
+    }
   }
+
   if (State.search) {
     const q = State.search;
     filtered = filtered.filter((r) => {
