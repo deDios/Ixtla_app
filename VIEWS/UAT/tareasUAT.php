@@ -17,7 +17,7 @@ ix_require_session();
 </head>
 
 <body>
-    <!-- VIEWS/UAT/tareas.php -->
+    <!-- /VIEWS/UAT/tareasUAT.php  -->
     <!-- Tope de pagina -->
     <header id="header" data-link-home="/index.php">
         <div class="social-bar-mobile">
@@ -698,18 +698,6 @@ ix_require_session();
             </div>
         </div>
     </div>
-
-    <!-- Guard para la página de home
-<script type="module">
-    import {
-        guardPage
-    } from "/JS/auth/guard.js";
-    guardPage({
-        stealth: false,
-        redirectTo: "/VIEWS/login.php"
-    });
-    </script>
-    -->
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>
