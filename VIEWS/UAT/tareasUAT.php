@@ -2,6 +2,16 @@
 require_once __DIR__ . '/../../JS/auth/ix_guard.php';
 ix_require_session();
 ?>
+
+<?php
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+function asset_v($path){
+  $full = $_SERVER['DOCUMENT_ROOT'] . $path;
+  return file_exists($full) ? filemtime($full) : time();
+}
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 
@@ -710,7 +720,7 @@ ix_require_session();
     <script src="/JS/ui/expedienteTareas.js"></script>
 
     <!-- media -->
-    <script type="module" src="/JS/api/media.js"></script>
+    <script type="module" src="/JS/api/media.js?v=<?= asset_v('/JS/api/media.js') ?>"></script>
     <script type="module" src="/JS/api/mediaRequerimientos.js"></script>
 
     <!-- bundle para que cargue bien el sidebar -->
