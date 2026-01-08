@@ -212,57 +212,41 @@ let FiltersModule = null;
 // cache para requerimientos (folio, tramite, etc.)
 const ReqCache = new Map(); // reqId → data o null
 
-/**
- * Determina si un REQUERIMIENTO está pausado/cancelado (tareas bloqueadas).
- */
+/** =========================================================
+ *  Lock de tareas por estatus del REQUERIMIENTO
+ *  - Si el requerimiento está en pausa/cancelado → tareas "locked"
+ *  - Usamos ReqCache (cargado por enrich) para inferirlo
+ * ========================================================= */
 function getReqLockInfo(req) {
-  if (!req) return { locked: false, reason: "" };
+  if (!req) return { locked: false, label: "", reason: "" };
 
-  const rawNum =
-    req.status ??
-    req.estatus ??
-    req.status_requerimiento ??
-    req.estatus_requerimiento ??
-    req.req_status ??
-    null;
+  // Según tu payload real, el estado del requerimiento viene en `estatus` (numérico)
+  const est = Number(req.estatus);
 
-  const n = rawNum != null && rawNum !== "" ? Number(rawNum) : NaN;
-
-  // requerimiento 0..6 (pausado=4, cancelado=5) hay un seguro por texto, solo por si acaso
-  if (Number.isFinite(n)) {
-    if (n === 4) return { locked: true, reason: "pausado" };
-    if (n === 5) return { locked: true, reason: "cancelado" };
+  if (est === 4) {
+    return { locked: true, label: "REQ PAUSADO", reason: "El requerimiento está en pausa." };
+  }
+  if (est === 5) {
+    return { locked: true, label: "REQ CANCELADO", reason: "El requerimiento está cancelado." };
   }
 
-  const label = String(
-    req.estatus_nombre ??
-      req.status_nombre ??
-      req.estatus_label ??
-      req.status_label ??
-      rawNum ??
-      ""
-  )
-    .toLowerCase()
-    .trim();
+  // Fallback defensivo (por si algún endpoint devuelve texto en vez de número)
+  const s = String(
+    req.estatus_nombre ?? req.status_label ?? req.estado_texto ?? ""
+  ).toLowerCase();
 
-  if (label.includes("paus") || label.includes("bloque")) {
-    return { locked: true, reason: "pausado" };
-  }
-  if (label.includes("cancel")) {
-    return { locked: true, reason: "cancelado" };
-  }
+  if (s.includes("paus")) return { locked: true, label: "REQ PAUSADO", reason: "El requerimiento está en pausa." };
+  if (s.includes("cancel")) return { locked: true, label: "REQ CANCELADO", reason: "El requerimiento está cancelado." };
 
-  return { locked: false, reason: "" };
+  return { locked: false, label: "", reason: "" };
 }
 
-/** Tarea bloqueada si su requerimiento está en pausa/cancelado */
 function isTaskLockedByReq(task) {
-  if (!task?.requerimiento_id) return false;
-  const req = ReqCache.get(task.requerimiento_id);
+  const reqId = task?.requerimiento_id ?? task?.req_id ?? task?.requerimientoId;
+  if (!reqId) return false;
+  const req = ReqCache.get(reqId);
   return !!getReqLockInfo(req).locked;
 }
-
-
 
 // Subordinados detectados para el viewer (empleados que le reportan)
 const SubordinateIds = new Set();
@@ -946,18 +930,16 @@ function createCard(task) {
 
   const art = document.createElement("article");
   art.className = "kb-card";
-  art.dataset.id = String(task.id);
 
-  // Lock por requerimiento (pausa/cancelado): se ve gris y no se puede mover
+  // Lock visual si el REQ está pausado/cancelado
   if (isTaskLockedByReq(task)) {
     const req = ReqCache.get(task.requerimiento_id);
     const info = getReqLockInfo(req);
     art.classList.add("is-locked");
-    art.dataset.locked = "1";
-    art.dataset.lockReason = info.reason || "locked";
-    // Tooltip rápido
-    art.title = `Tarea bloqueada: requerimiento ${info.reason || "en pausa/cancelado"}`;
+    art.dataset.lockLabel = info.label || "REQ BLOQUEADO";
+    art.title = (info.reason || "Este requerimiento está en pausa o cancelado.") + " No se pueden mover tareas.";
   }
+  art.dataset.id = String(task.id);
 
   const main = document.createElement("div");
   main.className = "kb-task-main";
@@ -1171,20 +1153,30 @@ function setupDragAndDrop() {
     new Sortable(list, {
       group: "kb-tasks",
       animation: 150,
-      ghostClass: "kb-card-ghost",
-      dragClass: "kb-card-drag",
-      // No permitir drag de tarjetas bloqueadas por requerimiento (pausa/cancelado)
       filter: ".kb-card.is-locked",
       preventOnFilter: true,
-      onMove(evt) {
-        const el = evt?.dragged;
-        if (el && el.classList && el.classList.contains("is-locked")) return false;
-        return true;
-      },
+      ghostClass: "kb-card-ghost",
+      dragClass: "kb-card-drag",
       onStart() {
         dragging = true;
       },
       async onEnd(evt) {
+        const el = evt && evt.item;
+        if (el && el.classList && el.classList.contains("is-locked")) {
+          // Doble seguro: si por alguna razón intentan mover una tarea bloqueada, revertimos el DOM.
+          try {
+            const from = evt.from;
+            if (from) {
+              const ref = typeof evt.oldIndex === "number" ? from.children[evt.oldIndex] : null;
+              from.insertBefore(el, ref || null);
+            }
+          } catch (e) {
+            warn("No se pudo revertir movimiento de tarjeta bloqueada:", e);
+          }
+          toast("Requerimiento en pausa/cancelado: tarea inhabilitada.", "warn");
+          return;
+        }
+
         setTimeout(() => {
           dragging = false;
         }, 0);
@@ -1193,32 +1185,6 @@ function setupDragAndDrop() {
         const id = itemEl.dataset.id;
         const task = getTaskById(id);
         if (!task) return;
-
-        // Si el REQ está pausado/cancelado → no se permite mover (aunque tengas permisos)
-        if (isTaskLockedByReq(task)) {
-          const req = ReqCache.get(task.requerimiento_id);
-          const info = getReqLockInfo(req);
-
-          // Revertir DOM a su lugar original
-          const fromList = evt.from;
-          if (fromList) {
-            if (
-              typeof evt.oldIndex === "number" &&
-              evt.oldIndex >= 0 &&
-              evt.oldIndex < fromList.children.length
-            ) {
-              fromList.insertBefore(itemEl, fromList.children[evt.oldIndex]);
-            } else {
-              fromList.appendChild(itemEl);
-            }
-          }
-
-          toast(
-            `No puedes mover tareas: el requerimiento está ${info.reason || "en pausa/cancelado"}.`,
-            "warning"
-          );
-          return;
-        }
 
         const fromCol = evt.from.closest(".kb-col");
         const toCol = evt.to.closest(".kb-col");
