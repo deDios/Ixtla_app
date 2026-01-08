@@ -113,6 +113,20 @@
   transform: translateY(-1px);
 }
 
+/* Tarjeta bloqueada por requerimiento (pausado/cancelado): se ve gris y no se puede arrastrar */
+.kb-card.is-locked {
+  opacity: 0.55;
+  filter: grayscale(1);
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.kb-card.is-locked:hover {
+  background: #f3f4f6;
+  box-shadow: none;
+  transform: none;
+}
+
 /* Contenido principal de la tarjeta */
 .kb-task-main {
   display: flex;
