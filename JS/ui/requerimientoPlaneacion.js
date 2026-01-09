@@ -47,6 +47,49 @@
   let _boundModalP = false;
   let _creatingProceso = false;
 
+  // ====== Soft-hide (status=0) + RBAC para borrar tareas ======
+  let _canDeleteTasksPromise = null;
+
+  function canDeleteTasks() {
+    if (_canDeleteTasksPromise) return _canDeleteTasksPromise;
+
+    _canDeleteTasksPromise = (async () => {
+      const yoIdRaw = getEmpleadoId();
+      const deptIdRaw = getDeptId();
+      const yoId = yoIdRaw != null ? Number(yoIdRaw) : null;
+      const deptId = deptIdRaw != null ? Number(deptIdRaw) : null;
+
+      // Roles (si existe ADMIN, lo respetamos)
+      const roles = getRoles();
+      if (roles.has("ADMIN")) return true;
+
+      // Presidencia (dept_id=6) siempre puede
+      if (deptId === 6) return true;
+
+      // Director / Primera línea de su depto (según catálogo de departamentos)
+      if (!yoId) return false;
+
+      try {
+        const deps = await fetchDepartamentos();
+        return deps.some((d) => {
+          const director = Number(d.director || 0);
+          const primera = Number(d.primera_linea || 0);
+          return director === yoId || primera === yoId;
+        });
+      } catch (e) {
+        // Si falla el catálogo, mejor no habilitar el borrado
+        warn("canDeleteTasks() fallo al cargar departamentos:", e);
+        return false;
+      }
+    })();
+
+    return _canDeleteTasksPromise;
+  }
+
+  let _delModalBound = false;
+  let _delTarget = { tareaId: null, procesoId: null };
+
+
   // ====== API endpoints ======
   const API_FBK = {
     PROCESOS: {
@@ -427,8 +470,10 @@
     const payload = { proceso_id: Number(proceso_id), page, page_size };
     const j = await postJSON(API.TAREAS.LIST, payload);
     const arr = Array.isArray(j?.data) ? j.data : [];
-    return arr.map(normalizeTarea);
-  }
+    const mapped = arr.map(normalizeTarea);
+    // Soft-hide: NO mostramos tareas con status 0
+    return mapped.filter((x) => Number(x.status ?? 0) !== 0);
+}
 
   async function createTarea({
     proceso_id,
@@ -627,6 +672,7 @@
             <div>Estatus</div>
             <div>Porcentaje</div>
             <div>Fecha de inicio</div>
+            <div>Acciones</div>
           </div>
           <!-- filas .exp-row aquí -->
         </div>
@@ -637,7 +683,7 @@
     return sec;
   }
 
-  function addTareaRow(sec, t) {
+  function addTareaRow(sec, t, allowDelete = false) {
     const table = sec.querySelector(".exp-table--planeacion");
     if (!table) return;
 
@@ -680,6 +726,15 @@
         </span>
       </div>
       <div class="fecha">${fmtMXDate(t.fecha_inicio)}</div>
+    <div class="acciones">${
+        allowDelete
+          ? `<button type="button" class="tarea-del-btn" data-tarea-id="${escapeHtml(String(t.id))}" data-proceso-id="${escapeHtml(String(t.proceso_id))}" aria-label="Eliminar tarea" title="Eliminar tarea">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM6 9h2v9H6V9z"></path>
+              </svg>
+            </button>`
+          : ""
+      }</div>
     `;
     table.appendChild(row);
   }
@@ -728,7 +783,7 @@
 
         try {
           const tareas = await listTareas(p.id, { page: 1, page_size: 100 });
-          tareas.forEach((t) => addTareaRow(sec, t));
+          tareas.forEach((t) => addTareaRow(sec, t, allowDelete));
           updateProcesoHeaderStats(sec, tareas);
         } catch (e) {
           warn("Error listando tareas del proceso", p.id, e);
@@ -873,7 +928,8 @@
           sec
             .querySelectorAll(".exp-table--planeacion .exp-row")
             .forEach((r) => r.remove());
-          tareas.forEach((t) => addTareaRow(sec, t));
+          const allowDelete2 = await canDeleteTasks();
+          tareas.forEach((t) => addTareaRow(sec, t, allowDelete2));
           updateProcesoHeaderStats(sec, tareas);
         } else {
           const req = window.__REQ__;
@@ -932,7 +988,113 @@
     setTimeout(() => $(SEL.inpPTitulo)?.focus(), 30);
   }
 
-  function bindSubmitNuevoProceso() {
+  
+  // ====== UI: borrar tarea (soft hide status=0) ======
+  function ensureDeleteModal() {
+    let modal = $("#modal-del-tarea");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "modal-del-tarea";
+    modal.className = "modal-overlay";
+    modal.setAttribute("aria-hidden", "true");
+
+    modal.innerHTML = `
+      <div class="modal-content ix-confirm" role="dialog" aria-modal="true" aria-labelledby="del-tarea-title">
+        <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+        <h2 id="del-tarea-title">Eliminar tarea</h2>
+        <p class="ix-confirm-msg">¿Seguro que quieres eliminar esta tarea?</p>
+        <div class="ix-confirm-actions">
+          <button type="button" class="btn" data-act="cancel">Cancelar</button>
+          <button type="button" class="btn-submit danger" data-act="confirm">Confirmar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  async function softHideTarea(tareaId) {
+    const yoId = getEmpleadoId();
+    if (!tareaId) throw new Error("tareaId requerido");
+
+    // NOTE: seguimos el mismo patrón que /JS/tareas.js para updates
+    const payload = {
+      id: Number(tareaId),
+      status: 0,
+      updated_by: yoId ? Number(yoId) : null,
+    };
+    return postJSON(API.TAREAS.UPDATE, payload);
+  }
+
+  function bindDeleteDelegation() {
+    if (_delModalBound) return;
+    _delModalBound = true;
+
+    const list = $("#planeacion-list");
+    if (!list) return;
+
+    const modal = ensureDeleteModal();
+    const btnClose = $(".modal-close", modal);
+    const btnCancel = $('[data-act="cancel"]', modal);
+    const btnConfirm = $('[data-act="confirm"]', modal);
+
+    const close = () => {
+      _delTarget = { tareaId: null, procesoId: null };
+      closeOverlay(modal);
+    };
+
+    btnClose && btnClose.addEventListener("click", close);
+    btnCancel && btnCancel.addEventListener("click", close);
+
+    btnConfirm &&
+      btnConfirm.addEventListener("click", async () => {
+        const { tareaId } = _delTarget || {};
+        if (!tareaId) return close();
+
+        try {
+          btnConfirm.disabled = true;
+          btnConfirm.textContent = "Eliminando…";
+
+          await softHideTarea(tareaId);
+          toast("Tarea eliminada", "success");
+
+          // Re-render para recalcular meta/progreso y respetar soft-hide (status=0)
+          await renderProcesosYtareas();
+        } catch (e) {
+          err("softHideTarea()", e);
+          toast("No se pudo eliminar la tarea", "error");
+        } finally {
+          btnConfirm.disabled = false;
+          btnConfirm.textContent = "Confirmar";
+          close();
+        }
+      });
+
+    // Delegación: botón papelera dentro de la tabla
+    list.addEventListener("click", async (ev) => {
+      const btn = ev.target && ev.target.closest ? ev.target.closest(".tarea-del-btn") : null;
+      if (!btn) return;
+
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      const allowed = await canDeleteTasks();
+      if (!allowed) {
+        toast("No tienes permiso para eliminar tareas", "warn");
+        return;
+      }
+
+      _delTarget = {
+        tareaId: btn.getAttribute("data-tarea-id"),
+        procesoId: btn.getAttribute("data-proceso-id"),
+      };
+
+      openOverlay(modal);
+    });
+  }
+
+function bindSubmitNuevoProceso() {
     const form = document.querySelector(SEL.formP);
     if (!form) return;
 
@@ -1046,6 +1208,7 @@
     async init() {
       $$("#planeacion-list .exp-accordion--fase").forEach(bindProcessAccordion);
       bindToolbar();
+      bindDeleteDelegation();
 
       // Actualizar planeación y toolbar CADA vez que llegue un req
       document.addEventListener(

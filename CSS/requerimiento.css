@@ -382,12 +382,12 @@
   transition: none !important;
 }
 
-/* Tabla de planeación (5 columnas) */
+/* Tabla de planeación (6 columnas) */
 .exp-view .exp-table.exp-table--planeacion .exp-thead,
 .exp-view .exp-table.exp-table--planeacion .exp-row {
   display: grid !important;
-  grid-template-columns: 1.6fr 1fr .9fr 1fr .9fr !important;
-  /* Actividad | Responsable | Estatus | % | Fecha */
+  grid-template-columns: 1.6fr 1fr .9fr 1fr .9fr .45fr !important;
+  /* Actividad | Responsable | Estatus | % | Fecha | Acciones */
   align-items: center;
   gap: 0;
 }
@@ -413,7 +413,8 @@
 
 .exp-view .exp-table.exp-table--planeacion .exp-thead>div:nth-child(3),
 .exp-view .exp-table.exp-table--planeacion .exp-thead>div:nth-child(4),
-.exp-view .exp-table.exp-table--planeacion .exp-thead>div:nth-child(5) {
+.exp-view .exp-table.exp-table--planeacion .exp-thead>div:nth-child(5),
+.exp-view .exp-table.exp-table--planeacion .exp-thead>div:nth-child(6) {
   justify-content: center;
 }
 
@@ -437,7 +438,8 @@
 
 .exp-view .exp-table.exp-table--planeacion .exp-row>div:nth-child(3),
 .exp-view .exp-table.exp-table--planeacion .exp-row>div:nth-child(4),
-.exp-view .exp-table.exp-table--planeacion .exp-row>div:nth-child(5) {
+.exp-view .exp-table.exp-table--planeacion .exp-row>div:nth-child(5),
+.exp-view .exp-table.exp-table--planeacion .exp-row>div:nth-child(6) {
   justify-content: center;
 }
 
@@ -460,6 +462,53 @@
   border-radius: 999px;
   background: var(--exp-brand);
   display: block;
+}
+
+
+/* Botón eliminar tarea (papelera) */
+.exp-view .tarea-del-btn{
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  cursor: pointer;
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+  box-shadow: 0 6px 18px rgba(239,68,68,.22);
+}
+.exp-view .tarea-del-btn:hover{
+  filter: brightness(1.02);
+  transform: translateY(-1px);
+}
+.exp-view .tarea-del-btn:active{
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(239,68,68,.18);
+}
+.exp-view .tarea-del-btn:focus-visible{
+  outline: 3px solid rgba(239,68,68,.25);
+  outline-offset: 2px;
+}
+
+/* Modal confirm simple */
+#modal-del-tarea .ix-confirm-msg{
+  margin: 10px 0 16px;
+  color:#374151;
+  line-height:1.35;
+}
+#modal-del-tarea .ix-confirm-actions{
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+}
+#modal-del-tarea .btn-submit.danger{
+  background:#ef4444;
+}
+#modal-del-tarea .btn-submit.danger:hover{
+  filter:brightness(0.98);
 }
 
 /* Responsive planeación */
@@ -514,6 +563,14 @@
     font-weight: 600;
     margin-right: 4px;
   }
+
+  .exp-view .exp-table.exp-table--planeacion .acciones::before {
+    content: "Acciones: ";
+    color: #6b7280;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+
 }
 
 /* ================= Stepper ================= */
