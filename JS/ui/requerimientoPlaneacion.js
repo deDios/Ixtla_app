@@ -538,14 +538,21 @@
 
     const code = getReqStatusCode(req);
 
-    const disable = code === 0 || code === 1;
+    // Regla: NO permitir crear procesos/tareas en:
+    // - Solicitud (0)
+    // - Revisión (1)
+    // - Finalizado (6)
+    const disable = code === 0 || code === 1 || code === 6;
 
     [btnProceso, btnTarea].forEach((btn) => {
       if (!btn) return;
       if (disable) {
         btn.setAttribute("disabled", "true");
         btn.classList.add("planeacion-btn-disabled");
-        btn.title = "No disponible en estatus Solicitud / Revisión.";
+        btn.title =
+          code === 6
+            ? "No disponible: el requerimiento está Finalizado."
+            : "No disponible en estatus Solicitud / Revisión.";
       } else {
         btn.removeAttribute("disabled");
         btn.classList.remove("planeacion-btn-disabled");
