@@ -762,7 +762,16 @@
 
     host.innerHTML = "";
 
+    
+    // Permiso de eliminar tareas (solo Presidencia, Director o Primera Línea)
+    let allowDelete = false;
     try {
+      allowDelete = await canDeleteTasks();
+    } catch (e) {
+      allowDelete = false;
+      warn("[RBAC] canDeleteTasks() falló, se deshabilita eliminar:", e);
+    }
+try {
       const procesos = await listProcesos(requerimiento_id, {
         page: 1,
         page_size: 100,
