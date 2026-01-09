@@ -102,6 +102,9 @@ ix_require_session();
                     <span id="hs-profile-badge" class="badge">—</span>
                 </section>
 
+                <!-- =========================================
+                     COMENTARIOS (solo contenedor, sin dummies)
+                     ========================================= -->
                 <section class="demo-comments">
                     <div class="demo-card">
                         <div class="head">
@@ -121,61 +124,8 @@ ix_require_session();
                                 botón</div>
                         </div>
 
-                        <div class="c-feed" aria-live="polite">
-                            <article class="msg">
-                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
-                                <div>
-                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2
-                                            min</span></div>
-                                    <div class="text">¿Pueden validar si la cuadrilla ya salió a la zona?</div>
-                                </div>
-                            </article>
-                            <article class="msg">
-                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
-                                <div>
-                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1
-                                            min</span></div>
-                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en
-                                        sitio.</div>
-                                </div>
-                            </article>
-                            <article class="msg">
-                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
-                                <div>
-                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span>
-                                    </div>
-                                    <div class="text">Recibido ✅</div>
-                                </div>
-                            </article>
-
-                            <!-- mensajes de ejemplo repetidos -->
-                            <article class="msg">
-                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
-                                <div>
-                                    <div class="who"><span class="name">Juan Pablo</span> <span class="time">hace 2
-                                            min</span></div>
-                                    <div class="text">¿Pueden validar si la cuadrilla ya salió a la zona?</div>
-                                </div>
-                            </article>
-                            <article class="msg">
-                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
-                                <div>
-                                    <div class="who"><span class="name">María López</span> <span class="time">hace 1
-                                            min</span></div>
-                                    <div class="text">Confirmado. Llegan en 10 minutos. Dejo fotos cuando estén en
-                                        sitio.</div>
-                                </div>
-                            </article>
-                            <article class="msg">
-                                <img class="avatar" src="/ASSETS/user/img_user1.png" alt="">
-                                <div>
-                                    <div class="who"><span class="name">Sergio</span> <span class="time">ahora</span>
-                                    </div>
-                                    <div class="text">Recibido ✅</div>
-                                </div>
-                            </article>
-                            <!-- /mensajes de ejemplo -->
-                        </div>
+                        <!-- JS llenará aquí los comentarios -->
+                        <div class="c-feed" aria-live="polite"></div>
                     </div>
                 </section>
             </aside>
@@ -215,9 +165,6 @@ ix_require_session();
                     </div>
                 </header>
 
-
-
-
                 <!-- Stepper -->
                 <div class="container">
                     <ul class="step-menu">
@@ -255,14 +202,6 @@ ix_require_session();
 
                 <!-- WRAPPER: evita salto entre tabs -->
                 <div class="exp-panes">
-
-
-
-
-
-
-
-
 
                     <!-- Panel: Contacto -->
                     <section class="exp-pane is-active" role="tabpanel" data-tab="Contacto">
@@ -337,7 +276,7 @@ ix_require_session();
                                 </div>
                             </div>
 
-                            <!-- C.P. (dejas tu botón como ya lo tenías) -->
+                            <!-- C.P. -->
                             <div class="exp-field exp-field--editable" data-contact-field="cp">
                                 <label for="contact-cp">C.P.:</label>
 
@@ -354,7 +293,7 @@ ix_require_session();
                                     </button>
                                 </div>
 
-                                <!-- edición CP (como ya la tenías) -->
+                                <!-- edición CP -->
                                 <div class="contact-edit contact-edit--cp" data-contact-edit-wrapper="cp" hidden>
                                     <div class="contact-edit-row">
                                         <select id="contact-cp" name="contacto_cp" class="ix-select ix-select--quiet"
@@ -365,7 +304,7 @@ ix_require_session();
                                 </div>
                             </div>
 
-                            <!-- Colonia (igual que antes) -->
+                            <!-- Colonia -->
                             <div class="exp-field exp-field--editable" data-contact-field="colonia">
                                 <label for="contact-colonia">Colonia:</label>
 
@@ -388,14 +327,6 @@ ix_require_session();
                         </div>
                     </section>
 
-
-
-
-
-
-
-
-
                     <!-- Panel: Detalles -->
                     <section class="exp-pane" role="tabpanel" data-tab="detalles">
                         <div class="exp-grid">
@@ -406,7 +337,7 @@ ix_require_session();
                                 <div class="exp-val">
                                     <span data-detalle-text="tramite">Reporte Fuga de agua</span>
 
-                                    <!-- Botón de editar, SIEMPRE en el HTML -->
+                                    <!-- Botón de editar -->
                                     <button type="button" class="icon-btn" data-detalle-edit="tramite"
                                         title="Editar trámite" aria-label="Editar trámite">
                                         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
@@ -476,7 +407,7 @@ ix_require_session();
                                         Texto de descripción del requerimiento…
                                     </span>
 
-                                    <!-- Botón de editar, también directo en el HTML -->
+                                    <!-- Botón de editar -->
                                     <button type="button" class="icon-btn" data-detalle-edit="descripcion"
                                         title="Editar descripción" aria-label="Editar descripción">
                                         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
@@ -497,12 +428,6 @@ ix_require_session();
                         </div>
                     </section>
 
-
-
-
-
-
-
                     <!-- Panel: Planeacion -->
                     <section class="exp-pane" role="tabpanel" data-tab="planeacion">
 
@@ -515,71 +440,9 @@ ix_require_session();
 
                         <!-- ===== CONTENEDOR DE PROCESOS ===== -->
                         <div id="planeacion-list">
-                            <!-- Acordeón de proceso -->
-                            <section class="exp-accordion exp-accordion--fase" data-proceso-id="p1">
-                                <!-- HEADER del acordeón -->
-                                <button class="exp-acc-head" type="button" aria-expanded="true">
-                                    <div class="fase-left">
-                                        <div class="fase-head">
-                                            <span class="fase-title">Proceso</span>
-                                            <small class="fase-meta">10 actividades</small>
-                                        </div>
-                                    </div>
 
-                                    <div class="fase-right">
-                                        <span class="fase-label">Estatus</span>
-                                        <span class="exp-progress" aria-label="70%">
-                                            <span class="bar" style="width:70%"></span>
-                                            <span class="pct">70%</span>
-                                        </span>
-                                        <span class="fase-label">Fecha de inicio</span>
-                                        <span class="fase-date">02/06/2025</span>
-                                        <span class="chev" aria-hidden="true"></span>
-                                    </div>
-                                </button>
+                            <!-- JS renderiza aqui los procesos/tareas -->
 
-                                <!-- CUERPO del acordeón -->
-                                <div class="exp-acc-body">
-                                    <div class="exp-table exp-table--planeacion is-card">
-                                        <div class="exp-thead">
-                                            <div>Actividad</div>
-                                            <div>Responsable</div>
-                                            <div>Estatus</div>
-                                            <div>Porcentaje</div>
-                                            <div>Fecha de inicio</div>
-                                        </div>
-
-                                        <div class="exp-row">
-                                            <div class="actividad">Reparación de Llave</div>
-                                            <div class="responsable">Juan Pablo</div>
-                                            <div class="estatus"><span class="exp-badge is-info">Activo</span></div>
-                                            <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
-                                                        style="width:70%"></span></span></div>
-                                            <div class="fecha">02/06/2025</div>
-                                        </div>
-
-                                        <div class="exp-row">
-                                            <div class="actividad">Revisión de toma</div>
-                                            <div class="responsable">Juan Pablo</div>
-                                            <div class="estatus"><span class="exp-badge is-success">Finalizado</span>
-                                            </div>
-                                            <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
-                                                        style="width:100%"></span></span></div>
-                                            <div class="fecha">10/06/2025</div>
-                                        </div>
-
-                                        <div class="exp-row">
-                                            <div class="actividad">Cierre de Toma</div>
-                                            <div class="responsable">Juan Pablo</div>
-                                            <div class="estatus"><span class="exp-badge is-success">Finalizado</span>
-                                            </div>
-                                            <div class="porcentaje"><span class="exp-progress xs"><span class="bar"
-                                                        style="width:100%"></span></span></div>
-                                            <div class="fecha">10/05/2025</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
                         </div>
 
                     </section>
@@ -610,8 +473,6 @@ ix_require_session();
                         </div>
                     </div>
                 </section>
-
-
 
             </section>
         </div>
@@ -721,6 +582,38 @@ ix_require_session();
                 de uso.
             </p>
             <p class="modal-copy">© 2025 GodCode. Todos los derechos reservados.</p>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar eliminación de tarea -->
+    <div id="modal-del-tarea" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content ix-del-modal" role="dialog" aria-modal="true" aria-labelledby="del-tarea-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+
+            <h2 id="del-tarea-title" class="ix-del-title">Eliminar tarea</h2>
+
+            <p class="ix-del-text">
+                ¿Seguro que quieres eliminar esta tarea?
+            </p>
+
+            <!-- Slot opcional para pintar info (título / id) desde JS -->
+            <p class="ix-del-meta" id="del-tarea-meta" hidden></p>
+
+            <!-- aquí el JS puede guardar el id -->
+            <input type="hidden" id="del-tarea-id" value="">
+
+            <div class="ix-del-actions">
+                <button type="button" class="btn ix-del-cancel" id="btn-del-tarea-cancel">
+                    Cancelar
+                </button>
+                <button type="button" class="btn ix-del-confirm" id="btn-del-tarea-confirm">
+                    Confirmar
+                </button>
+            </div>
+
+            <p class="modal-note ix-del-note">
+                Esta acción no se puede deshacer.
+            </p>
         </div>
     </div>
 
@@ -845,8 +738,6 @@ ix_require_session();
         </div>
     </div>
 
-
-
     <!-- Modal: Visor de Evidencias -->
     <div id="modal-media" class="modal-overlay" aria-hidden="true">
         <div class="modal-content">
@@ -885,7 +776,6 @@ ix_require_session();
         </div>
     </div>
 
-
     <!-- Modal: Subir evidencias V2 -->
     <div id="ix-evid-modal" class="modal-overlay" aria-hidden="true">
         <div class="modal-content ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-evid-title">
@@ -894,7 +784,7 @@ ix_require_session();
             <div class="ix-modal__header">
                 <h2 id="ix-evid-title">Subir evidencias</h2>
 
-                <!-- NUEVO: tabs para elegir Imágenes / Enlaces -->
+                <!-- tabs para elegir Imágenes / Enlaces -->
                 <div class="ix-modal__tabs">
                     <button type="button" class="ix-tab is-active" id="ix-tab-file" data-mode="file">
                         Imágenes
@@ -952,8 +842,6 @@ ix_require_session();
             </div>
         </div>
     </div>
-
-
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>

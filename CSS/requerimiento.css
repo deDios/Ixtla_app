@@ -2575,3 +2575,53 @@ body.req-locked button.icon-btn[data-detalle-edit] {
   }
   .exp-view .step-menu::-webkit-scrollbar{ display:none; }
 }
+
+
+/* ===============================
+   Modal eliminar tarea 
+   =============================== */
+
+#modal-del-tarea .ix-del-modal {
+  max-width: 520px;
+}
+
+#modal-del-tarea .ix-del-title {
+  margin: 0 0 8px;
+}
+
+#modal-del-tarea .ix-del-text {
+  margin: 0 0 10px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+#modal-del-tarea .ix-del-meta {
+  margin: 0 0 12px;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+#modal-del-tarea .ix-del-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+#modal-del-tarea .ix-del-cancel {
+  border: 1px solid rgba(0,0,0,.12);
+}
+
+#modal-del-tarea .ix-del-confirm {
+  background: #dc2626;
+  color: #fff;
+  border: 1px solid rgba(0,0,0,.08);
+}
+
+#modal-del-tarea .ix-del-confirm:hover {
+  filter: brightness(0.95);
+}
+
+#modal-del-tarea .ix-del-note {
+  margin-top: 12px;
+}
