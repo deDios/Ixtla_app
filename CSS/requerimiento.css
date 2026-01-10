@@ -2590,67 +2590,202 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 }
 
 
-/* ==========================
-   Modal confirmación: borrar tarea
-   ========================== */
+/* =====================================================
+   Modal: Eliminar tarea 
+   ===================================================== */
 #modal-del-tarea.modal-overlay {
   position: fixed;
   inset: 0;
-
-  /* oculto por defecto */
   display: none;
-  opacity: 0;
-  visibility: hidden;
-
+  /* cerrado por defecto */
   align-items: center;
   justify-content: center;
-  padding: 1.25rem;
-
-  background: rgba(17, 24, 39, .60);
-  -webkit-backdrop-filter: blur(2px);
+  padding: 18px;
+  background: rgba(0, 0, 0, .55);
   backdrop-filter: blur(2px);
-
-  z-index: 9500;
-  transition: opacity .18s ease, visibility .18s ease;
+  z-index: 10000;
 }
 
-#modal-del-tarea.modal-overlay[aria-hidden="false"],
-#modal-del-tarea.modal-overlay.open,
-#modal-del-tarea.modal-overlay.active {
+/* abierto */
+#modal-del-tarea.open,
+#modal-del-tarea.active {
   display: flex;
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
 }
 
-#modal-del-tarea .ix-confirm {
-  position: relative;
-  width: min(92vw, 520px);
-  max-height: 90vh;
-  overflow: auto;
+/* Card */
+#modal-del-tarea .modal-content.ix-del-modal {
+  width: min(760px, 100%);
   background: #fff;
-  border-radius: 12px;
-  padding: 16px 16px 20px;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, .28);
+  border-radius: 18px;
+  padding: 26px 26px 18px;
+  position: relative;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .28);
 }
 
+/* Botón cerrar */
 #modal-del-tarea .modal-close {
   position: absolute;
-  top: 8px;
-  right: 10px;
-  border: 0;
-  background: transparent;
-  font-size: 28px;
-  line-height: 1;
+  top: 14px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 99px;
+  background: #fff;
   cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  opacity: .8;
+  transition: background .15s ease, opacity .15s ease, transform .08s ease;
 }
 
-#modal-del-tarea .ix-confirm-actions {
+#modal-del-tarea .modal-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, .04);
+}
+
+#modal-del-tarea .modal-close:active {
+  transform: translateY(1px);
+}
+
+/* Título */
+#modal-del-tarea .ix-del-title {
+  margin: 0 44px 10px 0;
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 800;
+  color: #111;
+}
+
+/* Texto principal */
+#modal-del-tarea .ix-del-text {
+  margin: 0 0 14px 0;
+  font-size: 18px;
+  color: rgba(0, 0, 0, .76);
+}
+
+/* Meta (opcional) */
+#modal-del-tarea .ix-del-meta {
+  margin: 0 0 12px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .04);
+  border: 1px solid rgba(0, 0, 0, .06);
+  color: rgba(0, 0, 0, .72);
+  font-size: 14px;
+}
+
+/* Acciones */
+#modal-del-tarea .ix-del-actions {
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 14px;
-  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+/* Botón base (respeta tu .btn pero lo refuerza aquí) */
+#modal-del-tarea .ix-del-actions .btn {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 800;
+  transition: transform .08s ease, filter .15s ease, opacity .15s ease;
+  user-select: none;
+}
+
+#modal-del-tarea .ix-del-actions .btn:active {
+  transform: translateY(1px);
+}
+
+/* Cancelar (neutral) */
+#modal-del-tarea .ix-del-cancel {
+  background: rgba(0, 0, 0, .07);
+  color: rgba(0, 0, 0, .80);
+}
+
+#modal-del-tarea .ix-del-cancel:hover {
+  filter: brightness(.98);
+}
+
+/* Confirmar -> Eliminar (rojo) */
+#modal-del-tarea .ix-del-confirm {
+  background: #d92d20;
+  /* rojo */
+  color: #fff;
+}
+
+#modal-del-tarea .ix-del-confirm:hover {
+  filter: brightness(.96);
+}
+
+/* Nota */
+#modal-del-tarea .ix-del-note {
+  margin: 14px 0 0 0;
+  font-size: 14px;
+  color: rgba(0, 0, 0, .62);
+}
+
+/* Disabled */
+#modal-del-tarea .ix-del-actions .btn[disabled] {
+  opacity: .65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Focus accesible */
+#modal-del-tarea button:focus-visible {
+  outline: 3px solid rgba(217, 45, 32, .35);
+  outline-offset: 2px;
+}
+
+/* Responsive */
+@media (max-width: 520px) {
+  #modal-del-tarea .modal-content.ix-del-modal {
+    padding: 18px 16px 14px;
+    border-radius: 16px;
+  }
+
+  #modal-del-tarea .ix-del-title {
+    font-size: 28px;
+  }
+
+  #modal-del-tarea .ix-del-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #modal-del-tarea .ix-del-actions .btn {
+    width: 100%;
+  }
+}
+
+#modal-del-tarea .modal-content.ix-del-modal{
+  text-align: center;
+}
+
+/* Texto principal */
+#modal-del-tarea .ix-del-text{
+  text-align: center;
+}
+
+/* Meta opcional */
+#modal-del-tarea .ix-del-meta{
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Acciones (botones) centradas */
+#modal-del-tarea .ix-del-actions{
+  justify-content: center;
+}
+
+/* Nota inferior */
+#modal-del-tarea .ix-del-note{
+  text-align: center;
 }
 
 
