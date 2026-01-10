@@ -47,6 +47,43 @@
   let _boundModalP = false;
   let _creatingProceso = false;
 
+  let _canManagePlaneacionPromise = null;
+
+  function canManagePlaneacion() {
+    if (_canManagePlaneacionPromise) return _canManagePlaneacionPromise;
+
+    _canManagePlaneacionPromise = (async () => {
+      const yoIdRaw = getEmpleadoId();
+      const deptIdRaw = getDeptId();
+      const yoId = yoIdRaw != null ? Number(yoIdRaw) : null;
+      const deptId = deptIdRaw != null ? Number(deptIdRaw) : null;
+
+      const roles = getRoles();
+      const isAdmin = Array.isArray(roles) && roles.includes("ADMIN");
+      if (isAdmin) return true;
+
+      // Presidencia
+      if (deptId === 6) return true;
+
+      if (!yoId) return false;
+
+      // Director / Primera línea por catálogo de departamentos
+      try {
+        const deps = await fetchDepartamentos();
+        return deps.some((d) => {
+          const director = Number(d.director || 0);
+          const primera = Number(d.primera_linea || 0);
+          return director === yoId || primera === yoId;
+        });
+      } catch (e) {
+        warn("canManagePlaneacion() fallo al cargar departamentos:", e);
+        return false;
+      }
+    })();
+
+    return _canManagePlaneacionPromise;
+  }
+
   // ====== Soft-hide (status=0) + RBAC para borrar tareas ======
   let _canDeleteTasksPromise = null;
 
@@ -590,29 +627,54 @@
 
     const code = getReqStatusCode(req);
 
-    // Regla: NO permitir crear procesos/tareas en:
+    // Estatus que bloquean crear
     // - Solicitud (0)
     // - Revisión (1)
     // - Finalizado (6)
-    const disable = code === 0 || code === 1 || code === 6;
+    const disableByStatus = code === 0 || code === 1 || code === 6;
 
+    // Primero: aplica el estado visual por estatus (sin tocar display aún)
     [btnProceso, btnTarea].forEach((btn) => {
       if (!btn) return;
-      if (disable) {
-        btn.setAttribute("disabled", "true");
+
+      if (disableByStatus) {
         btn.classList.add("planeacion-btn-disabled");
         btn.title =
           code === 6
             ? "No disponible: el requerimiento está Finalizado."
             : "No disponible en estatus Solicitud / Revisión.";
       } else {
-        btn.removeAttribute("disabled");
         btn.classList.remove("planeacion-btn-disabled");
         btn.title = "";
       }
     });
 
-    log("[Toolbar] estatus req =", code, "disable planeación:", disable);
+    // Luego: RBAC visual + disabled final
+    canManagePlaneacion()
+      .then((allowed) => {
+        const finalDisabled = !allowed || disableByStatus;
+
+        [btnProceso, btnTarea].forEach((btn) => {
+          if (!btn) return;
+
+          // RBAC visual (tu requerimiento: ocultar completamente)
+          btn.style.display = allowed ? "" : "none";
+
+          // Disabled final consistente
+          if (finalDisabled) btn.setAttribute("disabled", "true");
+          else btn.removeAttribute("disabled");
+        });
+
+        log(
+          "[RBAC] canManagePlaneacion =",
+          allowed,
+          "| disableByStatus =",
+          disableByStatus
+        );
+      })
+      .catch((e) => warn("[RBAC] canManagePlaneacion error:", e));
+
+    log("[Toolbar] estatus req =", code, "disableByStatus:", disableByStatus);
   }
 
   /* ====== Pintado de UI (reutiliza tu markup) ====== */
