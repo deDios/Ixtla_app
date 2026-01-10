@@ -212,6 +212,42 @@ let FiltersModule = null;
 // cache para requerimientos (folio, tramite, etc.)
 const ReqCache = new Map(); // reqId → data o null
 
+/** =========================================================
+ *  Lock de tareas por estatus del REQUERIMIENTO
+ *  - Si el requerimiento está en pausa/cancelado → tareas "locked"
+ *  - Usamos ReqCache (cargado por enrich) para inferirlo
+ * ========================================================= */
+function getReqLockInfo(req) {
+  if (!req) return { locked: false, label: "", reason: "" };
+
+  // Según tu payload real, el estado del requerimiento viene en `estatus` (numérico)
+  const est = Number(req.estatus);
+
+  if (est === 4) {
+    return { locked: true, label: "REQ PAUSADO", reason: "El requerimiento está en pausa." };
+  }
+  if (est === 5) {
+    return { locked: true, label: "REQ CANCELADO", reason: "El requerimiento está cancelado." };
+  }
+
+  // Fallback defensivo (por si algún endpoint devuelve texto en vez de número)
+  const s = String(
+    req.estatus_nombre ?? req.status_label ?? req.estado_texto ?? ""
+  ).toLowerCase();
+
+  if (s.includes("paus")) return { locked: true, label: "REQ PAUSADO", reason: "El requerimiento está en pausa." };
+  if (s.includes("cancel")) return { locked: true, label: "REQ CANCELADO", reason: "El requerimiento está cancelado." };
+
+  return { locked: false, label: "", reason: "" };
+}
+
+function isTaskLockedByReq(task) {
+  const reqId = task?.requerimiento_id ?? task?.req_id ?? task?.requerimientoId;
+  if (!reqId) return false;
+  const req = ReqCache.get(reqId);
+  return !!getReqLockInfo(req).locked;
+}
+
 // Subordinados detectados para el viewer (empleados que le reportan)
 const SubordinateIds = new Set();
 
@@ -894,6 +930,15 @@ function createCard(task) {
 
   const art = document.createElement("article");
   art.className = "kb-card";
+
+  // Lock visual si el REQ está pausado/cancelado
+  if (isTaskLockedByReq(task)) {
+    const req = ReqCache.get(task.requerimiento_id);
+    const info = getReqLockInfo(req);
+    art.classList.add("is-locked");
+    art.dataset.lockLabel = info.label || "REQ BLOQUEADO";
+    art.title = (info.reason || "Este requerimiento está en pausa o cancelado.") + " No se pueden mover tareas.";
+  }
   art.dataset.id = String(task.id);
 
   const main = document.createElement("div");
@@ -1108,12 +1153,30 @@ function setupDragAndDrop() {
     new Sortable(list, {
       group: "kb-tasks",
       animation: 150,
+      filter: ".kb-card.is-locked",
+      preventOnFilter: true,
       ghostClass: "kb-card-ghost",
       dragClass: "kb-card-drag",
       onStart() {
         dragging = true;
       },
       async onEnd(evt) {
+        const el = evt && evt.item;
+        if (el && el.classList && el.classList.contains("is-locked")) {
+          // Doble seguro: si por alguna razón intentan mover una tarea bloqueada, revertimos el DOM.
+          try {
+            const from = evt.from;
+            if (from) {
+              const ref = typeof evt.oldIndex === "number" ? from.children[evt.oldIndex] : null;
+              from.insertBefore(el, ref || null);
+            }
+          } catch (e) {
+            warn("No se pudo revertir movimiento de tarjeta bloqueada:", e);
+          }
+          toast("Requerimiento en pausa/cancelado: tarea inhabilitada.", "warn");
+          return;
+        }
+
         setTimeout(() => {
           dragging = false;
         }, 0);
