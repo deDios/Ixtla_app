@@ -466,7 +466,7 @@
 
 
 /* Botón eliminar tarea (papelera) */
-.exp-view .tarea-del-btn{
+.exp-view .tarea-del-btn {
   width: 34px;
   height: 34px;
   display: inline-grid;
@@ -477,38 +477,44 @@
   color: #fff;
   cursor: pointer;
   transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
-  box-shadow: 0 6px 18px rgba(239,68,68,.22);
+  box-shadow: 0 6px 18px rgba(239, 68, 68, .22);
 }
-.exp-view .tarea-del-btn:hover{
+
+.exp-view .tarea-del-btn:hover {
   filter: brightness(1.02);
   transform: translateY(-1px);
 }
-.exp-view .tarea-del-btn:active{
+
+.exp-view .tarea-del-btn:active {
   transform: translateY(0);
-  box-shadow: 0 3px 10px rgba(239,68,68,.18);
+  box-shadow: 0 3px 10px rgba(239, 68, 68, .18);
 }
-.exp-view .tarea-del-btn:focus-visible{
-  outline: 3px solid rgba(239,68,68,.25);
+
+.exp-view .tarea-del-btn:focus-visible {
+  outline: 3px solid rgba(239, 68, 68, .25);
   outline-offset: 2px;
 }
 
 /* Modal confirm simple */
-#modal-del-tarea .ix-confirm-msg{
+#modal-del-tarea .ix-confirm-msg {
   margin: 10px 0 16px;
-  color:#374151;
-  line-height:1.35;
+  color: #374151;
+  line-height: 1.35;
 }
-#modal-del-tarea .ix-confirm-actions{
-  display:flex;
-  gap:10px;
-  justify-content:flex-end;
-  flex-wrap:wrap;
+
+#modal-del-tarea .ix-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
-#modal-del-tarea .btn-submit.danger{
-  background:#ef4444;
+
+#modal-del-tarea .btn-submit.danger {
+  background: #ef4444;
 }
-#modal-del-tarea .btn-submit.danger:hover{
-  filter:brightness(0.98);
+
+#modal-del-tarea .btn-submit.danger:hover {
+  filter: brightness(0.98);
 }
 
 /* Responsive planeación */
@@ -2428,6 +2434,7 @@ body.modal-open {
 .exp-table .exp-row.is-link:hover {
   background: #f9fafb;
 }
+
 .exp-table .exp-row.is-link {
   cursor: pointer;
 }
@@ -2450,16 +2457,16 @@ body.modal-open {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 10px; 
+  margin-top: 10px;
 }
 
 .exp-view .exp-tabs-bar .exp-tabs {
   flex: 1 1 auto;
-  margin-top: 0; 
+  margin-top: 0;
 }
 
 .exp-view #btn-expediente {
-  all: unset;                
+  all: unset;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -2509,119 +2516,161 @@ body.req-locked button.icon-btn[data-detalle-edit] {
    ========================================================= */
 @media (max-width: 720px) {
 
-  .exp-view .exp-tabs-bar{
+  .exp-view .exp-tabs-bar {
     display: flex;
-    flex-direction: column;   
+    flex-direction: column;
     align-items: stretch;
     gap: 10px;
   }
 
-  .exp-view .exp-tabs{
+  .exp-view .exp-tabs {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
   }
 
-  .exp-view .exp-tab{
-    flex: 1 1 auto;    
-    min-width: 110px;      
+  .exp-view .exp-tab {
+    flex: 1 1 auto;
+    min-width: 110px;
     text-align: center;
   }
 
-  .exp-view .exp-expediente-btn{
+  .exp-view .exp-expediente-btn {
     width: 100%;
     justify-content: center;
     white-space: nowrap;
   }
 
-  @media (max-width: 390px){
-    .exp-view .exp-expediente-btn span{ display: none; }
-    .exp-view .exp-expediente-btn{
+  @media (max-width: 390px) {
+    .exp-view .exp-expediente-btn span {
+      display: none;
+    }
+
+    .exp-view .exp-expediente-btn {
       justify-content: center;
       padding-left: 12px;
       padding-right: 12px;
     }
   }
 
-  .exp-view .planeacion-toolbar{
+  .exp-view .planeacion-toolbar {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
   }
 
-  .exp-view .planeacion-title{
-    flex: 1 1 100%;       
+  .exp-view .planeacion-title {
+    flex: 1 1 100%;
     margin: 0;
   }
 
-  .exp-view .planeacion-toolbar .fase-add{
-    flex: 1 1 48%;           
+  .exp-view .planeacion-toolbar .fase-add {
+    flex: 1 1 48%;
     min-width: 150px;
     justify-content: center;
     white-space: nowrap;
   }
 
-  @media (max-width: 360px){
-    .exp-view .planeacion-toolbar .fase-add{
+  @media (max-width: 360px) {
+    .exp-view .planeacion-toolbar .fase-add {
       flex: 1 1 100%;
     }
   }
 
-  .exp-view .step-menu{
+  .exp-view .step-menu {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
-  .exp-view .step-menu::-webkit-scrollbar{ display:none; }
+
+  .exp-view .step-menu::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 
-/* ===============================
-   Modal eliminar tarea 
-   =============================== */
+/* ==========================
+   Modal confirmación: borrar tarea
+   ========================== */
+#modal-del-tarea.modal-overlay {
+  position: fixed;
+  inset: 0;
 
-#modal-del-tarea .ix-del-modal {
-  max-width: 520px;
+  /* oculto por defecto */
+  display: none;
+  opacity: 0;
+  visibility: hidden;
+
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+
+  background: rgba(17, 24, 39, .60);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+
+  z-index: 9500;
+  transition: opacity .18s ease, visibility .18s ease;
 }
 
-#modal-del-tarea .ix-del-title {
-  margin: 0 0 8px;
+#modal-del-tarea.modal-overlay[aria-hidden="false"],
+#modal-del-tarea.modal-overlay.open,
+#modal-del-tarea.modal-overlay.active {
+  display: flex;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
-#modal-del-tarea .ix-del-text {
-  margin: 0 0 10px;
-  line-height: 1.45;
-  font-weight: 600;
+#modal-del-tarea .ix-confirm {
+  position: relative;
+  width: min(92vw, 520px);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 16px 20px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, .28);
 }
 
-#modal-del-tarea .ix-del-meta {
-  margin: 0 0 12px;
-  color: #6b7280;
-  font-size: 0.95rem;
+#modal-del-tarea .modal-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: 0;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
 }
 
-#modal-del-tarea .ix-del-actions {
+#modal-del-tarea .ix-confirm-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
   margin-top: 14px;
+  flex-wrap: wrap;
 }
 
-#modal-del-tarea .ix-del-cancel {
-  border: 1px solid rgba(0,0,0,.12);
+
+/* ===============================
+   RBAC VISUAL – Eliminar tareas
+   =============================== */
+
+.exp-view .col-del,
+.exp-view .btn-del-task {
+  display: none;
 }
 
-#modal-del-tarea .ix-del-confirm {
-  background: #dc2626;
-  color: #fff;
-  border: 1px solid rgba(0,0,0,.08);
+.exp-view.can-delete-tasks .col-del,
+.exp-view.can-delete-tasks .btn-del-task {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-#modal-del-tarea .ix-del-confirm:hover {
-  filter: brightness(0.95);
-}
-
-#modal-del-tarea .ix-del-note {
-  margin-top: 12px;
+.exp-view .btn-del-task.is-disabled {
+  opacity: .4;
+  pointer-events: none;
 }

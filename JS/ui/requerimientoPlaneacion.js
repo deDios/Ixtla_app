@@ -61,7 +61,15 @@
 
       // Roles (si existe ADMIN, lo respetamos)
       const roles = getRoles();
-      if (roles.has("ADMIN")) return true;
+      const isAdmin =
+        roles &&
+        (typeof roles.has === "function"
+          ? roles.has("ADMIN")
+          : Array.isArray(roles)
+          ? roles.includes("ADMIN")
+          : false);
+
+      if (isAdmin) return true;
 
       // Presidencia (dept_id=6) siempre puede
       if (deptId === 6) return true;
@@ -88,7 +96,6 @@
 
   let _delModalBound = false;
   let _delTarget = { tareaId: null, procesoId: null };
-
 
   // ====== API endpoints ======
   const API_FBK = {
@@ -473,7 +480,7 @@
     const mapped = arr.map(normalizeTarea);
     // Soft-hide: NO mostramos tareas con status 0
     return mapped.filter((x) => Number(x.status ?? 0) !== 0);
-}
+  }
 
   async function createTarea({
     proceso_id,
@@ -619,9 +626,6 @@
     body.hidden = !initOpen;
     if (!initOpen) body.style.height = "0px";
 
-    head.addEventListener("click", (e) => {
-      if (!e.target.closest(".chev")) return;
-    });
     chev.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -727,14 +731,19 @@
       </div>
       <div class="fecha">${fmtMXDate(t.fecha_inicio)}</div>
     <div class="acciones">${
-        allowDelete
-          ? `<button type="button" class="tarea-del-btn" data-tarea-id="${escapeHtml(String(t.id))}" data-proceso-id="${escapeHtml(String(t.proceso_id))}" aria-label="Eliminar tarea" title="Eliminar tarea">
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      allowDelete
+        ? `<button type="button"
+            class="tarea-del-btn"
+              data-tarea-id="${escapeHtml(String(t.id))}"
+                data-proceso-id="${escapeHtml(String(t.proceso_id))}"
+                  aria-label="Eliminar tarea"
+                    title="Eliminar tarea">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
                 <path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM6 9h2v9H6V9z"></path>
               </svg>
             </button>`
-          : ""
-      }</div>
+        : ""
+    }</div>
     `;
     table.appendChild(row);
   }
@@ -762,7 +771,6 @@
 
     host.innerHTML = "";
 
-    
     // Permiso de eliminar tareas (solo Presidencia, Director o Primera Línea)
     let allowDelete = false;
     try {
@@ -771,7 +779,7 @@
       allowDelete = false;
       warn("[RBAC] canDeleteTasks() falló, se deshabilita eliminar:", e);
     }
-try {
+    try {
       const procesos = await listProcesos(requerimiento_id, {
         page: 1,
         page_size: 100,
@@ -823,9 +831,9 @@ try {
     const modalContent = modal?.querySelector(".modal-content");
     if (!modal || !modalContent) return;
 
-    fillProcesoSelect(preferProcesoId);
     const form = document.querySelector(SEL.formT);
     form && form.reset();
+    fillProcesoSelect(preferProcesoId);
 
     openOverlay(modal);
 
@@ -997,7 +1005,6 @@ try {
     setTimeout(() => $(SEL.inpPTitulo)?.focus(), 30);
   }
 
-  
   // ====== UI: borrar tarea (soft hide status=0) ======
   function ensureDeleteModal() {
     let modal = $("#modal-del-tarea");
@@ -1045,10 +1052,27 @@ try {
 
     const modal = ensureDeleteModal();
     const btnClose = $(".modal-close", modal);
-    const btnCancel = $('[data-act="cancel"]', modal);
-    const btnConfirm = $('[data-act="confirm"]', modal);
+
+    // Soporta modal generado (data-act) y el modal real de producción (ids / clases)
+    const btnCancel =
+      $('[data-act="cancel"]', modal) ||
+      $("#btn-del-tarea-cancel", modal) ||
+      $(".ix-del-cancel", modal);
+
+    const btnConfirm =
+      $('[data-act="confirm"]', modal) ||
+      $("#btn-del-tarea-confirm", modal) ||
+      $(".ix-del-confirm", modal);
+
+    const metaEl = $("#del-tarea-meta", modal);
+    const hidId = $("#del-tarea-id", modal);
 
     const close = () => {
+      if (hidId) hidId.value = "";
+      if (metaEl) {
+        metaEl.hidden = true;
+        metaEl.textContent = "";
+      }
       _delTarget = { tareaId: null, procesoId: null };
       closeOverlay(modal);
     };
@@ -1069,7 +1093,15 @@ try {
           toast("Tarea eliminada", "success");
 
           // Re-render para recalcular meta/progreso y respetar soft-hide (status=0)
-          await renderProcesosYtareas();
+          const req = window.__REQ__;
+          if (req?.id) {
+            await renderProcesosYtareas(req.id);
+          } else {
+            await renderProcesosYtareas(
+              Number(new URLSearchParams(location.search).get("id")) ||
+                undefined
+            );
+          }
         } catch (e) {
           err("softHideTarea()", e);
           toast("No se pudo eliminar la tarea", "error");
@@ -1082,7 +1114,10 @@ try {
 
     // Delegación: botón papelera dentro de la tabla
     list.addEventListener("click", async (ev) => {
-      const btn = ev.target && ev.target.closest ? ev.target.closest(".tarea-del-btn") : null;
+      const btn =
+        ev.target && ev.target.closest
+          ? ev.target.closest(".tarea-del-btn")
+          : null;
       if (!btn) return;
 
       ev.preventDefault();
@@ -1103,7 +1138,7 @@ try {
     });
   }
 
-function bindSubmitNuevoProceso() {
+  function bindSubmitNuevoProceso() {
     const form = document.querySelector(SEL.formP);
     if (!form) return;
 
