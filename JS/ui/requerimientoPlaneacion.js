@@ -53,30 +53,64 @@
     if (_canManagePlaneacionPromise) return _canManagePlaneacionPromise;
 
     _canManagePlaneacionPromise = (async () => {
+      const s = safeGetSession?.() || null;
       const yoIdRaw = getEmpleadoId();
       const deptIdRaw = getDeptId();
       const yoId = yoIdRaw != null ? Number(yoIdRaw) : null;
       const deptId = deptIdRaw != null ? Number(deptIdRaw) : null;
 
-      const roles = getRoles();
-      const isAdmin = Array.isArray(roles) && roles.includes("ADMIN");
-      if (isAdmin) return true;
+      const rolesArr = getRoles?.() || [];
+      const roles = Array.isArray(rolesArr)
+        ? rolesArr.map((x) => String(x).toUpperCase())
+        : [];
 
-      // Presidencia
-      if (deptId === 6) return true;
+      const isAdmin = roles.includes("ADMIN");
+      const isPres = deptId === 6;
 
-      if (!yoId) return false;
+      // Log base
+      console.groupCollapsed("[Planeación][RBAC] canManagePlaneacion()");
+      console.log("session:", s);
+      console.log("yoId:", yoId, "deptId:", deptId, "roles:", roles);
 
-      // Director / Primera línea por catálogo de departamentos
+      if (isAdmin) {
+        console.log("→ allowed: true (ADMIN)");
+        console.groupEnd();
+        return true;
+      }
+      if (isPres) {
+        console.log("→ allowed: true (PRESIDENCIA dept_id=6)");
+        console.groupEnd();
+        return true;
+      }
+      if (!yoId) {
+        console.log("→ allowed: false (sin empleado_id)");
+        console.groupEnd();
+        return false;
+      }
+
       try {
         const deps = await fetchDepartamentos();
-        return deps.some((d) => {
-          const director = Number(d.director || 0);
-          const primera = Number(d.primera_linea || 0);
-          return director === yoId || primera === yoId;
+        const isDir = deps.some((d) => Number(d.director || 0) === yoId);
+        const isPL = deps.some((d) => Number(d.primera_linea || 0) === yoId);
+
+        console.log("dept-catalog check:", {
+          isDir,
+          isPL,
+          depsCount: deps.length,
         });
+
+        const allowed = Boolean(isDir || isPL);
+        console.log(
+          "→ allowed:",
+          allowed,
+          allowed ? "(DIRECTOR/PL)" : "(no es DIRECTOR/PL)"
+        );
+        console.groupEnd();
+        return allowed;
       } catch (e) {
-        warn("canManagePlaneacion() fallo al cargar departamentos:", e);
+        console.warn("[Planeación][RBAC] fallo fetchDepartamentos:", e);
+        console.log("→ allowed: false (fail-safe)");
+        console.groupEnd();
         return false;
       }
     })();
@@ -649,30 +683,27 @@
       }
     });
 
-    // Luego: RBAC visual + disabled final
+    // Luego: RBAC visual (ocultar si no puede)
     canManagePlaneacion()
       .then((allowed) => {
-        const finalDisabled = !allowed || disableByStatus;
-
         [btnProceso, btnTarea].forEach((btn) => {
           if (!btn) return;
 
-          // RBAC visual (tu requerimiento: ocultar completamente)
-          btn.style.display = allowed ? "" : "none";
+          // 1) Si no tiene permiso: ocultar total
+          if (!allowed) {
+            btn.style.display = "none";
+            btn.setAttribute("disabled", "true");
+            return;
+          }
 
-          // Disabled final consistente
-          if (finalDisabled) btn.setAttribute("disabled", "true");
-          else btn.removeAttribute("disabled");
+          // 2) Si tiene permiso: mostrar, pero NO alterar disabled aquí
+          btn.style.display = "";
+          // el disabled final se queda como lo dejo la regla por estatus
         });
 
-        log(
-          "[RBAC] canManagePlaneacion =",
-          allowed,
-          "| disableByStatus =",
-          disableByStatus
-        );
+        log("[RBAC] canManagePlaneacion(toolbar) =", allowed);
       })
-      .catch((e) => warn("[RBAC] canManagePlaneacion error:", e));
+      .catch((e) => warn("[RBAC] canManagePlaneacion(toolbar) error:", e));
 
     log("[Toolbar] estatus req =", code, "disableByStatus:", disableByStatus);
   }
@@ -833,14 +864,21 @@
 
     host.innerHTML = "";
 
-    // Permiso de eliminar tareas (solo Presidencia, Director o Primera Línea)
-    let allowDelete = false;
+    // Permiso global (ADMIN / PRES / DIRECTOR / PL)
+    let canManage = false;
     try {
-      allowDelete = await canDeleteTasks();
+      canManage = await canManagePlaneacion();
     } catch (e) {
-      allowDelete = false;
-      warn("[RBAC] canDeleteTasks() falló, se deshabilita eliminar:", e);
+      canManage = false;
+      warn("[RBAC] canManagePlaneacion() falló:", e);
     }
+
+    // Log simple para ti
+    log("[RBAC] Gestión planeación:", canManage ? "SI" : "NO");
+
+    // Clase global para esconder UI de acciones (blindaje)
+    host.classList.toggle("no-actions", !canManage);
+
     try {
       const procesos = await listProcesos(requerimiento_id, {
         page: 1,
@@ -860,9 +898,16 @@
         const sec = makeProcesoSection(p);
         if (!sec) continue;
 
+        // Log por proceso (si se oculta o no la columna)
+        log(
+          `[RBAC] Proceso ${p.id} → acciones ${
+            canManage ? "VISIBLES" : "OCULTAS"
+          }`
+        );
+
         try {
           const tareas = await listTareas(p.id, { page: 1, page_size: 100 });
-          tareas.forEach((t) => addTareaRow(sec, t, allowDelete));
+          tareas.forEach((t) => addTareaRow(sec, t, canManage)); // <- aquí decide si pinta papelera
           updateProcesoHeaderStats(sec, tareas);
         } catch (e) {
           warn("Error listando tareas del proceso", p.id, e);

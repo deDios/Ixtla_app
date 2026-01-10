@@ -2809,3 +2809,11 @@ body.req-locked button.icon-btn[data-detalle-edit] {
   opacity: .4;
   pointer-events: none;
 }
+
+#planeacion-list.no-actions .exp-thead > :nth-child(6) {
+  display: none !important; 
+}
+
+#planeacion-list.no-actions .exp-row .acciones {
+  display: none !important; 
+}
