@@ -690,14 +690,15 @@
           if (!btn) return;
 
           // 1) Si no tiene permiso: ocultar total
-          if (!allowed) {
-            btn.style.display = "none";
-            btn.setAttribute("disabled", "true");
-            return;
-          }
+          // if (!allowed) {
+          //   btn.style.display = "none";
+          //   btn.setAttribute("disabled", "true");
+          //   return;
+          // }
 
           // 2) Si tiene permiso: mostrar, pero NO alterar disabled aquí
           btn.style.display = "";
+          btn.removeAttribute("disabled");
           // el disabled final se queda como lo dejo la regla por estatus
         });
 
