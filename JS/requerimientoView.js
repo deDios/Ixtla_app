@@ -203,9 +203,23 @@
           t
         );
 
-        const tareas = Array.isArray(t?.data) ? t.data : [];
+        const tareasAll = Array.isArray(t?.data) ? t.data : [];
+
         log(
-          "areAllProcesosAndTasksDone() → tareas count para proceso",
+          "areAllProcesosAndTasksDone() → tareas count (raw) para proceso",
+          pr.id,
+          ":",
+          tareasAll.length
+        );
+
+        // Ignorar tareas eliminadas (status=0) para la validación de "finalizar"
+        const tareas = tareasAll.filter((ta) => {
+          const st = Number(ta.status ?? ta.estatus ?? 0);
+          return st !== 0;
+        });
+
+        log(
+          "areAllProcesosAndTasksDone() → tareas count (sin eliminadas) para proceso",
           pr.id,
           ":",
           tareas.length
@@ -213,28 +227,27 @@
 
         if (!tareas.length) {
           warn(
-            "areAllProcesosAndTasksDone() → proceso sin tareas, abortando con false",
+            "areAllProcesosAndTasksDone() → proceso sin tareas activas (ignorando status=0), abortando con false",
             { proceso_id: pr.id }
           );
-          return false; // proceso sin tareas => no está listo
+          return false;
         }
 
         totalTareas += tareas.length;
 
         const todasHechas = tareas.every((ta) => {
           const est = Number(ta.status ?? ta.estatus ?? 0);
-          const isDone = est === 4; // usamos directamente el status de tareas (4 = Hecho)
+          const isDone = est === 4; // 4 = Hecho
 
-          log("areAllProcesosAndTasksDone() → tarea evaluada:", {
-            tarea_id: ta.id,
-            status_raw: {
-              status: ta.status,
-              estatus: ta.estatus,
-            },
-            estatus_num: est,
-            isDone,
-            raw: ta,
-          });
+          log(
+            "areAllProcesosAndTasksDone() → tarea evaluada (sin eliminadas):",
+            {
+              tarea_id: ta.id,
+              status_raw: { status: ta.status, estatus: ta.estatus },
+              estatus_num: est,
+              isDone,
+            }
+          );
 
           return isDone;
         });
