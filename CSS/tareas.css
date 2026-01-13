@@ -2147,73 +2147,115 @@ body.me-modal-open {
 
 /*---------------- AJUSTE MOBILE ------------------*/
 
+/*-- hotfix con un contenedor que se desbordaba --*/
+@media (max-width: 900px) {
+  .kb-toolbar {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .kb-toolbar-filters {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .kb-toolbar .kb-filter-field {
+    min-width: 0;
+  }
+
+  .kb-toolbar .kb-filter-input,
+  .kb-toolbar select,
+  .kb-toolbar input {
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 600px) {
+  .kb-toolbar #kb-filter-clear {
+    width: 100%;
+  }
+}
+
+
 /* ================================
    Sidebar: Sección desplegable (Filtros)
    ================================ */
 
-.kb-section-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.5rem;
+.kb-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
 }
 
 /* reutiliza look del h4 actual */
-.kb-section-title{
-  margin:0;
-  font-size:.94rem;
-  font-weight:700;
-  color:#27433f;
+.kb-section-title {
+  margin: 0;
+  font-size: .94rem;
+  font-weight: 700;
+  color: #27433f;
 }
 
 /* Botón chevron (pegado a la derecha) */
-.kb-section-toggle{
-  border:0;
-  background:transparent;
-  width:34px;
-  height:34px;
-  border-radius:10px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  color:#415b57;
+.kb-section-toggle {
+  border: 0;
+  background: transparent;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #415b57;
   transition: background .15s ease, transform .15s ease;
 }
 
-.kb-section-toggle:hover{
-  background:#edf5f3;
+.kb-section-toggle:hover {
+  background: #edf5f3;
 }
 
-.kb-section-chevron{
-  display:inline-block;
-  font-size:1.05rem;
+.kb-section-chevron {
+  display: inline-block;
+  font-size: 1.05rem;
   transform: rotate(0deg);
   transition: transform .15s ease;
 }
 
 /* Body colapsable */
-.kb-section-body{
-  display:block;
+.kb-section-body {
+  display: block;
 }
 
 /* cuando este cerrado */
-#kb-sidebar-filters[aria-expanded="false"] .kb-section-chevron{
+#kb-sidebar-filters[aria-expanded="false"] .kb-section-chevron {
   transform: rotate(-90deg);
 }
-#kb-sidebar-filters[aria-expanded="false"] .kb-section-body{
-  display:none;
+
+#kb-sidebar-filters[aria-expanded="false"] .kb-section-body {
+  display: none;
 }
 
 /* Boton limpiar centrado */
-.kb-filter-clear--center{
+.kb-filter-clear--center {
   margin: .25rem auto 0;
-  align-self:center;
+  align-self: center;
 }
 
 /* Solo mostrar el desplegable en mobile */
-@media (min-width: 901px){
-  #kb-sidebar-filters .kb-section-toggle{ display:none; }
-  #kb-sidebar-filters .kb-section-body{ display:block !important; }
-  #kb-sidebar-filters{ aria-expanded: true; } 
+@media (min-width: 901px) {
+  #kb-sidebar-filters .kb-section-toggle {
+    display: none;
+  }
+
+  #kb-sidebar-filters .kb-section-body {
+    display: block !important;
+  }
+
+  #kb-sidebar-filters {
+    aria-expanded: true;
+  }
 }

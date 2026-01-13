@@ -726,7 +726,7 @@ ix_require_session();
 
     <script type="module" src="/JS/tareas.js"></script>
 
-    <script src="/JS/expedienteTareas.js"></script>
+    <!-- <script src="/JS/expedienteTareas.js"></script> -->
 
     <!-- media -->
     <script type="module" src="/JS/api/media.js"></script>
