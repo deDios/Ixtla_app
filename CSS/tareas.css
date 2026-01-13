@@ -2259,3 +2259,52 @@ body.me-modal-open {
     aria-expanded: true;
   }
 }
+
+/* ======================================================
+   KB Toolbar (Tareas) - Colapsable solo en mobile
+   ====================================================== */
+
+.kb-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+}
+
+.kb-section-toggle {
+  border: 0;
+  background: transparent;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.kb-section-chevron {
+  display: inline-block;
+  font-size: 1.1rem;
+  transition: transform .2s ease;
+}
+
+/* Estado colapsado */
+#kb-toolbar[aria-expanded="false"] .kb-section-chevron {
+  transform: rotate(-90deg);
+}
+
+#kb-toolbar[aria-expanded="false"] .kb-section-body {
+  display: none;
+}
+
+/* Desktop: siempre abierto */
+@media (min-width: 901px) {
+  #kb-toolbar .kb-section-toggle {
+    display: none;
+  }
+
+  #kb-toolbar .kb-section-body {
+    display: block !important;
+  }
+}

@@ -171,51 +171,69 @@ ix_require_session();
             <section class="hs-main">
 
                 <!-- Header de filtros rápidos -->
-                <section class="kb-toolbar" aria-label="Filtros de tareas">
-                    <div class="kb-toolbar-main">
+                <section class="kb-toolbar kb-section" aria-label="Filtros de tareas" id="kb-toolbar"
+                    aria-expanded="true">
+
+                    <!-- HEADER (siempre visible) -->
+                    <div class="kb-section-head">
                         <div class="kb-toolbar-title">
                             <h2>Tareas</h2>
                             <span class="kb-toolbar-sub">Filtros rápidos</span>
                         </div>
 
+                        <button type="button" class="kb-section-toggle" id="kb-toolbar-toggle"
+                            aria-controls="kb-toolbar-body" aria-expanded="true"
+                            aria-label="Desplegar/colapsar filtros de tareas">
+                            <span class="kb-section-chevron">▾</span>
+                        </button>
+                    </div>
+
+                    <!-- BODY (colapsable en mobile) -->
+                    <div class="kb-section-body" id="kb-toolbar-body">
+
+                        <!-- Chips -->
                         <div class="kb-toolbar-chips">
                             <button type="button" class="kb-chip is-active" data-filter="mine">
                                 Solo mis tareas
                             </button>
+
                             <button type="button" class="kb-chip" data-filter="recent">
                                 Recientes
                             </button>
                         </div>
-                    </div>
 
-                    <div class="kb-toolbar-filters">
-                        <div class="kb-filter-field">
-                            <label for="kb-filter-search">Buscar</label>
-                            <input type="search" id="kb-filter-search" class="kb-filter-input" placeholder="Folio"
-                                autocomplete="off" />
+                        <!-- Filtros -->
+                        <div class="kb-toolbar-filters">
+
+                            <div class="kb-filter-field">
+                                <label for="kb-filter-search">Buscar</label>
+                                <input type="search" id="kb-filter-search" class="kb-filter-input" placeholder="Folio"
+                                    autocomplete="off" />
+                            </div>
+
+                            <div class="kb-filter-field">
+                                <label for="kb-filter-proceso">Proceso</label>
+                                <select id="kb-filter-proceso" class="kb-filter-input">
+                                    <!-- opciones desde JS -->
+                                </select>
+                            </div>
+
+                            <div class="kb-filter-field">
+                                <label for="kb-filter-tramite">Trámite</label>
+                                <select id="kb-filter-tramite" class="kb-filter-input">
+                                    <!-- opciones desde JS -->
+                                </select>
+                            </div>
+
+                            <button type="button" class="kb-filter-clear" id="kb-filter-clear">
+                                Limpiar filtros
+                            </button>
+
                         </div>
-
-                        <div class="kb-filter-field">
-                            <label for="kb-filter-proceso">Proceso</label>
-                            <select id="kb-filter-proceso" class="kb-filter-input">
-                                <!-- luego estos vendrán del backend -->
-                            </select>
-                        </div>
-
-                        <div class="kb-filter-field">
-                            <label for="kb-filter-tramite">Trámite</label>
-                            <select id="kb-filter-tramite" class="kb-filter-input">
-                                <!-- luego estos vendrán del backend -->
-                            </select>
-                        </div>
-
-                        <button type="button" class="kb-filter-clear" id="kb-filter-clear">
-                            Limpiar filtros
-                        </button>
                     </div>
                 </section>
 
-                <!-- Tablero Kanban -->
+                <!-- Tablero Kanban (las columnas donde entran las tareas) -->
                 <div class="kb-board" id="kb-board">
 
                     <!-- Por Hacer = status 1 -->

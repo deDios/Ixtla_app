@@ -277,6 +277,26 @@ export function createTaskFiltersModule({
     });
   }
 
+  function setupToolbarCollapsible() {
+    const box = document.getElementById("kb-toolbar");
+    const btn = document.getElementById("kb-toolbar-toggle");
+    if (!box || !btn) return;
+
+    const isMobile = window.matchMedia("(max-width: 900px)").matches;
+
+    // En desktop siempre abierto
+    if (!isMobile) {
+      box.setAttribute("aria-expanded", "true");
+      return;
+    }
+
+    btn.addEventListener("click", () => {
+      const open = box.getAttribute("aria-expanded") === "true";
+      box.setAttribute("aria-expanded", open ? "false" : "true");
+      btn.setAttribute("aria-expanded", open ? "false" : "true");
+    });
+  }
+
   /* ========================================================================
    * Toolbar (chips + búsqueda + combos proceso / trámite)
    * ======================================================================*/
@@ -675,6 +695,7 @@ export function createTaskFiltersModule({
     // Toolbar (chips, búsqueda, combos proceso/trámite)
     setupToolbar();
     setupToolbarCombos({ procesosOptions, tramitesOptions });
+    setupToolbarCollapsible();
 
     log("[KB] Filtros sidebar inicializados (UI)", {
       deptOptions: canUseDept ? deptOptions.length : 0,
