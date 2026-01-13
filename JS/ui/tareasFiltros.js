@@ -254,6 +254,29 @@ export function createTaskFiltersModule({
     }
   }
 
+  function setupSidebarCollapsible() {
+    const box = document.getElementById("kb-sidebar-filters");
+    const btn = document.getElementById("kb-sidebar-filters-toggle");
+    const body = document.getElementById("kb-sidebar-filters-body");
+    if (!box || !btn || !body) return;
+
+    // Solo aplica en mobile
+    const isMobile = window.matchMedia("(max-width: 900px)").matches;
+
+    // Estado inicial (por defecto abierto)
+    if (isMobile) {
+      box.setAttribute("aria-expanded", "true");
+    } else {
+      box.setAttribute("aria-expanded", "true");
+      return;
+    }
+
+    btn.addEventListener("click", () => {
+      const open = box.getAttribute("aria-expanded") === "true";
+      box.setAttribute("aria-expanded", open ? "false" : "true");
+    });
+  }
+
   /* ========================================================================
    * Toolbar (chips + búsqueda + combos proceso / trámite)
    * ======================================================================*/
@@ -598,8 +621,8 @@ export function createTaskFiltersModule({
       });
     }
   }
-  
-    /* ========================================================================
+
+  /* ========================================================================
    * API pública del módulo
    * ======================================================================*/
 
@@ -624,6 +647,8 @@ export function createTaskFiltersModule({
 
     // Botón "Limpiar filtros" (sólo tiene sentido si el bloque está visible)
     setupSidebarFilters();
+    // inicializar los chevron para los filtros colapsables en mobile
+    setupSidebarCollapsible();
 
     // ¿El campo de Departamentos está visible? (tareas.js pudo poner display:none)
     const canUseDept =

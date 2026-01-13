@@ -94,70 +94,77 @@ ix_require_session();
                 </section>
 
                 <!-- Filtros en sidebar (Departamentos / Empleados) -->
-                <section id="kb-sidebar-filters" class="kb-sidebar-filters" aria-label="Filtros de tablero">
-                    <div class="kb-filters-head">
-                        <h4>Filtros</h4>
-                        <button type="button" class="kb-filter-clear" id="kb-sidebar-clear">
+                <section id="kb-sidebar-filters" class="kb-sidebar-filters kb-section" aria-label="Filtros de tablero">
+                    <div class="kb-section-head">
+                        <h4 class="kb-section-title">Filtros</h4>
+
+                        <button type="button" class="kb-section-toggle" id="kb-sidebar-filters-toggle"
+                            aria-expanded="true" aria-controls="kb-sidebar-filters-body"
+                            aria-label="Desplegar/colapsar filtros">
+                            <span class="kb-section-chevron" aria-hidden="true">▾</span>
+                        </button>
+                    </div>
+
+                    <div id="kb-sidebar-filters-body" class="kb-section-body">
+                        <!-- Filtro múltiple: Departamentos -->
+                        <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-departamentos"
+                            data-filter="departamentos">
+                            <span class="kb-filter-label">Departamentos</span>
+
+                            <button type="button" class="kb-multi-trigger" aria-haspopup="listbox"
+                                aria-expanded="false">
+                                <span class="kb-multi-placeholder">Seleccionar departamentos…</span>
+                                <span class="kb-multi-summary" hidden>—</span>
+                                <span class="kb-multi-caret">▾</span>
+                            </button>
+
+                            <div class="kb-multi-menu">
+                                <div class="kb-multi-search">
+                                    <input type="text" class="kb-multi-search-input" placeholder="Buscar departamento…">
+                                </div>
+                                <ul class="kb-multi-options" role="listbox">
+                                    <li>
+                                        <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
+                                            — Sin datos: se llenará desde JS —
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Filtro múltiple: Empleados -->
+                        <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-empleados"
+                            data-filter="empleados">
+                            <span class="kb-filter-label">Empleados</span>
+
+                            <button type="button" class="kb-multi-trigger" aria-haspopup="listbox"
+                                aria-expanded="false">
+                                <span class="kb-multi-placeholder">Seleccionar empleados…</span>
+                                <span class="kb-multi-summary" hidden>—</span>
+                                <span class="kb-multi-caret">▾</span>
+                            </button>
+
+                            <div class="kb-multi-menu">
+                                <div class="kb-multi-search">
+                                    <input type="text" class="kb-multi-search-input" placeholder="Buscar empleado…">
+                                </div>
+                                <ul class="kb-multi-options" role="listbox">
+                                    <li>
+                                        <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
+                                            — Sin datos: se llenará desde JS —
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Botón limpiar al final (como en tu screenshot) -->
+                        <button type="button" class="kb-filter-clear kb-filter-clear--center" id="kb-sidebar-clear">
                             Limpiar filtros
                         </button>
                     </div>
-
-                    <!-- Filtro múltiple: Departamentos -->
-                    <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-departamentos"
-                        data-filter="departamentos">
-                        <span class="kb-filter-label">Departamentos</span>
-
-                        <!-- Trigger del combo múltiple -->
-                        <button type="button" class="kb-multi-trigger" aria-haspopup="listbox" aria-expanded="false">
-                            <span class="kb-multi-placeholder">Seleccionar departamentos…</span>
-                            <span class="kb-multi-summary" hidden>—</span>
-                            <span class="kb-multi-caret">▾</span>
-                        </button>
-
-                        <!-- Menú desplegable -->
-                        <div class="kb-multi-menu">
-                            <div class="kb-multi-search">
-                                <input type="text" class="kb-multi-search-input" placeholder="Buscar departamento…">
-                            </div>
-                            <ul class="kb-multi-options" role="listbox">
-                                <!-- Opciones se llenan desde JS -->
-                                <li>
-                                    <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
-                                        — Sin datos: se llenará desde JS —
-                                    </span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Filtro múltiple: Empleados -->
-                    <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-empleados"
-                        data-filter="empleados">
-                        <span class="kb-filter-label">Empleados</span>
-
-                        <!-- Trigger del combo múltiple -->
-                        <button type="button" class="kb-multi-trigger" aria-haspopup="listbox" aria-expanded="false">
-                            <span class="kb-multi-placeholder">Seleccionar empleados…</span>
-                            <span class="kb-multi-summary" hidden>—</span>
-                            <span class="kb-multi-caret">▾</span>
-                        </button>
-
-                        <!-- Menú desplegable -->
-                        <div class="kb-multi-menu">
-                            <div class="kb-multi-search">
-                                <input type="text" class="kb-multi-search-input" placeholder="Buscar empleado…">
-                            </div>
-                            <ul class="kb-multi-options" role="listbox">
-                                <!-- Opciones se llenan desde JS -->
-                                <li>
-                                    <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
-                                        — Sin datos: se llenará desde JS —
-                                    </span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
                 </section>
+
             </aside>
 
             <!-- MAIN -->
