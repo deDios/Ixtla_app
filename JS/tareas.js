@@ -397,7 +397,7 @@ function mapRawTask(raw) {
 async function fetchTareasFromApi() {
   const payload = {
     page: 1,
-    page_size: 200,
+    page_size: 300,
   };
 
   try {

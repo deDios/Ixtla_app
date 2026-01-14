@@ -2361,7 +2361,6 @@ body.me-modal-open {
     overflow-y: auto;
     overscroll-behavior: contain;
 
-    /* IMPORTANTE: respeta el límite que ya definiste */
     max-height: var(--kb-col-max-h, 68vh);
   }
 }
@@ -2382,45 +2381,47 @@ body.me-modal-open {
    ========================================================= */
 @media (max-width: 900px) {
 
-  /* El board mantiene scroll horizontal nativo */
   .kb-board {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    touch-action: auto; /* ← NO forzar pan-x */
+    touch-action: auto;
   }
 
-  /* La lista NO debe bloquear el gesto horizontal */
   .kb-list {
-    touch-action: auto;              /* ← clave: libera pan-x */
-    overscroll-behavior: auto;       /* ← permite scroll chaining */
-    min-height: auto;                /* ← evita dominancia vertical */
+    touch-action: auto;
+    overscroll-behavior: auto;
+    min-height: auto;
   }
 
-  /* Las cards tampoco deben bloquear el gesto */
   .kb-card {
-    touch-action: manipulation;      /* tap / press & hold OK */
+    touch-action: manipulation;
   }
 
 }
 
 /* =========================================================
    FIX: Permitir swipe X incluso tocando dentro de .kb-list
-   (override fuerte por orden/especificidad)
    ========================================================= */
 @media (max-width: 900px) {
+
   /* Permite que el gesto horizontal "chain" al board */
   .kb-board .kb-list {
-    touch-action: pan-x pan-y !important;   /* <- clave */
-    overscroll-behavior-x: auto !important;/* <- permite encadenar X */
-    overscroll-behavior-y: contain !important; /* <- mantiene control Y */
+    touch-action: pan-x pan-y !important;
+    overscroll-behavior-x: auto !important;
+    overscroll-behavior-y: contain !important;
   }
 
   /* Si algún estilo global vuelve a forzar pan-x/pan-y */
-  .kb-board { touch-action: pan-x pan-y !important; }
+  .kb-board {
+    touch-action: pan-x pan-y !important;
+  }
 }
 
-.kb-board { touch-action: pan-x; }
-.kb-card  { touch-action: manipulation; }
+.kb-board {
+  touch-action: pan-x;
+}
 
-
+.kb-card {
+  touch-action: manipulation;
+}
