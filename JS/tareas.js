@@ -151,6 +151,14 @@ function calcAgeChip(task) {
 
   const realDays = d < 0 ? 0 : d;
 
+  // variables para el control del scroll en las tablas
+  let dragging = false;
+  let FiltersModule = null;
+
+  // === Gesture router (mobile) ===
+  let SortableInstances = [];
+  let gestureCancelClickUntil = 0;
+
   let paletteIndex;
   if (realDays >= 10) paletteIndex = 10;
   else if (realDays === 0) paletteIndex = 1;
@@ -224,10 +232,18 @@ function getReqLockInfo(req) {
   const est = Number(req.estatus);
 
   if (est === 4) {
-    return { locked: true, label: "REQ PAUSADO", reason: "El requerimiento está en pausa." };
+    return {
+      locked: true,
+      label: "REQ PAUSADO",
+      reason: "El requerimiento está en pausa.",
+    };
   }
   if (est === 5) {
-    return { locked: true, label: "REQ CANCELADO", reason: "El requerimiento está cancelado." };
+    return {
+      locked: true,
+      label: "REQ CANCELADO",
+      reason: "El requerimiento está cancelado.",
+    };
   }
 
   // Fallback defensivo (por si algún endpoint devuelve texto en vez de número)
@@ -235,8 +251,18 @@ function getReqLockInfo(req) {
     req.estatus_nombre ?? req.status_label ?? req.estado_texto ?? ""
   ).toLowerCase();
 
-  if (s.includes("paus")) return { locked: true, label: "REQ PAUSADO", reason: "El requerimiento está en pausa." };
-  if (s.includes("cancel")) return { locked: true, label: "REQ CANCELADO", reason: "El requerimiento está cancelado." };
+  if (s.includes("paus"))
+    return {
+      locked: true,
+      label: "REQ PAUSADO",
+      reason: "El requerimiento está en pausa.",
+    };
+  if (s.includes("cancel"))
+    return {
+      locked: true,
+      label: "REQ CANCELADO",
+      reason: "El requerimiento está cancelado.",
+    };
 
   return { locked: false, label: "", reason: "" };
 }
@@ -294,8 +320,8 @@ function mapRawTask(raw) {
     raw.status != null
       ? Number(raw.status)
       : raw.estatus != null
-        ? Number(raw.estatus)
-        : KB.STATUS.TODO;
+      ? Number(raw.estatus)
+      : KB.STATUS.TODO;
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
@@ -304,8 +330,8 @@ function mapRawTask(raw) {
     raw.asignado_a != null
       ? Number(raw.asignado_a)
       : raw.empleado_id != null
-        ? Number(raw.empleado_id)
-        : null;
+      ? Number(raw.empleado_id)
+      : null;
 
   const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
   const asignado_apellidos =
@@ -320,8 +346,8 @@ function mapRawTask(raw) {
     raw.requerimiento_id != null
       ? Number(raw.requerimiento_id)
       : raw.req_id != null
-        ? Number(raw.req_id)
-        : null;
+      ? Number(raw.req_id)
+      : null;
 
   const tramite_id = raw.tramite_id != null ? Number(raw.tramite_id) : null;
 
@@ -348,8 +374,8 @@ function mapRawTask(raw) {
       raw.esfuerzo != null
         ? Number(raw.esfuerzo)
         : raw.horas != null
-          ? Number(raw.horas)
-          : null,
+        ? Number(raw.horas)
+        : null,
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
     status,
@@ -578,8 +604,8 @@ async function enrichTasksWithRequerimientos(tasks) {
         t.tramite_id != null
           ? Number(t.tramite_id)
           : req.tramite_id != null
-            ? Number(req.tramite_id)
-            : null,
+          ? Number(req.tramite_id)
+          : null,
       tramite_nombre:
         t.tramite_nombre || req.tramite_nombre || t.tramite_nombre || "",
     };
@@ -603,26 +629,41 @@ function isPrivilegedForTask(task) {
   const roles = Array.isArray(Viewer.roles) ? Viewer.roles : [];
 
   // Admin o Presidencia → super permisos
-  if (roles.includes("ADMIN") || roles.includes("PRES") || Viewer.isAdmin || Viewer.isPres) {
-    if (KB.DEBUG) console.log("[KB][Priv] ADMIN/PRES → true", { me: KB.CURRENT_USER_ID, taskId: task?.id });
+  if (
+    roles.includes("ADMIN") ||
+    roles.includes("PRES") ||
+    Viewer.isAdmin ||
+    Viewer.isPres
+  ) {
+    if (KB.DEBUG)
+      console.log("[KB][Priv] ADMIN/PRES → true", {
+        me: KB.CURRENT_USER_ID,
+        taskId: task?.id,
+      });
     return true;
   }
 
   const deptId = task?.departamento_id ?? null;
   if (!deptId) {
-    if (KB.DEBUG) console.log("[KB][Priv] sin deptId → false", { taskId: task?.id, task });
+    if (KB.DEBUG)
+      console.log("[KB][Priv] sin deptId → false", { taskId: task?.id, task });
     return false;
   }
 
   const dep = State.departamentosIndex.get(deptId);
   if (!dep) {
-    if (KB.DEBUG) console.log("[KB][Priv] dept no encontrado → false", { deptId, taskId: task?.id });
+    if (KB.DEBUG)
+      console.log("[KB][Priv] dept no encontrado → false", {
+        deptId,
+        taskId: task?.id,
+      });
     return false;
   }
 
   const me = KB.CURRENT_USER_ID != null ? Number(KB.CURRENT_USER_ID) : null;
   const isDirector = dep.director != null && Number(dep.director) === me;
-  const isPrimeraLinea = dep.primera_linea != null && Number(dep.primera_linea) === me;
+  const isPrimeraLinea =
+    dep.primera_linea != null && Number(dep.primera_linea) === me;
 
   if (KB.DEBUG) {
     console.log("[KB][Priv] dept check", {
@@ -633,7 +674,7 @@ function isPrivilegedForTask(task) {
       dep_primera_linea: dep.primera_linea,
       isDirector,
       isPrimeraLinea,
-      result: (isDirector || isPrimeraLinea),
+      result: isDirector || isPrimeraLinea,
     });
   }
 
@@ -937,7 +978,9 @@ function createCard(task) {
     const info = getReqLockInfo(req);
     art.classList.add("is-locked");
     art.dataset.lockLabel = info.label || "REQ BLOQUEADO";
-    art.title = (info.reason || "Este requerimiento está en pausa o cancelado.") + " No se pueden mover tareas.";
+    art.title =
+      (info.reason || "Este requerimiento está en pausa o cancelado.") +
+      " No se pueden mover tareas.";
   }
   art.dataset.id = String(task.id);
 
@@ -966,8 +1009,9 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio || "—"
-    }</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${
+    task.folio || "—"
+  }</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -1008,8 +1052,9 @@ function createCard(task) {
         break;
     }
 
-    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"
-      } ${statusLabel}`;
+    chip.title = `${age.realDays} día${
+      age.realDays === 1 ? "" : "s"
+    } ${statusLabel}`;
     art.appendChild(chip);
   }
 
@@ -1149,10 +1194,26 @@ function setupDragAndDrop() {
     return;
   }
 
+  // Evita acumular instancias si renderBoard() / setupDragAndDrop() corre más de una vez
+  try {
+    if (Array.isArray(SortableInstances)) {
+      SortableInstances.forEach(
+        (inst) => inst && inst.destroy && inst.destroy()
+      );
+    }
+  } catch (_) {}
+  SortableInstances = [];
+
   lists.forEach((list) => {
-    new Sortable(list, {
+    const inst = new Sortable(list, {
       group: "kb-tasks",
       animation: 150,
+
+      // Mobile UX: reduce falsos "drags" para que el swipe horizontal sea más natural
+      delay: 180,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 8,
+
       filter: ".kb-card.is-locked",
       preventOnFilter: true,
       ghostClass: "kb-card-ghost",
@@ -1166,77 +1227,64 @@ function setupDragAndDrop() {
           // Doble seguro: si por alguna razón intentan mover una tarea bloqueada, revertimos el DOM.
           try {
             const from = evt.from;
-            if (from) {
-              const ref = typeof evt.oldIndex === "number" ? from.children[evt.oldIndex] : null;
-              from.insertBefore(el, ref || null);
+            const to = evt.to;
+            if (from && to && from !== to) {
+              from.insertBefore(el, from.children[evt.oldIndex] || null);
             }
-          } catch (e) {
-            warn("No se pudo revertir movimiento de tarjeta bloqueada:", e);
-          }
-          toast("Requerimiento en pausa/cancelado: tarea inhabilitada.", "warn");
-          return;
-        }
-
-        setTimeout(() => {
+          } catch (_) {}
           dragging = false;
-        }, 0);
-
-        const itemEl = evt.item;
-        const id = itemEl.dataset.id;
-        const task = getTaskById(id);
-        if (!task) return;
-
-        const fromCol = evt.from.closest(".kb-col");
-        const toCol = evt.to.closest(".kb-col");
-        if (!toCol || !fromCol) return;
-
-        const oldStatus = task.status;
-        const newStatus = Number(toCol.dataset.status);
-
-        if (!newStatus || newStatus === oldStatus) {
           return;
         }
 
-        // ================================
-        // Validar permisos antes de mover
-        // ================================
-        if (!canMoveTask(task, oldStatus, newStatus)) {
-          // Revertir visualmente la tarjeta a su columna original
-          const fromList = evt.from;
-          if (fromList && itemEl) {
-            // Intentamos regresarla a su índice original
-            if (
-              typeof evt.oldIndex === "number" &&
-              evt.oldIndex >= 0 &&
-              evt.oldIndex < fromList.children.length
-            ) {
-              fromList.insertBefore(itemEl, fromList.children[evt.oldIndex]);
-            } else {
-              fromList.appendChild(itemEl);
-            }
-          }
+        const fromCol =
+          evt.from && evt.from.closest && evt.from.closest(".kb-col");
+        const toCol = evt.to && evt.to.closest && evt.to.closest(".kb-col");
+        const oldStatus = fromCol
+          ? Number(fromCol.getAttribute("data-status"))
+          : null;
+        const newStatus = toCol
+          ? Number(toCol.getAttribute("data-status"))
+          : null;
 
-          const msg = getForbiddenMoveMessage(task, oldStatus, newStatus);
-          toast(msg, "warning");
-          log("Movimiento NO permitido", {
-            taskId: task.id,
+        dragging = false;
+
+        const taskId = el && el.getAttribute && el.getAttribute("data-id");
+        const task = taskId ? State.byId.get(String(taskId)) : null;
+
+        if (
+          !task ||
+          !Number.isFinite(newStatus) ||
+          !Number.isFinite(oldStatus)
+        ) {
+          warn("onEnd sin task/status válidos", {
+            taskId,
             oldStatus,
             newStatus,
-            viewer: KB.CURRENT_USER_ID,
           });
+          renderBoard();
+          if (State.selectedId === (task && task.id)) {
+            highlightSelected();
+          }
           return;
         }
 
-        // ================================
-        // Movimiento permitido
-        // ================================
+        // Si no cambió status, no hacemos nada
+        if (newStatus === oldStatus) {
+          return;
+        }
+
+        // UI: actualiza local para re-render inmediato
         task.status = newStatus;
+        task.status_since =
+          task.status_since || task.updated_at || task.created_at;
+
         log(
-          "DragEnd → tarea",
+          "DND:",
           task.id,
-          "de",
+          task.tarea || task.titulo || "(sin título)",
+          "old:",
           oldStatus,
-          "a",
+          "new:",
           newStatus,
           "status_since:",
           task.status_since || task.updated_at || task.created_at
@@ -1250,6 +1298,134 @@ function setupDragAndDrop() {
         await persistTaskStatus(task, newStatus, oldStatus);
       },
     });
+
+    SortableInstances.push(inst);
+  });
+}
+
+function setupMobileGestureRouter() {
+  const board =
+    document.querySelector(".kb-board") || document.getElementById("kb-board");
+
+  if (!board) return;
+
+  // Solo en dispositivos táctiles / mobile
+  const isTouch =
+    "ontouchstart" in window || (navigator && navigator.maxTouchPoints > 0);
+
+  if (!isTouch) return;
+
+  // Evita que un swipe horizontal termine abriendo el drawer (click fantasma)
+  board.addEventListener(
+    "click",
+    (e) => {
+      if (Date.now() < gestureCancelClickUntil) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    },
+    true // capture
+  );
+
+  const lists = Array.from(board.querySelectorAll(".kb-list"));
+  if (!lists.length) return;
+
+  const state = {
+    active: false,
+    locked: false,
+    horiz: false,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+    startScrollLeft: 0,
+  };
+
+  const TH = 10; // umbral para decidir intención
+  const RATIO = 1.2; // horizontal debe dominar al vertical
+
+  function setSortablesDisabled(disabled) {
+    try {
+      SortableInstances.forEach((inst) => {
+        if (inst && typeof inst.option === "function") {
+          inst.option("disabled", !!disabled);
+        }
+      });
+    } catch (_) {}
+  }
+
+  function onStart(e) {
+    if (dragging) return;
+
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+
+    state.active = true;
+    state.locked = false;
+    state.horiz = false;
+
+    state.startX = t.clientX;
+    state.startY = t.clientY;
+    state.lastX = t.clientX;
+    state.lastY = t.clientY;
+
+    state.startScrollLeft = board.scrollLeft;
+  }
+
+  function onMove(e) {
+    if (!state.active || dragging) return;
+
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+
+    const dx = t.clientX - state.startX;
+    const dy = t.clientY - state.startY;
+
+    // Decide intención una sola vez al inicio del gesto
+    if (!state.locked) {
+      if (Math.abs(dx) < TH && Math.abs(dy) < TH) return;
+
+      state.locked = true;
+      state.horiz = Math.abs(dx) > Math.abs(dy) * RATIO;
+
+      if (state.horiz) {
+        // Al detectar horizontal: deshabilita drag temporalmente
+        setSortablesDisabled(true);
+        // y evita el scroll vertical interno
+        gestureCancelClickUntil = Date.now() + 350;
+      }
+    }
+
+    // Si intención horizontal: scrollea el carrusel aunque estés sobre cards
+    if (state.horiz) {
+      e.preventDefault(); // CRÍTICO (necesita passive:false)
+      const deltaX = t.clientX - state.lastX;
+      board.scrollLeft -= deltaX;
+    }
+
+    state.lastX = t.clientX;
+    state.lastY = t.clientY;
+  }
+
+  function onEnd() {
+    if (!state.active) return;
+
+    // Rehabilita drag
+    if (state.horiz) {
+      setSortablesDisabled(false);
+    }
+
+    state.active = false;
+    state.locked = false;
+    state.horiz = false;
+  }
+
+  // IMPORTANTE: passive:false para poder preventDefault en touchmove
+  lists.forEach((list) => {
+    list.addEventListener("touchstart", onStart, { passive: true });
+    list.addEventListener("touchmove", onMove, { passive: false });
+    list.addEventListener("touchend", onEnd, { passive: true });
+    list.addEventListener("touchcancel", onEnd, { passive: true });
   });
 }
 
@@ -1750,9 +1926,9 @@ function hydrateViewerFromSession() {
   const roles = Array.isArray(rolesRaw)
     ? rolesRaw
     : String(rolesRaw || "")
-      .split(/[,\s]+/g)
-      .map((r) => r.trim())
-      .filter(Boolean);
+        .split(/[,\s]+/g)
+        .map((r) => r.trim())
+        .filter(Boolean);
 
   Viewer.deptId = deptId != null ? Number(deptId) : null;
   Viewer.roles = roles;
@@ -2115,23 +2291,23 @@ async function init() {
 
   const deptOptions = canSeeDeptFilter
     ? Array.from(allowedDeptIds).map((id) => {
-      const dep = State.departamentosIndex.get(id);
-      const label = dep ? dep.nombre : `Depto ${id}`;
-      return { value: id, label };
-    })
+        const dep = State.departamentosIndex.get(id);
+        const label = dep ? dep.nombre : `Depto ${id}`;
+        return { value: id, label };
+      })
     : [];
 
   const empOptions = canSeeEmpFilter
     ? empleadosForFilter.map((emp) => {
-      const label =
-        emp.nombre_completo ||
-        [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
-        `Empleado ${emp.id}`;
-      return {
-        value: emp.id,
-        label,
-      };
-    })
+        const label =
+          emp.nombre_completo ||
+          [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
+          `Empleado ${emp.id}`;
+        return {
+          value: emp.id,
+          label,
+        };
+      })
     : [];
 
   const procesosOptions = procesos.map((p) => ({
@@ -2176,6 +2352,7 @@ async function init() {
 
   renderBoard();
   setupDragAndDrop();
+  setupMobileGestureRouter();
 
   const btnClose = $("#kb-d-close");
   const overlay = $("#kb-d-overlay");
