@@ -1191,23 +1191,19 @@ function setupDragAndDrop() {
     return;
   }
 
-  // Evita acumular instancias si renderBoard() / setupDragAndDrop() corre más de una vez
+  // Evitar duplicar instancias
   try {
-    if (Array.isArray(SortableInstances)) {
-      SortableInstances.forEach(
-        (inst) => inst && inst.destroy && inst.destroy()
-      );
-    }
+    (SortableInstances || []).forEach((inst) => inst?.destroy?.());
   } catch (_) {}
   SortableInstances = [];
 
-  lists.forEach((listEl) => {
-    const inst = new Sortable(listEl, {
-      group: "kb",
-      animation: 160,
-      draggable: ".kb-card",
-      handle: ".kb-card-grip", // <- tu “zona” para arrastrar (si no existe, Sortable usa toda la card)
-      delay: 120,
+  lists.forEach((list) => {
+    const inst = new Sortable(list, {
+      group: "kb-tasks",
+      animation: 150,
+
+      // Mobile UX: reduce falsos drags (ayuda mucho con el swipe)
+      delay: 180,
       delayOnTouchOnly: true,
       touchStartThreshold: 8,
 
@@ -1221,39 +1217,99 @@ function setupDragAndDrop() {
       },
 
       async onEnd(evt) {
-        dragging = false;
-
         const el = evt && evt.item;
-        const to = evt && evt.to;
-        if (!el || !to) return;
-
-        if (el.classList && el.classList.contains("is-locked")) {
-          // Doble seguro
+        if (el && el.classList && el.classList.contains("is-locked")) {
+          // Doble seguro: si por alguna razón intentan mover una tarea bloqueada, revertimos el DOM.
           try {
             const from = evt.from;
-            if (from) from.appendChild(el);
-          } catch (_) {}
+            if (from) {
+              const ref =
+                typeof evt.oldIndex === "number"
+                  ? from.children[evt.oldIndex]
+                  : null;
+              from.insertBefore(el, ref || null);
+            }
+          } catch (e) {
+            warn("No se pudo revertir movimiento de tarjeta bloqueada:", e);
+          }
+          toast(
+            "Requerimiento en pausa/cancelado: tarea inhabilitada.",
+            "warn"
+          );
           return;
         }
 
-        // status destino
-        const col = to.closest(".kb-col");
-        const newStatus = col ? Number(col.getAttribute("data-status")) : null;
-        if (!newStatus) return;
+        setTimeout(() => {
+          dragging = false;
+        }, 0);
 
-        const taskId = el.getAttribute("data-id");
-        if (!taskId) return;
+        const itemEl = evt.item;
+        const id = itemEl.dataset.id;
+        const task = getTaskById(id);
+        if (!task) return;
 
-        try {
-          await updateTaskStatus(taskId, newStatus);
-        } catch (e) {
-          err("No se pudo actualizar status", e);
-          // Revert DOM si falla
-          try {
-            const from = evt.from;
-            if (from) from.appendChild(el);
-          } catch (_) {}
+        const fromCol = evt.from.closest(".kb-col");
+        const toCol = evt.to.closest(".kb-col");
+        if (!toCol || !fromCol) return;
+
+        const oldStatus = task.status;
+        const newStatus = Number(toCol.dataset.status);
+
+        if (!newStatus || newStatus === oldStatus) {
+          return;
         }
+
+        // ================================
+        // Validar permisos antes de mover
+        // ================================
+        if (!canMoveTask(task, oldStatus, newStatus)) {
+          // Revertir visualmente la tarjeta a su columna original
+          const fromList = evt.from;
+          if (fromList && itemEl) {
+            // Intentamos regresarla a su índice original
+            if (
+              typeof evt.oldIndex === "number" &&
+              evt.oldIndex >= 0 &&
+              evt.oldIndex < fromList.children.length
+            ) {
+              fromList.insertBefore(itemEl, fromList.children[evt.oldIndex]);
+            } else {
+              fromList.appendChild(itemEl);
+            }
+          }
+
+          const msg = getForbiddenMoveMessage(task, oldStatus, newStatus);
+          toast(msg, "warning");
+          log("Movimiento NO permitido", {
+            taskId: task.id,
+            oldStatus,
+            newStatus,
+            viewer: KB.CURRENT_USER_ID,
+          });
+          return;
+        }
+
+        // ================================
+        // Movimiento permitido
+        // ================================
+        task.status = newStatus;
+        log(
+          "DragEnd → tarea",
+          task.id,
+          "de",
+          oldStatus,
+          "a",
+          newStatus,
+          "status_since:",
+          task.status_since || task.updated_at || task.created_at
+        );
+
+        renderBoard();
+        if (State.selectedId === task.id) {
+          highlightSelected();
+        }
+
+        await persistTaskStatus(task, newStatus, oldStatus);
       },
     });
 
@@ -1266,16 +1322,11 @@ function setupMobileGestureRouter() {
     document.querySelector(".kb-board") || document.getElementById("kb-board");
   if (!board) return;
 
-  // Solo touch devices
   const isTouch =
     "ontouchstart" in window || (navigator && navigator.maxTouchPoints > 0);
   if (!isTouch) return;
 
-  const lists = Array.from(board.querySelectorAll(".kb-list"));
-  if (!lists.length) return;
-
-  // Bloquea "click fantasma" después de un swipe horizontal,
-  // para que no se abra el drawer accidentalmente.
+  // Evita “tap fantasma” después de un swipe horizontal
   board.addEventListener(
     "click",
     (e) => {
@@ -1287,95 +1338,169 @@ function setupMobileGestureRouter() {
     true
   );
 
-  const state = {
-    active: false,
-    locked: false,
-    horiz: false,
-    startX: 0,
-    startY: 0,
-    lastX: 0,
-    lastY: 0,
+  // Helpers
+  const setSortablesDisabled = (disabled) => {
+    try {
+      (SortableInstances || []).forEach((inst) => inst?.option?.("disabled", !!disabled));
+    } catch (_) {}
   };
 
-  const TH = 8; // px para decidir intención
-  const RATIO = 1.2; // horizontal debe dominar vertical
+  const lists = Array.from(board.querySelectorAll(".kb-list"));
+  if (!lists.length) return;
 
-  function setSortablesDisabled(disabled) {
-    try {
-      (SortableInstances || []).forEach((inst) => {
-        if (inst && typeof inst.option === "function") {
-          inst.option("disabled", !!disabled);
-        }
-      });
-    } catch (_) {}
-  }
+  let active = false;
+  let locked = false;
+  let horiz = false;
+  let startX = 0;
+  let startY = 0;
+  let lastX = 0;
 
-  function onStart(e) {
+  // Guardar/restaurar overflowY de listas cuando haya swipe horizontal
+  let prevOverflow = null;
+  const freezeListsY = (freeze) => {
+    if (freeze) {
+      if (prevOverflow) return;
+      prevOverflow = lists.map((el) => el.style.overflowY);
+      lists.forEach((el) => (el.style.overflowY = "hidden"));
+    } else {
+      if (!prevOverflow) return;
+      lists.forEach((el, i) => (el.style.overflowY = prevOverflow[i] || ""));
+      prevOverflow = null;
+    }
+  };
+
+  const TH = 10;
+  const RATIO = 1.2;
+
+  const supportsPointer = "PointerEvent" in window;
+
+  const onPointerDown = (e) => {
     if (dragging) return;
-    const t = e.touches && e.touches[0];
-    if (!t) return;
+    const target = e.target;
+    if (!target || !target.closest || !target.closest(".kb-list")) return;
 
-    state.active = true;
-    state.locked = false;
-    state.horiz = false;
+    active = true;
+    locked = false;
+    horiz = false;
 
-    state.startX = t.clientX;
-    state.startY = t.clientY;
-    state.lastX = t.clientX;
-    state.lastY = t.clientY;
-  }
+    startX = e.clientX;
+    startY = e.clientY;
+    lastX = e.clientX;
 
-  function onMove(e) {
-    if (!state.active || dragging) return;
+    // Captura el pointer para que el MOVE llegue al board aunque estés encima de cards
+    try {
+      board.setPointerCapture(e.pointerId);
+    } catch (_) {}
+  };
 
-    const t = e.touches && e.touches[0];
-    if (!t) return;
+  const onPointerMove = (e) => {
+    if (!active || dragging) return;
 
-    const dx = t.clientX - state.startX;
-    const dy = t.clientY - state.startY;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
 
-    // Decide intención una sola vez
-    if (!state.locked) {
+    if (!locked) {
       if (Math.abs(dx) < TH && Math.abs(dy) < TH) return;
+      locked = true;
+      horiz = Math.abs(dx) > Math.abs(dy) * RATIO;
 
-      state.locked = true;
-      state.horiz = Math.abs(dx) > Math.abs(dy) * RATIO;
-
-      if (state.horiz) {
-        // Durante swipe horizontal deshabilitamos Sortable
+      if (horiz) {
         setSortablesDisabled(true);
+        freezeListsY(true);
         gestureCancelClickUntil = Date.now() + 350;
       }
     }
 
-    if (state.horiz) {
-      // CRÍTICO: permite que el swipe horizontal gane aunque estés sobre cards
+    if (horiz) {
       e.preventDefault();
-      const deltaX = t.clientX - state.lastX;
+      const deltaX = e.clientX - lastX;
       board.scrollLeft -= deltaX;
+      lastX = e.clientX;
     }
+  };
 
-    state.lastX = t.clientX;
-    state.lastY = t.clientY;
+  const onPointerUp = () => {
+    if (!active) return;
+    if (horiz) {
+      setSortablesDisabled(false);
+      freezeListsY(false);
+    }
+    active = false;
+    locked = false;
+    horiz = false;
+  };
+
+  if (supportsPointer) {
+    // Muy importante: touch-action para que el preventDefault sea efectivo en pointer
+    board.style.touchAction = "pan-x";
+    lists.forEach((l) => (l.style.touchAction = "pan-y"));
+
+    board.addEventListener("pointerdown", onPointerDown, true);
+    board.addEventListener("pointermove", onPointerMove, { capture: true });
+    board.addEventListener("pointerup", onPointerUp, true);
+    board.addEventListener("pointercancel", onPointerUp, true);
+  } else {
+    // Fallback touch (Android viejos / iOS viejo)
+    const onTouchStart = (e) => {
+      if (dragging) return;
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+      const target = e.target;
+      if (!target || !target.closest || !target.closest(".kb-list")) return;
+
+      active = true;
+      locked = false;
+      horiz = false;
+      startX = t.clientX;
+      startY = t.clientY;
+      lastX = t.clientX;
+    };
+
+    const onTouchMove = (e) => {
+      if (!active || dragging) return;
+      const t = e.touches && e.touches[0];
+      if (!t) return;
+
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+
+      if (!locked) {
+        if (Math.abs(dx) < TH && Math.abs(dy) < TH) return;
+        locked = true;
+        horiz = Math.abs(dx) > Math.abs(dy) * RATIO;
+
+        if (horiz) {
+          setSortablesDisabled(true);
+          freezeListsY(true);
+          gestureCancelClickUntil = Date.now() + 350;
+        }
+      }
+
+      if (horiz) {
+        e.preventDefault();
+        const deltaX = t.clientX - lastX;
+        board.scrollLeft -= deltaX;
+        lastX = t.clientX;
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (!active) return;
+      if (horiz) {
+        setSortablesDisabled(false);
+        freezeListsY(false);
+      }
+      active = false;
+      locked = false;
+      horiz = false;
+    };
+
+    // Captura a nivel board (más confiable que por-list)
+    board.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
+    board.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
+    board.addEventListener("touchend", onTouchEnd, { passive: true, capture: true });
+    board.addEventListener("touchcancel", onTouchEnd, { passive: true, capture: true });
   }
-
-  function onEnd() {
-    if (!state.active) return;
-
-    if (state.horiz) setSortablesDisabled(false);
-
-    state.active = false;
-    state.locked = false;
-    state.horiz = false;
-  }
-
-  // IMPORTANTE: passive:false para poder preventDefault en touchmove
-  lists.forEach((list) => {
-    list.addEventListener("touchstart", onStart, { passive: true });
-    list.addEventListener("touchmove", onMove, { passive: false });
-    list.addEventListener("touchend", onEnd, { passive: true });
-    list.addEventListener("touchcancel", onEnd, { passive: true });
-  });
 }
 
 // ======================================================================

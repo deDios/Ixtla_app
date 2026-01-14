@@ -2375,3 +2375,8 @@ body.me-modal-open {
     max-width: 92%;
   }
 }
+
+
+.kb-board { touch-action: pan-x; }
+.kb-list  { touch-action: pan-y; }
+.kb-card  { touch-action: manipulation; }
