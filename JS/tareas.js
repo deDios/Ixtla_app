@@ -151,14 +151,6 @@ function calcAgeChip(task) {
 
   const realDays = d < 0 ? 0 : d;
 
-  // variables para el control del scroll en las tablas
-  let dragging = false;
-  let FiltersModule = null;
-
-  // === Gesture router (mobile) ===
-  let SortableInstances = [];
-  let gestureCancelClickUntil = 0;
-
   let paletteIndex;
   if (realDays >= 10) paletteIndex = 10;
   else if (realDays === 0) paletteIndex = 1;
@@ -214,8 +206,13 @@ const CNT_IDS = {
   [KB.STATUS.PAUSA]: "#kb-cnt-5",
 };
 
+// variables para el control del scroll en las tablas
 let dragging = false;
 let FiltersModule = null;
+
+// === Gesture router (mobile) ===
+let SortableInstances = [];
+let gestureCancelClickUntil = 0;
 
 // cache para requerimientos (folio, tramite, etc.)
 const ReqCache = new Map(); // reqId → data o null
@@ -1204,13 +1201,13 @@ function setupDragAndDrop() {
   } catch (_) {}
   SortableInstances = [];
 
-  lists.forEach((list) => {
-    const inst = new Sortable(list, {
-      group: "kb-tasks",
-      animation: 150,
-
-      // Mobile UX: reduce falsos "drags" para que el swipe horizontal sea más natural
-      delay: 180,
+  lists.forEach((listEl) => {
+    const inst = new Sortable(listEl, {
+      group: "kb",
+      animation: 160,
+      draggable: ".kb-card",
+      handle: ".kb-card-grip", // <- tu “zona” para arrastrar (si no existe, Sortable usa toda la card)
+      delay: 120,
       delayOnTouchOnly: true,
       touchStartThreshold: 8,
 
@@ -1218,84 +1215,45 @@ function setupDragAndDrop() {
       preventOnFilter: true,
       ghostClass: "kb-card-ghost",
       dragClass: "kb-card-drag",
+
       onStart() {
         dragging = true;
       },
+
       async onEnd(evt) {
-        const el = evt && evt.item;
-        if (el && el.classList && el.classList.contains("is-locked")) {
-          // Doble seguro: si por alguna razón intentan mover una tarea bloqueada, revertimos el DOM.
-          try {
-            const from = evt.from;
-            const to = evt.to;
-            if (from && to && from !== to) {
-              from.insertBefore(el, from.children[evt.oldIndex] || null);
-            }
-          } catch (_) {}
-          dragging = false;
-          return;
-        }
-
-        const fromCol =
-          evt.from && evt.from.closest && evt.from.closest(".kb-col");
-        const toCol = evt.to && evt.to.closest && evt.to.closest(".kb-col");
-        const oldStatus = fromCol
-          ? Number(fromCol.getAttribute("data-status"))
-          : null;
-        const newStatus = toCol
-          ? Number(toCol.getAttribute("data-status"))
-          : null;
-
         dragging = false;
 
-        const taskId = el && el.getAttribute && el.getAttribute("data-id");
-        const task = taskId ? State.byId.get(String(taskId)) : null;
+        const el = evt && evt.item;
+        const to = evt && evt.to;
+        if (!el || !to) return;
 
-        if (
-          !task ||
-          !Number.isFinite(newStatus) ||
-          !Number.isFinite(oldStatus)
-        ) {
-          warn("onEnd sin task/status válidos", {
-            taskId,
-            oldStatus,
-            newStatus,
-          });
-          renderBoard();
-          if (State.selectedId === (task && task.id)) {
-            highlightSelected();
-          }
+        if (el.classList && el.classList.contains("is-locked")) {
+          // Doble seguro
+          try {
+            const from = evt.from;
+            if (from) from.appendChild(el);
+          } catch (_) {}
           return;
         }
 
-        // Si no cambió status, no hacemos nada
-        if (newStatus === oldStatus) {
-          return;
+        // status destino
+        const col = to.closest(".kb-col");
+        const newStatus = col ? Number(col.getAttribute("data-status")) : null;
+        if (!newStatus) return;
+
+        const taskId = el.getAttribute("data-id");
+        if (!taskId) return;
+
+        try {
+          await updateTaskStatus(taskId, newStatus);
+        } catch (e) {
+          err("No se pudo actualizar status", e);
+          // Revert DOM si falla
+          try {
+            const from = evt.from;
+            if (from) from.appendChild(el);
+          } catch (_) {}
         }
-
-        // UI: actualiza local para re-render inmediato
-        task.status = newStatus;
-        task.status_since =
-          task.status_since || task.updated_at || task.created_at;
-
-        log(
-          "DND:",
-          task.id,
-          task.tarea || task.titulo || "(sin título)",
-          "old:",
-          oldStatus,
-          "new:",
-          newStatus,
-          "status_since:",
-          task.status_since || task.updated_at || task.created_at
-        );
-
-        renderBoard();
-        if (State.selectedId === task.id) {
-          highlightSelected();
-        }
-
-        await persistTaskStatus(task, newStatus, oldStatus);
       },
     });
 
