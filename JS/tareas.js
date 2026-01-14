@@ -1341,11 +1341,29 @@ function setupMobileGestureRouter() {
   // Helpers
   const setSortablesDisabled = (disabled) => {
     try {
-      (SortableInstances || []).forEach((inst) => inst?.option?.("disabled", !!disabled));
+      (SortableInstances || []).forEach((inst) =>
+        inst?.option?.("disabled", !!disabled)
+      );
     } catch (_) {}
   };
 
   const lists = Array.from(board.querySelectorAll(".kb-list"));
+
+  function findHScroller(fromEl) {
+    let el = fromEl;
+    while (el && el !== document.body) {
+      const cs = getComputedStyle(el);
+      const ox = cs.overflowX;
+      const canScrollX = el.scrollWidth > el.clientWidth + 2 && ox !== "hidden";
+
+      if (canScrollX) return el;
+      el = el.parentElement;
+    }
+    // fallback: si nada califica, intenta el board
+    if (board.scrollWidth > board.clientWidth + 2) return board;
+    return null;
+  }
+
   if (!lists.length) return;
 
   let active = false;
@@ -1354,18 +1372,22 @@ function setupMobileGestureRouter() {
   let startX = 0;
   let startY = 0;
   let lastX = 0;
+  let hScroller = null;
 
   // Guardar/restaurar overflowY de listas cuando haya swipe horizontal
   let prevOverflow = null;
+
   const freezeListsY = (freeze) => {
     if (freeze) {
       if (prevOverflow) return;
       prevOverflow = lists.map((el) => el.style.overflowY);
       lists.forEach((el) => (el.style.overflowY = "hidden"));
+      board.style.overflowY = "hidden";
     } else {
       if (!prevOverflow) return;
       lists.forEach((el, i) => (el.style.overflowY = prevOverflow[i] || ""));
       prevOverflow = null;
+      board.style.overflowY = "";
     }
   };
 
@@ -1378,6 +1400,8 @@ function setupMobileGestureRouter() {
     if (dragging) return;
     const target = e.target;
     if (!target || !target.closest || !target.closest(".kb-list")) return;
+
+    hScroller = findHScroller(e.target.closest(".kb-board") || board);
 
     active = true;
     locked = false;
@@ -1414,20 +1438,27 @@ function setupMobileGestureRouter() {
     if (horiz) {
       e.preventDefault();
       const deltaX = e.clientX - lastX;
-      board.scrollLeft -= deltaX;
+      if (hScroller) hScroller.scrollLeft -= deltaX;
       lastX = e.clientX;
     }
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e) => {
     if (!active) return;
+
     if (horiz) {
       setSortablesDisabled(false);
       freezeListsY(false);
     }
+
     active = false;
     locked = false;
     horiz = false;
+    hScroller = null;
+
+    try {
+      board.releasePointerCapture(e.pointerId);
+    } catch (_) {}
   };
 
   if (supportsPointer) {
@@ -1454,6 +1485,7 @@ function setupMobileGestureRouter() {
       startX = t.clientX;
       startY = t.clientY;
       lastX = t.clientX;
+      hScroller = findHScroller(e.target.closest(".kb-board") || board);
     };
 
     const onTouchMove = (e) => {
@@ -1479,7 +1511,7 @@ function setupMobileGestureRouter() {
       if (horiz) {
         e.preventDefault();
         const deltaX = t.clientX - lastX;
-        board.scrollLeft -= deltaX;
+        if (hScroller) hScroller.scrollLeft -= deltaX;
         lastX = t.clientX;
       }
     };
@@ -1493,13 +1525,26 @@ function setupMobileGestureRouter() {
       active = false;
       locked = false;
       horiz = false;
+      hScroller = null;
     };
 
     // Captura a nivel board (más confiable que por-list)
-    board.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
-    board.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
-    board.addEventListener("touchend", onTouchEnd, { passive: true, capture: true });
-    board.addEventListener("touchcancel", onTouchEnd, { passive: true, capture: true });
+    board.addEventListener("touchstart", onTouchStart, {
+      passive: true,
+      capture: true,
+    });
+    board.addEventListener("touchmove", onTouchMove, {
+      passive: false,
+      capture: true,
+    });
+    board.addEventListener("touchend", onTouchEnd, {
+      passive: true,
+      capture: true,
+    });
+    board.addEventListener("touchcancel", onTouchEnd, {
+      passive: true,
+      capture: true,
+    });
   }
 }
 
