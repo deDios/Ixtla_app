@@ -2356,7 +2356,7 @@ body.me-modal-open {
     flex: 1;
     width: 100%;
     box-sizing: border-box;
-    min-height: 630px;
+    /*min-height: 630px;*/
 
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -2376,7 +2376,36 @@ body.me-modal-open {
   }
 }
 
+/* =========================================================
+   PARCHE SCROLL X TIPO TRELLO (MOBILE)
+   Permite swipe horizontal incluso sobre las cards
+   ========================================================= */
+@media (max-width: 900px) {
+
+  /* El board mantiene scroll horizontal nativo */
+  .kb-board {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: auto; /* ← NO forzar pan-x */
+  }
+
+  /* La lista NO debe bloquear el gesto horizontal */
+  .kb-list {
+    touch-action: auto;              /* ← clave: libera pan-x */
+    overscroll-behavior: auto;       /* ← permite scroll chaining */
+    min-height: auto;                /* ← evita dominancia vertical */
+  }
+
+  /* Las cards tampoco deben bloquear el gesto */
+  .kb-card {
+    touch-action: manipulation;      /* tap / press & hold OK */
+  }
+
+}
+
 
 .kb-board { touch-action: pan-x; }
-.kb-list  { touch-action: pan-y; }
 .kb-card  { touch-action: manipulation; }
+
+
