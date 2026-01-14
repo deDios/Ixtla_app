@@ -2404,6 +2404,21 @@ body.me-modal-open {
 
 }
 
+/* =========================================================
+   FIX: Permitir swipe X incluso tocando dentro de .kb-list
+   (override fuerte por orden/especificidad)
+   ========================================================= */
+@media (max-width: 900px) {
+  /* Permite que el gesto horizontal "chain" al board */
+  .kb-board .kb-list {
+    touch-action: pan-x pan-y !important;   /* <- clave */
+    overscroll-behavior-x: auto !important;/* <- permite encadenar X */
+    overscroll-behavior-y: contain !important; /* <- mantiene control Y */
+  }
+
+  /* Si algún estilo global vuelve a forzar pan-x/pan-y */
+  .kb-board { touch-action: pan-x pan-y !important; }
+}
 
 .kb-board { touch-action: pan-x; }
 .kb-card  { touch-action: manipulation; }
