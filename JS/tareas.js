@@ -1264,16 +1264,18 @@ function setupDragAndDrop() {
 function setupMobileGestureRouter() {
   const board =
     document.querySelector(".kb-board") || document.getElementById("kb-board");
-
   if (!board) return;
 
-  // Solo en dispositivos táctiles / mobile
+  // Solo touch devices
   const isTouch =
     "ontouchstart" in window || (navigator && navigator.maxTouchPoints > 0);
-
   if (!isTouch) return;
 
-  // Evita que un swipe horizontal termine abriendo el drawer (click fantasma)
+  const lists = Array.from(board.querySelectorAll(".kb-list"));
+  if (!lists.length) return;
+
+  // Bloquea "click fantasma" después de un swipe horizontal,
+  // para que no se abra el drawer accidentalmente.
   board.addEventListener(
     "click",
     (e) => {
@@ -1282,11 +1284,8 @@ function setupMobileGestureRouter() {
         e.stopPropagation();
       }
     },
-    true // capture
+    true
   );
-
-  const lists = Array.from(board.querySelectorAll(".kb-list"));
-  if (!lists.length) return;
 
   const state = {
     active: false,
@@ -1296,15 +1295,14 @@ function setupMobileGestureRouter() {
     startY: 0,
     lastX: 0,
     lastY: 0,
-    startScrollLeft: 0,
   };
 
-  const TH = 10; // umbral para decidir intención
-  const RATIO = 1.2; // horizontal debe dominar al vertical
+  const TH = 8; // px para decidir intención
+  const RATIO = 1.2; // horizontal debe dominar vertical
 
   function setSortablesDisabled(disabled) {
     try {
-      SortableInstances.forEach((inst) => {
+      (SortableInstances || []).forEach((inst) => {
         if (inst && typeof inst.option === "function") {
           inst.option("disabled", !!disabled);
         }
@@ -1314,7 +1312,6 @@ function setupMobileGestureRouter() {
 
   function onStart(e) {
     if (dragging) return;
-
     const t = e.touches && e.touches[0];
     if (!t) return;
 
@@ -1326,8 +1323,6 @@ function setupMobileGestureRouter() {
     state.startY = t.clientY;
     state.lastX = t.clientX;
     state.lastY = t.clientY;
-
-    state.startScrollLeft = board.scrollLeft;
   }
 
   function onMove(e) {
@@ -1339,7 +1334,7 @@ function setupMobileGestureRouter() {
     const dx = t.clientX - state.startX;
     const dy = t.clientY - state.startY;
 
-    // Decide intención una sola vez al inicio del gesto
+    // Decide intención una sola vez
     if (!state.locked) {
       if (Math.abs(dx) < TH && Math.abs(dy) < TH) return;
 
@@ -1347,16 +1342,15 @@ function setupMobileGestureRouter() {
       state.horiz = Math.abs(dx) > Math.abs(dy) * RATIO;
 
       if (state.horiz) {
-        // Al detectar horizontal: deshabilita drag temporalmente
+        // Durante swipe horizontal deshabilitamos Sortable
         setSortablesDisabled(true);
-        // y evita el scroll vertical interno
         gestureCancelClickUntil = Date.now() + 350;
       }
     }
 
-    // Si intención horizontal: scrollea el carrusel aunque estés sobre cards
     if (state.horiz) {
-      e.preventDefault(); // CRÍTICO (necesita passive:false)
+      // CRÍTICO: permite que el swipe horizontal gane aunque estés sobre cards
+      e.preventDefault();
       const deltaX = t.clientX - state.lastX;
       board.scrollLeft -= deltaX;
     }
@@ -1368,10 +1362,7 @@ function setupMobileGestureRouter() {
   function onEnd() {
     if (!state.active) return;
 
-    // Rehabilita drag
-    if (state.horiz) {
-      setSortablesDisabled(false);
-    }
+    if (state.horiz) setSortablesDisabled(false);
 
     state.active = false;
     state.locked = false;
