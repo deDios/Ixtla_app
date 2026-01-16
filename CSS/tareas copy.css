@@ -872,7 +872,8 @@
   border-radius: 12px;
   border: 1px solid #e6ecea;
   background: #f7faf9;
-  display: block; /* contiene head + body */
+  display: block;
+  /* contiene head + body */
 }
 
 .kb-toolbar-main {
@@ -2435,7 +2436,8 @@ body.me-modal-open {
 /* Layout base (desktop/tablet amplio) */
 @media (min-width: 901px) {
   #kb-toolbar #kb-toolbar-body {
-    padding-top: 12px; /* opcional, por si se ve muy pegado al header */
+    padding-top: 12px;
+    /* opcional, por si se ve muy pegado al header */
   }
 
   #kb-toolbar .kb-toolbar-row {
@@ -2443,7 +2445,8 @@ body.me-modal-open {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    flex-wrap: nowrap; /* intenta 1 sola fila */
+    flex-wrap: nowrap;
+    /* intenta 1 sola fila */
     width: 100%;
   }
 
@@ -2464,7 +2467,8 @@ body.me-modal-open {
     gap: 14px;
     flex: 1 1 auto;
     min-width: 0;
-    flex-wrap: nowrap; /* 1 fila */
+    flex-wrap: nowrap;
+    /* 1 fila */
   }
 
   /* Cada field: label arriba + input abajo (como lo traes) pero sin estirarse raro */
@@ -2549,42 +2553,124 @@ body.me-modal-open {
 
 
 
-/* Header: título + chips + toggle en la misma línea */
-#kb-toolbar .kb-section-head{
-  display:flex;
-  align-items:center;
-  gap:12px;
+#kb-toolbar .kb-section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-/* El título a la izquierda */
-#kb-toolbar .kb-toolbar-title{
-  display:flex;
-  flex-direction:column;
-  min-width: 160px;
+#kb-toolbar .kb-toolbar-title {
+  display: flex;
+  flex-direction: column;
 }
 
-/* Chips al centro (o pegados al título) */
-#kb-toolbar .kb-toolbar-chips--head{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex:1;              /* ocupa el espacio entre título y toggle */
-  flex-wrap:wrap;      /* si no caben, bajan elegante */
+#kb-toolbar .kb-toolbar-chips--head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  flex-wrap: wrap;
 }
 
-/* Toggle a la derecha */
-#kb-toolbar .kb-section-toggle{
-  margin-left:auto;
-  flex:0 0 auto;
+#kb-toolbar .kb-section-toggle {
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 
-/* Mobile: apilar */
-@media (max-width: 720px){
-  #kb-toolbar .kb-section-head{
-    flex-wrap:wrap;
-    align-items:flex-start;
+@media (max-width: 720px) {
+  #kb-toolbar .kb-section-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
   }
-  #kb-toolbar .kb-toolbar-title{ flex:1 1 100%; }
-  #kb-toolbar .kb-toolbar-chips--head{ flex:1 1 100%; }
-  #kb-toolbar .kb-section-toggle{ margin-left:0; }
+
+  #kb-toolbar .kb-toolbar-title {
+    flex: 1 1 100%;
+  }
+
+  #kb-toolbar .kb-toolbar-chips--head {
+    flex: 1 1 100%;
+  }
+
+  #kb-toolbar .kb-section-toggle {
+    margin-left: 0;
+  }
+}
+
+
+/* ================================
+   Toolbar en un solo renglón ya con los nuevos contenedores html
+   ================================ */
+@media (min-width: 1024px) {
+
+  #kb-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  #kb-toolbar .kb-section-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 0 0 auto;
+  }
+
+  #kb-toolbar .kb-toolbar-title {
+    white-space: nowrap;
+  }
+
+  #kb-toolbar .kb-toolbar-chips--head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #kb-toolbar .kb-section-toggle {
+    display: none;
+  }
+
+  #kb-toolbar .kb-section-body {
+    flex: 1;
+  }
+
+  #kb-toolbar .kb-toolbar-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+  }
+
+  #kb-toolbar .kb-filter-field {
+    min-width: 180px;
+  }
+
+  #kb-toolbar .kb-filter-clear {
+  }
+}
+
+/* =========================
+   FIX chevron en MOBILE
+   ========================= */
+@media (max-width: 720px) {
+  #kb-toolbar .kb-section-head{
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title toggle"
+      "chips chips";
+    align-items: start;
+    gap: 10px 12px;
+  }
+
+  #kb-toolbar .kb-toolbar-title{ grid-area: title; }
+  #kb-toolbar .kb-section-toggle{
+    grid-area: toggle;
+    justify-self: end;
+    align-self: start;
+    margin: 0;
+  }
+
+  #kb-toolbar .kb-toolbar-chips--head{
+    grid-area: chips;
+    width: 100%;
+  }
 }
