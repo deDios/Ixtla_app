@@ -1,4 +1,4 @@
-// /JS/UAT/ui/tareasFiltros.js
+// /JS/ui/tareasFiltros.js
 "use strict";
 
 /**
@@ -252,6 +252,49 @@ export function createTaskFiltersModule({
         renderBoard();
       });
     }
+  }
+
+  function setupSidebarCollapsible() {
+    const box = document.getElementById("kb-sidebar-filters");
+    const btn = document.getElementById("kb-sidebar-filters-toggle");
+    const body = document.getElementById("kb-sidebar-filters-body");
+    if (!box || !btn || !body) return;
+
+    // Solo aplica en mobile
+    const isMobile = window.matchMedia("(max-width: 900px)").matches;
+
+    // Estado inicial (por defecto abierto)
+    if (isMobile) {
+      box.setAttribute("aria-expanded", "true");
+    } else {
+      box.setAttribute("aria-expanded", "true");
+      return;
+    }
+
+    btn.addEventListener("click", () => {
+      const open = box.getAttribute("aria-expanded") === "true";
+      box.setAttribute("aria-expanded", open ? "false" : "true");
+    });
+  }
+
+  function setupToolbarCollapsible() {
+    const box = document.getElementById("kb-toolbar");
+    const btn = document.getElementById("kb-toolbar-toggle");
+    if (!box || !btn) return;
+
+    const isMobile = window.matchMedia("(max-width: 900px)").matches;
+
+    // En desktop siempre abierto
+    if (!isMobile) {
+      box.setAttribute("aria-expanded", "true");
+      return;
+    }
+
+    btn.addEventListener("click", () => {
+      const open = box.getAttribute("aria-expanded") === "true";
+      box.setAttribute("aria-expanded", open ? "false" : "true");
+      btn.setAttribute("aria-expanded", open ? "false" : "true");
+    });
   }
 
   /* ========================================================================
@@ -598,8 +641,8 @@ export function createTaskFiltersModule({
       });
     }
   }
-  
-    /* ========================================================================
+
+  /* ========================================================================
    * API pública del módulo
    * ======================================================================*/
 
@@ -624,6 +667,8 @@ export function createTaskFiltersModule({
 
     // Botón "Limpiar filtros" (sólo tiene sentido si el bloque está visible)
     setupSidebarFilters();
+    // inicializar los chevron para los filtros colapsables en mobile
+    setupSidebarCollapsible();
 
     // ¿El campo de Departamentos está visible? (tareas.js pudo poner display:none)
     const canUseDept =
@@ -650,6 +695,7 @@ export function createTaskFiltersModule({
     // Toolbar (chips, búsqueda, combos proceso/trámite)
     setupToolbar();
     setupToolbarCombos({ procesosOptions, tramitesOptions });
+    setupToolbarCollapsible();
 
     log("[KB] Filtros sidebar inicializados (UI)", {
       deptOptions: canUseDept ? deptOptions.length : 0,

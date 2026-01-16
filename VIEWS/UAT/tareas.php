@@ -2,16 +2,6 @@
 require_once __DIR__ . '/../../JS/auth/ix_guard.php';
 ix_require_session();
 ?>
-
-<?php
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Pragma: no-cache");
-function asset_v($path){
-  $full = $_SERVER['DOCUMENT_ROOT'] . $path;
-  return file_exists($full) ? filemtime($full) : time();
-}
-?>
-
 <!DOCTYPE html>
 <html lang="es">
 
@@ -27,7 +17,7 @@ function asset_v($path){
 </head>
 
 <body>
-    <!-- /VIEWS/UAT/tareasUAT.php  -->
+
     <!-- Tope de pagina -->
     <header id="header" data-link-home="/index.php">
         <div class="social-bar-mobile">
@@ -104,117 +94,142 @@ function asset_v($path){
                 </section>
 
                 <!-- Filtros en sidebar (Departamentos / Empleados) -->
-                <section id="kb-sidebar-filters" class="kb-sidebar-filters" aria-label="Filtros de tablero">
-                    <div class="kb-filters-head">
-                        <h4>Filtros</h4>
-                        <button type="button" class="kb-filter-clear" id="kb-sidebar-clear">
+                <section id="kb-sidebar-filters" class="kb-sidebar-filters kb-section" aria-label="Filtros de tablero">
+                    <div class="kb-section-head">
+                        <h4 class="kb-section-title">Filtros</h4>
+
+                        <button type="button" class="kb-section-toggle" id="kb-sidebar-filters-toggle"
+                            aria-expanded="true" aria-controls="kb-sidebar-filters-body"
+                            aria-label="Desplegar/colapsar filtros">
+                            <span class="kb-section-chevron" aria-hidden="true">▾</span>
+                        </button>
+                    </div>
+
+                    <div id="kb-sidebar-filters-body" class="kb-section-body">
+                        <!-- Filtro múltiple: Departamentos -->
+                        <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-departamentos"
+                            data-filter="departamentos">
+                            <span class="kb-filter-label">Departamentos</span>
+
+                            <button type="button" class="kb-multi-trigger" aria-haspopup="listbox"
+                                aria-expanded="false">
+                                <span class="kb-multi-placeholder">Seleccionar departamentos…</span>
+                                <span class="kb-multi-summary" hidden>—</span>
+                                <span class="kb-multi-caret">▾</span>
+                            </button>
+
+                            <div class="kb-multi-menu">
+                                <div class="kb-multi-search">
+                                    <input type="text" class="kb-multi-search-input" placeholder="Buscar departamento…">
+                                </div>
+                                <ul class="kb-multi-options" role="listbox">
+                                    <li>
+                                        <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
+                                            — Sin datos: se llenará desde JS —
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Filtro múltiple: Empleados -->
+                        <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-empleados"
+                            data-filter="empleados">
+                            <span class="kb-filter-label">Empleados</span>
+
+                            <button type="button" class="kb-multi-trigger" aria-haspopup="listbox"
+                                aria-expanded="false">
+                                <span class="kb-multi-placeholder">Seleccionar empleados…</span>
+                                <span class="kb-multi-summary" hidden>—</span>
+                                <span class="kb-multi-caret">▾</span>
+                            </button>
+
+                            <div class="kb-multi-menu">
+                                <div class="kb-multi-search">
+                                    <input type="text" class="kb-multi-search-input" placeholder="Buscar empleado…">
+                                </div>
+                                <ul class="kb-multi-options" role="listbox">
+                                    <li>
+                                        <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
+                                            — Sin datos: se llenará desde JS —
+                                        </span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Botón limpiar al final (como en tu screenshot) -->
+                        <button type="button" class="kb-filter-clear kb-filter-clear--center" id="kb-sidebar-clear">
                             Limpiar filtros
                         </button>
                     </div>
-
-                    <!-- Filtro múltiple: Departamentos -->
-                    <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-departamentos"
-                        data-filter="departamentos">
-                        <span class="kb-filter-label">Departamentos</span>
-
-                        <!-- Trigger del combo múltiple -->
-                        <button type="button" class="kb-multi-trigger" aria-haspopup="listbox" aria-expanded="false">
-                            <span class="kb-multi-placeholder">Seleccionar departamentos…</span>
-                            <span class="kb-multi-summary" hidden>—</span>
-                            <span class="kb-multi-caret">▾</span>
-                        </button>
-
-                        <!-- Menú desplegable -->
-                        <div class="kb-multi-menu">
-                            <div class="kb-multi-search">
-                                <input type="text" class="kb-multi-search-input" placeholder="Buscar departamento…">
-                            </div>
-                            <ul class="kb-multi-options" role="listbox">
-                                <!-- Opciones se llenan desde JS -->
-                                <li>
-                                    <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
-                                        — Sin datos: se llenará desde JS —
-                                    </span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Filtro múltiple: Empleados -->
-                    <div class="kb-filter-field kb-filter-field--multi" id="kb-filter-empleados"
-                        data-filter="empleados">
-                        <span class="kb-filter-label">Empleados</span>
-
-                        <!-- Trigger del combo múltiple -->
-                        <button type="button" class="kb-multi-trigger" aria-haspopup="listbox" aria-expanded="false">
-                            <span class="kb-multi-placeholder">Seleccionar empleados…</span>
-                            <span class="kb-multi-summary" hidden>—</span>
-                            <span class="kb-multi-caret">▾</span>
-                        </button>
-
-                        <!-- Menú desplegable -->
-                        <div class="kb-multi-menu">
-                            <div class="kb-multi-search">
-                                <input type="text" class="kb-multi-search-input" placeholder="Buscar empleado…">
-                            </div>
-                            <ul class="kb-multi-options" role="listbox">
-                                <!-- Opciones se llenan desde JS -->
-                                <li>
-                                    <span class="muted" style="font-size: 0.8rem; color:#9aa7a5;">
-                                        — Sin datos: se llenará desde JS —
-                                    </span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
                 </section>
+
             </aside>
 
             <!-- MAIN -->
             <section class="hs-main">
 
                 <!-- Header de filtros rápidos -->
-                <section class="kb-toolbar" aria-label="Filtros de tareas">
-                    <div class="kb-toolbar-main">
+                <section class="kb-toolbar kb-section" aria-label="Filtros de tareas" id="kb-toolbar"
+                    aria-expanded="true">
+
+                    <!-- HEADER (siempre visible) -->
+                    <div class="kb-section-head">
                         <div class="kb-toolbar-title">
                             <h2>Tareas</h2>
                             <span class="kb-toolbar-sub">Filtros rápidos</span>
                         </div>
 
+                        <button type="button" class="kb-section-toggle" id="kb-toolbar-toggle"
+                            aria-controls="kb-toolbar-body" aria-expanded="true"
+                            aria-label="Desplegar/colapsar filtros de tareas">
+                            <span class="kb-section-chevron">▾</span>
+                        </button>
+                    </div>
+
+                    <!-- BODY (colapsable en mobile) -->
+                    <div class="kb-section-body" id="kb-toolbar-body">
+
+                        <!-- Chips -->
                         <div class="kb-toolbar-chips">
                             <button type="button" class="kb-chip is-active" data-filter="mine">
                                 Solo mis tareas
                             </button>
+
                             <button type="button" class="kb-chip" data-filter="recent">
                                 Recientes
                             </button>
                         </div>
-                    </div>
 
-                    <div class="kb-toolbar-filters">
-                        <div class="kb-filter-field">
-                            <label for="kb-filter-search">Buscar</label>
-                            <input type="search" id="kb-filter-search" class="kb-filter-input" placeholder="Folio"
-                                autocomplete="off" />
+                        <!-- Filtros -->
+                        <div class="kb-toolbar-filters">
+
+                            <div class="kb-filter-field">
+                                <label for="kb-filter-search">Buscar</label>
+                                <input type="search" id="kb-filter-search" class="kb-filter-input" placeholder="Folio"
+                                    autocomplete="off" />
+                            </div>
+
+                            <div class="kb-filter-field">
+                                <label for="kb-filter-proceso">Proceso</label>
+                                <select id="kb-filter-proceso" class="kb-filter-input">
+                                    <!-- opciones desde JS -->
+                                </select>
+                            </div>
+
+                            <div class="kb-filter-field">
+                                <label for="kb-filter-tramite">Trámite</label>
+                                <select id="kb-filter-tramite" class="kb-filter-input">
+                                    <!-- opciones desde JS -->
+                                </select>
+                            </div>
+
+                            <button type="button" class="kb-filter-clear" id="kb-filter-clear">
+                                Limpiar filtros
+                            </button>
+
                         </div>
-
-                        <div class="kb-filter-field">
-                            <label for="kb-filter-proceso">Proceso</label>
-                            <select id="kb-filter-proceso" class="kb-filter-input">
-                                <!-- luego estos vendrán del backend -->
-                            </select>
-                        </div>
-
-                        <div class="kb-filter-field">
-                            <label for="kb-filter-tramite">Trámite</label>
-                            <select id="kb-filter-tramite" class="kb-filter-input">
-                                <!-- luego estos vendrán del backend -->
-                            </select>
-                        </div>
-
-                        <button type="button" class="kb-filter-clear" id="kb-filter-clear">
-                            Limpiar filtros
-                        </button>
                     </div>
                 </section>
 
@@ -709,6 +724,18 @@ function asset_v($path){
         </div>
     </div>
 
+    <!-- Guard para la página de home
+<script type="module">
+    import {
+        guardPage
+    } from "/JS/auth/guard.js";
+    guardPage({
+        stealth: false,
+        redirectTo: "/VIEWS/login.php"
+    });
+    </script>
+    -->
+
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>
 
@@ -717,10 +744,10 @@ function asset_v($path){
 
     <script type="module" src="/JS/UAT/tareas.js"></script>
 
-    <script src="/JS/ui/expedienteTareas.js"></script>
+    <!-- <script src="/JS/expedienteTareas.js"></script> -->
 
     <!-- media -->
-    <script type="module" src="/JS/api/media.js?v=<?= asset_v('/JS/api/media.js') ?>"></script>
+    <script type="module" src="/JS/api/media.js"></script>
     <script type="module" src="/JS/api/mediaRequerimientos.js"></script>
 
     <!-- bundle para que cargue bien el sidebar -->

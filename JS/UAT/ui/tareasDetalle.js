@@ -1,4 +1,4 @@
-// /JS/UAT/ui/tareasDetalle.js
+// /JS/ui/tareasDetalle.js – Lógica del drawer de detalle de tarea
 "use strict";
 
 import { listMedia, uploadMedia, setupMedia } from "/JS/api/media.js";

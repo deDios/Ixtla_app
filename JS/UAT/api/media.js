@@ -1,4 +1,4 @@
-// /JS/UAT/api/media.js
+// /JS/api/media.js
 const TAG = "[API:Media]";
 
 /* ====== Config ====== */
