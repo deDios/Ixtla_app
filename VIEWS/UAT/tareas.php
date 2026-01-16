@@ -174,6 +174,7 @@ ix_require_session();
                 <!-- Header de filtros rápidos -->
                 <section class="kb-toolbar kb-section" aria-label="Filtros de tareas" id="kb-toolbar"
                     aria-expanded="true">
+
                     <!-- HEADER (siempre visible) -->
                     <div class="kb-section-head">
                         <div class="kb-toolbar-title">
@@ -181,58 +182,54 @@ ix_require_session();
                             <span class="kb-toolbar-sub">Filtros rápidos</span>
                         </div>
 
-                        <!-- Acciones en header (chips + limpiar + chevron) -->
-                        <div class="kb-toolbar-actions">
-                            <!-- Chips -->
-                            <div class="kb-toolbar-chips">
-                                <!-- deja tus botones tal cual los tienes (data-filter, clases, etc.) -->
-                                <button type="button" class="kb-chip" data-filter="mine">Solo mis tareas</button>
-                                <button type="button" class="kb-chip" data-filter="recent">Recientes</button>
-                                <button type="button" class="kb-chip" data-filter="overdue">Vencidas</button>
-                            </div>
-
-                            <!-- Limpiar -->
-                            <button type="button" class="kb-filter-clear" id="kb-filter-clear">
-                                Limpiar
-                            </button>
-
-                            <!-- Toggle (colapsa body en mobile) -->
-                            <button type="button" class="kb-section-toggle" id="kb-toolbar-toggle"
-                                aria-controls="kb-toolbar-body" aria-expanded="true"
-                                aria-label="Desplegar/colapsar filtros de tareas">
-                                <span class="kb-section-chevron">▾</span>
-                            </button>
-                        </div>
+                        <button type="button" class="kb-section-toggle" id="kb-toolbar-toggle"
+                            aria-controls="kb-toolbar-body" aria-expanded="true"
+                            aria-label="Desplegar/colapsar filtros de tareas">
+                            <span class="kb-section-chevron">▾</span>
+                        </button>
                     </div>
 
                     <!-- BODY (colapsable en mobile) -->
                     <div class="kb-section-body" id="kb-toolbar-body">
-                        <!-- aquí deja tu contenido real de filtros (search, selects, etc.) tal como lo tienes -->
+
+                        <!-- Chips -->
+                        <div class="kb-toolbar-chips">
+                            <button type="button" class="kb-chip is-active" data-filter="mine">
+                                Solo mis tareas
+                            </button>
+
+                            <button type="button" class="kb-chip" data-filter="recent">
+                                Recientes
+                            </button>
+                        </div>
+
+                        <!-- Filtros -->
                         <div class="kb-toolbar-filters">
-                            <!-- EJEMPLO: reemplaza por tus inputs reales -->
-                            <div class="kb-filter">
-                                <label for="kb-q">Buscar</label>
-                                <input id="kb-q" type="search" placeholder="Buscar tarea..." />
+
+                            <div class="kb-filter-field">
+                                <label for="kb-filter-search">Buscar</label>
+                                <input type="search" id="kb-filter-search" class="kb-filter-input" placeholder="Folio"
+                                    autocomplete="off" />
                             </div>
 
-                            <div class="kb-filter">
-                                <label for="kb-status">Estatus</label>
-                                <select id="kb-status">
-                                    <option value="">Todos</option>
-                                    <option value="0">Pendiente</option>
-                                    <option value="1">En proceso</option>
-                                    <option value="2">Finalizada</option>
+                            <div class="kb-filter-field">
+                                <label for="kb-filter-proceso">Proceso</label>
+                                <select id="kb-filter-proceso" class="kb-filter-input">
+                                    <!-- opciones desde JS -->
                                 </select>
                             </div>
 
-                            <div class="kb-filter">
-                                <label for="kb-assign">Asignado</label>
-                                <select id="kb-assign">
-                                    <option value="">Todos</option>
-                                    <option value="me">Yo</option>
+                            <div class="kb-filter-field">
+                                <label for="kb-filter-tramite">Trámite</label>
+                                <select id="kb-filter-tramite" class="kb-filter-input">
+                                    <!-- opciones desde JS -->
                                 </select>
                             </div>
-                            
+
+                            <button type="button" class="kb-filter-clear" id="kb-filter-clear">
+                                Limpiar filtros
+                            </button>
+
                         </div>
                     </div>
                 </section>
