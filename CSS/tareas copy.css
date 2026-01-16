@@ -2537,3 +2537,54 @@ body.me-modal-open {
   }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+/* Header: título + chips + toggle en la misma línea */
+#kb-toolbar .kb-section-head{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+/* El título a la izquierda */
+#kb-toolbar .kb-toolbar-title{
+  display:flex;
+  flex-direction:column;
+  min-width: 160px;
+}
+
+/* Chips al centro (o pegados al título) */
+#kb-toolbar .kb-toolbar-chips--head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex:1;              /* ocupa el espacio entre título y toggle */
+  flex-wrap:wrap;      /* si no caben, bajan elegante */
+}
+
+/* Toggle a la derecha */
+#kb-toolbar .kb-section-toggle{
+  margin-left:auto;
+  flex:0 0 auto;
+}
+
+/* Mobile: apilar */
+@media (max-width: 720px){
+  #kb-toolbar .kb-section-head{
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  #kb-toolbar .kb-toolbar-title{ flex:1 1 100%; }
+  #kb-toolbar .kb-toolbar-chips--head{ flex:1 1 100%; }
+  #kb-toolbar .kb-section-toggle{ margin-left:0; }
+}

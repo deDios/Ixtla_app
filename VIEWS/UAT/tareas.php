@@ -171,38 +171,53 @@ ix_require_session();
             <!-- MAIN -->
             <section class="hs-main">
 
+
+
+
+            
                 <!-- Header de filtros rápidos -->
-                <section class="kb-toolbar kb-section" aria-label="Filtros de tareas" id="kb-toolbar" aria-expanded="true">
+                <section class="kb-toolbar kb-section" aria-label="Filtros de tareas" id="kb-toolbar"
+                    aria-expanded="true">
 
                     <!-- HEADER (siempre visible) -->
                     <div class="kb-section-head">
+
+                        <!-- Título -->
                         <div class="kb-toolbar-title">
                             <h2>Tareas</h2>
                             <span class="kb-toolbar-sub">Filtros rápidos</span>
                         </div>
 
+                        <!-- Chips (filtros rápidos) -->
+                        <div class="kb-toolbar-chips kb-toolbar-chips--head" aria-label="Filtros rápidos">
+                            <button type="button" class="kb-chip is-active" data-filter="mine">
+                                Solo mis tareas
+                            </button>
+
+                            <button type="button" class="kb-chip" data-filter="recent">
+                                Recientes
+                            </button>
+                        </div>
+
+                        <!-- Toggle -->
                         <button type="button" class="kb-section-toggle" id="kb-toolbar-toggle"
                             aria-controls="kb-toolbar-body" aria-expanded="true"
                             aria-label="Desplegar/colapsar filtros de tareas">
                             <span class="kb-section-chevron">▾</span>
                         </button>
+
                     </div>
 
                     <!-- BODY (colapsable en mobile) -->
                     <div class="kb-section-body" id="kb-toolbar-body">
 
-                        <!-- Chips -->
-                        <div class="kb-toolbar-chips">
-                            <button type="button" class="kb-chip is-active" data-filter="mine">Solo mis tareas</button>
-                            <button type="button" class="kb-chip" data-filter="recent">Recientes</button>
-                        </div>
-
-                        <!-- Filtros -->
+                        <!-- Filtros avanzados -->
                         <div class="kb-toolbar-filters">
 
                             <div class="kb-filter-field">
                                 <label for="kb-filter-search">Buscar</label>
-                                <input type="search" id="kb-filter-search" class="kb-filter-input" placeholder="Folio" autocomplete="off" />
+                                <input type="search" id="kb-filter-search" class="kb-filter-input" placeholder="Folio"
+                                    autocomplete="off" />
                             </div>
 
                             <div class="kb-filter-field">
@@ -219,11 +234,16 @@ ix_require_session();
                                 </select>
                             </div>
 
-                            <button type="button" class="kb-filter-clear" id="kb-filter-clear">Limpiar filtros</button>
+                            <button type="button" class="kb-filter-clear" id="kb-filter-clear">
+                                Limpiar filtros
+                            </button>
 
                         </div>
                     </div>
                 </section>
+
+
+
 
 
                 <!-- Tablero Kanban -->
