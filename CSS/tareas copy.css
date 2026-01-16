@@ -2674,3 +2674,24 @@ body.me-modal-open {
     width: 100%;
   }
 }
+
+
+
+/* ==============================
+   Drawer - Mover a (solo mobile)
+   ============================== */
+.kb-d-move { margin: 10px 0 14px; }
+.kb-d-move-label { display:block; font-weight:600; font-size:.9rem; margin: 0 0 6px; opacity:.85; }
+.kb-d-move-row { display:flex; gap:10px; align-items:center; }
+.kb-d-move-select { flex:1; min-width: 0; }
+.kb-d-move-btn { white-space: nowrap; }
+
+.kb-d-move-hint { display:block; margin-top:6px; opacity:.7; font-size:.82rem; }
+
+/* Solo se muestra en mobile */
+@media (min-width: 721px){
+  #kb-d-move { display:none !important; }
+}
+@media (max-width: 720px){
+  #kb-d-move[hidden]{ display:none !important; }
+}

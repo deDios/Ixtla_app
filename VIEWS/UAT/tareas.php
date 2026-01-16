@@ -174,7 +174,7 @@ ix_require_session();
 
 
 
-            
+
                 <!-- Header de filtros rápidos -->
                 <section class="kb-toolbar kb-section" aria-label="Filtros de tareas" id="kb-toolbar"
                     aria-expanded="true">
@@ -341,6 +341,24 @@ ix_require_session();
                                     </svg>
                                     <span>Generar expediente</span>
                                 </button>
+                            </div>
+
+                            <!-- ====== Mover tarea (solo mobile) ====== -->
+                            <div class="kb-d-move" id="kb-d-move" hidden>
+                                <label class="kb-d-move-label" for="kb-d-move-select">Mover a:</label>
+
+                                <div class="kb-d-move-row">
+                                    <select id="kb-d-move-select" class="kb-d-move-select">
+                                        <option value="" selected disabled>Selecciona…</option>
+                                        <!-- opciones desde JS -->
+                                    </select>
+
+                                    <button type="button" class="kb-d-move-btn" id="kb-d-move-btn" disabled>
+                                        Mover
+                                    </button>
+                                </div>
+
+                                <small class="kb-d-move-hint" id="kb-d-move-hint"></small>
                             </div>
 
                             <!-- Folio -->

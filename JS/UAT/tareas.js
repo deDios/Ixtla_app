@@ -33,11 +33,11 @@ const KB = {
 // ================================
 // Universo en memoria + paginación visual
 // ================================
-const UNIVERSE_CAP = 20000;           // maximo de tareas en memoria
-const UNIVERSE_PAGE_SIZE = 300;       // page_size para endpoint V1
-const COL_INITIAL_RENDER = 30;        // tareas iniciales por columna
-const COL_STEP_RENDER = 10;           // incremento por scroll
-const COL_SCROLL_THRESHOLD_PX = 220;  // distancia al fondo para cargar más
+const UNIVERSE_CAP = 20000; // maximo de tareas en memoria
+const UNIVERSE_PAGE_SIZE = 300; // page_size para endpoint V1
+const COL_INITIAL_RENDER = 30; // tareas iniciales por columna
+const COL_STEP_RENDER = 10; // incremento por scroll
+const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar más
 
 // Departamentos especiales
 const PRES_DEPT_IDS = [6]; // Presidencia (no mostrar en filtro)
@@ -217,8 +217,7 @@ const State = {
   _byStatus: { 1: [], 2: [], 3: [], 4: [], 5: [] },
 
   // evita duplicar listeners
-  _scrollBound: false
-
+  _scrollBound: false,
 };
 
 const COL_IDS = {
@@ -468,7 +467,7 @@ async function fetchTareasFromApi() {
 
       // fin por total o por batch vacío
       if (!batch.length) break;
-      if ((page * UNIVERSE_PAGE_SIZE) >= total) break;
+      if (page * UNIVERSE_PAGE_SIZE >= total) break;
 
       page += 1;
 
@@ -477,7 +476,6 @@ async function fetchTareasFromApi() {
         warn("Guardrail: demasiadas páginas en LIST tareas, se detiene.");
         break;
       }
-
     } catch (e) {
       console.error("[KB] Error al listar tareas:", e);
       break;
@@ -1133,7 +1131,6 @@ function createCard(task) {
   return art;
 }
 
-
 // ===== Helpers para orden y vista =====
 function _toMs(str) {
   if (!str) return NaN;
@@ -1143,7 +1140,11 @@ function _toMs(str) {
 
 function getTaskAgeMs(task) {
   // Debe coincidir con la lógica de calcAgeChip (misma prioridad)
-  const base = task.status_since || task.updated_at || task.fecha_inicio || task.created_at;
+  const base =
+    task.status_since ||
+    task.updated_at ||
+    task.fecha_inicio ||
+    task.created_at;
   const ms = _toMs(base);
   // sin fecha → al final (Infinity)
   return Number.isFinite(ms) ? ms : Infinity;
@@ -1151,8 +1152,12 @@ function getTaskAgeMs(task) {
 
 function computeViewKey() {
   const f = State.filters || {};
-  const depts = Array.from(f.departamentos || []).sort((a,b)=>a-b).join(",");
-  const emps = Array.from(f.empleados || []).sort((a,b)=>a-b).join(",");
+  const depts = Array.from(f.departamentos || [])
+    .sort((a, b) => a - b)
+    .join(",");
+  const emps = Array.from(f.empleados || [])
+    .sort((a, b) => a - b)
+    .join(",");
   return [
     "v1",
     State.tasksVersion,
@@ -1180,13 +1185,13 @@ function rebuildViewModel() {
   }
 
   // Orden: más viejas primero (ASC)
-  for (const st of [1,2,3,4,5]) {
-    byStatus[st].sort((a,b) => {
+  for (const st of [1, 2, 3, 4, 5]) {
+    byStatus[st].sort((a, b) => {
       const da = getTaskAgeMs(a);
       const db = getTaskAgeMs(b);
       if (da !== db) return da - db;
       // tie-break estable
-      return (Number(a.id)||0) - (Number(b.id)||0);
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
     });
   }
 
@@ -1196,7 +1201,7 @@ function rebuildViewModel() {
   State.colRendered = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
   // Conteos
-  for (const st of [1,2,3,4,5]) {
+  for (const st of [1, 2, 3, 4, 5]) {
     const cntSel = CNT_IDS[st];
     const cntEl = cntSel ? $(cntSel) : null;
     if (cntEl) cntEl.textContent = `(${byStatus[st].length})`;
@@ -1205,7 +1210,7 @@ function rebuildViewModel() {
   // Opciones dinámicas de filtros (sobre la vista actual)
   if (FiltersModule && FiltersModule.updateAvailableOptions) {
     const universeTasks = [];
-    for (const st of [1,2,3,4,5]) universeTasks.push(...byStatus[st]);
+    for (const st of [1, 2, 3, 4, 5]) universeTasks.push(...byStatus[st]);
     FiltersModule.updateAvailableOptions(universeTasks);
   }
 }
@@ -1216,7 +1221,10 @@ function renderColumn(st, mode) {
   if (!col) return;
 
   const list = State._byStatus[st] || [];
-  const target = Math.min(State.colLimits[st] || COL_INITIAL_RENDER, list.length);
+  const target = Math.min(
+    State.colLimits[st] || COL_INITIAL_RENDER,
+    list.length
+  );
 
   if (mode === "reset") {
     col.innerHTML = "";
@@ -1239,24 +1247,29 @@ function setupInfiniteScroll() {
   if (State._scrollBound) return;
   State._scrollBound = true;
 
-  for (const st of [1,2,3,4,5]) {
+  for (const st of [1, 2, 3, 4, 5]) {
     const colSel = COL_IDS[st];
     const col = colSel ? $(colSel) : null;
     if (!col) continue;
 
-    col.addEventListener("scroll", () => {
-      const list = State._byStatus[st] || [];
-      if (!list.length) return;
+    col.addEventListener(
+      "scroll",
+      () => {
+        const list = State._byStatus[st] || [];
+        if (!list.length) return;
 
-      const remaining = col.scrollHeight - col.scrollTop - col.clientHeight;
-      if (remaining > COL_SCROLL_THRESHOLD_PX) return;
+        const remaining = col.scrollHeight - col.scrollTop - col.clientHeight;
+        if (remaining > COL_SCROLL_THRESHOLD_PX) return;
 
-      if ((State.colRendered[st] || 0) >= list.length) return;
+        if ((State.colRendered[st] || 0) >= list.length) return;
 
-      // Incremento +10
-      State.colLimits[st] = (State.colLimits[st] || COL_INITIAL_RENDER) + COL_STEP_RENDER;
-      renderColumn(st, "append");
-    }, { passive: true });
+        // Incremento +10
+        State.colLimits[st] =
+          (State.colLimits[st] || COL_INITIAL_RENDER) + COL_STEP_RENDER;
+        renderColumn(st, "append");
+      },
+      { passive: true }
+    );
   }
 }
 
@@ -1280,7 +1293,7 @@ function renderBoard() {
     rebuildViewModel();
 
     // Pintado inicial por columna
-    for (const st of [1,2,3,4,5]) {
+    for (const st of [1, 2, 3, 4, 5]) {
       renderColumn(st, "reset");
       renderColumn(st, "append");
     }
@@ -1288,7 +1301,7 @@ function renderBoard() {
     highlightSelected();
   } else {
     // Misma vista: solo asegura que el render coincida con límites actuales
-    for (const st of [1,2,3,4,5]) {
+    for (const st of [1, 2, 3, 4, 5]) {
       renderColumn(st, "append");
     }
     highlightSelected();
@@ -1514,7 +1527,6 @@ function setupDragAndDrop() {
     SortableInstances.push(inst);
   });
 }
-
 
 // ======================================================================
 // MEDIA / EVIDENCIAS + Modal "Subir evidencias" (Imágenes / Enlace)
@@ -2221,6 +2233,10 @@ async function init() {
     getTaskById,
     API_MEDIA,
     postJSON,
+
+    patchJSON,
+    API_TAREAS,
+    renderBoard,
   });
 
   // 6.1) Módulo de evidencias (modal Imágenes/Enlace)
