@@ -192,47 +192,43 @@ ix_require_session();
                     <!-- BODY (colapsable en mobile) -->
                     <div class="kb-section-body" id="kb-toolbar-body">
 
-                        <!-- Chips -->
-                        <div class="kb-toolbar-chips">
-                            <button type="button" class="kb-chip is-active" data-filter="mine">
-                                Solo mis tareas
-                            </button>
+                        <!-- FILA PRINCIPAL: izquierda chips | derecha filtros -->
+                        <div class="kb-toolbar-row">
 
-                            <button type="button" class="kb-chip" data-filter="recent">
-                                Recientes
-                            </button>
+                            <!-- Chips (izquierda) -->
+                            <div class="kb-toolbar-chips" role="group" aria-label="Filtros rápidos">
+                                <button type="button" class="kb-chip" data-chip="mine">Solo mis tareas</button>
+                                <button type="button" class="kb-chip" data-chip="recent">Recientes</button>
+                                <button type="button" class="kb-chip" data-chip="overdue">Vencidas</button>
+                            </div>
+
+                            <!-- Controles (derecha) -->
+                            <div class="kb-toolbar-controls" aria-label="Controles de búsqueda y filtros">
+
+                                <label class="kb-field kb-field--search">
+                                    <span class="kb-label">Buscar</span>
+                                    <input type="search" id="kb-search" class="kb-input" placeholder="Folio"
+                                        autocomplete="off" />
+                                </label>
+
+                                <label class="kb-field kb-field--select">
+                                    <span class="kb-label">Proceso</span>
+                                    <select id="kb-proceso" class="kb-select">
+                                        <option value="">Todos</option>
+                                        <!-- opciones dinámicas -->
+                                    </select>
+                                </label>
+
+                                <button type="button" class="kb-btn kb-btn--ghost" id="kb-clear-filters">
+                                    Limpiar filtros
+                                </button>
+
+                            </div>
                         </div>
 
-                        <!-- Filtros -->
-                        <div class="kb-toolbar-filters">
-
-                            <div class="kb-filter-field">
-                                <label for="kb-filter-search">Buscar</label>
-                                <input type="search" id="kb-filter-search" class="kb-filter-input" placeholder="Folio"
-                                    autocomplete="off" />
-                            </div>
-
-                            <div class="kb-filter-field">
-                                <label for="kb-filter-proceso">Proceso</label>
-                                <select id="kb-filter-proceso" class="kb-filter-input">
-                                    <!-- opciones desde JS -->
-                                </select>
-                            </div>
-
-                            <div class="kb-filter-field">
-                                <label for="kb-filter-tramite">Trámite</label>
-                                <select id="kb-filter-tramite" class="kb-filter-input">
-                                    <!-- opciones desde JS -->
-                                </select>
-                            </div>
-
-                            <button type="button" class="kb-filter-clear" id="kb-filter-clear">
-                                Limpiar filtros
-                            </button>
-
-                        </div>
                     </div>
                 </section>
+
 
                 <!-- Tablero Kanban -->
                 <div class="kb-board" id="kb-board">
