@@ -2428,3 +2428,116 @@ body.me-modal-open {
 
 
 
+
+
+
+
+/* ======================================================
+   FIX real para tu HTML actual (#kb-toolbar)
+   ====================================================== */
+
+/* Layout base (desktop/tablet amplio) */
+@media (min-width: 901px) {
+  #kb-toolbar #kb-toolbar-body {
+    padding-top: 12px; /* opcional, por si se ve muy pegado al header */
+  }
+
+  #kb-toolbar .kb-toolbar-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: nowrap; /* intenta 1 sola fila */
+    width: 100%;
+  }
+
+  /* Chips izquierda */
+  #kb-toolbar .kb-toolbar-chips {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* Controles derecha */
+  #kb-toolbar .kb-toolbar-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap; /* 1 fila */
+  }
+
+  /* Cada field: label arriba + input abajo (como lo traes) pero sin estirarse raro */
+  #kb-toolbar .kb-field {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  /* Tamaños consistentes */
+  #kb-toolbar .kb-field--search .kb-input {
+    width: 240px;
+    max-width: 280px;
+  }
+
+  #kb-toolbar .kb-field--select .kb-select {
+    width: 160px;
+    max-width: 220px;
+  }
+
+  /* Botón limpiar: fijo y sin brincar */
+  #kb-toolbar #kb-clear-filters {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+/* Si el ancho es justo, permite 2 filas pero ordenadas (chips arriba / controles abajo) */
+@media (min-width: 901px) and (max-width: 1180px) {
+  #kb-toolbar .kb-toolbar-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  #kb-toolbar .kb-toolbar-controls {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  #kb-toolbar .kb-field--search .kb-input {
+    width: 220px;
+  }
+}
+
+/* Mobile: que todo se apile bonito (por si tu CSS anterior lo dejó raro) */
+@media (max-width: 900px) {
+  #kb-toolbar .kb-toolbar-row {
+    display: grid;
+    gap: 12px;
+  }
+
+  #kb-toolbar .kb-toolbar-chips {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  #kb-toolbar .kb-toolbar-controls {
+    display: grid;
+    gap: 12px;
+  }
+
+  #kb-toolbar .kb-input,
+  #kb-toolbar .kb-select,
+  #kb-toolbar #kb-clear-filters {
+    width: 100%;
+  }
+}
+

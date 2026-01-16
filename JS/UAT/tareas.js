@@ -33,7 +33,7 @@ const KB = {
 // ================================
 // Universo en memoria + paginación visual
 // ================================
-const UNIVERSE_CAP = 20000;           // máximo de tareas en memoria
+const UNIVERSE_CAP = 20000;           // maximo de tareas en memoria
 const UNIVERSE_PAGE_SIZE = 300;       // page_size para endpoint V1
 const COL_INITIAL_RENDER = 30;        // tareas iniciales por columna
 const COL_STEP_RENDER = 10;           // incremento por scroll

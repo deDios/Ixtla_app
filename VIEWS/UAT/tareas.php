@@ -182,6 +182,14 @@ ix_require_session();
                             <span class="kb-toolbar-sub">Filtros rápidos</span>
                         </div>
 
+                        <!-- Chips (siempre visibles como en tu header ideal) -->
+                        <div class="kb-toolbar-chips" role="group" aria-label="Filtros rápidos">
+                            <button type="button" class="kb-chip" data-chip="mine">Solo mis tareas</button>
+                            <button type="button" class="kb-chip" data-chip="recent">Recientes</button>
+                            <button type="button" class="kb-chip" data-chip="overdue">Vencidas</button>
+                            <button type="button" class="kb-chip kb-chip--ghost" data-chip="clear">Limpiar</button>
+                        </div>
+
                         <button type="button" class="kb-section-toggle" id="kb-toolbar-toggle"
                             aria-controls="kb-toolbar-body" aria-expanded="true"
                             aria-label="Desplegar/colapsar filtros de tareas">
@@ -192,40 +200,52 @@ ix_require_session();
                     <!-- BODY (colapsable en mobile) -->
                     <div class="kb-section-body" id="kb-toolbar-body">
 
-                        <!-- FILA PRINCIPAL: izquierda chips | derecha filtros -->
-                        <div class="kb-toolbar-row">
+                        <!-- Controles (derecha en desktop, stack en mobile) -->
+                        <div class="kb-toolbar-controls" aria-label="Controles de búsqueda y filtros">
 
-                            <!-- Chips (izquierda) -->
-                            <div class="kb-toolbar-chips" role="group" aria-label="Filtros rápidos">
-                                <button type="button" class="kb-chip" data-chip="mine">Solo mis tareas</button>
-                                <button type="button" class="kb-chip" data-chip="recent">Recientes</button>
-                                <button type="button" class="kb-chip" data-chip="overdue">Vencidas</button>
-                            </div>
+                            <label class="kb-field kb-field--search">
+                                <span class="kb-label">Buscar</span>
+                                <input type="search" id="kb-search" class="kb-input" placeholder="Folio"
+                                    autocomplete="off" />
+                            </label>
 
-                            <!-- Controles (derecha) -->
-                            <div class="kb-toolbar-controls" aria-label="Controles de búsqueda y filtros">
+                            <label class="kb-field kb-field--select">
+                                <span class="kb-label">Estatus</span>
+                                <select id="kb-estatus" class="kb-select">
+                                    <option value="">Todos</option>
+                                    <!-- opciones dinámicas -->
+                                </select>
+                            </label>
 
-                                <label class="kb-field kb-field--search">
-                                    <span class="kb-label">Buscar</span>
-                                    <input type="search" id="kb-search" class="kb-input" placeholder="Folio"
-                                        autocomplete="off" />
-                                </label>
+                            <label class="kb-field kb-field--select">
+                                <span class="kb-label">Asignado</span>
+                                <select id="kb-asignado" class="kb-select">
+                                    <option value="">Todos</option>
+                                    <!-- opciones dinámicas -->
+                                </select>
+                            </label>
 
-                                <label class="kb-field kb-field--select">
-                                    <span class="kb-label">Proceso</span>
-                                    <select id="kb-proceso" class="kb-select">
-                                        <option value="">Todos</option>
-                                        <!-- opciones dinámicas -->
-                                    </select>
-                                </label>
+                            <label class="kb-field kb-field--select">
+                                <span class="kb-label">Proceso</span>
+                                <select id="kb-proceso" class="kb-select">
+                                    <option value="">Todos</option>
+                                    <!-- opciones dinámicas -->
+                                </select>
+                            </label>
 
-                                <button type="button" class="kb-btn kb-btn--ghost" id="kb-clear-filters">
-                                    Limpiar filtros
-                                </button>
+                            <label class="kb-field kb-field--select">
+                                <span class="kb-label">Trámite</span>
+                                <select id="kb-tramite" class="kb-select">
+                                    <option value="">Todos</option>
+                                    <!-- opciones dinámicas -->
+                                </select>
+                            </label>
 
-                            </div>
+                            <button type="button" class="kb-btn kb-btn--ghost" id="kb-clear-filters">
+                                Limpiar filtros
+                            </button>
+
                         </div>
-
                     </div>
                 </section>
 
