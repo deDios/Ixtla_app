@@ -82,7 +82,7 @@
                     <div class="auth-panel">
                         <h2 id="auth-title">
                             <span>Atención ciudadana</span><br>
-                            <strong>Ixtlahuacan de los membrillos</strong>
+                            <strong>Ixtlahuacán de los Membrillos</strong>
                         </h2>
 
                         <form class="auth-form" action="#" method="post" novalidate>
@@ -110,7 +110,7 @@
                     <a href="https://www.instagram.com/imembrillosgob/">Galería</a>
                     <!-- <a href="#">Información</a> este esta pendiente-->
                 </nav>
-                <p class="auth-copy">©2025 Municipio Ixtlahuacan de los membrillos</p>
+                <p class="auth-copy">©2025 Municipio Ixtlahuacán de los Membrillos</p>
             </div>
         </section>
 
