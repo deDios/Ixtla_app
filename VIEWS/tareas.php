@@ -773,7 +773,7 @@ ix_require_session();
     <!-- SortableJS -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
 
-    <script type="module" src="/JS/UAT/tareas.js"></script>
+    <script type="module" src="/JS/tareas.js"></script>
 
     <!-- <script src="/JS/expedienteTareas.js"></script> -->
 
