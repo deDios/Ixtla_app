@@ -39,9 +39,13 @@ export function updateProceso(payload) {
 export function listProcesos(q) {
   const body = {
     requerimiento_id: q.requerimiento_id,
-    status: q.status ?? 1,
     page: q.page ?? 1,
     page_size: q.page_size ?? 100,
   };
+
+  if (q.status !== undefined && q.status !== null) {
+    body.status = q.status;
+  }
+
   return postJSON(API.PROCESOS.LIST, body);
 }
