@@ -120,18 +120,33 @@ function nowAsSqlDateTime() {
 
 /**
  * Formato estándar de folio de requerimiento.
- * - Si ya viene como REQ-########### lo respeta.
- * - Si trae solo dígitos, los rellena a 11.
+ * - Si ya viene como REQ-########## (10 dígitos) lo normaliza.
+ * - Si trae solo dígitos, toma los últimos 10 y rellena a 10.
  * - Si no hay nada, usa el id como respaldo.
  */
 function formatFolio(folio, id) {
-  if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
-    return String(folio).trim();
+  const raw = String(folio ?? "").trim();
 
-  const digits = String(folio ?? "").match(/\d+/)?.[0];
+  // Ya viene con prefijo
+  const m = raw.match(/^REQ-(\d+)$/i);
+  if (m) {
+    const digits = String(m[1]).slice(-10).padStart(10, "0");
+    return `REQ-${digits}`;
+  }
 
-  if (digits) return "REQ-" + digits.padStart(11, "0");
-  if (id != null) return "REQ-" + String(id).padStart(11, "0");
+  // Viene como dígitos sueltos
+  const digitsLoose = raw.match(/\d+/)?.[0];
+  if (digitsLoose) {
+    const digits = String(digitsLoose).slice(-10).padStart(10, "0");
+    return `REQ-${digits}`;
+  }
+
+  // Respaldo por id
+  if (id != null) {
+    const digits = String(id).slice(-10).padStart(10, "0");
+    return `REQ-${digits}`;
+  }
+
   return "—";
 }
 
@@ -346,8 +361,8 @@ function mapRawTask(raw) {
     raw.status != null
       ? Number(raw.status)
       : raw.estatus != null
-      ? Number(raw.estatus)
-      : KB.STATUS.TODO;
+        ? Number(raw.estatus)
+        : KB.STATUS.TODO;
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
@@ -356,8 +371,8 @@ function mapRawTask(raw) {
     raw.asignado_a != null
       ? Number(raw.asignado_a)
       : raw.empleado_id != null
-      ? Number(raw.empleado_id)
-      : null;
+        ? Number(raw.empleado_id)
+        : null;
 
   const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
   const asignado_apellidos =
@@ -372,8 +387,8 @@ function mapRawTask(raw) {
     raw.requerimiento_id != null
       ? Number(raw.requerimiento_id)
       : raw.req_id != null
-      ? Number(raw.req_id)
-      : null;
+        ? Number(raw.req_id)
+        : null;
 
   const tramite_id = raw.tramite_id != null ? Number(raw.tramite_id) : null;
 
@@ -400,8 +415,8 @@ function mapRawTask(raw) {
       raw.esfuerzo != null
         ? Number(raw.esfuerzo)
         : raw.horas != null
-        ? Number(raw.horas)
-        : null,
+          ? Number(raw.horas)
+          : null,
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
     status,
@@ -549,33 +564,68 @@ async function fetchEmpleadosForFilters() {
   }
 }
 
-async function fetchProcesosCatalog() {
+async function fetchProcesosCatalog(neededProcesoIds) {
   try {
-    const payload = {
-      status: 1,
-      page: 1,
-      page_size: 200,
-    };
-    log("PROCESOS LIST →", API_PROCESOS.LIST, payload);
-    const json = await postJSON(API_PROCESOS.LIST, payload);
-    log("PROCESOS LIST respuesta cruda:", json);
+    const pageSize = 200;
+    const maxPages = 200; // guardrail
 
-    if (!json || !Array.isArray(json.data)) {
-      warn("Respuesta inesperada PROCESOS LIST", json);
-      return [];
+    const needSet = neededProcesoIds instanceof Set ? neededProcesoIds : null;
+    const index = new Map();
+
+    const hasAllNeeded = () => {
+      if (!needSet) return false;
+      for (const id of needSet) {
+        const pid = Number(id);
+        if (pid && !index.has(pid)) return false;
+      }
+      return true;
+    };
+
+    for (let page = 1; page <= maxPages; page += 1) {
+      // Importante: no forzar status=1 aquí; necesitamos hidratar históricos.
+      // Si el backend soporta `all:true` lo aprovechamos (si no, lo ignora).
+      const payload = {
+        all: true,
+        page,
+        page_size: pageSize,
+      };
+
+      log("PROCESOS LIST →", API_PROCESOS.LIST, payload);
+      const json = await postJSON(API_PROCESOS.LIST, payload);
+      log("PROCESOS LIST respuesta cruda:", json);
+
+      if (!json || !Array.isArray(json.data)) {
+        warn("Respuesta inesperada PROCESOS LIST", json);
+        break;
+      }
+
+      const rows = json.data;
+      if (!rows.length) break;
+
+      for (const p of rows) {
+        const pid = Number(p?.id ?? p?.proceso_id);
+        if (!pid) continue;
+
+        index.set(pid, {
+          id: pid,
+          descripcion: p.descripcion || "",
+          requerimiento_id:
+            p.requerimiento_id != null ? Number(p.requerimiento_id) : null,
+          status: p.status != null ? Number(p.status) : null,
+          // por si algún día viene folio directo
+          requerimiento_folio: p.requerimiento_folio || null,
+        });
+      }
+
+      // corte temprano si ya cubrimos todo lo que ocupamos
+      if (hasAllNeeded()) break;
+
+      // corte si fue la última página
+      if (rows.length < pageSize) break;
     }
 
-    const out = json.data.map((p) => ({
-      id: Number(p.id),
-      descripcion: p.descripcion || "",
-      requerimiento_id:
-        p.requerimiento_id != null ? Number(p.requerimiento_id) : null,
-      status: p.status != null ? Number(p.status) : null,
-      // por si algún día viene folio directo
-      requerimiento_folio: p.requerimiento_folio || null,
-    }));
-
-    log("Procesos normalizados:", out.length, out);
+    const out = Array.from(index.values());
+    log("Procesos normalizados (paginados):", out.length);
     return out;
   } catch (e) {
     console.error("[KB] Error al listar procesos:", e);
@@ -669,8 +719,8 @@ async function enrichTasksWithRequerimientos(tasks) {
         t.tramite_id != null
           ? Number(t.tramite_id)
           : req.tramite_id != null
-          ? Number(req.tramite_id)
-          : null,
+            ? Number(req.tramite_id)
+            : null,
       tramite_nombre:
         t.tramite_nombre || req.tramite_nombre || t.tramite_nombre || "",
     };
@@ -2068,13 +2118,18 @@ async function init() {
   // --------------------------------------------------------------------
   // 2) Cargar datos base
   // --------------------------------------------------------------------
-  const [empleados, depts, procesos, tramites, tareasRaw] = await Promise.all([
+  const [empleados, depts, tramites, tareasRaw] = await Promise.all([
     fetchEmpleadosForFilters(),
     fetchDepartamentos(),
-    fetchProcesosCatalog(),
     fetchTramitesCatalog(),
     fetchTareasFromApi(),
   ]);
+
+  // Traer procesos solo hasta cubrir los proceso_id que aparecen en las tareas
+  const neededProcesoIds = new Set(
+    tareasRaw.map((t) => Number(t?.proceso_id)).filter(Boolean)
+  );
+  const procesos = await fetchProcesosCatalog(neededProcesoIds);
 
   // --------------------------------------------------------------------
   // 3) Indexes globales
@@ -2132,7 +2187,8 @@ async function init() {
       merged.requerimiento_id = proc.requerimiento_id;
     }
 
-    if (!merged.folio && proc.requerimiento_folio) {
+    const hasRealFolio = merged.folio && merged.folio !== "—";
+    if (!hasRealFolio && proc.requerimiento_folio) {
       merged.folio = formatFolio(
         proc.requerimiento_folio,
         proc.requerimiento_id
