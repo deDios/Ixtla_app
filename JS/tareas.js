@@ -1,4 +1,4 @@
-// /JS/tareas.js
+// /JS/UAT/tareas.js
 "use strict";
 
 /* ==========================================================================
@@ -29,6 +29,15 @@ const KB = {
     PAUSA: 5,
   },
 };
+
+// ================================
+// Universo en memoria + paginación visual
+// ================================
+const UNIVERSE_CAP = 20000; // maximo de tareas en memoria
+const UNIVERSE_PAGE_SIZE = 300; // page_size para endpoint V1
+const COL_INITIAL_RENDER = 30; // tareas iniciales por columna
+const COL_STEP_RENDER = 10; // incremento por scroll
+const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar más
 
 // Departamentos especiales
 const PRES_DEPT_IDS = [6]; // Presidencia (no mostrar en filtro)
@@ -187,7 +196,28 @@ const State = {
   empleadosIndex: new Map(), // id_empleado → empleado
   departamentosIndex: new Map(), // id_depto → depto
   procesosIndex: new Map(), // id_proceso → proceso
-  tramitesIndex: new Map(), // id_tramite → tramite
+  tramitesIndex: new Map(), // id_tramite → tramite,
+
+  // ===== Universo + vista (paginación visual por columna) =====
+  universeCap: UNIVERSE_CAP,
+  tasksVersion: 0,
+
+  // límites visuales por columna (se reinician al cambiar filtros)
+  colLimits: {
+    1: COL_INITIAL_RENDER,
+    2: COL_INITIAL_RENDER,
+    3: COL_INITIAL_RENDER,
+    4: COL_INITIAL_RENDER,
+    5: COL_INITIAL_RENDER,
+  },
+  colRendered: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+
+  // cache de la vista actual
+  _viewKey: "",
+  _byStatus: { 1: [], 2: [], 3: [], 4: [], 5: [] },
+
+  // evita duplicar listeners
+  _scrollBound: false,
 };
 
 const COL_IDS = {
@@ -395,27 +425,66 @@ function mapRawTask(raw) {
    ========================================================================== */
 
 async function fetchTareasFromApi() {
-  const payload = {
-    page: 1,
-    page_size: 300,
-  };
+  // Carga paginada (endpoints originales V1) hasta UNIVERSE_CAP
+  const out = [];
+  let page = 1;
+  let total = Infinity;
 
-  try {
-    log("TAREAS LIST →", API_TAREAS.LIST, payload);
-    const json = await postJSON(API_TAREAS.LIST, payload);
-    log("TAREAS LIST respuesta cruda:", json);
+  while (out.length < UNIVERSE_CAP) {
+    const payload = {
+      page,
+      page_size: UNIVERSE_PAGE_SIZE,
+    };
 
-    if (!json || !Array.isArray(json.data)) {
-      warn("Respuesta inesperada de TAREAS LIST", json);
-      return [];
+    try {
+      log("TAREAS LIST →", API_TAREAS.LIST, payload);
+      const json = await postJSON(API_TAREAS.LIST, payload);
+
+      if (!json || !Array.isArray(json.data)) {
+        warn("Respuesta inesperada de TAREAS LIST", json);
+        break;
+      }
+
+      // total (meta.total) viene en V1
+      const metaTotal = Number(json?.meta?.total);
+      if (Number.isFinite(metaTotal) && metaTotal >= 0) {
+        total = metaTotal;
+      }
+
+      const batch = json.data.map(mapRawTask);
+      out.push(...batch);
+
+      // Progreso ligero (solo logs; evita spamear toasts)
+      if (page === 1 || page % 5 === 0) {
+        log("Universo tareas cargado:", {
+          loaded: out.length,
+          cap: UNIVERSE_CAP,
+          page,
+          page_size: UNIVERSE_PAGE_SIZE,
+          total: Number.isFinite(total) ? total : null,
+        });
+      }
+
+      // fin por total o por batch vacío
+      if (!batch.length) break;
+      if (page * UNIVERSE_PAGE_SIZE >= total) break;
+
+      page += 1;
+
+      // guardrail: evita loops infinitos si meta viene mal
+      if (page > 2000) {
+        warn("Guardrail: demasiadas páginas en LIST tareas, se detiene.");
+        break;
+      }
+    } catch (e) {
+      console.error("[KB] Error al listar tareas:", e);
+      break;
     }
-    const mapped = json.data.map(mapRawTask);
-    log("TAREAS mapeadas", mapped.length, mapped);
-    return mapped;
-  } catch (e) {
-    console.error("[KB] Error al listar tareas:", e);
-    return [];
   }
+
+  if (out.length > UNIVERSE_CAP) out.length = UNIVERSE_CAP;
+  log("TAREAS universo final:", out.length);
+  return out;
 }
 
 async function fetchDepartamentos() {
@@ -1062,50 +1131,183 @@ function createCard(task) {
   return art;
 }
 
-function renderBoard() {
-  // Limpiar columnas y contadores
-  Object.values(COL_IDS).forEach((sel) => {
-    const col = $(sel);
-    if (col) col.innerHTML = "";
-  });
-  Object.entries(CNT_IDS).forEach(([, sel]) => {
-    const lbl = $(sel);
-    if (lbl) lbl.textContent = "(0)";
-  });
+// ===== Helpers para orden y vista =====
+function _toMs(str) {
+  if (!str) return NaN;
+  const d = new Date(String(str).replace(" ", "T"));
+  return Number.isNaN(d.getTime()) ? NaN : d.getTime();
+}
 
-  // 1) Tareas visibles según jerarquía + filtros
-  const visibleTasks = [];
+function getTaskAgeMs(task) {
+  // Debe coincidir con la lógica de calcAgeChip (misma prioridad)
+  const base =
+    task.status_since ||
+    task.updated_at ||
+    task.fecha_inicio ||
+    task.created_at;
+  const ms = _toMs(base);
+  // sin fecha → al final (Infinity)
+  return Number.isFinite(ms) ? ms : Infinity;
+}
+
+function computeViewKey() {
+  const f = State.filters || {};
+  const depts = Array.from(f.departamentos || [])
+    .sort((a, b) => a - b)
+    .join(",");
+  const emps = Array.from(f.empleados || [])
+    .sort((a, b) => a - b)
+    .join(",");
+  return [
+    "v1",
+    State.tasksVersion,
+    f.mine ? 1 : 0,
+    f.recentDays ?? "",
+    (f.search || "").trim().toLowerCase(),
+    depts,
+    emps,
+    f.procesoId ?? "",
+    f.tramiteId ?? "",
+  ].join("|");
+}
+
+function rebuildViewModel() {
+  // Reinicia columnas
+  const byStatus = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+
   for (const task of State.tasks) {
     if (!canViewTask(task)) continue;
     if (!passesFilters(task)) continue;
 
-    visibleTasks.push(task);
+    const st = Number(task.status);
+    if (!byStatus[st]) continue;
+    byStatus[st].push(task);
+  }
 
-    const colSel = COL_IDS[task.status];
+  // Orden: más viejas primero (ASC)
+  for (const st of [1, 2, 3, 4, 5]) {
+    byStatus[st].sort((a, b) => {
+      const da = getTaskAgeMs(a);
+      const db = getTaskAgeMs(b);
+      if (da !== db) return da - db;
+      // tie-break estable
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
+    });
+  }
+
+  State._byStatus = byStatus;
+
+  // Reset render counters
+  State.colRendered = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+  // Conteos
+  for (const st of [1, 2, 3, 4, 5]) {
+    const cntSel = CNT_IDS[st];
+    const cntEl = cntSel ? $(cntSel) : null;
+    if (cntEl) cntEl.textContent = `(${byStatus[st].length})`;
+  }
+
+  // Opciones dinámicas de filtros (sobre la vista actual)
+  if (FiltersModule && FiltersModule.updateAvailableOptions) {
+    const universeTasks = [];
+    for (const st of [1, 2, 3, 4, 5]) universeTasks.push(...byStatus[st]);
+    FiltersModule.updateAvailableOptions(universeTasks);
+  }
+}
+
+function renderColumn(st, mode) {
+  const colSel = COL_IDS[st];
+  const col = colSel ? $(colSel) : null;
+  if (!col) return;
+
+  const list = State._byStatus[st] || [];
+  const target = Math.min(
+    State.colLimits[st] || COL_INITIAL_RENDER,
+    list.length
+  );
+
+  if (mode === "reset") {
+    col.innerHTML = "";
+    State.colRendered[st] = 0;
+  }
+
+  const from = State.colRendered[st] || 0;
+  if (from >= target) return;
+
+  for (let i = from; i < target; i++) {
+    const task = list[i];
+    const card = createCard(task);
+    col.appendChild(card);
+  }
+
+  State.colRendered[st] = target;
+}
+
+function setupInfiniteScroll() {
+  if (State._scrollBound) return;
+  State._scrollBound = true;
+
+  for (const st of [1, 2, 3, 4, 5]) {
+    const colSel = COL_IDS[st];
     const col = colSel ? $(colSel) : null;
     if (!col) continue;
 
-    const card = createCard(task);
-    col.appendChild(card);
+    col.addEventListener(
+      "scroll",
+      () => {
+        const list = State._byStatus[st] || [];
+        if (!list.length) return;
 
-    const cntSel = CNT_IDS[task.status];
-    const cntEl = cntSel ? $(cntSel) : null;
-    if (cntEl) {
-      const current =
-        Number((cntEl.textContent || "").replace(/[()]/g, "")) || 0;
-      cntEl.textContent = `(${current + 1})`;
-    }
-  }
+        const remaining = col.scrollHeight - col.scrollTop - col.clientHeight;
+        if (remaining > COL_SCROLL_THRESHOLD_PX) return;
 
-  highlightSelected();
+        if ((State.colRendered[st] || 0) >= list.length) return;
 
-  // 2) Actualizar filtros dinámicos según tareas que cumplen jerarquía + filtros
-  if (FiltersModule && FiltersModule.updateAvailableOptions) {
-    const universeTasks = State.tasks.filter(
-      (t) => canViewTask(t) && passesFilters(t)
+        // Incremento +10
+        State.colLimits[st] =
+          (State.colLimits[st] || COL_INITIAL_RENDER) + COL_STEP_RENDER;
+        renderColumn(st, "append");
+      },
+      { passive: true }
     );
-    FiltersModule.updateAvailableOptions(universeTasks);
   }
+}
+
+function renderBoard() {
+  // Rebuild si cambió algo (filtros/tareas)
+  const key = computeViewKey();
+  const needsRebuild = key !== State._viewKey;
+
+  if (needsRebuild) {
+    State._viewKey = key;
+
+    // Reset límites visuales
+    State.colLimits = {
+      1: COL_INITIAL_RENDER,
+      2: COL_INITIAL_RENDER,
+      3: COL_INITIAL_RENDER,
+      4: COL_INITIAL_RENDER,
+      5: COL_INITIAL_RENDER,
+    };
+
+    rebuildViewModel();
+
+    // Pintado inicial por columna
+    for (const st of [1, 2, 3, 4, 5]) {
+      renderColumn(st, "reset");
+      renderColumn(st, "append");
+    }
+
+    highlightSelected();
+  } else {
+    // Misma vista: solo asegura que el render coincida con límites actuales
+    for (const st of [1, 2, 3, 4, 5]) {
+      renderColumn(st, "append");
+    }
+    highlightSelected();
+  }
+
+  setupInfiniteScroll();
 }
 
 /* ==========================================================================
@@ -1177,6 +1379,8 @@ async function persistTaskStatus(task, newStatus, oldStatus) {
 
     task.status = newStatus;
     task.updated_at = nowAsSqlDateTime();
+    State.tasksVersion += 1;
+    State._viewKey = "";
   } catch (e) {
     console.error("[KB] Error al actualizar status de tarea:", e);
     toast("Error al actualizar el status de la tarea.", "error");
@@ -1292,6 +1496,14 @@ function setupDragAndDrop() {
         // Movimiento permitido
         // ================================
         task.status = newStatus;
+
+        // Cambió el universo (para forzar rebuild + contadores + orden viejo→nuevo)
+        State.tasksVersion = (State.tasksVersion || 0) + 1;
+
+        // Para orden/edad: al cambiar de columna consideramos que 'entra' a ese status ahora
+        try {
+          task.status_since = nowAsSqlDateTime();
+        } catch (_) {}
         log(
           "DragEnd → tarea",
           task.id,
@@ -1315,7 +1527,6 @@ function setupDragAndDrop() {
     SortableInstances.push(inst);
   });
 }
-
 
 // ======================================================================
 // MEDIA / EVIDENCIAS + Modal "Subir evidencias" (Imágenes / Enlace)
@@ -1993,7 +2204,17 @@ async function init() {
     };
   });
 
+  // Orden global: más viejas primero (mismo criterio que calcAgeChip)
+  tareasConPersonas.sort((a, b) => {
+    const da = getTaskAgeMs(a);
+    const db = getTaskAgeMs(b);
+    if (da !== db) return da - db;
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
+  });
+
   State.tasks = tareasConPersonas;
+  State.tasksVersion += 1;
+  State._viewKey = "";
   log("TAREAS finales en state:", State.tasks.length, State.tasks);
 
   // --------------------------------------------------------------------
@@ -2012,6 +2233,10 @@ async function init() {
     getTaskById,
     API_MEDIA,
     postJSON,
+
+    patchJSON,
+    API_TAREAS,
+    renderBoard,
   });
 
   // 6.1) Módulo de evidencias (modal Imágenes/Enlace)

@@ -15,8 +15,169 @@ export function createTaskDetailsModule({
   highlightSelected,
   getTaskById,
   postJSON,
+
+  patchJSON,
+  API_TAREAS,
+  renderBoard,
 }) {
   const $ = (sel, root = document) => root.querySelector(sel);
+
+  //helpers para el drawer de mobile
+  function isMobileDrawer() {
+    try {
+      return (
+        window.matchMedia && window.matchMedia("(max-width: 720px)").matches
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  function statusLabel(s) {
+    const S = KB.STATUS || {};
+    const map = {
+      [S.TODO]: "Por hacer",
+      [S.PROCESO]: "En proceso",
+      [S.REVISAR]: "Por revisar",
+      [S.HECHO]: "Hecho",
+      [S.PAUSA]: "Bloqueado",
+    };
+    return map[s] || "—";
+  }
+
+  // Transiciones válidas tipo “Trello”
+  function getAllowedMoves(current) {
+    const S = KB.STATUS || {};
+    const T = {
+      [S.TODO]: [S.PROCESO, S.PAUSA],
+      [S.PROCESO]: [S.REVISAR, S.PAUSA, S.TODO],
+      [S.REVISAR]: [S.HECHO, S.PROCESO, S.PAUSA],
+      [S.PAUSA]: [S.TODO, S.PROCESO],
+      [S.HECHO]: [],
+    };
+    return T[current] || [];
+  }
+
+  async function persistTaskStatusFromDrawer(task, newStatus) {
+    const { empleado_id } = getUserAndEmpleadoFromSession();
+    if (!empleado_id) {
+      toast("No se pudo identificar tu sesión para mover la tarea.", "warning");
+      return false;
+    }
+
+    const oldStatus = Number(task.status);
+    const payload = {
+      id: task.id,
+      status: Number(newStatus), // si tu backend usa 'estatus', cámbialo aquí
+      updated_by: empleado_id,
+    };
+
+    // si entra a EN PROCESO, fecha_inicio
+    if (
+      oldStatus !== KB.STATUS.PROCESO &&
+      Number(newStatus) === KB.STATUS.PROCESO
+    ) {
+      const now = new Date();
+      const sql = now.toISOString().slice(0, 19).replace("T", " ");
+      payload.fecha_inicio = sql;
+      task.fecha_inicio = sql;
+    }
+
+    // si entra a HECHO, fecha_fin
+    if (
+      oldStatus !== KB.STATUS.HECHO &&
+      Number(newStatus) === KB.STATUS.HECHO
+    ) {
+      const now = new Date();
+      const sql = now.toISOString().slice(0, 19).replace("T", " ");
+      payload.fecha_fin = sql;
+      task.fecha_fin = sql;
+    }
+
+    try {
+      log("[Drawer] UPDATE status →", API_TAREAS?.UPDATE, payload);
+      const res = await patchJSON(API_TAREAS.UPDATE, payload);
+      if (!res || res.ok === false) {
+        toast(res?.error || "No se pudo mover la tarea.", "error");
+        return false;
+      }
+
+      task.status = Number(newStatus);
+      toast(`Tarea movida a: ${statusLabel(task.status)}`, "success");
+      return true;
+    } catch (e) {
+      console.error("[Drawer] Error al mover tarea:", e);
+      toast("Error al mover la tarea.", "error");
+      return false;
+    }
+  }
+
+  function setupMoveUI(task) {
+    const wrap = document.getElementById("kb-d-move");
+    const sel = document.getElementById("kb-d-move-select");
+    const btn = document.getElementById("kb-d-move-btn");
+    const hint = document.getElementById("kb-d-move-hint");
+
+    if (!wrap || !sel || !btn) return;
+
+    // Solo mobile
+    if (!isMobileDrawer()) {
+      wrap.hidden = true;
+      return;
+    }
+
+    const allowed = getAllowedMoves(Number(task.status));
+    if (!allowed.length) {
+      wrap.hidden = true; // por ejemplo cuando está HECHO
+      return;
+    }
+
+    wrap.hidden = false;
+
+    // reset
+    sel.innerHTML = `<option value="" selected disabled>Selecciona…</option>`;
+    allowed.forEach((st) => {
+      const opt = document.createElement("option");
+      opt.value = String(st);
+      opt.textContent = statusLabel(st);
+      sel.appendChild(opt);
+    });
+
+    if (hint) hint.textContent = `Actual: ${statusLabel(Number(task.status))}`;
+
+    btn.disabled = true;
+
+    sel.onchange = () => {
+      btn.disabled = !sel.value;
+    };
+
+    if (!btn._kbBoundMove) {
+      btn._kbBoundMove = true;
+      btn.addEventListener("click", async () => {
+        const next = Number(sel.value || 0);
+        if (!next) return;
+
+        // seguridad: validar transición aún aquí
+        const okMove = getAllowedMoves(Number(task.status)).includes(next);
+        if (!okMove) {
+          toast("Movimiento no permitido desde el estatus actual.", "warning");
+          return;
+        }
+
+        btn.disabled = true;
+
+        const ok = await persistTaskStatusFromDrawer(task, next);
+        if (ok) {
+          // re-render tablero y refrescar detalle
+          if (typeof renderBoard === "function") renderBoard();
+          fillDetails(task);
+          setupMoveUI(task); // re-armar opciones según nuevo status
+        } else {
+          btn.disabled = false;
+        }
+      });
+    }
+  }
 
   /* ========================================================================
    *  Helpers de sesión (copiados de requerimientoView.js)
@@ -1401,6 +1562,7 @@ export function createTaskDetailsModule({
     if (body) body.hidden = false;
 
     fillDetails(task);
+    setupMoveUI(task);
     setupTaskCommentsComposer();
 
     const btnExp = $("#kb-btn-expediente");

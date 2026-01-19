@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../JS/auth/ix_guard.php';
+require_once __DIR__ . '/../../JS/auth/ix_guard.php';
 ix_require_session();
 ?>
 <!DOCTYPE html>
@@ -12,7 +12,7 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/components.css">
-    <link rel="stylesheet" href="/CSS/tareas.css">
+    <link rel="stylesheet" href="/CSS/tareas copy.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -95,6 +95,7 @@ ix_require_session();
 
                 <!-- Filtros en sidebar (Departamentos / Empleados) -->
                 <section id="kb-sidebar-filters" class="kb-sidebar-filters kb-section" aria-label="Filtros de tablero">
+
                     <div class="kb-section-head">
                         <h4 class="kb-section-title">Filtros</h4>
 
@@ -170,29 +171,25 @@ ix_require_session();
             <!-- MAIN -->
             <section class="hs-main">
 
+
+
+
+
                 <!-- Header de filtros rápidos -->
                 <section class="kb-toolbar kb-section" aria-label="Filtros de tareas" id="kb-toolbar"
                     aria-expanded="true">
 
                     <!-- HEADER (siempre visible) -->
                     <div class="kb-section-head">
+
+                        <!-- Título -->
                         <div class="kb-toolbar-title">
                             <h2>Tareas</h2>
                             <span class="kb-toolbar-sub">Filtros rápidos</span>
                         </div>
 
-                        <button type="button" class="kb-section-toggle" id="kb-toolbar-toggle"
-                            aria-controls="kb-toolbar-body" aria-expanded="true"
-                            aria-label="Desplegar/colapsar filtros de tareas">
-                            <span class="kb-section-chevron">▾</span>
-                        </button>
-                    </div>
-
-                    <!-- BODY (colapsable en mobile) -->
-                    <div class="kb-section-body" id="kb-toolbar-body">
-
-                        <!-- Chips -->
-                        <div class="kb-toolbar-chips">
+                        <!-- Chips (filtros rápidos) -->
+                        <div class="kb-toolbar-chips kb-toolbar-chips--head" aria-label="Filtros rápidos">
                             <button type="button" class="kb-chip is-active" data-filter="mine">
                                 Solo mis tareas
                             </button>
@@ -202,7 +199,19 @@ ix_require_session();
                             </button>
                         </div>
 
-                        <!-- Filtros -->
+                        <!-- Toggle -->
+                        <button type="button" class="kb-section-toggle" id="kb-toolbar-toggle"
+                            aria-controls="kb-toolbar-body" aria-expanded="true"
+                            aria-label="Desplegar/colapsar filtros de tareas">
+                            <span class="kb-section-chevron">▾</span>
+                        </button>
+
+                    </div>
+
+                    <!-- BODY (colapsable en mobile) -->
+                    <div class="kb-section-body" id="kb-toolbar-body">
+
+                        <!-- Filtros avanzados -->
                         <div class="kb-toolbar-filters">
 
                             <div class="kb-filter-field">
@@ -232,6 +241,10 @@ ix_require_session();
                         </div>
                     </div>
                 </section>
+
+
+
+
 
                 <!-- Tablero Kanban -->
                 <div class="kb-board" id="kb-board">
@@ -328,6 +341,24 @@ ix_require_session();
                                     </svg>
                                     <span>Generar expediente</span>
                                 </button>
+                            </div>
+
+                            <!-- ====== Mover tarea (solo mobile) ====== -->
+                            <div class="kb-d-move" id="kb-d-move" hidden>
+                                <label class="kb-d-move-label" for="kb-d-move-select">Mover a:</label>
+
+                                <div class="kb-d-move-row">
+                                    <select id="kb-d-move-select" class="kb-d-move-select">
+                                        <option value="" selected disabled>Selecciona…</option>
+                                        <!-- opciones desde JS -->
+                                    </select>
+
+                                    <button type="button" class="kb-d-move-btn" id="kb-d-move-btn" disabled>
+                                        Mover
+                                    </button>
+                                </div>
+
+                                <small class="kb-d-move-hint" id="kb-d-move-hint"></small>
                             </div>
 
                             <!-- Folio -->
@@ -742,7 +773,7 @@ ix_require_session();
     <!-- SortableJS -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
 
-    <script type="module" src="/JS/tareas.js"></script>
+    <script type="module" src="/JS/UAT/tareas.js"></script>
 
     <!-- <script src="/JS/expedienteTareas.js"></script> -->
 
