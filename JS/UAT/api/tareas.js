@@ -50,8 +50,11 @@ export function updateTarea(payload) {
     id: payload.id,
     titulo: payload.titulo,
     descripcion: payload.descripcion,
-    esfuerzo: (payload.esfuerzo != null) ? Number(payload.esfuerzo) : undefined,
-    asignado_a: (payload.asignado_a === undefined) ? undefined : (payload.asignado_a ?? null),
+    esfuerzo: payload.esfuerzo != null ? Number(payload.esfuerzo) : undefined,
+    asignado_a:
+      payload.asignado_a === undefined
+        ? undefined
+        : (payload.asignado_a ?? null),
     fecha_inicio: payload.fecha_inicio,
     fecha_fin: payload.fecha_fin,
     status: payload.status,
@@ -67,9 +70,13 @@ export function updateTarea(payload) {
 export function listTareas(q) {
   const body = {
     proceso_id: q.proceso_id,
-    status: q.status ?? 1,
     page: q.page ?? 1,
     page_size: q.page_size ?? 100,
   };
+
+  if (q.status !== undefined && q.status !== null) {
+    body.status = q.status;
+  }
+
   return postJSON(API.TAREAS.LIST, body);
 }
