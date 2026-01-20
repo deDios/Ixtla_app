@@ -177,16 +177,8 @@ ix_require_session();
                         <h3 style="margin:0;">Trámites</h3>
 
                         <div class="hs-tools">
-                            <!-- NUEVO BOTÓN para disparar el modal de la creacion de requerimientos -->
-                            <button type="button" id="hs-btn-new-req" class="hs-btn-new-req">
-                                <svg class="hs-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                    <!-- ícono archivo con signo + -->
-                                    <path fill="currentColor"
-                                        d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm6 1.5V8h4.5L12 3.5zM11 11h2v3h3v2h-3v3h-2v-3H8v-2h3v-3z" />
-                                </svg>
-                                <span>Nuevo requerimiento</span>
-                            </button>
 
+                            <!-- esta es la barra de busqueda de requerimientos de home -->
                             <div class="search" role="search">
                                 <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                                     <path fill="currentColor"
@@ -197,10 +189,20 @@ ix_require_session();
                             </div>
 
                             <div class="legend">
+
+                                <!-- NUEVO BOTÓN para disparar el modal de la creacion de requerimientos -->
+                                <button type="button" id="hs-btn-new-req" class="hs-btn-new-req">
+                                    <svg class="hs-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <!-- ícono archivo con signo + -->
+                                        <path fill="currentColor"
+                                            d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm6 1.5V8h4.5L12 3.5zM11 11h2v3h3v2h-3v3h-2v-3H8v-2h3v-3z" />
+                                    </svg>
+                                    <span>Nuevo requerimiento</span>
+                                </button>
+
                                 <span>Requerimientos: <strong id="hs-legend-total">0</strong></span>
                                 <span style="margin:0 .4rem;">·</span>
                                 <span>Status: <strong id="hs-legend-status">Todos los status</strong></span>
-
 
                             </div>
                         </div>
