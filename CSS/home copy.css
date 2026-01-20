@@ -2568,53 +2568,49 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 
 
 
-/* ===========================
-   Botón: Nuevo requerimiento
-   =========================== */
+/* ================= botón "Nuevo requerimiento" ================= */
+
 .hs-btn-new-req {
+  all: unset;
+  box-sizing: border-box;
+
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.5rem;
 
-  padding: 10px 16px;
-  border-radius: 12px;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
 
-  border: 1px solid #d9e2f1;
-  background: #ffffff;
+  border: 1px solid #d1d5db;
+  background: #859F8E;
+  color: #ffffff;
 
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1;
-
-  color: #1f2937;
-  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
 
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+
   transition:
-    background-color .2s ease,
-    box-shadow .2s ease,
-    transform .15s ease;
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.05s ease;
 }
 
 .hs-btn-new-req:hover {
-  background: #f8fafc;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background-color: #859f8ec7;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.12);
 }
 
 .hs-btn-new-req:active {
   transform: translateY(1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.hs-btn-new-req:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
-}
-
-@media (max-width: 720px) {
-  .hs-btn-new-req {
-    width: auto;
-    padding: 10px 14px;
-    font-size: 13px;
-  }
+/* Ícono */
+.hs-btn-new-req .hs-btn-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  flex-shrink: 0;
 }

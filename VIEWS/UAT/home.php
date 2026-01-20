@@ -193,7 +193,12 @@ ix_require_session();
 
                                 <!-- NUEVO BOTÓN para disparar el modal de la creacion de requerimientos -->
                                 <button type="button" id="hs-btn-new-req" class="hs-btn-new-req">
-                                    Nuevo requerimiento
+                                    <svg class="hs-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <!-- ícono archivo con signo + -->
+                                        <path fill="currentColor"
+                                            d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm6 1.5V8h4.5L12 3.5zM11 11h2v3h3v2h-3v3h-2v-3H8v-2h3v-3z" />
+                                    </svg>
+                                    <span>Nuevo requerimiento</span>
                                 </button>
                             </div>
                         </div>
@@ -428,13 +433,13 @@ ix_require_session();
 
     -->
     <script type="module">
-        import {
-            guardPage
-        } from "/JS/auth/guard.js";
-        guardPage({
-            stealth: false,
-            redirectTo: "/VIEWS/login.php"
-        });
+    import {
+        guardPage
+    } from "/JS/auth/guard.js";
+    guardPage({
+        stealth: false,
+        redirectTo: "/VIEWS/login.php"
+    });
     </script>
 
     <script src="/JS/UAT/JSglobal.js"></script>
