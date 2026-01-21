@@ -470,12 +470,15 @@
     function refreshPreviews() {
       if (!previews) return;
       previews.innerHTML = "";
+
       files.forEach((f, idx) => {
-        const row = document.createElement("div");
-        row.className = "ix-preview";
+        const fig = document.createElement("figure");
 
         const img = document.createElement("img");
         img.alt = f.name || `evidencia-${idx + 1}`;
+        img.loading = "lazy";
+        img.decoding = "async";
+
         if (!f._url) {
           try {
             f._url = URL.createObjectURL(f);
@@ -483,18 +486,11 @@
         }
         if (f._url) img.src = f._url;
 
-        const meta = document.createElement("div");
-        meta.className = "ix-preview__meta";
-        meta.innerHTML = `
-      <div class="ix-preview__name">${(f.name || "archivo").replace(/[<>&]/g, "")}</div>
-      <div class="ix-preview__size">${Math.round((f.size || 0) / 1024)} KB</div>
-    `;
-
-        const btnX = document.createElement("button");
-        btnX.type = "button";
-        btnX.className = "ix-preview__remove";
-        btnX.textContent = "Quitar";
-        btnX.addEventListener("click", () => {
+        const del = document.createElement("button");
+        del.type = "button";
+        del.setAttribute("aria-label", "Eliminar imagen");
+        del.textContent = "×";
+        del.addEventListener("click", () => {
           const gone = files.splice(idx, 1)[0];
           if (gone?._url) {
             try {
@@ -505,10 +501,9 @@
           form?.dispatchEvent(new Event("input", { bubbles: true }));
         });
 
-        row.appendChild(img);
-        row.appendChild(meta);
-        row.appendChild(btnX);
-        previews.appendChild(row);
+        fig.appendChild(img);
+        fig.appendChild(del);
+        previews.appendChild(fig);
       });
     }
 
