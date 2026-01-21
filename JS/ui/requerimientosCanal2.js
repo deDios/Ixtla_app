@@ -720,22 +720,33 @@
         }
 
         // 3) Upload evidencias (multipart) estado 0
+        // 2) Media (carpetas + upload) usando /JS/api/media.js
         if (files.length) {
-          const fd = new FormData();
-          fd.append("folio", folio);
-          fd.append("status", "0");
-          files.forEach((f) => fd.append("files[]", f, f.name));
-
-          const upRes = await fetch(EP.uploadImg, { method: "POST", body: fd });
-          let upJson = null;
           try {
-            upJson = await upRes.json();
-          } catch {}
-          if (!upRes.ok || !upJson?.ok) {
+            const { setupMedia, uploadMedia } =
+              await import("/JS/api/media.js");
+            await setupMedia(folio, {
+              create_status_txt: true,
+              force_status_txt: false,
+            });
+            const up = await uploadMedia({ folio, status: 0, files });
+            if (up?.skipped?.length) {
+              const names = up.skipped
+                .map((s) => s?.name)
+                .filter(Boolean)
+                .join(", ");
+              if (names)
+                toast(`Se omitieron algunas imágenes: ${names}`, "warn", 4500);
+            }
+            if (up && up.ok === false) {
+              toast("No se pudieron subir evidencias.", "warn", 3500);
+            }
+          } catch (eUp) {
+            warn("media upload error:", eUp);
             toast(
-              upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`,
+              `Error al subir evidencias: ${eUp?.message || eUp}`,
               "warn",
-              3500,
+              3800,
             );
           }
         }
