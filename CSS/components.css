@@ -1039,7 +1039,6 @@
   position: fixed;
   inset: 0;
   z-index: var(--z);
-  background: rgba(0, 0, 0, 58);
 }
 
 #ix-report-modal .ix-modal__dialog {

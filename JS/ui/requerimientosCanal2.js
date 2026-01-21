@@ -18,6 +18,9 @@
     departamentos: `${HOST}/db/WEB/ixtla01_c_departamento.php`, // singular ✅
     tramites: `${HOST}/db/WEB/ixtla01_c_tramite.php`,
     cpcolonia: `${HOST}/db/WEB/ixtla01_c_cpcolonia.php`,
+    insertReq: `/webpublic_proxy.php`,
+    fsBootstrap: `${HOST}/db/WEB/ixtla01_u_requerimiento_folders.php`,
+    uploadImg: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,
   };
 
   // =========================
@@ -367,6 +370,410 @@
       if (e.key === "Escape" && !modal.hidden) closeModal(modal);
     });
 
+    // =========================
+    // Conexión: Media + Submit
+    // (misma lógica base que tramites)
+    // =========================
+    const toast = (msg, type = "info", ms = 3000) => {
+      try {
+        if (typeof window.gcToast === "function")
+          return window.gcToast(msg, type, ms);
+        if (window.ixToast?.[type]) return window.ixToast[type](msg, ms);
+        console.log(TAG, "[toast]", type, msg);
+      } catch {
+        console.log(TAG, "[toast]", type, msg);
+      }
+    };
+
+    const CFG = {
+      NAME_MIN_CHARS: 5,
+      DESC_MIN_CHARS: 10,
+      PHONE_DIGITS: 10,
+      MAX_FILES: 3,
+      MIN_FILES: 0,
+      MAX_MB: 1,
+      ACCEPT_MIME: [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+      ],
+      ACCEPT_EXT: [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"],
+      FETCH_TIMEOUT: 12000,
+    };
+
+    // Estado uploader
+    let files = [];
+    let isSubmitting = false;
+    let hasAttemptedSubmit = false;
+
+    // DOM del formulario
+    const form = modal.querySelector("#ix-report-form");
+    const feedback = modal.querySelector("#ix-report-feedback");
+
+    const inpNombre = modal.querySelector("#ix-nombre");
+    const inpDom = modal.querySelector("#ix-domicilio");
+    const inpTel = modal.querySelector("#ix-telefono");
+    const inpCorreo = modal.querySelector("#ix-correo");
+    const inpDesc = modal.querySelector("#ix-descripcion");
+    const cntDesc = modal.querySelector("#ix-desc-count");
+    const chkCons = modal.querySelector("#ix-consent");
+    const btnSend = modal.querySelector("#ix-submit");
+
+    // Uploader
+    const upWrap = modal.querySelector(".ix-upload");
+    const upInput = modal.querySelector("#ix-evidencia");
+    const upCTA = modal.querySelector("#ix-evidencia-cta");
+    const previews = modal.querySelector("#ix-evidencia-previews");
+
+    // Fecha visible (el backend usa NOW(); aquí solo UI)
+    const inpFecha = modal.querySelector("#ix-fecha");
+
+    const digits = (s) => String(s || "").replace(/\D+/g, "");
+    const isEmail = (s) =>
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || "").trim());
+    const extOf = (name = "") => {
+      const n = String(name).toLowerCase();
+      const i = n.lastIndexOf(".");
+      return i >= 0 ? n.slice(i) : "";
+    };
+    const hasAllowedExt = (f) => CFG.ACCEPT_EXT.includes(extOf(f?.name));
+    const hasAllowedMime = (f) => CFG.ACCEPT_MIME.includes(f?.type);
+
+    function clearFeedback() {
+      if (!feedback) return;
+      feedback.hidden = true;
+      feedback.textContent = "";
+    }
+    function showFeedback(msg) {
+      if (!feedback) return;
+      feedback.hidden = false;
+      feedback.textContent = msg || "";
+    }
+
+    function setToday() {
+      if (!inpFecha) return;
+      const now = new Date();
+      inpFecha.value = now
+        .toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
+        .replace(",", " ·");
+    }
+
+    function updateDescCount() {
+      if (!cntDesc || !inpDesc) return;
+      const max = Number(cntDesc.dataset.max || 500);
+      const n = (inpDesc.value || "").length;
+      cntDesc.textContent = `${n}/${max}`;
+    }
+
+    function refreshPreviews() {
+      if (!previews) return;
+      previews.innerHTML = "";
+      files.forEach((f, idx) => {
+        const row = document.createElement("div");
+        row.className = "ix-preview";
+
+        const img = document.createElement("img");
+        img.alt = f.name || `evidencia-${idx + 1}`;
+        if (!f._url) {
+          try {
+            f._url = URL.createObjectURL(f);
+          } catch {}
+        }
+        if (f._url) img.src = f._url;
+
+        const meta = document.createElement("div");
+        meta.className = "ix-preview__meta";
+        meta.innerHTML = `
+      <div class="ix-preview__name">${(f.name || "archivo").replace(/[<>&]/g, "")}</div>
+      <div class="ix-preview__size">${Math.round((f.size || 0) / 1024)} KB</div>
+    `;
+
+        const btnX = document.createElement("button");
+        btnX.type = "button";
+        btnX.className = "ix-preview__remove";
+        btnX.textContent = "Quitar";
+        btnX.addEventListener("click", () => {
+          const gone = files.splice(idx, 1)[0];
+          if (gone?._url) {
+            try {
+              URL.revokeObjectURL(gone._url);
+            } catch {}
+          }
+          refreshPreviews();
+          form?.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+
+        row.appendChild(img);
+        row.appendChild(meta);
+        row.appendChild(btnX);
+        previews.appendChild(row);
+      });
+    }
+
+    function ensureUploadUI() {
+      if (upInput) {
+        upInput.accept = [...CFG.ACCEPT_MIME, ...CFG.ACCEPT_EXT].join(",");
+      }
+      if (upCTA && upInput) {
+        upCTA.addEventListener("click", (e) => {
+          e.preventDefault();
+          upInput.click();
+        });
+      }
+      if (upInput) {
+        upInput.addEventListener("change", () => {
+          const picked = Array.from(upInput.files || []);
+          if (!picked.length) return;
+          const next = [...files, ...picked].slice(0, CFG.MAX_FILES);
+
+          // valida por archivo
+          const valid = [];
+          for (const f of next) {
+            const mb = (f.size || 0) / (1024 * 1024);
+            const okType = hasAllowedMime(f) || hasAllowedExt(f);
+            if (!okType) {
+              toast(`Tipo no permitido: ${f.name}`, "warn", 3200);
+              continue;
+            }
+            if (mb > CFG.MAX_MB) {
+              toast(
+                `Archivo muy pesado (máx ${CFG.MAX_MB}MB): ${f.name}`,
+                "warn",
+                3200,
+              );
+              continue;
+            }
+            valid.push(f);
+          }
+          files = valid.slice(0, CFG.MAX_FILES);
+
+          // reset input para permitir volver a seleccionar mismo archivo
+          upInput.value = "";
+          refreshPreviews();
+          form?.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      }
+      if (upWrap) {
+        upWrap.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          upWrap.classList.add("drag");
+        });
+        upWrap.addEventListener("dragleave", () =>
+          upWrap.classList.remove("drag"),
+        );
+        upWrap.addEventListener("drop", (e) => {
+          e.preventDefault();
+          upWrap.classList.remove("drag");
+          const dropped = Array.from(e.dataTransfer?.files || []);
+          if (!dropped.length) return;
+          // simula selección
+          const dt = new DataTransfer();
+          dropped.slice(0, CFG.MAX_FILES).forEach((f) => dt.items.add(f));
+          if (upInput) upInput.files = dt.files;
+          upInput?.dispatchEvent(new Event("change"));
+        });
+      }
+    }
+
+    function validateForm(focusOnFail = false) {
+      const nombre = (inpNombre?.value || "").trim();
+      const domicilio = (inpDom?.value || "").trim();
+      const cp = (selCp?.value || "").trim();
+      const col = (selCol?.value || "").trim();
+      const tel = digits(inpTel?.value || "");
+      const correo = (inpCorreo?.value || "").trim();
+      const desc = (inpDesc?.value || "").trim();
+      const consent = !!chkCons?.checked;
+
+      const tramName = selTram?.selectedOptions?.[0]?.textContent?.trim() || "";
+      const otros = isOtros(tramName);
+      const asunto = (asuntoInput?.value || "").trim();
+
+      // requeridos básicos
+      if (nombre.length < CFG.NAME_MIN_CHARS)
+        return { ok: false, firstBad: "nombre" };
+      if (!domicilio) return { ok: false, firstBad: "dom" };
+      if (!cp) return { ok: false, firstBad: "cp" };
+      if (!col) return { ok: false, firstBad: "col" };
+      if (tel.length !== CFG.PHONE_DIGITS)
+        return { ok: false, firstBad: "tel" };
+      if (correo && !isEmail(correo)) return { ok: false, firstBad: "correo" };
+      if (desc.length < CFG.DESC_MIN_CHARS)
+        return { ok: false, firstBad: "desc" };
+      if (!consent) return { ok: false, firstBad: "consent" };
+      if (otros && asunto.length < 3) return { ok: false, firstBad: "asunto" };
+
+      // archivos (solo límites)
+      if (files.length > CFG.MAX_FILES) return { ok: false, firstBad: "files" };
+
+      return { ok: true };
+    }
+
+    // Conecta UI
+    ensureUploadUI();
+    updateDescCount();
+    inpDesc?.addEventListener("input", updateDescCount);
+
+    form?.addEventListener("input", () => {
+      const { ok } = validateForm(false);
+      if (btnSend) btnSend.disabled = !ok || isSubmitting;
+      if (hasAttemptedSubmit) clearFeedback();
+    });
+
+    // Submit
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (isSubmitting) return;
+
+      clearFeedback();
+      hasAttemptedSubmit = true;
+
+      const res = validateForm(true);
+      if (!res.ok) {
+        const sel = {
+          nombre: "#ix-nombre",
+          dom: "#ix-domicilio",
+          cp: "#ix-cp",
+          col: "#ix-colonia",
+          tel: "#ix-telefono",
+          correo: "#ix-correo",
+          desc: "#ix-descripcion",
+          consent: "#ix-consent",
+          asunto: "#ix-asunto",
+        }[res.firstBad];
+        modal.querySelector(sel || "")?.focus?.();
+        showFeedback(
+          "Revisa los campos marcados. Hay información faltante o inválida.",
+        );
+        return;
+      }
+
+      const depId = Number(hidDept?.value || 1);
+      const tramIdRaw = hidTram?.value || "";
+      const tramId = tramIdRaw ? Number(tramIdRaw) : null;
+
+      const tramName =
+        selTram?.selectedOptions?.[0]?.textContent?.trim() || "Requerimiento";
+      const otros = isOtros(tramName);
+
+      const body = {
+        departamento_id: depId,
+        tramite_id: tramId,
+        asunto: otros
+          ? String(asuntoInput?.value || "").trim()
+          : `Reporte ${tramName}`,
+        descripcion: String(inpDesc?.value || "").trim(),
+        contacto_nombre: String(inpNombre?.value || "").trim(),
+        contacto_email: String(inpCorreo?.value || "").trim() || null,
+        contacto_telefono: digits(inpTel?.value || ""),
+        contacto_calle: String(inpDom?.value || "").trim(),
+        contacto_colonia: String(selCol?.value || "").trim(),
+        contacto_cp: String(selCp?.value || "").trim(),
+      };
+
+      // UI lock
+      isSubmitting = true;
+      form.setAttribute("aria-busy", "true");
+      const oldTxt = btnSend?.textContent || "Enviar";
+      if (btnSend) {
+        btnSend.disabled = true;
+        btnSend.textContent = "Enviando…";
+      }
+
+      const idempKey =
+        (crypto?.randomUUID && crypto.randomUUID()) ||
+        `idemp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      try {
+        // 1) Insert requerimiento
+        const json = await fetch(EP.insertReq, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            "Idempotency-Key": idempKey,
+          },
+          body: JSON.stringify(body),
+        }).then(async (r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        });
+
+        if (!json?.ok || !json?.data)
+          throw new Error("Respuesta inesperada del servidor.");
+        const folio =
+          json.data.folio ||
+          `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
+
+        // 2) Bootstrap folders (best-effort)
+        try {
+          await postNoCreds(EP.fsBootstrap, {
+            folio,
+            create_status_txt: true,
+            force_status_txt: false,
+          });
+        } catch (e2) {
+          warn("fsBootstrap falló (no bloqueante):", e2);
+        }
+
+        // 3) Upload evidencias (multipart) estado 0
+        if (files.length) {
+          const fd = new FormData();
+          fd.append("folio", folio);
+          fd.append("status", "0");
+          files.forEach((f) => fd.append("files[]", f, f.name));
+
+          const upRes = await fetch(EP.uploadImg, { method: "POST", body: fd });
+          let upJson = null;
+          try {
+            upJson = await upRes.json();
+          } catch {}
+          if (!upRes.ok || !upJson?.ok) {
+            toast(
+              upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`,
+              "warn",
+              3500,
+            );
+          }
+        }
+
+        toast(`Reporte creado: ${folio}`, "ok", 3200);
+
+        // reset
+        try {
+          form.reset();
+        } catch {}
+        setToday();
+        files.forEach((f) => {
+          if (f?._url) {
+            try {
+              URL.revokeObjectURL(f._url);
+            } catch {}
+          }
+        });
+        files = [];
+        refreshPreviews();
+        updateDescCount();
+
+        closeModal(modal);
+      } catch (e1) {
+        err("submit error:", e1);
+        toast("No se pudo enviar el reporte.", "err", 3500);
+        showFeedback(`No se pudo enviar el reporte. ${e1?.message || e1}`);
+      } finally {
+        isSubmitting = false;
+        form.removeAttribute("aria-busy");
+        if (btnSend) {
+          btnSend.textContent = oldTxt;
+          const { ok } = validateForm(false);
+          btnSend.disabled = !ok;
+        }
+      }
+    });
+
     // --- helpers internos para pintar ---
     async function paintTramitesForDept(deptId) {
       // reset trámites/req_title
@@ -523,6 +930,9 @@
     btn.addEventListener("click", async (e) => {
       e.preventDefault();
       await hydrateOnOpen();
+      setToday();
+      clearFeedback();
+      hasAttemptedSubmit = false;
       openModal(modal);
     });
 
@@ -563,6 +973,12 @@
         req_title: hidReqTitle.value,
         otros,
       });
+
+      // actualiza estado del botón enviar
+      try {
+        const v = validateForm(false);
+        if (btnSend) btnSend.disabled = !v.ok || isSubmitting;
+      } catch (_) {}
     });
 
     if (asuntoInput) {
