@@ -662,8 +662,8 @@ ix_require_session();
     </script>
 
     <!-- sesión / guards -->
-    <script src="/JS/session.js"></script>
-    <script src="/JS/guard.js"></script>
+    <script src="/JS/auth/session.js"></script>
+    <script src="/JS/auth/guard.js"></script>
 
     <script src="/JS/UAT/JSglobal.js"></script>
     <script type="module" src="/JS/UAT/home.js"></script>
