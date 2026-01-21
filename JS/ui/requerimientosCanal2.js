@@ -1,19 +1,20 @@
 // /JS/ui/requerimientosCanal2.js
-import { postJSON } from "/JS/api/http.js";
-
 (function () {
   "use strict";
 
   const TAG = "[ReqCanal2]";
   const log = (...a) => console.log(TAG, ...a);
   const warn = (...a) => console.warn(TAG, ...a);
-  const err = (...a) => console.error(TAG, ...a);
+  const error = (...a) => console.error(TAG, ...a);
 
-  // ===== Endpoints =====
+  // ===== Host/API (igual que tareas.js) =====
+  const API_HOST =
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
+
+  // Endpoints (ojo: departamento SINGULAR)
   const ENDPOINTS = {
-    deps: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamentos.php",
-    tramites:
-      "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tramite.php",
+    deps: `${API_HOST}/db/WEB/ixtla01_c_departamento.php`,
+    tramites: `${API_HOST}/db/WEB/ixtla01_c_tramite.php`,
   };
 
   // ===== Config RBAC =====
@@ -36,7 +37,40 @@ import { postJSON } from "/JS/api/http.js";
     asuntoInput: "ix-asunto",
   };
 
-  // ===== Helpers: sesión (Session.get / cookie ix_emp) =====
+  // =========================================================
+  //  Helper: POST JSON SIN CREDENCIALES (para catálogos)
+  // =========================================================
+  async function postNoCreds(url, payload, { timeout = 15000 } = {}) {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        // IMPORTANT: sin cookies
+        credentials: "omit",
+        body: JSON.stringify(payload || {}),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status} ${res.statusText} ${txt}`.trim());
+      }
+
+      return await res.json();
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  // =========================================================
+  //  Sesión: Session.get() o cookie ix_emp (fallback)
+  // =========================================================
   function readIxCookie() {
     try {
       const name = "ix_emp=";
@@ -57,27 +91,36 @@ import { postJSON } from "/JS/api/http.js";
     if (!s) s = readIxCookie();
 
     const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
-    const dept_id = s?.departamento_id ?? null;
+    const dept_id = s?.departamento_id ?? s?.dept_id ?? null; // por si Home usa wrapper
     const roles = Array.isArray(s?.roles)
       ? s.roles.map((r) => String(r).toUpperCase())
       : [];
 
-    return { empleado_id, dept_id, roles };
+    return {
+      empleado_id,
+      dept_id: dept_id != null ? Number(dept_id) : null,
+      roles,
+    };
   }
 
   function computeRBAC(sess) {
     const dept = Number(sess?.dept_id);
     const roles = sess?.roles || [];
+
     const isAdmin = roles.some((r) => CONFIG.ADMIN_ROLES.includes(r));
     const isPres = CONFIG.PRESIDENCIA_DEPT_IDS.includes(dept);
+
     return { isAdmin, isPres, canPickDept: isAdmin || isPres };
   }
 
-  // ===== Helpers modal =====
+  // =========================================================
+  //  Modal open/close
+  // =========================================================
   function openModal(modal) {
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
+
     const first = modal.querySelector(
       "select, input, textarea, button, [tabindex]:not([tabindex='-1'])",
     );
@@ -90,13 +133,12 @@ import { postJSON } from "/JS/api/http.js";
     document.body.classList.remove("modal-open");
   }
 
-  // ===== Helpers UI =====
-  function setSelectLoading(selectEl, on, placeholder = "Cargando…") {
-    if (!selectEl) return;
-    selectEl.disabled = !!on || selectEl.disabled;
-    if (on) {
-      selectEl.innerHTML = `<option value="" disabled selected>${placeholder}</option>`;
-    }
+  // =========================================================
+  //  Helpers UI
+  // =========================================================
+  function setSubtitle(el, txt) {
+    if (!el) return;
+    el.textContent = txt || "Selecciona el tipo de trámite";
   }
 
   function normalizeName(s) {
@@ -107,8 +149,8 @@ import { postJSON } from "/JS/api/http.js";
       .replace(/[\u0300-\u036f]/g, "");
   }
 
-  function isOtros(tramiteNombre) {
-    return normalizeName(tramiteNombre) === "otros";
+  function isOtros(nombreTramite) {
+    return normalizeName(nombreTramite) === "otros";
   }
 
   function showAsunto(groupEl, inputEl, on) {
@@ -123,53 +165,79 @@ import { postJSON } from "/JS/api/http.js";
     }
   }
 
-  // ===== Data loaders =====
+  function paintOptions(selectEl, items, placeholder) {
+    selectEl.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.disabled = true;
+    opt0.selected = true;
+    opt0.textContent = placeholder || "Selecciona una opción";
+    selectEl.appendChild(opt0);
+
+    items.forEach((it) => {
+      const opt = document.createElement("option");
+      opt.value = String(it.value);
+      opt.textContent = it.label;
+      if (it.dataset) {
+        Object.entries(it.dataset).forEach(
+          ([k, v]) => (opt.dataset[k] = String(v)),
+        );
+      }
+      selectEl.appendChild(opt);
+    });
+  }
+
+  // =========================================================
+  //  Data loaders
+  // =========================================================
   async function fetchDepartamentos() {
-    // en tramiteDepartamentos.js: { status: 1 }
-    const json = await postJSON(
-      ENDPOINTS.deps,
-      { status: 1 },
-      { timeout: 15000 },
-    );
+    // patrón tareas.js: { all:true, page:1, page_size:100 }
+    const json = await postNoCreds(ENDPOINTS.deps, {
+      all: true,
+      page: 1,
+      page_size: 100,
+    });
+
     const rows = Array.isArray(json?.data) ? json.data : [];
-    // normaliza a {id, nombre}
-    return rows
+    // Soporta diferentes shapes (por si backend cambia nombres)
+    const out = rows
       .map((r) => ({
         id: Number(r?.id),
-        nombre: String(r?.nombre || "").trim(),
+        nombre: String(r?.nombre || r?.departamento_nombre || "").trim(),
         status: Number(r?.status ?? 1),
       }))
       .filter((d) => d.id && d.nombre)
       .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+    return out;
   }
 
-  async function fetchTramitesByDept(depId) {
-    const json = await postJSON(
-      ENDPOINTS.tramites,
-      { departamento_id: Number(depId), all: true },
-      { timeout: 15000 },
-    );
-    const raw = Array.isArray(json?.data)
-      ? json.data
-      : Array.isArray(json)
-        ? json
-        : [];
-    const rows = raw
+  async function fetchTramites(depId) {
+    // patrón tareas.js: { estatus:1, all:true } y luego filtrar por dept en client
+    const json = await postNoCreds(ENDPOINTS.tramites, {
+      estatus: 1,
+      all: true,
+    });
+    const rows = Array.isArray(json?.data) ? json.data : [];
+
+    const out = rows
+      .filter((r) => Number(r?.estatus ?? 1) === 1)
       .filter((r) => Number(r?.departamento_id) === Number(depId))
-      .filter((r) => r?.estatus === undefined || Number(r?.estatus) === 1)
       .map((r) => ({
         id: Number(r?.id),
+        departamento_id: Number(r?.departamento_id),
         nombre: String(r?.nombre || "").trim(),
         descripcion: String(r?.descripcion || "").trim(),
       }))
-      .filter((t) => t.id && t.nombre);
+      .filter((t) => t.id && t.nombre)
+      .sort((a, b) => a.id - b.id);
 
-    // Orden asc por id, como tu render original
-    rows.sort((a, b) => a.id - b.id);
-    return rows;
+    return out;
   }
 
-  // ===== Main init =====
+  // =========================================================
+  //  Init
+  // =========================================================
   async function init() {
     const btn = document.getElementById(IDS.btnOpen);
     const modal = document.getElementById(IDS.modal);
@@ -183,23 +251,21 @@ import { postJSON } from "/JS/api/http.js";
     const hidReqTitle = modal.querySelector(`#${IDS.hidReqTitle}`);
 
     const subtitle = modal.querySelector(`#${IDS.subtitle}`);
-
     const asuntoGroup = modal.querySelector(`#${IDS.asuntoGroup}`);
     const asuntoInput = modal.querySelector(`#${IDS.asuntoInput}`);
 
     if (!selDept || !selTram || !hidDept || !hidTram || !hidReqTitle) {
-      warn("Faltan IDs del modal (selects o hidden). Revisa el HTML.");
+      warn("Faltan elementos del modal (IDs). Revisa el HTML.");
       return;
     }
 
-    // close hooks
+    // Close hooks
     modal.querySelectorAll("[data-ix-close]").forEach((el) => {
       el.addEventListener("click", (e) => {
         e.preventDefault();
         closeModal(modal);
       });
     });
-
     modal
       .querySelector(".ix-modal__overlay")
       ?.addEventListener("click", () => closeModal(modal));
@@ -207,43 +273,41 @@ import { postJSON } from "/JS/api/http.js";
       if (e.key === "Escape" && !modal.hidden) closeModal(modal);
     });
 
-    // cache local (para no refetchear si vuelves a abrir)
+    // Cache para no refetchear siempre
     let depsCache = null;
-    const tramitesCacheByDept = new Map(); // depId -> [{id,nombre,descripcion}]
+    const tramCache = new Map(); // depId -> tramites[]
 
-    async function paintDepartamentosAndRBAC() {
+    async function hydrateForOpen() {
       const sess = readSession();
       const rbac = computeRBAC(sess);
 
       log("sesión:", sess);
       log("RBAC:", rbac);
 
-      // default values
+      // reset visual + hidden
+      hidDept.value = "";
       hidTram.value = "";
       hidReqTitle.value = "";
-      if (subtitle) subtitle.textContent = "Selecciona el tipo de trámite";
+      setSubtitle(subtitle, "Selecciona el tipo de trámite");
       showAsunto(asuntoGroup, asuntoInput, false);
 
-      // cargar deps
-      setSelectLoading(selDept, true, "Cargando departamentos…");
+      // cargar departamentos
+      selDept.disabled = true;
+      paintOptions(selDept, [], "Cargando departamentos…");
+
       try {
         depsCache = depsCache || (await fetchDepartamentos());
       } catch (e) {
-        err("No pude cargar departamentos:", e);
-        selDept.innerHTML =
-          '<option value="" disabled selected>Error al cargar departamentos</option>';
+        error("No pude cargar departamentos:", e);
+        paintOptions(selDept, [], "Error al cargar departamentos");
         return;
       }
 
-      selDept.innerHTML =
-        '<option value="" disabled selected>Selecciona un departamento</option>';
-
-      depsCache.forEach((d) => {
-        const opt = document.createElement("option");
-        opt.value = String(d.id);
-        opt.textContent = d.nombre;
-        selDept.appendChild(opt);
-      });
+      paintOptions(
+        selDept,
+        depsCache.map((d) => ({ value: d.id, label: d.nombre })),
+        "Selecciona un departamento",
+      );
 
       const myDept = sess?.dept_id != null ? Number(sess.dept_id) : null;
 
@@ -252,19 +316,18 @@ import { postJSON } from "/JS/api/http.js";
         selDept.value = myDept != null ? String(myDept) : "";
       } else {
         selDept.disabled = false;
-        // sugerencia: precarga su depto si existe
+        // precarga su dept si existe
         if (myDept != null) selDept.value = String(myDept);
       }
 
-      // set hidden dept
-      hidDept.value = selDept.value ? String(selDept.value) : "";
+      hidDept.value = selDept.value || "";
 
-      // cargar trámites del dept actual (si ya hay valor)
+      // trámites según dept actual
       if (selDept.value) {
         await paintTramitesForDept(selDept.value);
       } else {
-        selTram.innerHTML =
-          '<option value="" disabled selected>Selecciona un departamento primero</option>';
+        selTram.disabled = true;
+        paintOptions(selTram, [], "Selecciona un departamento primero");
       }
     }
 
@@ -272,86 +335,77 @@ import { postJSON } from "/JS/api/http.js";
       // reset trámite
       hidTram.value = "";
       hidReqTitle.value = "";
-      if (subtitle) subtitle.textContent = "Selecciona el tipo de trámite";
+      setSubtitle(subtitle, "Selecciona el tipo de trámite");
       showAsunto(asuntoGroup, asuntoInput, false);
 
-      // loading
-      selTram.disabled = false;
-      selTram.innerHTML =
-        '<option value="" disabled selected>Cargando trámites…</option>';
+      selTram.disabled = true;
+      paintOptions(selTram, [], "Cargando trámites…");
 
-      let rows = tramitesCacheByDept.get(String(depId));
+      let rows = tramCache.get(String(depId));
       if (!rows) {
         try {
-          rows = await fetchTramitesByDept(depId);
-          tramitesCacheByDept.set(String(depId), rows);
+          rows = await fetchTramites(depId);
+          tramCache.set(String(depId), rows);
         } catch (e) {
-          err("No pude cargar trámites:", e);
-          selTram.innerHTML =
-            '<option value="" disabled selected>Error al cargar trámites</option>';
+          error("No pude cargar trámites:", e);
+          paintOptions(selTram, [], "Error al cargar trámites");
           return;
         }
       }
 
-      selTram.innerHTML =
-        '<option value="" disabled selected>Selecciona un trámite</option>';
-
-      rows.forEach((t) => {
-        const opt = document.createElement("option");
-        opt.value = String(t.id);
-        opt.textContent = t.nombre;
-        // guarda descripción por si luego quieres pintarla
-        opt.dataset.desc = t.descripcion || "";
-        selTram.appendChild(opt);
-      });
-
       if (!rows.length) {
-        selTram.innerHTML =
-          '<option value="" disabled selected>No hay trámites disponibles</option>';
         selTram.disabled = true;
+        paintOptions(selTram, [], "No hay trámites disponibles");
+        return;
       }
+
+      selTram.disabled = false;
+      paintOptions(
+        selTram,
+        rows.map((t) => ({
+          value: t.id,
+          label: t.nombre,
+          dataset: { desc: t.descripcion || "" },
+        })),
+        "Selecciona un trámite",
+      );
     }
 
     // ===== Events =====
     btn.addEventListener("click", async (e) => {
       e.preventDefault();
-      await paintDepartamentosAndRBAC();
+      await hydrateForOpen();
       openModal(modal);
     });
 
     selDept.addEventListener("change", async () => {
-      const depId = selDept.value ? String(selDept.value) : "";
+      const depId = selDept.value || "";
       hidDept.value = depId;
 
-      // al cambiar dept, hay que repintar trámites
-      if (depId) {
-        await paintTramitesForDept(depId);
-      } else {
-        selTram.innerHTML =
-          '<option value="" disabled selected>Selecciona un departamento primero</option>';
+      // al cambiar dept, repinta trámites
+      if (depId) await paintTramitesForDept(depId);
+      else {
+        selTram.disabled = true;
+        paintOptions(selTram, [], "Selecciona un departamento primero");
       }
     });
 
     selTram.addEventListener("change", () => {
-      const tramId = selTram.value ? String(selTram.value) : "";
+      const tramId = selTram.value || "";
       const tramName = selTram.selectedOptions?.[0]?.textContent?.trim() || "";
 
       hidTram.value = tramId;
+      setSubtitle(subtitle, tramName);
 
-      // Si NO es "Otros" → req_title = nombre del trámite
-      // Si es "Otros" → se muestra clasificación y req_title se arma desde "asunto"
       const otros = isOtros(tramName);
-
       showAsunto(asuntoGroup, asuntoInput, otros);
 
-      if (subtitle)
-        subtitle.textContent = tramName || "Selecciona el tipo de trámite";
-
       if (!otros) {
-        hidReqTitle.value = tramName; // fijo
+        // Trámite normal: req_title fijo = nombre del trámite
+        hidReqTitle.value = tramName;
       } else {
-        hidReqTitle.value = ""; // lo llenaremos con asunto al escribir
-        // focus al input de asunto para guiar
+        // Otros: req_title lo decide el usuario con "asunto"
+        hidReqTitle.value = "";
         setTimeout(() => asuntoInput?.focus?.(), 0);
       }
 
@@ -363,17 +417,15 @@ import { postJSON } from "/JS/api/http.js";
       });
     });
 
-    // Si el trámite es "Otros", el req_title debe venir del input asunto
+    // Si es "Otros": req_title se actualiza desde el input asunto
     if (asuntoInput) {
       asuntoInput.addEventListener("input", () => {
-        // solo aplica cuando está visible / required
-        const on = !asuntoGroup?.hidden;
-        if (!on) return;
+        if (asuntoGroup?.hidden) return;
         hidReqTitle.value = String(asuntoInput.value || "").trim();
       });
     }
 
-    log("Listo: requerimientosCanal2.js cargado (APIs + RBAC + modal).");
+    log("Listo: requerimientosCanal2.js (catálogos sin credenciales).");
   }
 
   window.addEventListener("DOMContentLoaded", init);
