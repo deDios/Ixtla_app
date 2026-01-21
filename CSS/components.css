@@ -1260,3 +1260,45 @@
 #ix-report-modal .ix-field--error .ix-select {
   color: var(--error);
 }
+
+/* Galería “como Trámites” */
+#ix-report-modal .ix-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+
+#ix-report-modal .ix-gallery figure {
+  margin: 0;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e6e8eb;
+  background: #fff;
+}
+
+#ix-report-modal .ix-gallery img {
+  display: block;
+  width: 100%;
+  height: 96px;
+  object-fit: cover;
+}
+
+#ix-report-modal .ix-gallery button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: 0;
+  background: rgba(0, 0, 0, .6);
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  line-height: 24px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#ix-report-modal .ix-gallery button:hover {
+  background: rgba(0, 0, 0, .8);
+}

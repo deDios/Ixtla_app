@@ -454,23 +454,18 @@ ix_require_session();
             <div class="ix-modal__body">
                 <form id="ix-report-form" class="ix-form" novalidate>
 
-                    <!-- Hidden (fuente de verdad para backend) -->
+                    <!-- Hidden -->
                     <input type="hidden" id="ix-departamento-id" name="departamento_id" value="">
                     <input type="hidden" name="req_title" id="ix-report-req" value="">
                     <input type="hidden" name="tramite_id" id="ix-tramite-id" value="">
 
-                    <!-- =======================
-             NUEVO: SELECTORES
-             ======================= -->
+                    <!-- ======================= SELECTORES ======================= -->
                     <div class="ix-form__row">
                         <div class="ix-field">
                             <label for="ix-departamento-select" class="ix-field__label">Departamento</label>
 
                             <div class="ix-field__control">
-                                <!--
-                - Admin/Presidencia: enabled
-                - Director/PL/Jefe/Analista: disabled (bloqueado al depto del usuario)
-              -->
+
                                 <select id="ix-departamento-select" class="ix-select ix-select--quiet"
                                     aria-describedby="ix-depto-help">
                                     <option value="" disabled selected>Selecciona un departamento</option>
@@ -478,9 +473,6 @@ ix_require_session();
                             </div>
 
                             <small class="ix-help" id="ix-err-depto" hidden></small>
-                            <small class="ix-help ix-help--muted" id="ix-depto-help">
-                                * Si no eres Admin/Presidencia, este valor se fija a tu departamento.
-                            </small>
                         </div>
 
                         <div class="ix-field">
@@ -494,15 +486,10 @@ ix_require_session();
                             </div>
 
                             <small class="ix-help" id="ix-err-tramite" hidden></small>
-                            <small class="ix-help ix-help--muted" id="ix-tramite-help">
-                                El trámite define el tipo de requerimiento y el área responsable.
-                            </small>
                         </div>
                     </div>
 
-                    <!-- =======================
-             FORM (igual que antes)
-             ======================= -->
+                    <!-- =======================  FORM  ======================= -->
                     <div class="ix-form__row">
                         <div class="ix-field">
                             <label for="ix-nombre" class="ix-field__label">Nombre completo</label>
@@ -595,7 +582,7 @@ ix_require_session();
                                 <textarea id="ix-descripcion" name="descripcion" rows="4" maxlength="700"
                                     placeholder="Describa lo mejor posible el motivo de su reporte" required></textarea>
                                 <div class="ix-counter" aria-live="polite">
-                                    <span id="ix-desc-count">0</span>/700
+                                    <span id="ix-desc-count">0</span>
                                 </div>
                             </div>
                             <small class="ix-help" id="ix-err-descripcion" hidden></small>
