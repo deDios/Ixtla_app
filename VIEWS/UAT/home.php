@@ -427,6 +427,221 @@ ix_require_session();
 
 
 
+    <!-- Modal para levantamiento de requerimientos de parte del canal 2 -->
+    <div id="ix-report-modal" class="ix-modal" hidden aria-hidden="true">
+        <div class="ix-modal__overlay" data-ix-close></div>
+
+        <div class="ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-report-title"
+            aria-describedby="ix-report-desc">
+
+            <header class="ix-modal__header">
+                <div class="ix-modal__brand">
+                    <img src="/ASSETS/main_logo.png" alt="Ixtlahuacán de los Membrillos - Ayuntamiento"
+                        onerror="this.style.display='none'">
+                </div>
+
+                <div class="ix-modal__headings">
+                    <h2 id="ix-report-title" class="ix-modal__title">Nuevo Requerimiento</h2>
+                    <p id="ix-report-subtitle" class="ix-modal__subtitle">Selecciona el tipo de trámite</p>
+                    <p id="ix-report-desc" class="sr-only">
+                        Completa los campos para levantar un requerimiento.
+                    </p>
+                </div>
+
+                <button type="button" class="ix-modal__close" aria-label="Cerrar" data-ix-close>×</button>
+            </header>
+
+            <div class="ix-modal__body">
+                <form id="ix-report-form" class="ix-form" novalidate>
+
+                    <!-- Hidden (fuente de verdad para backend) -->
+                    <input type="hidden" id="ix-departamento-id" name="departamento_id" value="">
+                    <input type="hidden" name="req_title" id="ix-report-req" value="">
+                    <input type="hidden" name="tramite_id" id="ix-tramite-id" value="">
+
+                    <!-- =======================
+             NUEVO: SELECTORES
+             ======================= -->
+                    <div class="ix-form__row">
+                        <div class="ix-field">
+                            <label for="ix-departamento-select" class="ix-field__label">Departamento</label>
+
+                            <div class="ix-field__control">
+                                <!--
+                - Admin/Presidencia: enabled
+                - Director/PL/Jefe/Analista: disabled (bloqueado al depto del usuario)
+              -->
+                                <select id="ix-departamento-select" class="ix-select ix-select--quiet"
+                                    aria-describedby="ix-depto-help">
+                                    <option value="" disabled selected>Selecciona un departamento</option>
+                                </select>
+                            </div>
+
+                            <small class="ix-help" id="ix-err-depto" hidden></small>
+                            <small class="ix-help ix-help--muted" id="ix-depto-help">
+                                * Si no eres Admin/Presidencia, este valor se fija a tu departamento.
+                            </small>
+                        </div>
+
+                        <div class="ix-field">
+                            <label for="ix-tramite-select" class="ix-field__label">Tipo de trámite</label>
+
+                            <div class="ix-field__control">
+                                <select id="ix-tramite-select" class="ix-select ix-select--quiet"
+                                    aria-describedby="ix-tramite-help" required>
+                                    <option value="" disabled selected>Selecciona un trámite</option>
+                                </select>
+                            </div>
+
+                            <small class="ix-help" id="ix-err-tramite" hidden></small>
+                            <small class="ix-help ix-help--muted" id="ix-tramite-help">
+                                El trámite define el tipo de requerimiento y el área responsable.
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- =======================
+             FORM (igual que antes)
+             ======================= -->
+                    <div class="ix-form__row">
+                        <div class="ix-field">
+                            <label for="ix-nombre" class="ix-field__label">Nombre completo</label>
+                            <div class="ix-field__control">
+                                <input id="ix-nombre" name="nombre" type="text" placeholder="Juan Pablo García Casillas"
+                                    required>
+                            </div>
+                            <small class="ix-help" id="ix-err-nombre" hidden></small>
+                        </div>
+
+                        <div class="ix-field ix-field--compact">
+                            <label for="ix-fecha" class="ix-field__label">Fecha</label>
+                            <div class="ix-field__control">
+                                <input id="ix-fecha" name="fecha" type="text" readonly aria-readonly="true"
+                                    aria-describedby="ix-fecha-help" placeholder="--/--/---- · --:--">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ix-form__row">
+                        <div class="ix-field">
+                            <label for="ix-domicilio" class="ix-field__label">Domicilio</label>
+                            <div class="ix-field__control">
+                                <input id="ix-domicilio" name="contacto_calle" type="text"
+                                    placeholder="Francisco I. Madero #2" required>
+                            </div>
+                            <small class="ix-help" id="ix-err-domicilio" hidden></small>
+                        </div>
+
+                        <div class="ix-field ix-field--sm">
+                            <label for="ix-cp" class="ix-field__label">C.P.</label>
+                            <div class="ix-field__control">
+                                <select id="ix-cp" name="contacto_cp" class="ix-select ix-select--quiet" required>
+                                    <option value="" disabled selected>Selecciona C.P.</option>
+                                </select>
+                            </div>
+                            <small class="ix-help" id="ix-err-cp" hidden></small>
+                        </div>
+                    </div>
+
+                    <div class="ix-form__row">
+                        <div class="ix-field">
+                            <label for="ix-colonia" class="ix-field__label">Colonia</label>
+                            <div class="ix-field__control">
+                                <select id="ix-colonia" name="contacto_colonia" class="ix-select ix-select--quiet"
+                                    required disabled>
+                                    <option value="" disabled selected>Selecciona colonia</option>
+                                </select>
+                            </div>
+                            <small class="ix-help" id="ix-err-colonia" hidden></small>
+                        </div>
+
+                        <div class="ix-field">
+                            <label for="ix-telefono" class="ix-field__label">Teléfono</label>
+                            <div class="ix-field__control">
+                                <input id="ix-telefono" name="contacto_telefono" type="tel" inputmode="numeric"
+                                    maxlength="10" placeholder="3312345678" required>
+                            </div>
+                            <small class="ix-help" id="ix-err-telefono" hidden></small>
+                        </div>
+                    </div>
+
+                    <div class="ix-form__row">
+                        <div class="ix-field">
+                            <label for="ix-correo" class="ix-field__label">Correo electrónico (opcional)</label>
+                            <div class="ix-field__control">
+                                <input id="ix-correo" name="contacto_email" type="email"
+                                    placeholder="tucorreo@dominio.com">
+                            </div>
+                            <small class="ix-help" id="ix-err-correo" hidden></small>
+                        </div>
+                    </div>
+
+                    <!-- (Se conserva: asunto condicional si aplica) -->
+                    <div class="ix-form__row" id="ix-asunto-group" hidden>
+                        <div class="ix-field ix-field--full">
+                            <label for="ix-asunto" class="ix-field__label">Clasificación (Título)</label>
+                            <div class="ix-field__control">
+                                <input id="ix-asunto" name="asunto" type="text"
+                                    placeholder="Ej. Quedó la llave abierta de una casa">
+                            </div>
+                            <small class="ix-help" id="ix-err-asunto" hidden></small>
+                        </div>
+                    </div>
+
+                    <div class="ix-form__row">
+                        <div class="ix-field ix-field--full">
+                            <label for="ix-descripcion" class="ix-field__label">Descripción</label>
+                            <div class="ix-field__control">
+                                <textarea id="ix-descripcion" name="descripcion" rows="4" maxlength="700"
+                                    placeholder="Describa lo mejor posible el motivo de su reporte" required></textarea>
+                                <div class="ix-counter" aria-live="polite">
+                                    <span id="ix-desc-count">0</span>/700
+                                </div>
+                            </div>
+                            <small class="ix-help" id="ix-err-descripcion" hidden></small>
+                        </div>
+                    </div>
+
+                    <div class="ix-form__row">
+                        <div class="ix-field ix-field--full">
+                            <label class="ix-field__label" for="ix-evidencia">Evidencia</label>
+                            <div class="ix-upload" id="ix-upload-zone" data-js="upload">
+                                <button type="button" id="ix-evidencia-cta" class="ix-upload-btn">Subir
+                                    imágenes</button>
+                                <input id="ix-evidencia" type="file" accept="image/png,image/jpeg" multiple hidden>
+                                <div class="ix-upload__hint">
+                                    Arrastra imágenes o haz click para seleccionar (JPG/PNG · máx 1 MB c/u · hasta 3)
+                                </div>
+                                <div class="ix-gallery" id="ix-evidencia-previews" aria-live="polite"></div>
+                            </div>
+                            <small class="ix-help" id="ix-err-evidencia" hidden></small>
+                        </div>
+                    </div>
+
+                    <div class="ix-form__row ix-form__row--consent">
+                        <label class="ix-checkbox">
+                            <input type="checkbox" id="ix-consent" name="consent" required>
+                            <span>
+                                Acepto el aviso de privacidad y el uso de mis datos para gestionar este reporte.
+                            </span>
+                        </label>
+                    </div>
+
+                    <div class="ix-form__feedback" id="ix-report-feedback" role="status" aria-live="polite" hidden>
+                    </div>
+
+                    <div class="ix-form__footer">
+                        <button type="button" class="ix-btn ix-btn--ghost" data-ix-close>Cancelar</button>
+                        <button type="submit" class="ix-btn ix-btn--primary" id="ix-submit">Mandar reporte</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
 
 
 
@@ -446,9 +661,14 @@ ix_require_session();
     });
     </script>
 
+    <!-- sesión / guards -->
+    <script src="/JS/session.js"></script>
+    <script src="/JS/guard.js"></script>
+
     <script src="/JS/UAT/JSglobal.js"></script>
     <script type="module" src="/JS/UAT/home.js"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
+    <script type="module" src="/JS/ui/requerimientosCanal2.js"></script>
 
 
 </body>

@@ -385,13 +385,4 @@
   }
 })();
 
-//GUARD para luego
-/*import { getSession } from "/JS/auth/session.js";
-  const sess = getSession();
-  if (!sess) {
-    gcToast("Inicia sesión para continuar.", "warning");
-    setTimeout(() => { window.location.href = "/VIEWS/Login.php"; }, 600);
-  } else {
-    window.__ixSession = sess; // disponible para tu home.js
-    console.log("[AuthGuard] Sesión:", sess);
-  }*/
+// componente para levantamiento de requerimientois a partir del canal 2
