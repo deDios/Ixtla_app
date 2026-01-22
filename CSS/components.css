@@ -1302,3 +1302,7 @@
 #ix-report-modal .ix-gallery button:hover {
   background: rgba(0, 0, 0, .8);
 }
+
+#ix-report-modal .ix-form__row[hidden]{
+  display: none !important;
+}

@@ -49,10 +49,8 @@
   // =========================
   // Reglas
   // =========================
-  const PRESIDENCIA_DEPT_ID = 6; // excluir del combo
-  const ADMIN_ROLES = ["ADMIN"]; // si viene role ADMIN
-  // Nota: "Admin/Presidencia pueden cambiar depto" (pero Presidencia depto se excluye del listado)
-  // = El usuario con depto 6 se considera "privilegiado" y puede seleccionar otro depto (no 6).
+  const PRESIDENCIA_DEPT_ID = 6; 
+  const ADMIN_ROLES = ["ADMIN"]; 
 
   // =========================
   // Helpers: POST sin credenciales
@@ -67,7 +65,7 @@
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        credentials: "omit", // 🔥 clave para evitar CORS con Allow-Credentials
+        credentials: "omit",
         body: JSON.stringify(payload || {}),
         signal: controller.signal,
       });
@@ -666,6 +664,8 @@
         contacto_calle: String(inpDom?.value || "").trim(),
         contacto_colonia: String(selCol?.value || "").trim(),
         contacto_cp: String(selCp?.value || "").trim(),
+        estatus: 3,
+        canal: 2,
       };
 
       // UI lock
