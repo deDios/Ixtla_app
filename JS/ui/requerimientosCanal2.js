@@ -719,7 +719,7 @@
         if (files.length) {
           try {
             const { setupMedia, uploadMedia } =
-              await import("/JS/api/media.js");
+              await import("/JS/UAT/api/media.js");
             await setupMedia(folio, {
               create_status_txt: true,
               force_status_txt: false,
