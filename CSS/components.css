@@ -1303,6 +1303,40 @@
   background: rgba(0, 0, 0, .8);
 }
 
+
+#ix-report-modal .ix-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  margin-bottom: 20px;
+}
+
+/* Default: 1 columna */
+#ix-report-modal .ix-form__row{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gap);
+  margin-bottom: 20px;
+}
+
+/* Solo estas filas serán 2 columnas */
+#ix-report-modal .ix-form__row.ix-form__row--2{
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Responsive */
+@media (max-width: 720px){
+  #ix-report-modal .ix-form__row.ix-form__row--2{
+    grid-template-columns: 1fr;
+  }
+}
+
+
+
+
+
+
+
 #ix-report-modal .ix-form__row[hidden]{
   display: none !important;
 }

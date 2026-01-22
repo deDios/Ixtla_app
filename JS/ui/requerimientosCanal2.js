@@ -15,7 +15,7 @@
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
 
   const EP = {
-    departamentos: `${HOST}/db/WEB/ixtla01_c_departamento.php`, // singular ✅
+    departamentos: `${HOST}/db/WEB/ixtla01_c_departamento.php`, 
     tramites: `${HOST}/db/WEB/ixtla01_c_tramite.php`,
     cpcolonia: `${HOST}/db/WEB/ixtla01_c_cpcolonia.php`,
     insertReq: `/webpublic_proxy.php`,
@@ -49,8 +49,8 @@
   // =========================
   // Reglas
   // =========================
-  const PRESIDENCIA_DEPT_ID = 6; 
-  const ADMIN_ROLES = ["ADMIN"]; 
+  const PRESIDENCIA_DEPT_ID = 6;
+  const ADMIN_ROLES = ["ADMIN"];
 
   // =========================
   // Helpers: POST sin credenciales
@@ -714,35 +714,23 @@
           warn("fsBootstrap falló (no bloqueante):", e2);
         }
 
-        // 3) Upload evidencias (multipart) estado 0
-        // 2) Media (carpetas + upload) usando /JS/api/media.js
+        // 3) subir evidencias (multipart) al estado 0 (homologado a tramiteDepartamentos.js)
         if (files.length) {
+          const fd = new FormData();
+          fd.append("folio", folio);
+          fd.append("status", "0");
+          files.forEach((f) => fd.append("files[]", f, f.name));
+
+          const upRes = await fetch(EP.uploadImg, { method: "POST", body: fd });
+          let upJson = null;
           try {
-            const { setupMedia, uploadMedia } =
-              await import("/JS/UAT/api/media.js");
-            await setupMedia(folio, {
-              create_status_txt: true,
-              force_status_txt: false,
-            });
-            const up = await uploadMedia({ folio, status: 0, files });
-            if (up?.skipped?.length) {
-              const names = up.skipped
-                .map((s) => s?.name)
-                .filter(Boolean)
-                .join(", ");
-              if (names)
-                toast(`Se omitieron algunas imágenes: ${names}`, "warn", 4500);
-            }
-            if (up && up.ok === false) {
-              toast("No se pudieron subir evidencias.", "warn", 3500);
-            }
-          } catch (eUp) {
-            warn("media upload error:", eUp);
-            toast(
-              `Error al subir evidencias: ${eUp?.message || eUp}`,
-              "warn",
-              3800,
-            );
+            upJson = await upRes.json();
+          } catch {}
+
+          if (!upRes.ok || upJson?.ok === false) {
+            const msg =
+              upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`;
+            toast(msg, "warn", 3800);
           }
         }
 
