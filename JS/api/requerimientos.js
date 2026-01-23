@@ -263,7 +263,7 @@ function mergeDedupOrder(lists, { order = "created_at_desc" } = {}) {
     arr.sort(
       (a, b) =>
         String(b.created_at).localeCompare(String(a.created_at)) ||
-        (b.id || 0) - (a.id || 0)
+        (b.id || 0) - (a.id || 0),
     );
   }
   log("mergeDedupOrder()", { inputLists: lists.length, out: arr.length });
@@ -359,8 +359,8 @@ export async function planScope({
   const deptIds = viewerDeptId
     ? [viewerDeptId]
     : viewer?.departamento_id
-    ? [viewer.departamento_id]
-    : [];
+      ? [viewer.departamento_id]
+      : [];
 
   const created_to = todayISO();
   const created_from = addDaysISO(created_to, -Math.abs(rangeDays));
@@ -429,7 +429,7 @@ export async function fetchScope({ plan, filtros = {} }) {
   };
 
   const statuses = results.map(
-    (r) => r.status + (r.status === "rejected" ? `: ${r.reason}` : "")
+    (r) => r.status + (r.status === "rejected" ? `: ${r.reason}` : ""),
   );
   log("fetchScope results:", { totalItems: items.length, counts, statuses });
   groupEnd();
@@ -467,7 +467,7 @@ export async function reassignReq(id, asignado_a, { updated_by = null } = {}) {
 export async function setPrioridadReq(
   id,
   prioridad,
-  { updated_by = null } = {}
+  { updated_by = null } = {},
 ) {
   return updateRequerimiento({
     id,
@@ -478,7 +478,7 @@ export async function setPrioridadReq(
 export async function transferirDeptoReq(
   id,
   departamento_id,
-  { tramite_id = null, updated_by = null } = {}
+  { tramite_id = null, updated_by = null } = {},
 ) {
   const patch = { id, departamento_id };
   if (tramite_id != null) patch.tramite_id = tramite_id;
@@ -515,11 +515,11 @@ export async function setEstatusReq(id, estatus, opts = {}) {
   if (autoFechas) {
     const hasFechaLimite = Object.prototype.hasOwnProperty.call(
       patch,
-      "fecha_limite"
+      "fecha_limite",
     );
     const hasCerrado = Object.prototype.hasOwnProperty.call(
       patch,
-      "cerrado_en"
+      "cerrado_en",
     );
 
     // Cuando entra a EN PROCESO (3) o en adelante,
@@ -554,7 +554,7 @@ export async function setEstatusReq(id, estatus, opts = {}) {
 // Finalizar requerimiento (estatus = 6)
 export async function finalizarReq(
   id,
-  { fecha_fin = null, cerrado_en = null, updated_by = null } = {}
+  { fecha_fin = null, cerrado_en = null, updated_by = null } = {},
 ) {
   const opts = {
     updated_by,
@@ -626,7 +626,7 @@ export async function hydrateAsignadoFields(items = []) {
     "| necesitaron id:",
     need.size,
     "| consultar:",
-    toQuery.length
+    toQuery.length,
   );
 
   // Consulta en paralelo
@@ -656,7 +656,7 @@ export async function hydrateAsignadoFields(items = []) {
     "[hydrateAsignadoFields] enriquecidos:",
     enriched,
     "| cacheSize:",
-    _empNameCache.size
+    _empNameCache.size,
   );
 }
 
