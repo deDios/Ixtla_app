@@ -9,17 +9,17 @@
 
   // =========================
   // API HOST + Endpoints
-  // (alineados a tareas.js)
   // =========================
   const HOST =
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
 
   const EP = {
-    departamentos: `${HOST}/db/WEB/ixtla01_c_departamento.php`, 
+    departamentos: `${HOST}/db/WEB/ixtla01_c_departamento.php`,
     tramites: `${HOST}/db/WEB/ixtla01_c_tramite.php`,
     cpcolonia: `${HOST}/db/WEB/ixtla01_c_cpcolonia.php`,
+    // Insert por same-origin proxy (evita CORS en canal público)
     insertReq: `/webpublic_proxy.php`,
-    fsBootstrap: `${HOST}/db/WEB/ixtla01_u_requerimiento_folders.php`,
+    // Media directo (multipart). OJO: NO usamos setup/bootstrap aquí porque hoy da 404/CORS.
     uploadImg: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,
   };
 
@@ -49,7 +49,7 @@
   // =========================
   // Reglas
   // =========================
-  const PRESIDENCIA_DEPT_ID = 6;
+  const PRESIDENCIA_DEPT_ID = 6; // excluir del combo
   const ADMIN_ROLES = ["ADMIN"];
 
   // =========================
@@ -178,13 +178,16 @@
     el.textContent = txt || "Selecciona el tipo de trámite";
   }
 
+  // Nota: además de hidden, forzamos display para que CSS no lo "reviva"
   function showAsunto(groupEl, inputEl, on) {
     if (!groupEl || !inputEl) return;
     if (on) {
       groupEl.hidden = false;
+      groupEl.style.display = ""; // vuelve a su display natural
       inputEl.required = true;
     } else {
       groupEl.hidden = true;
+      groupEl.style.display = "none";
       inputEl.required = false;
       inputEl.value = "";
     }
@@ -221,7 +224,6 @@
   // Loaders: Departamentos
   // =========================
   async function loadDepartamentosActivosSinPresidencia() {
-    // Mandamos ambos (status/estatus) para cubrir variaciones
     const json = await postNoCreds(EP.departamentos, {
       status: 1,
       estatus: 1,
@@ -239,13 +241,10 @@
         status: Number(d?.status ?? d?.estatus ?? 1),
       }))
       .filter((d) => d.id && d.nombre)
-      // solo activos
       .filter((d) => Number(d.status) === 1)
-      // excluir presidencia por id o por nombre
       .filter(
         (d) => d.id !== PRESIDENCIA_DEPT_ID && norm(d.nombre) !== "presidencia",
       )
-      // ordenar A-Z
       .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
     return out;
@@ -260,11 +259,7 @@
 
     if (cacheTramitesByDept.has(key)) return cacheTramitesByDept.get(key);
 
-    const json = await postNoCreds(EP.tramites, {
-      estatus: 1,
-      all: true,
-    });
-
+    const json = await postNoCreds(EP.tramites, { estatus: 1, all: true });
     const rows = Array.isArray(json?.data) ? json.data : [];
 
     const out = rows
@@ -369,8 +364,7 @@
     });
 
     // =========================
-    // Conexión: Media + Submit
-    // (misma lógica base que tramites)
+    // Toast
     // =========================
     const toast = (msg, type = "info", ms = 3000) => {
       try {
@@ -398,7 +392,6 @@
         "image/heif",
       ],
       ACCEPT_EXT: [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"],
-      FETCH_TIMEOUT: 12000,
     };
 
     // Estado uploader
@@ -425,7 +418,7 @@
     const upCTA = modal.querySelector("#ix-evidencia-cta");
     const previews = modal.querySelector("#ix-evidencia-previews");
 
-    // Fecha visible (el backend usa NOW(); aquí solo UI)
+    // Fecha visible
     const inpFecha = modal.querySelector("#ix-fecha");
 
     const digits = (s) => String(s || "").replace(/\D+/g, "");
@@ -521,7 +514,6 @@
           if (!picked.length) return;
           const next = [...files, ...picked].slice(0, CFG.MAX_FILES);
 
-          // valida por archivo
           const valid = [];
           for (const f of next) {
             const mb = (f.size || 0) / (1024 * 1024);
@@ -542,7 +534,6 @@
           }
           files = valid.slice(0, CFG.MAX_FILES);
 
-          // reset input para permitir volver a seleccionar mismo archivo
           upInput.value = "";
           refreshPreviews();
           form?.dispatchEvent(new Event("input", { bubbles: true }));
@@ -561,7 +552,6 @@
           upWrap.classList.remove("drag");
           const dropped = Array.from(e.dataTransfer?.files || []);
           if (!dropped.length) return;
-          // simula selección
           const dt = new DataTransfer();
           dropped.slice(0, CFG.MAX_FILES).forEach((f) => dt.items.add(f));
           if (upInput) upInput.files = dt.files;
@@ -570,7 +560,7 @@
       }
     }
 
-    function validateForm(focusOnFail = false) {
+    function validateForm() {
       const nombre = (inpNombre?.value || "").trim();
       const domicilio = (inpDom?.value || "").trim();
       const cp = (selCp?.value || "").trim();
@@ -584,7 +574,6 @@
       const otros = isOtros(tramName);
       const asunto = (asuntoInput?.value || "").trim();
 
-      // requeridos básicos
       if (nombre.length < CFG.NAME_MIN_CHARS)
         return { ok: false, firstBad: "nombre" };
       if (!domicilio) return { ok: false, firstBad: "dom" };
@@ -597,8 +586,6 @@
         return { ok: false, firstBad: "desc" };
       if (!consent) return { ok: false, firstBad: "consent" };
       if (otros && asunto.length < 3) return { ok: false, firstBad: "asunto" };
-
-      // archivos (solo límites)
       if (files.length > CFG.MAX_FILES) return { ok: false, firstBad: "files" };
 
       return { ok: true };
@@ -610,12 +597,14 @@
     inpDesc?.addEventListener("input", updateDescCount);
 
     form?.addEventListener("input", () => {
-      const { ok } = validateForm(false);
+      const { ok } = validateForm();
       if (btnSend) btnSend.disabled = !ok || isSubmitting;
       if (hasAttemptedSubmit) clearFeedback();
     });
 
+    // =========================
     // Submit
+    // =========================
     form?.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (isSubmitting) return;
@@ -623,7 +612,7 @@
       clearFeedback();
       hasAttemptedSubmit = true;
 
-      const res = validateForm(true);
+      const res = validateForm();
       if (!res.ok) {
         const sel = {
           nombre: "#ix-nombre",
@@ -652,6 +641,10 @@
       const otros = isOtros(tramName);
 
       const body = {
+        // Canal 2 siempre nace en Asignación
+        canal: 2,
+        estatus: 3,
+
         departamento_id: depId,
         tramite_id: tramId,
         asunto: otros
@@ -664,8 +657,6 @@
         contacto_calle: String(inpDom?.value || "").trim(),
         contacto_colonia: String(selCol?.value || "").trim(),
         contacto_cp: String(selCp?.value || "").trim(),
-        estatus: 3,
-        canal: 2,
       };
 
       // UI lock
@@ -682,7 +673,7 @@
         `idemp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
       try {
-        // 1) Insert requerimiento
+        // 1) Insert requerimiento (same-origin proxy)
         const json = await fetch(EP.insertReq, {
           method: "POST",
           headers: {
@@ -699,22 +690,12 @@
 
         if (!json?.ok || !json?.data)
           throw new Error("Respuesta inesperada del servidor.");
+
         const folio =
           json.data.folio ||
           `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
 
-        // 2) Bootstrap folders (best-effort)
-        try {
-          await postNoCreds(EP.fsBootstrap, {
-            folio,
-            create_status_txt: true,
-            force_status_txt: false,
-          });
-        } catch (e2) {
-          warn("fsBootstrap falló (no bloqueante):", e2);
-        }
-
-        // 3) subir evidencias (multipart) al estado 0 (homologado a tramiteDepartamentos.js)
+        // 2) Evidencias (multipart) - sin bootstrap/setup (evita 404/CORS)
         if (files.length) {
           const fd = new FormData();
           fd.append("folio", folio);
@@ -731,6 +712,13 @@
             const msg =
               upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`;
             toast(msg, "warn", 3800);
+          } else if (upJson?.skipped?.length) {
+            const names = upJson.skipped
+              .map((s) => s?.name)
+              .filter(Boolean)
+              .join(", ");
+            if (names)
+              toast(`Se omitieron algunas imágenes: ${names}`, "warn", 4500);
           }
         }
 
@@ -762,7 +750,7 @@
         form.removeAttribute("aria-busy");
         if (btnSend) {
           btnSend.textContent = oldTxt;
-          const { ok } = validateForm(false);
+          const { ok } = validateForm();
           btnSend.disabled = !ok;
         }
       }
@@ -770,7 +758,6 @@
 
     // --- helpers internos para pintar ---
     async function paintTramitesForDept(deptId) {
-      // reset trámites/req_title
       hidTram.value = "";
       hidReqTitle.value = "";
       setSubtitle(subtitle, "Selecciona el tipo de trámite");
@@ -819,11 +806,9 @@
           "Selecciona C.P.",
         );
 
-        // colonia queda deshabilitada hasta que elijas CP
         selCol.disabled = true;
         fillSelect(selCol, [], "Selecciona colonia");
 
-        // handler CP -> colonias
         selCp.onchange = () => {
           const cp = selCp.value || "";
           const cols = map[cp] || [];
@@ -850,17 +835,14 @@
       log("sesión:", sess);
       log("rbac:", rbac);
 
-      // reset hidden + UI
       hidDept.value = "";
       hidTram.value = "";
       hidReqTitle.value = "";
       setSubtitle(subtitle, "Selecciona el tipo de trámite");
       showAsunto(asuntoGroup, asuntoInput, false);
 
-      // CP/Colonia (siempre)
-      paintCpCol(); // no bloquea el resto; corre async internamente
+      paintCpCol();
 
-      // Departamentos
       selDept.disabled = true;
       fillSelect(selDept, [], "Cargando departamentos…");
 
@@ -875,14 +857,11 @@
           "Selecciona un departamento",
         );
 
-        // RBAC dept locked/unlocked
         const myDept = sess?.dept_id != null ? Number(sess.dept_id) : null;
 
         if (rbac.canPickDept) {
-          // admin/pres: puede elegir cualquiera (pero presidencia no aparece en lista)
           selDept.disabled = false;
 
-          // si el depto actual del usuario NO está en lista (ej. 6), dejamos vacío
           if (
             myDept != null &&
             cacheDepartamentos.some((d) => Number(d.id) === Number(myDept))
@@ -892,7 +871,6 @@
             selDept.value = "";
           }
         } else {
-          // no privilegiado: dept bloqueado al suyo
           selDept.disabled = true;
           selDept.value =
             myDept != null && cacheDepartamentos.some((d) => d.id === myDept)
@@ -902,7 +880,6 @@
 
         hidDept.value = selDept.value || "";
 
-        // Trámites según dept actual
         if (hidDept.value) {
           await paintTramitesForDept(hidDept.value);
         } else {
@@ -953,10 +930,8 @@
       showAsunto(asuntoGroup, asuntoInput, otros);
 
       if (!otros) {
-        // req_title fijo
         hidReqTitle.value = tramName;
       } else {
-        // req_title viene del input asunto
         hidReqTitle.value = "";
         setTimeout(() => asuntoInput?.focus?.(), 0);
       }
@@ -968,9 +943,8 @@
         otros,
       });
 
-      // actualiza estado del botón enviar
       try {
-        const v = validateForm(false);
+        const v = validateForm();
         if (btnSend) btnSend.disabled = !v.ok || isSubmitting;
       } catch (_) {}
     });
