@@ -18,7 +18,7 @@
     tramites: `${HOST}/db/WEB/ixtla01_c_tramite.php`,
     cpcolonia: `${HOST}/db/WEB/ixtla01_c_cpcolonia.php`,
 
-    // Workaround Canal 2:
+    // ✅ Workaround Canal 2:
     // 1) Creamos el requerimiento "default" (canal 1 / estatus default) directo al backend
     // 2) Enseguida hacemos UPDATE para forzar canal:2 y estatus:3 (según lo que sí está jalando)
     createReq: `/webpublic_proxy.php`,
