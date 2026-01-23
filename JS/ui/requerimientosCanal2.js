@@ -765,6 +765,7 @@
         updateDescCount();
 
         closeModal(modal);
+        setTimeout(() => window.location.reload(), 150);
       } catch (e1) {
         err("submit error:", e1);
         toast("No se pudo enviar el reporte.", "err", 3500);
