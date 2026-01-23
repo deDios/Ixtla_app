@@ -438,16 +438,6 @@ export async function fetchScope({ plan, filtros = {} }) {
   return { items, counts, filtros: useFiltros };
 }
 
-
-
-
-
-
-
-
-
-
-
 /* ============================== Updates API ============================== */
 
 export async function createRequerimiento(payload = {}) {
@@ -541,12 +531,6 @@ export async function createReqCanal2Workaround(
   e.created = created;
   throw e;
 }
-
-
-
-
-
-
 
 
 export async function updateRequerimiento(patch = {}) {

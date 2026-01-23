@@ -17,20 +17,11 @@
     departamentos: `${HOST}/db/WEB/ixtla01_c_departamento.php`,
     tramites: `${HOST}/db/WEB/ixtla01_c_tramite.php`,
     cpcolonia: `${HOST}/db/WEB/ixtla01_c_cpcolonia.php`,
-
-    // ✅ Workaround Canal 2:
-    // 1) Creamos el requerimiento "default" (canal 1 / estatus default) directo al backend
-    // 2) Enseguida hacemos UPDATE para forzar canal:2 y estatus:3 (según lo que sí está jalando)
-    createReq: `${HOST}/db/WEB/ixtla01_in_requerimiento.php`,
-    updateReq: `${HOST}/db/WEB/ixtla01_upd_requerimiento.php`,
-
-    // Media directo (multipart).
+    // Insert por same-origin proxy (evita CORS en canal público)
+    insertReq: `/webpublic_proxy.php`,
+    // Media directo (multipart). OJO: NO usamos setup/bootstrap aquí porque hoy da 404/CORS.
     uploadImg: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,
   };
-
-  // Valores destino (canal 2)
-  const CANAL_TARGET = 2;
-  const ESTATUS_TARGET = 3;
 
   // =========================
   // DOM IDs esperados
@@ -64,7 +55,7 @@
   // =========================
   // Helpers: POST sin credenciales
   // =========================
-  async function postNoCreds(url, payload, { timeout = 15000, headers = {} } = {}) {
+  async function postNoCreds(url, payload, { timeout = 15000 } = {}) {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeout);
     try {
@@ -73,7 +64,6 @@
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          ...headers,
         },
         credentials: "omit",
         body: JSON.stringify(payload || {}),
@@ -83,11 +73,11 @@
       const json = await res.json().catch(() => null);
       if (!res.ok) {
         const msg =
-          json?.error || json?.mensaje || json?.message || `${res.status} ${res.statusText}`;
+          json?.error || json?.mensaje || `${res.status} ${res.statusText}`;
         throw new Error(msg);
       }
       if (json?.ok === false) {
-        throw new Error(json?.error || json?.mensaje || json?.message || "Respuesta ok:false");
+        throw new Error(json?.error || json?.mensaje || "Respuesta ok:false");
       }
       return json || {};
     } finally {
@@ -129,7 +119,7 @@
     let s = null;
     try {
       s = window.Session?.get?.() || null;
-    } catch { }
+    } catch {}
     if (!s) s = readIxCookie();
 
     const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
@@ -175,7 +165,9 @@
       opt.value = String(it.value);
       opt.textContent = String(it.label);
       if (it.dataset) {
-        Object.entries(it.dataset).forEach(([k, v]) => (opt.dataset[k] = String(v)));
+        Object.entries(it.dataset).forEach(
+          ([k, v]) => (opt.dataset[k] = String(v)),
+        );
       }
       el.appendChild(opt);
     });
@@ -250,7 +242,9 @@
       }))
       .filter((d) => d.id && d.nombre)
       .filter((d) => Number(d.status) === 1)
-      .filter((d) => d.id !== PRESIDENCIA_DEPT_ID && norm(d.nombre) !== "presidencia")
+      .filter(
+        (d) => d.id !== PRESIDENCIA_DEPT_ID && norm(d.nombre) !== "presidencia",
+      )
       .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
     return out;
@@ -291,14 +285,18 @@
     const map = {};
     for (const r of rows) {
       const cp = String(r?.cp ?? r?.CP ?? r?.codigo_postal ?? "").trim();
-      const col = String(r?.colonia ?? r?.Colonia ?? r?.asentamiento ?? "").trim();
+      const col = String(
+        r?.colonia ?? r?.Colonia ?? r?.asentamiento ?? "",
+      ).trim();
       if (!cp || !col) continue;
       if (!map[cp]) map[cp] = new Set();
       map[cp].add(col);
     }
     const finalMap = {};
     Object.keys(map).forEach((cp) => {
-      finalMap[cp] = Array.from(map[cp]).sort((a, b) => a.localeCompare(b, "es"));
+      finalMap[cp] = Array.from(map[cp]).sort((a, b) =>
+        a.localeCompare(b, "es"),
+      );
     });
     const cps = Object.keys(finalMap).sort();
     return { cps, map: finalMap };
@@ -338,7 +336,15 @@
     const asuntoGroup = modal.querySelector(`#${IDS.asuntoGroup}`);
     const asuntoInput = modal.querySelector(`#${IDS.asuntoInput}`);
 
-    if (!selDept || !selTram || !selCp || !selCol || !hidDept || !hidTram || !hidReqTitle) {
+    if (
+      !selDept ||
+      !selTram ||
+      !selCp ||
+      !selCol ||
+      !hidDept ||
+      !hidTram ||
+      !hidReqTitle
+    ) {
       warn("Faltan IDs del modal (selects/hidden). Revisa el HTML del modal.");
       return;
     }
@@ -350,7 +356,9 @@
         closeModal(modal);
       });
     });
-    modal.querySelector(".ix-modal__overlay")?.addEventListener("click", () => closeModal(modal));
+    modal
+      .querySelector(".ix-modal__overlay")
+      ?.addEventListener("click", () => closeModal(modal));
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !modal.hidden) closeModal(modal);
     });
@@ -360,7 +368,8 @@
     // =========================
     const toast = (msg, type = "info", ms = 3000) => {
       try {
-        if (typeof window.gcToast === "function") return window.gcToast(msg, type, ms);
+        if (typeof window.gcToast === "function")
+          return window.gcToast(msg, type, ms);
         if (window.ixToast?.[type]) return window.ixToast[type](msg, ms);
         console.log(TAG, "[toast]", type, msg);
       } catch {
@@ -375,7 +384,13 @@
       MAX_FILES: 3,
       MIN_FILES: 0,
       MAX_MB: 1,
-      ACCEPT_MIME: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"],
+      ACCEPT_MIME: [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+      ],
       ACCEPT_EXT: [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"],
     };
 
@@ -407,7 +422,8 @@
     const inpFecha = modal.querySelector("#ix-fecha");
 
     const digits = (s) => String(s || "").replace(/\D+/g, "");
-    const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || "").trim());
+    const isEmail = (s) =>
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || "").trim());
     const extOf = (name = "") => {
       const n = String(name).toLowerCase();
       const i = n.lastIndexOf(".");
@@ -457,7 +473,7 @@
         if (!f._url) {
           try {
             f._url = URL.createObjectURL(f);
-          } catch { }
+          } catch {}
         }
         if (f._url) img.src = f._url;
 
@@ -470,7 +486,7 @@
           if (gone?._url) {
             try {
               URL.revokeObjectURL(gone._url);
-            } catch { }
+            } catch {}
           }
           refreshPreviews();
           form?.dispatchEvent(new Event("input", { bubbles: true }));
@@ -507,7 +523,11 @@
               continue;
             }
             if (mb > CFG.MAX_MB) {
-              toast(`Archivo muy pesado (máx ${CFG.MAX_MB}MB): ${f.name}`, "warn", 3200);
+              toast(
+                `Archivo muy pesado (máx ${CFG.MAX_MB}MB): ${f.name}`,
+                "warn",
+                3200,
+              );
               continue;
             }
             valid.push(f);
@@ -524,7 +544,9 @@
           e.preventDefault();
           upWrap.classList.add("drag");
         });
-        upWrap.addEventListener("dragleave", () => upWrap.classList.remove("drag"));
+        upWrap.addEventListener("dragleave", () =>
+          upWrap.classList.remove("drag"),
+        );
         upWrap.addEventListener("drop", (e) => {
           e.preventDefault();
           upWrap.classList.remove("drag");
@@ -552,13 +574,16 @@
       const otros = isOtros(tramName);
       const asunto = (asuntoInput?.value || "").trim();
 
-      if (nombre.length < CFG.NAME_MIN_CHARS) return { ok: false, firstBad: "nombre" };
+      if (nombre.length < CFG.NAME_MIN_CHARS)
+        return { ok: false, firstBad: "nombre" };
       if (!domicilio) return { ok: false, firstBad: "dom" };
       if (!cp) return { ok: false, firstBad: "cp" };
       if (!col) return { ok: false, firstBad: "col" };
-      if (tel.length !== CFG.PHONE_DIGITS) return { ok: false, firstBad: "tel" };
+      if (tel.length !== CFG.PHONE_DIGITS)
+        return { ok: false, firstBad: "tel" };
       if (correo && !isEmail(correo)) return { ok: false, firstBad: "correo" };
-      if (desc.length < CFG.DESC_MIN_CHARS) return { ok: false, firstBad: "desc" };
+      if (desc.length < CFG.DESC_MIN_CHARS)
+        return { ok: false, firstBad: "desc" };
       if (!consent) return { ok: false, firstBad: "consent" };
       if (otros && asunto.length < 3) return { ok: false, firstBad: "asunto" };
       if (files.length > CFG.MAX_FILES) return { ok: false, firstBad: "files" };
@@ -601,7 +626,9 @@
           asunto: "#ix-asunto",
         }[res.firstBad];
         modal.querySelector(sel || "")?.focus?.();
-        showFeedback("Revisa los campos marcados. Hay información faltante o inválida.");
+        showFeedback(
+          "Revisa los campos marcados. Hay información faltante o inválida.",
+        );
         return;
       }
 
@@ -609,13 +636,16 @@
       const tramIdRaw = hidTram?.value || "";
       const tramId = tramIdRaw ? Number(tramIdRaw) : null;
 
-      const tramName = selTram?.selectedOptions?.[0]?.textContent?.trim() || "Requerimiento";
+      const tramName =
+        selTram?.selectedOptions?.[0]?.textContent?.trim() || "Requerimiento";
       const otros = isOtros(tramName);
 
       const body = {
         departamento_id: depId,
         tramite_id: tramId,
-        asunto: otros ? String(asuntoInput?.value || "").trim() : `Reporte ${tramName}`,
+        asunto: otros
+          ? String(asuntoInput?.value || "").trim()
+          : `Reporte ${tramName}`,
         descripcion: String(inpDesc?.value || "").trim(),
         contacto_nombre: String(inpNombre?.value || "").trim(),
         contacto_email: String(inpCorreo?.value || "").trim() || null,
@@ -639,55 +669,52 @@
         `idemp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
       try {
-        // 1) INSERT default (canal 1 / status default) directo al backend
-        const json = await postNoCreds(
-          EP.createReq,
-          body,
-          { headers: { "Idempotency-Key": idempKey, "X-Requested-With": "XMLHttpRequest" } }
-        );
+        // 1) Insert requerimiento (same-origin proxy)
+        const json = await fetch(EP.insertReq, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            "Idempotency-Key": idempKey,
+          },
+          body: JSON.stringify(body),
+        }).then(async (r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        });
 
-        if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
+        if (!json?.ok || !json?.data)
+          throw new Error("Respuesta inesperada del servidor.");
 
-        const created = json.data || {};
-        const newId = Number(created?.id ?? created?.requerimiento_id ?? 0) || null;
         const folio =
-          created?.folio ||
-          // fallback: si backend no manda folio (raro), seguimos usando el formato anterior
+          json.data.folio ||
           `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
 
-        // 2) UPDATE (canal 2 / estatus 3) — workaround
-        if (newId) {
-          try {
-            await postNoCreds(EP.updateReq, { id: newId, estatus: ESTATUS_TARGET, canal: CANAL_TARGET });
-            log("update canal2 ok:", { id: newId, estatus: ESTATUS_TARGET, canal: CANAL_TARGET });
-          } catch (e2) {
-            warn("update canal2 falló (no bloquea):", e2);
-            toast("Reporte creado, pero no se pudo ajustar canal/estatus.", "warn", 4200);
-          }
-        } else {
-          warn("No vino 'id' en el insert; no se pudo hacer update canal2.", { created });
-          toast("Reporte creado, pero no se pudo ajustar canal/estatus (faltó id).", "warn", 4500);
-        }
-
-        // 3) Evidencias (multipart)
+        // 2) Evidencias (multipart) - sin bootstrap/setup (evita 404/CORS)
         if (files.length) {
           const fd = new FormData();
           fd.append("folio", folio);
           fd.append("status", "0");
           files.forEach((f) => fd.append("files[]", f, f.name));
 
-          const upRes = await fetch(EP.uploadImg, { method: "POST", body: fd, credentials: "omit" });
+          const upRes = await fetch(EP.uploadImg, { method: "POST", body: fd });
           let upJson = null;
           try {
             upJson = await upRes.json();
-          } catch { }
+          } catch {}
 
           if (!upRes.ok || upJson?.ok === false) {
-            const msg = upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`;
+            const msg =
+              upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`;
             toast(msg, "warn", 3800);
           } else if (upJson?.skipped?.length) {
-            const names = upJson.skipped.map((s) => s?.name).filter(Boolean).join(", ");
-            if (names) toast(`Se omitieron algunas imágenes: ${names}`, "warn", 4500);
+            const names = upJson.skipped
+              .map((s) => s?.name)
+              .filter(Boolean)
+              .join(", ");
+            if (names)
+              toast(`Se omitieron algunas imágenes: ${names}`, "warn", 4500);
           }
         }
 
@@ -696,13 +723,13 @@
         // reset
         try {
           form.reset();
-        } catch { }
+        } catch {}
         setToday();
         files.forEach((f) => {
           if (f?._url) {
             try {
               URL.revokeObjectURL(f._url);
-            } catch { }
+            } catch {}
           }
         });
         files = [];
@@ -817,7 +844,8 @@
 
       try {
         cacheDepartamentos =
-          cacheDepartamentos || (await loadDepartamentosActivosSinPresidencia());
+          cacheDepartamentos ||
+          (await loadDepartamentosActivosSinPresidencia());
 
         fillSelect(
           selDept,
@@ -830,7 +858,10 @@
         if (rbac.canPickDept) {
           selDept.disabled = false;
 
-          if (myDept != null && cacheDepartamentos.some((d) => Number(d.id) === Number(myDept))) {
+          if (
+            myDept != null &&
+            cacheDepartamentos.some((d) => Number(d.id) === Number(myDept))
+          ) {
             selDept.value = String(myDept);
           } else {
             selDept.value = "";
@@ -911,7 +942,7 @@
       try {
         const v = validateForm();
         if (btnSend) btnSend.disabled = !v.ok || isSubmitting;
-      } catch (_) { }
+      } catch (_) {}
     });
 
     if (asuntoInput) {
