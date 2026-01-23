@@ -23,7 +23,7 @@ if ($originOK) {
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   if ($originOK) {
     header('Access-Control-Allow-Methods: POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-RL-BSS, X-TS, X-APP, X-SIG');
+    header('Access-Control-Allow-Headers: Content-Type, Accept, X-Requested-With, Idempotency-Key, X-RL-BSS, X-TS, X-APP, X-CTX, X-SIG');
     header('Access-Control-Max-Age: 86400');
   }
   http_response_code(204);
@@ -376,7 +376,8 @@ if (!ctype_digit($ts) || abs(time() - (int)$ts) > 300) { // ±5 min
 // Incluye método y ruta para evitar reutilizar la firma en otro endpoint
 $method = $_SERVER['REQUEST_METHOD'] ?? 'POST';
 $path   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-$base   = $ts.'.'.$method.'.'.$path.'.'.$raw;
+$ctx  = $_SERVER['HTTP_X_CTX'] ?? '';
+$base = $ts.'.'.$method.'.'.$path.'.'.$ctx.'.'.$raw;
 
 $calc = base64_encode(hash_hmac('sha256', $base, $secret, true));
 if (!hash_equals($calc, $sig)) {
@@ -448,7 +449,33 @@ $contacto_colonia = isset($in['contacto_colonia']) ? trim((string)$in['contacto_
 $contacto_cp      = isset($in['contacto_cp']) ? trim((string)$in['contacto_cp']) : null;
 
 /* Defaults sensibles SOLO en servidor */
-$prioridad  = 2; $estatus = 0; $canal = 1; $status = 1;
+$prioridad = 2;
+$status    = 1;  // tu status (activo/inactivo del registro)
+
+/* Contexto (canal) controlado por servidor */
+$ctx = $_SERVER['HTTP_X_CTX'] ?? '';
+
+$MAP = [
+  ''       => ['canal' => 1, 'estatus' => 1], // default
+  'canal1' => ['canal' => 1, 'estatus' => 1],
+  'canal2' => ['canal' => 2, 'estatus' => 3],
+];
+
+if ($app === 'webpublic') {
+  if (!isset($MAP[$ctx])) {
+    http_response_code(403);
+    echo json_encode(['ok'=>false,'error'=>'CTX no permitido']);
+    exit;
+  }
+  $canal   = $MAP[$ctx]['canal'];
+  $estatus = $MAP[$ctx]['estatus'];
+} else {
+  // fallback si no cae en ningun case
+  $canal   = 1;
+  $estatus = 1;
+}
+
+
 $asignado_a = null; $created_by = null; $fecha_limite = null;
 
 /* Saneos básicos */

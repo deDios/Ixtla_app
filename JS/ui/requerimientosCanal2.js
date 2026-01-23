@@ -641,10 +641,6 @@
       const otros = isOtros(tramName);
 
       const body = {
-        // Canal 2 siempre nace en Asignación
-        canal: 2,
-        estatus: 3,
-
         departamento_id: depId,
         tramite_id: tramId,
         asunto: otros
