@@ -164,7 +164,7 @@
     let s = null;
     try {
       s = window.Session?.get?.() || null;
-    } catch { }
+    } catch {}
     if (!s) s = readIxCookie();
 
     const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
@@ -492,7 +492,7 @@
         if (!f._url) {
           try {
             f._url = URL.createObjectURL(f);
-          } catch { }
+          } catch {}
         }
         if (f._url) img.src = f._url;
 
@@ -505,7 +505,7 @@
           if (gone?._url) {
             try {
               URL.revokeObjectURL(gone._url);
-            } catch { }
+            } catch {}
           }
           refreshPreviews();
           form?.dispatchEvent(new Event("input", { bubbles: true }));
@@ -691,7 +691,7 @@
           body: rawBody,
         }).then(async (r) => {
           let j = null;
-          try { j = await r.json(); } catch { }
+          try { j = await r.json(); } catch {}
           if (!r.ok) {
             const msg = j?.error || j?.mensaje || `HTTP ${r.status}`;
             throw new Error(msg);
@@ -735,7 +735,7 @@
           let upJson = null;
           try {
             upJson = await upRes.json();
-          } catch { }
+          } catch {}
 
           if (!upRes.ok || upJson?.ok === false) {
             const msg = upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`;
@@ -751,13 +751,13 @@
         // reset
         try {
           form.reset();
-        } catch { }
+        } catch {}
         setToday();
         files.forEach((f) => {
           if (f?._url) {
             try {
               URL.revokeObjectURL(f._url);
-            } catch { }
+            } catch {}
           }
         });
         files = [];
@@ -966,7 +966,7 @@
       try {
         const v = validateForm();
         if (btnSend) btnSend.disabled = !v.ok || isSubmitting;
-      } catch (_) { }
+      } catch (_) {}
     });
 
     if (asuntoInput) {
