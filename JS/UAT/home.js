@@ -50,7 +50,8 @@ import { DonutChart } from "/JS/charts/donut-chart.js";
 import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
 
 /*-------- export para excel -------*/
-import { initExportCSVHome } from "/JS/ui/exportCSVHome.js";
+//import { initExportCSVHome } from "/JS/ui/exportCSVHome.js";
+import { initExportXLSXHome } from "/JS/ui/exportXLSXHome.js";
 
 /* ============================================================================
    SELECTORES
@@ -1666,14 +1667,24 @@ window.addEventListener("DOMContentLoaded", async () => {
     setupRowClickDelegation();
 
     // bandera, export del csv para que no haya pedo
-    initExportCSVHome({
+   // initExportCSVHome({
+   //   buttonId: "hs-btn-export-req",
+   //   State,
+   //   normalizeStatusKey,
+   //   formatDateMXShort,
+   //   toast: (m, t = "info") =>
+   //     window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m),
+   //   getFilePrefix: () => "requerimientos",
+   // });
+
+    initExportXLSXHome({
       buttonId: "hs-btn-export-req",
       State,
       normalizeStatusKey,
       formatDateMXShort,
       toast: (m, t = "info") =>
         window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m),
-      getFilePrefix: () => "requerimientos",
+      mode: "all", // todo visible por rol
     });
 
     const sess = Session?.get?.() || null;

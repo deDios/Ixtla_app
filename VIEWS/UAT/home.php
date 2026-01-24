@@ -663,6 +663,10 @@ ix_require_session();
     });
     </script>
 
+    <!-- componente de sheetjs -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script type="module" src="/JS/ui/home.js"></script>
+
     <script src="/JS/UAT/JSglobal.js"></script>
     <script type="module" src="/JS/UAT/home.js"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
