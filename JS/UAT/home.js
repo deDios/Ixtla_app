@@ -234,7 +234,7 @@ function initProfileModal() {
   }
 
   const openers = document.querySelectorAll(
-    '.edit-profile,[data-open="#modal-perfil"]'
+    '.edit-profile,[data-open="#modal-perfil"]',
   );
   const closeBtn = modal.querySelector(".modal-close");
   const content = modal.querySelector(".modal-content");
@@ -257,7 +257,7 @@ function initProfileModal() {
 
   const focusFirst = () => {
     const first = modal.querySelector(
-      "input,button,select,textarea,[tabindex]:not([tabindex='-1'])"
+      "input,button,select,textarea,[tabindex]:not([tabindex='-1'])",
     );
     first?.focus();
   };
@@ -333,7 +333,7 @@ function initProfileModal() {
     el.addEventListener("click", (e) => {
       e.preventDefault();
       open();
-    })
+    }),
   );
   closeBtn?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -477,7 +477,7 @@ function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
     const b64 = btoa(unescape(encodeURIComponent(json)));
     const maxAge = Math.max(1, Math.floor(maxAgeDays * 86400));
     document.cookie = `ix_emp=${encodeURIComponent(
-      b64
+      b64,
     )}; path=/; max-age=${maxAge}; samesite=lax`;
   } catch (e) {
     console.warn("[Home] No se pudo escribir cookie ix_emp:", e);
@@ -656,7 +656,7 @@ function initSidebar(onChange) {
     btn.setAttribute("tabindex", i === 0 ? "0" : "-1");
     btn.setAttribute(
       "aria-checked",
-      btn.classList.contains("is-active") ? "true" : "false"
+      btn.classList.contains("is-active") ? "true" : "false",
     );
     const key = btn.dataset.status;
     if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
@@ -758,7 +758,7 @@ function buildTable() {
               r.depto_nombre ||
               r.departamento_nombre ||
               r.raw?.departamento?.nombre ||
-              "—"
+              "—",
           ),
         render: (v, r) =>
           r.departamento ||
@@ -832,7 +832,7 @@ function buildTable() {
         accessor: (r) => normText(r.estatus?.label || "—"),
         render: (v, r) => {
           const keyNorm = normalizeStatusKey(
-            r.estatus?.key || r.estatus?.label || "revision"
+            r.estatus?.key || r.estatus?.label || "revision",
           );
           const label = r.estatus?.label || "—";
           return `<span class="badge-status" data-k="${keyNorm}">${label}</span>`;
@@ -984,7 +984,7 @@ function refreshCurrentPageDecorations() {
   const trs = Array.from(tbody.querySelectorAll("tr")).filter(
     (tr) =>
       !tr.classList.contains("hs-gap") &&
-      !tr.classList.contains("hs-row-expand")
+      !tr.classList.contains("hs-row-expand"),
   );
 
   const pageRows = State.table?.getRawRows?.() || [];
@@ -1054,10 +1054,10 @@ function refreshCurrentPageDecorations() {
         raw.departamento ||
           raw.depto ||
           raw.depto_nombre ||
-          raw.departamento_nombre
+          raw.departamento_nombre,
       );
       const asign = safeTxt(
-        raw.asignadoFull || raw.asignadoNombre || raw.asignado
+        raw.asignadoFull || raw.asignadoNombre || raw.asignado,
       );
       const tel = safeTxt(raw.tel);
       const solicitado = safeTxt(
@@ -1065,8 +1065,8 @@ function refreshCurrentPageDecorations() {
           raw.creado ||
             raw.raw?.created_at ||
             raw.created_at ||
-            raw.fecha_creacion
-        )
+            raw.fecha_creacion,
+        ),
       );
 
       td.innerHTML = `
@@ -1106,7 +1106,7 @@ function setupRowClickDelegation() {
       const id = openBtn.getAttribute("data-open-req");
       if (id) {
         window.location.href = `/VIEWS/requerimiento.php?id=${encodeURIComponent(
-          id
+          id,
         )}`;
       }
       return;
@@ -1133,7 +1133,7 @@ function setupRowClickDelegation() {
       // Si tocó un control interactivo distinto al expander, no togglear
       // (evita conflictos si en el futuro metes links/botones dentro de la fila)
       const interactive = e.target.closest(
-        "a,button,input,select,textarea,label"
+        "a,button,input,select,textarea,label",
       );
       if (interactive && !clickedExpander) return;
 
@@ -1149,7 +1149,7 @@ function setupRowClickDelegation() {
         const realRowsInDom = Array.from(tbody.querySelectorAll("tr")).filter(
           (row) =>
             !row.classList.contains("hs-gap") &&
-            !row.classList.contains("hs-row-expand")
+            !row.classList.contains("hs-row-expand"),
         );
         idx = realRowsInDom.indexOf(tr);
       }
@@ -1181,7 +1181,7 @@ function setupRowClickDelegation() {
 
     if (!Number.isFinite(idx) || idx < 0) {
       const rowsInDom = Array.from(tbody.querySelectorAll("tr")).filter(
-        (row) => !row.classList.contains("hs-gap")
+        (row) => !row.classList.contains("hs-gap"),
       );
       idx = rowsInDom.indexOf(tr);
     }
@@ -1192,7 +1192,7 @@ function setupRowClickDelegation() {
     const id = raw?.id || raw?.__raw?.id;
     if (id) {
       window.location.href = `/VIEWS/requerimiento.php?id=${encodeURIComponent(
-        id
+        id,
       )}`;
     }
   });
@@ -1241,7 +1241,7 @@ function applyPipelineAndRender() {
       });
     } else {
       filtered = filtered.filter(
-        (r) => normalizeStatusKey(r.estatus?.key) === State.filterKey
+        (r) => normalizeStatusKey(r.estatus?.key) === State.filterKey,
       );
     }
   }
@@ -1308,6 +1308,147 @@ function applyPipelineAndRender() {
   });
 
   drawChartsFromRows(filtered);
+}
+
+/* =============================================================================
+   EXPORT — CSV 
+   ========================================================================== */
+
+function getRowsForExport() {
+  const all = State.rows || [];
+  let filtered = all;
+
+  if (State.filterKey !== "todos") {
+    if (State.filterKey === "activo") {
+      filtered = filtered.filter((r) => {
+        const k = normalizeStatusKey(r.estatus?.key || "");
+        return k !== "pausado" && k !== "cancelado" && k !== "finalizado";
+      });
+    } else {
+      filtered = filtered.filter(
+        (r) => normalizeStatusKey(r.estatus?.key) === State.filterKey,
+      );
+    }
+  }
+
+  if (State.search) {
+    const q = State.search;
+    filtered = filtered.filter((r) => {
+      const asunto = (r.asunto || "").toLowerCase();
+      const asign = (r.asignado || r.asignadoNombre || "").toLowerCase();
+      const est = (r.estatus?.label || "").toLowerCase();
+      const folio = (r.folio || "").toLowerCase();
+      const depto = (r.departamento || "").toLowerCase();
+      const idTxt = String(r.id || "");
+      return (
+        asunto.includes(q) ||
+        asign.includes(q) ||
+        est.includes(q) ||
+        depto.includes(q) ||
+        folio.includes(q) ||
+        idTxt.includes(q)
+      );
+    });
+  }
+
+  return filtered;
+}
+
+function csvEscape(v) {
+  const s = String(v ?? "");
+  // Excel/CSV: envolver en comillas si trae coma, salto de línea o comillas
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function toCSV(headers, rows) {
+  const head = headers.map(csvEscape).join(",");
+  const body = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+  // BOM para que Excel respete UTF-8 (acentos, etc.)
+  return "\uFEFF" + head + "\n" + body + "\n";
+}
+
+function downloadCSV(filename, csvText) {
+  const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportRequerimientosCSV() {
+  const rows = getRowsForExport();
+
+  // Columnas
+  const headers = [
+    "Folio",
+    "Departamento",
+    "Tipo de trámite",
+    "Asunto",
+    "Asignado",
+    "Teléfono",
+    "Solicitado",
+    "Estatus",
+  ];
+
+  const data = rows.map((r) => {
+    const depto =
+      r.departamento ||
+      r.depto ||
+      r.depto_nombre ||
+      r.departamento_nombre ||
+      r.raw?.departamento?.nombre ||
+      "—";
+
+    const tramite = r.tramite || r.asunto || "—";
+    const asignado = r.asignadoNombre || r.asignado || "Sin asignar";
+    const tel = r.tel || "—";
+
+    const rawFecha =
+      r.creado || r.raw?.created_at || r.created_at || r.fecha_creacion || null;
+
+    const solicitado = formatDateMXShort(rawFecha);
+    const estatus = r.estatus?.label || "—";
+
+    return [
+      r.folio || "—",
+      depto,
+      tramite,
+      r.asunto || "—",
+      asignado,
+      tel,
+      solicitado || "—",
+      estatus,
+    ];
+  });
+
+  const csv = toCSV(headers, data);
+
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, "0");
+  const d = String(today.getDate()).padStart(2, "0");
+
+  downloadCSV(`requerimientos_${y}-${m}-${d}.csv`, csv);
+
+  try {
+    window.gcToast?.(`Exportados: ${rows.length} requerimiento(s).`, "success");
+  } catch {}
+}
+
+function initExportButton() {
+  // aqui va el id del boton por si acaso se mueve
+  const btn = document.getElementById("hs-btn-export-req");
+  if (!btn) return;
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    exportRequerimientosCSV();
+  });
 }
 
 /* ============================================================================
@@ -1442,7 +1583,7 @@ function dedupeById(...lists) {
   return Array.from(map.values()).sort(
     (a, b) =>
       String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
-      (b.id || 0) - (a.id || 0)
+      (b.id || 0) - (a.id || 0),
   );
 }
 
@@ -1471,7 +1612,7 @@ async function fetchAllRequerimientos(perPage = 200, maxPages = 50) {
 async function fetchMineAndTeam(plan) {
   const ids = [plan.mineId, ...(plan.teamIds || [])].filter(Boolean);
   const results = await Promise.allSettled(
-    ids.map((id) => listByAsignado(id, {}))
+    ids.map((id) => listByAsignado(id, {})),
   );
   const lists = results
     .filter((r) => r.status === "fulfilled")
@@ -1510,7 +1651,7 @@ async function fetchDeptAll(deptId, perPage = 200, maxPages = 50) {
 /** Visibilidad por rol */
 function filterRoleVisibility(
   items,
-  { isAdmin, isPres, isDir, soyPL, isJefe, isAnal }
+  { isAdmin, isPres, isDir, soyPL, isJefe, isAnal },
 ) {
   if (isAdmin || isPres) return items;
   if (isDir || soyPL || isJefe || isAnal) {
@@ -1518,7 +1659,7 @@ function filterRoleVisibility(
     return items.filter(
       (r) =>
         !hide.has(normalizeStatusKey(r?.estatus_key || r?.estatus || "")) &&
-        !hide.has(normalizeStatusKey(r?.estatus?.key || ""))
+        !hide.has(normalizeStatusKey(r?.estatus?.key || "")),
     );
   }
   return items;
@@ -1592,7 +1733,7 @@ async function loadScopeData() {
     if (isDir || soyPL || isJefe || isAnal) {
       const hide = new Set(["solicitud", "revision"]);
       visibleRows = uiRows.filter(
-        (r) => !hide.has(normalizeStatusKey(r?.estatus?.key))
+        (r) => !hide.has(normalizeStatusKey(r?.estatus?.key)),
       );
     }
   }
@@ -1619,7 +1760,7 @@ async function loadScopeData() {
           raw_asignado_nombre: r.raw?.asignado_nombre,
           raw_asignado_apellidos: r.raw?.asignado_apellidos,
           raw_asignado_nombre_completo: r.raw?.asignado_nombre_completo,
-        }))
+        })),
       );
     }
   } catch {}
@@ -1633,7 +1774,7 @@ async function loadScopeData() {
       asignado: r.asignado,
       tel: r.tel,
       estatus: r.estatus?.label,
-    }))
+    })),
   );
 
   computeCounts(State.rows);
@@ -1661,6 +1802,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     updateLegendStatus();
 
     setupRowClickDelegation();
+
+    initExportButton(); // bandera, export del csv para que no haya pedo
 
     const sess = Session?.get?.() || null;
     window.gcRefreshHeader?.(sess);
