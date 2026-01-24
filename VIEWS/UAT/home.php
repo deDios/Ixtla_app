@@ -194,11 +194,11 @@ ix_require_session();
                                 <button type="button" id="hs-btn-export-req" class="hs-btn-new-req hs-btn-export-req"
                                     title="Exportar requerimientos">
                                     <svg class="hs-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                        <!-- ícono exportar / descargar a ver que tal se ve -->
                                         <path fill="currentColor"
-                                            d="M12 3a1 1 0 0 1 1 1v9.59l2.3-2.3 1.4 1.42L12 17.41 7.3 12.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1z" />
-                                        <path fill="currentColor"
-                                            d="M5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z" />
+                                            d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
+                                        <path fill="rgba(255,255,255,.35)" d="M15 2v5h5z" />
+                                        <path fill="#fff"
+                                            d="M9.2 10.5 11 13l-1.8 2.5h1.7l1-1.5 1 1.5h1.7L13 13l1.8-2.5h-1.7l-1 1.5-1-1.5z" />
                                     </svg>
                                     <span>Exportar requerimientos</span>
                                 </button>
