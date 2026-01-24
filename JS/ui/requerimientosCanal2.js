@@ -18,19 +18,19 @@
     tramites: `${HOST}/db/WEB/ixtla01_c_tramite.php`,
     cpcolonia: `${HOST}/db/WEB/ixtla01_c_cpcolonia.php`,
 
-    // ✅ Workaround Canal 2:
+    //  Canal 2:
     // 1) Creamos el requerimiento "default" (canal 1 / estatus default) directo al backend
-    // 2) Enseguida hacemos UPDATE para forzar canal:2 y estatus:3 (según lo que sí está jalando)
+    // 2) Enseguida hacemos UPDATE para forzar canal:2 y estatus:2 (si esta jalando)
     createReq: `/webpublic_proxy.php`,
     updateReq: `${HOST}/db/WEB/ixtla01_upd_requerimiento.php`,
 
-    // Media directo (multipart).
+    // Media
     uploadImg: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,
   };
 
   // Valores destino (canal 2)
   const CANAL_TARGET = 2;
-  const ESTATUS_TARGET = 3;
+  const ESTATUS_TARGET = 2;
 
   // =========================
   // DOM IDs esperados
@@ -58,7 +58,7 @@
   // =========================
   // Reglas
   // =========================
-  const PRESIDENCIA_DEPT_ID = 6; // excluir del combo
+  const PRESIDENCIA_DEPT_ID = 6; 
   const ADMIN_ROLES = ["ADMIN"];
 
   // =========================
@@ -221,7 +221,7 @@
     el.textContent = txt || "Selecciona el tipo de trámite";
   }
 
-  // Nota: además de hidden, forzamos display para que CSS no lo "reviva"
+  // para que aparezca o no aparezca el campo de titulo para requermientos en "otros"
   function showAsunto(groupEl, inputEl, on) {
     if (!groupEl || !inputEl) return;
     if (on) {
@@ -230,7 +230,7 @@
       inputEl.required = true;
     } else {
       groupEl.hidden = true;
-      groupEl.style.display = "none";
+      groupEl.style.display = "none"; // se esconde denuevo
       inputEl.required = false;
       inputEl.value = "";
     }

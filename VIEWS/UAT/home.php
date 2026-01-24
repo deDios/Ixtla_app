@@ -190,7 +190,22 @@ ix_require_session();
 
                             <div class="legend">
 
-                                <!-- NUEVO BOTÓN para disparar el modal de la creacion de requerimientos -->
+                                <!-- boton para exportar un excel de los requerimientos -->
+                                <button type="button" id="hs-btn-export-req" class="hs-btn-new-req hs-btn-export-req"
+                                    title="Exportar requerimientos">
+                                    <svg class="hs-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <!-- ícono exportar / descargar a ver que tal se ve -->
+                                        <path fill="currentColor"
+                                            d="M12 3a1 1 0 0 1 1 1v9.59l2.3-2.3 1.4 1.42L12 17.41 7.3 12.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1z" />
+                                        <path fill="currentColor"
+                                            d="M5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z" />
+                                    </svg>
+                                    <span>Exportar requerimientos</span>
+                                </button>
+
+
+
+                                <!-- boton para disparar el modal de la creacion de requerimientos -->
                                 <button type="button" id="hs-btn-new-req" class="hs-btn-new-req">
                                     <svg class="hs-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
                                         <!-- ícono archivo con signo + -->
