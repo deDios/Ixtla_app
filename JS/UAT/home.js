@@ -40,7 +40,7 @@ import {
   planScope,
   listByAsignado,
   parseReq,
-  hydrateAsignadoFields, // ← importante
+  hydrateAsignadoFields, // importante
 } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
 import { LineChart } from "/JS/charts/line-chart.js";
@@ -48,6 +48,9 @@ import { DonutChart } from "/JS/charts/donut-chart.js";
 
 /* === API de usuarios (empleados) === */
 import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
+
+/*-------- export para excel -------*/
+import { initExportCSVHome } from "/JS/ui/exportCSVHome";
 
 /* ============================================================================
    SELECTORES
@@ -1310,147 +1313,6 @@ function applyPipelineAndRender() {
   drawChartsFromRows(filtered);
 }
 
-/* =============================================================================
-   EXPORT — CSV 
-   ========================================================================== */
-
-function getRowsForExport() {
-  const all = State.rows || [];
-  let filtered = all;
-
-  if (State.filterKey !== "todos") {
-    if (State.filterKey === "activo") {
-      filtered = filtered.filter((r) => {
-        const k = normalizeStatusKey(r.estatus?.key || "");
-        return k !== "pausado" && k !== "cancelado" && k !== "finalizado";
-      });
-    } else {
-      filtered = filtered.filter(
-        (r) => normalizeStatusKey(r.estatus?.key) === State.filterKey,
-      );
-    }
-  }
-
-  if (State.search) {
-    const q = State.search;
-    filtered = filtered.filter((r) => {
-      const asunto = (r.asunto || "").toLowerCase();
-      const asign = (r.asignado || r.asignadoNombre || "").toLowerCase();
-      const est = (r.estatus?.label || "").toLowerCase();
-      const folio = (r.folio || "").toLowerCase();
-      const depto = (r.departamento || "").toLowerCase();
-      const idTxt = String(r.id || "");
-      return (
-        asunto.includes(q) ||
-        asign.includes(q) ||
-        est.includes(q) ||
-        depto.includes(q) ||
-        folio.includes(q) ||
-        idTxt.includes(q)
-      );
-    });
-  }
-
-  return filtered;
-}
-
-function csvEscape(v) {
-  const s = String(v ?? "");
-  // Excel/CSV: envolver en comillas si trae coma, salto de línea o comillas
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-function toCSV(headers, rows) {
-  const head = headers.map(csvEscape).join(",");
-  const body = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
-  // BOM para que Excel respete UTF-8 (acentos, etc.)
-  return "\uFEFF" + head + "\n" + body + "\n";
-}
-
-function downloadCSV(filename, csvText) {
-  const blob = new Blob([csvText], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function exportRequerimientosCSV() {
-  const rows = getRowsForExport();
-
-  // Columnas
-  const headers = [
-    "Folio",
-    "Departamento",
-    "Tipo de trámite",
-    "Asunto",
-    "Asignado",
-    "Teléfono",
-    "Solicitado",
-    "Estatus",
-  ];
-
-  const data = rows.map((r) => {
-    const depto =
-      r.departamento ||
-      r.depto ||
-      r.depto_nombre ||
-      r.departamento_nombre ||
-      r.raw?.departamento?.nombre ||
-      "—";
-
-    const tramite = r.tramite || r.asunto || "—";
-    const asignado = r.asignadoNombre || r.asignado || "Sin asignar";
-    const tel = r.tel || "—";
-
-    const rawFecha =
-      r.creado || r.raw?.created_at || r.created_at || r.fecha_creacion || null;
-
-    const solicitado = formatDateMXShort(rawFecha);
-    const estatus = r.estatus?.label || "—";
-
-    return [
-      r.folio || "—",
-      depto,
-      tramite,
-      r.asunto || "—",
-      asignado,
-      tel,
-      solicitado || "—",
-      estatus,
-    ];
-  });
-
-  const csv = toCSV(headers, data);
-
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth() + 1).padStart(2, "0");
-  const d = String(today.getDate()).padStart(2, "0");
-
-  downloadCSV(`requerimientos_${y}-${m}-${d}.csv`, csv);
-
-  try {
-    window.gcToast?.(`Exportados: ${rows.length} requerimiento(s).`, "success");
-  } catch {}
-}
-
-function initExportButton() {
-  // aqui va el id del boton por si acaso se mueve
-  const btn = document.getElementById("hs-btn-export-req");
-  if (!btn) return;
-
-  btn.addEventListener("click", (e) => {
-    e.preventDefault();
-    exportRequerimientosCSV();
-  });
-}
-
 /* ============================================================================
    CHARTS — helpers + render
    ========================================================================== */
@@ -1803,7 +1665,16 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     setupRowClickDelegation();
 
-    initExportButton(); // bandera, export del csv para que no haya pedo
+    // bandera, export del csv para que no haya pedo
+    initExportCSVHome({
+      buttonId: "hs-btn-export-req",
+      State,
+      normalizeStatusKey,
+      formatDateMXShort,
+      toast: (m, t = "info") =>
+        window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m),
+      getFilePrefix: () => "requerimientos",
+    });
 
     const sess = Session?.get?.() || null;
     window.gcRefreshHeader?.(sess);
