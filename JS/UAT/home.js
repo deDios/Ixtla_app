@@ -50,7 +50,7 @@ import { DonutChart } from "/JS/charts/donut-chart.js";
 import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
 
 /*-------- export para excel -------*/
-import { initExportCSVHome } from "/JS/ui/exportCSVHome";
+import { initExportCSVHome } from "/JS/ui/exportCSVHome.js";
 
 /* ============================================================================
    SELECTORES
