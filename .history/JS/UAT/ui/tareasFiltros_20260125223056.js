@@ -1,4 +1,4 @@
-// JS\UAT\ui\tareasFiltros.js
+// /JS/ui/tareasFiltros.js
 "use strict";
 
 /**
