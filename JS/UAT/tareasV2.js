@@ -1,4 +1,4 @@
-// /JS/UAT/tareasV2.js
+// /JS/UAT/tareas.js
 "use strict";
 
 /* ==========================================================================
@@ -34,11 +34,11 @@ const KB = {
 // ================================
 // Universo en memoria + paginación visual
 // ================================
-const UNIVERSE_CAP = 8000; // V2: cap menor, ya no es necesario cargar 20k // maximo de tareas en memoria
+const UNIVERSE_CAP = 8000;
 const UNIVERSE_PAGE_SIZE = 300; // page_size para endpoint V1
 const COL_INITIAL_RENDER = 30; // tareas iniciales por columna
 const COL_STEP_RENDER = 10; // incremento por scroll
-const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar más
+const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar mas
 
 // Departamentos especiales
 const PRES_DEPT_IDS = [6]; // Presidencia (no mostrar en filtro)
@@ -294,7 +294,7 @@ function getReqLockInfo(req) {
 
   // Fallback defensivo (por si algún endpoint devuelve texto en vez de número)
   const s = String(
-    req.estatus_nombre ?? req.status_label ?? req.estado_texto ?? ""
+    req.estatus_nombre ?? req.status_label ?? req.estado_texto ?? "",
   ).toLowerCase();
 
   if (s.includes("paus"))
@@ -314,6 +314,17 @@ function getReqLockInfo(req) {
 }
 
 function isTaskLockedByReq(task) {
+  if (!task) return false;
+
+  // Preferimos el estatus ya venido desde el endpoint board
+  const est =
+    task.requerimiento_estatus != null
+      ? Number(task.requerimiento_estatus)
+      : null;
+
+  if (est === 4 || est === 5) return true; // 4: pausa, 5: cancelado
+
+  // Fallback legacy: si no viene estatus, usamos ReqCache (como antes)
   const reqId = task?.requerimiento_id ?? task?.req_id ?? task?.requerimientoId;
   if (!reqId) return false;
   const req = ReqCache.get(reqId);
@@ -351,7 +362,7 @@ function buildSubordinatesIndex(empleados) {
 
   log(
     "Subordinados detectados para viewer (reporta_a):",
-    Array.from(SubordinateIds)
+    Array.from(SubordinateIds),
   );
 }
 
@@ -366,10 +377,10 @@ function mapRawTask(raw) {
     raw.task_status != null
       ? Number(raw.task_status)
       : raw.status != null
-      ? Number(raw.status)
-      : raw.estatus != null
-        ? Number(raw.estatus)
-        : KB.STATUS.TODO;
+        ? Number(raw.status)
+        : raw.estatus != null
+          ? Number(raw.estatus)
+          : KB.STATUS.TODO;
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
@@ -381,12 +392,26 @@ function mapRawTask(raw) {
         ? Number(raw.empleado_id)
         : null;
 
-  const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
+  // ===== Asignado (endpoint board puede traer variantes) =====
+  const asignado_nombre =
+    raw.asignado_nombre ||
+    raw.empleado_nombre ||
+    raw.tarea_asignado_nombre ||
+    raw.asignado_a_nombre ||
+    "";
+
   const asignado_apellidos =
-    raw.asignado_apellidos || raw.empleado_apellidos || "";
+    raw.asignado_apellidos ||
+    raw.empleado_apellidos ||
+    raw.tarea_asignado_apellidos ||
+    raw.asignado_a_apellidos ||
+    "";
 
   const asignado_display =
     raw.asignado_display ||
+    raw.tarea_asignado_display ||
+    raw.tarea_asignado_nombre_completo ||
+    raw.asignado_nombre_completo ||
     [asignado_nombre, asignado_apellidos].filter(Boolean).join(" ") ||
     "—";
 
@@ -397,27 +422,25 @@ function mapRawTask(raw) {
         ? Number(raw.req_id)
         : null;
 
-  const departamento_id_raw =
-    raw.departamento_id ??
-    raw.depto_id ??
-    raw.departamento ??
-    raw.req_departamento_id ??
-    raw.requerimiento_departamento_id ??
-    raw.departamento_req_id ??
-    null;
-
-  const departamento_id =
-    departamento_id_raw != null ? Number(departamento_id_raw) : null;
-
-
   const tramite_id = raw.tramite_id != null ? Number(raw.tramite_id) : null;
 
   const tramite_nombre = raw.tramite_nombre || "";
 
   const folio = formatFolio(
     raw.folio || raw.requerimiento_folio || null,
-    requerimiento_id
+    requerimiento_id,
   );
+  // Estatus del requerimiento (para lock de tareas sin depender del ReqCache)
+  const requerimiento_estatus =
+    raw.requerimiento_estatus != null
+      ? Number(raw.requerimiento_estatus)
+      : raw.req_estatus != null
+        ? Number(raw.req_estatus)
+        : raw.estatus_requerimiento != null
+          ? Number(raw.estatus_requerimiento)
+          : raw.requerimiento_status != null
+            ? Number(raw.requerimiento_status)
+            : null;
 
   const proceso_titulo =
     raw.proceso_titulo ||
@@ -448,7 +471,7 @@ function mapRawTask(raw) {
     folio,
     proceso_titulo,
     requerimiento_id,
-    departamento_id,
+    requerimiento_estatus,
     tramite_id,
     tramite_nombre,
 
@@ -732,7 +755,7 @@ async function enrichTasksWithRequerimientos(tasks) {
   if (idsToFetch.size) {
     log("EnrichReq → ids a consultar:", Array.from(idsToFetch));
     await Promise.all(
-      Array.from(idsToFetch).map((id) => fetchRequerimientoById(id))
+      Array.from(idsToFetch).map((id) => fetchRequerimientoById(id)),
     );
   }
 
@@ -1166,7 +1189,7 @@ function createCard(task) {
   const lineFecha = document.createElement("div");
   lineFecha.className = "kb-task-line";
   lineFecha.innerHTML = `<span class="kb-task-label">Fecha de proceso:</span> <span class="kb-task-value">${formatDateMX(
-    task.fecha_inicio || task.created_at
+    task.fecha_inicio || task.created_at,
   )}</span>`;
 
   lines.append(lineFolio, lineAsig, lineFecha);
@@ -1304,7 +1327,7 @@ function renderColumn(st, mode) {
   const list = State._byStatus[st] || [];
   const target = Math.min(
     State.colLimits[st] || COL_INITIAL_RENDER,
-    list.length
+    list.length,
   );
 
   if (mode === "reset") {
@@ -1349,7 +1372,7 @@ function setupInfiniteScroll() {
           (State.colLimits[st] || COL_INITIAL_RENDER) + COL_STEP_RENDER;
         renderColumn(st, "append");
       },
-      { passive: true }
+      { passive: true },
     );
   }
 }
@@ -1420,7 +1443,7 @@ async function persistTaskStatus(task, newStatus, oldStatus) {
     });
     toast(
       "No se pudo identificar al usuario que actualiza la tarea. Revisa tu sesión.",
-      "warning"
+      "warning",
     );
     return;
   }
@@ -1453,7 +1476,7 @@ async function persistTaskStatus(task, newStatus, oldStatus) {
     if (!res || res.ok === false) {
       toast(
         res?.error || "No se pudo actualizar el status de la tarea.",
-        "error"
+        "error",
       );
       return;
     }
@@ -1518,7 +1541,7 @@ function setupDragAndDrop() {
           }
           toast(
             "Requerimiento en pausa/cancelado: tarea inhabilitada.",
-            "warn"
+            "warn",
           );
           return;
         }
@@ -1593,7 +1616,7 @@ function setupDragAndDrop() {
           "a",
           newStatus,
           "status_since:",
-          task.status_since || task.updated_at || task.created_at
+          task.status_since || task.updated_at || task.created_at,
         );
 
         renderBoard();
@@ -1756,7 +1779,7 @@ const MediaUI = (() => {
         uploadZone.classList.add("is-dragover");
       });
       uploadZone.addEventListener("dragleave", () =>
-        uploadZone.classList.remove("is-dragover")
+        uploadZone.classList.remove("is-dragover"),
       );
       uploadZone.addEventListener("drop", (ev) => {
         ev.preventDefault();
@@ -1784,7 +1807,7 @@ const MediaUI = (() => {
     if (!currentFolio) {
       toast(
         "No se encontró el folio del requerimiento para esta tarea.",
-        "warning"
+        "warning",
       );
       return;
     }
@@ -1882,12 +1905,13 @@ const MediaUI = (() => {
         errFiles,
         problems.length
           ? problems.join(". ")
-          : "Los archivos seleccionados no son válidos."
+          : "Los archivos seleccionados no son válidos.",
       );
     } else if (problems.length) {
       showError(
         errFiles,
-        problems.join(". ") + " Solo se subirán los archivos válidos restantes."
+        problems.join(". ") +
+          " Solo se subirán los archivos válidos restantes.",
       );
     }
 
@@ -2158,7 +2182,7 @@ async function init() {
 
   // Traer procesos solo hasta cubrir los proceso_id que aparecen en las tareas
   const neededProcesoIds = new Set(
-    tareasRaw.map((t) => Number(t?.proceso_id)).filter(Boolean)
+    tareasRaw.map((t) => Number(t?.proceso_id)).filter(Boolean),
   );
   const procesos = await fetchProcesosCatalog(neededProcesoIds);
 
@@ -2222,7 +2246,7 @@ async function init() {
     if (!hasRealFolio && proc.requerimiento_folio) {
       merged.folio = formatFolio(
         proc.requerimiento_folio,
-        proc.requerimiento_id
+        proc.requerimiento_id,
       );
     }
 
@@ -2469,7 +2493,7 @@ async function init() {
 
   log(
     "allowedDeptIds para filtros (sin Presidencia):",
-    Array.from(allowedDeptIds)
+    Array.from(allowedDeptIds),
   );
 
   let empleadosForFilter = [];
@@ -2478,7 +2502,7 @@ async function init() {
     empleadosForFilter = empleados;
   } else if (Viewer.deptId != null) {
     empleadosForFilter = empleados.filter(
-      (e) => Number(e.departamento_id) === Number(Viewer.deptId)
+      (e) => Number(e.departamento_id) === Number(Viewer.deptId),
     );
   } else {
     empleadosForFilter = empleados;
@@ -2487,7 +2511,7 @@ async function init() {
   log(
     "Empleados visibles para combo (tras jerarquía):",
     empleadosForFilter.length,
-    empleadosForFilter
+    empleadosForFilter,
   );
 
   const deptOptions = canSeeDeptFilter
