@@ -1307,14 +1307,12 @@ function rebuildViewModel() {
     if (cntEl) cntEl.textContent = `(${byStatus[st].length})`;
   }
 
-  // Opciones dinámicas de filtros (sobre la vista actual)
-  if (FiltersModule && FiltersModule.updateAvailableOptions) {
-    FiltersModule.updateAvailableOptions({
-      tasks: universeTasks,
-      noDept: universeNoDept,
-      noEmp: universeNoEmp,
-    });
-  }
+  // Guardar payload de facets para aplicarlo *después* del primer paint (mejor TTFP)
+  State._facetPayload = {
+    tasks: universeTasks,
+    noDept: universeNoDept,
+    noEmp: universeNoEmp,
+  };
 }
 
 function renderColumn(st, mode) {
@@ -1375,6 +1373,27 @@ function setupInfiniteScroll() {
   }
 }
 
+function scheduleFacetsUpdate() {
+  if (!FiltersModule || !FiltersModule.updateAvailableOptions) return;
+  const payload = State._facetPayload;
+  if (!payload) return;
+
+  const run = () => {
+    try {
+      FiltersModule.updateAvailableOptions(payload);
+    } catch (e) {
+      console.error("[KB] updateAvailableOptions error:", e);
+    }
+  };
+
+  // Diféralo para no bloquear el primer render
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(run, { timeout: 500 });
+  } else {
+    setTimeout(run, 0);
+  }
+}
+
 function renderBoard() {
   // Rebuild si cambió algo (filtros/tareas)
   const key = computeViewKey();
@@ -1408,6 +1427,9 @@ function renderBoard() {
     }
     highlightSelected();
   }
+
+  // Facets/contadores en idle (no bloquea el primer paint)
+  scheduleFacetsUpdate();
 
   setupInfiniteScroll();
 }

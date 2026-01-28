@@ -51,10 +51,58 @@ export function createTaskFiltersModule({
 
     const stateSet = State.filters[key] || (State.filters[key] = new Set());
 
-    function renderOptions() {
+    // Lazy-mount (para acelerar primer render)
+    let built = false;
+    let pendingCounts = null; // Map(value -> count)
+
+    function updateSummary() {
+      const selected = options.filter((opt) => stateSet.has(opt.value));
+      if (!selected.length) {
+        if (placeholderEl) placeholderEl.hidden = false;
+        if (summaryEl) {
+          summaryEl.hidden = true;
+          summaryEl.textContent = "";
+        }
+      } else {
+        if (placeholderEl) placeholderEl.hidden = true;
+        if (summaryEl) {
+          summaryEl.hidden = false;
+          summaryEl.textContent =
+            selected.length === 1
+              ? selected[0].label
+              : `${selected[0].label} +${selected.length - 1}`;
+        }
+      }
+    }
+
+    function toggleValue(value) {
+      if (stateSet.has(value)) stateSet.delete(value);
+      else stateSet.add(value);
+
+      if (built && list) {
+        const li = list.querySelector(
+          `.kb-multi-option[data-value="${value}"]`,
+        );
+        if (li) {
+          const isSel = stateSet.has(value);
+          li.classList.toggle("is-selected", isSel);
+          const cb = li.querySelector(".kb-multi-check");
+          if (cb) cb.checked = isSel;
+        }
+      }
+
+      updateSummary();
+      renderBoard();
+    }
+
+    function ensureBuilt() {
+      if (built) return;
       if (!list) return;
+
+      built = true;
       list.innerHTML = "";
 
+      // Render options (sin listeners por opción)
       options.forEach((opt) => {
         const li = document.createElement("li");
         li.className = "kb-multi-option";
@@ -81,7 +129,7 @@ export function createTaskFiltersModule({
 
         const tagSpan = document.createElement("span");
         tagSpan.className = "kb-multi-tag";
-        tagSpan.textContent = ""; // se llenará en updateAvailableOptions
+        tagSpan.textContent = "";
 
         meta.appendChild(countSpan);
         meta.appendChild(tagSpan);
@@ -92,86 +140,46 @@ export function createTaskFiltersModule({
 
         li.appendChild(row);
 
-        // click en el checkbox
-        check.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          toggleValue(opt.value);
-        });
-
-        // click en toda la fila (texto, meta, etc.)
-        row.addEventListener("click", (ev) => {
-          // si fue directamente el checkbox, ya se maneja arriba
-          if (ev.target.closest("input[type=checkbox]")) return;
-          ev.preventDefault();
-          ev.stopPropagation();
-          toggleValue(opt.value);
-        });
-
-        // click en toda la fila (fallback)
-        li.addEventListener("click", (ev) => {
-          if (ev.target.closest("input[type=checkbox]")) return;
-          toggleValue(opt.value);
-        });
-
-        if (stateSet.has(opt.value)) {
-          li.classList.add("is-selected");
-        }
+        if (stateSet.has(opt.value)) li.classList.add("is-selected");
 
         list.appendChild(li);
       });
-    }
 
-    function updateSummary() {
-      const selected = options.filter((opt) => stateSet.has(opt.value));
-      if (!selected.length) {
-        if (placeholderEl) placeholderEl.hidden = false;
-        if (summaryEl) {
-          summaryEl.hidden = true;
-          summaryEl.textContent = "";
+      // Delegación: un solo listener
+      list.addEventListener("click", (ev) => {
+        const li = ev.target.closest(".kb-multi-option");
+        if (!li) return;
+        if (li.classList.contains("is-disabled")) {
+          ev.preventDefault();
+          return;
         }
-      } else {
-        if (placeholderEl) placeholderEl.hidden = true;
-        if (summaryEl) {
-          summaryEl.hidden = false;
-          if (selected.length === 1) {
-            summaryEl.textContent = selected[0].label;
-          } else {
-            summaryEl.textContent = `${selected[0].label} +${
-              selected.length - 1
-            }`;
-          }
-        }
-      }
-    }
 
-    function toggleValue(value) {
-      if (stateSet.has(value)) {
-        stateSet.delete(value);
-      } else {
-        stateSet.add(value);
-      }
+        // Evita que el click cierre el menú
+        ev.stopPropagation();
 
-      if (list) {
-        const li = list.querySelector(
-          `.kb-multi-option[data-value="${value}"]`,
-        );
-        if (li) {
-          const isSel = stateSet.has(value);
-          li.classList.toggle("is-selected", isSel);
-          const cb = li.querySelector(".kb-multi-check");
-          if (cb) cb.checked = isSel;
-        }
-      }
+        // Controla checkbox manualmente para que la UI quede consistente
+        ev.preventDefault();
 
-      updateSummary();
-      renderBoard();
+        const v = Number(li.dataset.value);
+        if (!Number.isFinite(v)) return;
+
+        toggleValue(v);
+      });
+
+      // Aplica contadores pendientes si llegaron antes de abrir
+      if (pendingCounts) {
+        applyCounts(pendingCounts);
+        pendingCounts = null;
+      }
     }
 
     function openMenu() {
       if (!menu || !trigger) return;
+      ensureBuilt();
       trigger.setAttribute("aria-expanded", "true");
       menu.hidden = false;
       fieldEl.classList.add("is-open");
+      if (searchInput) searchInput.focus();
     }
 
     function closeMenu() {
@@ -182,13 +190,48 @@ export function createTaskFiltersModule({
     }
 
     function toggleMenu() {
-      const expanded = trigger.getAttribute("aria-expanded") === "true";
-      if (expanded) {
-        closeMenu();
-      } else {
-        openMenu();
-        if (searchInput) searchInput.focus();
+      const expanded = trigger?.getAttribute("aria-expanded") === "true";
+      if (expanded) closeMenu();
+      else openMenu();
+    }
+
+    function applyCounts(countsMap) {
+      // countsMap: Map(value -> count)
+      if (!countsMap || typeof countsMap.get !== "function") return;
+
+      // Si aún no se construye el menú, lo guardamos y ya.
+      if (!built) {
+        pendingCounts = countsMap;
+        return;
       }
+      if (!list) return;
+
+      const items = list.querySelectorAll(".kb-multi-option");
+      items.forEach((li) => {
+        const v = Number(li.dataset.value);
+        const count = Number(countsMap.get(v) || 0);
+
+        const countEl = li.querySelector(".kb-multi-count");
+        if (countEl) countEl.textContent = String(count);
+
+        // Disable si no hay tareas en la vista y no está seleccionado
+        const isSelected = stateSet.has(v);
+        const shouldDisable = count === 0 && !isSelected;
+
+        li.classList.toggle("is-disabled", shouldDisable);
+        li.toggleAttribute("aria-disabled", shouldDisable);
+
+        // checkbox estado
+        const cb = li.querySelector(".kb-multi-check");
+        if (cb) {
+          cb.disabled = shouldDisable;
+          cb.checked = isSelected;
+        }
+
+        // tag opcional
+        const tagEl = li.querySelector(".kb-multi-tag");
+        if (tagEl) tagEl.textContent = count === 0 ? "sin tareas" : "";
+      });
     }
 
     if (trigger) {
@@ -199,7 +242,9 @@ export function createTaskFiltersModule({
     }
 
     if (searchInput && list) {
+      // Nota: list puede no estar construido aún; filtramos solo cuando esté abierto
       searchInput.addEventListener("input", () => {
+        if (!built || !list) return;
         const q = searchInput.value.trim().toLowerCase();
         const items = list.querySelectorAll(".kb-multi-option");
         items.forEach((li) => {
@@ -210,30 +255,38 @@ export function createTaskFiltersModule({
     }
 
     document.addEventListener("click", (ev) => {
-      if (!fieldEl.contains(ev.target)) {
-        closeMenu();
-      }
+      if (!fieldEl.contains(ev.target)) closeMenu();
     });
 
     document.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape") {
-        closeMenu();
-      }
+      if (ev.key === "Escape") closeMenu();
     });
 
-    renderOptions();
+    // No renderizamos opciones en init (lazy). Solo summary.
     updateSummary();
 
     MultiFilters[key] = {
+      applyCounts,
       clear() {
         stateSet.clear();
         updateSummary();
-        const items = list?.querySelectorAll(".kb-multi-option") || [];
+
+        if (!built || !list) return;
+
+        const items = list.querySelectorAll(".kb-multi-option");
         items.forEach((li) => {
-          li.classList.remove("is-selected", "is-disabled");
+          li.classList.remove("is-selected");
+          li.classList.remove("is-disabled");
           li.removeAttribute("aria-disabled");
           const cb = li.querySelector(".kb-multi-check");
-          if (cb) cb.checked = false;
+          if (cb) {
+            cb.checked = false;
+            cb.disabled = false;
+          }
+          const countEl = li.querySelector(".kb-multi-count");
+          if (countEl) countEl.textContent = "0";
+          const tagEl = li.querySelector(".kb-multi-tag");
+          if (tagEl) tagEl.textContent = "";
         });
       },
     };
@@ -489,101 +542,48 @@ export function createTaskFiltersModule({
       ? payload.noEmp
       : tasksVisible;
 
-    if (!tasksVisible.length) {
-      // Aun así, podemos limpiar contadores a 0 para evitar basura visual.
-      if (fieldDept)
-        reorderFilterOptions(
-          fieldDept,
-          new Map(),
-          "DEPARTAMENTOS SIN TAREAS EN LA VISTA",
+    // ---- Contadores Departamentos (rápido, sin reordenar DOM) ----
+    if (
+      fieldDept &&
+      MultiFilters.departamentos &&
+      typeof MultiFilters.departamentos.applyCounts === "function"
+    ) {
+      const deptCounts = new Map();
+      tasksNoDept.forEach((t) => {
+        const v = Number(
+          t.departamento_id ?? t.departamento ?? t.depto_id ?? 0,
         );
-      if (fieldEmp)
-        reorderFilterOptions(
-          fieldEmp,
-          new Map(),
-          "EMPLEADOS SIN TAREAS EN LA VISTA",
-        );
-      return;
-    }
-
-    // ---------------- Departamentos ----------------
-    if (fieldDept && !fieldDept.hidden) {
-      const countsDept = new Map();
-
-      for (const t of tasksNoDept) {
-        if (t.departamento_id != null) {
-          const id = Number(t.departamento_id);
-          countsDept.set(id, (countsDept.get(id) || 0) + 1);
-        }
-      }
-
-      reorderFilterOptions(
-        fieldDept,
-        countsDept,
-        "DEPARTAMENTOS SIN TAREAS EN LA VISTA",
-      );
-    }
-
-    // ---------------- Empleados ----------------
-    if (fieldEmp && !fieldEmp.hidden) {
-      const countsEmp = new Map();
-
-      for (const t of tasksNoEmp) {
-        if (t.asignado_a != null) {
-          const id = Number(t.asignado_a);
-          countsEmp.set(id, (countsEmp.get(id) || 0) + 1);
-        }
-      }
-
-      reorderFilterOptions(
-        fieldEmp,
-        countsEmp,
-        "EMPLEADOS SIN TAREAS EN LA VISTA",
-      );
-    }
-
-    // ---------------- Proceso / Trámite (toolbar) ----------------
-    // Estos sí se recalculan sobre la vista visible (con todos los filtros aplicados).
-    // Así, al filtrar por depto/empleado, solo mostramos procesos y trámites relevantes.
-    const procesosIds = new Set();
-    const tramIds = new Set();
-
-    for (const t of tasksVisible) {
-      if (t.proceso_id != null) procesosIds.add(Number(t.proceso_id));
-      if (t.tramite_id != null) tramIds.add(Number(t.tramite_id));
-    }
-
-    if (selProc) {
-      const selectedProcId = State.filters.procesoId;
-      const options = Array.from(selProc.querySelectorAll("option"));
-      options.forEach((opt) => {
-        const value = opt.value ? Number(opt.value) : null;
-        if (!value) {
-          opt.hidden = false;
-          return;
-        }
-        opt.hidden = !(
-          procesosIds.has(value) ||
-          (selectedProcId != null && selectedProcId === value)
-        );
+        if (!v) return;
+        deptCounts.set(v, (deptCounts.get(v) || 0) + 1);
       });
+      MultiFilters.departamentos.applyCounts(deptCounts);
     }
 
-    if (selTram) {
-      const selectedTramId = State.filters.tramiteId;
-      const options = Array.from(selTram.querySelectorAll("option"));
-      options.forEach((opt) => {
-        const value = opt.value ? Number(opt.value) : null;
-        if (!value) {
-          opt.hidden = false;
-          return;
-        }
-        opt.hidden = !(
-          tramIds.has(value) ||
-          (selectedTramId != null && selectedTramId === value)
+    // ---- Contadores Empleados ----
+    if (
+      fieldEmp &&
+      MultiFilters.empleados &&
+      typeof MultiFilters.empleados.applyCounts === "function"
+    ) {
+      const empCounts = new Map();
+      tasksNoEmp.forEach((t) => {
+        const v = Number(
+          t.asignado_a ??
+            t.asignado_a_id ??
+            t.asignado_id ??
+            t.empleado_id ??
+            t.asignado ??
+            0,
         );
+        if (!v) return;
+        empCounts.set(v, (empCounts.get(v) || 0) + 1);
       });
+      MultiFilters.empleados.applyCounts(empCounts);
     }
+
+    // Combos de toolbar (Proceso/Trámite) se siguen calculando sobre tasksVisible
+    // para que reflejen la vista actual.
+    updateToolbarAvailableOptions(tasksVisible);
   }
 
   /* ========================================================================
