@@ -274,7 +274,7 @@ function getReqLockInfo(req) {
 
   // Fallback defensivo (por si algún endpoint devuelve texto en vez de número)
   const s = String(
-    req.estatus_nombre ?? req.status_label ?? req.estado_texto ?? "",
+    req.estatus_nombre ?? req.status_label ?? req.estado_texto ?? ""
   ).toLowerCase();
 
   if (s.includes("paus"))
@@ -331,7 +331,7 @@ function buildSubordinatesIndex(empleados) {
 
   log(
     "Subordinados detectados para viewer (reporta_a):",
-    Array.from(SubordinateIds),
+    Array.from(SubordinateIds)
   );
 }
 
@@ -346,8 +346,8 @@ function mapRawTask(raw) {
     raw.status != null
       ? Number(raw.status)
       : raw.estatus != null
-        ? Number(raw.estatus)
-        : KB.STATUS.TODO;
+      ? Number(raw.estatus)
+      : KB.STATUS.TODO;
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
@@ -356,8 +356,8 @@ function mapRawTask(raw) {
     raw.asignado_a != null
       ? Number(raw.asignado_a)
       : raw.empleado_id != null
-        ? Number(raw.empleado_id)
-        : null;
+      ? Number(raw.empleado_id)
+      : null;
 
   const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
   const asignado_apellidos =
@@ -372,8 +372,8 @@ function mapRawTask(raw) {
     raw.requerimiento_id != null
       ? Number(raw.requerimiento_id)
       : raw.req_id != null
-        ? Number(raw.req_id)
-        : null;
+      ? Number(raw.req_id)
+      : null;
 
   const tramite_id = raw.tramite_id != null ? Number(raw.tramite_id) : null;
 
@@ -381,7 +381,7 @@ function mapRawTask(raw) {
 
   const folio = formatFolio(
     raw.folio || raw.requerimiento_folio || null,
-    requerimiento_id,
+    requerimiento_id
   );
 
   const proceso_titulo =
@@ -400,8 +400,8 @@ function mapRawTask(raw) {
       raw.esfuerzo != null
         ? Number(raw.esfuerzo)
         : raw.horas != null
-          ? Number(raw.horas)
-          : null,
+        ? Number(raw.horas)
+        : null,
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
     status,
@@ -651,7 +651,7 @@ async function enrichTasksWithRequerimientos(tasks) {
   if (idsToFetch.size) {
     log("EnrichReq → ids a consultar:", Array.from(idsToFetch));
     await Promise.all(
-      Array.from(idsToFetch).map((id) => fetchRequerimientoById(id)),
+      Array.from(idsToFetch).map((id) => fetchRequerimientoById(id))
     );
   }
 
@@ -669,8 +669,8 @@ async function enrichTasksWithRequerimientos(tasks) {
         t.tramite_id != null
           ? Number(t.tramite_id)
           : req.tramite_id != null
-            ? Number(req.tramite_id)
-            : null,
+          ? Number(req.tramite_id)
+          : null,
       tramite_nombre:
         t.tramite_nombre || req.tramite_nombre || t.tramite_nombre || "",
     };
@@ -998,95 +998,6 @@ function passesFilters(task) {
   return true;
 }
 
-/**
- * Variante de passesFilters que permite "ignorar" un filtro específico
- * para poder calcular contadores correctos en los multiselects.
- *
- * - skipDept: ignora State.filters.departamentos
- * - skipEmp : ignora State.filters.empleados
- */
-function passesFiltersWithSkips(
-  task,
-  { skipDept = false, skipEmp = false } = {},
-) {
-  // Solo mis tareas
-  if (
-    State.filters.mine &&
-    KB.CURRENT_USER_ID != null &&
-    task.asignado_a !== KB.CURRENT_USER_ID
-  ) {
-    return false;
-  }
-
-  // Search (folio, proceso, id)
-  const q = State.filters.search.trim().toLowerCase();
-  if (q) {
-    const hay =
-      (task.folio || "").toLowerCase().includes(q) ||
-      (task.proceso_titulo || "").toLowerCase().includes(q) ||
-      String(task.id).includes(q);
-    if (!hay) return false;
-  }
-
-  // Filtro "recientes" (últimos N días)
-  const recentDays = State.filters.recentDays;
-  if (recentDays != null) {
-    const baseDateStr = task.fecha_inicio || task.created_at;
-    const d = diffDays(baseDateStr);
-    // si no tiene fecha o es más viejo que N días, se excluye
-    if (d == null || d > recentDays) {
-      return false;
-    }
-  }
-
-  // Filtro por empleado
-  if (!skipEmp && State.filters.empleados.size) {
-    if (!task.asignado_a || !State.filters.empleados.has(task.asignado_a)) {
-      return false;
-    }
-  }
-
-  // Filtro por departamento (según empleado asignado)
-  if (!skipDept && State.filters.departamentos.size) {
-    let deptId = task.departamento_id ?? null;
-
-    // Fallback: si por alguna razón la tarea no tiene departamento_id,
-    // usamos el departamento del empleado asignado.
-    if (deptId == null && task.asignado_a != null) {
-      const emp = State.empleadosIndex.get(task.asignado_a);
-      deptId = emp?.departamento_id ?? null;
-    }
-
-    if (deptId == null || !State.filters.departamentos.has(Number(deptId))) {
-      return false;
-    }
-  }
-
-  // Filtro por proceso
-  if (State.filters.procesoId != null) {
-    if (!task.proceso_id || task.proceso_id !== State.filters.procesoId) {
-      return false;
-    }
-  }
-
-  // Filtro por trámite (usamos tramite_id que viene del req)
-  if (State.filters.tramiteId != null) {
-    if (!task.tramite_id || task.tramite_id !== State.filters.tramiteId) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function passesFiltersNoDept(task) {
-  return passesFiltersWithSkips(task, { skipDept: true });
-}
-
-function passesFiltersNoEmp(task) {
-  return passesFiltersWithSkips(task, { skipEmp: true });
-}
-
 /* ==========================================================================
    7) UI: cards + board
    ========================================================================== */
@@ -1174,7 +1085,7 @@ function createCard(task) {
   const lineFecha = document.createElement("div");
   lineFecha.className = "kb-task-line";
   lineFecha.innerHTML = `<span class="kb-task-label">Fecha de proceso:</span> <span class="kb-task-value">${formatDateMX(
-    task.fecha_inicio || task.created_at,
+    task.fecha_inicio || task.created_at
   )}</span>`;
 
   lines.append(lineFolio, lineAsig, lineFecha);
@@ -1264,24 +1175,13 @@ function rebuildViewModel() {
   // Reinicia columnas
   const byStatus = { 1: [], 2: [], 3: [], 4: [], 5: [] };
 
-  const universeTasks = [];
-  const universeNoDept = [];
-  const universeNoEmp = [];
-
   for (const task of State.tasks) {
     if (!canViewTask(task)) continue;
-
-    // Para contadores de filtros: calculamos vistas que ignoran 1 filtro a la vez.
-    if (passesFiltersNoDept(task)) universeNoDept.push(task);
-    if (passesFiltersNoEmp(task)) universeNoEmp.push(task);
-
-    // Vista real (aplica todos los filtros)
     if (!passesFilters(task)) continue;
 
     const st = Number(task.status);
     if (!byStatus[st]) continue;
     byStatus[st].push(task);
-    universeTasks.push(task);
   }
 
   // Orden: más viejas primero (ASC)
@@ -1307,12 +1207,12 @@ function rebuildViewModel() {
     if (cntEl) cntEl.textContent = `(${byStatus[st].length})`;
   }
 
-  // Guardar payload de facets para aplicarlo *después* del primer paint (mejor TTFP)
-  State._facetPayload = {
-    tasks: universeTasks,
-    noDept: universeNoDept,
-    noEmp: universeNoEmp,
-  };
+  // Snapshot de tareas visibles (se usa para facetas/contadores del sidebar).
+  // NOTA: No disparamos el update aquí para no bloquear el primer render.
+  // Se agenda al final de renderBoard().
+  const universeTasks = [];
+  for (const st of [1, 2, 3, 4, 5]) universeTasks.push(...byStatus[st]);
+  State._visibleTasks = universeTasks;
 }
 
 function renderColumn(st, mode) {
@@ -1323,7 +1223,7 @@ function renderColumn(st, mode) {
   const list = State._byStatus[st] || [];
   const target = Math.min(
     State.colLimits[st] || COL_INITIAL_RENDER,
-    list.length,
+    list.length
   );
 
   if (mode === "reset") {
@@ -1368,29 +1268,42 @@ function setupInfiniteScroll() {
           (State.colLimits[st] || COL_INITIAL_RENDER) + COL_STEP_RENDER;
         renderColumn(st, "append");
       },
-      { passive: true },
+      { passive: true }
     );
   }
 }
 
-function scheduleFacetsUpdate() {
+/* ========================================================================
+ *  Facetas/contadores del sidebar – diferir para no bloquear el primer render
+ * ======================================================================*/
+
+let _facetsHandle = null;
+let _lastFacetsTasksRef = null;
+
+function scheduleSidebarFacetsUpdate() {
   if (!FiltersModule || !FiltersModule.updateAvailableOptions) return;
-  const payload = State._facetPayload;
-  if (!payload) return;
+  const tasksRef = State._visibleTasks || [];
+  if (tasksRef === _lastFacetsTasksRef) return; // nada nuevo
+
+  // throttle: si ya hay una corrida agendada, dejamos que tome el último snapshot
+  if (_facetsHandle != null) return;
 
   const run = () => {
+    _facetsHandle = null;
+    const t = State._visibleTasks || [];
+    if (t === _lastFacetsTasksRef) return;
+    _lastFacetsTasksRef = t;
     try {
-      FiltersModule.updateAvailableOptions(payload);
+      FiltersModule.updateAvailableOptions(t);
     } catch (e) {
-      console.error("[KB] updateAvailableOptions error:", e);
+      warn("updateAvailableOptions falló", e);
     }
   };
 
-  // Diféralo para no bloquear el primer render
-  if (typeof requestIdleCallback === "function") {
-    requestIdleCallback(run, { timeout: 500 });
+  if ("requestIdleCallback" in window) {
+    _facetsHandle = window.requestIdleCallback(run, { timeout: 350 });
   } else {
-    setTimeout(run, 0);
+    _facetsHandle = window.setTimeout(run, 80);
   }
 }
 
@@ -1428,10 +1341,11 @@ function renderBoard() {
     highlightSelected();
   }
 
-  // Facets/contadores en idle (no bloquea el primer paint)
-  scheduleFacetsUpdate();
-
   setupInfiniteScroll();
+
+  // Facetas/contadores: agenda después del paint para evitar jank en el primer render
+  // (y en general, para que el tablero se sienta más ágil).
+  window.requestAnimationFrame(() => scheduleSidebarFacetsUpdate());
 }
 
 /* ==========================================================================
@@ -1463,7 +1377,7 @@ async function persistTaskStatus(task, newStatus, oldStatus) {
     });
     toast(
       "No se pudo identificar al usuario que actualiza la tarea. Revisa tu sesión.",
-      "warning",
+      "warning"
     );
     return;
   }
@@ -1496,7 +1410,7 @@ async function persistTaskStatus(task, newStatus, oldStatus) {
     if (!res || res.ok === false) {
       toast(
         res?.error || "No se pudo actualizar el status de la tarea.",
-        "error",
+        "error"
       );
       return;
     }
@@ -1561,7 +1475,7 @@ function setupDragAndDrop() {
           }
           toast(
             "Requerimiento en pausa/cancelado: tarea inhabilitada.",
-            "warn",
+            "warn"
           );
           return;
         }
@@ -1636,7 +1550,7 @@ function setupDragAndDrop() {
           "a",
           newStatus,
           "status_since:",
-          task.status_since || task.updated_at || task.created_at,
+          task.status_since || task.updated_at || task.created_at
         );
 
         renderBoard();
@@ -1799,7 +1713,7 @@ const MediaUI = (() => {
         uploadZone.classList.add("is-dragover");
       });
       uploadZone.addEventListener("dragleave", () =>
-        uploadZone.classList.remove("is-dragover"),
+        uploadZone.classList.remove("is-dragover")
       );
       uploadZone.addEventListener("drop", (ev) => {
         ev.preventDefault();
@@ -1827,7 +1741,7 @@ const MediaUI = (() => {
     if (!currentFolio) {
       toast(
         "No se encontró el folio del requerimiento para esta tarea.",
-        "warning",
+        "warning"
       );
       return;
     }
@@ -1925,13 +1839,12 @@ const MediaUI = (() => {
         errFiles,
         problems.length
           ? problems.join(". ")
-          : "Los archivos seleccionados no son válidos.",
+          : "Los archivos seleccionados no son válidos."
       );
     } else if (problems.length) {
       showError(
         errFiles,
-        problems.join(". ") +
-          " Solo se subirán los archivos válidos restantes.",
+        problems.join(". ") + " Solo se subirán los archivos válidos restantes."
       );
     }
 
@@ -2260,7 +2173,7 @@ async function init() {
     if (!merged.folio && proc.requerimiento_folio) {
       merged.folio = formatFolio(
         proc.requerimiento_folio,
-        proc.requerimiento_id,
+        proc.requerimiento_id
       );
     }
 
@@ -2506,7 +2419,7 @@ async function init() {
 
   log(
     "allowedDeptIds para filtros (sin Presidencia):",
-    Array.from(allowedDeptIds),
+    Array.from(allowedDeptIds)
   );
 
   let empleadosForFilter = [];
@@ -2515,7 +2428,7 @@ async function init() {
     empleadosForFilter = empleados;
   } else if (Viewer.deptId != null) {
     empleadosForFilter = empleados.filter(
-      (e) => Number(e.departamento_id) === Number(Viewer.deptId),
+      (e) => Number(e.departamento_id) === Number(Viewer.deptId)
     );
   } else {
     empleadosForFilter = empleados;
@@ -2524,7 +2437,7 @@ async function init() {
   log(
     "Empleados visibles para combo (tras jerarquía):",
     empleadosForFilter.length,
-    empleadosForFilter,
+    empleadosForFilter
   );
 
   const deptOptions = canSeeDeptFilter
