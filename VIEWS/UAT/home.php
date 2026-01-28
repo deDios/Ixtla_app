@@ -93,36 +93,45 @@ ix_require_session();
                 </section>
 
                 <!-- se actulizaron los filtros ahora deberian coincidir con los esperados -->
-                <nav id="hs-states" class="hs-states" aria-label="Estados">
-                    <button class="item is-active" data-status="todos" role="radio" aria-checked="true">
-                        <span class="label">Todos</span><span class="count" id="cnt-todos">(0)</span>
+                <section id="hs-filterbox" class="hs-filterbox" aria-label="Filtros">
+                    <button type="button" id="hs-filter-toggle" class="hs-filter-toggle" aria-expanded="false"
+                        aria-controls="hs-states">
+                        <span class="hs-filter-title">Filtros</span>
+                        <span id="hs-filter-active" class="hs-filter-active">Todos (0)</span>
+                        <span class="hs-filter-chevron" aria-hidden="true">▾</span>
                     </button>
-                    <button type="button" class="item" data-status="activo" role="radio" aria-checked="false">
-                        <span class="label">Activo</span>
-                        <span class="count" id="cnt-activo">(0)</span>
-                    </button>
-                    <button class="item" data-status="solicitud" role="radio" aria-checked="false">
-                        <span class="label">Solicitud</span><span class="count" id="cnt-solicitud">(0)</span>
-                    </button>
-                    <button class="item" data-status="revision" role="radio" aria-checked="false">
-                        <span class="label">Revisión</span><span class="count" id="cnt-revision">(0)</span>
-                    </button>
-                    <button class="item" data-status="asignacion" role="radio" aria-checked="false">
-                        <span class="label">Asignación</span><span class="count" id="cnt-asignacion">(0)</span>
-                    </button>
-                    <button class="item" data-status="proceso" role="radio" aria-checked="false">
-                        <span class="label">En proceso</span><span class="count" id="cnt-proceso">(0)</span>
-                    </button>
-                    <button class="item" data-status="pausado" role="radio" aria-checked="false">
-                        <span class="label">Pausado</span><span class="count" id="cnt-pausado">(0)</span>
-                    </button>
-                    <button class="item" data-status="cancelado" role="radio" aria-checked="false">
-                        <span class="label">Cancelado</span><span class="count" id="cnt-cancelado">(0)</span>
-                    </button>
-                    <button class="item" data-status="finalizado" role="radio" aria-checked="false">
-                        <span class="label">Finalizado</span><span class="count" id="cnt-finalizado">(0)</span>
-                    </button>
-                </nav>
+
+                    <nav id="hs-states" class="hs-states" aria-label="Estados">
+                        <button class="item is-active" data-status="todos" role="radio" aria-checked="true">
+                            <span class="label">Todos</span><span class="count" id="cnt-todos">(0)</span>
+                        </button>
+                        <button type="button" class="item" data-status="activo" role="radio" aria-checked="false">
+                            <span class="label">Activo</span>
+                            <span class="count" id="cnt-activo">(0)</span>
+                        </button>
+                        <button class="item" data-status="solicitud" role="radio" aria-checked="false">
+                            <span class="label">Solicitud</span><span class="count" id="cnt-solicitud">(0)</span>
+                        </button>
+                        <button class="item" data-status="revision" role="radio" aria-checked="false">
+                            <span class="label">Revisión</span><span class="count" id="cnt-revision">(0)</span>
+                        </button>
+                        <button class="item" data-status="asignacion" role="radio" aria-checked="false">
+                            <span class="label">Asignación</span><span class="count" id="cnt-asignacion">(0)</span>
+                        </button>
+                        <button class="item" data-status="proceso" role="radio" aria-checked="false">
+                            <span class="label">En proceso</span><span class="count" id="cnt-proceso">(0)</span>
+                        </button>
+                        <button class="item" data-status="pausado" role="radio" aria-checked="false">
+                            <span class="label">Pausado</span><span class="count" id="cnt-pausado">(0)</span>
+                        </button>
+                        <button class="item" data-status="cancelado" role="radio" aria-checked="false">
+                            <span class="label">Cancelado</span><span class="count" id="cnt-cancelado">(0)</span>
+                        </button>
+                        <button class="item" data-status="finalizado" role="radio" aria-checked="false">
+                            <span class="label">Finalizado</span><span class="count" id="cnt-finalizado">(0)</span>
+                        </button>
+                    </nav>
+                </section>
 
             </aside>
 
@@ -666,7 +675,7 @@ ix_require_session();
     <!-- componente de sheetjs -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 
-    <script src="/JS/JSglobal.js"></script>
+    <script src="/JS/UAT/JSglobal.js"></script>
     <script type="module" src="/JS/UAT/home.js"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
     <script type="module" src="/JS/ui/requerimientosCanal2.js"></script>

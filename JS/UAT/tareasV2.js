@@ -41,7 +41,7 @@ const COL_STEP_RENDER = 10; // incremento por scroll
 const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar mas
 
 // Departamentos especiales
-const PRES_DEPT_IDS = [6]; // Presidencia (no mostrar en filtro)
+const PRES_DEPT_IDS = [6]; // id de presidencia 
 
 /** Info del usuario actual (viewer) */
 const Viewer = {

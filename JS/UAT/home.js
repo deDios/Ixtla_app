@@ -16,7 +16,7 @@ const CONFIG = {
     0: "solicitud",
     1: "revision",
     2: "asignacion",
-    3: "enProceso",
+    3: "proceso",
     4: "pausado",
     5: "cancelado",
     6: "finalizado",
@@ -1653,6 +1653,79 @@ async function loadScopeData() {
 /* ============================================================================
    INIT
    ========================================================================== */
+
+/* ======================================
+ *  Mobile UI: Filtros como combo
+ *  - No cambia lógica de filtros
+ *  - Solo abre/cierra dropdown y muestra activo
+ * ====================================== */
+function initMobileFilterCombo() {
+  const box = document.getElementById("hs-filterbox");
+  const toggle = document.getElementById("hs-filter-toggle");
+  const active = document.getElementById("hs-filter-active");
+  const states = document.getElementById("hs-states");
+  if (!box || !toggle || !active || !states) return;
+
+  const isMobile = () => window.matchMedia("(max-width: 820px)").matches;
+
+  const setActiveLabel = () => {
+    const btn =
+      states.querySelector(".item.is-active") ||
+      states.querySelector(".item[aria-checked='true']");
+    if (!btn) return;
+    const label = (btn.querySelector(".label")?.textContent || "Todos").trim();
+    const count = (btn.querySelector(".count")?.textContent || "(0)").trim();
+    active.textContent = `${label} ${count}`.trim();
+  };
+
+  const open = () => {
+    if (!isMobile()) return;
+    box.classList.add("is-open");
+    toggle.setAttribute("aria-expanded", "true");
+  };
+
+  const close = () => {
+    box.classList.remove("is-open");
+    toggle.setAttribute("aria-expanded", "false");
+  };
+
+  toggle.addEventListener("click", () => {
+    if (!isMobile()) return;
+    box.classList.toggle("is-open");
+    toggle.setAttribute(
+      "aria-expanded",
+      box.classList.contains("is-open") ? "true" : "false",
+    );
+  });
+
+  // Al escoger un status, cerramos el combo en mobile
+  states.addEventListener("click", (e) => {
+    const b = e.target.closest(".item");
+    if (!b) return;
+
+    // Espera a que la lógica marque is-active / aria-checked
+    setTimeout(() => {
+      setActiveLabel();
+      if (isMobile()) close();
+    }, 0);
+  });
+
+  // Click fuera cierra
+  document.addEventListener("click", (e) => {
+    if (!isMobile()) return;
+    if (!box.classList.contains("is-open")) return;
+    if (box.contains(e.target)) return;
+    close();
+  });
+
+  // Sync al cargar y al resize
+  setActiveLabel();
+  window.addEventListener("resize", () => {
+    setActiveLabel();
+    if (!isMobile()) close();
+  });
+}
+
 window.addEventListener("DOMContentLoaded", async () => {
   try {
     readSession();
@@ -1664,18 +1737,20 @@ window.addEventListener("DOMContentLoaded", async () => {
     buildTable();
     updateLegendStatus();
 
+    initMobileFilterCombo();
+
     setupRowClickDelegation();
 
     // bandera, export del csv para que no haya pedo
-   // initExportCSVHome({
-   //   buttonId: "hs-btn-export-req",
-   //   State,
-   //   normalizeStatusKey,
-   //   formatDateMXShort,
-   //   toast: (m, t = "info") =>
-   //     window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m),
-   //   getFilePrefix: () => "requerimientos",
-   // });
+    // initExportCSVHome({
+    //   buttonId: "hs-btn-export-req",
+    //   State,
+    //   normalizeStatusKey,
+    //   formatDateMXShort,
+    //   toast: (m, t = "info") =>
+    //     window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m),
+    //   getFilePrefix: () => "requerimientos",
+    // });
 
     initExportXLSXHome({
       buttonId: "hs-btn-export-req",
