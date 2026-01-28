@@ -17,7 +17,6 @@ import { createTaskFiltersModule } from "./ui/tareasFiltros.js";
 
 const KB = {
   DEBUG: true,
-  VERSION: "v2-board",
 
   // Se sobreescribe con el empleado logueado (Session.getIds())
   CURRENT_USER_ID: null,
@@ -34,14 +33,14 @@ const KB = {
 // ================================
 // Universo en memoria + paginación visual
 // ================================
-const UNIVERSE_CAP = 8000;
+const UNIVERSE_CAP = 20000; // maximo de tareas en memoria
 const UNIVERSE_PAGE_SIZE = 300; // page_size para endpoint V1
 const COL_INITIAL_RENDER = 30; // tareas iniciales por columna
 const COL_STEP_RENDER = 10; // incremento por scroll
-const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar mas
+const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar más
 
 // Departamentos especiales
-const PRES_DEPT_IDS = [6]; // id de presidencia 
+const PRES_DEPT_IDS = [6]; // Presidencia (no mostrar en filtro)
 
 /** Info del usuario actual (viewer) */
 const Viewer = {
@@ -62,10 +61,6 @@ const API_FBK = {
 const API_TAREAS = {
   LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tarea_proceso.php`,
   UPDATE: `${API_FBK.HOST}/db/WEB/ixtla01_u_tarea_proceso.php`,
-};
-
-const API_TAREAS_BOARD = {
-  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tareas_board.php`,
 };
 
 const API_DEPTS = {
@@ -125,33 +120,18 @@ function nowAsSqlDateTime() {
 
 /**
  * Formato estándar de folio de requerimiento.
- * - Si ya viene como REQ-########## (10 dígitos) lo normaliza.
- * - Si trae solo dígitos, toma los últimos 10 y rellena a 10.
+ * - Si ya viene como REQ-########### lo respeta.
+ * - Si trae solo dígitos, los rellena a 11.
  * - Si no hay nada, usa el id como respaldo.
  */
 function formatFolio(folio, id) {
-  const raw = String(folio ?? "").trim();
+  if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
+    return String(folio).trim();
 
-  // Ya viene con prefijo
-  const m = raw.match(/^REQ-(\d+)$/i);
-  if (m) {
-    const digits = String(m[1]).slice(-10).padStart(10, "0");
-    return `REQ-${digits}`;
-  }
+  const digits = String(folio ?? "").match(/\d+/)?.[0];
 
-  // Viene como dígitos sueltos
-  const digitsLoose = raw.match(/\d+/)?.[0];
-  if (digitsLoose) {
-    const digits = String(digitsLoose).slice(-10).padStart(10, "0");
-    return `REQ-${digits}`;
-  }
-
-  // Respaldo por id
-  if (id != null) {
-    const digits = String(id).slice(-10).padStart(10, "0");
-    return `REQ-${digits}`;
-  }
-
+  if (digits) return "REQ-" + digits.padStart(11, "0");
+  if (id != null) return "REQ-" + String(id).padStart(11, "0");
   return "—";
 }
 
@@ -314,17 +294,6 @@ function getReqLockInfo(req) {
 }
 
 function isTaskLockedByReq(task) {
-  if (!task) return false;
-
-  // Preferimos el estatus ya venido desde el endpoint board
-  const est =
-    task.requerimiento_estatus != null
-      ? Number(task.requerimiento_estatus)
-      : null;
-
-  if (est === 4 || est === 5) return true; // 4: pausa, 5: cancelado
-
-  // Fallback legacy: si no viene estatus, usamos ReqCache (como antes)
   const reqId = task?.requerimiento_id ?? task?.req_id ?? task?.requerimientoId;
   if (!reqId) return false;
   const req = ReqCache.get(reqId);
@@ -371,16 +340,14 @@ let DetailsModule = null;
 
 /** Normalizar tarea cruda desde API */
 function mapRawTask(raw) {
-  const id = Number(raw.tarea_id != null ? raw.tarea_id : raw.id);
+  const id = Number(raw.id);
 
   const status =
-    raw.task_status != null
-      ? Number(raw.task_status)
-      : raw.status != null
-        ? Number(raw.status)
-        : raw.estatus != null
-          ? Number(raw.estatus)
-          : KB.STATUS.TODO;
+    raw.status != null
+      ? Number(raw.status)
+      : raw.estatus != null
+        ? Number(raw.estatus)
+        : KB.STATUS.TODO;
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
@@ -392,26 +359,12 @@ function mapRawTask(raw) {
         ? Number(raw.empleado_id)
         : null;
 
-  // ===== Asignado (endpoint board puede traer variantes) =====
-  const asignado_nombre =
-    raw.asignado_nombre ||
-    raw.empleado_nombre ||
-    raw.tarea_asignado_nombre ||
-    raw.asignado_a_nombre ||
-    "";
-
+  const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
   const asignado_apellidos =
-    raw.asignado_apellidos ||
-    raw.empleado_apellidos ||
-    raw.tarea_asignado_apellidos ||
-    raw.asignado_a_apellidos ||
-    "";
+    raw.asignado_apellidos || raw.empleado_apellidos || "";
 
   const asignado_display =
     raw.asignado_display ||
-    raw.tarea_asignado_display ||
-    raw.tarea_asignado_nombre_completo ||
-    raw.asignado_nombre_completo ||
     [asignado_nombre, asignado_apellidos].filter(Boolean).join(" ") ||
     "—";
 
@@ -430,17 +383,6 @@ function mapRawTask(raw) {
     raw.folio || raw.requerimiento_folio || null,
     requerimiento_id,
   );
-  // Estatus del requerimiento (para lock de tareas sin depender del ReqCache)
-  const requerimiento_estatus =
-    raw.requerimiento_estatus != null
-      ? Number(raw.requerimiento_estatus)
-      : raw.req_estatus != null
-        ? Number(raw.req_estatus)
-        : raw.estatus_requerimiento != null
-          ? Number(raw.estatus_requerimiento)
-          : raw.requerimiento_status != null
-            ? Number(raw.requerimiento_status)
-            : null;
 
   const proceso_titulo =
     raw.proceso_titulo ||
@@ -471,7 +413,6 @@ function mapRawTask(raw) {
     folio,
     proceso_titulo,
     requerimiento_id,
-    requerimiento_estatus,
     tramite_id,
     tramite_nombre,
 
@@ -496,8 +437,8 @@ async function fetchTareasFromApi() {
     };
 
     try {
-      log("TAREAS BOARD LIST →", API_TAREAS_BOARD.LIST, payload);
-      const json = await postJSON(API_TAREAS_BOARD.LIST, payload);
+      log("TAREAS LIST →", API_TAREAS.LIST, payload);
+      const json = await postJSON(API_TAREAS.LIST, payload);
 
       if (!json || !Array.isArray(json.data)) {
         warn("Respuesta inesperada de TAREAS LIST", json);
@@ -548,14 +489,12 @@ async function fetchTareasFromApi() {
 
 async function fetchDepartamentos() {
   try {
-    // V2: solo departamentos activos (status=1) y excluir Presidencia
     const payload = {
-      status: 1,
-      all: false,
+      all: true, // todos los deptos, incluso status 0 (Presidencia)
       page: 1,
-      page_size: 200,
+      page_size: 100,
     };
-    log("DEPTS LIST (V2) →", API_DEPTS.LIST, payload);
+    log("DEPTS LIST →", API_DEPTS.LIST, payload);
     const json = await postJSON(API_DEPTS.LIST, payload);
     log("DEPTS LIST respuesta cruda:", json);
 
@@ -564,29 +503,21 @@ async function fetchDepartamentos() {
       return [];
     }
 
-    const out = json.data
-      .map((d) => ({
-        id: Number(d.id),
-        nombre: d.nombre || `Depto ${d.id}`,
-        status: d.status != null ? Number(d.status) : null,
+    const out = json.data.map((d) => ({
+      id: Number(d.id),
+      nombre: d.nombre || `Depto ${d.id}`,
+      status: d.status != null ? Number(d.status) : null,
 
-        director: d.director != null ? Number(d.director) : null,
-        director_nombre: d.director_nombre || d.primera_nombre || "",
-        director_apellidos: d.director_apellidos || d.primera_apellidos || "",
+      director: d.director != null ? Number(d.director) : null,
+      director_nombre: d.director_nombre || d.primera_nombre || "",
+      director_apellidos: d.director_apellidos || d.primera_apellidos || "",
 
-        primera_linea: d.primera_linea != null ? Number(d.primera_linea) : null,
-        primera_nombre: d.primera_nombre || "",
-        primera_apellidos: d.primera_apellidos || "",
-      }))
-      // defensivo: si backend ignora `status`
-      .filter((d) => (d.status == null ? true : d.status === 1))
-      // excluir Presidencia siempre
-      .filter((d) => !PRES_DEPT_IDS.includes(Number(d.id)));
+      primera_linea: d.primera_linea != null ? Number(d.primera_linea) : null,
+      primera_nombre: d.primera_nombre || "",
+      primera_apellidos: d.primera_apellidos || "",
+    }));
 
-    // Refrescar index global
-    State.departamentosIndex = new Map(out.map((d) => [Number(d.id), d]));
-
-    log("Departamentos activos (sin Presidencia):", out.length, out);
+    log("Departamentos normalizados:", out.length, out);
     return out;
   } catch (e) {
     console.error("[KB] Error al listar departamentos:", e);
@@ -618,68 +549,33 @@ async function fetchEmpleadosForFilters() {
   }
 }
 
-async function fetchProcesosCatalog(neededProcesoIds) {
+async function fetchProcesosCatalog() {
   try {
-    const pageSize = 200;
-    const maxPages = 200; // guardrail
-
-    const needSet = neededProcesoIds instanceof Set ? neededProcesoIds : null;
-    const index = new Map();
-
-    const hasAllNeeded = () => {
-      if (!needSet) return false;
-      for (const id of needSet) {
-        const pid = Number(id);
-        if (pid && !index.has(pid)) return false;
-      }
-      return true;
+    const payload = {
+      status: 1,
+      page: 1,
+      page_size: 200,
     };
+    log("PROCESOS LIST →", API_PROCESOS.LIST, payload);
+    const json = await postJSON(API_PROCESOS.LIST, payload);
+    log("PROCESOS LIST respuesta cruda:", json);
 
-    for (let page = 1; page <= maxPages; page += 1) {
-      // Importante: no forzar status=1 aquí; necesitamos hidratar históricos.
-      // Si el backend soporta `all:true` lo aprovechamos (si no, lo ignora).
-      const payload = {
-        all: true,
-        page,
-        page_size: pageSize,
-      };
-
-      log("PROCESOS LIST →", API_PROCESOS.LIST, payload);
-      const json = await postJSON(API_PROCESOS.LIST, payload);
-      log("PROCESOS LIST respuesta cruda:", json);
-
-      if (!json || !Array.isArray(json.data)) {
-        warn("Respuesta inesperada PROCESOS LIST", json);
-        break;
-      }
-
-      const rows = json.data;
-      if (!rows.length) break;
-
-      for (const p of rows) {
-        const pid = Number(p?.id ?? p?.proceso_id);
-        if (!pid) continue;
-
-        index.set(pid, {
-          id: pid,
-          descripcion: p.descripcion || "",
-          requerimiento_id:
-            p.requerimiento_id != null ? Number(p.requerimiento_id) : null,
-          status: p.status != null ? Number(p.status) : null,
-          // por si algún día viene folio directo
-          requerimiento_folio: p.requerimiento_folio || null,
-        });
-      }
-
-      // corte temprano si ya cubrimos todo lo que ocupamos
-      if (hasAllNeeded()) break;
-
-      // corte si fue la última página
-      if (rows.length < pageSize) break;
+    if (!json || !Array.isArray(json.data)) {
+      warn("Respuesta inesperada PROCESOS LIST", json);
+      return [];
     }
 
-    const out = Array.from(index.values());
-    log("Procesos normalizados (paginados):", out.length);
+    const out = json.data.map((p) => ({
+      id: Number(p.id),
+      descripcion: p.descripcion || "",
+      requerimiento_id:
+        p.requerimiento_id != null ? Number(p.requerimiento_id) : null,
+      status: p.status != null ? Number(p.status) : null,
+      // por si algún día viene folio directo
+      requerimiento_folio: p.requerimiento_folio || null,
+    }));
+
+    log("Procesos normalizados:", out.length, out);
     return out;
   } catch (e) {
     console.error("[KB] Error al listar procesos:", e);
@@ -1102,6 +998,95 @@ function passesFilters(task) {
   return true;
 }
 
+/**
+ * Variante de passesFilters que permite "ignorar" un filtro específico
+ * para poder calcular contadores correctos en los multiselects.
+ *
+ * - skipDept: ignora State.filters.departamentos
+ * - skipEmp : ignora State.filters.empleados
+ */
+function passesFiltersWithSkips(
+  task,
+  { skipDept = false, skipEmp = false } = {},
+) {
+  // Solo mis tareas
+  if (
+    State.filters.mine &&
+    KB.CURRENT_USER_ID != null &&
+    task.asignado_a !== KB.CURRENT_USER_ID
+  ) {
+    return false;
+  }
+
+  // Search (folio, proceso, id)
+  const q = State.filters.search.trim().toLowerCase();
+  if (q) {
+    const hay =
+      (task.folio || "").toLowerCase().includes(q) ||
+      (task.proceso_titulo || "").toLowerCase().includes(q) ||
+      String(task.id).includes(q);
+    if (!hay) return false;
+  }
+
+  // Filtro "recientes" (últimos N días)
+  const recentDays = State.filters.recentDays;
+  if (recentDays != null) {
+    const baseDateStr = task.fecha_inicio || task.created_at;
+    const d = diffDays(baseDateStr);
+    // si no tiene fecha o es más viejo que N días, se excluye
+    if (d == null || d > recentDays) {
+      return false;
+    }
+  }
+
+  // Filtro por empleado
+  if (!skipEmp && State.filters.empleados.size) {
+    if (!task.asignado_a || !State.filters.empleados.has(task.asignado_a)) {
+      return false;
+    }
+  }
+
+  // Filtro por departamento (según empleado asignado)
+  if (!skipDept && State.filters.departamentos.size) {
+    let deptId = task.departamento_id ?? null;
+
+    // Fallback: si por alguna razón la tarea no tiene departamento_id,
+    // usamos el departamento del empleado asignado.
+    if (deptId == null && task.asignado_a != null) {
+      const emp = State.empleadosIndex.get(task.asignado_a);
+      deptId = emp?.departamento_id ?? null;
+    }
+
+    if (deptId == null || !State.filters.departamentos.has(Number(deptId))) {
+      return false;
+    }
+  }
+
+  // Filtro por proceso
+  if (State.filters.procesoId != null) {
+    if (!task.proceso_id || task.proceso_id !== State.filters.procesoId) {
+      return false;
+    }
+  }
+
+  // Filtro por trámite (usamos tramite_id que viene del req)
+  if (State.filters.tramiteId != null) {
+    if (!task.tramite_id || task.tramite_id !== State.filters.tramiteId) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function passesFiltersNoDept(task) {
+  return passesFiltersWithSkips(task, { skipDept: true });
+}
+
+function passesFiltersNoEmp(task) {
+  return passesFiltersWithSkips(task, { skipEmp: true });
+}
+
 /* ==========================================================================
    7) UI: cards + board
    ========================================================================== */
@@ -1279,13 +1264,24 @@ function rebuildViewModel() {
   // Reinicia columnas
   const byStatus = { 1: [], 2: [], 3: [], 4: [], 5: [] };
 
+  const universeTasks = [];
+  const universeNoDept = [];
+  const universeNoEmp = [];
+
   for (const task of State.tasks) {
     if (!canViewTask(task)) continue;
+
+    // Para contadores de filtros: calculamos vistas que ignoran 1 filtro a la vez.
+    if (passesFiltersNoDept(task)) universeNoDept.push(task);
+    if (passesFiltersNoEmp(task)) universeNoEmp.push(task);
+
+    // Vista real (aplica todos los filtros)
     if (!passesFilters(task)) continue;
 
     const st = Number(task.status);
     if (!byStatus[st]) continue;
     byStatus[st].push(task);
+    universeTasks.push(task);
   }
 
   // Orden: más viejas primero (ASC)
@@ -1313,9 +1309,11 @@ function rebuildViewModel() {
 
   // Opciones dinámicas de filtros (sobre la vista actual)
   if (FiltersModule && FiltersModule.updateAvailableOptions) {
-    const universeTasks = [];
-    for (const st of [1, 2, 3, 4, 5]) universeTasks.push(...byStatus[st]);
-    FiltersModule.updateAvailableOptions(universeTasks);
+    FiltersModule.updateAvailableOptions({
+      tasks: universeTasks,
+      noDept: universeNoDept,
+      noEmp: universeNoEmp,
+    });
   }
 }
 
@@ -2173,18 +2171,13 @@ async function init() {
   // --------------------------------------------------------------------
   // 2) Cargar datos base
   // --------------------------------------------------------------------
-  const [empleados, depts, tramites, tareasRaw] = await Promise.all([
+  const [empleados, depts, procesos, tramites, tareasRaw] = await Promise.all([
     fetchEmpleadosForFilters(),
     fetchDepartamentos(),
+    fetchProcesosCatalog(),
     fetchTramitesCatalog(),
     fetchTareasFromApi(),
   ]);
-
-  // Traer procesos solo hasta cubrir los proceso_id que aparecen en las tareas
-  const neededProcesoIds = new Set(
-    tareasRaw.map((t) => Number(t?.proceso_id)).filter(Boolean),
-  );
-  const procesos = await fetchProcesosCatalog(neededProcesoIds);
 
   // --------------------------------------------------------------------
   // 3) Indexes globales
@@ -2242,8 +2235,7 @@ async function init() {
       merged.requerimiento_id = proc.requerimiento_id;
     }
 
-    const hasRealFolio = merged.folio && merged.folio !== "—";
-    if (!hasRealFolio && proc.requerimiento_folio) {
+    if (!merged.folio && proc.requerimiento_folio) {
       merged.folio = formatFolio(
         proc.requerimiento_folio,
         proc.requerimiento_id,
@@ -2253,8 +2245,7 @@ async function init() {
     return merged;
   });
 
-  // V2: el endpoint board ya incluye folio/trámite/depto, evitamos enrich masivo
-  const tareasFinales = tareasConProceso;
+  const tareasFinales = await enrichTasksWithRequerimientos(tareasConProceso);
 
   // --------------------------------------------------------------------
   // 5) Enriquecer con creado_por, depto, director (autoriza)
