@@ -17,6 +17,7 @@ import { createTaskFiltersModule } from "./ui/tareasFiltros.js";
 
 const KB = {
   DEBUG: true,
+  VERSION: "v2-board",
 
   // Se sobreescribe con el empleado logueado (Session.getIds())
   CURRENT_USER_ID: null,
@@ -33,14 +34,14 @@ const KB = {
 // ================================
 // Universo en memoria + paginación visual
 // ================================
-const UNIVERSE_CAP = 20000; // maximo de tareas en memoria
+const UNIVERSE_CAP = 8000;
 const UNIVERSE_PAGE_SIZE = 300; // page_size para endpoint V1
 const COL_INITIAL_RENDER = 30; // tareas iniciales por columna
 const COL_STEP_RENDER = 10; // incremento por scroll
-const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar más
+const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar mas
 
 // Departamentos especiales
-const PRES_DEPT_IDS = [6]; // Presidencia (no mostrar en filtro)
+const PRES_DEPT_IDS = [6]; // id de presidencia 
 
 /** Info del usuario actual (viewer) */
 const Viewer = {
@@ -61,6 +62,10 @@ const API_FBK = {
 const API_TAREAS = {
   LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tarea_proceso.php`,
   UPDATE: `${API_FBK.HOST}/db/WEB/ixtla01_u_tarea_proceso.php`,
+};
+
+const API_TAREAS_BOARD = {
+  LIST: `${API_FBK.HOST}/db/WEB/ixtla01_c_tareas_board.php`,
 };
 
 const API_DEPTS = {
@@ -289,7 +294,7 @@ function getReqLockInfo(req) {
 
   // Fallback defensivo (por si algún endpoint devuelve texto en vez de número)
   const s = String(
-    req.estatus_nombre ?? req.status_label ?? req.estado_texto ?? ""
+    req.estatus_nombre ?? req.status_label ?? req.estado_texto ?? "",
   ).toLowerCase();
 
   if (s.includes("paus"))
@@ -309,6 +314,17 @@ function getReqLockInfo(req) {
 }
 
 function isTaskLockedByReq(task) {
+  if (!task) return false;
+
+  // Preferimos el estatus ya venido desde el endpoint board
+  const est =
+    task.requerimiento_estatus != null
+      ? Number(task.requerimiento_estatus)
+      : null;
+
+  if (est === 4 || est === 5) return true; // 4: pausa, 5: cancelado
+
+  // Fallback legacy: si no viene estatus, usamos ReqCache (como antes)
   const reqId = task?.requerimiento_id ?? task?.req_id ?? task?.requerimientoId;
   if (!reqId) return false;
   const req = ReqCache.get(reqId);
@@ -346,7 +362,7 @@ function buildSubordinatesIndex(empleados) {
 
   log(
     "Subordinados detectados para viewer (reporta_a):",
-    Array.from(SubordinateIds)
+    Array.from(SubordinateIds),
   );
 }
 
@@ -355,14 +371,16 @@ let DetailsModule = null;
 
 /** Normalizar tarea cruda desde API */
 function mapRawTask(raw) {
-  const id = Number(raw.id);
+  const id = Number(raw.tarea_id != null ? raw.tarea_id : raw.id);
 
   const status =
-    raw.status != null
-      ? Number(raw.status)
-      : raw.estatus != null
-        ? Number(raw.estatus)
-        : KB.STATUS.TODO;
+    raw.task_status != null
+      ? Number(raw.task_status)
+      : raw.status != null
+        ? Number(raw.status)
+        : raw.estatus != null
+          ? Number(raw.estatus)
+          : KB.STATUS.TODO;
 
   const proceso_id =
     raw.proceso_id != null ? Number(raw.proceso_id) : raw.proceso || null;
@@ -374,12 +392,26 @@ function mapRawTask(raw) {
         ? Number(raw.empleado_id)
         : null;
 
-  const asignado_nombre = raw.asignado_nombre || raw.empleado_nombre || "";
+  // ===== Asignado (endpoint board puede traer variantes) =====
+  const asignado_nombre =
+    raw.asignado_nombre ||
+    raw.empleado_nombre ||
+    raw.tarea_asignado_nombre ||
+    raw.asignado_a_nombre ||
+    "";
+
   const asignado_apellidos =
-    raw.asignado_apellidos || raw.empleado_apellidos || "";
+    raw.asignado_apellidos ||
+    raw.empleado_apellidos ||
+    raw.tarea_asignado_apellidos ||
+    raw.asignado_a_apellidos ||
+    "";
 
   const asignado_display =
     raw.asignado_display ||
+    raw.tarea_asignado_display ||
+    raw.tarea_asignado_nombre_completo ||
+    raw.asignado_nombre_completo ||
     [asignado_nombre, asignado_apellidos].filter(Boolean).join(" ") ||
     "—";
 
@@ -396,8 +428,19 @@ function mapRawTask(raw) {
 
   const folio = formatFolio(
     raw.folio || raw.requerimiento_folio || null,
-    requerimiento_id
+    requerimiento_id,
   );
+  // Estatus del requerimiento (para lock de tareas sin depender del ReqCache)
+  const requerimiento_estatus =
+    raw.requerimiento_estatus != null
+      ? Number(raw.requerimiento_estatus)
+      : raw.req_estatus != null
+        ? Number(raw.req_estatus)
+        : raw.estatus_requerimiento != null
+          ? Number(raw.estatus_requerimiento)
+          : raw.requerimiento_status != null
+            ? Number(raw.requerimiento_status)
+            : null;
 
   const proceso_titulo =
     raw.proceso_titulo ||
@@ -428,6 +471,7 @@ function mapRawTask(raw) {
     folio,
     proceso_titulo,
     requerimiento_id,
+    requerimiento_estatus,
     tramite_id,
     tramite_nombre,
 
@@ -452,8 +496,8 @@ async function fetchTareasFromApi() {
     };
 
     try {
-      log("TAREAS LIST →", API_TAREAS.LIST, payload);
-      const json = await postJSON(API_TAREAS.LIST, payload);
+      log("TAREAS BOARD LIST →", API_TAREAS_BOARD.LIST, payload);
+      const json = await postJSON(API_TAREAS_BOARD.LIST, payload);
 
       if (!json || !Array.isArray(json.data)) {
         warn("Respuesta inesperada de TAREAS LIST", json);
@@ -504,12 +548,14 @@ async function fetchTareasFromApi() {
 
 async function fetchDepartamentos() {
   try {
+    // V2: solo departamentos activos (status=1) y excluir Presidencia
     const payload = {
-      all: true, // todos los deptos, incluso status 0 (Presidencia)
+      status: 1,
+      all: false,
       page: 1,
-      page_size: 100,
+      page_size: 200,
     };
-    log("DEPTS LIST →", API_DEPTS.LIST, payload);
+    log("DEPTS LIST (V2) →", API_DEPTS.LIST, payload);
     const json = await postJSON(API_DEPTS.LIST, payload);
     log("DEPTS LIST respuesta cruda:", json);
 
@@ -518,21 +564,29 @@ async function fetchDepartamentos() {
       return [];
     }
 
-    const out = json.data.map((d) => ({
-      id: Number(d.id),
-      nombre: d.nombre || `Depto ${d.id}`,
-      status: d.status != null ? Number(d.status) : null,
+    const out = json.data
+      .map((d) => ({
+        id: Number(d.id),
+        nombre: d.nombre || `Depto ${d.id}`,
+        status: d.status != null ? Number(d.status) : null,
 
-      director: d.director != null ? Number(d.director) : null,
-      director_nombre: d.director_nombre || d.primera_nombre || "",
-      director_apellidos: d.director_apellidos || d.primera_apellidos || "",
+        director: d.director != null ? Number(d.director) : null,
+        director_nombre: d.director_nombre || d.primera_nombre || "",
+        director_apellidos: d.director_apellidos || d.primera_apellidos || "",
 
-      primera_linea: d.primera_linea != null ? Number(d.primera_linea) : null,
-      primera_nombre: d.primera_nombre || "",
-      primera_apellidos: d.primera_apellidos || "",
-    }));
+        primera_linea: d.primera_linea != null ? Number(d.primera_linea) : null,
+        primera_nombre: d.primera_nombre || "",
+        primera_apellidos: d.primera_apellidos || "",
+      }))
+      // defensivo: si backend ignora `status`
+      .filter((d) => (d.status == null ? true : d.status === 1))
+      // excluir Presidencia siempre
+      .filter((d) => !PRES_DEPT_IDS.includes(Number(d.id)));
 
-    log("Departamentos normalizados:", out.length, out);
+    // Refrescar index global
+    State.departamentosIndex = new Map(out.map((d) => [Number(d.id), d]));
+
+    log("Departamentos activos (sin Presidencia):", out.length, out);
     return out;
   } catch (e) {
     console.error("[KB] Error al listar departamentos:", e);
@@ -701,7 +755,7 @@ async function enrichTasksWithRequerimientos(tasks) {
   if (idsToFetch.size) {
     log("EnrichReq → ids a consultar:", Array.from(idsToFetch));
     await Promise.all(
-      Array.from(idsToFetch).map((id) => fetchRequerimientoById(id))
+      Array.from(idsToFetch).map((id) => fetchRequerimientoById(id)),
     );
   }
 
@@ -1135,7 +1189,7 @@ function createCard(task) {
   const lineFecha = document.createElement("div");
   lineFecha.className = "kb-task-line";
   lineFecha.innerHTML = `<span class="kb-task-label">Fecha de proceso:</span> <span class="kb-task-value">${formatDateMX(
-    task.fecha_inicio || task.created_at
+    task.fecha_inicio || task.created_at,
   )}</span>`;
 
   lines.append(lineFolio, lineAsig, lineFecha);
@@ -1273,7 +1327,7 @@ function renderColumn(st, mode) {
   const list = State._byStatus[st] || [];
   const target = Math.min(
     State.colLimits[st] || COL_INITIAL_RENDER,
-    list.length
+    list.length,
   );
 
   if (mode === "reset") {
@@ -1318,7 +1372,7 @@ function setupInfiniteScroll() {
           (State.colLimits[st] || COL_INITIAL_RENDER) + COL_STEP_RENDER;
         renderColumn(st, "append");
       },
-      { passive: true }
+      { passive: true },
     );
   }
 }
@@ -1389,7 +1443,7 @@ async function persistTaskStatus(task, newStatus, oldStatus) {
     });
     toast(
       "No se pudo identificar al usuario que actualiza la tarea. Revisa tu sesión.",
-      "warning"
+      "warning",
     );
     return;
   }
@@ -1422,7 +1476,7 @@ async function persistTaskStatus(task, newStatus, oldStatus) {
     if (!res || res.ok === false) {
       toast(
         res?.error || "No se pudo actualizar el status de la tarea.",
-        "error"
+        "error",
       );
       return;
     }
@@ -1487,7 +1541,7 @@ function setupDragAndDrop() {
           }
           toast(
             "Requerimiento en pausa/cancelado: tarea inhabilitada.",
-            "warn"
+            "warn",
           );
           return;
         }
@@ -1562,7 +1616,7 @@ function setupDragAndDrop() {
           "a",
           newStatus,
           "status_since:",
-          task.status_since || task.updated_at || task.created_at
+          task.status_since || task.updated_at || task.created_at,
         );
 
         renderBoard();
@@ -1725,7 +1779,7 @@ const MediaUI = (() => {
         uploadZone.classList.add("is-dragover");
       });
       uploadZone.addEventListener("dragleave", () =>
-        uploadZone.classList.remove("is-dragover")
+        uploadZone.classList.remove("is-dragover"),
       );
       uploadZone.addEventListener("drop", (ev) => {
         ev.preventDefault();
@@ -1753,7 +1807,7 @@ const MediaUI = (() => {
     if (!currentFolio) {
       toast(
         "No se encontró el folio del requerimiento para esta tarea.",
-        "warning"
+        "warning",
       );
       return;
     }
@@ -1851,12 +1905,13 @@ const MediaUI = (() => {
         errFiles,
         problems.length
           ? problems.join(". ")
-          : "Los archivos seleccionados no son válidos."
+          : "Los archivos seleccionados no son válidos.",
       );
     } else if (problems.length) {
       showError(
         errFiles,
-        problems.join(". ") + " Solo se subirán los archivos válidos restantes."
+        problems.join(". ") +
+          " Solo se subirán los archivos válidos restantes.",
       );
     }
 
@@ -2127,7 +2182,7 @@ async function init() {
 
   // Traer procesos solo hasta cubrir los proceso_id que aparecen en las tareas
   const neededProcesoIds = new Set(
-    tareasRaw.map((t) => Number(t?.proceso_id)).filter(Boolean)
+    tareasRaw.map((t) => Number(t?.proceso_id)).filter(Boolean),
   );
   const procesos = await fetchProcesosCatalog(neededProcesoIds);
 
@@ -2191,14 +2246,15 @@ async function init() {
     if (!hasRealFolio && proc.requerimiento_folio) {
       merged.folio = formatFolio(
         proc.requerimiento_folio,
-        proc.requerimiento_id
+        proc.requerimiento_id,
       );
     }
 
     return merged;
   });
 
-  const tareasFinales = await enrichTasksWithRequerimientos(tareasConProceso);
+  // V2: el endpoint board ya incluye folio/trámite/depto, evitamos enrich masivo
+  const tareasFinales = tareasConProceso;
 
   // --------------------------------------------------------------------
   // 5) Enriquecer con creado_por, depto, director (autoriza)
@@ -2437,7 +2493,7 @@ async function init() {
 
   log(
     "allowedDeptIds para filtros (sin Presidencia):",
-    Array.from(allowedDeptIds)
+    Array.from(allowedDeptIds),
   );
 
   let empleadosForFilter = [];
@@ -2446,7 +2502,7 @@ async function init() {
     empleadosForFilter = empleados;
   } else if (Viewer.deptId != null) {
     empleadosForFilter = empleados.filter(
-      (e) => Number(e.departamento_id) === Number(Viewer.deptId)
+      (e) => Number(e.departamento_id) === Number(Viewer.deptId),
     );
   } else {
     empleadosForFilter = empleados;
@@ -2455,7 +2511,7 @@ async function init() {
   log(
     "Empleados visibles para combo (tras jerarquía):",
     empleadosForFilter.length,
-    empleadosForFilter
+    empleadosForFilter,
   );
 
   const deptOptions = canSeeDeptFilter
