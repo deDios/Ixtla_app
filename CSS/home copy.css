@@ -2709,9 +2709,6 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  max-height: min(60vh, 420px);
-  overflow-y: auto;
-  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
