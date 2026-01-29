@@ -901,6 +901,34 @@ function computeCounts(rows) {
   setText("#cnt-pausado", `(${c.pausado})`);
   setText("#cnt-cancelado", `(${c.cancelado})`);
   setText("#cnt-finalizado", `(${c.finalizado})`);
+
+  // === PATCH: sincroniza el contador del dropdown/botón (ej: "Todos (0)" → "Todos (505)")
+  // Soporta varias estructuras posibles sin romper nada:
+  const setAny = (sel, value) => {
+    document.querySelectorAll(sel).forEach((el) => {
+      // Si el nodo es un span/label de conteo
+      if (el.matches(".cnt, .count, .badge, span")) el.textContent = value;
+      else el.textContent = value;
+    });
+  };
+
+  setAny('[data-cnt="todos"]', `(${c.todos})`);
+  setAny('[data-count-for="todos"]', `(${c.todos})`);
+
+  const btnCurrent = document.querySelector("[data-filter-current]");
+  if (btnCurrent) {
+    btnCurrent.textContent = btnCurrent.textContent.replace(
+      /\(\d+\)/,
+      `(${c.todos})`,
+    );
+    if (!/\(\d+\)/.test(btnCurrent.textContent))
+      btnCurrent.textContent += ` (${c.todos})`;
+  }
+
+  const curCount =
+    document.getElementById("cnt-current") ||
+    document.getElementById("hs-cnt-current");
+  if (curCount) curCount.textContent = `(${c.todos})`;
 }
 
 /* ============================================================================
