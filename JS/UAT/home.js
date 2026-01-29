@@ -902,33 +902,26 @@ function computeCounts(rows) {
   setText("#cnt-cancelado", `(${c.cancelado})`);
   setText("#cnt-finalizado", `(${c.finalizado})`);
 
-  // === PATCH: sincroniza el contador del dropdown/botón (ej: "Todos (0)" → "Todos (505)")
-  // Soporta varias estructuras posibles sin romper nada:
-  const setAny = (sel, value) => {
-    document.querySelectorAll(sel).forEach((el) => {
-      // Si el nodo es un span/label de conteo
-      if (el.matches(".cnt, .count, .badge, span")) el.textContent = value;
-      else el.textContent = value;
-    });
-  };
-
-  setAny('[data-cnt="todos"]', `(${c.todos})`);
-  setAny('[data-count-for="todos"]', `(${c.todos})`);
-
-  const btnCurrent = document.querySelector("[data-filter-current]");
-  if (btnCurrent) {
-    btnCurrent.textContent = btnCurrent.textContent.replace(
-      /\(\d+\)/,
-      `(${c.todos})`,
-    );
-    if (!/\(\d+\)/.test(btnCurrent.textContent))
-      btnCurrent.textContent += ` (${c.todos})`;
-  }
-
-  const curCount =
-    document.getElementById("cnt-current") ||
-    document.getElementById("hs-cnt-current");
-  if (curCount) curCount.textContent = `(${c.todos})`;
+  // Sync del label del combo mobile ("Todos (n)") después de hidratar contadores.
+  // En DOMContentLoaded se pinta con (0), pero los counts llegan después del fetch.
+  try {
+    const active = document.getElementById("hs-filter-active");
+    const states = document.getElementById("hs-states");
+    if (active && states) {
+      const btn =
+        states.querySelector(".item.is-active") ||
+        states.querySelector(".item[aria-checked='true']");
+      if (btn) {
+        const label = (
+          btn.querySelector(".label")?.textContent || "Todos"
+        ).trim();
+        const count = (
+          btn.querySelector(".count")?.textContent || "(0)"
+        ).trim();
+        active.textContent = `${label} ${count}`.trim();
+      }
+    }
+  } catch {}
 }
 
 /* ============================================================================
