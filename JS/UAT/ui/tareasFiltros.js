@@ -153,7 +153,7 @@ export function createTaskFiltersModule({
 
       if (list) {
         const li = list.querySelector(
-          `.kb-multi-option[data-value="${value}"]`
+          `.kb-multi-option[data-value="${value}"]`,
         );
         if (li) {
           const isSel = stateSet.has(value);
@@ -439,7 +439,7 @@ export function createTaskFiltersModule({
 
     // eliminar separadores previos
     Array.from(list.querySelectorAll("li.kb-multi-separator")).forEach((sep) =>
-      sep.remove()
+      sep.remove(),
     );
 
     list.innerHTML = "";
@@ -470,176 +470,166 @@ export function createTaskFiltersModule({
    *   deshabilita sus propias opciones.
    * - El otro filtro sí se recalcula con base en las tareas visibles.
    */
-  function updateAvailableOptions(tasks) {
-    if (!Array.isArray(tasks)) return;
+  function updateAvailableOptions(allTasks) {
+    // Recalcular available con base en tareas actuales (ya filtradas por "vista")
+    const tasks = Array.isArray(allTasks) ? allTasks : [];
 
-    const allTasks =
-      Array.isArray(State.tasks) && State.tasks.length ? State.tasks : tasks;
+    const hasEmpFilter = State.selectedEmpleados.size > 0;
+    const hasDeptFilter = State.selectedDepartamentos.size > 0;
 
-    const hasDeptFilter =
-      State.filters.departamentos &&
-      State.filters.departamentos.size &&
-      State.filters.departamentos.size > 0;
+    // Helpers para obtener IDs aunque el objeto venga con nombres distintos
+    const getDeptId = (t) => {
+      const v =
+        t?.departamento_id ??
+        t?.departamentoId ??
+        t?.dept_id ??
+        t?.depto_id ??
+        t?.departamento ??
+        null;
+      const n = v != null ? Number(v) : null;
+      return Number.isFinite(n) ? n : null;
+    };
 
-    const hasEmpFilter =
-      State.filters.empleados &&
-      State.filters.empleados.size &&
-      State.filters.empleados.size > 0;
+    const getEmpId = (t) => {
+      const v =
+        t?.asignado_a ??
+        t?.asignadoA ??
+        t?.empleado_id ??
+        t?.empleadoId ??
+        t?.proceso_empleado_id ??
+        null;
+      const n = v != null ? Number(v) : null;
+      return Number.isFinite(n) ? n : null;
+    };
 
-    // Si hay filtro de empleados pero NO de deptos,
-    // entonces los deptos se calculan con las tareas visibles (tasks).
-    // En cualquier otro caso, usan todas las tareas del tablero.
+    const getProcesoId = (t) => {
+      const v = t?.proceso_id ?? t?.procesoId ?? t?.proceso ?? null;
+      const n = v != null ? Number(v) : null;
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const getTramiteId = (t) => {
+      const v = t?.tramite_id ?? t?.tramiteId ?? t?.tramite ?? null;
+      const n = v != null ? Number(v) : null;
+      return Number.isFinite(n) ? n : null;
+    };
+
+    // =========================
+    // Counts por EMPLEADO
+    // - si hay dept seleccionado, contar sobre el subconjunto actual (tasks) ya filtrado por dept
+    // - si no hay dept seleccionado, contar sobre todo el universo visible de la vista (tasks)
+    // =========================
+    const empCounts = new Map();
+    for (const t of tasks) {
+      const empId = getEmpId(t);
+      if (!empId) continue;
+      empCounts.set(empId, (empCounts.get(empId) || 0) + 1);
+    }
+
+    // Pintar counts en el multi-filter de empleados
+    if (els.empleadosMulti) {
+      const lis = els.empleadosMulti.querySelectorAll(".kb-multi-tag");
+      lis.forEach((li) => {
+        const id = Number(li.dataset.value);
+        const cnt = empCounts.get(id) || 0;
+        const badge = li.querySelector(".kb-multi-count");
+        if (badge) badge.textContent = String(cnt);
+        li.classList.toggle("is-empty", cnt === 0);
+      });
+    }
+
+    // =========================
+    // Counts por DEPARTAMENTO
+    // Aquí suele romperse si la tarea NO trae departamento_id.
+    // Regla UX:
+    // - Si hay filtro de empleados activo (y no hay dept seleccionado aún),
+    //   que el count muestre "cuántas tareas quedarían si elijo este dept".
+    // - Si no, contar sobre el universo visible actual (tasks).
+    // =========================
     const tasksForDeptCounts =
-      hasEmpFilter && !hasDeptFilter ? tasks : allTasks;
+      hasEmpFilter && !hasDeptFilter
+        ? tasks.filter((t) => {
+            const empId = getEmpId(t);
+            return empId != null && State.selectedEmpleados.has(empId);
+          })
+        : tasks;
 
-    // Si hay filtro de deptos pero NO de empleados,
-    // entonces los empleados se calculan con las tareas visibles (tasks).
-    // En cualquier otro caso, usan todas las tareas del tablero.
-    const tasksForEmpCounts = hasDeptFilter && !hasEmpFilter ? tasks : allTasks;
-
-    // ---------------- Departamentos ----------------
-    if (fieldDept && !fieldDept.hidden) {
-      const countsDept = new Map();
-
-      for (const t of tasksForDeptCounts) {
-        if (t.departamento_id != null) {
-          const id = Number(t.departamento_id);
-          countsDept.set(id, (countsDept.get(id) || 0) + 1);
-        }
-      }
-
-      const stateSet = State.filters.departamentos || new Set();
-      const list = fieldDept.querySelector(".kb-multi-options");
-
-      if (list) {
-        reorderFilterOptions(
-          fieldDept,
-          countsDept,
-          "DEPARTAMENTOS SIN TAREAS EN LA VISTA"
-        );
-
-        list.querySelectorAll(".kb-multi-option").forEach((li) => {
-          const value = Number(li.dataset.value);
-          const count = countsDept.get(value) || 0;
-          const isSelected = stateSet.has(value);
-
-          li.classList.toggle("is-selected", isSelected);
-
-          const cb = li.querySelector(".kb-multi-check");
-          if (cb) cb.checked = isSelected;
-
-          if (count === 0 && !isSelected) {
-            li.classList.add("is-disabled");
-            li.setAttribute("aria-disabled", "true");
-          } else {
-            li.classList.remove("is-disabled");
-            li.removeAttribute("aria-disabled");
-          }
-
-          li.hidden = false;
-        });
-      }
+    const deptCounts = new Map();
+    for (const t of tasksForDeptCounts) {
+      const deptId = getDeptId(t);
+      if (!deptId) continue;
+      deptCounts.set(deptId, (deptCounts.get(deptId) || 0) + 1);
     }
 
-    // ---------------- Empleados ----------------
-    if (fieldEmp && !fieldEmp.hidden) {
-      const countsEmp = new Map();
-
-      for (const t of tasksForEmpCounts) {
-        if (t.asignado_a != null) {
-          const id = Number(t.asignado_a);
-          countsEmp.set(id, (countsEmp.get(id) || 0) + 1);
-        }
-      }
-
-      const stateSet = State.filters.empleados || new Set();
-      const list = fieldEmp.querySelector(".kb-multi-options");
-
-      if (list) {
-        reorderFilterOptions(
-          fieldEmp,
-          countsEmp,
-          "EMPLEADOS SIN TAREAS EN LA VISTA"
-        );
-
-        list.querySelectorAll(".kb-multi-option").forEach((li) => {
-          const value = Number(li.dataset.value);
-          const count = countsEmp.get(value) || 0;
-          const isSelected = stateSet.has(value);
-
-          li.classList.toggle("is-selected", isSelected);
-
-          const cb = li.querySelector(".kb-multi-check");
-          if (cb) cb.checked = isSelected;
-
-          if (count === 0 && !isSelected) {
-            li.classList.add("is-disabled");
-            li.setAttribute("aria-disabled", "true");
-          } else {
-            li.classList.remove("is-disabled");
-            li.removeAttribute("aria-disabled");
-          }
-
-          li.hidden = false;
-        });
-      }
-    }
-
-    // ---------------- Procesos ----------------
-    if (selProc) {
-      const visibleProcIds = new Set();
-      for (const t of tasks) {
-        if (t.proceso_id != null) visibleProcIds.add(Number(t.proceso_id));
-      }
-
-      const selectedProcId = State.filters.procesoId;
-
-      selProc.querySelectorAll("option").forEach((opt) => {
-        if (!opt.value) {
-          opt.hidden = false; // opción "Todos"
-          return;
-        }
-        const value = Number(opt.value);
-        if (tasks.length === 0) {
-          opt.hidden = false;
-        } else if (
-          visibleProcIds.has(value) ||
-          (selectedProcId != null && selectedProcId === value)
-        ) {
-          opt.hidden = false;
-        } else {
-          opt.hidden = true;
-        }
+    // Pintar counts en el multi-filter de departamentos
+    if (els.departamentosMulti) {
+      const lis = els.departamentosMulti.querySelectorAll(".kb-multi-tag");
+      lis.forEach((li) => {
+        const id = Number(li.dataset.value);
+        const cnt = deptCounts.get(id) || 0;
+        const badge = li.querySelector(".kb-multi-count");
+        if (badge) badge.textContent = String(cnt);
+        li.classList.toggle("is-empty", cnt === 0);
       });
     }
 
-    // ---------------- Trámites ----------------
-    if (selTram) {
-      const visibleTramIds = new Set();
-      for (const t of tasks) {
-        if (t.tramite_id != null) visibleTramIds.add(Number(t.tramite_id));
-      }
+    // =========================
+    // Selects: Proceso / Trámite
+    // (se habilitan/deshabilitan según existan tareas con ese id)
+    // =========================
+    const procesosAvail = new Set();
+    const tramitesAvail = new Set();
 
-      const selectedTramId = State.filters.tramiteId;
+    for (const t of tasks) {
+      const pid = getProcesoId(t);
+      const tid = getTramiteId(t);
+      if (pid) procesosAvail.add(pid);
+      if (tid) tramitesAvail.add(tid);
+    }
 
-      selTram.querySelectorAll("option").forEach((opt) => {
-        if (!opt.value) {
-          opt.hidden = false; // "Todos"
-          return;
-        }
-        const value = Number(opt.value);
-        if (tasks.length === 0) {
-          opt.hidden = false;
-        } else if (
-          visibleTramIds.has(value) ||
-          (selectedTramId != null && selectedTramId === value)
-        ) {
-          opt.hidden = false;
-        } else {
-          opt.hidden = true;
-        }
+    // Proceso select
+    if (els.procesoSelect) {
+      const opts = Array.from(els.procesoSelect.options || []);
+      opts.forEach((opt) => {
+        const v = opt.value;
+        if (!v || v === "all") return; // "Todos"
+        const id = Number(v);
+        const ok = procesosAvail.has(id);
+        opt.disabled = !ok;
       });
     }
+
+    // Trámite select
+    if (els.tramiteSelect) {
+      const opts = Array.from(els.tramiteSelect.options || []);
+      opts.forEach((opt) => {
+        const v = opt.value;
+        if (!v || v === "all") return; // "Todos"
+        const id = Number(v);
+        const ok = tramitesAvail.has(id);
+        opt.disabled = !ok;
+      });
+    }
+
+    // =========================
+    // Mantener los "selected counts" visibles (chips seleccionados)
+    // =========================
+    const applySelectedCounts = (containerEl, countsMap) => {
+      if (!containerEl) return;
+      const selected = containerEl.querySelectorAll(
+        ".kb-multi-tag.is-selected",
+      );
+      selected.forEach((li) => {
+        const id = Number(li.dataset.value);
+        const cnt = countsMap.get(id) || 0;
+        const badge = li.querySelector(".kb-multi-count");
+        if (badge) badge.textContent = String(cnt);
+        li.classList.toggle("is-empty", cnt === 0);
+      });
+    };
+
+    applySelectedCounts(els.empleadosMulti, empCounts);
+    applySelectedCounts(els.departamentosMulti, deptCounts);
   }
 
   /* ========================================================================

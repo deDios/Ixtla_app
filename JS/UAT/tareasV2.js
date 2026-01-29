@@ -41,7 +41,7 @@ const COL_STEP_RENDER = 10; // incremento por scroll
 const COL_SCROLL_THRESHOLD_PX = 220; // distancia al fondo para cargar mas
 
 // Departamentos especiales
-const PRES_DEPT_IDS = [6]; // id de presidencia 
+const PRES_DEPT_IDS = [6];
 
 /** Info del usuario actual (viewer) */
 const Viewer = {
@@ -452,6 +452,16 @@ function mapRawTask(raw) {
     proceso_id,
     asignado_a,
     asignado_display,
+    departamento_id:
+      raw.departamento_id != null
+        ? Number(raw.departamento_id)
+        : raw.depto_id != null
+          ? Number(raw.depto_id)
+          : null,
+
+    departamento_nombre:
+      raw.departamento_nombre || raw.nombre_departamento || "",
+
     titulo: raw.titulo || raw.titulo_tarea || "Tarea sin título",
     descripcion: raw.descripcion || raw.detalle || "",
     esfuerzo:
@@ -460,14 +470,18 @@ function mapRawTask(raw) {
         : raw.horas != null
           ? Number(raw.horas)
           : null,
+
     fecha_inicio: raw.fecha_inicio || raw.fecha_inicio_tarea || null,
     fecha_fin: raw.fecha_fin || raw.fecha_fin_tarea || null,
+
     status,
     created_at: raw.created_at || null,
     updated_at: raw.updated_at || null,
+
     created_by: raw.created_by != null ? Number(raw.created_by) : null,
     created_by_nombre: raw.created_by_nombre || raw.creado_por_nombre || "—",
     autoriza_nombre: raw.autoriza_nombre || raw.autorizado_por || "—",
+
     folio,
     proceso_titulo,
     requerimiento_id,
