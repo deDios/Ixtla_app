@@ -655,6 +655,7 @@ function initSidebar(onChange) {
 
   group.setAttribute("role", "radiogroup");
   const items = $$(SEL.statusItems);
+
   items.forEach((btn, i) => {
     btn.setAttribute("role", "radio");
     btn.setAttribute("tabindex", i === 0 ? "0" : "-1");
@@ -662,39 +663,55 @@ function initSidebar(onChange) {
       "aria-checked",
       btn.classList.contains("is-active") ? "true" : "false",
     );
+
     const key = btn.dataset.status;
     if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
 
     btn.addEventListener("click", () => {
-      if (btn.getAttribute("aria-disabled") === "true") return; // respeta lock
+      // respeta locks RBAC
+      if (btn.getAttribute("aria-disabled") === "true") return;
+
+      // reset visual
       items.forEach((b) => {
         b.classList.remove("is-active");
         b.setAttribute("aria-checked", "false");
         b.tabIndex = -1;
       });
+
+      // activar seleccionado
       btn.classList.add("is-active");
       btn.setAttribute("aria-checked", "true");
       btn.tabIndex = 0;
+
+      // estado
       State.filterKey = key || "todos";
       State.__page = 1;
+
       updateLegendStatus();
       onChange?.();
-      $(SEL.searchInput)?.focus();
+
+      if (!isMobileAccordion()) {
+        $(SEL.searchInput)?.focus();
+      }
     });
   });
 
+  // navegación por teclado (accesibilidad)
   group.addEventListener("keydown", (e) => {
     const cur = document.activeElement.closest(".item");
     const idx = Math.max(0, items.indexOf(cur));
     let next = idx;
+
     if (e.key === "ArrowDown" || e.key === "ArrowRight")
       next = (idx + 1) % items.length;
     if (e.key === "ArrowUp" || e.key === "ArrowLeft")
       next = (idx - 1 + items.length) % items.length;
+
     if (next !== idx) {
       items[next].focus();
       e.preventDefault();
     }
+
     if (e.key === " " || e.key === "Enter") {
       if (items[next].getAttribute("aria-disabled") === "true") {
         e.preventDefault();
