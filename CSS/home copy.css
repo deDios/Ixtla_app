@@ -2701,48 +2701,52 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 }
 
 
-/* PATCH: dropdown filtros (evita desbordes) */
-.hs-filtros,
-.filtros,
-.filters {
-  max-width: 100%;
-}
+/* ===============================
+   PATCH: #hs-states (mobile / overflow)
+   =============================== */
 
-.hs-filtros .dropdown,
-.filtros .dropdown,
-.filters .dropdown {
+#hs-states.hs-states {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
-.hs-filtros .dropdown-item,
-.filtros .dropdown-item,
-.filters .dropdown-item,
-.hs-filtros .menu-item,
-.filtros .menu-item,
-.filters .menu-item {
+#hs-states.hs-states>.item {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: .75rem;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 
-.hs-filtros .dropdown-item> :first-child,
-.filtros .dropdown-item> :first-child,
-.filters .dropdown-item> :first-child {
+#hs-states.hs-states .label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.hs-filtros .dropdown-item .count,
-.filtros .dropdown-item .count,
-.filters .dropdown-item .count {
+#hs-states.hs-states .count {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+#hs-filter-toggle.hs-filter-toggle {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  #hs-filter-toggle.hs-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
 }
