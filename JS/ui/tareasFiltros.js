@@ -153,7 +153,7 @@ export function createTaskFiltersModule({
 
       if (list) {
         const li = list.querySelector(
-          `.kb-multi-option[data-value="${value}"]`
+          `.kb-multi-option[data-value="${value}"]`,
         );
         if (li) {
           const isSel = stateSet.has(value);
@@ -439,7 +439,7 @@ export function createTaskFiltersModule({
 
     // eliminar separadores previos
     Array.from(list.querySelectorAll("li.kb-multi-separator")).forEach((sep) =>
-      sep.remove()
+      sep.remove(),
     );
 
     list.innerHTML = "";
@@ -473,18 +473,18 @@ export function createTaskFiltersModule({
   function updateAvailableOptions(tasks) {
     if (!Array.isArray(tasks)) return;
 
+    // Blindaje: si por algún motivo todavía no existen los sets, los creamos aquí
+    if (!State.filters) State.filters = {};
+    if (!(State.filters.departamentos instanceof Set))
+      State.filters.departamentos = new Set();
+    if (!(State.filters.empleados instanceof Set))
+      State.filters.empleados = new Set();
+
     const allTasks =
       Array.isArray(State.tasks) && State.tasks.length ? State.tasks : tasks;
 
-    const hasDeptFilter =
-      State.filters.departamentos &&
-      State.filters.departamentos.size &&
-      State.filters.departamentos.size > 0;
-
-    const hasEmpFilter =
-      State.filters.empleados &&
-      State.filters.empleados.size &&
-      State.filters.empleados.size > 0;
+    const hasDeptFilter = State.filters.departamentos.size > 0;
+    const hasEmpFilter = State.filters.empleados.size > 0;
 
     // Si hay filtro de empleados pero NO de deptos,
     // entonces los deptos se calculan con las tareas visibles (tasks).
@@ -502,20 +502,26 @@ export function createTaskFiltersModule({
       const countsDept = new Map();
 
       for (const t of tasksForDeptCounts) {
-        if (t.departamento_id != null) {
-          const id = Number(t.departamento_id);
-          countsDept.set(id, (countsDept.get(id) || 0) + 1);
+        const deptId =
+          t?.departamento_id != null
+            ? Number(t.departamento_id)
+            : t?.depto_id != null
+              ? Number(t.depto_id)
+              : null;
+
+        if (deptId != null && !Number.isNaN(deptId)) {
+          countsDept.set(deptId, (countsDept.get(deptId) || 0) + 1);
         }
       }
 
-      const stateSet = State.filters.departamentos || new Set();
+      const stateSet = State.filters.departamentos;
       const list = fieldDept.querySelector(".kb-multi-options");
 
       if (list) {
         reorderFilterOptions(
           fieldDept,
           countsDept,
-          "DEPARTAMENTOS SIN TAREAS EN LA VISTA"
+          "DEPARTAMENTOS SIN TAREAS EN LA VISTA",
         );
 
         list.querySelectorAll(".kb-multi-option").forEach((li) => {
@@ -546,20 +552,21 @@ export function createTaskFiltersModule({
       const countsEmp = new Map();
 
       for (const t of tasksForEmpCounts) {
-        if (t.asignado_a != null) {
+        if (t?.asignado_a != null) {
           const id = Number(t.asignado_a);
-          countsEmp.set(id, (countsEmp.get(id) || 0) + 1);
+          if (!Number.isNaN(id))
+            countsEmp.set(id, (countsEmp.get(id) || 0) + 1);
         }
       }
 
-      const stateSet = State.filters.empleados || new Set();
+      const stateSet = State.filters.empleados;
       const list = fieldEmp.querySelector(".kb-multi-options");
 
       if (list) {
         reorderFilterOptions(
           fieldEmp,
           countsEmp,
-          "EMPLEADOS SIN TAREAS EN LA VISTA"
+          "EMPLEADOS SIN TAREAS EN LA VISTA",
         );
 
         list.querySelectorAll(".kb-multi-option").forEach((li) => {
@@ -589,7 +596,7 @@ export function createTaskFiltersModule({
     if (selProc) {
       const visibleProcIds = new Set();
       for (const t of tasks) {
-        if (t.proceso_id != null) visibleProcIds.add(Number(t.proceso_id));
+        if (t?.proceso_id != null) visibleProcIds.add(Number(t.proceso_id));
       }
 
       const selectedProcId = State.filters.procesoId;
@@ -617,7 +624,7 @@ export function createTaskFiltersModule({
     if (selTram) {
       const visibleTramIds = new Set();
       for (const t of tasks) {
-        if (t.tramite_id != null) visibleTramIds.add(Number(t.tramite_id));
+        if (t?.tramite_id != null) visibleTramIds.add(Number(t.tramite_id));
       }
 
       const selectedTramId = State.filters.tramiteId;
