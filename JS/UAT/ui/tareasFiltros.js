@@ -1,4 +1,4 @@
-// JS\UAT\ui\tareasFiltros.js
+// /JS/ui/tareasFiltros.js
 "use strict";
 
 /**
@@ -34,6 +34,9 @@ export function createTaskFiltersModule({
   let fieldEmp = null;
   let selProc = null;
   let selTram = null;
+
+  // memo simple para evitar recalcular facetas si llega el mismo snapshot
+  let _lastFacetsTasksRef = null;
 
   /* ========================================================================
    * Helpers multi-combo sidebar
@@ -153,7 +156,7 @@ export function createTaskFiltersModule({
 
       if (list) {
         const li = list.querySelector(
-          `.kb-multi-option[data-value="${value}"]`
+          `.kb-multi-option[data-value="${value}"]`,
         );
         if (li) {
           const isSel = stateSet.has(value);
@@ -439,7 +442,7 @@ export function createTaskFiltersModule({
 
     // eliminar separadores previos
     Array.from(list.querySelectorAll("li.kb-multi-separator")).forEach((sep) =>
-      sep.remove()
+      sep.remove(),
     );
 
     list.innerHTML = "";
@@ -473,29 +476,22 @@ export function createTaskFiltersModule({
   function updateAvailableOptions(tasks) {
     if (!Array.isArray(tasks)) return;
 
-    const allTasks =
-      Array.isArray(State.tasks) && State.tasks.length ? State.tasks : tasks;
+    // Si es el mismo arreglo (misma referencia) y no hay menú abierto,
+    // evitamos recalcular para no meter costo extra en renders repetidos.
+    const anyMenuOpen =
+      (fieldDept && fieldDept.classList.contains("is-open")) ||
+      (fieldEmp && fieldEmp.classList.contains("is-open"));
+    if (tasks === _lastFacetsTasksRef && !anyMenuOpen) return;
+    _lastFacetsTasksRef = tasks;
 
-    const hasDeptFilter =
-      State.filters.departamentos &&
-      State.filters.departamentos.size &&
-      State.filters.departamentos.size > 0;
-
-    const hasEmpFilter =
-      State.filters.empleados &&
-      State.filters.empleados.size &&
-      State.filters.empleados.size > 0;
-
-    // Si hay filtro de empleados pero NO de deptos,
-    // entonces los deptos se calculan con las tareas visibles (tasks).
-    // En cualquier otro caso, usan todas las tareas del tablero.
-    const tasksForDeptCounts =
-      hasEmpFilter && !hasDeptFilter ? tasks : allTasks;
-
-    // Si hay filtro de deptos pero NO de empleados,
-    // entonces los empleados se calculan con las tareas visibles (tasks).
-    // En cualquier otro caso, usan todas las tareas del tablero.
-    const tasksForEmpCounts = hasDeptFilter && !hasEmpFilter ? tasks : allTasks;
+    // PERF/UX:
+    // Los contadores del sidebar deben representar la *vista actual* (lo que
+    // realmente está pasando los filtros rápidos/búsqueda/proceso/trámite).
+    // Para eso, usamos SIEMPRE `tasks` (que viene desde tareas.js como snapshot
+    // de la vista ya filtrada). Esto evita que los contadores se queden en
+    // "totales del universo" y se vean incorrectos.
+    const tasksForDeptCounts = tasks;
+    const tasksForEmpCounts = tasks;
 
     // ---------------- Departamentos ----------------
     if (fieldDept && !fieldDept.hidden) {
@@ -512,11 +508,32 @@ export function createTaskFiltersModule({
       const list = fieldDept.querySelector(".kb-multi-options");
 
       if (list) {
-        reorderFilterOptions(
-          fieldDept,
-          countsDept,
-          "DEPARTAMENTOS SIN TAREAS EN LA VISTA"
-        );
+        // Reordenar sólo cuando el menú esté abierto (o la primera vez),
+        // porque mover nodos del DOM es de lo más caro en el primer render.
+        const shouldReorder = fieldDept.classList.contains("is-open");
+        if (shouldReorder || !fieldDept.dataset._reorderedOnce) {
+          reorderFilterOptions(
+            fieldDept,
+            countsDept,
+            "DEPARTAMENTOS SIN TAREAS EN LA VISTA",
+          );
+          fieldDept.dataset._reorderedOnce = "1";
+        } else {
+          // Si no reordenamos, al menos actualizamos los contadores visibles.
+          list.querySelectorAll(".kb-multi-option").forEach((li) => {
+            const value = Number(li.dataset.value);
+            const count = countsDept.get(value) || 0;
+            const countSpan = li.querySelector(".kb-multi-count");
+            if (countSpan && countSpan.textContent !== String(count)) {
+              countSpan.textContent = String(count);
+            }
+            const tagSpan = li.querySelector(".kb-multi-tag");
+            if (tagSpan) {
+              const next = count === 0 ? "SIN TAREAS EN LA VISTA" : "";
+              if (tagSpan.textContent !== next) tagSpan.textContent = next;
+            }
+          });
+        }
 
         list.querySelectorAll(".kb-multi-option").forEach((li) => {
           const value = Number(li.dataset.value);
@@ -556,11 +573,29 @@ export function createTaskFiltersModule({
       const list = fieldEmp.querySelector(".kb-multi-options");
 
       if (list) {
-        reorderFilterOptions(
-          fieldEmp,
-          countsEmp,
-          "EMPLEADOS SIN TAREAS EN LA VISTA"
-        );
+        const shouldReorder = fieldEmp.classList.contains("is-open");
+        if (shouldReorder || !fieldEmp.dataset._reorderedOnce) {
+          reorderFilterOptions(
+            fieldEmp,
+            countsEmp,
+            "EMPLEADOS SIN TAREAS EN LA VISTA",
+          );
+          fieldEmp.dataset._reorderedOnce = "1";
+        } else {
+          list.querySelectorAll(".kb-multi-option").forEach((li) => {
+            const value = Number(li.dataset.value);
+            const count = countsEmp.get(value) || 0;
+            const countSpan = li.querySelector(".kb-multi-count");
+            if (countSpan && countSpan.textContent !== String(count)) {
+              countSpan.textContent = String(count);
+            }
+            const tagSpan = li.querySelector(".kb-multi-tag");
+            if (tagSpan) {
+              const next = count === 0 ? "SIN TAREAS EN LA VISTA" : "";
+              if (tagSpan.textContent !== next) tagSpan.textContent = next;
+            }
+          });
+        }
 
         list.querySelectorAll(".kb-multi-option").forEach((li) => {
           const value = Number(li.dataset.value);
