@@ -740,7 +740,6 @@ function initSearch(onChange) {
   });
 }
 
-
 /* ============================================================================
    EXPORT XLSX (dinámico según vista actual)
    - Deshabilita el botón cuando la vista (filtro/búsqueda) tiene 0 requerimientos
@@ -753,7 +752,9 @@ function updateExportButtonState(totalInView) {
   // Cachea etiqueta original (una sola vez)
   if (!btn.dataset.labelDefault) {
     const sp = btn.querySelector("span");
-    btn.dataset.labelDefault = (sp?.textContent || "Exportar requerimientos").trim();
+    btn.dataset.labelDefault = (
+      sp?.textContent || "Exportar requerimientos"
+    ).trim();
   }
 
   const has = Number(totalInView || 0) > 0;
@@ -767,7 +768,9 @@ function updateExportButtonState(totalInView) {
   }
 
   // Tooltip/ayuda (discreta)
-  btn.title = has ? "Exportar requerimientos" : "Sin requerimientos para exportar";
+  btn.title = has
+    ? "Exportar requerimientos"
+    : "Sin requerimientos para exportar";
 }
 
 /* ============================================================================
@@ -1054,40 +1057,57 @@ function refreshCurrentPageDecorations() {
 
   // Marca filas y asegura expander en mobile
   const trs = Array.from(tbody.querySelectorAll("tr")).filter(
-    (tr) =>
-      !tr.classList.contains("hs-gap") &&
-      !tr.classList.contains("hs-row-expand"),
+    (tr) => !tr.classList.contains("hs-row-expand"),
   );
 
   const pageRows = State.table?.getRawRows?.() || [];
 
   trs.forEach((tr, i) => {
-    tr.classList.add("is-clickable");
+    // En desktop: asegúrate de limpiar estados y salir
+    if (!isMobileAccordion()) {
+      tr.classList.remove("is-open", "is-clickable");
+      tr.removeAttribute("aria-hidden");
+      tr.querySelector("td.hs-cell-expander")?.remove();
+      return;
+    }
 
-    // En tu HTML ya viene data-row-idx (mejor usarlo) :contentReference[oaicite:3]{index=3}
+    // indice
     const domIdx = tr.getAttribute("data-row-idx");
     const idx = domIdx != null ? parseInt(domIdx, 10) : i;
     const row = pageRows[idx] || null;
 
-    // En desktop: nada extra
-    if (!isMobileAccordion()) {
-      tr.classList.remove("is-open");
+    // Si NO hay data real -> fila placeholder: NO chevron, NO clickable
+    if (!row) {
+      tr.classList.add("hs-gap");
+      tr.classList.remove("is-clickable", "is-open");
+      tr.setAttribute("aria-hidden", "true");
+      let expTd = tr.querySelector("td.hs-cell-expander");
+      if (!expTd) {
+        expTd = document.createElement("td");
+        expTd.className = "hs-cell-expander";
+        tr.appendChild(expTd);
+      }
+      expTd.innerHTML = "";
       return;
     }
 
-    // Asegura columna + botón expander (estructura SIEMPRE; CSS decide visibilidad)
-    // 1) Header: agrega un <th> al final si no existe
+    // Ya que sabemos que sí hay row:
+    tr.classList.remove("hs-gap");
+    tr.removeAttribute("aria-hidden");
+    tr.classList.add("is-clickable");
+
+    // Header: agrega th del expander una sola vez
     const tableEl = tbody.closest("table");
     const theadTr = tableEl?.querySelector("thead tr");
     if (theadTr && !theadTr.querySelector(".hs-th-expander")) {
       const th = document.createElement("th");
       th.className = "hs-th-expander";
       th.setAttribute("aria-label", "Detalles");
-      th.textContent = ""; // header vacío (solo ícono)
+      th.textContent = "";
       theadTr.appendChild(th);
     }
 
-    // 2) Body: agrega un <td> al final por fila si no existe
+    // Body: asegura td expander
     let expTd = tr.querySelector("td.hs-cell-expander");
     if (!expTd) {
       expTd = document.createElement("td");
@@ -1095,31 +1115,29 @@ function refreshCurrentPageDecorations() {
       tr.appendChild(expTd);
     }
 
-    // 3) Botón dentro del td expander
+    // Botón chevron
     if (!expTd.querySelector(".hs-expander")) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "hs-expander";
       btn.setAttribute("aria-label", "Ver más detalles");
-      btn.setAttribute("title", "Ver más detalles"); // tooltip nativo (discreto)
+      btn.setAttribute("title", "Ver más detalles");
       btn.innerHTML = chevronSvg();
       expTd.appendChild(btn);
     }
 
-    // Si esta fila es la expandida, reabre (persistencia al paginar/ordenar)
+    // Persistencia open
     const rowId = row?.id ?? row?.__raw?.id ?? null;
     const shouldOpen = rowId != null && State.__expandedRowId === rowId;
-
     tr.classList.toggle("is-open", !!shouldOpen);
 
-    if (shouldOpen && row) {
+    if (shouldOpen) {
       const exp = document.createElement("tr");
       exp.className = "hs-row-expand";
 
       const td = document.createElement("td");
-      const isMobile =
-        typeof isMobileAccordion === "function" && isMobileAccordion();
-      td.colSpan = isMobile ? 3 : tr.children.length || 8;
+      // colSpan = todas las columnas actuales (ya incluye el td expander)
+      td.colSpan = tr.children.length;
 
       const raw = row.__raw || row;
       const depto = safeTxt(
@@ -1159,11 +1177,6 @@ function refreshCurrentPageDecorations() {
       tr.insertAdjacentElement("afterend", exp);
     }
   });
-
-  // (opcional) logs y gaps como ya tenías
-  const realCount = pageRows.length;
-  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
-  log("gaps añadidos:", gaps, "reales en página:", realCount);
 }
 
 /* Delegación permanente: mantiene los clicks aunque se regenere el <tbody> */
