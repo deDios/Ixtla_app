@@ -1494,6 +1494,30 @@ function drawChartsFromRows(rows) {
   }
 
   if ($donut) {
+    const r = $donut.getBoundingClientRect();
+
+    // Guard anti-canvas gigante / estado inestable
+    const W = Math.floor(r.width);
+    const H = Math.floor(r.height);
+
+    if (!W || !H || W > 2000 || H > 2000) {
+      warn("[CHARTS] Skip DonutChart por tamaño raro:", { W, H, r });
+    } else {
+      try {
+        Charts.donut = new DonutChart($donut, {
+          data: donutAgg.items,
+          total: donutAgg.total,
+          legendEl: $(SEL.donutLegend) || null,
+          showPercLabels: true,
+        });
+        log("CHARTS — DonutChart render ok", { total: donutAgg.total });
+      } catch (e) {
+        err("DonutChart error:", e);
+      }
+    }
+  }
+
+  if ($donut) {
     try {
       Charts.donut = new DonutChart($donut, {
         data: donutAgg.items, // ← usa donutAgg
