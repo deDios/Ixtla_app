@@ -1047,74 +1047,76 @@ function refreshCurrentPageDecorations() {
   // Limpia filas expandibles anteriores
   tbody.querySelectorAll("tr.hs-row-expand").forEach((tr) => tr.remove());
 
+  const tableEl = tbody.closest("table");
+  const theadTr = tableEl?.querySelector("thead tr") || null;
+
+  // En desktop NO debe existir la columna expander.
+  if (!isMobileAccordion()) {
+    // quita columna en header
+    theadTr?.querySelector(".hs-th-expander")?.remove();
+    // quita celdas expander en body
+    tbody.querySelectorAll("td.hs-cell-expander").forEach((td) => td.remove());
+    // quita clases/estado
+    tbody.querySelectorAll("tr").forEach((tr) => {
+      tr.classList.remove("is-open", "is-clickable", "hs-gap");
+      tr.removeAttribute("aria-hidden");
+    });
+    return;
+  }
+
+  // En mobile: asegura header expander una sola vez
+  if (theadTr && !theadTr.querySelector(".hs-th-expander")) {
+    const th = document.createElement("th");
+    th.className = "hs-th-expander";
+    th.setAttribute("aria-label", "Detalles");
+    th.textContent = "";
+    theadTr.appendChild(th);
+  }
+
+  const pageRows = State.table?.getRawRows?.() || [];
   const trs = Array.from(tbody.querySelectorAll("tr")).filter(
     (tr) => !tr.classList.contains("hs-row-expand"),
   );
 
-  const pageRows = State.table?.getRawRows?.() || [];
+  // columnas reales según header (ya incluye expander)
+  const colsCount =
+    tableEl?.querySelectorAll("thead th")?.length ||
+    (tableEl?.querySelectorAll("tbody tr:first-child td")?.length || 1);
 
   trs.forEach((tr, i) => {
-    // En desktop: asegúrate de limpiar estados y salir
-    if (!isMobileAccordion()) {
-      tr.classList.remove("is-open", "is-clickable");
-      tr.removeAttribute("aria-hidden");
-      tr.querySelector("td.hs-cell-expander")?.remove();
-      return;
-    }
-
-    // indice
+    // índice del render (createTable pone -1 en blanks)
     const domIdx = tr.getAttribute("data-row-idx");
     const idx = domIdx != null ? parseInt(domIdx, 10) : i;
-    const row = pageRows[idx] || null;
 
-    // Si NO hay data real -> fila placeholder: NO chevron, NO clickable
+    const row = idx >= 0 ? pageRows[idx] || null : null;
+
+    // === Placeholder / Blank rows (idx = -1 o sin data real)
     if (!row) {
       tr.classList.add("hs-gap");
       tr.classList.remove("is-clickable", "is-open");
       tr.setAttribute("aria-hidden", "true");
 
-      // Normaliza la fila gap: 1 sola celda con colspan = total de columnas reales
-      const tableEl = tbody.closest("table");
-      const colCount =
-        tableEl?.querySelectorAll("thead tr th")?.length ||
-        tr.children.length ||
-        8;
+      // IMPORTANTÍSIMO:
+      // En filas en blanco NO agregues un <td> extra (eso rompe la tabla).
+      tr.querySelector("td.hs-cell-expander")?.remove();
 
-      // Si ya existe un td, úsalo; si no, créalo
-      let td = tr.querySelector("td");
-      if (!td) {
-        td = document.createElement("td");
-        tr.appendChild(td);
-      }
+      // Si por alguna razón hay más de 1 td, deja solo el primero
+      const tds = Array.from(tr.querySelectorAll("td"));
+      if (tds.length > 1) tds.slice(1).forEach((td) => td.remove());
 
-      // Elimina cualquier otra celda extra (incluida hs-cell-expander)
-      Array.from(tr.querySelectorAll("td"))
-        .slice(1)
-        .forEach((n) => n.remove());
-
-      td.colSpan = colCount;
-      td.innerHTML = "&nbsp;";
+      // Ajusta colspan del primer td para cubrir todas las columnas actuales
+      const first = tr.querySelector("td");
+      if (first) first.colSpan = colsCount;
 
       return;
     }
 
-    // Ya que sabemos que sí hay row:
+    // === Filas con data real
     tr.classList.remove("hs-gap");
     tr.removeAttribute("aria-hidden");
     tr.classList.add("is-clickable");
 
-    // Header: agrega th del expander una sola vez
-    const tableEl = tbody.closest("table");
-    const theadTr = tableEl?.querySelector("thead tr");
-    if (theadTr && !theadTr.querySelector(".hs-th-expander")) {
-      const th = document.createElement("th");
-      th.className = "hs-th-expander";
-      th.setAttribute("aria-label", "Detalles");
-      th.textContent = "";
-      theadTr.appendChild(th);
-    }
-
-    // Body: asegura td expander
+    // Asegura td expander al final (solo para filas reales)
     let expTd = tr.querySelector("td.hs-cell-expander");
     if (!expTd) {
       expTd = document.createElement("td");
@@ -1143,8 +1145,8 @@ function refreshCurrentPageDecorations() {
       exp.className = "hs-row-expand";
 
       const td = document.createElement("td");
-      // colSpan = todas las columnas actuales (ya incluye el td expander)
-      td.colSpan = tr.children.length;
+      // colSpan = todas las columnas actuales (incluye expander)
+      td.colSpan = colsCount;
 
       const raw = row.__raw || row;
       const depto = safeTxt(
@@ -1528,20 +1530,6 @@ function drawChartsFromRows(rows) {
       } catch (e) {
         err("DonutChart error:", e);
       }
-    }
-  }
-
-  if ($donut) {
-    try {
-      Charts.donut = new DonutChart($donut, {
-        data: donutAgg.items, // ← usa donutAgg
-        total: donutAgg.total, // ← usa donutAgg
-        legendEl: $(SEL.donutLegend) || null,
-        showPercLabels: true,
-      });
-      log("CHARTS — DonutChart render ok", { total: donutAgg.total });
-    } catch (e) {
-      err("DonutChart error:", e);
     }
   }
 
