@@ -741,39 +741,6 @@ function initSearch(onChange) {
 }
 
 /* ============================================================================
-   EXPORT XLSX (dinámico según vista actual)
-   - Deshabilita el botón cuando la vista (filtro/búsqueda) tiene 0 requerimientos
-   - Cambia el texto a "Sin requerimientos"
-   ========================================================================== */
-function updateExportButtonState(totalInView) {
-  const btn = document.getElementById("hs-btn-export-req");
-  if (!btn) return;
-
-  // Cachea etiqueta original (una sola vez)
-  if (!btn.dataset.labelDefault) {
-    const sp = btn.querySelector("span");
-    btn.dataset.labelDefault = (
-      sp?.textContent || "Exportar requerimientos"
-    ).trim();
-  }
-
-  const has = Number(totalInView || 0) > 0;
-
-  btn.disabled = !has;
-  btn.setAttribute("aria-disabled", has ? "false" : "true");
-
-  const sp = btn.querySelector("span");
-  if (sp) {
-    sp.textContent = has ? btn.dataset.labelDefault : "Sin requerimientos";
-  }
-
-  // Tooltip/ayuda (discreta)
-  btn.title = has
-    ? "Exportar requerimientos"
-    : "Sin requerimientos para exportar";
-}
-
-/* ============================================================================
    TABLA (Folio, Departamento, Tipo de trámite, Asignado, Teléfono, Estatus)
    ========================================================================== */
 function buildTable() {
@@ -832,7 +799,7 @@ function buildTable() {
         render: (v, r) => r.tramite || r.asunto || "—",
       },
 
-      // 4) Asignado (usar solo nombre  sin apellidos  y ordenar alfabético)
+      // 4) Asignado (usar solo nombre – sin apellidos – y ordenar alfabético)
       {
         key: "asignado",
         title: "Asignado",
@@ -903,6 +870,31 @@ function buildTable() {
    ========================================================================== */
 function updateLegendTotals(n) {
   setText(SEL.legendTotal, String(n ?? 0));
+}
+
+function updateExportButtonState(totalInView) {
+  const btn = document.getElementById("hs-btn-export-req");
+  if (!btn) return;
+
+  // Texto: usa <span> si existe (como en tu HTML), si no el botón completo
+  const labelEl = btn.querySelector("span") || btn;
+  if (!btn.dataset._origLabel)
+    btn.dataset._origLabel = labelEl.textContent.trim() || "Exportar";
+
+  const hasAny = Number(totalInView) > 0;
+
+  btn.disabled = !hasAny;
+  btn.setAttribute("aria-disabled", hasAny ? "false" : "true");
+
+  if (!hasAny) {
+    labelEl.textContent = "Sin requerimientos";
+    btn.title = "Sin requerimientos para exportar";
+    btn.classList.add("is-disabled");
+  } else {
+    labelEl.textContent = btn.dataset._origLabel;
+    btn.title = `Exportar ${totalInView} requerimiento(s)`;
+    btn.classList.remove("is-disabled");
+  }
 }
 function updateLegendStatus() {
   const map = {
@@ -1055,7 +1047,6 @@ function refreshCurrentPageDecorations() {
   // Limpia filas expandibles anteriores
   tbody.querySelectorAll("tr.hs-row-expand").forEach((tr) => tr.remove());
 
-  // Marca filas y asegura expander en mobile
   const trs = Array.from(tbody.querySelectorAll("tr")).filter(
     (tr) => !tr.classList.contains("hs-row-expand"),
   );
@@ -1081,13 +1072,15 @@ function refreshCurrentPageDecorations() {
       tr.classList.add("hs-gap");
       tr.classList.remove("is-clickable", "is-open");
       tr.setAttribute("aria-hidden", "true");
+
+      // Importante: mantener estructura de columnas (folio | estatus | expander)
       let expTd = tr.querySelector("td.hs-cell-expander");
       if (!expTd) {
         expTd = document.createElement("td");
         expTd.className = "hs-cell-expander";
         tr.appendChild(expTd);
       }
-      expTd.innerHTML = "";
+      expTd.innerHTML = ""; // sin chevron
       return;
     }
 
@@ -1201,7 +1194,7 @@ function setupRowClickDelegation() {
     const tr = e.target.closest("tr");
     if (!tr) return;
 
-    // Ignora filas gap y la subfila expandida
+    // Ignora filas “gap” y la subfila expandida
     if (tr.classList.contains("hs-gap")) return;
     if (tr.classList.contains("hs-row-expand")) return;
 
@@ -1353,6 +1346,7 @@ function applyPipelineAndRender() {
 
   computeCounts(all);
   updateLegendTotals(filtered.length);
+  updateExportButtonState(filtered.length);
 
   const rows = filtered.map((r) => ({
     __raw: r,
@@ -1382,8 +1376,6 @@ function applyPipelineAndRender() {
   refreshCurrentPageDecorations();
 
   State.__lastTotal = filtered.length; // para el pager
-
-  updateExportButtonState(filtered.length);
   renderPagerClassic(filtered.length);
 
   log("pipeline", {
@@ -1687,7 +1679,7 @@ async function loadScopeData() {
   State.universe = deduped;
   State.rows = visibleRows;
 
-  // DEBUG Sin asignar
+  // DEBUG “Sin asignar”
   try {
     const sinAsignar = State.rows
       .filter((r) => (r.asignado || "").toLowerCase() === "sin asignar")
@@ -1842,7 +1834,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       formatDateMXShort,
       toast: (m, t = "info") =>
         window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m),
-      mode: "view", // respeta filtros/búsqueda
+      mode: "view", // respeta filtros/búsqueda actuales
     });
 
     const sess = Session?.get?.() || null;
