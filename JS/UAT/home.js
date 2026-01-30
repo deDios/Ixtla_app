@@ -1073,14 +1073,28 @@ function refreshCurrentPageDecorations() {
       tr.classList.remove("is-clickable", "is-open");
       tr.setAttribute("aria-hidden", "true");
 
-      // Importante: mantener estructura de columnas (folio | estatus | expander)
-      let expTd = tr.querySelector("td.hs-cell-expander");
-      if (!expTd) {
-        expTd = document.createElement("td");
-        expTd.className = "hs-cell-expander";
-        tr.appendChild(expTd);
+      // Normaliza la fila gap: 1 sola celda con colspan = total de columnas reales
+      const tableEl = tbody.closest("table");
+      const colCount =
+        tableEl?.querySelectorAll("thead tr th")?.length ||
+        tr.children.length ||
+        8;
+
+      // Si ya existe un td, úsalo; si no, créalo
+      let td = tr.querySelector("td");
+      if (!td) {
+        td = document.createElement("td");
+        tr.appendChild(td);
       }
-      expTd.innerHTML = ""; // sin chevron
+
+      // Elimina cualquier otra celda extra (incluida hs-cell-expander)
+      Array.from(tr.querySelectorAll("td"))
+        .slice(1)
+        .forEach((n) => n.remove());
+
+      td.colSpan = colCount;
+      td.innerHTML = "&nbsp;";
+
       return;
     }
 
