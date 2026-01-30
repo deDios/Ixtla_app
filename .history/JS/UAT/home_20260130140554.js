@@ -744,7 +744,7 @@ function initSearch(onChange) {
 /* ============================================================================
    EXPORT XLSX (dinámico según vista actual)
    - Deshabilita el botón cuando la vista (filtro/búsqueda) tiene 0 requerimientos
-   - Cambia el texto a "Sin requerimientos"
+   - Cambia el texto a “Sin requerimientos”
    ========================================================================== */
 function updateExportButtonState(totalInView) {
   const btn = document.getElementById("hs-btn-export-req");

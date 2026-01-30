@@ -744,7 +744,7 @@ function initSearch(onChange) {
 /* ============================================================================
    EXPORT XLSX (dinámico según vista actual)
    - Deshabilita el botón cuando la vista (filtro/búsqueda) tiene 0 requerimientos
-   - Cambia el texto a "Sin requerimientos"
+   - Cambia el texto a “Sin requerimientos”
    ========================================================================== */
 function updateExportButtonState(totalInView) {
   const btn = document.getElementById("hs-btn-export-req");
@@ -829,7 +829,7 @@ function buildTable() {
         render: (v, r) => r.tramite || r.asunto || "—",
       },
 
-      // 4) Asignado (usar solo nombre  sin apellidos  y ordenar alfabético)
+      // 4) Asignado (usar solo nombre – sin apellidos – y ordenar alfabético)
       {
         key: "asignado",
         title: "Asignado",
@@ -1188,7 +1188,7 @@ function setupRowClickDelegation() {
     const tr = e.target.closest("tr");
     if (!tr) return;
 
-    // Ignora filas gap y la subfila expandida
+    // Ignora filas “gap” y la subfila expandida
     if (tr.classList.contains("hs-gap")) return;
     if (tr.classList.contains("hs-row-expand")) return;
 
