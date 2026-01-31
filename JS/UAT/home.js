@@ -32,6 +32,34 @@ const warn = (...a) => {
 };
 const err = (...a) => console.error(TAG, ...a);
 
+// Evita crasheos de canvas cuando el contenedor está oculto o sin tamaño (ej. mobile)
+function isElementRenderable(el) {
+  if (!el) return false;
+
+  const cs = window.getComputedStyle(el);
+  if (cs.display === "none" || cs.visibility === "hidden") return false;
+
+  // Si está dentro de un contenedor oculto (ej. .hs-charts en mobile)
+  const host = el.closest?.(".hs-charts");
+  if (host) {
+    const hs = window.getComputedStyle(host);
+    if (hs.display === "none" || hs.visibility === "hidden") return false;
+  }
+
+  const r = el.getBoundingClientRect();
+  if (!Number.isFinite(r.width) || !Number.isFinite(r.height)) return false;
+
+  // Si está colapsado, no se dibuja
+  if (r.width < 20 || r.height < 20) return false;
+
+  // Evita tamaños monstruo (límite conservador)
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const max = 8192;
+  if (r.width * dpr > max || r.height * dpr > max) return false;
+
+  return true;
+}
+
 /* ============================================================================
    IMPORTS
    ========================================================================== */
@@ -740,7 +768,6 @@ function initSearch(onChange) {
   });
 }
 
-
 /* ============================================================================
    EXPORT XLSX (dinámico según vista actual)
    - Deshabilita el botón cuando la vista (filtro/búsqueda) tiene 0 requerimientos
@@ -1056,19 +1083,25 @@ function refreshCurrentPageDecorations() {
   // Limpia filas expandibles anteriores
   tbody.querySelectorAll("tr.hs-row-expand").forEach((tr) => tr.remove());
 
-  // Marca filas y asegura expander en mobile
-  const trs = Array.from(tbody.querySelectorAll("tr")).filter(
-    (tr) =>
-      !tr.classList.contains("hs-gap") &&
-      !tr.classList.contains("hs-row-expand"),
-  );
+  // Marca SOLO filas reales (excluye blanks/empty) y asegura expander en mobile
+  const trs = Array.from(tbody.querySelectorAll("tr")).filter((tr) => {
+    if (tr.classList.contains("hs-gap")) return false;
+    if (tr.classList.contains("hs-row-expand")) return false;
+
+    // Filas placeholder (blanks / empty) que crea la tabla
+    const idx = tr.getAttribute("data-row-idx");
+    if (idx === "-1") return false;
+    if (tr.getAttribute("aria-hidden") === "true") return false;
+    if (tr.classList.contains("is-blank")) return false;
+    if (tr.classList.contains("is-empty")) return false;
+
+    return true;
+  });
 
   const pageRows = State.table?.getRawRows?.() || [];
 
   trs.forEach((tr, i) => {
-    tr.classList.add("is-clickable");
-
-    // En tu HTML ya viene data-row-idx (mejor usarlo) :contentReference[oaicite:3]{index=3}
+    tr.classList.add("is-clickable"); // En tu HTML ya viene data-row-idx (mejor usarlo)
     const domIdx = tr.getAttribute("data-row-idx");
     const idx = domIdx != null ? parseInt(domIdx, 10) : i;
     const row = pageRows[idx] || null;
@@ -1475,7 +1508,7 @@ function drawChartsFromRows(rows) {
     Charts?.donut?.destroy?.();
   } catch {}
 
-  if ($line) {
+  if ($line && isElementRenderable($line)) {
     try {
       Charts.line = new LineChart($line, {
         labels,
@@ -1490,9 +1523,11 @@ function drawChartsFromRows(rows) {
     } catch (e) {
       err("LineChart error:", e);
     }
+  } else {
+    log("CHARTS — LineChart skip (hidden / no size)");
   }
 
-  if ($donut) {
+  if ($donut && isElementRenderable($donut)) {
     try {
       Charts.donut = new DonutChart($donut, {
         data: donutAgg.items, // ← usa donutAgg
@@ -1504,6 +1539,8 @@ function drawChartsFromRows(rows) {
     } catch (e) {
       err("DonutChart error:", e);
     }
+  } else {
+    log("CHARTS — DonutChart skip (hidden / no size)");
   }
 
   document.querySelectorAll(".hs-chart-skeleton")?.forEach((el) => el.remove());
