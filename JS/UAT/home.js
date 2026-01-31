@@ -16,7 +16,7 @@ const CONFIG = {
     0: "solicitud",
     1: "revision",
     2: "asignacion",
-    3: "proceso",
+    3: "enProceso",
     4: "pausado",
     5: "cancelado",
     6: "finalizado",
@@ -40,7 +40,7 @@ import {
   planScope,
   listByAsignado,
   parseReq,
-  hydrateAsignadoFields, // importante
+  hydrateAsignadoFields, // ← importante
 } from "/JS/api/requerimientos.js";
 import { createTable } from "/JS/ui/table.js";
 import { LineChart } from "/JS/charts/line-chart.js";
@@ -48,10 +48,6 @@ import { DonutChart } from "/JS/charts/donut-chart.js";
 
 /* === API de usuarios (empleados) === */
 import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
-
-/*-------- export para excel -------*/
-//import { initExportCSVHome } from "/JS/ui/exportCSVHome.js";
-import { initExportXLSXHome } from "/JS/ui/exportXLSXHome.js";
 
 /* ============================================================================
    SELECTORES
@@ -103,6 +99,14 @@ const setText = (sel, txt) => {
 
 function isMobileAccordion() {
   return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+}
+
+// Page size efectivo: en mobile evitamos blanks ajustando pageSize al total filtrado (0..N)
+function getEffectivePageSize(totalRows) {
+  const base = CONFIG.PAGE_SIZE;
+  if (!isMobileAccordion()) return base;
+  const n = Math.max(1, Math.min(base, parseInt(totalRows, 10) || 0 || 1));
+  return n;
 }
 
 function chevronSvg() {
@@ -655,7 +659,6 @@ function initSidebar(onChange) {
 
   group.setAttribute("role", "radiogroup");
   const items = $$(SEL.statusItems);
-
   items.forEach((btn, i) => {
     btn.setAttribute("role", "radio");
     btn.setAttribute("tabindex", i === 0 ? "0" : "-1");
@@ -663,55 +666,39 @@ function initSidebar(onChange) {
       "aria-checked",
       btn.classList.contains("is-active") ? "true" : "false",
     );
-
     const key = btn.dataset.status;
     if (!SIDEBAR_KEYS.includes(key)) warn("status no válido:", key);
 
     btn.addEventListener("click", () => {
-      // respeta locks RBAC
-      if (btn.getAttribute("aria-disabled") === "true") return;
-
-      // reset visual
+      if (btn.getAttribute("aria-disabled") === "true") return; // respeta lock
       items.forEach((b) => {
         b.classList.remove("is-active");
         b.setAttribute("aria-checked", "false");
         b.tabIndex = -1;
       });
-
-      // activar seleccionado
       btn.classList.add("is-active");
       btn.setAttribute("aria-checked", "true");
       btn.tabIndex = 0;
-
-      // estado
       State.filterKey = key || "todos";
       State.__page = 1;
-
       updateLegendStatus();
       onChange?.();
-
-      if (!isMobileAccordion()) {
-        $(SEL.searchInput)?.focus();
-      }
+      $(SEL.searchInput)?.focus();
     });
   });
 
-  // navegación por teclado (accesibilidad)
   group.addEventListener("keydown", (e) => {
     const cur = document.activeElement.closest(".item");
     const idx = Math.max(0, items.indexOf(cur));
     let next = idx;
-
     if (e.key === "ArrowDown" || e.key === "ArrowRight")
       next = (idx + 1) % items.length;
     if (e.key === "ArrowUp" || e.key === "ArrowLeft")
       next = (idx - 1 + items.length) % items.length;
-
     if (next !== idx) {
       items[next].focus();
       e.preventDefault();
     }
-
     if (e.key === " " || e.key === "Enter") {
       if (items[next].getAttribute("aria-disabled") === "true") {
         e.preventDefault();
@@ -741,39 +728,6 @@ function initSearch(onChange) {
 }
 
 /* ============================================================================
-   EXPORT XLSX (dinámico según vista actual)
-   - Deshabilita el botón cuando la vista (filtro/búsqueda) tiene 0 requerimientos
-   - Cambia el texto a "Sin requerimientos"
-   ========================================================================== */
-function updateExportButtonState(totalInView) {
-  const btn = document.getElementById("hs-btn-export-req");
-  if (!btn) return;
-
-  // Cachea etiqueta original (una sola vez)
-  if (!btn.dataset.labelDefault) {
-    const sp = btn.querySelector("span");
-    btn.dataset.labelDefault = (
-      sp?.textContent || "Exportar requerimientos"
-    ).trim();
-  }
-
-  const has = Number(totalInView || 0) > 0;
-
-  btn.disabled = !has;
-  btn.setAttribute("aria-disabled", has ? "false" : "true");
-
-  const sp = btn.querySelector("span");
-  if (sp) {
-    sp.textContent = has ? btn.dataset.labelDefault : "Sin requerimientos";
-  }
-
-  // Tooltip/ayuda (discreta)
-  btn.title = has
-    ? "Exportar requerimientos"
-    : "Sin requerimientos para exportar";
-}
-
-/* ============================================================================
    TABLA (Folio, Departamento, Tipo de trámite, Asignado, Teléfono, Estatus)
    ========================================================================== */
 function buildTable() {
@@ -782,6 +736,7 @@ function buildTable() {
     wrapSel: SEL.tableWrap,
     pagSel: null,
     pageSize: CONFIG.PAGE_SIZE,
+    fillWithBlanks: true, // blanks controlados por table.js; en mobile reducimos pageSize para evitar gaps
     columns: [
       // 1) Folio (numérico)
       {
@@ -832,7 +787,7 @@ function buildTable() {
         render: (v, r) => r.tramite || r.asunto || "—",
       },
 
-      // 4) Asignado (usar solo nombre  sin apellidos  y ordenar alfabético)
+      // 4) Asignado (usar solo nombre – sin apellidos – y ordenar alfabético)
       {
         key: "asignado",
         title: "Asignado",
@@ -951,27 +906,6 @@ function computeCounts(rows) {
   setText("#cnt-pausado", `(${c.pausado})`);
   setText("#cnt-cancelado", `(${c.cancelado})`);
   setText("#cnt-finalizado", `(${c.finalizado})`);
-
-  // Sync del label del combo mobile ("Todos (n)") después de hidratar contadores.
-  // En DOMContentLoaded se pinta con (0), pero los counts llegan después del fetch.
-  try {
-    const active = document.getElementById("hs-filter-active");
-    const states = document.getElementById("hs-states");
-    if (active && states) {
-      const btn =
-        states.querySelector(".item.is-active") ||
-        states.querySelector(".item[aria-checked='true']");
-      if (btn) {
-        const label = (
-          btn.querySelector(".label")?.textContent || "Todos"
-        ).trim();
-        const count = (
-          btn.querySelector(".count")?.textContent || "(0)"
-        ).trim();
-        active.textContent = `${label} ${count}`.trim();
-      }
-    }
-  } catch {}
 }
 
 /* ============================================================================
@@ -1057,9 +991,7 @@ function refreshCurrentPageDecorations() {
 
   // Marca filas y asegura expander en mobile
   const trs = Array.from(tbody.querySelectorAll("tr")).filter(
-    (tr) =>
-      !tr.classList.contains("hs-gap") &&
-      !tr.classList.contains("hs-row-expand"),
+    (tr) => !tr.classList.contains("hs-row-expand"),
   );
 
   const pageRows = State.table?.getRawRows?.() || [];
@@ -1072,9 +1004,23 @@ function refreshCurrentPageDecorations() {
     const idx = domIdx != null ? parseInt(domIdx, 10) : i;
     const row = pageRows[idx] || null;
 
-    // En desktop: nada extra
+    // Filas blank (gaps) creadas por table.js: data-row-idx="-1"
+    if (
+      domIdx === "-1" ||
+      tr.classList.contains("is-blank") ||
+      tr.getAttribute("aria-hidden") === "true"
+    ) {
+      tr.classList.add("hs-gap");
+      tr.classList.remove("is-clickable", "is-open");
+      // Nunca agregues expander/celdas extra a gaps (evita desalineación de columnas)
+      tr.querySelector("td.hs-cell-expander")?.remove();
+      return;
+    }
+
+    // En desktop: limpia decoraciones y no agregues expander
     if (!isMobileAccordion()) {
-      tr.classList.remove("is-open");
+      tr.classList.remove("is-open", "is-clickable");
+      tr.querySelector("td.hs-cell-expander")?.remove();
       return;
     }
 
@@ -1122,7 +1068,7 @@ function refreshCurrentPageDecorations() {
       const td = document.createElement("td");
       const isMobile =
         typeof isMobileAccordion === "function" && isMobileAccordion();
-      td.colSpan = isMobile ? 3 : tr.children.length || 8;
+      td.colSpan = tr.children.length;
 
       const raw = row.__raw || row;
       const depto = safeTxt(
@@ -1165,8 +1111,16 @@ function refreshCurrentPageDecorations() {
 
   // (opcional) logs y gaps como ya tenías
   const realCount = pageRows.length;
-  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
-  log("gaps añadidos:", gaps, "reales en página:", realCount);
+  const gaps = Math.max(
+    0,
+    (State.__pageSizeCurrent || CONFIG.PAGE_SIZE) - realCount,
+  );
+  log("decorations", {
+    realCount,
+    gaps,
+    pageSize: State.__pageSizeCurrent || CONFIG.PAGE_SIZE,
+    mobile: isMobileAccordion(),
+  });
 }
 
 /* Delegación permanente: mantiene los clicks aunque se regenere el <tbody> */
@@ -1191,7 +1145,7 @@ function setupRowClickDelegation() {
     const tr = e.target.closest("tr");
     if (!tr) return;
 
-    // Ignora filas gap y la subfila expandida
+    // Ignora filas “gap” y la subfila expandida
     if (tr.classList.contains("hs-gap")) return;
     if (tr.classList.contains("hs-row-expand")) return;
 
@@ -1366,14 +1320,16 @@ function applyPipelineAndRender() {
     estatus: r.estatus,
   }));
 
+  // Ajusta pageSize en mobile para evitar filas blank (gaps) cuando hay pocos registros (ej. Cancelado)
+  const ps = getEffectivePageSize(filtered.length);
+  State.__pageSizeCurrent = ps;
+  State.table?.setPageSize(ps);
   State.table?.setData(rows);
   State.__page = 1;
 
   refreshCurrentPageDecorations();
 
   State.__lastTotal = filtered.length; // para el pager
-
-  updateExportButtonState(filtered.length);
   renderPagerClassic(filtered.length);
 
   log("pipeline", {
@@ -1492,16 +1448,27 @@ function drawChartsFromRows(rows) {
   }
 
   if ($donut) {
-    try {
-      Charts.donut = new DonutChart($donut, {
-        data: donutAgg.items, // ← usa donutAgg
-        total: donutAgg.total, // ← usa donutAgg
-        legendEl: $(SEL.donutLegend) || null,
-        showPercLabels: true,
+    // Evita crash de canvas cuando el contenedor aún mide 0x0 (display:none / layout no listo)
+    const wrap = $donut.closest?.(".hs-chart-wrap") || $donut.parentElement;
+    const r = wrap?.getBoundingClientRect?.();
+    if (r && (r.width <= 0 || r.height <= 0)) {
+      log("CHARTS — DonutChart skipped (wrap 0x0)", {
+        w: r.width,
+        h: r.height,
+        dpr: window.devicePixelRatio,
       });
-      log("CHARTS — DonutChart render ok", { total: donutAgg.total });
-    } catch (e) {
-      err("DonutChart error:", e);
+    } else {
+      try {
+        Charts.donut = new DonutChart($donut, {
+          data: donutAgg.items, // ← usa donutAgg
+          total: donutAgg.total, // ← usa donutAgg
+          legendEl: $(SEL.donutLegend) || null,
+          showPercLabels: true,
+        });
+        log("CHARTS — DonutChart render ok", { total: donutAgg.total });
+      } catch (e) {
+        err("DonutChart error:", e);
+      }
     }
   }
 
@@ -1677,7 +1644,7 @@ async function loadScopeData() {
   State.universe = deduped;
   State.rows = visibleRows;
 
-  // DEBUG Sin asignar
+  // DEBUG “Sin asignar”
   try {
     const sinAsignar = State.rows
       .filter((r) => (r.asignado || "").toLowerCase() === "sin asignar")
@@ -1726,79 +1693,6 @@ async function loadScopeData() {
 /* ============================================================================
    INIT
    ========================================================================== */
-
-/* ======================================
- *  Mobile UI: Filtros como combo
- *  - No cambia lógica de filtros
- *  - Solo abre/cierra dropdown y muestra activo
- * ====================================== */
-function initMobileFilterCombo() {
-  const box = document.getElementById("hs-filterbox");
-  const toggle = document.getElementById("hs-filter-toggle");
-  const active = document.getElementById("hs-filter-active");
-  const states = document.getElementById("hs-states");
-  if (!box || !toggle || !active || !states) return;
-
-  const isMobile = () => window.matchMedia("(max-width: 820px)").matches;
-
-  const setActiveLabel = () => {
-    const btn =
-      states.querySelector(".item.is-active") ||
-      states.querySelector(".item[aria-checked='true']");
-    if (!btn) return;
-    const label = (btn.querySelector(".label")?.textContent || "Todos").trim();
-    const count = (btn.querySelector(".count")?.textContent || "(0)").trim();
-    active.textContent = `${label} ${count}`.trim();
-  };
-
-  const open = () => {
-    if (!isMobile()) return;
-    box.classList.add("is-open");
-    toggle.setAttribute("aria-expanded", "true");
-  };
-
-  const close = () => {
-    box.classList.remove("is-open");
-    toggle.setAttribute("aria-expanded", "false");
-  };
-
-  toggle.addEventListener("click", () => {
-    if (!isMobile()) return;
-    box.classList.toggle("is-open");
-    toggle.setAttribute(
-      "aria-expanded",
-      box.classList.contains("is-open") ? "true" : "false",
-    );
-  });
-
-  // Al escoger un status, cerramos el combo en mobile
-  states.addEventListener("click", (e) => {
-    const b = e.target.closest(".item");
-    if (!b) return;
-
-    // Espera a que la lógica marque is-active / aria-checked
-    setTimeout(() => {
-      setActiveLabel();
-      if (isMobile()) close();
-    }, 0);
-  });
-
-  // Click fuera cierra
-  document.addEventListener("click", (e) => {
-    if (!isMobile()) return;
-    if (!box.classList.contains("is-open")) return;
-    if (box.contains(e.target)) return;
-    close();
-  });
-
-  // Sync al cargar y al resize
-  setActiveLabel();
-  window.addEventListener("resize", () => {
-    setActiveLabel();
-    if (!isMobile()) close();
-  });
-}
-
 window.addEventListener("DOMContentLoaded", async () => {
   try {
     readSession();
@@ -1810,30 +1704,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     buildTable();
     updateLegendStatus();
 
-    initMobileFilterCombo();
-
     setupRowClickDelegation();
-
-    // bandera, export del csv para que no haya pedo
-    // initExportCSVHome({
-    //   buttonId: "hs-btn-export-req",
-    //   State,
-    //   normalizeStatusKey,
-    //   formatDateMXShort,
-    //   toast: (m, t = "info") =>
-    //     window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m),
-    //   getFilePrefix: () => "requerimientos",
-    // });
-
-    initExportXLSXHome({
-      buttonId: "hs-btn-export-req",
-      State,
-      normalizeStatusKey,
-      formatDateMXShort,
-      toast: (m, t = "info") =>
-        window.gcToast ? gcToast(m, t) : console.log("[toast]", t, m),
-      mode: "view", // respeta filtros/búsqueda
-    });
 
     const sess = Session?.get?.() || null;
     window.gcRefreshHeader?.(sess);
