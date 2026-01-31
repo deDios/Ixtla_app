@@ -753,7 +753,9 @@ function updateExportButtonState(totalInView) {
   // Cachea etiqueta original (una sola vez)
   if (!btn.dataset.labelDefault) {
     const sp = btn.querySelector("span");
-    btn.dataset.labelDefault = (sp?.textContent || "Exportar requerimientos").trim();
+    btn.dataset.labelDefault = (
+      sp?.textContent || "Exportar requerimientos"
+    ).trim();
   }
 
   const has = Number(totalInView || 0) > 0;
@@ -767,7 +769,9 @@ function updateExportButtonState(totalInView) {
   }
 
   // Tooltip/ayuda (discreta)
-  btn.title = has ? "Exportar requerimientos" : "Sin requerimientos para exportar";
+  btn.title = has
+    ? "Exportar requerimientos"
+    : "Sin requerimientos para exportar";
 }
 
 /* ============================================================================
