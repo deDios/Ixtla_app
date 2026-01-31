@@ -80,7 +80,7 @@ function exportXLSX({
       Teléfono: tel,
       Solicitado: solicitado || "—",
       Estatus: r?.estatus?.label || "—",
-      Prioridad: mapPrioridad(raw?.prioridad),
+      //Prioridad: mapPrioridad(raw?.prioridad), comentado porque prioridad no sirve mostrarlo
       Canal: mapCanal(raw?.canal),
       "Contacto nombre": raw?.contacto_nombre || "—",
       "Contacto correo": raw?.contacto_email || "—",
@@ -102,7 +102,7 @@ function exportXLSX({
   const range = XLSX.utils.decode_range(ws["!ref"]);
   ws["!autofilter"] = { ref: XLSX.utils.encode_range(range) };
 
-  // Anchos aproximados “presentables”
+  // Anchos
   ws["!cols"] = [
     { wch: 16 }, // Folio
     { wch: 22 }, // Depto
@@ -123,7 +123,7 @@ function exportXLSX({
     { wch: 18 }, // Cerrado en
   ];
 
-  // (Opcional) Freeze header: algunas builds lo soportan, otras no.
+  // Freeze header: algunas builds lo soportan, otras no. recordar tener cuidado con esto pero jala
   // Si no lo soporta, no pasa nada.
   try {
     ws["!freeze"] = {
