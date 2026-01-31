@@ -19,9 +19,9 @@ export function createTable({
   pagSel = "#tbl-pag",
   pageSize = 7,                    // <- default 7
   columns = [],
-  showEmptyRow = true,             // muestra una fila de “sin datos” dentro de la tabla
+  showEmptyRow = false,             // muestra una fila de “sin datos” dentro de la tabla
   emptyRowMessage = "No hay requerimientos asignados de momento",
-  fillWithBlanks = true,           // completa la página con celdas en blanco
+  fillWithBlanks = false,           // completa la página con celdas en blanco
   disableHoverOnBlanks = true,     // quita hover en filas vacías
   onRowClick = null,               // callback(row) cuando la fila tiene datos
   rowClass = null                  // callback(row) -> string de clases extra por fila de datos
