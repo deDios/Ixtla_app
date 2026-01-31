@@ -810,6 +810,7 @@ function buildTable() {
     wrapSel: SEL.tableWrap,
     pagSel: null,
     pageSize: CONFIG.PAGE_SIZE,
+    fillWithBlanks: false, // no agregar filas vacías
     columns: [
       // 1) Folio (numérico)
       {
@@ -1196,11 +1197,9 @@ function refreshCurrentPageDecorations() {
       tr.insertAdjacentElement("afterend", exp);
     }
   });
-
-  // (opcional) logs y gaps como ya tenías
+  // (opcional) log de filas reales en la página
   const realCount = pageRows.length;
-  const gaps = Math.max(0, CONFIG.PAGE_SIZE - realCount);
-  log("gaps añadidos:", gaps, "reales en página:", realCount);
+  log("rows reales en página:", realCount);
 }
 
 /* Delegación permanente: mantiene los clicks aunque se regenere el <tbody> */
