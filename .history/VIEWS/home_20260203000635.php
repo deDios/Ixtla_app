@@ -1,6 +1,6 @@
 <?php
-    require_once __DIR__ . '/../JS/auth/ix_guard.php';
-    ix_require_session();
+require_once __DIR__ . '/../JS/auth/ix_guard.php';
+ix_require_session();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -675,9 +675,9 @@
     <!-- componente de sheetjs -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 
-    <script src="/JS/JSglobal.js"></script>
-    <script type="module" src="/JS/home.js"></script>
-    <script type="module" src="/JS/ui/avatar-edit.js"></script>
+    <script src="/JS/UAT/JSglobal.js"></script>
+    <script type="module" src="/JS/UAT/home.js"></script>
+    <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
     <script type="module" src="/JS/ui/requerimientosCanal2.js"></script>
 
 

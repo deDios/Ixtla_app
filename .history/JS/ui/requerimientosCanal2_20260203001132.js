@@ -58,7 +58,7 @@
   // =========================
   // Reglas
   // =========================
-  const PRESIDENCIA_DEPT_ID = 6;
+  const PRESIDENCIA_DEPT_ID = 6; 
   const ADMIN_ROLES = ["ADMIN"];
 
   // =========================
@@ -587,8 +587,7 @@
       const otros = isOtros(tramName);
       const asunto = (asuntoInput?.value || "").trim();
 
-      const nombreLen = nombre.replace(/\s+/g, "").length;
-      if (nombreLen < CFG.NAME_MIN_CHARS) return { ok: false, firstBad: "nombre" };
+      if (nombre.length < CFG.NAME_MIN_CHARS) return { ok: false, firstBad: "nombre" };
       if (!domicilio) return { ok: false, firstBad: "dom" };
       if (!cp) return { ok: false, firstBad: "cp" };
       if (!col) return { ok: false, firstBad: "col" };
