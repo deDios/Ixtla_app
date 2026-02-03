@@ -1051,9 +1051,13 @@
     btn.addEventListener("click", async (e) => {
       e.preventDefault();
       await hydrateOnOpen();
+      openModal(modal);
       setToday();
       clearFeedback();
       hasAttemptedSubmit = false;
+      try {
+        syncSubmitState();
+      } catch (_) {}
     });
 
     selDept.addEventListener("change", async () => {
