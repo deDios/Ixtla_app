@@ -406,7 +406,7 @@
     const CFG = {
       NAME_MIN_CHARS: 2,
       DESC_MIN_CHARS: 0,
-      PHONE_DIGITS: 0,
+      PHONE_DIGITS: 2,
       MAX_FILES: 3,
       MIN_FILES: 0,
       MAX_MB: 1,

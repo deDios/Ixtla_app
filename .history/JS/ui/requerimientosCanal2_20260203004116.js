@@ -58,7 +58,7 @@
   // =========================
   // Reglas
   // =========================
-  const PRESIDENCIA_DEPT_ID = 6; 
+  const PRESIDENCIA_DEPT_ID = 6;
   const ADMIN_ROLES = ["ADMIN"];
 
   // =========================
@@ -405,8 +405,8 @@
 
     const CFG = {
       NAME_MIN_CHARS: 2,
-      DESC_MIN_CHARS: 0,
-      PHONE_DIGITS: 0,
+      DESC_MIN_CHARS: 10,
+      PHONE_DIGITS: 10,
       MAX_FILES: 3,
       MIN_FILES: 0,
       MAX_MB: 1,
@@ -574,28 +574,55 @@
     }
 
     function validateForm() {
-      const nombre = (inpNombre?.value || "").trim();
-      const domicilio = (inpDom?.value || "").trim();
-      const cp = (selCp?.value || "").trim();
-      const col = (selCol?.value || "").trim();
-      const tel = digits(inpTel?.value || "");
-      const correo = (inpCorreo?.value || "").trim();
-      const desc = (inpDesc?.value || "").trim();
+      // Helpers rápidos
+      const val = (el) => String(el?.value || "").trim();
+      const has = (s) => val({ value: s }).length > 0; // por si ocupas luego
+
+      const nombre = val(inpNombre);
+      const domicilio = val(inpDom);
+      const cp = val(selCp);
+      const col = val(selCol);
+
+      // OJO: mejor validar el trámite por el hidden id (hidTram),
+      // porque el select puede tener placeholder aunque haya texto.
+      const tramId = val(hidTram);
+
+      const tel = digits(val(inpTel));
+      const correo = val(inpCorreo);
+      const desc = val(inpDesc);
       const consent = !!chkCons?.checked;
 
       const tramName = selTram?.selectedOptions?.[0]?.textContent?.trim() || "";
       const otros = isOtros(tramName);
-      const asunto = (asuntoInput?.value || "").trim();
+      const asunto = val(asuntoInput);
 
-      if (nombre.length < CFG.NAME_MIN_CHARS) return { ok: false, firstBad: "nombre" };
+      // =========================
+      // Validaciones "suaves" (campos simples)
+      // =========================
+      if (nombre.length < 2) return { ok: false, firstBad: "nombre" };
       if (!domicilio) return { ok: false, firstBad: "dom" };
+      if (desc.length < 5) return { ok: false, firstBad: "desc" };
+
+      // Tel (sigue básico)
+      if (tel.length !== CFG.PHONE_DIGITS) return { ok: false, firstBad: "tel" };
+
+      // Correo opcional: si lo ponen, que sea válido
+      if (correo && !isEmail(correo)) return { ok: false, firstBad: "correo" };
+
+      // Consent obligatorio
+      if (!consent) return { ok: false, firstBad: "consent" };
+
+      // =========================
+      // Validaciones "estrictas" (combos)
+      // =========================
       if (!cp) return { ok: false, firstBad: "cp" };
       if (!col) return { ok: false, firstBad: "col" };
-      if (tel.length !== CFG.PHONE_DIGITS) return { ok: false, firstBad: "tel" };
-      if (correo && !isEmail(correo)) return { ok: false, firstBad: "correo" };
-      if (desc.length < CFG.DESC_MIN_CHARS) return { ok: false, firstBad: "desc" };
-      if (!consent) return { ok: false, firstBad: "consent" };
-      if (otros && asunto.length < 3) return { ok: false, firstBad: "asunto" };
+      if (!tramId) return { ok: false, firstBad: "tram" };
+
+      // "Otros" pide asunto (suave: solo que exista)
+      if (otros && asunto.length < 2) return { ok: false, firstBad: "asunto" };
+
+      // Máximo de archivos
       if (files.length > CFG.MAX_FILES) return { ok: false, firstBad: "files" };
 
       return { ok: true };
