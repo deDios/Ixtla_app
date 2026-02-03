@@ -58,13 +58,17 @@
   // =========================
   // Reglas
   // =========================
-  const PRESIDENCIA_DEPT_ID = 6; 
+  const PRESIDENCIA_DEPT_ID = 6;
   const ADMIN_ROLES = ["ADMIN"];
 
   // =========================
   // Helpers: POST sin credenciales
   // =========================
-  async function postNoCreds(url, payload, { timeout = 15000, headers = {} } = {}) {
+  async function postNoCreds(
+    url,
+    payload,
+    { timeout = 15000, headers = {} } = {},
+  ) {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeout);
     try {
@@ -83,11 +87,16 @@
       const json = await res.json().catch(() => null);
       if (!res.ok) {
         const msg =
-          json?.error || json?.mensaje || json?.message || `${res.status} ${res.statusText}`;
+          json?.error ||
+          json?.mensaje ||
+          json?.message ||
+          `${res.status} ${res.statusText}`;
         throw new Error(msg);
       }
       if (json?.ok === false) {
-        throw new Error(json?.error || json?.mensaje || json?.message || "Respuesta ok:false");
+        throw new Error(
+          json?.error || json?.mensaje || json?.message || "Respuesta ok:false",
+        );
       }
       return json || {};
     } finally {
@@ -98,7 +107,11 @@
   // =========================
   // Helpers: POST same-origin (incluye cookies) — requerido por /webpublic_proxy.php
   // =========================
-  async function postSameOrigin(url, payload, { timeout = 15000, headers = {} } = {}) {
+  async function postSameOrigin(
+    url,
+    payload,
+    { timeout = 15000, headers = {} } = {},
+  ) {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeout);
     try {
@@ -117,7 +130,8 @@
 
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        const msg = json?.error || json?.mensaje || `${res.status} ${res.statusText}`;
+        const msg =
+          json?.error || json?.mensaje || `${res.status} ${res.statusText}`;
         throw new Error(msg);
       }
       if (json?.ok === false) {
@@ -128,7 +142,6 @@
       clearTimeout(t);
     }
   }
-
 
   // =========================
   // Helpers: normalización
@@ -164,7 +177,7 @@
     let s = null;
     try {
       s = window.Session?.get?.() || null;
-    } catch { }
+    } catch {}
     if (!s) s = readIxCookie();
 
     const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
@@ -210,7 +223,9 @@
       opt.value = String(it.value);
       opt.textContent = String(it.label);
       if (it.dataset) {
-        Object.entries(it.dataset).forEach(([k, v]) => (opt.dataset[k] = String(v)));
+        Object.entries(it.dataset).forEach(
+          ([k, v]) => (opt.dataset[k] = String(v)),
+        );
       }
       el.appendChild(opt);
     });
@@ -285,7 +300,9 @@
       }))
       .filter((d) => d.id && d.nombre)
       .filter((d) => Number(d.status) === 1)
-      .filter((d) => d.id !== PRESIDENCIA_DEPT_ID && norm(d.nombre) !== "presidencia")
+      .filter(
+        (d) => d.id !== PRESIDENCIA_DEPT_ID && norm(d.nombre) !== "presidencia",
+      )
       .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
     return out;
@@ -326,14 +343,18 @@
     const map = {};
     for (const r of rows) {
       const cp = String(r?.cp ?? r?.CP ?? r?.codigo_postal ?? "").trim();
-      const col = String(r?.colonia ?? r?.Colonia ?? r?.asentamiento ?? "").trim();
+      const col = String(
+        r?.colonia ?? r?.Colonia ?? r?.asentamiento ?? "",
+      ).trim();
       if (!cp || !col) continue;
       if (!map[cp]) map[cp] = new Set();
       map[cp].add(col);
     }
     const finalMap = {};
     Object.keys(map).forEach((cp) => {
-      finalMap[cp] = Array.from(map[cp]).sort((a, b) => a.localeCompare(b, "es"));
+      finalMap[cp] = Array.from(map[cp]).sort((a, b) =>
+        a.localeCompare(b, "es"),
+      );
     });
     const cps = Object.keys(finalMap).sort();
     return { cps, map: finalMap };
@@ -373,7 +394,15 @@
     const asuntoGroup = modal.querySelector(`#${IDS.asuntoGroup}`);
     const asuntoInput = modal.querySelector(`#${IDS.asuntoInput}`);
 
-    if (!selDept || !selTram || !selCp || !selCol || !hidDept || !hidTram || !hidReqTitle) {
+    if (
+      !selDept ||
+      !selTram ||
+      !selCp ||
+      !selCol ||
+      !hidDept ||
+      !hidTram ||
+      !hidReqTitle
+    ) {
       warn("Faltan IDs del modal (selects/hidden). Revisa el HTML del modal.");
       return;
     }
@@ -385,7 +414,9 @@
         closeModal(modal);
       });
     });
-    modal.querySelector(".ix-modal__overlay")?.addEventListener("click", () => closeModal(modal));
+    modal
+      .querySelector(".ix-modal__overlay")
+      ?.addEventListener("click", () => closeModal(modal));
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !modal.hidden) closeModal(modal);
     });
@@ -395,7 +426,8 @@
     // =========================
     const toast = (msg, type = "info", ms = 3000) => {
       try {
-        if (typeof window.gcToast === "function") return window.gcToast(msg, type, ms);
+        if (typeof window.gcToast === "function")
+          return window.gcToast(msg, type, ms);
         if (window.ixToast?.[type]) return window.ixToast[type](msg, ms);
         console.log(TAG, "[toast]", type, msg);
       } catch {
@@ -410,7 +442,13 @@
       MAX_FILES: 3,
       MIN_FILES: 0,
       MAX_MB: 1,
-      ACCEPT_MIME: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"],
+      ACCEPT_MIME: [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+      ],
       ACCEPT_EXT: [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"],
     };
 
@@ -442,7 +480,8 @@
     const inpFecha = modal.querySelector("#ix-fecha");
 
     const digits = (s) => String(s || "").replace(/\D+/g, "");
-    const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || "").trim());
+    const isEmail = (s) =>
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || "").trim());
     const extOf = (name = "") => {
       const n = String(name).toLowerCase();
       const i = n.lastIndexOf(".");
@@ -492,7 +531,7 @@
         if (!f._url) {
           try {
             f._url = URL.createObjectURL(f);
-          } catch { }
+          } catch {}
         }
         if (f._url) img.src = f._url;
 
@@ -505,7 +544,7 @@
           if (gone?._url) {
             try {
               URL.revokeObjectURL(gone._url);
-            } catch { }
+            } catch {}
           }
           refreshPreviews();
           form?.dispatchEvent(new Event("input", { bubbles: true }));
@@ -542,7 +581,11 @@
               continue;
             }
             if (mb > CFG.MAX_MB) {
-              toast(`Archivo muy pesado (máx ${CFG.MAX_MB}MB): ${f.name}`, "warn", 3200);
+              toast(
+                `Archivo muy pesado (máx ${CFG.MAX_MB}MB): ${f.name}`,
+                "warn",
+                3200,
+              );
               continue;
             }
             valid.push(f);
@@ -559,7 +602,9 @@
           e.preventDefault();
           upWrap.classList.add("drag");
         });
-        upWrap.addEventListener("dragleave", () => upWrap.classList.remove("drag"));
+        upWrap.addEventListener("dragleave", () =>
+          upWrap.classList.remove("drag"),
+        );
         upWrap.addEventListener("drop", (e) => {
           e.preventDefault();
           upWrap.classList.remove("drag");
@@ -574,31 +619,72 @@
     }
 
     function validateForm() {
-      const nombre = (inpNombre?.value || "").trim();
-      const domicilio = (inpDom?.value || "").trim();
-      const cp = (selCp?.value || "").trim();
-      const col = (selCol?.value || "").trim();
-      const tel = digits(inpTel?.value || "");
-      const correo = (inpCorreo?.value || "").trim();
-      const desc = (inpDesc?.value || "").trim();
+      const deptId = String(hidDept?.value || "").trim();
+      const tramId = String(hidTram?.value || "").trim();
+
+      const cp = String(selCp?.value || "").trim();
+      const col = String(selCol?.value || "").trim();
       const consent = !!chkCons?.checked;
 
       const tramName = selTram?.selectedOptions?.[0]?.textContent?.trim() || "";
       const otros = isOtros(tramName);
-      const asunto = (asuntoInput?.value || "").trim();
+      const asunto = String(asuntoInput?.value || "").trim();
 
-      if (nombre.length < CFG.NAME_MIN_CHARS) return { ok: false, firstBad: "nombre" };
-      if (!domicilio) return { ok: false, firstBad: "dom" };
+      // solo checo campos importantes
+      if (!deptId) return { ok: false, firstBad: "dept" };
+      if (!tramId) return { ok: false, firstBad: "tram" };
       if (!cp) return { ok: false, firstBad: "cp" };
       if (!col) return { ok: false, firstBad: "col" };
-      if (tel.length !== CFG.PHONE_DIGITS) return { ok: false, firstBad: "tel" };
-      if (correo && !isEmail(correo)) return { ok: false, firstBad: "correo" };
-      if (desc.length < CFG.DESC_MIN_CHARS) return { ok: false, firstBad: "desc" };
       if (!consent) return { ok: false, firstBad: "consent" };
       if (otros && asunto.length < 3) return { ok: false, firstBad: "asunto" };
+
+      // Evidencias
       if (files.length > CFG.MAX_FILES) return { ok: false, firstBad: "files" };
 
       return { ok: true };
+    }
+
+    // aviso si hace falta algo
+    function getMissingForTooltip() {
+      const miss = [];
+
+      const deptId = String(hidDept?.value || "").trim();
+      const tramId = String(hidTram?.value || "").trim();
+      const cp = String(selCp?.value || "").trim();
+      const col = String(selCol?.value || "").trim();
+      const consent = !!chkCons?.checked;
+
+      const tramName = selTram?.selectedOptions?.[0]?.textContent?.trim() || "";
+      const otros = isOtros(tramName);
+      const asunto = String(asuntoInput?.value || "").trim();
+
+      if (!deptId) miss.push("Departamento");
+      if (!tramId) miss.push("Trámite");
+      if (!cp) miss.push("C.P.");
+      if (!col) miss.push("Colonia");
+      if (!consent) miss.push("Aceptar términos");
+      if (otros && asunto.length < 3) miss.push("Asunto (mín 3)");
+
+      if (files.length > CFG.MAX_FILES)
+        miss.push(`Máx ${CFG.MAX_FILES} evidencias`);
+
+      return miss;
+    }
+
+    function syncSubmitState() {
+      const v = validateForm();
+      const missing = getMissingForTooltip();
+
+      if (btnSend) {
+        btnSend.disabled = !v.ok || isSubmitting;
+
+        // Tooltip nativo: title
+        if (!v.ok && missing.length) {
+          btnSend.title = "Falta:\n- " + missing.join("\n- ");
+        } else {
+          btnSend.removeAttribute("title");
+        }
+      }
     }
 
     // Conecta UI
@@ -607,8 +693,7 @@
     inpDesc?.addEventListener("input", updateDescCount);
 
     form?.addEventListener("input", () => {
-      const { ok } = validateForm();
-      if (btnSend) btnSend.disabled = !ok || isSubmitting;
+      syncSubmitState();
       if (hasAttemptedSubmit) clearFeedback();
     });
 
@@ -623,20 +708,24 @@
       hasAttemptedSubmit = true;
 
       const res = validateForm();
+
       if (!res.ok) {
         const sel = {
-          nombre: "#ix-nombre",
-          dom: "#ix-domicilio",
+          dept: `#${IDS.deptSelect}`,
+          tram: `#${IDS.tramSelect}`,
           cp: "#ix-cp",
           col: "#ix-colonia",
-          tel: "#ix-telefono",
-          correo: "#ix-correo",
-          desc: "#ix-descripcion",
           consent: "#ix-consent",
           asunto: "#ix-asunto",
         }[res.firstBad];
+
         modal.querySelector(sel || "")?.focus?.();
-        showFeedback("Revisa los campos marcados. Hay información faltante o inválida.");
+        const missing = getMissingForTooltip();
+        showFeedback(
+          missing.length
+            ? `Falta completar:\n- ${missing.join("\n- ")}`
+            : "Revisa los campos marcados. Hay información faltante o inválida.",
+        );
         return;
       }
 
@@ -644,13 +733,16 @@
       const tramIdRaw = hidTram?.value || "";
       const tramId = tramIdRaw ? Number(tramIdRaw) : null;
 
-      const tramName = selTram?.selectedOptions?.[0]?.textContent?.trim() || "Requerimiento";
+      const tramName =
+        selTram?.selectedOptions?.[0]?.textContent?.trim() || "Requerimiento";
       const otros = isOtros(tramName);
 
       const body = {
         departamento_id: depId,
         tramite_id: tramId,
-        asunto: otros ? String(asuntoInput?.value || "").trim() : `Reporte ${tramName}`,
+        asunto: otros
+          ? String(asuntoInput?.value || "").trim()
+          : `Reporte ${tramName}`,
         descripcion: String(inpDesc?.value || "").trim(),
         contacto_nombre: String(inpNombre?.value || "").trim(),
         contacto_email: String(inpCorreo?.value || "").trim() || null,
@@ -683,7 +775,7 @@
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Accept": "application/json",
+            Accept: "application/json",
             "X-Requested-With": "XMLHttpRequest",
             "Idempotency-Key": idempKey,
           },
@@ -691,20 +783,24 @@
           body: rawBody,
         }).then(async (r) => {
           let j = null;
-          try { j = await r.json(); } catch { }
+          try {
+            j = await r.json();
+          } catch {}
           if (!r.ok) {
             const msg = j?.error || j?.mensaje || `HTTP ${r.status}`;
             throw new Error(msg);
           }
-          if (j?.ok === false) throw new Error(j?.error || j?.mensaje || "ok:false");
+          if (j?.ok === false)
+            throw new Error(j?.error || j?.mensaje || "ok:false");
           return j || {};
         });
 
-
-        if (!json?.ok || !json?.data) throw new Error("Respuesta inesperada del servidor.");
+        if (!json?.ok || !json?.data)
+          throw new Error("Respuesta inesperada del servidor.");
 
         const created = json.data || {};
-        const newId = Number(created?.id ?? created?.requerimiento_id ?? 0) || null;
+        const newId =
+          Number(created?.id ?? created?.requerimiento_id ?? 0) || null;
         const folio =
           created?.folio ||
           // fallback: si backend no manda folio (raro), seguimos usando el formato anterior
@@ -713,15 +809,33 @@
         // 2) UPDATE (canal 2 / estatus 3) — workaround
         if (newId) {
           try {
-            await postNoCreds(EP.updateReq, { id: newId, estatus: ESTATUS_TARGET, canal: CANAL_TARGET });
-            log("update canal2 ok:", { id: newId, estatus: ESTATUS_TARGET, canal: CANAL_TARGET });
+            await postNoCreds(EP.updateReq, {
+              id: newId,
+              estatus: ESTATUS_TARGET,
+              canal: CANAL_TARGET,
+            });
+            log("update canal2 ok:", {
+              id: newId,
+              estatus: ESTATUS_TARGET,
+              canal: CANAL_TARGET,
+            });
           } catch (e2) {
             warn("update canal2 falló (no bloquea):", e2);
-            toast("Reporte creado, pero no se pudo ajustar canal/estatus.", "warn", 4200);
+            toast(
+              "Reporte creado, pero no se pudo ajustar canal/estatus.",
+              "warn",
+              4200,
+            );
           }
         } else {
-          warn("No vino 'id' en el insert; no se pudo hacer update canal2.", { created });
-          toast("Reporte creado, pero no se pudo ajustar canal/estatus (faltó id).", "warn", 4500);
+          warn("No vino 'id' en el insert; no se pudo hacer update canal2.", {
+            created,
+          });
+          toast(
+            "Reporte creado, pero no se pudo ajustar canal/estatus (faltó id).",
+            "warn",
+            4500,
+          );
         }
 
         // 3) Evidencias (multipart)
@@ -731,18 +845,27 @@
           fd.append("status", "0");
           files.forEach((f) => fd.append("files[]", f, f.name));
 
-          const upRes = await fetch(EP.uploadImg, { method: "POST", body: fd, credentials: "omit" });
+          const upRes = await fetch(EP.uploadImg, {
+            method: "POST",
+            body: fd,
+            credentials: "omit",
+          });
           let upJson = null;
           try {
             upJson = await upRes.json();
-          } catch { }
+          } catch {}
 
           if (!upRes.ok || upJson?.ok === false) {
-            const msg = upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`;
+            const msg =
+              upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`;
             toast(msg, "warn", 3800);
           } else if (upJson?.skipped?.length) {
-            const names = upJson.skipped.map((s) => s?.name).filter(Boolean).join(", ");
-            if (names) toast(`Se omitieron algunas imágenes: ${names}`, "warn", 4500);
+            const names = upJson.skipped
+              .map((s) => s?.name)
+              .filter(Boolean)
+              .join(", ");
+            if (names)
+              toast(`Se omitieron algunas imágenes: ${names}`, "warn", 4500);
           }
         }
 
@@ -751,13 +874,13 @@
         // reset
         try {
           form.reset();
-        } catch { }
+        } catch {}
         setToday();
         files.forEach((f) => {
           if (f?._url) {
             try {
               URL.revokeObjectURL(f._url);
-            } catch { }
+            } catch {}
           }
         });
         files = [];
@@ -775,8 +898,7 @@
         form.removeAttribute("aria-busy");
         if (btnSend) {
           btnSend.textContent = oldTxt;
-          const { ok } = validateForm();
-          btnSend.disabled = !ok;
+          syncSubmitState();
         }
       }
     });
@@ -843,6 +965,9 @@
             cols.map((c) => ({ value: c, label: c })),
             cols.length ? "Selecciona colonia" : "Sin colonias",
           );
+          try {
+            syncSubmitState();
+          } catch (_) {}
         };
       } catch (e) {
         err("Error cargando CP/Colonia:", e);
@@ -873,7 +998,8 @@
 
       try {
         cacheDepartamentos =
-          cacheDepartamentos || (await loadDepartamentosActivosSinPresidencia());
+          cacheDepartamentos ||
+          (await loadDepartamentosActivosSinPresidencia());
 
         fillSelect(
           selDept,
@@ -886,7 +1012,10 @@
         if (rbac.canPickDept) {
           selDept.disabled = false;
 
-          if (myDept != null && cacheDepartamentos.some((d) => Number(d.id) === Number(myDept))) {
+          if (
+            myDept != null &&
+            cacheDepartamentos.some((d) => Number(d.id) === Number(myDept))
+          ) {
             selDept.value = String(myDept);
           } else {
             selDept.value = "";
@@ -925,7 +1054,6 @@
       setToday();
       clearFeedback();
       hasAttemptedSubmit = false;
-      openModal(modal);
     });
 
     selDept.addEventListener("change", async () => {
@@ -934,6 +1062,9 @@
 
       if (deptId) {
         await paintTramitesForDept(deptId);
+        try {
+          syncSubmitState();
+        } catch (_) {}
       } else {
         selTram.disabled = true;
         fillSelect(selTram, [], "Selecciona un departamento primero");
@@ -965,9 +1096,8 @@
       });
 
       try {
-        const v = validateForm();
-        if (btnSend) btnSend.disabled = !v.ok || isSubmitting;
-      } catch (_) { }
+        syncSubmitState();
+      } catch (_) {}
     });
 
     if (asuntoInput) {
