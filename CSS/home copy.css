@@ -315,7 +315,7 @@ main.home-samapa {
   overflow-x: hidden;
   padding-right: 12px;
   scrollbar-gutter: stable both-edges;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 #donut-legend {
@@ -428,11 +428,14 @@ main.home-samapa {
   border: 0;
   background: transparent;
   outline: none;
-  min-width: 260px;
+  min-width: 240px;
   color: var(--hs-text);
+  font-size: 11px;
 }
 
 .hs-table .hs-tools .legend {
+  font-size: 13px;
+  text-align: center;
   padding-left: 22px;
   border-left: 1px solid var(--hs-border);
   color: #566171;
@@ -2585,7 +2588,7 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   background: #859F8E;
   color: #ffffff;
 
-  font-size: 0.875rem;
+  font-size: 0.675rem;
   font-weight: 500;
   white-space: nowrap;
 
