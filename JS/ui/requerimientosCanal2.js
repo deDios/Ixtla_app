@@ -27,8 +27,7 @@
     // Media
     uploadImg: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,
 
-    // WhatsApp
-    wappText: `/db/WEB/send_wapp_text.php`,
+    
   };
 
   // Valores destino (canal 2)
@@ -144,16 +143,6 @@
     } finally {
       clearTimeout(t);
     }
-  }
-
-  function normalizePhoneForWapp(raw) {
-    const d = String(raw || "").replace(/\D+/g, "");
-    if (!d) return null;
-    // si son 10 dígitos, asumimos MX y anteponemos 52
-    if (/^\d{10}$/.test(d)) return "52" + d;
-    // si ya viene con país (11 a 15)
-    if (/^\d{11,15}$/.test(d)) return d;
-    return null;
   }
 
   // =========================
@@ -883,27 +872,6 @@
         }
 
         toast(`Reporte creado: ${folio}`, "ok", 3200);
-
-        // WhatsApp si existe telefono y es valido manda mensaje
-        try {
-          const telNorm = normalizePhoneForWapp(inpTel?.value);
-          if (telNorm) {
-            const msg = `Tu reporte fue creado con folio ${folio}.`;
-            await postSameOrigin(
-              EP.wappText,
-              { to: telNorm, text: msg },
-              { timeout: 15000 },
-            );
-            // toast("Notificación enviada por WhatsApp.", "ok", 2500);
-          }
-        } catch (werr) {
-          warn("wapp falló (no bloquea):", werr);
-          toast(
-            "El reporte se creó, pero no se pudo enviar WhatsApp.",
-            "warn",
-            3500,
-          );
-        }
 
         // reset
         try {
