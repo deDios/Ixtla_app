@@ -114,35 +114,43 @@ function formatDateMX(str) {
   const pill = document.getElementById("req-status-pill");
   if (!pill) return;
 
-  const textSpan = pill.querySelector("span:last-child") || pill;
+  // el HTML es: <span id="req-status-pill"> <span>En —</span> </span>
+  const textSpan = pill.querySelector("span") || pill;
 
-  function readStatusText() {
-    // 1) Badge de estatus (si está en el DOM)
-    const badge = document.querySelector('[data-role="status-badge"]');
-    const t1 = badge?.textContent?.trim();
-    if (t1) return t1;
-
-    // 2) Fallback: stepper current
-    const current = document.querySelector(".step-menu li.current");
-    const t2 = current?.textContent?.trim();
-    if (t2) return t2;
-
-    return "—";
+  function getFromStepper() {
+    const cur = document.querySelector(".step-menu li.current");
+    const t = cur?.textContent?.trim();
+    return t || "";
   }
 
-  function normalize(status) {
-    // Evita "En En Proceso" si alguna vez llega así
-    const s = (status || "—").trim();
-    return s.toLowerCase().startsWith("en ") ? s.slice(3).trim() : s;
+  function getFromBadge() {
+    const badge = document.querySelector('[data-role="status-badge"]');
+    const t = badge?.textContent?.trim();
+    return t || "";
+  }
+
+  function normalize(s) {
+    const v = (s || "").trim();
+    if (!v) return "—";
+    return v.toLowerCase().startsWith("en ") ? v.slice(3).trim() : v;
   }
 
   function paint() {
-    const status = normalize(readStatusText());
+    const status = normalize(getFromStepper() || getFromBadge());
     textSpan.textContent = `En ${status}`;
   }
 
   paint();
-  document.addEventListener("req:loaded", paint);
+
+  setTimeout(paint, 150);
+  setTimeout(paint, 600);
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(
+      ".exp-tab, [data-role='status-btn'], .status-select, .step-menu li",
+    );
+    if (btn) setTimeout(paint, 50);
+  });
 })();
 
 /** Fecha/hora actual en formato SQL: YYYY-MM-DD HH:MM:SS */
