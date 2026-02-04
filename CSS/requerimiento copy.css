@@ -2819,23 +2819,29 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 }
 
 
-/* PILL de estatus */
-.req-status-pill{
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: .92rem;
-  line-height: 1;
-  background: rgba(16, 185, 129, .12); /* verde suave */
-  color: #0f5132; /* verde oscuro */
-  border: 1px solid rgba(16, 185, 129, .22);
-  white-space: nowrap;
+/* Por defecto: NO se ve (desktop/tablet) */
+.exp-status-mobile {
+  display: none;
 }
 
-@media (max-width: 820px){
-  .container .step-menu{ display:none; }
-}
+/* Mobile: mostrar pill, ocultar stepper */
+@media (max-width: 820px) {
+  .container .step-menu {
+    display: none;
+  }
 
+  .exp-status-mobile {
+    display: flex;
+    justify-content: center;
+    margin: 10px 0 6px;
+  }
+
+  /* Que se vea como botón centrado y “presentable” */
+  .exp-status-mobile .exp-status-pill {
+    width: min(520px, calc(100% - 24px)); /* centrado, con respiración */
+    justify-content: center;
+    cursor: default; /* no parece botón de acción */
+    pointer-events: none; /* evita clicks fantasma */
+    opacity: 0.95;
+  }
+}

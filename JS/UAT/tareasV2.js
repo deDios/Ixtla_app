@@ -114,13 +114,15 @@ function formatDateMX(str) {
   const pill = document.getElementById("req-status-pill");
   if (!pill) return;
 
+  const textSpan = pill.querySelector("span:last-child") || pill;
+
   function readStatusText() {
-    // 1) intenta desde el badge real del estatus
+    // 1) Badge de estatus (si está en el DOM)
     const badge = document.querySelector('[data-role="status-badge"]');
     const t1 = badge?.textContent?.trim();
     if (t1) return t1;
 
-    // 2) fallback: stepper current
+    // 2) Fallback: stepper current
     const current = document.querySelector(".step-menu li.current");
     const t2 = current?.textContent?.trim();
     if (t2) return t2;
@@ -128,15 +130,18 @@ function formatDateMX(str) {
     return "—";
   }
 
-  function paint() {
-    const status = readStatusText();
-    pill.textContent = `En ${status}`;
+  function normalize(status) {
+    // Evita "En En Proceso" si alguna vez llega así
+    const s = (status || "—").trim();
+    return s.toLowerCase().startsWith("en ") ? s.slice(3).trim() : s;
   }
 
-  // pinta al cargar
-  paint();
+  function paint() {
+    const status = normalize(readStatusText());
+    textSpan.textContent = `En ${status}`;
+  }
 
-  // si tu vista dispara el evento cuando hidrata el req, repinta
+  paint();
   document.addEventListener("req:loaded", paint);
 })();
 

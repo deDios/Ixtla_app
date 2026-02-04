@@ -159,8 +159,6 @@ ix_require_session();
 
                     <!-- Fila 2: botones, renglón propio -->
                     <div class="exp-head-actions">
-                        <!-- PILL de estatus (nuevo) -->
-                        <span id="req-status-pill" class="req-status-pill" aria-live="polite">En —</span>
                         <div id="req-actions" class="exp-actions">
                             <!-- los botones se rellenan por JS, deja este contenedor -->
                         </div>
@@ -179,6 +177,13 @@ ix_require_session();
                         <li role="button" data-status="5">Cancelado</li>
                         <li role="button" data-status="6">Finalizado</li>
                     </ul>
+                </div>
+
+                <!-- Mobile-only: Estatus pill -->
+                <div class="exp-status-mobile" aria-hidden="true">
+                    <span id="req-status-pill" class="exp-expediente-btn exp-status-pill" aria-live="polite">
+                        <span>En —</span>
+                    </span>
                 </div>
 
                 <!-- Tabs + botón Generar expediente -->
