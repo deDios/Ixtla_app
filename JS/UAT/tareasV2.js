@@ -110,6 +110,36 @@ function formatDateMX(str) {
   });
 }
 
+(function () {
+  const pill = document.getElementById("req-status-pill");
+  if (!pill) return;
+
+  function readStatusText() {
+    // 1) intenta desde el badge real del estatus
+    const badge = document.querySelector('[data-role="status-badge"]');
+    const t1 = badge?.textContent?.trim();
+    if (t1) return t1;
+
+    // 2) fallback: stepper current
+    const current = document.querySelector(".step-menu li.current");
+    const t2 = current?.textContent?.trim();
+    if (t2) return t2;
+
+    return "—";
+  }
+
+  function paint() {
+    const status = readStatusText();
+    pill.textContent = `En ${status}`;
+  }
+
+  // pinta al cargar
+  paint();
+
+  // si tu vista dispara el evento cuando hidrata el req, repinta
+  document.addEventListener("req:loaded", paint);
+})();
+
 /** Fecha/hora actual en formato SQL: YYYY-MM-DD HH:MM:SS */
 function nowAsSqlDateTime() {
   const d = new Date();

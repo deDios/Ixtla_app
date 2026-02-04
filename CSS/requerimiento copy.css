@@ -1015,7 +1015,7 @@ body.me-modal-open {
 }
 
 .exp-view .exp-accordion:not(.exp-accordion--fase)>.exp-acc-head .chev {
-  display: none;
+  /*display: none;*/
   margin-left: 10px;
   /* separa del texto */
   width: 12px;
@@ -2817,3 +2817,25 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 #planeacion-list.no-actions .exp-row .acciones {
   display: none !important; 
 }
+
+
+/* PILL de estatus */
+.req-status-pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: .92rem;
+  line-height: 1;
+  background: rgba(16, 185, 129, .12); /* verde suave */
+  color: #0f5132; /* verde oscuro */
+  border: 1px solid rgba(16, 185, 129, .22);
+  white-space: nowrap;
+}
+
+@media (max-width: 820px){
+  .container .step-menu{ display:none; }
+}
+

@@ -159,10 +159,13 @@ ix_require_session();
 
                     <!-- Fila 2: botones, renglón propio -->
                     <div class="exp-head-actions">
+                        <!-- PILL de estatus (nuevo) -->
+                        <span id="req-status-pill" class="req-status-pill" aria-live="polite">En —</span>
                         <div id="req-actions" class="exp-actions">
                             <!-- los botones se rellenan por JS, deja este contenedor -->
                         </div>
                     </div>
+
                 </header>
 
                 <!-- Stepper -->
