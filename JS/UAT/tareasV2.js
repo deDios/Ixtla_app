@@ -110,49 +110,6 @@ function formatDateMX(str) {
   });
 }
 
-(function () {
-  const pill = document.getElementById("req-status-pill");
-  if (!pill) return;
-
-  // el HTML es: <span id="req-status-pill"> <span>En —</span> </span>
-  const textSpan = pill.querySelector("span") || pill;
-
-  function getFromStepper() {
-    const cur = document.querySelector(".step-menu li.current");
-    const t = cur?.textContent?.trim();
-    return t || "";
-  }
-
-  function getFromBadge() {
-    const badge = document.querySelector('[data-role="status-badge"]');
-    const t = badge?.textContent?.trim();
-    return t || "";
-  }
-
-  function normalize(s) {
-    const v = (s || "").trim();
-    if (!v) return "—";
-    return v.toLowerCase().startsWith("en ") ? v.slice(3).trim() : v;
-  }
-
-  function paint() {
-    const status = normalize(getFromStepper() || getFromBadge());
-    textSpan.textContent = `En ${status}`;
-  }
-
-  paint();
-
-  setTimeout(paint, 150);
-  setTimeout(paint, 600);
-
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest(
-      ".exp-tab, [data-role='status-btn'], .status-select, .step-menu li",
-    );
-    if (btn) setTimeout(paint, 50);
-  });
-})();
-
 /** Fecha/hora actual en formato SQL: YYYY-MM-DD HH:MM:SS */
 function nowAsSqlDateTime() {
   const d = new Date();

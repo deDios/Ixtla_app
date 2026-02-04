@@ -41,10 +41,10 @@
     return req.estatus_code != null
       ? Number(req.estatus_code)
       : req.estatus != null
-      ? Number(req.estatus)
-      : req.raw && req.raw.estatus != null
-      ? Number(req.raw.estatus)
-      : null;
+        ? Number(req.estatus)
+        : req.raw && req.raw.estatus != null
+          ? Number(req.raw.estatus)
+          : null;
   }
 
   function isEditableContacto(req) {
@@ -58,14 +58,14 @@
     // Solo afectar botones de "Contacto"
     const pane =
       document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
+        '.exp-pane[role="tabpanel"][data-tab="Contacto"]',
       ) ||
       document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
 
     if (!pane) return;
 
     const btns = pane.querySelectorAll(
-      'button.icon-btn[data-contact-basic-edit="1"], button.icon-btn[data-contact-edit="cp"]'
+      'button.icon-btn[data-contact-basic-edit="1"], button.icon-btn[data-contact-edit="cp"]',
     );
 
     btns.forEach((b) => {
@@ -97,6 +97,49 @@
     }
   }
 
+  (function () {
+    const pill = document.getElementById("req-status-pill");
+    if (!pill) return;
+
+    // el HTML es: <span id="req-status-pill"> <span>En —</span> </span>
+    const textSpan = pill.querySelector("span") || pill;
+
+    function getFromStepper() {
+      const cur = document.querySelector(".step-menu li.current");
+      const t = cur?.textContent?.trim();
+      return t || "";
+    }
+
+    function getFromBadge() {
+      const badge = document.querySelector('[data-role="status-badge"]');
+      const t = badge?.textContent?.trim();
+      return t || "";
+    }
+
+    function normalize(s) {
+      const v = (s || "").trim();
+      if (!v) return "—";
+      return v.toLowerCase().startsWith("en ") ? v.slice(3).trim() : v;
+    }
+
+    function paint() {
+      const status = normalize(getFromStepper() || getFromBadge());
+      textSpan.textContent = `En ${status}`;
+    }
+
+    paint();
+
+    setTimeout(paint, 150);
+    setTimeout(paint, 600);
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(
+        ".exp-tab, [data-role='status-btn'], .status-select, .step-menu li",
+      );
+      if (btn) setTimeout(paint, 50);
+    });
+  })();
+
   async function postJSON(url, body) {
     return sendJSON(url, body, "POST");
   }
@@ -108,7 +151,7 @@
   }) {
     let isDirector = roles.includes("DIRECTOR");
     let isPrimeraLinea = roles.some((r) =>
-      ["PRIMERA_LINEA", "PRIMERA LINEA", "PL"].includes(r)
+      ["PRIMERA_LINEA", "PRIMERA LINEA", "PL"].includes(r),
     );
 
     let isDirectorFromDepts = false;
@@ -177,7 +220,7 @@
 
       if (!procesos.length) {
         warn(
-          "areAllProcesosAndTasksDone() → sin procesos activos, devolviendo false"
+          "areAllProcesosAndTasksDone() → sin procesos activos, devolviendo false",
         );
         return false;
       }
@@ -200,7 +243,7 @@
         log(
           "areAllProcesosAndTasksDone() → TAREAS_LIST resp proceso",
           pr.id,
-          t
+          t,
         );
 
         const tareasAll = Array.isArray(t?.data) ? t.data : [];
@@ -209,7 +252,7 @@
           "areAllProcesosAndTasksDone() → tareas count (raw) para proceso",
           pr.id,
           ":",
-          tareasAll.length
+          tareasAll.length,
         );
 
         // Ignorar tareas eliminadas (status=0) para la validación de "finalizar"
@@ -222,13 +265,13 @@
           "areAllProcesosAndTasksDone() → tareas count (sin eliminadas) para proceso",
           pr.id,
           ":",
-          tareas.length
+          tareas.length,
         );
 
         if (!tareas.length) {
           warn(
             "areAllProcesosAndTasksDone() → proceso sin tareas activas (ignorando status=0), abortando con false",
-            { proceso_id: pr.id }
+            { proceso_id: pr.id },
           );
           return false;
         }
@@ -246,7 +289,7 @@
               status_raw: { status: ta.status, estatus: ta.estatus },
               estatus_num: est,
               isDone,
-            }
+            },
           );
 
           return isDone;
@@ -255,7 +298,7 @@
         if (!todasHechas) {
           warn(
             "areAllProcesosAndTasksDone() → al menos una tarea NO está hecha en proceso",
-            pr.id
+            pr.id,
           );
           return false;
         }
@@ -398,7 +441,7 @@
 
     const nombre =
       [emp?.nombre, emp?.nombres, emp?.empleado_nombre, emp?.first_name].find(
-        Boolean
+        Boolean,
       ) || "";
     const apellidos =
       [emp?.apellidos, emp?.empleado_apellidos, emp?.last_name].find(Boolean) ||
@@ -426,7 +469,7 @@
       4: "Pausado",
       5: "Cancelado",
       6: "Finalizado",
-    }[Number(s)] || "—");
+    })[Number(s)] || "—";
 
   const statusBadgeClass = (s) =>
     ({
@@ -437,7 +480,7 @@
       4: "is-warning",
       5: "is-danger",
       6: "is-success",
-    }[Number(s)] || "is-info");
+    })[Number(s)] || "is-info";
 
   function paintStepper(next) {
     $$(".step-menu li").forEach((li) => {
@@ -464,7 +507,7 @@
         "is-muted",
         "is-warning",
         "is-danger",
-        "is-success"
+        "is-success",
       );
       badge.classList.add(statusBadgeClass(code));
       badge.textContent = statusLabel(code);
@@ -565,13 +608,13 @@
         log(
           "hasAtLeastOneProcesoAndTask() → TAREAS_LIST resp proceso",
           pr.id,
-          t
+          t,
         );
         const tareas = Array.isArray(t?.data) ? t.data : [];
         if (tareas.length > 0) {
           log(
             "hasAtLeastOneProcesoAndTask() → proceso con tareas, devolviendo true",
-            { proceso_id: pr.id, tareas: tareas.length }
+            { proceso_id: pr.id, tareas: tareas.length },
           );
           return true;
         }
@@ -661,7 +704,7 @@
     // Solo tiene sentido en PROCESO (3)
     if (status !== 3) {
       log(
-        "injectFinalizeButtonIfReady() → status distinto de 3, removiendo botón si existe"
+        "injectFinalizeButtonIfReady() → status distinto de 3, removiendo botón si existe",
       );
       if (existing) existing.remove();
       return;
@@ -677,13 +720,13 @@
       "injectFinalizeButtonIfReady() → resultado areAllProcesosAndTasksDone:",
       {
         ready,
-      }
+      },
     );
 
     if (!ready) {
       if (existing) {
         log(
-          "injectFinalizeButtonIfReady() → ready=false, removiendo botón existente"
+          "injectFinalizeButtonIfReady() → ready=false, removiendo botón existente",
         );
         existing.remove();
       }
@@ -697,7 +740,7 @@
     }
 
     log(
-      "injectFinalizeButtonIfReady() → creando botón Finalizar requerimiento"
+      "injectFinalizeButtonIfReady() → creando botón Finalizar requerimiento",
     );
 
     const btn = makeBtn("Finalizar requerimiento", "success", "finish-req");
@@ -779,7 +822,7 @@
         if (!ok) {
           toast(
             "Para iniciar proceso necesitas al menos un proceso y una tarea.",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -862,7 +905,7 @@
         toast("Reabierto (Revisión)", "info");
       } else if (act === "finish-req") {
         log(
-          "onAction('finish-req') → verificando procesos/tareas antes de finalizar"
+          "onAction('finish-req') → verificando procesos/tareas antes de finalizar",
         );
 
         const ready = await areAllProcesosAndTasksDone(id);
@@ -870,7 +913,7 @@
         if (!ready) {
           toast(
             "Aún hay procesos o tareas pendientes. Revisa la planeación antes de finalizar.",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -912,7 +955,7 @@
 
     // Fechas base desde el backend
     const creado_at = String(
-      raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? ""
+      raw.creado_at ?? raw.created_at ?? raw.fecha_creacion ?? "",
     ).trim();
     const fecha_limite =
       raw.fecha_limite != null && raw.fecha_limite !== ""
@@ -940,8 +983,8 @@
         raw.estatus != null
           ? Number(raw.estatus)
           : raw.status != null
-          ? Number(raw.status)
-          : 0,
+            ? Number(raw.status)
+            : 0,
       canal: raw.canal != null ? Number(raw.canal) : null,
       contacto_nombre: String(raw.contacto_nombre || "").trim(),
       contacto_telefono: String(raw.contacto_telefono || "").trim(),
@@ -970,7 +1013,7 @@
     // 1) Localizar el pane de Contacto de forma tolerante
     const pane =
       document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
+        '.exp-pane[role="tabpanel"][data-tab="Contacto"]',
       ) ||
       document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
 
@@ -1097,7 +1140,7 @@
   function setupContactoBasicEditors(req) {
     const pane =
       document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
+        '.exp-pane[role="tabpanel"][data-tab="Contacto"]',
       ) ||
       document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
     if (!pane) return;
@@ -1112,7 +1155,7 @@
     };
 
     const buttons = grid.querySelectorAll(
-      'button.icon-btn[data-contact-basic-edit="1"]'
+      'button.icon-btn[data-contact-basic-edit="1"]',
     );
 
     buttons.forEach((btn) => {
@@ -1256,7 +1299,7 @@
   function setupContactoCpColoniaEditor(req) {
     const pane =
       document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
+        '.exp-pane[role="tabpanel"][data-tab="Contacto"]',
       ) ||
       document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
     if (!pane) return;
@@ -1307,7 +1350,7 @@
   async function openCpColoniaEditor(req) {
     const pane =
       document.querySelector(
-        '.exp-pane[role="tabpanel"][data-tab="Contacto"]'
+        '.exp-pane[role="tabpanel"][data-tab="Contacto"]',
       ) ||
       document.querySelector('.exp-pane[role="tabpanel"][data-tab="contacto"]');
     if (!pane) return;
@@ -1334,7 +1377,7 @@
 
     if (!rowCp || !rowCol) {
       warn(
-        "[CP] No se encontraron filas de C.P. o Colonia para edición, cancelando."
+        "[CP] No se encontraron filas de C.P. o Colonia para edición, cancelando.",
       );
       delete grid.dataset.editingCpColonia;
       return;
@@ -1673,7 +1716,7 @@
         page_size: 100,
       });
       const ids = Array.from(
-        new Set(arr.map((r) => Number(r.empleado_id) || null).filter(Boolean))
+        new Set(arr.map((r) => Number(r.empleado_id) || null).filter(Boolean)),
       );
       await Promise.all(ids.map((id) => getEmpleadoById(id).catch(() => null)));
       await renderCommentsList(arr);
