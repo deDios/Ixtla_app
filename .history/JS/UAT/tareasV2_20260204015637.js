@@ -2760,8 +2760,6 @@ async function init() {
     tramitesOptions,
   });
 
-  setupMobileMoveHandlers();
-  
   // Sidebar listo → quitar clase de boot y mostrar si aplica
   if (sidebarFiltersEl) {
     sidebarFiltersEl.classList.remove("kb-filters-boot-hidden");

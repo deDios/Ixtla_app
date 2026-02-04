@@ -872,6 +872,22 @@ const STATUS_ORDER = {
   [KB.STATUS.HECHO]: 4,
 };
 
+const STATUS_LABEL = {
+  [KB.STATUS.TODO]: "Por hacer",
+  [KB.STATUS.PROCESO]: "En proceso",
+  [KB.STATUS.REVISAR]: "Por revisar",
+  [KB.STATUS.HECHO]: "Hecho",
+  [KB.STATUS.PAUSA]: "Bloqueado",
+};
+
+const ALL_STATUSES = [
+  KB.STATUS.TODO,
+  KB.STATUS.PROCESO,
+  KB.STATUS.REVISAR,
+  KB.STATUS.HECHO,
+  KB.STATUS.PAUSA,
+];
+
 /** Mensaje de por qué NO se puede mover una tarea */
 function getForbiddenMoveMessage(task, oldStatus, newStatus) {
   const S = KB.STATUS;
@@ -1142,9 +1158,6 @@ function openDetails(id) {
   }
 
   DetailsModule.openDetails(id);
-
-  // pintar combo mobile según rol/estado
-  paintMobileMoveUI(task);
 }
 
 function closeDetails() {
@@ -1195,8 +1208,9 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio || "—"
-    }</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${
+    task.folio || "—"
+  }</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -1237,8 +1251,9 @@ function createCard(task) {
         break;
     }
 
-    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"
-      } ${statusLabel}`;
+    chip.title = `${age.realDays} día${
+      age.realDays === 1 ? "" : "s"
+    } ${statusLabel}`;
     art.appendChild(chip);
   }
 
@@ -1429,187 +1444,6 @@ function renderBoard() {
   setupInfiniteScroll();
 }
 
-// ===============================
-// MOBILE: Combo "Mover a" en drawer
-// (opciones según canMoveTask / locks)
-// ===============================
-const STATUS_LABEL = {
-  [KB.STATUS.TODO]: "Por hacer",
-  [KB.STATUS.PROCESO]: "En proceso",
-  [KB.STATUS.REVISAR]: "Por revisar",
-  [KB.STATUS.HECHO]: "Hecho",
-  [KB.STATUS.PAUSA]: "Bloqueado",
-};
-
-const ALL_STATUSES = [
-  KB.STATUS.TODO,
-  KB.STATUS.PROCESO,
-  KB.STATUS.REVISAR,
-  KB.STATUS.HECHO,
-  KB.STATUS.PAUSA,
-];
-
-function isMobileViewport() {
-  return window.matchMedia("(max-width: 900px)").matches;
-}
-
-function buildAllowedMoveOptions(task) {
-  const oldStatus = Number(task?.status);
-  if (!oldStatus) return [];
-
-  // Si el requerimiento está pausado/cancelado → tarea inhabilitada
-  if (isTaskLockedByReq(task)) return [];
-
-  const opts = [];
-  for (const st of ALL_STATUSES) {
-    const newStatus = Number(st);
-    if (!newStatus || newStatus === oldStatus) continue;
-
-    if (canMoveTask(task, oldStatus, newStatus)) {
-      opts.push({
-        value: newStatus,
-        label: STATUS_LABEL[newStatus] || `Status ${newStatus}`,
-      });
-    }
-  }
-  return opts;
-}
-
-function paintMobileMoveUI(task) {
-  const wrap = $("#kb-d-move");
-  const sel = $("#kb-d-move-select");
-  const btn = $("#kb-d-move-btn");
-  const hint = $("#kb-d-move-hint");
-
-  if (!wrap || !sel || !btn) return;
-
-  // Solo mostrar en mobile (tu HTML dice "solo mobile")
-  const show = isMobileViewport();
-  wrap.hidden = !show;
-
-  // Si no estamos en mobile, no hacemos nada más
-  if (!show) return;
-
-  // Reset UI
-  sel.innerHTML = "";
-  btn.disabled = true;
-  if (hint) hint.textContent = "";
-
-  if (!task) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "Selecciona una tarea…";
-    opt.selected = true;
-    opt.disabled = true;
-    sel.appendChild(opt);
-    sel.disabled = true;
-    return;
-  }
-
-  // Lock por REQ
-  if (isTaskLockedByReq(task)) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "Tarea inhabilitada (REQ en pausa/cancelado)";
-    opt.selected = true;
-    opt.disabled = true;
-    sel.appendChild(opt);
-    sel.disabled = true;
-    btn.disabled = true;
-    if (hint) hint.textContent = "No se pueden mover tareas cuando el requerimiento está en pausa/cancelado.";
-    return;
-  }
-
-  const options = buildAllowedMoveOptions(task);
-
-  // Placeholder
-  const ph = document.createElement("option");
-  ph.value = "";
-  ph.textContent = "Selecciona…";
-  ph.selected = true;
-  ph.disabled = true;
-  sel.appendChild(ph);
-
-  if (!options.length) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "No hay movimientos disponibles";
-    opt.disabled = true;
-    sel.appendChild(opt);
-    sel.disabled = true;
-    btn.disabled = true;
-    if (hint) hint.textContent = "Tu rol no tiene permisos para mover esta tarea desde su estado actual.";
-    return;
-  }
-
-  options.forEach((o) => {
-    const opt = document.createElement("option");
-    opt.value = String(o.value);
-    opt.textContent = o.label;
-    sel.appendChild(opt);
-  });
-
-  sel.disabled = false;
-
-  // Habilitar botón solo cuando hay selección válida
-  sel.onchange = () => {
-    btn.disabled = !sel.value;
-    if (hint) hint.textContent = "";
-  };
-}
-
-function setupMobileMoveHandlers() {
-  const sel = $("#kb-d-move-select");
-  const btn = $("#kb-d-move-btn");
-  const hint = $("#kb-d-move-hint");
-  if (!sel || !btn) return;
-
-  btn.addEventListener("click", async () => {
-    const task = State.selectedId ? getTaskById(State.selectedId) : null;
-    if (!task) return;
-
-    const oldStatus = Number(task.status);
-    const newStatus = Number(sel.value);
-
-    if (!newStatus || newStatus === oldStatus) return;
-
-    // Doble seguro: locks
-    if (isTaskLockedByReq(task)) {
-      toast("Requerimiento en pausa/cancelado: tarea inhabilitada.", "warning");
-      paintMobileMoveUI(task);
-      return;
-    }
-
-    // Validación EXACTA como drag
-    if (!canMoveTask(task, oldStatus, newStatus)) {
-      const msg = getForbiddenMoveMessage(task, oldStatus, newStatus);
-      toast(msg, "warning");
-      if (hint) hint.textContent = msg;
-      paintMobileMoveUI(task);
-      return;
-    }
-
-    // Movimiento permitido (optimistic como drag)
-    task.status = newStatus;
-    State.tasksVersion = (State.tasksVersion || 0) + 1;
-    task.status_since = nowAsSqlDateTime();
-
-    renderBoard();
-    highlightSelected();
-
-    await persistTaskStatus(task, newStatus, oldStatus);
-
-    // Repintar opciones (cambió el status base)
-    paintMobileMoveUI(task);
-  });
-
-  // Si el usuario cambia tamaño de pantalla, recalculamos
-  window.addEventListener("resize", () => {
-    const task = State.selectedId ? getTaskById(State.selectedId) : null;
-    paintMobileMoveUI(task);
-  });
-}
-
 /* ==========================================================================
    8) Drag & drop + persistencia
    ========================================================================== */
@@ -1697,7 +1531,7 @@ function setupDragAndDrop() {
   // Evitar duplicar instancias
   try {
     (SortableInstances || []).forEach((inst) => inst?.destroy?.());
-  } catch (_) { }
+  } catch (_) {}
   SortableInstances = [];
 
   lists.forEach((list) => {
@@ -1803,7 +1637,7 @@ function setupDragAndDrop() {
         // Para orden/edad: al cambiar de columna consideramos que 'entra' a ese status ahora
         try {
           task.status_since = nowAsSqlDateTime();
-        } catch (_) { }
+        } catch (_) {}
         log(
           "DragEnd → tarea",
           task.id,
@@ -2107,7 +1941,7 @@ const MediaUI = (() => {
       showError(
         errFiles,
         problems.join(". ") +
-        " Solo se subirán los archivos válidos restantes.",
+          " Solo se subirán los archivos válidos restantes.",
       );
     }
 
@@ -2326,9 +2160,9 @@ function hydrateViewerFromSession() {
   const roles = Array.isArray(rolesRaw)
     ? rolesRaw
     : String(rolesRaw || "")
-      .split(/[,\s]+/g)
-      .map((r) => r.trim())
-      .filter(Boolean);
+        .split(/[,\s]+/g)
+        .map((r) => r.trim())
+        .filter(Boolean);
 
   Viewer.deptId = deptId != null ? Number(deptId) : null;
   Viewer.roles = roles;
@@ -2712,23 +2546,23 @@ async function init() {
 
   const deptOptions = canSeeDeptFilter
     ? Array.from(allowedDeptIds).map((id) => {
-      const dep = State.departamentosIndex.get(id);
-      const label = dep ? dep.nombre : `Depto ${id}`;
-      return { value: id, label };
-    })
+        const dep = State.departamentosIndex.get(id);
+        const label = dep ? dep.nombre : `Depto ${id}`;
+        return { value: id, label };
+      })
     : [];
 
   const empOptions = canSeeEmpFilter
     ? empleadosForFilter.map((emp) => {
-      const label =
-        emp.nombre_completo ||
-        [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
-        `Empleado ${emp.id}`;
-      return {
-        value: emp.id,
-        label,
-      };
-    })
+        const label =
+          emp.nombre_completo ||
+          [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
+          `Empleado ${emp.id}`;
+        return {
+          value: emp.id,
+          label,
+        };
+      })
     : [];
 
   const procesosOptions = procesos.map((p) => ({
@@ -2760,8 +2594,6 @@ async function init() {
     tramitesOptions,
   });
 
-  setupMobileMoveHandlers();
-  
   // Sidebar listo → quitar clase de boot y mostrar si aplica
   if (sidebarFiltersEl) {
     sidebarFiltersEl.classList.remove("kb-filters-boot-hidden");
