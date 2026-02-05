@@ -2750,3 +2750,156 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
     width: 100%;
   }
 }
+
+/* =========================================================
+   MINI MODAL de que ya se levanto el req
+   ========================================================= */
+
+#ix-done-modal {
+  --z: 9998;
+}
+
+#ix-done-modal[hidden] {
+  display: none !important;
+}
+
+/* Overlay */
+#ix-done-modal .ix-modal__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z);
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* Dialog */
+#ix-done-modal .ix-modal__dialog {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(340px, 94vw, 560px);
+  max-height: calc(100dvh - 12vh);
+  background: #fff;
+  color: #1f2937;
+  border-radius: 14px;
+  z-index: calc(var(--z) + 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(16, 24, 40, 0.16);
+}
+
+/* Header */
+#ix-done-modal .ix-modal__header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+#ix-done-modal .ix-modal__brand img {
+  width: 86px;
+  display: block;
+}
+
+#ix-done-modal .ix-modal__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+#ix-done-modal .ix-modal__subtitle {
+  margin: 2px 0 0;
+  color: #667085;
+}
+
+/* Close */
+#ix-done-modal .ix-modal__close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 10px;
+  color: #111;
+}
+
+#ix-done-modal .ix-modal__close:hover {
+  background: #f5f6f7;
+}
+
+/* Body */
+#ix-done-modal .ix-modal__body {
+  padding: 22px 24px;
+  overflow: auto;
+  background: #f6f7f9;
+}
+
+/* Copy */
+#ix-done-modal .ix-done-copy {
+  text-align: center;
+  color: #374151;
+  line-height: 1.55;
+}
+
+#ix-done-modal .ix-done-copy p {
+  margin: 0 0 14px;
+}
+
+#ix-done-modal .ix-done-copy .ix-done-mid {
+  color: #6b7280;
+}
+
+#ix-done-modal #ix-done-folio {
+  font-weight: 800;
+  color: #111827;
+}
+
+/* Footer */
+#ix-done-modal .ix-modal__footer {
+  padding: 14px 22px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
+  background: #fff;
+}
+
+/* Primary button */
+#ix-done-modal .ix-btn--primary {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: 11px 18px;
+  border-radius: 999px;
+  min-width: 120px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+#ix-done-modal .ix-btn--primary:hover {
+  background: #1e4fd9;
+}
+
+#ix-done-modal .ix-btn--primary:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  #ix-done-modal .ix-modal__dialog {
+    width: min(96vw, 560px);
+  }
+
+  #ix-done-modal .ix-modal__header {
+    grid-template-columns: auto 1fr auto;
+    row-gap: 8px;
+  }
+}

@@ -1836,6 +1836,17 @@ function initMobileFilterCombo() {
   });
 }
 
+// ==============================
+// Refresh externo (sin recargar página)
+// ==============================
+async function refreshHomeRequerimientos() {
+  try {
+    await loadScopeData(); // ya hace computeCounts + render + charts al final
+  } catch (e) {
+    console.error("[Home] refreshHomeRequerimientos error:", e);
+  }
+}
+
 window.addEventListener("DOMContentLoaded", async () => {
   try {
     readSession();
@@ -1875,6 +1886,36 @@ window.addEventListener("DOMContentLoaded", async () => {
     const sess = Session?.get?.() || null;
     window.gcRefreshHeader?.(sess);
     refreshSidebarFromSession(sess);
+
+    // evita duplicar listeners
+    if (!window.__ixHomeReqCreatedHook) {
+      window.__ixHomeReqCreatedHook = true;
+
+      window.addEventListener("ix:req:created", async (ev) => {
+        const detail = ev?.detail || {};
+        console.log("[Home] ix:req:created recibido:", detail);
+
+        await refreshHomeRequerimientos();
+
+        if (window.ixDoneModal?.open) {
+          window.ixDoneModal.open({
+            folio: detail.folio || "—",
+            title: detail.title || detail.tramite || "Requerimiento registrado",
+          });
+        }
+      });
+    }
+
+    // ===================================================
+    // Escucha evento desde Canal2: "se creó un requerimiento"
+    // ===================================================
+    window.addEventListener("ix:req:created", async () => {
+      try {
+        await refreshHomeRequerimientos();
+      } catch (e) {
+        console.error("[Home] refresh por ix:req:created falló:", e);
+      }
+    });
 
     await loadScopeData();
   } catch (e) {

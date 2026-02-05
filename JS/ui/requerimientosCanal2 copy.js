@@ -26,8 +26,6 @@
 
     // Media
     uploadImg: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,
-
-
   };
 
   // Valores destino (canal 2)
@@ -89,18 +87,23 @@
       fallback?.departamento ||
       "—";
     const tramite =
-      req?.tramite_nombre ||
-      req?.tramite ||
-      fallback?.tramite ||
-      "—";
+      req?.tramite_nombre || req?.tramite || fallback?.tramite || "—";
     const asignado =
-      req?.asignado_display ||
-      req?.asignado_a_nombre ||
-      req?.asignado ||
+      req?.asignado_display || req?.asignado_a_nombre || req?.asignado || "—";
+    const tel =
+      req?.contacto_telefono || req?.telefono || fallback?.telefono || "—";
+    const fecha =
+      req?.fecha_creacion ||
+      req?.created_at ||
+      req?.fecha ||
+      fallback?.fecha ||
       "—";
-    const tel = req?.contacto_telefono || req?.telefono || fallback?.telefono || "—";
-    const fecha = req?.fecha_creacion || req?.created_at || req?.fecha || fallback?.fecha || "—";
-    const est = req?.estatus_txt || req?.estatus_nombre || req?.estatus || fallback?.estatus || "—";
+    const est =
+      req?.estatus_txt ||
+      req?.estatus_nombre ||
+      req?.estatus ||
+      fallback?.estatus ||
+      "—";
     return { folio, dept, tramite, asignado, tel, fecha, est };
   }
 
@@ -125,7 +128,7 @@
   function notifyReqCreated(detail) {
     try {
       document.dispatchEvent(new CustomEvent("ix:req:created", { detail }));
-    } catch { }
+    } catch {}
   }
 
   // =========================
@@ -273,7 +276,7 @@
     let s = null;
     try {
       s = window.Session?.get?.() || null;
-    } catch { }
+    } catch {}
     if (!s) s = readIxCookie();
 
     const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
@@ -508,30 +511,9 @@
       el.addEventListener("click", (e) => {
         e.preventDefault();
         closeModal(modal);
-
-        // Refleja el nuevo requerimiento sin refresh completo
-        notifyReqCreated({ id: newId, folio });
-
-        if (!tryHookReloadTable()) {
-          (async () => {
-            const hydrated = newId ? await fetchReqById(newId) : null;
-
-            const row = mapReqToRow(hydrated, {
-              folio,
-              telefono: body.contacto_telefono,
-              departamento: selDept?.selectedOptions?.[0]?.textContent?.trim(),
-              tramite: tramName,
-              estatus: ESTATUS_TARGET,
-              fecha: new Date().toLocaleString("es-MX"),
-            });
-
-            const ok = prependRowToHomeTable(row);
-            if (!ok) warn("No se encontró tbody (#hs-table-body). Agrega hook reload en home.js o ajusta selector.");
-          })();
-        }
-
       });
     });
+
     modal
       .querySelector(".ix-modal__overlay")
       ?.addEventListener("click", () => closeModal(modal));
@@ -649,7 +631,7 @@
         if (!f._url) {
           try {
             f._url = URL.createObjectURL(f);
-          } catch { }
+          } catch {}
         }
         if (f._url) img.src = f._url;
 
@@ -662,7 +644,7 @@
           if (gone?._url) {
             try {
               URL.revokeObjectURL(gone._url);
-            } catch { }
+            } catch {}
           }
           refreshPreviews();
           form?.dispatchEvent(new Event("input", { bubbles: true }));
@@ -884,11 +866,10 @@
         `idemp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
       try {
-        // 1) INSERT default (canal 1 / status default) directo al backend
-        // Construimos JSON raw una sola vez (importante para firma en el proxy)
+        // 1) INSERT default (
         const rawBody = JSON.stringify(body);
 
-        // 1) INSERT default vía proxy firmador (misma llamada que en tramiteDepartamentos.js)
+        // 1) INSERT default vía proxy firmador
         const json = await fetch(EP.createReq, {
           method: "POST",
           headers: {
@@ -898,12 +879,13 @@
             "Idempotency-Key": idempKey,
           },
           // same-origin: manda cookies automáticamente en rutas relativas
+          credentials: "include",
           body: rawBody,
         }).then(async (r) => {
           let j = null;
           try {
             j = await r.json();
-          } catch { }
+          } catch {}
           if (!r.ok) {
             const msg = j?.error || j?.mensaje || `HTTP ${r.status}`;
             throw new Error(msg);
@@ -971,7 +953,7 @@
           let upJson = null;
           try {
             upJson = await upRes.json();
-          } catch { }
+          } catch {}
 
           if (!upRes.ok || upJson?.ok === false) {
             const msg =
@@ -990,19 +972,21 @@
         toast(`Reporte creado: ${folio}`, "ok", 3200);
 
         // Mini modal secundario (igual que Trámites)
-        window.ixDoneModal?.open?.({ folio, title: hidReqTitle?.value || tramName });
-
+        window.ixDoneModal?.open?.({
+          folio,
+          title: hidReqTitle?.value || tramName,
+        });
 
         // reset
         try {
           form.reset();
-        } catch { }
+        } catch {}
         setToday();
         files.forEach((f) => {
           if (f?._url) {
             try {
               URL.revokeObjectURL(f._url);
-            } catch { }
+            } catch {}
           }
         });
         files = [];
@@ -1026,9 +1010,11 @@
             fecha: new Date().toLocaleString("es-MX"),
           });
           const ok = prependRowToHomeTable(row);
-          if (!ok) warn("No se encontró tbody (#hs-table-body). Agrega hook reload en home.js o ajusta selector.");
+          if (!ok)
+            warn(
+              "No se encontró tbody (#hs-table-body). Agrega hook reload en home.js o ajusta selector.",
+            );
         }
-
       } catch (e1) {
         err("submit error:", e1);
         toast("No se pudo enviar el reporte.", "err", 3500);
@@ -1107,7 +1093,7 @@
           );
           try {
             syncSubmitState();
-          } catch (_) { }
+          } catch (_) {}
         };
       } catch (e) {
         err("Error cargando CP/Colonia:", e);
@@ -1197,7 +1183,7 @@
       hasAttemptedSubmit = false;
       try {
         syncSubmitState();
-      } catch (_) { }
+      } catch (_) {}
     });
 
     selDept.addEventListener("change", async () => {
@@ -1208,7 +1194,7 @@
         await paintTramitesForDept(deptId);
         try {
           syncSubmitState();
-        } catch (_) { }
+        } catch (_) {}
       } else {
         selTram.disabled = true;
         fillSelect(selTram, [], "Selecciona un departamento primero");
@@ -1241,7 +1227,7 @@
 
       try {
         syncSubmitState();
-      } catch (_) { }
+      } catch (_) {}
     });
 
     if (asuntoInput) {
@@ -1255,4 +1241,43 @@
   }
 
   window.addEventListener("DOMContentLoaded", init);
+})();
+
+// ==============================
+// Mini modal DONE: ixDoneModal
+// (requiere que exista #ix-done-modal en el DOM)
+// ==============================
+(function () {
+  const root = document.getElementById("ix-done-modal");
+  if (!root) return;
+
+  const overlay = root.querySelector("[data-close]");
+  const closes = root.querySelectorAll("[data-close]");
+  const subEl = root.querySelector("#ix-done-subtitle");
+  const folioEl = root.querySelector("#ix-done-folio");
+
+  function open({ folio = "—", title = "—" } = {}) {
+    if (subEl) subEl.textContent = title || "—";
+    if (folioEl) folioEl.textContent = folio || "—";
+    root.hidden = false;
+    root.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+  }
+
+  function close() {
+    root.hidden = true;
+    root.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+    document.removeEventListener("keydown", onKey);
+  }
+
+  function onKey(e) {
+    if (e.key === "Escape") close();
+  }
+
+  overlay?.addEventListener("click", close);
+  closes.forEach((b) => b.addEventListener("click", close));
+
+  window.ixDoneModal = { open, close };
 })();
