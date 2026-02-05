@@ -1,6 +1,6 @@
 <?php
-    require_once __DIR__ . '/../../JS/auth/ix_guard.php';
-    ix_require_session();
+require_once __DIR__ . '/../../JS/auth/ix_guard.php';
+ix_require_session();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -654,47 +654,57 @@
     <!-- =========================
      DONE MODAL — CONFIRMACIÓN DE REQUERIMIENTO
      ========================= -->
-    <div id="ix-done-modal" class="ix-modal ix-modal--done" role="dialog" aria-modal="true" aria-hidden="true"
-        aria-labelledby="ix-done-title">
+<div id="ix-done-modal"
+     class="ix-modal ix-modal--done"
+     role="dialog"
+     aria-modal="true"
+     aria-hidden="true"
+     aria-labelledby="ix-done-title">
 
-        <div class="ix-modal__overlay" data-ix-close></div>
+  <div class="ix-modal__overlay" data-ix-close></div>
 
-        <div class="ix-modal__content" role="document">
+  <div class="ix-modal__content" role="document">
+    
+    <button type="button"
+            class="ix-modal__close"
+            aria-label="Cerrar"
+            data-ix-close>
+      ✕
+    </button>
 
-            <button type="button" class="ix-modal__close" aria-label="Cerrar" data-ix-close>
-                ✕
-            </button>
+    <div class="ix-done">
+      <h3 id="ix-done-title" class="ix-done__title">
+        ¡Solicitud registrada!
+      </h3>
 
-            <div class="ix-done">
-                <h3 id="ix-done-title" class="ix-done__title">
-                    ¡Solicitud registrada!
-                </h3>
+      <p class="ix-done__text">
+        Su solicitud ante
+        <strong id="ix-done-folio">REQ-0000000000</strong>
+        se registró correctamente.
+      </p>
 
-                <p class="ix-done__text">
-                    Su solicitud ante
-                    <strong id="ix-done-folio">REQ-0000000000</strong>
-                    se registró correctamente.
-                </p>
+      <p class="ix-done__subtext">
+        Puede consultar el detalle y dar seguimiento en nuestro portal
+        de Atención Ciudadana.
+      </p>
 
-                <p class="ix-done__subtext">
-                    Puede consultar el detalle y dar seguimiento en nuestro portal
-                    de Atención Ciudadana.
-                </p>
+      <p class="ix-done__hint">
+        Agradeceremos confirmar de recibido para continuar con la gestión
+        de su trámite.
+      </p>
 
-                <p class="ix-done__hint">
-                    Agradeceremos confirmar de recibido para continuar con la gestión
-                    de su trámite.
-                </p>
-
-                <div class="ix-done__actions">
-                    <button type="button" class="btn btn-primary" data-ix-close>
-                        Entendido
-                    </button>
-                </div>
-            </div>
-
-        </div>
+      <div class="ix-done__actions">
+        <button type="button"
+                class="btn btn-primary"
+                data-ix-close>
+          Entendido
+        </button>
+      </div>
     </div>
+
+  </div>
+</div>
+
 
 
 
