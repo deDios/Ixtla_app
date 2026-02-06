@@ -58,6 +58,17 @@
     inpPInicio: "#proceso-inicio",
   };
 
+  // Emitir evento para que requerimientoView re-evalúe acciones (Finalizar/Pausar/Cancelar) al cambiar planeación
+  function emitPlaneacionChanged(reason = "") {
+    try {
+      document.dispatchEvent(
+        new CustomEvent("planeacion:changed", {
+          detail: { reason: String(reason || "") },
+        }),
+      );
+    } catch (_) {}
+  }
+
   // ===== Estado interno / flags =====
   let _boundToolbar = false;
   let _boundModalT = false;
@@ -1101,6 +1112,7 @@
         if (res?.ok === false)
           throw new Error(res?.error || "No se pudo crear la tarea");
         toast("Tarea creada", "success");
+        emitPlaneacionChanged("create-tarea");
 
         const modal = document.querySelector(SEL.modalT);
         if (modal) closeOverlay(modal);
@@ -1339,6 +1351,7 @@
             close();
             const req = window.__REQ__;
             if (req?.id) await renderProcesosYtareas(req.id);
+            emitPlaneacionChanged("delete-proceso");
             return;
           }
 
@@ -1377,9 +1390,11 @@
             const allowDelete2 = await canDeleteTasks();
             (tareas || []).forEach((t) => addTareaRow(sec, t, allowDelete2));
             updateProcesoHeaderStats(sec, tareas || []);
+            emitPlaneacionChanged("delete-tarea");
           } else {
             const req = window.__REQ__;
             if (req?.id) await renderProcesosYtareas(req.id);
+            emitPlaneacionChanged("delete-tarea");
           }
         } catch (e2) {
           err("Error en confirm delete:", e2);
@@ -1504,6 +1519,7 @@
       window.__REQ__?.requerimiento_id;
     if (!reqId) return;
     await renderProcesosYtareas(Number(reqId));
+    emitPlaneacionChanged("refresh");
     // re-binds necesarios tras repaint
     // (delegation ya queda en el host, no hace falta rebind)
   }
@@ -1564,6 +1580,7 @@
         throw new Error(res?.error || "No se pudo crear el proceso");
       toast("Proceso creado", "success");
       await renderProcesosYtareas(req.id);
+      emitPlaneacionChanged("create-proceso");
     } catch (e) {
       err("createProceso error:", e);
       toast(e?.message || "No se pudo crear el proceso.", "danger");

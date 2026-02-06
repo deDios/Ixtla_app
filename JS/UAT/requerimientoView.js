@@ -555,6 +555,10 @@
   document.addEventListener("planeacion:changed", () => {
     // micro-delay para dejar que el DOM / render de planeación termine
     setTimeout(() => {
+      // Re-pinta acciones base (pausar/cancelar/etc) y luego re-evalúa "Finalizar"
+      try {
+        renderActions(getCurrentStatusCode());
+      } catch (_) {}
       injectFinalizeButtonIfReady().catch(() => {});
     }, 50);
   });
