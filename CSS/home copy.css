@@ -2903,3 +2903,7 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
     row-gap: 8px;
   }
 }
+
+#ix-done-modal[aria-hidden="true"]{
+  display: none !important;
+}

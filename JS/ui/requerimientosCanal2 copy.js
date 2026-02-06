@@ -1251,8 +1251,8 @@
   const root = document.getElementById("ix-done-modal");
   if (!root) return;
 
-  const overlay = root.querySelector("[data-close]");
-  const closes = root.querySelectorAll("[data-close]");
+  const overlay = root.querySelector("[data-ix-close], [data-close]");
+  const closes = root.querySelectorAll("[data-ix-close], [data-close]");
   const subEl = root.querySelector("#ix-done-subtitle");
   const folioEl = root.querySelector("#ix-done-folio");
 
@@ -1278,6 +1278,11 @@
 
   overlay?.addEventListener("click", close);
   closes.forEach((b) => b.addEventListener("click", close));
+
+  // Estado inicial: aseguramos cerrado
+  try {
+    close();
+  } catch {}
 
   window.ixDoneModal = { open, close };
 })();

@@ -1887,33 +1887,22 @@ window.addEventListener("DOMContentLoaded", async () => {
     window.gcRefreshHeader?.(sess);
     refreshSidebarFromSession(sess);
 
-    // evita duplicar listeners
-    if (!window.__ixHomeReqCreatedHook) {
-      window.__ixHomeReqCreatedHook = true;
-
-      window.addEventListener("ix:req:created", async (ev) => {
-        const detail = ev?.detail || {};
-        console.log("[Home] ix:req:created recibido:", detail);
-
-        await refreshHomeRequerimientos();
-
-        if (window.ixDoneModal?.open) {
-          window.ixDoneModal.open({
-            folio: detail.folio || "—",
-            title: detail.title || detail.tramite || "Requerimiento registrado",
-          });
-        }
-      });
-    }
-
     // ===================================================
     // Escucha evento desde Canal2: "se creó un requerimiento"
     // ===================================================
-    window.addEventListener("ix:req:created", async () => {
-      try {
-        await refreshHomeRequerimientos();
-      } catch (e) {
-        console.error("[Home] refresh por ix:req:created falló:", e);
+    document.addEventListener("ix:req:created", async (ev) => {
+      const detail = ev?.detail || {};
+      console.log("[Home] ix:req:created recibido:", detail);
+
+      // 1) refresca dataset + tabla + conteos + charts
+      await refreshHomeRequerimientos();
+
+      // 2) si existe el mini modal en el DOM, abrelo
+      if (window.ixDoneModal?.open) {
+        window.ixDoneModal.open({
+          folio: detail.folio || "—",
+          title: detail.title || detail.tramite || "Requerimiento registrado",
+        });
       }
     });
 
