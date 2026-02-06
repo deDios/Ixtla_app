@@ -2983,3 +2983,114 @@ body.req-locked button.icon-btn[data-detalle-edit] {
     min-width: 110px;
   }
 }
+
+@media (max-width: 720px) {
+  @media (max-width: 390px) {
+    .exp-view .exp-expediente-btn span {
+      display: inline;
+    }
+  }
+}
+
+
+/* =========================
+   PLANEACIÓN — HEADER PROCESO MOBILE (limpio + chevron fijo)
+   ========================= */
+@media (max-width: 760px){
+
+  /* Header como contenedor “tablero” */
+  #planeacion-list .exp-accordion--fase > .exp-acc-head{
+    position: relative;
+    display: grid !important;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    gap: 10px;
+    padding-right: 44px; /* deja espacio para el chevron */
+  }
+
+  /* Título arriba, sin brincos */
+  #planeacion-list .exp-accordion--fase .fase-left{
+    display: flex;
+    align-items: flex-start;
+    min-width: 0;
+  }
+  #planeacion-list .exp-accordion--fase .fase-title{
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* Tablero abajo en 2 columnas (label | value) */
+  #planeacion-list .exp-accordion--fase .fase-right{
+    margin-left: 0 !important;
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    gap: 8px 12px;
+    align-items: center;
+  }
+
+  /* Labels más compactos */
+  #planeacion-list .exp-accordion--fase .fase-label{
+    white-space: nowrap;
+  }
+
+  /* Barra ocupa el espacio disponible sin “raros” */
+  #planeacion-list .exp-accordion--fase .exp-progress{
+    width: 100%;
+    max-width: 220px;
+  }
+
+  /* Fecha sin brincar */
+  #planeacion-list .exp-accordion--fase .fase-date{
+    white-space: nowrap;
+  }
+
+  /* Chevron: fijo al extremo derecho, NO afecta layout */
+  #planeacion-list .exp-accordion--fase > .exp-acc-head .chev{
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    display: inline-block !important;
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid #6b7280;
+    border-bottom: 2px solid #6b7280;
+    pointer-events: none; /* importante: si el click lo maneja el botón */
+  }
+
+  /* Cuando está abierto (aria-expanded=true) lo volteamos */
+  #planeacion-list .exp-accordion--fase > .exp-acc-head[aria-expanded="true"] .chev{
+    transform: translateY(-50%) rotate(-135deg);
+  }
+}
+
+@media (max-width: 760px){
+  #planeacion-list .exp-accordion--fase > .exp-acc-head{
+    padding-right: 56px; /* más espacio */
+  }
+
+  #planeacion-list .exp-accordion--fase > .exp-acc-head .chev{
+    right: 20px;
+  }
+}
+
+/* Botón eliminar proceso (solo desktop si quieres) */
+@media (min-width: 821px){
+  #planeacion-list .proceso-del-btn{
+    border: 0;
+    background: transparent;
+    padding: 6px;
+    border-radius: 10px;
+    cursor: pointer;
+    line-height: 0;
+    opacity: .85;
+  }
+  #planeacion-list .proceso-del-btn:hover{ opacity: 1; }
+}
+
+/* Si tienes el modo no-actions, también lo apagamos ahí */
+#planeacion-list.no-actions .proceso-del-btn{ display:none !important; }

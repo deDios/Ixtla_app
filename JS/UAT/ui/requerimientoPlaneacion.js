@@ -103,7 +103,7 @@
         console.log(
           "→ allowed:",
           allowed,
-          allowed ? "(DIRECTOR/PL)" : "(no es DIRECTOR/PL)"
+          allowed ? "(DIRECTOR/PL)" : "(no es DIRECTOR/PL)",
         );
         console.groupEnd();
         return allowed;
@@ -137,8 +137,8 @@
         (typeof roles.has === "function"
           ? roles.has("ADMIN")
           : Array.isArray(roles)
-          ? roles.includes("ADMIN")
-          : false);
+            ? roles.includes("ADMIN")
+            : false);
 
       if (isAdmin) return true;
 
@@ -292,8 +292,8 @@
       r.reporta_a != null
         ? r.reporta_a
         : r.cuenta && r.cuenta.reporta_a != null
-        ? r.cuenta.reporta_a
-        : null;
+          ? r.cuenta.reporta_a
+          : null;
     const roles = Array.isArray(r.cuenta?.roles)
       ? r.cuenta.roles.map((x) => x?.codigo).filter(Boolean)
       : [];
@@ -394,14 +394,14 @@
     } catch (e) {
       warn(
         "[RBAC] No se pudieron cargar departamentos para detectar director/PL:",
-        e
+        e,
       );
       depts = [];
     }
 
     if (yoId) {
       const isDirectorFromDepts = depts.some(
-        (d) => Number(d.director) === yoId
+        (d) => Number(d.director) === yoId,
       );
       const isPLFromDepts = depts.some((d) => Number(d.primera_linea) === yoId);
 
@@ -409,7 +409,7 @@
         isDirector = true;
         log(
           "[RBAC] DIRECTOR detectado por departamentos (aunque no venga en roles). yoId=",
-          yoId
+          yoId,
         );
       }
 
@@ -417,7 +417,7 @@
         isPL = true;
         log(
           "[RBAC] PRIMERA_LINEA detectado por departamentos (aunque no venga en roles). yoId=",
-          yoId
+          yoId,
         );
       }
     }
@@ -430,15 +430,15 @@
         depts
           .filter(
             (d) =>
-              Number(d.director) === yoId || Number(d.primera_linea) === yoId
+              Number(d.director) === yoId || Number(d.primera_linea) === yoId,
           )
-          .map((d) => Number(d.id))
+          .map((d) => Number(d.id)),
       );
 
       if (deptId) visibleDeptIds.add(deptId);
 
       const inDepts = universe.filter((e) =>
-        visibleDeptIds.has(Number(e.departamento_id))
+        visibleDeptIds.has(Number(e.departamento_id)),
       );
 
       const reports = yoId ? getReportesTransitivos(universe, yoId) : [];
@@ -446,7 +446,7 @@
 
       const map = new Map();
       [...inDepts, ...reports, ...(self ? [self] : [])].forEach((e) =>
-        map.set(e.id, e)
+        map.set(e.id, e),
       );
 
       log("[RBAC] Asignables (DIR/PL)", {
@@ -516,7 +516,7 @@
   // ====== LAYER: Procesos / Tareas (LIST / CREATE) ======
   async function listProcesos(
     requerimiento_id,
-    { page = 1, page_size = 100 } = {}
+    { page = 1, page_size = 100 } = {},
   ) {
     const payload = {
       requerimiento_id: Number(requerimiento_id),
@@ -646,10 +646,10 @@
     return req.estatus_code != null
       ? Number(req.estatus_code)
       : req.estatus != null
-      ? Number(req.estatus)
-      : req.raw && req.raw.estatus != null
-      ? Number(req.raw.estatus)
-      : null;
+        ? Number(req.estatus)
+        : req.raw && req.raw.estatus != null
+          ? Number(req.raw.estatus)
+          : null;
   }
 
   // Regla: botones de procesos/tareas NO habilitados en
@@ -756,8 +756,21 @@
             <span class="pct">${pct}%</span>
           </span>
           <span class="fase-label">Fecha de inicio</span>
-          <span class="fase-date">${hoyMx}</span>
-          <span class="chev" aria-hidden="true"></span>
+        <span class="fase-date">${hoyMx}</span>
+
+        <span class="proceso-del-btn"
+          role="button"
+        tabindex="0"
+       data-proceso-id="${escapeHtml(String(p.id))}"
+        aria-label="Eliminar proceso"
+        title="Eliminar proceso">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM6 9h2v9H6V9z"></path>
+         </svg>
+        </span>
+
+        <span class="chev" aria-hidden="true"></span>
+
         </div>
       </button>
 
@@ -799,14 +812,14 @@
       s === 4
         ? "is-success"
         : s === 5
-        ? "is-warning"
-        : s === 3
-        ? "is-info"
-        : s === 2
-        ? "is-info"
-        : s === 0 || s === 1
-        ? "is-muted"
-        : "is-info";
+          ? "is-warning"
+          : s === 3
+            ? "is-info"
+            : s === 2
+              ? "is-info"
+              : s === 0 || s === 1
+                ? "is-muted"
+                : "is-info";
 
     const rawPct = taskPct(t);
     const pct = s === 5 ? 100 : rawPct;
@@ -903,7 +916,7 @@
         log(
           `[RBAC] Proceso ${p.id} → acciones ${
             canManage ? "VISIBLES" : "OCULTAS"
-          }`
+          }`,
         );
 
         try {
@@ -954,7 +967,7 @@
         (e) => {
           if (e.target.closest(".modal-close")) closeOverlay(modal);
         },
-        { capture: true }
+        { capture: true },
       );
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && modal.classList.contains("open"))
@@ -965,7 +978,7 @@
     }
 
     populateAsignadoSelect().catch((e) =>
-      warn("populateAsignadoSelect error:", e)
+      warn("populateAsignadoSelect error:", e),
     );
     setTimeout(() => $(SEL.selProceso)?.focus(), 30);
   }
@@ -1042,8 +1055,8 @@
 
         const sec = $(
           `#planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(
-            String(procesoId)
-          )}"]`
+            String(procesoId),
+          )}"]`,
         );
         if (sec) {
           const tareas = await listTareas(Number(procesoId), {
@@ -1100,7 +1113,7 @@
         (e) => {
           if (e.target.closest(".modal-close")) closeOverlay(modal);
         },
-        { capture: true }
+        { capture: true },
       );
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && modal.classList.contains("open"))
@@ -1138,6 +1151,19 @@
     return modal;
   }
 
+  async function softHideProceso(procesoId) {
+    const yoId = getEmpleadoId();
+    if (!procesoId) throw new Error("procesoId requerido");
+
+    const payload = {
+      id: Number(procesoId),
+      status: 0,
+      updated_by: yoId ? Number(yoId) : null,
+    };
+
+    return postJSON(API.PROCESOS.UPDATE, payload);
+  }
+
   async function softHideTarea(tareaId) {
     const yoId = getEmpleadoId();
     if (!tareaId) throw new Error("tareaId requerido");
@@ -1158,10 +1184,10 @@
     const list = $("#planeacion-list");
     if (!list) return;
 
+    // ===== Modal: borrar tarea (soft hide status=0) =====
     const modal = ensureDeleteModal();
     const btnClose = $(".modal-close", modal);
 
-    // Soporta modal generado (data-act) y el modal real de producción (ids / clases)
     const btnCancel =
       $('[data-act="cancel"]', modal) ||
       $("#btn-del-tarea-cancel", modal) ||
@@ -1200,14 +1226,13 @@
           await softHideTarea(tareaId);
           toast("Tarea eliminada", "success");
 
-          // Re-render para recalcular meta/progreso y respetar soft-hide (status=0)
           const req = window.__REQ__;
           if (req?.id) {
             await renderProcesosYtareas(req.id);
           } else {
             await renderProcesosYtareas(
               Number(new URLSearchParams(location.search).get("id")) ||
-                undefined
+                undefined,
             );
           }
         } catch (e) {
@@ -1220,13 +1245,77 @@
         }
       });
 
-    // Delegación: botón papelera dentro de la tabla
+    list.addEventListener("keydown", (ev) => {
+      const el = ev.target?.closest?.(".proceso-del-btn");
+      if (!el) return;
+
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        el.click(); // reutiliza tu flujo existente
+      }
+    });
+
+    // ===== Delegación clicks (sirve aunque se inyecten botones por JS) =====
     list.addEventListener("click", async (ev) => {
-      const btn =
-        ev.target && ev.target.closest
-          ? ev.target.closest(".tarea-del-btn")
-          : null;
-      if (!btn) return;
+      // 1) Borrar PROCESO (nuevo) - ojo: ahora puede ser <span role="button">
+      const procEl = ev.target?.closest?.(".proceso-del-btn");
+      if (procEl) {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        const allowed = await canDeleteTasks();
+        if (!allowed) {
+          toast("No tienes permiso para eliminar procesos", "warn");
+          return;
+        }
+
+        const procesoId = procEl.getAttribute("data-proceso-id");
+        if (!procesoId) {
+          toast("No se pudo identificar el proceso", "error");
+          return;
+        }
+
+        try {
+          procEl.classList.add("is-busy");
+
+          // NO permitir si hay tareas activas (listTareas ya filtra status=0) :contentReference[oaicite:5]{index=5}
+          const tareas = await listTareas(Number(procesoId), {
+            page: 1,
+            page_size: 200,
+          });
+          if (tareas.length > 0) {
+            toast("No puedes eliminar un proceso con tareas activas", "warn");
+            return;
+          }
+
+          const ok = confirm("¿Seguro que quieres eliminar este proceso?");
+          if (!ok) return;
+
+          await softHideProceso(procesoId); // usa la función global (una sola)
+          toast("Proceso eliminado", "success");
+
+          const req = window.__REQ__;
+          if (req?.id) {
+            await renderProcesosYtareas(req.id);
+          } else {
+            await renderProcesosYtareas(
+              Number(new URLSearchParams(location.search).get("id")) ||
+                undefined,
+            );
+          }
+        } catch (e) {
+          err("softHideProceso()", e);
+          toast("No se pudo eliminar el proceso", "error");
+        } finally {
+          procEl.classList.remove("is-busy");
+        }
+
+        return;
+      }
+
+      // 2) Borrar TAREA (existente)
+      const btnTask = ev.target?.closest?.(".tarea-del-btn");
+      if (!btnTask) return;
 
       ev.preventDefault();
       ev.stopPropagation();
@@ -1238,8 +1327,8 @@
       }
 
       _delTarget = {
-        tareaId: btn.getAttribute("data-tarea-id"),
-        procesoId: btn.getAttribute("data-proceso-id"),
+        tareaId: btnTask.getAttribute("data-tarea-id"),
+        procesoId: btnTask.getAttribute("data-proceso-id"),
       };
 
       openOverlay(modal);
@@ -1260,7 +1349,7 @@
       _creatingProceso = true;
 
       const btnSubmit = form.querySelector(
-        'button[type="submit"], .btn-submit'
+        'button[type="submit"], .btn-submit',
       );
       if (btnSubmit) btnSubmit.disabled = true;
 
@@ -1372,7 +1461,7 @@
           updateToolbarForReq(req);
           await renderProcesosYtareas(Number(req.id));
         },
-        { passive: true }
+        { passive: true },
       );
 
       // Fallback si __REQ__ ya está listo al cargar este JS
@@ -1397,7 +1486,7 @@
     document.addEventListener(
       "DOMContentLoaded",
       () => window.Planeacion.init(),
-      { once: true }
+      { once: true },
     );
   } else {
     window.Planeacion.init();
