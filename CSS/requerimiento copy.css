@@ -2846,13 +2846,14 @@ body.req-locked button.icon-btn[data-detalle-edit] {
     width: min(520px, calc(100% - 24px));
     padding: 1px 12px;
 
-    border-radius: 999px;
+    border-radius: 9px;
     font-weight: 700;
     font-size: .95rem;
     line-height: 1;
 
     background: #70ab93;
-    color: #ffffff;
+    background: rgba(51, 122, 183, .75);
+    color: #fff;
     border: 1px solid #cfe7dc;
 
     cursor: default;
@@ -2872,10 +2873,12 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 /* =========================
    TABS MOBILE — PROPUESTA 3 (2 ARRIBA + 1 ABAJO LIGERO)
    ========================= */
-@media (max-width: 820px){
-  .exp-tabs-bar{ padding: 0 12px; }
+@media (max-width: 820px) {
+  .exp-tabs-bar {
+    padding: 0 12px;
+  }
 
-  .exp-tabs{
+  .exp-tabs {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
@@ -2883,11 +2886,11 @@ body.req-locked button.icon-btn[data-detalle-edit] {
   }
 
   /* el 3er botón ocupa toda la fila */
-  .exp-tabs .exp-tab:nth-child(3){
+  .exp-tabs .exp-tab:nth-child(3) {
     grid-column: 1 / -1;
   }
 
-  .exp-tabs .exp-tab{
+  .exp-tabs .exp-tab {
     border: 1px solid #d7e3dc;
     background: #ffffff;
     color: #0f172a;
@@ -2901,17 +2904,19 @@ body.req-locked button.icon-btn[data-detalle-edit] {
     line-height: 1;
     text-align: center;
 
-    box-shadow: 0 1px 0 rgba(0,0,0,.03);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, .03);
   }
 
   .exp-tabs .exp-tab.is-active,
-  .exp-tabs .exp-tab[aria-selected="true"]{
+  .exp-tabs .exp-tab[aria-selected="true"] {
     background: #e7f3ee;
     border-color: #cfe7dc;
     color: #0f5132;
   }
 
-  .exp-tabs .exp-tab:active{ transform: scale(.98); }
+  .exp-tabs .exp-tab:active {
+    transform: scale(.98);
+  }
 }
 
 
@@ -2926,18 +2931,18 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 
 
 
-@media (max-width: 820px){
+@media (max-width: 820px) {
 
   /* Mantén SOLO actividad + porcentaje (como ya lo haces) */
   .exp-table--planeacion .exp-row .responsable,
   .exp-table--planeacion .exp-row .estatus,
   .exp-table--planeacion .exp-row .fecha,
-  .exp-table--planeacion .exp-row .acciones{
+  .exp-table--planeacion .exp-row .acciones {
     display: none !important;
   }
 
   /* La fila card en mobile: 2 renglones (Tarea / Porcentaje) */
-  .exp-table--planeacion .exp-row{
+  .exp-table--planeacion .exp-row {
     display: grid !important;
     grid-template-columns: 1fr;
     gap: 6px;
@@ -2945,21 +2950,21 @@ body.req-locked button.icon-btn[data-detalle-edit] {
   }
 
   /* 1) Renglón de "Tarea: <titulo>" */
-  .exp-table--planeacion .exp-row .actividad{
+  .exp-table--planeacion .exp-row .actividad {
     font-size: 12px;
     line-height: 1.2;
     margin: 0;
   }
 
   /* Poner el prefijo "Tarea:" como en el mock */
-  .exp-table--planeacion .exp-row .actividad::before{
+  .exp-table--planeacion .exp-row .actividad::before {
     content: "Tarea: ";
     opacity: .75;
     font-weight: 600;
   }
 
   /* 2) Renglón de porcentaje: label + barrita alineados */
-  .exp-table--planeacion .exp-row .porcentaje{
+  .exp-table--planeacion .exp-row .porcentaje {
     display: flex !important;
     align-items: center;
     gap: 8px;
@@ -2969,7 +2974,7 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 
   /* El label "Porcentaje:" viene de tu CSS card vía ::before.
      Aquí lo dejamos y lo hacemos inline (no en bloque). */
-  .exp-view .exp-table.exp-table--planeacion .porcentaje::before{
+  .exp-view .exp-table.exp-table--planeacion .porcentaje::before {
     display: inline-block !important;
     margin: 0 !important;
     font-size: 12px;
@@ -2978,8 +2983,9 @@ body.req-locked button.icon-btn[data-detalle-edit] {
   }
 
   /* Barrita al lado del label, con ancho tipo mock */
-  .exp-table--planeacion .exp-row .porcentaje .exp-progress{
-    width: 110px;     /* ajústalo si quieres más/menos */
+  .exp-table--planeacion .exp-row .porcentaje .exp-progress {
+    width: 110px;
+    /* ajústalo si quieres más/menos */
     min-width: 110px;
   }
 }
@@ -2996,25 +3002,27 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 /* =========================
    PLANEACIÓN — HEADER PROCESO MOBILE (limpio + chevron fijo)
    ========================= */
-@media (max-width: 760px){
+@media (max-width: 760px) {
 
   /* Header como contenedor “tablero” */
-  #planeacion-list .exp-accordion--fase > .exp-acc-head{
+  #planeacion-list .exp-accordion--fase>.exp-acc-head {
     position: relative;
     display: grid !important;
     grid-template-columns: 1fr;
     grid-template-rows: auto auto;
     gap: 10px;
-    padding-right: 44px; /* deja espacio para el chevron */
+    padding-right: 44px;
+    /* deja espacio para el chevron */
   }
 
   /* Título arriba, sin brincos */
-  #planeacion-list .exp-accordion--fase .fase-left{
+  #planeacion-list .exp-accordion--fase .fase-left {
     display: flex;
     align-items: flex-start;
     min-width: 0;
   }
-  #planeacion-list .exp-accordion--fase .fase-title{
+
+  #planeacion-list .exp-accordion--fase .fase-title {
     display: block;
     max-width: 100%;
     overflow: hidden;
@@ -3023,7 +3031,7 @@ body.req-locked button.icon-btn[data-detalle-edit] {
   }
 
   /* Tablero abajo en 2 columnas (label | value) */
-  #planeacion-list .exp-accordion--fase .fase-right{
+  #planeacion-list .exp-accordion--fase .fase-right {
     margin-left: 0 !important;
     width: 100%;
     display: grid !important;
@@ -3033,23 +3041,23 @@ body.req-locked button.icon-btn[data-detalle-edit] {
   }
 
   /* Labels más compactos */
-  #planeacion-list .exp-accordion--fase .fase-label{
+  #planeacion-list .exp-accordion--fase .fase-label {
     white-space: nowrap;
   }
 
   /* Barra ocupa el espacio disponible sin “raros” */
-  #planeacion-list .exp-accordion--fase .exp-progress{
+  #planeacion-list .exp-accordion--fase .exp-progress {
     width: 100%;
     max-width: 220px;
   }
 
   /* Fecha sin brincar */
-  #planeacion-list .exp-accordion--fase .fase-date{
+  #planeacion-list .exp-accordion--fase .fase-date {
     white-space: nowrap;
   }
 
   /* Chevron: fijo al extremo derecho, NO afecta layout */
-  #planeacion-list .exp-accordion--fase > .exp-acc-head .chev{
+  #planeacion-list .exp-accordion--fase>.exp-acc-head .chev {
     position: absolute;
     right: 16px;
     top: 50%;
@@ -3059,28 +3067,30 @@ body.req-locked button.icon-btn[data-detalle-edit] {
     height: 12px;
     border-right: 2px solid #6b7280;
     border-bottom: 2px solid #6b7280;
-    pointer-events: none; /* importante: si el click lo maneja el botón */
+    pointer-events: none;
+    /* importante: si el click lo maneja el botón */
   }
 
   /* Cuando está abierto (aria-expanded=true) lo volteamos */
-  #planeacion-list .exp-accordion--fase > .exp-acc-head[aria-expanded="true"] .chev{
+  #planeacion-list .exp-accordion--fase>.exp-acc-head[aria-expanded="true"] .chev {
     transform: translateY(-50%) rotate(-135deg);
   }
 }
 
-@media (max-width: 760px){
-  #planeacion-list .exp-accordion--fase > .exp-acc-head{
-    padding-right: 56px; /* más espacio */
+@media (max-width: 760px) {
+  #planeacion-list .exp-accordion--fase>.exp-acc-head {
+    padding-right: 56px;
+    /* más espacio */
   }
 
-  #planeacion-list .exp-accordion--fase > .exp-acc-head .chev{
+  #planeacion-list .exp-accordion--fase>.exp-acc-head .chev {
     right: 20px;
   }
 }
 
 /* Botón eliminar proceso (solo desktop si quieres) */
-@media (min-width: 821px){
-  #planeacion-list .proceso-del-btn{
+@media (min-width: 821px) {
+  #planeacion-list .proceso-del-btn {
     border: 0;
     background: transparent;
     padding: 6px;
@@ -3089,8 +3099,13 @@ body.req-locked button.icon-btn[data-detalle-edit] {
     line-height: 0;
     opacity: .85;
   }
-  #planeacion-list .proceso-del-btn:hover{ opacity: 1; }
+
+  #planeacion-list .proceso-del-btn:hover {
+    opacity: 1;
+  }
 }
 
 /* Si tienes el modo no-actions, también lo apagamos ahí */
-#planeacion-list.no-actions .proceso-del-btn{ display:none !important; }
+#planeacion-list.no-actions .proceso-del-btn {
+  display: none !important;
+}
