@@ -1153,18 +1153,11 @@
     modal.setAttribute("aria-hidden", "true");
 
     modal.innerHTML = `
-    <div class="modal-content ix-confirm" role="dialog" aria-modal="true" aria-labelledby="del-title">
-      <button class="modal-close" type="button" aria-label="Cerrar">×</button>
-
-      <h2 id="del-title" data-del-title>Eliminar</h2>
-      <p class="ix-confirm-msg" data-del-msg>¿Seguro que quieres eliminar esto?</p>
-
-      <div class="ix-confirm-actions">
-        <button type="button" class="btn" data-act="cancel">Cancelar</button>
-        <button type="button" class="btn-submit danger" data-act="confirm">Confirmar</button>
-      </div>
-
-      <p class="ix-confirm-foot" data-del-foot>Esta acción no se puede deshacer.</p>
+    <div class="modal-content ix-confirm" role="dialog" aria-modal="true" aria-labelledby="del-tarea-title">
+      ...
+      <h2 id="del-tarea-title">Eliminar tarea</h2>
+      <p class="ix-confirm-msg">¿Seguro que quieres eliminar esta tarea?</p>
+      ...
     </div>
   `;
     document.body.appendChild(modal);
@@ -1199,10 +1192,11 @@
 
   function bindDeleteDelegation() {
     if (_delModalBound) return;
-    _delModalBound = true;
 
     const list = $("#planeacion-list");
     if (!list) return;
+
+    _delModalBound = true;
 
     const modal = ensureDeleteModal();
 
