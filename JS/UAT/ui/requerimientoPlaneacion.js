@@ -8,7 +8,6 @@
   const $$ = H.$$ || ((s, r = document) => Array.from(r.querySelectorAll(s)));
   const toast = H.toast || ((m, t = "info") => console.log("[toast]", t, m));
 
-
   // Notifica a la vista principal que la planeación cambió (para refrescar botones/estatus)
   function emitPlaneacionChanged(detail = {}) {
     try {
@@ -175,7 +174,7 @@
   }
 
   let _delModalBound = false;
-  let _delTarget = { tareaId: null, procesoId: null };
+  let _delTarget = { kind: null, tareaId: null, procesoId: null };
 
   // ====== API endpoints ======
   const API_FBK = {
@@ -209,6 +208,36 @@
     try {
       const res = await fetch(url, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body || {}),
+      });
+      const txt = await res.text();
+      let json = null;
+      try {
+        json = JSON.parse(txt);
+      } catch {}
+      console.log("← status:", res.status, "json:", json || txt);
+      console.groupEnd();
+      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+      if (json?.ok === false)
+        throw new Error(json?.error || "Operación no exitosa");
+      return json ?? {};
+    } catch (e) {
+      console.groupEnd();
+      throw e;
+    }
+  }
+
+  async function updateJSON(url, body, method = "PATCH") {
+    const group = `[HTTP][Planeación] ${method} ${url}`;
+    console.groupCollapsed(group);
+    console.log("→ payload:", body);
+    try {
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -943,7 +972,9 @@
     }
 
     // Avisar a requerimientoView que la planeación cambió
-    emitPlaneacionChanged({ requerimiento_id: Number(requerimiento_id) || null });
+    emitPlaneacionChanged({
+      requerimiento_id: Number(requerimiento_id) || null,
+    });
   }
 
   // ===== Helpers de modal (compatibilidad .open/.active) =====
@@ -1161,30 +1192,73 @@
     `;
     document.body.appendChild(modal);
     return modal;
+
+    function openDeleteModal({ kind, procesoId = null, tareaId = null } = {}) {
+      const modal = ensureDeleteModal();
+
+      const titleEl =
+        modal.querySelector("[data-del-title]") ||
+        modal.querySelector("#del-tarea-title") ||
+        modal.querySelector("h2");
+
+      const msgEl =
+        modal.querySelector("[data-del-msg]") ||
+        modal.querySelector(".ix-confirm-msg") ||
+        modal.querySelector("p");
+
+      // Foot opcional
+      const footEl =
+        modal.querySelector("[data-del-foot]") ||
+        modal.querySelector("#del-tarea-foot");
+
+      const isProceso = kind === "proceso";
+
+      if (titleEl)
+        titleEl.textContent = isProceso ? "Eliminar proceso" : "Eliminar tarea";
+
+      if (msgEl) {
+        msgEl.textContent = isProceso
+          ? "¿Seguro que quieres eliminar este proceso?"
+          : "¿Seguro que quieres eliminar esta tarea?";
+      }
+
+      // Mantener texto clásico
+      if (footEl) footEl.textContent = "Esta acción no se puede deshacer.";
+
+      _delTarget = {
+        kind: isProceso ? "proceso" : "tarea",
+        procesoId: procesoId != null ? Number(procesoId) : null,
+        tareaId: tareaId != null ? Number(tareaId) : null,
+      };
+
+      openOverlay(modal);
+    }
   }
 
   async function softHideProceso(procesoId) {
     const yoId = getEmpleadoId();
     if (!procesoId) throw new Error("procesoId requerido");
+    if (!yoId) throw new Error("updated_by requerido");
 
     const payload = {
       id: Number(procesoId),
       status: 0,
-      updated_by: yoId ? Number(yoId) : null,
+      updated_by: Number(yoId),
     };
 
-    return postJSON(API.PROCESOS.UPDATE, payload);
+    return updateJSON(API.PROCESOS.UPDATE, payload, "PATCH");
   }
 
   async function softHideTarea(tareaId) {
     const yoId = getEmpleadoId();
     if (!tareaId) throw new Error("tareaId requerido");
+    if (!yoId) throw new Error("updated_by requerido");
 
     // NOTE: seguimos el mismo patrón que /JS/tareas.js para updates
     const payload = {
       id: Number(tareaId),
       status: 0,
-      updated_by: yoId ? Number(yoId) : null,
+      updated_by: Number(yoId),
     };
     return postJSON(API.TAREAS.UPDATE, payload);
   }
@@ -1219,7 +1293,7 @@
         metaEl.hidden = true;
         metaEl.textContent = "";
       }
-      _delTarget = { tareaId: null, procesoId: null };
+      _delTarget = { kind: null, tareaId: null, procesoId: null };
       closeOverlay(modal);
     };
 
@@ -1228,15 +1302,22 @@
 
     btnConfirm &&
       btnConfirm.addEventListener("click", async () => {
-        const { tareaId } = _delTarget || {};
-        if (!tareaId) return close();
+        const { kind, tareaId, procesoId } = _delTarget || {};
+        if (!kind) return close();
 
         try {
           btnConfirm.disabled = true;
           btnConfirm.textContent = "Eliminando…";
 
-          await softHideTarea(tareaId);
-          toast("Tarea eliminada", "success");
+          if (kind === "tarea") {
+            if (!tareaId) return close();
+            await softHideTarea(tareaId);
+            toast("Tarea eliminada", "success");
+          } else {
+            if (!procesoId) return close();
+            await softHideProceso(procesoId);
+            toast("Proceso eliminado", "success");
+          }
 
           const req = window.__REQ__;
           if (req?.id) {
@@ -1248,8 +1329,8 @@
             );
           }
         } catch (e) {
-          err("softHideTarea()", e);
-          toast("No se pudo eliminar la tarea", "error");
+          err("confirm delete", e);
+          toast("No se pudo eliminar", "error");
         } finally {
           btnConfirm.disabled = false;
           btnConfirm.textContent = "Confirmar";
@@ -1300,21 +1381,9 @@
             return;
           }
 
-          const ok = confirm("¿Seguro que quieres eliminar este proceso?");
-          if (!ok) return;
-
-          await softHideProceso(procesoId); // usa la función global (una sola)
-          toast("Proceso eliminado", "success");
-
-          const req = window.__REQ__;
-          if (req?.id) {
-            await renderProcesosYtareas(req.id);
-          } else {
-            await renderProcesosYtareas(
-              Number(new URLSearchParams(location.search).get("id")) ||
-                undefined,
-            );
-          }
+          // ✅ abrir el mismo modal (dinámico) para proceso
+          openDeleteModal({ kind: "proceso", procesoId: Number(procesoId) });
+          return;
         } catch (e) {
           err("softHideProceso()", e);
           toast("No se pudo eliminar el proceso", "error");
@@ -1338,12 +1407,9 @@
         return;
       }
 
-      _delTarget = {
-        tareaId: btnTask.getAttribute("data-tarea-id"),
-        procesoId: btnTask.getAttribute("data-proceso-id"),
-      };
-
-      openOverlay(modal);
+      const tareaId = btnTask.getAttribute("data-tarea-id");
+      const procesoId = btnTask.getAttribute("data-proceso-id");
+      openDeleteModal({ kind: "tarea", tareaId, procesoId });
     });
   }
 
