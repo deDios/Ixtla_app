@@ -562,19 +562,22 @@
   }
 
   // ====== LAYER: Procesos / Tareas (LIST / CREATE) ======
-  async function listProcesos(
-    requerimiento_id,
-    { page = 1, page_size = 100 } = {},
-  ) {
+  async function listProcesos(reqId, { page = 1, page_size = 50 } = {}) {
     const payload = {
-      requerimiento_id: Number(requerimiento_id),
-      page,
-      page_size,
+      requerimiento_id: Number(reqId),
+      status: 1,
+      page: Number(page),
+      page_size: Number(page_size),
     };
+
     const j = await postJSON(API.PROCESOS.LIST, payload);
+
     const arr = Array.isArray(j?.data) ? j.data : [];
-    // filtramos los procesos con softdelete paar que no molesten
-    return mapped.filter((p) => Number(p.status ?? 0) !== 0);
+
+    // Normaliza
+    const procesos = arr.map(normalizeProceso);
+
+    return procesos.filter((p) => Number(p.status ?? 0) !== 0);
   }
 
   async function createProceso({
