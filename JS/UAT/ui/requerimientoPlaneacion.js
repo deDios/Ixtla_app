@@ -1143,9 +1143,7 @@
     setTimeout(() => $(SEL.inpPTitulo)?.focus(), 30);
   }
 
-  // ====== UI: borrar tarea (soft hide status=0) ======
-
-  // ===== Modal Confirmación (reutiliza el de tareas para tareas + procesos) =====
+  // ===== Modal Confirmacion =====
   function ensureDeleteModal() {
     let modal = $("#modal-del-tarea");
     if (modal) return modal;
@@ -1183,24 +1181,44 @@
 
   function openDeleteModal({ kind, procesoId = null, tareaId = null } = {}) {
     const modal = ensureDeleteModal();
-    const titleEl = modal.querySelector("[data-del-title]");
-    const msgEl = modal.querySelector("[data-del-msg]");
+
+    const titleEl =
+      modal.querySelector("[data-del-title]") || modal.querySelector("h2");
+
+    const msgEl =
+      modal.querySelector("[data-del-msg]") ||
+      modal.querySelector(".ix-confirm-msg") ||
+      modal.querySelector("p");
+
     const footEl = modal.querySelector("[data-del-foot]");
 
     const isProceso = kind === "proceso";
-    titleEl.textContent = isProceso ? "Eliminar proceso" : "Eliminar tarea";
-    msgEl.textContent = isProceso
-      ? "¿Seguro que quieres eliminar este proceso?"
-      : "¿Seguro que quieres eliminar esta tarea?";
-    // Foot se queda igual (tal como pediste)
-    footEl.textContent = "Esta acción no se puede deshacer.";
 
+    // Título
+    if (titleEl) {
+      titleEl.textContent = isProceso ? "Eliminar proceso" : "Eliminar tarea";
+    }
+
+    // Mensaje
+    if (msgEl) {
+      msgEl.textContent = isProceso
+        ? "¿Seguro que quieres eliminar este proceso? (Solo se permite si no tiene tareas activas)."
+        : "¿Seguro que quieres eliminar esta tarea?";
+    }
+
+    // Footer (se mantiene igual)
+    if (footEl) {
+      footEl.textContent = "Esta acción no se puede deshacer.";
+    }
+
+    // Target actual
     _delTarget = {
-      tareaId: tareaId != null ? Number(tareaId) : null,
-      procesoId: procesoId != null ? Number(procesoId) : null,
       kind: isProceso ? "proceso" : "tarea",
+      procesoId: procesoId != null ? Number(procesoId) : null,
+      tareaId: tareaId != null ? Number(tareaId) : null,
     };
 
+    // Abrir modal
     openOverlay(modal);
   }
 
@@ -1317,13 +1335,13 @@
         e.stopPropagation();
 
         // mismo permiso global de gestión para mostrar/permitir eliminar procesos
-        let canManage = false;
+        let allow = false;
         try {
-          canManage = await canManagePlaneacion();
+          allow = await canDeleteTasks();
         } catch {
-          canManage = false;
+          allow = false;
         }
-        if (!canManage) {
+        if (!allow) {
           toast("No tienes permiso para eliminar procesos.", "warning");
           return;
         }
