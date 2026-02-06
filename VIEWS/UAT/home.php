@@ -1,6 +1,6 @@
 <?php
-    require_once __DIR__ . '/../../JS/auth/ix_guard.php';
-    ix_require_session();
+require_once __DIR__ . '/../../JS/auth/ix_guard.php';
+ix_require_session();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -654,47 +654,71 @@
     <!-- =========================
      DONE MODAL — CONFIRMACIÓN DE REQUERIMIENTO
      ========================= -->
-    <div id="ix-done-modal" class="ix-modal ix-modal--done" role="dialog" aria-modal="true" aria-hidden="true"
-        aria-labelledby="ix-done-title">
+    <div id="ix-done-modal" class="ix-modal ix-modal--done" hidden aria-hidden="true">
 
-        <div class="ix-modal__overlay" data-ix-close></div>
+        <!-- Overlay -->
+        <div class="ix-modal__overlay" data-ix-close=""></div>
 
-        <div class="ix-modal__content" role="document">
+        <!-- Dialog -->
+        <div class="ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ix-done-title">
 
-            <button type="button" class="ix-modal__close" aria-label="Cerrar" data-ix-close>
-                ✕
-            </button>
+            <!-- Header -->
+            <header class="ix-modal__header">
+                <div class="ix-modal__brand">
+                    <img src="/ASSETS/main_logo.png" alt="Ixtlahuacán de los Membrillos - Ayuntamiento"
+                        onerror="this.style.display='none'">
+                </div>
 
-            <div class="ix-done">
-                <h3 id="ix-done-title" class="ix-done__title">
-                    ¡Solicitud registrada!
-                </h3>
+                <div class="ix-modal__headings">
+                    <h2 id="ix-done-title" class="ix-modal__title">
+                        Nuevo Reporte
+                    </h2>
+                    <p class="ix-modal__subtitle">
+                        <span id="ix-done-subtitle">—</span>
+                    </p>
+                </div>
 
-                <p class="ix-done__text">
-                    Su solicitud ante
-                    <strong id="ix-done-folio">REQ-0000000000</strong>
-                    se registró correctamente.
-                </p>
+                <button type="button" class="ix-modal__close" aria-label="Cerrar" data-ix-close="">
+                    ×
+                </button>
+            </header>
 
-                <p class="ix-done__subtext">
-                    Puede consultar el detalle y dar seguimiento en nuestro portal
-                    de Atención Ciudadana.
-                </p>
+            <!-- Body -->
+            <div class="ix-modal__body">
+                <div class="ix-done-copy">
+                    <p>
+                        Gracias por contribuir a mejorar la zona.
+                        Pronto se dará seguimiento.
+                    </p>
 
-                <p class="ix-done__hint">
-                    Agradeceremos confirmar de recibido para continuar con la gestión
-                    de su trámite.
-                </p>
+                    <p class="ix-done-mid">
+                        Lo atenderemos lo más rápido posible.<br>
+                        El N° de tu reporte es:
+                        <strong id="ix-done-folio">REQ-—</strong>.<br>
+                        Recuerda guardar este número para darle seguimiento.
+                    </p>
 
-                <div class="ix-done__actions">
-                    <button type="button" class="btn btn-primary" data-ix-close>
-                        Entendido
-                    </button>
+                    <p>
+                        Para cualquier otra duda comunícate al
+                        <a href="tel:3312977799">33 1297 7799</a>
+                        o envía un correo a
+                        <a href="mailto:aciudadana98@gmail.com">
+                            aciudadana98@gmail.com
+                        </a>.
+                    </p>
                 </div>
             </div>
 
+            <!-- Footer -->
+            <footer class="ix-modal__footer">
+                <button type="button" class="ix-btn ix-btn--primary" id="ix-done-ok" data-ix-close="">
+                    Finalizar
+                </button>
+            </footer>
+
         </div>
     </div>
+
 
 
 
