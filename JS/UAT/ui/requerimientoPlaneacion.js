@@ -6,15 +6,24 @@
   const H = window._rvHelpers || {};
   const $ = H.$ || ((s, r = document) => r.querySelector(s));
   const $$ = H.$$ || ((s, r = document) => Array.from(r.querySelectorAll(s)));
-  const toast = H.toast || ((m, t = "info") => console.log("[toast]", t, m));
-
-  // Notifica a la vista principal que la planeación cambió (para refrescar botones/estatus)
-  function emitPlaneacionChanged(detail = {}) {
-    try {
-      document.dispatchEvent(new CustomEvent("planeacion:changed", { detail }));
-    } catch (_) {}
-  }
-
+  const toast =
+    H.toast ||
+    ((m, t = "info", ms = 4500) => {
+      const map = {
+        success: "success",
+        exito: "success",
+        ok: "success",
+        info: "info",
+        warning: "warning",
+        warn: "warning",
+        danger: "error",
+        error: "error",
+      };
+      const type = map[String(t || "info").toLowerCase()] || "info";
+      if (typeof window.gcToast === "function")
+        return window.gcToast(String(m || ""), type, ms);
+      console.log("[toast]", type, m);
+    });
   const setAccordionOpen =
     window.setAccordionOpen ||
     ((h, b, open) => {
@@ -174,7 +183,7 @@
   }
 
   let _delModalBound = false;
-  let _delTarget = { kind: null, tareaId: null, procesoId: null };
+  let _delTarget = { type: null, id: null, procesoId: null };
 
   // ====== API endpoints ======
   const API_FBK = {
@@ -231,7 +240,7 @@
     }
   }
 
-  async function updateJSON(url, body, method = "PATCH") {
+  async function requestJSON(url, method, body) {
     const group = `[HTTP][Planeación] ${method} ${url}`;
     console.groupCollapsed(group);
     console.log("→ payload:", body);
@@ -261,6 +270,7 @@
     }
   }
 
+  const patchJSON = (url, body) => requestJSON(url, "PATCH", body);
   // ===== Session helper =====
   function safeGetSession() {
     try {
@@ -552,18 +562,22 @@
   }
 
   // ====== LAYER: Procesos / Tareas (LIST / CREATE) ======
-  async function listProcesos(
-    requerimiento_id,
-    { page = 1, page_size = 100 } = {},
-  ) {
+  async function listProcesos(reqId, { page = 1, page_size = 50 } = {}) {
     const payload = {
-      requerimiento_id: Number(requerimiento_id),
-      page,
-      page_size,
+      requerimiento_id: Number(reqId),
+      status: 1,
+      page: Number(page),
+      page_size: Number(page_size),
     };
+
     const j = await postJSON(API.PROCESOS.LIST, payload);
+
     const arr = Array.isArray(j?.data) ? j.data : [];
-    return arr.map(normalizeProceso);
+
+    // Normaliza
+    const procesos = arr.map(normalizeProceso);
+
+    return procesos.filter((p) => Number(p.status ?? 0) !== 0);
   }
 
   async function createProceso({
@@ -970,11 +984,6 @@
       err("Error listando procesos:", e);
       toast("No se pudieron cargar los procesos.", "danger");
     }
-
-    // Avisar a requerimientoView que la planeación cambió
-    emitPlaneacionChanged({
-      requerimiento_id: Number(requerimiento_id) || null,
-    });
   }
 
   // ===== Helpers de modal (compatibilidad .open/.active) =====
@@ -1169,248 +1178,334 @@
     setTimeout(() => $(SEL.inpPTitulo)?.focus(), 30);
   }
 
-  // ====== UI: borrar tarea (soft hide status=0) ======
+  // ===== Modal Confirmacion =====
+
+  // ===== Modal Confirmacion (Eliminar Tarea / Proceso) =====
+  // Nota: el HTML base viene desde requerimiento.php (modal #modal-del-tarea con clases ix-del-*)
+  // Aquí SOLO lo "normalizamos" si no existe.
   function ensureDeleteModal() {
-    let modal = $("#modal-del-tarea");
-    if (modal) return modal;
+    let modal = document.querySelector("#modal-del-tarea");
 
-    modal = document.createElement("div");
-    modal.id = "modal-del-tarea";
-    modal.className = "modal-overlay";
-    modal.setAttribute("aria-hidden", "true");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "modal-del-tarea";
+      modal.className = "modal-overlay";
+      modal.setAttribute("aria-hidden", "true");
+      modal.innerHTML = `
+        <div class="modal-content ix-del-modal" role="dialog" aria-modal="true" aria-labelledby="del-tarea-title">
+          <button class="modal-close" type="button" aria-label="Cerrar">×</button>
 
-    modal.innerHTML = `
-      <div class="modal-content ix-confirm" role="dialog" aria-modal="true" aria-labelledby="del-tarea-title">
-        <button class="modal-close" type="button" aria-label="Cerrar">×</button>
-        <h2 id="del-tarea-title">Eliminar tarea</h2>
-        <p class="ix-confirm-msg">¿Seguro que quieres eliminar esta tarea?</p>
-        <div class="ix-confirm-actions">
-          <button type="button" class="btn" data-act="cancel">Cancelar</button>
-          <button type="button" class="btn-submit danger" data-act="confirm">Confirmar</button>
+          <h2 id="del-tarea-title" class="ix-del-title">Eliminar tarea</h2>
+
+          <p class="ix-del-text">¿Seguro que quieres eliminar esta tarea?</p>
+
+          <p class="ix-del-meta" id="del-tarea-meta" hidden></p>
+
+          <input type="hidden" id="del-tarea-id" value="">
+
+          <div class="ix-del-actions">
+            <button type="button" class="btn ix-del-cancel" id="btn-del-tarea-cancel">Cancelar</button>
+            <button type="button" class="btn ix-del-confirm" id="btn-del-tarea-confirm">Confirmar</button>
+          </div>
+
+          <p class="modal-note ix-del-note">Esta acción no se puede deshacer.</p>
         </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    return modal;
-
-    function openDeleteModal({ kind, procesoId = null, tareaId = null } = {}) {
-      const modal = ensureDeleteModal();
-
-      const titleEl =
-        modal.querySelector("[data-del-title]") ||
-        modal.querySelector("#del-tarea-title") ||
-        modal.querySelector("h2");
-
-      const msgEl =
-        modal.querySelector("[data-del-msg]") ||
-        modal.querySelector(".ix-confirm-msg") ||
-        modal.querySelector("p");
-
-      // Foot opcional
-      const footEl =
-        modal.querySelector("[data-del-foot]") ||
-        modal.querySelector("#del-tarea-foot");
-
-      const isProceso = kind === "proceso";
-
-      if (titleEl)
-        titleEl.textContent = isProceso ? "Eliminar proceso" : "Eliminar tarea";
-
-      if (msgEl) {
-        msgEl.textContent = isProceso
-          ? "¿Seguro que quieres eliminar este proceso?"
-          : "¿Seguro que quieres eliminar esta tarea?";
-      }
-
-      // Mantener texto clásico
-      if (footEl) footEl.textContent = "Esta acción no se puede deshacer.";
-
-      _delTarget = {
-        kind: isProceso ? "proceso" : "tarea",
-        procesoId: procesoId != null ? Number(procesoId) : null,
-        tareaId: tareaId != null ? Number(tareaId) : null,
-      };
-
-      openOverlay(modal);
+      `;
+      document.body.appendChild(modal);
+    } else {
+      // Asegura clase base (sin re-inyectar HTML para no romper el CSS actual)
+      modal.classList.add("modal-overlay");
+      if (!modal.getAttribute("aria-hidden"))
+        modal.setAttribute("aria-hidden", "true");
     }
+
+    return modal;
   }
 
-  async function softHideProceso(procesoId) {
-    const yoId = getEmpleadoId();
-    if (!procesoId) throw new Error("procesoId requerido");
-    if (!yoId) throw new Error("updated_by requerido");
-
-    const payload = {
-      id: Number(procesoId),
-      status: 0,
-      updated_by: Number(yoId),
-    };
-
-    return updateJSON(API.PROCESOS.UPDATE, payload, "PATCH");
-  }
-
-  async function softHideTarea(tareaId) {
-    const yoId = getEmpleadoId();
-    if (!tareaId) throw new Error("tareaId requerido");
-    if (!yoId) throw new Error("updated_by requerido");
-
-    // NOTE: seguimos el mismo patrón que /JS/tareas.js para updates
-    const payload = {
-      id: Number(tareaId),
-      status: 0,
-      updated_by: Number(yoId),
-    };
-    return postJSON(API.TAREAS.UPDATE, payload);
-  }
-
-  function bindDeleteDelegation() {
-    if (_delModalBound) return;
-    _delModalBound = true;
-
-    const list = $("#planeacion-list");
-    if (!list) return;
-
-    // ===== Modal: borrar tarea (soft hide status=0) =====
+  function openDeleteModal({ kind, procesoId = null, tareaId = null } = {}) {
     const modal = ensureDeleteModal();
-    const btnClose = $(".modal-close", modal);
+
+    const titleEl =
+      modal.querySelector("#del-tarea-title") ||
+      modal.querySelector(".ix-del-title");
+    const msgEl =
+      modal.querySelector(".ix-del-text") ||
+      modal.querySelector("#del-tarea-msg");
+    const footEl =
+      modal.querySelector(".ix-del-note") || modal.querySelector(".modal-note");
+
+    const isProceso = kind === "proceso";
+
+    if (titleEl)
+      titleEl.textContent = isProceso ? "Eliminar proceso" : "Eliminar tarea";
+    if (msgEl) {
+      msgEl.textContent = isProceso
+        ? "¿Seguro que quieres eliminar este proceso?."
+        : "¿Seguro que quieres eliminar esta tarea?";
+    }
+    if (footEl) footEl.textContent = "Esta acción no se puede deshacer.";
+
+    _delTarget = {
+      tareaId: tareaId != null ? Number(tareaId) : null,
+      procesoId: procesoId != null ? Number(procesoId) : null,
+      kind: isProceso ? "proceso" : "tarea",
+    };
+
+    openOverlay(modal);
+  }
+
+  function bindDeleteModalButtons() {
+    const modal = ensureDeleteModal();
+
+    // Evita doble bind
+    if (modal._ixBoundDelete) return;
+    modal._ixBoundDelete = true;
 
     const btnCancel =
-      $('[data-act="cancel"]', modal) ||
-      $("#btn-del-tarea-cancel", modal) ||
-      $(".ix-del-cancel", modal);
+      modal.querySelector("#btn-del-tarea-cancel") ||
+      modal.querySelector('[data-act="cancel"]') ||
+      modal.querySelector("[data-del-cancel]");
 
     const btnConfirm =
-      $('[data-act="confirm"]', modal) ||
-      $("#btn-del-tarea-confirm", modal) ||
-      $(".ix-del-confirm", modal);
+      modal.querySelector("#btn-del-tarea-confirm") ||
+      modal.querySelector('[data-act="confirm"]') ||
+      modal.querySelector("[data-del-confirm]");
 
-    const metaEl = $("#del-tarea-meta", modal);
-    const hidId = $("#del-tarea-id", modal);
+    const btnClose =
+      modal.querySelector(".modal-close") ||
+      modal.querySelector(".ix-confirm__close") ||
+      modal.querySelector("[data-del-close]");
 
-    const close = () => {
-      if (hidId) hidId.value = "";
-      if (metaEl) {
-        metaEl.hidden = true;
-        metaEl.textContent = "";
-      }
-      _delTarget = { kind: null, tareaId: null, procesoId: null };
-      closeOverlay(modal);
-    };
+    const close = () => closeOverlay(modal);
 
-    btnClose && btnClose.addEventListener("click", close);
     btnCancel && btnCancel.addEventListener("click", close);
+    btnClose && btnClose.addEventListener("click", close);
+
+    // click afuera
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) close();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal.classList.contains("open")) close();
+    });
 
     btnConfirm &&
       btnConfirm.addEventListener("click", async () => {
-        const { kind, tareaId, procesoId } = _delTarget || {};
-        if (!kind) return close();
-
         try {
-          btnConfirm.disabled = true;
-          btnConfirm.textContent = "Eliminando…";
-
-          if (kind === "tarea") {
-            if (!tareaId) return close();
-            await softHideTarea(tareaId);
-            toast("Tarea eliminada", "success");
-          } else {
-            if (!procesoId) return close();
-            await softHideProceso(procesoId);
-            toast("Proceso eliminado", "success");
-          }
-
-          const req = window.__REQ__;
-          if (req?.id) {
-            await renderProcesosYtareas(req.id);
-          } else {
-            await renderProcesosYtareas(
-              Number(new URLSearchParams(location.search).get("id")) ||
-                undefined,
-            );
-          }
-        } catch (e) {
-          err("confirm delete", e);
-          toast("No se pudo eliminar", "error");
-        } finally {
-          btnConfirm.disabled = false;
-          btnConfirm.textContent = "Confirmar";
-          close();
-        }
-      });
-
-    list.addEventListener("keydown", (ev) => {
-      const el = ev.target?.closest?.(".proceso-del-btn");
-      if (!el) return;
-
-      if (ev.key === "Enter" || ev.key === " ") {
-        ev.preventDefault();
-        el.click(); // reutiliza tu flujo existente
-      }
-    });
-
-    // ===== Delegación clicks (sirve aunque se inyecten botones por JS) =====
-    list.addEventListener("click", async (ev) => {
-      // 1) Borrar PROCESO (nuevo) - ojo: ahora puede ser <span role="button">
-      const procEl = ev.target?.closest?.(".proceso-del-btn");
-      if (procEl) {
-        ev.preventDefault();
-        ev.stopPropagation();
-
-        const allowed = await canDeleteTasks();
-        if (!allowed) {
-          toast("No tienes permiso para eliminar procesos", "warn");
-          return;
-        }
-
-        const procesoId = procEl.getAttribute("data-proceso-id");
-        if (!procesoId) {
-          toast("No se pudo identificar el proceso", "error");
-          return;
-        }
-
-        try {
-          procEl.classList.add("is-busy");
-
-          // NO permitir si hay tareas activas (listTareas ya filtra status=0) :contentReference[oaicite:5]{index=5}
-          const tareas = await listTareas(Number(procesoId), {
-            page: 1,
-            page_size: 200,
-          });
-          if (tareas.length > 0) {
-            toast("No puedes eliminar un proceso con tareas activas", "warn");
+          const empleadoId = getEmpleadoId();
+          if (!empleadoId) {
+            toast("No se detectó tu sesión (empleado_id).", "danger");
             return;
           }
 
-          // ✅ abrir el mismo modal (dinámico) para proceso
-          openDeleteModal({ kind: "proceso", procesoId: Number(procesoId) });
+          if (_delTarget?.kind === "proceso") {
+            const procesoId = Number(_delTarget?.procesoId || 0) || null;
+            if (!procesoId) return;
+
+            // Regla: solo si NO hay tareas activas
+            try {
+              const tareas = await listTareas(procesoId, {
+                page: 1,
+                page_size: 200,
+              });
+              const activas = (tareas || []).filter(
+                (t) => Number(t?.status ?? 1) === 1,
+              );
+              if (activas.length > 0) {
+                toast(
+                  "No puedes eliminar el proceso: tiene tareas activas.",
+                  "warning",
+                );
+                return;
+              }
+            } catch (eList) {
+              warn("No pude validar tareas activas del proceso:", eList);
+              toast(
+                "No se pudo validar si el proceso tiene tareas activas.",
+                "warning",
+              );
+              return;
+            }
+
+            // Backend exige PATCH/PUT + {id, updated_by}
+            await patchJSON(API.PROCESOS.UPDATE, {
+              id: procesoId,
+              updated_by: empleadoId,
+              status: 0,
+            });
+
+            toast("Proceso eliminado", "success");
+            close();
+            const req = window.__REQ__;
+            if (req?.id) await renderProcesosYtareas(req.id);
+            return;
+          }
+
+          // TAREA
+          const tareaId = Number(_delTarget?.tareaId || 0) || null;
+          const procesoId = Number(_delTarget?.procesoId || 0) || null;
+          if (!tareaId) return;
+
+          // Backend exige POST + {id, updated_by}
+          await postJSON(API.TAREAS.UPDATE, {
+            id: tareaId,
+            updated_by: empleadoId,
+            status: 0,
+          });
+
+          toast("Tarea eliminada", "success");
+          close();
+
+          // refresca solo el proceso si se puede
+          const sec = procesoId
+            ? $(
+                `#planeacion-list .exp-accordion--fase[data-proceso-id="${CSS.escape(
+                  String(procesoId),
+                )}"]`,
+              )
+            : null;
+
+          if (sec && procesoId) {
+            const tareas = await listTareas(Number(procesoId), {
+              page: 1,
+              page_size: 200,
+            });
+            sec
+              .querySelectorAll(".exp-table--planeacion .exp-row")
+              .forEach((r) => r.remove());
+            const allowDelete2 = await canDeleteTasks();
+            (tareas || []).forEach((t) => addTareaRow(sec, t, allowDelete2));
+            updateProcesoHeaderStats(sec, tareas || []);
+          } else {
+            const req = window.__REQ__;
+            if (req?.id) await renderProcesosYtareas(req.id);
+          }
+        } catch (e2) {
+          err("Error en confirm delete:", e2);
+          toast(e2?.message || "No se pudo eliminar.", "danger");
+        }
+      });
+  }
+
+  // Delegación de clicks en papelera (tareas + procesos)
+  function bindDeleteDelegation() {
+    bindDeleteModalButtons();
+
+    const list = $(SEL.planeacionList);
+    if (!list) {
+      warn("bindDeleteDelegation(): no existe #planeacion-list");
+      return;
+    }
+
+    if (_delModalBound) return;
+    _delModalBound = true;
+
+    list.addEventListener("click", async (e) => {
+      const tareaBtn = e.target.closest?.(".tarea-del-btn");
+      const procBtn = e.target.closest?.(".proceso-del-btn");
+
+      if (tareaBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // permiso borrar tareas
+        let allow = false;
+        try {
+          allow = await canDeleteTasks();
+        } catch {
+          allow = false;
+        }
+        if (!allow) {
+          toast("No tienes permiso para eliminar tareas.", "warning");
           return;
-        } catch (e) {
-          err("softHideProceso()", e);
-          toast("No se pudo eliminar el proceso", "error");
-        } finally {
-          procEl.classList.remove("is-busy");
         }
 
+        const tareaId =
+          Number(tareaBtn.getAttribute("data-tarea-id") || 0) || null;
+        const procesoId =
+          Number(tareaBtn.getAttribute("data-proceso-id") || 0) || null;
+        if (!tareaId) return;
+
+        openDeleteModal({ kind: "tarea", tareaId, procesoId });
         return;
       }
 
-      // 2) Borrar TAREA (existente)
-      const btnTask = ev.target?.closest?.(".tarea-del-btn");
-      if (!btnTask) return;
+      if (procBtn) {
+        e.preventDefault();
+        e.stopPropagation();
 
-      ev.preventDefault();
-      ev.stopPropagation();
+        // permiso
+        let allow = false;
+        try {
+          allow = await canDeleteTasks();
+        } catch {
+          allow = false;
+        }
+        if (!allow) {
+          toast("No tienes permiso para eliminar procesos.", "warning");
+          return;
+        }
 
-      const allowed = await canDeleteTasks();
-      if (!allowed) {
-        toast("No tienes permiso para eliminar tareas", "warn");
-        return;
+        const procesoId =
+          Number(procBtn.getAttribute("data-proceso-id") || 0) || null;
+        if (!procesoId) return;
+
+        // PRE-CHECK: si hay tareas activas, NO abrir modal
+        try {
+          procBtn.classList.add("is-busy");
+
+          const tareas = await listTareas(procesoId, {
+            page: 1,
+            page_size: 200,
+          });
+
+          // Activas = status != 0
+          const activas = (tareas || []).filter(
+            (t) => Number(t?.status ?? 0) !== 0,
+          );
+
+          if (activas.length) {
+            toast(
+              "No se pueden eliminar procesos con tareas activas",
+              "warning",
+            );
+            return;
+          }
+        } catch (err) {
+          // Si falla el precheck, mejor avisamos y evitamos abrir el modal
+          warn("precheck tareas proceso (delete):", err);
+          toast(
+            "No se pudo validar si el proceso tiene tareas. Intenta de nuevo.",
+            "warning",
+          );
+          return;
+        } finally {
+          procBtn.classList.remove("is-busy");
+        }
+
+        openDeleteModal({ kind: "proceso", procesoId });
       }
-
-      const tareaId = btnTask.getAttribute("data-tarea-id");
-      const procesoId = btnTask.getAttribute("data-proceso-id");
-      openDeleteModal({ kind: "tarea", tareaId, procesoId });
     });
+  }
+
+  // ===== Soft delete (status=0) =====
+  async function softHideTarea(tareaId) {
+    return postJSON(API.TAREAS.UPDATE, { id: Number(tareaId), status: 0 });
+  }
+  async function softHideProceso(procesoId) {
+    return postJSON(API.PROCESOS.UPDATE, { id: Number(procesoId), status: 0 });
+  }
+
+  async function refreshPlaneacion() {
+    const reqId =
+      window.__REQ__?.id ||
+      window.__REQ__?.reqId ||
+      window.__REQ__?.requerimiento_id;
+    if (!reqId) return;
+    await renderProcesosYtareas(Number(reqId));
+    // re-binds necesarios tras repaint
+    // (delegation ya queda en el host, no hace falta rebind)
   }
 
   function bindSubmitNuevoProceso() {
@@ -1481,21 +1576,6 @@
 
     const btnProceso = document.querySelector(SEL.toolbar.addProceso);
     const btnTarea = document.querySelector(SEL.toolbar.addTarea);
-
-    //const PRES_DEPT_IDS = [6]; // Presidencia
-
-    // el if de presidencia por si acaso lo dejo
-    //if (PRES_DEPT_IDS.includes(deptId) && !isAdmin) {
-    //  if (btnProceso) btnProceso.style.display = "none";
-    //  if (btnTarea) btnTarea.style.display = "none";
-    //  _boundToolbar = true;
-    //  console.log(
-    //    "[Planeación] Toolbar oculta para Presidencia sin rol ADMIN (dept:",
-    //    deptId,
-    //    ")"
-    //  );
-    //  return;
-    //}
 
     btnProceso?.addEventListener("click", (e) => {
       e.preventDefault();
