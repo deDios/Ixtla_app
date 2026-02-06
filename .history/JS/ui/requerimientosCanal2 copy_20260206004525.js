@@ -128,7 +128,7 @@
   function notifyReqCreated(detail) {
     try {
       document.dispatchEvent(new CustomEvent("ix:req:created", { detail }));
-    } catch { }
+    } catch {}
   }
 
   // =========================
@@ -276,7 +276,7 @@
     let s = null;
     try {
       s = window.Session?.get?.() || null;
-    } catch { }
+    } catch {}
     if (!s) s = readIxCookie();
 
     const empleado_id = s?.empleado_id ?? s?.id_empleado ?? null;
@@ -538,7 +538,6 @@
     const CFG = {
       NAME_MIN_CHARS: 2,
       DESC_MIN_CHARS: 0,
-      PHONE_DIGITS: 10,
       PHONE_DIGITS: 0,
       MAX_FILES: 3,
       MIN_FILES: 0,
@@ -632,7 +631,7 @@
         if (!f._url) {
           try {
             f._url = URL.createObjectURL(f);
-          } catch { }
+          } catch {}
         }
         if (f._url) img.src = f._url;
 
@@ -645,7 +644,7 @@
           if (gone?._url) {
             try {
               URL.revokeObjectURL(gone._url);
-            } catch { }
+            } catch {}
           }
           refreshPreviews();
           form?.dispatchEvent(new Event("input", { bubbles: true }));
@@ -739,11 +738,6 @@
       if (!consent) return { ok: false, firstBad: "consent" };
       if (otros && asunto.length < 3) return { ok: false, firstBad: "asunto" };
 
-      //telefono
-      const telDigits = digits(inpTel?.value || "");
-      if (!telDigits) return { ok: false, firstBad: "tel" };
-      if (telDigits.length < CFG.PHONE_DIGITS) return { ok: false, firstBad: "tel" };
-
       // Evidencias
       if (files.length > CFG.MAX_FILES) return { ok: false, firstBad: "files" };
 
@@ -764,10 +758,6 @@
       const otros = isOtros(tramName);
       const asunto = String(asuntoInput?.value || "").trim();
 
-      const telDigits = digits(inpTel?.value || "");
-
-
-      if (!telDigits || telDigits.length < CFG.PHONE_DIGITS) miss.push("Teléfono (mín 10 dígitos)");
       if (!deptId) miss.push("Departamento");
       if (!tramId) miss.push("Trámite");
       if (!cp) miss.push("C.P.");
@@ -825,7 +815,6 @@
           tram: `#${IDS.tramSelect}`,
           cp: "#ix-cp",
           col: "#ix-colonia",
-          tel: "#ix-telefono",
           consent: "#ix-consent",
           asunto: "#ix-asunto",
         }[res.firstBad];
@@ -896,7 +885,7 @@
           let j = null;
           try {
             j = await r.json();
-          } catch { }
+          } catch {}
           if (!r.ok) {
             const msg = j?.error || j?.mensaje || `HTTP ${r.status}`;
             throw new Error(msg);
@@ -964,7 +953,7 @@
           let upJson = null;
           try {
             upJson = await upRes.json();
-          } catch { }
+          } catch {}
 
           if (!upRes.ok || upJson?.ok === false) {
             const msg =
@@ -991,13 +980,13 @@
         // reset
         try {
           form.reset();
-        } catch { }
+        } catch {}
         setToday();
         files.forEach((f) => {
           if (f?._url) {
             try {
               URL.revokeObjectURL(f._url);
-            } catch { }
+            } catch {}
           }
         });
         files = [];
@@ -1104,7 +1093,7 @@
           );
           try {
             syncSubmitState();
-          } catch (_) { }
+          } catch (_) {}
         };
       } catch (e) {
         err("Error cargando CP/Colonia:", e);
@@ -1194,7 +1183,7 @@
       hasAttemptedSubmit = false;
       try {
         syncSubmitState();
-      } catch (_) { }
+      } catch (_) {}
     });
 
     selDept.addEventListener("change", async () => {
@@ -1205,7 +1194,7 @@
         await paintTramitesForDept(deptId);
         try {
           syncSubmitState();
-        } catch (_) { }
+        } catch (_) {}
       } else {
         selTram.disabled = true;
         fillSelect(selTram, [], "Selecciona un departamento primero");
@@ -1238,7 +1227,7 @@
 
       try {
         syncSubmitState();
-      } catch (_) { }
+      } catch (_) {}
     });
 
     if (asuntoInput) {
@@ -1293,7 +1282,7 @@
   // Estado inicial: aseguramos cerrado
   try {
     close();
-  } catch { }
+  } catch {}
 
   window.ixDoneModal = { open, close };
 })();

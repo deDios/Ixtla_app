@@ -738,8 +738,6 @@
       if (!col) return { ok: false, firstBad: "col" };
       if (!consent) return { ok: false, firstBad: "consent" };
       if (otros && asunto.length < 3) return { ok: false, firstBad: "asunto" };
-
-      //telefono
       const telDigits = digits(inpTel?.value || "");
       if (!telDigits) return { ok: false, firstBad: "tel" };
       if (telDigits.length < CFG.PHONE_DIGITS) return { ok: false, firstBad: "tel" };
@@ -764,10 +762,6 @@
       const otros = isOtros(tramName);
       const asunto = String(asuntoInput?.value || "").trim();
 
-      const telDigits = digits(inpTel?.value || "");
-
-
-      if (!telDigits || telDigits.length < CFG.PHONE_DIGITS) miss.push("Teléfono (mín 10 dígitos)");
       if (!deptId) miss.push("Departamento");
       if (!tramId) miss.push("Trámite");
       if (!cp) miss.push("C.P.");
@@ -825,7 +819,6 @@
           tram: `#${IDS.tramSelect}`,
           cp: "#ix-cp",
           col: "#ix-colonia",
-          tel: "#ix-telefono",
           consent: "#ix-consent",
           asunto: "#ix-asunto",
         }[res.firstBad];

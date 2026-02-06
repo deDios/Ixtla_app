@@ -825,7 +825,6 @@
           tram: `#${IDS.tramSelect}`,
           cp: "#ix-cp",
           col: "#ix-colonia",
-          tel: "#ix-telefono",
           consent: "#ix-consent",
           asunto: "#ix-asunto",
         }[res.firstBad];

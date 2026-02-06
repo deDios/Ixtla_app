@@ -764,10 +764,6 @@
       const otros = isOtros(tramName);
       const asunto = String(asuntoInput?.value || "").trim();
 
-      const telDigits = digits(inpTel?.value || "");
-
-
-      if (!telDigits || telDigits.length < CFG.PHONE_DIGITS) miss.push("Teléfono (mín 10 dígitos)");
       if (!deptId) miss.push("Departamento");
       if (!tramId) miss.push("Trámite");
       if (!cp) miss.push("C.P.");
@@ -825,7 +821,6 @@
           tram: `#${IDS.tramSelect}`,
           cp: "#ix-cp",
           col: "#ix-colonia",
-          tel: "#ix-telefono",
           consent: "#ix-consent",
           asunto: "#ix-asunto",
         }[res.firstBad];

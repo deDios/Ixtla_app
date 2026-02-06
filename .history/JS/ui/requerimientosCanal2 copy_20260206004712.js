@@ -821,14 +821,13 @@
 
       if (!res.ok) {
         const sel = {
-          dept: `#${IDS.deptSelect}`,
-          tram: `#${IDS.tramSelect}`,
-          cp: "#ix-cp",
-          col: "#ix-colonia",
-          tel: "#ix-telefono",
-          consent: "#ix-consent",
-          asunto: "#ix-asunto",
-        }[res.firstBad];
+  dept: `#${IDS.deptSelect}`,
+  tram: `#${IDS.tramSelect}`,
+  cp: "#ix-cp",
+  col: "#ix-colonia",
+  consent: "#ix-consent",
+  asunto: "#ix-asunto",
+}[res.firstBad];
 
         modal.querySelector(sel || "")?.focus?.();
         const missing = getMissingForTooltip();
