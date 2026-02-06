@@ -2802,8 +2802,7 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 }
 
 #ix-done-modal .ix-modal__brand img {
-  width: 42px;
-  height: auto;
+  width: 124px;
   display: block;
 }
 
@@ -2892,4 +2891,28 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 
 #ix-done-modal .ix-btn--primary:hover {
   background: #1e4fd6;
+}
+
+#ix-done-modal .ix-done-copy>p:first-child {
+  color: #374151;
+  font-weight: 500;
+}
+
+#ix-done-modal .ix-done-mid {
+  color: #6b7280;
+  font-weight: 400;
+}
+
+#ix-done-modal .ix-done-copy>p:not(:first-child) {
+  color: #6b7280;
+}
+
+#ix-done-modal .ix-done-mid strong {
+  color: #111827;
+  font-weight: 800;
+}
+
+#ix-done-modal .ix-modal__subtitle {
+  color: #6b7280;
+  font-weight: 400;
 }
