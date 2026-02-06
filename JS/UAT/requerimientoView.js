@@ -215,8 +215,17 @@
       });
       log("areAllProcesosAndTasksDone() → PROCESOS_LIST resp:", p);
 
-      const procesos = Array.isArray(p?.data) ? p.data : [];
-      log("areAllProcesosAndTasksDone() → procesos count:", procesos.length);
+      // 1) Filtra procesos eliminados (status=0) aunque el backend los regrese
+      const procesosAll = Array.isArray(p?.data) ? p.data : [];
+      const procesos = procesosAll.filter((pr) => {
+        const st = Number(pr.status ?? pr.estatus ?? 1);
+        return st !== 0;
+      });
+
+      log(
+        "areAllProcesosAndTasksDone() → procesos count (activos):",
+        procesos.length,
+      );
 
       if (!procesos.length) {
         warn(
@@ -248,30 +257,18 @@
 
         const tareasAll = Array.isArray(t?.data) ? t.data : [];
 
-        log(
-          "areAllProcesosAndTasksDone() → tareas count (raw) para proceso",
-          pr.id,
-          ":",
-          tareasAll.length,
-        );
-
-        // Ignorar tareas eliminadas (status=0) para la validación de "finalizar"
+        // 2) Ignorar tareas eliminadas (status=0)
         const tareas = tareasAll.filter((ta) => {
           const st = Number(ta.status ?? ta.estatus ?? 0);
           return st !== 0;
         });
 
-        log(
-          "areAllProcesosAndTasksDone() → tareas count (sin eliminadas) para proceso",
-          pr.id,
-          ":",
-          tareas.length,
-        );
-
         if (!tareas.length) {
           warn(
-            "areAllProcesosAndTasksDone() → proceso sin tareas activas (ignorando status=0), abortando con false",
-            { proceso_id: pr.id },
+            "areAllProcesosAndTasksDone() → proceso sin tareas activas, false",
+            {
+              proceso_id: pr.id,
+            },
           );
           return false;
         }
@@ -280,38 +277,59 @@
 
         const todasHechas = tareas.every((ta) => {
           const est = Number(ta.status ?? ta.estatus ?? 0);
-          const isDone = est === 4; // 4 = Hecho
-
-          log(
-            "areAllProcesosAndTasksDone() → tarea evaluada (sin eliminadas):",
-            {
-              tarea_id: ta.id,
-              status_raw: { status: ta.status, estatus: ta.estatus },
-              estatus_num: est,
-              isDone,
-            },
-          );
-
-          return isDone;
+          return est === 4; // 4 = Hecho
         });
 
-        if (!todasHechas) {
-          warn(
-            "areAllProcesosAndTasksDone() → al menos una tarea NO está hecha en proceso",
-            pr.id,
-          );
-          return false;
-        }
+        if (!todasHechas) return false;
       }
 
-      const result = totalTareas > 0;
-      log("areAllProcesosAndTasksDone() → FIN", {
-        totalTareas,
-        allDone: result,
-      });
-      return result;
+      return totalTareas > 0;
     } catch (e) {
       warn("areAllProcesosAndTasksDone() → error:", e);
+      return false;
+    }
+  }
+
+  async function hasAtLeastOneProcesoAndTask(reqId) {
+    log("hasAtLeastOneProcesoAndTask() → start", { reqId: Number(reqId) });
+
+    try {
+      const p = await postJSON(ENDPOINTS.PROCESOS_LIST, {
+        requerimiento_id: Number(reqId),
+        status: 1,
+        page: 1,
+        page_size: 50,
+      });
+      log("hasAtLeastOneProcesoAndTask() → PROCESOS_LIST resp:", p);
+
+      // 1) Filtra procesos eliminados (status=0)
+      const procesosAll = Array.isArray(p?.data) ? p.data : [];
+      const procesos = procesosAll.filter((pr) => {
+        const st = Number(pr.status ?? pr.estatus ?? 1);
+        return st !== 0;
+      });
+
+      for (const pr of procesos) {
+        const t = await postJSON(ENDPOINTS.TAREAS_LIST, {
+          proceso_id: Number(pr.id),
+          page: 1,
+          page_size: 50,
+        });
+
+        const tareasAll = Array.isArray(t?.data) ? t.data : [];
+
+        // 2) Para “iniciar proceso”, NO cuentes tareas eliminadas (status=0)
+        const tareas = tareasAll.filter((ta) => {
+          const st = Number(ta.status ?? ta.estatus ?? 0);
+          return st !== 0;
+        });
+
+        if (tareas.length > 0) return true;
+      }
+
+      return false;
+    } catch (e) {
+      warn("hasAtLeastOneProcesoAndTask() → error:", e);
       return false;
     }
   }

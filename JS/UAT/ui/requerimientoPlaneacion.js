@@ -573,7 +573,8 @@
     };
     const j = await postJSON(API.PROCESOS.LIST, payload);
     const arr = Array.isArray(j?.data) ? j.data : [];
-    return arr.map(normalizeProceso);
+    // filtramos los procesos con softdelete paar que no molesten
+    return mapped.filter((p) => Number(p.status ?? 0) !== 0);
   }
 
   async function createProceso({
@@ -1431,7 +1432,7 @@
         e.preventDefault();
         e.stopPropagation();
 
-        // mismo permiso global de gestión para mostrar/permitir eliminar procesos
+        // permiso
         let allow = false;
         try {
           allow = await canDeleteTasks();
@@ -1446,6 +1447,39 @@
         const procesoId =
           Number(procBtn.getAttribute("data-proceso-id") || 0) || null;
         if (!procesoId) return;
+
+        // PRE-CHECK: si hay tareas activas, NO abrir modal
+        try {
+          procBtn.classList.add("is-busy");
+
+          const tareas = await listTareas(procesoId, {
+            page: 1,
+            page_size: 200,
+          });
+
+          // Activas = status != 0
+          const activas = (tareas || []).filter(
+            (t) => Number(t?.status ?? 0) !== 0,
+          );
+
+          if (activas.length) {
+            toast(
+              "No se pueden eliminar procesos con tareas activas",
+              "warning",
+            );
+            return;
+          }
+        } catch (err) {
+          // Si falla el precheck, mejor avisamos y evitamos abrir el modal
+          warn("precheck tareas proceso (delete):", err);
+          toast(
+            "No se pudo validar si el proceso tiene tareas. Intenta de nuevo.",
+            "warning",
+          );
+          return;
+        } finally {
+          procBtn.classList.remove("is-busy");
+        }
 
         openDeleteModal({ kind: "proceso", procesoId });
       }
