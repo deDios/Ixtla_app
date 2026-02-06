@@ -159,7 +159,7 @@ header.scrolled .subnav{
   box-shadow:0 4px 12px rgba(0,0,0,.15);
   width:180px; padding:.5rem 0;
   opacity:0; transform:translateY(-43px); pointer-events:none;
-  transition:opacity .25s ease, transform .25s ease; z-index:1000;
+  transition:opacity .25s ease, transform .25s ease; z-index:1100;
 }
 .dropdown-menu.active{opacity:1;transform: translate(-43px, -44px);pointer-events:auto;}
 .dropdown-menu ul{ list-style:none; padding:0; margin:0; }
