@@ -6,7 +6,23 @@
   const H = window._rvHelpers || {};
   const $ = H.$ || ((s, r = document) => r.querySelector(s));
   const $$ = H.$$ || ((s, r = document) => Array.from(r.querySelectorAll(s)));
-  const toast = H.toast || ((m, t = "info") => console.log("[toast]", t, m));
+  const toast =
+    H.toast ||
+    ((m, t = "info") =>
+      window.gcToast
+        ? window.gcToast(
+            m,
+            {
+              success: "exito",
+              warning: "warning",
+              warn: "warning",
+              danger: "error",
+              error: "error",
+              info: "info",
+            }[String(t).toLowerCase()] || "info",
+            5000,
+          )
+        : console.log("[toast]", t, m));
   const setAccordionOpen =
     window.setAccordionOpen ||
     ((h, b, open) => {
