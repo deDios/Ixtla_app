@@ -742,7 +742,7 @@
       if (!consent) return { ok: false, firstBad: "consent" };
       if (otros && asunto.length < 3) return { ok: false, firstBad: "asunto" };
 
-      // nombre / domicilio / descripcion (mínimo 5 chars)
+            // nombre / domicilio / descripcion (mínimo 5 chars)
       if (!minChars(inpNombre?.value, CFG.NAME_MIN_CHARS)) return { ok: false, firstBad: "nombre" };
       if (!minChars(inpDom?.value, CFG.DOM_MIN_CHARS)) return { ok: false, firstBad: "dom" };
       if (!minChars(inpDesc?.value, CFG.DESC_MIN_CHARS)) return { ok: false, firstBad: "desc" };
@@ -774,9 +774,7 @@
 
       const telDigits = digits(inpTel?.value || "");
 
-      if (!minChars(inpNombre?.value, CFG.NAME_MIN_CHARS)) miss.push(`Nombre (mín ${CFG.NAME_MIN_CHARS} caracteres)`);
-      if (!minChars(inpDom?.value, CFG.DOM_MIN_CHARS)) miss.push(`Domicilio (mín ${CFG.DOM_MIN_CHARS} caracteres)`);
-      if (!minChars(inpDesc?.value, CFG.DESC_MIN_CHARS)) miss.push(`Descripción (mín ${CFG.DESC_MIN_CHARS} caracteres)`);
+
       if (!telDigits || telDigits.length < CFG.PHONE_DIGITS) miss.push("Teléfono (mín 10 dígitos)");
       if (!deptId) miss.push("Departamento");
       if (!tramId) miss.push("Trámite");
@@ -835,9 +833,6 @@
           tram: `#${IDS.tramSelect}`,
           cp: "#ix-cp",
           col: "#ix-colonia",
-          nombre: "#ix-nombre",
-          dom: "#ix-domicilio",
-          desc: "#ix-descripcion",
           tel: "#ix-telefono",
           consent: "#ix-consent",
           asunto: "#ix-asunto",
