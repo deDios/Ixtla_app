@@ -450,8 +450,6 @@ function mapRawTask(raw) {
   return {
     id,
     proceso_id,
-    proceso_status:
-      raw.proceso_status != null ? Number(raw.proceso_status) : null,
     asignado_a,
     asignado_display,
     departamento_id:
@@ -526,11 +524,7 @@ async function fetchTareasFromApi() {
         total = metaTotal;
       }
 
-      // Solo procesos activos (proceso_status=1). No molesto el workflow de las tareas
-      const rows = json.data;
-      const activeRows = rows.filter((r) => Number(r?.proceso_status ?? 1) === 1);
-
-      const batch = activeRows.map(mapRawTask);
+      const batch = json.data.map(mapRawTask);
       out.push(...batch);
 
       // Progreso ligero (solo logs; evita spamear toasts)
@@ -2767,7 +2761,7 @@ async function init() {
   });
 
   setupMobileMoveHandlers();
-
+  
   // Sidebar listo -> quitar clase de boot y mostrar si aplica
   if (sidebarFiltersEl) {
     sidebarFiltersEl.classList.remove("kb-filters-boot-hidden");

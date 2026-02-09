@@ -1893,7 +1893,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     initMobileFilterCombo();
 
     setupRowClickDelegation();
-    setupAutoRefreshTableDecorations();
 
     // bandera, export del csv para que no haya pedo
     // initExportCSVHome({
