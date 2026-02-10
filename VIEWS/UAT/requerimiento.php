@@ -872,6 +872,20 @@ ix_require_session();
     <!-- Animaciones y utilidades de esta vista -->
     <script type="module" src="/JS/ui/animacionesDeViewDetalle.js"></script>
 
+    <!-- boton flotante para abrir comentarios en mobile -->
+    <button
+        type="button"
+        class="ix-comments-fab"
+        id="btn-comments-fab"
+        aria-label="Abrir comentarios"
+        title="Comentarios">
+        <!-- svg de comentarios -->
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+                fill="currentColor"
+                d="M7.5 11.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM4 6.8C4 5.25 5.25 4 6.8 4h10.4C18.75 4 20 5.25 20 6.8v7.4c0 1.55-1.25 2.8-2.8 2.8H10.2l-3.6 2.2c-.67.41-1.6-.06-1.6-.86V17H6.8C5.25 17 4 15.75 4 14.2V6.8z" />
+        </svg>
+    </button>
 
 </body>
 
