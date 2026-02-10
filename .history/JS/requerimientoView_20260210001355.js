@@ -411,7 +411,7 @@
   function safeGetSession() {
     try {
       if (window.Session?.get) return window.Session.get();
-    } catch { }
+    } catch {}
     return readCookiePayload() || null;
   }
   function getUserAndEmpleadoFromSession() {
@@ -558,8 +558,8 @@
       // Re-pinta acciones base (pausar/cancelar/etc) y luego re-evalúa "Finalizar"
       try {
         renderActions(getCurrentStatusCode());
-      } catch (_) { }
-      injectFinalizeButtonIfReady().catch(() => { });
+      } catch (_) {}
+      injectFinalizeButtonIfReady().catch(() => {});
     }, 50);
   });
 
@@ -1664,7 +1664,7 @@
       try {
         const empId = Number(r.empleado_id) > 0 ? Number(r.empleado_id) : null;
         if (empId) display = (await getEmpleadoById(empId))?.nombre || "";
-      } catch { }
+      } catch {}
       if (!display) {
         display =
           r.empleado_display ||

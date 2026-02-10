@@ -12,7 +12,7 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/stepper.css">
-    <link rel="stylesheet" href="/CSS/requerimiento.css">
+    <link rel="stylesheet" href="/CSS/requerimiento copy.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="/CSS/requerimientoCoemntariosSection copy.css">
     <link rel="icon" href="/favicon.ico">

@@ -10,7 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/home.css">
+    <link rel="stylesheet" href="/CSS/home copy.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="icon" href="/favicon.ico">
 </head>
