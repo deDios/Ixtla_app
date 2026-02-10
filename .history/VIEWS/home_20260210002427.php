@@ -744,7 +744,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 
     <script src="/JS/components.js"></script>
-    <script src="/JS/JSglobal.js"></script>
+    <script src="/JS/UAT/JSglobal.js"></script>
     <script type="module" src="/JS/home.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
     <script type="module" src="/JS/ui/requerimientosCanal2.js"></script>
