@@ -1256,7 +1256,7 @@
 
           if (newVal === originalVal) {
             restoreView(req);
-            applyContactoEditVisibility(merged);
+            applyContactoEditVisibility(req);
             return;
           }
 
@@ -1886,7 +1886,59 @@
     await injectFinalizeButtonIfReady();
   }
 
+  setupCommentsFab();
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else boot();
+
+  /* ======================================
+   *  mobile - boton de svg de comentarios abre/cierra comentarios
+   * ======================================*/
+  function setupCommentsFab() {
+    const fab = document.getElementById("btn-comments-fab");
+    const panel = document.querySelector(".hs-sidebar .demo-comments");
+    if (!fab || !panel) return;
+
+    const open = () => {
+      document.body.classList.add("ix-comments-open");
+      fab.setAttribute("aria-expanded", "true");
+
+      // enfoque rápido al textarea para escribir
+      const ta = panel.querySelector(".composer textarea");
+      if (ta) setTimeout(() => ta.focus(), 50);
+    };
+
+    const close = () => {
+      document.body.classList.remove("ix-comments-open");
+      fab.setAttribute("aria-expanded", "false");
+      fab.focus();
+    };
+
+    const isOpen = () => document.body.classList.contains("ix-comments-open");
+
+    fab.setAttribute("aria-expanded", "false");
+
+    fab.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (isOpen()) close();
+      else open();
+    });
+
+    // click fuera del “sheet” cierra
+    panel.addEventListener("click", (e) => {
+      const card = e.target.closest(".demo-card");
+      if (!card) close();
+    });
+
+    // ESC cierra
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && isOpen()) close();
+    });
+
+    // opcional: si cambias a desktop, cerramos estado
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 820 && isOpen()) close();
+    });
+  }
 })();
