@@ -1887,10 +1887,47 @@
   }
 
   setupCommentsFab();
+  bindStaticAccordions();
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else boot();
+
+  //function para los chevrones
+  function bindStaticAccordions() {
+    document.querySelectorAll(".exp-accordion").forEach((acc) => {
+      const head = acc.querySelector(".exp-acc-head");
+      const body = acc.querySelector(".exp-acc-body");
+      const chev = acc.querySelector(".chev");
+      if (!head || !body) return;
+      if (acc._boundStaticAcc) return;
+      acc._boundStaticAcc = true;
+
+      const setOpen = (open) => {
+        head.setAttribute("aria-expanded", open ? "true" : "false");
+        body.hidden = !open;
+        acc.classList.toggle("is-collapsed", !open);
+      };
+
+      const initial = head.getAttribute("aria-expanded");
+      setOpen(initial !== "false");
+
+      head.addEventListener("click", (e) => {
+        if (e.target.closest("button") && e.target !== head) return;
+        const isOpen = head.getAttribute("aria-expanded") === "true";
+        setOpen(!isOpen);
+      });
+
+      if (chev) {
+        chev.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const isOpen = head.getAttribute("aria-expanded") === "true";
+          setOpen(!isOpen);
+        });
+      }
+    });
+  }
 
   /* ======================================
    *  mobile - boton de svg de comentarios abre/cierra comentarios

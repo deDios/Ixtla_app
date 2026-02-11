@@ -879,9 +879,6 @@ ix_require_session();
     <script type="module" src="/JS/ui/sidebar.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
 
-    <!-- Animaciones y utilidades de esta vista -->
-    <script type="module" src="/JS/ui/animacionesDeViewDetalle.js"></script>
-
 </body>
 
 </html>

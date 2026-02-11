@@ -772,23 +772,46 @@
     log("[Toolbar] estatus req =", code, "disableByStatus:", disableByStatus);
   }
 
-  /* ====== Pintado de UI (reutiliza tu markup) ====== */
-  function bindProcessAccordion(sec) {
-    const head = sec.querySelector(".exp-acc-head");
-    const body = sec.querySelector(".exp-acc-body");
-    const chev = head?.querySelector(".chev");
-    if (!head || !body || !chev) return;
+  /* ====== Pintado de UI  ====== */
+  function bindProcessAccordion(acc) {
+    if (!acc) return;
 
-    const initOpen = head.getAttribute("aria-expanded") === "true";
-    body.hidden = !initOpen;
-    if (!initOpen) body.style.height = "0px";
+    const head = acc.querySelector(".exp-acc-head");
+    const body = acc.querySelector(".exp-acc-body");
+    const chev = acc.querySelector(".chev");
 
-    chev.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+    if (!head || !body) return;
+    if (acc._boundAccordion) return;
+    acc._boundAccordion = true;
+
+    const setOpen = (open) => {
+      head.setAttribute("aria-expanded", open ? "true" : "false");
+      body.hidden = !open;
+      acc.classList.toggle("is-collapsed", !open);
+    };
+
+    // Estado inicial (si no existe, asumimos abierto)
+    const initial = head.getAttribute("aria-expanded");
+    setOpen(initial !== "false");
+
+    // Click en header completo
+    head.addEventListener("click", (e) => {
+      // si tu header contiene botones (ej. eliminar), evita que el acordeón se dispare
+      if (e.target.closest("button") && e.target !== head) return;
+
       const isOpen = head.getAttribute("aria-expanded") === "true";
-      setAccordionOpen(head, body, !isOpen);
+      setOpen(!isOpen);
     });
+
+    // Click en chevron (opcional, pero útil si el chevron es un span)
+    if (chev) {
+      chev.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const isOpen = head.getAttribute("aria-expanded") === "true";
+        setOpen(!isOpen);
+      });
+    }
   }
 
   function makeProcesoSection(p) {
