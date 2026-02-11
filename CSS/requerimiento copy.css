@@ -2233,11 +2233,8 @@ body.modal-open {
 /* Botón "Finalizar" (success) */
 .exp-actions .btn-xs.success {
   background: #d1fae5;
-  /* verde muy claro */
   border-color: #6ee7b7;
-  /* borde verde */
   color: #065f46;
-  /* texto verde oscuro */
 }
 
 .exp-actions .btn-xs.success:hover {
@@ -3165,7 +3162,7 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 
   body.ix-comments-open .hs-sidebar .demo-comments {
     display: block !important;
-
+    margin-top: 0px;
     position: fixed;
     inset: 0;
     z-index: 1200;
