@@ -251,7 +251,7 @@ function pickReportaField(modalRoot) {
       inp.setAttribute("readonly", "true");
       inp.setAttribute("aria-readonly", "true");
       inp.classList.add("is-readonly");
-    } catch { }
+    } catch {}
     return { el: inp, usedFallback: true };
   }
   return { el: null, usedFallback: false };
@@ -443,7 +443,7 @@ function initProfileModal() {
       setTimeout(() => {
         try {
           window.location.reload();
-        } catch { }
+        } catch {}
       }, 120);
     } catch (e2) {
       err("[Perfil] error al actualizar:", e2);
@@ -573,7 +573,7 @@ function readSession() {
   let s = null;
   try {
     s = Session?.get?.() || null;
-  } catch { }
+  } catch {}
   if (!s) s = readCookiePayload();
 
   if (!s) {
@@ -630,9 +630,9 @@ async function hydrateProfileFromSession() {
       const idu = sessionLike.id_usuario;
       const candidates = idu
         ? [
-          `/ASSETS/user/userImgs/img_${idu}.png`,
-          `/ASSETS/user/userImgs/img_${idu}.jpg`,
-        ]
+            `/ASSETS/user/userImgs/img_${idu}.png`,
+            `/ASSETS/user/userImgs/img_${idu}.jpg`,
+          ]
         : [];
       let i = 0;
       const tryNext = () => {
@@ -837,11 +837,11 @@ function buildTable() {
         accessor: (r) =>
           normText(
             r.departamento ||
-            r.depto ||
-            r.depto_nombre ||
-            r.departamento_nombre ||
-            r.raw?.departamento?.nombre ||
-            "—",
+              r.depto ||
+              r.depto_nombre ||
+              r.departamento_nombre ||
+              r.raw?.departamento?.nombre ||
+              "—",
           ),
         render: (v, r) =>
           r.departamento ||
@@ -1000,7 +1000,7 @@ function computeCounts(rows) {
         active.textContent = `${label} ${count}`.trim();
       }
     }
-  } catch { }
+  } catch {}
 }
 
 /* ============================================================================
@@ -1029,7 +1029,8 @@ function renderPagerClassic(total) {
   const WIN = 2; // cuántos a cada lado del actual
 
   const btn = (label, p, { active = false, disabled = false } = {}) =>
-    `<button class="btn ${active ? "primary" : ""}" data-p="${disabled ? "disabled" : p
+    `<button class="btn ${active ? "primary" : ""}" data-p="${
+      disabled ? "disabled" : p
     }" ${disabled ? "disabled" : ""}>${label}</button>`;
 
   const left = Math.max(2, cur - WIN);
@@ -1080,105 +1081,116 @@ function refreshCurrentPageDecorations() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
-  // Limpia filas expandibles anteriores
-  tbody.querySelectorAll("tr.hs-row-expand").forEach((tr) => tr.remove());
+  // =========================
+  // cortador de loop en safari
+  // mientras nosotros mutamos el tbody, no dejes que el MutationObserver re-dispare refresh
+  // =========================
+  const obs = __homeTbodyObserver;
+  const canReconnect = !!(obs && __homeObservedTbody);
 
-  // Marca SOLO filas reales (excluye blanks/empty) y asegura expander en mobile
-  const trs = Array.from(tbody.querySelectorAll("tr")).filter((tr) => {
-    if (tr.classList.contains("hs-gap")) return false;
-    if (tr.classList.contains("hs-row-expand")) return false;
+  try {
+    __homeDecorRefreshing = true;
+    if (canReconnect) obs.disconnect();
 
-    // Filas placeholder (blanks / empty) que crea la tabla
-    const idx = tr.getAttribute("data-row-idx");
-    if (idx === "-1") return false;
-    if (tr.getAttribute("aria-hidden") === "true") return false;
-    if (tr.classList.contains("is-blank")) return false;
-    if (tr.classList.contains("is-empty")) return false;
+    // Limpia filas expandibles anteriores
+    tbody.querySelectorAll("tr.hs-row-expand").forEach((tr) => tr.remove());
 
-    return true;
-  });
+    // Marca SOLO filas reales (excluye blanks/empty) y asegura expander en mobile
+    const trs = Array.from(tbody.querySelectorAll("tr")).filter((tr) => {
+      if (tr.classList.contains("hs-gap")) return false;
+      if (tr.classList.contains("hs-row-expand")) return false;
 
-  const pageRows = State.table?.getRawRows?.() || [];
+      // Filas placeholder (blanks / empty) que crea la tabla
+      const idx = tr.getAttribute("data-row-idx");
+      if (idx === "-1") return false;
+      if (tr.getAttribute("aria-hidden") === "true") return false;
+      if (tr.classList.contains("is-blank")) return false;
+      if (tr.classList.contains("is-empty")) return false;
 
-  trs.forEach((tr, i) => {
-    tr.classList.add("is-clickable"); // En tu HTML ya viene data-row-idx (mejor usarlo)
-    const domIdx = tr.getAttribute("data-row-idx");
-    const idx = domIdx != null ? parseInt(domIdx, 10) : i;
-    const row = pageRows[idx] || null;
+      return true;
+    });
 
-    // En desktop: nada extra
-    if (!isMobileAccordion()) {
-      tr.classList.remove("is-open");
-      return;
-    }
+    const pageRows = State.table?.getRawRows?.() || [];
 
-    // Asegura columna + botón expander (estructura SIEMPRE; CSS decide visibilidad)
-    // 1) Header: agrega un <th> al final si no existe
-    const tableEl = tbody.closest("table");
-    const theadTr = tableEl?.querySelector("thead tr");
-    if (theadTr && !theadTr.querySelector(".hs-th-expander")) {
-      const th = document.createElement("th");
-      th.className = "hs-th-expander";
-      th.setAttribute("aria-label", "Detalles");
-      th.textContent = ""; // header vacío (solo ícono)
-      theadTr.appendChild(th);
-    }
+    trs.forEach((tr, i) => {
+      tr.classList.add("is-clickable"); // En tu HTML ya viene data-row-idx (mejor usarlo)
+      const domIdx = tr.getAttribute("data-row-idx");
+      const idx = domIdx != null ? parseInt(domIdx, 10) : i;
+      const row = pageRows[idx] || null;
 
-    // 2) Body: agrega un <td> al final por fila si no existe
-    let expTd = tr.querySelector("td.hs-cell-expander");
-    if (!expTd) {
-      expTd = document.createElement("td");
-      expTd.className = "hs-cell-expander";
-      tr.appendChild(expTd);
-    }
+      // En desktop: nada extra
+      if (!isMobileAccordion()) {
+        tr.classList.remove("is-open");
+        return;
+      }
 
-    // 3) Botón dentro del td expander
-    if (!expTd.querySelector(".hs-expander")) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "hs-expander";
-      btn.setAttribute("aria-label", "Ver más detalles");
-      btn.setAttribute("title", "Ver más detalles"); // tooltip nativo (discreto)
-      btn.innerHTML = chevronSvg();
-      expTd.appendChild(btn);
-    }
+      // Asegura columna + botón expander (estructura SIEMPRE; CSS decide visibilidad)
+      // 1) Header: agrega un <th> al final si no existe
+      const tableEl = tbody.closest("table");
+      const theadTr = tableEl?.querySelector("thead tr");
+      if (theadTr && !theadTr.querySelector(".hs-th-expander")) {
+        const th = document.createElement("th");
+        th.className = "hs-th-expander";
+        th.setAttribute("aria-label", "Detalles");
+        th.textContent = ""; // header vacío (solo ícono)
+        theadTr.appendChild(th);
+      }
 
-    // Si esta fila es la expandida, reabre (persistencia al paginar/ordenar)
-    const rowId = row?.id ?? row?.__raw?.id ?? null;
-    const shouldOpen = rowId != null && State.__expandedRowId === rowId;
+      // 2) Body: agrega un <td> al final por fila si no existe
+      let expTd = tr.querySelector("td.hs-cell-expander");
+      if (!expTd) {
+        expTd = document.createElement("td");
+        expTd.className = "hs-cell-expander";
+        tr.appendChild(expTd);
+      }
 
-    tr.classList.toggle("is-open", !!shouldOpen);
+      // 3) Botón dentro del td expander
+      if (!expTd.querySelector(".hs-expander")) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "hs-expander";
+        btn.setAttribute("aria-label", "Ver más detalles");
+        btn.setAttribute("title", "Ver más detalles"); // tooltip nativo (discreto)
+        btn.innerHTML = chevronSvg();
+        expTd.appendChild(btn);
+      }
 
-    if (shouldOpen && row) {
-      const exp = document.createElement("tr");
-      exp.className = "hs-row-expand";
+      // Si esta fila es la expandida, reabre (persistencia al paginar/ordenar)
+      const rowId = row?.id ?? row?.__raw?.id ?? null;
+      const shouldOpen = rowId != null && State.__expandedRowId === rowId;
 
-      const td = document.createElement("td");
-      const isMobile =
-        typeof isMobileAccordion === "function" && isMobileAccordion();
-      td.colSpan = isMobile ? 3 : tr.children.length || 8;
+      tr.classList.toggle("is-open", !!shouldOpen);
 
-      const raw = row.__raw || row;
-      const depto = safeTxt(
-        raw.departamento ||
-        raw.depto ||
-        raw.depto_nombre ||
-        raw.departamento_nombre,
-      );
-      const asign = safeTxt(
-        raw.asignadoFull || raw.asignadoNombre || raw.asignado,
-      );
-      const tel = safeTxt(raw.tel);
-      const solicitado = safeTxt(
-        formatDateMXShort(
-          raw.creado ||
-          raw.raw?.created_at ||
-          raw.created_at ||
-          raw.fecha_creacion,
-        ),
-      );
+      if (shouldOpen && row) {
+        const exp = document.createElement("tr");
+        exp.className = "hs-row-expand";
 
-      td.innerHTML = `
+        const td = document.createElement("td");
+        const isMobile =
+          typeof isMobileAccordion === "function" && isMobileAccordion();
+        td.colSpan = isMobile ? 3 : tr.children.length || 8;
+
+        const raw = row.__raw || row;
+        const depto = safeTxt(
+          raw.departamento ||
+            raw.depto ||
+            raw.depto_nombre ||
+            raw.departamento_nombre,
+        );
+        const asign = safeTxt(
+          raw.asignadoFull || raw.asignadoNombre || raw.asignado,
+        );
+        const tel = safeTxt(raw.tel);
+        const solicitado = safeTxt(
+          formatDateMXShort(
+            raw.creado ||
+              raw.raw?.created_at ||
+              raw.created_at ||
+              raw.fecha_creacion,
+          ),
+        );
+
+        td.innerHTML = `
         <div class="hs-expand-grid">
           <div class="hs-kv"><div class="hs-k">Departamento</div><div class="hs-v">${depto}</div></div>
           <div class="hs-kv"><div class="hs-k">Asignado</div><div class="hs-v">${asign}</div></div>
@@ -1192,11 +1204,21 @@ function refreshCurrentPageDecorations() {
         </div>
       `;
 
-      exp.appendChild(td);
-      tr.insertAdjacentElement("afterend", exp);
+        exp.appendChild(td);
+        tr.insertAdjacentElement("afterend", exp);
+      }
+    });
+
+  } finally {
+    // reconecta observer
+    if (canReconnect) {
+      try {
+        obs.observe(__homeObservedTbody, { childList: true });
+      } catch {}
     }
-  });
-  // (opcional) log de filas reales en la página
+    __homeDecorRefreshing = false;
+  }
+  // log de filas reales en la página
   const realCount = pageRows.length;
   log("rows reales en página:", realCount);
 }
@@ -1310,23 +1332,30 @@ function setupRowClickDelegation() {
    re-renderiza (ej: ordenar por folio)
    ====================================================================== */
 let __homeTbodyObserver = null;
+let __homeDecorRefreshing = false;
+let __homeObservedTbody = null;
 
 function setupAutoRefreshTableDecorations() {
   const tbody = document.querySelector(SEL.tableBody);
   if (!tbody) return;
   if (__homeTbodyObserver) return; // evitar doble observer
+  __homeObservedTbody = tbody;
 
   let t = null;
   const kick = () => {
     clearTimeout(t);
     t = setTimeout(() => {
+      if (__homeDecorRefreshing) return; // <- evita loop en Safari o eso se supone. BANDERA 1
       if (typeof refreshCurrentPageDecorations === "function") {
         refreshCurrentPageDecorations();
       }
     }, 0);
   };
 
-  __homeTbodyObserver = new MutationObserver(() => kick());
+  __homeTbodyObserver = new MutationObserver(() => {
+    if (__homeDecorRefreshing) return; // <- evitar loop BANDERA 2
+    kick();
+  });
   __homeTbodyObserver.observe(tbody, { childList: true });
 
   // Extra: si el sort se dispara por click en header, también “patea” refresh
@@ -1534,10 +1563,10 @@ function drawChartsFromRows(rows) {
 
   try {
     Charts?.line?.destroy?.();
-  } catch { }
+  } catch {}
   try {
     Charts?.donut?.destroy?.();
-  } catch { }
+  } catch {}
 
   if ($line && isElementRenderable($line)) {
     try {
@@ -1768,7 +1797,7 @@ async function loadScopeData() {
         })),
       );
     }
-  } catch { }
+  } catch {}
 
   log(
     "items UI-mapped (preview):",
