@@ -130,7 +130,7 @@ const setText = (sel, txt) => {
 };
 
 function isMobileAccordion() {
-  return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+  return window.matchMedia && window.matchMedia("(max-width: 1180px)").matches;
 }
 
 function chevronSvg() {

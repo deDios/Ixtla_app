@@ -2981,21 +2981,15 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 /* =========================================================
    ajustes css para vista tablet.
    ========================================================= */
-@media (min-width: 721px) and (max-width: 1180px) {
+@media (max-width: 720px) {
   .home-samapa .hs-table table.gc thead {
     display: none;
   }
 
-  /* Oculta columnas que mandaremos al accordion */
   .home-samapa .hs-table table.gc tbody td:nth-child(2),
-  /* Departamento */
   .home-samapa .hs-table table.gc tbody td:nth-child(4),
-  /* Asignado */
   .home-samapa .hs-table table.gc tbody td:nth-child(5),
-  /* Teléfono */
-  .home-samapa .hs-table table.gc tbody td:nth-child(6)
-  /* Solicitado */
-    {
+  .home-samapa .hs-table table.gc tbody td:nth-child(6) {
     display: none;
   }
 
