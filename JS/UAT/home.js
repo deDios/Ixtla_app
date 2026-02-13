@@ -130,7 +130,16 @@ const setText = (sel, txt) => {
 };
 
 function isMobileAccordion() {
-  return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+  if (!window.matchMedia) return false;
+
+  // Mobile
+  if (window.matchMedia("(max-width: 720px)").matches) return true;
+
+  // Tablet
+  if (window.matchMedia("(max-width: 1180px) and (pointer: coarse)").matches)
+    return true;
+
+  return false;
 }
 
 function chevronSvg() {
@@ -1208,7 +1217,6 @@ function refreshCurrentPageDecorations() {
         tr.insertAdjacentElement("afterend", exp);
       }
     });
-
   } finally {
     // reconecta observer
     if (canReconnect) {
