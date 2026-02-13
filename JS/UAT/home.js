@@ -1016,7 +1016,6 @@ function computeCounts(rows) {
    PAGINACIÓN (compacta con elipsis)
    ========================================================================== */
 async function loadPageAndRender({ page }) {
-  // Mueve solo la página de la tabla + UI del pager
   const total = State.__lastTotal || 0;
   const perPage = CONFIG.PAGE_SIZE;
   const pages = Math.max(1, Math.ceil(total / perPage));
@@ -1024,7 +1023,15 @@ async function loadPageAndRender({ page }) {
 
   State.__page = p;
   State.table?.setPage?.(p);
-  refreshCurrentPageDecorations();
+
+  await new Promise((r) => requestAnimationFrame(r));
+
+  try {
+    refreshCurrentPageDecorations();
+  } catch (e) {
+    console.error("[Home] refreshCurrentPageDecorations crash:", e);
+  }
+
   renderPagerClassic(total);
 }
 
@@ -1175,9 +1182,8 @@ function refreshCurrentPageDecorations() {
         exp.className = "hs-row-expand";
 
         const td = document.createElement("td");
-        const isMobile =
-          typeof isMobileAccordion === "function" && isMobileAccordion();
-        td.colSpan = isMobile ? 3 : tr.children.length || 8;
+        // ColSpan correcto: cubre todas las columnas reales de la fila (incluye el td del expander)
+        td.colSpan = tr.children.length || 1;
 
         const raw = row.__raw || row;
         const depto = safeTxt(
@@ -1200,18 +1206,18 @@ function refreshCurrentPageDecorations() {
         );
 
         td.innerHTML = `
-        <div class="hs-expand-grid">
-          <div class="hs-kv"><div class="hs-k">Departamento</div><div class="hs-v">${depto}</div></div>
-          <div class="hs-kv"><div class="hs-k">Asignado</div><div class="hs-v">${asign}</div></div>
-          <div class="hs-kv"><div class="hs-k">Teléfono</div><div class="hs-v">${tel}</div></div>
-          <div class="hs-kv"><div class="hs-k">Solicitado</div><div class="hs-v">${solicitado}</div></div>
-        </div>
-        <div class="hs-expand-actions">
-          <button type="button" class="hs-open-btn" data-open-req="${rowId}">
-            Abrir
-          </button>
-        </div>
-      `;
+          <div class="hs-expand-grid">
+            <div class="hs-kv"><div class="hs-k">Departamento</div><div class="hs-v">${depto}</div></div>
+            <div class="hs-kv"><div class="hs-k">Asignado</div><div class="hs-v">${asign}</div></div>
+            <div class="hs-kv"><div class="hs-k">Teléfono</div><div class="hs-v">${tel}</div></div>
+            <div class="hs-kv"><div class="hs-k">Solicitado</div><div class="hs-v">${solicitado}</div></div>
+          </div>
+          <div class="hs-expand-actions">
+            <button type="button" class="hs-open-btn" data-open-req="${rowId}">
+              Abrir
+            </button>
+          </div>
+        `;
 
         exp.appendChild(td);
         tr.insertAdjacentElement("afterend", exp);
@@ -1226,9 +1232,6 @@ function refreshCurrentPageDecorations() {
     }
     __homeDecorRefreshing = false;
   }
-  // log de filas reales en la página
-  const realCount = pageRows.length;
-  log("rows reales en página:", realCount);
 }
 
 /* Delegación permanente: mantiene los clicks aunque se regenere el <tbody> */
