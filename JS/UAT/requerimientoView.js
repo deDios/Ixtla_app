@@ -1888,6 +1888,7 @@
 
   setupCommentsFab();
   bindStaticAccordions();
+  bindTabs();
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });
@@ -1896,6 +1897,7 @@
   //function para los chevrones
   function bindStaticAccordions() {
     document.querySelectorAll(".exp-accordion").forEach((acc) => {
+      if (acc.classList.contains("exp-accordion--fase")) return;
       const head = acc.querySelector(".exp-acc-head");
       const body = acc.querySelector(".exp-acc-body");
       const chev = acc.querySelector(".chev");
@@ -1913,7 +1915,10 @@
       setOpen(initial !== "false");
 
       head.addEventListener("click", (e) => {
-        if (e.target.closest("button") && e.target !== head) return;
+        // Si un día hay botones dentro del header (ej. acción), no togglear al click ahí.
+        const innerBtn = e.target.closest("button");
+        if (innerBtn && innerBtn !== head) return;
+
         const isOpen = head.getAttribute("aria-expanded") === "true";
         setOpen(!isOpen);
       });
@@ -1926,6 +1931,41 @@
           setOpen(!isOpen);
         });
       }
+    });
+  }
+
+  function bindTabs() {
+    const tabs = Array.from(document.querySelectorAll(".exp-tabs .exp-tab"));
+    const panes = Array.from(document.querySelectorAll(".exp-panes .exp-pane"));
+
+    if (!tabs.length || !panes.length) return;
+
+    const setActive = (idx) => {
+      tabs.forEach((t, i) => {
+        const active = i === idx;
+        t.classList.toggle("is-active", active);
+        t.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      panes.forEach((p, i) => {
+        const active = i === idx;
+        p.hidden = !active; // <- clave: oculta/mostrar real
+        p.classList.toggle("is-active", active);
+      });
+    };
+
+    // Estado inicial: el que venga marcado, si no, 0
+    const initial = Math.max(
+      0,
+      tabs.findIndex((t) => t.classList.contains("is-active")),
+    );
+    setActive(initial);
+
+    tabs.forEach((tab, idx) => {
+      tab.addEventListener("click", (e) => {
+        e.preventDefault();
+        setActive(idx);
+      });
     });
   }
 

@@ -3198,3 +3198,11 @@ body.req-locked button.icon-btn[data-detalle-edit] {
     margin: 10px auto 8px;
   }
 }
+
+#planeacion-list .exp-accordion--fase>.exp-acc-head {
+  cursor: pointer;
+}
+
+#planeacion-list .exp-accordion--fase>.exp-acc-head .proceso-del-btn {
+  cursor: pointer;
+}

@@ -794,10 +794,17 @@
     const initial = head.getAttribute("aria-expanded");
     setOpen(initial !== "false");
 
-    // Click en header completo
+    // Click en header para colapsar o ocultar el contenido de los tabs
+    // de los procesos
     head.addEventListener("click", (e) => {
-      // si tu header contiene botones (ej. eliminar), evita que el acordeón se dispare
-      if (e.target.closest("button") && e.target !== head) return;
+      // Evita colapsar si le dieron click al botón/ícono de eliminar (o cualquier control)
+      if (
+        e.target.closest(".proceso-del-btn") ||
+        e.target.closest("a") ||
+        e.target.closest("input, select, textarea")
+      ) {
+        return;
+      }
 
       const isOpen = head.getAttribute("aria-expanded") === "true";
       setOpen(!isOpen);
