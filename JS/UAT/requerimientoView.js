@@ -1979,3 +1979,141 @@
     });
   }
 })();
+
+/* =========================================================
+   Tabs (Contacto / Detalles / Planeación)
+   - Activa/desactiva panels .exp-pane por data-tab
+   - Mantiene aria-selected + tabindex
+   - Soporta que los botones NO tengan data-tab (usa textContent)
+   ========================================================= */
+(function () {
+  "use strict";
+
+  const norm = (s) =>
+    String(s || "")
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .trim();
+
+  function initReqTabs() {
+    const tabsRoot = document.querySelector(".exp-tabs");
+    if (!tabsRoot) return;
+
+    const tabs = Array.from(tabsRoot.querySelectorAll(".exp-tab"));
+    const panes = Array.from(
+      document.querySelectorAll('.exp-pane[role="tabpanel"]'),
+    );
+
+    if (!tabs.length || !panes.length) return;
+
+    const wrap = document.querySelector(".exp-panes");
+
+    // Construye matcher por nombre (data-tab de pane vs texto del botón)
+    const findPaneForTab = (btn, index) => {
+      const wanted = norm(
+        btn.dataset.tab || btn.getAttribute("data-tab") || btn.textContent,
+      );
+
+      // 1) match por data-tab del pane
+      let p =
+        panes.find((x) => norm(x.dataset.tab) === wanted) ||
+        panes.find((x) => norm(x.dataset.tab).startsWith(wanted));
+
+      // 2) fallback por índice (si el HTML está en orden)
+      if (!p) p = panes[index] || null;
+
+      return p;
+    };
+
+    // Asegura ids/aria (opcional, pero mejora accesibilidad)
+    tabs.forEach((btn, i) => {
+      if (!btn.id) btn.id = `exp-tab-${i + 1}`;
+    });
+    panes.forEach((p, i) => {
+      if (!p.id) p.id = `exp-pane-${i + 1}`;
+    });
+    tabs.forEach((btn, i) => {
+      const pane = findPaneForTab(btn, i);
+      if (!pane) return;
+      btn.setAttribute("aria-controls", pane.id);
+      pane.setAttribute("aria-labelledby", btn.id);
+    });
+
+    const setWrapHeight = (pane) => {
+      if (!wrap || !pane) return;
+      // deja que el DOM pinte antes de medir
+      requestAnimationFrame(() => {
+        wrap.style.height = pane.offsetHeight + "px";
+      });
+    };
+
+    const activateByIndex = (idx, focus = false) => {
+      const btn = tabs[idx];
+      const pane = btn ? findPaneForTab(btn, idx) : null;
+      if (!btn || !pane) return;
+
+      tabs.forEach((b, j) => {
+        const isOn = j === idx;
+        b.classList.toggle("is-active", isOn);
+        b.setAttribute("aria-selected", isOn ? "true" : "false");
+        b.tabIndex = isOn ? 0 : -1;
+      });
+
+      panes.forEach((p) => p.classList.remove("is-active"));
+      pane.classList.add("is-active");
+
+      setWrapHeight(pane);
+      if (focus) btn.focus({ preventScroll: true });
+    };
+
+    // Detecta activo inicial (por clase o aria-selected)
+    const initialIdx = Math.max(
+      0,
+      tabs.findIndex(
+        (b) =>
+          b.classList.contains("is-active") ||
+          b.getAttribute("aria-selected") === "true",
+      ),
+    );
+
+    // Deja el wrapper con altura consistente al cargar
+    activateByIndex(initialIdx);
+
+    // Click
+    tabs.forEach((btn, i) => {
+      if (btn._boundTabs) return;
+      btn._boundTabs = true;
+
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        activateByIndex(i);
+      });
+
+      // Teclado (izq/der)
+      btn.addEventListener("keydown", (e) => {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        e.preventDefault();
+        const next =
+          e.key === "ArrowRight"
+            ? (i + 1) % tabs.length
+            : (i - 1 + tabs.length) % tabs.length;
+        activateByIndex(next, true);
+      });
+    });
+
+    // Si cambias viewport (por responsive), re-mide altura
+    window.addEventListener("resize", () => {
+      const currentPane =
+        document.querySelector('.exp-pane[role="tabpanel"].is-active') || null;
+      setWrapHeight(currentPane);
+    });
+  }
+
+  // DOM listo
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initReqTabs);
+  } else {
+    initReqTabs();
+  }
+})();
