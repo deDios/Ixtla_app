@@ -3206,3 +3206,7 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 #planeacion-list .exp-accordion--fase>.exp-acc-head .proceso-del-btn {
   cursor: pointer;
 }
+
+.exp-view .exp-acc-body[hidden]{
+  display: none !important;
+}

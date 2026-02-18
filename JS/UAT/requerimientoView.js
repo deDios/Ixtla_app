@@ -1887,7 +1887,7 @@
   }
 
   setupCommentsFab();
-  bindStaticAccordions();
+  bindEvidenciasAccordion();
   bindTabs();
 
   if (document.readyState === "loading") {
@@ -1895,43 +1895,51 @@
   } else boot();
 
   //function para los chevrones
-  function bindStaticAccordions() {
-    document.querySelectorAll(".exp-accordion").forEach((acc) => {
-      if (acc.classList.contains("exp-accordion--fase")) return;
-      const head = acc.querySelector(".exp-acc-head");
-      const body = acc.querySelector(".exp-acc-body");
-      const chev = acc.querySelector(".chev");
-      if (!head || !body) return;
-      if (acc._boundStaticAcc) return;
-      acc._boundStaticAcc = true;
+  function bindEvidenciasAccordion() {
+    // El acordeón de evidencias es estático (no lo controla Planeación).
+    // Para evitar que el main "pelee" con los acordeones dinámicos de procesos,
+    // aquí SOLO bindeamos Evidencias.
+    const acc =
+      document.querySelector('.exp-accordion[data-acc="evidencias"]') ||
+      document.querySelector(".exp-accordion--evidencias");
 
-      const setOpen = (open) => {
-        head.setAttribute("aria-expanded", open ? "true" : "false");
-        body.hidden = !open;
-        acc.classList.toggle("is-collapsed", !open);
-      };
+    if (!acc) return;
 
-      const initial = head.getAttribute("aria-expanded");
-      setOpen(initial !== "false");
+    const head = acc.querySelector(".exp-acc-head");
+    const body = acc.querySelector(".exp-acc-body");
+    const chev = acc.querySelector(".chev");
+    if (!head || !body) return;
 
-      head.addEventListener("click", (e) => {
-        // Si un día hay botones dentro del header (ej. acción), no togglear al click ahí.
-        const innerBtn = e.target.closest("button");
-        if (innerBtn && innerBtn !== head) return;
+    if (acc._boundEvid) return;
+    acc._boundEvid = true;
 
+    const setOpen = (open) => {
+      head.setAttribute("aria-expanded", open ? "true" : "false");
+      body.hidden = !open;
+      acc.classList.toggle("is-collapsed", !open);
+    };
+
+    // init (por default abierto si no dice "false")
+    setOpen(head.getAttribute("aria-expanded") !== "false");
+
+    head.addEventListener("click", (e) => {
+      // Si en algún momento hay controles dentro del header, no togglear al click ahí.
+      const innerBtn = e.target.closest("button");
+      const innerLink = e.target.closest("a");
+      if ((innerBtn && innerBtn !== head) || innerLink) return;
+
+      const isOpen = head.getAttribute("aria-expanded") === "true";
+      setOpen(!isOpen);
+    });
+
+    if (chev) {
+      chev.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const isOpen = head.getAttribute("aria-expanded") === "true";
         setOpen(!isOpen);
       });
-
-      if (chev) {
-        chev.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const isOpen = head.getAttribute("aria-expanded") === "true";
-          setOpen(!isOpen);
-        });
-      }
-    });
+    }
   }
 
   function bindTabs() {
@@ -2017,143 +2025,5 @@
     window.addEventListener("resize", () => {
       if (window.innerWidth > 820 && isOpen()) close();
     });
-  }
-})();
-
-/* =========================================================
-   Tabs (Contacto / Detalles / Planeación)
-   - Activa/desactiva panels .exp-pane por data-tab
-   - Mantiene aria-selected + tabindex
-   - Soporta que los botones NO tengan data-tab (usa textContent)
-   ========================================================= */
-(function () {
-  "use strict";
-
-  const norm = (s) =>
-    String(s || "")
-      .normalize("NFD")
-      .replace(/\p{Diacritic}/gu, "")
-      .toLowerCase()
-      .trim();
-
-  function initReqTabs() {
-    const tabsRoot = document.querySelector(".exp-tabs");
-    if (!tabsRoot) return;
-
-    const tabs = Array.from(tabsRoot.querySelectorAll(".exp-tab"));
-    const panes = Array.from(
-      document.querySelectorAll('.exp-pane[role="tabpanel"]'),
-    );
-
-    if (!tabs.length || !panes.length) return;
-
-    const wrap = document.querySelector(".exp-panes");
-
-    // Construye matcher por nombre (data-tab de pane vs texto del botón)
-    const findPaneForTab = (btn, index) => {
-      const wanted = norm(
-        btn.dataset.tab || btn.getAttribute("data-tab") || btn.textContent,
-      );
-
-      // 1) match por data-tab del pane
-      let p =
-        panes.find((x) => norm(x.dataset.tab) === wanted) ||
-        panes.find((x) => norm(x.dataset.tab).startsWith(wanted));
-
-      // 2) fallback por índice (si el HTML está en orden)
-      if (!p) p = panes[index] || null;
-
-      return p;
-    };
-
-    // Asegura ids/aria (opcional, pero mejora accesibilidad)
-    tabs.forEach((btn, i) => {
-      if (!btn.id) btn.id = `exp-tab-${i + 1}`;
-    });
-    panes.forEach((p, i) => {
-      if (!p.id) p.id = `exp-pane-${i + 1}`;
-    });
-    tabs.forEach((btn, i) => {
-      const pane = findPaneForTab(btn, i);
-      if (!pane) return;
-      btn.setAttribute("aria-controls", pane.id);
-      pane.setAttribute("aria-labelledby", btn.id);
-    });
-
-    const setWrapHeight = (pane) => {
-      if (!wrap || !pane) return;
-      // deja que el DOM pinte antes de medir
-      requestAnimationFrame(() => {
-        wrap.style.height = pane.offsetHeight + "px";
-      });
-    };
-
-    const activateByIndex = (idx, focus = false) => {
-      const btn = tabs[idx];
-      const pane = btn ? findPaneForTab(btn, idx) : null;
-      if (!btn || !pane) return;
-
-      tabs.forEach((b, j) => {
-        const isOn = j === idx;
-        b.classList.toggle("is-active", isOn);
-        b.setAttribute("aria-selected", isOn ? "true" : "false");
-        b.tabIndex = isOn ? 0 : -1;
-      });
-
-      panes.forEach((p) => p.classList.remove("is-active"));
-      pane.classList.add("is-active");
-
-      setWrapHeight(pane);
-      if (focus) btn.focus({ preventScroll: true });
-    };
-
-    // Detecta activo inicial (por clase o aria-selected)
-    const initialIdx = Math.max(
-      0,
-      tabs.findIndex(
-        (b) =>
-          b.classList.contains("is-active") ||
-          b.getAttribute("aria-selected") === "true",
-      ),
-    );
-
-    // Deja el wrapper con altura consistente al cargar
-    activateByIndex(initialIdx);
-
-    // Click
-    tabs.forEach((btn, i) => {
-      if (btn._boundTabs) return;
-      btn._boundTabs = true;
-
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        activateByIndex(i);
-      });
-
-      // Teclado (izq/der)
-      btn.addEventListener("keydown", (e) => {
-        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-        e.preventDefault();
-        const next =
-          e.key === "ArrowRight"
-            ? (i + 1) % tabs.length
-            : (i - 1 + tabs.length) % tabs.length;
-        activateByIndex(next, true);
-      });
-    });
-
-    // Si cambias viewport (por responsive), re-mide altura
-    window.addEventListener("resize", () => {
-      const currentPane =
-        document.querySelector('.exp-pane[role="tabpanel"].is-active') || null;
-      setWrapHeight(currentPane);
-    });
-  }
-
-  // DOM listo
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initReqTabs);
-  } else {
-    initReqTabs();
   }
 })();
