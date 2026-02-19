@@ -130,7 +130,7 @@ const setText = (sel, txt) => {
 };
 
 function isMobileAccordion() {
-  return window.matchMedia && window.matchMedia("(max-width: 1180px)").matches;
+  return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
 }
 
 function chevronSvg() {
@@ -251,7 +251,7 @@ function pickReportaField(modalRoot) {
       inp.setAttribute("readonly", "true");
       inp.setAttribute("aria-readonly", "true");
       inp.classList.add("is-readonly");
-    } catch { }
+    } catch {}
     return { el: inp, usedFallback: true };
   }
   return { el: null, usedFallback: false };
@@ -443,7 +443,7 @@ function initProfileModal() {
       setTimeout(() => {
         try {
           window.location.reload();
-        } catch { }
+        } catch {}
       }, 120);
     } catch (e2) {
       err("[Perfil] error al actualizar:", e2);
@@ -573,7 +573,7 @@ function readSession() {
   let s = null;
   try {
     s = Session?.get?.() || null;
-  } catch { }
+  } catch {}
   if (!s) s = readCookiePayload();
 
   if (!s) {
@@ -630,9 +630,9 @@ async function hydrateProfileFromSession() {
       const idu = sessionLike.id_usuario;
       const candidates = idu
         ? [
-          `/ASSETS/user/userImgs/img_${idu}.png`,
-          `/ASSETS/user/userImgs/img_${idu}.jpg`,
-        ]
+            `/ASSETS/user/userImgs/img_${idu}.png`,
+            `/ASSETS/user/userImgs/img_${idu}.jpg`,
+          ]
         : [];
       let i = 0;
       const tryNext = () => {
@@ -837,11 +837,11 @@ function buildTable() {
         accessor: (r) =>
           normText(
             r.departamento ||
-            r.depto ||
-            r.depto_nombre ||
-            r.departamento_nombre ||
-            r.raw?.departamento?.nombre ||
-            "—",
+              r.depto ||
+              r.depto_nombre ||
+              r.departamento_nombre ||
+              r.raw?.departamento?.nombre ||
+              "—",
           ),
         render: (v, r) =>
           r.departamento ||
@@ -1000,7 +1000,7 @@ function computeCounts(rows) {
         active.textContent = `${label} ${count}`.trim();
       }
     }
-  } catch { }
+  } catch {}
 }
 
 /* ============================================================================
@@ -1029,7 +1029,8 @@ function renderPagerClassic(total) {
   const WIN = 2; // cuántos a cada lado del actual
 
   const btn = (label, p, { active = false, disabled = false } = {}) =>
-    `<button class="btn ${active ? "primary" : ""}" data-p="${disabled ? "disabled" : p
+    `<button class="btn ${active ? "primary" : ""}" data-p="${
+      disabled ? "disabled" : p
     }" ${disabled ? "disabled" : ""}>${label}</button>`;
 
   const left = Math.max(2, cur - WIN);
@@ -1161,9 +1162,9 @@ function refreshCurrentPageDecorations() {
       const raw = row.__raw || row;
       const depto = safeTxt(
         raw.departamento ||
-        raw.depto ||
-        raw.depto_nombre ||
-        raw.departamento_nombre,
+          raw.depto ||
+          raw.depto_nombre ||
+          raw.departamento_nombre,
       );
       const asign = safeTxt(
         raw.asignadoFull || raw.asignadoNombre || raw.asignado,
@@ -1172,9 +1173,9 @@ function refreshCurrentPageDecorations() {
       const solicitado = safeTxt(
         formatDateMXShort(
           raw.creado ||
-          raw.raw?.created_at ||
-          raw.created_at ||
-          raw.fecha_creacion,
+            raw.raw?.created_at ||
+            raw.created_at ||
+            raw.fecha_creacion,
         ),
       );
 
@@ -1534,10 +1535,10 @@ function drawChartsFromRows(rows) {
 
   try {
     Charts?.line?.destroy?.();
-  } catch { }
+  } catch {}
   try {
     Charts?.donut?.destroy?.();
-  } catch { }
+  } catch {}
 
   if ($line && isElementRenderable($line)) {
     try {
@@ -1768,7 +1769,7 @@ async function loadScopeData() {
         })),
       );
     }
-  } catch { }
+  } catch {}
 
   log(
     "items UI-mapped (preview):",

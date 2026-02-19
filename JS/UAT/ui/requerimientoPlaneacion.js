@@ -2,14 +2,8 @@
 (function () {
   "use strict";
 
-  /* ==========================================================================
-     Planeación (Procesos / Tareas)
-     - Este módulo SOLO controla los acordeones de procesos (.exp-accordion--fase)
-     - El acordeón de Evidencias debe ser controlado por requerimientoView.js
-     ========================================================================== */
-
   /* =========================
-     Helpers básicos
+     Helpers basicos
      ========================= */
   const H = window._rvHelpers || {};
   const $ = H.$ || ((s, r = document) => r.querySelector(s));

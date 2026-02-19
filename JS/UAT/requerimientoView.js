@@ -1896,9 +1896,8 @@
 
   //function para los chevrones
   function bindEvidenciasAccordion() {
-    // El acordeón de evidencias es estático (no lo controla Planeación).
-    // Para evitar que el main "pelee" con los acordeones dinámicos de procesos,
-    // aquí SOLO bindeamos Evidencias.
+    // El acordeón de evidencias.
+    // bindeo Evidencias.
     const acc =
       document.querySelector('.exp-accordion[data-acc="evidencias"]') ||
       document.querySelector(".exp-accordion--evidencias");
