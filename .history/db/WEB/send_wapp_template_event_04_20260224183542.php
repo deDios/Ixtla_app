@@ -70,7 +70,7 @@ if (is_string($params)) {
   if (is_array($try)) $params = $try;
 }
 
-// Validaciones 
+// Validaciones (igual estilo template_01)
 $errors = [];
 
 if (WA_PHONE_NUMBER_ID === "REEMPLAZA_PHONE_NUMBER_ID") {
@@ -121,7 +121,7 @@ foreach ($params as $p) {
   ];
 }
 
-// Payload 
+// Payload WhatsApp Cloud API
 $payload = [
   "messaging_product" => "whatsapp",
   "to" => $to,
