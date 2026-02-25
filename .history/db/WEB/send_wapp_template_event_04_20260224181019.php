@@ -35,8 +35,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 // ========================
 // Config WhatsApp Cloud API
 // ========================
-const WHATSAPP_TOKEN = 'EAAJkMnC6uM0BPt4PJyZBBLzp47PMRhRlKa6zvbvIH5fIPWLwfGysAeTbR0XVqN2SPP2ImmerKXE3kvQos9IJZA4IM8oyENM1MgB0iIbTHZAB1UFeGJs6K35EmFZA4zHHUt788Q2zntuFC84PeyzTgeMO0tVbSpQCBHeizsueV4eXDtZBzUtkMDxZBiWLMUvAZDZD';
-const WHATSAPP_PHONE_NUMBER_ID = '782524058283433'; 
+const WA_PHONE_NUMBER_ID = 'REEMPLAZA_PHONE_NUMBER_ID';
+const WA_ACCESS_TOKEN    = 'REEMPLAZA_ACCESS_TOKEN';
 
 // Template fijo para este archivo
 const WA_TEMPLATE_NAME   = 'event_04';
