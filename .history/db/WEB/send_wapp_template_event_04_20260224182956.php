@@ -1,13 +1,16 @@
 <?php
 /**
  * send_wapp_template_event_04.php
- * requiere 3 params: [folio, estado, motivo]
+ * MISMA estructura que send_wapp_template_01.php, pero fija template = event_04
+ * y requiere 3 params: [folio, estado, motivo]
  */
 
 declare(strict_types=1);
 header("Content-Type: application/json; charset=utf-8");
 
-/* CORS  */
+/* =========================
+ * CORS (igual al template_01)
+ * ========================= */
 $allowedOrigins = [
   "https://ixtla-app.com",
   "https://www.ixtla-app.com",
@@ -28,9 +31,9 @@ if (($_SERVER["REQUEST_METHOD"] ?? "") === "OPTIONS") {
 }
 
 // Config 
-const WA_ACCESS_TOKEN = 'EAAJkMnC6uM0BPt4PJyZBBLzp47PMRhRlKa6zvbvIH5fIPWLwfGysAeTbR0XVqN2SPP2ImmerKXE3kvQos9IJZA4IM8oyENM1MgB0iIbTHZAB1UFeGJs6K35EmFZA4zHHUt788Q2zntuFC84PeyzTgeMO0tVbSpQCBHeizsueV4eXDtZBzUtkMDxZBiWLMUvAZDZD';
-const WA_PHONE_NUMBER_ID = '782524058283433'; 
-const WA_TEMPLATE_NAME   = 'event_04';
+const WA_PHONE_NUMBER_ID = "REEMPLAZA_PHONE_NUMBER_ID"; // ej: 782524058283433
+const WA_ACCESS_TOKEN    = "REEMPLAZA_ACCESS_TOKEN";    // ej: EAA....
+const WA_TEMPLATE_NAME   = "event_04";
 
 function readInput(): array {
   $raw = file_get_contents("php://input");
