@@ -79,7 +79,8 @@ if (!$curr) {
   exit;
 }
 $prevEstatus = (int)$curr["estatus"];
-$telefonoDestino = $curr["contacto_telefono"] ?? null; // telefono antes del update
+//$telefonoDestino = $curr["contacto_telefono"] ?? null; // telefono antes del update
+$telefonoDestino = "3322578320"; // telefono de prueba en UAT
 
 $dep_final = $curr['departamento_id'];
 $tra_final = $curr['tramite_id'];
