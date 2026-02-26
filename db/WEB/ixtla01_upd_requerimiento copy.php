@@ -8,29 +8,36 @@ if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.co
 header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+  http_response_code(204);
+  exit;
+}
 
 
 header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
 
 $path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
-if ($path && file_exists($path)) { include $path; }
-else { http_response_code(500); die(json_encode(["ok"=>false,"error"=>"No se encontró conexion.php"])); }
+if ($path && file_exists($path)) {
+  include $path;
+} else {
+  http_response_code(500);
+  die(json_encode(["ok" => false, "error" => "No se encontró conexion.php"]));
+}
 
 $in = json_decode(file_get_contents("php://input"), true) ?? [];
 if (!isset($in['id'])) {
   http_response_code(400);
-  die(json_encode(["ok"=>false,"error"=>"Falta parámetro obligatorio: id"]));
+  die(json_encode(["ok" => false, "error" => "Falta parámetro obligatorio: id"]));
 }
 
 $id  = (int)$in['id'];
 
 
 /* Inputs opcionales */
-$departamento_id = array_key_exists('departamento_id',$in) ? (int)$in['departamento_id'] : null;
-$tramite_id      = array_key_exists('tramite_id',$in)      ? (int)$in['tramite_id']      : null;
-$asignado_a      = array_key_exists('asignado_a',$in)      ? (int)$in['asignado_a']      : null;
+$departamento_id = array_key_exists('departamento_id', $in) ? (int)$in['departamento_id'] : null;
+$tramite_id      = array_key_exists('tramite_id', $in)      ? (int)$in['tramite_id']      : null;
+$asignado_a      = array_key_exists('asignado_a', $in)      ? (int)$in['asignado_a']      : null;
 
 $asunto       = $in['asunto']       ?? null;
 $descripcion  = $in['descripcion']  ?? null;
@@ -47,24 +54,32 @@ $contacto_cp       = $in['contacto_cp']       ?? null;
 
 $fecha_limite = $in['fecha_limite'] ?? null;
 $cerrado_en   = $in['cerrado_en']   ?? null; // puedes enviar timestamp ISO o dejar que lo asigne
-$clear_cerrado= isset($in['clear_cerrado']) ? (bool)$in['clear_cerrado'] : false;
+$clear_cerrado = isset($in['clear_cerrado']) ? (bool)$in['clear_cerrado'] : false;
 
 $updated_by   = isset($in['updated_by']) ? (int)$in['updated_by'] : null;
 
 $con = conectar();
-if (!$con) die(json_encode(["ok"=>false,"error"=>"No se pudo conectar"]));
+if (!$con) die(json_encode(["ok" => false, "error" => "No se pudo conectar"]));
 $con->set_charset('utf8mb4');
 $con->query("SET time_zone='-06:00'");
 
 /* Cargar estado actual */
-$st = $con->prepare("SELECT departamento_id, tramite_id, estatus, cerrado_en FROM requerimiento WHERE id=?");
-$st->bind_param("i",$id);
+$st = $con->prepare("
+  SELECT departamento_id, tramite_id, estatus, cerrado_en, contacto_telefono
+  FROM requerimiento
+  WHERE id=?
+");
+$st->bind_param("i", $id);
 $st->execute();
 $curr = $st->get_result()->fetch_assoc();
+$st->close();
+if (!$curr) {
+  $con->close();
+  echo json_encode(["ok" => false, "error" => "No encontrado"]);
+  exit;
+}
 $prevEstatus = (int)$curr["estatus"];
 $telefonoDestino = $curr["contacto_telefono"] ?? null; // telefono antes del update
-$st->close();
-if (!$curr) { $con->close(); echo json_encode(["ok"=>false,"error"=>"No encontrado"]); exit; }
 
 $dep_final = $curr['departamento_id'];
 $tra_final = $curr['tramite_id'];
@@ -72,20 +87,26 @@ $tra_final = $curr['tramite_id'];
 /* Validaciones y coherencia dep/trámite */
 if ($tramite_id !== null) {
   $st = $con->prepare("SELECT departamento_id FROM tramite WHERE id=? LIMIT 1");
-  $st->bind_param("i",$tramite_id);
+  $st->bind_param("i", $tramite_id);
   $st->execute();
   $r = $st->get_result()->fetch_assoc();
   $st->close();
-  if (!$r) { $con->close(); http_response_code(400); die(json_encode(["ok"=>false,"error"=>"tramite_id no existe"])); }
+  if (!$r) {
+    $con->close();
+    http_response_code(400);
+    die(json_encode(["ok" => false, "error" => "tramite_id no existe"]));
+  }
   $tra_dep = (int)$r['departamento_id'];
 
   if ($departamento_id !== null && $departamento_id !== $tra_dep) {
     $con->close();
     http_response_code(400);
-    die(json_encode(["ok"=>false,"error"=>"El tramite_id no pertenece al departamento_id enviado"]));
+    die(json_encode(["ok" => false, "error" => "El tramite_id no pertenece al departamento_id enviado"]));
   }
   // si no mandó departamento_id, ajustamos al del trámite
-  if ($departamento_id === null) { $departamento_id = $tra_dep; }
+  if ($departamento_id === null) {
+    $departamento_id = $tra_dep;
+  }
 
   $dep_final = $departamento_id;
   $tra_final = $tramite_id;
@@ -93,32 +114,34 @@ if ($tramite_id !== null) {
 
 if ($departamento_id !== null) {
   $st = $con->prepare("SELECT 1 FROM departamento WHERE id=? LIMIT 1");
-  $st->bind_param("i",$departamento_id);
+  $st->bind_param("i", $departamento_id);
   $st->execute();
   if (!$st->get_result()->fetch_row()) {
-    $st->close(); $con->close();
+    $st->close();
+    $con->close();
     http_response_code(400);
-    die(json_encode(["ok"=>false,"error"=>"departamento_id no existe"]));
+    die(json_encode(["ok" => false, "error" => "departamento_id no existe"]));
   }
   $st->close();
 }
 
 if ($asignado_a !== null) {
   $st = $con->prepare("SELECT 1 FROM empleado WHERE id=? LIMIT 1");
-  $st->bind_param("i",$asignado_a);
+  $st->bind_param("i", $asignado_a);
   $st->execute();
   if (!$st->get_result()->fetch_row()) {
-    $st->close(); $con->close();
+    $st->close();
+    $con->close();
     http_response_code(400);
-    die(json_encode(["ok"=>false,"error"=>"asignado_a no existe"]));
+    die(json_encode(["ok" => false, "error" => "asignado_a no existe"]));
   }
   $st->close();
 }
 
-/* Lógica de cerrado_en */
+/* Lógica de cerrado_en lo cerramos en los status 5(FINALIZADO) y 6(CANCELADO)*/
 $set_cierre_automatico = false;
 if ($estatus !== null) {
-  if (in_array($estatus, [2,3], true) && $cerrado_en === null && !$clear_cerrado) {
+  if (in_array($estatus, [5, 6], true) && $cerrado_en === null && !$clear_cerrado) {
     $set_cierre_automatico = true;
   }
 }
@@ -147,44 +170,64 @@ $params = [];
 $types  = "";
 
 /* Bind ordenado con lo anterior */
-$params[] = $departamento_id; $types.="i";
-$params[] = $tramite_id;      $types.="i";
-$params[] = $asignado_a;      $types.="i";
-$params[] = $asunto;          $types.="s";
-$params[] = $descripcion;     $types.="s";
-$params[] = $prioridad;       $types.="i";
-$params[] = $estatus;         $types.="i";
-$params[] = $canal;           $types.="i";
-$params[] = $contacto_nombre;   $types.="s";
-$params[] = $contacto_email;    $types.="s";
-$params[] = $contacto_telefono; $types.="s";
-$params[] = $contacto_calle;    $types.="s";
-$params[] = $contacto_colonia;  $types.="s";
-$params[] = $contacto_cp;       $types.="s";
-$params[] = $fecha_limite;      $types.="s";
-$params[] = $updated_by;        $types.="i";
+$params[] = $departamento_id;
+$types .= "i";
+$params[] = $tramite_id;
+$types .= "i";
+$params[] = $asignado_a;
+$types .= "i";
+$params[] = $asunto;
+$types .= "s";
+$params[] = $descripcion;
+$types .= "s";
+$params[] = $prioridad;
+$types .= "i";
+$params[] = $estatus;
+$types .= "i";
+$params[] = $canal;
+$types .= "i";
+$params[] = $contacto_nombre;
+$types .= "s";
+$params[] = $contacto_email;
+$types .= "s";
+$params[] = $contacto_telefono;
+$types .= "s";
+$params[] = $contacto_calle;
+$types .= "s";
+$params[] = $contacto_colonia;
+$types .= "s";
+$params[] = $contacto_cp;
+$types .= "s";
+$params[] = $fecha_limite;
+$types .= "s";
+$params[] = $updated_by;
+$types .= "i";
 
 /* cerrado_en: tres casos */
 if ($clear_cerrado) {
   $sql .= ", cerrado_en = NULL";
 } elseif ($cerrado_en !== null) {
   $sql .= ", cerrado_en = ?";
-  $params[] = $cerrado_en; $types.="s";
+  $params[] = $cerrado_en;
+  $types .= "s";
 } elseif ($set_cierre_automatico) {
   $sql .= ", cerrado_en = CURRENT_TIMESTAMP";
 }
 
 $sql .= " WHERE id = ?";
 
-$params[] = $id; $types.="i";
+$params[] = $id;
+$types .= "i";
 
 $st = $con->prepare($sql);
 $st->bind_param($types, ...$params);
 
 if (!$st->execute()) {
-  $err = $st->error; $st->close(); $con->close();
+  $err = $st->error;
+  $st->close();
+  $con->close();
   http_response_code(500);
-  die(json_encode(["ok"=>false,"error"=>"Error al actualizar: $err"]));
+  die(json_encode(["ok" => false, "error" => "Error al actualizar: $err"]));
 }
 $st->close();
 
@@ -200,12 +243,16 @@ $q = $con->prepare("
   LEFT JOIN empleado e ON e.id = r.asignado_a
   WHERE r.id=? LIMIT 1
 ");
-$q->bind_param("i",$id);
+$q->bind_param("i", $id);
 $q->execute();
 $row = $q->get_result()->fetch_assoc();
-$q->close(); $con->close();
+$q->close();
+$con->close();
 
-if (!$row) { echo json_encode(["ok"=>false,"error"=>"No encontrado tras actualizar"]); exit; }
+if (!$row) {
+  echo json_encode(["ok" => false, "error" => "No encontrado tras actualizar"]);
+  exit;
+}
 
 $row['id'] = (int)$row['id'];
 $row['departamento_id'] = (int)$row['departamento_id'];
@@ -224,7 +271,8 @@ $estatusChanged = ($estatus !== null) && ($newEstatus !== $prevEstatus);
 // Solo pausa/cancelado
 $shouldSendEvent04 = $estatusChanged && in_array($newEstatus, [4, 5], true);
 
-function statusLabel(int $s): string {
+function statusLabel(int $s): string
+{
   return match ($s) {
     0 => "Solicitud",
     1 => "Revisión",
@@ -275,9 +323,9 @@ if ($shouldSendEvent04) {
       curl_close($ch);
 
       // log por si acaso
-      error_log("[WAPP event_04] to={$toDigits} estatus={$newEstatus} resp=" . substr((string)$wresp,0,200));
+      error_log("[WAPP event_04] to={$toDigits} estatus={$newEstatus} resp=" . substr((string)$wresp, 0, 200));
     }
   }
 }
 
-echo json_encode(["ok"=>true,"data"=>$row]);
+echo json_encode(["ok" => true, "data" => $row]);
