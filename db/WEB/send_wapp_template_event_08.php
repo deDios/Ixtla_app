@@ -1,9 +1,6 @@
 <?php
 /**
  * send_wapp_template_event_04.php
- * este template solo se manda cuando se hace un update
- * al requerimiento en los status de pausa/cancelado
- * fuera de eso no se utiliza.
  * requiere 3 params: [folio, estado, motivo]
  */
 

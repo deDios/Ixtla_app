@@ -1262,7 +1262,7 @@
       });
     }
 
-    log("requerimientosCanal2.js listo ✅");
+    log("requerimientosCanal2.js listo");
   }
 
   window.addEventListener("DOMContentLoaded", init);

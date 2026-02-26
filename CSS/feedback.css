@@ -1,0 +1,359 @@
+/* =========================================================
+   RETROALIMENTACIÓN — VIEW CSS (Modal + overlay)
+   Encapsulado para no afectar otras vistas.
+   ========================================================= */
+
+/* ---------- Modal container (fixed) ---------- */
+#retro-modal.ix-modal{
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-items: center;
+  padding: 24px 14px;
+}
+
+/* Overlay que bloquea interacción con el resto */
+#retro-modal .ix-modal__overlay{
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.25);
+  backdrop-filter: blur(2px);
+}
+
+/* Dialog centrado */
+#retro-modal .ix-modal__dialog{
+  position: relative;
+  width: min(860px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 16px 42px rgba(0,0,0,.22);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.10);
+}
+
+/* Header institucional */
+#retro-modal .ix-modal__header{
+  background: #6a8f79;
+  padding: 16px 18px;
+}
+
+/* Título centrado */
+#retro-modal .ix-modal__title{
+  margin: 0;
+  text-align: center;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: .2px;
+}
+
+/* Cuerpo */
+#retro-modal .ix-modal__body{
+  padding: 22px 22px 26px;
+}
+
+/* ---------- Pregunta ---------- */
+#retro-modal .retro-q{
+  margin: 0 0 18px;
+  text-align: center;
+  font-size: 18px;
+  color: #111827;
+}
+
+/* =========================================================
+   RATING SVG (doble aro + cara lineal)
+   ========================================================= */
+#retro-modal .retro-rate{
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+#retro-modal .retro-rate--svg{
+  gap: 26px;
+  margin-bottom: 18px;
+}
+
+#retro-modal .rate-item{
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+/* radio hidden */
+#retro-modal .rate-item input{
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* círculo principal con doble aro */
+#retro-modal .rate-icon{
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  position: relative;
+
+  /* aro exterior (idle) */
+  box-shadow: 0 0 0 6px rgba(139, 181, 255, .85);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+
+/* aro interior */
+#retro-modal .rate-icon::after{
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 3px rgba(139, 181, 255, .55);
+}
+
+/* svg centrado (tamaño correcto dentro de 84px) */
+#retro-modal .rate-svg{
+  width: 82px;
+  height: 82px;
+}
+
+/* estado normal: gris */
+#retro-modal .rate-svg .s{
+  fill: none;
+  stroke: #6b7280;      /* gris visible */
+  stroke-width: 2.4;    /* un poco más sólido */
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#retro-modal .rate-svg .f{
+  fill: #6b7280;
+}
+
+/* label abajo */
+#retro-modal .rate-label{
+  font-size: 14px;
+  color: #111827;
+}
+
+/* hover sutil */
+#retro-modal .rate-item:hover .rate-icon{
+  transform: translateY(-1px);
+}
+
+/* seleccionado (aro fuerte + svg azul) */
+#retro-modal .rate-item input:checked ~ .rate-icon{
+  box-shadow: 0 0 0 6px #1f5fe0;
+  transform: scale(1.03);
+}
+
+#retro-modal .rate-item input:checked ~ .rate-icon::after{
+  box-shadow: inset 0 0 0 3px rgba(31, 95, 224, .35);
+}
+
+#retro-modal .rate-item input:checked ~ .rate-icon .rate-svg .s{
+  stroke: #1f5fe0;
+}
+
+#retro-modal .rate-item input:checked ~ .rate-icon .rate-svg .f{
+  fill: #1f5fe0;
+}
+
+/* =========================================================
+   Inputs / Textarea
+   ========================================================= */
+#retro-modal .retro-label{
+  display: block;
+  margin: 14px 0 6px;
+  color: #111827;
+  font-weight: 600;
+}
+
+#retro-modal .retro-input{
+  width: 100%;
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 10px;
+  padding: 12px 12px;
+  background: #eef2f7;
+  outline: none;
+  font: inherit;
+  color: #111827;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+#retro-modal .retro-input:focus{
+  border-color: rgba(37,99,235,.55);
+  box-shadow: 0 0 0 4px rgba(37,99,235,.12);
+}
+
+#retro-modal .retro-textarea{
+  resize: none;
+  min-height: 120px;
+  background: #ffffff;
+}
+
+/* Readonly (departamento) */
+#retro-modal .retro-input[readonly]{
+  background: #eef2f7;
+  opacity: .95;
+}
+
+/* =========================================================
+   Botón principal
+   ========================================================= */
+#retro-modal .retro-btn{
+  margin: 18px auto 0;
+  display: block;
+  width: min(520px, 100%);
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #6a8f79;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .12s ease, filter .12s ease, opacity .12s ease;
+}
+
+#retro-modal .retro-btn:hover{
+  filter: brightness(0.98);
+  transform: translateY(-1px);
+}
+
+#retro-modal .retro-btn:active{
+  transform: translateY(0px);
+}
+
+#retro-modal .retro-btn:disabled{
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+/* =========================================================
+   Accesibilidad: reduce motion
+   ========================================================= */
+@media (prefers-reduced-motion: reduce){
+  #retro-modal .rate-icon,
+  #retro-modal .retro-btn{
+    transition: none !important;
+  }
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+
+/* móviles */
+@media (max-width: 520px){
+  #retro-modal.ix-modal{
+    padding: 18px 12px;
+  }
+
+  #retro-modal .ix-modal__body{
+    padding: 18px 16px 20px;
+  }
+
+  #retro-modal .retro-q{
+    font-size: 16px;
+  }
+
+  #retro-modal .retro-rate--svg{
+    gap: 18px;
+  }
+
+  #retro-modal .rate-icon{
+    width: 70px;
+    height: 70px;
+  }
+
+  #retro-modal .rate-icon::after{
+    inset: 12px;
+  }
+
+  #retro-modal .rate-svg{
+    width: 34px;
+    height: 34px;
+  }
+
+  #retro-modal .retro-btn{
+    width: 100%;
+  }
+}
+
+/* tablet */
+@media (max-width: 768px){
+  #retro-modal .rate-icon{
+    width: 64px;
+    height: 64px;
+  }
+
+  #retro-modal .rate-icon::after{
+    inset: 11px;
+  }
+
+  #retro-modal .rate-svg{
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* ---------- safety: box-sizing ---------- */
+#retro-modal *{
+  box-sizing: border-box;
+}
+
+/* =========================
+   ESTADO NORMAL — GRIS TENUE
+   ========================= */
+
+#retro-modal .rate-icon{
+  box-shadow: 0 0 0 6px rgba(203, 213, 225, .9);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+
+#retro-modal .rate-icon::after{
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 3px rgba(203, 213, 225, .7);
+}
+
+#retro-modal .rate-svg .s{
+  stroke: #9ca3af;
+}
+
+#retro-modal .rate-svg .f{
+  fill: #9ca3af;
+}
+
+/* hover leve */
+#retro-modal .rate-item:hover .rate-icon{
+  transform: translateY(-1px);
+}
+
+/* =========================
+   SELECCIONADO — AZUL FUERTE
+   ========================= */
+
+#retro-modal .rate-item input:checked ~ .rate-icon{
+  box-shadow: 0 0 0 6px #1f5fe0;
+  transform: scale(1.06);
+}
+
+#retro-modal .rate-item input:checked ~ .rate-icon::after{
+  box-shadow: inset 0 0 0 3px rgba(31, 95, 224, .35);
+}
+
+#retro-modal .rate-item input:checked ~ .rate-icon .rate-svg .s{
+  stroke: #1f5fe0;
+}
+
+#retro-modal .rate-item input:checked ~ .rate-icon .rate-svg .f{
+  fill: #1f5fe0;
+}
