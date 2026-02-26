@@ -185,7 +185,7 @@
    * ======================================*/
   const ENDPOINTS = {
     REQUERIMIENTO_GET: "/db/WEB/ixtla01_c_requerimiento.php",
-    REQUERIMIENTO_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",
+    REQUERIMIENTO_UPDATE: "/db/WEB/ixtla01_upd_requerimiento copy.php",
     EMPLEADOS_GET: "/db/WEB/ixtla01_c_empleado.php",
     COMENT_LIST: "/db/WEB/ixtla01_c_comentario_requerimiento.php",
     COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",

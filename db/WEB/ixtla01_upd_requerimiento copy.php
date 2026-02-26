@@ -1,5 +1,5 @@
 <?php
-//db\WEB\ixtla01_upd_requerimiento.php
+//db/WEB/ixtla01_upd_requerimiento copy.php
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
   header("Access-Control-Allow-Origin: $origin");
@@ -61,6 +61,8 @@ $st = $con->prepare("SELECT departamento_id, tramite_id, estatus, cerrado_en FRO
 $st->bind_param("i",$id);
 $st->execute();
 $curr = $st->get_result()->fetch_assoc();
+$prevEstatus = (int)$curr["estatus"];
+$telefonoDestino = $curr["contacto_telefono"] ?? null; // telefono antes del update
 $st->close();
 if (!$curr) { $con->close(); echo json_encode(["ok"=>false,"error"=>"No encontrado"]); exit; }
 
@@ -213,5 +215,69 @@ $row['prioridad'] = (int)$row['prioridad'];
 $row['estatus'] = (int)$row['estatus'];
 $row['canal'] = (int)$row['canal'];
 $row['status'] = (int)$row['status'];
+
+$newEstatus = (int)$row["estatus"];
+
+// Solo si el request traía estatus y cambió
+$estatusChanged = ($estatus !== null) && ($newEstatus !== $prevEstatus);
+
+// Solo pausa/cancelado
+$shouldSendEvent04 = $estatusChanged && in_array($newEstatus, [4, 5], true);
+
+function statusLabel(int $s): string {
+  return match ($s) {
+    0 => "Solicitud",
+    1 => "Revisión",
+    2 => "Asignación",
+    3 => "Proceso",
+    4 => "Pausado",
+    5 => "Cancelado",
+    6 => "Finalizado",
+    default => "Desconocido",
+  };
+}
+
+if ($shouldSendEvent04) {
+  $folio = $row["folio"] ?? ("REQ-" . str_pad((string)$row["id"], 11, "0", STR_PAD_LEFT));
+
+  // parametros del EVENT_04
+  $paramsWapp = [
+    $folio,
+    statusLabel($newEstatus),
+    "este es el ccp, todavia no lo recupera" // aqui va el MOTIVO del CCP pero todavia no lo rescato
+  ];
+
+  $to = $telefonoDestino; // el telefono antes del update
+  if ($to) {
+    $toDigits = preg_replace("/\\D+/", "", (string)$to);
+    if ($toDigits && preg_match("/^\\d{10,15}$/", $toDigits)) {
+
+      $wappUrl = "https://ixtla-app.com/DB/WEB/send_wapp_template_event_04.php"; // endpoint del template event_04
+
+      $payload = json_encode([
+        "to" => $toDigits,
+        "lang" => "es_MX",
+        "params" => $paramsWapp,
+      ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+      $ch = curl_init($wappUrl);
+      curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+          "Content-Type: application/json",
+          "Accept: application/json",
+        ],
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_TIMEOUT => 6,
+      ]);
+      $wresp = curl_exec($ch);
+      curl_close($ch);
+
+      // log por si acaso
+      error_log("[WAPP event_04] to={$toDigits} estatus={$newEstatus} resp=" . substr((string)$wresp,0,200));
+    }
+  }
+}
 
 echo json_encode(["ok"=>true,"data"=>$row]);
