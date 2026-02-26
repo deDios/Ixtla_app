@@ -2,18 +2,12 @@
 /**
  * send_wapp_template_event_05.php
  * requiere 2 params: [folio, estatus]
- *
- * Ejemplo de body en Meta:
- * "Su solicitud del requerimiento {{1}}, avanzo al estatus "{{2}}"
- * ...
  */
 
 declare(strict_types=1);
 header("Content-Type: application/json; charset=utf-8");
 
-/* =========================
- * CORS
- * ========================= */
+/* CORS  */
 $allowedOrigins = [
   "https://ixtla-app.com",
   "https://www.ixtla-app.com",
@@ -33,16 +27,11 @@ if (($_SERVER["REQUEST_METHOD"] ?? "") === "OPTIONS") {
   exit;
 }
 
-/* =========================
- * Config
- * ========================= */
+// Config
 const WA_ACCESS_TOKEN = 'EAAJkMnC6uM0BPt4PJyZBBLzp47PMRhRlKa6zvbvIH5fIPWLwfGysAeTbR0XVqN2SPP2ImmerKXE3kvQos9IJZA4IM8oyENM1MgB0iIbTHZAB1UFeGJs6K35EmFZA4zHHUt788Q2zntuFC84PeyzTgeMO0tVbSpQCBHeizsueV4eXDtZBzUtkMDxZBiWLMUvAZDZD';
 const WA_PHONE_NUMBER_ID = '782524058283433'; 
 const WA_TEMPLATE_NAME   = 'event_05';
 
-/* =========================
- * Helpers
- * ========================= */
 function readInput(): array {
   $raw = file_get_contents("php://input");
   if ($raw !== false && trim($raw) !== "") {
@@ -62,8 +51,8 @@ function sendJSON(int $status, array $payload): void {
   exit;
 }
 
-function waEndpoint(string $phoneNumberId): string {
-  return "https://graph.facebook.com/v20.0/" . $phoneNumberId . "/messages";
+function waEndpoint(): string {
+  return "https://graph.facebook.com/v20.0/" . WA_PHONE_NUMBER_ID . "/messages";
 }
 
 /* =========================
@@ -81,14 +70,13 @@ if (is_string($params)) {
   if (is_array($try)) $params = $try;
 }
 
+// Validaciones
 $errors = [];
 
-// Validar config
-global $WA_ACCESS_TOKEN, $WA_PHONE_NUMBER_ID;
-if ($WA_PHONE_NUMBER_ID === "REEMPLAZA_PHONE_NUMBER_ID" || trim($WA_PHONE_NUMBER_ID) === "") {
+if (WA_PHONE_NUMBER_ID === "REEMPLAZA_PHONE_NUMBER_ID") {
   $errors[] = "Config: WA_PHONE_NUMBER_ID no configurado.";
 }
-if ($WA_ACCESS_TOKEN === "REEMPLAZA_ACCESS_TOKEN" || trim($WA_ACCESS_TOKEN) === "") {
+if (WA_ACCESS_TOKEN === "REEMPLAZA_ACCESS_TOKEN") {
   $errors[] = "Config: WA_ACCESS_TOKEN no configurado.";
 }
 
@@ -151,12 +139,12 @@ $payload = [
 ];
 
 // cURL
-$ch = curl_init(waEndpoint($WA_PHONE_NUMBER_ID));
+$ch = curl_init(waEndpoint());
 curl_setopt_array($ch, [
   CURLOPT_RETURNTRANSFER => true,
   CURLOPT_POST => true,
   CURLOPT_HTTPHEADER => [
-    "Authorization: Bearer " . trim($WA_ACCESS_TOKEN),
+    "Authorization: Bearer " . trim(WA_ACCESS_TOKEN),
     "Content-Type: application/json",
     "Accept: application/json",
   ],
@@ -164,7 +152,7 @@ curl_setopt_array($ch, [
   CURLOPT_TIMEOUT => 25,
 ]);
 
-$resp  = curl_exec($ch);
+$resp = curl_exec($ch);
 $errno = curl_errno($ch);
 $cerr  = $errno ? curl_error($ch) : null;
 $code  = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
