@@ -13,7 +13,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   exit;
 }
 
-
 header('Content-Type: application/json');
 date_default_timezone_set('America/Mexico_City');
 
@@ -33,7 +32,6 @@ if (!isset($in['id'])) {
 
 $id  = (int)$in['id'];
 
-
 /* Inputs opcionales */
 $departamento_id = array_key_exists('departamento_id', $in) ? (int)$in['departamento_id'] : null;
 $tramite_id      = array_key_exists('tramite_id', $in)      ? (int)$in['tramite_id']      : null;
@@ -52,8 +50,8 @@ $contacto_calle    = $in['contacto_calle']    ?? null;
 $contacto_colonia  = $in['contacto_colonia']  ?? null;
 $contacto_cp       = $in['contacto_cp']       ?? null;
 
-$fecha_limite = $in['fecha_limite'] ?? null;
-$cerrado_en   = $in['cerrado_en']   ?? null; // puedes enviar timestamp ISO o dejar que lo asigne
+$fecha_limite  = $in['fecha_limite'] ?? null;
+$cerrado_en    = $in['cerrado_en']   ?? null; // puedes enviar timestamp ISO o dejar que lo asigne
 $clear_cerrado = isset($in['clear_cerrado']) ? (bool)$in['clear_cerrado'] : false;
 
 $updated_by   = isset($in['updated_by']) ? (int)$in['updated_by'] : null;
@@ -73,14 +71,15 @@ $st->bind_param("i", $id);
 $st->execute();
 $curr = $st->get_result()->fetch_assoc();
 $st->close();
+
 if (!$curr) {
   $con->close();
   echo json_encode(["ok" => false, "error" => "No encontrado"]);
   exit;
 }
+
 $prevEstatus = (int)$curr["estatus"];
-//$telefonoDestino = $curr["contacto_telefono"] ?? null; // telefono antes del update
-$telefonoDestino = "3322578320"; // telefono de prueba en UAT
+$telefonoDestino = $curr["contacto_telefono"] ?? null; // telefono antes del update
 
 $dep_final = $curr['departamento_id'];
 $tra_final = $curr['tramite_id'];
@@ -139,10 +138,10 @@ if ($asignado_a !== null) {
   $st->close();
 }
 
-/* Lógica de cerrado_en lo cerramos en los status 5(FINALIZADO) y 6(CANCELADO)*/
+/* Lógica de cerrado_en */
 $set_cierre_automatico = false;
 if ($estatus !== null) {
-  if (in_array($estatus, [5, 6], true) && $cerrado_en === null && !$clear_cerrado) {
+  if (in_array($estatus, [2, 3], true) && $cerrado_en === null && !$clear_cerrado) {
     $set_cierre_automatico = true;
   }
 }
@@ -171,38 +170,22 @@ $params = [];
 $types  = "";
 
 /* Bind ordenado con lo anterior */
-$params[] = $departamento_id;
-$types .= "i";
-$params[] = $tramite_id;
-$types .= "i";
-$params[] = $asignado_a;
-$types .= "i";
-$params[] = $asunto;
-$types .= "s";
-$params[] = $descripcion;
-$types .= "s";
-$params[] = $prioridad;
-$types .= "i";
-$params[] = $estatus;
-$types .= "i";
-$params[] = $canal;
-$types .= "i";
-$params[] = $contacto_nombre;
-$types .= "s";
-$params[] = $contacto_email;
-$types .= "s";
-$params[] = $contacto_telefono;
-$types .= "s";
-$params[] = $contacto_calle;
-$types .= "s";
-$params[] = $contacto_colonia;
-$types .= "s";
-$params[] = $contacto_cp;
-$types .= "s";
-$params[] = $fecha_limite;
-$types .= "s";
-$params[] = $updated_by;
-$types .= "i";
+$params[] = $departamento_id;  $types .= "i";
+$params[] = $tramite_id;       $types .= "i";
+$params[] = $asignado_a;       $types .= "i";
+$params[] = $asunto;           $types .= "s";
+$params[] = $descripcion;      $types .= "s";
+$params[] = $prioridad;        $types .= "i";
+$params[] = $estatus;          $types .= "i";
+$params[] = $canal;            $types .= "i";
+$params[] = $contacto_nombre;  $types .= "s";
+$params[] = $contacto_email;   $types .= "s";
+$params[] = $contacto_telefono;$types .= "s";
+$params[] = $contacto_calle;   $types .= "s";
+$params[] = $contacto_colonia; $types .= "s";
+$params[] = $contacto_cp;      $types .= "s";
+$params[] = $fecha_limite;     $types .= "s";
+$params[] = $updated_by;       $types .= "i";
 
 /* cerrado_en: tres casos */
 if ($clear_cerrado) {
@@ -248,9 +231,9 @@ $q->bind_param("i", $id);
 $q->execute();
 $row = $q->get_result()->fetch_assoc();
 $q->close();
-$con->close();
 
 if (!$row) {
+  $con->close();
   echo json_encode(["ok" => false, "error" => "No encontrado tras actualizar"]);
   exit;
 }
@@ -269,8 +252,9 @@ $newEstatus = (int)$row["estatus"];
 // Solo si el request traía estatus y cambió
 $estatusChanged = ($estatus !== null) && ($newEstatus !== $prevEstatus);
 
-// Solo pausa/cancelado
-$shouldSendEvent04 = $estatusChanged && in_array($newEstatus, [4, 5], true);
+// event_05: notificar cambios de estatus EXCEPTO Pausado(4) y Cancelado(5)
+// (Pausado/Cancelado se notifican vía CCP + event_04)
+$shouldSendEvent05 = $estatusChanged && !in_array($newEstatus, [4, 5], true);
 
 function statusLabel(int $s): string
 {
@@ -286,22 +270,21 @@ function statusLabel(int $s): string
   };
 }
 
-if ($shouldSendEvent04) {
+if ($shouldSendEvent05) {
   $folio = $row["folio"] ?? ("REQ-" . str_pad((string)$row["id"], 11, "0", STR_PAD_LEFT));
 
-  // parametros del EVENT_04
+  // parametros del EVENT_05: [folio, estatus]
   $paramsWapp = [
     $folio,
     statusLabel($newEstatus),
-    "este es el ccp, todavia no lo recupera" // aqui va el MOTIVO del CCP pero todavia no lo rescato
   ];
 
-  $to = $telefonoDestino; // el telefono antes del update
+  $to = $telefonoDestino; // telefono ANTES del update (cliente)
   if ($to) {
     $toDigits = preg_replace("/\\D+/", "", (string)$to);
     if ($toDigits && preg_match("/^\\d{10,15}$/", $toDigits)) {
 
-      $wappUrl = "https://ixtla-app.com/DB/WEB/send_wapp_template_event_04.php"; // endpoint del template event_04
+      $wappUrl = "https://ixtla-app.com/DB/WEB/send_wapp_template_event_05.php"; // endpoint del template event_05
 
       $payload = json_encode([
         "to" => $toDigits,
@@ -323,10 +306,10 @@ if ($shouldSendEvent04) {
       $wresp = curl_exec($ch);
       curl_close($ch);
 
-      // log por si acaso
-      error_log("[WAPP event_04] to={$toDigits} estatus={$newEstatus} resp=" . substr((string)$wresp, 0, 200));
+      error_log("[WAPP event_05] to={$toDigits} estatus={$newEstatus} resp=" . substr((string)$wresp, 0, 200));
     }
   }
 }
 
+$con->close();
 echo json_encode(["ok" => true, "data" => $row]);

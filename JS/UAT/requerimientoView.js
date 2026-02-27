@@ -191,7 +191,7 @@
     COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
     PROCESOS_LIST: "/db/WEB/ixtla01_c_proceso_requerimiento.php",
     TAREAS_LIST: "/db/WEB/ixtla01_c_tarea_proceso.php",
-    CCP_CREATE: "https://ixtla-app.com/db/web/ixtla01_i_ccp.php",
+    CCP_CREATE: "https://ixtla-app.com/db/web/ixtla01_i_ccp copy.php",
     CCP_UPDATE: "https://ixtla-app.com/db/web/ixtla01_u_ccp.php",
     CCP_LIST: "https://ixtla-app.com/db/web/ixtla01_c_ccp.php",
     // Catálogo de CP/colonia
