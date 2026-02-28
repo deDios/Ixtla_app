@@ -1,5 +1,6 @@
 <?php
 //db/WEB/ixtla01_upd_requerimiento copy.php
+
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
   header("Access-Control-Allow-Origin: $origin");
@@ -23,6 +24,9 @@ if ($path && file_exists($path)) {
   http_response_code(500);
   die(json_encode(["ok" => false, "error" => "No se encontró conexion.php"]));
 }
+
+// cargar file de tools
+require_once __DIR__ . "/tools_105277.php";
 
 $in = json_decode(file_get_contents("php://input"), true) ?? [];
 if (!isset($in['id'])) {
@@ -79,7 +83,7 @@ if (!$curr) {
 }
 
 $prevEstatus = (int)$curr["estatus"];
-$telefonoDestino = $curr["contacto_telefono"] ?? null; // telefono antes del update
+$telefonoDestino = $curr["contacto_telefono"] ?? null;
 
 $dep_final = $curr['departamento_id'];
 $tra_final = $curr['tramite_id'];
@@ -249,11 +253,10 @@ $row['status'] = (int)$row['status'];
 
 $newEstatus = (int)$row["estatus"];
 
-// Solo si el request traía estatus y cambió
+// Solo si el request traia estatus y hubo cambios
 $estatusChanged = ($estatus !== null) && ($newEstatus !== $prevEstatus);
 
 // event_05: notificar cambios de estatus EXCEPTO Pausado(4) y Cancelado(5)
-// (Pausado/Cancelado se notifican vía CCP + event_04)
 $shouldSendEvent05 = $estatusChanged && !in_array($newEstatus, [4, 5], true);
 
 function statusLabel(int $s): string
@@ -270,6 +273,10 @@ function statusLabel(int $s): string
   };
 }
 
+/**
+ * EVENT_05 
+ * mensaje de actualizacion al cliente
+ */
 if ($shouldSendEvent05) {
   $folio = $row["folio"] ?? ("REQ-" . str_pad((string)$row["id"], 11, "0", STR_PAD_LEFT));
 
@@ -279,12 +286,15 @@ if ($shouldSendEvent05) {
     statusLabel($newEstatus),
   ];
 
-  $to = $telefonoDestino; // telefono
+  // ✅ teléfono ACTUAL (post-update), con fallback al anterior por seguridad
+  $telefonoActual = $row["contacto_telefono"] ?? null;
+  $to = $telefonoActual ?: $telefonoDestino;
+
   if ($to) {
     $toDigits = preg_replace("/\\D+/", "", (string)$to);
     if ($toDigits && preg_match("/^\\d{10,15}$/", $toDigits)) {
 
-      $wappUrl = "https://ixtla-app.com/DB/WEB/send_wapp_template_event_05.php"; // endpoint del template event_05
+      $wappUrl = "https://ixtla-app.com/DB/WEB/send_wapp_template_event_05.php";
 
       $payload = json_encode([
         "to" => $toDigits,
@@ -308,6 +318,63 @@ if ($shouldSendEvent05) {
 
       error_log("[WAPP event_05] to={$toDigits} estatus={$newEstatus} resp=" . substr((string)$wresp, 0, 200));
     }
+  }
+}
+
+/**
+ * EVENT_08,  solo se manda cuando el req entra en status 2 (asignacion)
+ * - event_05 se manda al cliente
+ * - y event_08 al PL del departamento
+ */
+$shouldSendEvent08 = $estatusChanged && ($newEstatus === 2);
+
+if ($shouldSendEvent08) {
+  $folio = $row["folio"] ?? ("REQ-" . str_pad((string)$row["id"], 11, "0", STR_PAD_LEFT));
+  $tramiteNombre = (string)($row["tramite_nombre"] ?? "");
+
+  // parametros del EVENT_08: [folio, tramite]
+  $paramsWappPL = [
+    $folio,
+    $tramiteNombre,
+  ];
+
+  $deptId = (int)($row["departamento_id"] ?? 0);
+  $pl = ($deptId > 0) ? getPLByDepartamento($con, $deptId) : null;
+
+  $toPl = $pl["telefono"] ?? "";
+  if ($toPl) {
+    $toDigits = preg_replace("/\\D+/", "", (string)$toPl);
+
+    if ($toDigits && preg_match("/^\\d{10,15}$/", $toDigits)) {
+      $wappUrl = "https://ixtla-app.com/DB/WEB/send_wapp_template_event_08.php";
+
+      $payload = json_encode([
+        "to" => $toDigits,
+        "lang" => "es_MX",
+        "params" => $paramsWappPL,
+      ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+      $ch = curl_init($wappUrl);
+      curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+          "Content-Type: application/json",
+          "Accept: application/json",
+        ],
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_TIMEOUT => 6,
+      ]);
+      $wresp = curl_exec($ch);
+      curl_close($ch);
+
+      $plIdLog = (int)($pl["id"] ?? 0);
+      error_log("[WAPP event_08] dept={$deptId} pl={$plIdLog} to={$toDigits} resp=" . substr((string)$wresp, 0, 200));
+    } else {
+      error_log("[WAPP event_08] Teléfono PL inválido. dept={$deptId} tel=" . (string)$toPl);
+    }
+  } else {
+    error_log("[WAPP event_08] Sin PL o sin teléfono. dept={$deptId}");
   }
 }
 

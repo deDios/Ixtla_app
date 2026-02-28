@@ -1,5 +1,5 @@
 <?php
-// DB/WEB/tools.php
+// DB/WEB/tools_105277.php
 // este es un archivo par afunciones que ayuden a los endpoints y events 
 // a obtener valores mas facilmente o mensajeria de whatsapp bussiness
 

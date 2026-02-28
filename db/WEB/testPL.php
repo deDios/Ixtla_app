@@ -4,7 +4,7 @@
 header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . "/../conn/conn_db.php";   // conexion a la db
-require_once __DIR__ . "/tools.php";     // gepplbydepartamento
+require_once __DIR__ . "/tools_105277.php";     // getplbydepartamento
 
 /**
  * Lee JSON del body
@@ -32,13 +32,12 @@ if ($departamentoId <= 0) {
   exit;
 }
 
-// Abre conexión 
+// Abre conexion
 $con = conectar(); 
 
 $pl = getPLByDepartamento($con, $departamentoId);
 
-// Opcional: cerrar conexión
-// $con->close();
+$con->close();
 
 echo json_encode([
   "ok" => true,
