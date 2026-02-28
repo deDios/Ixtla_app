@@ -279,7 +279,7 @@ if ($shouldSendEvent05) {
     statusLabel($newEstatus),
   ];
 
-  $to = $telefonoDestino; // telefono ANTES del update (cliente)
+  $to = $telefonoDestino; // telefono
   if ($to) {
     $toDigits = preg_replace("/\\D+/", "", (string)$to);
     if ($toDigits && preg_match("/^\\d{10,15}$/", $toDigits)) {
