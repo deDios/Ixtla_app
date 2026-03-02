@@ -338,7 +338,8 @@ if ($shouldSendEvent08) {
     $tramiteNombre,
   ];
 
-  $deptId = (int)($row["departamento_id"] ?? 0);
+  //$deptId = (int)($row["departamento_id"] ?? 0);
+  $deptId = (int)(1); //departamento de precidencia
   $pl = ($deptId > 0) ? getPLByDepartamento($con, $deptId) : null;
 
   $toPl = $pl["telefono"] ?? "";

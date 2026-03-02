@@ -1,6 +1,8 @@
 <?php
 /**
  * send_wapp_template_event_09.php
+ * este event es para notificar al empleado asignado
+ * que se le asigno un nuevo requerimiento
  * requiere 2 params: [folio, tramite]
  */
 
