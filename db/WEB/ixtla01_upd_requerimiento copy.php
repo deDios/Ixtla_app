@@ -67,7 +67,7 @@ $con->query("SET time_zone='-06:00'");
 
 /* Cargar estado actual */
 $st = $con->prepare("
-  SELECT departamento_id, tramite_id, estatus, cerrado_en, contacto_telefono
+  SELECT departamento_id, tramite_id, estatus, cerrado_en, contacto_telefono, asignado_a
   FROM requerimiento
   WHERE id=?
 ");
@@ -82,7 +82,9 @@ if (!$curr) {
   exit;
 }
 
-$prevEstatus = (int)$curr["estatus"];
+$prevEstatus   = (int)$curr["estatus"];
+$prevAsignadoA = isset($curr["asignado_a"]) ? (int)$curr["asignado_a"] : null;
+
 $telefonoDestino = $curr["contacto_telefono"] ?? null;
 
 $dep_final = $curr['departamento_id'];
@@ -174,22 +176,22 @@ $params = [];
 $types  = "";
 
 /* Bind ordenado con lo anterior */
-$params[] = $departamento_id;  $types .= "i";
-$params[] = $tramite_id;       $types .= "i";
-$params[] = $asignado_a;       $types .= "i";
-$params[] = $asunto;           $types .= "s";
-$params[] = $descripcion;      $types .= "s";
-$params[] = $prioridad;        $types .= "i";
-$params[] = $estatus;          $types .= "i";
-$params[] = $canal;            $types .= "i";
-$params[] = $contacto_nombre;  $types .= "s";
-$params[] = $contacto_email;   $types .= "s";
-$params[] = $contacto_telefono;$types .= "s";
-$params[] = $contacto_calle;   $types .= "s";
-$params[] = $contacto_colonia; $types .= "s";
-$params[] = $contacto_cp;      $types .= "s";
-$params[] = $fecha_limite;     $types .= "s";
-$params[] = $updated_by;       $types .= "i";
+$params[] = $departamento_id;   $types .= "i";
+$params[] = $tramite_id;        $types .= "i";
+$params[] = $asignado_a;        $types .= "i";
+$params[] = $asunto;            $types .= "s";
+$params[] = $descripcion;       $types .= "s";
+$params[] = $prioridad;         $types .= "i";
+$params[] = $estatus;           $types .= "i";
+$params[] = $canal;             $types .= "i";
+$params[] = $contacto_nombre;   $types .= "s";
+$params[] = $contacto_email;    $types .= "s";
+$params[] = $contacto_telefono; $types .= "s";
+$params[] = $contacto_calle;    $types .= "s";
+$params[] = $contacto_colonia;  $types .= "s";
+$params[] = $contacto_cp;       $types .= "s";
+$params[] = $fecha_limite;      $types .= "s";
+$params[] = $updated_by;        $types .= "i";
 
 /* cerrado_en: tres casos */
 if ($clear_cerrado) {
@@ -251,12 +253,19 @@ $row['estatus'] = (int)$row['estatus'];
 $row['canal'] = (int)$row['canal'];
 $row['status'] = (int)$row['status'];
 
-$newEstatus = (int)$row["estatus"];
+$newEstatus   = (int)$row["estatus"];
+$newAsignadoA = $row["asignado_a"]; // int|null
 
 // Solo si el request traia estatus y hubo cambios
 $estatusChanged = ($estatus !== null) && ($newEstatus !== $prevEstatus);
 
-// event_05: notificar cambios de estatus EXCEPTO Pausado(4) y Cancelado(5)
+// Solo si el request traia asignado_a y hubo cambios
+$asignadoChanged = ($asignado_a !== null) && ($newAsignadoA !== $prevAsignadoA);
+
+/**
+ * EVENT_05
+ * notificar cambios de estatus EXCEPTO Pausado(4) y Cancelado(5)
+ */
 $shouldSendEvent05 = $estatusChanged && !in_array($newEstatus, [4, 5], true);
 
 function statusLabel(int $s): string
@@ -273,20 +282,16 @@ function statusLabel(int $s): string
   };
 }
 
-/**
- * EVENT_05 
- * mensaje de actualizacion al cliente
- */
 if ($shouldSendEvent05) {
   $folio = $row["folio"] ?? ("REQ-" . str_pad((string)$row["id"], 11, "0", STR_PAD_LEFT));
 
   // parametros del EVENT_05: [folio, estatus]
+  // event que notifica al cliente
   $paramsWapp = [
     $folio,
     statusLabel($newEstatus),
   ];
 
-  // ✅ teléfono ACTUAL (post-update), con fallback al anterior por seguridad
   $telefonoActual = $row["contacto_telefono"] ?? null;
   $to = $telefonoActual ?: $telefonoDestino;
 
@@ -322,7 +327,7 @@ if ($shouldSendEvent05) {
 }
 
 /**
- * EVENT_08,  solo se manda cuando el req entra en status 2 (asignacion)
+ * EVENT_08, solo se manda cuando el req entra en status 2 (asignacion)
  * - event_05 se manda al cliente
  * - y event_08 al PL del departamento
  */
@@ -333,13 +338,13 @@ if ($shouldSendEvent08) {
   $tramiteNombre = (string)($row["tramite_nombre"] ?? "");
 
   // parametros del EVENT_08: [folio, tramite]
+  // el event para notificar al PL
   $paramsWappPL = [
     $folio,
     $tramiteNombre,
   ];
 
-  //$deptId = (int)($row["departamento_id"] ?? 0);
-  $deptId = (int)(1); //departamento de precidencia
+  $deptId = (int)($row["departamento_id"] ?? 0);
   $pl = ($deptId > 0) ? getPLByDepartamento($con, $deptId) : null;
 
   $toPl = $pl["telefono"] ?? "";
@@ -376,6 +381,71 @@ if ($shouldSendEvent08) {
     }
   } else {
     error_log("[WAPP event_08] Sin PL o sin teléfono. dept={$deptId}");
+  }
+}
+
+/**
+ * EVENT_09
+ * Se manda AL EMPLEADO ASIGNADO cuando cambia asignado_a
+ * params: [folio, tramite]
+ */
+$shouldSendEvent09 = $asignadoChanged && ($newAsignadoA !== null);
+
+if ($shouldSendEvent09) {
+  $folio = $row["folio"] ?? ("REQ-" . str_pad((string)$row["id"], 11, "0", STR_PAD_LEFT));
+  $tramiteNombre = (string)($row["tramite_nombre"] ?? "");
+
+  $paramsWappEmp = [
+    $folio,
+    $tramiteNombre,
+  ];
+
+  // buscar telefono del empleado asignado
+  $empTel = null;
+  $empId = (int)$newAsignadoA;
+
+  $st = $con->prepare("SELECT telefono FROM empleado WHERE id=? LIMIT 1");
+  $st->bind_param("i", $empId);
+  $st->execute();
+  $er = $st->get_result()->fetch_assoc();
+  $st->close();
+
+  if ($er && !empty($er["telefono"])) {
+    $empTel = (string)$er["telefono"];
+  }
+
+  if ($empTel) {
+    $toDigits = preg_replace("/\\D+/", "", $empTel);
+    if ($toDigits && preg_match("/^\\d{10,15}$/", $toDigits)) {
+
+      $wappUrl = "https://ixtla-app.com/DB/WEB/send_wapp_template_event_09.php";
+
+      $payload = json_encode([
+        "to" => $toDigits,
+        "lang" => "es_MX",
+        "params" => $paramsWappEmp,
+      ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+      $ch = curl_init($wappUrl);
+      curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+          "Content-Type: application/json",
+          "Accept: application/json",
+        ],
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_TIMEOUT => 6,
+      ]);
+      $wresp = curl_exec($ch);
+      curl_close($ch);
+
+      error_log("[WAPP event_09] req={$id} asignado_a={$empId} to={$toDigits} resp=" . substr((string)$wresp, 0, 200));
+    } else {
+      error_log("[WAPP event_09] Teléfono empleado inválido. emp={$empId} tel=" . (string)$empTel);
+    }
+  } else {
+    error_log("[WAPP event_09] Empleado sin teléfono. emp={$empId}");
   }
 }
 

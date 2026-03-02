@@ -1,6 +1,8 @@
 <?php
 /**
  * send_wapp_template_event_08.php
+ * este es el event para notificar al pl
+ * que llego un nuevo requerimiento a su departamento.
  * requiere 2 params: [folio, tramite]
  *
  * Ejemplo:
