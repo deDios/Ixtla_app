@@ -55,7 +55,7 @@ $contacto_colonia  = $in['contacto_colonia']  ?? null;
 $contacto_cp       = $in['contacto_cp']       ?? null;
 
 $fecha_limite  = $in['fecha_limite'] ?? null;
-$cerrado_en    = $in['cerrado_en']   ?? null; // puedes enviar timestamp ISO o dejar que lo asigne
+$cerrado_en    = $in['cerrado_en']   ?? null; 
 $clear_cerrado = isset($in['clear_cerrado']) ? (bool)$in['clear_cerrado'] : false;
 
 $updated_by   = isset($in['updated_by']) ? (int)$in['updated_by'] : null;
@@ -144,7 +144,7 @@ if ($asignado_a !== null) {
   $st->close();
 }
 
-/* Lógica de cerrado_en */
+/* Logica de cerrado_en */
 $set_cierre_automatico = false;
 if ($estatus !== null) {
   if (in_array($estatus, [2, 3], true) && $cerrado_en === null && !$clear_cerrado) {
@@ -344,7 +344,8 @@ if ($shouldSendEvent08) {
     $tramiteNombre,
   ];
 
-  $deptId = (int)($row["departamento_id"] ?? 0);
+  //$deptId = (int)($row["departamento_id"] ?? 0);
+  $deptId = (int)(1); //departamento 1 = precidencia
   $pl = ($deptId > 0) ? getPLByDepartamento($con, $deptId) : null;
 
   $toPl = $pl["telefono"] ?? "";
