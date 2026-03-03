@@ -22,6 +22,7 @@
 
       this._classifyImages(); // update, verifica si es una infografia o solo una imagen
       this._bind();
+      this._watchImages();
       this._update();
       if (this.autoplay > 0) this._startAutoplay();
     }
@@ -34,7 +35,8 @@
         if (!fig || !img) return;
 
         const src = (img.getAttribute("src") || "").toLowerCase();
-        if (/\/?infoimg\d+\.(jpg|jpeg|png|webp|gif|svg)$/i.test(src)) { //por si acaso
+        if (/\/?infoimg\d+\.(jpg|jpeg|png|webp|gif|svg)$/i.test(src)) {
+          //por si acaso
           fig.classList.add("infografia");
           fig.classList.remove("foto");
         } else {
@@ -93,6 +95,24 @@
       this.viewport.addEventListener("touchstart", onDown, { passive: true });
       this.viewport.addEventListener("touchmove", onMove, { passive: true });
       this.viewport.addEventListener("touchend", onUp);
+    }
+
+    _watchImages() {
+      const imgs = Array.from(this.root.querySelectorAll("img"));
+      if (!imgs.length) return;
+
+      const onImgReady = () => {
+        // Recalcula alto con la imagen ya pintada
+        this._update(true);
+      };
+
+      imgs.forEach((img) => {
+        if (img.complete) return;
+        img.addEventListener("load", onImgReady, { once: true });
+        img.addEventListener("error", onImgReady, { once: true });
+      });
+
+      window.addEventListener("load", onImgReady, { once: true });
     }
 
     _translate(px) {
@@ -169,7 +189,6 @@
   });
 })();
 
-
 // --------------------------- toasts globales ---------------------------
 (function ensureToastContainer() {
   if (!document.querySelector(".gc-toast-container")) {
@@ -191,9 +210,7 @@
       setTimeout(() => toast.remove(), 400);
     }, duracion);
   };
-  
 })();
-
 
 //----------------------------------------------------- componente para las cards de departamentos
 (() => {
@@ -210,9 +227,8 @@
   const ENDPOINT =
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamentos.php";
   const REQUEST_BODY = { status: 1 };
-  
 
-  // --- assets 
+  // --- assets
   const ASSETS_DIR = "/ASSETS/departamentos/"; // carpeta de los assets
   const PLACEHOLDER = "placeholder_icon.png"; // por si no hay icono PENDIENTE
   const TIMEOUT_MS = 10000;
@@ -222,9 +238,7 @@
   };
 
   // ordenado por id asc.
-  const ORDER_IDS = [
-
-  ];
+  const ORDER_IDS = [];
 
   // se arma la card con un falback al id de lo que llego desde el fetch
   const buildCard = (row) => {
@@ -242,7 +256,7 @@
     // anchor principal
     const a = document.createElement("a");
     a.className = "ix-tile";
-    a.href = `/VIEWS/tramiteDepartamento.php?depId=${encodeURIComponent(id)}`; 
+    a.href = `/VIEWS/tramiteDepartamento.php?depId=${encodeURIComponent(id)}`;
     a.setAttribute("aria-label", `${nombre} – ${h3Text}`);
     a.dataset.id = String(id);
 
@@ -253,7 +267,7 @@
     logo.className = "ix-logo";
 
     const img = document.createElement("img");
-    img.alt = nombre; 
+    img.alt = nombre;
 
     // intentamos png y si falla, intentamos jpg y si falla va directo con un placeholder
     let triedPng = false;
@@ -373,7 +387,7 @@
 
     ixLog(
       "render listo (ids):",
-      ordered.map((r) => r.id)
+      ordered.map((r) => r.id),
     );
   };
 

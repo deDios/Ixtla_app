@@ -186,7 +186,30 @@
 
 .ix-media.foto img { object-fit: cover; }
 .ix-media.infografia img { object-fit: contain; background: #fff; }
+.ix-media{
+  border-radius: 12px;
+  overflow: hidden;
+}
 
+/* base */
+.ix-media img{
+  display: block;
+  width: 100%;
+  height: 260px;         
+  object-fit: cover;    
+}
+
+.ix-media.infografia img{
+  object-fit: contain;
+  background: #fff;
+}
+
+@media (max-width: 900px){
+  .ix-media img{ height: 220px; }
+}
+@media (max-width: 720px){
+  .ix-media img{ height: 200px; }
+}
 
 /*-------------------------------------- fin del css para el component de carrusel -------------------*/
 
