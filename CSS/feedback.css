@@ -357,3 +357,72 @@
 #retro-modal .rate-item input:checked ~ .rate-icon .rate-svg .f{
   fill: #1f5fe0;
 }
+
+/* =========================================================
+   MINI MODAL (Gracias / Ya respondido)
+   ========================================================= */
+
+/* por si un navegador no respeta hidden */
+[hidden]{ display: none !important; }
+
+#retro-overlay.retro-overlay{
+  position: fixed;
+  inset: 0;
+  z-index: 100000; /* arriba del #retro-modal (99999) */
+  background: rgba(0,0,0,.25);
+  backdrop-filter: blur(2px);
+}
+
+#retro-mini.retro-mini{
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100001;
+
+  width: min(520px, calc(100% - 28px));
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.10);
+  box-shadow: 0 18px 48px rgba(0,0,0,.24);
+  padding: 18px 18px 16px;
+  text-align: center;
+}
+
+#retro-mini.retro-mini h3{
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+#retro-mini.retro-mini p{
+  margin: 0 0 14px;
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Botón del mini modal (tu .retro-btn estaba scopeado a #retro-modal) */
+#retro-mini.retro-mini .retro-btn{
+  margin: 0 auto;
+  display: block;
+  width: min(320px, 100%);
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #6a8f79;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .12s ease, filter .12s ease, opacity .12s ease;
+}
+
+#retro-mini.retro-mini .retro-btn:hover{
+  filter: brightness(0.98);
+  transform: translateY(-1px);
+}
+
+#retro-mini.retro-mini .retro-btn:active{
+  transform: translateY(0px);
+}

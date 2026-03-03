@@ -1,20 +1,31 @@
 (function () {
-  const $ = (s, r=document) => r.querySelector(s);
+  const $ = (s, r = document) => r.querySelector(s);
 
   const modal = $("#retro-modal");
   const sendBtn = $("#retro-send");
+
+  // Mini modal
+  const miniOverlay = $("#retro-overlay");
+  const mini = $("#retro-mini");
+  const miniTitle = $("#retro-mini-title");
+  const miniMsg = $("#retro-mini-msg");
+  const finishBtn = $("#retro-finish");
 
   // 1) Bloquear scroll de la página (modal “en regla”)
   document.documentElement.style.overflow = "hidden";
   document.body.style.overflow = "hidden";
 
   // 2) NO permitir cerrar: bloquear ESC y clicks fuera
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, true);
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    },
+    true
+  );
 
   // Evita que el overlay haga algo (solo absorbe el click)
   const overlay = modal.querySelector(".ix-modal__overlay");
@@ -23,13 +34,41 @@
     e.stopPropagation();
   });
 
+  // Helpers mini modal
+  function openMini({ title = "Muchas gracias", message = "Tu retroalimentación fue registrada correctamente." } = {}) {
+    if (miniTitle) miniTitle.textContent = title;
+    if (miniMsg) miniMsg.textContent = message;
+
+    // Mostrar (quita hidden)
+    if (miniOverlay) miniOverlay.hidden = false;
+    if (mini) mini.hidden = false;
+
+    // Opcional: marcar el modal grande como “inactivo” para screen readers
+    modal?.setAttribute("aria-hidden", "true");
+  }
+
+  function closeMini() {
+    if (miniOverlay) miniOverlay.hidden = true;
+    if (mini) mini.hidden = true;
+    modal?.setAttribute("aria-hidden", "false");
+  }
+
+  finishBtn?.addEventListener("click", () => {
+    // aquí define tu acción final:
+    // 1) cerrar mini modal
+    closeMini();
+
+    // 2) redirigir (si quieres)
+    window.location.href = "/index.php";
+  });
+
   // 3) Habilitar botón Enviar cuando hay rate
-  function getRate(){
+  function getRate() {
     const checked = document.querySelector("input[name='rate']:checked");
     return checked ? checked.value : "";
   }
 
-  function refresh(){
+  function refresh() {
     sendBtn.disabled = !getRate();
   }
 
@@ -37,16 +76,24 @@
     if (e.target && e.target.name === "rate") refresh();
   });
 
-  // (por ahora) click de enviar
+  // click de enviar
   sendBtn.addEventListener("click", () => {
     // aquí luego conectamos endpoint real
-    // por ahora solo demo:
     sendBtn.disabled = true;
     sendBtn.textContent = "Enviando...";
+
     setTimeout(() => {
       sendBtn.textContent = "Enviar";
       refresh();
-      // aquí puedes abrir el mini-modal de gracias si quieres
+
+      // Mostrar mini modal (éxito demo)
+      openMini({
+        title: "Muchas gracias",
+        message: "Tu retroalimentación fue registrada correctamente."
+      });
+
+      openMini({ title: "Muchas gracias", message: "Actualmente ya has respondido esta encuesta." });
+
     }, 800);
   });
 
