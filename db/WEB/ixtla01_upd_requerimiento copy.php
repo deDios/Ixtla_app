@@ -345,7 +345,7 @@ if ($shouldSendEvent08) {
   ];
 
   //$deptId = (int)($row["departamento_id"] ?? 0);
-  $deptId = (int)(1); //departamento 1 = precidencia
+  $deptId = (int)(6); //departamento 6 = precidencia
   $pl = ($deptId > 0) ? getPLByDepartamento($con, $deptId) : null;
 
   $toPl = $pl["telefono"] ?? "";

@@ -26,7 +26,7 @@
       "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_empleado.php",
     DEPTS_LIST:
       "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
-    REQ_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",
+    REQ_UPDATE: "/db/WEB/ixtla01_upd_requerimiento copy.php",
     CCP_LIST: "https://ixtla-app.com/db/web/ixtla01_c_ccp.php",
     // Catálogo de trámites (para editar "Trámite")
     TRAMITES_LIST:
