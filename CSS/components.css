@@ -184,6 +184,9 @@
   background: #fff;
 }
 
+.ix-media.foto img { object-fit: cover; }
+.ix-media.infografia img { object-fit: contain; background: #fff; }
+
 
 /*-------------------------------------- fin del css para el component de carrusel -------------------*/
 
