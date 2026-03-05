@@ -63,7 +63,7 @@ body.ix-dashboard-body { background-color: var(--bg-app); margin: 0; font-family
 .donut-legend-val { margin-left: auto; color: var(--text-muted); font-weight: 500; }
 
 /* MAPA */
-.ix-map-card { padding: 0; }
-#map-colonias { width: 100%; height: 100%; background: #f1f5f9; z-index: 1;}
+.ix-map-card { padding: 0; position: relative; }
+#map-colonias { width: 100%; height: 100%; background: #e5e7eb; border-radius: 12px;}
 .leaflet-popup-content-wrapper { border-radius: 8px; font-family: 'Inter', sans-serif; }
 .leaflet-popup-content strong { color: #0f172a; }

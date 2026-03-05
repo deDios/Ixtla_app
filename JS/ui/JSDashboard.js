@@ -13,13 +13,13 @@
   const DEPT_ICONS = { "Todos": "▦", "Parques y Jardines": "🌳", "Ecología": "🍃", "Padrón y Licencias": "📋", "Alumbrado Público": "💡", "Obras Públicas": "🏗️", "Aseo Público": "🧹", "SAMAPA": "💧" };
 
   let currentDept = null;
-  let currentMonth = ""; // Vuelve a ser un string simple
+  let currentMonth = "";
   let map = null, bubbleLayer = null;
 
   let globalDeptList = []; 
   let demoInterval = null;
 
-  // FUNCIÓN FETCH CON CACHE-BUSTING
+  // FETCH CON CACHE-BUSTING
   async function fetchJSON(url, opts = {}) {
     try {
         const noCacheUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
@@ -36,7 +36,7 @@
     }
   }
 
-  /* ====== SELECTOR DE MES PERSONALIZADO ====== */
+  /* ====== SELECTOR DE MES ====== */
   function initCustomSelect() {
       const header = document.getElementById("multiselect-header");
       const dropdown = document.getElementById("multiselect-dropdown");
@@ -51,14 +51,8 @@
       radios.forEach(radio => {
           radio.addEventListener("change", (e) => {
               currentMonth = e.target.value;
-              
-              if (currentMonth === "") {
-                  title.textContent = "Todos los meses";
-              } else {
-                  title.textContent = e.target.getAttribute('data-label');
-              }
-              
-              dropdown.classList.remove("show"); // Auto cerrar al seleccionar
+              title.textContent = currentMonth === "" ? "Todos los meses" : e.target.getAttribute('data-label');
+              dropdown.classList.remove("show");
               reloadDashboard();
           });
       });
@@ -72,6 +66,7 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const total = dataSlices.reduce((sum, slice) => sum + slice.value, 0);
     if (total === 0) return;
+    
     let startAngle = -Math.PI / 2;
     dataSlices.forEach(slice => {
       if (slice.value === 0) return;
@@ -93,18 +88,29 @@
     }).join("");
   }
 
-  /* ====== MAPA ====== */
+  /* ====== MAPA (CORREGIDO) ====== */
   function initMap() {
     const el = document.getElementById("map-colonias");
     if (!el || map) return;
+    
     map = L.map("map-colonias", { zoomControl: true }).setView([20.55, -103.2], 12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}/{r}.png', { maxZoom: 18 }).addTo(map);
-    bubbleLayer = L.layerGroup().addTo(map); // Inicializamos la capa una sola vez
+    
+    // Cambiado a OpenStreetMap para garantizar que las calles se carguen siempre
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        maxZoom: 18,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+    
+    bubbleLayer = L.layerGroup().addTo(map);
   }
 
   function processBubbleMap(geoData) {
     initMap();
-    bubbleLayer.clearLayers(); // IMPORTANTE: Limpiamos los puntos antiguos correctamente
+    
+    // Forzamos al mapa a recalcular su tamaño (soluciona el fondo gris)
+    setTimeout(() => { if (map) map.invalidateSize(); }, 300);
+    
+    bubbleLayer.clearLayers(); 
 
     let topZone = { cp: "--", colonia: "Sin reportes", total: -1 };
     if (!geoData || geoData.length === 0) return topZone;
@@ -157,6 +163,7 @@
     document.getElementById("kpi-sub-cp").textContent = topCP.total > -1 ? `${topCP.colonia} / CP ${topCP.cp}` : "Sin datos";
   }
 
+  /* ====== DEPARTAMENTOS Y DEMO ====== */
   function renderDepts(list) {
     const wrap = document.getElementById("chips-departamentos");
     wrap.innerHTML = [{id: null, nombre: "Todos"}, ...list].map(d => `
