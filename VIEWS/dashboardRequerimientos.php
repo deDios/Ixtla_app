@@ -16,7 +16,6 @@ ix_require_session();
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 </head>
 <body class="ix-dashboard-body">
 
@@ -26,7 +25,7 @@ ix_require_session();
     <header class="ix-header-top">
       <div class="ix-header-titles">
         <h1 class="ix-header-title">Dashboard de Requerimientos</h1>
-        <p class="ix-header-subtitle">Resumen operativo por trámite, estatus y estado (abierto/cerrado)</p>
+        <p class="ix-header-subtitle">Resumen operativo por trámite, estatus y estado</p>
       </div>
       <div class="ix-header-actions">
         <div class="ix-period-select">
@@ -69,7 +68,7 @@ ix_require_session();
           <span class="kpi-sub">Tiempo x Req.</span>
         </div>
         <div class="kpi-icon-circle">
-          <img src="/ASSETS/icons/clock.svg" alt="Reloj" width="24" style="opacity: 0.6;">
+          <img src="/ASSETS/icons/clock.svg" alt="Reloj" width="20" style="opacity: 0.6;">
         </div>
       </div>
       <div class="ix-card ix-kpi-card">
@@ -79,7 +78,7 @@ ix_require_session();
           <span class="kpi-sub">CP Top Ventas/Req</span>
         </div>
         <div class="kpi-icon-circle">
-          <img src="/ASSETS/icons/pin.svg" alt="Pin" width="24" style="opacity: 0.6;">
+          <img src="/ASSETS/icons/pin.svg" alt="Pin" width="20" style="opacity: 0.6;">
         </div>
       </div>
     </section>
@@ -93,7 +92,7 @@ ix_require_session();
           <table class="ix-modern-table">
             <thead>
               <tr>
-                <th style="width: 50%;">Categoría</th>
+                <th class="col-main">Categoría</th>
                 <th class="ta-right">Abiertos</th>
                 <th class="ta-right">Cerrados</th>
                 <th class="ta-right">Total</th>
