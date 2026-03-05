@@ -8,16 +8,26 @@ body.ix-dashboard-body { background-color: var(--bg-app); margin: 0; font-family
 .ix-header-subtitle { margin: 4px 0 0; color: var(--text-muted); font-size: 0.9rem; }
 .ix-header-actions { display: flex; align-items: center; gap: 20px; }
 
-/* MODO DEMO TOGGLE */
 .ix-demo-toggle { display: flex; align-items: center; gap: 8px; background: white; padding: 8px 14px; border-radius: 8px; border: 2px solid var(--border); font-weight: 700; color: var(--accent); cursor: pointer; transition: 0.2s; }
 .ix-demo-toggle:hover { border-color: var(--accent); background: #f0f7ff; }
 .ix-demo-toggle input { cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
-
-#filtro-mes { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 500;}
 #hs-avatar { width: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
+/* CUSTOM MULTISELECT DROPDOWN */
+.custom-multiselect { position: relative; width: 220px; font-family: 'Inter', sans-serif; z-index: 100; }
+.multiselect-header { background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 500; color: var(--text-main); font-size: 0.9rem;}
+.multiselect-arrow { font-size: 0.7rem; color: var(--text-muted); }
+.multiselect-dropdown { position: absolute; top: 110%; left: 0; width: 100%; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-height: 300px; overflow-y: auto; display: none; padding: 10px; }
+.multiselect-dropdown.show { display: block; }
+.multiselect-year-group { margin-bottom: 10px; }
+.year-title { font-weight: 800; font-size: 0.8rem; color: var(--text-muted); padding: 5px; border-bottom: 1px solid var(--border); margin-bottom: 5px; text-transform: uppercase;}
+.year-months { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.month-option { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; padding: 4px; border-radius: 4px; }
+.month-option:hover { background: #f1f5f9; }
+.month-option input { cursor: pointer; }
+
 /* DEPARTAMENTOS */
-.ix-dept-grid { display: flex; gap: 12px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px; scroll-behavior: smooth; }
+.ix-dept-grid { display: flex; gap: 12px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px; scroll-behavior: smooth;}
 .ix-chip { background: white; border: 1px solid var(--border); padding: 12px 20px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: 0.2s; min-width: 110px; }
 .ix-chip[aria-selected="true"] { border-color: var(--accent); background: #f0f7ff; color: var(--accent); font-weight: 600; }
 .ix-chip-icon { font-size: 1.5rem; }
@@ -54,6 +64,6 @@ body.ix-dashboard-body { background-color: var(--bg-app); margin: 0; font-family
 
 /* MAPA */
 .ix-map-card { padding: 0; }
-#map-colonias { width: 100%; height: 100%; background: #f1f5f9; }
+#map-colonias { width: 100%; height: 100%; background: #f1f5f9; z-index: 1;}
 .leaflet-popup-content-wrapper { border-radius: 8px; font-family: 'Inter', sans-serif; }
 .leaflet-popup-content strong { color: #0f172a; }

@@ -34,21 +34,40 @@ ix_require_session();
           <span>DEMO</span>
         </label>
 
-        <div class="ix-period-select">
-          <label for="filtro-mes">Mes:</label>
-          <select id="filtro-mes">
-            <option value="">Todos los meses</option>
-            <?php
-              $meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-              for ($i = 0; $i < 12; $i++) {
-                $date = date('Y-m', strtotime("-$i months"));
-                $m = (int)date('m', strtotime($date));
-                $y = date('Y', strtotime($date));
-                echo "<option value='$date'>{$meses[$m-1]} $y</option>";
-              }
-            ?>
-          </select>
+        <div class="ix-period-select custom-multiselect" id="month-multiselect">
+            <div class="multiselect-header" id="multiselect-header">
+                <span id="multiselect-title">Todos los meses</span>
+                <span class="multiselect-arrow">▼</span>
+            </div>
+            <div class="multiselect-dropdown" id="multiselect-dropdown">
+                <?php
+                  $mesesNombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                  $currentYear = (int)date('Y');
+                  // Mostrar año actual y el anterior
+                  $years = [$currentYear, $currentYear - 1]; 
+
+                  foreach ($years as $y) {
+                      echo "<div class='multiselect-year-group'>";
+                      echo "<div class='year-title'>Año $y</div>";
+                      echo "<div class='year-months'>";
+                      // Meses del 12 al 1
+                      for ($m = 12; $m >= 1; $m--) {
+                          $monthNum = str_pad($m, 2, "0", STR_PAD_LEFT);
+                          $val = "$y-$monthNum";
+                          $label = $mesesNombres[$m-1];
+                          // Validar que no imprima meses futuros del año actual
+                          if ($y == $currentYear && $m > (int)date('m')) continue;
+                          
+                          echo "<label class='month-option'>";
+                          echo "<input type='checkbox' class='month-checkbox' value='$val'> $label";
+                          echo "</label>";
+                      }
+                      echo "</div></div>";
+                  }
+                ?>
+            </div>
         </div>
+
         <div class="ix-user-badge">
           <img src="/ASSETS/user/img_user1.png" alt="User" id="hs-avatar">
         </div>
