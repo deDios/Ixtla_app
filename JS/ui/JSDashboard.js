@@ -29,7 +29,6 @@
     return r.json();
   }
 
-  /* ====== GRÁFICA DE DONA FIDELIDAD ====== */
   function drawFidelityDonut(canvas, a, c) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -50,15 +49,12 @@
 
     slices.forEach(slice => {
       const sliceAngle = (slice.value / total) * 2 * Math.PI;
-      
-      // Arco
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
       ctx.lineWidth = 40;
       ctx.strokeStyle = slice.color;
       ctx.stroke();
 
-      // Etiquetas y Líneas
       const midAngle = startAngle + sliceAngle / 2;
       const xLine = centerX + Math.cos(midAngle) * (radius + 20);
       const yLine = centerY + Math.sin(midAngle) * (radius + 20);
@@ -78,7 +74,6 @@
       startAngle += sliceAngle;
     });
 
-    // Texto Central
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = "bold 28px Inter";
@@ -86,14 +81,11 @@
     ctx.fillText(total, centerX, centerY);
   }
 
-  /* ====== MAPA (SATELITAL + CALOR) ====== */
   function initMap() {
     const el = document.getElementById("map-colonias");
     if (!el || map) return;
     map = L.map(el, { zoomControl: false }).setView([20.55, -103.2], 12);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Esri'
-    }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
   }
 
   async function reloadDashboard() {
@@ -107,27 +99,18 @@
       fetchJSON(API.colonias, { method: "POST", body: payload })
     ]);
 
-    // Tabla
     document.getElementById("tbl-tramites-body").innerHTML = (tramites.data || []).map(r => `
-      <tr>
-        <td>${r.tramite}</td>
-        <td>${r.abiertos}</td>
-        <td>${r.cerrados}</td>
-        <td class="ta-right"><strong>${r.total}</strong></td>
-      </tr>
+      <tr><td>${r.tramite}</td><td>${r.abiertos}</td><td>${r.cerrados}</td><td class="ta-right"><strong>${r.total}</strong></td></tr>
     `).join("");
 
-    // Resumen Superior Tabla
     document.getElementById("status-summary-header").innerHTML = `
-      <div class="stat-item"><span>Finalizado</span><strong>${status[6] || 0}</strong></div>
-      <div class="stat-item"><span>Asignación</span><strong>${status[2] || 0}</strong></div>
-      <div class="stat-item"><span>En proceso</span><strong>${status[3] || 0}</strong></div>
+      <div class="header-count-item"><span>Finalizado</span><strong>${status[6] || 0}</strong></div>
+      <div class="header-count-item"><span>Asignación</span><strong>${status[2] || 0}</strong></div>
+      <div class="header-count-item"><span>En proceso</span><strong>${status[3] || 0}</strong></div>
     `;
 
-    // Gráfica
     drawFidelityDonut(document.getElementById("donut-canvas"), parseInt(oc.abiertos), parseInt(oc.cerrados));
 
-    // Mapa de Calor
     const points = (geo.data || []).map(r => [parseFloat(r.lat), parseFloat(r.lon), 1]);
     if (heatLayer) map.removeLayer(heatLayer);
     heatLayer = L.heatLayer(points, { radius: 25, blur: 15 }).addTo(map);
@@ -143,19 +126,11 @@
     `).join("");
   }
 
-  window.setDept = (id) => {
-    currentDept = id;
-    reloadDashboard();
-    fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data));
-  };
+  window.setDept = (id) => { currentDept = id; reloadDashboard(); fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data)); };
 
   document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("filtro-mes").onchange = (e) => {
-      currentMonth = e.target.value;
-      reloadDashboard();
-    };
+    document.getElementById("filtro-mes").onchange = (e) => { currentMonth = e.target.value; reloadDashboard(); };
     fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data));
     reloadDashboard();
   });
-
 })();
