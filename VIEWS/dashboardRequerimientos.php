@@ -86,8 +86,7 @@ ix_require_session();
     <section class="ix-dashboard-main-grid">
       
       <article class="ix-card ix-main-card ix-card-table">
-        <div class="card-header-counts" id="status-summary-header">
-          </div>
+        <div class="card-header-counts" id="status-summary-header"></div>
         <div class="ix-table-wrapper">
           <table class="ix-modern-table">
             <thead>
@@ -105,8 +104,9 @@ ix_require_session();
 
       <article class="ix-card ix-main-card ix-center-content">
         <div class="donut-container">
-          <canvas id="donut-canvas" width="260" height="260"></canvas>
+          <canvas id="donut-canvas" width="220" height="220"></canvas>
         </div>
+        <div id="donut-legend" class="ix-donut-html-legend"></div>
       </article>
 
       <article class="ix-card ix-main-card ix-map-card">

@@ -5,7 +5,6 @@
     departamentos: "/db/web/ixtla01_c_departamentos.php",
     byTramite:     "/db/web/req_stats_by_tramite.php",
     byStatus:      "/db/web/req_stats_by_status.php",
-    openClosed:    "/db/web/req_stats_open_closed.php",
     colonias:      "/db/web/ixtla01_c_cpcolonia_latlon.php" 
   };
 
@@ -30,26 +29,22 @@
     return r.json();
   }
 
-  /* ====== GRÁFICA DE DONA FIDELIDAD ====== */
-  function drawFidelityDonut(canvas, a, c) {
+  /* ====== GRÁFICA DE DONA (Limpia) ====== */
+  function drawFidelityDonut(canvas, dataSlices) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const total = a + c;
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const radius = 75;
+    const radius = 80;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const total = dataSlices.reduce((sum, slice) => sum + slice.value, 0);
     if (total === 0) return;
-
-    const slices = [
-      { value: a, color: "#22c55e", label: "Abiertos" }, // Verde
-      { value: c, color: "#334155", label: "Cerrados" }  // Gris
-    ];
 
     let startAngle = -Math.PI / 2;
 
-    slices.forEach(slice => {
+    dataSlices.forEach(slice => {
       if (slice.value === 0) return;
       const sliceAngle = (slice.value / total) * 2 * Math.PI;
       ctx.beginPath();
@@ -57,40 +52,38 @@
       ctx.lineWidth = 35;
       ctx.strokeStyle = slice.color;
       ctx.stroke();
-
-      const midAngle = startAngle + sliceAngle / 2;
-      const xLine = centerX + Math.cos(midAngle) * (radius + 15);
-      const yLine = centerY + Math.sin(midAngle) * (radius + 15);
-
-      ctx.beginPath();
-      ctx.moveTo(centerX + Math.cos(midAngle) * radius, centerY + Math.sin(midAngle) * radius);
-      ctx.lineTo(xLine, yLine);
-      ctx.strokeStyle = "#cbd5e1";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      const pct = Math.round((slice.value / total) * 100);
-      ctx.fillStyle = "#1e293b";
-      ctx.font = "bold 11px Inter";
-      ctx.textAlign = xLine > centerX ? "left" : "right";
-      ctx.fillText(`${slice.label}: ${slice.value} (${pct}%)`, xLine + (xLine > centerX ? 5 : -5), yLine);
-
       startAngle += sliceAngle;
     });
 
+    // Texto Central
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "bold 26px Inter";
+    ctx.font = "bold 28px Inter";
     ctx.fillStyle = "#1e293b";
     ctx.fillText(total, centerX, centerY);
   }
 
-  /* ====== MAPA DE BURBUJAS (Alternativa Visual) ====== */
+  function renderDonutLegend(dataSlices) {
+    const container = document.getElementById("donut-legend");
+    const total = dataSlices.reduce((sum, slice) => sum + slice.value, 0);
+    
+    container.innerHTML = dataSlices.map(d => {
+        const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
+        return `
+          <div class="donut-legend-item">
+            <div class="donut-legend-color" style="background:${d.color}"></div>
+            <span>${d.label}</span>
+            <span class="donut-legend-val">${d.value} (${pct}%)</span>
+          </div>
+        `;
+    }).join("");
+  }
+
+  /* ====== MAPA DE BURBUJAS ESCALADO ====== */
   function initMap() {
     const el = document.getElementById("map-colonias");
     if (!el || map) return;
     map = L.map(el, { zoomControl: true }).setView([20.55, -103.2], 12);
-    // Mapa base claro y limpio
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
   }
 
@@ -107,9 +100,6 @@
       bubbleLayer = L.layerGroup().addTo(map);
 
       if (data.length === 0) return;
-
-      // Calcular el valor máximo para escalar las burbujas
-      const maxVal = Math.max(...data.map(r => parseFloat(r.total) || 0));
       const bounds = [];
 
       data.forEach(r => {
@@ -118,16 +108,16 @@
         const lon = parseFloat(r.lon);
 
         if (isNaN(lat) || isNaN(lon) || val === 0) return;
-
         bounds.push([lat, lon]);
 
-        // Cálculo de tamaño y color
-        const ratio = val / maxVal;
-        let color = "#3b82f6"; // Azul para bajos
-        if (ratio > 0.7) color = "#ef4444"; // Rojo para altos
-        else if (ratio > 0.3) color = "#f59e0b"; // Naranja para medios
+        // Lógica de crecimiento gradual: Crece 4px por cada 25 requerimientos.
+        const increments = Math.floor(val / 25);
+        const radius = Math.min(10 + (increments * 6), 40); // Base 10px, tope máximo 40px
 
-        const radius = 10 + (ratio * 20); // Tamaño entre 10px y 30px
+        // Color basado en el volumen
+        let color = "#3b82f6"; // Azul para volúmenes bajos
+        if (val >= 50) color = "#ef4444"; // Rojo
+        else if (val >= 25) color = "#f59e0b"; // Naranja
 
         const circle = L.circleMarker([lat, lon], {
           radius: radius,
@@ -135,13 +125,12 @@
           color: "#ffffff",
           weight: 1.5,
           opacity: 1,
-          fillOpacity: 0.7
+          fillOpacity: 0.8
         }).addTo(bubbleLayer);
 
         circle.bindTooltip(`<strong>${r.colonia || 'Zona'}</strong><br>Requerimientos: ${val}`, {direction: 'top'});
       });
 
-      // Auto Centrado
       if (bounds.length > 0) {
         map.fitBounds(L.latLngBounds(bounds), { padding: [30, 30], maxZoom: 15 });
       }
@@ -152,10 +141,9 @@
   async function reloadDashboard() {
     const payload = { departamento_id: currentDept, month: currentMonth };
 
-    const [tramites, status, oc] = await Promise.all([
+    const [tramites, status] = await Promise.all([
       fetchJSON(API.byTramite, { method: "POST", body: payload }),
-      fetchJSON(`${API.byStatus}?departamento_id=${currentDept || ''}&month=${currentMonth}`),
-      fetchJSON(`${API.openClosed}?departamento_id=${currentDept || ''}&month=${currentMonth}`)
+      fetchJSON(`${API.byStatus}?departamento_id=${currentDept || ''}&month=${currentMonth}`)
     ]);
 
     // Tabla
@@ -168,7 +156,7 @@
       </tr>
     `).join("");
 
-    // Todos los Estatus
+    // Estatus Superiores
     document.getElementById("status-summary-header").innerHTML = STATUS_LABELS.map((label, i) => `
       <div class="header-count-item">
         <span>${label}</span>
@@ -176,7 +164,22 @@
       </div>
     `).join("");
 
-    drawFidelityDonut(document.getElementById("donut-canvas"), parseInt(oc.abiertos || 0), parseInt(oc.cerrados || 0));
+    // Configuración de la Dona (4 Categorías combinadas)
+    const abiertos = (status[0]||0) + (status[1]||0) + (status[2]||0) + (status[3]||0);
+    const finalizados = status[6]||0;
+    const pausados = status[4]||0;
+    const cancelados = status[5]||0;
+
+    const donutData = [
+      { label: "Abiertos", value: abiertos, color: "#22c55e" }, // Verde
+      { label: "Finalizados", value: finalizados, color: "#334155" }, // Gris Oscuro
+      { label: "Pausados", value: pausados, color: "#f59e0b" }, // Naranja
+      { label: "Cancelados", value: cancelados, color: "#ef4444" } // Rojo
+    ];
+
+    drawFidelityDonut(document.getElementById("donut-canvas"), donutData);
+    renderDonutLegend(donutData);
+
     loadBubbleMap();
   }
 
