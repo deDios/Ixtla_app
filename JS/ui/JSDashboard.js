@@ -29,7 +29,7 @@
     return r.json();
   }
 
-  /* ====== GRÁFICA DE DONA (Limpia) ====== */
+  /* ====== GRÁFICA DE DONA (Limpia sin textos extra) ====== */
   function drawFidelityDonut(canvas, dataSlices) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -79,7 +79,7 @@
     }).join("");
   }
 
-  /* ====== MAPA DE BURBUJAS ESCALADO ====== */
+  /* ====== MAPA DE BURBUJAS (Punto inicial fino) ====== */
   function initMap() {
     const el = document.getElementById("map-colonias");
     if (!el || map) return;
@@ -110,14 +110,14 @@
         if (isNaN(lat) || isNaN(lon) || val === 0) return;
         bounds.push([lat, lon]);
 
-        // Lógica de crecimiento gradual: Crece 4px por cada 25 requerimientos.
+        // AJUSTE: Base más chica (5px) y crecimiento más controlado
         const increments = Math.floor(val / 25);
-        const radius = Math.min(10 + (increments * 6), 40); // Base 10px, tope máximo 40px
+        const radius = Math.min(2 + (increments * 2), 20); // Base 5px, tope máximo 35px
 
         // Color basado en el volumen
-        let color = "#3b82f6"; // Azul para volúmenes bajos
-        if (val >= 50) color = "#ef4444"; // Rojo
-        else if (val >= 25) color = "#f59e0b"; // Naranja
+        let color = "#3b82f6"; // Azul para bajos
+        if (val >= 50) color = "#ef4444"; // Rojo para altos
+        else if (val >= 25) color = "#f59e0b"; // Naranja para medios
 
         const circle = L.circleMarker([lat, lon], {
           radius: radius,
@@ -156,7 +156,7 @@
       </tr>
     `).join("");
 
-    // Estatus Superiores
+    // Todos los Estatus
     document.getElementById("status-summary-header").innerHTML = STATUS_LABELS.map((label, i) => `
       <div class="header-count-item">
         <span>${label}</span>
@@ -164,7 +164,7 @@
       </div>
     `).join("");
 
-    // Configuración de la Dona (4 Categorías combinadas)
+    // Configuración de la Dona
     const abiertos = (status[0]||0) + (status[1]||0) + (status[2]||0) + (status[3]||0);
     const finalizados = status[6]||0;
     const pausados = status[4]||0;
