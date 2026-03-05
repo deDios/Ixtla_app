@@ -6,7 +6,7 @@ ix_require_session();
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Ixtla App — Dashboard</title>
+  <title>Ixtla App — Dashboard de Gestión</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.ico">
 
@@ -25,7 +25,7 @@ ix_require_session();
     <header class="ix-header-top">
       <div class="ix-header-titles">
         <h1 class="ix-header-title">Dashboard de Requerimientos</h1>
-        <p class="ix-header-subtitle">Resumen operativo por trámite, estatus y colonias</p>
+        <p class="ix-header-subtitle">Resumen operativo interactivo por trámite, estatus y estado</p>
       </div>
       <div class="ix-header-actions">
         
@@ -42,7 +42,7 @@ ix_require_session();
             <div class="multiselect-dropdown" id="multiselect-dropdown">
                 <div style="padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0;">
                     <label class='month-option'>
-                        <input type='radio' name='month_selection' class='month-radio' value='' checked> <strong>Todos los meses</strong>
+                        <input type='checkbox' id='chk-todos-meses' class='month-checkbox' value='' checked> <strong>Todos los meses</strong>
                     </label>
                 </div>
 
@@ -62,8 +62,9 @@ ix_require_session();
                           $val = "$y-$monthNum";
                           $label = $mesesNombres[$m-1];
                           
+                          // Cambiado a CHECKBOX
                           echo "<label class='month-option'>";
-                          echo "<input type='radio' name='month_selection' class='month-radio' value='$val' data-label='$label $y'> $label";
+                          echo "<input type='checkbox' class='month-checkbox specific-month' value='$val' data-label='$label $y'> $label";
                           echo "</label>";
                       }
                       echo "</div></div>";
@@ -116,7 +117,7 @@ ix_require_session();
       <article class="ix-card ix-main-card ix-card-table">
         <div class="card-header-counts" id="status-summary-header"></div>
         <div class="ix-table-wrapper">
-          <table class="ix-modern-table">
+          <table class="ix-modern-table interactive-table">
             <thead>
               <tr>
                 <th class="col-main">Categoría</th>

@@ -13,7 +13,7 @@ body.ix-dashboard-body { background-color: var(--bg-app); margin: 0; font-family
 .ix-demo-toggle input { cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
 #hs-avatar { width: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-/* CUSTOM SELECT DROPDOWN */
+/* CUSTOM MULTI-SELECT DROPDOWN */
 .custom-multiselect { position: relative; width: 220px; font-family: 'Inter', sans-serif; z-index: 100; }
 .multiselect-header { background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 500; color: var(--text-main); font-size: 0.9rem;}
 .multiselect-arrow { font-size: 0.7rem; color: var(--text-muted); }
@@ -41,19 +41,30 @@ body.ix-dashboard-body { background-color: var(--bg-app); margin: 0; font-family
 .kpi-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi-icon-circle { width: 40px; height: 40px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink:0; }
 
-/* MAIN GRID & TABLA */
+/* MAIN GRID */
 .ix-dashboard-main-grid { display: grid; grid-template-columns: 1.6fr 0.9fr 1fr; gap: 20px; height: 550px; }
 .ix-main-card { background: white; border-radius: 20px; padding: 25px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); overflow: hidden; display: flex; flex-direction: column; }
+
+/* ESTILOS INTERACTIVOS (CROSS-FILTERING) */
 .card-header-counts { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
-.header-count-item { text-align: center; }
-.header-count-item span { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px; }
-.header-count-item strong { font-size: 1.1rem; color: var(--text-main); }
+.header-count-item { text-align: center; cursor: pointer; padding: 6px; border-radius: 8px; border: 2px solid transparent; transition: 0.2s; }
+.header-count-item:hover { background: #f1f5f9; }
+.header-count-item.active { background: #eff6ff; border-color: var(--accent); }
+.header-count-item span { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px; pointer-events: none;}
+.header-count-item strong { font-size: 1.1rem; color: var(--text-main); pointer-events: none;}
+
 .ix-table-wrapper { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .ix-modern-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .ix-modern-table th { padding: 12px 10px; color: var(--text-muted); font-size: 0.8rem; border-bottom: 1px solid var(--border); }
 .ix-modern-table td { padding: 12px 10px; border-bottom: 1px solid #f8fafc; font-size: 0.9rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ix-modern-table th.col-main, .ix-modern-table td:nth-child(1) { width: 50%; text-align: left; }
 .ix-modern-table th.ta-right, .ix-modern-table td:not(:nth-child(1)) { width: 16.6%; text-align: right; }
+
+/* Filas Clickables */
+.interactive-table tbody tr { cursor: pointer; transition: 0.2s; }
+.interactive-table tbody tr:hover { background-color: #f1f5f9; }
+.interactive-table tbody tr.active { background-color: #eff6ff; }
+.interactive-table tbody tr.active td { font-weight: 700; color: var(--accent); }
 
 /* DONUT LEYENDA VERTICAL */
 .ix-center-content { align-items: center; justify-content: center; gap: 20px; }

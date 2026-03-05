@@ -1,25 +1,28 @@
 (() => {
   "use strict";
 
+  // APUNTANDO A LAS NUEVAS APIs V2
   const API = {
     departamentos: "/db/web/ixtla01_c_departamentos.php",
-    byTramite:     "/db/web/req_stats_by_tramite.php",
-    byStatus:      "/db/web/req_stats_by_status.php",
-    colonias:      "/db/web/ixtla01_c_cpcolonia_latlon.php",
-    kpis:          "/db/web/req_stats_kpis.php"
+    byTramite:     "/db/web/req_stats_by_tramite_v2.php",
+    byStatus:      "/db/web/req_stats_by_status_v2.php",
+    colonias:      "/db/web/ixtla01_c_cpcolonia_latlon_v2.php",
+    kpis:          "/db/web/req_stats_kpis_v2.php"
   };
 
   const STATUS_LABELS = ["Solicitud", "Revisión", "Asignación", "En proceso", "Pausado", "Cancelado", "Finalizado"];
   const DEPT_ICONS = { "Todos": "▦", "Parques y Jardines": "🌳", "Ecología": "🍃", "Padrón y Licencias": "📋", "Alumbrado Público": "💡", "Obras Públicas": "🏗️", "Aseo Público": "🧹", "SAMAPA": "💧" };
 
+  // VARIABLES GLOBALES DE FILTROS
   let currentDept = null;
-  let currentMonth = "";
-  let map = null, bubbleLayer = null;
+  let selectedMonths = []; // Arreglo para múltiples meses
+  let currentEstatus = null; // Filtrado cruzado
+  let currentTramite = null; // Filtrado cruzado
 
+  let map = null, bubbleLayer = null;
   let globalDeptList = []; 
   let demoInterval = null;
 
-  // FETCH CON CACHE-BUSTING
   async function fetchJSON(url, opts = {}) {
     try {
         const noCacheUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
@@ -36,11 +39,12 @@
     }
   }
 
-  /* ====== SELECTOR DE MES ====== */
-  function initCustomSelect() {
+  /* ====== MULTI-SELECT CHECKBOXES LOGIC ====== */
+  function initMultiSelect() {
       const header = document.getElementById("multiselect-header");
       const dropdown = document.getElementById("multiselect-dropdown");
-      const radios = document.querySelectorAll(".month-radio");
+      const specificCheckboxes = document.querySelectorAll(".specific-month");
+      const chkTodos = document.getElementById("chk-todos-meses");
       const title = document.getElementById("multiselect-title");
 
       header.addEventListener("click", () => dropdown.classList.toggle("show"));
@@ -48,13 +52,59 @@
           if (!header.contains(e.target) && !dropdown.contains(e.target)) dropdown.classList.remove("show");
       });
 
-      radios.forEach(radio => {
-          radio.addEventListener("change", (e) => {
-              currentMonth = e.target.value;
-              title.textContent = currentMonth === "" ? "Todos los meses" : e.target.getAttribute('data-label');
-              dropdown.classList.remove("show");
+      // Lógica: Si clic en "Todos", desmarca los demás
+      if (chkTodos) {
+          chkTodos.addEventListener("change", (e) => {
+              if (e.target.checked) {
+                  specificCheckboxes.forEach(cb => cb.checked = false);
+                  selectedMonths = [];
+                  title.textContent = "Todos los meses";
+                  reloadDashboard();
+              }
+          });
+      }
+
+      // Lógica: Si clic en un mes, desmarca "Todos" y acumula selección
+      specificCheckboxes.forEach(chk => {
+          chk.addEventListener("change", () => {
+              if (chkTodos && chkTodos.checked) chkTodos.checked = false;
+              
+              selectedMonths = Array.from(document.querySelectorAll(".specific-month:checked")).map(cb => cb.value);
+              
+              if (selectedMonths.length === 0) {
+                  if(chkTodos) chkTodos.checked = true;
+                  title.textContent = "Todos los meses";
+              } else if (selectedMonths.length === 1) {
+                  title.textContent = "1 mes selec.";
+              } else {
+                  title.textContent = `${selectedMonths.length} meses selec.`;
+              }
               reloadDashboard();
           });
+      });
+  }
+
+  /* ====== CROSS-FILTERING (INTERACTIVIDAD) ====== */
+  function initCrossFiltering() {
+      // Clic en la Tabla (Filtro por Trámite)
+      document.getElementById("tbl-tramites-body").addEventListener("click", (e) => {
+          const row = e.target.closest("tr");
+          if (!row) return;
+          
+          const clickedTramite = row.getAttribute("data-tramite");
+          // Si le da clic al que ya estaba, lo quita. Si no, lo asigna.
+          currentTramite = (currentTramite === clickedTramite) ? null : clickedTramite;
+          reloadDashboard();
+      });
+
+      // Clic en Estatus Superior (Filtro por Estatus)
+      document.getElementById("status-summary-header").addEventListener("click", (e) => {
+          const item = e.target.closest(".header-count-item");
+          if (!item) return;
+
+          const clickedEstatus = parseInt(item.getAttribute("data-estatus"));
+          currentEstatus = (currentEstatus === clickedEstatus) ? null : clickedEstatus;
+          reloadDashboard();
       });
   }
 
@@ -82,39 +132,24 @@
   function renderDonutLegend(dataSlices) {
     const container = document.getElementById("donut-legend");
     const total = dataSlices.reduce((sum, slice) => sum + slice.value, 0);
-    // Renderizado en Lista Vertical
     container.innerHTML = dataSlices.map(d => {
         const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
-        return `<div class="donut-legend-item">
-                  <div class="donut-legend-color" style="background:${d.color}"></div>
-                  <span>${d.label}</span>
-                  <span class="donut-legend-val">${d.value} (${pct}%)</span>
-                </div>`;
+        return `<div class="donut-legend-item"><div class="donut-legend-color" style="background:${d.color}"></div><span>${d.label}</span><span class="donut-legend-val">${d.value} (${pct}%)</span></div>`;
     }).join("");
   }
 
-  /* ====== MAPA ESTILO CALLES CLARAS ====== */
+  /* ====== MAPA ====== */
   function initMap() {
     const el = document.getElementById("map-colonias");
     if (!el || map) return;
-    
     map = L.map("map-colonias", { zoomControl: true }).setView([20.55, -103.2], 12);
-    
-    // Cambiado a CartoDB Light (Calles limpias, claras, sin verde de vegetación)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { 
-        maxZoom: 18,
-        attribution: '© OpenStreetMap, © CARTO'
-    }).addTo(map);
-    
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 18, attribution: '© OpenStreetMap, © CARTO' }).addTo(map);
     bubbleLayer = L.layerGroup().addTo(map);
   }
 
   function processBubbleMap(geoData) {
     initMap();
-    
-    // Forzamos al mapa a recalcular su tamaño
     setTimeout(() => { if (map) map.invalidateSize(); }, 300);
-    
     bubbleLayer.clearLayers(); 
 
     let topZone = { cp: "--", colonia: "Sin reportes", total: -1 };
@@ -141,18 +176,42 @@
 
   /* ====== ORQUESTADOR PRINCIPAL ====== */
   async function reloadDashboard() {
-    const payload = { departamento_id: currentDept, month: currentMonth };
+    // PAYLOAD CENTRALIZADO PARA TODAS LAS APIs V2
+    const payload = { 
+        departamento_id: currentDept, 
+        month: selectedMonths, 
+        estatus: currentEstatus, 
+        tramite: currentTramite 
+    };
 
     const [tramites, status, kpis, geo] = await Promise.all([
       fetchJSON(API.byTramite, { method: "POST", body: payload }),
-      fetchJSON(`${API.byStatus}?departamento_id=${currentDept || ''}&month=${currentMonth}`),
+      fetchJSON(API.byStatus, { method: "POST", body: payload }), // Cambiado a POST para v2
       fetchJSON(API.kpis, { method: "POST", body: payload }),
       fetchJSON(API.colonias, { method: "POST", body: payload })
     ]);
 
-    document.getElementById("tbl-tramites-body").innerHTML = (tramites.data || []).map(r => `<tr><td>${r.tramite}</td><td class="ta-right">${r.abiertos}</td><td class="ta-right">${r.cerrados}</td><td class="ta-right"><strong>${r.total}</strong></td></tr>`).join("");
-    document.getElementById("status-summary-header").innerHTML = STATUS_LABELS.map((label, i) => `<div class="header-count-item"><span>${label}</span><strong>${status[i] || 0}</strong></div>`).join("");
+    // Renderizar Tabla con Clase Active
+    document.getElementById("tbl-tramites-body").innerHTML = (tramites.data || []).map(r => {
+        const activeClass = (currentTramite === r.tramite) ? "active" : "";
+        return `<tr class="${activeClass}" data-tramite="${r.tramite}">
+                  <td>${r.tramite}</td>
+                  <td class="ta-right">${r.abiertos}</td>
+                  <td class="ta-right">${r.cerrados}</td>
+                  <td class="ta-right"><strong>${r.total}</strong></td>
+                </tr>`;
+    }).join("");
 
+    // Renderizar Estatus con Clase Active
+    document.getElementById("status-summary-header").innerHTML = STATUS_LABELS.map((label, i) => {
+        const activeClass = (currentEstatus === i) ? "active" : "";
+        return `<div class="header-count-item ${activeClass}" data-estatus="${i}">
+                  <span>${label}</span>
+                  <strong>${status[i] || 0}</strong>
+                </div>`;
+    }).join("");
+
+    // Dona
     const abiertos = (status[0]||0) + (status[1]||0) + (status[2]||0) + (status[3]||0);
     const finalizados = status[6]||0, pausados = status[4]||0, cancelados = status[5]||0;
     const donutData = [
@@ -161,7 +220,6 @@
         { label: "Pausados", value: pausados, color: "#f59e0b" }, 
         { label: "Cancelados", value: cancelados, color: "#ef4444" }
     ];
-    
     drawFidelityDonut(document.getElementById("donut-canvas"), donutData);
     renderDonutLegend(donutData);
 
@@ -199,15 +257,17 @@
               currentDept = allIds[nextIndex];
               renderDepts(globalDeptList);
               reloadDashboard();
-          }, 14000);
+          }, 10000);
       } else {
           if (demoInterval) clearInterval(demoInterval);
           demoInterval = null;
       }
   }
 
+  /* ====== INICIALIZACIÓN ====== */
   document.addEventListener("DOMContentLoaded", () => {
-    initCustomSelect();
+    initMultiSelect();
+    initCrossFiltering(); // Activamos los escuchadores de clic
 
     const demoCheck = document.getElementById("demo-mode-checkbox");
     if (demoCheck) demoCheck.addEventListener("change", (e) => toggleDemoMode(e.target.checked));
