@@ -199,7 +199,7 @@
               currentDept = allIds[nextIndex];
               renderDepts(globalDeptList);
               reloadDashboard();
-          }, 20000);
+          }, 14000);
       } else {
           if (demoInterval) clearInterval(demoInterval);
           demoInterval = null;
