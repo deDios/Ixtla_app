@@ -168,7 +168,10 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
-  const isOtro = (title) => norm(title) === "otro";
+  const isOtro = (title) => {
+    const t = norm(title);
+    return t === "otro" || t === "otros";
+  };
   const parseDepParam = (raw) => {
     if (!raw) return null;
     const s = String(raw).toLowerCase();
@@ -706,7 +709,10 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
-  const isOtros = (title) => norm(title) === "otro";
+  const isOtros = (title) => {
+    const t = norm(title);
+    return t === "otro" || t === "otros";
+  };
 
   function clearFeedback() {
     if (feedback) {
