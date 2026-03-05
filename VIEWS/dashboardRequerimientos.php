@@ -6,7 +6,7 @@ ix_require_session();
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Ixtla App — Dashboard de Gestión</title>
+  <title>Ixtla App — Dashboard Profesional</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.ico">
 
@@ -18,81 +18,105 @@ ix_require_session();
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 </head>
-<body>
-  <div class="ix-main-header">
-     <h1>Plataforma de Gestión Ixtlahuacán</h1>
-  </div>
+<body class="ix-app-container">
 
-  <header id="header" data-link-home="/index.php"></header>
+  <aside class="ix-sidebar">
+    <div class="ix-sidebar-logo">
+      <img src="/ASSETS/logo_ixtla_mini.png" alt="Logo">
+    </div>
+    <nav class="ix-sidebar-nav">
+      <div class="nav-item active"><span class="icon">🏠</span></div>
+      <div class="nav-item"><span class="icon">📁</span></div>
+      <div class="nav-item"><span class="icon">📊</span></div>
+    </nav>
+    <div class="ix-sidebar-bottom">
+      <div class="nav-item"><span class="icon">⚙️</span></div>
+    </div>
+  </aside>
 
-  <main class="ix-dashboard">
-    <header class="ix-dash-head">
-      <div class="ix-filtros">
-        <label class="ix-filter">
-          <span>Periodo:</span>
+  <div class="ix-main-content">
+    
+    <header class="ix-header-top">
+      <div class="ix-header-titles">
+        <h1>Dashboard de Requerimientos</h1>
+        <p>Dashboard de requerimientos operativos</p>
+      </div>
+      <div class="ix-header-actions">
+        <label class="ix-filter-month">
+          <span>Mes:</span>
           <select id="filtro-mes">
-            <option value="">Todos los meses</option>
-            <?php
-              // Generación dinámica de los últimos 12 meses
-              for ($i = 0; $i < 12; $i++) {
-                $date = date('Y-m', strtotime("-$i months"));
-                $label = date('F Y', strtotime($date));
-                echo "<option value='$date'>$label</option>";
-              }
-            ?>
+            <option value="">Junio 2024</option>
+            <option value="2024-05">Mayo 2024</option>
           </select>
         </label>
+        <div class="ix-user-badge">
+          <img src="/ASSETS/user/img_user1.png" alt="User">
+        </div>
       </div>
     </header>
 
-    <section class="ix-dept-chips">
-      <div class="ix-chips-scroll" id="chips-departamentos" role="tablist"></div>
+    <section class="ix-dept-grid" id="chips-departamentos"></section>
+
+    <section class="ix-kpi-row">
+      <div class="ix-kpi-card">
+        <div class="kpi-info">
+          <span class="kpi-label">PROMEDIO SEMANAL (Req)</span>
+          <h2 id="kpi-val-semana">14.2</h2>
+          <span class="kpi-sub">Req/Sem</span>
+        </div>
+        <div class="kpi-chart-mini"><canvas id="sparkline-1"></canvas></div>
+      </div>
+      <div class="ix-kpi-card">
+        <div class="kpi-info">
+          <span class="kpi-label">TIEMPO PROMEDIO RESOLUCIÓN</span>
+          <h2 id="kpi-val-tiempo">2.5 Días</h2>
+          <span class="kpi-sub">Tiempo x Req.</span>
+        </div>
+        <div class="kpi-icon-circle">🕒</div>
+      </div>
+      <div class="ix-kpi-card">
+        <div class="kpi-info">
+          <span class="kpi-label">CP CON MAYOR NÚMERO DE REQS</span>
+          <h2 id="kpi-val-cp">45400</h2>
+          <span class="kpi-sub">CP Top Ventas/Req</span>
+        </div>
+        <div class="kpi-icon-circle">📍</div>
+      </div>
     </section>
 
-    <section class="ix-kpi-totalizers">
-      <div class="ix-card ix-kpi-card" id="kpi-req-semana">
-        <div class="ix-kpi-label">Requerimientos / Semana</div>
-        <div class="ix-kpi-value" id="kpi-val-semana">0</div>
-      </div>
-      <div class="ix-card ix-kpi-card" id="kpi-tiempo-req">
-        <div class="ix-kpi-label">Tiempo Promedio Resolución</div>
-        <div class="ix-kpi-value" id="kpi-val-tiempo">0</div>
-      </div>
-      <div class="ix-card ix-kpi-card" id="kpi-cp-top">
-        <div class="ix-kpi-label">CP Mayor Incidencia</div>
-        <div class="ix-kpi-value" id="kpi-val-cp">0</div>
-      </div>
-    </section>
-
-    <section class="ix-dash-grid">
-      <article class="ix-card ix-card--equal">
-        <div class="ix-fill-scroll">
-          <div class="ix-table">
-            <div class="ix-thead">
-              <div>Trámite</div>
-              <div class="ta-right">Abiertos</div>
-              <div class="ta-right">Cerrados</div>
-              <div class="ta-right">Total</div>
-            </div>
-            <div class="ix-tbody" id="tbl-tramites-body"></div>
+    <section class="ix-dashboard-main-grid">
+      
+      <article class="ix-main-card">
+        <div class="card-header-counts" id="cards-estatus-header">
           </div>
+        <div class="ix-table-wrapper">
+          <table class="ix-modern-table">
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th>Abiertos</th>
+                <th>Cerrados</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-tramites-body"></tbody>
+          </table>
         </div>
       </article>
 
-      <article class="ix-card ix-card--equal">
-        <div id="cards-estatus" class="ix-cards"></div>
-        <div class="ix-donut">
-          <canvas id="donut-open-close-2" width="280" height="280"></canvas>
-          <div class="ix-donut-legend" id="legend-open-close-2"></div>
+      <article class="ix-main-card ix-center-content">
+        <div class="donut-container">
+          <canvas id="donut-open-close-canvas" width="280" height="280"></canvas>
         </div>
+        <div id="legend-open-close-labels" class="ix-donut-legend"></div>
       </article>
 
-      <article class="ix-card ix-card--equal ix-card--map">
+      <article class="ix-main-card ix-map-card">
         <div id="map-colonias"></div>
-        <div id="map-legend" class="map-legend"></div>
       </article>
+
     </section>
-  </main>
+  </div>
 
   <script type="module" src="/JS/ui/JSDashboard.js"></script>
 </body>

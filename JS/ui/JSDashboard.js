@@ -10,14 +10,9 @@
   };
 
   const DEPT_ICONS = {
-    "Todos": "🏢",
-    "Parques y Jardines": "🌳",
-    "Ecología": "🌿",
-    "Padrón y Licencias": "📜",
-    "Alumbrado Público": "💡",
-    "Obras Públicas": "🏗️",
-    "Aseo Público": "🧹",
-    "SAMAPA": "🚰"
+    "Todos": "🔲", "Parques y Jardines": "🌳", "Ecología": "🍃",
+    "Padrón y Licencias": "📋", "Alumbrado Público": "💡",
+    "Obras Públicas": "🏗️", "Aseo Público": "🧹", "SAMAPA": "💧"
   };
 
   let currentDept = null;
@@ -34,114 +29,127 @@
     return r.json();
   }
 
-  /* ====== GESTIÓN DEL MAPA ====== */
+  /* ====== GRÁFICA DE DONA CON ETIQUETAS ====== */
+  function drawDonutWithLabels(canvas, a, c) {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const total = a + c;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = 80;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (total === 0) return;
+
+    const data = [
+        { label: "Abiertos", value: a, color: "#26c6da" }, // Teal del mockup
+        { label: "Cerrados", value: c, color: "#455a64" }  // Gris oscuro
+    ];
+
+    let startAngle = -Math.PI / 2;
+
+    data.forEach(item => {
+      const sliceAngle = (item.value / total) * 2 * Math.PI;
+      
+      // Dibujar Arco
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+      ctx.lineWidth = 45;
+      ctx.strokeStyle = item.color;
+      ctx.stroke();
+
+      // Dibujar Etiquetas y Líneas
+      const midAngle = startAngle + sliceAngle / 2;
+      const lineX = centerX + Math.cos(midAngle) * (radius + 30);
+      const lineY = centerY + Math.sin(midAngle) * (radius + 30);
+      
+      ctx.beginPath();
+      ctx.moveTo(centerX + Math.cos(midAngle) * radius, centerY + Math.sin(midAngle) * radius);
+      ctx.lineTo(lineX, lineY);
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      const pct = Math.round((item.value / total) * 100);
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 12px Inter";
+      ctx.textAlign = lineX > centerX ? "left" : "right";
+      ctx.fillText(`${item.value} (${pct}%)`, lineX + (lineX > centerX ? 5 : -5), lineY);
+
+      startAngle += sliceAngle;
+    });
+
+    // Texto Central
+    ctx.textAlign = "center";
+    ctx.font = "bold 24px Inter";
+    ctx.fillStyle = "#0f172a";
+    ctx.fillText(total, centerX, centerY + 10);
+  }
+
+  /* ====== MAPA ====== */
   function initMap() {
     const el = document.getElementById("map-colonias");
     if (!el || map) return;
-    map = L.map(el, { zoomControl: true, attributionControl: false }).setView([20.55, -103.2], 12);
+    map = L.map(el, { zoomControl: false }).setView([20.55, -103.2], 12);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png").addTo(map);
   }
 
-  async function loadHeatmap() {
-    initMap();
-    try {
-      const resp = await fetchJSON(API.colonias, { 
-        method: "POST", 
-        body: { departamento_id: currentDept, month: currentMonth } 
-      });
-      const points = (resp.data || [])
-        .map(r => [parseFloat(r.lat), parseFloat(r.lon), parseInt(r.total)])
-        .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
-      
-      if (heatLayer) map.removeLayer(heatLayer);
-      if (points.length > 0) {
-        heatLayer = L.heatLayer(points, { radius: 25, blur: 15, max: 1.0 }).addTo(map);
-      }
-    } catch (e) { console.error("Error cargando mapa:", e); }
-  }
-
-  /* ====== CARGA DE COMPONENTES ====== */
   async function reloadDashboard() {
-    loadHeatmap();
-    loadTramitesTable();
-    loadStatusBadges();
-    loadOpenClosedStats();
-    updateKPIs();
+    initMap();
+    const [tramites, status, openClosed, geo] = await Promise.all([
+      fetchJSON(API.byTramite, { method: "POST", body: { departamento_id: currentDept, month: currentMonth } }),
+      fetchJSON(`${API.byStatus}?departamento_id=${currentDept || ''}&month=${currentMonth}`),
+      fetchJSON(`${API.openClosed}?departamento_id=${currentDept || ''}&month=${currentMonth}`),
+      fetchJSON(API.colonias, { method: "POST", body: { departamento_id: currentDept, month: currentMonth } })
+    ]);
+
+    // Render Tabla
+    document.getElementById("tbl-tramites-body").innerHTML = (tramites.data || []).map(r => `
+      <tr>
+        <td>${r.tramite}</td>
+        <td>${r.abiertos}</td>
+        <td>${r.cerrados}</td>
+        <td><strong>${r.total}</strong></td>
+      </tr>
+    `).join("");
+
+    // Render Status Headers (Header de la tabla)
+    const statusLabels = ["Finalizado", "Asignación", "En proceso"];
+    document.getElementById("cards-estatus-header").innerHTML = `
+        <div class="header-count-item"><span>Finalizado</span><strong>${status[6] || 0}</strong></div>
+        <div class="header-count-item"><span>Asignación</span><strong>${status[2] || 0}</strong></div>
+        <div class="header-count-item"><span>En proceso</span><strong>${status[3] || 0}</strong></div>
+    `;
+
+    // Gráfica
+    drawDonutWithLabels(document.getElementById("donut-open-close-canvas"), parseInt(openClosed.abiertos), parseInt(openClosed.cerrados));
+
+    // Heatmap
+    const points = (geo.data || []).map(r => [parseFloat(r.lat), parseFloat(r.lon), 1]);
+    if (heatLayer) map.removeLayer(heatLayer);
+    heatLayer = L.heatLayer(points, { radius: 20, blur: 15 }).addTo(map);
   }
 
-  function updateKPIs() {
-    // Ejemplo de actualización visual de totalizadores
-    document.getElementById('kpi-val-semana').textContent = "14.2";
-    document.getElementById('kpi-val-tiempo').textContent = "2d 6h";
-    document.getElementById('kpi-val-cp').textContent = "45405";
-  }
-
-  function renderDeptSelector(list) {
+  function renderDepts(list) {
     const wrap = document.getElementById("chips-departamentos");
-    if (!wrap) return;
-    wrap.innerHTML = "";
-    
-    const items = [{id: null, nombre: "Todos"}, ...list];
-    items.forEach(d => {
-      const btn = document.createElement("button");
-      btn.className = "ix-chip";
-      btn.setAttribute("aria-selected", currentDept === d.id ? "true" : "false");
-      btn.innerHTML = `<span class="ix-chip-icon">${DEPT_ICONS[d.nombre] || "📂"}</span><span>${d.nombre}</span>`;
-      btn.onclick = () => {
-        currentDept = d.id;
-        renderDeptSelector(list);
-        reloadDashboard();
-      };
-      wrap.appendChild(btn);
-    });
-  }
-
-  async function loadTramitesTable() {
-    const resp = await fetchJSON(API.byTramite, { method: "POST", body: { departamento_id: currentDept, month: currentMonth } });
-    const tbody = document.getElementById("tbl-tramites-body");
-    if (!tbody) return;
-    tbody.innerHTML = (resp.data || []).map(r => `
-      <div class="ix-row">
-        <div>${r.tramite}</div>
-        <div class="ta-right">${r.abiertos}</div>
-        <div class="ta-right">${r.cerrados}</div>
-        <div class="ta-right"><strong>${r.total}</strong></div>
+    wrap.innerHTML = [{id: null, nombre: "Todos"}, ...list].map(d => `
+      <div class="ix-chip" aria-selected="${currentDept === d.id}" onclick="window.filterDept(${d.id})">
+        <span class="ix-chip-icon">${DEPT_ICONS[d.nombre] || "📁"}</span>
+        <span class="ix-chip-name">${d.nombre}</span>
       </div>
     `).join("");
   }
 
-  async function loadStatusBadges() {
-    const url = `${API.byStatus}?departamento_id=${currentDept || ''}&month=${currentMonth}`;
-    const resp = await fetchJSON(url);
-    const labels = ["Solicitud", "Revisión", "Asignación", "En proceso", "Pausado", "Cancelado", "Finalizado"];
-    const wrap = document.getElementById("cards-estatus");
-    if (!wrap) return;
-    wrap.innerHTML = labels.map((l, i) => `
-      <div class="ix-badge"><div>${l}</div><strong>${resp[i] || 0}</strong></div>
-    `).join("");
-  }
+  window.filterDept = (id) => {
+    currentDept = id;
+    reloadDashboard();
+    fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data));
+  };
 
-  async function loadOpenClosedStats() {
-    // Lógica para actualizar las gráficas de dona
-    const url = `${API.openClosed}?departamento_id=${currentDept || ''}&month=${currentMonth}`;
-    const resp = await fetchJSON(url);
-    // (Integración con la función drawDonut existente)
-  }
-
-  /* ====== INICIALIZACIÓN ====== */
   document.addEventListener("DOMContentLoaded", () => {
-    const monthSelect = document.getElementById("filtro-mes");
-    if (monthSelect) {
-      monthSelect.onchange = () => { 
-        currentMonth = monthSelect.value; 
-        reloadDashboard(); 
-      };
-    }
-    
-    // Carga inicial de departamentos y dashboard
-    fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } })
-      .then(resp => renderDeptSelector(resp.data || []));
-      
+    fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data));
     reloadDashboard();
   });
+
 })();
