@@ -1,155 +1,91 @@
-(() => {
-  "use strict";
+document.addEventListener("DOMContentLoaded", () => {
 
-  const API = {
-    departamentos: "/db/web/ixtla01_c_departamentos.php",
-    byTramite:     "/db/web/req_stats_by_tramite.php",
-    byStatus:      "/db/web/req_stats_by_status.php",
-    openClosed:    "/db/web/req_stats_open_closed.php",
-    colonias:      "/db/web/ixtla01_c_cpcolonia_latlon.php" 
-  };
+    const selectMes = document.getElementById("filtro-mes");
 
-  const DEPT_ICONS = {
-    "Todos": "🔲", "Parques y Jardines": "🌳", "Ecología": "🍃",
-    "Padrón y Licencias": "📋", "Alumbrado Público": "💡",
-    "Obras Públicas": "🏗️", "Aseo Público": "🧹", "SAMAPA": "💧"
-  };
+    // Generar últimos 12 meses dinámicamente
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const value = d.toISOString().slice(0,7);
+        const label = d.toLocaleDateString('es-MX', { month:'long', year:'numeric' });
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+        selectMes.appendChild(option);
+    }
 
-  let currentDept = null;
-  let currentMonth = "";
-  let map = null, heatLayer = null;
+    selectMes.addEventListener("change", cargarDashboard);
 
-  async function fetchJSON(url, opts = {}) {
-    const r = await fetch(url, {
-      method: opts.method || "GET",
-      headers: { "Content-Type": "application/json" },
-      body: opts.body ? JSON.stringify(opts.body) : undefined,
-      credentials: "include"
+    cargarDashboard();
+});
+
+function cargarDashboard() {
+
+    const mes = document.getElementById("filtro-mes").value;
+
+    fetch("/API/dashboardData.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mes: mes })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        document.getElementById("kpi-val-semana").textContent = data.promedio_semanal;
+        document.getElementById("kpi-val-tiempo").textContent = data.tiempo_promedio + " Días";
+        document.getElementById("kpi-val-cp").textContent = data.cp_top;
+
+        renderTabla(data.categorias);
+        renderDonut(data.open, data.close);
+        renderMapa(data.mapa);
+
     });
-    return r.json();
-  }
+}
 
-  /* ====== GRÁFICA DE DONA CON ETIQUETAS ====== */
-  function drawDonutWithLabels(canvas, a, c) {
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const total = a + c;
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = 80;
+function renderTabla(categorias) {
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const tbody = document.getElementById("tbl-tramites-body");
+    tbody.innerHTML = "";
 
-    if (total === 0) return;
-
-    const data = [
-        { label: "Abiertos", value: a, color: "#26c6da" }, // Teal del mockup
-        { label: "Cerrados", value: c, color: "#455a64" }  // Gris oscuro
-    ];
-
-    let startAngle = -Math.PI / 2;
-
-    data.forEach(item => {
-      const sliceAngle = (item.value / total) * 2 * Math.PI;
-      
-      // Dibujar Arco
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
-      ctx.lineWidth = 45;
-      ctx.strokeStyle = item.color;
-      ctx.stroke();
-
-      // Dibujar Etiquetas y Líneas
-      const midAngle = startAngle + sliceAngle / 2;
-      const lineX = centerX + Math.cos(midAngle) * (radius + 30);
-      const lineY = centerY + Math.sin(midAngle) * (radius + 30);
-      
-      ctx.beginPath();
-      ctx.moveTo(centerX + Math.cos(midAngle) * radius, centerY + Math.sin(midAngle) * radius);
-      ctx.lineTo(lineX, lineY);
-      ctx.strokeStyle = "#cbd5e1";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      const pct = Math.round((item.value / total) * 100);
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 12px Inter";
-      ctx.textAlign = lineX > centerX ? "left" : "right";
-      ctx.fillText(`${item.value} (${pct}%)`, lineX + (lineX > centerX ? 5 : -5), lineY);
-
-      startAngle += sliceAngle;
+    categorias.forEach(cat => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${cat.nombre}</td>
+                <td>${cat.abiertos}</td>
+                <td>${cat.cerrados}</td>
+                <td>${cat.total}</td>
+            </tr>
+        `;
     });
+}
 
-    // Texto Central
-    ctx.textAlign = "center";
-    ctx.font = "bold 24px Inter";
-    ctx.fillStyle = "#0f172a";
-    ctx.fillText(total, centerX, centerY + 10);
-  }
+function renderDonut(open, close) {
 
-  /* ====== MAPA ====== */
-  function initMap() {
-    const el = document.getElementById("map-colonias");
-    if (!el || map) return;
-    map = L.map(el, { zoomControl: false }).setView([20.55, -103.2], 12);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png").addTo(map);
-  }
+    const ctx = document.getElementById("donutChart");
 
-  async function reloadDashboard() {
-    initMap();
-    const [tramites, status, openClosed, geo] = await Promise.all([
-      fetchJSON(API.byTramite, { method: "POST", body: { departamento_id: currentDept, month: currentMonth } }),
-      fetchJSON(`${API.byStatus}?departamento_id=${currentDept || ''}&month=${currentMonth}`),
-      fetchJSON(`${API.openClosed}?departamento_id=${currentDept || ''}&month=${currentMonth}`),
-      fetchJSON(API.colonias, { method: "POST", body: { departamento_id: currentDept, month: currentMonth } })
-    ]);
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Abiertos', 'Cerrados'],
+            datasets: [{
+                data: [open, close],
+                backgroundColor: ['#f97316', '#10b981']
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            cutout: '70%'
+        }
+    });
+}
 
-    // Render Tabla
-    document.getElementById("tbl-tramites-body").innerHTML = (tramites.data || []).map(r => `
-      <tr>
-        <td>${r.tramite}</td>
-        <td>${r.abiertos}</td>
-        <td>${r.cerrados}</td>
-        <td><strong>${r.total}</strong></td>
-      </tr>
-    `).join("");
+function renderMapa(puntos) {
 
-    // Render Status Headers (Header de la tabla)
-    const statusLabels = ["Finalizado", "Asignación", "En proceso"];
-    document.getElementById("cards-estatus-header").innerHTML = `
-        <div class="header-count-item"><span>Finalizado</span><strong>${status[6] || 0}</strong></div>
-        <div class="header-count-item"><span>Asignación</span><strong>${status[2] || 0}</strong></div>
-        <div class="header-count-item"><span>En proceso</span><strong>${status[3] || 0}</strong></div>
-    `;
+    const map = L.map('map-colonias').setView([19.4326, -99.1332], 12);
 
-    // Gráfica
-    drawDonutWithLabels(document.getElementById("donut-open-close-canvas"), parseInt(openClosed.abiertos), parseInt(openClosed.cerrados));
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+        .addTo(map);
 
-    // Heatmap
-    const points = (geo.data || []).map(r => [parseFloat(r.lat), parseFloat(r.lon), 1]);
-    if (heatLayer) map.removeLayer(heatLayer);
-    heatLayer = L.heatLayer(points, { radius: 20, blur: 15 }).addTo(map);
-  }
-
-  function renderDepts(list) {
-    const wrap = document.getElementById("chips-departamentos");
-    wrap.innerHTML = [{id: null, nombre: "Todos"}, ...list].map(d => `
-      <div class="ix-chip" aria-selected="${currentDept === d.id}" onclick="window.filterDept(${d.id})">
-        <span class="ix-chip-icon">${DEPT_ICONS[d.nombre] || "📁"}</span>
-        <span class="ix-chip-name">${d.nombre}</span>
-      </div>
-    `).join("");
-  }
-
-  window.filterDept = (id) => {
-    currentDept = id;
-    reloadDashboard();
-    fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data));
-  };
-
-  document.addEventListener("DOMContentLoaded", () => {
-    fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data));
-    reloadDashboard();
-  });
-
-})();
+    const heat = L.heatLayer(puntos, { radius: 25 });
+    heat.addTo(map);
+}
