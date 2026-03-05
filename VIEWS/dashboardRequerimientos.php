@@ -6,17 +6,14 @@ ix_require_session();
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Ixtla App — Dashboard de Requerimientos</title>
+  <title>Ixtla App — Dashboard de Requerimientos Rediseñado</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.ico">
 
-  <!-- Estilos base -->
   <link rel="stylesheet" href="/CSS/plantilla.css">
   <link rel="stylesheet" href="/CSS/components.css">
-  <!-- Estilos del dashboard -->
   <link rel="stylesheet" href="/CSS/dashboard.css">
 
-  <!-- Leaflet (mapa) -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -47,14 +44,29 @@ ix_require_session();
       </div>
     </header>
 
-    <!-- Filtros por Departamento -->
     <section class="ix-dept-chips" aria-label="Filtrar por departamento">
       <div class="ix-chips-scroll" id="chips-departamentos" role="tablist" aria-label="Departamentos"></div>
     </section>
 
-    <!-- Grid principal -->
+    <section class="ix-kpi-totalizers">
+      <div class="ix-card ix-kpi-card" id="kpi-req-semana">
+        <div class="ix-kpi-label">Promedio Requerimientos / Semana</div>
+        <div class="ix-kpi-value" id="kpi-val-semana">0</div>
+        <div class="ix-kpi-formula">Cálculo pendiente...</div>
+      </div>
+      <div class="ix-card ix-kpi-card" id="kpi-tiempo-req">
+        <div class="ix-kpi-label">Tiempo Promedio / Requerimiento</div>
+        <div class="ix-kpi-value" id="kpi-val-tiempo">0</div>
+        <div class="ix-kpi-formula">Cálculo pendiente...</div>
+      </div>
+      <div class="ix-card ix-kpi-card" id="kpi-cp-top">
+        <div class="ix-kpi-label">CP con Mayor No. Requerimientos</div>
+        <div class="ix-kpi-value" id="kpi-val-cp">0</div>
+        <div class="ix-kpi-formula">Cálculo pendiente...</div>
+      </div>
+    </section>
+
     <section class="ix-dash-grid">
-      <!-- (1) Tabla por trámite -->
       <article class="ix-card ix-card--equal">
         <div class="ix-fill-scroll">
           <div class="ix-table" id="tbl-tramites">
@@ -69,7 +81,6 @@ ix_require_session();
         </div>
       </article>
 
-      <!-- (2) Estatus + Donut -->
       <article class="ix-card ix-card--equal">
         <div id="cards-estatus" class="ix-cards"></div>
         <div class="ix-donut ix-donut--fullcenter ix-donut--under-status">
@@ -78,22 +89,16 @@ ix_require_session();
         </div>
       </article>
 
-      <!-- (3) Mapa -->
-      <article class="ix-card ix-card--equal">
+      <article class="ix-card ix-card--equal ix-card--map">
         <div class="ix-fill-scroll">
-          <div id="map-colonias" aria-label="Mapa por colonias"></div>
+          <div id="map-colonias" aria-label="Mapa de calor geográfico"></div>
           <div id="map-legend" class="map-legend" aria-hidden="true"></div>
         </div>
       </article>
     </section>
   </main>
 
-  <script src="/JS/JSglobal.js"></script>
-  <script type="module" src="/JS/auth/session.js"></script>
-  <script type="module" src="/JS/ui/dashboardRequerimientos.js"></script>
-  <script type="module" src="/JS/ui/mapRequerimientos_points.js"></script>
+  <script type="module" src="/JS/ui/JSDashboard.js"></script>
 
-  <!-- NUEVO: hace la tabla seleccionable y publica el filtro -->
-  <script type="module" src="/JS/ui/tableTramiteFilter.js"></script>
 </body>
 </html>
