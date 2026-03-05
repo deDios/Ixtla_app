@@ -6,7 +6,7 @@ ix_require_session();
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Ixtla App — Dashboard de Gestión</title>
+  <title>Ixtla App — Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.ico">
 
@@ -25,7 +25,7 @@ ix_require_session();
     <header class="ix-header-top">
       <div class="ix-header-titles">
         <h1 class="ix-header-title">Dashboard de Requerimientos</h1>
-        <p class="ix-header-subtitle">Resumen operativo por trámite, estatus y estado</p>
+        <p class="ix-header-subtitle">Resumen operativo por trámite, estatus y colonias</p>
       </div>
       <div class="ix-header-actions">
         
