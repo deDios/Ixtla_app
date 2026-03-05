@@ -1,121 +1,75 @@
-/* ====== Layout general ====== */
-.ix-dashboard{padding:20px; background-color: #f1f5f9;} /* Fondo más claro para contraste */
-.ix-dash-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:10px}
-.ix-title{margin:0;font-size:1.5rem;font-weight:800;color:#0f172a}
-.ix-subtitle{margin:.2rem 0 0;color:#64748b}
-
-/* ====== Filtros ====== */
-.ix-filtros{display:flex;gap:12px;align-items:center}
-.ix-filter{display:flex;gap:8px;align-items:center;font-size:.95rem;color:#334155}
-
-/* ====== Chips de Departamentos (Modernizados a Cards) ====== */
-.ix-dept-chips{margin:6px 0 16px 0}
-.ix-chips-scroll{display:flex;gap:10px;overflow:auto;padding:4px 2px}
-.ix-chip{
-  display:inline-flex;align-items:center;gap:10px; flex-direction: column;
-  border:1px solid #e2e8f0;background:#fff;color:#0f172a;
-  padding:16px;border-radius:12px;cursor:pointer;white-space:nowrap;
-  transition:background .15s,border-color .15s,box-shadow .15s;
-  min-width: 160px; text-align: center; font-weight: 500;
+/* Estructura de Títulos */
+.ix-main-header {
+    background: #0f172a;
+    padding: 12px 25px;
+    color: white;
 }
-.ix-chip:hover{background:#eef2ff;border-color:#c7d2fe; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);}
-.ix-chip[aria-selected="true"]{
-  background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 1px 0 rgba(0,0,0,.06)
-}
-.ix-chip .ix-n{opacity:.85;font-weight:700}
-/* Icon placeholders - actualizaremos con imágenes/iconos reales más adelante */
-.ix-chip-icon { width: 40px; height: 40px; background-color: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 1.5rem;}
-.ix-chip[aria-selected="true"] .ix-chip-icon { background-color: rgba(255,255,255,0.2); color: #fff;}
-
-/* NUEVO: Sección de Totalizadores (KPIs) */
-.ix-kpi-totalizers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
-.ix-kpi-card { display: flex; flex-direction: column; padding: 20px; border-radius: 12px;}
-.ix-kpi-label { font-size: 1rem; color: #64748b; margin-bottom: 8px;}
-.ix-kpi-value { font-size: 2.25rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;}
-.ix-kpi-formula { font-size: 0.85rem; color: #94a3b8; font-style: italic;}
-
-/* Color coding para KPIs */
-#kpi-req-semana { border-left: 5px solid #22c55e; }
-#kpi-tiempo-req { border-left: 5px solid #2563eb; }
-#kpi-cp-top { border-left: 5px solid #f97316; }
-
-/* ====== Grid principal ====== */
-.ix-dash-grid{
-  display:grid;
-  grid-template-columns:1.2fr 1fr 1fr;
-  gap:16px;
-  align-items:stretch;
+.ix-main-header h1 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
 }
 
-/* ====== Card ====== */
-.ix-card{
-  background:#fff;border-radius:14px;border:1px solid #f1f5f9;
-  box-shadow:0 1px 3px rgba(0,0,0,.06);
-  padding:16px;min-width:0;
-  display:flex;flex-direction:column;
-}
-.ix-card--equal{ min-height: 620px; height: 100%; }
-.ix-card--map { padding: 0; } /* Mapa ocupa todo el espacio de la card */
-.ix-card > *{ width:100%; }
+.ix-dashboard { padding: 15px; background: #f8fafc; }
 
-/* Contenedor con scroll */
-.ix-fill-scroll{ flex:1 1 auto; min-height:0; overflow:auto; }
+/* Filtro de Mes */
+.ix-dash-head { margin-bottom: 12px; display: flex; justify-content: flex-end; }
+#filtro-mes { 
+    padding: 6px 12px; 
+    border-radius: 8px; 
+    border: 1px solid #cbd5e1; 
+    background: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
 
-/* ====== Tabla ====== */
-.ix-table{ width:100%; display:block; }
-.ix-table .ix-thead,.ix-table .ix-row{
-  display:grid;align-items:center;gap:8px;
-  grid-template-columns:1fr 100px 100px 100px;
+/* KPIs con diseño compacto */
+.ix-kpi-totalizers { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 12px; 
+    margin-bottom: 15px; 
 }
-.ix-thead{
-  position:sticky; top:0; z-index:1;
-  background:#fff; font-weight:700;color:#111827;border-bottom:1px solid #f1f5f9;
-  padding:10px 0;margin-bottom:2px;
+.ix-kpi-card { 
+    padding: 10px 18px; 
+    border-radius: 10px;
+    min-height: 70px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-left: 4px solid #e2e8f0;
 }
-.ix-row{padding:10px 0;border-bottom:1px dashed #f3f4f6;color:#111827}
-.ta-right{text-align:right}
-.ix-thead--4cols{grid-template-columns:1fr 100px 100px 100px}
-.ix-row--4cols{grid-template-columns:1fr 100px 100px 100px}
+#kpi-req-semana { border-left-color: #22c55e; }
+#kpi-tiempo-req { border-left-color: #3b82f6; }
+#kpi-cp-top { border-left-color: #f59e0b; }
 
-/* ====== Cards/Estatus ====== */
-.ix-cards{ width:100%; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; }
-.ix-badge{ display:flex;justify-content:space-between;align-items:center; padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #eef2f7 }
-.ix-badge .n{font-size:1.25rem;font-weight:800;color:#0f172a}
+.ix-kpi-label { font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
+.ix-kpi-value { font-size: 1.5rem; font-weight: 800; color: #0f172a; }
 
-/* ====== Donuts ====== */
-.ix-donut{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap}
-.ix-donut--fullcenter{justify-content:center !important;align-items:center !important}
-#donut-open-close,#donut-open-close-2{display:block;margin:0 auto}
-.ix-donut-legend{width:100%;text-align:center}
-.ix-donut-legend div{margin:4px 0;font-size:.95rem}
-.ix-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
-.ix-dot.open{background:#22c55e}.ix-dot.closed{background:#475569}
-.ix-donut--under-status{ margin-top:16px; padding-top:8px; border-top:1px dashed #eef2f7; }
+/* Selector de Departamentos */
+.ix-chips-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+.ix-chip {
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 8px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+    transition: all 0.2s ease;
+}
+.ix-chip[aria-selected="true"] { background: #2563eb; color: white; border-color: #2563eb; transform: translateY(-2px); }
+.ix-chip-icon { font-size: 1.3rem; margin-bottom: 3px; }
 
-/* ====== Mapa Expandido ====== */
-#map-colonias{
-  height: 100%;
-  border-radius: 12px;
-  overflow: hidden;
-}
-.map-legend{
-  position: relative;
-  margin-top: 10px;
-  text-align:center;
-  font-size:.9rem;
-  color:#334155;
-  padding: 10px;
-}
-/* Estilos para Heatmap Legend */
-.map-legend .heatmap-scale {
-  display: inline-grid; grid-auto-flow: column; gap: 0; align-items: center; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; height: 12px; width: 200px;
-}
-.map-legend .heatmap-scale span { display: block; height: 100%; }
+/* Grid y Tablas */
+.ix-dash-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 15px; }
+.ix-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.ix-card--equal { height: 480px; display: flex; flex-direction: column; padding: 15px; }
+.ix-card--map { padding: 0; overflow: hidden; }
 
-/* ====== Responsive ====== */
-@media (max-width:1100px){
-  .ix-dash-grid{grid-template-columns:1fr}
-  .ix-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .ix-card--equal{min-height:520px}
-  .ix-kpi-totalizers { grid-template-columns: 1fr; } /* Stack KPIs on smaller screens */
-}
+#map-colonias { width: 100%; height: 100%; }
+.ix-table .ix-thead, .ix-table .ix-row { display: grid; grid-template-columns: 1fr 65px 65px 65px; gap: 10px; padding: 8px 0; }
+.ix-thead { font-weight: 700; border-bottom: 2px solid #f1f5f9; color: #475569; }
+.ix-row { border-bottom: 1px solid #f8fafc; font-size: 0.9rem; }
