@@ -6,7 +6,7 @@
     byTramite:     "/db/web/req_stats_by_tramite.php",
     byStatus:      "/db/web/req_stats_by_status.php",
     colonias:      "/db/web/ixtla01_c_cpcolonia_latlon.php",
-    kpis:          "/db/web/req_stats_kpis.php" // Conexión a tu nuevo script
+    kpis:          "/db/web/req_stats_kpis.php"
   };
 
   const STATUS_LABELS = ["Solicitud", "Revisión", "Asignación", "En proceso", "Pausado", "Cancelado", "Finalizado"];
@@ -19,6 +19,10 @@
   let currentDept = null;
   let currentMonth = "";
   let map = null, bubbleLayer = null;
+
+  // Variables para el Modo Demo
+  let globalDeptList = []; 
+  let demoInterval = null;
 
   async function fetchJSON(url, opts = {}) {
     try {
@@ -140,7 +144,7 @@
       fetchJSON(API.colonias, { method: "POST", body: payload })
     ]);
 
-    // Llenar Tabla
+    // Tabla
     document.getElementById("tbl-tramites-body").innerHTML = (tramites.data || []).map(r => `
       <tr>
         <td>${r.tramite}</td>
@@ -150,7 +154,7 @@
       </tr>
     `).join("");
 
-    // Llenar Estatus
+    // Estatus
     document.getElementById("status-summary-header").innerHTML = STATUS_LABELS.map((label, i) => `
       <div class="header-count-item">
         <span>${label}</span>
@@ -175,13 +179,16 @@
     // Mapa y Top CP
     const topCP = processBubbleMap(geo.data);
 
-    // Inyectar KPIs desde la BD y el Mapa
+    // KPIs Superiores
     document.getElementById("kpi-val-semana").textContent = kpis.promedio_semanal || "0";
     document.getElementById("kpi-val-tiempo").textContent = (kpis.tiempo_resolucion || "0") + " Días";
-    document.getElementById("kpi-val-cp").textContent = topCP.total > -1 ? topCP.cp : "--";
-    document.getElementById("kpi-sub-cp").textContent = topCP.colonia;
+    
+    // KPI Mayor Incidencia (Valor = Incidentes, Sub = Colonia/CP)
+    document.getElementById("kpi-val-incidencias").textContent = topCP.total > -1 ? topCP.total : "0";
+    document.getElementById("kpi-sub-cp").textContent = topCP.total > -1 ? `${topCP.colonia} / CP ${topCP.cp}` : "Sin datos";
   }
 
+  /* ====== CONTROL DE DEPARTAMENTOS Y DEMO ====== */
   function renderDepts(list) {
     const wrap = document.getElementById("chips-departamentos");
     wrap.innerHTML = [{id: null, nombre: "Todos"}, ...list].map(d => `
@@ -190,20 +197,61 @@
         <span class="ix-chip-name">${d.nombre}</span>
       </div>
     `).join("");
+
+    // Auto-scroll para que el seleccionado se vea durante el Modo Demo
+    setTimeout(() => {
+        const activeChip = document.querySelector('.ix-chip[aria-selected="true"]');
+        if (activeChip) activeChip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }, 100);
   }
 
   window.setDept = (id) => { 
       currentDept = id; 
+      renderDepts(globalDeptList); 
       reloadDashboard(); 
-      fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data)); 
   };
 
+  // Función lógica del ciclo Demo
+  function toggleDemoMode(isActive) {
+      if (isActive) {
+          demoInterval = setInterval(() => {
+              // Obtener arreglo de todos los IDs [null, 1, 2, 3...]
+              const allIds = [null, ...globalDeptList.map(d => d.id)];
+              let currentIndex = allIds.indexOf(currentDept);
+              
+              // Avanzar al siguiente (o regresar al inicio si es el último)
+              let nextIndex = (currentIndex + 1) % allIds.length;
+              
+              currentDept = allIds[nextIndex];
+              renderDepts(globalDeptList);
+              reloadDashboard();
+          }, 10000); // 10 segundos
+      } else {
+          if (demoInterval) clearInterval(demoInterval);
+          demoInterval = null;
+      }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    // Filtro Mes
     document.getElementById("filtro-mes").onchange = (e) => { 
         currentMonth = e.target.value; 
         reloadDashboard(); 
     };
-    fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data));
+
+    // Checkbox Demo
+    const demoCheck = document.getElementById("demo-mode-checkbox");
+    if (demoCheck) {
+        demoCheck.addEventListener("change", (e) => {
+            toggleDemoMode(e.target.checked);
+        });
+    }
+
+    // Carga inicial
+    fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => {
+        globalDeptList = r.data || [];
+        renderDepts(globalDeptList);
+    });
     reloadDashboard();
   });
 

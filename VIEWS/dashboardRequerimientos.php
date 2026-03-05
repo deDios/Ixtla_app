@@ -28,6 +28,12 @@ ix_require_session();
         <p class="ix-header-subtitle">Resumen operativo por trámite, estatus y estado</p>
       </div>
       <div class="ix-header-actions">
+        
+        <label class="ix-demo-toggle" for="demo-mode-checkbox">
+          <input type="checkbox" id="demo-mode-checkbox">
+          <span>DEMO</span>
+        </label>
+
         <div class="ix-period-select">
           <label for="filtro-mes">Mes:</label>
           <select id="filtro-mes">
@@ -74,7 +80,7 @@ ix_require_session();
       <div class="ix-card ix-kpi-card">
         <div class="kpi-info">
           <span class="kpi-label">MAYOR INCIDENCIA</span>
-          <h2 id="kpi-val-cp">--</h2>
+          <h2 id="kpi-val-incidencias">--</h2>
           <span class="kpi-sub" id="kpi-sub-cp">Calculando...</span>
         </div>
         <div class="kpi-icon-circle">
