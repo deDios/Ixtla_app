@@ -23,11 +23,10 @@ ix_require_session();
   <header id="header" data-link-home="/index.php"></header>
 
   <div class="ix-main-container">
-    
     <header class="ix-header-top">
       <div class="ix-header-titles">
         <h1 class="ix-header-title">Dashboard de Requerimientos</h1>
-        <p class="ix-header-subtitle">Resumen operativo por trámite, estatus y estado</p>
+        <p class="ix-header-subtitle">Resumen operativo por trámite, estatus y estado (abierto/cerrado)</p>
       </div>
       <div class="ix-header-actions">
         <div class="ix-period-select">
@@ -58,11 +57,10 @@ ix_require_session();
     <section class="ix-kpi-row">
       <div class="ix-card ix-kpi-card">
         <div class="kpi-info">
-          <span class="kpi-label">PROMEDIO SEMANAL (Req)</span>
+          <span class="kpi-label">PROMEDIO SEMANAL (REQ)</span>
           <h2 id="kpi-val-semana">14.2</h2>
           <span class="kpi-sub">Req/Sem</span>
         </div>
-        <div class="kpi-visual"><canvas id="sparkline-1"></canvas></div>
       </div>
       <div class="ix-card ix-kpi-card">
         <div class="kpi-info">
@@ -70,7 +68,9 @@ ix_require_session();
           <h2 id="kpi-val-tiempo">2.5 Días</h2>
           <span class="kpi-sub">Tiempo x Req.</span>
         </div>
-        <div class="kpi-icon-circle">🕒</div>
+        <div class="kpi-icon-circle">
+          <img src="/ASSETS/icons/clock.svg" alt="Reloj" width="24" style="opacity: 0.6;">
+        </div>
       </div>
       <div class="ix-card ix-kpi-card">
         <div class="kpi-info">
@@ -78,21 +78,24 @@ ix_require_session();
           <h2 id="kpi-val-cp">45400</h2>
           <span class="kpi-sub">CP Top Ventas/Req</span>
         </div>
-        <div class="kpi-icon-circle">📍</div>
+        <div class="kpi-icon-circle">
+          <img src="/ASSETS/icons/pin.svg" alt="Pin" width="24" style="opacity: 0.6;">
+        </div>
       </div>
     </section>
 
     <section class="ix-dashboard-main-grid">
       
-      <article class="ix-card ix-main-card">
-        <div class="card-header-counts" id="status-summary-header"></div>
+      <article class="ix-card ix-main-card ix-card-table">
+        <div class="card-header-counts" id="status-summary-header">
+          </div>
         <div class="ix-table-wrapper">
           <table class="ix-modern-table">
             <thead>
               <tr>
-                <th>Categoría</th>
-                <th>Abiertos</th>
-                <th>Cerrados</th>
+                <th style="width: 50%;">Categoría</th>
+                <th class="ta-right">Abiertos</th>
+                <th class="ta-right">Cerrados</th>
                 <th class="ta-right">Total</th>
               </tr>
             </thead>
@@ -103,9 +106,8 @@ ix_require_session();
 
       <article class="ix-card ix-main-card ix-center-content">
         <div class="donut-container">
-          <canvas id="donut-canvas" width="280" height="280"></canvas>
+          <canvas id="donut-canvas" width="260" height="260"></canvas>
         </div>
-        <div id="donut-legend" class="ix-donut-legend"></div>
       </article>
 
       <article class="ix-card ix-main-card ix-map-card">

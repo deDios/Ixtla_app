@@ -9,6 +9,7 @@
     colonias:      "/db/web/ixtla01_c_cpcolonia_latlon.php" 
   };
 
+  const STATUS_LABELS = ["Solicitud", "Revisión", "Asignación", "En proceso", "Pausado", "Cancelado", "Finalizado"];
   const DEPT_ICONS = {
     "Todos": "▦", "Parques y Jardines": "🌳", "Ecología": "🍃",
     "Padrón y Licencias": "📋", "Alumbrado Público": "💡",
@@ -29,20 +30,21 @@
     return r.json();
   }
 
+  /* ====== GRÁFICA DE DONA FIDELIDAD ====== */
   function drawFidelityDonut(canvas, a, c) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     const total = a + c;
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const radius = 85;
+    const radius = 80;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (total === 0) return;
 
     const slices = [
-      { value: a, color: "#14b8a6", label: "Abiertos" },
-      { value: c, color: "#334155", label: "Cerrados" }
+      { value: a, color: "#22c55e", label: "Abiertos" }, // Verde
+      { value: c, color: "#334155", label: "Cerrados" }  // Gris oscuro
     ];
 
     let startAngle = -Math.PI / 2;
@@ -63,13 +65,14 @@
       ctx.moveTo(centerX + Math.cos(midAngle) * radius, centerY + Math.sin(midAngle) * radius);
       ctx.lineTo(xLine, yLine);
       ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 1;
       ctx.stroke();
 
       const pct = Math.round((slice.value / total) * 100);
       ctx.fillStyle = "#1e293b";
-      ctx.font = "bold 12px Inter";
+      ctx.font = "bold 11px Inter";
       ctx.textAlign = xLine > centerX ? "left" : "right";
-      ctx.fillText(`${slice.value} (${pct}%)`, xLine + (xLine > centerX ? 5 : -5), yLine);
+      ctx.fillText(`${slice.label}: ${slice.value} (${pct}%)`, xLine + (xLine > centerX ? 5 : -5), yLine);
 
       startAngle += sliceAngle;
     });
@@ -81,41 +84,79 @@
     ctx.fillText(total, centerX, centerY);
   }
 
+  /* ====== MAPA: AUTO-CENTRADO E INTENSIDAD ====== */
   function initMap() {
     const el = document.getElementById("map-colonias");
     if (!el || map) return;
-    map = L.map(el, { zoomControl: false }).setView([20.55, -103.2], 12);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+    map = L.map(el, { zoomControl: true }).setView([20.55, -103.2], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
   }
 
-  async function reloadDashboard() {
+  async function loadHeatmap() {
     initMap();
+    try {
+      const resp = await fetchJSON(API.colonias, { 
+        method: "POST", 
+        body: { departamento_id: currentDept, month: currentMonth } 
+      });
+      
+      let maxVal = 0;
+      const points = (resp.data || []).map(r => {
+          const val = parseFloat(r.total) || 1;
+          if (val > maxVal) maxVal = val;
+          return [parseFloat(r.lat), parseFloat(r.lon), val];
+      });
+      
+      if (heatLayer) map.removeLayer(heatLayer);
+      
+      if (points.length > 0) {
+        // Configuramos intensidad máxima basada en los datos reales
+        heatLayer = L.heatLayer(points, { 
+            radius: 30, 
+            blur: 20, 
+            max: maxVal * 0.8 // Reducir un poco el máximo fuerza a que los colores se vean más cálidos/rojos
+        }).addTo(map);
+        
+        // Auto Centrado del mapa a los puntos obtenidos
+        const bounds = L.latLngBounds(points.map(p => [p[0], p[1]]));
+        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+      }
+    } catch (e) { console.error("Error mapa:", e); }
+  }
+
+  /* ====== CARGA PRINCIPAL ====== */
+  async function reloadDashboard() {
     const payload = { departamento_id: currentDept, month: currentMonth };
 
-    const [tramites, status, oc, geo] = await Promise.all([
+    const [tramites, status, oc] = await Promise.all([
       fetchJSON(API.byTramite, { method: "POST", body: payload }),
       fetchJSON(`${API.byStatus}?departamento_id=${currentDept || ''}&month=${currentMonth}`),
-      fetchJSON(`${API.openClosed}?departamento_id=${currentDept || ''}&month=${currentMonth}`),
-      fetchJSON(API.colonias, { method: "POST", body: payload })
+      fetchJSON(`${API.openClosed}?departamento_id=${currentDept || ''}&month=${currentMonth}`)
     ]);
 
+    // Llenar la Tabla
     document.getElementById("tbl-tramites-body").innerHTML = (tramites.data || []).map(r => `
-      <tr><td>${r.tramite}</td><td>${r.abiertos}</td><td>${r.cerrados}</td><td class="ta-right"><strong>${r.total}</strong></td></tr>
+      <tr>
+        <td>${r.tramite}</td>
+        <td class="ta-right">${r.abiertos}</td>
+        <td class="ta-right">${r.cerrados}</td>
+        <td class="ta-right"><strong>${r.total}</strong></td>
+      </tr>
     `).join("");
 
-    document.getElementById("status-summary-header").innerHTML = `
-      <div class="header-count-item"><span>Finalizado</span><strong>${status[6] || 0}</strong></div>
-      <div class="header-count-item"><span>Asignación</span><strong>${status[2] || 0}</strong></div>
-      <div class="header-count-item"><span>En proceso</span><strong>${status[3] || 0}</strong></div>
-    `;
+    // Llenar TODOS los 7 Estatus dinámicamente en el encabezado
+    document.getElementById("status-summary-header").innerHTML = STATUS_LABELS.map((label, i) => `
+      <div class="header-count-item">
+        <span>${label}</span>
+        <strong>${status[i] || 0}</strong>
+      </div>
+    `).join("");
 
-    drawFidelityDonut(document.getElementById("donut-canvas"), parseInt(oc.abiertos), parseInt(oc.cerrados));
-
-    const points = (geo.data || []).map(r => [parseFloat(r.lat), parseFloat(r.lon), 1]);
-    if (heatLayer) map.removeLayer(heatLayer);
-    heatLayer = L.heatLayer(points, { radius: 25, blur: 15 }).addTo(map);
+    drawFidelityDonut(document.getElementById("donut-canvas"), parseInt(oc.abiertos || 0), parseInt(oc.cerrados || 0));
+    loadHeatmap();
   }
 
+  // Renderizar las pestañas de departamentos
   function renderDepts(list) {
     const wrap = document.getElementById("chips-departamentos");
     wrap.innerHTML = [{id: null, nombre: "Todos"}, ...list].map(d => `
@@ -126,11 +167,19 @@
     `).join("");
   }
 
-  window.setDept = (id) => { currentDept = id; reloadDashboard(); fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data)); };
+  window.setDept = (id) => { 
+      currentDept = id; 
+      reloadDashboard(); 
+      fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data)); 
+  };
 
   document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("filtro-mes").onchange = (e) => { currentMonth = e.target.value; reloadDashboard(); };
+    document.getElementById("filtro-mes").onchange = (e) => { 
+        currentMonth = e.target.value; 
+        reloadDashboard(); 
+    };
     fetchJSON(API.departamentos, { method: "POST", body: { all: true, status: 1 } }).then(r => renderDepts(r.data));
     reloadDashboard();
   });
+
 })();
