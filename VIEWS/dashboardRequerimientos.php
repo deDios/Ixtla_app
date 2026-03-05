@@ -57,34 +57,33 @@ ix_require_session();
       <div class="ix-card ix-kpi-card">
         <div class="kpi-info">
           <span class="kpi-label">PROMEDIO SEMANAL (REQ)</span>
-          <h2 id="kpi-val-semana">14.2</h2>
+          <h2 id="kpi-val-semana">--</h2>
           <span class="kpi-sub">Req/Sem</span>
         </div>
       </div>
       <div class="ix-card ix-kpi-card">
         <div class="kpi-info">
           <span class="kpi-label">TIEMPO PROMEDIO RESOLUCIÓN</span>
-          <h2 id="kpi-val-tiempo">2.5 Días</h2>
+          <h2 id="kpi-val-tiempo">--</h2>
           <span class="kpi-sub">Tiempo x Req.</span>
         </div>
         <div class="kpi-icon-circle">
-          <img src="/ASSETS/icons/clock.svg" alt="Reloj" width="20" style="opacity: 0.6;">
+          <img src="/ASSETS/icons/clock.svg" alt="Reloj" width="20" style="opacity: 0.6;" onerror="this.style.display='none'">
         </div>
       </div>
       <div class="ix-card ix-kpi-card">
         <div class="kpi-info">
-          <span class="kpi-label">CP CON MAYOR NÚMERO DE REQS</span>
-          <h2 id="kpi-val-cp">45400</h2>
-          <span class="kpi-sub">CP Top Ventas/Req</span>
+          <span class="kpi-label">MAYOR INCIDENCIA</span>
+          <h2 id="kpi-val-cp">--</h2>
+          <span class="kpi-sub" id="kpi-sub-cp">Calculando...</span>
         </div>
         <div class="kpi-icon-circle">
-          <img src="/ASSETS/icons/pin.svg" alt="Pin" width="20" style="opacity: 0.6;">
+          <img src="/ASSETS/icons/pin.svg" alt="Pin" width="20" style="opacity: 0.6;" onerror="this.style.display='none'">
         </div>
       </div>
     </section>
 
     <section class="ix-dashboard-main-grid">
-      
       <article class="ix-card ix-main-card ix-card-table">
         <div class="card-header-counts" id="status-summary-header"></div>
         <div class="ix-table-wrapper">
@@ -112,7 +111,6 @@ ix_require_session();
       <article class="ix-card ix-main-card ix-map-card">
         <div id="map-colonias"></div>
       </article>
-
     </section>
   </div>
 
