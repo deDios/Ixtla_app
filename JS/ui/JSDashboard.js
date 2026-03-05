@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  // APUNTANDO A LAS NUEVAS APIs V2
+  // APUNTANDO A LAS NUEVAS APIs V2 
   const API = {
     departamentos: "/db/web/ixtla01_c_departamentos.php",
     byTramite:     "/db/web/req_stats_by_tramite_v2.php",
