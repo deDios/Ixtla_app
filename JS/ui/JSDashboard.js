@@ -62,7 +62,7 @@
   function drawFidelityDonut(canvas, dataSlices) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const centerX = canvas.width / 2, centerY = canvas.height / 2, radius = 80;
+    const centerX = canvas.width / 2, centerY = canvas.height / 2, radius = 75;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const total = dataSlices.reduce((sum, slice) => sum + slice.value, 0);
     if (total === 0) return;
@@ -72,7 +72,7 @@
       if (slice.value === 0) return;
       const sliceAngle = (slice.value / total) * 2 * Math.PI;
       ctx.beginPath(); ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
-      ctx.lineWidth = 35; ctx.strokeStyle = slice.color; ctx.stroke();
+      ctx.lineWidth = 32; ctx.strokeStyle = slice.color; ctx.stroke();
       startAngle += sliceAngle;
     });
     ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "bold 28px Inter"; ctx.fillStyle = "#1e293b";
@@ -82,23 +82,28 @@
   function renderDonutLegend(dataSlices) {
     const container = document.getElementById("donut-legend");
     const total = dataSlices.reduce((sum, slice) => sum + slice.value, 0);
+    // Renderizado en Lista Vertical
     container.innerHTML = dataSlices.map(d => {
         const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
-        return `<div class="donut-legend-item"><div class="donut-legend-color" style="background:${d.color}"></div><span>${d.label}</span><span class="donut-legend-val">${d.value} (${pct}%)</span></div>`;
+        return `<div class="donut-legend-item">
+                  <div class="donut-legend-color" style="background:${d.color}"></div>
+                  <span>${d.label}</span>
+                  <span class="donut-legend-val">${d.value} (${pct}%)</span>
+                </div>`;
     }).join("");
   }
 
-  /* ====== MAPA (CORREGIDO) ====== */
+  /* ====== MAPA ESTILO CALLES CLARAS ====== */
   function initMap() {
     const el = document.getElementById("map-colonias");
     if (!el || map) return;
     
     map = L.map("map-colonias", { zoomControl: true }).setView([20.55, -103.2], 12);
     
-    // Cambiado a OpenStreetMap para garantizar que las calles se carguen siempre
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+    // Cambiado a CartoDB Light (Calles limpias, claras, sin verde de vegetación)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { 
         maxZoom: 18,
-        attribution: '© OpenStreetMap'
+        attribution: '© OpenStreetMap, © CARTO'
     }).addTo(map);
     
     bubbleLayer = L.layerGroup().addTo(map);
@@ -107,7 +112,7 @@
   function processBubbleMap(geoData) {
     initMap();
     
-    // Forzamos al mapa a recalcular su tamaño (soluciona el fondo gris)
+    // Forzamos al mapa a recalcular su tamaño
     setTimeout(() => { if (map) map.invalidateSize(); }, 300);
     
     bubbleLayer.clearLayers(); 
@@ -150,7 +155,12 @@
 
     const abiertos = (status[0]||0) + (status[1]||0) + (status[2]||0) + (status[3]||0);
     const finalizados = status[6]||0, pausados = status[4]||0, cancelados = status[5]||0;
-    const donutData = [{ label: "Abiertos", value: abiertos, color: "#22c55e" }, { label: "Finalizados", value: finalizados, color: "#334155" }, { label: "Pausados", value: pausados, color: "#f59e0b" }, { label: "Cancelados", value: cancelados, color: "#ef4444" }];
+    const donutData = [
+        { label: "Abiertos", value: abiertos, color: "#22c55e" }, 
+        { label: "Finalizados", value: finalizados, color: "#334155" }, 
+        { label: "Pausados", value: pausados, color: "#f59e0b" }, 
+        { label: "Cancelados", value: cancelados, color: "#ef4444" }
+    ];
     
     drawFidelityDonut(document.getElementById("donut-canvas"), donutData);
     renderDonutLegend(donutData);

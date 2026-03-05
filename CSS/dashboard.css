@@ -55,15 +55,15 @@ body.ix-dashboard-body { background-color: var(--bg-app); margin: 0; font-family
 .ix-modern-table th.col-main, .ix-modern-table td:nth-child(1) { width: 50%; text-align: left; }
 .ix-modern-table th.ta-right, .ix-modern-table td:not(:nth-child(1)) { width: 16.6%; text-align: right; }
 
-/* DONUT LEYENDA */
-.ix-center-content { align-items: center; justify-content: center; gap: 25px; }
-.ix-donut-html-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; width: 100%; padding: 0 10px; }
-.donut-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-main); font-weight: 600; }
+/* DONUT LEYENDA VERTICAL */
+.ix-center-content { align-items: center; justify-content: center; gap: 20px; }
+.ix-donut-html-legend { display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 0 10px; margin-top: 10px; }
+.donut-legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text-main); font-weight: 600; width: 100%; }
 .donut-legend-color { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
 .donut-legend-val { margin-left: auto; color: var(--text-muted); font-weight: 500; }
 
 /* MAPA */
 .ix-map-card { padding: 0; position: relative; }
-#map-colonias { width: 100%; height: 100%; background: #e5e7eb; border-radius: 12px;}
+#map-colonias { width: 100%; height: 100%; background: #f8fafc; border-radius: 12px;}
 .leaflet-popup-content-wrapper { border-radius: 8px; font-family: 'Inter', sans-serif; }
 .leaflet-popup-content strong { color: #0f172a; }

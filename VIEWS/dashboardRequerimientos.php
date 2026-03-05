@@ -132,7 +132,7 @@ ix_require_session();
 
       <article class="ix-card ix-main-card ix-center-content">
         <div class="donut-container">
-          <canvas id="donut-canvas" width="220" height="220"></canvas>
+          <canvas id="donut-canvas" width="210" height="210"></canvas>
         </div>
         <div id="donut-legend" class="ix-donut-html-legend"></div>
       </article>
