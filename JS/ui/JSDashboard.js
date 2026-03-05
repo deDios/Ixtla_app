@@ -13,16 +13,15 @@
   const DEPT_ICONS = { "Todos": "▦", "Parques y Jardines": "🌳", "Ecología": "🍃", "Padrón y Licencias": "📋", "Alumbrado Público": "💡", "Obras Públicas": "🏗️", "Aseo Público": "🧹", "SAMAPA": "💧" };
 
   let currentDept = null;
-  let selectedMonths = []; // Ahora es un arreglo para soportar el multi-select
+  let currentMonth = ""; // Vuelve a ser un string simple
   let map = null, bubbleLayer = null;
 
   let globalDeptList = []; 
   let demoInterval = null;
 
-  // FUNCIÓN FETCH CON CACHE-BUSTING PARA DATOS SIEMPRE FRESCOS
+  // FUNCIÓN FETCH CON CACHE-BUSTING
   async function fetchJSON(url, opts = {}) {
     try {
-        // Agregamos Timestamp a la URL para matar la caché del navegador
         const noCacheUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
         const r = await fetch(noCacheUrl, {
             method: opts.method || "GET",
@@ -37,44 +36,35 @@
     }
   }
 
-  /* ====== MULTI-SELECT LOGIC ====== */
-  function initMultiSelect() {
+  /* ====== SELECTOR DE MES PERSONALIZADO ====== */
+  function initCustomSelect() {
       const header = document.getElementById("multiselect-header");
       const dropdown = document.getElementById("multiselect-dropdown");
-      const checkboxes = document.querySelectorAll(".month-checkbox");
+      const radios = document.querySelectorAll(".month-radio");
       const title = document.getElementById("multiselect-title");
 
-      // Abrir/Cerrar menú
-      header.addEventListener("click", () => {
-          dropdown.classList.toggle("show");
-      });
-
-      // Cerrar al dar clic afuera
+      header.addEventListener("click", () => dropdown.classList.toggle("show"));
       document.addEventListener("click", (e) => {
-          if (!header.contains(e.target) && !dropdown.contains(e.target)) {
-              dropdown.classList.remove("show");
-          }
+          if (!header.contains(e.target) && !dropdown.contains(e.target)) dropdown.classList.remove("show");
       });
 
-      // Detectar cambios en las casillas
-      checkboxes.forEach(chk => {
-          chk.addEventListener("change", () => {
-              selectedMonths = Array.from(document.querySelectorAll(".month-checkbox:checked")).map(cb => cb.value);
+      radios.forEach(radio => {
+          radio.addEventListener("change", (e) => {
+              currentMonth = e.target.value;
               
-              if (selectedMonths.length === 0) {
+              if (currentMonth === "") {
                   title.textContent = "Todos los meses";
-              } else if (selectedMonths.length === 1) {
-                  title.textContent = "1 mes seleccionado";
               } else {
-                  title.textContent = `${selectedMonths.length} meses selec.`;
+                  title.textContent = e.target.getAttribute('data-label');
               }
               
+              dropdown.classList.remove("show"); // Auto cerrar al seleccionar
               reloadDashboard();
           });
       });
   }
 
-  /* ====== GRÁFICA Y MAPA (Omitido el detalle visual por brevedad, es igual) ====== */
+  /* ====== GRÁFICA DE DONA ====== */
   function drawFidelityDonut(canvas, dataSlices) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -103,16 +93,19 @@
     }).join("");
   }
 
+  /* ====== MAPA ====== */
   function initMap() {
-    if (!document.getElementById("map-colonias") || map) return;
+    const el = document.getElementById("map-colonias");
+    if (!el || map) return;
     map = L.map("map-colonias", { zoomControl: true }).setView([20.55, -103.2], 12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}/{r}.png', { maxZoom: 18 }).addTo(map);
+    bubbleLayer = L.layerGroup().addTo(map); // Inicializamos la capa una sola vez
   }
 
   function processBubbleMap(geoData) {
     initMap();
-    if (bubbleLayer) map.removeLayer(bubbleLayer);
-    bubbleLayer = L.layerGroup().addTo(map);
+    bubbleLayer.clearLayers(); // IMPORTANTE: Limpiamos los puntos antiguos correctamente
+
     let topZone = { cp: "--", colonia: "Sin reportes", total: -1 };
     if (!geoData || geoData.length === 0) return topZone;
     
@@ -130,21 +123,18 @@
        .addTo(bubbleLayer)
        .bindTooltip(`<strong>${r.colonia || 'Zona'}</strong><br>Requerimientos: ${val}`, {direction: 'top'});
     });
+    
     if (bounds.length > 0) map.fitBounds(L.latLngBounds(bounds), { padding: [30, 30], maxZoom: 15 });
     return topZone;
   }
 
   /* ====== ORQUESTADOR PRINCIPAL ====== */
   async function reloadDashboard() {
-    // ENVIAMOS selectedMonths como arreglo
-    const payload = { departamento_id: currentDept, month: selectedMonths };
-
-    // Si son peticiones GET (byStatus, openClosed) enviamos el string separado por comas
-    const getMonthParam = selectedMonths.length > 0 ? selectedMonths.join(',') : '';
+    const payload = { departamento_id: currentDept, month: currentMonth };
 
     const [tramites, status, kpis, geo] = await Promise.all([
       fetchJSON(API.byTramite, { method: "POST", body: payload }),
-      fetchJSON(`${API.byStatus}?departamento_id=${currentDept || ''}&month=${getMonthParam}`),
+      fetchJSON(`${API.byStatus}?departamento_id=${currentDept || ''}&month=${currentMonth}`),
       fetchJSON(API.kpis, { method: "POST", body: payload }),
       fetchJSON(API.colonias, { method: "POST", body: payload })
     ]);
@@ -200,7 +190,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    initMultiSelect();
+    initCustomSelect();
 
     const demoCheck = document.getElementById("demo-mode-checkbox");
     if (demoCheck) demoCheck.addEventListener("change", (e) => toggleDemoMode(e.target.checked));

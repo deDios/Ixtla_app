@@ -13,18 +13,18 @@ body.ix-dashboard-body { background-color: var(--bg-app); margin: 0; font-family
 .ix-demo-toggle input { cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
 #hs-avatar { width: 40px; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-/* CUSTOM MULTISELECT DROPDOWN */
+/* CUSTOM SELECT DROPDOWN */
 .custom-multiselect { position: relative; width: 220px; font-family: 'Inter', sans-serif; z-index: 100; }
 .multiselect-header { background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 500; color: var(--text-main); font-size: 0.9rem;}
 .multiselect-arrow { font-size: 0.7rem; color: var(--text-muted); }
-.multiselect-dropdown { position: absolute; top: 110%; left: 0; width: 100%; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-height: 300px; overflow-y: auto; display: none; padding: 10px; }
+.multiselect-dropdown { position: absolute; top: 110%; left: 0; width: 100%; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-height: 300px; overflow-y: auto; display: none; padding: 15px; }
 .multiselect-dropdown.show { display: block; }
 .multiselect-year-group { margin-bottom: 10px; }
 .year-title { font-weight: 800; font-size: 0.8rem; color: var(--text-muted); padding: 5px; border-bottom: 1px solid var(--border); margin-bottom: 5px; text-transform: uppercase;}
 .year-months { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-.month-option { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; padding: 4px; border-radius: 4px; }
+.month-option { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; padding: 6px 4px; border-radius: 4px; }
 .month-option:hover { background: #f1f5f9; }
-.month-option input { cursor: pointer; }
+.month-option input { cursor: pointer; accent-color: var(--accent); }
 
 /* DEPARTAMENTOS */
 .ix-dept-grid { display: flex; gap: 12px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px; scroll-behavior: smooth;}

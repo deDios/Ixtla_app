@@ -34,32 +34,36 @@ ix_require_session();
           <span>DEMO</span>
         </label>
 
-        <div class="ix-period-select custom-multiselect" id="month-multiselect">
+        <div class="ix-period-select custom-multiselect" id="month-custom-select">
             <div class="multiselect-header" id="multiselect-header">
                 <span id="multiselect-title">Todos los meses</span>
                 <span class="multiselect-arrow">▼</span>
             </div>
             <div class="multiselect-dropdown" id="multiselect-dropdown">
+                <div style="padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0;">
+                    <label class='month-option'>
+                        <input type='radio' name='month_selection' class='month-radio' value='' checked> <strong>Todos los meses</strong>
+                    </label>
+                </div>
+
                 <?php
                   $mesesNombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
                   $currentYear = (int)date('Y');
-                  // Mostrar año actual y el anterior
                   $years = [$currentYear, $currentYear - 1]; 
 
                   foreach ($years as $y) {
                       echo "<div class='multiselect-year-group'>";
                       echo "<div class='year-title'>Año $y</div>";
                       echo "<div class='year-months'>";
-                      // Meses del 12 al 1
                       for ($m = 12; $m >= 1; $m--) {
+                          if ($y == $currentYear && $m > (int)date('m')) continue;
+                          
                           $monthNum = str_pad($m, 2, "0", STR_PAD_LEFT);
                           $val = "$y-$monthNum";
                           $label = $mesesNombres[$m-1];
-                          // Validar que no imprima meses futuros del año actual
-                          if ($y == $currentYear && $m > (int)date('m')) continue;
                           
                           echo "<label class='month-option'>";
-                          echo "<input type='checkbox' class='month-checkbox' value='$val'> $label";
+                          echo "<input type='radio' name='month_selection' class='month-radio' value='$val' data-label='$label $y'> $label";
                           echo "</label>";
                       }
                       echo "</div></div>";
