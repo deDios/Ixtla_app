@@ -11,11 +11,11 @@
   const miniMsg = $("#retro-mini-msg");
   const finishBtn = $("#retro-finish");
 
-  // 1) Bloquear scroll de la página (modal “en regla”)
+  // 1) Bloquear scroll
   document.documentElement.style.overflow = "hidden";
   document.body.style.overflow = "hidden";
 
-  // 2) NO permitir cerrar: bloquear ESC y clicks fuera
+  // 2) NO permitir cerrar
   document.addEventListener(
     "keydown",
     (e) => {
@@ -27,7 +27,7 @@
     true
   );
 
-  // Evita que el overlay haga algo (solo absorbe el click)
+  // el overlay no hace nada, solo es visual 
   const overlay = modal.querySelector(".ix-modal__overlay");
   overlay.addEventListener("click", (e) => {
     e.preventDefault();
@@ -43,7 +43,6 @@
     if (miniOverlay) miniOverlay.hidden = false;
     if (mini) mini.hidden = false;
 
-    // Opcional: marcar el modal grande como “inactivo” para screen readers
     modal?.setAttribute("aria-hidden", "true");
   }
 
@@ -54,11 +53,10 @@
   }
 
   finishBtn?.addEventListener("click", () => {
-    // aquí define tu acción final:
     // 1) cerrar mini modal
     closeMini();
 
-    // 2) redirigir (si quieres)
+    // 2) redirigir al index 
     window.location.href = "/index.php";
   });
 
@@ -86,7 +84,7 @@
       sendBtn.textContent = "Enviar";
       refresh();
 
-      // Mostrar mini modal (éxito demo)
+      // Mostrar mini modal de exito
       openMini({
         title: "Muchas gracias",
         message: "Tu retroalimentación fue registrada correctamente."
