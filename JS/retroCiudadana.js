@@ -220,7 +220,8 @@
   function setHeaderFromReq(req) {
     if (!req) return;
     if (els.title && req?.folio) {
-      els.title.textContent = `Retroalimentación ${req.folio}`;
+      //els.title.textContent = `Retroalimentación ${req.folio}`;
+      els.title.textContent = `Retroalimentación`;
     }
     setDepto(req?.departamento_nombre || "—");
   }
@@ -232,7 +233,7 @@
       case STATUS_RETRO.CONTESTADO:
         return "Esta retroalimentación ya fue contestada anteriormente.";
       case STATUS_RETRO.INHABILITADO:
-        return "Esta retroalimentación fue inhabilitada y ya no está disponible.";
+        return "Esta ya no está disponible.";
       case STATUS_RETRO.CADUCADO:
         return "Esta retroalimentación ya caducó y no se puede responder.";
       default:
