@@ -80,12 +80,13 @@
                         <div class="ix-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="retro-title">
                             <header class="ix-modal__header">
                                 <h2 id="retro-title" class="ix-modal__title">Retroalimentación</h2>
-
-                                <!-- NOTA: sin botón cerrar -->
-                                <!-- <button class="ix-modal__close" type="button" aria-label="Cerrar">×</button> -->
                             </header>
 
                             <div class="ix-modal__body">
+                                <div id="retro-folio" class="retro-folio">
+                                    Folio: REQ-000000000
+                                </div>
+
                                 <p class="retro-q">¿Cómo valoras el servicio recibido?</p>
 
                                 <div class="retro-rate retro-rate--svg" role="radiogroup"
@@ -145,7 +146,8 @@
                                                 <circle class="f" cx="29" cy="22" r="1.6"></circle>
 
                                                 <!-- boca tipo D real (arriba plano, abajo redondo) -->
-                                                <path class="f" d="M18 29.2 H30 Q30 32.6 24 32.6 Q18 32.6 18 29.2 Z"></path>
+                                                <path class="f" d="M18 29.2 H30 Q30 32.6 24 32.6 Q18 32.6 18 29.2 Z">
+                                                </path>
                                             </svg>
                                         </span>
                                         <span class="rate-label">Excelente</span>

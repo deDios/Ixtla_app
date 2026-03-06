@@ -426,3 +426,15 @@
 #retro-mini.retro-mini .retro-btn:active{
   transform: translateY(0px);
 }
+
+/* Folio del requerimiento */
+.retro-folio{
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(0,0,0,.45);
+
+  margin-bottom: 10px;
+  padding-left: 2px;
+
+  letter-spacing: .4px;
+}

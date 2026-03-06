@@ -31,6 +31,7 @@
 
   const els = {
     title: document.getElementById("retro-title"),
+    folio: document.getElementById("retro-folio"),
     comentario: document.getElementById("retro-comentario"),
     depto: document.getElementById("retro-depto"),
     send: document.getElementById("retro-send"),
@@ -219,10 +220,15 @@
 
   function setHeaderFromReq(req) {
     if (!req) return;
+
     if (els.title && req?.folio) {
-      //els.title.textContent = `Retroalimentación ${req.folio}`;
-      els.title.textContent = `Retroalimentación`;
+      els.title.textContent = `Retroalimentación`; //por si luego quiero cambiar el title del header
     }
+
+    if (els.folio && req?.folio) {
+      els.folio.textContent = `Folio: ${req.folio}`;
+    }
+    
     setDepto(req?.departamento_nombre || "—");
   }
 
@@ -251,7 +257,9 @@
   }
 
   async function fetchReqByFolio(folio) {
-    const res = await postJSON(ENDPOINTS.REQ_GET, { folio: String(folio || "") });
+    const res = await postJSON(ENDPOINTS.REQ_GET, {
+      folio: String(folio || ""),
+    });
 
     if (!res || res.ok !== true || !res.data) {
       throw new Error(res?.error || "No se encontró el requerimiento.");
@@ -279,11 +287,11 @@
 
   async function submitRetro() {
     if (state.sending) return;
-    if (!state.retro || Number(state.retro.status) !== STATUS_RETRO.NO_CONTESTADO) {
-      showMini(
-        getStatusMessage(state.retro?.status),
-        "Retroalimentación"
-      );
+    if (
+      !state.retro ||
+      Number(state.retro.status) !== STATUS_RETRO.NO_CONTESTADO
+    ) {
+      showMini(getStatusMessage(state.retro?.status), "Retroalimentación");
       setDisabledUI(true);
       return;
     }
@@ -294,7 +302,10 @@
       return;
     }
 
-    const comentario = buildFinalComment(els.comentario?.value || "", state.req);
+    const comentario = buildFinalComment(
+      els.comentario?.value || "",
+      state.req,
+    );
 
     state.sending = true;
     syncSendButton();
@@ -313,7 +324,9 @@
       const res = await putJSON(ENDPOINTS.RETRO_UPDATE, payload);
 
       if (!res || res.ok !== true) {
-        throw new Error(res?.error || "No se pudo guardar la retroalimentación.");
+        throw new Error(
+          res?.error || "No se pudo guardar la retroalimentación.",
+        );
       }
 
       state.retro = {
@@ -324,10 +337,16 @@
       };
 
       setDisabledUI(true);
-      showMini("Tu retroalimentación fue registrada correctamente.", "Muchas gracias");
+      showMini(
+        "Tu retroalimentación fue registrada correctamente.",
+        "Muchas gracias",
+      );
     } catch (e) {
       err("submitRetro() error:", e);
-      toast(e?.message || "Ocurrió un error al enviar la retroalimentación.", "danger");
+      toast(
+        e?.message || "Ocurrió un error al enviar la retroalimentación.",
+        "danger",
+      );
       state.sending = false;
       syncSendButton();
       return;
@@ -387,7 +406,10 @@
       const retro = await fetchLatestRetroByReqId(req.id);
 
       if (!retro) {
-        showMini("No existe una retroalimentación disponible para este requerimiento.", "Retroalimentación");
+        showMini(
+          "No existe una retroalimentación disponible para este requerimiento.",
+          "Retroalimentación",
+        );
         return;
       }
 
@@ -407,8 +429,9 @@
     } catch (e) {
       err("boot() error:", e);
       showMini(
-        e?.message || "No fue posible cargar la retroalimentación del requerimiento.",
-        "Error"
+        e?.message ||
+          "No fue posible cargar la retroalimentación del requerimiento.",
+        "Error",
       );
     }
   }
