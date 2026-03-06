@@ -959,6 +959,7 @@
   font-size: 0.82rem;
   color: #2f4643;
   min-height: 2rem;
+  max-width: 300px;
 }
 
 .kb-filter-input::placeholder {
