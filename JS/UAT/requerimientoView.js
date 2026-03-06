@@ -197,7 +197,60 @@
     // Catálogo de CP/colonia
     CP_COLONIA:
       "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
+    RETRO_CREATE: "https://ixtla-app.com/db/WEB/ixtla01_i_retro.php",
+    RETRO_LIST: "https://ixtla-app.com/db/WEB/ixtla01_c_retro.php",
   };
+
+  /* ======================================
+   *  Retro crear el link
+   * ======================================*/
+  function buildRetroLinkFromFolio(folio) {
+    const base = "https://ixtla-app.com/VIEWS/retroCiudadana.php";
+    const f = String(folio || "").trim();
+    return f ? `${base}?folio=${encodeURIComponent(f)}` : base;
+  }
+
+  async function getJSON(url, paramsObj = {}) {
+    const u = new URL(url);
+    Object.entries(paramsObj || {}).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === "") return;
+      u.searchParams.set(k, String(v));
+    });
+
+    const res = await fetch(u.toString(), {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      credentials: "include",
+    });
+
+    const txt = await res.text();
+    let json;
+    try {
+      json = JSON.parse(txt);
+    } catch {
+      json = { raw: txt };
+    }
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return json;
+  }
+
+  async function hasActiveRetro(requerimientoId) {
+    // traer todas las retros de un req
+    const q = {
+      requerimiento_id: Number(requerimientoId),
+      page: 1,
+      page_size: 50,
+    };
+
+    const res = await getJSON(ENDPOINTS.RETRO_LIST, q);
+    const arr = Array.isArray(res?.data) ? res.data : [];
+
+    // las retros que vienen estan en status != 0 ?
+    const anyActive = arr.some((r) => Number(r?.status ?? 0) !== 0);
+
+    return { anyActive, total: arr.length, data: arr, raw: res };
+  }
 
   /* ======================================
    *  ¿Todos los procesos tienen todas sus tareas terminadas?
@@ -928,8 +981,10 @@
           "onAction('finish-req') → verificando procesos/tareas antes de finalizar",
         );
 
+        // 1) Validar que TODO esté hecho (procesos + tareas)
         const ready = await areAllProcesosAndTasksDone(id);
         log("onAction('finish-req') → ready =", ready);
+
         if (!ready) {
           toast(
             "Aún hay procesos o tareas pendientes. Revisa la planeación antes de finalizar.",
@@ -938,8 +993,94 @@
           return;
         }
 
+        // 2) Obtener folio (para link de retro)
+        const req = window.__REQ__ || null;
+        const folio = String(req?.folio || "").trim();
+
+        if (!folio) {
+          warn(
+            "[RETRO] No se encontró folio en window.__REQ__. Se aborta finalizar.",
+          );
+          toast(
+            "No se pudo obtener el folio para habilitar la retroalimentación.",
+            "danger",
+          );
+          return;
+        }
+
+        // 3) Consultar si ya existe retro activa
+        let anyActiveRetro = false;
+
+        try {
+          const retroCheck = await hasActiveRetro(id);
+          anyActiveRetro = retroCheck.anyActive;
+
+          log("[RETRO] check:", {
+            total: retroCheck.total,
+            anyActiveRetro,
+            meta: retroCheck.raw?.meta,
+          });
+        } catch (e) {
+          err("[RETRO] fallo consulta c_retro.php:", e);
+          toast(
+            "No se pudo validar si ya existe retro. Intenta de nuevo.",
+            "danger",
+          );
+          return;
+        }
+
+        // 4) Si NO hay retro activa, insertar una nueva (habilitar retro)
+        if (!anyActiveRetro) {
+          const retroPayload = {
+            requerimiento_id: Number(id),
+            status: 1,
+            comentario: "Requerimiento listo para retro.",
+            calificacion: 0,
+            link: buildRetroLinkFromFolio(folio), // https://.../retroCiudadana.php?folio=...
+          };
+
+          log("[RETRO] creando retro → payload:", retroPayload);
+
+          let retroCreateResp;
+          try {
+            retroCreateResp = await postJSON(
+              ENDPOINTS.RETRO_CREATE,
+              retroPayload,
+            );
+            log("[RETRO] i_retro resp:", retroCreateResp);
+          } catch (e) {
+            err("[RETRO] fallo insertar i_retro:", e);
+            toast(
+              "No se pudo habilitar la retroalimentación. Intenta de nuevo.",
+              "danger",
+            );
+            return; // no finalizamos si no se pudo crear retro
+          }
+
+          // Tu postJSON no valida ok===false, así que lo validamos aquí
+          if (!retroCreateResp || retroCreateResp.ok !== true) {
+            warn("[RETRO] respuesta no-ok al crear retro:", retroCreateResp);
+            toast(
+              "No se pudo habilitar la retroalimentación (backend).",
+              "danger",
+            );
+            return;
+          }
+
+          toast(
+            "Retroalimentación habilitada. Finalizando requerimiento...",
+            "success",
+          );
+        } else {
+          // Ya existía retro activa → no insertamos otra
+          toast(
+            "Retroalimentación ya estaba habilitada. Finalizando...",
+            "info",
+          );
+        }
+
+        // 5) Finalizar requerimiento (estatus 6)
         next = 6;
-        // updateReqStatus ya setea cerrado_en con now cuando estatus === 6
         await updateReqStatus({ id, estatus: next });
 
         didUpdate = true;
@@ -1121,10 +1262,8 @@
 
     // Folio (si no viene, intentamos generarlo con el id)
     if (ddFolio) {
-      let folio = (req.folio || "").trim();
-      if (!folio && req.id) {
-        folio = `REQ-${String(req.id).padStart(10, "0")}`;
-      }
+      let folio = String(req?.folio || "").trim();
+      if (!folio && req?.id) folio = `REQ-${String(req.id).padStart(10, "0")}`;
       ddFolio.textContent = folio || "—";
     }
 

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/feedback.css">
+    <link rel="stylesheet" href="/CSS/retroCiudadana.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -212,7 +212,7 @@
 
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>
-    <script src="/JS/feedback.js"></script>
+    <script src="/JS/retroCiudadana.js"></script>
 
 </body>
 

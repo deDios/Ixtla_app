@@ -1,3 +1,5 @@
+// JS/retroCiudadana.js
+// URL ejemplo:  https://ixtla-app.com/VIEWS/retroCiudadana.php
 (function () {
   const $ = (s, r = document) => r.querySelector(s);
 
