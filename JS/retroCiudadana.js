@@ -239,7 +239,7 @@
       case STATUS_RETRO.CONTESTADO:
         return "Esta retroalimentación ya fue contestada anteriormente.";
       case STATUS_RETRO.INHABILITADO:
-        return "Esta ya no está disponible.";
+        return "Este requerimiento no se encuentra habilitado para aplicar una encuesta.";
       case STATUS_RETRO.CADUCADO:
         return "Esta retroalimentación ya caducó y no se puede responder.";
       default:
