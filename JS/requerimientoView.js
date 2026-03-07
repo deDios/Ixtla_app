@@ -185,19 +185,72 @@
    * ======================================*/
   const ENDPOINTS = {
     REQUERIMIENTO_GET: "/db/WEB/ixtla01_c_requerimiento.php",
-    REQUERIMIENTO_UPDATE: "/db/WEB/ixtla01_upd_requerimiento.php",
+    REQUERIMIENTO_UPDATE: "/db/WEB/ixtla01_upd_requerimiento copy.php",
     EMPLEADOS_GET: "/db/WEB/ixtla01_c_empleado.php",
     COMENT_LIST: "/db/WEB/ixtla01_c_comentario_requerimiento.php",
     COMENT_CREATE: "/db/WEB/ixtla01_i_comentario_requerimiento.php",
     PROCESOS_LIST: "/db/WEB/ixtla01_c_proceso_requerimiento.php",
     TAREAS_LIST: "/db/WEB/ixtla01_c_tarea_proceso.php",
-    CCP_CREATE: "https://ixtla-app.com/db/web/ixtla01_i_ccp.php",
+    CCP_CREATE: "https://ixtla-app.com/db/web/ixtla01_i_ccp copy.php",
     CCP_UPDATE: "https://ixtla-app.com/db/web/ixtla01_u_ccp.php",
     CCP_LIST: "https://ixtla-app.com/db/web/ixtla01_c_ccp.php",
     // Catálogo de CP/colonia
     CP_COLONIA:
       "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
+    RETRO_CREATE: "https://ixtla-app.com/db/WEB/ixtla01_i_retro.php",
+    RETRO_LIST: "https://ixtla-app.com/db/WEB/ixtla01_c_retro.php",
   };
+
+  /* ======================================
+   *  Retro crear el link
+   * ======================================*/
+  function buildRetroLinkFromFolio(folio) {
+    const base = "https://ixtla-app.com/VIEWS/retroCiudadana.php";
+    const f = String(folio || "").trim();
+    return f ? `${base}?folio=${encodeURIComponent(f)}` : base;
+  }
+
+  async function getJSON(url, paramsObj = {}) {
+    const u = new URL(url);
+    Object.entries(paramsObj || {}).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === "") return;
+      u.searchParams.set(k, String(v));
+    });
+
+    const res = await fetch(u.toString(), {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      credentials: "include",
+    });
+
+    const txt = await res.text();
+    let json;
+    try {
+      json = JSON.parse(txt);
+    } catch {
+      json = { raw: txt };
+    }
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return json;
+  }
+
+  async function hasActiveRetro(requerimientoId) {
+    // traer todas las retros de un req
+    const q = {
+      requerimiento_id: Number(requerimientoId),
+      page: 1,
+      page_size: 50,
+    };
+
+    const res = await getJSON(ENDPOINTS.RETRO_LIST, q);
+    const arr = Array.isArray(res?.data) ? res.data : [];
+
+    // las retros que vienen estan en status != 0 ?
+    const anyActive = arr.some((r) => Number(r?.status ?? 0) !== 0);
+
+    return { anyActive, total: arr.length, data: arr, raw: res };
+  }
 
   /* ======================================
    *  ¿Todos los procesos tienen todas sus tareas terminadas?
@@ -411,7 +464,7 @@
   function safeGetSession() {
     try {
       if (window.Session?.get) return window.Session.get();
-    } catch { }
+    } catch {}
     return readCookiePayload() || null;
   }
   function getUserAndEmpleadoFromSession() {
@@ -558,8 +611,8 @@
       // Re-pinta acciones base (pausar/cancelar/etc) y luego re-evalúa "Finalizar"
       try {
         renderActions(getCurrentStatusCode());
-      } catch (_) { }
-      injectFinalizeButtonIfReady().catch(() => { });
+      } catch (_) {}
+      injectFinalizeButtonIfReady().catch(() => {});
     }, 50);
   });
 
@@ -928,8 +981,10 @@
           "onAction('finish-req') → verificando procesos/tareas antes de finalizar",
         );
 
+        // 1) Validar que TODO esté hecho (procesos + tareas)
         const ready = await areAllProcesosAndTasksDone(id);
         log("onAction('finish-req') → ready =", ready);
+
         if (!ready) {
           toast(
             "Aún hay procesos o tareas pendientes. Revisa la planeación antes de finalizar.",
@@ -938,8 +993,94 @@
           return;
         }
 
+        // 2) Obtener folio (para link de retro)
+        const req = window.__REQ__ || null;
+        const folio = String(req?.folio || "").trim();
+
+        if (!folio) {
+          warn(
+            "[RETRO] No se encontró folio en window.__REQ__. Se aborta finalizar.",
+          );
+          toast(
+            "No se pudo obtener el folio para habilitar la retroalimentación.",
+            "danger",
+          );
+          return;
+        }
+
+        // 3) Consultar si ya existe retro activa
+        let anyActiveRetro = false;
+
+        try {
+          const retroCheck = await hasActiveRetro(id);
+          anyActiveRetro = retroCheck.anyActive;
+
+          log("[RETRO] check:", {
+            total: retroCheck.total,
+            anyActiveRetro,
+            meta: retroCheck.raw?.meta,
+          });
+        } catch (e) {
+          err("[RETRO] fallo consulta c_retro.php:", e);
+          toast(
+            "No se pudo validar si ya existe retro. Intenta de nuevo.",
+            "danger",
+          );
+          return;
+        }
+
+        // 4) Si NO hay retro activa, insertar una nueva (habilitar retro)
+        if (!anyActiveRetro) {
+          const retroPayload = {
+            requerimiento_id: Number(id),
+            status: 1,
+            comentario: "Requerimiento listo para retro.",
+            calificacion: 0,
+            link: buildRetroLinkFromFolio(folio), // https://.../retroCiudadana.php?folio=...
+          };
+
+          log("[RETRO] creando retro → payload:", retroPayload);
+
+          let retroCreateResp;
+          try {
+            retroCreateResp = await postJSON(
+              ENDPOINTS.RETRO_CREATE,
+              retroPayload,
+            );
+            log("[RETRO] i_retro resp:", retroCreateResp);
+          } catch (e) {
+            err("[RETRO] fallo insertar i_retro:", e);
+            toast(
+              "No se pudo habilitar la retroalimentación. Intenta de nuevo.",
+              "danger",
+            );
+            return; // no finalizamos si no se pudo crear retro
+          }
+
+          // Tu postJSON no valida ok===false, así que lo validamos aquí
+          if (!retroCreateResp || retroCreateResp.ok !== true) {
+            warn("[RETRO] respuesta no-ok al crear retro:", retroCreateResp);
+            toast(
+              "No se pudo habilitar la retroalimentación (backend).",
+              "danger",
+            );
+            return;
+          }
+
+          toast(
+            "Retroalimentación habilitada. Finalizando requerimiento...",
+            "success",
+          );
+        } else {
+          // Ya existía retro activa → no insertamos otra
+          toast(
+            "Retroalimentación ya estaba habilitada. Finalizando...",
+            "info",
+          );
+        }
+
+        // 5) Finalizar requerimiento (estatus 6)
         next = 6;
-        // updateReqStatus ya setea cerrado_en con now cuando estatus === 6
         await updateReqStatus({ id, estatus: next });
 
         didUpdate = true;
@@ -1121,10 +1262,8 @@
 
     // Folio (si no viene, intentamos generarlo con el id)
     if (ddFolio) {
-      let folio = (req.folio || "").trim();
-      if (!folio && req.id) {
-        folio = `REQ-${String(req.id).padStart(10, "0")}`;
-      }
+      let folio = String(req?.folio || "").trim();
+      if (!folio && req?.id) folio = `REQ-${String(req.id).padStart(10, "0")}`;
       ddFolio.textContent = folio || "—";
     }
 
@@ -1256,7 +1395,7 @@
 
           if (newVal === originalVal) {
             restoreView(req);
-            applyContactoEditVisibility(merged);
+            applyContactoEditVisibility(req);
             return;
           }
 
@@ -1664,7 +1803,7 @@
       try {
         const empId = Number(r.empleado_id) > 0 ? Number(r.empleado_id) : null;
         if (empId) display = (await getEmpleadoById(empId))?.nombre || "";
-      } catch { }
+      } catch {}
       if (!display) {
         display =
           r.empleado_display ||
@@ -1886,7 +2025,143 @@
     await injectFinalizeButtonIfReady();
   }
 
+  setupCommentsFab();
+  bindEvidenciasAccordion();
+  bindTabs();
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else boot();
+
+  //function para los chevrones
+  function bindEvidenciasAccordion() {
+    // El acordeón de evidencias.
+    // bindeo Evidencias.
+    const acc =
+      document.querySelector('.exp-accordion[data-acc="evidencias"]') ||
+      document.querySelector(".exp-accordion--evidencias");
+
+    if (!acc) return;
+
+    const head = acc.querySelector(".exp-acc-head");
+    const body = acc.querySelector(".exp-acc-body");
+    const chev = acc.querySelector(".chev");
+    if (!head || !body) return;
+
+    if (acc._boundEvid) return;
+    acc._boundEvid = true;
+
+    const setOpen = (open) => {
+      head.setAttribute("aria-expanded", open ? "true" : "false");
+      body.hidden = !open;
+      acc.classList.toggle("is-collapsed", !open);
+    };
+
+    // init (por default abierto si no dice "false")
+    setOpen(head.getAttribute("aria-expanded") !== "false");
+
+    head.addEventListener("click", (e) => {
+      // Si en algún momento hay controles dentro del header, no togglear al click ahí.
+      const innerBtn = e.target.closest("button");
+      const innerLink = e.target.closest("a");
+      if ((innerBtn && innerBtn !== head) || innerLink) return;
+
+      const isOpen = head.getAttribute("aria-expanded") === "true";
+      setOpen(!isOpen);
+    });
+
+    if (chev) {
+      chev.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const isOpen = head.getAttribute("aria-expanded") === "true";
+        setOpen(!isOpen);
+      });
+    }
+  }
+
+  function bindTabs() {
+    const tabs = Array.from(document.querySelectorAll(".exp-tabs .exp-tab"));
+    const panes = Array.from(document.querySelectorAll(".exp-panes .exp-pane"));
+
+    if (!tabs.length || !panes.length) return;
+
+    const setActive = (idx) => {
+      tabs.forEach((t, i) => {
+        const active = i === idx;
+        t.classList.toggle("is-active", active);
+        t.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      panes.forEach((p, i) => {
+        const active = i === idx;
+        p.hidden = !active; // <- clave: oculta/mostrar real
+        p.classList.toggle("is-active", active);
+      });
+    };
+
+    // Estado inicial: el que venga marcado, si no, 0
+    const initial = Math.max(
+      0,
+      tabs.findIndex((t) => t.classList.contains("is-active")),
+    );
+    setActive(initial);
+
+    tabs.forEach((tab, idx) => {
+      tab.addEventListener("click", (e) => {
+        e.preventDefault();
+        setActive(idx);
+      });
+    });
+  }
+
+  /* ======================================
+   *  mobile - boton de svg de comentarios abre/cierra comentarios
+   * ======================================*/
+  function setupCommentsFab() {
+    const fab = document.getElementById("btn-comments-fab");
+    const panel = document.querySelector(".hs-sidebar .demo-comments");
+    if (!fab || !panel) return;
+
+    const open = () => {
+      document.body.classList.add("ix-comments-open");
+      fab.setAttribute("aria-expanded", "true");
+
+      // enfoque rápido al textarea para escribir
+      const ta = panel.querySelector(".composer textarea");
+      if (ta) setTimeout(() => ta.focus(), 50);
+    };
+
+    const close = () => {
+      document.body.classList.remove("ix-comments-open");
+      fab.setAttribute("aria-expanded", "false");
+      fab.focus();
+    };
+
+    const isOpen = () => document.body.classList.contains("ix-comments-open");
+
+    fab.setAttribute("aria-expanded", "false");
+
+    fab.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (isOpen()) close();
+      else open();
+    });
+
+    // click fuera del “sheet” cierra
+    panel.addEventListener("click", (e) => {
+      const card = e.target.closest(".demo-card");
+      if (!card) close();
+    });
+
+    // ESC cierra
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && isOpen()) close();
+    });
+
+    // opcional: si cambias a desktop, cerramos estado
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 820 && isOpen()) close();
+    });
+  }
 })();

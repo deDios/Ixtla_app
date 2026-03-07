@@ -3,6 +3,7 @@ require_once __DIR__ . '/../JS/auth/ix_guard.php';
 ix_require_session();
 ?>
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -12,7 +13,7 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/stepper.css">
-    <link rel="stylesheet" href="/CSS/requerimiento.css">
+    <link rel="stylesheet" href="/CSS/requerimiento copy.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="/CSS/requerimientoCoemntariosSection copy.css">
     <link rel="icon" href="/favicon.ico">
@@ -851,6 +852,16 @@ ix_require_session();
         </div>
     </div>
 
+    <!-- boton flotante para abrir comentarios en mobile -->
+    <button type="button" class="ix-comments-fab" id="btn-comments-fab" aria-label="Abrir comentarios"
+        title="Comentarios">
+        <!-- svg de comentarios -->
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor"
+                d="M7.5 11.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM4 6.8C4 5.25 5.25 4 6.8 4h10.4C18.75 4 20 5.25 20 6.8v7.4c0 1.55-1.25 2.8-2.8 2.8H10.2l-3.6 2.2c-.67.41-1.6-.06-1.6-.86V17H6.8C5.25 17 4 15.75 4 14.2V6.8z" />
+        </svg>
+    </button>
+
     <script src="/JS/JSglobal.js"></script>
     <script src="/JS/components.js"></script>
 
@@ -868,10 +879,6 @@ ix_require_session();
     <!-- bundle para que cargue bien el sidebar -->
     <script type="module" src="/JS/ui/sidebar.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
-
-    <!-- Animaciones y utilidades de esta vista -->
-    <script type="module" src="/JS/ui/animacionesDeViewDetalle.js"></script>
-
 
 </body>
 
