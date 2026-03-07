@@ -265,6 +265,33 @@ let SortableInstances = [];
 
 // cache para requerimientos (folio, tramite, etc.)
 const ReqCache = new Map(); // reqId → data o null
+//helpers globales
+let kbRenderQueued = false;
+let kbRenderRafId = 0;
+
+function scheduleRenderBoard(reason = "ui") {
+  if (kbRenderQueued) return;
+
+  kbRenderQueued = true;
+
+  kbRenderRafId = window.requestAnimationFrame(() => {
+    kbRenderQueued = false;
+    kbRenderRafId = 0;
+
+    try {
+      renderBoard();
+    } catch (e) {
+      console.error("[KB] Error en scheduleRenderBoard:", reason, e);
+    }
+  });
+}
+
+function cancelScheduledRenderBoard() {
+  if (!kbRenderRafId) return;
+  window.cancelAnimationFrame(kbRenderRafId);
+  kbRenderRafId = 0;
+  kbRenderQueued = false;
+}
 
 /** =========================================================
  *  Lock de tareas por estatus del REQUERIMIENTO
@@ -528,7 +555,9 @@ async function fetchTareasFromApi() {
 
       // Solo procesos activos (proceso_status=1). No molesto el workflow de las tareas
       const rows = json.data;
-      const activeRows = rows.filter((r) => Number(r?.proceso_status ?? 1) === 1);
+      const activeRows = rows.filter(
+        (r) => Number(r?.proceso_status ?? 1) === 1,
+      );
 
       const batch = activeRows.map(mapRawTask);
       out.push(...batch);
@@ -1201,8 +1230,9 @@ function createCard(task) {
 
   const lineFolio = document.createElement("div");
   lineFolio.className = "kb-task-line";
-  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${task.folio || "—"
-    }</span>`;
+  lineFolio.innerHTML = `<span class="kb-task-label">Folio:</span> <span class="kb-task-value kb-task-folio">${
+    task.folio || "—"
+  }</span>`;
 
   const lineAsig = document.createElement("div");
   lineAsig.className = "kb-task-line";
@@ -1243,8 +1273,9 @@ function createCard(task) {
         break;
     }
 
-    chip.title = `${age.realDays} día${age.realDays === 1 ? "" : "s"
-      } ${statusLabel}`;
+    chip.title = `${age.realDays} día${
+      age.realDays === 1 ? "" : "s"
+    } ${statusLabel}`;
     art.appendChild(chip);
   }
 
@@ -1522,7 +1553,9 @@ function paintMobileMoveUI(task) {
     sel.appendChild(opt);
     sel.disabled = true;
     btn.disabled = true;
-    if (hint) hint.textContent = "No se pueden mover tareas cuando el requerimiento está en pausa/cancelado.";
+    if (hint)
+      hint.textContent =
+        "No se pueden mover tareas cuando el requerimiento está en pausa/cancelado.";
     return;
   }
 
@@ -1544,7 +1577,9 @@ function paintMobileMoveUI(task) {
     sel.appendChild(opt);
     sel.disabled = true;
     btn.disabled = true;
-    if (hint) hint.textContent = "Tu rol no tiene permisos para mover esta tarea desde su estado actual.";
+    if (hint)
+      hint.textContent =
+        "Tu rol no tiene permisos para mover esta tarea desde su estado actual.";
     return;
   }
 
@@ -1703,7 +1738,7 @@ function setupDragAndDrop() {
   // Evitar duplicar instancias
   try {
     (SortableInstances || []).forEach((inst) => inst?.destroy?.());
-  } catch (_) { }
+  } catch (_) {}
   SortableInstances = [];
 
   lists.forEach((list) => {
@@ -1809,7 +1844,7 @@ function setupDragAndDrop() {
         // Para orden/edad: al cambiar de columna consideramos que 'entra' a ese status ahora
         try {
           task.status_since = nowAsSqlDateTime();
-        } catch (_) { }
+        } catch (_) {}
         log(
           "DragEnd → tarea",
           task.id,
@@ -2113,7 +2148,7 @@ const MediaUI = (() => {
       showError(
         errFiles,
         problems.join(". ") +
-        " Solo se subirán los archivos válidos restantes.",
+          " Solo se subirán los archivos válidos restantes.",
       );
     }
 
@@ -2332,9 +2367,9 @@ function hydrateViewerFromSession() {
   const roles = Array.isArray(rolesRaw)
     ? rolesRaw
     : String(rolesRaw || "")
-      .split(/[,\s]+/g)
-      .map((r) => r.trim())
-      .filter(Boolean);
+        .split(/[,\s]+/g)
+        .map((r) => r.trim())
+        .filter(Boolean);
 
   Viewer.deptId = deptId != null ? Number(deptId) : null;
   Viewer.roles = roles;
@@ -2718,23 +2753,23 @@ async function init() {
 
   const deptOptions = canSeeDeptFilter
     ? Array.from(allowedDeptIds).map((id) => {
-      const dep = State.departamentosIndex.get(id);
-      const label = dep ? dep.nombre : `Depto ${id}`;
-      return { value: id, label };
-    })
+        const dep = State.departamentosIndex.get(id);
+        const label = dep ? dep.nombre : `Depto ${id}`;
+        return { value: id, label };
+      })
     : [];
 
   const empOptions = canSeeEmpFilter
     ? empleadosForFilter.map((emp) => {
-      const label =
-        emp.nombre_completo ||
-        [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
-        `Empleado ${emp.id}`;
-      return {
-        value: emp.id,
-        label,
-      };
-    })
+        const label =
+          emp.nombre_completo ||
+          [emp.nombre, emp.apellidos].filter(Boolean).join(" ") ||
+          `Empleado ${emp.id}`;
+        return {
+          value: emp.id,
+          label,
+        };
+      })
     : [];
 
   const procesosOptions = procesos.map((p) => ({
@@ -2750,11 +2785,12 @@ async function init() {
   // --------------------------------------------------------------------
   // 10) UI – Filtros + tablero
   // --------------------------------------------------------------------
-  FiltersModule = createTaskFiltersModule({
+  const FiltersUI = createTaskFiltersModule({
     State,
     KB,
     log,
     renderBoard,
+    scheduleRenderBoard,
     $,
     $$,
   });
