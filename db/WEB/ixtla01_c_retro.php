@@ -1,4 +1,5 @@
 <?php
+//DB\WEB\ixtla01_c_retro.php
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowed = ['https://ixtla-app.com', 'https://www.ixtla-app.com'];
 
