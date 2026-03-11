@@ -55,7 +55,7 @@ $contacto_colonia  = $in['contacto_colonia']  ?? null;
 $contacto_cp       = $in['contacto_cp']       ?? null;
 
 $fecha_limite  = $in['fecha_limite'] ?? null;
-$cerrado_en    = $in['cerrado_en']   ?? null; 
+$cerrado_en    = $in['cerrado_en']   ?? null;
 $clear_cerrado = isset($in['clear_cerrado']) ? (bool)$in['clear_cerrado'] : false;
 
 $updated_by   = isset($in['updated_by']) ? (int)$in['updated_by'] : null;
@@ -176,22 +176,38 @@ $params = [];
 $types  = "";
 
 /* Bind ordenado con lo anterior */
-$params[] = $departamento_id;   $types .= "i";
-$params[] = $tramite_id;        $types .= "i";
-$params[] = $asignado_a;        $types .= "i";
-$params[] = $asunto;            $types .= "s";
-$params[] = $descripcion;       $types .= "s";
-$params[] = $prioridad;         $types .= "i";
-$params[] = $estatus;           $types .= "i";
-$params[] = $canal;             $types .= "i";
-$params[] = $contacto_nombre;   $types .= "s";
-$params[] = $contacto_email;    $types .= "s";
-$params[] = $contacto_telefono; $types .= "s";
-$params[] = $contacto_calle;    $types .= "s";
-$params[] = $contacto_colonia;  $types .= "s";
-$params[] = $contacto_cp;       $types .= "s";
-$params[] = $fecha_limite;      $types .= "s";
-$params[] = $updated_by;        $types .= "i";
+$params[] = $departamento_id;
+$types .= "i";
+$params[] = $tramite_id;
+$types .= "i";
+$params[] = $asignado_a;
+$types .= "i";
+$params[] = $asunto;
+$types .= "s";
+$params[] = $descripcion;
+$types .= "s";
+$params[] = $prioridad;
+$types .= "i";
+$params[] = $estatus;
+$types .= "i";
+$params[] = $canal;
+$types .= "i";
+$params[] = $contacto_nombre;
+$types .= "s";
+$params[] = $contacto_email;
+$types .= "s";
+$params[] = $contacto_telefono;
+$types .= "s";
+$params[] = $contacto_calle;
+$types .= "s";
+$params[] = $contacto_colonia;
+$types .= "s";
+$params[] = $contacto_cp;
+$types .= "s";
+$params[] = $fecha_limite;
+$types .= "s";
+$params[] = $updated_by;
+$types .= "i";
 
 /* cerrado_en: tres casos */
 if ($clear_cerrado) {
@@ -264,9 +280,10 @@ $asignadoChanged = ($asignado_a !== null) && ($newAsignadoA !== $prevAsignadoA);
 
 /**
  * EVENT_05
- * notificar cambios de estatus EXCEPTO Pausado(4) y Cancelado(5)
+ * notificar cambios de estatus EXCEPTO Pausado(4), Cancelado(5) y Finalizado(6)
+ * de este ultimo ya se encarga event_12 con la encuesta de retro.
  */
-$shouldSendEvent05 = $estatusChanged && !in_array($newEstatus, [4, 5], true);
+$shouldSendEvent05 = $estatusChanged && !in_array($newEstatus, [4, 5, 6], true);
 
 function statusLabel(int $s): string
 {
@@ -447,6 +464,59 @@ if ($shouldSendEvent09) {
     }
   } else {
     error_log("[WAPP event_09] Empleado sin teléfono. emp={$empId}");
+  }
+}
+
+/**
+ * EVENT_12
+ * Se manda AL CIUDADANO cuando el requerimiento entra en status 6 (finalizado)
+ * params: [folio]
+ */
+$shouldSendEvent12 = $estatusChanged && ($newEstatus === 6);
+
+if ($shouldSendEvent12) {
+  $folio = $row["folio"] ?? ("REQ-" . str_pad((string)$row["id"], 11, "0", STR_PAD_LEFT));
+
+  // parametros del EVENT_12: [folio]
+  $paramsWappFinal = [
+    $folio,
+  ];
+
+  $telefonoActual = $row["contacto_telefono"] ?? null;
+  $to = $telefonoActual ?: $telefonoDestino;
+
+  if ($to) {
+    $toDigits = preg_replace("/\\D+/", "", (string)$to);
+
+    if ($toDigits && preg_match("/^\\d{10,15}$/", $toDigits)) {
+      $wappUrl = "https://ixtla-app.com/DB/WEB/send_wapp_template_event_12.php";
+
+      $payload = json_encode([
+        "to" => $toDigits,
+        "lang" => "es_MX",
+        "params" => $paramsWappFinal,
+      ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+      $ch = curl_init($wappUrl);
+      curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+          "Content-Type: application/json",
+          "Accept: application/json",
+        ],
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_TIMEOUT => 6,
+      ]);
+      $wresp = curl_exec($ch);
+      curl_close($ch);
+
+      error_log("[WAPP event_12] req={$id} estatus={$newEstatus} to={$toDigits} resp=" . substr((string)$wresp, 0, 200));
+    } else {
+      error_log("[WAPP event_12] Teléfono ciudadano inválido. req={$id} tel=" . (string)$to);
+    }
+  } else {
+    error_log("[WAPP event_12] Requerimiento sin teléfono de contacto. req={$id}");
   }
 }
 
