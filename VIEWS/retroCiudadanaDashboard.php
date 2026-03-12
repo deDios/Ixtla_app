@@ -66,6 +66,19 @@ ix_require_session();
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     <main class="home-samapa retro-dashboard">
         <div class="hs-wrap">
 
@@ -229,17 +242,6 @@ ix_require_session();
             </section>
         </div>
     </main>
-
-
-
-
-
-
-
-
-
-
-
 
 
 
