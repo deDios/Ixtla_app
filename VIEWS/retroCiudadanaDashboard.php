@@ -10,7 +10,7 @@ ix_require_session();
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/retroDashboard.css">
+    <link rel="stylesheet" href="/CSS/retroCiudadanaDashboard.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="icon" href="/favicon.ico">
 </head>
@@ -113,7 +113,7 @@ ix_require_session();
                 <section id="retro-filterbox" class="hs-filterbox retro-filterbox" aria-label="Filtros de retroalimentación">
                     <button type="button" id="retro-filter-toggle" class="hs-filter-toggle" aria-expanded="false"
                         aria-controls="retro-states">
-                        <span class="hs-filter-title">Retroalimentación</span>
+                        <span class="hs-filter-title">Filtros</span>
                         <span id="retro-filter-active" class="hs-filter-active">Todos (0)</span>
                         <span class="hs-filter-chevron" aria-hidden="true">▾</span>
                     </button>
@@ -161,9 +161,8 @@ ix_require_session();
 
                         <div class="retro-map-placeholder" id="retro-map-placeholder">
                             <div class="retro-map-placeholder__inner">
-                                <span class="retro-map-placeholder__icon">🗺️</span>
                                 <p>Mapa pendiente</p>
-                                <small>Aquí irá el mapa al final</small>
+                                <small>Aqui va el mapa</small>
                             </div>
                         </div>
                     </article>
@@ -171,7 +170,7 @@ ix_require_session();
                     <!-- DONUT -->
                     <article class="hs-card retro-card retro-donut-card" aria-labelledby="retro-donut-title">
                         <div class="retro-card__head">
-                            <h3 id="retro-donut-title">Gráfico de este mes</h3>
+                            <h3 id="retro-donut-title">grafico donut</h3>
                         </div>
 
                         <div class="hs-donut retro-donut">
@@ -190,7 +189,7 @@ ix_require_session();
                         </div>
 
                         <p id="retro-donut-desc" class="sr-only">
-                            Distribución mensual de retroalimentación ciudadana por calificación.
+                            Distribución de retroalimentación ciudadana por calificación.
                         </p>
                     </article>
                 </section>

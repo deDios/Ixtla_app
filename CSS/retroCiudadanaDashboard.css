@@ -2635,19 +2635,6 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
     margin-top: 10px;
   }
 
-  /* Botón "Filtros" */
-  .hs-filter-toggle {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid rgba(0, 0, 0, .10);
-    background: #eef7f3;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, .10);
-  }
-
   .hs-filter-title {
     font-weight: 700;
     color: #1f2937;
@@ -2738,12 +2725,20 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   white-space: nowrap;
 }
 
-#hs-filter-toggle.hs-filter-toggle {
+.hs-filter-toggle {
+  width: 100%;
   display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, .10);
+  background: #eef7f3;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .10);
 }
 
 @media (max-width: 720px) {
-  #hs-filter-toggle.hs-filter-toggle {
+  .hs-filter-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: space-between;
