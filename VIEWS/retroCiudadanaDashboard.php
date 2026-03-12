@@ -1,6 +1,6 @@
 <?php
-    require_once __DIR__ . '/../JS/auth/ix_guard.php';
-    ix_require_session();
+require_once __DIR__ . '/../JS/auth/ix_guard.php';
+ix_require_session();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -66,20 +66,18 @@
 
 
 
-    <main class="home-samapa">
+    <main class="home-samapa retro-dashboard">
         <div class="hs-wrap">
 
             <!-- SIDEBAR -->
-            <aside class="hs-sidebar">
+            <aside class="hs-sidebar retro-sidebar">
                 <section class="hs-profile" aria-label="Perfil">
                     <div class="avatar-shell">
                         <div class="avatar-circle">
                             <img id="hs-avatar" class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
                         </div>
 
-                        <!-- Botón editar avatar (igual que en GodCode) -->
-                        <button type="button" class="icon-btn avatar-edit" aria-label="Cambiar foto"
-                            title="Cambiar foto">
+                        <button type="button" class="icon-btn avatar-edit" aria-label="Cambiar foto" title="Cambiar foto">
                             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                                 <path
                                     d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z"
@@ -98,148 +96,118 @@
                     <span id="hs-profile-badge" class="badge">—</span>
                 </section>
 
-                <!-- se actulizaron los filtros ahora deberian coincidir con los esperados -->
-                <section id="hs-filterbox" class="hs-filterbox" aria-label="Filtros">
-                    <button type="button" id="hs-filter-toggle" class="hs-filter-toggle" aria-expanded="false"
-                        aria-controls="hs-states">
-                        <span class="hs-filter-title">Filtros</span>
-                        <span id="hs-filter-active" class="hs-filter-active">Todos (0)</span>
+                <!-- FILTROS DE RETRO -->
+                <section id="retro-filterbox" class="hs-filterbox retro-filterbox" aria-label="Filtros de retroalimentación">
+                    <button type="button" id="retro-filter-toggle" class="hs-filter-toggle" aria-expanded="false"
+                        aria-controls="retro-states">
+                        <span class="hs-filter-title">Retroalimentación</span>
+                        <span id="retro-filter-active" class="hs-filter-active">Todos (0)</span>
                         <span class="hs-filter-chevron" aria-hidden="true">▾</span>
                     </button>
 
-                    <nav id="hs-states" class="hs-states" aria-label="Estados">
-                        <button class="item is-active" data-status="todos" role="radio" aria-checked="true">
-                            <span class="label">Todos</span><span class="count" id="cnt-todos">(0)</span>
+                    <nav id="retro-states" class="hs-states retro-states" aria-label="Calificaciones">
+                        <button type="button" class="item is-active" data-rate="todos" role="radio" aria-checked="true">
+                            <span class="label">Todos</span>
+                            <span class="count" id="cnt-retro-todos">(0)</span>
                         </button>
-                        <button type="button" class="item" data-status="activo" role="radio" aria-checked="false">
-                            <span class="label">Activo</span>
-                            <span class="count" id="cnt-activo">(0)</span>
+
+                        <button type="button" class="item" data-rate="4" role="radio" aria-checked="false">
+                            <span class="label">Excelente</span>
+                            <span class="count" id="cnt-retro-excelente">(0)</span>
                         </button>
-                        <button class="item" data-status="solicitud" role="radio" aria-checked="false">
-                            <span class="label">Solicitud</span><span class="count" id="cnt-solicitud">(0)</span>
+
+                        <button type="button" class="item" data-rate="3" role="radio" aria-checked="false">
+                            <span class="label">Bueno</span>
+                            <span class="count" id="cnt-retro-bueno">(0)</span>
                         </button>
-                        <button class="item" data-status="revision" role="radio" aria-checked="false">
-                            <span class="label">Revisión</span><span class="count" id="cnt-revision">(0)</span>
+
+                        <button type="button" class="item" data-rate="2" role="radio" aria-checked="false">
+                            <span class="label">Regular</span>
+                            <span class="count" id="cnt-retro-regular">(0)</span>
                         </button>
-                        <button class="item" data-status="asignacion" role="radio" aria-checked="false">
-                            <span class="label">Asignación</span><span class="count" id="cnt-asignacion">(0)</span>
-                        </button>
-                        <button class="item" data-status="proceso" role="radio" aria-checked="false">
-                            <span class="label">En proceso</span><span class="count" id="cnt-proceso">(0)</span>
-                        </button>
-                        <button class="item" data-status="pausado" role="radio" aria-checked="false">
-                            <span class="label">Pausado</span><span class="count" id="cnt-pausado">(0)</span>
-                        </button>
-                        <button class="item" data-status="cancelado" role="radio" aria-checked="false">
-                            <span class="label">Cancelado</span><span class="count" id="cnt-cancelado">(0)</span>
-                        </button>
-                        <button class="item" data-status="finalizado" role="radio" aria-checked="false">
-                            <span class="label">Finalizado</span><span class="count" id="cnt-finalizado">(0)</span>
+
+                        <button type="button" class="item" data-rate="1" role="radio" aria-checked="false">
+                            <span class="label">Malo</span>
+                            <span class="count" id="cnt-retro-malo">(0)</span>
                         </button>
                     </nav>
                 </section>
-
             </aside>
 
             <!-- MAIN -->
-            <section class="hs-main">
+            <section class="hs-main retro-main">
 
-                <!-- CHARTS -->
-                <div class="hs-charts" id="hs-charts">
+                <!-- RESUMEN SUPERIOR -->
+                <section class="retro-overview" aria-label="Resumen de retroalimentación">
 
-                    <!-- Línea (año actual, sin título) -->
-                    <section class="hs-card" aria-labelledby="y-desc">
-                        <div class="hs-chart-wrap" style="position:relative;">
-                            <canvas id="chart-year" width="600" height="240" aria-describedby="y-desc"></canvas>
-                            <!-- Tooltip (lo usa LineChart) -->
-                            <div class="chart-tip"
-                                style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
+                    <!-- MAPA / PLACEHOLDER -->
+                    <article class="hs-card retro-card retro-map-card" aria-labelledby="retro-map-title">
+                        <div class="retro-card__head">
+                            <h3 id="retro-map-title">Mapa de reportes</h3>
+                        </div>
+
+                        <div class="retro-map-placeholder" id="retro-map-placeholder">
+                            <div class="retro-map-placeholder__inner">
+                                <span class="retro-map-placeholder__icon">🗺️</span>
+                                <p>Mapa pendiente</p>
+                                <small>Aquí irá el mapa al final</small>
                             </div>
                         </div>
-                        <p id="y-desc" class="sr-only">Serie mensual de requerimientos creados durante el año actual.
-                        </p>
-                    </section>
+                    </article>
 
-                    <!-- Donut -->
-                    <section class="hs-card" aria-labelledby="m-desc">
-                        <div class="hs-donut">
-                            <!-- Columna: gráfico -->
-                            <div class="hs-chart-wrap" style="position:relative;">
-                                <canvas id="chart-month" width="380" height="240" aria-describedby="m-desc"></canvas>
-                                <!-- Tooltip (lo usa DonutChart) -->
+                    <!-- DONUT -->
+                    <article class="hs-card retro-card retro-donut-card" aria-labelledby="retro-donut-title">
+                        <div class="retro-card__head">
+                            <h3 id="retro-donut-title">Gráfico de este mes</h3>
+                        </div>
+
+                        <div class="hs-donut retro-donut">
+                            <div class="hs-chart-wrap retro-donut__chart" style="position:relative;">
+                                <canvas id="chart-month" width="380" height="240"
+                                    aria-describedby="retro-donut-desc"></canvas>
+
                                 <div class="chart-tip"
                                     style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
                                 </div>
                             </div>
 
-                            <!-- Columna: leyenda (scrollable) -->
-                            <aside class="hs-donut-legend" aria-label="Tipos de requerimiento">
+                            <aside class="hs-donut-legend retro-donut__legend" aria-label="Leyenda de retroalimentación">
                                 <div id="donut-legend" class="legend" aria-live="polite"></div>
                             </aside>
                         </div>
 
-                        <p id="m-desc" class="sr-only">
-                            Requerimientos.
+                        <p id="retro-donut-desc" class="sr-only">
+                            Distribución mensual de retroalimentación ciudadana por calificación.
                         </p>
-                    </section>
-
-
-                </div>
+                    </article>
+                </section>
 
                 <!-- TABLA -->
-                <section class="hs-table">
-                    <div class="hs-head">
-                        <h3 style="margin:0;">Trámites</h3>
+                <section class="hs-table retro-table-section">
+                    <div class="hs-head retro-table-head">
+                        <h3 class="retro-table-title">Retro ciudadana</h3>
 
-                        <div class="hs-tools">
-
-                            <!-- esta es la barra de busqueda de requerimientos de home -->
+                        <div class="hs-tools retro-tools">
                             <div class="search" role="search">
                                 <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                                     <path fill="currentColor"
                                         d="M10 4a6 6 0 0 1 4.472 9.931l4.298 4.297l-1.414 1.415l-4.297-4.298A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8" />
                                 </svg>
-                                <input id="hs-search" type="search" placeholder="Buscar por folio, ID (#123) o status…"
-                                    aria-label="Buscar">
+                                <input id="hs-search" type="search"
+                                    placeholder="Buscar por folio, departamento, trámite o retroalimentación…"
+                                    aria-label="Buscar registros de retroalimentación">
                             </div>
 
-                            <div class="legend">
-
-                                <!-- boton para exportar un excel de los requerimientos -->
-                                <button type="button" id="hs-btn-export-req" class="hs-btn-new-req hs-btn-export-req"
-                                    title="Exportar requerimientos">
-                                    <svg class="hs-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                        <!-- ícono  -->
-                                        <path fill="currentColor"
-                                            d="M12 3a1 1 0 0 1 1 1v9.59l2.3-2.3 1.4 1.42L12 17.41 7.3 12.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1z" />
-                                        <path fill="currentColor"
-                                            d="M5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z" />
-                                    </svg>
-                                    <span>Exportar requerimientos</span>
-                                </button>
-
-
-
-                                <!-- boton para disparar el modal de la creacion de requerimientos -->
-                                <button type="button" id="hs-btn-new-req" class="hs-btn-new-req">
-                                    <svg class="hs-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                        <!-- ícono archivo con signo + -->
-                                        <path fill="currentColor"
-                                            d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm6 1.5V8h4.5L12 3.5zM11 11h2v3h3v2h-3v3h-2v-3H8v-2h3v-3z" />
-                                    </svg>
-                                    <span>Nuevo requerimiento</span>
-                                </button>
-
-                                <span>Requerimientos: <strong id="hs-legend-total">0</strong></span>
+                            <div class="legend retro-legend">
+                                <span>Registros: <strong id="hs-legend-total">0</strong></span>
                                 <span style="margin:0 .4rem;">·</span>
-                                <span>Status: <strong id="hs-legend-status">Todos los status</strong></span>
-
+                                <span>Filtro: <strong id="hs-legend-status">Todas las calificaciones</strong></span>
                             </div>
                         </div>
                     </div>
 
                     <div id="hs-table-wrap" class="table-wrap">
-                        <table class="gc" aria-describedby="hs-search">
+                        <table class="gc retro-table" aria-describedby="hs-search">
                             <thead>
                                 <tr>
                                     <th>Folio</th>
@@ -247,19 +215,17 @@
                                     <th>Tipo de trámite</th>
                                     <th>Asignado</th>
                                     <th>Teléfono</th>
-                                    <th>Solicitado</th>
-                                    <th>Estatus</th>
+                                    <th>Retroalimentación</th>
                                 </tr>
                             </thead>
-                            <tbody id="hs-table-body"></tbody>
+                            <tbody id="hs-table-body">
+                                <!-- Render dinámico -->
+                            </tbody>
                         </table>
                     </div>
 
-                    <!-- Paginación -->
                     <nav id="hs-pager" class="hs-pager" aria-label="Paginación"></nav>
                 </section>
-
-
             </section>
         </div>
     </main>
@@ -742,13 +708,13 @@
 
     -->
     <script type="module">
-    import {
-        guardPage
-    } from "/JS/auth/guard.js";
-    guardPage({
-        stealth: false,
-        redirectTo: "/VIEWS/login.php"
-    });
+        import {
+            guardPage
+        } from "/JS/auth/guard.js";
+        guardPage({
+            stealth: false,
+            redirectTo: "/VIEWS/login.php"
+        });
     </script>
 
     <!-- componente de sheetjs -->
@@ -756,7 +722,7 @@
 
     <script src="/JS/components.js"></script>
     <script src="/JS/JSglobal.js"></script>
-    <script type="module" src="/JS/home.js"></script>
+    <!-- <script type="module" src="/JS/retroCiudadana.js"></script> -->
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
     <script type="module" src="/JS/ui/requerimientosCanal2.js"></script>
 
