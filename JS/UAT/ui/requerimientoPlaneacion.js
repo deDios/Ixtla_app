@@ -441,16 +441,7 @@
         btn.title = "";
       }
     });
-
-    // RBAC visual: si no tiene permiso, se oculta (pero NO cambiamos la lógica de estatus)
-    canManagePlaneacion()
-      .then((allowed) => {
-        [btnProceso, btnTarea].forEach((btn) => {
-          if (!btn) return;
-          btn.style.display = allowed ? "" : "none";
-        });
-      })
-      .catch((e) => warn("[RBAC] canManagePlaneacion(toolbar) error:", e));
+    
   }
 
   /* =========================
