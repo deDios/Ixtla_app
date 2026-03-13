@@ -60,6 +60,21 @@ function debounce(fn, wait = 220) {
   };
 }
 
+//preparaciones para mobile
+function isMobileAccordion() {
+  return window.matchMedia("(max-width: 720px)").matches;
+}
+
+function refreshCurrentPageDecorations() {
+  const rows = $$(".retro-row", $(SEL.tableBody));
+  rows.forEach((tr) => {
+    tr.classList.add("is-clickable");
+    tr.setAttribute("tabindex", "0");
+    tr.setAttribute("role", "link");
+    tr.setAttribute("aria-label", `Abrir requerimiento ${tr.children?.[0]?.textContent?.trim() || ""}`);
+  });
+}
+
 function rateDataKey(value) {
   const n = Number(value);
   if (n === 4) return "excelente";
@@ -546,7 +561,7 @@ function renderTable(rows) {
   tbody.innerHTML = paged
     .map((row) => {
       return `
-        <tr class="retro-row" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
+        <tr class="retro-row is-clickable" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
           <td>${escapeHtml(row.folio)}</td>
           <td>${escapeHtml(row.departamento_nombre)}</td>
           <td>${escapeHtml(row.tramite_nombre)}</td>
@@ -561,6 +576,8 @@ function renderTable(rows) {
       `;
     })
     .join("");
+
+  refreshCurrentPageDecorations();
 }
 
 function renderPager(rows) {
@@ -710,15 +727,33 @@ function setupRowClickDelegation() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
+  const goToReq = (tr) => {
+    const reqId = Number(tr?.dataset.reqId || 0);
+    if (!reqId) return;
+    window.location.href = `/VIEWS/requerimiento.php?id=${reqId}`;
+  };
+
   tbody.addEventListener("click", (e) => {
     const tr = e.target.closest("tr[data-req-id]");
     if (!tr) return;
 
-    const reqId = Number(tr.dataset.reqId || 0);
-    if (!reqId) return;
+    // En mobile mantenemos el mismo destino, pero evitando dobles comportamientos futuros
+    if (isMobileAccordion()) {
+      goToReq(tr);
+      return;
+    }
 
-    // Ajusta la ruta si tu vista final usa otra URL
-    window.location.href = `/VIEWS/requerimiento.php?id=${reqId}`;
+    goToReq(tr);
+  });
+
+  tbody.addEventListener("keydown", (e) => {
+    const tr = e.target.closest("tr[data-req-id]");
+    if (!tr) return;
+
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goToReq(tr);
+    }
   });
 }
 
@@ -832,6 +867,11 @@ async function init() {
     initMobileFilterCombo();
     initSearch(() => applyPipelineAndRender());
     setupRowClickDelegation();
+
+    window.addEventListener("resize", debounce(() => {
+      refreshCurrentPageDecorations();
+      drawDonutFromRows(State.filtered.length ? State.filtered : State.rows);
+    }, 120));
 
     State.rows = await fetchAllRetros();
 

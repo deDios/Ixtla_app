@@ -716,9 +716,11 @@ ix_require_session();
 
     <script src="/JS/components.js"></script>
     <script src="/JS/JSglobal.js"></script>
+    
     <script type="module" src="/JS/retroCiudadanaDashboard.js"></script>
+
+    <script type="module" src="/JS/ui/sidebar.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
-    <script type="module" src="/JS/ui/requerimientosCanal2.js"></script>
 
 
 </body>

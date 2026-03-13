@@ -2937,3 +2937,7 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 .retro-dashboard .badge-status.retro-status[data-retro="sin-respuesta"] {
   background: rgba(148, 163, 184, 0.18);
 }
+
+.retro-dashboard tr.is-clickable {
+  cursor: pointer;
+}
