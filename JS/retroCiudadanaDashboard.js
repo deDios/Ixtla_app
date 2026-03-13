@@ -60,6 +60,15 @@ function debounce(fn, wait = 220) {
   };
 }
 
+function rateDataKey(value) {
+  const n = Number(value);
+  if (n === 4) return "excelente";
+  if (n === 3) return "bueno";
+  if (n === 2) return "regular";
+  if (n === 1) return "malo";
+  return "sin-respuesta";
+}
+
 function safeTxt(v, fallback = "—") {
   const s = String(v ?? "").trim();
   return s ? s : fallback;
@@ -544,7 +553,7 @@ function renderTable(rows) {
           <td>${escapeHtml(row.asignado_nombre_completo)}</td>
           <td>${escapeHtml(formatPhone(row.contacto_telefono))}</td>
           <td>
-            <span class="retro-badge ${rateBadgeClass(row.calificacion)}">
+            <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
               ${escapeHtml(formatRate(row.calificacion))}
             </span>
           </td>
