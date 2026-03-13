@@ -66,14 +66,52 @@ function isMobileAccordion() {
 }
 
 function refreshCurrentPageDecorations() {
-  const rows = $$(".retro-row", $(SEL.tableBody));
+  const tbody = $(SEL.tableBody);
+  if (!tbody) return;
+
+  const rows = $$(".retro-row", tbody);
   rows.forEach((tr) => {
     tr.classList.add("is-clickable");
     tr.setAttribute("tabindex", "0");
     tr.setAttribute("role", "link");
-    tr.setAttribute("aria-label", `Abrir requerimiento ${tr.children?.[0]?.textContent?.trim() || ""}`);
+    tr.setAttribute(
+      "aria-label",
+      `Abrir requerimiento ${tr.children?.[0]?.textContent?.trim() || ""}`
+    );
   });
 }
+
+function setupRowClickDelegation() {
+  const tbody = $(SEL.tableBody);
+  if (!tbody) return;
+
+  const goToReq = (tr) => {
+    const reqId = Number(tr?.dataset.reqId || 0);
+    if (!reqId) return;
+    window.location.href = `/VIEWS/requerimiento.php?id=${reqId}`;
+  };
+
+  tbody.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-req-id]");
+    if (!tr) return;
+    goToReq(tr);
+  });
+
+  tbody.addEventListener("keydown", (e) => {
+    const tr = e.target.closest("tr[data-req-id]");
+    if (!tr) return;
+
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goToReq(tr);
+    }
+  });
+}
+
+window.addEventListener("resize", debounce(() => {
+  refreshCurrentPageDecorations();
+  drawDonutFromRows(State.filtered);
+}, 120));
 
 function rateDataKey(value) {
   const n = Number(value);
@@ -121,41 +159,6 @@ function formatPhone(v) {
 function formatRate(value) {
   const n = Number(value);
   return CONFIG.RATE_LABELS[n] || "Sin respuesta";
-}
-
-function rateBadgeClass(value) {
-  const n = Number(value);
-  if (n === 4) return "is-excelente";
-  if (n === 3) return "is-bueno";
-  if (n === 2) return "is-regular";
-  if (n === 1) return "is-malo";
-  return "is-empty";
-}
-
-function getRowDate(row) {
-  return (
-    row?.updated_at ||
-    row?.created_at ||
-    row?.cerrado_en ||
-    row?.fecha ||
-    row?.fecha_respuesta ||
-    null
-  );
-}
-
-function parseDateLoose(v) {
-  if (!v) return null;
-  const d = new Date(String(v).replace(" ", "T"));
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function isCurrentMonth(v) {
-  const d = parseDateLoose(v);
-  if (!d) return false;
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-  );
 }
 
 function readCookiePayload() {
@@ -736,13 +739,6 @@ function setupRowClickDelegation() {
   tbody.addEventListener("click", (e) => {
     const tr = e.target.closest("tr[data-req-id]");
     if (!tr) return;
-
-    // En mobile mantenemos el mismo destino, pero evitando dobles comportamientos futuros
-    if (isMobileAccordion()) {
-      goToReq(tr);
-      return;
-    }
-
     goToReq(tr);
   });
 
@@ -870,7 +866,7 @@ async function init() {
 
     window.addEventListener("resize", debounce(() => {
       refreshCurrentPageDecorations();
-      drawDonutFromRows(State.filtered.length ? State.filtered : State.rows);
+      drawDonutFromRows(State.filtered);
     }, 120));
 
     State.rows = await fetchAllRetros();
