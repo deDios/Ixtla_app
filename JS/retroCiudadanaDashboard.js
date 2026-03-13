@@ -116,6 +116,33 @@ function makeMobileRetroDetail(row) {
   `;
 }
 
+function syncTableHead() {
+  const table = $(SEL.tableBody)?.closest("table");
+  const thead = table?.querySelector("thead");
+  if (!thead) return;
+
+  if (isMobileAccordion()) {
+    thead.innerHTML = `
+      <tr>
+        <th>Folio</th>
+        <th>Retroalimentación</th>
+        <th class="hs-th-expander" aria-label="Detalles"></th>
+      </tr>
+    `;
+  } else {
+    thead.innerHTML = `
+      <tr>
+        <th>Folio</th>
+        <th>Departamento</th>
+        <th>Tipo de trámite</th>
+        <th>Asignado</th>
+        <th>Teléfono</th>
+        <th>Retroalimentación</th>
+      </tr>
+    `;
+  }
+}
+
 function setupRowClickDelegation() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
@@ -616,66 +643,57 @@ function renderTable(rows) {
 
   if (isMobileAccordion()) {
     tbody.innerHTML = paged.map((row, idx) => `
-      <tr class="retro-row is-clickable ${idx === State.openRow ? "is-open" : ""}" data-row-idx="${idx}" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
-        <td>${escapeHtml(row.folio)}</td>
-        <td>
-          <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
-            ${escapeHtml(formatRate(row.calificacion))}
-          </span>
-        </td>
-        <td class="hs-cell-expander">
-          <button
-            type="button"
-            class="hs-expander"
-            data-expand="${idx}"
-            aria-label="Ver más detalles"
-            title="Ver más detalles"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="currentColor" d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"></path>
-            </svg>
-          </button>
+    <tr class="retro-row is-clickable ${idx === State.openRow ? "is-open" : ""}" data-row-idx="${idx}" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
+      <td>${escapeHtml(row.folio)}</td>
+      <td>
+        <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
+          ${escapeHtml(formatRate(row.calificacion))}
+        </span>
+      </td>
+      <td class="hs-cell-expander">
+        <button
+          type="button"
+          class="hs-expander"
+          data-expand="${idx}"
+          aria-label="Ver más detalles"
+          title="Ver más detalles"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"></path>
+          </svg>
+        </button>
+      </td>
+    </tr>
+
+    ${idx === State.openRow ? `
+      <tr class="hs-row-expand">
+        <td colspan="3">
+          <div class="hs-expand-grid">
+            <div class="hs-kv">
+              <div class="hs-k">Departamento</div>
+              <div class="hs-v">${escapeHtml(row.departamento_nombre)}</div>
+            </div>
+
+            <div class="hs-kv">
+              <div class="hs-k">Asignado</div>
+              <div class="hs-v">${escapeHtml(row.asignado_nombre_completo)}</div>
+            </div>
+
+            <div class="hs-kv">
+              <div class="hs-k">Teléfono</div>
+              <div class="hs-v">${escapeHtml(formatPhone(row.contacto_telefono))}</div>
+            </div>
+          </div>
+
+          <div class="hs-expand-actions">
+            <button type="button" class="hs-open-btn" data-open-req="${escapeHtml(row.requerimiento_id ?? "")}">
+              Abrir
+            </button>
+          </div>
         </td>
       </tr>
-
-      ${idx === State.openRow ? `
-        <tr class="hs-row-expand">
-          <td colspan="3">
-            <div class="hs-expand-grid">
-              <div class="hs-kv">
-                <div class="hs-k">Departamento</div>
-                <div class="hs-v">${escapeHtml(row.departamento_nombre)}</div>
-              </div>
-
-              <div class="hs-kv">
-                <div class="hs-k">Asignado</div>
-                <div class="hs-v">${escapeHtml(row.asignado_nombre_completo)}</div>
-              </div>
-
-              <div class="hs-kv">
-                <div class="hs-k">Teléfono</div>
-                <div class="hs-v">${escapeHtml(formatPhone(row.contacto_telefono))}</div>
-              </div>
-
-              <div class="hs-kv">
-                <div class="hs-k">Retroalimentación</div>
-                <div class="hs-v">
-                  <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
-                    ${escapeHtml(formatRate(row.calificacion))}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="hs-expand-actions">
-              <button type="button" class="hs-open-btn" data-open-req="${escapeHtml(row.requerimiento_id ?? "")}">
-                Abrir
-              </button>
-            </div>
-          </td>
-        </tr>
-      ` : ""}
-    `).join("");
+    ` : ""}
+  `).join("");
   } else {
     tbody.innerHTML = paged.map((row) => `
       <tr class="retro-row is-clickable" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
@@ -929,11 +947,13 @@ function initSearch(onChange) {
    ========================================================================== */
 function applyPipelineAndRender() {
   const filtered = applyPipeline();
+  State.filtered = filtered;
 
   const legendTotal = $(SEL.legendTotal);
   if (legendTotal) legendTotal.textContent = String(filtered.length);
 
   updateLegendStatus();
+  syncTableHead();
   renderTable(filtered);
   renderPager(filtered);
   drawDonutFromRows(filtered);
@@ -952,6 +972,8 @@ async function init() {
 
     window.addEventListener("resize", debounce(() => {
       refreshCurrentPageDecorations();
+      syncTableHead();
+      renderTable(State.filtered);
       drawDonutFromRows(State.filtered);
     }, 120));
 
