@@ -81,10 +81,6 @@ function refreshCurrentPageDecorations() {
   });
 }
 
-function isMobileAccordion() {
-  return window.matchMedia("(max-width: 720px)").matches;
-}
-
 function makeMobileRetroDetail(row) {
   return `
     <div class="hs-mobile-details">
