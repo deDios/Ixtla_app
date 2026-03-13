@@ -819,7 +819,7 @@ function applyPipelineAndRender() {
   updateLegendStatus();
   renderTable(filtered);
   renderPager(filtered);
-  drawDonutFromRows(State.rows);
+  drawDonutFromRows(filtered);
 }
 
 /* ============================================================================
