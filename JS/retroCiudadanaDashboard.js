@@ -81,20 +81,82 @@ function refreshCurrentPageDecorations() {
   });
 }
 
+function isMobileAccordion() {
+  return window.matchMedia("(max-width: 720px)").matches;
+}
+
+function makeMobileRetroDetail(row) {
+  return `
+    <div class="hs-mobile-details">
+      <div class="hs-mobile-grid">
+        <div class="hs-mobile-item">
+          <span class="k">Departamento</span>
+          <strong>${escapeHtml(row.departamento_nombre)}</strong>
+        </div>
+        <div class="hs-mobile-item">
+          <span class="k">Asignado</span>
+          <strong>${escapeHtml(row.asignado_nombre_completo)}</strong>
+        </div>
+        <div class="hs-mobile-item">
+          <span class="k">Teléfono</span>
+          <strong>${escapeHtml(formatPhone(row.contacto_telefono))}</strong>
+        </div>
+        <div class="hs-mobile-item">
+          <span class="k">Retroalimentación</span>
+          <strong>
+            <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
+              ${escapeHtml(formatRate(row.calificacion))}
+            </span>
+          </strong>
+        </div>
+      </div>
+
+      <div class="hs-mobile-actions">
+        <button type="button" class="btn primary" data-open-req="${escapeHtml(row.requerimiento_id ?? "")}">
+          Abrir
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function setupRowClickDelegation() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
-  const goToReq = (tr) => {
-    const reqId = Number(tr?.dataset.reqId || 0);
-    if (!reqId) return;
-    window.location.href = `/VIEWS/requerimiento.php?id=${reqId}`;
+  const goToReq = (reqId) => {
+    const id = Number(reqId || 0);
+    if (!id) return;
+    window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
   };
 
   tbody.addEventListener("click", (e) => {
+    const openBtn = e.target.closest("[data-open-req]");
+    if (openBtn) {
+      e.stopPropagation();
+      goToReq(openBtn.dataset.openReq);
+      return;
+    }
+
+    const expander = e.target.closest("[data-expand]");
+    if (expander) {
+      e.stopPropagation();
+      const id = expander.dataset.expand;
+      const detailRow = tbody.querySelector(`[data-detail-id="${id}"]`);
+      if (!detailRow) return;
+
+      const expanded = expander.getAttribute("aria-expanded") === "true";
+      expander.setAttribute("aria-expanded", expanded ? "false" : "true");
+      detailRow.hidden = expanded;
+      return;
+    }
+
     const tr = e.target.closest("tr[data-req-id]");
     if (!tr) return;
-    goToReq(tr);
+
+    if (isMobileAccordion()) return;
+
+    goToReq(tr.dataset.reqId);
   });
 
   tbody.addEventListener("keydown", (e) => {
@@ -103,7 +165,9 @@ function setupRowClickDelegation() {
 
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      goToReq(tr);
+      if (!isMobileAccordion()) {
+        goToReq(tr.dataset.reqId);
+      }
     }
   });
 }
@@ -550,30 +614,53 @@ function renderTable(rows) {
   if (!paged.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="is-empty-row">No se encontraron registros.</td>
+        <td colspan="${isMobileAccordion() ? 3 : 6}" class="is-empty-row">
+          No se encontraron registros.
+        </td>
       </tr>
     `;
     return;
   }
 
-  tbody.innerHTML = paged
-    .map((row) => {
-      return `
-        <tr class="retro-row is-clickable" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
-          <td>${escapeHtml(row.folio)}</td>
-          <td>${escapeHtml(row.departamento_nombre)}</td>
-          <td>${escapeHtml(row.tramite_nombre)}</td>
-          <td>${escapeHtml(row.asignado_nombre_completo)}</td>
-          <td>${escapeHtml(formatPhone(row.contacto_telefono))}</td>
-          <td>
-            <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
-              ${escapeHtml(formatRate(row.calificacion))}
-            </span>
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
+  if (isMobileAccordion()) {
+    tbody.innerHTML = paged.map((row, idx) => `
+      <tr class="retro-row is-clickable hs-mobile-summary" data-row-id="${idx}" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
+        <td>${escapeHtml(row.folio)}</td>
+        <td>
+          <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
+            ${escapeHtml(formatRate(row.calificacion))}
+          </span>
+        </td>
+        <td class="hs-cell-expander">
+          <button type="button" class="hs-expander" data-expand="${idx}" aria-expanded="false" aria-label="Ver más detalles">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"></path>
+            </svg>
+          </button>
+        </td>
+      </tr>
+      <tr class="hs-mobile-detail-row" data-detail-id="${idx}" hidden>
+        <td colspan="3">
+          ${makeMobileRetroDetail(row)}
+        </td>
+      </tr>
+    `).join("");
+  } else {
+    tbody.innerHTML = paged.map((row) => `
+      <tr class="retro-row is-clickable" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
+        <td>${escapeHtml(row.folio)}</td>
+        <td>${escapeHtml(row.departamento_nombre)}</td>
+        <td>${escapeHtml(row.tramite_nombre)}</td>
+        <td>${escapeHtml(row.asignado_nombre_completo)}</td>
+        <td>${escapeHtml(formatPhone(row.contacto_telefono))}</td>
+        <td>
+          <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
+            ${escapeHtml(formatRate(row.calificacion))}
+          </span>
+        </td>
+      </tr>
+    `).join("");
+  }
 
   refreshCurrentPageDecorations();
 }
