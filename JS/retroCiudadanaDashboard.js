@@ -567,36 +567,132 @@ function renderPager(rows) {
     return;
   }
 
-  const btn = (page, label = page, active = false, disabled = false) => `
-    <button
-      type="button"
-      class="hs-page ${active ? "is-active" : ""}"
-      data-page="${page}"
-      ${disabled ? "disabled" : ""}
-    >${label}</button>
-  `;
+  const makeBtn = ({ label, page, disabled = false, active = false }) => {
+    return `
+      <button
+        type="button"
+        class="btn ${active ? "primary" : ""}"
+        data-p="${disabled ? "disabled" : page}"
+        ${disabled ? "disabled" : ""}
+      >${label}</button>
+    `;
+  };
 
   const parts = [];
-  parts.push(btn(State.currentPage - 1, "‹", false, State.currentPage === 1));
 
-  for (let p = 1; p <= pages; p++) {
-    parts.push(btn(p, p, p === State.currentPage, false));
-  }
-
+  // Primera / anterior
   parts.push(
-    btn(State.currentPage + 1, "›", false, State.currentPage === pages)
+    makeBtn({
+      label: "«",
+      page: 1,
+      disabled: State.currentPage === 1,
+    })
   );
 
-  pager.innerHTML = parts.join("");
+  parts.push(
+    makeBtn({
+      label: "‹",
+      page: State.currentPage - 1,
+      disabled: State.currentPage === 1,
+    })
+  );
 
-  $$("button[data-page]", pager).forEach((b) => {
+  // Rango compacto
+  let start = Math.max(1, State.currentPage - 2);
+  let end = Math.min(pages, State.currentPage + 2);
+
+  if (State.currentPage <= 3) {
+    start = 1;
+    end = Math.min(5, pages);
+  }
+
+  if (State.currentPage >= pages - 2) {
+    start = Math.max(1, pages - 4);
+    end = pages;
+  }
+
+  if (start > 1) {
+    parts.push(makeBtn({ label: "1", page: 1, active: State.currentPage === 1 }));
+    if (start > 2) parts.push(`<span class="pager-ellipsis">…</span>`);
+  }
+
+  for (let p = start; p <= end; p++) {
+    if (p === 1 && start > 1) continue;
+    if (p === pages && end < pages) continue;
+
+    parts.push(
+      makeBtn({
+        label: String(p),
+        page: p,
+        active: p === State.currentPage,
+      })
+    );
+  }
+
+  if (end < pages) {
+    if (end < pages - 1) parts.push(`<span class="pager-ellipsis">…</span>`);
+    parts.push(
+      makeBtn({
+        label: String(pages),
+        page: pages,
+        active: State.currentPage === pages,
+      })
+    );
+  }
+
+  // Siguiente / última
+  parts.push(
+    makeBtn({
+      label: "›",
+      page: State.currentPage + 1,
+      disabled: State.currentPage === pages,
+    })
+  );
+
+  parts.push(
+    makeBtn({
+      label: "»",
+      page: pages,
+      disabled: State.currentPage === pages,
+    })
+  );
+
+  pager.innerHTML = `
+    ${parts.join("")}
+    <span class="muted" style="margin-left:.75rem;">Pág. ${State.currentPage} de ${pages}</span>
+    <input type="number" min="1" max="${pages}" value="${State.currentPage}" data-goto style="width:4rem;margin-left:.5rem;">
+    <button type="button" class="btn" data-go>Ir</button>
+  `;
+
+  $$("button[data-p]", pager).forEach((b) => {
     b.addEventListener("click", () => {
-      const page = Number(b.dataset.page || 1);
+      const raw = b.dataset.p;
+      if (!raw || raw === "disabled") return;
+
+      const page = Number(raw);
       if (!page || page < 1 || page > pages || page === State.currentPage) return;
+
       State.currentPage = page;
       renderTable(State.filtered);
       renderPager(State.filtered);
     });
+  });
+
+  const gotoInput = $("input[data-goto]", pager);
+  const gotoBtn = $("button[data-go]", pager);
+
+  const goToPage = () => {
+    const page = Number(gotoInput?.value || 1);
+    if (!page || page < 1 || page > pages || page === State.currentPage) return;
+
+    State.currentPage = page;
+    renderTable(State.filtered);
+    renderPager(State.filtered);
+  };
+
+  gotoBtn?.addEventListener("click", goToPage);
+  gotoInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") goToPage();
   });
 }
 
@@ -619,9 +715,7 @@ function setupRowClickDelegation() {
 /* ============================================================================
    CHART
    ========================================================================== */
-function buildMonthDonutData(rows) {
-  const monthRows = rows.filter((r) => isCurrentMonth(getRowDate(r)));
-
+function buildDonutData(rows) {
   const counts = {
     Excelente: 0,
     Bueno: 0,
@@ -629,18 +723,22 @@ function buildMonthDonutData(rows) {
     Malo: 0,
   };
 
-  monthRows.forEach((row) => {
+  rows.forEach((row) => {
     const label = formatRate(row.calificacion);
     if (counts[label] != null) counts[label] += 1;
   });
 
-  const data = Object.entries(counts)
-    .map(([label, value]) => ({ label, value }))
-    .filter((x) => x.value > 0);
+  const data = [
+    { label: "Excelente", value: counts.Excelente },
+    { label: "Bueno", value: counts.Bueno },
+    { label: "Regular", value: counts.Regular },
+    { label: "Malo", value: counts.Malo },
+  ];
 
-  const total = monthRows.length;
-
-  return { total, data };
+  return {
+    total: rows.length,
+    data,
+  };
 }
 
 function drawDonutFromRows(rows) {
@@ -652,7 +750,7 @@ function drawDonutFromRows(rows) {
     return;
   }
 
-  const donutAgg = buildMonthDonutData(rows);
+  const donutAgg = buildDonutData(rows);
 
   try {
     State.chartMonth?.destroy?.();
@@ -667,10 +765,9 @@ function drawDonutFromRows(rows) {
       showPercLabels: true,
     });
 
-    // Ajuste del texto central
     if (State.chartMonth && typeof State.chartMonth._drawCenter === "function") {
       const originalDrawCenter = State.chartMonth._drawCenter.bind(State.chartMonth);
-      State.chartMonth._drawCenter = (big) => originalDrawCenter(big, "Este mes");
+      State.chartMonth._drawCenter = (big) => originalDrawCenter(big, "Total visible");
       State.chartMonth.draw(true);
       State.chartMonth.renderLegend();
     }
@@ -710,7 +807,7 @@ function applyPipelineAndRender() {
   updateLegendStatus();
   renderTable(filtered);
   renderPager(filtered);
-  drawDonutFromRows(filtered);
+  drawDonutFromRows(State.rows);
 }
 
 /* ============================================================================
