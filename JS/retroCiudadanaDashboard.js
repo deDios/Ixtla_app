@@ -108,11 +108,6 @@ function setupRowClickDelegation() {
   });
 }
 
-window.addEventListener("resize", debounce(() => {
-  refreshCurrentPageDecorations();
-  drawDonutFromRows(State.filtered);
-}, 120));
-
 function rateDataKey(value) {
   const n = Number(value);
   if (n === 4) return "excelente";
