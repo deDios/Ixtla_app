@@ -30,6 +30,7 @@ const CONFIG = {
     Regular: "#f59e0b",
     Bueno: "#3b82f6",
     Excelente: "#22c55e",
+    "Sin respuesta": "#cbd5e1",
   },
 
   MAX_FETCH_PAGES: 20,
@@ -721,11 +722,17 @@ function buildDonutData(rows) {
     Bueno: 0,
     Regular: 0,
     Malo: 0,
+    "Sin respuesta": 0,
   };
 
   rows.forEach((row) => {
-    const label = formatRate(row.calificacion);
-    if (counts[label] != null) counts[label] += 1;
+    const cal = Number(row.calificacion ?? 0);
+
+    if (cal === 4) counts.Excelente += 1;
+    else if (cal === 3) counts.Bueno += 1;
+    else if (cal === 2) counts.Regular += 1;
+    else if (cal === 1) counts.Malo += 1;
+    else counts["Sin respuesta"] += 1;
   });
 
   const data = [
@@ -733,6 +740,7 @@ function buildDonutData(rows) {
     { label: "Bueno", value: counts.Bueno },
     { label: "Regular", value: counts.Regular },
     { label: "Malo", value: counts.Malo },
+    { label: "Sin respuesta", value: counts["Sin respuesta"] },
   ];
 
   return {
@@ -745,10 +753,7 @@ function drawDonutFromRows(rows) {
   const canvas = $(SEL.donutCanvas);
   const legendEl = $(SEL.donutLegend);
   if (!canvas || !legendEl) return;
-  if (!isElementRenderable(canvas)) {
-    log("Donut skip: canvas oculto o sin tamaño");
-    return;
-  }
+  if (!isElementRenderable(canvas)) return;
 
   const donutAgg = buildDonutData(rows);
 
@@ -771,8 +776,6 @@ function drawDonutFromRows(rows) {
       State.chartMonth.draw(true);
       State.chartMonth.renderLegend();
     }
-
-    log("Donut render ok", donutAgg);
   } catch (e) {
     err("DonutChart error:", e);
   }
