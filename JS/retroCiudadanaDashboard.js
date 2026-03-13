@@ -926,7 +926,7 @@ function drawDonutFromRows(rows) {
 
     if (State.chartMonth && typeof State.chartMonth._drawCenter === "function") {
       const originalDrawCenter = State.chartMonth._drawCenter.bind(State.chartMonth);
-      State.chartMonth._drawCenter = (big) => originalDrawCenter(big, "Total visible");
+      State.chartMonth._drawCenter = (big) => originalDrawCenter(big, "Retros");
       State.chartMonth.draw(true);
       State.chartMonth.renderLegend();
     }
