@@ -253,12 +253,12 @@ const SEL = {
   legendTotal: "#hs-legend-total",
   legendStatus: "#hs-legend-status",
 
-  rateGroup: "#retro-states",
-  rateItems: "#retro-states .item",
+  rateGroup: "#hs-states",
+  rateItems: "#hs-states .item",
 
-  filterBox: "#retro-filterbox",
-  filterToggle: "#retro-filter-toggle",
-  filterActive: "#retro-filter-active",
+  filterBox: "#hs-filterbox",
+  filterToggle: "#hs-filter-toggle",
+  filterActive: "#hs-filter-active",
 
   donutCanvas: "#chart-month",
   donutLegend: "#donut-legend",
@@ -656,7 +656,7 @@ function drawDonutFromRows(rows) {
 
   try {
     State.chartMonth?.destroy?.();
-  } catch (_) {}
+  } catch (_) { }
 
   try {
     State.chartMonth = new DonutChart(canvas, {

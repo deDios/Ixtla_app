@@ -10,7 +10,6 @@ ix_require_session();
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/retroCiudadanaDashboard.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="icon" href="/favicon.ico">
@@ -84,7 +83,7 @@ ix_require_session();
         <div class="hs-wrap">
 
             <!-- SIDEBAR -->
-            <aside class="hs-sidebar retro-sidebar">
+            <aside class="hs-sidebar">
                 <section class="hs-profile" aria-label="Perfil">
                     <div class="avatar-shell">
                         <div class="avatar-circle">
@@ -110,16 +109,16 @@ ix_require_session();
                     <span id="hs-profile-badge" class="badge">—</span>
                 </section>
 
-                <!-- FILTROS DE RETRO -->
-                <section id="retro-filterbox" class="hs-filterbox retro-filterbox" aria-label="Filtros de retroalimentación">
-                    <button type="button" id="retro-filter-toggle" class="hs-filter-toggle" aria-expanded="false"
-                        aria-controls="retro-states">
+                <!-- FILTROS: conservar IDs base de HOME -->
+                <section id="hs-filterbox" class="hs-filterbox" aria-label="Filtros">
+                    <button type="button" id="hs-filter-toggle" class="hs-filter-toggle" aria-expanded="false"
+                        aria-controls="hs-states">
                         <span class="hs-filter-title">Filtros</span>
-                        <span id="retro-filter-active" class="hs-filter-active">Todos (0)</span>
+                        <span id="hs-filter-active" class="hs-filter-active">Todos (0)</span>
                         <span class="hs-filter-chevron" aria-hidden="true">▾</span>
                     </button>
 
-                    <nav id="retro-states" class="hs-states retro-states" aria-label="Calificaciones">
+                    <nav id="hs-states" class="hs-states retro-states" aria-label="Calificaciones" role="radiogroup">
                         <button type="button" class="item is-active" data-rate="todos" role="radio" aria-checked="true">
                             <span class="label">Todos</span>
                             <span class="count" id="cnt-retro-todos">(0)</span>
@@ -149,36 +148,31 @@ ix_require_session();
             </aside>
 
             <!-- MAIN -->
-            <section class="hs-main retro-main">
+            <section class="hs-main">
 
-                <!-- RESUMEN SUPERIOR -->
-                <section class="retro-overview" aria-label="Resumen de retroalimentación">
+                <!-- OVERVIEW SUPERIOR -->
+                <div class="hs-charts retro-overview" id="hs-charts">
 
-                    <!-- MAPA / PLACEHOLDER -->
-                    <article class="hs-card retro-card retro-map-card" aria-labelledby="retro-map-title">
+                    <section class="hs-card retro-map-card" aria-labelledby="retro-map-title">
                         <div class="retro-card__head">
-                            <h3 id="retro-map-title">Mapa de reportes</h3>
+                            <h3 id="retro-map-title">Mapa pendiente</h3>
                         </div>
 
                         <div class="retro-map-placeholder" id="retro-map-placeholder">
                             <div class="retro-map-placeholder__inner">
-                                <p>Mapa pendiente</p>
-                                <small>Aqui va el mapa</small>
+                                <p>Aquí va el mapa</p>
                             </div>
                         </div>
-                    </article>
+                    </section>
 
-                    <!-- DONUT -->
-                    <article class="hs-card retro-card retro-donut-card" aria-labelledby="retro-donut-title">
+                    <section class="hs-card retro-donut-card" aria-labelledby="retro-donut-title">
                         <div class="retro-card__head">
-                            <h3 id="retro-donut-title">grafico donut</h3>
+                            <h3 id="retro-donut-title">Gráfico de este mes</h3>
                         </div>
 
-                        <div class="hs-donut retro-donut">
+                        <div class="hs-donut">
                             <div class="hs-chart-wrap retro-donut__chart" style="position:relative;">
-                                <canvas id="chart-month" width="380" height="240"
-                                    aria-describedby="retro-donut-desc"></canvas>
-
+                                <canvas id="chart-month" width="380" height="240" aria-describedby="retro-donut-desc"></canvas>
                                 <div class="chart-tip"
                                     style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
                                 </div>
@@ -192,12 +186,12 @@ ix_require_session();
                         <p id="retro-donut-desc" class="sr-only">
                             Distribución de retroalimentación ciudadana por calificación.
                         </p>
-                    </article>
-                </section>
+                    </section>
+                </div>
 
                 <!-- TABLA -->
                 <section class="hs-table retro-table-section">
-                    <div class="hs-head retro-table-head">
+                    <div class="hs-head">
                         <h3 class="retro-table-title">Retro ciudadana</h3>
 
                         <div class="hs-tools retro-tools">
@@ -231,9 +225,7 @@ ix_require_session();
                                     <th>Retroalimentación</th>
                                 </tr>
                             </thead>
-                            <tbody id="hs-table-body">
-                                <!-- Render dinámico -->
-                            </tbody>
+                            <tbody id="hs-table-body"></tbody>
                         </table>
                     </div>
 
@@ -724,7 +716,7 @@ ix_require_session();
 
     <script src="/JS/components.js"></script>
     <script src="/JS/JSglobal.js"></script>
-    <script type="module" src="/JS/retroCiudadanaDashboard.js"></script> 
+    <script type="module" src="/JS/retroCiudadanaDashboard.js"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
     <script type="module" src="/JS/ui/requerimientosCanal2.js"></script>
 
