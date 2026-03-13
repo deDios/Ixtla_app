@@ -125,6 +125,11 @@ function syncTableHead() {
     thead.innerHTML = `
       <tr>
         <th>Folio</th>
+        <th></th>
+        <th></th>
+        <th></th>
+        <th></th>
+        <th></th>
         <th>Retroalimentación</th>
         <th class="hs-th-expander" aria-label="Detalles"></th>
       </tr>
@@ -645,6 +650,11 @@ function renderTable(rows) {
     tbody.innerHTML = paged.map((row, idx) => `
     <tr class="retro-row is-clickable ${idx === State.openRow ? "is-open" : ""}" data-row-idx="${idx}" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
       <td>${escapeHtml(row.folio)}</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
       <td>
         <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
           ${escapeHtml(formatRate(row.calificacion))}
@@ -667,7 +677,7 @@ function renderTable(rows) {
 
     ${idx === State.openRow ? `
       <tr class="hs-row-expand">
-        <td colspan="3">
+        <td colspan="8">
           <div class="hs-expand-grid">
             <div class="hs-kv">
               <div class="hs-k">Departamento</div>
