@@ -721,33 +721,6 @@ function renderPager(rows) {
   });
 }
 
-function setupRowClickDelegation() {
-  const tbody = $(SEL.tableBody);
-  if (!tbody) return;
-
-  const goToReq = (tr) => {
-    const reqId = Number(tr?.dataset.reqId || 0);
-    if (!reqId) return;
-    window.location.href = `/VIEWS/requerimiento.php?id=${reqId}`;
-  };
-
-  tbody.addEventListener("click", (e) => {
-    const tr = e.target.closest("tr[data-req-id]");
-    if (!tr) return;
-    goToReq(tr);
-  });
-
-  tbody.addEventListener("keydown", (e) => {
-    const tr = e.target.closest("tr[data-req-id]");
-    if (!tr) return;
-
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      goToReq(tr);
-    }
-  });
-}
-
 /* ============================================================================
    CHART
    ========================================================================== */
