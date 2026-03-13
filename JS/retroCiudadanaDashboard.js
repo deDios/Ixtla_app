@@ -137,22 +137,18 @@ function setupRowClickDelegation() {
     const expander = e.target.closest("[data-expand]");
     if (expander) {
       e.stopPropagation();
-      const id = expander.dataset.expand;
-      const detailRow = tbody.querySelector(`[data-detail-id="${id}"]`);
-      if (!detailRow) return;
-
-      const expanded = expander.getAttribute("aria-expanded") === "true";
-      expander.setAttribute("aria-expanded", expanded ? "false" : "true");
-      detailRow.hidden = expanded;
+      const idx = Number(expander.dataset.expand);
+      State.openRow = State.openRow === idx ? null : idx;
+      renderTable(State.filtered);
       return;
     }
 
     const tr = e.target.closest("tr[data-req-id]");
     if (!tr) return;
 
-    if (isMobileAccordion()) return;
-
-    goToReq(tr.dataset.reqId);
+    if (!isMobileAccordion()) {
+      goToReq(tr.dataset.reqId);
+    }
   });
 
   tbody.addEventListener("keydown", (e) => {
@@ -620,7 +616,7 @@ function renderTable(rows) {
 
   if (isMobileAccordion()) {
     tbody.innerHTML = paged.map((row, idx) => `
-      <tr class="retro-row is-clickable hs-mobile-summary" data-row-id="${idx}" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
+      <tr class="retro-row is-clickable ${idx === State.openRow ? "is-open" : ""}" data-row-idx="${idx}" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
         <td>${escapeHtml(row.folio)}</td>
         <td>
           <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
@@ -628,18 +624,57 @@ function renderTable(rows) {
           </span>
         </td>
         <td class="hs-cell-expander">
-          <button type="button" class="hs-expander" data-expand="${idx}" aria-expanded="false" aria-label="Ver más detalles">
+          <button
+            type="button"
+            class="hs-expander"
+            data-expand="${idx}"
+            aria-label="Ver más detalles"
+            title="Ver más detalles"
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path fill="currentColor" d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"></path>
             </svg>
           </button>
         </td>
       </tr>
-      <tr class="hs-mobile-detail-row" data-detail-id="${idx}" hidden>
-        <td colspan="3">
-          ${makeMobileRetroDetail(row)}
-        </td>
-      </tr>
+
+      ${idx === State.openRow ? `
+        <tr class="hs-row-expand">
+          <td colspan="3">
+            <div class="hs-expand-grid">
+              <div class="hs-kv">
+                <div class="hs-k">Departamento</div>
+                <div class="hs-v">${escapeHtml(row.departamento_nombre)}</div>
+              </div>
+
+              <div class="hs-kv">
+                <div class="hs-k">Asignado</div>
+                <div class="hs-v">${escapeHtml(row.asignado_nombre_completo)}</div>
+              </div>
+
+              <div class="hs-kv">
+                <div class="hs-k">Teléfono</div>
+                <div class="hs-v">${escapeHtml(formatPhone(row.contacto_telefono))}</div>
+              </div>
+
+              <div class="hs-kv">
+                <div class="hs-k">Retroalimentación</div>
+                <div class="hs-v">
+                  <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
+                    ${escapeHtml(formatRate(row.calificacion))}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="hs-expand-actions">
+              <button type="button" class="hs-open-btn" data-open-req="${escapeHtml(row.requerimiento_id ?? "")}">
+                Abrir
+              </button>
+            </div>
+          </td>
+        </tr>
+      ` : ""}
     `).join("");
   } else {
     tbody.innerHTML = paged.map((row) => `
