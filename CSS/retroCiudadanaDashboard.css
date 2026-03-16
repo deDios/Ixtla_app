@@ -37,10 +37,10 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --hs-card-bg: #111827;
-    --hs-text: #e5e7eb;
-    --hs-text-muted: #9ca3af;
-    --hs-border: #374151;
+    /* --hs-card-bg: #111827; */
+    /* --hs-text: #e5e7eb; */
+    /* --hs-text-muted: #9ca3af; */
+    /* --hs-border: #374151; */
   }
 }
 
@@ -48,7 +48,7 @@
 
 main.home-samapa {
   color: var(--hs-text);
-  padding: 16px 0 24px;
+  padding: 66px 0 24px;
   /* padding-top manejado por plantilla.css */
   /* debajo del header/subnav de la plantilla */
   color-scheme: light;
@@ -505,8 +505,8 @@ table.gc tbody tr:hover {
 
 table.gc th:nth-child(1),
 table.gc td:nth-child(1) {
-  min-width: 220px;
-  text-align: left;
+  /* min-width: 220px; */
+  /* text-align: left; */
 }
 
 table.gc th:nth-child(2),
@@ -536,8 +536,8 @@ table.gc td:nth-child(4) {
 }
 
 .gc td:nth-child(1) {
-  font-variant-numeric: tabular-nums;
-  color: #111827;
+  /* font-variant-numeric: tabular-nums; */
+  /* color: #111827; */
 }
 
 .gc td:nth-child(4) {
@@ -1424,8 +1424,8 @@ body.eda-lock {
 /* 1 Folio */
 table.gc th:nth-child(1),
 table.gc td:nth-child(1) {
-  min-width: 220px;
-  text-align: left;
+  /* min-width: 220px; */
+  /* text-align: left; */
 }
 
 /* 2 Departamento */
@@ -1445,9 +1445,9 @@ table.gc td:nth-child(3) {
 /* 4 Asignado */
 table.gc th:nth-child(4),
 table.gc td:nth-child(4) {
-  min-width: 140px;
-  text-align: center;
-  padding-right: 28px;
+  /* min-width: 140px; */
+  /* text-align: center; */
+  /* padding-right: 28px; */
 }
 
 /* 5 Teléfono (antes no tenía regla dedicada) */
@@ -1737,8 +1737,8 @@ table.gc td:nth-child(6) {
   }
 
   .hs-row-expand td {
-    padding: 10px 12px 14px;
-    border-top: 1px solid #eef0f3;
+    /* padding: 10px 12px 14px; */
+    /* border-top: 1px solid #eef0f3; */
   }
 }
 
@@ -1757,8 +1757,8 @@ table.gc td:nth-child(6) {
   /* Neutraliza anchos heredados (desktop) */
   main.home-samapa .hs-table table.gc th,
   main.home-samapa .hs-table table.gc td {
-    min-width: 0 !important;
-    width: auto !important;
+    /* min-width: 0 !important; */
+    /* width: auto !important; */
   }
 
   /* Oculta TODO excepto Folio (1) y Estatus (7) */
@@ -1772,10 +1772,10 @@ table.gc td:nth-child(6) {
 
   /* Folio: ocupa lo que se pueda, con ellipsis */
   main.home-samapa .hs-table table.gc tbody td:nth-child(1) {
-    width: 60% !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* width: 60% !important; */
+    /* white-space: nowrap; */
+    /* overflow: hidden; */
+    /* text-overflow: ellipsis; */
   }
 
   /* Estatus: compacto */
@@ -1976,10 +1976,10 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 
   /* Folio: deja respirar y evita overflow raro */
   main.home-samapa .hs-table table.gc tbody td:nth-child(1) {
-    width: 56%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* width: 56%; */
+    /* white-space: nowrap; */
+    /* overflow: hidden; */
+    /* text-overflow: ellipsis; */
   }
 
   /* Estatus: centrado/compacto */
@@ -2044,11 +2044,11 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   /* Folio: ocupa lo restante, con ellipsis */
   main.home-samapa .hs-table table.gc thead th:nth-child(1),
   main.home-samapa .hs-table table.gc tbody td:nth-child(1) {
-    width: auto !important;
-    min-width: 0 !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* width: auto !important; */
+    /* min-width: 0 !important; */
+    /* overflow: hidden; */
+    /* text-overflow: ellipsis; */
+    /* white-space: nowrap; */
   }
 
   /* Estatus: ancho controlado */
@@ -2123,12 +2123,12 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   }
 
   main.home-samapa table.gc {
-    width: 100% !important;
-    max-width: 100% !important;
-    table-layout: fixed;
+    /* width: 100% !important; */
+    /* max-width: 100% !important; */
+    /* table-layout: fixed; */
     /* consistente en Edge mobile */
-    border-collapse: separate;
-    border-spacing: 0;
+    /* border-collapse: separate; */
+    /* border-spacing: 0; */
   }
 
   /* ====== HEADERS (solo Folio + Estatus) ====== */
@@ -2223,7 +2223,7 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   /* ====== FILA EXPANDIDA (panel) ====== */
   main.home-samapa table.gc tr.hs-row-expand td,
   main.home-samapa table.gc td.hs-expand-cell {
-    padding: 12px 14px 16px;
+    /* padding: 12px 14px 16px; */
   }
 
   main.home-samapa .hs-expand-grid {
@@ -2251,7 +2251,7 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   main.home-samapa .hs-expand-footer .btn,
   main.home-samapa .hs-expand-actions button,
   main.home-samapa .hs-expand-footer button {
-    max-width: 100%;
+    /* max-width: 100%; */
   }
 }
 
@@ -2280,17 +2280,17 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 
   /* Tabla: encaja 1:1 con wrapper */
   main.home-samapa .hs-table table.gc {
-    width: 100% !important;
-    max-width: 100% !important;
-    table-layout: fixed !important;
-    border-spacing: 0 !important;
-    border-collapse: separate !important;
+    /* width: 100% !important; */
+    /* max-width: 100% !important; */
+    /* table-layout: fixed !important; */
+    /* border-spacing: 0 !important; */
+    /* border-collapse: separate !important; */
   }
 
   /* Celdas: nunca empujar ancho */
   main.home-samapa .hs-table table.gc th,
   main.home-samapa .hs-table table.gc td {
-    min-width: 0 !important;
+    /* min-width: 0 !important; */
     box-sizing: border-box !important;
   }
 }
@@ -2726,7 +2726,7 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 }
 
 .retro-dashboard tr.is-clickable {
-  cursor: pointer;
+  /* cursor: pointer; */
 }
 
 
@@ -3049,5 +3049,101 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   #retro-modal .rate-svg {
     width: 34px;
     height: 34px;
+  }
+}
+
+/* bloque expandido */
+.hs-row-expand td {
+  /* padding: 10px 18px 14px; */
+}
+
+.hs-expand-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 20px;
+  align-items: start;
+}
+
+.hs-kv {
+  min-width: 0;
+}
+
+.hs-k {
+  margin-bottom: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5f6b7a;
+  line-height: 1.2;
+}
+
+.hs-v {
+  font-size: 15px;
+  /* font-weight: 800; */
+  color: #0f172a;
+  /* line-height: 1.25; */
+}
+
+.hs-expand-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 0;
+}
+
+/* botón abrir estilo home */
+.hs-open-btn {
+  /* appearance: none; */
+  /* -webkit-appearance: none; */
+  border: 1px solid #d7ddea;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 14px;
+  min-width: 50px;
+  height: 38px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.hs-open-btn:hover,
+.hs-open-btn:active,
+.hs-open-btn:focus,
+.hs-open-btn:focus-visible {
+  background: #fff;
+  color: #0f172a;
+  border-color: #d7ddea;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  outline: none;
+  transform: none;
+}
+
+@media (max-width: 768px) {
+  .hs-row-expand td {
+    /* padding: 10px 16px 14px; */
+  }
+
+  .hs-expand-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 18px;
+  }
+
+  .hs-expand-actions {
+    margin-top: 10px;
+  }
+
+  .hs-open-btn {
+    /* height: 38px; */
+    /* min-width: 50px; */
+    /* padding: 0 16px; */
+    /* border-radius: 14px; */
+    /* font-size: 14px; */
   }
 }
