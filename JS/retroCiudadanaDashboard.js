@@ -92,17 +92,17 @@ function syncTableHead() {
 
   if (isMobileAccordion()) {
     thead.innerHTML = `
-      <tr>
-        <th>Folio</th>
-        <th></th>
-        <th></th>
-        <th></th>
-        <th></th>
-        <th></th>
-        <th>Retroalimentación</th>
-        <th class="hs-th-expander" aria-label="Detalles"></th>
-      </tr>
-    `;
+    <tr>
+      <th>Folio</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th>Status</th>
+      <th class="hs-th-expander" aria-label="Detalles"></th>
+    </tr>
+  `;
   } else {
     thead.innerHTML = `
       <tr>
