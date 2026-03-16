@@ -637,35 +637,50 @@ function applyPipeline() {
 }
 
 function closeRetroReadonlyModal() {
-  const overlay = $(SEL.retroViewOverlay);
-  const modal = $(SEL.retroViewModal);
+  const modal = $(SEL.retroModal);
+  if (!modal) return;
 
-  if (overlay) overlay.hidden = true;
-  if (modal) modal.hidden = true;
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
 
   document.body.classList.remove("modal-open");
 
   State.retroViewOpen = false;
+  State.retroViewModel = null;
 }
 
 function fillRetroReadonlyModal(viewModel) {
-  const setText = (sel, value, prefix = "") => {
+  const setField = (sel, value, prefix = "") => {
     const el = $(sel);
     if (!el) return;
-    el.textContent = prefix ? `${prefix}${value}` : value;
+
+    const finalValue = prefix ? `${prefix}${value}` : value;
+
+    if (
+      el.tagName === "INPUT" ||
+      el.tagName === "TEXTAREA" ||
+      el.tagName === "SELECT"
+    ) {
+      el.value = finalValue;
+    } else {
+      el.textContent = finalValue;
+    }
   };
 
-  setText(SEL.retroViewFolio, safeTxt(viewModel?.folio), "Folio: ");
-  setText(SEL.retroViewTramite, safeTxt(viewModel?.tramite));
-  setText(SEL.retroViewDescripcion, safeTxt(viewModel?.descripcion));
-  setText(SEL.retroViewCiudadano, safeTxt(viewModel?.ciudadano));
-  setText(SEL.retroViewDepartamento, safeTxt(viewModel?.departamento));
-  setText(SEL.retroViewAsignado, safeTxt(viewModel?.asignado));
-  setText(SEL.retroViewTelefono, safeTxt(formatPhone(viewModel?.telefono)));
-  setText(SEL.retroViewStatus, formatRetroStatus(viewModel?.status));
-  setText(SEL.retroViewComentario, safeTxt(viewModel?.comentario, "Sin comentario"));
+  setField(SEL.retroFolio, safeTxt(viewModel?.folio), "Folio: ");
+  setField(SEL.retroTramite, safeTxt(viewModel?.tramite));
+  setField(SEL.retroDescripcion, safeTxt(viewModel?.descripcion));
+  setField(SEL.retroCiudadano, safeTxt(viewModel?.ciudadano));
+  setField(SEL.retroDepartamento, safeTxt(viewModel?.departamento));
+  setField(SEL.retroAsignado, safeTxt(viewModel?.asignado));
+  setField(SEL.retroTelefono, safeTxt(formatPhone(viewModel?.telefono)));
+  setField(SEL.retroStatus, formatRetroStatus(viewModel?.status));
+  setField(
+    SEL.retroComentario,
+    safeTxt(viewModel?.comentario, "Sin comentario")
+  );
 
-  $$(SEL.retroViewRateItems).forEach((item) => {
+  $$(SEL.retroRateItems).forEach((item) => {
     const rate = Number(item.dataset.rate || 0);
     item.classList.toggle(
       "is-active",
@@ -673,17 +688,21 @@ function fillRetroReadonlyModal(viewModel) {
     );
   });
 
-  const goBtn = $(SEL.retroViewGo);
+  $$(SEL.retroRateInputs).forEach((input) => {
+    input.checked =
+      Number(input.value) === Number(viewModel?.calificacion ?? 0);
+  });
+
+  const goBtn = $(SEL.retroGo);
   if (goBtn) {
     goBtn.dataset.reqId = String(viewModel?.requerimiento_id ?? "");
   }
 }
 
 function openRetroReadonlyModal(viewModel) {
-  const overlay = $(SEL.retroViewOverlay);
-  const modal = $(SEL.retroViewModal);
+  const modal = $(SEL.retroModal);
 
-  if (!overlay || !modal) {
+  if (!modal) {
     warn("Modal readonly no encontrado en DOM");
     return;
   }
@@ -691,19 +710,19 @@ function openRetroReadonlyModal(viewModel) {
   State.retroViewModel = viewModel || null;
   fillRetroReadonlyModal(viewModel);
 
-  overlay.hidden = false;
   modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
 
   document.body.classList.add("modal-open");
   State.retroViewOpen = true;
 }
 
 function initRetroReadonlyModal() {
-  const overlay = $(SEL.retroViewOverlay);
-  const closeBtn = $(SEL.retroViewClose);
-  const closeFooterBtn = $(SEL.retroViewCloseFooter);
-  const goBtn = $(SEL.retroViewGo);
-  const modal = $(SEL.retroViewModal);
+  const modal = $(SEL.retroModal);
+  const overlay = $(SEL.retroOverlay);
+  const closeBtn = $(SEL.retroClose);
+  const closeFooterBtn = $(SEL.retroCloseFooter);
+  const goBtn = $(SEL.retroGo);
 
   overlay?.addEventListener("click", closeRetroReadonlyModal);
   closeBtn?.addEventListener("click", closeRetroReadonlyModal);
@@ -724,7 +743,8 @@ function initRetroReadonlyModal() {
   });
 
   modal?.addEventListener("click", (e) => {
-    e.stopPropagation();
+    const dialog = e.target.closest(".ix-modal__dialog");
+    if (dialog) e.stopPropagation();
   });
 }
 
