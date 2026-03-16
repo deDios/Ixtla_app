@@ -81,39 +81,8 @@ function refreshCurrentPageDecorations() {
   });
 }
 
-function makeMobileRetroDetail(row) {
-  return `
-    <div class="hs-mobile-details">
-      <div class="hs-mobile-grid">
-        <div class="hs-mobile-item">
-          <span class="k">Departamento</span>
-          <strong>${escapeHtml(row.departamento_nombre)}</strong>
-        </div>
-        <div class="hs-mobile-item">
-          <span class="k">Asignado</span>
-          <strong>${escapeHtml(row.asignado_nombre_completo)}</strong>
-        </div>
-        <div class="hs-mobile-item">
-          <span class="k">Teléfono</span>
-          <strong>${escapeHtml(formatPhone(row.contacto_telefono))}</strong>
-        </div>
-        <div class="hs-mobile-item">
-          <span class="k">Retroalimentación</span>
-          <strong>
-            <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
-              ${escapeHtml(formatRate(row.calificacion))}
-            </span>
-          </strong>
-        </div>
-      </div>
-
-      <div class="hs-mobile-actions">
-        <button type="button" class="btn primary" data-open-req="${escapeHtml(row.requerimiento_id ?? "")}">
-          Abrir
-        </button>
-      </div>
-    </div>
-  `;
+function getAccordionColspan() {
+  return isMobileAccordion() ? 2 : 8;
 }
 
 function syncTableHead() {
@@ -638,7 +607,7 @@ function renderTable(rows) {
   if (!paged.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="${isMobileAccordion() ? 3 : 6}" class="is-empty-row">
+        <td colspan="${isMobileAccordion() ? getAccordionColspan() : 6}" class="is-empty-row">
           No se encontraron registros.
         </td>
       </tr>
@@ -677,7 +646,7 @@ function renderTable(rows) {
 
     ${idx === State.openRow ? `
       <tr class="hs-row-expand">
-        <td colspan="8">
+        <td colspan="${getAccordionColspan()}">
           <div class="hs-expand-grid">
             <div class="hs-kv">
               <div class="hs-k">Departamento</div>
