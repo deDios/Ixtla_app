@@ -15,6 +15,9 @@ const CONFIG = {
   API_RETRO:
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_retro.php",
 
+  API_REQUERIMIENTO:
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php",
+
   DEPT_ENDPOINT:
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
 
@@ -111,7 +114,7 @@ function syncTableHead() {
         <th>Tipo de trámite</th>
         <th>Asignado</th>
         <th>Teléfono</th>
-        <th>Retroalimentación</th>
+        <th>Status</th>
       </tr>
     `;
   }
@@ -121,17 +124,11 @@ function setupRowClickDelegation() {
   const tbody = $(SEL.tableBody);
   if (!tbody) return;
 
-  const goToReq = (reqId) => {
-    const id = Number(reqId || 0);
-    if (!id) return;
-    window.location.href = `/VIEWS/requerimiento.php?id=${id}`;
-  };
-
   tbody.addEventListener("click", (e) => {
     const openBtn = e.target.closest("[data-open-req]");
     if (openBtn) {
       e.stopPropagation();
-      goToReq(openBtn.dataset.openReq);
+      handleOpenRetroDetail(openBtn.dataset.openReq);
       return;
     }
 
@@ -148,7 +145,7 @@ function setupRowClickDelegation() {
     if (!tr) return;
 
     if (!isMobileAccordion()) {
-      goToReq(tr.dataset.reqId);
+      handleOpenRetroDetail(tr.dataset.reqId);
     }
   });
 
@@ -159,7 +156,7 @@ function setupRowClickDelegation() {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       if (!isMobileAccordion()) {
-        goToReq(tr.dataset.reqId);
+        handleOpenRetroDetail(tr.dataset.reqId);
       }
     }
   });
@@ -211,6 +208,49 @@ function formatPhone(v) {
 function formatRate(value) {
   const n = Number(value);
   return CONFIG.RATE_LABELS[n] || "Sin respuesta";
+}
+
+function formatRetroStatus(value) {
+  const n = Number(value);
+  if (n === 2) return "Contestada";
+  if (n === 1) return "Pendiente";
+  if (n === 3) return "Inhabilitada";
+  if (n === 0) return "Caducada";
+  return "—";
+}
+
+function buildRetroViewModel(retroRow, reqRow) {
+  return {
+    retro_id: Number(retroRow?.id ?? 0),
+    requerimiento_id: Number(reqRow?.id ?? retroRow?.requerimiento_id ?? 0),
+
+    folio: safeTxt(reqRow?.folio || retroRow?.folio),
+    tramite: safeTxt(reqRow?.tramite_nombre || retroRow?.tramite_nombre),
+    descripcion: safeTxt(reqRow?.descripcion),
+    ciudadano: safeTxt(reqRow?.contacto_nombre),
+    departamento: safeTxt(
+      reqRow?.departamento_nombre || retroRow?.departamento_nombre
+    ),
+    asignado: safeTxt(
+      reqRow?.asignado_nombre_completo || retroRow?.asignado_nombre_completo
+    ),
+    telefono: safeTxt(
+      retroRow?.contacto_telefono || reqRow?.contacto_telefono
+    ),
+    comentario: safeTxt(retroRow?.comentario, "Sin comentario"),
+    calificacion:
+      retroRow?.calificacion != null ? Number(retroRow.calificacion) : null,
+    status: retroRow?.status != null ? Number(retroRow.status) : null,
+  };
+}
+
+function findRetroRowByReqId(reqId) {
+  const id = Number(reqId || 0);
+  if (!id) return null;
+
+  return (
+    State.rows.find((row) => Number(row?.requerimiento_id ?? 0) === id) || null
+  );
 }
 
 function readCookiePayload() {
@@ -317,6 +357,8 @@ const State = {
   activeRate: "todos",
   search: "",
   chartMonth: null,
+  retroViewOpen: false,
+  retroViewModel: null,
 };
 
 /* ============================================================================
@@ -342,6 +384,24 @@ const SEL = {
 
   donutCanvas: "#chart-month",
   donutLegend: "#donut-legend",
+
+  //modal readonly
+  retroViewOverlay: "#retro-view-overlay",
+  retroViewModal: "#retro-view-modal",
+  retroViewClose: "#retro-view-close",
+  retroViewCloseFooter: "#retro-view-close-footer",
+  retroViewGo: "#retro-view-go",
+
+  retroViewFolio: "#retro-view-folio",
+  retroViewTramite: "#retro-view-tramite",
+  retroViewDescripcion: "#retro-view-descripcion",
+  retroViewCiudadano: "#retro-view-ciudadano",
+  retroViewDepartamento: "#retro-view-departamento",
+  retroViewAsignado: "#retro-view-asignado",
+  retroViewTelefono: "#retro-view-telefono",
+  retroViewStatus: "#retro-view-status",
+  retroViewComentario: "#retro-view-comentario",
+  retroViewRateItems: ".retro-view-rate-item",
 };
 
 /* ============================================================================
@@ -502,6 +562,29 @@ async function fetchAllRetros() {
   return acc.map(normalizeRow);
 }
 
+async function fetchRequerimientoById(id) {
+  const reqId = Number(id || 0);
+  if (!reqId) throw new Error("ID de requerimiento inválido");
+
+  const res = await fetch(CONFIG.API_REQUERIMIENTO, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ id: reqId }),
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const json = await res.json();
+  if (!json?.ok || !json?.data) {
+    throw new Error(json?.error || "No se pudo obtener el requerimiento");
+  }
+
+  return json.data;
+}
+
 function normalizeRow(row) {
   return {
     ...row,
@@ -550,6 +633,120 @@ function applyPipeline() {
     (row) => matchesRate(row) && matchesSearch(row)
   );
   return State.filtered;
+}
+
+function closeRetroReadonlyModal() {
+  const overlay = $(SEL.retroViewOverlay);
+  const modal = $(SEL.retroViewModal);
+
+  if (overlay) overlay.hidden = true;
+  if (modal) modal.hidden = true;
+
+  document.body.classList.remove("modal-open");
+
+  State.retroViewOpen = false;
+}
+
+function fillRetroReadonlyModal(viewModel) {
+  const setText = (sel, value, prefix = "") => {
+    const el = $(sel);
+    if (!el) return;
+    el.textContent = prefix ? `${prefix}${value}` : value;
+  };
+
+  setText(SEL.retroViewFolio, safeTxt(viewModel?.folio), "Folio: ");
+  setText(SEL.retroViewTramite, safeTxt(viewModel?.tramite));
+  setText(SEL.retroViewDescripcion, safeTxt(viewModel?.descripcion));
+  setText(SEL.retroViewCiudadano, safeTxt(viewModel?.ciudadano));
+  setText(SEL.retroViewDepartamento, safeTxt(viewModel?.departamento));
+  setText(SEL.retroViewAsignado, safeTxt(viewModel?.asignado));
+  setText(SEL.retroViewTelefono, safeTxt(formatPhone(viewModel?.telefono)));
+  setText(SEL.retroViewStatus, formatRetroStatus(viewModel?.status));
+  setText(SEL.retroViewComentario, safeTxt(viewModel?.comentario, "Sin comentario"));
+
+  $$(SEL.retroViewRateItems).forEach((item) => {
+    const rate = Number(item.dataset.rate || 0);
+    item.classList.toggle(
+      "is-active",
+      rate === Number(viewModel?.calificacion ?? 0)
+    );
+  });
+
+  const goBtn = $(SEL.retroViewGo);
+  if (goBtn) {
+    goBtn.dataset.reqId = String(viewModel?.requerimiento_id ?? "");
+  }
+}
+
+function openRetroReadonlyModal(viewModel) {
+  const overlay = $(SEL.retroViewOverlay);
+  const modal = $(SEL.retroViewModal);
+
+  if (!overlay || !modal) {
+    warn("Modal readonly no encontrado en DOM");
+    return;
+  }
+
+  State.retroViewModel = viewModel || null;
+  fillRetroReadonlyModal(viewModel);
+
+  overlay.hidden = false;
+  modal.hidden = false;
+
+  document.body.classList.add("modal-open");
+  State.retroViewOpen = true;
+}
+
+function initRetroReadonlyModal() {
+  const overlay = $(SEL.retroViewOverlay);
+  const closeBtn = $(SEL.retroViewClose);
+  const closeFooterBtn = $(SEL.retroViewCloseFooter);
+  const goBtn = $(SEL.retroViewGo);
+  const modal = $(SEL.retroViewModal);
+
+  overlay?.addEventListener("click", closeRetroReadonlyModal);
+  closeBtn?.addEventListener("click", closeRetroReadonlyModal);
+  closeFooterBtn?.addEventListener("click", closeRetroReadonlyModal);
+
+  goBtn?.addEventListener("click", () => {
+    const reqId = Number(goBtn.dataset.reqId || 0);
+    if (!reqId) return;
+    window.location.href = `/VIEWS/requerimiento.php?id=${reqId}`;
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (!State.retroViewOpen) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeRetroReadonlyModal();
+    }
+  });
+
+  modal?.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+}
+
+async function handleOpenRetroDetail(reqId) {
+  const id = Number(reqId || 0);
+  if (!id) return;
+
+  const retroRow = findRetroRowByReqId(id);
+  if (!retroRow) {
+    toast("No se encontró la retro seleccionada.", "warning");
+    return;
+  }
+
+  try {
+    const reqRow = await fetchRequerimientoById(id);
+    const viewModel = buildRetroViewModel(retroRow, reqRow);
+
+    log("retro detail viewModel", viewModel);
+    openRetroReadonlyModal(viewModel);
+  } catch (e) {
+    err("handleOpenRetroDetail()", e);
+    toast("No se pudo cargar el detalle del requerimiento.", "error");
+  }
 }
 
 /* ============================================================================
@@ -947,6 +1144,7 @@ async function init() {
     initSidebar(() => applyPipelineAndRender());
     initMobileFilterCombo();
     initSearch(() => applyPipelineAndRender());
+    initRetroReadonlyModal();
     setupRowClickDelegation();
 
     window.addEventListener("resize", debounce(() => {

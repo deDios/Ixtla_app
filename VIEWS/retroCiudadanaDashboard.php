@@ -692,7 +692,141 @@ ix_require_session();
 
 
 
+    <!-- =========================
+    RETRO VIEW MODAL — SOLO LECTURA
+     ========================= -->
+    <div id="retro-view-overlay" class="retro-view-overlay" hidden></div>
 
+    <div id="retro-view-modal" class="retro-view-modal" role="dialog" aria-modal="true"
+        aria-labelledby="retro-view-title" hidden>
+        <div class="retro-view-dialog">
+
+            <header class="retro-view-header">
+                <h2 id="retro-view-title" class="retro-view-title">Retroalimentación</h2>
+                <button type="button" class="retro-view-close" id="retro-view-close" aria-label="Cerrar">
+                    ×
+                </button>
+            </header>
+
+            <div class="retro-view-body">
+                <div id="retro-view-folio" class="retro-view-folio">
+                    Folio: REQ-000000000
+                </div>
+
+                <div class="retro-view-field">
+                    <label class="retro-view-label">Tipo de trámite</label>
+                    <div id="retro-view-tramite" class="retro-view-value">—</div>
+                </div>
+
+                <div class="retro-view-field">
+                    <label class="retro-view-label">Descripción del requerimiento</label>
+                    <div id="retro-view-descripcion" class="retro-view-value retro-view-value--textarea">—</div>
+                </div>
+
+                <div class="retro-view-field">
+                    <label class="retro-view-label">Ciudadano</label>
+                    <div id="retro-view-ciudadano" class="retro-view-value">—</div>
+                </div>
+
+                <div class="retro-view-field-grid">
+                    <div class="retro-view-field">
+                        <label class="retro-view-label">Departamento</label>
+                        <div id="retro-view-departamento" class="retro-view-value">—</div>
+                    </div>
+
+                    <div class="retro-view-field">
+                        <label class="retro-view-label">Asignado</label>
+                        <div id="retro-view-asignado" class="retro-view-value">—</div>
+                    </div>
+                </div>
+
+                <div class="retro-view-field-grid">
+                    <div class="retro-view-field">
+                        <label class="retro-view-label">Teléfono</label>
+                        <div id="retro-view-telefono" class="retro-view-value">—</div>
+                    </div>
+
+                    <div class="retro-view-field">
+                        <label class="retro-view-label">Status</label>
+                        <div id="retro-view-status" class="retro-view-value">—</div>
+                    </div>
+                </div>
+
+                <div class="retro-view-rate-block">
+                    <p class="retro-view-q">Valoración del servicio</p>
+
+                    <div class="retro-view-rate retro-view-rate--svg" aria-label="Valoración registrada">
+
+                        <div class="retro-view-rate-item" data-rate="1">
+                            <span class="retro-view-rate-icon" aria-hidden="true">
+                                <svg viewBox="0 0 48 48" class="retro-view-rate-svg">
+                                    <circle class="s" cx="24" cy="24" r="14"></circle>
+                                    <circle class="f" cx="19" cy="22" r="1.6"></circle>
+                                    <circle class="f" cx="29" cy="22" r="1.6"></circle>
+                                    <path class="s" d="M18 32c2.2-2.4 9.8-2.4 12 0"></path>
+                                </svg>
+                            </span>
+                            <span class="retro-view-rate-label">Malo</span>
+                        </div>
+
+                        <div class="retro-view-rate-item" data-rate="2">
+                            <span class="retro-view-rate-icon" aria-hidden="true">
+                                <svg viewBox="0 0 48 48" class="retro-view-rate-svg">
+                                    <circle class="s" cx="24" cy="24" r="14"></circle>
+                                    <circle class="f" cx="19" cy="22" r="1.6"></circle>
+                                    <circle class="f" cx="29" cy="22" r="1.6"></circle>
+                                    <path class="s" d="M18 31h12"></path>
+                                </svg>
+                            </span>
+                            <span class="retro-view-rate-label">Regular</span>
+                        </div>
+
+                        <div class="retro-view-rate-item" data-rate="3">
+                            <span class="retro-view-rate-icon" aria-hidden="true">
+                                <svg viewBox="0 0 48 48" class="retro-view-rate-svg">
+                                    <circle class="s" cx="24" cy="24" r="14"></circle>
+                                    <circle class="f" cx="19" cy="22" r="1.6"></circle>
+                                    <circle class="f" cx="29" cy="22" r="1.6"></circle>
+                                    <path class="s" d="M18 29c2.2 2.6 9.8 2.6 12 0"></path>
+                                </svg>
+                            </span>
+                            <span class="retro-view-rate-label">Bueno</span>
+                        </div>
+
+                        <div class="retro-view-rate-item" data-rate="4">
+                            <span class="retro-view-rate-icon" aria-hidden="true">
+                                <svg viewBox="0 0 48 48" class="retro-view-rate-svg">
+                                    <circle class="s" cx="24" cy="24" r="14"></circle>
+                                    <circle class="f" cx="19" cy="22" r="1.6"></circle>
+                                    <circle class="f" cx="29" cy="22" r="1.6"></circle>
+                                    <path class="f" d="M18 29.2 H30 Q30 32.6 24 32.6 Q18 32.6 18 29.2 Z"></path>
+                                </svg>
+                            </span>
+                            <span class="retro-view-rate-label">Excelente</span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="retro-view-field">
+                    <label class="retro-view-label">Comentario sobre el requerimiento</label>
+                    <div id="retro-view-comentario" class="retro-view-value retro-view-value--textarea">
+                        Sin comentario
+                    </div>
+                </div>
+            </div>
+
+            <footer class="retro-view-footer">
+                <button type="button" class="retro-view-btn retro-view-btn--ghost" id="retro-view-close-footer">
+                    Cerrar
+                </button>
+
+                <button type="button" class="retro-view-btn retro-view-btn--primary" id="retro-view-go">
+                    Ir al requerimiento
+                </button>
+            </footer>
+        </div>
+    </div>
 
 
 
@@ -716,7 +850,7 @@ ix_require_session();
 
     <script src="/JS/components.js"></script>
     <script src="/JS/JSglobal.js"></script>
-    
+
     <script type="module" src="/JS/retroCiudadanaDashboard.js"></script>
 
     <script type="module" src="/JS/ui/sidebar.js"></script>

@@ -2728,3 +2728,319 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 .retro-dashboard tr.is-clickable {
   cursor: pointer;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   RETRO VIEW MODAL — SOLO LECTURA
+   ========================================================= */
+.retro-view-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(2px);
+  z-index: 1200;
+}
+
+.retro-view-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1201;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.retro-view-modal[hidden],
+.retro-view-overlay[hidden] {
+  display: none !important;
+}
+
+.retro-view-dialog {
+  width: min(760px, 100%);
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.retro-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.retro-view-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #163b2d;
+}
+
+.retro-view-close {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #dbe4ea;
+  border-radius: 999px;
+  background: #fff;
+  color: #163b2d;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.retro-view-body {
+  padding: 22px 24px;
+}
+
+.retro-view-folio {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: #f4f8f4;
+  color: #163b2d;
+  font-weight: 700;
+  border: 1px solid #dce8df;
+}
+
+.retro-view-field {
+  margin-bottom: 16px;
+}
+
+.retro-view-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.retro-view-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.retro-view-value {
+  min-height: 46px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #dbe4ea;
+  background: #fafcfd;
+  color: #111827;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.retro-view-value--textarea {
+  min-height: 108px;
+}
+
+.retro-view-q {
+  margin: 0 0 12px;
+  font-weight: 800;
+  color: #163b2d;
+  text-align: center;
+}
+
+.retro-view-rate-block {
+  margin: 6px 0 18px;
+  padding: 18px 16px;
+  border: 1px solid #e6edf1;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f9fcf9 0%, #ffffff 100%);
+}
+
+.retro-view-rate {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.retro-view-rate-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  opacity: 0.45;
+  transform: scale(0.98);
+  transition: .18s ease;
+}
+
+.retro-view-rate-item.is-active {
+  opacity: 1;
+  transform: scale(1);
+  border-color: #cfe1d4;
+  background: #f6fbf7;
+  box-shadow: 0 8px 24px rgba(22, 59, 45, 0.08);
+}
+
+.retro-view-rate-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e5edf0;
+}
+
+.retro-view-rate-svg {
+  width: 54px;
+  height: 54px;
+}
+
+.retro-view-rate-svg .s {
+  fill: none;
+  stroke: #173d2f;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.retro-view-rate-svg .f {
+  fill: #173d2f;
+}
+
+.retro-view-rate-item[data-rate="1"].is-active .retro-view-rate-icon {
+  border-color: #f1c5c5;
+  background: #fff6f6;
+}
+
+.retro-view-rate-item[data-rate="2"].is-active .retro-view-rate-icon {
+  border-color: #f6deb0;
+  background: #fffaf1;
+}
+
+.retro-view-rate-item[data-rate="3"].is-active .retro-view-rate-icon {
+  border-color: #bfd7ff;
+  background: #f5f9ff;
+}
+
+.retro-view-rate-item[data-rate="4"].is-active .retro-view-rate-icon {
+  border-color: #cbe8d3;
+  background: #f4fbf6;
+}
+
+.retro-view-rate-label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #334155;
+  text-align: center;
+}
+
+.retro-view-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 18px 24px 24px;
+  border-top: 1px solid #eef2f7;
+}
+
+.retro-view-btn {
+  min-width: 140px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.retro-view-btn--ghost {
+  border: 1px solid #dbe4ea;
+  background: #fff;
+  color: #163b2d;
+}
+
+.retro-view-btn--primary {
+  border: 1px solid #163b2d;
+  background: #163b2d;
+  color: #fff;
+}
+
+.retro-view-btn:hover,
+.retro-view-close:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 720px) {
+  .retro-view-modal {
+    padding: 12px;
+    align-items: end;
+  }
+
+  .retro-view-dialog {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .retro-view-header,
+  .retro-view-body,
+  .retro-view-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .retro-view-field-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .retro-view-rate {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .retro-view-rate-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .retro-view-rate-svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .retro-view-footer {
+    flex-direction: column-reverse;
+  }
+
+  .retro-view-btn {
+    width: 100%;
+  }
+}
