@@ -386,22 +386,23 @@ const SEL = {
   donutLegend: "#donut-legend",
 
   //modal readonly
-  retroViewOverlay: "#retro-view-overlay",
-  retroViewModal: "#retro-view-modal",
-  retroViewClose: "#retro-view-close",
-  retroViewCloseFooter: "#retro-view-close-footer",
-  retroViewGo: "#retro-view-go",
+  retroModal: "#retro-modal",
+  retroOverlay: "#retro-view-overlay",
+  retroClose: "#retro-view-close",
+  retroCloseFooter: "#retro-close-footer",
+  retroGo: "#retro-go",
 
-  retroViewFolio: "#retro-view-folio",
-  retroViewTramite: "#retro-view-tramite",
-  retroViewDescripcion: "#retro-view-descripcion",
-  retroViewCiudadano: "#retro-view-ciudadano",
-  retroViewDepartamento: "#retro-view-departamento",
-  retroViewAsignado: "#retro-view-asignado",
-  retroViewTelefono: "#retro-view-telefono",
-  retroViewStatus: "#retro-view-status",
-  retroViewComentario: "#retro-view-comentario",
-  retroViewRateItems: ".retro-view-rate-item",
+  retroFolio: "#retro-folio",
+  retroTramite: "#retro-tramite",
+  retroDescripcion: "#retro-descripcion",
+  retroCiudadano: "#retro-ciudadano",
+  retroDepartamento: "#retro-depto",
+  retroAsignado: "#retro-asignado",
+  retroTelefono: "#retro-telefono",
+  retroStatus: "#retro-status",
+  retroComentario: "#retro-comentario",
+  retroRateItems: '#retro-modal .rate-item',
+  retroRateInputs: '#retro-modal input[name="rate_view"]',
 };
 
 /* ============================================================================
