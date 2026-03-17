@@ -10,9 +10,9 @@ ix_require_session();
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/retroCiudadanaDashboard.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/CSS/retroCiudadanaDashboard.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="icon" href="/favicon.ico">
 </head>
@@ -162,7 +162,7 @@ ix_require_session();
                         </div>
 
                         <div class="retro-map-shell">
-                            <div id="retro-map" class="retro-map-canvas"
+                            <div id="retro-map" class="retro-map-canvas" role="img"
                                 aria-label="Mapa de retroalimentación por colonia"></div>
                         </div>
                     </section>
