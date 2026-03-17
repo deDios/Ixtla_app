@@ -21,6 +21,9 @@ const CONFIG = {
   DEPT_ENDPOINT:
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
 
+  API_RETRO_MAP:
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia_latlon_retro.php",
+
   RATE_LABELS: {
     1: "Malo",
     2: "Regular",
@@ -34,6 +37,20 @@ const CONFIG = {
     Bueno: "#3b82f6",
     Excelente: "#22c55e",
     "Sin respuesta": "#cbd5e1",
+  },
+
+  RETRO_STATUS_LABELS: {
+    0: "Caducada",
+    1: "Pendiente",
+    2: "Contestada",
+    3: "Inhabilitada",
+  },
+
+  RETRO_STATUS_COLORS: {
+    0: "#ef4444", // Caducada
+    1: "#f59e0b", // Pendiente
+    2: "#22c55e", // Contestada
+    3: "#64748b", // Inhabilitada
   },
 
   MAX_FETCH_PAGES: 20,
@@ -79,7 +96,7 @@ function refreshCurrentPageDecorations() {
     tr.setAttribute("role", "link");
     tr.setAttribute(
       "aria-label",
-      `Abrir requerimiento ${tr.children?.[0]?.textContent?.trim() || ""}`
+      `Abrir requerimiento ${tr.children?.[0]?.textContent?.trim() || ""}`,
     );
   });
 }
@@ -229,14 +246,12 @@ function buildRetroViewModel(retroRow, reqRow) {
     descripcion: safeTxt(reqRow?.descripcion),
     ciudadano: safeTxt(reqRow?.contacto_nombre),
     departamento: safeTxt(
-      reqRow?.departamento_nombre || retroRow?.departamento_nombre
+      reqRow?.departamento_nombre || retroRow?.departamento_nombre,
     ),
     asignado: safeTxt(
-      reqRow?.asignado_nombre_completo || retroRow?.asignado_nombre_completo
+      reqRow?.asignado_nombre_completo || retroRow?.asignado_nombre_completo,
     ),
-    telefono: safeTxt(
-      retroRow?.contacto_telefono || reqRow?.contacto_telefono
-    ),
+    telefono: safeTxt(retroRow?.contacto_telefono || reqRow?.contacto_telefono),
     comentario: safeTxt(retroRow?.comentario, "Sin comentario"),
     calificacion:
       retroRow?.calificacion != null ? Number(retroRow.calificacion) : null,
@@ -359,6 +374,10 @@ const State = {
   chartMonth: null,
   retroViewOpen: false,
   retroViewModel: null,
+  //mapa retro
+  retroMap: null,
+  retroBubbleLayer: null,
+  retroMapRows: [],
 };
 
 /* ============================================================================
@@ -401,8 +420,11 @@ const SEL = {
   retroTelefono: "#retro-telefono",
   retroStatus: "#retro-status",
   retroComentario: "#retro-comentario",
-  retroRateItems: '#retro-modal .rate-item',
+  retroRateItems: "#retro-modal .rate-item",
   retroRateInputs: '#retro-modal input[name="rate_view"]',
+
+  //mapa de retro
+  retroMap: "#retro-map",
 };
 
 /* ============================================================================
@@ -464,8 +486,9 @@ function updateFilterActiveLabel() {
 
 function getRateCount(rateKey) {
   if (rateKey === "todos") return State.rows.length;
-  return State.rows.filter((r) => String(r.calificacion ?? "") === String(rateKey))
-    .length;
+  return State.rows.filter(
+    (r) => String(r.calificacion ?? "") === String(rateKey),
+  ).length;
 }
 
 function initMobileFilterCombo() {
@@ -486,7 +509,7 @@ function initMobileFilterCombo() {
     box.classList.toggle("is-open");
     toggle.setAttribute(
       "aria-expanded",
-      box.classList.contains("is-open") ? "true" : "false"
+      box.classList.contains("is-open") ? "true" : "false",
     );
   });
 
@@ -593,14 +616,150 @@ function normalizeRow(row) {
     requerimiento_id:
       row?.requerimiento_id != null ? Number(row.requerimiento_id) : null,
     status: row?.status != null ? Number(row.status) : null,
-    calificacion:
-      row?.calificacion != null ? Number(row.calificacion) : null,
+    calificacion: row?.calificacion != null ? Number(row.calificacion) : null,
     folio: safeTxt(row?.folio),
     contacto_telefono: safeTxt(row?.contacto_telefono),
     departamento_nombre: safeTxt(row?.departamento_nombre),
     tramite_nombre: safeTxt(row?.tramite_nombre),
     asignado_nombre_completo: safeTxt(row?.asignado_nombre_completo),
   };
+}
+
+/* ============================================================================
+   MAPA
+   ========================================================================== */
+async function fetchRetroMapData() {
+  const payload = {};
+
+  if (State.activeRate !== "todos") {
+    payload.calificacion = Number(State.activeRate);
+  }
+
+  const res = await fetch(CONFIG.API_RETRO_MAP, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const json = await res.json();
+  if (!json?.ok) throw new Error(json?.error || "No se pudo obtener el mapa");
+
+  return Array.isArray(json?.data) ? json.data : [];
+}
+
+function initRetroMap() {
+  const el = $(SEL.retroMap);
+  if (!el || State.retroMap || typeof L === "undefined") return;
+
+  State.retroMap = L.map("retro-map", { zoomControl: true }).setView(
+    [20.55, -103.2],
+    12,
+  );
+
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    {
+      maxZoom: 18,
+      attribution: "© OpenStreetMap, © CARTO",
+    },
+  ).addTo(State.retroMap);
+
+  State.retroBubbleLayer = L.layerGroup().addTo(State.retroMap);
+}
+
+function getDominantRetroStatus(row) {
+  const candidates = [
+    Number(row?.dominant_status),
+    Number(row?.retro_status),
+    Number(row?.status),
+  ];
+
+  for (const n of candidates) {
+    if ([0, 1, 2, 3].includes(n)) return n;
+  }
+
+  return 1; // fallback a pendiente
+}
+
+function getRetroStatusColor(status) {
+  return CONFIG.RETRO_STATUS_COLORS[Number(status)] || "#94a3b8";
+}
+
+function getRetroStatusLabel(status) {
+  return CONFIG.RETRO_STATUS_LABELS[Number(status)] || "Sin definir";
+}
+
+function processRetroBubbleMap(geoData) {
+  initRetroMap();
+
+  if (!State.retroMap || !State.retroBubbleLayer) return;
+
+  setTimeout(() => {
+    if (State.retroMap) State.retroMap.invalidateSize();
+  }, 300);
+
+  State.retroBubbleLayer.clearLayers();
+
+  if (!Array.isArray(geoData) || !geoData.length) {
+    return;
+  }
+
+  const bounds = [];
+
+  geoData.forEach((r) => {
+    const val = parseFloat(r.total) || 0;
+    const lat = parseFloat(r.lat);
+    const lon = parseFloat(r.lon);
+    const dominantStatus = getDominantRetroStatus(r);
+
+    if (isNaN(lat) || isNaN(lon) || val <= 0) return;
+
+    bounds.push([lat, lon]);
+
+    const radius = Math.min(8 + Math.sqrt(val) * 2.2, 32);
+    const color = getRetroStatusColor(dominantStatus);
+    const statusLabel = getRetroStatusLabel(dominantStatus);
+
+    L.circleMarker([lat, lon], {
+      radius,
+      fillColor: color,
+      color: "#ffffff",
+      weight: 1.5,
+      opacity: 1,
+      fillOpacity: 0.82,
+    })
+      .addTo(State.retroBubbleLayer)
+      .bindTooltip(
+        `
+          <strong>${escapeHtml(r.colonia || "Zona")}</strong><br>
+          Retros: ${val}<br>
+          Status predominante: ${escapeHtml(statusLabel)}
+        `,
+        { direction: "top" },
+      );
+  });
+
+  if (bounds.length > 0) {
+    State.retroMap.fitBounds(L.latLngBounds(bounds), {
+      padding: [30, 30],
+      maxZoom: 15,
+    });
+  }
+}
+
+async function refreshRetroMap() {
+  try {
+    const rows = await fetchRetroMapData();
+    State.retroMapRows = rows;
+    processRetroBubbleMap(rows);
+  } catch (e) {
+    warn("refreshRetroMap()", e);
+  }
 }
 
 /* ============================================================================
@@ -631,7 +790,7 @@ function matchesSearch(row) {
 
 function applyPipeline() {
   State.filtered = State.rows.filter(
-    (row) => matchesRate(row) && matchesSearch(row)
+    (row) => matchesRate(row) && matchesSearch(row),
   );
   return State.filtered;
 }
@@ -677,14 +836,14 @@ function fillRetroReadonlyModal(viewModel) {
   setField(SEL.retroStatus, formatRetroStatus(viewModel?.status));
   setField(
     SEL.retroComentario,
-    safeTxt(viewModel?.comentario, "Sin comentario")
+    safeTxt(viewModel?.comentario, "Sin comentario"),
   );
 
   $$(SEL.retroRateItems).forEach((item) => {
     const rate = Number(item.dataset.rate || 0);
     item.classList.toggle(
       "is-active",
-      rate === Number(viewModel?.calificacion ?? 0)
+      rate === Number(viewModel?.calificacion ?? 0),
     );
   });
 
@@ -834,7 +993,9 @@ function renderTable(rows) {
   }
 
   if (isMobileAccordion()) {
-    tbody.innerHTML = paged.map((row, idx) => `
+    tbody.innerHTML = paged
+      .map(
+        (row, idx) => `
     <tr class="retro-row is-clickable ${idx === State.openRow ? "is-open" : ""}" data-row-idx="${idx}" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
       <td>${escapeHtml(row.folio)}</td>
       <td></td>
@@ -862,7 +1023,9 @@ function renderTable(rows) {
       </td>
     </tr>
 
-    ${idx === State.openRow ? `
+    ${
+      idx === State.openRow
+        ? `
       <tr class="hs-row-expand">
         <td colspan="${getAccordionColspan()}">
           <div class="hs-expand-grid">
@@ -889,10 +1052,16 @@ function renderTable(rows) {
           </div>
         </td>
       </tr>
-    ` : ""}
-  `).join("");
+    `
+        : ""
+    }
+  `,
+      )
+      .join("");
   } else {
-    tbody.innerHTML = paged.map((row) => `
+    tbody.innerHTML = paged
+      .map(
+        (row) => `
       <tr class="retro-row is-clickable" data-req-id="${escapeHtml(row.requerimiento_id ?? "")}">
         <td>${escapeHtml(row.folio)}</td>
         <td>${escapeHtml(row.departamento_nombre)}</td>
@@ -905,7 +1074,9 @@ function renderTable(rows) {
           </span>
         </td>
       </tr>
-    `).join("");
+    `,
+      )
+      .join("");
   }
 
   refreshCurrentPageDecorations();
@@ -944,7 +1115,7 @@ function renderPager(rows) {
       label: "«",
       page: 1,
       disabled: State.currentPage === 1,
-    })
+    }),
   );
 
   parts.push(
@@ -952,7 +1123,7 @@ function renderPager(rows) {
       label: "‹",
       page: State.currentPage - 1,
       disabled: State.currentPage === 1,
-    })
+    }),
   );
 
   // Rango compacto
@@ -970,7 +1141,9 @@ function renderPager(rows) {
   }
 
   if (start > 1) {
-    parts.push(makeBtn({ label: "1", page: 1, active: State.currentPage === 1 }));
+    parts.push(
+      makeBtn({ label: "1", page: 1, active: State.currentPage === 1 }),
+    );
     if (start > 2) parts.push(`<span class="pager-ellipsis">…</span>`);
   }
 
@@ -983,7 +1156,7 @@ function renderPager(rows) {
         label: String(p),
         page: p,
         active: p === State.currentPage,
-      })
+      }),
     );
   }
 
@@ -994,7 +1167,7 @@ function renderPager(rows) {
         label: String(pages),
         page: pages,
         active: State.currentPage === pages,
-      })
+      }),
     );
   }
 
@@ -1004,7 +1177,7 @@ function renderPager(rows) {
       label: "›",
       page: State.currentPage + 1,
       disabled: State.currentPage === pages,
-    })
+    }),
   );
 
   parts.push(
@@ -1012,7 +1185,7 @@ function renderPager(rows) {
       label: "»",
       page: pages,
       disabled: State.currentPage === pages,
-    })
+    }),
   );
 
   pager.innerHTML = `
@@ -1028,7 +1201,8 @@ function renderPager(rows) {
       if (!raw || raw === "disabled") return;
 
       const page = Number(raw);
-      if (!page || page < 1 || page > pages || page === State.currentPage) return;
+      if (!page || page < 1 || page > pages || page === State.currentPage)
+        return;
 
       State.currentPage = page;
       renderTable(State.filtered);
@@ -1100,7 +1274,7 @@ function drawDonutFromRows(rows) {
 
   try {
     State.chartMonth?.destroy?.();
-  } catch (_) { }
+  } catch (_) {}
 
   try {
     State.chartMonth = new DonutChart(canvas, {
@@ -1111,8 +1285,13 @@ function drawDonutFromRows(rows) {
       showPercLabels: true,
     });
 
-    if (State.chartMonth && typeof State.chartMonth._drawCenter === "function") {
-      const originalDrawCenter = State.chartMonth._drawCenter.bind(State.chartMonth);
+    if (
+      State.chartMonth &&
+      typeof State.chartMonth._drawCenter === "function"
+    ) {
+      const originalDrawCenter = State.chartMonth._drawCenter.bind(
+        State.chartMonth,
+      );
       State.chartMonth._drawCenter = (big) => originalDrawCenter(big, "Retros");
       State.chartMonth.draw(true);
       State.chartMonth.renderLegend();
@@ -1135,7 +1314,7 @@ function initSearch(onChange) {
       State.search = String(e.target.value || "").trim();
       State.currentPage = 1;
       onChange?.();
-    }, 180)
+    }, 180),
   );
 }
 
@@ -1154,6 +1333,7 @@ function applyPipelineAndRender() {
   renderTable(filtered);
   renderPager(filtered);
   drawDonutFromRows(filtered);
+  refreshRetroMap();
 }
 
 /* ============================================================================
@@ -1167,13 +1347,21 @@ async function init() {
     initSearch(() => applyPipelineAndRender());
     initRetroReadonlyModal();
     setupRowClickDelegation();
+    initRetroMap();
 
-    window.addEventListener("resize", debounce(() => {
-      refreshCurrentPageDecorations();
-      syncTableHead();
-      renderTable(State.filtered);
-      drawDonutFromRows(State.filtered);
-    }, 120));
+    window.addEventListener(
+      "resize",
+      debounce(() => {
+        refreshCurrentPageDecorations();
+        syncTableHead();
+        renderTable(State.filtered);
+        drawDonutFromRows(State.filtered);
+
+        if (State.retroMap) {
+          State.retroMap.invalidateSize();
+        }
+      }, 120),
+    );
 
     State.rows = await fetchAllRetros();
 

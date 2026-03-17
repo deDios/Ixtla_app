@@ -12,6 +12,8 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="stylesheet" href="/CSS/retroCiudadanaDashboard.css">
     <link rel="stylesheet" href="/CSS/components.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -90,7 +92,8 @@ ix_require_session();
                             <img id="hs-avatar" class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
                         </div>
 
-                        <button type="button" class="icon-btn avatar-edit" aria-label="Cambiar foto" title="Cambiar foto">
+                        <button type="button" class="icon-btn avatar-edit" aria-label="Cambiar foto"
+                            title="Cambiar foto">
                             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                                 <path
                                     d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0L15.13 5.12l3.75 3.75 1.83-1.83z"
@@ -155,13 +158,12 @@ ix_require_session();
 
                     <section class="hs-card retro-map-card" aria-labelledby="retro-map-title">
                         <div class="retro-card__head">
-                            <h3 id="retro-map-title">Mapa pendiente</h3>
+                            <h3 id="retro-map-title">Mapa de retroalimentación</h3>
                         </div>
 
-                        <div class="retro-map-placeholder" id="retro-map-placeholder">
-                            <div class="retro-map-placeholder__inner">
-                                <p>Aquí va el mapa</p>
-                            </div>
+                        <div class="retro-map-shell">
+                            <div id="retro-map" class="retro-map-canvas"
+                                aria-label="Mapa de retroalimentación por colonia"></div>
                         </div>
                     </section>
 
@@ -172,13 +174,15 @@ ix_require_session();
 
                         <div class="hs-donut">
                             <div class="hs-chart-wrap retro-donut__chart" style="position:relative;">
-                                <canvas id="chart-month" width="380" height="240" aria-describedby="retro-donut-desc"></canvas>
+                                <canvas id="chart-month" width="380" height="240"
+                                    aria-describedby="retro-donut-desc"></canvas>
                                 <div class="chart-tip"
                                     style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
                                 </div>
                             </div>
 
-                            <aside class="hs-donut-legend retro-donut__legend" aria-label="Leyenda de retroalimentación">
+                            <aside class="hs-donut-legend retro-donut__legend"
+                                aria-label="Leyenda de retroalimentación">
                                 <div id="donut-legend" class="legend" aria-live="polite"></div>
                             </aside>
                         </div>
@@ -820,13 +824,13 @@ ix_require_session();
 
     -->
     <script type="module">
-        import {
-            guardPage
-        } from "/JS/auth/guard.js";
-        guardPage({
-            stealth: false,
-            redirectTo: "/VIEWS/login.php"
-        });
+    import {
+        guardPage
+    } from "/JS/auth/guard.js";
+    guardPage({
+        stealth: false,
+        redirectTo: "/VIEWS/login.php"
+    });
     </script>
 
     <!-- componente de sheetjs -->
