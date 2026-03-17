@@ -41,14 +41,14 @@ const CONFIG = {
 
   RETRO_STATUS_LABELS: {
     0: "Caducada",
-    1: "Pendiente",
+    1: "No contestada",
     2: "Contestada",
     3: "Inhabilitada",
   },
 
   RETRO_STATUS_COLORS: {
     0: "#ef4444", // Caducada
-    1: "#f59e0b", // Pendiente
+    1: "#cbd5e1", // No contestada
     2: "#22c55e", // Contestada
     3: "#64748b", // Inhabilitada
   },
@@ -234,6 +234,24 @@ function formatRetroStatus(value) {
   if (n === 3) return "Inhabilitada";
   if (n === 0) return "Caducada";
   return "—";
+}
+
+function retroStatusDataKey(value) {
+  const n = Number(value);
+  if (n === 2) return "contestado";
+  if (n === 1) return "no-contestado";
+  if (n === 3) return "inhabilitado";
+  if (n === 0) return "caducado";
+  return "sin-status";
+}
+
+function getRetroStatusPaletteMap() {
+  return {
+    Contestado: CONFIG.RETRO_STATUS_COLORS[2],
+    "No contestado": CONFIG.RETRO_STATUS_COLORS[1],
+    Inhabilitado: CONFIG.RETRO_STATUS_COLORS[3],
+    Caducado: CONFIG.RETRO_STATUS_COLORS[0],
+  };
 }
 
 function buildRetroViewModel(retroRow, reqRow) {
@@ -780,7 +798,7 @@ function matchesSearch(row) {
     row.tramite_nombre,
     row.asignado_nombre_completo,
     row.contacto_telefono,
-    formatRate(row.calificacion),
+    formatRetroStatus(row.status),
   ]
     .map(normText)
     .join(" ");
@@ -1004,8 +1022,8 @@ function renderTable(rows) {
       <td></td>
       <td></td>
       <td>
-        <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
-          ${escapeHtml(formatRate(row.calificacion))}
+        <span class="badge-status retro-status" data-retro-status="${escapeHtml(retroStatusDataKey(row.status))}">
+          ${escapeHtml(formatRetroStatus(row.status))}
         </span>
       </td>
       <td class="hs-cell-expander">
@@ -1069,8 +1087,8 @@ function renderTable(rows) {
         <td>${escapeHtml(row.asignado_nombre_completo)}</td>
         <td>${escapeHtml(formatPhone(row.contacto_telefono))}</td>
         <td>
-          <span class="badge-status retro-status" data-retro="${escapeHtml(rateDataKey(row.calificacion))}">
-            ${escapeHtml(formatRate(row.calificacion))}
+          <span class="badge-status retro-status" data-retro-status="${escapeHtml(retroStatusDataKey(row.status))}">
+            ${escapeHtml(formatRetroStatus(row.status))}
           </span>
         </td>
       </tr>
@@ -1233,29 +1251,26 @@ function renderPager(rows) {
    ========================================================================== */
 function buildDonutData(rows) {
   const counts = {
-    Excelente: 0,
-    Bueno: 0,
-    Regular: 0,
-    Malo: 0,
-    "Sin respuesta": 0,
+    Contestado: 0,
+    "No contestado": 0,
+    Inhabilitado: 0,
+    Caducado: 0,
   };
 
   rows.forEach((row) => {
-    const cal = Number(row.calificacion ?? 0);
+    const st = Number(row.status);
 
-    if (cal === 4) counts.Excelente += 1;
-    else if (cal === 3) counts.Bueno += 1;
-    else if (cal === 2) counts.Regular += 1;
-    else if (cal === 1) counts.Malo += 1;
-    else counts["Sin respuesta"] += 1;
+    if (st === 2) counts.Contestado += 1;
+    else if (st === 1) counts["No contestado"] += 1;
+    else if (st === 3) counts.Inhabilitado += 1;
+    else if (st === 0) counts.Caducado += 1;
   });
 
   const data = [
-    { label: "Excelente", value: counts.Excelente },
-    { label: "Bueno", value: counts.Bueno },
-    { label: "Regular", value: counts.Regular },
-    { label: "Malo", value: counts.Malo },
-    { label: "Sin respuesta", value: counts["Sin respuesta"] },
+    { label: "Contestado", value: counts.Contestado },
+    { label: "No contestado", value: counts["No contestado"] },
+    { label: "Inhabilitado", value: counts.Inhabilitado },
+    { label: "Caducado", value: counts.Caducado },
   ];
 
   return {
@@ -1281,7 +1296,7 @@ function drawDonutFromRows(rows) {
       data: donutAgg.data,
       total: donutAgg.total,
       legendEl,
-      paletteMap: CONFIG.RATE_COLORS,
+      paletteMap: getRetroStatusPaletteMap(),
       showPercLabels: true,
     });
 

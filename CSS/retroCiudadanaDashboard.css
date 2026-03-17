@@ -2705,24 +2705,29 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 }
 
 /* Reutilizar la base visual de home pero ahora en retro */
-.retro-dashboard .badge-status.retro-status[data-retro="excelente"] {
+.retro-dashboard .badge-status.retro-status[data-retro-status="contestado"] {
   background: rgba(34, 197, 94, 0.14);
+  color: #166534;
 }
 
-.retro-dashboard .badge-status.retro-status[data-retro="bueno"] {
-  background: rgba(59, 130, 246, 0.14);
-}
-
-.retro-dashboard .badge-status.retro-status[data-retro="regular"] {
+.retro-dashboard .badge-status.retro-status[data-retro-status="no-contestado"] {
   background: rgba(245, 158, 11, 0.16);
+  color: #cbd5e1;
 }
 
-.retro-dashboard .badge-status.retro-status[data-retro="malo"] {
+.retro-dashboard .badge-status.retro-status[data-retro-status="inhabilitado"] {
+  background: rgba(100, 116, 139, 0.16);
+  color: #334155;
+}
+
+.retro-dashboard .badge-status.retro-status[data-retro-status="caducado"] {
   background: rgba(239, 68, 68, 0.14);
+  color: #991b1b;
 }
 
-.retro-dashboard .badge-status.retro-status[data-retro="sin-respuesta"] {
-  background: rgba(148, 163, 184, 0.18);
+.retro-dashboard .badge-status.retro-status[data-retro-status="sin-status"] {
+  background: rgba(203, 213, 225, 0.35);
+  color: #475569;
 }
 
 .retro-dashboard tr.is-clickable {
@@ -2881,20 +2886,20 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   color: #111827;
 }
 
-#retro-modal .rate-item input:checked ~ .rate-icon {
+#retro-modal .rate-item input:checked~.rate-icon {
   box-shadow: 0 0 0 6px #1f5fe0;
   transform: scale(1.06);
 }
 
-#retro-modal .rate-item input:checked ~ .rate-icon::after {
+#retro-modal .rate-item input:checked~.rate-icon::after {
   box-shadow: inset 0 0 0 3px rgba(31, 95, 224, .35);
 }
 
-#retro-modal .rate-item input:checked ~ .rate-icon .rate-svg .s {
+#retro-modal .rate-item input:checked~.rate-icon .rate-svg .s {
   stroke: #1f5fe0;
 }
 
-#retro-modal .rate-item input:checked ~ .rate-icon .rate-svg .f {
+#retro-modal .rate-item input:checked~.rate-icon .rate-svg .f {
   fill: #1f5fe0;
 }
 
