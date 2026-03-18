@@ -121,30 +121,32 @@ ix_require_session();
                         <span class="hs-filter-chevron" aria-hidden="true">▾</span>
                     </button>
 
-                    <nav id="hs-states" class="hs-states retro-states" aria-label="Calificaciones" role="radiogroup">
-                        <button type="button" class="item is-active" data-rate="todos" role="radio" aria-checked="true">
+                    <nav id="hs-states" class="hs-states retro-states" aria-label="Status de retroalimentación"
+                        role="radiogroup">
+                        <button type="button" class="item is-active" data-status="todos" role="radio"
+                            aria-checked="true">
                             <span class="label">Todos</span>
                             <span class="count" id="cnt-retro-todos">(0)</span>
                         </button>
 
-                        <button type="button" class="item" data-rate="4" role="radio" aria-checked="false">
-                            <span class="label">Excelente</span>
-                            <span class="count" id="cnt-retro-excelente">(0)</span>
+                        <button type="button" class="item" data-status="1" role="radio" aria-checked="false">
+                            <span class="label">No contestado</span>
+                            <span class="count" id="cnt-retro-no-contestado">(0)</span>
                         </button>
 
-                        <button type="button" class="item" data-rate="3" role="radio" aria-checked="false">
-                            <span class="label">Bueno</span>
-                            <span class="count" id="cnt-retro-bueno">(0)</span>
+                        <button type="button" class="item" data-status="2" role="radio" aria-checked="false">
+                            <span class="label">Contestado</span>
+                            <span class="count" id="cnt-retro-contestado">(0)</span>
                         </button>
 
-                        <button type="button" class="item" data-rate="2" role="radio" aria-checked="false">
-                            <span class="label">Regular</span>
-                            <span class="count" id="cnt-retro-regular">(0)</span>
+                        <button type="button" class="item" data-status="3" role="radio" aria-checked="false">
+                            <span class="label">Inhabilitado</span>
+                            <span class="count" id="cnt-retro-inhabilitado">(0)</span>
                         </button>
 
-                        <button type="button" class="item" data-rate="1" role="radio" aria-checked="false">
-                            <span class="label">Malo</span>
-                            <span class="count" id="cnt-retro-malo">(0)</span>
+                        <button type="button" class="item" data-status="0" role="radio" aria-checked="false">
+                            <span class="label">Caducado</span>
+                            <span class="count" id="cnt-retro-caducado">(0)</span>
                         </button>
                     </nav>
                 </section>
