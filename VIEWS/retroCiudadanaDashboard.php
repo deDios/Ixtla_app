@@ -159,9 +159,6 @@ ix_require_session();
                 <div class="hs-charts retro-overview" id="hs-charts">
 
                     <section class="hs-card retro-map-card" aria-labelledby="retro-map-title">
-                        <div class="retro-card__head">
-                            <h3 id="retro-map-title">Mapa de retroalimentación</h3>
-                        </div>
 
                         <div class="retro-map-shell">
                             <div id="retro-map" class="retro-map-canvas" role="img"
@@ -170,9 +167,6 @@ ix_require_session();
                     </section>
 
                     <section class="hs-card retro-donut-card" aria-labelledby="retro-donut-title">
-                        <div class="retro-card__head">
-                            <h3 id="retro-donut-title">Gráfico de este mes</h3>
-                        </div>
 
                         <div class="hs-donut">
                             <div class="hs-chart-wrap retro-donut__chart" style="position:relative;">

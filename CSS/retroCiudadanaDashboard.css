@@ -2707,27 +2707,22 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 /* Reutilizar la base visual de home pero ahora en retro */
 .retro-dashboard .badge-status.retro-status[data-retro-status="contestado"] {
   background: rgba(34, 197, 94, 0.14);
-  color: #166534;
 }
 
 .retro-dashboard .badge-status.retro-status[data-retro-status="no-contestado"] {
-  background: rgba(245, 158, 11, 0.16);
-  color: #cbd5e1;
+  background: #f2f2f2b5;
 }
 
 .retro-dashboard .badge-status.retro-status[data-retro-status="inhabilitado"] {
   background: rgba(100, 116, 139, 0.16);
-  color: #334155;
 }
 
 .retro-dashboard .badge-status.retro-status[data-retro-status="caducado"] {
   background: rgba(239, 68, 68, 0.14);
-  color: #991b1b;
 }
 
 .retro-dashboard .badge-status.retro-status[data-retro-status="sin-status"] {
   background: rgba(203, 213, 225, 0.35);
-  color: #475569;
 }
 
 .retro-dashboard tr.is-clickable {
