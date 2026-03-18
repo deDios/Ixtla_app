@@ -63,22 +63,6 @@ const toast = (msg, type = "info") => {
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-function sortChevronSvg(dir = null, active = false) {
-  const upCls = active && dir === "asc" ? "is-on" : "";
-  const downCls = active && dir === "desc" ? "is-on" : "";
-
-  return `
-    <span class="th-sort-chevrons" aria-hidden="true">
-      <svg viewBox="0 0 20 20" class="th-sort-up ${upCls}">
-        <path fill="currentColor" d="M10 6l4 5H6l4-5z"></path>
-      </svg>
-      <svg viewBox="0 0 20 20" class="th-sort-down ${downCls}">
-        <path fill="currentColor" d="M10 14l-4-5h8l-4 5z"></path>
-      </svg>
-    </span>
-  `;
-}
-
 function getSortValue(row, key) {
   switch (key) {
     case "folio": {
@@ -129,18 +113,22 @@ function sortRows(rows) {
 
 function renderSortableTh(label, key) {
   const active = State.sortKey === key;
-  const dir = active ? State.sortDir : null;
+  const isAsc = active && State.sortDir === "asc";
+  const isDesc = active && State.sortDir === "desc";
+
   const ariaSort = active
-    ? State.sortDir === "asc"
-      ? "ascending"
-      : "descending"
+    ? (isAsc ? "ascending" : "descending")
     : "none";
+
+  const arrow = active
+    ? `<span class="th-sort-arrow" aria-hidden="true">${isAsc ? "▲" : "▼"}</span>`
+    : "";
 
   return `
     <th data-sort="${key}" aria-sort="${ariaSort}">
-      <button type="button" class="th-sort-btn" data-sort="${key}">
+      <button type="button" class="th-sort-btn" data-sort="${key}" title="${active ? `Ordenado ${isAsc ? "ascendente" : "descendente"}` : "Ordenar"}">
         <span>${label}</span>
-        ${sortChevronSvg(dir, active)}
+        ${arrow}
       </button>
     </th>
   `;

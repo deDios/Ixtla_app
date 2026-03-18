@@ -130,22 +130,22 @@ ix_require_session();
                         </button>
 
                         <button type="button" class="item" data-status="1" role="radio" aria-checked="false">
-                            <span class="label">No contestado</span>
+                            <span class="label">No contestada</span>
                             <span class="count" id="cnt-retro-no-contestado">(0)</span>
                         </button>
 
                         <button type="button" class="item" data-status="2" role="radio" aria-checked="false">
-                            <span class="label">Contestado</span>
+                            <span class="label">Contestada</span>
                             <span class="count" id="cnt-retro-contestado">(0)</span>
                         </button>
 
                         <button type="button" class="item" data-status="3" role="radio" aria-checked="false">
-                            <span class="label">Inhabilitado</span>
+                            <span class="label">Inhabilitada</span>
                             <span class="count" id="cnt-retro-inhabilitado">(0)</span>
                         </button>
 
                         <button type="button" class="item" data-status="0" role="radio" aria-checked="false">
-                            <span class="label">Caducado</span>
+                            <span class="label">Caducada</span>
                             <span class="count" id="cnt-retro-caducado">(0)</span>
                         </button>
                     </nav>
