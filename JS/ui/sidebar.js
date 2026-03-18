@@ -131,7 +131,7 @@ async function resolveDeptName(deptId) {
     const json = await res.json();
     const arr = json?.data || [];
     const found = arr.find((d) => Number(d.id) === key);
-    const name = found?.nombre ? String(found.nombre) : `Depto ${deptId}`;
+    const name = found?.nombre ? String(found.nombre) : "—";
     __DEPT_CACHE.set(key, name);
     return name;
   } catch (e) {
@@ -166,10 +166,41 @@ async function resolveReportaA(empleado) {
 async function hydrateSidebar() {
   const s = getSessionSafe();
   const idUsuario = s?.id_usuario ?? s?.empleado_id ?? null;
-  const deptId = s?.dept_id ?? s?.departamento_id ?? null;
+  const empId = s?.empleado_id ?? null;
 
-  const nombre =
+  let nombre =
     [s?.nombre, s?.apellidos].filter(Boolean).join(" ").trim() || "—";
+
+  let deptId = s?.dept_id ?? s?.departamento_id ?? null;
+
+  try {
+    if (empId) {
+      const empleado = await getEmpleadoById(empId);
+
+      nombre =
+        [empleado?.nombre, empleado?.apellidos]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || nombre;
+
+      deptId =
+        empleado?.departamento_id ??
+        s?.dept_id ??
+        s?.departamento_id ??
+        null;
+
+      writeCookiePayload({
+        ...s,
+        nombre: empleado?.nombre ?? s?.nombre,
+        apellidos: empleado?.apellidos ?? s?.apellidos,
+        dept_id: deptId,
+        departamento_id: deptId,
+      });
+    }
+  } catch (e) {
+    warn("hydrateSidebar() getEmpleadoById fallback:", e);
+  }
+
   const nameEl = $(SEL.profileName);
   if (nameEl) nameEl.textContent = nombre;
 
@@ -179,7 +210,7 @@ async function hydrateSidebar() {
   const badge = $(SEL.profileBadge);
   if (badge) badge.textContent = await resolveDeptName(deptId);
 
-  log("hydrateSidebar()", { idUsuario, deptId, nombre });
+  log("hydrateSidebar()", { idUsuario, empId, deptId, nombre });
 }
 
 /* ======================================
