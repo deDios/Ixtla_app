@@ -361,7 +361,10 @@ async function resolveDeptName(deptId) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
+      body: JSON.stringify({
+        page: 1,
+        page_size: 200,
+      }),
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -369,13 +372,13 @@ async function resolveDeptName(deptId) {
     const json = await res.json();
     const arr = Array.isArray(json?.data) ? json.data : [];
     const found = arr.find((d) => Number(d.id) === key);
-    const name = found?.nombre ? String(found.nombre) : `Depto ${deptId}`;
+    const name = found?.nombre ? String(found.nombre) : "—";
 
     __DEPT_CACHE.set(key, name);
     return name;
   } catch (e) {
     warn("resolveDeptName() fallback:", deptId, e);
-    return `Depto ${deptId}`;
+    return "—";
   }
 }
 

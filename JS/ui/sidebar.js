@@ -186,7 +186,7 @@ async function hydrateSidebar() {
   try {
     if (empId) {
       const empleado = await getEmpleadoById(empId);
-      log("hydrateSidebar() empleado:", empleado);
+      log("hydrateSidebar() V2 empleado:", empleado);
 
       nombre =
         [empleado?.nombre, empleado?.apellidos]
