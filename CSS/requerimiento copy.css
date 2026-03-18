@@ -3210,3 +3210,15 @@ body.req-locked button.icon-btn[data-detalle-edit] {
 .exp-view .exp-acc-body[hidden]{
   display: none !important;
 }
+
+@media (max-width: 768px) {
+  .exp-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .exp-meta > div:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
