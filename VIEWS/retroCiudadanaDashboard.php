@@ -167,6 +167,11 @@ ix_require_session();
                     </section>
 
                     <section class="hs-card retro-donut-card" aria-labelledby="retro-donut-title">
+                        <!--
+                        <div class="retro-card__head">
+                            <h3 id="retro-donut-title">Gráfico de retros</h3>
+                        </div>
+                        -->
 
                         <div class="hs-donut">
                             <div class="hs-chart-wrap retro-donut__chart" style="position:relative;">
@@ -184,7 +189,7 @@ ix_require_session();
                         </div>
 
                         <p id="retro-donut-desc" class="sr-only">
-                            Distribución de retroalimentación ciudadana por calificación.
+                            Distribución de retroalimentación ciudadana por status.
                         </p>
                     </section>
                 </div>
@@ -208,7 +213,7 @@ ix_require_session();
                             <div class="legend retro-legend">
                                 <span>Registros: <strong id="hs-legend-total">0</strong></span>
                                 <span style="margin:0 .4rem;">·</span>
-                                <span>Filtro: <strong id="hs-legend-status">Todas las calificaciones</strong></span>
+                                <span>Filtro: <strong id="hs-legend-status">Todos los status</strong></span>
                             </div>
                         </div>
                     </div>
@@ -217,12 +222,12 @@ ix_require_session();
                         <table class="gc retro-table" aria-describedby="hs-search">
                             <thead>
                                 <tr>
-                                    <th>Folio</th>
-                                    <th>Departamento</th>
-                                    <th>Tipo de trámite</th>
-                                    <th>Asignado</th>
-                                    <th>Teléfono</th>
-                                    <th>Retroalimentación</th>
+                                    <th data-sort="folio">Folio</th>
+                                    <th data-sort="departamento">Departamento</th>
+                                    <th data-sort="tramite">Tipo de trámite</th>
+                                    <th data-sort="asignado">Asignado</th>
+                                    <th data-sort="telefono">Teléfono</th>
+                                    <th data-sort="status">Status</th>
                                 </tr>
                             </thead>
                             <tbody id="hs-table-body"></tbody>

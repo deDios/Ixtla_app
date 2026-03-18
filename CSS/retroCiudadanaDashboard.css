@@ -2729,7 +2729,61 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   /* cursor: pointer; */
 }
 
+/* =========================
+   Sort chevrons tabla retro
+   ========================= */
+.retro-table th[data-sort] {
+  white-space: nowrap;
+}
 
+.retro-table .th-sort-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+}
+
+.retro-table .th-sort-btn:hover {
+  opacity: .9;
+}
+
+.retro-table .th-sort-chevrons {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1;
+  gap: 1px;
+  opacity: .45;
+}
+
+.retro-table .th-sort-chevrons svg {
+  width: 10px;
+  height: 10px;
+  display: block;
+  color: #94a3b8;
+  transition: opacity .18s ease, color .18s ease, transform .18s ease;
+}
+
+.retro-table .th-sort-chevrons svg.is-on {
+  opacity: 1;
+  color: #334155;
+  transform: scale(1.05);
+}
+
+.retro-table th[aria-sort="ascending"] .th-sort-up,
+.retro-table th[aria-sort="descending"] .th-sort-down {
+  color: #334155;
+  opacity: 1;
+}
 
 
 

@@ -63,6 +63,89 @@ const toast = (msg, type = "info") => {
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+function sortChevronSvg(dir = null, active = false) {
+  const upCls = active && dir === "asc" ? "is-on" : "";
+  const downCls = active && dir === "desc" ? "is-on" : "";
+
+  return `
+    <span class="th-sort-chevrons" aria-hidden="true">
+      <svg viewBox="0 0 20 20" class="th-sort-up ${upCls}">
+        <path fill="currentColor" d="M10 6l4 5H6l4-5z"></path>
+      </svg>
+      <svg viewBox="0 0 20 20" class="th-sort-down ${downCls}">
+        <path fill="currentColor" d="M10 14l-4-5h8l-4 5z"></path>
+      </svg>
+    </span>
+  `;
+}
+
+function getSortValue(row, key) {
+  switch (key) {
+    case "folio": {
+      const m = String(row?.folio ?? "").match(/\d+/);
+      return m ? Number(m[0]) : Number(row?.id ?? 0);
+    }
+
+    case "departamento":
+      return normText(row?.departamento_nombre);
+
+    case "tramite":
+      return normText(row?.tramite_nombre);
+
+    case "asignado":
+      return normText(row?.asignado_nombre_completo);
+
+    case "telefono":
+      return Number(onlyDigits(row?.contacto_telefono) || 0);
+
+    case "status":
+      return Number(row?.status ?? -1);
+
+    default:
+      return "";
+  }
+}
+
+function compareValues(a, b) {
+  if (typeof a === "number" && typeof b === "number") {
+    return a - b;
+  }
+  return String(a).localeCompare(String(b), "es", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function sortRows(rows) {
+  const key = State.sortKey;
+  const dir = State.sortDir === "asc" ? 1 : -1;
+
+  return [...rows].sort((a, b) => {
+    const av = getSortValue(a, key);
+    const bv = getSortValue(b, key);
+    return compareValues(av, bv) * dir;
+  });
+}
+
+function renderSortableTh(label, key) {
+  const active = State.sortKey === key;
+  const dir = active ? State.sortDir : null;
+  const ariaSort = active
+    ? State.sortDir === "asc"
+      ? "ascending"
+      : "descending"
+    : "none";
+
+  return `
+    <th data-sort="${key}" aria-sort="${ariaSort}">
+      <button type="button" class="th-sort-btn" data-sort="${key}">
+        <span>${label}</span>
+        ${sortChevronSvg(dir, active)}
+      </button>
+    </th>
+  `;
+}
+
 function debounce(fn, wait = 220) {
   let t = null;
   return (...args) => {
@@ -134,7 +217,8 @@ function getRetroStatusPaletteMap() {
 }
 
 function getStatusCount(status) {
-  return State.rows.filter((row) => String(row.status) === String(status)).length;
+  return State.rows.filter((row) => String(row.status) === String(status))
+    .length;
 }
 
 function isMobileAccordion() {
@@ -169,25 +253,25 @@ function syncTableHead() {
   if (isMobileAccordion()) {
     thead.innerHTML = `
       <tr>
-        <th>Folio</th>
+        ${renderSortableTh("Folio", "folio")}
         <th></th>
         <th></th>
         <th></th>
         <th></th>
         <th></th>
-        <th>Status</th>
+        ${renderSortableTh("Status", "status")}
         <th class="hs-th-expander" aria-label="Detalles"></th>
       </tr>
     `;
   } else {
     thead.innerHTML = `
       <tr>
-        <th>Folio</th>
-        <th>Departamento</th>
-        <th>Tipo de trámite</th>
-        <th>Asignado</th>
-        <th>Teléfono</th>
-        <th>Status</th>
+        ${renderSortableTh("Folio", "folio")}
+        ${renderSortableTh("Departamento", "departamento")}
+        ${renderSortableTh("Tipo de trámite", "tramite")}
+        ${renderSortableTh("Asignado", "asignado")}
+        ${renderSortableTh("Teléfono", "telefono")}
+        ${renderSortableTh("Status", "status")}
       </tr>
     `;
   }
@@ -201,11 +285,16 @@ function buildRetroViewModel(retroRow, reqRow) {
     tramite: safeTxt(reqRow?.tramite_nombre || retroRow?.tramite_nombre),
     descripcion: safeTxt(reqRow?.descripcion),
     ciudadano: safeTxt(reqRow?.contacto_nombre),
-    departamento: safeTxt(reqRow?.departamento_nombre || retroRow?.departamento_nombre),
-    asignado: safeTxt(reqRow?.asignado_nombre_completo || retroRow?.asignado_nombre_completo),
+    departamento: safeTxt(
+      reqRow?.departamento_nombre || retroRow?.departamento_nombre,
+    ),
+    asignado: safeTxt(
+      reqRow?.asignado_nombre_completo || retroRow?.asignado_nombre_completo,
+    ),
     telefono: safeTxt(retroRow?.contacto_telefono || reqRow?.contacto_telefono),
     comentario: safeTxt(retroRow?.comentario, "Sin comentario"),
-    calificacion: retroRow?.calificacion != null ? Number(retroRow.calificacion) : null,
+    calificacion:
+      retroRow?.calificacion != null ? Number(retroRow.calificacion) : null,
     status: retroRow?.status != null ? Number(retroRow.status) : null,
   };
 }
@@ -213,7 +302,9 @@ function buildRetroViewModel(retroRow, reqRow) {
 function findRetroRowByReqId(reqId) {
   const id = Number(reqId || 0);
   if (!id) return null;
-  return State.rows.find((row) => Number(row?.requerimiento_id ?? 0) === id) || null;
+  return (
+    State.rows.find((row) => Number(row?.requerimiento_id ?? 0) === id) || null
+  );
 }
 
 function readCookiePayload() {
@@ -333,6 +424,9 @@ const State = {
   retroViewModel: null,
   openRow: null,
 
+  sortKey: "folio",
+  sortDir: "desc",
+
   retroMap: null,
   retroBubbleLayer: null,
   retroMapRows: [],
@@ -394,7 +488,8 @@ async function hydrateProfileFromSession() {
 
   const idUsuario = s?.id_usuario ?? s?.empleado_id ?? null;
   const deptId = s?.dept_id ?? s?.departamento_id ?? null;
-  const nombre = [s?.nombre, s?.apellidos].filter(Boolean).join(" ").trim() || "—";
+  const nombre =
+    [s?.nombre, s?.apellidos].filter(Boolean).join(" ").trim() || "—";
 
   const nameEl = $(SEL.profileName);
   if (nameEl) nameEl.textContent = nombre;
@@ -573,7 +668,8 @@ function normalizeRow(row) {
   return {
     ...row,
     id: Number(row?.id ?? 0),
-    requerimiento_id: row?.requerimiento_id != null ? Number(row.requerimiento_id) : null,
+    requerimiento_id:
+      row?.requerimiento_id != null ? Number(row.requerimiento_id) : null,
     status: row?.status != null ? Number(row.status) : null,
     calificacion: row?.calificacion != null ? Number(row.calificacion) : null,
     folio: safeTxt(row?.folio),
@@ -615,12 +711,18 @@ function initRetroMap() {
   const el = $(SEL.retroMap);
   if (!el || State.retroMap || typeof L === "undefined") return;
 
-  State.retroMap = L.map("retro-map", { zoomControl: true }).setView([20.55, -103.2], 12);
+  State.retroMap = L.map("retro-map", { zoomControl: true }).setView(
+    [20.55, -103.2],
+    12,
+  );
 
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 18,
-    attribution: "© OpenStreetMap, © CARTO",
-  }).addTo(State.retroMap);
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    {
+      maxZoom: 18,
+      attribution: "© OpenStreetMap, © CARTO",
+    },
+  ).addTo(State.retroMap);
 
   State.retroBubbleLayer = L.layerGroup().addTo(State.retroMap);
 }
@@ -783,15 +885,22 @@ function fillRetroReadonlyModal(viewModel) {
   setField(SEL.retroAsignado, safeTxt(viewModel?.asignado));
   setField(SEL.retroTelefono, safeTxt(formatPhone(viewModel?.telefono)));
   setField(SEL.retroStatus, formatRetroStatus(viewModel?.status));
-  setField(SEL.retroComentario, safeTxt(viewModel?.comentario, "Sin comentario"));
+  setField(
+    SEL.retroComentario,
+    safeTxt(viewModel?.comentario, "Sin comentario"),
+  );
 
   $$(SEL.retroRateItems).forEach((item) => {
     const rate = Number(item.dataset.rate || 0);
-    item.classList.toggle("is-active", rate === Number(viewModel?.calificacion ?? 0));
+    item.classList.toggle(
+      "is-active",
+      rate === Number(viewModel?.calificacion ?? 0),
+    );
   });
 
   $$(SEL.retroRateInputs).forEach((input) => {
-    input.checked = Number(input.value) === Number(viewModel?.calificacion ?? 0);
+    input.checked =
+      Number(input.value) === Number(viewModel?.calificacion ?? 0);
   });
 
   const goBtn = $(SEL.retroGo);
@@ -1043,7 +1152,9 @@ function renderPager(rows) {
 
   const parts = [];
 
-  parts.push(makeBtn({ label: "«", page: 1, disabled: State.currentPage === 1 }));
+  parts.push(
+    makeBtn({ label: "«", page: 1, disabled: State.currentPage === 1 }),
+  );
   parts.push(
     makeBtn({
       label: "‹",
@@ -1066,7 +1177,9 @@ function renderPager(rows) {
   }
 
   if (start > 1) {
-    parts.push(makeBtn({ label: "1", page: 1, active: State.currentPage === 1 }));
+    parts.push(
+      makeBtn({ label: "1", page: 1, active: State.currentPage === 1 }),
+    );
     if (start > 2) parts.push(`<span class="pager-ellipsis">…</span>`);
   }
 
@@ -1123,7 +1236,8 @@ function renderPager(rows) {
       if (!raw || raw === "disabled") return;
 
       const page = Number(raw);
-      if (!page || page < 1 || page > pages || page === State.currentPage) return;
+      if (!page || page < 1 || page > pages || page === State.currentPage)
+        return;
 
       State.currentPage = page;
       renderTable(State.filtered);
@@ -1201,8 +1315,13 @@ function drawDonutFromRows(rows) {
       showPercLabels: true,
     });
 
-    if (State.chartMonth && typeof State.chartMonth._drawCenter === "function") {
-      const originalDrawCenter = State.chartMonth._drawCenter.bind(State.chartMonth);
+    if (
+      State.chartMonth &&
+      typeof State.chartMonth._drawCenter === "function"
+    ) {
+      const originalDrawCenter = State.chartMonth._drawCenter.bind(
+        State.chartMonth,
+      );
       State.chartMonth._drawCenter = (big) => originalDrawCenter(big, "Retros");
       State.chartMonth.draw(true);
       State.chartMonth.renderLegend();
@@ -1275,11 +1394,36 @@ function setupRowClickDelegation() {
   });
 }
 
+function initTableSorting() {
+  const table = $(SEL.tableBody)?.closest("table");
+  const thead = table?.querySelector("thead");
+  if (!thead) return;
+
+  thead.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-sort]");
+    if (!btn) return;
+
+    const key = btn.dataset.sort;
+    if (!key) return;
+
+    if (State.sortKey === key) {
+      State.sortDir = State.sortDir === "asc" ? "desc" : "asc";
+    } else {
+      State.sortKey = key;
+      State.sortDir = key === "folio" ? "desc" : "asc";
+    }
+
+    State.currentPage = 1;
+    State.openRow = null;
+    applyPipelineAndRender();
+  });
+}
+
 /* ============================================================================
    RENDER GENERAL
    ========================================================================== */
 function applyPipelineAndRender() {
-  const filtered = applyPipeline();
+  const filtered = sortRows(applyPipeline());
   State.filtered = filtered;
 
   const legendTotal = $(SEL.legendTotal);
@@ -1305,6 +1449,7 @@ async function init() {
     initRetroReadonlyModal();
     setupRowClickDelegation();
     initRetroMap();
+    initTableSorting();
 
     window.addEventListener(
       "resize",
