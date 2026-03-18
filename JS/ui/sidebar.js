@@ -136,7 +136,7 @@ async function resolveDeptName(deptId) {
     return name;
   } catch (e) {
     warn("resolveDeptName() fallback:", deptId, e);
-    return `Depto ${deptId}`;
+    return "—";
   }
 }
 
@@ -171,11 +171,15 @@ async function hydrateSidebar() {
   let nombre =
     [s?.nombre, s?.apellidos].filter(Boolean).join(" ").trim() || "—";
 
-  let deptId = s?.dept_id ?? s?.departamento_id ?? null;
+  let deptId =
+    s?.departamento_id ??
+    s?.dept_id ??
+    null;
 
   try {
     if (empId) {
       const empleado = await getEmpleadoById(empId);
+      log("hydrateSidebar() empleado:", empleado);
 
       nombre =
         [empleado?.nombre, empleado?.apellidos]
@@ -185,20 +189,21 @@ async function hydrateSidebar() {
 
       deptId =
         empleado?.departamento_id ??
-        s?.dept_id ??
         s?.departamento_id ??
+        s?.dept_id ??
         null;
 
+      // refrescar cookie para próximas vistas
       writeCookiePayload({
         ...s,
         nombre: empleado?.nombre ?? s?.nombre,
         apellidos: empleado?.apellidos ?? s?.apellidos,
-        dept_id: deptId,
         departamento_id: deptId,
+        dept_id: deptId,
       });
     }
   } catch (e) {
-    warn("hydrateSidebar() getEmpleadoById fallback:", e);
+    warn("hydrateSidebar() fallback cookie:", e);
   }
 
   const nameEl = $(SEL.profileName);
@@ -208,9 +213,11 @@ async function hydrateSidebar() {
   if (img) setAvatarSrc(img, idUsuario);
 
   const badge = $(SEL.profileBadge);
-  if (badge) badge.textContent = await resolveDeptName(deptId);
+  if (badge) {
+    badge.textContent = await resolveDeptName(deptId);
+  }
 
-  log("hydrateSidebar()", { idUsuario, empId, deptId, nombre });
+  log("hydrateSidebar() V2", { idUsuario, empId, deptId, nombre });
 }
 
 /* ======================================
