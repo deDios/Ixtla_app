@@ -2908,6 +2908,7 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
   text-align: center;
   font-size: 18px;
   color: #111827;
+  padding-top: 1rem;
 }
 
 #retro-modal .retro-rate {
