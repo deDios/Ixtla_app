@@ -63,39 +63,6 @@ const toast = (msg, type = "info") => {
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-function getReqIdSetFromRows(rows = []) {
-  const set = new Set();
-
-  rows.forEach((row) => {
-    const reqId = Number(row?.requerimiento_id ?? 0);
-    if (reqId > 0) set.add(reqId);
-  });
-
-  return set;
-}
-
-function filterMapRowsByVisibleRows(mapRows = [], visibleRows = []) {
-  if (!Array.isArray(mapRows) || !mapRows.length) return [];
-
-  const visibleReqIds = getReqIdSetFromRows(visibleRows);
-
-  // Si no hay búsqueda activa y no hay filas visibles, regresa vacío
-  if (!visibleReqIds.size) return [];
-
-  return mapRows.filter((item) => {
-    // soporta distintos nombres por si el endpoint cambia la llave
-    const reqId = Number(
-      item?.requerimiento_id ??
-      item?.req_id ??
-      item?.id_requerimiento ??
-      item?.requerimiento ??
-      0
-    );
-
-    return reqId > 0 && visibleReqIds.has(reqId);
-  });
-}
-
 function getSortValue(row, key) {
   switch (key) {
     case "folio": {
@@ -708,10 +675,16 @@ function normalizeRow(row) {
    MAPA
    ========================================================================== */
 async function fetchRetroMapData() {
-  const payload = {};
+  const payload = {
+    req_status: 1,
+  };
 
   if (State.activeStatus !== "todos") {
     payload.retro_status = Number(State.activeStatus);
+  }
+
+  if (State.search) {
+    payload.search = String(State.search).trim();
   }
 
   const res = await fetch(CONFIG.API_RETRO_MAP, {
@@ -729,6 +702,16 @@ async function fetchRetroMapData() {
   if (!json?.ok) throw new Error(json?.error || "No se pudo obtener el mapa");
 
   return Array.isArray(json?.data) ? json.data : [];
+}
+
+async function refreshRetroMap() {
+  try {
+    const rows = await fetchRetroMapData();
+    State.retroMapRows = rows;
+    processRetroBubbleMap(rows);
+  } catch (e) {
+    warn("refreshRetroMap()", e);
+  }
 }
 
 function initRetroMap() {
@@ -752,6 +735,10 @@ function initRetroMap() {
 }
 
 function getDominantRetroStatus(row) {
+  if (State.activeStatus !== "todos") {
+    return Number(State.activeStatus);
+  }
+
   const candidates = [
     Number(row?.dominant_status),
     Number(row?.retro_status),
@@ -826,24 +813,6 @@ function processRetroBubbleMap(geoData) {
       padding: [30, 30],
       maxZoom: 15,
     });
-  }
-}
-
-async function refreshRetroMap(visibleRows = State.filtered) {
-  try {
-    // Carga base solo una vez
-    if (!Array.isArray(State.retroMapRows) || !State.retroMapRows.length) {
-      State.retroMapRows = await fetchRetroMapData();
-    }
-
-    const rowsForMap = filterMapRowsByVisibleRows(
-      State.retroMapRows,
-      visibleRows
-    );
-
-    processRetroBubbleMap(rowsForMap);
-  } catch (e) {
-    warn("refreshRetroMap()", e);
   }
 }
 
@@ -1465,7 +1434,7 @@ function applyPipelineAndRender() {
   renderTable(filtered);
   renderPager(filtered);
   drawDonutFromRows(filtered);
-  refreshRetroMap(filtered);
+  refreshRetroMap();
 }
 
 /* ============================================================================
@@ -1494,12 +1463,11 @@ async function init() {
           State.retroMap.invalidateSize();
         }
 
-        refreshRetroMap(State.filtered);
+        refreshRetroMap();
       }, 120),
     );
 
     State.rows = await fetchAllRetros();
-    State.retroMapRows = await fetchRetroMapData();
 
     renderCounts();
     applyPipelineAndRender();

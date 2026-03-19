@@ -43,6 +43,7 @@ $in = json_decode(file_get_contents("php://input"), true) ?: [];
 | retro_status    : int|null   -> status de retro_ciudadana
 | calificacion    : int|null   -> calificacion de retro_ciudadana
 | req_status      : int|null   -> status lógico del requerimiento (default 1)
+| search          : string|null
 |--------------------------------------------------------------------------
 */
 
@@ -52,6 +53,10 @@ $tramite       = isset($in['tramite']) && $in['tramite'] !== "" && $in['tramite'
 
 $retro_status  = isset($in['retro_status']) && $in['retro_status'] !== "" && $in['retro_status'] !== null ? (int)$in['retro_status'] : null;
 $calificacion  = isset($in['calificacion']) && $in['calificacion'] !== "" && $in['calificacion'] !== null ? (int)$in['calificacion'] : null;
+
+$search        = isset($in['search']) && $in['search'] !== "" && $in['search'] !== null
+  ? trim($in['search'])
+  : null;
 
 /*
 | req_status:
@@ -122,6 +127,26 @@ if (!empty($months)) {
   }
 }
 
+if ($search !== null) {
+  $where[] = "(
+    CAST(r.id AS CHAR) LIKE ?
+    OR COALESCE(r.contacto_telefono, '') LIKE ?
+    OR COALESCE(r.contacto_colonia, '') LIKE ?
+    OR COALESCE(tr.nombre, '') LIKE ?
+    OR COALESCE(d.nombre, '') LIKE ?
+    OR COALESCE(rc.comentario, '') LIKE ?
+  )";
+
+  $like = "%" . $search . "%";
+  $types .= "ssssss";
+  $params[] = $like;
+  $params[] = $like;
+  $params[] = $like;
+  $params[] = $like;
+  $params[] = $like;
+  $params[] = $like;
+}
+
 $whereClause = implode(" AND ", $where);
 
 /* =========================
@@ -135,6 +160,8 @@ $subSql = "
     COUNT(*) AS total
   FROM retro_ciudadana rc
   INNER JOIN requerimiento r ON r.id = rc.requerimiento_id
+  LEFT JOIN tramite tr ON tr.id = r.tramite_id
+  LEFT JOIN departamento d ON d.id = r.departamento_id
   WHERE $whereClause
     AND r.contacto_cp IS NOT NULL
     AND r.contacto_cp <> ''
