@@ -785,7 +785,7 @@ function processRetroBubbleMap(geoData) {
 
     bounds.push([lat, lon]);
 
-    const radius = Math.min(8 + Math.sqrt(val) * 2.2, 32);
+    const radius = Math.min(4 + Math.sqrt(val / 100) * 6, 18);
     const color = getRetroStatusColor(dominantStatus);
     const statusLabel = getRetroStatusLabel(dominantStatus);
 

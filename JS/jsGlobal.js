@@ -560,6 +560,7 @@
 
   /* ===================== SUBNAV OPERATIVO (render + active + chat) ===================== */
   (function SubnavOperativo() {
+    //view retro: VIEWS/retroCiudadanaDashboard.php
     "use strict";
 
     const CFG_OPS = {
@@ -584,6 +585,13 @@
         allowedEmpIds: Array.isArray(window.NAV_CHAT_ALLOWED)
           ? window.NAV_CHAT_ALLOWED.slice()
           : [6, 5, 4, 2, 1, 15],
+        cookieName: "ix_emp",
+      },
+      RETRO: {
+        enabled: true,
+        url: "/VIEWS/retroCiudadanaDashboard.php",
+        label: "Retro",
+        presidenciaDeptId: 6,
         cookieName: "ix_emp",
       },
     };
@@ -683,6 +691,45 @@
       });
     }
 
+    function maybeAddRetroLink() {
+      if (!CFG_OPS.RETRO.enabled || !CFG_OPS.RETRO.url) return;
+
+      const sess = readIxSession(CFG_OPS.RETRO.cookieName);
+      const deptId = Number(sess?.dept_id ?? NaN);
+      if (!Number.isFinite(deptId)) return;
+
+      const isPresidencia = deptId === Number(CFG_OPS.RETRO.presidenciaDeptId);
+
+      ensureNavLeftHosts();
+      const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
+
+      navs.forEach((navLeft) => {
+        if (!navLeft) return;
+
+        const existing = navLeft.querySelector("#link-retro");
+        const isActive = normPath(CFG_OPS.RETRO.url) === curPath();
+
+        if (existing) {
+          existing.classList.toggle("active", isActive);
+          return;
+        }
+
+        const a = document.createElement("a");
+        a.id = "link-retro";
+        a.href = CFG_OPS.RETRO.url;
+        a.textContent = CFG_OPS.RETRO.label;
+        a.classList.toggle("active", isActive);
+
+        const chat = navLeft.querySelector("#link-chat");
+
+        if (isPresidencia && chat) {
+          chat.insertAdjacentElement("afterend", a);
+        } else {
+          navLeft.appendChild(a);
+        }
+      });
+    }
+
     function mkLink(label, href, isActive) {
       return `<a href="${href}" class="${isActive ? "active" : ""}">${label}</a>`;
     }
@@ -725,6 +772,7 @@
 
       ensureLogoNavigates();
       maybeAddChatLink();
+      maybeAddRetroLink();
       mirrorActiveToMobile();
     }
 
@@ -749,7 +797,11 @@
     });
 
     function isOperativeLike() {
-      return !!resolveActiveSectionKey() || /home\.php/i.test(curLast());
+      return (
+        !!resolveActiveSectionKey() ||
+        /home\.php/i.test(curLast()) ||
+        /retrociudadanadashboard\.php/i.test(curLast())
+      );
     }
 
     function mount() {
@@ -771,6 +823,7 @@
         if (isOperativeLike()) {
           try {
             maybeAddChatLink();
+            maybeAddRetroLink();
             mirrorActiveToMobile();
             subnavs.forEach((nav) => {
               fixOperativeSocialHitbox(nav);
