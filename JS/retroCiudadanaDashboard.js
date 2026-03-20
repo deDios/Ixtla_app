@@ -489,6 +489,7 @@ const State = {
   retroMapRows: [],
 
   scopePlan: null,
+  scopeReqItems: [],
 };
 
 /* ============================================================================
@@ -737,6 +738,7 @@ async function loadScopedRetros() {
 
   const scopeRes = await fetchScope({ plan });
   const reqItems = Array.isArray(scopeRes?.items) ? scopeRes.items : [];
+  State.scopeReqItems = reqItems;
 
   const allowedReqIds = new Set(
     reqItems
@@ -844,17 +846,16 @@ async function fetchRetroMapData() {
 
 async function refreshRetroMap() {
   try {
-    if (!hasGlobalScope()) {
-      State.retroMapRows = [];
-      if (State.retroBubbleLayer) {
-        State.retroBubbleLayer.clearLayers();
-      }
+    if (hasGlobalScope()) {
+      const rows = await fetchRetroMapData();
+      State.retroMapRows = rows;
+      processRetroBubbleMap(rows);
       return;
     }
 
-    const rows = await fetchRetroMapData();
-    State.retroMapRows = rows;
-    processRetroBubbleMap(rows);
+    const scopedRows = Array.isArray(State.rows) ? State.rows : [];
+    State.retroMapRows = scopedRows;
+    processRetroBubbleMap(scopedRows);
   } catch (e) {
     warn("refreshRetroMap()", e);
   }
