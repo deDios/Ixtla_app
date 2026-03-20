@@ -1072,7 +1072,7 @@ function processRetroBubbleMap(geoData) {
         `
           <strong>${escapeHtml(r.colonia || "Zona")}</strong><br>
           Retros: ${val}<br>
-          ${"" /* Status predominante: ${escapeHtml(statusLabel)} */} //descomentar para agregar el tooltip de status predominante.
+          ${"" /* Status predominante: ${escapeHtml(statusLabel)} */}
         `,
         { direction: "top" },
       );
