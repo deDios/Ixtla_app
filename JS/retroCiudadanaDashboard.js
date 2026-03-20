@@ -2,6 +2,7 @@
 "use strict";
 
 import { DonutChart } from "/JS/charts/donut-chart.js";
+import { planScope, fetchScope } from "/JS/api/requerimientos.js";
 
 /* ============================================================================
    CONFIG
@@ -11,17 +12,23 @@ const CONFIG = {
   PAGE_SIZE: 7,
   DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
 
+  ADMIN_ROLES: ["ADMIN"],
+  PRESIDENCIA_DEPT_IDS: [6],
+
+  API_RBAC:
+    "https://ixtla-app.com/db/WEB/ixtla01_c_rbac.php",
+
   API_RETRO:
-    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_retro.php",
+    "https://ixtla-app.com/db/WEB/ixtla01_c_retro.php",
 
   API_REQUERIMIENTO:
-    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php",
+    "https://ixtla-app.com/db/WEB/ixtla01_c_requerimiento.php",
 
   DEPT_ENDPOINT:
-    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
+    "https://ixtla-app.com/db/WEB/ixtla01_c_departamento.php",
 
   API_RETRO_MAP:
-    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia_latlon_retro.php",
+    "https://ixtla-app.com/db/WEB/ixtla01_c_cpcolonia_latlon_retro.php",
 
   RATE_LABELS: {
     1: "Malo",
@@ -38,10 +45,10 @@ const CONFIG = {
   },
 
   RETRO_STATUS_COLORS: {
-    0: "#ef4444", // Caducada
-    1: "#cbd5e1", // No contestada
-    2: "#22c55e", // Contestada
-    3: "#64748b", // Inhabilitada
+    0: "#ef4444",
+    1: "#cbd5e1",
+    2: "#22c55e",
+    3: "#64748b",
   },
 
   MAX_FETCH_PAGES: 20,
@@ -109,6 +116,21 @@ function sortRows(rows) {
     const bv = getSortValue(b, key);
     return compareValues(av, bv) * dir;
   });
+}
+
+function hasGlobalScope() {
+  const plan = State.scopePlan;
+  if (plan) {
+    return Boolean(plan.isAdmin || plan.isPresidencia);
+  }
+
+  const roles = Array.isArray(State.session?.roles) ? State.session.roles : [];
+  const deptId = Number(State.session?.dept_id || 0);
+
+  const isAdmin = roles.some((r) => CONFIG.ADMIN_ROLES.includes(r));
+  const isPres = CONFIG.PRESIDENCIA_DEPT_IDS.includes(deptId);
+
+  return isAdmin || isPres;
 }
 
 function renderSortableTh(label, key) {
@@ -307,6 +329,50 @@ function readCookiePayload() {
   }
 }
 
+function readSession() {
+  try {
+    if (window.Session?.get) {
+      const s = window.Session.get();
+      if (s) {
+        return {
+          ...s,
+          empleado_id: Number(
+            s?.empleado_id ?? s?.id_empleado ?? s?.id ?? 0,
+          ) || 0,
+          id_usuario: Number(
+            s?.id_usuario ?? s?.cuenta_id ?? s?.empleado_id ?? 0,
+          ) || 0,
+          dept_id: Number(
+            s?.dept_id ?? s?.departamento_id ?? s?.depto_id ?? 0,
+          ) || 0,
+          roles: Array.isArray(s?.roles)
+            ? s.roles.map((r) => String(r || "").toUpperCase().trim())
+            : [],
+        };
+      }
+    }
+  } catch (e) {
+    warn("readSession() Session.get fallback:", e);
+  }
+
+  const raw = readCookiePayload() || {};
+  return {
+    ...raw,
+    empleado_id: Number(
+      raw?.empleado_id ?? raw?.id_empleado ?? raw?.id ?? 0,
+    ) || 0,
+    id_usuario: Number(
+      raw?.id_usuario ?? raw?.cuenta_id ?? raw?.empleado_id ?? 0,
+    ) || 0,
+    dept_id: Number(
+      raw?.dept_id ?? raw?.departamento_id ?? raw?.depto_id ?? 0,
+    ) || 0,
+    roles: Array.isArray(raw?.roles)
+      ? raw.roles.map((r) => String(r || "").toUpperCase().trim())
+      : [],
+  };
+}
+
 function cacheBust(url) {
   const base = String(url || "").split("?")[0];
   return `${base}${base.includes("?") ? "&" : "?"}v=${Date.now()}`;
@@ -421,6 +487,8 @@ const State = {
   retroMap: null,
   retroBubbleLayer: null,
   retroMapRows: [],
+
+  scopePlan: null,
 };
 
 /* ============================================================================
@@ -474,7 +542,7 @@ const SEL = {
    PERFIL / SIDEBAR
    ========================================================================== */
 async function hydrateProfileFromSession() {
-  const s = readCookiePayload() || {};
+  const s = readSession();
   State.session = s;
 
   const idUsuario = s?.id_usuario ?? s?.empleado_id ?? null;
@@ -632,6 +700,62 @@ async function fetchAllRetros() {
   return acc.map(normalizeRow);
 }
 
+async function loadScopedRetros() {
+  const session = readSession();
+  State.session = session;
+
+  const viewerId = Number(session?.empleado_id || 0);
+  const deptId = Number(session?.dept_id || 0);
+
+  if (!viewerId) {
+    warn("loadScopedRetros(): no hay empleado_id en sesión");
+    return [];
+  }
+
+  const plan = await planScope({
+    viewerId,
+    viewerDeptId: deptId,
+  });
+
+  State.scopePlan = plan;
+
+  log("loadScopedRetros() plan:", plan);
+
+  const scopeRes = await fetchScope({ plan });
+  const reqItems = Array.isArray(scopeRes?.items) ? scopeRes.items : [];
+
+  const allowedReqIds = new Set(
+    reqItems
+      .map((r) => Number(r?.id || 0))
+      .filter(Boolean),
+  );
+
+  log("loadScopedRetros() allowedReqIds:", allowedReqIds.size);
+
+  const retros = await fetchAllRetros();
+
+  const scoped = retros.filter((row) =>
+    allowedReqIds.has(Number(row?.requerimiento_id || 0)),
+  );
+
+  log("loadScopedRetros() result:", {
+    retrosTotal: retros.length,
+    scoped: scoped.length,
+  });
+
+  log("loadScopedRetros() debug:", {
+    viewerId,
+    deptId,
+    plan,
+    reqItems: reqItems.length,
+    retros: retros.length,
+    scoped: scoped.length,
+    sampleReqIds: Array.from(allowedReqIds).slice(0, 10),
+  });
+
+  return scoped;
+}
+
 async function fetchRequerimientoById(id) {
   const reqId = Number(id || 0);
   if (!reqId) throw new Error("ID de requerimiento inválido");
@@ -706,6 +830,14 @@ async function fetchRetroMapData() {
 
 async function refreshRetroMap() {
   try {
+    if (!hasGlobalScope()) {
+      State.retroMapRows = [];
+      if (State.retroBubbleLayer) {
+        State.retroBubbleLayer.clearLayers();
+      }
+      return;
+    }
+
     const rows = await fetchRetroMapData();
     State.retroMapRows = rows;
     processRetroBubbleMap(rows);
@@ -1467,7 +1599,7 @@ async function init() {
       }, 120),
     );
 
-    State.rows = await fetchAllRetros();
+    State.rows = await loadScopedRetros();
 
     renderCounts();
     applyPipelineAndRender();
