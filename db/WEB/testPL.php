@@ -1,6 +1,6 @@
 <?php
-//pequeño test para obtener al PL de cada departamento
 // DB/WEB/testPL.php
+//pequeño test para obtener al PL de cada departamento
 header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . "/../conn/conn_db.php";   // conexion a la db
@@ -33,7 +33,7 @@ if ($departamentoId <= 0) {
 }
 
 // Abre conexion
-$con = conectar(); 
+$con = conectar();
 
 $pl = getPLByDepartamento($con, $departamentoId);
 
