@@ -58,7 +58,7 @@
     parts
       .filter(Boolean)
       .map((s, i) =>
-        i === 0 ? s.replace(/\/+$/g, "") : s.replace(/^\/+|\/+$/g, "")
+        i === 0 ? s.replace(/\/+$/g, "") : s.replace(/^\/+|\/+$/g, ""),
       )
       .join("/")
       .replace(/\/{2,}/g, "/");
@@ -72,10 +72,12 @@
   const routeAppHome = CFG.ROUTES?.appHome
     ? abs(CFG.ROUTES.appHome)
     : view("home.php");
-  const routeLogin = CFG.ROUTES?.login ? abs(CFG.ROUTES.login) : view("login.php");
+  const routeLogin = CFG.ROUTES?.login
+    ? abs(CFG.ROUTES.login)
+    : view("login.php");
 
   const DEFAULT_AVATAR = abs(
-    CFG.ASSETS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png"
+    CFG.ASSETS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png",
   );
   const AVATAR_BASE = abs(CFG.ASSETS.AVATAR_BASE || "/ASSETS/user/userImgs");
 
@@ -114,7 +116,7 @@
   function setImgWithExtFallback(
     imgEl,
     bases,
-    { extOrder = ["png", "jpg"], placeholder, cacheBust = true } = {}
+    { extOrder = ["png", "jpg"], placeholder, cacheBust = true } = {},
   ) {
     const isAbsolute = (u) => /^https?:\/\//i.test(u) || u.startsWith("/");
     const hasExt = (u) => /\.[a-zA-Z0-9]{2,5}(\?|#|$)/.test(u);
@@ -218,7 +220,7 @@
     if (mobImg) setAvatarSrc(mobImg, session);
 
     document.dispatchEvent(
-      new CustomEvent("gc:header-refreshed", { detail: { session } })
+      new CustomEvent("gc:header-refreshed", { detail: { session } }),
     );
   };
 
@@ -229,7 +231,10 @@
 
   /* ===================== VH MOBILE ===================== */
   const applyVH = () =>
-    document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
+    document.documentElement.style.setProperty(
+      "--vh",
+      `${window.innerHeight * 0.01}px`,
+    );
   applyVH();
   window.addEventListener("resize", applyVH);
 
@@ -246,7 +251,7 @@
             io.unobserve(e.target);
           }
         }),
-      { threshold: 0.2 }
+      { threshold: 0.2 },
     );
     animados.forEach((el) => io.observe(el));
   });
@@ -347,17 +352,23 @@
 
         if (!sessionStorage.getItem("bienvenidaMostrada")) {
           try {
-            window.gcToast?.(`Bienvenido, ${session.nombre || "usuario"}`, "exito");
-          } catch { }
+            window.gcToast?.(
+              `Bienvenido, ${session.nombre || "usuario"}`,
+              "exito",
+            );
+          } catch {}
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
         const loginIcon = document.createElement("div");
         loginIcon.className = "user-icon";
         loginIcon.innerHTML = `<img src="${withBust(
-          DEFAULT_AVATAR
+          DEFAULT_AVATAR,
         )}" alt="Usuario" title="Iniciar sesión" class="img-perfil" />`;
-        loginIcon.addEventListener("click", () => (window.location.href = routeLogin));
+        loginIcon.addEventListener(
+          "click",
+          () => (window.location.href = routeLogin),
+        );
         actions.appendChild(loginIcon);
         actions.classList.add("mostrar");
       }
@@ -375,7 +386,7 @@
       const mob = document.createElement("div");
       mob.className = "user-icon-mobile";
       mob.innerHTML = `<img alt="Perfil" title="Perfil" src="${withBust(
-        DEFAULT_AVATAR
+        DEFAULT_AVATAR,
       )}" />`;
       socialIconsContainer.appendChild(mob);
       const mobImg = mob.querySelector("img");
@@ -419,20 +430,28 @@
           }
         });
 
-        document.addEventListener("click", () => dropdownMobile.classList.remove("active"));
+        document.addEventListener("click", () =>
+          dropdownMobile.classList.remove("active"),
+        );
         document.addEventListener("keydown", (e) => {
           if (e.key === "Escape") dropdownMobile.classList.remove("active");
         });
         const onRepositionIfOpen = () => {
           if (dropdownMobile.classList.contains("active")) reposition();
         };
-        window.addEventListener("resize", onRepositionIfOpen, { passive: true });
-        window.addEventListener("scroll", onRepositionIfOpen, { passive: true });
-
-        dropdownMobile.querySelector("li:first-child")?.addEventListener("click", (e) => {
-          e.stopPropagation();
-          window.location.href = routeAppHome;
+        window.addEventListener("resize", onRepositionIfOpen, {
+          passive: true,
         });
+        window.addEventListener("scroll", onRepositionIfOpen, {
+          passive: true,
+        });
+
+        dropdownMobile
+          .querySelector("li:first-child")
+          ?.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.location.href = routeAppHome;
+          });
         dropdownMobile
           .querySelector("#logout-btn-mobile")
           ?.addEventListener("click", () => {
@@ -443,7 +462,10 @@
 
         setAvatarSrc(mobImg, session);
       } else {
-        mob.addEventListener("click", () => (window.location.href = routeLogin));
+        mob.addEventListener(
+          "click",
+          () => (window.location.href = routeLogin),
+        );
       }
     }
   });
@@ -457,7 +479,7 @@
       {},
       DEFAULT_SOCIAL,
       (window.GC_CONFIG && window.GC_CONFIG.SOCIAL) || {},
-      window.NAV_SOCIAL || {}
+      window.NAV_SOCIAL || {},
     );
   }
 
@@ -472,9 +494,11 @@
     socials.style.zIndex = "50";
     socials.style.pointerEvents = "auto";
 
-    socials.querySelectorAll(".circle-icon, .icon-mobile, img").forEach((el) => {
-      el.style.pointerEvents = "auto";
-    });
+    socials
+      .querySelectorAll(".circle-icon, .icon-mobile, img")
+      .forEach((el) => {
+        el.style.pointerEvents = "auto";
+      });
 
     if (left) {
       left.style.position = left.style.position || "relative";
@@ -569,7 +593,11 @@
           home: {
             label: "Home",
             href: "/VIEWS/home.php",
-            matchers: ["home.php", "requerimiento.php", /^\/VIEWS\/requerimiento\/\d+$/i],
+            matchers: [
+              "home.php",
+              "requerimiento.php",
+              /^\/VIEWS\/requerimiento\/\d+$/i,
+            ],
           },
           tareas: {
             label: "Tareas",
@@ -577,7 +605,7 @@
             matchers: ["tareas.php"],
           },
         },
-        window.NAV_SECTIONS || {}
+        window.NAV_SECTIONS || {},
       ),
       CHAT: {
         enabled: true,
@@ -591,15 +619,17 @@
         enabled: true,
         url: "/VIEWS/retroCiudadanaDashboard.php",
         label: "Retro",
-        presidenciaDeptId: 6,
         cookieName: "ix_emp",
+        rbacUrl: "https://ixtla-app.com/db/web/ixtla01_rbac.php",
       },
     };
 
     const normPath = (u) => {
       try {
         const url = new URL(u, location.origin);
-        return decodeURIComponent(url.pathname.toLowerCase().replace(/\/+$/, ""));
+        return decodeURIComponent(
+          url.pathname.toLowerCase().replace(/\/+$/, ""),
+        );
       } catch {
         return "";
       }
@@ -619,7 +649,9 @@
         if ((sec.matchers || []).some(matchOne)) return key;
       }
       for (const [key, sec] of Object.entries(CFG_OPS.SECTIONS)) {
-        const last = decodeURIComponent((normPath(sec.href).split("/").pop() || "").toLowerCase());
+        const last = decodeURIComponent(
+          (normPath(sec.href).split("/").pop() || "").toLowerCase(),
+        );
         if (curLast() === last) return key;
       }
       for (const [key, sec] of Object.entries(CFG_OPS.SECTIONS)) {
@@ -639,6 +671,65 @@
       } catch {
         return null;
       }
+    }
+
+    let __rbacCache = null;
+    let __rbacPromise = null;
+
+    async function fetchRBACByEmpleadoId(empleadoId) {
+      if (!Number.isFinite(Number(empleadoId)) || Number(empleadoId) <= 0) {
+        return null;
+      }
+
+      try {
+        const res = await fetch(CFG_OPS.RETRO.rbacUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            empleado_id: Number(empleadoId),
+          }),
+        });
+
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.ok || !json?.data) {
+          console.warn("[SubnavOps][RBAC] respuesta no válida:", json);
+          return null;
+        }
+
+        return json.data;
+      } catch (e) {
+        console.warn("[SubnavOps][RBAC] error fetch:", e);
+        return null;
+      }
+    }
+
+    async function getRetroRBAC() {
+      if (__rbacCache) return __rbacCache;
+      if (__rbacPromise) return __rbacPromise;
+
+      const sess = readIxSession(CFG_OPS.RETRO.cookieName);
+      const empleadoId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
+
+      if (!Number.isFinite(empleadoId)) return null;
+
+      __rbacPromise = fetchRBACByEmpleadoId(empleadoId)
+        .then((rbac) => {
+          __rbacCache = rbac || null;
+          return __rbacCache;
+        })
+        .finally(() => {
+          __rbacPromise = null;
+        });
+
+      return __rbacPromise;
+    }
+
+    function canViewRetroFromRBAC(rbac) {
+      const f = rbac?.flags || {};
+      return !!(f.is_presidencia || f.is_director || f.is_primera_linea);
     }
 
     function getSocialMarkup(nav) {
@@ -675,7 +766,9 @@
       if (!isAllowed) return;
 
       ensureNavLeftHosts();
-      const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
+      const navs = document.querySelectorAll(
+        "#mobile-menu .nav-left, .subnav .nav-left",
+      );
 
       navs.forEach((navLeft) => {
         if (!navLeft) return;
@@ -691,22 +784,27 @@
       });
     }
 
-    function maybeAddRetroLink() {
+    async function maybeAddRetroLink() {
       if (!CFG_OPS.RETRO.enabled || !CFG_OPS.RETRO.url) return;
 
-      const sess = readIxSession(CFG_OPS.RETRO.cookieName);
-      const deptId = Number(sess?.dept_id ?? NaN);
-      if (!Number.isFinite(deptId)) return;
-
-      const isPresidencia = deptId === Number(CFG_OPS.RETRO.presidenciaDeptId);
+      const rbac = await getRetroRBAC();
+      const allowed = canViewRetroFromRBAC(rbac);
 
       ensureNavLeftHosts();
-      const navs = document.querySelectorAll("#mobile-menu .nav-left, .subnav .nav-left");
+      const navs = document.querySelectorAll(
+        "#mobile-menu .nav-left, .subnav .nav-left",
+      );
 
       navs.forEach((navLeft) => {
         if (!navLeft) return;
 
         const existing = navLeft.querySelector("#link-retro");
+
+        if (!allowed) {
+          existing?.remove();
+          return;
+        }
+
         const isActive = normPath(CFG_OPS.RETRO.url) === curPath();
 
         if (existing) {
@@ -721,8 +819,7 @@
         a.classList.toggle("active", isActive);
 
         const chat = navLeft.querySelector("#link-chat");
-
-        if (isPresidencia && chat) {
+        if (chat) {
           chat.insertAdjacentElement("afterend", a);
         } else {
           navLeft.appendChild(a);
@@ -741,7 +838,10 @@
       if (!activeHref) return;
       const target = normPath(activeHref);
       document.querySelectorAll("#mobile-menu a").forEach((a) => {
-        a.classList.toggle("active", normPath(a.getAttribute("href") || "") === target);
+        a.classList.toggle(
+          "active",
+          normPath(a.getAttribute("href") || "") === target,
+        );
       });
     }
 
@@ -756,7 +856,7 @@
       logoBtn.dataset.logoBound = "1";
     }
 
-    function renderOperative(nav) {
+    async function renderOperative(nav) {
       const activeKey = resolveActiveSectionKey();
       const left = Object.entries(CFG_OPS.SECTIONS)
         .map(([key, sec]) => mkLink(sec.label, sec.href, key === activeKey))
@@ -764,15 +864,12 @@
 
       nav.innerHTML = `<div class="nav-left">${left}</div>${getSocialMarkup(nav)}`;
 
-      // Asegura que el área de redes no quede tapada por overlay CSS
       fixOperativeSocialHitbox(nav);
-
-      // Bindea clicks (aunque el HTML venga “marcado”)
       attachSocialClicks(nav);
 
       ensureLogoNavigates();
       maybeAddChatLink();
-      maybeAddRetroLink();
+      await maybeAddRetroLink();
       mirrorActiveToMobile();
     }
 
@@ -804,18 +901,25 @@
       );
     }
 
-    function mount() {
+    async function mount() {
       const operative = isOperativeLike();
-      subnavs.forEach((nav) => {
-        if (operative) renderOperative(nav);
+
+      for (const nav of subnavs) {
+        if (operative) await renderOperative(nav);
         else restoreOriginal(nav);
-      });
+      }
     }
 
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", mount, { once: true });
+      document.addEventListener(
+        "DOMContentLoaded",
+        () => {
+          mount().catch(() => {});
+        },
+        { once: true },
+      );
     } else {
-      mount();
+      mount().catch(() => {});
     }
 
     if ("MutationObserver" in window) {
@@ -823,13 +927,13 @@
         if (isOperativeLike()) {
           try {
             maybeAddChatLink();
-            maybeAddRetroLink();
+            maybeAddRetroLink().catch(() => {});
             mirrorActiveToMobile();
             subnavs.forEach((nav) => {
               fixOperativeSocialHitbox(nav);
               attachSocialClicks(nav);
             });
-          } catch { }
+          } catch {}
         }
       });
       obs.observe(header, { childList: true, subtree: true });

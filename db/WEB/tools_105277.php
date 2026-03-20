@@ -249,7 +249,7 @@ function rbac_get_departamento_by_id(mysqli $con, int $departamentoId): ?array
   ];
 }
 
-/**
+/*******************************************************************************
  * Calcula el RBAC de un empleado
  *
  * Reglas actuales:
