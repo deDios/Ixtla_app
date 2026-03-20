@@ -712,10 +712,24 @@ async function loadScopedRetros() {
     return [];
   }
 
-  const plan = await planScope({
+  let plan = await planScope({
     viewerId,
     viewerDeptId: deptId,
   });
+
+  const isPresidencia = CONFIG.PRESIDENCIA_DEPT_IDS.includes(Number(deptId || 0));
+
+  if (isPresidencia && !plan?.isAdmin) {
+    plan = {
+      ...plan,
+      role: "PRESIDENCIA",
+      isAdmin: true,
+      isPresidencia: true,
+      mineId: viewerId,
+      teamIds: [],
+      deptIds: [],
+    };
+  }
 
   State.scopePlan = plan;
 
