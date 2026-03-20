@@ -1,0 +1,1128 @@
+/* =========================================================
+   ADMIN
+   ========================================================= */
+
+:root {
+  --admin-sidebar-w: 326px;
+  --admin-gap: 18px;
+  --admin-page-max: 100%;
+
+  --admin-bg: #efefef;
+  --admin-panel: #86b2a3;
+  --admin-panel-dark: #33956c;
+
+  --admin-text: #1f2937;
+  --admin-text-soft: #6b7280;
+  --admin-border: #d9d9d9;
+
+  --admin-white: #ffffff;
+
+  /* offsets para convivir con header global */
+  --admin-offset-top-default: 58px;
+  --admin-offset-top-scrolled: 0px;
+}
+
+/* =========================================================
+   RESET / BASE DE VISTA
+   ========================================================= */
+
+main.home-samapa.admin-dashboard {
+  margin-top: 0 !important;
+  padding-top: var(--admin-offset-top-default);
+  padding-right: 0;
+  padding-bottom: 0;
+  padding-left: 0;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  min-height: auto;
+}
+
+/* Cuando el header entra en modo scrolled y la subnav sube */
+header.scrolled+main.home-samapa.admin-dashboard {
+  padding-top: var(--admin-offset-top-scrolled);
+}
+
+/* =========================================================
+   LAYOUT PRINCIPAL
+   ========================================================= */
+
+.home-samapa.admin-dashboard .hs-wrap {
+  display: grid;
+  grid-template-columns: var(--admin-sidebar-w) 1fr;
+  gap: var(--admin-gap);
+
+  width: 100%;
+  max-width: var(--admin-page-max);
+  margin: 0;
+  padding: 0;
+  align-items: stretch;
+
+  min-height: calc(100vh - 58px);
+
+  background: none !important;
+  background-image: none !important;
+  background-repeat: initial !important;
+  background-size: initial !important;
+  background-position: initial !important;
+}
+
+/*
+header.scrolled + main.home-samapa.admin-dashboard .hs-wrap {
+  min-height: calc(100vh - 1px);
+}
+*/
+
+/* =========================================================
+   SIDEBAR ADMIN
+   ========================================================= */
+
+.home-samapa.admin-dashboard .hs-sidebar.admin-sidebar {
+  position: relative;
+  top: auto;
+  align-self: stretch;
+
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 100%;
+  height: auto;
+
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.home-samapa.admin-dashboard .admin-panel {
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  background: var(--admin-panel);
+  border: 0;
+  overflow: hidden;
+  padding-top: 6rem;
+}
+
+.home-samapa.admin-dashboard .admin-panel__head {
+  background: var(--admin-panel-dark);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 17px 26px;
+}
+
+.home-samapa.admin-dashboard .admin-panel__menu {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  padding: 18px 0 24px;
+}
+
+.home-samapa.admin-dashboard .admin-panel__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  padding: 14px 28px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.15;
+
+  transition: background 0.18s ease;
+}
+
+.home-samapa.admin-dashboard .admin-panel__item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.home-samapa.admin-dashboard .admin-panel__item.is-active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.home-samapa.admin-dashboard .admin-panel__icon {
+  width: 24px;
+  min-width: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.home-samapa.admin-dashboard .admin-panel__text {
+  display: inline-block;
+}
+
+/* =========================================================
+   MAIN
+   ========================================================= */
+
+.home-samapa.admin-dashboard .hs-main {
+  min-height: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  display: block;
+  padding-top: 7rem;
+}
+
+.home-samapa.admin-dashboard .hs-main:empty::before {
+  content: "";
+  display: block;
+  min-height: calc(100vh - 58px);
+  background: transparent;
+}
+
+header.scrolled+main.home-samapa.admin-dashboard .hs-main:empty::before {
+  min-height: calc(100vh - 1px);
+}
+
+/* =========================================================
+   BASE REUTILIZABLE PARA CONTENIDO
+   ========================================================= */
+
+.home-samapa.admin-dashboard .hs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.home-samapa.admin-dashboard .hs-head h1,
+.home-samapa.admin-dashboard .hs-head h2,
+.home-samapa.admin-dashboard .hs-head h3,
+.home-samapa.admin-dashboard .hs-head p {
+  margin: 0;
+}
+
+.home-samapa.admin-dashboard .hs-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.home-samapa.admin-dashboard .hs-card {
+  background: var(--admin-white);
+  border: 1px solid var(--admin-border);
+  padding: 16px;
+}
+
+.home-samapa.admin-dashboard .hs-card-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--admin-text);
+}
+
+.home-samapa.admin-dashboard .hs-card-subtitle {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--admin-text-soft);
+}
+
+/* =========================================================
+   BUSCADOR BASE
+   ========================================================= */
+
+.home-samapa.admin-dashboard .search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  min-width: 220px;
+  padding: 10px 14px;
+
+  background: #f6f7f9;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+}
+
+.home-samapa.admin-dashboard .search input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--admin-text);
+  font-size: 0.92rem;
+}
+
+.home-samapa.admin-dashboard .search input::placeholder {
+  color: #94a3b8;
+}
+
+/* =========================================================
+   BOTONES BASE
+   ========================================================= */
+
+.home-samapa.admin-dashboard .hs-btn,
+.home-samapa.admin-dashboard .hs-btn-new {
+  all: unset;
+  box-sizing: border-box;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  padding: 11px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+
+  border: 1px solid var(--admin-border);
+  background: var(--admin-panel-dark);
+  color: #fff;
+
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.home-samapa.admin-dashboard .hs-btn:hover,
+.home-samapa.admin-dashboard .hs-btn-new:hover {
+  filter: brightness(0.96);
+}
+
+.home-samapa.admin-dashboard .hs-btn.is-secondary {
+  background: #fff;
+  color: var(--admin-text);
+}
+
+/* =========================================================
+   TABLA BASE
+   ========================================================= */
+
+.home-samapa.admin-dashboard .hs-table {
+  background: #fff;
+  border: 1px solid var(--admin-border);
+  overflow: hidden;
+}
+
+.home-samapa.admin-dashboard .table-wrap {
+  overflow: auto;
+  background: #fff;
+}
+
+.home-samapa.admin-dashboard table.gc {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.home-samapa.admin-dashboard table.gc thead th {
+  background: #f3f4f6;
+  border-bottom: 1px solid var(--admin-border);
+  padding: 14px 18px;
+  text-align: left;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.home-samapa.admin-dashboard table.gc tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #f0f3f6;
+  vertical-align: middle;
+  color: #131a22;
+  background: #fff;
+}
+
+.home-samapa.admin-dashboard table.gc tbody tr:hover td {
+  background: #fafafa;
+}
+
+/* =========================================================
+   BADGES
+   ========================================================= */
+
+.home-samapa.admin-dashboard .badge-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.home-samapa.admin-dashboard .badge-status[data-k="activo"] {
+  background: #e7fff4;
+  color: #166534;
+}
+
+.home-samapa.admin-dashboard .badge-status[data-k="inactivo"] {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.home-samapa.admin-dashboard .badge-status[data-k="pausado"] {
+  background: #fff4da;
+  color: #92400e;
+}
+
+.home-samapa.admin-dashboard .badge-status[data-k="cancelado"] {
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+/* =========================================================
+   PAGINACIÓN
+   ========================================================= */
+
+.home-samapa.admin-dashboard .hs-pager {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.home-samapa.admin-dashboard .hs-pager .btn {
+  border: 1px solid var(--admin-border);
+  background: #fff;
+  color: var(--admin-text);
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.home-samapa.admin-dashboard .hs-pager .btn.primary {
+  background: #4f6b95;
+  border-color: #4f6b95;
+  color: #fff;
+}
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+
+.home-samapa.admin-dashboard .muted {
+  color: var(--admin-text-soft);
+}
+
+.home-samapa.admin-dashboard .sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* =========================================================
+   RESET DE HERENCIA VIEJA
+   ========================================================= */
+
+.home-samapa.admin-dashboard .hs-filterbox,
+.home-samapa.admin-dashboard .hs-filter-toggle,
+.home-samapa.admin-dashboard .hs-filter-title,
+.home-samapa.admin-dashboard .hs-filter-active,
+.home-samapa.admin-dashboard .hs-filter-chevron,
+.home-samapa.admin-dashboard .hs-states,
+.home-samapa.admin-dashboard .retro-states {
+  display: none !important;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  :root {
+    --admin-sidebar-w: 290px;
+  }
+}
+
+@media (max-width: 992px) {
+  main.home-samapa.admin-dashboard {
+    padding-top: var(--admin-offset-top-default);
+  }
+
+  header.scrolled+main.home-samapa.admin-dashboard {
+    padding-top: var(--admin-offset-top-scrolled);
+  }
+
+  .home-samapa.admin-dashboard .hs-wrap {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    min-height: auto;
+  }
+
+  .home-samapa.admin-dashboard .hs-sidebar.admin-sidebar {
+    align-self: auto;
+    min-height: auto !important;
+  }
+
+  .home-samapa.admin-dashboard .admin-panel {
+    min-height: auto;
+    height: auto;
+  }
+
+  .home-samapa.admin-dashboard .admin-panel__menu {
+    flex: initial;
+  }
+
+  .home-samapa.admin-dashboard .hs-main:empty::before {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --admin-sidebar-w: 100%;
+    --admin-gap: 14px;
+  }
+
+  main.home-samapa.admin-dashboard {
+    padding-bottom: 20px;
+  }
+
+  .home-samapa.admin-dashboard .hs-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-samapa.admin-dashboard .hs-tools {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-samapa.admin-dashboard .search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .home-samapa.admin-dashboard .admin-panel__head {
+    padding: 16px 18px;
+  }
+
+  .home-samapa.admin-dashboard .admin-panel__item {
+    font-size: 15px;
+    padding: 12px 18px;
+  }
+}
+
+@media (max-width: 520px) {
+  .home-samapa.admin-dashboard .hs-card {
+    padding: 14px;
+  }
+
+  .home-samapa.admin-dashboard table.gc thead th,
+  .home-samapa.admin-dashboard table.gc tbody td {
+    padding: 12px 14px;
+  }
+}
+
+#site-footer {
+  z-index: 10;
+}
+
+/*---------------- fin del css plantilla para admin ----------------*/
+
+
+
+
+
+
+
+/* =========================================================
+   ADMIN MODULE SHELL
+   ========================================================= */
+
+.home-samapa.admin-dashboard #admin-view-root {
+  min-height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.home-samapa.admin-dashboard .admin-module {
+  width: 100%;
+  min-height: calc(100vh - 98px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+header.scrolled+main.home-samapa.admin-dashboard .admin-module {
+  min-height: calc(100vh - 40px);
+}
+
+.home-samapa.admin-dashboard .admin-module__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.home-samapa.admin-dashboard .admin-module__titlebox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.home-samapa.admin-dashboard .admin-module__title {
+  margin: 0;
+  font-size: 1.55rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: var(--admin-text);
+}
+
+.home-samapa.admin-dashboard .admin-module__subtitle {
+  margin: 0;
+  color: var(--admin-text-soft);
+  font-size: 0.96rem;
+}
+
+.home-samapa.admin-dashboard .admin-module__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.home-samapa.admin-dashboard .admin-module__body {
+  flex: 1 1 auto;
+  min-height: 320px;
+}
+
+.home-samapa.admin-dashboard .admin-placeholder {
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  border: 1px dashed var(--admin-border);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.home-samapa.admin-dashboard .admin-placeholder__inner {
+  max-width: 640px;
+  text-align: center;
+}
+
+.home-samapa.admin-dashboard .admin-placeholder__title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--admin-text);
+}
+
+.home-samapa.admin-dashboard .admin-placeholder__text {
+  margin: 0;
+  color: var(--admin-text-soft);
+  line-height: 1.55;
+}
+
+@media (max-width: 768px) {
+  .home-samapa.admin-dashboard #admin-view-root {
+    padding: 16px;
+  }
+
+  .home-samapa.admin-dashboard .admin-module {
+    min-height: auto;
+    gap: 14px;
+  }
+
+  .home-samapa.admin-dashboard .admin-module__head {
+    align-items: stretch;
+  }
+
+  .home-samapa.admin-dashboard .admin-module__toolbar {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-samapa.admin-dashboard .admin-module__title {
+    font-size: 1.3rem;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   ADMIN CARRUSEL
+   ========================================================= */
+
+.home-samapa.admin-dashboard .admin-module--carrusel .admin-module__body {
+  min-height: auto;
+}
+
+.home-samapa.admin-dashboard .admin-carousel {
+  width: 100%;
+}
+
+.home-samapa.admin-dashboard .admin-carousel__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+/* -------------------------
+   CARD
+   ------------------------- */
+
+.home-samapa.admin-dashboard .admin-carousel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid #d3d3d3;
+  background: #f2f2f2;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__title {
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.1;
+  font-weight: 500;
+  color: #202020;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__status-label {
+  font-size: 0.7rem;
+  color: #555;
+  line-height: 1;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__icon-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__top {
+  display: grid;
+  grid-template-columns: 122px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__image-wrap {
+  width: 122px;
+  height: 98px;
+  background: #fff;
+  border: 1px solid #ddd;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__image-wrap.is-empty {
+  background: #f8f8f8;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__image-placeholder {
+  font-size: 2rem;
+  opacity: 0.55;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* -------------------------
+   FIELDS
+   ------------------------- */
+
+.home-samapa.admin-dashboard .admin-carousel-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-field--full {
+  width: 100%;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-field__label {
+  font-size: 0.82rem;
+  color: #222;
+  line-height: 1.1;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-field input,
+.home-samapa.admin-dashboard .admin-carousel-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dddddd;
+  background: #ffffff;
+  color: #222;
+  outline: none;
+  resize: none;
+  font: inherit;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-field input {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-field textarea {
+  min-height: 118px;
+  padding: 10px;
+  line-height: 1.35;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-field input::placeholder,
+.home-samapa.admin-dashboard .admin-carousel-field textarea::placeholder {
+  color: #a0a0a0;
+}
+
+/* -------------------------
+   SWITCH
+   ------------------------- */
+
+.home-samapa.admin-dashboard .admin-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.home-samapa.admin-dashboard .admin-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.home-samapa.admin-dashboard .admin-switch__track {
+  position: relative;
+  width: 44px;
+  height: 22px;
+  border-radius: 999px;
+  background: #909090;
+  transition: background 0.2s ease;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.home-samapa.admin-dashboard .admin-switch input:checked+.admin-switch__track {
+  background: #d9d2c8;
+}
+
+.home-samapa.admin-dashboard .admin-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #6f6f6f;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.home-samapa.admin-dashboard .admin-switch input:checked+.admin-switch__track .admin-switch__thumb {
+  transform: translateX(22px);
+  background: #2e9c74;
+}
+
+.home-samapa.admin-dashboard .admin-switch__text {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  user-select: none;
+  pointer-events: none;
+}
+
+.home-samapa.admin-dashboard .admin-switch__text--off {
+  left: 6px;
+}
+
+.home-samapa.admin-dashboard .admin-switch__text--on {
+  right: 5px;
+  color: #333;
+}
+
+.home-samapa.admin-dashboard .admin-switch input:checked+.admin-switch__track .admin-switch__text--off {
+  opacity: 0;
+}
+
+.home-samapa.admin-dashboard .admin-switch:not(:has(input:checked)) .admin-switch__track .admin-switch__text--on {
+  opacity: 0;
+}
+
+/* -------------------------
+   ADD CARD
+   ------------------------- */
+
+.home-samapa.admin-dashboard .admin-carousel {
+  position: relative;
+}
+
+.home-samapa.admin-dashboard .admin-carousel__grid {
+  position: relative;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-fab {
+  position: fixed;
+  right: 32px;
+  bottom: 32px;
+  width: 68px;
+  height: 68px;
+  border: none;
+  border-radius: 999px;
+  background: #78ad99;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  z-index: 40;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
+  background: #5f9d86;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-fab:active {
+  transform: translateY(0);
+}
+
+.home-samapa.admin-dashboard .admin-carousel-fab__icon {
+  font-size: 2.2rem;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-fab__tooltip {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%) translateX(8px);
+  white-space: nowrap;
+  background: #20352d;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-fab__tooltip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 12px;
+  height: 12px;
+  background: #20352d;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.home-samapa.admin-dashboard .admin-carousel-fab:hover .admin-carousel-fab__tooltip,
+.home-samapa.admin-dashboard .admin-carousel-fab:focus-visible .admin-carousel-fab__tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.home-samapa.admin-dashboard .admin-carousel-fab:focus-visible {
+  outline: 3px solid rgba(120, 173, 153, 0.28);
+  outline-offset: 4px;
+}
+
+
+/* -------------------------
+   RESPONSIVE
+   ------------------------- */
+
+@media (max-width: 1100px) {
+  .home-samapa.admin-dashboard .admin-carousel__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-samapa.admin-dashboard .admin-carousel-card__top {
+    grid-template-columns: 1fr;
+  }
+
+  .home-samapa.admin-dashboard .admin-carousel-card__image-wrap {
+    width: 100%;
+    max-width: 220px;
+    height: 140px;
+  }
+
+  .home-samapa.admin-dashboard .admin-carousel-card__actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__icon-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  cursor: pointer;
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, .22);
+  padding: 0;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__icon-btn:hover {
+  filter: brightness(1.02);
+  transform: translateY(-1px);
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__icon-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(239, 68, 68, .18);
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__icon-btn:focus-visible {
+  outline: 3px solid rgba(239, 68, 68, .25);
+  outline-offset: 2px;
+}
+
+.home-samapa.admin-dashboard .admin-carousel-card__icon-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+.home-samapa.admin-dashboard .admin-pagination {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.home-samapa.admin-dashboard .admin-pagination__info {
+  color: #5b6470;
+  font-size: 0.95rem;
+}
+
+.home-samapa.admin-dashboard .admin-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.home-samapa.admin-dashboard .admin-pagination__btn,
+.home-samapa.admin-dashboard .admin-pagination__page {
+  min-width: 40px;
+  height: 40px;
+  border: 1px solid #d8dee6;
+  background: #fff;
+  color: #22313f;
+  border-radius: 10px;
+  padding: 0 0.9rem;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.home-samapa.admin-dashboard .admin-pagination__btn:hover,
+.home-samapa.admin-dashboard .admin-pagination__page:hover {
+  border-color: #78ad99;
+  color: #2f6c57;
+}
+
+.home-samapa.admin-dashboard .admin-pagination__page.is-active {
+  background: #78ad99;
+  border-color: #78ad99;
+  color: #fff;
+}
+
+.home-samapa.admin-dashboard .admin-pagination__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.home-samapa.admin-dashboard .admin-pagination__dots {
+  color: #7b8794;
+  padding: 0 0.25rem;
+}
+
+@media (max-width: 768px) {
+  .home-samapa.admin-dashboard .admin-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-samapa.admin-dashboard .admin-pagination__controls {
+    justify-content: center;
+  }
+
+  .home-samapa.admin-dashboard .admin-pagination__info {
+    text-align: center;
+  }
+}
