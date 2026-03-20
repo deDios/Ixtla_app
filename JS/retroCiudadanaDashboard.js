@@ -844,6 +844,121 @@ async function fetchRetroMapData() {
   return Array.isArray(json?.data) ? json.data : [];
 }
 
+async function buildScopedRetroMapData() {
+  const reqItems = Array.isArray(State.scopeReqItems) ? State.scopeReqItems : [];
+  const retroRows = Array.isArray(State.rows) ? State.rows : [];
+
+  if (!reqItems.length || !retroRows.length) return [];
+
+  const retroByReqId = new Map();
+  retroRows.forEach((r) => {
+    const reqId = Number(r?.requerimiento_id || 0);
+    if (reqId) retroByReqId.set(reqId, r);
+  });
+
+  const filteredReqs = reqItems.filter((req) => {
+    const reqId = Number(req?.id || 0);
+    if (!reqId) return false;
+    if (!retroByReqId.has(reqId)) return false;
+
+    if (State.activeStatus === "todos") return true;
+
+    const retro = retroByReqId.get(reqId);
+    return String(retro?.status) === String(State.activeStatus);
+  });
+
+  const buckets = new Map();
+
+  filteredReqs.forEach((req) => {
+    const reqId = Number(req?.id || 0);
+    const retro = retroByReqId.get(reqId);
+    if (!retro) return;
+
+    const lat = Number(req?.lat);
+    const lon = Number(req?.lon);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+    const colonia = safeTxt(req?.contacto_colonia, "Zona");
+    const key = `${lat}|${lon}|${colonia}`;
+
+    if (!buckets.has(key)) {
+      buckets.set(key, {
+        lat,
+        lon,
+        colonia,
+        total: 0,
+        statusCounts: { 0: 0, 1: 0, 2: 0, 3: 0 },
+      });
+    }
+
+    const bucket = buckets.get(key);
+    bucket.total += 1;
+
+    const st = Number(retro?.status);
+    if ([0, 1, 2, 3].includes(st)) {
+      bucket.statusCounts[st] += 1;
+    }
+  });
+
+  return Array.from(buckets.values()).map((b) => {
+    let dominant_status = 1;
+    let max = -1;
+
+    [0, 1, 2, 3].forEach((st) => {
+      const count = Number(b.statusCounts[st] || 0);
+      if (count > max) {
+        max = count;
+        dominant_status = st;
+      }
+    });
+
+    return {
+      lat: b.lat,
+      lon: b.lon,
+      colonia: b.colonia,
+      total: b.total,
+      dominant_status,
+    };
+  });
+}
+
+async function hydrateScopedReqGeo() {
+  const reqItems = Array.isArray(State.scopeReqItems) ? State.scopeReqItems : [];
+  if (!reqItems.length) return reqItems;
+
+  const rows = await fetchRetroMapData();
+  if (!Array.isArray(rows) || !rows.length) return reqItems;
+
+  const geoByColonia = new Map();
+
+  rows.forEach((g) => {
+    const key = normText(g?.colonia);
+    if (!key) return;
+    if (!geoByColonia.has(key)) {
+      geoByColonia.set(key, {
+        lat: Number(g?.lat),
+        lon: Number(g?.lon),
+        colonia: safeTxt(g?.colonia),
+      });
+    }
+  });
+
+  reqItems.forEach((req) => {
+    const key = normText(req?.contacto_colonia);
+    if (!key) return;
+
+    const geo = geoByColonia.get(key);
+    if (!geo) return;
+
+    req.lat = geo.lat;
+    req.lon = geo.lon;
+    req.colonia_geo = geo.colonia;
+  });
+
+  return reqItems;
+}
+
 async function refreshRetroMap() {
   try {
     if (hasGlobalScope()) {
@@ -853,9 +968,17 @@ async function refreshRetroMap() {
       return;
     }
 
-    const scopedRows = Array.isArray(State.rows) ? State.rows : [];
-    State.retroMapRows = scopedRows;
-    processRetroBubbleMap(scopedRows);
+    await hydrateScopedReqGeo();
+    const scopedGeoRows = await buildScopedRetroMapData();
+
+    State.retroMapRows = scopedGeoRows;
+    processRetroBubbleMap(scopedGeoRows);
+
+    log("refreshRetroMap() scoped", {
+      reqs: State.scopeReqItems.length,
+      retros: State.rows.length,
+      geoRows: scopedGeoRows.length,
+    });
   } catch (e) {
     warn("refreshRetroMap()", e);
   }
