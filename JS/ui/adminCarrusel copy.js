@@ -163,8 +163,8 @@
                     ${checked}
                   />
                   <span class="admin-switch__track">
-                    <span class="admin-switch__text admin-switch__text--off"></span>
-                    <span class="admin-switch__text admin-switch__text--on"></span>
+                    <span class="admin-switch__text admin-switch__text--off">OFF</span>
+                    <span class="admin-switch__text admin-switch__text--on">ON</span>
                     <span class="admin-switch__thumb"></span>
                   </span>
                 </label>
