@@ -1426,6 +1426,29 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
   }
 }
 
+.admin-drawer__input.is-error,
+.admin-drawer__textarea.is-error,
+.admin-drawer__select.is-error {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.08);
+}
+
+.admin-drawer__error {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.84rem;
+  color: #b91c1c;
+  line-height: 1.35;
+}
+
+.admin-drawer__primary-btn:disabled,
+.admin-drawer__secondary-btn:disabled,
+.admin-drawer__danger-btn:disabled,
+.admin-drawer__ghost-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
 
 /********************************************* FIN DEL CSS DEL CARRUSEL ***********************************************/
 /**********************************************************************************************************************/

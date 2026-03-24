@@ -16,6 +16,7 @@
       draft: null,
       original: null,
       confirmDelete: false,
+      errors: {},
     },
   };
 
@@ -311,6 +312,10 @@
         : "Detalle de noticia";
 
     const drawerStatusLabel = Number(item.estatus) === 1 ? "Activo" : "Inactivo";
+    const errors = state.drawer.errors || {};
+    const canSave = isDrawerValid();
+    const hasChanges = hasDrawerChanges();
+    const saveDisabled = isCreate ? !canSave : !(canSave && hasChanges);
 
     return `
       <div
@@ -370,15 +375,19 @@
             </div>
 
             <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Título</span>
-              <input
-                type="text"
-                class="admin-drawer__input js-drawer-input"
-                data-field="titulo"
-                value="${escapeAttr(item.titulo || "")}"
-                ${isEdit ? "" : "readonly"}
-              />
-            </label>
+  <span class="admin-drawer__label">Título</span>
+  <input
+    type="text"
+    class="admin-drawer__input js-drawer-input ${errors.titulo ? "is-error" : ""}"
+    data-field="titulo"
+    value="${escapeAttr(item.titulo || "")}"
+    ${isEdit ? "" : "readonly"}
+  />
+  ${errors.titulo
+        ? `<span class="admin-drawer__error">${escapeHtml(errors.titulo)}</span>`
+        : ""
+      }
+</label>
 
             <label class="admin-drawer__field">
               <span class="admin-drawer__label">Pie de página</span>
@@ -392,13 +401,17 @@
             </label>
 
             <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Descripción</span>
-              <textarea
-                class="admin-drawer__textarea js-drawer-input"
-                data-field="descripcion"
-                ${isEdit ? "" : "readonly"}
-              >${escapeHtml(item.descripcion || "")}</textarea>
-            </label>
+  <span class="admin-drawer__label">Descripción</span>
+  <textarea
+    class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
+    data-field="descripcion"
+    ${isEdit ? "" : "readonly"}
+  >${escapeHtml(item.descripcion || "")}</textarea>
+  ${errors.descripcion
+        ? `<span class="admin-drawer__error">${escapeHtml(errors.descripcion)}</span>`
+        : ""
+      }
+</label>
 
             <label class="admin-drawer__field">
               <span class="admin-drawer__label">Estado</span>
@@ -453,40 +466,51 @@
     const mode = state.drawer.mode;
     const isCreate = mode === "create";
     const isEdit = mode === "edit";
+    const canSave = isDrawerValid();
+    const hasChanges = hasDrawerChanges();
+    const saveDisabled = isCreate ? !canSave : !(canSave && hasChanges);
 
     if (isCreate) {
       return `
-        <button type="button" class="admin-drawer__primary-btn js-save-drawer">
-          Guardar noticia
-        </button>
-        <button type="button" class="admin-drawer__secondary-btn js-cancel-edit">
-          Cancelar
-        </button>
-      `;
+      <button
+        type="button"
+        class="admin-drawer__primary-btn js-save-drawer"
+        ${saveDisabled ? "disabled" : ""}
+      >
+        Guardar noticia
+      </button>
+      <button type="button" class="admin-drawer__secondary-btn js-cancel-edit">
+        Cancelar
+      </button>
+    `;
     }
 
     if (isEdit) {
       return `
-        <button type="button" class="admin-drawer__primary-btn js-save-drawer">
-          Guardar cambios
-        </button>
-        <button type="button" class="admin-drawer__secondary-btn js-cancel-edit">
-          Cancelar
-        </button>
-      `;
+      <button
+        type="button"
+        class="admin-drawer__primary-btn js-save-drawer"
+        ${saveDisabled ? "disabled" : ""}
+      >
+        Guardar cambios
+      </button>
+      <button type="button" class="admin-drawer__secondary-btn js-cancel-edit">
+        Cancelar
+      </button>
+    `;
     }
 
     return `
-      <button type="button" class="admin-drawer__primary-btn js-edit-drawer">
-        Editar
-      </button>
-      <button type="button" class="admin-drawer__danger-btn js-ask-delete">
-        Eliminar
-      </button>
-      <button type="button" class="admin-drawer__secondary-btn js-drawer-close">
-        Cerrar
-      </button>
-    `;
+    <button type="button" class="admin-drawer__primary-btn js-edit-drawer">
+      Editar
+    </button>
+    <button type="button" class="admin-drawer__danger-btn js-ask-delete">
+      Eliminar
+    </button>
+    <button type="button" class="admin-drawer__secondary-btn js-drawer-close">
+      Cerrar
+    </button>
+  `;
   }
 
   /* =========================================================
@@ -579,7 +603,9 @@
       btnEdit.addEventListener("click", () => {
         state.drawer.mode = "edit";
         state.drawer.confirmDelete = false;
+        validateDrawer();
         refreshView();
+        focusDrawerField();
       });
     }
 
@@ -616,6 +642,7 @@
     const btnSave = root.querySelector(".js-save-drawer");
     if (btnSave) {
       btnSave.addEventListener("click", () => {
+        if (btnSave.disabled) return;
         saveDrawer();
       });
     }
@@ -639,6 +666,13 @@
     }
 
     state.drawer.draft[field] = value;
+    validateDrawer();
+
+    const root = document.querySelector("#admin-view-root");
+    if (!root) return;
+
+    root.innerHTML = render();
+    bind();
   }
 
   /* =========================================================
@@ -653,8 +687,10 @@
     state.drawer.original = cloneItem(item);
     state.drawer.draft = cloneItem(item);
     state.drawer.confirmDelete = false;
+    state.drawer.errors = {};
 
     refreshView();
+    focusDrawerField();
   }
 
   function openCreateDrawer() {
@@ -674,8 +710,11 @@
     state.drawer.original = null;
     state.drawer.draft = newItem;
     state.drawer.confirmDelete = false;
+    state.drawer.errors = {};
 
+    validateDrawer();
     refreshView();
+    focusDrawerField();
   }
 
   function closeDrawer() {
@@ -685,6 +724,7 @@
     state.drawer.original = null;
     state.drawer.draft = null;
     state.drawer.confirmDelete = false;
+    state.drawer.errors = {};
 
     refreshView();
   }
@@ -698,6 +738,7 @@
     state.drawer.mode = "view";
     state.drawer.confirmDelete = false;
     state.drawer.draft = cloneItem(state.drawer.original);
+    state.drawer.errors = {};
 
     refreshView();
   }
@@ -706,8 +747,11 @@
     const draft = state.drawer.draft;
     if (!draft) return;
 
-    if (!String(draft.titulo || "").trim()) {
-      alert("El título es obligatorio.");
+    validateDrawer();
+
+    if (!isDrawerValid()) {
+      refreshView();
+      focusDrawerField();
       return;
     }
 
@@ -738,6 +782,7 @@
     state.drawer.draft = cloneItem(state.allItems[index]);
     state.drawer.mode = "view";
     state.drawer.confirmDelete = false;
+    state.drawer.errors = {};
 
     refreshView();
 
@@ -763,6 +808,64 @@
     refreshView();
 
     console.log("[AdminCarrusel] Noticia eliminada mock:", item);
+  }
+
+  function validateDrawer() {
+    const draft = state.drawer.draft || {};
+    const errors = {};
+
+    if (!String(draft.titulo || "").trim()) {
+      errors.titulo = "El título es obligatorio.";
+    } else if (String(draft.titulo || "").trim().length < 4) {
+      errors.titulo = "El título debe tener al menos 4 caracteres.";
+    }
+
+    if (!String(draft.descripcion || "").trim()) {
+      errors.descripcion = "La descripción es obligatoria.";
+    } else if (String(draft.descripcion || "").trim().length < 10) {
+      errors.descripcion = "La descripción debe tener al menos 10 caracteres.";
+    }
+
+    state.drawer.errors = errors;
+    return errors;
+  }
+
+  function isDrawerValid() {
+    const errors = state.drawer.errors || {};
+    return Object.keys(errors).length === 0;
+  }
+
+  function hasDrawerChanges() {
+    const mode = state.drawer.mode;
+
+    if (mode === "create") {
+      const draft = state.drawer.draft || {};
+      return Boolean(
+        String(draft.titulo || "").trim() ||
+        String(draft.pie_pagina || "").trim() ||
+        String(draft.descripcion || "").trim() ||
+        String(draft.imagen || "").trim() ||
+        Number(draft.estatus) !== 1
+      );
+    }
+
+    if (mode !== "edit") return false;
+    if (!state.drawer.original || !state.drawer.draft) return false;
+
+    return JSON.stringify(state.drawer.original) !== JSON.stringify(state.drawer.draft);
+  }
+
+  function focusDrawerField() {
+    requestAnimationFrame(() => {
+      const root = document.querySelector("#admin-view-root");
+      if (!root) return;
+
+      const mode = state.drawer.mode;
+      if (mode !== "edit" && mode !== "create") return;
+
+      const firstField = root.querySelector('.js-drawer-input[data-field="titulo"]');
+      if (firstField) firstField.focus();
+    });
   }
 
   function refreshView() {
