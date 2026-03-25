@@ -1455,7 +1455,12 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
 /********************************************* FIN DEL CSS DEL CARRUSEL ***********************************************/
 /**********************************************************************************************************************/
 
-
+.admin-drawer__readonly-value {
+  padding: 6px 0 0;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: #1f2937;
+}
 
 
 

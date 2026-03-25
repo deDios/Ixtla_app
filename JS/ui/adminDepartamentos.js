@@ -3,6 +3,7 @@
     items: [],
     filteredItems: [],
     query: "",
+    employees: [],
     drawer: {
       isOpen: false,
       mode: "view", // view | edit | create
@@ -16,84 +17,256 @@
 
   const MOCK_DEPARTAMENTOS = [
     {
-      id: 1,
-      nombre: "Presidencia",
+      id: 8,
+      nombre: "Parques y Jardines",
       descripcion:
-        "Coordinación general de la administración pública municipal y seguimiento de asuntos estratégicos.",
-      director: 101,
-      primera_linea: 201,
+        "Atención a reportes y solicitudes relacionadas con parques, áreas verdes y arbolado urbano, con el fin de dar seguimiento y brindar una solución oportuna a la ciudadanía.",
+      director: 52,
+      primera_linea: 53,
       status: 1,
-      created_at: "2026-03-20 10:20:00",
-      updated_at: "2026-03-20 12:00:00",
+      created_at: "2026-01-15 14:15:41",
+      updated_at: "2026-02-04 10:17:35",
       created_by: 1,
-      updated_by: 1,
-      director_nombre: "Juan",
-      director_apellidos: "Pérez López",
-      primera_nombre: "María",
-      primera_apellidos: "Gómez Ruiz",
+      updated_by: null,
+      director_nombre: "Alfredo",
+      director_apellidos: "Gonzáles Vazquez",
+      primera_nombre: "ReqParques",
+      primera_apellidos: "y Jardines",
+      imagen: "/ASSETS/main_logo_shield.png",
+    },
+    {
+      id: 5,
+      nombre: "Ecología",
+      descripcion:
+        "Área encargada de promover la conservación del medio ambiente, el cuidado de áreas verdes, la reducción de la contaminación y el manejo sostenible de los recursos urbanos.",
+      director: 18,
+      primera_linea: 18,
+      status: 1,
+      created_at: "2025-09-09 11:10:14",
+      updated_at: "2025-12-02 01:44:16",
+      created_by: 1,
+      updated_by: null,
+      director_nombre: "Erick Alberto",
+      director_apellidos: "Duarte Molina",
+      primera_nombre: "Erick Alberto",
+      primera_apellidos: "Duarte Molina",
+      imagen: "/ASSETS/main_logo_shield.png",
+    },
+    {
+      id: 1,
+      nombre: "SAMAPA",
+      descripcion:
+        "Atención con problemas relacionados con el servicio de agua, con el fin de dar seguimiento y brindar una solución oportuna.",
+      director: 60,
+      primera_linea: 59,
+      status: 1,
+      director_nombre: "Rosa",
+      director_apellidos: "Mendoza Santos",
+      primera_nombre: "Dayann",
+      primera_apellidos: "Rubio Correa",
       imagen: "/ASSETS/main_logo_shield.png",
     },
     {
       id: 2,
-      nombre: "Obras Públicas",
+      nombre: "Aseo Público",
       descripcion:
-        "Gestión de proyectos de infraestructura, mantenimiento urbano y supervisión de obra pública.",
-      director: 102,
-      primera_linea: 202,
+        "Atención a reportes relacionados con la recolección de residuos, barrido, limpieza de espacios públicos y mantenimiento general.",
+      director: 59,
+      primera_linea: 59,
       status: 1,
-      created_at: "2026-03-20 10:20:00",
-      updated_at: "2026-03-20 12:00:00",
-      created_by: 1,
-      updated_by: 1,
-      director_nombre: "Carlos",
-      director_apellidos: "Sánchez Díaz",
-      primera_nombre: "Ana",
-      primera_apellidos: "Torres Vega",
+      director_nombre: "Dayann",
+      director_apellidos: "Rubio Correa",
+      primera_nombre: "Dayann",
+      primera_apellidos: "Rubio Correa",
       imagen: "/ASSETS/main_logo_shield.png",
     },
     {
       id: 3,
-      nombre: "Servicios Públicos",
+      nombre: "Obras Públicas",
       descripcion:
-        "Atención de alumbrado, limpia, parques y jardines, así como operación de servicios municipales.",
-      director: 103,
-      primera_linea: 203,
-      status: 0,
-      created_at: "2026-03-20 10:20:00",
-      updated_at: "2026-03-20 12:00:00",
-      created_by: 1,
-      updated_by: 1,
-      director_nombre: "Luis",
-      director_apellidos: "Hernández Cruz",
-      primera_nombre: "Patricia",
-      primera_apellidos: "Ramírez Solís",
+        "Área encargada de planear, ejecutar y dar mantenimiento a la infraestructura urbana, así como coordinar los servicios públicos.",
+      director: 60,
+      primera_linea: 60,
+      status: 1,
+      director_nombre: "Rosa",
+      director_apellidos: "Mendoza Santos",
+      primera_nombre: "Rosa",
+      primera_apellidos: "Mendoza Santos",
       imagen: "/ASSETS/main_logo_shield.png",
+    },
+    {
+      id: 4,
+      nombre: "Alumbrado Público",
+      descripcion:
+        "Atención y mantenimiento del alumbrado público, reparación de luminarias y administración de la red de servicios urbanos.",
+      director: 58,
+      primera_linea: 57,
+      status: 1,
+      director_nombre: "Hugo",
+      director_apellidos: "Hernandez",
+      primera_nombre: "Jose Abel",
+      primera_apellidos: "Martinez",
+      imagen: "/ASSETS/main_logo_shield.png",
+    },
+    {
+      id: 6,
+      nombre: "Padrón y Licencias",
+      descripcion:
+        "Atención a reportes y trámites relacionados con padrón y licencias comerciales, con el fin de dar seguimiento y brindar respuesta.",
+      director: 56,
+      primera_linea: 55,
+      status: 1,
+      director_nombre: "Gabriel",
+      director_apellidos: "Huerta",
+      primera_nombre: "Francisco",
+      primera_apellidos: "Hastorga",
+      imagen: "/ASSETS/main_logo_shield.png",
+    },
+  ];
+
+  const MOCK_EMPLOYEES = [
+    {
+      id: 60,
+      nombre: "Rosa",
+      apellidos: "Mendoza Santos",
+      puesto: "Secretaria de Requerimientos",
+      departamento_id: 3,
+      status: 1,
+      cuenta: {
+        roles: [{ id: 3, codigo: "JEFE", nombre: "Jefe" }],
+      },
+    },
+    {
+      id: 59,
+      nombre: "Dayann",
+      apellidos: "Rubio Correa",
+      puesto: "Secretaria de Requerimientos",
+      departamento_id: 2,
+      status: 1,
+      cuenta: {
+        roles: [{ id: 3, codigo: "JEFE", nombre: "Jefe" }],
+      },
+    },
+    {
+      id: 58,
+      nombre: "Hugo",
+      apellidos: "Hernandez",
+      puesto: "Inspector",
+      departamento_id: 7,
+      status: 1,
+      cuenta: {
+        roles: [{ id: 3, codigo: "JEFE", nombre: "Jefe" }],
+      },
+    },
+    {
+      id: 57,
+      nombre: "Jose Abel",
+      apellidos: "Martinez",
+      puesto: "Inspector",
+      departamento_id: 7,
+      status: 1,
+      cuenta: {
+        roles: [{ id: 3, codigo: "JEFE", nombre: "Jefe" }],
+      },
+    },
+    {
+      id: 56,
+      nombre: "Gabriel",
+      apellidos: "Huerta",
+      puesto: "Inspector",
+      departamento_id: 7,
+      status: 1,
+      cuenta: {
+        roles: [{ id: 3, codigo: "JEFE", nombre: "Jefe" }],
+      },
+    },
+    {
+      id: 55,
+      nombre: "Francisco",
+      apellidos: "Hastorga",
+      puesto: "Inspector",
+      departamento_id: 7,
+      status: 1,
+      cuenta: {
+        roles: [{ id: 3, codigo: "JEFE", nombre: "Jefe" }],
+      },
+    },
+    {
+      id: 18,
+      nombre: "Erick Alberto",
+      apellidos: "Duarte Molina",
+      puesto: "Director",
+      departamento_id: 5,
+      status: 1,
+      cuenta: {
+        roles: [{ id: 2, codigo: "DIRECTOR", nombre: "Director" }],
+      },
+    },
+    {
+      id: 52,
+      nombre: "Alfredo",
+      apellidos: "Gonzáles Vazquez",
+      puesto: "Director",
+      departamento_id: 8,
+      status: 1,
+      cuenta: {
+        roles: [{ id: 2, codigo: "DIRECTOR", nombre: "Director" }],
+      },
+    },
+    {
+      id: 53,
+      nombre: "ReqParques",
+      apellidos: "y Jardines",
+      puesto: "Jefe",
+      departamento_id: 8,
+      status: 1,
+      cuenta: {
+        roles: [{ id: 3, codigo: "JEFE", nombre: "Jefe" }],
+      },
     },
   ];
 
   function init() {
     state.items = clone(MOCK_DEPARTAMENTOS);
+    state.employees = clone(MOCK_EMPLOYEES);
+    applyDerivedLabels();
     applyFilters();
   }
 
+  function applyDerivedLabels() {
+    state.items = state.items.map((item) => {
+      const director = getEmployeeById(item.director);
+      const primeraLinea = getEmployeeById(item.primera_linea);
+
+      return {
+        ...item,
+        director_nombre: director?.nombre || item.director_nombre || "",
+        director_apellidos: director?.apellidos || item.director_apellidos || "",
+        primera_nombre: primeraLinea?.nombre || item.primera_nombre || "",
+        primera_apellidos: primeraLinea?.apellidos || item.primera_apellidos || "",
+      };
+    });
+  }
+
   function applyFilters() {
-    const q = String(state.query || "").trim().toLowerCase();
+    const q = String(state.query || "")
+      .trim()
+      .toLowerCase();
 
     let base = state.items.filter((item) => Number(item.status) === 1);
 
     if (q) {
       base = base.filter((item) => {
-        return [
-          item.nombre,
-          item.descripcion,
-          item.director_nombre,
-          item.director_apellidos,
-          item.primera_nombre,
-          item.primera_apellidos,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(q);
+        const director = getEmployeeFullNameById(item.director);
+        const primera = getEmployeeFullNameById(item.primera_linea);
+
+        return (
+          String(item.id || "").includes(q) ||
+          String(item.nombre || "").toLowerCase().includes(q) ||
+          String(item.descripcion || "").toLowerCase().includes(q) ||
+          director.toLowerCase().includes(q) ||
+          primera.toLowerCase().includes(q)
+        );
       });
     }
 
@@ -207,47 +380,6 @@
       .join("");
   }
 
-  function syncDrawerUi(root) {
-    if (!root) return;
-
-    const errors = state.drawer.errors || {};
-    const mode = state.drawer.mode;
-    const isCreate = mode === "create";
-    const saveDisabled = isCreate
-      ? !isDrawerValid()
-      : !(isDrawerValid() && hasDrawerChanges());
-
-    root.querySelectorAll(".js-drawer-input").forEach((field) => {
-      const key = field.dataset.field;
-      if (!key) return;
-
-      const hasError = Boolean(errors[key]);
-      field.classList.toggle("is-error", hasError);
-
-      const fieldWrap = field.closest(".admin-drawer__field");
-      if (!fieldWrap) return;
-
-      let errorNode = fieldWrap.querySelector(".admin-drawer__error");
-      const errorText = errors[key] || "";
-
-      if (errorText) {
-        if (!errorNode) {
-          errorNode = document.createElement("span");
-          errorNode.className = "admin-drawer__error";
-          fieldWrap.appendChild(errorNode);
-        }
-        errorNode.textContent = errorText;
-      } else if (errorNode) {
-        errorNode.remove();
-      }
-    });
-
-    const saveBtn = root.querySelector(".js-save-drawer");
-    if (saveBtn) {
-      saveBtn.disabled = saveDisabled;
-    }
-  }
-
   function renderDrawer() {
     const isOpen = state.drawer.isOpen;
     const mode = state.drawer.mode;
@@ -277,186 +409,222 @@
       ? !isDrawerValid()
       : !(isDrawerValid() && hasDrawerChanges());
 
+    const directorLabel = getEmployeeLabelById(item.director);
+    const primeraLineaLabel = getEmployeeLabelById(item.primera_linea);
+
     return `
-      <div
-        class="admin-drawer-overlay is-open"
-        id="admin-departamentos-drawer-overlay"
-        aria-hidden="false"
-      >
-        <aside
-          class="admin-drawer admin-drawer--right is-open"
-          id="admin-departamentos-drawer"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="admin-departamentos-drawer-title"
+  <div
+    class="admin-drawer-overlay is-open"
+    id="admin-departamentos-drawer-overlay"
+    aria-hidden="false"
+  >
+    <aside
+      class="admin-drawer admin-drawer--right is-open"
+      id="admin-departamentos-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-departamentos-drawer-title"
+    >
+      <div class="admin-drawer__head">
+        <div>
+          <h3 class="admin-drawer__title" id="admin-departamentos-drawer-title">${escapeHtml(titleText)}</h3>
+        </div>
+
+        <button
+          type="button"
+          class="admin-drawer__close js-drawer-close"
+          aria-label="Cerrar drawer"
+          title="Cerrar"
         >
-          <div class="admin-drawer__head">
-            <div>
-              <h3 class="admin-drawer__title" id="admin-departamentos-drawer-title">${escapeHtml(
-      titleText
-    )}</h3>
-            </div>
+          ×
+        </button>
+      </div>
 
-            <button
-              type="button"
-              class="admin-drawer__close js-drawer-close"
-              aria-label="Cerrar drawer"
-              title="Cerrar"
-            >
-              ×
-            </button>
-          </div>
-
-          <div class="admin-drawer__body">
-            <div class="admin-drawer__image-block">
-              <div class="admin-drawer__image-wrap ${!item.imagen ? "is-empty" : ""}">
-                ${item.imagen
+      <div class="admin-drawer__body">
+        <div class="admin-drawer__image-block">
+          <div class="admin-drawer__image-wrap ${!item.imagen ? "is-empty" : ""}">
+            ${item.imagen
         ? `<img src="${escapeHtml(item.imagen)}" alt="${escapeHtml(
           item.nombre || "Vista previa"
         )}" class="admin-drawer__image" />`
         : `<span class="admin-drawer__image-placeholder">🖼️</span>`
       }
-              </div>
+          </div>
 
-              <div class="admin-drawer__image-actions">
-                <button
-                  type="button"
-                  class="admin-drawer__ghost-btn"
-                  disabled
-                  title="Más adelante conectaremos media"
-                >
-                  Cambiar imagen
-                </button>
-                <button
-                  type="button"
-                  class="admin-drawer__ghost-btn"
-                  disabled
-                  title="Más adelante conectaremos media"
-                >
-                  Eliminar imagen
-                </button>
-              </div>
-            </div>
+          <div class="admin-drawer__image-actions">
+            <button
+              type="button"
+              class="admin-drawer__ghost-btn"
+              disabled
+              title="Más adelante conectaremos media"
+            >
+              Cambiar imagen
+            </button>
+            <button
+              type="button"
+              class="admin-drawer__ghost-btn"
+              disabled
+              title="Más adelante conectaremos media"
+            >
+              Eliminar imagen
+            </button>
+          </div>
+        </div>
 
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Nombre</span>
-              <input
-                type="text"
-                class="admin-drawer__input js-drawer-input ${errors.nombre ? "is-error" : ""}"
-                data-field="nombre"
-                value="${escapeAttr(item.nombre || "")}"
-                ${isEdit ? "" : "readonly"}
-              />
-              ${errors.nombre
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Nombre</span>
+          <input
+            type="text"
+            class="admin-drawer__input js-drawer-input ${errors.nombre ? "is-error" : ""}"
+            data-field="nombre"
+            value="${escapeAttr(item.nombre || "")}"
+            ${isEdit ? "" : "readonly"}
+          />
+          ${errors.nombre
         ? `<span class="admin-drawer__error">${escapeHtml(errors.nombre)}</span>`
         : ""
       }
-            </label>
+        </label>
 
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Descripción</span>
-              <textarea
-                class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""
-      }"
-                data-field="descripcion"
-                ${isEdit ? "" : "readonly"}
-              >${escapeHtml(item.descripcion || "")}</textarea>
-              ${errors.descripcion
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Descripción</span>
+          <textarea
+            class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
+            data-field="descripcion"
+            ${isEdit ? "" : "readonly"}
+          >${escapeHtml(item.descripcion || "")}</textarea>
+          ${errors.descripcion
         ? `<span class="admin-drawer__error">${escapeHtml(errors.descripcion)}</span>`
         : ""
       }
-            </label>
+        </label>
 
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Estado</span>
-              ${isEdit
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Estado</span>
+          ${isEdit
         ? `
-                  <select class="admin-drawer__select js-drawer-input" data-field="status">
-                    <option value="1" ${Number(item.status) === 1 ? "selected" : ""}>Activo</option>
-                    <option value="0" ${Number(item.status) === 0 ? "selected" : ""}>Inactivo</option>
-                  </select>
-                `
+                <select class="admin-drawer__select js-drawer-input" data-field="status">
+                  <option value="1" ${Number(item.status) === 1 ? "selected" : ""}>Activo</option>
+                  <option value="0" ${Number(item.status) === 0 ? "selected" : ""}>Inactivo</option>
+                </select>
+              `
         : `
-                  <div class="admin-drawer__readonly-pill">
-                    ${escapeHtml(statusLabel)}
-                  </div>
-                `
-      }
-            </label>
-
-            <div class="admin-drawer__grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-              <label class="admin-drawer__field">
-                <span class="admin-drawer__label">Director nombre</span>
-                <input
-                  type="text"
-                  class="admin-drawer__input js-drawer-input"
-                  data-field="director_nombre"
-                  value="${escapeAttr(item.director_nombre || "")}"
-                  ${isEdit ? "" : "readonly"}
-                />
-              </label>
-
-              <label class="admin-drawer__field">
-                <span class="admin-drawer__label">Director apellidos</span>
-                <input
-                  type="text"
-                  class="admin-drawer__input js-drawer-input"
-                  data-field="director_apellidos"
-                  value="${escapeAttr(item.director_apellidos || "")}"
-                  ${isEdit ? "" : "readonly"}
-                />
-              </label>
-
-              <label class="admin-drawer__field">
-                <span class="admin-drawer__label">Primera línea nombre</span>
-                <input
-                  type="text"
-                  class="admin-drawer__input js-drawer-input"
-                  data-field="primera_nombre"
-                  value="${escapeAttr(item.primera_nombre || "")}"
-                  ${isEdit ? "" : "readonly"}
-                />
-              </label>
-
-              <label class="admin-drawer__field">
-                <span class="admin-drawer__label">Primera línea apellidos</span>
-                <input
-                  type="text"
-                  class="admin-drawer__input js-drawer-input"
-                  data-field="primera_apellidos"
-                  value="${escapeAttr(item.primera_apellidos || "")}"
-                  ${isEdit ? "" : "readonly"}
-                />
-              </label>
-            </div>
-
-            ${state.drawer.confirmDelete && !isCreate
-        ? `
-                <div class="admin-drawer__confirm">
-                  <p class="admin-drawer__confirm-text">
-                    ¿Seguro que deseas eliminar este departamento? Se ocultará del listado mock y se marcará con status 0.
-                  </p>
-
-                  <div class="admin-drawer__confirm-actions">
-                    <button type="button" class="admin-drawer__danger-btn js-confirm-delete">
-                      Sí, eliminar
-                    </button>
-                    <button type="button" class="admin-drawer__secondary-btn js-cancel-delete">
-                      No, volver
-                    </button>
-                  </div>
+                <div class="admin-drawer__readonly-pill">
+                  ${escapeHtml(statusLabel)}
                 </div>
+              `
+      }
+        </label>
+
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Director</span>
+
+          ${isEdit
+        ? `
+                <select
+                  class="admin-drawer__select js-drawer-input ${errors.director ? "is-error" : ""}"
+                  data-field="director"
+                >
+                  <option value="">Selecciona un director</option>
+                  ${renderEmployeeOptions(item.director)}
+                </select>
+              `
+        : `
+                <div class="admin-drawer__readonly-value">
+                  ${escapeHtml(directorLabel || "Sin asignar")}
+                </div>
+              `
+      }
+
+          ${errors.director
+        ? `<span class="admin-drawer__error">${escapeHtml(errors.director)}</span>`
+        : ""
+      }
+
+          ${isEdit
+        ? `
+                <small class="admin-drawer__hint">
+                  ${escapeHtml(directorLabel || "Sin selección")}
+                </small>
               `
         : ""
       }
-          </div>
+        </label>
 
-          <div class="admin-drawer__footer">
-            ${renderDrawerFooterButtons(saveDisabled)}
-          </div>
-        </aside>
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Primera línea</span>
+
+          ${isEdit
+        ? `
+                <select
+                  class="admin-drawer__select js-drawer-input ${errors.primera_linea ? "is-error" : ""}"
+                  data-field="primera_linea"
+                >
+                  <option value="">Selecciona primera línea</option>
+                  ${renderEmployeeOptions(item.primera_linea)}
+                </select>
+              `
+        : `
+                <div class="admin-drawer__readonly-value">
+                  ${escapeHtml(primeraLineaLabel || "Sin asignar")}
+                </div>
+              `
+      }
+
+          ${errors.primera_linea
+        ? `<span class="admin-drawer__error">${escapeHtml(errors.primera_linea)}</span>`
+        : ""
+      }
+
+          ${isEdit
+        ? `
+                <small class="admin-drawer__hint">
+                  ${escapeHtml(primeraLineaLabel || "Sin selección")}
+                </small>
+              `
+        : ""
+      }
+
+        ${state.drawer.confirmDelete && !isCreate
+        ? `
+              <div class="admin-drawer__confirm">
+                <p class="admin-drawer__confirm-text">
+                  ¿Seguro que deseas eliminar este departamento? Se ocultará del listado mock y se marcará con status 0.
+                </p>
+
+                <div class="admin-drawer__confirm-actions">
+                  <button type="button" class="admin-drawer__danger-btn js-confirm-delete">
+                    Sí, eliminar
+                  </button>
+                  <button type="button" class="admin-drawer__secondary-btn js-cancel-delete">
+                    No, volver
+                  </button>
+                </div>
+              </div>
+            `
+        : ""
+      }
       </div>
-    `;
+
+      <div class="admin-drawer__footer">
+        ${renderDrawerFooterButtons(saveDisabled)}
+      </div>
+    </aside>
+  </div>
+`;
+  }
+
+  function renderEmployeeOptions(selectedId) {
+    return getActiveEmployeesSorted()
+      .map((emp) => {
+        const label = getEmployeeFullName(emp);
+        return `
+          <option value="${emp.id}" ${Number(selectedId) === Number(emp.id) ? "selected" : ""}>
+            ${escapeHtml(label)}
+          </option>
+        `;
+      })
+      .join("");
   }
 
   function renderDrawerFooterButtons(saveDisabled) {
@@ -601,17 +769,77 @@
         if (!key || !state.drawer.draft) return;
 
         const value = e.target.value;
-        state.drawer.draft[key] = key === "status" ? Number(value) : value;
 
+        if (key === "status" || key === "director" || key === "primera_linea") {
+          state.drawer.draft[key] = value === "" ? null : Number(value);
+        } else {
+          state.drawer.draft[key] = value;
+        }
+
+        syncDraftLabels();
         validateDrawer();
 
-        if (key === "status") {
+        if (key === "status" || key === "director" || key === "primera_linea") {
           refreshView();
         } else {
           syncDrawerUi(root);
         }
       });
     });
+  }
+
+  function syncDraftLabels() {
+    const draft = state.drawer.draft;
+    if (!draft) return;
+
+    const director = getEmployeeById(draft.director);
+    const primeraLinea = getEmployeeById(draft.primera_linea);
+
+    draft.director_nombre = director?.nombre || "";
+    draft.director_apellidos = director?.apellidos || "";
+    draft.primera_nombre = primeraLinea?.nombre || "";
+    draft.primera_apellidos = primeraLinea?.apellidos || "";
+  }
+
+  function syncDrawerUi(root) {
+    if (!root) return;
+
+    const errors = state.drawer.errors || {};
+    const mode = state.drawer.mode;
+    const isCreate = mode === "create";
+    const saveDisabled = isCreate
+      ? !isDrawerValid()
+      : !(isDrawerValid() && hasDrawerChanges());
+
+    root.querySelectorAll(".js-drawer-input").forEach((field) => {
+      const key = field.dataset.field;
+      if (!key) return;
+
+      const hasError = Boolean(errors[key]);
+      field.classList.toggle("is-error", hasError);
+
+      const fieldWrap = field.closest(".admin-drawer__field");
+      if (!fieldWrap) return;
+
+      let errorNode = fieldWrap.querySelector(".admin-drawer__error");
+      const errorText = errors[key] || "";
+
+      if (errorText) {
+        if (!errorNode) {
+          errorNode = document.createElement("span");
+          errorNode.className = "admin-drawer__error";
+          fieldWrap.appendChild(errorNode);
+        }
+        errorNode.textContent = errorText;
+      } else if (errorNode) {
+        errorNode.remove();
+      }
+    });
+
+    const saveBtn = root.querySelector(".js-save-drawer");
+    if (saveBtn) {
+      saveBtn.disabled = saveDisabled;
+    }
   }
 
   function openDrawer(item) {
@@ -622,32 +850,34 @@
     state.drawer.draft = clone(item);
     state.drawer.confirmDelete = false;
     state.drawer.errors = {};
+    syncDraftLabels();
     refreshView();
   }
 
   function openCreateDrawer() {
-    const nextId = getNextId();
+    const firstEmployee = getActiveEmployeesSorted()[0] || null;
+
     const blank = {
-      id: nextId,
+      id: getNextId(),
       nombre: "",
       descripcion: "",
-      director: null,
-      primera_linea: null,
+      director: firstEmployee?.id || null,
+      primera_linea: firstEmployee?.id || null,
       status: 1,
       created_at: "",
       updated_at: "",
       created_by: null,
       updated_by: null,
-      director_nombre: "",
-      director_apellidos: "",
-      primera_nombre: "",
-      primera_apellidos: "",
+      director_nombre: firstEmployee?.nombre || "",
+      director_apellidos: firstEmployee?.apellidos || "",
+      primera_nombre: firstEmployee?.nombre || "",
+      primera_apellidos: firstEmployee?.apellidos || "",
       imagen: "/ASSETS/main_logo_shield.png",
     };
 
     state.drawer.isOpen = true;
     state.drawer.mode = "create";
-    state.drawer.selectedId = nextId;
+    state.drawer.selectedId = blank.id;
     state.drawer.original = clone(blank);
     state.drawer.draft = clone(blank);
     state.drawer.confirmDelete = false;
@@ -681,7 +911,7 @@
     if (state.drawer.mode === "create") {
       payload.id = getNextId();
       state.items.unshift(payload);
-      console.log("[AdminDepartamentos] Crear departamento:", payload);
+      console.log("[AdminDepartamentos] Crear departamento:", buildDepartmentPayload(payload));
     } else {
       const index = state.items.findIndex((item) => item.id === state.drawer.selectedId);
       if (index !== -1) {
@@ -690,11 +920,22 @@
           ...payload,
         };
       }
-      console.log("[AdminDepartamentos] Editar departamento:", payload);
+      console.log("[AdminDepartamentos] Editar departamento:", buildDepartmentPayload(payload));
     }
 
+    applyDerivedLabels();
     applyFilters();
     closeDrawer();
+  }
+
+  function buildDepartmentPayload(draft) {
+    return {
+      nombre: String(draft.nombre || "").trim(),
+      descripcion: String(draft.descripcion || "").trim(),
+      director: Number(draft.director),
+      primera_linea: Number(draft.primera_linea),
+      status: Number(draft.status ?? 1),
+    };
   }
 
   function handleDeleteDepartment() {
@@ -702,7 +943,10 @@
     if (index === -1) return;
 
     state.items[index].status = 0;
-    console.log("[AdminDepartamentos] Eliminar departamento (soft delete):", state.items[index]);
+    console.log(
+      "[AdminDepartamentos] Eliminar departamento (soft delete):",
+      state.items[index]
+    );
 
     applyFilters();
     closeDrawer();
@@ -762,6 +1006,14 @@
       errors.descripcion = "La descripción es obligatoria.";
     }
 
+    if (!Number(draft.director)) {
+      errors.director = "Debes seleccionar un director.";
+    }
+
+    if (!Number(draft.primera_linea)) {
+      errors.primera_linea = "Debes seleccionar una primera línea.";
+    }
+
     state.drawer.errors = errors;
     return errors;
   }
@@ -788,6 +1040,33 @@
       return { label: "Activo", key: "activo" };
     }
     return { label: "Inactivo", key: "inactivo" };
+  }
+
+  function getActiveEmployeesSorted() {
+    return state.employees
+      .filter((emp) => Number(emp.status) === 1)
+      .sort((a, b) =>
+        getEmployeeFullName(a).localeCompare(getEmployeeFullName(b), "es")
+      );
+  }
+
+  function getEmployeeById(id) {
+    return state.employees.find((emp) => Number(emp.id) === Number(id)) || null;
+  }
+
+  function getEmployeeFullName(emp) {
+    return `${emp?.nombre || ""} ${emp?.apellidos || ""}`.trim();
+  }
+
+  function getEmployeeFullNameById(id) {
+    const emp = getEmployeeById(id);
+    return emp ? getEmployeeFullName(emp) : "";
+  }
+
+  function getEmployeeLabelById(id) {
+    const emp = getEmployeeById(id);
+    if (!emp) return "";
+    return getEmployeeFullName(emp);
   }
 
   function getNextId() {
