@@ -282,6 +282,7 @@ header.scrolled+main.home-samapa.admin-dashboard .hs-main:empty::before {
   font-size: 0.92rem;
   font-weight: 600;
   line-height: 1;
+  text-align: center;
 }
 
 .home-samapa.admin-dashboard .hs-btn:hover,
@@ -307,6 +308,7 @@ header.scrolled+main.home-samapa.admin-dashboard .hs-main:empty::before {
 .home-samapa.admin-dashboard .table-wrap {
   overflow: auto;
   background: #fff;
+  border-radius: 10px;
 }
 
 .home-samapa.admin-dashboard table.gc {
@@ -1311,11 +1313,11 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
   width: 100%;
   border: 1px solid #cfcfcf;
   background: #fff;
-  border-radius: 0;
   padding: 11px 12px;
   font: inherit;
   color: #111827;
   box-sizing: border-box;
+  border-radius: 10px;
 }
 
 .admin-drawer__textarea {

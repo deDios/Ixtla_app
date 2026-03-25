@@ -111,6 +111,47 @@
     ];
   }
 
+  function syncDrawerUi(root) {
+    if (!root) return;
+
+    const errors = state.drawer.errors || {};
+    const mode = state.drawer.mode;
+    const isCreate = mode === "create";
+    const canSave = isDrawerValid();
+    const hasChanges = hasDrawerChanges();
+    const saveDisabled = isCreate ? !canSave : !(canSave && hasChanges);
+
+    root.querySelectorAll(".js-drawer-input").forEach((field) => {
+      const key = field.dataset.field;
+      if (!key) return;
+
+      const hasError = Boolean(errors[key]);
+      field.classList.toggle("is-error", hasError);
+
+      const fieldWrap = field.closest(".admin-drawer__field");
+      if (!fieldWrap) return;
+
+      let errorNode = fieldWrap.querySelector(".admin-drawer__error");
+      const errorText = errors[key] || "";
+
+      if (errorText) {
+        if (!errorNode) {
+          errorNode = document.createElement("span");
+          errorNode.className = "admin-drawer__error";
+          fieldWrap.appendChild(errorNode);
+        }
+        errorNode.textContent = errorText;
+      } else if (errorNode) {
+        errorNode.remove();
+      }
+    });
+
+    const saveBtn = root.querySelector(".js-save-drawer");
+    if (saveBtn) {
+      saveBtn.disabled = saveDisabled;
+    }
+  }
+
   /* =========================================================
      RENDER
      ========================================================= */
@@ -671,8 +712,11 @@
     const root = document.querySelector("#admin-view-root");
     if (!root) return;
 
-    root.innerHTML = render();
-    bind();
+    if (field === "estatus") {
+      refreshView();
+    } else {
+      syncDrawerUi(root);
+    }
   }
 
   /* =========================================================
