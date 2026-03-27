@@ -2,7 +2,12 @@
   const state = {
     items: [],
     filteredItems: [],
+    pagedItems: [],
     query: "",
+    page: 1,
+    limit: 6,
+    total: 0,
+    totalPages: 1,
     activeDepartamentoId: 0,
     departamentos: [],
     drawer: {
@@ -197,6 +202,60 @@
     ];
   }
 
+  function renderPagination() {
+    if (state.totalPages <= 1) return "";
+
+    const pages = buildPagination(state.page, state.totalPages);
+    const start = state.total === 0 ? 0 : (state.page - 1) * state.limit + 1;
+    const end = Math.min(state.page * state.limit, state.total);
+
+    return `
+    <div class="admin-pagination">
+      <div class="admin-pagination__info">
+        Mostrando ${start}-${end} de ${state.total} tipos de trámite
+      </div>
+
+      <div class="admin-pagination__controls">
+        <button
+          type="button"
+          class="admin-pagination__btn"
+          data-page="${state.page - 1}"
+          ${state.page <= 1 ? "disabled" : ""}
+        >
+          ‹
+        </button>
+
+        ${pages
+        .map((p) => {
+          if (p === "...") {
+            return `<span class="admin-pagination__dots">...</span>`;
+          }
+
+          return `
+              <button
+                type="button"
+                class="admin-pagination__page ${p === state.page ? "is-active" : ""}"
+                data-page="${p}"
+              >
+                ${p}
+              </button>
+            `;
+        })
+        .join("")}
+
+        <button
+          type="button"
+          class="admin-pagination__btn"
+          data-page="${state.page + 1}"
+          ${state.page >= state.totalPages ? "disabled" : ""}
+        >
+          ›
+        </button>
+      </div>
+    </div>
+  `;
+  }
+
   function buildDepartamentos() {
     const map = new Map();
 
@@ -218,7 +277,7 @@
   function applyFilters() {
     const q = String(state.query || "").trim().toLowerCase();
 
-    state.filteredItems = state.items.filter((item) => {
+    const base = state.items.filter((item) => {
       if (Number(item.status) === 0) return false;
 
       const matchesDept =
@@ -235,6 +294,15 @@
         String(item.departamento_nombre || "").toLowerCase().includes(q)
       );
     });
+
+    state.filteredItems = base;
+    state.total = base.length;
+    state.totalPages = Math.max(1, Math.ceil(state.total / state.limit));
+    state.page = clamp(state.page, 1, state.totalPages);
+
+    const start = (state.page - 1) * state.limit;
+    const end = start + state.limit;
+    state.pagedItems = base.slice(start, end);
   }
 
   function renderDeptFilters() {
@@ -275,7 +343,7 @@
   }
 
   function renderRows() {
-    if (!state.filteredItems.length) {
+    if (!state.pagedItems.length) {
       return `
         <tr>
           <td colspan="5">
@@ -285,7 +353,7 @@
       `;
     }
 
-    return state.filteredItems
+    return state.pagedItems
       .map((item) => {
         const status = getStatusMeta(item.estatus);
 
@@ -590,25 +658,28 @@
         </div>
 
         <div class="admin-module__body">
-          ${renderDeptFilters()}
+  ${renderDeptFilters()}
 
-          <div class="hs-table table-wrap">
-            <table class="gc">
-              <thead>
-                <tr>
-                  <th>Tipo de trámite</th>
-                  <th>Descripción</th>
-                  <th>imagen</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${renderRows()}
-              </tbody>
-            </table>
-          </div>
-        </div>
+  <div class="hs-table table-wrap">
+    <table class="gc">
+      <thead>
+        <tr>
+          <th>Tipo de trámite</th>
+          <th>Descripción</th>
+          <th>imagen</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${renderRows()}
+      </tbody>
+    </table>
+  </div>
+
+  ${renderPagination()}
+</div>
+
       </section>
 
       ${renderDrawer()}
@@ -625,6 +696,7 @@
     if (inputSearch) {
       inputSearch.addEventListener("input", (e) => {
         state.query = e.target.value || "";
+        state.page = 1;
         refreshView();
       });
     }
@@ -636,6 +708,17 @@
     root.querySelectorAll(".admin-tramites__deptchip").forEach((btn) => {
       btn.addEventListener("click", () => {
         state.activeDepartamentoId = Number(btn.dataset.deptId || 0);
+        state.page = 1;
+        refreshView();
+      });
+    });
+
+    root.querySelectorAll("[data-page]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const page = Number(btn.dataset.page);
+        if (!page || page < 1 || page > state.totalPages) return;
+
+        state.page = page;
         refreshView();
       });
     });
@@ -934,6 +1017,17 @@
     }
   }
 
+  function refreshView() {
+  const root = document.querySelector("#admin-view-root");
+  if (!root) return;
+
+  applyFilters();
+  root.innerHTML = render();
+  bind();
+}
+
+
+
   function validateDrawer() {
     const draft = state.drawer.draft || {};
     const errors = {};
@@ -985,6 +1079,36 @@
   function getNextId() {
     return state.items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
   }
+
+  function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function buildPagination(current, total) {
+  const pages = [];
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+    return pages;
+  }
+
+  pages.push(1);
+
+  if (current > 3) pages.push("...");
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+
+  if (current < total - 2) pages.push("...");
+
+  pages.push(total);
+
+  return pages;
+}
 
   function escapeHtml(value) {
     return String(value ?? "")

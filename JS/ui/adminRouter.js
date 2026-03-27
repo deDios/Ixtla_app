@@ -2,6 +2,8 @@
   //JS/ui/adminRouter.js
   "use strict";
 
+  const STORAGE_KEY = "admin_active_view";
+
   const VIEWS = {
     carrusel: {
       init: () =>
@@ -66,6 +68,30 @@
     return item?.dataset?.adminView?.trim() || "";
   }
 
+  function isValidView(viewName) {
+    return Boolean(viewName && VIEWS[viewName]);
+  }
+
+  function saveCurrentView(viewName) {
+    if (!isValidView(viewName)) return;
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, viewName);
+    } catch (error) {
+      console.warn("[AdminRouter] No se pudo guardar la vista activa.", error);
+    }
+  }
+
+  function getSavedView() {
+    try {
+      const savedView = window.localStorage.getItem(STORAGE_KEY);
+      return isValidView(savedView) ? savedView : null;
+    } catch (error) {
+      console.warn("[AdminRouter] No se pudo leer la vista guardada.", error);
+      return null;
+    }
+  }
+
   function setActiveItem(viewName) {
     state.navItems.forEach((item) => {
       const isActive = getViewNameFromItem(item) === viewName;
@@ -107,6 +133,7 @@
       state.root.innerHTML = view.render();
       state.currentView = viewName;
       setActiveItem(viewName);
+      saveCurrentView(viewName);
 
       if (typeof view.bind === "function") {
         view.bind();
@@ -170,7 +197,9 @@
     }
 
     wireNav();
-    mountView(defaultView);
+
+    const initialView = getSavedView() || defaultView;
+    mountView(initialView);
   }
 
   window.AdminRouter = {

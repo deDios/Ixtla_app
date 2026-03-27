@@ -2,7 +2,12 @@
   const state = {
     items: [],
     filteredItems: [],
+    pagedItems: [],
     query: "",
+    page: 1,
+    limit: 6,
+    total: 0,
+    totalPages: 1,
     employees: [],
     drawer: {
       isOpen: false,
@@ -271,6 +276,13 @@
     }
 
     state.filteredItems = base;
+    state.total = base.length;
+    state.totalPages = Math.max(1, Math.ceil(state.total / state.limit));
+    state.page = clamp(state.page, 1, state.totalPages);
+
+    const start = (state.page - 1) * state.limit;
+    const end = start + state.limit;
+    state.pagedItems = base.slice(start, end);
   }
 
   function render() {
@@ -305,23 +317,26 @@
         </div>
 
         <div class="admin-module__body">
-          <div class="hs-table table-wrap">
-            <table class="gc">
-              <thead>
-                <tr>
-                  <th>Departamento</th>
-                  <th>Descripción</th>
-                  <th>Imagen</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${renderRows()}
-              </tbody>
-            </table>
-          </div>
+       <div class="hs-table table-wrap">
+          <table class="gc">
+            <thead>
+               <tr>
+               <th>Departamento</th>
+               <th>Descripción</th>
+                <th>Imagen</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+               </tr>
+            </thead>
+           <tbody>
+             ${renderRows()}
+            </tbody>
+         </table>
         </div>
+
+       ${renderPagination()}
+      </div>
+
       </section>
 
       ${renderDrawer()}
@@ -329,7 +344,7 @@
   }
 
   function renderRows() {
-    if (!state.filteredItems.length) {
+    if (!state.pagedItems.length) {
       return `
         <tr>
           <td colspan="5">
@@ -339,7 +354,7 @@
       `;
     }
 
-    return state.filteredItems
+    return state.pagedItems
       .map((item) => {
         const status = getStatusMeta(item.status);
 
@@ -380,6 +395,60 @@
         `;
       })
       .join("");
+  }
+
+  function renderPagination() {
+    if (state.totalPages <= 1) return "";
+
+    const pages = buildPagination(state.page, state.totalPages);
+    const start = state.total === 0 ? 0 : (state.page - 1) * state.limit + 1;
+    const end = Math.min(state.page * state.limit, state.total);
+
+    return `
+    <div class="admin-pagination">
+      <div class="admin-pagination__info">
+        Mostrando ${start}-${end} de ${state.total} departamentos
+      </div>
+
+      <div class="admin-pagination__controls">
+        <button
+          type="button"
+          class="admin-pagination__btn"
+          data-page="${state.page - 1}"
+          ${state.page <= 1 ? "disabled" : ""}
+        >
+          ‹
+        </button>
+
+        ${pages
+        .map((p) => {
+          if (p === "...") {
+            return `<span class="admin-pagination__dots">...</span>`;
+          }
+
+          return `
+              <button
+                type="button"
+                class="admin-pagination__page ${p === state.page ? "is-active" : ""}"
+                data-page="${p}"
+              >
+                ${p}
+              </button>
+            `;
+        })
+        .join("")}
+
+        <button
+          type="button"
+          class="admin-pagination__btn"
+          data-page="${state.page + 1}"
+          ${state.page >= state.totalPages ? "disabled" : ""}
+        >
+          ›
+        </button>
+      </div>
+    </div>
+  `;
   }
 
   function renderDrawer() {
@@ -677,6 +746,7 @@
     if (inputSearch) {
       inputSearch.addEventListener("input", (e) => {
         state.query = e.target.value || "";
+        state.page = 1;
         refreshView();
       });
     }
@@ -691,6 +761,16 @@
         const item = state.items.find((d) => d.id === id);
         if (!item) return;
         openDrawer(item);
+      });
+    });
+
+    root.querySelectorAll("[data-page]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const page = Number(btn.dataset.page);
+        if (!page || page < 1 || page > state.totalPages) return;
+
+        state.page = page;
+        refreshView();
       });
     });
 
@@ -1071,6 +1151,16 @@
     return getEmployeeFullName(emp);
   }
 
+  function refreshView() {
+    const root = document.querySelector("#admin-view-root");
+    if (!root) return;
+
+    applyDerivedLabels();
+    applyFilters();
+    root.innerHTML = render();
+    bind();
+  }
+
   function getNextId() {
     return state.items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
   }
@@ -1083,6 +1173,36 @@
 
   function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function buildPagination(current, total) {
+    const pages = [];
+
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+      return pages;
+    }
+
+    pages.push(1);
+
+    if (current > 3) pages.push("...");
+
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (current < total - 2) pages.push("...");
+
+    pages.push(total);
+
+    return pages;
   }
 
   function escapeHtml(value) {
