@@ -107,6 +107,39 @@
     });
   }
 
+  async function confirmDeleteDepartamento() {
+    if (state.drawer.isSaving) return;
+
+    const id = Number(state.drawer.selectedId || 0);
+    if (!id) return;
+
+    state.drawer.isSaving = true;
+    refreshView();
+
+    try {
+      const current = state.drawer.original || state.drawer.draft || {};
+
+      await sendJSON(API.UPDATE, {
+        id,
+        nombre: String(current.nombre || "").trim(),
+        descripcion: String(current.descripcion || "").trim(),
+        director: Number(current.director),
+        primera_linea: Number(current.primera_linea),
+        status: 0,
+        updated_by: getEmpleadoIdFromSession(),
+      });
+
+      toast("Departamento eliminado correctamente.", "success");
+      closeDrawer({ silent: true });
+      await refreshRemoteList();
+    } catch (error) {
+      err("Error eliminando departamento:", error);
+      toast("No se pudo eliminar el departamento.", "error");
+      state.drawer.isSaving = false;
+      refreshView();
+    }
+  }
+
   function render() {
     return `
       <section class="admin-module admin-module--departamentos">
@@ -568,6 +601,42 @@
   }
 
   function bind() {
+
+    const cancelEditBtn = document.querySelector(".js-cancel-edit");
+    if (cancelEditBtn) {
+      cancelEditBtn.addEventListener("click", () => {
+        if (state.drawer.isSaving) return;
+
+        if (state.drawer.mode === "create") {
+          closeDrawer();
+          return;
+        }
+
+        state.drawer.mode = "view";
+        state.drawer.draft = clone(state.drawer.original);
+        state.drawer.errors = {};
+        state.drawer.confirmDelete = false;
+        refreshView();
+      });
+    }
+
+    const confirmDeleteBtn = document.querySelector(".js-confirm-delete");
+    if (confirmDeleteBtn) {
+      confirmDeleteBtn.addEventListener("click", async () => {
+        if (state.drawer.isSaving) return;
+        await confirmDeleteDepartamento();
+      });
+    }
+
+    const cancelDeleteBtn = document.querySelector(".js-cancel-delete");
+    if (cancelDeleteBtn) {
+      cancelDeleteBtn.addEventListener("click", () => {
+        if (state.drawer.isSaving) return;
+        state.drawer.confirmDelete = false;
+        refreshView();
+      });
+    }
+
     const root = document.querySelector("#admin-view-root");
     if (!root) return;
 
@@ -631,6 +700,7 @@
     wireDepartmentImageFallbacks(document.querySelector("#admin-view-root"));
 
   }
+  //--------------- fin del render y bind
 
   async function handleSearchInput(event) {
     state.query = String(event.target.value || "");
@@ -744,38 +814,10 @@
     }
   }
 
-  async function handleDeleteDepartamento() {
-    const draft = state.drawer.draft;
-    if (!draft?.id || state.drawer.isSaving) return;
-
-    const ok = window.confirm("¿Deseas eliminar este departamento?");
-    if (!ok) return;
-
-    try {
-      state.drawer.isSaving = true;
-      refreshView();
-
-      const payload = {
-        id: Number(draft.id),
-        status: 0,
-        updated_by: getEmpleadoIdFromSession(),
-      };
-
-      const json = await sendJSON(API.UPDATE, payload);
-
-      if (!json?.ok) {
-        throw new Error(json?.error || json?.message || "No se pudo eliminar el departamento.");
-      }
-
-      toast("Departamento eliminado correctamente.", "success");
-      closeDrawer({ silent: true });
-      await refreshRemoteList();
-    } catch (error) {
-      err("Error eliminando departamento:", error);
-      toast(getErrorMessage(error, "No se pudo eliminar el departamento."), "error");
-      state.drawer.isSaving = false;
-      refreshView();
-    }
+  function handleDeleteDepartamento() {
+    if (state.drawer.isSaving) return;
+    state.drawer.confirmDelete = true;
+    refreshView();
   }
 
   async function createDepartamento() {
