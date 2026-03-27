@@ -467,8 +467,8 @@
                     </select>
                   `
         : `
-                    <div class="admin-drawer__readonly-pill">
-                      ${escapeHtml(drawerStatusLabel)}
+                    <div class="admin-drawer__readonly-pill admin-drawer__readonly-pill--status admin-drawer__readonly-pill--${Number(item.estatus) === 1 ? "activo" : "inactivo"}">
+                     ${escapeHtml(drawerStatusLabel)}
                     </div>
                   `
       }

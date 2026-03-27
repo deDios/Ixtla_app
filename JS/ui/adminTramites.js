@@ -467,8 +467,8 @@
                   </select>
                 `
         : `
-                  <div class="admin-drawer__readonly-pill">
-                    ${escapeHtml(item.departamento_nombre || "Sin departamento")}
+                  <div class="admin-drawer__readonly-pill admin-drawer__readonly-pill--department">
+                   ${escapeHtml(item.departamento_nombre || "Sin departamento")}
                   </div>
                 `
       }
@@ -484,8 +484,8 @@
                   </select>
                 `
         : `
-                  <div class="admin-drawer__readonly-pill">
-                    ${escapeHtml(drawerStatusLabel)}
+                  <div class="admin-drawer__readonly-pill admin-drawer__readonly-pill--status admin-drawer__readonly-pill--${Number(item.estatus) === 1 ? "activo" : "inactivo"}">
+                   ${escapeHtml(drawerStatusLabel)}
                   </div>
                 `
       }
@@ -568,12 +568,14 @@
 
           <div class="admin-module__toolbar">
             <label class="search" aria-label="Buscar tipo de trámite">
-              <span aria-hidden="true">🔍</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+               <path fill="currentColor" d="M10 4a6 6 0 0 1 4.472 9.931l4.298 4.297l-1.414 1.415l-4.297-4.298A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8"></path>
+              </svg>
               <input
-                id="admin-tramites-search"
-                type="search"
-                placeholder="Buscar Tipo de trámite"
-                value="${escapeHtml(state.query)}"
+               id="admin-tramites-search"|
+               type="search"
+               placeholder="Buscar Tipo de trámite"
+              value="${escapeHtml(state.query)}"
               />
             </label>
 

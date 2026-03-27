@@ -283,7 +283,9 @@
 
           <div class="admin-module__toolbar">
             <label class="search" aria-label="Buscar departamento">
-              <span aria-hidden="true">🔍</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M10 4a6 6 0 0 1 4.472 9.931l4.298 4.297l-1.414 1.415l-4.297-4.298A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8"></path>
+              </svg>
               <input
                 id="admin-departamentos-search"
                 type="search"
@@ -509,8 +511,8 @@
                 </select>
               `
         : `
-                <div class="admin-drawer__readonly-pill">
-                  ${escapeHtml(statusLabel)}
+                <div class="admin-drawer__readonly-pill admin-drawer__readonly-pill--status admin-drawer__readonly-pill--${Number(item.status) === 1 ? "activo" : "inactivo"}">
+                 ${escapeHtml(statusLabel)}
                 </div>
               `
       }

@@ -1552,3 +1552,72 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
     font-size: 0.76rem;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/********************************************* CSS DEL DRAWER ***********************************************/
+/**********************************************************************************************************************/
+.admin-drawer__readonly-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  background: #ffffff;
+  border: 1px solid #d7dbe0;
+  border-radius: 999px;
+  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Estado */
+.admin-drawer__readonly-pill--status {
+  letter-spacing: 0.01em;
+}
+
+.admin-drawer__readonly-pill--activo {
+  background: #edf8f1;
+  border-color: #cfe8d7;
+  color: #3f7a57;
+}
+
+.admin-drawer__readonly-pill--inactivo {
+  background: #fdf1f1;
+  border-color: #efd0d0;
+  color: #a35d5d;
+}
+
+/* Departamento */
+.admin-drawer__readonly-pill--department {
+  background: #f8fafc;
+  border-color: #d9e0e7;
+  color: #475569;
+}
+
+.home-samapa.admin-dashboard .search svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: #64748b;
+  opacity: 0.9;
+}
+
+.home-samapa.admin-dashboard .search:focus-within svg {
+  color: #5f9f89;
+}
