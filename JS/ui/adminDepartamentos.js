@@ -289,12 +289,12 @@
 
     if (!isOpen || !item) {
       return `
-        <div
-          class="admin-drawer-overlay"
-          id="admin-departamentos-drawer-overlay"
-          aria-hidden="true"
-        ></div>
-      `;
+      <div
+        class="admin-drawer-overlay"
+        id="admin-departamentos-drawer-overlay"
+        aria-hidden="true"
+      ></div>
+    `;
     }
 
     const isEdit = mode === "edit" || mode === "create";
@@ -312,196 +312,246 @@
       (isCreate ? !isDrawerValid() : !(isDrawerValid() && hasDrawerChanges()));
 
     return `
-      <div
-        class="admin-drawer-overlay is-open"
-        id="admin-departamentos-drawer-overlay"
-        aria-hidden="false"
+    <div
+      class="admin-drawer-overlay is-open"
+      id="admin-departamentos-drawer-overlay"
+      aria-hidden="false"
+    >
+      <aside
+        class="admin-drawer admin-drawer--right is-open"
+        id="admin-departamentos-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-departamentos-drawer-title"
       >
-        <aside
-          class="admin-drawer admin-drawer--right is-open"
-          id="admin-departamentos-drawer"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="admin-departamentos-drawer-title"
-        >
-          <div class="admin-drawer__head">
-            <div>
-              <h3 class="admin-drawer__title" id="admin-departamentos-drawer-title">${escapeHtml(titleText)}</h3>
-            </div>
-
-            <button
-              type="button"
-              class="admin-drawer__close js-drawer-close"
-              aria-label="Cerrar drawer"
-              title="Cerrar"
-              ${state.drawer.isSaving ? "disabled" : ""}
-            >
-              ×
-            </button>
+        <div class="admin-drawer__head">
+          <div>
+            <h3 class="admin-drawer__title" id="admin-departamentos-drawer-title">${escapeHtml(titleText)}</h3>
           </div>
 
-          <div class="admin-drawer__body">
-  <div class="admin-drawer__image-block">
-    <div class="admin-drawer__image-wrap">
-      ${renderDepartamentoImage(
+          <button
+            type="button"
+            class="admin-drawer__close js-drawer-close"
+            aria-label="Cerrar drawer"
+            title="Cerrar"
+            ${state.drawer.isSaving ? "disabled" : ""}
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="admin-drawer__body">
+          <div class="admin-drawer__image-block">
+            <div class="admin-drawer__image-wrap">
+              ${renderDepartamentoImage(
       item.id,
       item.nombre || "Vista previa",
       "admin-drawer__image"
     )}
-    </div>
-
-              <div class="admin-drawer__image-actions">
-                <button
-                  type="button"
-                  class="admin-drawer__ghost-btn"
-                  disabled
-                  title="Más adelante conectaremos media"
-                >
-                  Cambiar imagen
-                </button>
-                <button
-                  type="button"
-                  class="admin-drawer__ghost-btn"
-                  disabled
-                  title="Más adelante conectaremos media"
-                >
-                  Eliminar imagen
-                </button>
-              </div>
             </div>
 
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Nombre</span>
-              <input
-                type="text"
-                class="admin-drawer__input js-drawer-input ${errors.nombre ? "is-error" : ""}"
-                data-field="nombre"
-                value="${escapeAttr(item.nombre || "")}"
-                ${isEdit ? "" : "readonly"}
-              />
-              ${errors.nombre ? `<span class="admin-drawer__error">${escapeHtml(errors.nombre)}</span>` : ""}
-            </label>
-
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Descripción</span>
-              <textarea
-                class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
-                data-field="descripcion"
-                ${isEdit ? "" : "readonly"}
-              >${escapeHtml(item.descripcion || "")}</textarea>
-              ${errors.descripcion ? `<span class="admin-drawer__error">${escapeHtml(errors.descripcion)}</span>` : ""}
-            </label>
-
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Estado</span>
-              ${isEdit
-        ? `
-                    <select class="admin-drawer__select js-drawer-input" data-field="status">
-                      <option value="1" ${Number(item.status) === 1 ? "selected" : ""}>Activo</option>
-                      <option value="0" ${Number(item.status) === 0 ? "selected" : ""}>Inactivo</option>
-                    </select>
-                  `
-        : `
-                    <div class="admin-drawer__readonly-pill admin-drawer__readonly-pill--status admin-drawer__readonly-pill--${Number(item.status) === 1 ? "activo" : "inactivo"
-        }">
-                      ${escapeHtml(statusLabel)}
-                    </div>
-                  `
-      }
-            </label>
-
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Director</span>
-              ${isEdit
-        ? `
-                    <select
-                      class="admin-drawer__select js-drawer-input ${errors.director ? "is-error" : ""}"
-                      data-field="director"
-                    >
-                      <option value="">Selecciona un director</option>
-                      ${renderEmployeeOptions(item.director)}
-                    </select>
-                  `
-        : `
-                    <div class="admin-drawer__readonly-pill">
-                      ${escapeHtml(getEmployeeLabelById(item.director) || "—")}
-                    </div>
-                  `
-      }
-              ${errors.director ? `<span class="admin-drawer__error">${escapeHtml(errors.director)}</span>` : ""}
-            </label>
-
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Primera línea</span>
-              ${isEdit
-        ? `
-                    <select
-                      class="admin-drawer__select js-drawer-input ${errors.primera_linea ? "is-error" : ""}"
-                      data-field="primera_linea"
-                    >
-                      <option value="">Selecciona primera línea</option>
-                      ${renderEmployeeOptions(item.primera_linea)}
-                    </select>
-                  `
-        : `
-                    <div class="admin-drawer__readonly-pill">
-                      ${escapeHtml(getEmployeeLabelById(item.primera_linea) || "—")}
-                    </div>
-                  `
-      }
-              ${errors.primera_linea ? `<span class="admin-drawer__error">${escapeHtml(errors.primera_linea)}</span>` : ""}
-            </label>
-          </div>
-
-          <div class="admin-drawer__foot">
-            <div class="admin-drawer__foot-left">
-              ${!isCreate
-        ? `
-                    <button
-                      type="button"
-                      class="admin-drawer__danger-btn js-delete-departamento"
-                      ${state.drawer.isSaving ? "disabled" : ""}
-                    >
-                      Eliminar
-                    </button>
-                  `
-        : ""
-      }
-            </div>
-
-            <div class="admin-drawer__foot-right">
+            <div class="admin-drawer__image-actions">
               <button
                 type="button"
-                class="admin-drawer__ghost-btn js-drawer-close"
-                ${state.drawer.isSaving ? "disabled" : ""}
+                class="admin-drawer__ghost-btn"
+                disabled
+                title="Más adelante conectaremos media"
               >
-                Cancelar
+                Cambiar imagen
               </button>
-
-              ${mode === "view"
-        ? `
-                    <button
-                      type="button"
-                      class="hs-btn js-switch-edit"
-                    >
-                      Editar
-                    </button>
-                  `
-        : `
-                    <button
-                      type="button"
-                      class="hs-btn js-save-drawer"
-                      ${saveDisabled ? "disabled" : ""}
-                    >
-                      ${state.drawer.isSaving ? "Guardando..." : isCreate ? "Crear departamento" : "Guardar cambios"}
-                    </button>
-                  `
-      }
+              <button
+                type="button"
+                class="admin-drawer__ghost-btn"
+                disabled
+                title="Más adelante conectaremos media"
+              >
+                Eliminar imagen
+              </button>
             </div>
           </div>
-        </aside>
-      </div>
+
+          <label class="admin-drawer__field">
+            <span class="admin-drawer__label">Nombre</span>
+            <input
+              type="text"
+              class="admin-drawer__input js-drawer-input ${errors.nombre ? "is-error" : ""}"
+              data-field="nombre"
+              value="${escapeAttr(item.nombre || "")}"
+              ${isEdit ? "" : "readonly"}
+            />
+            ${errors.nombre ? `<span class="admin-drawer__error">${escapeHtml(errors.nombre)}</span>` : ""}
+          </label>
+
+          <label class="admin-drawer__field">
+            <span class="admin-drawer__label">Descripción</span>
+            <textarea
+              class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
+              data-field="descripcion"
+              ${isEdit ? "" : "readonly"}
+            >${escapeHtml(item.descripcion || "")}</textarea>
+            ${errors.descripcion ? `<span class="admin-drawer__error">${escapeHtml(errors.descripcion)}</span>` : ""}
+          </label>
+
+          <label class="admin-drawer__field">
+            <span class="admin-drawer__label">Estado</span>
+            ${isEdit
+        ? `
+                <select class="admin-drawer__select js-drawer-input" data-field="status">
+                  <option value="1" ${Number(item.status) === 1 ? "selected" : ""}>Activo</option>
+                  <option value="0" ${Number(item.status) === 0 ? "selected" : ""}>Inactivo</option>
+                </select>
+              `
+        : `
+                <div class="admin-drawer__readonly-pill admin-drawer__readonly-pill--status admin-drawer__readonly-pill--${Number(item.status) === 1 ? "activo" : "inactivo"}">
+                  ${escapeHtml(statusLabel)}
+                </div>
+              `
+      }
+          </label>
+
+          <label class="admin-drawer__field">
+            <span class="admin-drawer__label">Director</span>
+            ${isEdit
+        ? `
+                <select
+                  class="admin-drawer__select js-drawer-input ${errors.director ? "is-error" : ""}"
+                  data-field="director"
+                >
+                  <option value="">Selecciona un director</option>
+                  ${renderEmployeeOptions(item.director)}
+                </select>
+              `
+        : `
+                <div class="admin-drawer__readonly-pill">
+                  ${escapeHtml(getEmployeeLabelById(item.director) || "—")}
+                </div>
+              `
+      }
+            ${errors.director ? `<span class="admin-drawer__error">${escapeHtml(errors.director)}</span>` : ""}
+          </label>
+
+          <label class="admin-drawer__field">
+            <span class="admin-drawer__label">Primera línea</span>
+            ${isEdit
+        ? `
+                <select
+                  class="admin-drawer__select js-drawer-input ${errors.primera_linea ? "is-error" : ""}"
+                  data-field="primera_linea"
+                >
+                  <option value="">Selecciona primera línea</option>
+                  ${renderEmployeeOptions(item.primera_linea)}
+                </select>
+              `
+        : `
+                <div class="admin-drawer__readonly-pill">
+                  ${escapeHtml(getEmployeeLabelById(item.primera_linea) || "—")}
+                </div>
+              `
+      }
+            ${errors.primera_linea ? `<span class="admin-drawer__error">${escapeHtml(errors.primera_linea)}</span>` : ""}
+          </label>
+
+          ${state.drawer.confirmDelete && !isCreate
+        ? `
+              <div class="admin-drawer__confirm">
+                <p class="admin-drawer__confirm-text">
+                  ¿Seguro que deseas eliminar este departamento? Se ocultará del listado y se marcará como inactivo.
+                </p>
+
+                <div class="admin-drawer__confirm-actions">
+                  <button
+                    type="button"
+                    class="admin-drawer__danger-btn js-confirm-delete"
+                    ${state.drawer.isSaving ? "disabled" : ""}
+                  >
+                    Sí, eliminar
+                  </button>
+                  <button
+                    type="button"
+                    class="admin-drawer__secondary-btn js-cancel-delete"
+                    ${state.drawer.isSaving ? "disabled" : ""}
+                  >
+                    No, volver
+                  </button>
+                </div>
+              </div>
+            `
+        : ""
+      }
+        </div>
+
+        <div class="admin-drawer__footer">
+          ${renderDrawerFooterButtons(saveDisabled)}
+        </div>
+      </aside>
+    </div>
+  `;
+  }
+
+  function renderDrawerFooterButtons(saveDisabled) {
+    const mode = state.drawer.mode;
+
+    if (mode === "create") {
+      return `
+      <button
+        type="button"
+        class="admin-drawer__primary-btn js-save-drawer"
+        ${saveDisabled ? "disabled" : ""}
+      >
+        ${state.drawer.isSaving ? "Guardando..." : "Guardar departamento"}
+      </button>
+      <button
+        type="button"
+        class="admin-drawer__secondary-btn js-cancel-edit"
+        ${state.drawer.isSaving ? "disabled" : ""}
+      >
+        Cancelar
+      </button>
     `;
+    }
+
+    if (mode === "edit") {
+      return `
+      <button
+        type="button"
+        class="admin-drawer__primary-btn js-save-drawer"
+        ${saveDisabled ? "disabled" : ""}
+      >
+        ${state.drawer.isSaving ? "Guardando..." : "Guardar cambios"}
+      </button>
+      <button
+        type="button"
+        class="admin-drawer__secondary-btn js-cancel-edit"
+        ${state.drawer.isSaving ? "disabled" : ""}
+      >
+        Cancelar
+      </button>
+    `;
+    }
+
+    return `
+    <button
+      type="button"
+      class="admin-drawer__primary-btn js-switch-edit"
+      ${state.drawer.isSaving ? "disabled" : ""}
+    >
+      Editar
+    </button>
+    <button
+      type="button"
+      class="admin-drawer__danger-btn js-delete-departamento"
+      ${state.drawer.isSaving ? "disabled" : ""}
+    >
+      Eliminar
+    </button>
+    <button
+      type="button"
+      class="admin-drawer__secondary-btn js-drawer-close"
+      ${state.drawer.isSaving ? "disabled" : ""}
+    >
+      Cerrar
+    </button>
+  `;
   }
 
   function renderEmployeeOptions(selectedId) {
