@@ -488,7 +488,7 @@
         ? `
               <div class="admin-drawer__confirm">
                 <p class="admin-drawer__confirm-text">
-                  ¿Seguro que deseas eliminar este departamento? Se ocultará del listado y se marcará como inactivo.
+                  ¿Seguro que deseas desactivar este departamento? Se marcará como inactivo.
                 </p>
 
                 <div class="admin-drawer__confirm-actions">
@@ -879,7 +879,6 @@
   async function loadDepartamentos() {
     const payload = {
       q: String(state.query || "").trim(),
-      status: 1,
       page: state.page,
       per_page: state.limit,
     };
