@@ -1471,8 +1471,30 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
 
 
 
+/********************************************* FIN DEL CSS DE DEPARTAMENTOS ***********************************************/
+/**********************************************************************************************************************/
+
+.home-samapa.admin-dashboard .admin-module--departamentos table.gc td:nth-child(3) {
+  width: 96px;
+  min-width: 96px;
+}
+
+.home-samapa.admin-dashboard .admin-departamento__thumb {
+  width: 106px;
+  height: 106px;
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 8px;
+  background: #fff;
+  padding: 4px;
+  box-sizing: border-box;
+}
 
 
+/********************************************* FIN DEL CSS DE DEPARTAMENTOS ***********************************************/
+/**********************************************************************************************************************/
 
 
 
