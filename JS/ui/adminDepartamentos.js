@@ -53,6 +53,60 @@
     }
   }
 
+  //--------------- helpers
+  const DEPT_ASSETS_DIR = "/ASSETS/departamentos/";
+  const DEPT_PLACEHOLDER = `${DEPT_ASSETS_DIR}placeholder_icon.png`;
+
+  function getDepartamentoImageCandidates(id) {
+    const safeId = Number(id) || 0;
+
+    if (!safeId) {
+      return [DEPT_PLACEHOLDER];
+    }
+
+    return [
+      `${DEPT_ASSETS_DIR}dep_img${safeId}.png`,
+      `${DEPT_ASSETS_DIR}dep_img${safeId}.jpg`,
+      DEPT_PLACEHOLDER,
+    ];
+  }
+
+  function renderDepartamentoImage(id, nombre, className = "") {
+    const candidates = getDepartamentoImageCandidates(id);
+    const safeAlt = escapeHtml(nombre || "Departamento");
+
+    return `
+    <img
+      src="${escapeAttr(candidates[0])}"
+      alt="${safeAlt}"
+      class="${className}"
+      data-fallback-index="0"
+      data-fallbacks='${escapeAttr(JSON.stringify(candidates))}'
+    />
+  `;
+  }
+
+  function wireDepartmentImageFallbacks(scope = document) {
+    scope.querySelectorAll("img[data-fallbacks]").forEach((img) => {
+      img.addEventListener("error", () => {
+        let list = [];
+        try {
+          list = JSON.parse(img.dataset.fallbacks || "[]");
+        } catch {
+          list = [DEPT_PLACEHOLDER];
+        }
+
+        let index = Number(img.dataset.fallbackIndex || 0);
+        index += 1;
+
+        if (index >= list.length) return;
+
+        img.dataset.fallbackIndex = String(index);
+        img.src = list[index];
+      });
+    });
+  }
+
   function render() {
     return `
       <section class="admin-module admin-module--departamentos">
@@ -146,11 +200,11 @@
             </td>
 
             <td>
-              <img
-                src="${escapeHtml(item.imagen || DEFAULT_IMAGE)}"
-                alt="${escapeHtml(item.nombre)}"
-                style="width:48px;height:48px;object-fit:contain;display:block;margin:auto;"
-              />
+              ${renderDepartamentoImage(
+          item.id,
+          item.nombre,
+          "admin-departamento__thumb"
+        )}
             </td>
 
             <td>
@@ -287,15 +341,14 @@
           </div>
 
           <div class="admin-drawer__body">
-            <div class="admin-drawer__image-block">
-              <div class="admin-drawer__image-wrap ${!item.imagen ? "is-empty" : ""}">
-                ${item.imagen
-        ? `<img src="${escapeHtml(item.imagen)}" alt="${escapeHtml(
-          item.nombre || "Vista previa"
-        )}" class="admin-drawer__image" />`
-        : `<span class="admin-drawer__image-placeholder">🖼️</span>`
-      }
-              </div>
+  <div class="admin-drawer__image-block">
+    <div class="admin-drawer__image-wrap">
+      ${renderDepartamentoImage(
+      item.id,
+      item.nombre || "Vista previa",
+      "admin-drawer__image"
+    )}
+    </div>
 
               <div class="admin-drawer__image-actions">
                 <button
@@ -524,6 +577,9 @@
     if (deleteBtn) {
       deleteBtn.addEventListener("click", handleDeleteDepartamento);
     }
+
+    wireDepartmentImageFallbacks(document.querySelector("#admin-view-root"));
+
   }
 
   async function handleSearchInput(event) {
