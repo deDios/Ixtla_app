@@ -142,6 +142,7 @@ ix_require_session(); */
 
     <script src="/JS/components.js"></script>
     <script src="/JS/JSglobal.js"></script>
+    <script src="/JS/auth/session.js"></script>
 
     <script src="/JS/ui/adminCarrusel.js"></script>
     <script src="/JS/ui/adminDepartamentos.js"></script>
