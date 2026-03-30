@@ -1,4 +1,22 @@
 (() => {
+  "use strict";
+
+  const TAG = "[AdminTramites]";
+  const log = (...a) => console.log(TAG, ...a);
+  const err = (...a) => console.error(TAG, ...a);
+  const toast = (m, t = "info") =>
+    window.gcToast ? window.gcToast(m, t) : console.log("[toast]", t, m);
+
+  const API = {
+    LIST: "/db/WEB/ixtla01_c_tramiteV2.php",
+    CREATE: "/db/WEB/ixtla01_i_tramite.php",
+    UPDATE: "/db/WEB/ixtla01_u_tramite.php",
+    DEPARTAMENTOS: "/db/WEB/ixtla01_c_departamentoV2.php",
+  };
+
+  const DEPT_ASSETS_DIR = "/ASSETS/departamentos/";
+  const DEPT_PLACEHOLDER = `${DEPT_ASSETS_DIR}placeholder_icon.png`;
+
   const state = {
     items: [],
     filteredItems: [],
@@ -10,6 +28,8 @@
     totalPages: 1,
     activeDepartamentoId: 0,
     departamentos: [],
+    isLoading: false,
+    searchTimer: null,
     drawer: {
       isOpen: false,
       mode: "view", // view | edit | create
@@ -18,188 +38,209 @@
       original: null,
       errors: {},
       confirmDelete: false,
+      isSaving: false,
     },
   };
 
-  function init() {
-    loadMock();
-    buildDepartamentos();
-    applyFilters();
+  async function init() {
+    state.isLoading = true;
+
+    try {
+      await loadDepartamentos();
+      await refreshRemoteList();
+    } catch (error) {
+      err("Error inicializando módulo:", error);
+      toast("No se pudo cargar el módulo de trámites.", "error");
+    } finally {
+      state.isLoading = false;
+    }
   }
 
-  function loadMock() {
-    state.items = [
-      {
-        id: 68,
-        departamento_id: 5,
-        nombre: "Otros",
-        descripcion:
-          "¿Desea reportar otra situación relacionada con temas ambientales o de salud pública? Favor de indicar la ubicación exacta y describir detalladamente el caso para canalizarlo al área correspondiente.",
-        estatus: 1,
-        departamento_nombre: "Ecología",
-        imagen: "/ASSETS/main_logo_shield.png",
+  async function sendJSON(url, body, method = "POST") {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
-      {
-        id: 67,
-        departamento_id: 5,
-        nombre: "Contaminación de basura",
-        descripcion:
-          "¿Desea reportar contaminación por acumulación de basura? Favor de indicar la ubicación exacta y describir la situación (tiraderos clandestinos, residuos en vía pública, malos olores).",
-        estatus: 1,
-        departamento_nombre: "Ecología",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 66,
-        departamento_id: 5,
-        nombre: "Contaminación auditiva",
-        descripcion:
-          "¿Desea reportar contaminación auditiva? Favor de indicar la ubicación exacta, horarios en que ocurre y describir la situación (música a alto volumen, maquinaria, eventos).",
-        estatus: 1,
-        departamento_nombre: "Ecología",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 65,
-        departamento_id: 5,
-        nombre: "Quema en vía pública",
-        descripcion:
-          "¿Desea reportar quema en la vía pública? Favor de indicar la ubicación exacta y describir la situación (tipo de material, frecuencia, afectación por humo).",
-        estatus: 1,
-        departamento_nombre: "Ecología",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 64,
-        departamento_id: 5,
-        nombre: "Contaminación por aguas residuales",
-        descripcion:
-          "¿Desea reportar contaminación por aguas residuales? Favor de indicar la ubicación exacta y describir la situación (escurrimientos, malos olores, afectación a la vía pública o domicilios).",
-        estatus: 1,
-        departamento_nombre: "Ecología",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 63,
-        departamento_id: 5,
-        nombre: "Problemas de higiene con vecinos",
-        descripcion:
-          "¿Desea reportar problemas de higiene con vecinos? Favor de indicar la ubicación exacta y describir la situación (acumulación de basura, malos olores u otras condiciones insalubres).",
-        estatus: 1,
-        departamento_nombre: "Ecología",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 62,
-        departamento_id: 5,
-        nombre: "Problemas de higiene por animales",
-        descripcion:
-          "¿Desea reportar problemas de higiene ocasionados por animales? Favor de indicar la ubicación exacta y describir la situación (acumulación de heces, malos olores, animales en la vía pública).",
-        estatus: 1,
-        departamento_nombre: "Ecología",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 60,
-        departamento_id: 8,
-        nombre: "Poda preventiva cerca de alumbrado",
-        descripcion:
-          "¿Desea solicitar poda preventiva de árboles cercanos a alumbrado público? Favor de indicar la ubicación exacta y describir la situación (ramas en contacto con luminarias o cableado).",
-        estatus: 1,
-        departamento_nombre: "Parques y Jardines",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 57,
-        departamento_id: 8,
-        nombre: "Poda de árboles preventiva",
-        descripcion:
-          "¿Desea solicitar poda preventiva de árboles? Favor de indicar la ubicación exacta y describir la situación (ramas en riesgo, cercanía a cables, afectación a paso peatonal o vial) para programar la revisión correspondiente.",
-        estatus: 1,
-        departamento_nombre: "Parques y Jardines",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 58,
-        departamento_id: 8,
-        nombre: "Tala de árbol",
-        descripcion:
-          "¿Desea solicitar la tala de un árbol? Favor de indicar la ubicación exacta y describir los motivos (riesgo de caída, daño a infraestructura, árbol seco o enfermo) para iniciar la evaluación correspondiente.",
-        estatus: 1,
-        departamento_nombre: "Parques y Jardines",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 59,
-        departamento_id: 8,
-        nombre: "Limpiar predios",
-        descripcion:
-          "¿Desea solicitar la limpieza de un predio? Favor de indicar la ubicación exacta y describir la situación (acumulación de basura, maleza, escombros).",
-        estatus: 1,
-        departamento_nombre: "Parques y Jardines",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 61,
-        departamento_id: 8,
-        nombre: "Otro",
-        descripcion:
-          "¿Desea solicitar poda preventiva de árboles cercanos a alumbrado público? Favor de indicar la ubicación exacta y describir la situación (ramas en contacto con luminarias o cableado).",
-        estatus: 1,
-        departamento_nombre: "Parques y Jardines",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 56,
-        departamento_id: 4,
-        nombre: "Otros",
-        descripcion:
-          "¿Desea reportar otra situación relacionada con el servicio de alumbrado público? Favor de indicar la ubicación exacta y describir detalladamente el caso para canalizarlo al área correspondiente.",
-        estatus: 1,
-        departamento_nombre: "Alumbrado Público",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 55,
-        departamento_id: 4,
-        nombre: "Baja presión de agua",
-        descripcion:
-          "¿Experimentas baja presión? Indica ubicación y detalles; daremos seguimiento para mejorar el servicio.",
-        estatus: 1,
-        departamento_nombre: "Alumbrado Público",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 54,
-        departamento_id: 1,
-        nombre: "Fuga de agua",
-        descripcion:
-          "¿Observaste una fuga de agua? Reporta ubicación y detalles; nos contactaremos para atenderla a la brevedad.",
-        estatus: 1,
-        departamento_nombre: "SAMAPA",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 53,
-        departamento_id: 1,
-        nombre: "Fuga de drenaje",
-        descripcion:
-          "¿Detectaste una fuga de drenaje? Informa ubicación y detalles; tu reporte será atendido a la brevedad.",
-        estatus: 1,
-        departamento_nombre: "SAMAPA",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
-      {
-        id: 52,
-        departamento_id: 1,
-        nombre: "No disponemos de agua",
-        descripcion:
-          "¿No dispones de agua? Indícanos ubicación y detalles; daremos seguimiento para restablecer el servicio.",
-        estatus: 1,
-        departamento_nombre: "SAMAPA",
-        imagen: "/ASSETS/main_logo_shield.png",
-      },
+      body: JSON.stringify(body || {}),
+    });
+
+    const txt = await res.text();
+    let json;
+
+    try {
+      json = JSON.parse(txt);
+    } catch {
+      json = { raw: txt };
+    }
+
+    if (!res.ok || json?.ok === false) {
+      throw new Error(
+        json?.error || json?.message || json?.raw || `HTTP ${res.status}`
+      );
+    }
+
+    return json;
+  }
+
+  function getErrorMessage(error, fallback = "Ocurrió un error.") {
+    return error?.message || fallback;
+  }
+
+  function readCookiePayload() {
+    try {
+      const name = "ix_emp=";
+      const pair = document.cookie.split("; ").find((c) => c.startsWith(name));
+      if (!pair) return null;
+      const raw = decodeURIComponent(pair.slice(name.length));
+      return JSON.parse(decodeURIComponent(escape(atob(raw))));
+    } catch {
+      return null;
+    }
+  }
+
+  function getSessionLike() {
+    try {
+      return window.Session?.get?.() || readCookiePayload() || null;
+    } catch {
+      return readCookiePayload() || null;
+    }
+  }
+
+  function getEmpleadoIdFromSession() {
+    const s = getSessionLike() || {};
+    const id = s?.empleado_id ?? s?.id_empleado ?? null;
+    return Number.isFinite(Number(id)) ? Number(id) : null;
+  }
+
+  function getDepartamentoImageCandidates(id) {
+    const safeId = Number(id) || 0;
+
+    if (!safeId) {
+      return [DEPT_PLACEHOLDER];
+    }
+
+    return [
+      `${DEPT_ASSETS_DIR}dep_img${safeId}.png`,
+      `${DEPT_ASSETS_DIR}dep_img${safeId}.jpg`,
+      DEPT_PLACEHOLDER,
     ];
+  }
+
+  function renderDepartamentoImage(id, nombre, className = "") {
+    const candidates = getDepartamentoImageCandidates(id);
+    const safeAlt = escapeHtml(nombre || "Departamento");
+
+    return `
+      <img
+        src="${escapeAttr(candidates[0])}"
+        alt="${safeAlt}"
+        class="${className}"
+        data-fallback-index="0"
+        data-fallbacks='${escapeAttr(JSON.stringify(candidates))}'
+      />
+    `;
+  }
+
+  function wireDepartmentImageFallbacks(scope = document) {
+    scope.querySelectorAll("img[data-fallbacks]").forEach((img) => {
+      img.addEventListener("error", () => {
+        let list = [];
+
+        try {
+          list = JSON.parse(img.dataset.fallbacks || "[]");
+        } catch {
+          list = [DEPT_PLACEHOLDER];
+        }
+
+        let index = Number(img.dataset.fallbackIndex || 0);
+        index += 1;
+
+        if (index >= list.length) return;
+
+        img.dataset.fallbackIndex = String(index);
+        img.src = list[index];
+      });
+    });
+  }
+
+  async function loadDepartamentos() {
+    const json = await sendJSON(API.DEPARTAMENTOS, {
+      all: true,
+      status: 1,
+    });
+
+    state.departamentos = Array.isArray(json?.data)
+      ? json.data
+        .map((dept) => ({
+          ...dept,
+          id: Number(dept.id) || 0,
+          nombre: String(dept.nombre || "").trim(),
+        }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+      : [];
+  }
+
+  async function refreshRemoteList() {
+    const payload = {
+      page: state.page,
+      per_page: state.limit,
+    };
+
+    const q = String(state.query || "").trim();
+    if (q) payload.q = q;
+
+    if (Number(state.activeDepartamentoId) > 0) {
+      payload.departamento_id = Number(state.activeDepartamentoId);
+    }
+
+    state.isLoading = true;
+
+    try {
+      const json = await sendJSON(API.LIST, payload);
+
+      state.items = Array.isArray(json?.data) ? json.data : [];
+      state.filteredItems = state.items;
+      state.pagedItems = state.items;
+      state.total = Number(json?.total ?? state.items.length) || 0;
+      state.totalPages = Math.max(1, Number(json?.total_pages ?? 1) || 1);
+      state.page = Math.max(1, Number(json?.page ?? state.page) || 1);
+
+      hydrateItemsWithDepartments();
+    } finally {
+      state.isLoading = false;
+    }
+  }
+
+  function hydrateItemsWithDepartments() {
+    state.items = state.items.map((item) => {
+      const dept = getDepartamentoById(item.departamento_id);
+
+      return {
+        ...item,
+        id: Number(item.id) || 0,
+        departamento_id: Number(item.departamento_id) || 0,
+        estatus: Number(item.estatus ?? 1) || 0,
+        status: Number(item.estatus ?? 1) === 0 ? 0 : 1,
+        nombre: String(item.nombre || ""),
+        descripcion: String(item.descripcion || ""),
+        departamento_nombre:
+          item.departamento_nombre ||
+          dept?.nombre ||
+          `Departamento ${Number(item.departamento_id) || 0}`,
+        imagen: item.imagen || "",
+      };
+    });
+
+    state.filteredItems = state.items;
+    state.pagedItems = state.items;
+  }
+
+  function getDepartamentoById(id) {
+    const needle = Number(id || 0);
+    if (!needle) return null;
+    return state.departamentos.find((dept) => Number(dept.id) === needle) || null;
   }
 
   function renderPagination() {
@@ -256,53 +297,11 @@
   `;
   }
 
-  function buildDepartamentos() {
-    const map = new Map();
-
-    state.items.forEach((item) => {
-      if (!map.has(item.departamento_id)) {
-        map.set(item.departamento_id, {
-          id: item.departamento_id,
-          nombre: item.departamento_nombre || `Departamento ${item.departamento_id}`,
-          imagen: "/ASSETS/main_logo_shield.png",
-        });
-      }
-    });
-
-    state.departamentos = Array.from(map.values()).sort((a, b) =>
-      a.nombre.localeCompare(b.nombre, "es")
-    );
-  }
-
   function applyFilters() {
-    const q = String(state.query || "").trim().toLowerCase();
-
-    const base = state.items.filter((item) => {
-      if (Number(item.status) === 0) return false;
-
-      const matchesDept =
-        state.activeDepartamentoId === 0 ||
-        Number(item.departamento_id) === Number(state.activeDepartamentoId);
-
-      if (!matchesDept) return false;
-      if (!q) return true;
-
-      return (
-        String(item.id || "").includes(q) ||
-        String(item.nombre || "").toLowerCase().includes(q) ||
-        String(item.descripcion || "").toLowerCase().includes(q) ||
-        String(item.departamento_nombre || "").toLowerCase().includes(q)
-      );
-    });
-
-    state.filteredItems = base;
-    state.total = base.length;
-    state.totalPages = Math.max(1, Math.ceil(state.total / state.limit));
-    state.page = clamp(state.page, 1, state.totalPages);
-
-    const start = (state.page - 1) * state.limit;
-    const end = start + state.limit;
-    state.pagedItems = base.slice(start, end);
+    // El backend ya devuelve la página y filtros aplicados.
+    // Aqui solo sincronizamos los alias usados por el render actual.
+    state.filteredItems = Array.isArray(state.items) ? [...state.items] : [];
+    state.pagedItems = Array.isArray(state.items) ? [...state.items] : [];
   }
 
   function renderDeptFilters() {
@@ -321,7 +320,9 @@
         ${state.departamentos
         .map((dept) => {
           const activeClass =
-            Number(state.activeDepartamentoId) === Number(dept.id) ? "is-active" : "";
+            Number(state.activeDepartamentoId) === Number(dept.id)
+              ? "is-active"
+              : "";
 
           return `
               <button
@@ -331,9 +332,15 @@
                 title="${escapeHtml(dept.nombre)}"
               >
                 <span class="admin-tramites__deptchip-img">
-                  <img src="${escapeHtml(dept.imagen)}" alt="${escapeHtml(dept.nombre)}" />
+                  ${renderDepartamentoImage(
+            dept.id,
+            dept.nombre,
+            "admin-tramites__deptchip-image"
+          )}
                 </span>
-                <span class="admin-tramites__deptchip-label">${escapeHtml(dept.nombre)}</span>
+                <span class="admin-tramites__deptchip-label">${escapeHtml(
+            dept.nombre
+          )}</span>
               </button>
             `;
         })
@@ -343,6 +350,16 @@
   }
 
   function renderRows() {
+    if (state.isLoading) {
+      return `
+        <tr>
+          <td colspan="5">
+            <div class="muted">Cargando tipos de trámite...</div>
+          </td>
+        </tr>
+      `;
+    }
+
     if (!state.pagedItems.length) {
       return `
         <tr>
@@ -356,6 +373,7 @@
     return state.pagedItems
       .map((item) => {
         const status = getStatusMeta(item.estatus);
+        const dept = getDepartamentoById(item.departamento_id);
 
         return `
           <tr data-id="${item.id}">
@@ -368,11 +386,11 @@
             </td>
 
             <td>
-              <img
-                src="${escapeHtml(item.imagen || "/ASSETS/main_logo_shield.png")}"
-                alt="${escapeHtml(item.nombre)}"
-                style="width:56px;height:40px;object-fit:cover;display:block;margin:auto;border-radius:4px;"
-              />
+              ${renderDepartamentoImage(
+          dept?.id || item.departamento_id,
+          dept?.nombre || item.departamento_nombre || item.nombre,
+          "admin-departamento__thumb"
+        )}
             </td>
 
             <td>
@@ -421,9 +439,11 @@
 
     const errors = state.drawer.errors || {};
     const drawerStatusLabel = Number(item.estatus) === 1 ? "Activo" : "Inactivo";
-    const saveDisabled = isCreate
-      ? !isDrawerValid()
-      : !(isDrawerValid() && hasDrawerChanges());
+    const saveDisabled =
+      state.drawer.isSaving ||
+      (isCreate ? !isDrawerValid() : !(isDrawerValid() && hasDrawerChanges()));
+
+    const dept = getDepartamentoById(item.departamento_id);
 
     return `
       <div
@@ -450,6 +470,7 @@
               class="admin-drawer__close js-drawer-close"
               aria-label="Cerrar drawer"
               title="Cerrar"
+              ${state.drawer.isSaving ? "disabled" : ""}
             >
               ×
             </button>
@@ -457,13 +478,12 @@
 
           <div class="admin-drawer__body">
             <div class="admin-drawer__image-block">
-              <div class="admin-drawer__image-wrap ${!item.imagen ? "is-empty" : ""}">
-                ${item.imagen
-        ? `<img src="${escapeHtml(item.imagen)}" alt="${escapeHtml(
-          item.nombre || "Vista previa"
-        )}" class="admin-drawer__image" />`
-        : `<span class="admin-drawer__image-placeholder">🖼️</span>`
-      }
+              <div class="admin-drawer__image-wrap">
+                ${renderDepartamentoImage(
+      dept?.id || item.departamento_id,
+      dept?.nombre || item.departamento_nombre || item.nombre || "Vista previa",
+      "admin-drawer__image"
+    )}
               </div>
 
               <div class="admin-drawer__image-actions">
@@ -519,15 +539,20 @@
               <span class="admin-drawer__label">Departamento</span>
               ${isEdit
         ? `
-                  <select class="admin-drawer__select js-drawer-input" data-field="departamento_id">
+                  <select class="admin-drawer__select js-drawer-input ${errors.departamento_id ? "is-error" : ""
+        }" data-field="departamento_id">
+                    <option value="">Selecciona un departamento</option>
                     ${state.departamentos
           .map(
-            (dept) => `
+            (deptItem) => `
                       <option
-                        value="${dept.id}"
-                        ${Number(item.departamento_id) === Number(dept.id) ? "selected" : ""}
+                        value="${deptItem.id}"
+                        ${Number(item.departamento_id) === Number(deptItem.id)
+                ? "selected"
+                : ""
+              }
                       >
-                        ${escapeHtml(dept.nombre)}
+                        ${escapeHtml(deptItem.nombre)}
                       </option>
                     `
           )
@@ -539,6 +564,10 @@
                    ${escapeHtml(item.departamento_nombre || "Sin departamento")}
                   </div>
                 `
+      }
+              ${errors.departamento_id
+        ? `<span class="admin-drawer__error">${escapeHtml(errors.departamento_id)}</span>`
+        : ""
       }
             </label>
 
@@ -552,7 +581,8 @@
                   </select>
                 `
         : `
-                  <div class="admin-drawer__readonly-pill admin-drawer__readonly-pill--status admin-drawer__readonly-pill--${Number(item.estatus) === 1 ? "activo" : "inactivo"}">
+                  <div class="admin-drawer__readonly-pill admin-drawer__readonly-pill--status admin-drawer__readonly-pill--${Number(item.estatus) === 1 ? "activo" : "inactivo"
+        }">
                    ${escapeHtml(drawerStatusLabel)}
                   </div>
                 `
@@ -563,14 +593,22 @@
         ? `
                 <div class="admin-drawer__confirm">
                   <p class="admin-drawer__confirm-text">
-                    ¿Seguro que deseas eliminar este tipo de trámite? Se ocultará del listado mock y se marcará con status 0.
+                    ¿Seguro que deseas eliminar este tipo de trámite? Se ocultará del listado y se marcará con estatus 0.
                   </p>
 
                   <div class="admin-drawer__confirm-actions">
-                    <button type="button" class="admin-drawer__danger-btn js-confirm-delete">
+                    <button
+                      type="button"
+                      class="admin-drawer__danger-btn js-confirm-delete"
+                      ${state.drawer.isSaving ? "disabled" : ""}
+                    >
                       Sí, eliminar
                     </button>
-                    <button type="button" class="admin-drawer__secondary-btn js-cancel-delete">
+                    <button
+                      type="button"
+                      class="admin-drawer__secondary-btn js-cancel-delete"
+                      ${state.drawer.isSaving ? "disabled" : ""}
+                    >
                       No, volver
                     </button>
                   </div>
@@ -593,10 +631,18 @@
 
     if (mode === "create") {
       return `
-        <button type="button" class="admin-drawer__primary-btn js-save-drawer" ${saveDisabled ? "disabled" : ""}>
+        <button
+          type="button"
+          class="admin-drawer__primary-btn js-save-drawer"
+          ${saveDisabled ? "disabled" : ""}
+        >
           Guardar tipo de trámite
         </button>
-        <button type="button" class="admin-drawer__secondary-btn js-cancel-edit">
+        <button
+          type="button"
+          class="admin-drawer__secondary-btn js-cancel-edit"
+          ${state.drawer.isSaving ? "disabled" : ""}
+        >
           Cancelar
         </button>
       `;
@@ -604,23 +650,43 @@
 
     if (mode === "edit") {
       return `
-        <button type="button" class="admin-drawer__primary-btn js-save-drawer" ${saveDisabled ? "disabled" : ""}>
+        <button
+          type="button"
+          class="admin-drawer__primary-btn js-save-drawer"
+          ${saveDisabled ? "disabled" : ""}
+        >
           Guardar cambios
         </button>
-        <button type="button" class="admin-drawer__secondary-btn js-cancel-edit">
+        <button
+          type="button"
+          class="admin-drawer__secondary-btn js-cancel-edit"
+          ${state.drawer.isSaving ? "disabled" : ""}
+        >
           Cancelar
         </button>
       `;
     }
 
     return `
-      <button type="button" class="admin-drawer__primary-btn js-edit-drawer">
+      <button
+        type="button"
+        class="admin-drawer__primary-btn js-edit-drawer"
+        ${state.drawer.isSaving ? "disabled" : ""}
+      >
         Editar
       </button>
-      <button type="button" class="admin-drawer__danger-btn js-ask-delete">
+      <button
+        type="button"
+        class="admin-drawer__danger-btn js-ask-delete"
+        ${state.drawer.isSaving ? "disabled" : ""}
+      >
         Eliminar
       </button>
-      <button type="button" class="admin-drawer__secondary-btn js-drawer-close">
+      <button
+        type="button"
+        class="admin-drawer__secondary-btn js-drawer-close"
+        ${state.drawer.isSaving ? "disabled" : ""}
+      >
         Cerrar
       </button>
     `;
@@ -640,10 +706,10 @@
                <path fill="currentColor" d="M10 4a6 6 0 0 1 4.472 9.931l4.298 4.297l-1.414 1.415l-4.297-4.298A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8"></path>
               </svg>
               <input
-               id="admin-tramites-search"|
+               id="admin-tramites-search"
                type="search"
                placeholder="Buscar Tipo de trámite"
-              value="${escapeHtml(state.query)}"
+               value="${escapeHtml(state.query)}"
               />
             </label>
 
@@ -658,27 +724,27 @@
         </div>
 
         <div class="admin-module__body">
-  ${renderDeptFilters()}
+          ${renderDeptFilters()}
 
-  <div class="hs-table table-wrap">
-    <table class="gc">
-      <thead>
-        <tr>
-          <th>Tipo de trámite</th>
-          <th>Descripción</th>
-          <th>imagen</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${renderRows()}
-      </tbody>
-    </table>
-  </div>
+          <div class="hs-table table-wrap">
+            <table class="gc">
+              <thead>
+                <tr>
+                  <th>Tipo de trámite</th>
+                  <th>Descripción</th>
+                  <th>imagen</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${renderRows()}
+              </tbody>
+            </table>
+          </div>
 
-  ${renderPagination()}
-</div>
+          ${renderPagination()}
+        </div>
 
       </section>
 
@@ -697,7 +763,17 @@
       inputSearch.addEventListener("input", (e) => {
         state.query = e.target.value || "";
         state.page = 1;
-        refreshView();
+
+        clearTimeout(state.searchTimer);
+        state.searchTimer = setTimeout(async () => {
+          try {
+            await refreshRemoteList();
+            refreshView(false);
+          } catch (error) {
+            err("Error buscando trámites:", error);
+            toast(getErrorMessage(error, "No se pudo buscar."), "error");
+          }
+        }, 280);
       });
     }
 
@@ -706,33 +782,48 @@
     }
 
     root.querySelectorAll(".admin-tramites__deptchip").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         state.activeDepartamentoId = Number(btn.dataset.deptId || 0);
         state.page = 1;
-        refreshView();
+
+        try {
+          await refreshRemoteList();
+          refreshView(false);
+        } catch (error) {
+          err("Error filtrando trámites:", error);
+          toast(getErrorMessage(error, "No se pudo filtrar."), "error");
+        }
       });
     });
 
     root.querySelectorAll("[data-page]").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const page = Number(btn.dataset.page);
         if (!page || page < 1 || page > state.totalPages) return;
 
         state.page = page;
-        refreshView();
+
+        try {
+          await refreshRemoteList();
+          refreshView(false);
+        } catch (error) {
+          err("Error cambiando página:", error);
+          toast(getErrorMessage(error, "No se pudo cambiar de página."), "error");
+        }
       });
     });
 
     root.querySelectorAll(".js-edit-tramite").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = Number(btn.dataset.id);
-        const item = state.items.find((t) => t.id === id);
+        const item = state.items.find((t) => Number(t.id) === id);
         if (!item) return;
         openDrawer(item);
       });
     });
 
     bindDrawer(root);
+    wireDepartmentImageFallbacks(root);
   }
 
   function syncDrawerUi(root) {
@@ -741,9 +832,9 @@
     const errors = state.drawer.errors || {};
     const mode = state.drawer.mode;
     const isCreate = mode === "create";
-    const saveDisabled = isCreate
-      ? !isDrawerValid()
-      : !(isDrawerValid() && hasDrawerChanges());
+    const saveDisabled =
+      state.drawer.isSaving ||
+      (isCreate ? !isDrawerValid() : !(isDrawerValid() && hasDrawerChanges()));
 
     root.querySelectorAll(".js-drawer-input").forEach((field) => {
       const key = field.dataset.field;
@@ -781,12 +872,14 @@
 
     if (overlay) {
       overlay.addEventListener("click", (e) => {
-        if (e.target === overlay) closeDrawer();
+        if (e.target === overlay && !state.drawer.isSaving) closeDrawer();
       });
     }
 
     root.querySelectorAll(".js-drawer-close").forEach((btn) => {
-      btn.addEventListener("click", closeDrawer);
+      btn.addEventListener("click", () => {
+        if (!state.drawer.isSaving) closeDrawer();
+      });
     });
 
     const btnEdit = root.querySelector(".js-edit-drawer");
@@ -847,7 +940,7 @@
 
       field.addEventListener(eventName, (e) => {
         const key = e.target.dataset.field;
-        if (!key || !state.drawer.draft) return;
+        if (!key || !state.drawer.draft || state.drawer.isSaving) return;
 
         const value = e.target.value;
 
@@ -858,9 +951,7 @@
         }
 
         if (key === "departamento_id") {
-          const selectedDept = state.departamentos.find(
-            (dept) => Number(dept.id) === Number(state.drawer.draft.departamento_id)
-          );
+          const selectedDept = getDepartamentoById(state.drawer.draft.departamento_id);
 
           state.drawer.draft.departamento_nombre = selectedDept
             ? selectedDept.nombre
@@ -896,19 +987,19 @@
     };
 
     const blank = {
-      id: getNextId(),
+      id: 0,
       departamento_id: Number(defaultDept.id) || 0,
       departamento_nombre: defaultDept.nombre || "",
       nombre: "",
       descripcion: "",
       estatus: 1,
       status: 1,
-      imagen: "/ASSETS/main_logo_shield.png",
+      imagen: "",
     };
 
     state.drawer.isOpen = true;
     state.drawer.mode = "create";
-    state.drawer.selectedId = blank.id;
+    state.drawer.selectedId = null;
     state.drawer.original = clone(blank);
     state.drawer.draft = clone(blank);
     state.drawer.confirmDelete = false;
@@ -918,7 +1009,9 @@
     setTimeout(focusDrawerField, 0);
   }
 
-  function closeDrawer() {
+  function closeDrawer(options = {}) {
+    const { silent = false } = options;
+
     state.drawer.isOpen = false;
     state.drawer.mode = "view";
     state.drawer.selectedId = null;
@@ -926,52 +1019,100 @@
     state.drawer.original = null;
     state.drawer.confirmDelete = false;
     state.drawer.errors = {};
-    refreshView();
+    state.drawer.isSaving = false;
+
+    if (!silent) {
+      refreshView(false);
+    }
   }
 
-  function handleSaveTramite() {
+  async function handleSaveTramite() {
     validateDrawer();
+
     if (!isDrawerValid()) {
       refreshView();
       focusDrawerField();
       return;
     }
 
-    const payload = clone(state.drawer.draft);
-    payload.status = Number(payload.estatus) === 0 ? 0 : 1;
+    const payload = {
+      departamento_id: Number(state.drawer.draft.departamento_id),
+      nombre: String(state.drawer.draft.nombre || "").trim(),
+      descripcion: String(state.drawer.draft.descripcion || "").trim(),
+      estatus: Number(state.drawer.draft.estatus ?? 1),
+    };
 
-    if (state.drawer.mode === "create") {
-      payload.id = getNextId();
-      state.items.unshift(payload);
-      console.log("[AdminTramites] Crear tipo de trámite:", payload);
-    } else {
-      const index = state.items.findIndex((item) => item.id === state.drawer.selectedId);
-      if (index !== -1) {
-        state.items[index] = {
-          ...state.items[index],
-          ...payload,
-        };
+    const empleadoId = getEmpleadoIdFromSession();
+
+    if (state.drawer.isSaving) return;
+    state.drawer.isSaving = true;
+    refreshView();
+
+    try {
+      if (state.drawer.mode === "create") {
+        if (empleadoId) payload.created_by = empleadoId;
+        await sendJSON(API.CREATE, payload);
+        toast("Tipo de trámite creado correctamente.", "success");
+      } else {
+        payload.id = Number(state.drawer.selectedId);
+        if (empleadoId) payload.updated_by = empleadoId;
+        await sendJSON(API.UPDATE, payload);
+        toast("Tipo de trámite actualizado correctamente.", "success");
       }
-      console.log("[AdminTramites] Editar tipo de trámite:", payload);
-    }
 
-    buildDepartamentos();
-    applyFilters();
-    closeDrawer();
+      state.drawer.isSaving = false;
+      closeDrawer({ silent: true });
+      await refreshRemoteList();
+      refreshView(false);
+    } catch (error) {
+      err("Error guardando trámite:", error);
+      state.drawer.isSaving = false;
+      refreshView();
+      toast(
+        getErrorMessage(error, "No se pudo guardar el tipo de trámite."),
+        "error"
+      );
+    }
   }
 
-  function handleDeleteTramite() {
-    const index = state.items.findIndex((item) => item.id === state.drawer.selectedId);
-    if (index === -1) return;
+  async function handleDeleteTramite() {
+    if (state.drawer.isSaving) return;
 
-    state.items[index].status = 0;
-    state.items[index].estatus = 0;
+    const id = Number(state.drawer.selectedId || 0);
+    if (!id) return;
 
-    console.log("[AdminTramites] Eliminar tipo de trámite (soft delete):", state.items[index]);
+    state.drawer.isSaving = true;
+    refreshView();
 
-    buildDepartamentos();
-    applyFilters();
-    closeDrawer();
+    try {
+      const current = state.drawer.original || state.drawer.draft || {};
+      const payload = {
+        id,
+        departamento_id: Number(current.departamento_id),
+        nombre: String(current.nombre || "").trim(),
+        descripcion: String(current.descripcion || "").trim(),
+        estatus: 0,
+      };
+
+      const empleadoId = getEmpleadoIdFromSession();
+      if (empleadoId) payload.updated_by = empleadoId;
+
+      await sendJSON(API.UPDATE, payload);
+
+      toast("Tipo de trámite eliminado correctamente.", "success");
+      state.drawer.isSaving = false;
+      closeDrawer({ silent: true });
+      await refreshRemoteList();
+      refreshView(false);
+    } catch (error) {
+      err("Error eliminando trámite:", error);
+      state.drawer.isSaving = false;
+      refreshView();
+      toast(
+        getErrorMessage(error, "No se pudo eliminar el tipo de trámite."),
+        "error"
+      );
+    }
   }
 
   function refreshView(keepFocus = true) {
@@ -987,9 +1128,13 @@
           field: active.dataset.field || null,
           id: active.id || null,
           selectionStart:
-            typeof active.selectionStart === "number" ? active.selectionStart : null,
+            typeof active.selectionStart === "number"
+              ? active.selectionStart
+              : null,
           selectionEnd:
-            typeof active.selectionEnd === "number" ? active.selectionEnd : null,
+            typeof active.selectionEnd === "number"
+              ? active.selectionEnd
+              : null,
         }
         : null;
 
@@ -1000,7 +1145,9 @@
 
     let next = null;
     if (focusMeta.field) {
-      next = root.querySelector(`.js-drawer-input[data-field="${focusMeta.field}"]`);
+      next = root.querySelector(
+        `.js-drawer-input[data-field="${focusMeta.field}"]`
+      );
     } else if (focusMeta.id) {
       next = root.querySelector(`#${focusMeta.id}`);
     }
@@ -1012,21 +1159,13 @@
         focusMeta.selectionStart !== null &&
         focusMeta.selectionEnd !== null
       ) {
-        next.setSelectionRange(focusMeta.selectionStart, focusMeta.selectionEnd);
+        next.setSelectionRange(
+          focusMeta.selectionStart,
+          focusMeta.selectionEnd
+        );
       }
     }
   }
-
-  function refreshView() {
-  const root = document.querySelector("#admin-view-root");
-  if (!root) return;
-
-  applyFilters();
-  root.innerHTML = render();
-  bind();
-}
-
-
 
   function validateDrawer() {
     const draft = state.drawer.draft || {};
@@ -1053,12 +1192,25 @@
   }
 
   function isDrawerValid() {
-    return Object.keys(state.drawer.errors || {}).length === 0;
+    return Object.keys(validateDrawer()).length === 0;
   }
 
   function hasDrawerChanges() {
     if (!state.drawer.draft || !state.drawer.original) return false;
-    return JSON.stringify(state.drawer.draft) !== JSON.stringify(state.drawer.original);
+
+    const a = normalizeDraftForCompare(state.drawer.original);
+    const b = normalizeDraftForCompare(state.drawer.draft);
+
+    return JSON.stringify(a) !== JSON.stringify(b);
+  }
+
+  function normalizeDraftForCompare(item) {
+    return {
+      nombre: String(item?.nombre || "").trim(),
+      descripcion: String(item?.descripcion || "").trim(),
+      departamento_id: String(item?.departamento_id ?? ""),
+      estatus: String(item?.estatus ?? 1),
+    };
   }
 
   function focusDrawerField() {
@@ -1076,39 +1228,31 @@
     return { label: "Inactivo", key: "inactivo" };
   }
 
-  function getNextId() {
-    return state.items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
-  }
+  function buildPagination(current, total) {
+    const pages = [];
 
-  function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+      return pages;
+    }
 
-function buildPagination(current, total) {
-  const pages = [];
+    pages.push(1);
 
-  if (total <= 7) {
-    for (let i = 1; i <= total; i++) pages.push(i);
+    if (current > 3) pages.push("...");
+
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (current < total - 2) pages.push("...");
+
+    pages.push(total);
+
     return pages;
   }
-
-  pages.push(1);
-
-  if (current > 3) pages.push("...");
-
-  const start = Math.max(2, current - 1);
-  const end = Math.min(total - 1, current + 1);
-
-  for (let i = start; i <= end; i++) {
-    pages.push(i);
-  }
-
-  if (current < total - 2) pages.push("...");
-
-  pages.push(total);
-
-  return pages;
-}
 
   function escapeHtml(value) {
     return String(value ?? "")
