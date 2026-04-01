@@ -1687,7 +1687,8 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
 }
 
 .admin-drawer__media-slot .admin-drawer__ghost-btn {
-  min-width: 150px;
+  width: 100%;
+  min-width: 0;
 }
 
 .admin-drawer__media-slot .admin-drawer__ghost-btn[disabled] {

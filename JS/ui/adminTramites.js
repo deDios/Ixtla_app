@@ -571,65 +571,45 @@
     input.click();
   }
 
-  function handleDrawerMediaDelete(variant) {
-    toast(
-      variant === "icon"
-        ? "Cuando quede listo el endpoint de borrado, aquí quitaremos el icono."
-        : "Cuando quede listo el endpoint de borrado, aquí quitaremos la card.",
-      "info"
-    );
-  }
-
   function renderMediaSlot(variant, item) {
-    const media = state.drawer.media?.[variant] || null;
-    const isBusy = Boolean(state.drawer.media?.isUploading || state.drawer.isSaving);
-    const isCreate = state.drawer.mode === "create";
-    const disabled = isBusy || isCreate;
-    const title = variant === "icon" ? "Icono" : "Card";
-    const replaceLabel = variant === "icon" ? "Reemplazar icono" : "Reemplazar card";
-    const deleteLabel = variant === "icon" ? "Eliminar icono" : "Eliminar card";
-    const previewUrl = media?.url || getPlaceholderMediaUrl(variant);
-    const previewAlt = `${title} de ${item?.nombre || "trámite"}`;
-    const hasMedia = Boolean(media?.url);
+  const media = state.drawer.media?.[variant] || null;
+  const isBusy = Boolean(state.drawer.media?.isUploading || state.drawer.isSaving);
+  const isCreate = state.drawer.mode === "create";
+  const disabled = isBusy || isCreate;
+  const title = variant === "icon" ? "Icono" : "Card";
+  const replaceLabel = variant === "icon" ? "Reemplazar icono" : "Reemplazar card";
+  const previewUrl = media?.url || getPlaceholderMediaUrl(variant);
+  const previewAlt = `${title} de ${item?.nombre || "trámite"}`;
+  const hasMedia = Boolean(media?.url);
 
-    return `
-      <div class="admin-drawer__media-slot admin-drawer__media-slot--${variant}">
-        <div class="admin-drawer__media-head">
-          <span class="admin-drawer__label">${title}</span>
-        </div>
-
-        <div class="admin-drawer__image-wrap ${hasMedia ? "" : "is-empty"}">
-          <img
-            src="${escapeAttr(previewUrl)}"
-            alt="${escapeAttr(previewAlt)}"
-            class="admin-drawer__image admin-drawer__image--${variant}"
-          />
-        </div>
-
-        <div class="admin-drawer__image-actions">
-          <button
-            type="button"
-            class="admin-drawer__ghost-btn js-media-replace"
-            data-variant="${variant}"
-            ${disabled ? "disabled" : ""}
-            title="${isCreate ? "Primero guarda el trámite" : replaceLabel}"
-          >
-            ${replaceLabel}
-          </button>
-
-          <button
-            type="button"
-            class="admin-drawer__ghost-btn js-media-delete"
-            data-variant="${variant}"
-            ${disabled ? "disabled" : ""}
-            title="${isCreate ? "Primero guarda el trámite" : deleteLabel}"
-          >
-            ${deleteLabel}
-          </button>
-        </div>
+  return `
+    <div class="admin-drawer__media-slot admin-drawer__media-slot--${variant}">
+      <div class="admin-drawer__media-head">
+        <span class="admin-drawer__label">${title}</span>
       </div>
-    `;
-  }
+
+      <div class="admin-drawer__image-wrap ${hasMedia ? "" : "is-empty"}">
+        <img
+          src="${escapeAttr(previewUrl)}"
+          alt="${escapeAttr(previewAlt)}"
+          class="admin-drawer__image admin-drawer__image--${variant}"
+        />
+      </div>
+
+      <div class="admin-drawer__image-actions">
+        <button
+          type="button"
+          class="admin-drawer__ghost-btn js-media-replace"
+          data-variant="${variant}"
+          ${disabled ? "disabled" : ""}
+          title="${isCreate ? "Primero guarda el trámite" : replaceLabel}"
+        >
+          ${replaceLabel}
+        </button>
+      </div>
+    </div>
+  `;
+}
 
   function renderDrawer() {
     const isOpen = state.drawer.isOpen;
@@ -1180,14 +1160,7 @@
         askAndHandleDrawerMediaReplace(variant);
       });
     });
-
-    root.querySelectorAll(".js-media-delete").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const variant = String(btn.dataset.variant || "").trim();
-        if (!variant) return;
-        handleDrawerMediaDelete(variant);
-      });
-    });
+    
   }
 
   function openDrawer(item) {
