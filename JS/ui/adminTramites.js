@@ -7,11 +7,18 @@
   const toast = (m, t = "info") =>
     window.gcToast ? window.gcToast(m, t) : console.log("[toast]", t, m);
 
+
+  //db\WEB\ixtla01_c_media.php
+  //db\WEB\ixtla01_in_media.php
   const API = {
     LIST: "/db/WEB/ixtla01_c_tramiteV2.php",
     CREATE: "/db/WEB/ixtla01_i_tramite.php",
     UPDATE: "/db/WEB/ixtla01_u_tramite.php",
     DEPARTAMENTOS: "/db/WEB/ixtla01_c_departamentoV2.php",
+
+    // Media
+    MEDIA_LIST: "/db/WEB/ixtla01_c_media.php",
+    MEDIA_UPLOAD: "/db/WEB/ixtla01_in_media.php",
   };
 
   const DEPT_ASSETS_DIR = "/ASSETS/departamentos/";
@@ -39,6 +46,14 @@
       errors: {},
       confirmDelete: false,
       isSaving: false,
+
+      // media del drawer
+      media: {
+        isLoading: false,
+        isUploading: false,
+        icon: null,
+        card: null,
+      },
     },
   };
 
@@ -414,6 +429,208 @@
       .join("");
   }
 
+  const TRAMITE_MEDIA_BUCKET = "media";
+  const TRAMITE_MEDIA_DIR_PREFIX = "tramites";
+
+  function getTramiteMediaTargetDir(tramiteId) {
+    const id = Number(tramiteId || 0);
+    return id > 0 ? `${TRAMITE_MEDIA_DIR_PREFIX}/${id}` : "";
+  }
+
+  function getPlaceholderMediaUrl(variant) {
+    if (variant === "card") {
+      return "/ASSETS/departamentos/placeholder_card.png";
+    }
+    return DEPT_PLACEHOLDER;
+  }
+
+  function normalizeMediaRows(rows = []) {
+    return Array.isArray(rows) ? rows : [];
+  }
+
+  function pickMediaByVariant(rows, variant) {
+    const safeVariant = String(variant || "").toLowerCase();
+
+    const exact = rows.find((row) => {
+      const name = String(row?.name || "").toLowerCase();
+      return name === `${safeVariant}.png`
+        || name === `${safeVariant}.jpg`
+        || name === `${safeVariant}.jpeg`
+        || name === `${safeVariant}.webp`
+        || name === `${safeVariant}.heic`
+        || name === `${safeVariant}.heif`;
+    });
+
+    return exact || null;
+  }
+
+  async function loadDrawerMedia() {
+    const tramiteId = Number(state.drawer.selectedId || state.drawer.draft?.id || 0);
+
+    state.drawer.media = {
+      isLoading: true,
+      isUploading: false,
+      icon: null,
+      card: null,
+    };
+
+    refreshView(false);
+
+    if (!tramiteId) {
+      state.drawer.media.isLoading = false;
+      refreshView(false);
+      return;
+    }
+
+    try {
+      const json = await sendJSON(API.MEDIA_LIST, {
+        bucket: TRAMITE_MEDIA_BUCKET,
+        target_dir: getTramiteMediaTargetDir(tramiteId),
+      });
+
+      const rows = normalizeMediaRows(json?.data);
+      state.drawer.media.icon = pickMediaByVariant(rows, "icon");
+      state.drawer.media.card = pickMediaByVariant(rows, "card");
+    } catch (error) {
+      err("Error cargando media del trámite:", error);
+      toast(getErrorMessage(error, "No se pudo consultar la media."), "error");
+      state.drawer.media.icon = null;
+      state.drawer.media.card = null;
+    } finally {
+      state.drawer.media.isLoading = false;
+      refreshView(false);
+    }
+  }
+
+  async function uploadDrawerMedia(variant, file) {
+    const tramiteId = Number(state.drawer.selectedId || state.drawer.draft?.id || 0);
+    if (!tramiteId) {
+      toast("Primero guarda el trámite para poder subir imágenes.", "warning");
+      return;
+    }
+
+    if (!file) return;
+
+    state.drawer.media.isUploading = true;
+    refreshView(false);
+
+    try {
+      const fd = new FormData();
+      fd.append("bucket", TRAMITE_MEDIA_BUCKET);
+      fd.append("target_dir", getTramiteMediaTargetDir(tramiteId));
+      fd.append("file_name", variant);
+      fd.append("replace", "1");
+      fd.append("file", file);
+
+      const res = await fetch(API.MEDIA_UPLOAD, {
+        method: "POST",
+        body: fd,
+      });
+
+      const txt = await res.text();
+      let json;
+      try {
+        json = JSON.parse(txt);
+      } catch {
+        json = { raw: txt };
+      }
+
+      if (!res.ok || json?.ok === false) {
+        throw new Error(json?.error || json?.message || json?.raw || `HTTP ${res.status}`);
+      }
+
+      toast(
+        variant === "icon"
+          ? "Icono actualizado correctamente."
+          : "Imagen card actualizada correctamente.",
+        "success"
+      );
+
+      await loadDrawerMedia();
+    } catch (error) {
+      err(`Error subiendo media "${variant}":`, error);
+      state.drawer.media.isUploading = false;
+      refreshView(false);
+      toast(getErrorMessage(error, "No se pudo subir la imagen."), "error");
+    }
+  }
+
+  function askAndHandleDrawerMediaReplace(variant) {
+    if (state.drawer.media.isUploading || state.drawer.isSaving) return;
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif";
+
+    input.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      await uploadDrawerMedia(variant, file);
+    });
+
+    input.click();
+  }
+
+  function handleDrawerMediaDelete(variant) {
+    toast(
+      variant === "icon"
+        ? "Cuando quede listo el endpoint de borrado, aquí quitaremos el icono."
+        : "Cuando quede listo el endpoint de borrado, aquí quitaremos la card.",
+      "info"
+    );
+  }
+
+  function renderMediaSlot(variant, item) {
+    const media = state.drawer.media?.[variant] || null;
+    const isBusy = Boolean(state.drawer.media?.isUploading || state.drawer.isSaving);
+    const isCreate = state.drawer.mode === "create";
+    const disabled = isBusy || isCreate;
+    const title = variant === "icon" ? "Icono" : "Card";
+    const replaceLabel = variant === "icon" ? "Reemplazar icono" : "Reemplazar card";
+    const deleteLabel = variant === "icon" ? "Eliminar icono" : "Eliminar card";
+    const previewUrl = media?.url || getPlaceholderMediaUrl(variant);
+    const previewAlt = `${title} de ${item?.nombre || "trámite"}`;
+    const hasMedia = Boolean(media?.url);
+
+    return `
+      <div class="admin-drawer__media-slot admin-drawer__media-slot--${variant}">
+        <div class="admin-drawer__media-head">
+          <span class="admin-drawer__label">${title}</span>
+        </div>
+
+        <div class="admin-drawer__image-wrap ${hasMedia ? "" : "is-empty"}">
+          <img
+            src="${escapeAttr(previewUrl)}"
+            alt="${escapeAttr(previewAlt)}"
+            class="admin-drawer__image admin-drawer__image--${variant}"
+          />
+        </div>
+
+        <div class="admin-drawer__image-actions">
+          <button
+            type="button"
+            class="admin-drawer__ghost-btn js-media-replace"
+            data-variant="${variant}"
+            ${disabled ? "disabled" : ""}
+            title="${isCreate ? "Primero guarda el trámite" : replaceLabel}"
+          >
+            ${replaceLabel}
+          </button>
+
+          <button
+            type="button"
+            class="admin-drawer__ghost-btn js-media-delete"
+            data-variant="${variant}"
+            ${disabled ? "disabled" : ""}
+            title="${isCreate ? "Primero guarda el trámite" : deleteLabel}"
+          >
+            ${deleteLabel}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderDrawer() {
     const isOpen = state.drawer.isOpen;
     const mode = state.drawer.mode;
@@ -477,34 +694,22 @@
           </div>
 
           <div class="admin-drawer__body">
-            <div class="admin-drawer__image-block">
-              <div class="admin-drawer__image-wrap">
-                ${renderDepartamentoImage(
-      dept?.id || item.departamento_id,
-      dept?.nombre || item.departamento_nombre || item.nombre || "Vista previa",
-      "admin-drawer__image"
-    )}
-              </div>
 
-              <div class="admin-drawer__image-actions">
-                <button
-                  type="button"
-                  class="admin-drawer__ghost-btn"
-                  disabled
-                  title="Más adelante conectaremos media"
-                >
-                  Cambiar imagen
-                </button>
-                <button
-                  type="button"
-                  class="admin-drawer__ghost-btn"
-                  disabled
-                  title="Más adelante conectaremos media"
-                >
-                  Eliminar imagen
-                </button>
-              </div>
-            </div>
+            <div class="admin-drawer__image-block admin-drawer__image-block--tramite-media">
+  ${state.drawer.media?.isLoading
+        ? `
+      <div class="admin-drawer__media-loading">
+        Cargando media del trámite...
+      </div>
+    `
+        : `
+      <div class="admin-drawer__media-grid">
+        ${renderMediaSlot("icon", item)}
+        ${renderMediaSlot("card", item)}
+      </div>
+    `
+      }
+</div>
 
             <label class="admin-drawer__field">
               <span class="admin-drawer__label">Nombre</span>
@@ -967,6 +1172,22 @@
         }
       });
     });
+
+    root.querySelectorAll(".js-media-replace").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const variant = String(btn.dataset.variant || "").trim();
+        if (!variant) return;
+        askAndHandleDrawerMediaReplace(variant);
+      });
+    });
+
+    root.querySelectorAll(".js-media-delete").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const variant = String(btn.dataset.variant || "").trim();
+        if (!variant) return;
+        handleDrawerMediaDelete(variant);
+      });
+    });
   }
 
   function openDrawer(item) {
@@ -977,7 +1198,14 @@
     state.drawer.draft = clone(item);
     state.drawer.confirmDelete = false;
     state.drawer.errors = {};
-    refreshView();
+    state.drawer.media = {
+      isLoading: false,
+      isUploading: false,
+      icon: null,
+      card: null,
+    };
+    refreshView(false);
+    loadDrawerMedia();
   }
 
   function openCreateDrawer() {
@@ -1004,6 +1232,12 @@
     state.drawer.draft = clone(blank);
     state.drawer.confirmDelete = false;
     state.drawer.errors = {};
+    state.drawer.media = {
+      isLoading: false,
+      isUploading: false,
+      icon: null,
+      card: null,
+    };
     validateDrawer();
     refreshView();
     setTimeout(focusDrawerField, 0);
@@ -1020,6 +1254,12 @@
     state.drawer.confirmDelete = false;
     state.drawer.errors = {};
     state.drawer.isSaving = false;
+    state.drawer.media = {
+      isLoading: false,
+      isUploading: false,
+      icon: null,
+      card: null,
+    };
 
     if (!silent) {
       refreshView(false);

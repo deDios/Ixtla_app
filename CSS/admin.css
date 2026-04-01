@@ -1575,6 +1575,171 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
   }
 }
 
+/* =========================================================
+   DRAWER MEDIA - TRÁMITES
+   Icon + Card dentro del drawer
+   ========================================================= */
+
+.admin-drawer__image-block--tramite-media {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-drawer__media-loading {
+  padding: 16px;
+  border: 1px dashed #cfd8dc;
+  border-radius: 14px;
+  background: #f8fafb;
+  color: #607080;
+  font-size: 0.95rem;
+}
+
+.admin-drawer__media-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.admin-drawer__media-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #d9dee3;
+  border-radius: 16px;
+  background: #fcfcfc;
+}
+
+.admin-drawer__media-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-drawer__media-slot .admin-drawer__label {
+  margin: 0;
+}
+
+/* Reutilizamos el wrap general, pero afinado para media */
+.admin-drawer__media-slot .admin-drawer__image-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #d9dee3;
+  border-radius: 14px;
+  background: #f4f6f8;
+}
+
+/* SLOT ICON */
+.admin-drawer__media-slot--icon .admin-drawer__image-wrap {
+  width: 120px;
+  height: 120px;
+  min-height: 120px;
+}
+
+.admin-drawer__image--icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* SLOT CARD */
+.admin-drawer__media-slot--card .admin-drawer__image-wrap {
+  width: 100%;
+  min-height: 170px;
+  height: 170px;
+}
+
+.admin-drawer__image--card {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Placeholder visual cuando no hay media */
+.admin-drawer__media-slot .admin-drawer__image-wrap.is-empty {
+  background:
+    linear-gradient(135deg, #f7f9fb 0%, #eef2f5 100%);
+  border-style: dashed;
+}
+
+.admin-drawer__media-slot .admin-drawer__image-wrap.is-empty::before {
+  content: "Sin imagen";
+  font-size: 0.92rem;
+  color: #90a0ae;
+  font-weight: 600;
+}
+
+/* Si hay imagen, ocultamos el texto del placeholder */
+.admin-drawer__media-slot .admin-drawer__image-wrap:not(.is-empty)::before {
+  content: none;
+}
+
+.admin-drawer__media-slot .admin-drawer__image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-drawer__media-slot .admin-drawer__ghost-btn {
+  min-width: 150px;
+}
+
+.admin-drawer__media-slot .admin-drawer__ghost-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------
+   Responsive
+   --------------------------------------------------------- */
+@media (min-width: 700px) {
+  .admin-drawer__media-grid {
+    grid-template-columns: minmax(150px, 180px) 1fr;
+    align-items: start;
+  }
+
+  .admin-drawer__media-slot--icon {
+    min-width: 0;
+  }
+
+  .admin-drawer__media-slot--card {
+    min-width: 0;
+  }
+
+  .admin-drawer__media-slot--icon .admin-drawer__image-actions,
+  .admin-drawer__media-slot--card .admin-drawer__image-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 699px) {
+  .admin-drawer__media-slot {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .admin-drawer__media-slot--icon .admin-drawer__image-wrap {
+    width: 110px;
+    height: 110px;
+    min-height: 110px;
+  }
+
+  .admin-drawer__media-slot--card .admin-drawer__image-wrap {
+    min-height: 150px;
+    height: 150px;
+  }
+
+  .admin-drawer__media-slot .admin-drawer__ghost-btn {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
 
 
 
