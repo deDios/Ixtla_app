@@ -486,7 +486,6 @@
       const json = await sendJSON(API.MEDIA_LIST, {
         bucket: TRAMITE_MEDIA_BUCKET,
         target_dir: getTramiteMediaTargetDir(tramiteId),
-        file_name: variant,
       });
 
       const rows = normalizeMediaRows(json?.data);
