@@ -486,6 +486,7 @@
       const json = await sendJSON(API.MEDIA_LIST, {
         bucket: TRAMITE_MEDIA_BUCKET,
         target_dir: getTramiteMediaTargetDir(tramiteId),
+        file_name: variant,
       });
 
       const rows = normalizeMediaRows(json?.data);
@@ -572,17 +573,17 @@
   }
 
   function renderMediaSlot(variant, item) {
-  const media = state.drawer.media?.[variant] || null;
-  const isBusy = Boolean(state.drawer.media?.isUploading || state.drawer.isSaving);
-  const isCreate = state.drawer.mode === "create";
-  const disabled = isBusy || isCreate;
-  const title = variant === "icon" ? "Icono" : "Card";
-  const replaceLabel = variant === "icon" ? "Reemplazar icono" : "Reemplazar card";
-  const previewUrl = media?.url || getPlaceholderMediaUrl(variant);
-  const previewAlt = `${title} de ${item?.nombre || "trámite"}`;
-  const hasMedia = Boolean(media?.url);
+    const media = state.drawer.media?.[variant] || null;
+    const isBusy = Boolean(state.drawer.media?.isUploading || state.drawer.isSaving);
+    const isCreate = state.drawer.mode === "create";
+    const disabled = isBusy || isCreate;
+    const title = variant === "icon" ? "Icono" : "Card";
+    const replaceLabel = variant === "icon" ? "Reemplazar icono" : "Reemplazar card";
+    const previewUrl = media?.url || getPlaceholderMediaUrl(variant);
+    const previewAlt = `${title} de ${item?.nombre || "trámite"}`;
+    const hasMedia = Boolean(media?.url);
 
-  return `
+    return `
     <div class="admin-drawer__media-slot admin-drawer__media-slot--${variant}">
       <div class="admin-drawer__media-head">
         <span class="admin-drawer__label">${title}</span>
@@ -609,7 +610,7 @@
       </div>
     </div>
   `;
-}
+  }
 
   function renderDrawer() {
     const isOpen = state.drawer.isOpen;
@@ -1160,7 +1161,7 @@
         askAndHandleDrawerMediaReplace(variant);
       });
     });
-    
+
   }
 
   function openDrawer(item) {
