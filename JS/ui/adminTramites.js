@@ -429,12 +429,34 @@
       .join("");
   }
 
-  const TRAMITE_MEDIA_BUCKET = "media";
-  const TRAMITE_MEDIA_DIR_PREFIX = "tramites";
+  const TRAMITE_MEDIA_BUCKET = "departamentos_modulos";
+  const TRAMITE_MEDIA_DIR_PREFIX = "dep-";
+  const TRAMITE_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "heic", "heif"];
 
-  function getTramiteMediaTargetDir(tramiteId) {
+  function getTramiteIdForMedia() {
+    return Number(state.drawer.selectedId || state.drawer.draft?.id || 0);
+  }
+
+  function getDepartamentoIdForMedia() {
+    return Number(
+      state.drawer.draft?.departamento_id ||
+      state.drawer.original?.departamento_id ||
+      0
+    );
+  }
+
+  function getTramiteMediaTargetDir(departamentoId) {
+    const id = Number(departamentoId || 0);
+    return id > 0 ? `${TRAMITE_MEDIA_DIR_PREFIX}${id}` : "";
+  }
+
+  function getTramiteMediaFileBase(variant, tramiteId) {
+    const safeVariant = String(variant || "").trim().toLowerCase();
     const id = Number(tramiteId || 0);
-    return id > 0 ? `${TRAMITE_MEDIA_DIR_PREFIX}/${id}` : "";
+    if (!id) return "";
+
+    if (safeVariant === "card") return `req_card${id}`;
+    return `req_icon${id}`;
   }
 
   function getPlaceholderMediaUrl(variant) {
@@ -442,6 +464,32 @@
       return "/ASSETS/departamentos/placeholder_card.png";
     }
     return DEPT_PLACEHOLDER;
+  }
+
+  function getTramiteMediaCandidates(variant, departamentoId, tramiteId) {
+    const dir = getTramiteMediaTargetDir(departamentoId);
+    const base = getTramiteMediaFileBase(variant, tramiteId);
+
+    if (!dir || !base) {
+      return [getPlaceholderMediaUrl(variant)];
+    }
+
+    const prefix = `/ASSETS/departamentos/modulosAssets/${dir}/${base}`;
+    return [
+      ...TRAMITE_MEDIA_EXTENSIONS.map((ext) => `${prefix}.${ext}`),
+      getPlaceholderMediaUrl(variant),
+    ];
+  }
+
+  function buildDrawerMediaPreview(variant) {
+    const tramiteId = getTramiteIdForMedia();
+    const departamentoId = getDepartamentoIdForMedia();
+
+    return {
+      name: getTramiteMediaFileBase(variant, tramiteId),
+      url: getTramiteMediaCandidates(variant, departamentoId, tramiteId)[0],
+      candidates: getTramiteMediaCandidates(variant, departamentoId, tramiteId),
+    };
   }
 
   function normalizeMediaRows(rows = []) {
@@ -465,7 +513,8 @@
   }
 
   async function loadDrawerMedia() {
-    const tramiteId = Number(state.drawer.selectedId || state.drawer.draft?.id || 0);
+    const tramiteId = getTramiteIdForMedia();
+    const departamentoId = getDepartamentoIdForMedia();
 
     state.drawer.media = {
       isLoading: true,
@@ -476,36 +525,39 @@
 
     refreshView(false);
 
-    if (!tramiteId) {
+    if (!tramiteId || !departamentoId) {
       state.drawer.media.isLoading = false;
+      state.drawer.media.icon = {
+        name: "",
+        url: getPlaceholderMediaUrl("icon"),
+        candidates: [getPlaceholderMediaUrl("icon")],
+      };
+      state.drawer.media.card = {
+        name: "",
+        url: getPlaceholderMediaUrl("card"),
+        candidates: [getPlaceholderMediaUrl("card")],
+      };
       refreshView(false);
       return;
     }
 
-    try {
-      const json = await sendJSON(API.MEDIA_LIST, {
-        bucket: TRAMITE_MEDIA_BUCKET,
-        target_dir: getTramiteMediaTargetDir(tramiteId),
-      });
-
-      const rows = normalizeMediaRows(json?.data);
-      state.drawer.media.icon = pickMediaByVariant(rows, "icon");
-      state.drawer.media.card = pickMediaByVariant(rows, "card");
-    } catch (error) {
-      err("Error cargando media del trámite:", error);
-      toast(getErrorMessage(error, "No se pudo consultar la media."), "error");
-      state.drawer.media.icon = null;
-      state.drawer.media.card = null;
-    } finally {
-      state.drawer.media.isLoading = false;
-      refreshView(false);
-    }
+    state.drawer.media.icon = buildDrawerMediaPreview("icon");
+    state.drawer.media.card = buildDrawerMediaPreview("card");
+    state.drawer.media.isLoading = false;
+    refreshView(false);
   }
 
   async function uploadDrawerMedia(variant, file) {
-    const tramiteId = Number(state.drawer.selectedId || state.drawer.draft?.id || 0);
+    const tramiteId = getTramiteIdForMedia();
+    const departamentoId = getDepartamentoIdForMedia();
+
     if (!tramiteId) {
       toast("Primero guarda el trámite para poder subir imágenes.", "warning");
+      return;
+    }
+
+    if (!departamentoId) {
+      toast("El trámite no tiene departamento asignado.", "warning");
       return;
     }
 
@@ -517,8 +569,8 @@
     try {
       const fd = new FormData();
       fd.append("bucket", TRAMITE_MEDIA_BUCKET);
-      fd.append("target_dir", getTramiteMediaTargetDir(tramiteId));
-      fd.append("file_name", variant);
+      fd.append("target_dir", getTramiteMediaTargetDir(departamentoId));
+      fd.append("file_name", getTramiteMediaFileBase(variant, tramiteId));
       fd.append("replace", "1");
       fd.append("file", file);
 
@@ -593,6 +645,8 @@
           src="${escapeAttr(previewUrl)}"
           alt="${escapeAttr(previewAlt)}"
           class="admin-drawer__image admin-drawer__image--${variant}"
+          data-fallback-index="0"
+          data-fallbacks='${escapeAttr(JSON.stringify(media?.candidates || [previewUrl]))}'
         />
       </div>
 

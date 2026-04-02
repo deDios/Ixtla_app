@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ixtla01_in_media.php
  *
@@ -20,8 +21,9 @@ declare(strict_types=1);
  * ========================================================= */
 
 $BUCKETS = [
-    'media'          => '/ASSETS/media/',
-    'requerimientos' => '/ASSETS/requerimientos/',
+    'media'                 => '/ASSETS/media/',
+    'requerimientos'        => '/ASSETS/requerimientos/',
+    'departamentos_modulos' => '/ASSETS/departamentos/modulosAssets/',
 ];
 
 $ALLOWED_MIME = [
