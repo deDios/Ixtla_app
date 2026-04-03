@@ -23,6 +23,7 @@ declare(strict_types=1);
 $BUCKETS = [
     'media'                 => '/ASSETS/media/',
     'requerimientos'        => '/ASSETS/requerimientos/',
+    'departamentos'         => '/ASSETS/departamentos/',
     'departamentos_modulos' => '/ASSETS/departamentos/modulosAssets/',
 ];
 
@@ -193,7 +194,9 @@ try {
         badRequest('Bucket no permitido.', ['bucket' => $bucket]);
     }
 
-    if ($targetDir === '') {
+    $allowEmptyTargetDir = in_array($bucket, ['departamentos'], true);
+
+    if ($targetDir === '' && !$allowEmptyTargetDir) {
         badRequest('El campo `target_dir` es obligatorio y debe ser una ruta relativa válida.');
     }
 
@@ -227,7 +230,9 @@ try {
     [$mime, $extension] = guessMimeAndExtension($file['tmp_name'], $ALLOWED_MIME);
 
     $publicBaseDir = rtrim($BUCKETS[$bucket], '/') . '/';
-    $publicDir = $publicBaseDir . $targetDir . '/';
+    $publicDir = $targetDir !== ''
+        ? $publicBaseDir . trim($targetDir, '/') . '/'
+        : $publicBaseDir;
 
     $absoluteDir = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), DIRECTORY_SEPARATOR)
         . str_replace('/', DIRECTORY_SEPARATOR, $publicDir);

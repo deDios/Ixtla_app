@@ -13,6 +13,7 @@
     CREATE: "/db/WEB/ixtla01_i_departamento.php",
     UPDATE: "/db/WEB/ixtla01_u_departamento.php",
     EMPLEADOS: "/db/WEB/ixtla01_c_empleado.php",
+    MEDIA_UPLOAD: "/db/WEB/ixtla01_in_media.php",
   };
 
   const DEFAULT_IMAGE = "/ASSETS/main_logo_shield.png";
@@ -57,18 +58,84 @@
   const DEPT_ASSETS_DIR = "/ASSETS/departamentos/";
   const DEPT_PLACEHOLDER = `${DEPT_ASSETS_DIR}placeholder_icon.png`;
 
-  function getDepartamentoImageCandidates(id) {
-    const safeId = Number(id) || 0;
+  const DEPT_MEDIA_BUCKET = "departamentos";
+  const DEPT_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "heic", "heif"];
 
-    if (!safeId) {
+  function getDepartamentoMediaFileBase(id) {
+    const safeId = Number(id) || 0;
+    return safeId ? `dep_img${safeId}` : "";
+  }
+
+  function getDepartamentoMediaCandidates(id) {
+    const baseName = getDepartamentoMediaFileBase(id);
+
+    if (!baseName) {
       return [DEPT_PLACEHOLDER];
     }
 
     return [
-      `${DEPT_ASSETS_DIR}dep_img${safeId}.png`,
-      `${DEPT_ASSETS_DIR}dep_img${safeId}.jpg`,
+      ...DEPT_MEDIA_EXTENSIONS.map((ext) => `${DEPT_ASSETS_DIR}${baseName}.${ext}`),
       DEPT_PLACEHOLDER,
     ];
+  }
+
+  async function uploadDepartamentoImage(file) {
+    const id = Number(state.drawer.selectedId || state.drawer.draft?.id || 0);
+
+    if (!id) {
+      toast("Primero guarda el departamento para poder subir la imagen.", "warning");
+      return;
+    }
+
+    if (!file) return;
+
+    try {
+      state.drawer.isSaving = true;
+      refreshView();
+
+      const fd = new FormData();
+      fd.append("bucket", DEPT_MEDIA_BUCKET);
+      fd.append("target_dir", "");
+      fd.append("file_name", getDepartamentoMediaFileBase(id));
+      fd.append("replace", "1");
+      fd.append("file", file);
+
+      const res = await fetch(API.MEDIA_UPLOAD, {
+        method: "POST",
+        body: fd,
+      });
+
+      const txt = await res.text();
+      let json;
+      try {
+        json = JSON.parse(txt);
+      } catch {
+        json = { raw: txt };
+      }
+
+      if (!res.ok || json?.ok === false) {
+        throw new Error(json?.error || json?.message || json?.raw || `HTTP ${res.status}`);
+      }
+
+      toast("Imagen del departamento actualizada correctamente.", "success");
+
+      state.drawer.isSaving = false;
+      refreshView();
+
+      const root = document.querySelector("#admin-view-root");
+      if (root) {
+        wireDepartmentImageFallbacks(root);
+      }
+    } catch (error) {
+      err("Error subiendo imagen del departamento:", error);
+      state.drawer.isSaving = false;
+      refreshView();
+      toast(getErrorMessage(error, "No se pudo subir la imagen."), "error");
+    }
+  }
+
+  function getDepartamentoImageCandidates(id) {
+    return getDepartamentoMediaCandidates(id);
   }
 
   function renderDepartamentoImage(id, nombre, className = "") {
@@ -384,23 +451,28 @@
             </div>
 
             <div class="admin-drawer__image-actions">
+            <input
+            type="file"
+            id="admin-departamento-image-input"
+
+            accept=".jpg,.jpeg,.png,.webp,.heic,.heif,ima
+            ge/jpeg,image/png,image/webp,image/
+            hidden
+            ${!item.id || state.drawer.isSaving ? "disabled" : ""}
+            />
+
               <button
                 type="button"
-                class="admin-drawer__ghost-btn"
-                disabled
-                title="Más adelante conectaremos media"
-              >
+                class="admin-drawer__ghost-btn
+                js-change-departamento-image"
+                ${!item.id || state.drawer.isSaving ? "disabled" : ""}
+                tittle="${!item.id} ? "Seleccionar nueva imagen" :
+                "Primero guarda el departamento"}"
+                >
                 Cambiar imagen
               </button>
-              <button
-                type="button"
-                class="admin-drawer__ghost-btn"
-                disabled
-                title="Más adelante conectaremos media"
-              >
-                Eliminar imagen
-              </button>
             </div>
+
           </div>
 
           <label class="admin-drawer__field">
@@ -697,8 +769,32 @@
       deleteBtn.addEventListener("click", handleDeleteDepartamento);
     }
 
-    wireDepartmentImageFallbacks(document.querySelector("#admin-view-root"));
+    // aqui va el apartado para el bind de los  botones para subida de media de 
+    // departamentos.
+    const changeImageBtn =
+    document.querySelector(".js-change-departamento-image");
+    const imageInput =
+    document.querySelector("#admin-departamento-image-input");
 
+    if (changeImageBtn && imageInput) {
+
+      changeImageBtn.addEventListener("click", () => {
+        if (state.drawer.isSaving) return;
+        imageInput.click();
+      });
+
+      imageInput.addEventListener("change", async (event) => {
+        const file = event.target?.files?.[0];
+        if(!file) return;
+        await uploadDepartamentoImage(file);
+        event.target.value = "";
+      });
+
+    }
+
+
+    
+    wireDepartmentImageFallbacks(document.querySelector("#admin-view-root"));
   }
   //--------------- fin del render y bind
 
