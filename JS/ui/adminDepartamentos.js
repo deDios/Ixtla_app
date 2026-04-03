@@ -412,94 +412,97 @@
       (isCreate ? !isDrawerValid() : !(isDrawerValid() && hasDrawerChanges()));
 
     return `
-    <div
-      class="admin-drawer-overlay is-open"
-      id="admin-departamentos-drawer-overlay"
-      aria-hidden="false"
+  <div
+    class="admin-drawer-overlay is-open"
+    id="admin-departamentos-drawer-overlay"
+    aria-hidden="false"
+  >
+    <aside
+      class="admin-drawer admin-drawer--right is-open"
+      id="admin-departamentos-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-departamentos-drawer-title"
     >
-      <aside
-        class="admin-drawer admin-drawer--right is-open"
-        id="admin-departamentos-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="admin-departamentos-drawer-title"
-      >
-        <div class="admin-drawer__head">
-          <div>
-            <h3 class="admin-drawer__title" id="admin-departamentos-drawer-title">${escapeHtml(titleText)}</h3>
-          </div>
-
-          <button
-            type="button"
-            class="admin-drawer__close js-drawer-close"
-            aria-label="Cerrar drawer"
-            title="Cerrar"
-            ${state.drawer.isSaving ? "disabled" : ""}
-          >
-            ×
-          </button>
+      <div class="admin-drawer__head">
+        <div>
+          <h3 class="admin-drawer__title" id="admin-departamentos-drawer-title">
+            ${escapeHtml(titleText)}
+          </h3>
         </div>
 
-        <div class="admin-drawer__body">
-          <div class="admin-drawer__image-block">
-            <div class="admin-drawer__image-wrap">
+        <button
+          type="button"
+          class="admin-drawer__close js-drawer-close"
+          aria-label="Cerrar drawer"
+          title="Cerrar"
+          ${state.drawer.isSaving ? "disabled" : ""}
+        >
+          ×
+        </button>
+      </div>
+
+      <div class="admin-drawer__body">
+        <div class="admin-drawer__media-grid admin-drawer__media-grid--single">
+          <section class="admin-drawer__media-slot admin-drawer__media-slot--departamento">
+            <div class="admin-drawer__media-head">
+              <span class="admin-drawer__label">Imagen</span>
+            </div>
+
+            <div class="admin-drawer__image-wrap ${item.id ? "" : "is-empty"}">
               ${renderDepartamentoImage(
       item.id,
       item.nombre || "Vista previa",
-      "admin-drawer__image"
+      "admin-drawer__image admin-drawer__image--departamento"
     )}
             </div>
 
-            <div class="admin-drawer__image-actions">
             <input
-            type="file"
-            id="admin-departamento-image-input"
-
-            accept=".jpg,.jpeg,.png,.webp,.heic,.heif,ima
-            ge/jpeg,image/png,image/webp,image/
-            hidden
-            ${!item.id || state.drawer.isSaving ? "disabled" : ""}
+              type="file"
+              id="admin-departamento-image-input"
+              accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif"
+              hidden
+              ${!item.id || state.drawer.isSaving ? "disabled" : ""}
             />
 
+            <div class="admin-drawer__image-actions">
               <button
                 type="button"
-                class="admin-drawer__ghost-btn
-                js-change-departamento-image"
+                class="admin-drawer__ghost-btn js-change-departamento-image"
                 ${!item.id || state.drawer.isSaving ? "disabled" : ""}
-                tittle="${!item.id} ? "Seleccionar nueva imagen" :
-                "Primero guarda el departamento"}"
-                >
-                Cambiar imagen
+                title="${item.id ? "Seleccionar nueva imagen" : "Primero guarda el departamento"}"
+              >
+                Reemplazar imagen
               </button>
             </div>
+          </section>
+        </div>
 
-          </div>
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Nombre</span>
+          <input
+            type="text"
+            class="admin-drawer__input js-drawer-input ${errors.nombre ? "is-error" : ""}"
+            data-field="nombre"
+            value="${escapeAttr(item.nombre || "")}"
+            ${isEdit ? "" : "readonly"}
+          />
+          ${errors.nombre ? `<span class="admin-drawer__error">${escapeHtml(errors.nombre)}</span>` : ""}
+        </label>
 
-          <label class="admin-drawer__field">
-            <span class="admin-drawer__label">Nombre</span>
-            <input
-              type="text"
-              class="admin-drawer__input js-drawer-input ${errors.nombre ? "is-error" : ""}"
-              data-field="nombre"
-              value="${escapeAttr(item.nombre || "")}"
-              ${isEdit ? "" : "readonly"}
-            />
-            ${errors.nombre ? `<span class="admin-drawer__error">${escapeHtml(errors.nombre)}</span>` : ""}
-          </label>
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Descripción</span>
+          <textarea
+            class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
+            data-field="descripcion"
+            ${isEdit ? "" : "readonly"}
+          >${escapeHtml(item.descripcion || "")}</textarea>
+          ${errors.descripcion ? `<span class="admin-drawer__error">${escapeHtml(errors.descripcion)}</span>` : ""}
+        </label>
 
-          <label class="admin-drawer__field">
-            <span class="admin-drawer__label">Descripción</span>
-            <textarea
-              class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
-              data-field="descripcion"
-              ${isEdit ? "" : "readonly"}
-            >${escapeHtml(item.descripcion || "")}</textarea>
-            ${errors.descripcion ? `<span class="admin-drawer__error">${escapeHtml(errors.descripcion)}</span>` : ""}
-          </label>
-
-          <label class="admin-drawer__field">
-            <span class="admin-drawer__label">Estado</span>
-            ${isEdit
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Estado</span>
+          ${isEdit
         ? `
                 <select class="admin-drawer__select js-drawer-input" data-field="status">
                   <option value="1" ${Number(item.status) === 1 ? "selected" : ""}>Activo</option>
@@ -512,11 +515,11 @@
                 </div>
               `
       }
-          </label>
+        </label>
 
-          <label class="admin-drawer__field">
-            <span class="admin-drawer__label">Director</span>
-            ${isEdit
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Director</span>
+          ${isEdit
         ? `
                 <select
                   class="admin-drawer__select js-drawer-input ${errors.director ? "is-error" : ""}"
@@ -532,12 +535,12 @@
                 </div>
               `
       }
-            ${errors.director ? `<span class="admin-drawer__error">${escapeHtml(errors.director)}</span>` : ""}
-          </label>
+          ${errors.director ? `<span class="admin-drawer__error">${escapeHtml(errors.director)}</span>` : ""}
+        </label>
 
-          <label class="admin-drawer__field">
-            <span class="admin-drawer__label">Primera línea</span>
-            ${isEdit
+        <label class="admin-drawer__field">
+          <span class="admin-drawer__label">Primera línea</span>
+          ${isEdit
         ? `
                 <select
                   class="admin-drawer__select js-drawer-input ${errors.primera_linea ? "is-error" : ""}"
@@ -553,10 +556,10 @@
                 </div>
               `
       }
-            ${errors.primera_linea ? `<span class="admin-drawer__error">${escapeHtml(errors.primera_linea)}</span>` : ""}
-          </label>
+          ${errors.primera_linea ? `<span class="admin-drawer__error">${escapeHtml(errors.primera_linea)}</span>` : ""}
+        </label>
 
-          ${state.drawer.confirmDelete && !isCreate
+        ${state.drawer.confirmDelete && !isCreate
         ? `
               <div class="admin-drawer__confirm">
                 <p class="admin-drawer__confirm-text">
@@ -583,14 +586,14 @@
             `
         : ""
       }
-        </div>
+      </div>
 
-        <div class="admin-drawer__footer">
-          ${renderDrawerFooterButtons(saveDisabled)}
-        </div>
-      </aside>
-    </div>
-  `;
+      <div class="admin-drawer__footer">
+        ${renderDrawerFooterButtons(saveDisabled)}
+      </div>
+    </aside>
+  </div>
+`;
   }
 
   function renderDrawerFooterButtons(saveDisabled) {
@@ -772,9 +775,9 @@
     // aqui va el apartado para el bind de los  botones para subida de media de 
     // departamentos.
     const changeImageBtn =
-    document.querySelector(".js-change-departamento-image");
+      document.querySelector(".js-change-departamento-image");
     const imageInput =
-    document.querySelector("#admin-departamento-image-input");
+      document.querySelector("#admin-departamento-image-input");
 
     if (changeImageBtn && imageInput) {
 
@@ -785,7 +788,7 @@
 
       imageInput.addEventListener("change", async (event) => {
         const file = event.target?.files?.[0];
-        if(!file) return;
+        if (!file) return;
         await uploadDepartamentoImage(file);
         event.target.value = "";
       });
@@ -793,7 +796,7 @@
     }
 
 
-    
+
     wireDepartmentImageFallbacks(document.querySelector("#admin-view-root"));
   }
   //--------------- fin del render y bind

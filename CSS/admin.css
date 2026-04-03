@@ -1812,3 +1812,75 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
     height: 84px;
   }
 }
+
+
+/* drawer media de departamentos */
+.admin-drawer__media-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.admin-drawer__media-grid--single {
+  grid-template-columns: minmax(0, 220px);
+}
+
+.admin-drawer__media-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #c9cfd6;
+  border-radius: 18px;
+  background: #f7f7f7;
+}
+
+.admin-drawer__media-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-drawer__image-wrap {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid #c9cfd6;
+  border-radius: 16px;
+  background: #ececec;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.admin-drawer__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.admin-drawer__ghost-btn {
+  min-height: 62px;
+  border-radius: 14px;
+  border: 1px solid #c9cfd6;
+  background: #fff;
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.admin-drawer__ghost-btn:hover:not(:disabled) {
+  background: #f8fbff;
+  border-color: #93c5fd;
+}
+
+.admin-drawer__ghost-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
