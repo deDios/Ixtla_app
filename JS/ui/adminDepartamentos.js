@@ -152,10 +152,6 @@
       state.drawer.isSaving = false;
       refreshView();
 
-      const root = document.querySelector("#admin-view-root");
-      if (root) {
-        wireDepartmentImageFallbacks(root);
-      }
     } catch (error) {
       err("Error subiendo imagen del departamento:", error);
       state.drawer.isSaving = false;
@@ -185,6 +181,9 @@
 
   function wireDepartmentImageFallbacks(scope = document) {
     scope.querySelectorAll("img[data-fallbacks]").forEach((img) => {
+      if (img.dataset.fallbackBound === "1") return;
+      img.dataset.fallbackBound = "1";
+
       img.addEventListener("error", () => {
         let list = [];
         try {
@@ -193,8 +192,7 @@
           list = [DEPT_PLACEHOLDER];
         }
 
-        let index = Number(img.dataset.fallbackIndex || 0);
-        index += 1;
+        let index = Number(img.dataset.fallbackIndex || 0) + 1;
 
         if (index >= list.length) return;
 

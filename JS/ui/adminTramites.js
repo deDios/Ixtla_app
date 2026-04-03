@@ -37,6 +37,7 @@
     departamentos: [],
     isLoading: false,
     searchTimer: null,
+    mediaVersion: {},
     drawer: {
       isOpen: false,
       mode: "view", // view | edit | create
@@ -160,6 +161,9 @@
 
   function wireDepartmentImageFallbacks(scope = document) {
     scope.querySelectorAll("img[data-fallbacks]").forEach((img) => {
+      if (img.dataset.fallbackBound === "1") return;
+      img.dataset.fallbackBound = "1";
+
       img.addEventListener("error", () => {
         let list = [];
 
@@ -169,8 +173,7 @@
           list = [DEPT_PLACEHOLDER];
         }
 
-        let index = Number(img.dataset.fallbackIndex || 0);
-        index += 1;
+        let index = Number(img.dataset.fallbackIndex || 0) + 1;
 
         if (index >= list.length) return;
 
@@ -466,9 +469,35 @@
     return DEPT_PLACEHOLDER;
   }
 
+  function getTramiteMediaVersionKey(variant, tramiteId) {
+    const safeVariant = String(variant || "").trim().toLowerCase();
+    const safeId = Number(tramiteId || 0);
+    if (!safeVariant || !safeId) return "";
+    return `tramite-${safeVariant}-${safeId}`;
+  }
+
+  function getTramiteMediaVersion(variant, tramiteId) {
+    const key = getTramiteMediaVersionKey(variant, tramiteId);
+    if (!key) return "";
+    return state.mediaVersion[key] || "";
+  }
+
+  function setTramiteMediaVersion(variant, tramiteId, version = Date.now()) {
+    const key = getTramiteMediaVersionKey(variant, tramiteId);
+    if (!key) return;
+    state.mediaVersion[key] = version;
+  }
+
+  function withMediaVersion(url, version) {
+    if (!url || !version) return url;
+    if (url.includes("placeholder")) return url;
+    return `${url}?v=${version}`;
+  }
+
   function getTramiteMediaCandidates(variant, departamentoId, tramiteId) {
     const dir = getTramiteMediaTargetDir(departamentoId);
     const base = getTramiteMediaFileBase(variant, tramiteId);
+    const version = getTramiteMediaVersion(variant, tramiteId);
 
     if (!dir || !base) {
       return [getPlaceholderMediaUrl(variant)];
@@ -476,7 +505,9 @@
 
     const prefix = `/ASSETS/departamentos/modulosAssets/${dir}/${base}`;
     return [
-      ...TRAMITE_MEDIA_EXTENSIONS.map((ext) => `${prefix}.${ext}`),
+      ...TRAMITE_MEDIA_EXTENSIONS.map((ext) =>
+        withMediaVersion(`${prefix}.${ext}`, version)
+      ),
       getPlaceholderMediaUrl(variant),
     ];
   }
@@ -590,6 +621,7 @@
       if (!res.ok || json?.ok === false) {
         throw new Error(json?.error || json?.message || json?.raw || `HTTP ${res.status}`);
       }
+      setTramiteMediaVersion(variant, tramiteId);
 
       toast(
         variant === "icon"
