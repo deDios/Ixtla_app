@@ -1474,8 +1474,8 @@ export function createTaskDetailsModule({
   <div class="exp-desc">${descripcion}</div>
 
   <div class="exp-footer">
-    <div>Este expediente fue generado desde el tablero de tareas de Ixtla.</div>
-    <div>Solo incluye los <strong>datos principales</strong> de la tarea (sin evidencias ni comentarios).</div>
+    <div></div>
+    <div></div>
   </div>
    <script>
     window.addEventListener('load', function () {

@@ -3,7 +3,7 @@
   w.IX_CFG_DEPS = {
     DEBUG: Boolean(w.IX_DEBUG),
 
-    VIEW_KEY: "ix_deps_view", //UAT
+    VIEW_KEY: "ix_deps_view",
     DEFAULT_VIEW: "list",
     SKELETON_COUNT: 4,
 
@@ -11,7 +11,7 @@
     CACHE_TTL: 10 * 60 * 1000, // 10 min
 
     ENDPOINTS: {
-      deps: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamento.php",
+      deps: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_departamentos.php",
       tramite:
         "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_tramite.php",
     },
@@ -50,10 +50,10 @@
     DESC_MIN_CHARS: 10,
     PHONE_DIGITS: 10,
 
-    // Subida de imagenes
+    // Subida de imágenes
     MAX_FILES: 3,
     MIN_FILES: 0,
-    MAX_MB: 1,
+    MAX_MB: 1, // límite del servidor
     ACCEPT_MIME: [
       "image/jpeg",
       "image/png",
@@ -66,35 +66,15 @@
     ENDPOINTS: {
       cpcolonia:
         "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
-      insertReq:
-        "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento.php",
+      insertReq: "/webpublic_proxy.php",
       fsBootstrap:
         "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
       uploadImg:
-        "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento_img.php",
+        "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_in_requerimiento_img.php",
     },
 
     FETCH_TIMEOUT: 12000,
     DEBUG: true,
-
-    //el recaptcha
-    RECAPTCHA_SITE_KEY: "TU_SITE_KEY", // recuerda remplazar por la real
-    RECAPTCHA_ACTION: "crear_requerimiento", // accion execute()
-
-    // recordar que esto solo es para el localhost
-    USE_FAKE_CAPTCHA: (function () {
-      try {
-        const hn = (location.hostname || "").toLowerCase();
-        return (
-          hn === "localhost" ||
-          hn === "127.0.0.1" ||
-          hn.endsWith(".local") ||
-          hn.endsWith(".localhost")
-        );
-      } catch (e) {
-        return false;
-      }
-    })(),
   };
 
   w.IX_CFG_REQ_ACCEPT = [
@@ -188,7 +168,10 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
-  const isOtro = (title) => norm(title) === "otro";
+  const isOtro = (title) => {
+    const t = norm(title);
+    return t === "otro" || t === "otros";
+  };
   const parseDepParam = (raw) => {
     if (!raw) return null;
     const s = String(raw).toLowerCase();
@@ -219,7 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
           markEl && (markEl.dataset.missingAsset = "true");
         }
       },
-      { passive: true }
+      { passive: true },
     );
     set();
   }
@@ -277,7 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="ix-dep-media"><span class="sk sk-ico"></span></div>
       <div class="ix-dep-content"><h3><span class="sk sk-title"></span></h3><p><span class="sk sk-text"></span></p></div>
       <div class="sk sk-btn" aria-hidden="true"></div>
-    </li>`)
+    </li>`),
       );
     }
   };
@@ -285,9 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
     listEl.innerHTML = "";
     const li = el(`
     <li class="ix-dep-empty">
-      <p><strong>Error:</strong> ${
-        msg || "No se pudieron cargar los trámites."
-      }</p>
+      <p><strong>Error:</strong> ${msg || "No se pudieron cargar los trámites."}</p>
       <p><button type="button" class="ix-btn ix-btn--retry">Reintentar</button></p>
     </li>`);
     li.querySelector(".ix-btn--retry").addEventListener("click", onRetry);
@@ -314,7 +295,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
-      })
+      }),
     );
     const data = Array.isArray(json?.data) ? json.data : [];
     const meta = {};
@@ -347,17 +328,17 @@ document.addEventListener("DOMContentLoaded", () => {
           return r.json();
         }),
       CFG.TIMEOUT_MS,
-      extSignal
+      extSignal,
     );
     const raw = Array.isArray(json?.data)
       ? json.data
       : Array.isArray(json)
-      ? json
-      : [];
+        ? json
+        : [];
     const rows = raw.filter(
       (r) =>
         Number(r?.departamento_id) === Number(depId) &&
-        (r?.estatus === undefined || Number(r?.estatus) === 1)
+        (r?.estatus === undefined || Number(r?.estatus) === 1),
     );
     return rows
       .map((r) => ({
@@ -601,11 +582,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const CFG = Object.assign(
     {
       NAME_MIN_CHARS: 5,
-      DESC_MIN_CHARS: 30,
+      DESC_MIN_CHARS: 10,
       PHONE_DIGITS: 10,
       MAX_FILES: 3,
       MIN_FILES: 0,
-      MAX_MB: 20,
+      MAX_MB: 1, // 1 MB por archivo
       ACCEPT_MIME: [
         "image/jpeg",
         "image/png",
@@ -615,24 +596,22 @@ document.addEventListener("DOMContentLoaded", () => {
       ],
       ACCEPT_EXT: [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"],
       ENDPOINTS: {
-        cpcolonia: "/db/WEB/ixtla01_c_cpcolonia.php",
-        insertReq: "/db/WEB/ixtla01_i_requerimiento.php",
-        fsBootstrap: "/db/WEB/ixtla01_u_requerimiento_folders.php",
-        uploadImg: "/db/WEB/ixtla01_i_requerimiento_img.php",
+        cpcolonia:
+          "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
+        insertReq: "/webpublic_proxy.php",
+        fsBootstrap:
+          "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
+        uploadImg:
+          "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_in_requerimiento_img.php",
       },
       FETCH_TIMEOUT: 12000,
       DEBUG: false,
-
-      // reCAPTCHA Enterprise
-      RECAPTCHA_SITE_KEY: "TU_SITE_KEY", // <-- pon aquí tu site key
-      RECAPTCHA_ACTION: "crear_requerimiento",
     },
-    window.IX_CFG_REQ || {}
+    window.IX_CFG_REQ || {},
   );
   const ACCEPT_ALL =
     window.IX_CFG_REQ_ACCEPT ||
     [...CFG.ACCEPT_MIME, ...CFG.ACCEPT_EXT].join(",");
-
   const log = (...a) => {
     if (CFG.DEBUG)
       try {
@@ -640,7 +619,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch {}
   };
 
-  /* ---------- Helpers de control de tiempo / abort ---------- */
+  /* ---------- Helpers timeout/abort ---------- */
   function anySignal(signals = []) {
     const c = new AbortController();
     const onAbort = () => c.abort();
@@ -730,7 +709,10 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
-  const isOtros = (title) => norm(title) === "otro";
+  const isOtros = (title) => {
+    const t = norm(title);
+    return t === "otro" || t === "otros";
+  };
 
   function clearFeedback() {
     if (feedback) {
@@ -763,7 +745,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const root = document.getElementById("ix-done-modal");
     if (!root) return;
     const overlay = root.querySelector("[data-close]");
-    const closes = root.querySelectorAll("[data-close]");
+    const theCloses = root.querySelectorAll("[data-close]");
     const subEl = root.querySelector("#ix-done-subtitle");
     const folioEl = root.querySelector("#ix-done-folio");
     function open({ folio = "—", title = "—" } = {}) {
@@ -784,7 +766,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.key === "Escape") close();
     }
     overlay?.addEventListener("click", close);
-    closes.forEach((b) => b.addEventListener("click", close));
+    theCloses.forEach((b) => b.addEventListener("click", close));
     window.ixDoneModal = { open, close };
   })();
 
@@ -862,19 +844,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const arr = Array.isArray(json?.data)
       ? json.data
       : Array.isArray(json)
-      ? json
-      : [];
+        ? json
+        : [];
     const out = [];
     for (const item of arr) {
       const cp = String(
-        item.cp ?? item.CP ?? item.codigo_postal ?? item.codigoPostal ?? ""
+        item.cp ?? item.CP ?? item.codigo_postal ?? item.codigoPostal ?? "",
       ).trim();
       const col = String(
         item.colonia ??
           item.Colonia ??
           item.asentamiento ??
           item.neighborhood ??
-          ""
+          "",
       ).trim();
       if (cp && col) out.push({ cp, colonia: col });
     }
@@ -899,7 +881,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
-      })
+      }),
     );
     const rows = extractCpColoniaArray(json);
     const tmp = {};
@@ -913,7 +895,7 @@ document.addEventListener("DOMContentLoaded", () => {
       Object.entries(tmp).map(([k, v]) => [
         k,
         [...v].sort((a, b) => a.localeCompare(b, "es")),
-      ])
+      ]),
     );
     CP_LIST = Object.keys(CP_MAP).sort();
     setCpCache({ map: CP_MAP, list: CP_LIST });
@@ -922,7 +904,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ensureCpSelect();
     inpCP.innerHTML = "";
     inpCP.appendChild(
-      makeOpt("", "Selecciona C.P.", { disabled: true, selected: true })
+      makeOpt("", "Selecciona C.P.", { disabled: true, selected: true }),
     );
     CP_LIST.forEach((cp) => inpCP.appendChild(makeOpt(cp, cp)));
   }
@@ -964,7 +946,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const img = document.createElement("img");
       const btn = document.createElement("button");
       const canPreview = /^(image\/jpeg|image\/png|image\/webp)$/i.test(
-        file.type
+        file.type,
       );
       const url = canPreview
         ? URL.createObjectURL(file)
@@ -1030,17 +1012,17 @@ document.addEventListener("DOMContentLoaded", () => {
           e.preventDefault();
           e.stopPropagation();
           upWrap.classList.add("is-drag");
-        })
+        }),
       );
       ["dragleave", "drop"].forEach((ev) =>
         upWrap.addEventListener(ev, (e) => {
           e.preventDefault();
           e.stopPropagation();
           upWrap.classList.remove("is-drag");
-        })
+        }),
       );
       upWrap.addEventListener("drop", (e) =>
-        handleFiles(e.dataTransfer?.files || [])
+        handleFiles(e.dataTransfer?.files || []),
       );
     }
     toggleUploadCTA();
@@ -1157,9 +1139,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (files.length < (CFG.MIN_FILES || 0)) {
       allOk = false;
       showFeedback(
-        `Adjunta al menos ${CFG.MIN_FILES} imagen${
-          CFG.MIN_FILES > 1 ? "es" : ""
-        }.`
+        `Adjunta al menos ${CFG.MIN_FILES} imagen${CFG.MIN_FILES > 1 ? "es" : ""}.`,
       );
       upWrap?.classList.add("ix-upload--error");
     } else {
@@ -1168,13 +1148,13 @@ document.addEventListener("DOMContentLoaded", () => {
     return { ok: allOk, firstBad };
   }
 
-  /* ---------- Apertura / cierre del modal de formulario ---------- */
+  /* ---------- Apertura / cierre ---------- */
   function trap(e) {
     if (e.key !== "Tab") return;
     const focusables = Array.from(
       dialog.querySelectorAll(
-        'a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])'
-      )
+        'a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])',
+      ),
     ).filter((el) => el.offsetParent !== null);
     if (!focusables.length) return;
     const first = focusables[0],
@@ -1190,10 +1170,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function toggleAsuntoForOtros(visible) {
     if (!asuntoGroup) return;
     asuntoGroup.hidden = !visible;
-    asuntoGroup.style.display = visible ? "" : "none";
-    if (!visible && inpAsunto) {
-      inpAsunto.value = "";
-      setFieldError(inpAsunto, "");
+    if (inpAsunto) {
+      inpAsunto.required = !!visible;
+      if (!visible) {
+        inpAsunto.value = "";
+        setFieldError(inpAsunto, "");
+      }
     }
   }
   function openModal(
@@ -1204,7 +1186,7 @@ document.addEventListener("DOMContentLoaded", () => {
       sla = "",
       mode = "normal",
     } = {},
-    opener = null
+    opener = null,
   ) {
     currentDepId = String(depKey || "1");
     currentItemId = String(itemId || "");
@@ -1240,7 +1222,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("keydown", onKey, { passive: false });
     overlay?.addEventListener("click", closeModal, { once: true });
     btnClose.forEach((b) =>
-      b.addEventListener("click", closeModal, { once: true })
+      b.addEventListener("click", closeModal, { once: true }),
     );
     setTimeout(() => inpNombre?.focus(), 0);
     modal._onKey = onKey;
@@ -1258,7 +1240,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ...opts,
           mode: opts.mode || (isOtros(opts.title) ? "otros" : "normal"),
         },
-        opener
+        opener,
       ),
     close: () => closeModal(),
   };
@@ -1278,7 +1260,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ].forEach(([k, el]) =>
     el?.addEventListener("input", () => {
       if (hasAttemptedSubmit) validateField(k, true);
-    })
+    }),
   );
 
   modal.addEventListener("change", (e) => {
@@ -1333,36 +1315,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // --- reCAPTCHA (fake en localhost) ---
-    let captchaToken = "";
-    try {
-      const C = typeof CFG !== "undefined" && CFG ? CFG : IX_CFG_REQ;
-      if (C.USE_FAKE_CAPTCHA) {
-        captchaToken = "test-captcha-token";
-        console.debug?.("[REQ] usando fake captcha token (local)");
-      } else {
-        if (
-          typeof grecaptcha === "undefined" ||
-          !grecaptcha.enterprise?.execute
-        ) {
-          throw new Error(
-            "grecaptcha.enterprise no disponible. Falta el <script> en <head>."
-          );
-        }
-        await grecaptcha.enterprise.ready();
-        captchaToken = await grecaptcha.enterprise.execute(
-          C.RECAPTCHA_SITE_KEY,
-          { action: C.RECAPTCHA_ACTION }
-        );
-      }
-    } catch (e) {
-      window.ixToast?.err?.("No se pudo verificar el captcha.");
-      showFeedback("No se pudo verificar el captcha.");
-      console.error("[REQ] captcha error:", e);
-      return;
-    }
-
-    // --- payload ---
+    // build payload (SIN captcha)
     const depId = Number(currentDepId || inpDepId?.value || 1);
     const tramId = Number(currentItemId || inpTram?.value || 0);
     const modoOtros = modal.dataset.mode === "otros";
@@ -1381,21 +1334,22 @@ document.addEventListener("DOMContentLoaded", () => {
       contacto_calle: (inpDom?.value || "").trim(),
       contacto_colonia: (inpCol?.value || "").trim(),
       contacto_cp: (inpCP?.value || "").trim(),
-      captcha_token: captchaToken, // <-- AQUÍ va el token (ya no lo pongas antes)
     };
 
-    // --- UI e idempotencia ---
+    // UI
     isSubmitting = true;
     form.setAttribute("aria-busy", "true");
     const oldTxt = btnSend.textContent;
     btnSend.disabled = true;
     btnSend.textContent = "Enviando…";
+
+    // Idempotencia
     const idempKey =
-      crypto?.randomUUID?.() ||
+      (crypto?.randomUUID && crypto.randomUUID()) ||
       `idemp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     try {
-      // 1) crear requerimiento
+      // 1) crear requerimiento (JSON)
       const json = await withTimeout((signal) =>
         fetch(CFG.ENDPOINTS.insertReq, {
           method: "POST",
@@ -1410,7 +1364,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }).then((r) => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           return r.json();
-        })
+        }),
       );
 
       if (!json?.ok || !json?.data)
@@ -1418,7 +1372,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const folio =
         json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
 
-      // 2) preparar folders (best-effort)
+      // 2) preparar folders (best-effort; JSON)
       try {
         await withTimeout((signal) =>
           fetch(CFG.ENDPOINTS.fsBootstrap, {
@@ -1427,41 +1381,50 @@ document.addEventListener("DOMContentLoaded", () => {
               "Content-Type": "application/json",
               Accept: "application/json",
             },
-            body: JSON.stringify({ folio }),
+            body: JSON.stringify({
+              folio,
+              create_status_txt: true,
+              force_status_txt: false,
+            }),
             signal,
-          }).then((r) => r.json())
+          }).then((r) => r.json()),
         );
-      } catch {}
+      } catch (e) {
+        log("fsBootstrap falló (no bloqueante):", e);
+      }
 
-      // 3) subir evidencias (si hay)
+      // 3) subir evidencias (multipart) al estado 0
       if (files.length) {
         const fd = new FormData();
         fd.append("folio", folio);
         fd.append("status", "0");
         files.forEach((f) => fd.append("files[]", f, f.name));
+
+        const upRes = await withTimeout((signal) =>
+          fetch(CFG.ENDPOINTS.uploadImg, { method: "POST", body: fd, signal }),
+        );
+
+        let upJson = null;
         try {
-          await withTimeout((signal) =>
-            fetch(CFG.ENDPOINTS.uploadImg, {
-              method: "POST",
-              body: fd,
-              signal,
-            }).then((r) => r.json())
-          );
-        } catch {
-          window.ixToast?.warn(
-            "El reporte se creó, pero algunas imágenes no se subieron."
-          );
+          upJson = await upRes.json();
+        } catch {}
+        if (!upRes.ok || !upJson?.ok) {
+          const msg =
+            upJson?.error || `Error al subir imágenes (HTTP ${upRes.status})`;
+          window.ixToast?.warn(msg);
         }
       }
 
-      // éxito
       window.ixToast?.ok(`Reporte creado: ${folio}`, 3200);
+      Array.from(form.elements).forEach((el) => (el.disabled = false));
+      btnSend.textContent = oldTxt;
       form.reset();
       files.forEach((f) => {
-        if (f?._url)
+        if (f?._url) {
           try {
             URL.revokeObjectURL(f._url);
           } catch {}
+        }
       });
       files = [];
       refreshPreviews();
@@ -1478,5 +1441,4 @@ document.addEventListener("DOMContentLoaded", () => {
       btnSend.disabled = false;
     }
   });
-  
 })();

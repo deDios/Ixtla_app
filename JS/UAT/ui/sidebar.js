@@ -56,7 +56,7 @@ function writeCookiePayload(obj, { maxAgeDays = 30 } = {}) {
     const b64 = btoa(unescape(encodeURIComponent(json)));
     const maxAge = Math.max(1, Math.floor(maxAgeDays * 86400));
     document.cookie = `ix_emp=${encodeURIComponent(
-      b64
+      b64,
     )}; path=/; max-age=${maxAge}; samesite=lax`;
   } catch (e) {
     warn("No se pudo escribir cookie ix_emp:", e);
@@ -115,7 +115,11 @@ async function resolveDeptName(deptId) {
   if (!deptId) return "—";
 
   const key = Number(deptId);
-  if (CONFIG.DEPT_FALLBACK_NAMES[key]) return CONFIG.DEPT_FALLBACK_NAMES[key];
+
+  if (CONFIG.DEPT_FALLBACK_NAMES[key]) {
+    return CONFIG.DEPT_FALLBACK_NAMES[key];
+  }
+
   if (__DEPT_CACHE.has(key)) return __DEPT_CACHE.get(key);
 
   try {
@@ -125,18 +129,24 @@ async function resolveDeptName(deptId) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({ page: 1, page_size: 200, status: 1 }),
+      body: JSON.stringify({
+        page: 1,
+        page_size: 200,
+      }),
     });
+
     if (!res.ok) throw new Error("HTTP " + res.status);
+
     const json = await res.json();
     const arr = json?.data || [];
     const found = arr.find((d) => Number(d.id) === key);
-    const name = found?.nombre ? String(found.nombre) : `Depto ${deptId}`;
+
+    const name = found?.nombre ? String(found.nombre) : "—";
     __DEPT_CACHE.set(key, name);
     return name;
   } catch (e) {
     warn("resolveDeptName() fallback:", deptId, e);
-    return `Depto ${deptId}`;
+    return CONFIG.DEPT_FALLBACK_NAMES[key] || "—";
   }
 }
 
@@ -166,10 +176,40 @@ async function resolveReportaA(empleado) {
 async function hydrateSidebar() {
   const s = getSessionSafe();
   const idUsuario = s?.id_usuario ?? s?.empleado_id ?? null;
-  const deptId = s?.dept_id ?? s?.departamento_id ?? null;
+  const empId = s?.empleado_id ?? null;
 
-  const nombre =
+  let nombre =
     [s?.nombre, s?.apellidos].filter(Boolean).join(" ").trim() || "—";
+
+  let deptId = s?.departamento_id ?? s?.dept_id ?? null;
+
+  try {
+    if (empId) {
+      const empleado = await getEmpleadoById(empId);
+      log("hydrateSidebar() V2 empleado:", empleado);
+
+      nombre =
+        [empleado?.nombre, empleado?.apellidos]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || nombre;
+
+      deptId =
+        empleado?.departamento_id ?? s?.departamento_id ?? s?.dept_id ?? null;
+
+      // refrescar cookie para próximas vistas
+      writeCookiePayload({
+        ...s,
+        nombre: empleado?.nombre ?? s?.nombre,
+        apellidos: empleado?.apellidos ?? s?.apellidos,
+        departamento_id: deptId,
+        dept_id: deptId,
+      });
+    }
+  } catch (e) {
+    warn("hydrateSidebar() fallback cookie:", e);
+  }
+
   const nameEl = $(SEL.profileName);
   if (nameEl) nameEl.textContent = nombre;
 
@@ -177,9 +217,11 @@ async function hydrateSidebar() {
   if (img) setAvatarSrc(img, idUsuario);
 
   const badge = $(SEL.profileBadge);
-  if (badge) badge.textContent = await resolveDeptName(deptId);
+  if (badge) {
+    badge.textContent = await resolveDeptName(deptId);
+  }
 
-  log("hydrateSidebar()", { idUsuario, deptId, nombre });
+  log("hydrateSidebar() V2", { idUsuario, empId, deptId, nombre });
 }
 
 /* ======================================
@@ -193,7 +235,7 @@ function wirePerfilModal() {
   const closeBtn = modal.querySelector(".modal-close");
   const form = modal.querySelector(SEL.formPerfil);
 
-  // Inputs 
+  // Inputs
   const inpNombre = modal.querySelector("#perfil-nombre");
   const inpApellidos = modal.querySelector("#perfil-apellidos");
   const inpEmail = modal.querySelector("#perfil-email");

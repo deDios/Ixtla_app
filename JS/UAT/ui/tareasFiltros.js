@@ -16,7 +16,7 @@ export function createTaskFiltersModule({
   State,
   KB,
   log,
-  scheduleRenderBoard,
+  renderBoard,
   $,
   $$,
 }) {
@@ -40,21 +40,7 @@ export function createTaskFiltersModule({
    * ======================================================================*/
 
   function createMultiFilter(fieldEl, key, options) {
-    if (!fieldEl._kbGlobalListenersBound) {
-      fieldEl._kbGlobalListenersBound = true;
-
-      document.addEventListener("click", (ev) => {
-        if (!fieldEl.contains(ev.target)) {
-          closeMenu();
-        }
-      });
-
-      document.addEventListener("keydown", (ev) => {
-        if (ev.key === "Escape") {
-          closeMenu();
-        }
-      });
-    }
+    if (!fieldEl) return;
 
     const trigger = fieldEl.querySelector(".kb-multi-trigger");
     const placeholderEl = fieldEl.querySelector(".kb-multi-placeholder");
@@ -159,15 +145,26 @@ export function createTaskFiltersModule({
     }
 
     function toggleValue(value) {
-      const set = State.filters[key];
-      if (set.has(value)) set.delete(value);
-      else set.add(value);
+      if (stateSet.has(value)) {
+        stateSet.delete(value);
+      } else {
+        stateSet.add(value);
+      }
 
-      renderSelected();
-      renderOptions();
-      log(`Filtro ${key} ->`, Array.from(set));
+      if (list) {
+        const li = list.querySelector(
+          `.kb-multi-option[data-value="${value}"]`,
+        );
+        if (li) {
+          const isSel = stateSet.has(value);
+          li.classList.toggle("is-selected", isSel);
+          const cb = li.querySelector(".kb-multi-check");
+          if (cb) cb.checked = isSel;
+        }
+      }
 
-      scheduleRenderBoard("filtros");
+      updateSummary();
+      renderBoard();
     }
 
     function openMenu() {
@@ -212,6 +209,18 @@ export function createTaskFiltersModule({
       });
     }
 
+    document.addEventListener("click", (ev) => {
+      if (!fieldEl.contains(ev.target)) {
+        closeMenu();
+      }
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") {
+        closeMenu();
+      }
+    });
+
     renderOptions();
     updateSummary();
 
@@ -240,7 +249,7 @@ export function createTaskFiltersModule({
         if (MultiFilters.departamentos) MultiFilters.departamentos.clear();
         if (MultiFilters.empleados) MultiFilters.empleados.clear();
 
-        scheduleRenderBoard("sidebar-clear");
+        renderBoard();
       });
     }
   }
@@ -307,7 +316,7 @@ export function createTaskFiltersModule({
         const v = selProc.value;
         State.filters.procesoId = v ? Number(v) : null;
         log("Filtro ProcesoId →", State.filters.procesoId);
-        scheduleRenderBoard("combo-proceso");
+        renderBoard();
       });
     }
 
@@ -322,7 +331,7 @@ export function createTaskFiltersModule({
         const v = selTram.value;
         State.filters.tramiteId = v ? Number(v) : null;
         log("Filtro TramiteId →", State.filters.tramiteId);
-        scheduleRenderBoard("combo-tramite");
+        renderBoard();
       });
     }
 
@@ -343,7 +352,7 @@ export function createTaskFiltersModule({
         State.filters.mine = !State.filters.mine;
         chipMine.classList.toggle("is-active", State.filters.mine);
         log("Filtro 'Solo mis tareas' →", State.filters.mine);
-        scheduleRenderBoard("chip-mine");
+        renderBoard();
       });
     }
 
@@ -358,7 +367,7 @@ export function createTaskFiltersModule({
 
         State.filters.recentDays = nowActive ? 15 : null;
         log("Filtro 'Recientes (últimos días)' →", State.filters.recentDays);
-        scheduleRenderBoard("chip-recent");
+        renderBoard();
       });
     }
 
@@ -367,7 +376,7 @@ export function createTaskFiltersModule({
       inputSearch.addEventListener("input", () => {
         State.filters.search = inputSearch.value || "";
         log("Filtro search →", State.filters.search);
-        scheduleRenderBoard("search");
+        renderBoard();
       });
     }
 
@@ -388,7 +397,7 @@ export function createTaskFiltersModule({
         if (selTram) selTram.value = "";
 
         log("Filtros rápidos limpiados");
-        scheduleRenderBoard("toolbar-clear");
+        renderBoard();
       });
     }
   }

@@ -10,7 +10,6 @@ const API = {
   requerimientos: API_BASE + "ixtla01_c_requerimiento.php",
   empleados: API_BASE + "ixtla01_c_empleado.php",
   departamentos: API_BASE + "ixtla01_c_departamento.php",
-  inReq: API_BASE + "ixtla01_in_requerimiento.php",
   updReq: API_BASE + "ixtla01_upd_requerimiento.php",
 };
 
@@ -264,7 +263,7 @@ function mergeDedupOrder(lists, { order = "created_at_desc" } = {}) {
     arr.sort(
       (a, b) =>
         String(b.created_at).localeCompare(String(a.created_at)) ||
-        (b.id || 0) - (a.id || 0)
+        (b.id || 0) - (a.id || 0),
     );
   }
   log("mergeDedupOrder()", { inputLists: lists.length, out: arr.length });
@@ -360,8 +359,8 @@ export async function planScope({
   const deptIds = viewerDeptId
     ? [viewerDeptId]
     : viewer?.departamento_id
-    ? [viewer.departamento_id]
-    : [];
+      ? [viewer.departamento_id]
+      : [];
 
   const created_to = todayISO();
   const created_from = addDaysISO(created_to, -Math.abs(rangeDays));
@@ -430,7 +429,7 @@ export async function fetchScope({ plan, filtros = {} }) {
   };
 
   const statuses = results.map(
-    (r) => r.status + (r.status === "rejected" ? `: ${r.reason}` : "")
+    (r) => r.status + (r.status === "rejected" ? `: ${r.reason}` : ""),
   );
   log("fetchScope results:", { totalItems: items.length, counts, statuses });
   groupEnd();
@@ -438,117 +437,7 @@ export async function fetchScope({ plan, filtros = {} }) {
   return { items, counts, filtros: useFiltros };
 }
 
-
-
-
-
-
-
-
-
-
-
 /* ============================== Updates API ============================== */
-
-export async function createRequerimiento(payload = {}) {
-  group(`${TAG} createRequerimiento()`);
-  log("payload:", payload);
-
-  const json = await postJSON(API.inReq, payload);
-
-  if (json?.ok === false) {
-    warn("createRequerimiento() backend error:", json?.error);
-    groupEnd();
-    throw new Error(json?.error || "Error al crear requerimiento");
-  }
-
-  // Normaliza el ID creado (varía entre backends)
-  const id =
-    Number(json?.data?.id) ||
-    Number(json?.id) ||
-    Number(json?.insert_id) ||
-    Number(json?.data?.insert_id) ||
-    Number(json?.data?.req_id) ||
-    Number(json?.req_id) ||
-    null;
-
-  const data = json?.data || json;
-
-  log("created:", { id, folio: data?.folio, ok: json?.ok });
-
-  if (!id) {
-    warn("createRequerimiento(): no se pudo inferir el 'id' del response", json);
-    groupEnd();
-    // Aun así regresamos data para que el caller decida
-    return { ...data, id: data?.id ?? null, __raw: json };
-  }
-
-  groupEnd();
-  return { ...data, id, __raw: json };
-}
-
-/**
- * Workaround para Canal 2:
- * 1) Crea el requerimiento con defaults (canal 1 / estatus backend)
- * 2) Inmediatamente hace update a canal=2 y estatus=3
- *
- * - Si el UPDATE falla, lanza error (pero el requerimiento ya quedó creado).
- * - Se recomienda que la UI muestre toast: "Creado, pero no se pudo mover a canal 2".
- */
-export async function createReqCanal2Workaround(
-  createPayload = {},
-  {
-    canal = 2,
-    estatus = 3,
-    retries = 1,
-    retryDelayMs = 350,
-  } = {}
-) {
-  group(`${TAG} createReqCanal2Workaround()`);
-  log("createPayload:", createPayload);
-  const created = await createRequerimiento(createPayload);
-
-  const id = Number(created?.id) || null;
-  if (!id) {
-    groupEnd();
-    throw new Error("Canal2 workaround: no llegó el id del requerimiento creado");
-  }
-
-  const patch = { id, canal, estatus };
-
-  let lastErr = null;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      log("patch attempt:", attempt + 1, patch);
-      const updated = await updateRequerimiento(patch);
-      groupEnd();
-      return { created, updated };
-    } catch (e) {
-      lastErr = e;
-      warn("patch failed:", e);
-      if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, retryDelayMs));
-      }
-    }
-  }
-
-  groupEnd();
-  // En este punto: creado sí existe, patch no. Regresamos ambos para debug.
-  const e = new Error(
-    "Canal2 workaround: se creó el requerimiento, pero falló el update a canal/estatus"
-  );
-  e.cause = lastErr;
-  e.created = created;
-  throw e;
-}
-
-
-
-
-
-
-
-
 export async function updateRequerimiento(patch = {}) {
   if (!patch?.id) throw new Error("updateRequerimiento(): falta 'id'");
   group(`${TAG} updateRequerimiento(${patch.id})`);
@@ -578,7 +467,7 @@ export async function reassignReq(id, asignado_a, { updated_by = null } = {}) {
 export async function setPrioridadReq(
   id,
   prioridad,
-  { updated_by = null } = {}
+  { updated_by = null } = {},
 ) {
   return updateRequerimiento({
     id,
@@ -589,7 +478,7 @@ export async function setPrioridadReq(
 export async function transferirDeptoReq(
   id,
   departamento_id,
-  { tramite_id = null, updated_by = null } = {}
+  { tramite_id = null, updated_by = null } = {},
 ) {
   const patch = { id, departamento_id };
   if (tramite_id != null) patch.tramite_id = tramite_id;
@@ -626,11 +515,11 @@ export async function setEstatusReq(id, estatus, opts = {}) {
   if (autoFechas) {
     const hasFechaLimite = Object.prototype.hasOwnProperty.call(
       patch,
-      "fecha_limite"
+      "fecha_limite",
     );
     const hasCerrado = Object.prototype.hasOwnProperty.call(
       patch,
-      "cerrado_en"
+      "cerrado_en",
     );
 
     // Cuando entra a EN PROCESO (3) o en adelante,
@@ -665,7 +554,7 @@ export async function setEstatusReq(id, estatus, opts = {}) {
 // Finalizar requerimiento (estatus = 6)
 export async function finalizarReq(
   id,
-  { fecha_fin = null, cerrado_en = null, updated_by = null } = {}
+  { fecha_fin = null, cerrado_en = null, updated_by = null } = {},
 ) {
   const opts = {
     updated_by,
@@ -737,7 +626,7 @@ export async function hydrateAsignadoFields(items = []) {
     "| necesitaron id:",
     need.size,
     "| consultar:",
-    toQuery.length
+    toQuery.length,
   );
 
   // Consulta en paralelo
@@ -767,7 +656,7 @@ export async function hydrateAsignadoFields(items = []) {
     "[hydrateAsignadoFields] enriquecidos:",
     enriched,
     "| cacheSize:",
-    _empNameCache.size
+    _empNameCache.size,
   );
 }
 
