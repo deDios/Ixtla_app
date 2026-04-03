@@ -29,6 +29,7 @@
     totalPages: 1,
     employees: [],
     isLoading: false,
+    mediaVersion: {},
     drawer: {
       isOpen: false,
       mode: "view", // view | edit | create
@@ -66,15 +67,40 @@
     return safeId ? `dep_img${safeId}` : "";
   }
 
+  // apartado para agregar timestamps a las urls de las imagenes
+  // de departamentos para forzar el refresh de las iamgenes cuando se suba 
+  // una nueva imagen.
+
+  function getDepartamentoMediaVersion(id) {
+    const safeId = Number(id) || 0;
+    if (!safeId) return "";
+    return state.mediaVersion[`departamento-${safeId}`] || "";
+  }
+
+  function setDepartamentoMediaVersion(id, version = Date.now()) {
+    const safeId = Number(id) || 0;
+    if (!safeId) return;
+    state.mediaVersion[`departamento-${safeId}`] = version;
+  }
+
+  function withMediaVersion(url, version) {
+    if (!url || !version) return url;
+    if (url.includes("placeholder")) return url;
+    return `${url}?v=${version}`;
+  }
+
   function getDepartamentoMediaCandidates(id) {
     const baseName = getDepartamentoMediaFileBase(id);
+    const version = getDepartamentoMediaVersion(id);
 
     if (!baseName) {
       return [DEPT_PLACEHOLDER];
     }
 
     return [
-      ...DEPT_MEDIA_EXTENSIONS.map((ext) => `${DEPT_ASSETS_DIR}${baseName}.${ext}`),
+      ...DEPT_MEDIA_EXTENSIONS.map((ext) =>
+        withMediaVersion(`${DEPT_ASSETS_DIR}${baseName}.${ext}`, version)
+      ),
       DEPT_PLACEHOLDER,
     ];
   }
@@ -113,9 +139,13 @@
         json = { raw: txt };
       }
 
+      // Forzar actualización de la imagen en la UI
+
       if (!res.ok || json?.ok === false) {
         throw new Error(json?.error || json?.message || json?.raw || `HTTP ${res.status}`);
       }
+
+      setDepartamentoMediaVersion(id);
 
       toast("Imagen del departamento actualizada correctamente.", "success");
 
