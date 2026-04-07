@@ -212,7 +212,7 @@ ix_require_session();
 
                             <div class="legend retro-legend">
 
-                            <!-- boton para export de retros -->
+                                <!-- boton para export de retros -->
                                 <button type="button" id="hs-btn-export-retro" class="hs-btn-new-req hs-btn-export-req"
                                     title="Exportar retroalimentaciones"
                                     data-label-default="Exportar retroalimentaciones" aria-disabled="false">
@@ -825,8 +825,21 @@ ix_require_session();
                 <textarea id="retro-comentario" class="retro-input retro-textarea" rows="4" readonly></textarea>
 
                 <div class="retro-actions">
-                    <button id="retro-close-footer" class="retro-btn retro-btn--ghost" type="button">Cerrar</button>
-                    <button id="retro-go" class="retro-btn" type="button">Ir al requerimiento</button>
+                    <button id="retro-close-footer" class="retro-btn retro-btn--ghost" type="button">
+                        Cerrar
+                    </button>
+
+                    <button id="retro-go" class="retro-btn retro-btn--primary" type="button" data-req-id="16458">
+                        Ir al requerimiento
+                    </button>
+
+                    <button id="retro-resend" class="retro-btn retro-btn--secondary" type="button">
+                        Reenviar encuesta
+                    </button>
+
+                    <button id="retro-disable" class="retro-btn retro-btn--danger" type="button">
+                        Inhabilitar encuesta
+                    </button>
                 </div>
             </div>
         </div>

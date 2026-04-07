@@ -3365,3 +3365,102 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
     display: none !important;
   }
 }
+
+
+
+
+
+
+/* =========================
+   RETRO MODAL ACTIONS
+========================= */
+#retro-modal .retro-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+  align-items: stretch;
+}
+
+#retro-modal .retro-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  min-height: 52px;
+  padding: 12px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color .18s ease,
+    border-color .18s ease,
+    box-shadow .18s ease,
+    transform .18s ease;
+}
+
+#retro-modal .retro-btn:hover {
+  transform: translateY(-1px);
+}
+
+#retro-modal .retro-btn:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.18);
+  outline-offset: 2px;
+}
+
+/* cerrar */
+#retro-modal .retro-btn--ghost {
+  background: #ffffff;
+  color: #6b7f72;
+  border-color: #c8d4cb;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+}
+
+#retro-modal .retro-btn--ghost:hover {
+  background: #f8fbf9;
+}
+
+/* ir al requerimiento */
+#retro-modal .retro-btn--primary {
+  background: #6f947d;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(111, 148, 125, 0.18);
+}
+
+#retro-modal .retro-btn--primary:hover {
+  background: #628772;
+}
+
+/* reenviar encuesta */
+#retro-modal .retro-btn--secondary {
+  background: #78b39a;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(120, 179, 154, 0.18);
+}
+
+#retro-modal .retro-btn--secondary:hover {
+  background: #699f88;
+}
+
+/* inhabilitar encuesta */
+#retro-modal .retro-btn--danger {
+  background: #ef5350;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(239, 83, 80, 0.18);
+}
+
+#retro-modal .retro-btn--danger:hover {
+  background: #e04542;
+}
+
+@media (max-width: 720px) {
+  #retro-modal .retro-actions {
+    grid-template-columns: 1fr;
+  }
+}
