@@ -3,6 +3,7 @@
 
 import { DonutChart } from "/JS/charts/donut-chart.js";
 import { planScope, fetchScope } from "/JS/api/requerimientos.js";
+import { initExportXLSXRetro } from "/JS/UAT/ui/exportXLSXRetro.js";
 
 /* ============================================================================
    CONFIG
@@ -51,7 +52,8 @@ const CONFIG = {
     3: "#64748b",
   },
 
-  MAX_FETCH_PAGES: 20,
+  MAX_FETCH_PAGES: 10000, //Quitar este limite para que haga fetch infinito hasta obtener todos los datos, actualmente es para evitar loops infinitos en caso de que la paginación falle
+  // y asi mostrar toda la info en riampo real.
 };
 
 const TAG = "[RetroDashboard]";
@@ -1720,6 +1722,14 @@ async function init() {
     setupRowClickDelegation();
     initRetroMap();
     initTableSorting();
+    initExportXLSXRetro({
+      buttonId: "hs-btn-export-retro",
+      State,
+      formatPhone,
+      formatRetroStatus,
+      toast,
+      mode: "view",
+    });
 
     window.addEventListener(
       "resize",
