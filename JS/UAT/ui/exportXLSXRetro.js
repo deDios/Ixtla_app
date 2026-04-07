@@ -13,45 +13,107 @@ export function initExportXLSXRetro({
 
   btn.addEventListener("click", () => {
     try {
+      if (!window.XLSX) {
+        console.error("[exportXLSXRetro] XLSX no está disponible en window");
+        toast?.("No se pudo exportar el archivo.", "error");
+        return;
+      }
+
       const rows = Array.isArray(State?.filtered) ? State.filtered : [];
 
       if (!rows.length) {
-        toast?.("No hay datos para exportar", "warning");
+        toast?.("No hay retroalimentaciones para exportar.", "warning");
         return;
       }
 
       const data = rows.map((r) => ({
-        "ID retro": Number(r?.id || 0),
-        "ID requerimiento": Number(r?.requerimiento_id || 0),
-        "Folio": String(r?.folio || "").trim(),
-        "Departamento": String(r?.departamento_nombre || "").trim(),
-        "Tipo de trámite": String(r?.tramite_nombre || "").trim(),
-        "Asignado": String(r?.asignado_nombre_completo || "").trim(),
-        "Teléfono": formatPhone ? formatPhone(r?.contacto_telefono) : String(r?.contacto_telefono || "").trim(),
-        "Estatus": formatRetroStatus ? formatRetroStatus(r?.status) : String(r?.status ?? ""),
-        "Calificación":
-          Number(r?.calificacion) === 1 ? "Malo" :
-          Number(r?.calificacion) === 2 ? "Regular" :
-          Number(r?.calificacion) === 3 ? "Bueno" :
-          Number(r?.calificacion) === 4 ? "Excelente" :
-          "Sin respuesta",
-        "Comentario": String(r?.comentario || "Sin comentario").trim(),
-        "Creado": String(r?.created_at || "").trim(),
-        "Actualizado": String(r?.updated_at || "").trim(),
-        "Link": String(r?.link || "").trim(),
+        "ID retro": safeNumber(r?.id),
+        "ID requerimiento": safeNumber(r?.requerimiento_id),
+        "Folio": safeText(r?.folio),
+        "Departamento": safeText(r?.departamento_nombre),
+        "Tipo de trámite": safeText(r?.tramite_nombre),
+        "Asignado": safeText(r?.asignado_nombre_completo),
+        "Teléfono": formatPhone
+          ? formatPhone(r?.contacto_telefono)
+          : safeText(r?.contacto_telefono),
+        "Estatus": formatRetroStatus
+          ? formatRetroStatus(r?.status)
+          : safeText(r?.status),
+        "Calificación": mapCalificacion(r?.calificacion),
+        "Comentario": safeText(r?.comentario, "Sin comentario"),
+        "Creado": safeText(r?.created_at),
+        "Actualizado": safeText(r?.updated_at),
+        "Link": safeText(r?.link),
       }));
 
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Retroalimentaciones");
+      const XLSX = window.XLSX;
+      const worksheet = XLSX.utils.json_to_sheet(data);
 
-      const fileName = `retroalimentaciones_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      XLSX.writeFile(wb, fileName);
+      const range = XLSX.utils.decode_range(worksheet["!ref"]);
+      worksheet["!autofilter"] = {
+        ref: XLSX.utils.encode_range(range),
+      };
 
-      toast?.("Exportación realizada correctamente", "success");
+      worksheet["!cols"] = [
+        { wch: 10 }, // ID retro
+        { wch: 16 }, // ID requerimiento
+        { wch: 18 }, // Folio
+        { wch: 20 }, // Departamento
+        { wch: 24 }, // Tipo de trámite
+        { wch: 18 }, // Asignado
+        { wch: 16 }, // Teléfono
+        { wch: 16 }, // Estatus
+        { wch: 14 }, // Calificación
+        { wch: 34 }, // Comentario
+        { wch: 18 }, // Creado
+        { wch: 18 }, // Actualizado
+        { wch: 52 }, // Link
+      ];
+
+      try {
+        worksheet["!freeze"] = {
+          xSplit: 0,
+          ySplit: 1,
+          topLeftCell: "A2",
+          activePane: "bottomLeft",
+          state: "frozen",
+        };
+      } catch (_) {
+        // Algunas versiones de SheetJS pueden ignorar freeze
+      }
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Retroalimentaciones");
+
+      const fileName = `retroalimentaciones_${new Date()
+        .toISOString()
+        .slice(0, 10)}.xlsx`;
+
+      XLSX.writeFile(workbook, fileName);
+
+      toast?.("Exportación realizada correctamente.", "success");
     } catch (error) {
       console.error("[exportXLSXRetro] error:", error);
-      toast?.("Error al exportar", "error");
+      toast?.("Error al exportar retroalimentaciones.", "error");
     }
   });
+}
+
+function safeText(value, fallback = "—") {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+}
+
+function safeNumber(value, fallback = "—") {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function mapCalificacion(value) {
+  const n = Number(value);
+  if (n === 1) return "Malo";
+  if (n === 2) return "Regular";
+  if (n === 3) return "Bueno";
+  if (n === 4) return "Excelente";
+  return "Sin respuesta";
 }
