@@ -38,6 +38,14 @@
     isLoading: false,
     searchTimer: null,
     mediaVersion: {},
+
+    // State for the department filter bar para los departamentos
+    deptbar: {
+      chunkSize: 8,
+      visibleCount: 8,
+      isLoadingMore: false,
+    },
+
     drawer: {
       isOpen: false,
       mode: "view", // view | edit | create
@@ -48,7 +56,7 @@
       confirmDelete: false,
       isSaving: false,
 
-      // media del drawer
+      // Media state for the drawer
       media: {
         isLoading: false,
         isUploading: false,
@@ -58,8 +66,12 @@
     },
   };
 
+  // Initialization
   async function init() {
     state.isLoading = true;
+
+    // REINICIAR DEPTBAR AL ENTRAR AL MÓDULO
+    state.deptbar.visibleCount = state.deptbar.chunkSize;
 
     try {
       await loadDepartamentos();
@@ -70,6 +82,44 @@
     } finally {
       state.isLoading = false;
     }
+  }
+
+  // Helpers
+
+  function bindDeptbarScroll(root) {
+    const deptbar = root.querySelector("#admin-tramites-deptbar");
+    if (!deptbar) return;
+
+    const onScroll = () => {
+      const threshold = 140;
+      const remaining =
+        deptbar.scrollWidth - deptbar.clientWidth - deptbar.scrollLeft;
+
+      if (remaining <= threshold) {
+        loadMoreDeptChips();
+      }
+    };
+
+    deptbar.addEventListener("scroll", onScroll, { passive: true });
+  }
+
+  function canLoadMoreDeptChips() {
+    return state.deptbar.visibleCount < state.departamentos.length;
+  }
+
+  function loadMoreDeptChips() {
+    if (state.deptbar.isLoadingMore) return;
+    if (!canLoadMoreDeptChips()) return;
+
+    state.deptbar.isLoadingMore = true;
+
+    state.deptbar.visibleCount = Math.min(
+      state.deptbar.visibleCount + state.deptbar.chunkSize,
+      state.departamentos.length
+    );
+
+    refreshView(false);
+    state.deptbar.isLoadingMore = false;
   }
 
   async function sendJSON(url, body, method = "POST") {
@@ -198,6 +248,8 @@
         }))
         .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
       : [];
+
+    state.deptbar.visibleCount = state.deptbar.chunkSize;
   }
 
   async function refreshRemoteList() {
@@ -324,18 +376,26 @@
 
   function renderDeptFilters() {
     const allClass = state.activeDepartamentoId === 0 ? "is-active" : "";
+    const total = state.departamentos.length;
+    const visible = state.departamentos.slice(0, state.deptbar.visibleCount);
+    const hasMore = state.deptbar.visibleCount < total;
 
     return `
-      <div class="admin-tramites__deptbar">
+    <div class="admin-tramites__deptbar-shell">
+      <div
+        class="admin-tramites__deptbar"
+        id="admin-tramites-deptbar"
+        aria-label="Filtros por departamento"
+      >
         <button
           type="button"
-          class="admin-tramites__deptchip ${allClass}"
+          class="admin-tramites__deptchip admin-tramites__deptchip--all ${allClass}"
           data-dept-id="0"
         >
           <span class="admin-tramites__deptchip-label">Todos</span>
         </button>
 
-        ${state.departamentos
+        ${visible
         .map((dept) => {
           const activeClass =
             Number(state.activeDepartamentoId) === Number(dept.id)
@@ -356,15 +416,27 @@
             "admin-tramites__deptchip-image"
           )}
                 </span>
-                <span class="admin-tramites__deptchip-label">${escapeHtml(
-            dept.nombre
-          )}</span>
+                <span class="admin-tramites__deptchip-label">
+                  ${escapeHtml(dept.nombre)}
+                </span>
               </button>
             `;
         })
         .join("")}
+
+        ${hasMore
+        ? `
+              <div class="admin-tramites__deptbar-loader" aria-hidden="true">
+                <span class="admin-tramites__deptbar-loader-text">
+                  +${total - state.deptbar.visibleCount} más
+                </span>
+              </div>
+            `
+        : ""
+      }
       </div>
-    `;
+    </div>
+  `;
   }
 
   function renderRows() {
@@ -1035,6 +1107,9 @@
         state.query = e.target.value || "";
         state.page = 1;
 
+        // REINICIAR CHIPS VISIBLES DEL DEPTBAR
+        state.deptbar.visibleCount = state.deptbar.chunkSize;
+
         clearTimeout(state.searchTimer);
         state.searchTimer = setTimeout(async () => {
           try {
@@ -1095,6 +1170,7 @@
 
     bindDrawer(root);
     wireDepartmentImageFallbacks(root);
+    bindDeptbarScroll(root);
   }
 
   function syncDrawerUi(root) {
