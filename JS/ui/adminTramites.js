@@ -41,8 +41,8 @@
 
     // State for the department filter bar para los departamentos
     deptbar: {
-      chunkSize: 8,
-      visibleCount: 8,
+      chunkSize: 14,
+      visibleCount: 14,
       isLoadingMore: false,
     },
 
@@ -93,7 +93,7 @@
 
     if (!deptbar) return;
 
-    const STEP = 360;
+    const STEP = 560;
     const LOAD_THRESHOLD = 140;
 
     function updateNavState() {
