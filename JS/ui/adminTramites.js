@@ -186,7 +186,7 @@
   async function loadDepartamentos() {
     const json = await sendJSON(API.DEPARTAMENTOS, {
       all: true,
-      status: 1,
+      //status: 1,
     });
 
     state.departamentos = Array.isArray(json?.data)
