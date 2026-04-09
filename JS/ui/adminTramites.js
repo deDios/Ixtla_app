@@ -88,19 +88,78 @@
 
   function bindDeptbarScroll(root) {
     const deptbar = root.querySelector("#admin-tramites-deptbar");
+    const btnPrev = root.querySelector("#admin-tramites-dept-prev");
+    const btnNext = root.querySelector("#admin-tramites-dept-next");
+
     if (!deptbar) return;
 
-    const onScroll = () => {
-      const threshold = 140;
+    const STEP = 360;
+    const LOAD_THRESHOLD = 140;
+
+    function updateNavState() {
+      const maxScrollLeft = deptbar.scrollWidth - deptbar.clientWidth;
+      const atStart = deptbar.scrollLeft <= 4;
+      const atEnd = deptbar.scrollLeft >= maxScrollLeft - 4;
+
+      if (btnPrev) btnPrev.disabled = atStart;
+      if (btnNext) btnNext.disabled = atEnd && !canLoadMoreDeptChips();
+    }
+
+    function maybeLoadMore() {
       const remaining =
         deptbar.scrollWidth - deptbar.clientWidth - deptbar.scrollLeft;
 
-      if (remaining <= threshold) {
+      if (remaining <= LOAD_THRESHOLD) {
         loadMoreDeptChips();
       }
-    };
+    }
 
-    deptbar.addEventListener("scroll", onScroll, { passive: true });
+    if (btnPrev) {
+      btnPrev.addEventListener("click", () => {
+        deptbar.scrollBy({
+          left: -STEP,
+          behavior: "smooth",
+        });
+      });
+    }
+
+    if (btnNext) {
+      btnNext.addEventListener("click", () => {
+        deptbar.scrollBy({
+          left: STEP,
+          behavior: "smooth",
+        });
+
+        setTimeout(() => {
+          maybeLoadMore();
+          updateNavState();
+        }, 220);
+      });
+    }
+
+    deptbar.addEventListener(
+      "wheel",
+      (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          e.preventDefault();
+          deptbar.scrollLeft += e.deltaY;
+          maybeLoadMore();
+          updateNavState();
+        }
+      },
+      { passive: false }
+    );
+
+    deptbar.addEventListener(
+      "scroll",
+      () => {
+        maybeLoadMore();
+        updateNavState();
+      },
+      { passive: true }
+    );
+
+    updateNavState();
   }
 
   function canLoadMoreDeptChips() {
@@ -378,24 +437,34 @@
     const allClass = state.activeDepartamentoId === 0 ? "is-active" : "";
     const total = state.departamentos.length;
     const visible = state.departamentos.slice(0, state.deptbar.visibleCount);
-    const hasMore = state.deptbar.visibleCount < total;
 
     return `
-    <div class="admin-tramites__deptbar-shell">
-      <div
-        class="admin-tramites__deptbar"
-        id="admin-tramites-deptbar"
-        aria-label="Filtros por departamento"
+    <div class="admin-tramites__deptnav">
+      <button
+        type="button"
+        class="admin-tramites__deptnav-btn is-left"
+        id="admin-tramites-dept-prev"
+        aria-label="Desplazar departamentos a la izquierda"
       >
-        <button
-          type="button"
-          class="admin-tramites__deptchip admin-tramites__deptchip--all ${allClass}"
-          data-dept-id="0"
-        >
-          <span class="admin-tramites__deptchip-label">Todos</span>
-        </button>
+        ‹
+      </button>
 
-        ${visible
+      <div class="admin-tramites__deptbar-shell">
+        <div
+          class="admin-tramites__deptbar"
+          id="admin-tramites-deptbar"
+          aria-label="Filtros por departamento"
+          data-total="${total}"
+        >
+          <button
+            type="button"
+            class="admin-tramites__deptchip admin-tramites__deptchip--all ${allClass}"
+            data-dept-id="0"
+          >
+            <span class="admin-tramites__deptchip-label">Todos</span>
+          </button>
+
+          ${visible
         .map((dept) => {
           const activeClass =
             Number(state.activeDepartamentoId) === Number(dept.id)
@@ -403,38 +472,37 @@
               : "";
 
           return `
-              <button
-                type="button"
-                class="admin-tramites__deptchip ${activeClass}"
-                data-dept-id="${dept.id}"
-                title="${escapeHtml(dept.nombre)}"
-              >
-                <span class="admin-tramites__deptchip-img">
-                  ${renderDepartamentoImage(
+                <button
+                  type="button"
+                  class="admin-tramites__deptchip ${activeClass}"
+                  data-dept-id="${dept.id}"
+                  title="${escapeHtml(dept.nombre)}"
+                >
+                  <span class="admin-tramites__deptchip-img">
+                    ${renderDepartamentoImage(
             dept.id,
             dept.nombre,
             "admin-tramites__deptchip-image"
           )}
-                </span>
-                <span class="admin-tramites__deptchip-label">
-                  ${escapeHtml(dept.nombre)}
-                </span>
-              </button>
-            `;
+                  </span>
+                  <span class="admin-tramites__deptchip-label">
+                    ${escapeHtml(dept.nombre)}
+                  </span>
+                </button>
+              `;
         })
         .join("")}
-
-        ${hasMore
-        ? `
-              <div class="admin-tramites__deptbar-loader" aria-hidden="true">
-                <span class="admin-tramites__deptbar-loader-text">
-                  +${total - state.deptbar.visibleCount} más
-                </span>
-              </div>
-            `
-        : ""
-      }
+        </div>
       </div>
+
+      <button
+        type="button"
+        class="admin-tramites__deptnav-btn is-right"
+        id="admin-tramites-dept-next"
+        aria-label="Desplazar departamentos a la derecha"
+      >
+        ›
+      </button>
     </div>
   `;
   }

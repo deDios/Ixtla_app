@@ -1523,9 +1523,44 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
    DEPTBAR - TRÁMITES
    ========================================================= */
 
+.home-samapa.admin-dashboard .admin-tramites__deptnav {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.home-samapa.admin-dashboard .admin-tramites__deptnav-btn {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #cfd7d2;
+  border-radius: 999px;
+  background: #fff;
+  color: #335848;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+}
+
+.home-samapa.admin-dashboard .admin-tramites__deptnav-btn:hover:not(:disabled) {
+  background: #f4faf7;
+  border-color: #86b2a3;
+}
+
+.home-samapa.admin-dashboard .admin-tramites__deptnav-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .home-samapa.admin-dashboard .admin-tramites__deptbar-shell {
   position: relative;
-  margin-bottom: 18px;
+  min-width: 0;
 }
 
 .home-samapa.admin-dashboard .admin-tramites__deptbar-shell::after {
@@ -1536,8 +1571,7 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
   width: 56px;
   height: 100%;
   pointer-events: none;
-  background: linear-gradient(to right, rgba(239, 239, 239, 0), rgba(239, 239, 239, 1));
-  border-radius: 0 14px 14px 0;
+  background: linear-gradient(to right, rgba(239,239,239,0), rgba(239,239,239,1));
 }
 
 .home-samapa.admin-dashboard .admin-tramites__deptbar {
@@ -1547,9 +1581,10 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
   overflow-x: auto;
   overflow-y: hidden;
   flex-wrap: nowrap;
-  padding: 4px 8px 10px 4px;
+  padding: 4px 6px 10px 4px;
   scroll-behavior: smooth;
   scrollbar-width: thin;
+  min-width: 0;
 }
 
 .home-samapa.admin-dashboard .admin-tramites__deptbar::-webkit-scrollbar {
@@ -1563,18 +1598,17 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
 
 .home-samapa.admin-dashboard .admin-tramites__deptchip {
   flex: 0 0 auto;
-  min-width: 112px;
-  max-width: 112px;
-  min-height: 132px;
-  padding: 12px 10px;
+  min-width: 98px;
+  max-width: 98px;
+  min-height: 104px;
+  padding: 10px 8px;
   border: 1px solid #d7dbe0;
-  border-radius: 0;
   background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   text-align: center;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
@@ -1598,8 +1632,8 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
 }
 
 .home-samapa.admin-dashboard .admin-tramites__deptchip-img {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -1614,8 +1648,8 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
 }
 
 .home-samapa.admin-dashboard .admin-tramites__deptchip-label {
-  font-size: 0.82rem;
-  line-height: 1.15;
+  font-size: 0.8rem;
+  line-height: 1.12;
   color: #374151;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -1624,29 +1658,35 @@ header.scrolled+main.home-samapa.admin-dashboard .admin-module {
   word-break: break-word;
 }
 
-.home-samapa.admin-dashboard .admin-tramites__deptbar-loader {
-  flex: 0 0 auto;
-  min-width: 92px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 6px;
+@media (max-width: 768px) {
+  .home-samapa.admin-dashboard .admin-tramites__deptnav {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .home-samapa.admin-dashboard .admin-tramites__deptnav-btn {
+    display: none;
+  }
+
+  .home-samapa.admin-dashboard .admin-tramites__deptchip {
+    min-width: 92px;
+    max-width: 92px;
+    min-height: 98px;
+  }
+
+  .home-samapa.admin-dashboard .admin-tramites__deptchip-label {
+    font-size: 0.74rem;
+  }
+
+  .home-samapa.admin-dashboard .admin-tramites__deptbar-shell::after {
+    width: 36px;
+  }
 }
 
-.home-samapa.admin-dashboard .admin-tramites__deptbar-loader-text {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: #edf4f0;
-  border: 1px dashed #9eb7ab;
-  color: #436857;
-  font-size: 0.84rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
+
+
+
+
 
 @media (max-width: 768px) {
   .home-samapa.admin-dashboard .admin-tramites__deptbar {
