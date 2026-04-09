@@ -1039,7 +1039,7 @@
         state.searchTimer = setTimeout(async () => {
           try {
             await refreshRemoteList();
-            refreshView(false);
+            refreshView(true);
           } catch (error) {
             err("Error buscando trámites:", error);
             toast(getErrorMessage(error, "No se pudo buscar."), "error");

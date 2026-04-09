@@ -67,6 +67,58 @@
     return safeId ? `dep_img${safeId}` : "";
   }
 
+  function refreshView(keepFocus = true) {
+    const root = document.querySelector("#admin-view-root");
+    if (!root) return;
+
+    const active = keepFocus ? document.activeElement : null;
+    const focusMeta =
+      active
+        ? {
+          field: active.dataset?.field || null,
+          id: active.id || null,
+          selectionStart:
+            typeof active.selectionStart === "number"
+              ? active.selectionStart
+              : null,
+          selectionEnd:
+            typeof active.selectionEnd === "number"
+              ? active.selectionEnd
+              : null,
+        }
+        : null;
+
+    root.innerHTML = render();
+    bind();
+
+    if (!keepFocus || !focusMeta) return;
+
+    let next = null;
+
+    if (focusMeta.field) {
+      next = root.querySelector(
+        `.js-drawer-input[data-field="${focusMeta.field}"]`
+      );
+    } else if (focusMeta.id) {
+      next = root.querySelector(`#${focusMeta.id}`);
+    }
+
+    if (next) {
+      next.focus({ preventScroll: true });
+
+      if (
+        typeof next.setSelectionRange === "function" &&
+        focusMeta.selectionStart !== null &&
+        focusMeta.selectionEnd !== null
+      ) {
+        next.setSelectionRange(
+          focusMeta.selectionStart,
+          focusMeta.selectionEnd
+        );
+      }
+    }
+  }
+
   // apartado para agregar timestamps a las urls de las imagenes
   // de departamentos para forzar el refresh de las iamgenes cuando se suba 
   // una nueva imagen.
@@ -1128,14 +1180,6 @@
     };
 
     if (!silent) refreshView();
-  }
-
-  function refreshView() {
-    const root = document.querySelector("#admin-view-root");
-    if (!root) return;
-
-    root.innerHTML = render();
-    bind();
   }
 
   function syncDrawerUi(root) {
