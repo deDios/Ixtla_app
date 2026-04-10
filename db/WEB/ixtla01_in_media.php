@@ -25,6 +25,7 @@ $BUCKETS = [
     'requerimientos'        => '/ASSETS/requerimientos/',
     'departamentos'         => '/ASSETS/departamentos/',
     'departamentos_modulos' => '/ASSETS/departamentos/modulosAssets/',
+    'noticias'              => '/ASSETS/noticiasImg/',
 ];
 
 $ALLOWED_MIME = [

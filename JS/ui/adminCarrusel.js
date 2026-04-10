@@ -1,13 +1,39 @@
-(function () {
+(() => {
   "use strict";
 
+  const TAG = "[AdminCarrusel]";
+  const log = (...a) => console.log(TAG, ...a);
+  const err = (...a) => console.error(TAG, ...a);
+  const toast = (m, t = "info") =>
+    window.gcToast ? window.gcToast(m, t) : console.log("[toast]", t, m);
+
+  const API = {
+    LIST: "/db/WEB/ixtla01_c_noticia_inicio.php",
+    CREATE: "/db/WEB/ixtla01_i_noticia_inicio.php",
+    UPDATE: "/db/WEB/ixtla01_u_noticia_inicio.php",
+
+    // Media
+    MEDIA_UPLOAD: "/db/WEB/ixtla01_in_media.php",
+    MEDIA_LIST: "/db/WEB/ixtla01_c_media.php",
+  };
+
+  const NEWS_ASSETS_DIR = "/ASSETS/noticiasImg/";
+  const NEWS_PLACEHOLDER = "/ASSETS/main_logo_shield.png";
+  const NEWS_MEDIA_BUCKET = "noticias_inicio";
+  const NEWS_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "heic", "heif"];
+
   const state = {
-    allItems: [],
     items: [],
+    filteredItems: [],
+    pagedItems: [],
+    query: "",
     page: 1,
     limit: 4,
     total: 0,
     totalPages: 1,
+    isLoading: false,
+    isReady: false,
+    mediaVersion: {},
 
     drawer: {
       isOpen: false,
@@ -17,98 +43,307 @@
       original: null,
       confirmDelete: false,
       errors: {},
+      isSaving: false,
+      media: {
+        isUploading: false,
+      },
     },
   };
 
-  /* =========================================================
-     INIT
-     ========================================================= */
-  function init() {
+  async function init() {
+    state.isLoading = true;
 
-    if (!state.allItems.length) {
-      state.allItems = buildMockItems();
+    try {
+      await refreshRemoteList();
+      state.isReady = true;
+    } catch (error) {
+      err("Error inicializando módulo:", error);
+      toast("No se pudo cargar el módulo de carrusel.", "error");
+    } finally {
+      state.isLoading = false;
+    }
+  }
+
+  async function sendJSON(url, body, method = "POST") {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body || {}),
+    });
+
+    const txt = await res.text();
+    let json;
+
+    try {
+      json = JSON.parse(txt);
+    } catch {
+      json = { raw: txt };
     }
 
-    loadMockPage(1);
+    if (!res.ok || json?.ok === false) {
+      throw new Error(
+        json?.error || json?.message || json?.raw || `HTTP ${res.status}`
+      );
+    }
+
+    return json;
   }
 
-  function loadMockPage(page = 1) {
-    const visibleItems = state.allItems.filter(
-      (item) => Number(item.status ?? 1) !== 0
-    );
-
-    state.total = visibleItems.length;
-    state.totalPages = Math.max(1, Math.ceil(state.total / state.limit));
-    state.page = clamp(page, 1, state.totalPages);
-
-    const start = (state.page - 1) * state.limit;
-    const end = start + state.limit;
-    state.items = visibleItems.slice(start, end);
+  function getErrorMessage(error, fallback = "Ocurrió un error.") {
+    return error?.message || fallback;
   }
 
-  function buildMockItems() {
+  function readCookiePayload() {
+    try {
+      const name = "ix_emp=";
+      const pair = document.cookie.split("; ").find((c) => c.startsWith(name));
+      if (!pair) return null;
+      const raw = decodeURIComponent(pair.slice(name.length));
+      return JSON.parse(decodeURIComponent(escape(atob(raw))));
+    } catch {
+      return null;
+    }
+  }
+
+  function getSessionLike() {
+    try {
+      return window.Session?.get?.() || readCookiePayload() || null;
+    } catch {
+      return readCookiePayload() || null;
+    }
+  }
+
+  function getEmpleadoIdFromSession() {
+    const s = getSessionLike() || {};
+    const id = s?.empleado_id ?? s?.id_empleado ?? null;
+    return Number.isFinite(Number(id)) ? Number(id) : null;
+  }
+
+  function cloneItem(item) {
+    return JSON.parse(JSON.stringify(item || null));
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function buildPagination(current, total) {
+    const pages = [];
+
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+      return pages;
+    }
+
+    pages.push(1);
+
+    if (current > 3) pages.push("...");
+
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (current < total - 2) pages.push("...");
+
+    pages.push(total);
+
+    return pages;
+  }
+
+  function truncate(text, max = 140) {
+    const value = String(text || "").trim();
+    if (value.length <= max) return value;
+    return `${value.slice(0, max).trim()}…`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replaceAll("\n", "&#10;");
+  }
+
+  function formatText(value) {
+    return escapeHtml(value).replace(/\n/g, "<br>");
+  }
+
+  function getNoticiaMediaFileBase(id) {
+    const safeId = Number(id) || 0;
+    return safeId ? `img${safeId}` : "";
+  }
+
+  function getNoticiaMediaVersion(id) {
+    const safeId = Number(id) || 0;
+    if (!safeId) return "";
+    return state.mediaVersion[`noticia-${safeId}`] || "";
+  }
+
+  function setNoticiaMediaVersion(id, version = Date.now()) {
+    const safeId = Number(id) || 0;
+    if (!safeId) return;
+    state.mediaVersion[`noticia-${safeId}`] = version;
+  }
+
+  function withMediaVersion(url, version) {
+    if (!url || !version) return url;
+    if (url.includes("placeholder")) return url;
+    return `${url}?v=${version}`;
+  }
+
+  function getNoticiaImageCandidates(id) {
+    const safeId = Number(id) || 0;
+    const version = getNoticiaMediaVersion(safeId);
+
+    if (!safeId) {
+      return [NEWS_PLACEHOLDER];
+    }
+
     return [
-      {
-        id: 101,
-        titulo: "¡Buenas noticias!",
-        pie_pagina: "Para Capilla del Refugio y Residencial La Capilla.",
-        descripcion:
-          "Entregamos un nuevo pozo de agua que beneficiará a más de 6,000 habitantes, abatidiendo el rezago en el suministro del vital líquido.\n\nSeguimos trabajando con compromiso para llevar bienestar y servicios dignos a todas las comunidades de Ixtlahuacán de los Membrillos.",
-        imagen: "/ASSETS/index/img1.png",
-        estatus: 1,
-        status: 1,
-      },
-      {
-        id: 102,
-        titulo: "Rehabilitación de vialidades",
-        pie_pagina: "22 de julio del 2025",
-        descripcion:
-          "Estamos rehabilitando con asfalto las principales vialidades en la zona de la carretera estatal a La Capilla del Refugio, así como en las colonias Valle de los Olivos, Sabinos y Girasoles.",
-        imagen: "/ASSETS/index/img2.png",
-        estatus: 1,
-        status: 1,
-      },
-      {
-        id: 103,
-        titulo: "Nueva jornada de limpieza",
-        pie_pagina: "Comunidad activa",
-        descripcion:
-          "Seguimos trabajando en la limpieza de espacios públicos.",
-        imagen: "",
-        estatus: 1,
-        status: 1,
-      },
-      {
-        id: 104,
-        titulo: "Programa de reforestación",
-        pie_pagina: "Medio ambiente",
-        descripcion:
-          "Iniciamos una nueva etapa del programa de reforestación con especies adecuadas para las distintas zonas del municipio.",
-        imagen: "",
-        estatus: 0,
-        status: 1,
-      },
-      {
-        id: 105,
-        titulo: "Rescate de espacios deportivos",
-        pie_pagina: "Juventud y deporte",
-        descripcion:
-          "Estamos rehabilitando canchas y espacios recreativos para impulsar la convivencia y el deporte en nuestras comunidades.",
-        imagen: "/ASSETS/noticia/NoticiasImg/noticia_img1_2.png",
-        estatus: 1,
-        status: 1,
-      },
-      {
-        id: 106,
-        titulo: "Mejoras en alumbrado público",
-        pie_pagina: "Servicios públicos",
-        descripcion:
-          "Se realizaron trabajos de reposición y mantenimiento de luminarias en distintas colonias del municipio.",
-        imagen: "",
-        estatus: 1,
-        status: 1,
-      },
+      ...NEWS_MEDIA_EXTENSIONS.map((ext) =>
+        withMediaVersion(
+          `${NEWS_ASSETS_DIR}${getNoticiaMediaFileBase(safeId)}.${ext}`,
+          version
+        )
+      ),
+      NEWS_PLACEHOLDER,
     ];
+  }
+
+  function getNoticiaImageUrl(id) {
+    return getNoticiaImageCandidates(id)[0] || NEWS_PLACEHOLDER;
+  }
+
+  function wireImageFallbacks(scope = document) {
+    scope.querySelectorAll("img[data-fallbacks]").forEach((img) => {
+      if (img.dataset.fallbackBound === "1") return;
+      img.dataset.fallbackBound = "1";
+
+      img.addEventListener("error", () => {
+        let list = [];
+        try {
+          list = JSON.parse(img.dataset.fallbacks || "[]");
+        } catch {
+          list = [NEWS_PLACEHOLDER];
+        }
+
+        let index = Number(img.dataset.fallbackIndex || 0) + 1;
+        if (index >= list.length) return;
+
+        img.dataset.fallbackIndex = String(index);
+        img.src = list[index];
+      });
+    });
+  }
+
+  function normalizeItem(item) {
+    const id = Number(item?.id) || 0;
+    const status = Number(item?.status ?? 1) === 0 ? 0 : 1;
+
+    return {
+      ...item,
+      id,
+      titulo: String(item?.titulo || ""),
+      pie_de_pagina: String(item?.pie_de_pagina || ""),
+      pie_pagina: String(item?.pie_de_pagina || ""),
+      descripcion: String(item?.descripcion || ""),
+      status,
+      estatus: status,
+      creado_por: item?.creado_por != null ? Number(item.creado_por) || 0 : null,
+      updated_by: item?.updated_by != null ? Number(item.updated_by) || 0 : null,
+      imagen: getNoticiaImageUrl(id),
+    };
+  }
+
+  async function refreshRemoteList() {
+    const payload = {
+      page: state.page,
+      per_page: state.limit,
+    };
+
+    const q = String(state.query || "").trim();
+    if (q) payload.q = q;
+
+    state.isLoading = true;
+
+    try {
+      const json = await sendJSON(API.LIST, payload);
+
+      state.items = Array.isArray(json?.data)
+        ? json.data.map(normalizeItem)
+        : [];
+
+      state.filteredItems = [...state.items];
+      state.pagedItems = [...state.items];
+      state.total = Number(json?.total ?? state.items.length) || 0;
+      state.totalPages = Math.max(1, Number(json?.total_pages ?? 1) || 1);
+      state.page = Math.max(1, Number(json?.page ?? state.page) || 1);
+    } finally {
+      state.isLoading = false;
+    }
+  }
+
+  function refreshView(keepFocus = true) {
+    const root = document.querySelector("#admin-view-root");
+    if (!root) return;
+
+    const active = keepFocus ? document.activeElement : null;
+    const focusMeta =
+      active
+        ? {
+          field: active.dataset?.field || null,
+          id: active.id || null,
+          selectionStart:
+            typeof active.selectionStart === "number"
+              ? active.selectionStart
+              : null,
+          selectionEnd:
+            typeof active.selectionEnd === "number"
+              ? active.selectionEnd
+              : null,
+        }
+        : null;
+
+    root.innerHTML = render();
+    bind();
+
+    if (!keepFocus || !focusMeta) return;
+
+    let next = null;
+
+    if (focusMeta.field) {
+      next = root.querySelector(
+        `.js-drawer-input[data-field="${focusMeta.field}"]`
+      );
+    } else if (focusMeta.id) {
+      next = root.querySelector(`#${focusMeta.id}`);
+    }
+
+    if (next) {
+      next.focus({ preventScroll: true });
+
+      if (
+        typeof next.setSelectionRange === "function" &&
+        focusMeta.selectionStart !== null &&
+        focusMeta.selectionEnd !== null
+      ) {
+        next.setSelectionRange(
+          focusMeta.selectionStart,
+          focusMeta.selectionEnd
+        );
+      }
+    }
   }
 
   function syncDrawerUi(root) {
@@ -119,7 +354,10 @@
     const isCreate = mode === "create";
     const canSave = isDrawerValid();
     const hasChanges = hasDrawerChanges();
-    const saveDisabled = isCreate ? !canSave : !(canSave && hasChanges);
+    const saveDisabled =
+      state.drawer.isSaving ||
+      state.drawer.media.isUploading ||
+      (isCreate ? !canSave : !(canSave && hasChanges));
 
     root.querySelectorAll(".js-drawer-input").forEach((field) => {
       const key = field.dataset.field;
@@ -147,21 +385,438 @@
     });
 
     const saveBtn = root.querySelector(".js-save-drawer");
-    if (saveBtn) {
-      saveBtn.disabled = saveDisabled;
+    if (saveBtn) saveBtn.disabled = saveDisabled;
+
+    const deleteBtn = root.querySelector(".js-delete-drawer");
+    if (deleteBtn) {
+      deleteBtn.disabled = state.drawer.isSaving || state.drawer.media.isUploading;
     }
   }
 
-  /* =========================================================
-     RENDER
-     ========================================================= */
+  function createEmptyDraft() {
+    return normalizeItem({
+      id: null,
+      titulo: "",
+      pie_de_pagina: "",
+      descripcion: "",
+      status: 1,
+      imagen: "",
+    });
+  }
+
+  function openCreateDrawer() {
+    state.drawer.isOpen = true;
+    state.drawer.mode = "create";
+    state.drawer.selectedId = null;
+    state.drawer.original = null;
+    state.drawer.draft = createEmptyDraft();
+    state.drawer.confirmDelete = false;
+    state.drawer.errors = {};
+    state.drawer.isSaving = false;
+    state.drawer.media.isUploading = false;
+
+    validateDrawer();
+    refreshView();
+    focusDrawerField();
+  }
+
+  function openItemDrawer(id) {
+    const item = state.items.find((x) => Number(x.id) === Number(id));
+    if (!item) return;
+
+    state.drawer.isOpen = true;
+    state.drawer.mode = "view";
+    state.drawer.selectedId = Number(id);
+    state.drawer.original = cloneItem(item);
+    state.drawer.draft = cloneItem(item);
+    state.drawer.confirmDelete = false;
+    state.drawer.errors = {};
+    state.drawer.isSaving = false;
+    state.drawer.media.isUploading = false;
+
+    validateDrawer();
+    refreshView();
+  }
+
+  function focusDrawerField() {
+    requestAnimationFrame(() => {
+      const root = document.querySelector("#admin-view-root");
+      if (!root) return;
+
+      const firstField = root.querySelector(
+        '.js-drawer-input[data-field="titulo"]'
+      );
+      if (firstField) firstField.focus();
+    });
+  }
+
+  function closeDrawer({ silent = false } = {}) {
+    state.drawer.isOpen = false;
+    state.drawer.mode = "view";
+    state.drawer.selectedId = null;
+    state.drawer.original = null;
+    state.drawer.draft = null;
+    state.drawer.confirmDelete = false;
+    state.drawer.errors = {};
+    state.drawer.isSaving = false;
+    state.drawer.media.isUploading = false;
+
+    if (!silent) refreshView();
+  }
+
+  function enterEditMode() {
+    if (!state.drawer.draft) return;
+    state.drawer.mode = "edit";
+    state.drawer.confirmDelete = false;
+    validateDrawer();
+    refreshView();
+    focusDrawerField();
+  }
+
+  function cancelDrawerEdition() {
+    if (state.drawer.mode === "create") {
+      closeDrawer();
+      return;
+    }
+
+    state.drawer.mode = "view";
+    state.drawer.confirmDelete = false;
+    state.drawer.draft = cloneItem(state.drawer.original);
+    state.drawer.errors = {};
+    state.drawer.isSaving = false;
+    state.drawer.media.isUploading = false;
+
+    validateDrawer();
+    refreshView();
+  }
+
+  function updateDraftField(field, value) {
+    if (!state.drawer.draft) return;
+    state.drawer.draft[field] = value;
+    validateDrawer();
+
+    const root = document.querySelector("#admin-view-root");
+    syncDrawerUi(root);
+  }
+
+  function toggleDraftStatus(checked) {
+    if (!state.drawer.draft) return;
+
+    const nextStatus = checked ? 1 : 0;
+    state.drawer.draft.status = nextStatus;
+    state.drawer.draft.estatus = nextStatus;
+
+    validateDrawer();
+    const root = document.querySelector("#admin-view-root");
+    syncDrawerUi(root);
+  }
+
+  async function saveDrawer() {
+    const draft = state.drawer.draft;
+    if (!draft || state.drawer.isSaving) return;
+
+    validateDrawer();
+
+    if (!isDrawerValid()) {
+      refreshView();
+      focusDrawerField();
+      return;
+    }
+
+    const empleadoId = getEmpleadoIdFromSession();
+    if (!empleadoId) {
+      toast("No se pudo identificar al empleado en sesión.", "warning");
+      return;
+    }
+
+    state.drawer.isSaving = true;
+    refreshView();
+
+    try {
+      if (state.drawer.mode === "create") {
+        const payload = {
+          titulo: String(draft.titulo || "").trim(),
+          pie_de_pagina: normalizeNullableText(draft.pie_de_pagina),
+          descripcion: String(draft.descripcion || "").trim(),
+          status: Number(draft.status ?? 1) === 0 ? 0 : 1,
+          creado_por: empleadoId,
+        };
+
+        const json = await sendJSON(API.CREATE, payload);
+        const newItem = normalizeItem(json?.data || {});
+
+        toast("Noticia agregada correctamente.", "success");
+
+        closeDrawer({ silent: true });
+        state.page = 1;
+        await refreshRemoteList();
+        refreshView();
+
+        if (newItem?.id) {
+          log("Noticia creada:", newItem.id);
+        }
+        return;
+      }
+
+      const payload = {
+        id: Number(state.drawer.selectedId),
+        titulo: String(draft.titulo || "").trim(),
+        pie_de_pagina: normalizeNullableText(draft.pie_de_pagina),
+        descripcion: String(draft.descripcion || "").trim(),
+        status: Number(draft.status ?? 1) === 0 ? 0 : 1,
+        updated_by: empleadoId,
+      };
+
+      const json = await sendJSON(API.UPDATE, payload);
+      const updated = normalizeItem(json?.data || {});
+
+      state.drawer.original = cloneItem(updated);
+      state.drawer.draft = cloneItem(updated);
+      state.drawer.mode = "view";
+      state.drawer.confirmDelete = false;
+      state.drawer.errors = {};
+      state.drawer.isSaving = false;
+
+      await refreshRemoteList();
+
+      const current = state.items.find((x) => Number(x.id) === Number(updated.id));
+      if (current) {
+        state.drawer.original = cloneItem(current);
+        state.drawer.draft = cloneItem(current);
+      }
+
+      refreshView();
+      toast("Noticia actualizada correctamente.", "success");
+    } catch (error) {
+      err("Error guardando noticia:", error);
+      state.drawer.isSaving = false;
+      refreshView();
+      toast(getErrorMessage(error, "No se pudo guardar la noticia."), "error");
+    }
+  }
+
+  async function deleteCurrentItem() {
+    if (state.drawer.isSaving || state.drawer.media.isUploading) return;
+
+    const id = Number(state.drawer.selectedId || 0);
+    if (!id) return;
+
+    const empleadoId = getEmpleadoIdFromSession();
+    if (!empleadoId) {
+      toast("No se pudo identificar al empleado en sesión.", "warning");
+      return;
+    }
+
+    state.drawer.isSaving = true;
+    refreshView();
+
+    try {
+      await sendJSON(API.UPDATE, {
+        id,
+        status: 0,
+        updated_by: empleadoId,
+      });
+
+      toast("Noticia eliminada correctamente.", "success");
+      closeDrawer({ silent: true });
+
+      const expectedTotal = Math.max(0, state.total - 1);
+      const expectedPages = Math.max(1, Math.ceil(expectedTotal / state.limit));
+      state.page = clamp(state.page, 1, expectedPages);
+
+      await refreshRemoteList();
+      refreshView();
+    } catch (error) {
+      err("Error eliminando noticia:", error);
+      state.drawer.isSaving = false;
+      refreshView();
+      toast(getErrorMessage(error, "No se pudo eliminar la noticia."), "error");
+    }
+  }
+
+  function validateDrawer() {
+    const draft = state.drawer.draft || {};
+    const errors = {};
+
+    if (!String(draft.titulo || "").trim()) {
+      errors.titulo = "El título es obligatorio.";
+    } else if (String(draft.titulo || "").trim().length < 3) {
+      errors.titulo = "El título debe tener al menos 3 caracteres.";
+    }
+
+    if (!String(draft.descripcion || "").trim()) {
+      errors.descripcion = "La descripción es obligatoria.";
+    } else if (String(draft.descripcion || "").trim().length < 10) {
+      errors.descripcion = "La descripción debe tener al menos 10 caracteres.";
+    }
+
+    state.drawer.errors = errors;
+    return errors;
+  }
+
+  function isDrawerValid() {
+    return Object.keys(state.drawer.errors || {}).length === 0;
+  }
+
+  function hasDrawerChanges() {
+    if (state.drawer.mode === "create") return true;
+    if (!state.drawer.original || !state.drawer.draft) return false;
+
+    return JSON.stringify({
+      titulo: String(state.drawer.original.titulo || "").trim(),
+      pie_de_pagina: normalizeNullableText(state.drawer.original.pie_de_pagina),
+      descripcion: String(state.drawer.original.descripcion || "").trim(),
+      status: Number(state.drawer.original.status ?? 1) === 0 ? 0 : 1,
+    }) !==
+      JSON.stringify({
+        titulo: String(state.drawer.draft.titulo || "").trim(),
+        pie_de_pagina: normalizeNullableText(state.drawer.draft.pie_de_pagina),
+        descripcion: String(state.drawer.draft.descripcion || "").trim(),
+        status: Number(state.drawer.draft.status ?? 1) === 0 ? 0 : 1,
+      });
+  }
+
+  function normalizeNullableText(value) {
+    const v = String(value ?? "").trim();
+    return v ? v : null;
+  }
+
+  async function toggleCardStatus(id, checked) {
+    const item = state.items.find((x) => Number(x.id) === Number(id));
+    if (!item) return;
+
+    const empleadoId = getEmpleadoIdFromSession();
+    if (!empleadoId) {
+      toast("No se pudo identificar al empleado en sesión.", "warning");
+      refreshView(false);
+      return;
+    }
+
+    try {
+      await sendJSON(API.UPDATE, {
+        id: Number(id),
+        status: checked ? 1 : 0,
+        updated_by: empleadoId,
+      });
+
+      const isDrawerItem =
+        state.drawer.isOpen && Number(state.drawer.selectedId) === Number(id);
+
+      if (isDrawerItem) {
+        state.drawer.draft.status = checked ? 1 : 0;
+        state.drawer.draft.estatus = checked ? 1 : 0;
+        state.drawer.original.status = checked ? 1 : 0;
+        state.drawer.original.estatus = checked ? 1 : 0;
+      }
+
+      if (!checked && state.drawer.isOpen && Number(state.drawer.selectedId) === Number(id)) {
+        closeDrawer({ silent: true });
+      }
+
+      const expectedTotal = checked ? state.total : Math.max(0, state.total - 1);
+      const expectedPages = Math.max(1, Math.ceil(expectedTotal / state.limit));
+      state.page = clamp(state.page, 1, expectedPages);
+
+      await refreshRemoteList();
+      refreshView(false);
+
+      toast(
+        checked ? "Noticia activada correctamente." : "Noticia desactivada correctamente.",
+        "success"
+      );
+    } catch (error) {
+      err("Error cambiando estatus:", error);
+      refreshView(false);
+      toast(getErrorMessage(error, "No se pudo actualizar el estatus."), "error");
+    }
+  }
+
+  async function uploadDrawerImage(file) {
+    const id = Number(state.drawer.selectedId || state.drawer.draft?.id || 0);
+
+    if (!id) {
+      toast("Primero guarda la noticia para poder subir la imagen.", "warning");
+      return;
+    }
+
+    if (!file) return;
+    if (state.drawer.media.isUploading) return;
+
+    try {
+      state.drawer.media.isUploading = true;
+      refreshView();
+
+      const fd = new FormData();
+      fd.append("bucket", NEWS_MEDIA_BUCKET);
+      fd.append("target_dir", "");
+      fd.append("file_name", getNoticiaMediaFileBase(id));
+      fd.append("replace", "1");
+      fd.append("file", file);
+
+      const res = await fetch(API.MEDIA_UPLOAD, {
+        method: "POST",
+        body: fd,
+      });
+
+      const txt = await res.text();
+      let json;
+      try {
+        json = JSON.parse(txt);
+      } catch {
+        json = { raw: txt };
+      }
+
+      if (!res.ok || json?.ok === false) {
+        throw new Error(
+          json?.error || json?.message || json?.raw || `HTTP ${res.status}`
+        );
+      }
+
+      setNoticiaMediaVersion(id);
+
+      const newUrl = getNoticiaImageUrl(id);
+
+      if (state.drawer.draft) state.drawer.draft.imagen = newUrl;
+      if (state.drawer.original) state.drawer.original.imagen = newUrl;
+
+      toast("Imagen actualizada correctamente.", "success");
+
+      await refreshRemoteList();
+
+      const current = state.items.find((x) => Number(x.id) === Number(id));
+      if (current && state.drawer.draft) {
+        state.drawer.draft = cloneItem(current);
+        state.drawer.original = cloneItem(current);
+      }
+
+      state.drawer.media.isUploading = false;
+      refreshView();
+    } catch (error) {
+      err("Error subiendo imagen:", error);
+      state.drawer.media.isUploading = false;
+      refreshView();
+      toast(
+        getErrorMessage(
+          error,
+          "No se pudo subir la imagen. Revisa bucket/ruta de media."
+        ),
+        "error"
+      );
+    }
+  }
+
+  function clearDrawerImageInput() {
+    const input = document.querySelector("#admin-carrusel-image-input");
+    if (input) input.value = "";
+  }
+
   function render() {
     return `
       <section class="admin-module admin-module--carrusel">
         <div class="admin-module__head">
           <div class="admin-module__titlebox">
             <h2 class="admin-module__title">Gestión de carrusel de noticias.</h2>
-            <p class="admin-module__subtitle">modulo de carrusel, si sale esto no trono.</p>
+            <p class="admin-module__subtitle">Administra las noticias visibles en el carrusel principal.</p>
           </div>
         </div>
 
@@ -192,6 +847,19 @@
   }
 
   function renderCards() {
+    if (state.isLoading && !state.isReady) {
+      return `
+        <div class="admin-placeholder">
+          <div class="admin-placeholder__inner">
+            <h3 class="admin-placeholder__title">Cargando noticias…</h3>
+            <p class="admin-placeholder__text">
+              Espera un momento mientras se consulta la información.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
     if (!state.items.length) {
       return `
         <div class="admin-placeholder">
@@ -207,8 +875,8 @@
 
     return state.items
       .map((item) => {
-        const statusLabel = Number(item.estatus) === 1 ? "Activo" : "Inactivo";
-        const checked = Number(item.estatus) === 1 ? "checked" : "";
+        const statusLabel = Number(item.status) === 1 ? "Activo" : "Inactivo";
+        const checked = Number(item.status) === 1 ? "checked" : "";
 
         return `
           <article
@@ -242,10 +910,13 @@
 
             <div class="admin-carousel-card__top">
               <div class="admin-carousel-card__image-wrap ${!item.imagen ? "is-empty" : ""}">
-                ${item.imagen
-            ? `<img src="${escapeHtml(item.imagen)}" alt="${escapeHtml(item.titulo)}" class="admin-carousel-card__image" />`
-            : `<span class="admin-carousel-card__image-placeholder">🖼️</span>`
-          }
+                <img
+                  src="${escapeAttr(getNoticiaImageCandidates(item.id)[0])}"
+                  alt="${escapeHtml(item.titulo || "Imagen de noticia")}"
+                  class="admin-carousel-card__image"
+                  data-fallback-index="0"
+                  data-fallbacks='${escapeAttr(JSON.stringify(getNoticiaImageCandidates(item.id)))}'
+                />
               </div>
 
               <div class="admin-carousel-card__fields">
@@ -259,7 +930,7 @@
                 <div class="admin-carousel-field">
                   <span class="admin-carousel-field__label">Pie de pagina</span>
                   <div class="admin-carousel-field__readonly">
-                    ${escapeHtml(item.pie_pagina || "Pie de pagina")}
+                    ${escapeHtml(item.pie_de_pagina || "Pie de pagina")}
                   </div>
                 </div>
               </div>
@@ -281,11 +952,13 @@
     if (state.totalPages <= 1) return "";
 
     const pages = buildPagination(state.page, state.totalPages);
+    const start = state.total === 0 ? 0 : (state.page - 1) * state.limit + 1;
+    const end = Math.min(state.page * state.limit, state.total);
 
     return `
       <div class="admin-pagination">
         <div class="admin-pagination__info">
-          Mostrando ${state.items.length} de ${state.total} noticias
+          Mostrando ${start}-${end} de ${state.total} noticias
         </div>
 
         <div class="admin-pagination__controls">
@@ -352,11 +1025,17 @@
         ? "Editar noticia"
         : "Detalle de noticia";
 
-    const drawerStatusLabel = Number(item.estatus) === 1 ? "Activo" : "Inactivo";
+    const drawerStatusLabel = Number(item.status) === 1 ? "Activo" : "Inactivo";
     const errors = state.drawer.errors || {};
     const canSave = isDrawerValid();
     const hasChanges = hasDrawerChanges();
-    const saveDisabled = isCreate ? !canSave : !(canSave && hasChanges);
+    const saveDisabled =
+      state.drawer.isSaving ||
+      state.drawer.media.isUploading ||
+      (isCreate ? !canSave : !(canSave && hasChanges));
+
+    const imageCandidates = getNoticiaImageCandidates(item.id);
+    const imageUrl = imageCandidates[0];
 
     return `
       <div
@@ -388,230 +1067,194 @@
 
           <div class="admin-drawer__body">
             <div class="admin-drawer__image-block">
-              <div class="admin-drawer__image-wrap ${!item.imagen ? "is-empty" : ""}">
-                ${item.imagen
-        ? `<img src="${escapeHtml(item.imagen)}" alt="${escapeHtml(item.titulo || "Vista previa")}" class="admin-drawer__image" />`
-        : `<span class="admin-drawer__image-placeholder">🖼️</span>`
-      }
+              <div class="admin-drawer__image-wrap ${!item.id ? "is-empty" : ""}">
+                <img
+                  src="${escapeAttr(imageUrl)}"
+                  alt="${escapeHtml(item.titulo || "Vista previa")}"
+                  class="admin-drawer__image"
+                  data-fallback-index="0"
+                  data-fallbacks='${escapeAttr(JSON.stringify(imageCandidates))}'
+                />
               </div>
 
               <div class="admin-drawer__image-actions">
                 <button
                   type="button"
-                  class="admin-drawer__ghost-btn"
-                  disabled
-                  title="Más adelante conectaremos media"
+                  class="admin-drawer__ghost-btn js-change-image"
+                  ${!item.id || isCreate || state.drawer.media.isUploading ? "disabled" : ""}
+                  title="${!item.id || isCreate ? "Primero guarda la noticia" : "Cambiar imagen"}"
                 >
-                  Cambiar imagen
+                  ${state.drawer.media.isUploading ? "Subiendo..." : "Cambiar imagen"}
                 </button>
+
                 <button
                   type="button"
                   class="admin-drawer__ghost-btn"
                   disabled
-                  title="Más adelante conectaremos media"
+                  title="La eliminación física de imagen se ajustará junto con media"
                 >
                   Eliminar imagen
                 </button>
+
+                <input
+                  type="file"
+                  id="admin-carrusel-image-input"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/heic,image/heif"
+                  hidden
+                />
               </div>
             </div>
 
-            <label class="admin-drawer__field">
-  <span class="admin-drawer__label">Título</span>
-  <input
-    type="text"
-    class="admin-drawer__input js-drawer-input ${errors.titulo ? "is-error" : ""}"
-    data-field="titulo"
-    value="${escapeAttr(item.titulo || "")}"
-    ${isEdit ? "" : "readonly"}
-  />
-  ${errors.titulo
-        ? `<span class="admin-drawer__error">${escapeHtml(errors.titulo)}</span>`
-        : ""
-      }
-</label>
-
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Pie de página</span>
-              <input
-                type="text"
-                class="admin-drawer__input js-drawer-input"
-                data-field="pie_pagina"
-                value="${escapeAttr(item.pie_pagina || "")}"
-                ${isEdit ? "" : "readonly"}
-              />
-            </label>
-
-            <label class="admin-drawer__field">
-  <span class="admin-drawer__label">Descripción</span>
-  <textarea
-    class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
-    data-field="descripcion"
-    ${isEdit ? "" : "readonly"}
-  >${escapeHtml(item.descripcion || "")}</textarea>
-  ${errors.descripcion
-        ? `<span class="admin-drawer__error">${escapeHtml(errors.descripcion)}</span>`
-        : ""
-      }
-</label>
-
-            <label class="admin-drawer__field">
-              <span class="admin-drawer__label">Estado</span>
-              ${isEdit
+            <div class="admin-drawer__grid">
+              <div class="admin-drawer__field">
+                <label class="admin-drawer__label" for="admin-carrusel-titulo">Título</label>
+                ${isEdit
         ? `
-                    <select
-                      class="admin-drawer__select js-drawer-input"
-                      data-field="estatus"
-                    >
-                      <option value="1" ${Number(item.estatus) === 1 ? "selected" : ""}>Activo</option>
-                      <option value="0" ${Number(item.estatus) === 0 ? "selected" : ""}>Inactivo</option>
-                    </select>
-                  `
+                  <input
+                    id="admin-carrusel-titulo"
+                    type="text"
+                    class="admin-drawer__input js-drawer-input ${errors.titulo ? "is-error" : ""}"
+                    data-field="titulo"
+                    value="${escapeAttr(item.titulo || "")}"
+                    maxlength="180"
+                  />
+                `
         : `
-                    <div class="admin-drawer__readonly-pill admin-drawer__readonly-pill--status admin-drawer__readonly-pill--${Number(item.estatus) === 1 ? "activo" : "inactivo"}">
-                     ${escapeHtml(drawerStatusLabel)}
-                    </div>
-                  `
-      }
-            </label>
-
-            ${state.drawer.confirmDelete && !isCreate
-        ? `
-                  <div class="admin-drawer__confirm">
-                    <p class="admin-drawer__confirm-text">
-                      ¿Seguro que deseas eliminar esta noticia? Se ocultará del listado mock y se marcará con status 0.
-                    </p>
-
-                    <div class="admin-drawer__confirm-actions">
-                      <button type="button" class="admin-drawer__danger-btn js-confirm-delete">
-                        Sí, eliminar
-                      </button>
-                      <button type="button" class="admin-drawer__secondary-btn js-cancel-delete">
-                        No, volver
-                      </button>
-                    </div>
+                  <div class="admin-drawer__readonly">
+                    ${escapeHtml(item.titulo || "Sin título")}
                   </div>
                 `
-        : ""
       }
+              </div>
+
+              <div class="admin-drawer__field">
+                <label class="admin-drawer__label" for="admin-carrusel-pie">Pie de pagina</label>
+                ${isEdit
+        ? `
+                  <input
+                    id="admin-carrusel-pie"
+                    type="text"
+                    class="admin-drawer__input js-drawer-input"
+                    data-field="pie_de_pagina"
+                    value="${escapeAttr(item.pie_de_pagina || "")}"
+                    maxlength="180"
+                  />
+                `
+        : `
+                  <div class="admin-drawer__readonly">
+                    ${escapeHtml(item.pie_de_pagina || "Sin pie de pagina")}
+                  </div>
+                `
+      }
+              </div>
+
+              <div class="admin-drawer__field admin-drawer__field--full">
+                <label class="admin-drawer__label" for="admin-carrusel-descripcion">Descripción</label>
+                ${isEdit
+        ? `
+                  <textarea
+                    id="admin-carrusel-descripcion"
+                    class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
+                    data-field="descripcion"
+                    rows="8"
+                  >${escapeHtml(item.descripcion || "")}</textarea>
+                `
+        : `
+                  <div class="admin-drawer__readonly admin-drawer__readonly--textarea">
+                    ${formatText(item.descripcion || "Sin descripción")}
+                  </div>
+                `
+      }
+              </div>
+
+              <div class="admin-drawer__field">
+                <span class="admin-drawer__label">Estado</span>
+
+                ${isEdit
+        ? `
+                  <label class="admin-switch admin-switch--drawer" title="Cambiar estatus">
+                    <input
+                      type="checkbox"
+                      class="js-drawer-status"
+                      ${Number(item.status) === 1 ? "checked" : ""}
+                    />
+                    <span class="admin-switch__track">
+                      <span class="admin-switch__text admin-switch__text--off"></span>
+                      <span class="admin-switch__text admin-switch__text--on"></span>
+                      <span class="admin-switch__thumb"></span>
+                    </span>
+                  </label>
+                `
+        : `
+                  <div class="admin-drawer__readonly">
+                    ${escapeHtml(drawerStatusLabel)}
+                  </div>
+                `
+      }
+              </div>
+            </div>
           </div>
 
-          <div class="admin-drawer__footer">
-            ${renderDrawerFooterButtons()}
+          <div class="admin-drawer__foot">
+            <div class="admin-drawer__foot-left">
+              ${mode === "view"
+        ? `
+                <button
+                  type="button"
+                  class="hs-btn is-secondary js-edit-drawer"
+                >
+                  Editar noticia
+                </button>
+              `
+        : `
+                <button
+                  type="button"
+                  class="hs-btn is-secondary js-cancel-drawer"
+                >
+                  Cancelar
+                </button>
+              `
+      }
+
+              ${!isCreate
+        ? `
+                <button
+                  type="button"
+                  class="hs-btn is-secondary js-delete-drawer"
+                >
+                  ${state.drawer.confirmDelete ? "Confirmar eliminación" : "Eliminar noticia"}
+                </button>
+              `
+        : ""
+      }
+            </div>
+
+            <div class="admin-drawer__foot-right">
+              ${mode !== "view"
+        ? `
+                <button
+                  type="button"
+                  class="hs-btn js-save-drawer"
+                  ${saveDisabled ? "disabled" : ""}
+                >
+                  ${state.drawer.isSaving ? "Guardando..." : isCreate ? "Crear noticia" : "Guardar cambios"}
+                </button>
+              `
+        : ""
+      }
+            </div>
           </div>
         </aside>
       </div>
     `;
   }
 
-  function renderDrawerFooterButtons() {
-    const mode = state.drawer.mode;
-    const isCreate = mode === "create";
-    const isEdit = mode === "edit";
-    const canSave = isDrawerValid();
-    const hasChanges = hasDrawerChanges();
-    const saveDisabled = isCreate ? !canSave : !(canSave && hasChanges);
-
-    if (isCreate) {
-      return `
-      <button
-        type="button"
-        class="admin-drawer__primary-btn js-save-drawer"
-        ${saveDisabled ? "disabled" : ""}
-      >
-        Guardar noticia
-      </button>
-      <button type="button" class="admin-drawer__secondary-btn js-cancel-edit">
-        Cancelar
-      </button>
-    `;
-    }
-
-    if (isEdit) {
-      return `
-      <button
-        type="button"
-        class="admin-drawer__primary-btn js-save-drawer"
-        ${saveDisabled ? "disabled" : ""}
-      >
-        Guardar cambios
-      </button>
-      <button type="button" class="admin-drawer__secondary-btn js-cancel-edit">
-        Cancelar
-      </button>
-    `;
-    }
-
-    return `
-    <button type="button" class="admin-drawer__primary-btn js-edit-drawer">
-      Editar
-    </button>
-    <button type="button" class="admin-drawer__danger-btn js-ask-delete">
-      Eliminar
-    </button>
-    <button type="button" class="admin-drawer__secondary-btn js-drawer-close">
-      Cerrar
-    </button>
-  `;
-  }
-
-  /* =========================================================
-     BIND
-     ========================================================= */
   function bind() {
     const root = document.querySelector("#admin-view-root");
     if (!root) return;
 
-    root.querySelectorAll(".js-carrusel-card").forEach((card) => {
-      card.addEventListener("click", (e) => {
-        if (
-          e.target.closest(".js-toggle-status") ||
-          e.target.closest(".admin-switch")
-        ) {
-          return;
-        }
-
-        const id = Number(card.dataset.id);
-        const item = state.allItems.find((x) => x.id === id);
-        openDrawer(item);
-      });
-
-      card.addEventListener("keydown", (e) => {
-        if (e.key !== "Enter" && e.key !== " ") return;
-        e.preventDefault();
-
-        const id = Number(card.dataset.id);
-        const item = state.allItems.find((x) => x.id === id);
-        openDrawer(item);
-      });
-    });
-
-    root.querySelectorAll(".js-toggle-status").forEach((input) => {
-      input.addEventListener("click", (e) => {
-        e.stopPropagation();
-      });
-
-      input.addEventListener("change", (e) => {
-        const id = Number(e.target.dataset.id);
-        const item = state.allItems.find((x) => x.id === id);
-        if (!item) return;
-
-        item.estatus = e.target.checked ? 1 : 0;
-        refreshView();
-
-        console.log("[AdminCarrusel] Cambiar estatus:", item);
-      });
-    });
-
-    root.querySelectorAll("[data-page]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const page = Number(btn.dataset.page);
-        if (!page || page < 1 || page > state.totalPages) return;
-
-        loadMockPage(page);
-        root.innerHTML = render();
-        bind();
-      });
-    });
+    wireImageFallbacks(root);
+    syncDrawerUi(root);
 
     const btnAdd = root.querySelector("#btn-add-carrusel");
     if (btnAdd) {
@@ -620,367 +1263,126 @@
       });
     }
 
-    bindDrawer(root);
-  }
+    root.querySelectorAll(".js-carrusel-card").forEach((card) => {
+      const id = Number(card.dataset.id || 0);
+      if (!id) return;
 
-  function bindDrawer(root) {
+      card.addEventListener("click", (event) => {
+        if (event.target.closest(".js-toggle-status")) return;
+        openItemDrawer(id);
+      });
+
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          if (event.target.closest(".js-toggle-status")) return;
+          event.preventDefault();
+          openItemDrawer(id);
+        }
+      });
+    });
+
+    root.querySelectorAll(".js-toggle-status").forEach((input) => {
+      input.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+
+      input.addEventListener("change", async (event) => {
+        const id = Number(event.currentTarget.dataset.id || 0);
+        if (!id) return;
+        await toggleCardStatus(id, Boolean(event.currentTarget.checked));
+      });
+    });
+
+    root.querySelectorAll("[data-page]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const nextPage = Number(btn.dataset.page || 1);
+        if (!nextPage || nextPage === state.page) return;
+
+        state.page = clamp(nextPage, 1, state.totalPages);
+        refreshView(false);
+
+        try {
+          await refreshRemoteList();
+          refreshView(false);
+        } catch (error) {
+          err("Error cambiando página:", error);
+          toast("No se pudo cambiar de página.", "error");
+        }
+      });
+    });
+
     const overlay = root.querySelector("#admin-carrusel-drawer-overlay");
-    const drawer = root.querySelector("#admin-carrusel-drawer");
-
     if (overlay) {
-      overlay.addEventListener("click", (e) => {
-        if (e.target === overlay) {
-          closeDrawer();
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) closeDrawer();
+      });
+    }
+
+    const btnClose = root.querySelector(".js-drawer-close");
+    if (btnClose) btnClose.addEventListener("click", () => closeDrawer());
+
+    const btnEdit = root.querySelector(".js-edit-drawer");
+    if (btnEdit) btnEdit.addEventListener("click", () => enterEditMode());
+
+    const btnCancel = root.querySelector(".js-cancel-drawer");
+    if (btnCancel) btnCancel.addEventListener("click", () => cancelDrawerEdition());
+
+    const btnSave = root.querySelector(".js-save-drawer");
+    if (btnSave) btnSave.addEventListener("click", () => saveDrawer());
+
+    const btnDelete = root.querySelector(".js-delete-drawer");
+    if (btnDelete) {
+      btnDelete.addEventListener("click", async () => {
+        if (!state.drawer.confirmDelete) {
+          state.drawer.confirmDelete = true;
+          refreshView(false);
+          toast("Presiona de nuevo para confirmar la eliminación.", "warning");
+          return;
+        }
+
+        await deleteCurrentItem();
+      });
+    }
+
+    root.querySelectorAll(".js-drawer-input").forEach((field) => {
+      field.addEventListener("input", (event) => {
+        const key = event.currentTarget.dataset.field;
+        if (!key) return;
+
+        updateDraftField(key, event.currentTarget.value);
+      });
+    });
+
+    const statusInput = root.querySelector(".js-drawer-status");
+    if (statusInput) {
+      statusInput.addEventListener("change", (event) => {
+        toggleDraftStatus(Boolean(event.currentTarget.checked));
+      });
+    }
+
+    const btnChangeImage = root.querySelector(".js-change-image");
+    const imageInput = root.querySelector("#admin-carrusel-image-input");
+
+    if (btnChangeImage && imageInput) {
+      btnChangeImage.addEventListener("click", () => {
+        imageInput.click();
+      });
+
+      imageInput.addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        try {
+          await uploadDrawerImage(file);
+        } finally {
+          clearDrawerImageInput();
         }
       });
     }
 
-    root.querySelectorAll(".js-drawer-close").forEach((btn) => {
-      btn.addEventListener("click", closeDrawer);
-    });
-
-    const btnEdit = root.querySelector(".js-edit-drawer");
-    if (btnEdit) {
-      btnEdit.addEventListener("click", () => {
-        state.drawer.mode = "edit";
-        state.drawer.confirmDelete = false;
-        validateDrawer();
-        refreshView();
-        focusDrawerField();
-      });
-    }
-
-    const btnAskDelete = root.querySelector(".js-ask-delete");
-    if (btnAskDelete) {
-      btnAskDelete.addEventListener("click", () => {
-        state.drawer.confirmDelete = true;
-        refreshView();
-      });
-    }
-
-    const btnCancelDelete = root.querySelector(".js-cancel-delete");
-    if (btnCancelDelete) {
-      btnCancelDelete.addEventListener("click", () => {
-        state.drawer.confirmDelete = false;
-        refreshView();
-      });
-    }
-
-    const btnConfirmDelete = root.querySelector(".js-confirm-delete");
-    if (btnConfirmDelete) {
-      btnConfirmDelete.addEventListener("click", () => {
-        deleteCurrentItem();
-      });
-    }
-
-    const btnCancelEdit = root.querySelector(".js-cancel-edit");
-    if (btnCancelEdit) {
-      btnCancelEdit.addEventListener("click", () => {
-        cancelDrawerEdition();
-      });
-    }
-
-    const btnSave = root.querySelector(".js-save-drawer");
-    if (btnSave) {
-      btnSave.addEventListener("click", () => {
-        if (btnSave.disabled) return;
-        saveDrawer();
-      });
-    }
-
-    if (drawer) {
-      drawer.querySelectorAll(".js-drawer-input").forEach((input) => {
-        input.addEventListener("input", onDrawerFieldChange);
-        input.addEventListener("change", onDrawerFieldChange);
-      });
-    }
-  }
-
-  function onDrawerFieldChange(e) {
-    const field = e.target.dataset.field;
-    if (!field || !state.drawer.draft) return;
-
-    let value = e.target.value;
-
-    if (field === "estatus") {
-      value = Number(value);
-    }
-
-    state.drawer.draft[field] = value;
-    validateDrawer();
-
-    const root = document.querySelector("#admin-view-root");
-    if (!root) return;
-
-    if (field === "estatus") {
-      refreshView();
-    } else {
-      syncDrawerUi(root);
-    }
-  }
-
-  /* =========================================================
-     DRAWER ACTIONS
-     ========================================================= */
-  function openDrawer(item) {
-    if (!item) return;
-
-    state.drawer.isOpen = true;
-    state.drawer.mode = "view";
-    state.drawer.selectedId = Number(item.id);
-    state.drawer.original = cloneItem(item);
-    state.drawer.draft = cloneItem(item);
-    state.drawer.confirmDelete = false;
-    state.drawer.errors = {};
-
-    refreshView();
-    focusDrawerField();
-  }
-
-  function openCreateDrawer() {
-    const newItem = {
-      id: getNextId(),
-      titulo: "",
-      pie_pagina: "",
-      descripcion: "",
-      imagen: "",
-      estatus: 1,
-      status: 1,
+    document.onkeydown = (event) => {
+      if (event.key === "Escape" && state.drawer.isOpen) {
+        closeDrawer();
+      }
     };
-
-    state.drawer.isOpen = true;
-    state.drawer.mode = "create";
-    state.drawer.selectedId = null;
-    state.drawer.original = null;
-    state.drawer.draft = newItem;
-    state.drawer.confirmDelete = false;
-    state.drawer.errors = {};
-
-    validateDrawer();
-    refreshView();
-    focusDrawerField();
-  }
-
-  function closeDrawer() {
-    state.drawer.isOpen = false;
-    state.drawer.mode = "view";
-    state.drawer.selectedId = null;
-    state.drawer.original = null;
-    state.drawer.draft = null;
-    state.drawer.confirmDelete = false;
-    state.drawer.errors = {};
-
-    refreshView();
-  }
-
-  function cancelDrawerEdition() {
-    if (state.drawer.mode === "create") {
-      closeDrawer();
-      return;
-    }
-
-    state.drawer.mode = "view";
-    state.drawer.confirmDelete = false;
-    state.drawer.draft = cloneItem(state.drawer.original);
-    state.drawer.errors = {};
-
-    refreshView();
-  }
-
-  function saveDrawer() {
-    const draft = state.drawer.draft;
-    if (!draft) return;
-
-    validateDrawer();
-
-    if (!isDrawerValid()) {
-      refreshView();
-      focusDrawerField();
-      return;
-    }
-
-    if (state.drawer.mode === "create") {
-      state.allItems.unshift({
-        ...cloneItem(draft),
-        status: 1,
-      });
-
-      closeDrawer();
-      loadMockPage(1);
-      refreshView();
-      return;
-    }
-
-    const index = state.allItems.findIndex(
-      (item) => Number(item.id) === Number(state.drawer.selectedId)
-    );
-
-    if (index === -1) return;
-
-    state.allItems[index] = {
-      ...state.allItems[index],
-      ...cloneItem(draft),
-    };
-
-    state.drawer.original = cloneItem(state.allItems[index]);
-    state.drawer.draft = cloneItem(state.allItems[index]);
-    state.drawer.mode = "view";
-    state.drawer.confirmDelete = false;
-    state.drawer.errors = {};
-
-    refreshView();
-
-    console.log("[AdminCarrusel] Guardar cambios:", state.allItems[index]);
-  }
-
-  function deleteCurrentItem() {
-    const id = Number(state.drawer.selectedId);
-    const item = state.allItems.find((x) => Number(x.id) === id);
-    if (!item) return;
-
-    item.status = 0;
-
-    const visibleAfterDelete = state.allItems.filter(
-      (x) => Number(x.status ?? 1) !== 0
-    ).length;
-
-    const newTotalPages = Math.max(1, Math.ceil(visibleAfterDelete / state.limit));
-    const safePage = clamp(state.page, 1, newTotalPages);
-
-    closeDrawer();
-    loadMockPage(safePage);
-    refreshView();
-
-    console.log("[AdminCarrusel] Noticia eliminada mock:", item);
-  }
-
-  function validateDrawer() {
-    const draft = state.drawer.draft || {};
-    const errors = {};
-
-    if (!String(draft.titulo || "").trim()) {
-      errors.titulo = "El título es obligatorio.";
-    } else if (String(draft.titulo || "").trim().length < 4) {
-      errors.titulo = "El título debe tener al menos 4 caracteres.";
-    }
-
-    if (!String(draft.descripcion || "").trim()) {
-      errors.descripcion = "La descripción es obligatoria.";
-    } else if (String(draft.descripcion || "").trim().length < 10) {
-      errors.descripcion = "La descripción debe tener al menos 10 caracteres.";
-    }
-
-    state.drawer.errors = errors;
-    return errors;
-  }
-
-  function isDrawerValid() {
-    const errors = state.drawer.errors || {};
-    return Object.keys(errors).length === 0;
-  }
-
-  function hasDrawerChanges() {
-    const mode = state.drawer.mode;
-
-    if (mode === "create") {
-      const draft = state.drawer.draft || {};
-      return Boolean(
-        String(draft.titulo || "").trim() ||
-        String(draft.pie_pagina || "").trim() ||
-        String(draft.descripcion || "").trim() ||
-        String(draft.imagen || "").trim() ||
-        Number(draft.estatus) !== 1
-      );
-    }
-
-    if (mode !== "edit") return false;
-    if (!state.drawer.original || !state.drawer.draft) return false;
-
-    return JSON.stringify(state.drawer.original) !== JSON.stringify(state.drawer.draft);
-  }
-
-  function focusDrawerField() {
-    requestAnimationFrame(() => {
-      const root = document.querySelector("#admin-view-root");
-      if (!root) return;
-
-      const mode = state.drawer.mode;
-      if (mode !== "edit" && mode !== "create") return;
-
-      const firstField = root.querySelector('.js-drawer-input[data-field="titulo"]');
-      if (firstField) firstField.focus();
-    });
-  }
-
-  function refreshView() {
-    const root = document.querySelector("#admin-view-root");
-    if (!root) return;
-
-    loadMockPage(state.page);
-    root.innerHTML = render();
-    bind();
-  }
-
-  /* =========================================================
-     UTILS
-     ========================================================= */
-  function getNextId() {
-    const maxId = state.allItems.reduce((max, item) => {
-      return Math.max(max, Number(item.id) || 0);
-    }, 0);
-
-    return maxId + 1;
-  }
-
-  function cloneItem(item) {
-    return JSON.parse(JSON.stringify(item));
-  }
-
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-  }
-
-  function buildPagination(current, total) {
-    const pages = [];
-
-    if (total <= 7) {
-      for (let i = 1; i <= total; i++) pages.push(i);
-      return pages;
-    }
-
-    pages.push(1);
-
-    if (current > 3) pages.push("...");
-
-    const start = Math.max(2, current - 1);
-    const end = Math.min(total - 1, current + 1);
-
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
-
-    if (current < total - 2) pages.push("...");
-
-    pages.push(total);
-
-    return pages;
-  }
-
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value).replaceAll("\n", "&#10;");
-  }
-
-  function formatText(value) {
-    return escapeHtml(value).replace(/\n/g, "<br>");
   }
 
   window.AdminCarrusel = {
