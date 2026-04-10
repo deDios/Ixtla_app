@@ -643,7 +643,7 @@
         ? `
               <div class="admin-drawer__confirm">
                 <p class="admin-drawer__confirm-text">
-                  ¿Seguro que deseas desactivar este departamento? Se marcará como inactivo.
+                  ¿Seguro que deseas desactivar este departamento?.
                 </p>
 
                 <div class="admin-drawer__confirm-actions">

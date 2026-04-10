@@ -984,7 +984,7 @@
         ? `
                 <div class="admin-drawer__confirm">
                   <p class="admin-drawer__confirm-text">
-                    ¿Seguro que deseas eliminar este tipo de trámite? Se ocultará del listado y se marcará con estatus 0.
+                    ¿Seguro que deseas eliminar este tipo de trámite?.
                   </p>
 
                   <div class="admin-drawer__confirm-actions">
