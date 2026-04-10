@@ -497,7 +497,15 @@
 
   function updateDraftField(field, value) {
     if (!state.drawer.draft) return;
-    state.drawer.draft[field] = value;
+
+    if (field === "status") {
+      const nextStatus = Number(value) === 0 ? 0 : 1;
+      state.drawer.draft.status = nextStatus;
+      state.drawer.draft.estatus = nextStatus;
+    } else {
+      state.drawer.draft[field] = value;
+    }
+
     validateDrawer();
 
     const root = document.querySelector("#admin-view-root");
@@ -1125,6 +1133,7 @@
           </div>
 
           <div class="admin-drawer__grid">
+
             <div class="admin-drawer__field">
               <label class="admin-drawer__label" for="admin-carrusel-titulo">Título</label>
               ${isEdit ? `
@@ -1178,24 +1187,20 @@
             </div>
 
             <div class="admin-drawer__field">
-              <span class="admin-drawer__label">Estado</span>
-              ${isEdit ? `
-                <label class="admin-switch admin-switch--drawer" title="Cambiar estatus">
-                  <input
-                    type="checkbox"
-                    class="js-drawer-status"
-                    ${Number(item.status) === 1 ? "checked" : ""}
-                  />
-                  <span class="admin-switch__track">
-                    <span class="admin-switch__text admin-switch__text--off"></span>
-                    <span class="admin-switch__text admin-switch__text--on"></span>
-                    <span class="admin-switch__thumb"></span>
-                  </span>
-                </label>
+               <label class="admin-drawer__label" for="admin-carrusel-status">Estado</label>
+                  ${isEdit ? `
+                  <select
+                    id="admin-carrusel-status"
+                    class="admin-drawer__select js-drawer-input"
+                    data-field="status"
+                >
+                <option value="1" ${Number(item.status) === 1 ? "selected" : ""}>Activo</option>
+                <option value="0" ${Number(item.status) === 0 ? "selected" : ""}>Inactivo</option>
+              </select>
               ` : `
-                <div class="admin-drawer__readonly-value">
-                  ${escapeHtml(statusLabel)}
-                </div>
+              <div class="admin-drawer__readonly-value">
+              ${escapeHtml(statusLabel)}
+              </div>
               `}
             </div>
           </div>
@@ -1335,20 +1340,16 @@
     }
 
     root.querySelectorAll(".js-drawer-input").forEach((field) => {
-      field.addEventListener("input", (event) => {
+      const handler = (event) => {
         const key = event.currentTarget.dataset.field;
         if (!key) return;
 
         updateDraftField(key, event.currentTarget.value);
-      });
-    });
+      };
 
-    const statusInput = root.querySelector(".js-drawer-status");
-    if (statusInput) {
-      statusInput.addEventListener("change", (event) => {
-        toggleDraftStatus(Boolean(event.currentTarget.checked));
-      });
-    }
+      field.addEventListener("input", handler);
+      field.addEventListener("change", handler);
+    });
 
     const btnChangeImage = root.querySelector(".js-change-image");
     const imageInput = root.querySelector("#admin-carrusel-image-input");
