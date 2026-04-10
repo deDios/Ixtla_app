@@ -663,26 +663,6 @@
     };
   }
 
-  function normalizeMediaRows(rows = []) {
-    return Array.isArray(rows) ? rows : [];
-  }
-
-  function pickMediaByVariant(rows, variant) {
-    const safeVariant = String(variant || "").toLowerCase();
-
-    const exact = rows.find((row) => {
-      const name = String(row?.name || "").toLowerCase();
-      return name === `${safeVariant}.png`
-        || name === `${safeVariant}.jpg`
-        || name === `${safeVariant}.jpeg`
-        || name === `${safeVariant}.webp`
-        || name === `${safeVariant}.heic`
-        || name === `${safeVariant}.heif`;
-    });
-
-    return exact || null;
-  }
-
   async function loadDrawerMedia() {
     const tramiteId = getTramiteIdForMedia();
     const departamentoId = getDepartamentoIdForMedia();

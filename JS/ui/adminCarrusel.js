@@ -18,7 +18,7 @@
 
   const NEWS_ASSETS_DIR = "/ASSETS/noticiasImg/";
   const NEWS_PLACEHOLDER = "/ASSETS/main_logo_shield.png";
-  const NEWS_MEDIA_BUCKET = "noticias_inicio";
+  const NEWS_MEDIA_BUCKET = "noticias";
   const NEWS_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "heic", "heif"];
 
   const state = {

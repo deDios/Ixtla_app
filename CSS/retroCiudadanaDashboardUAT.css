@@ -3464,3 +3464,28 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
     grid-template-columns: 1fr;
   }
 }
+
+
+
+
+.retro-btn--danger {
+  background: #b91c1c !important;
+  color: #fff !important;
+  border-color: #b91c1c !important;
+}
+
+.retro-btn--danger:hover {
+  background: #991b1b !important;
+  border-color: #991b1b !important;
+}
+
+.retro-btn--secondary {
+  background: #fff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.retro-btn--secondary:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}

@@ -31,6 +31,15 @@ const CONFIG = {
   API_RETRO_MAP:
     "https://ixtla-app.com/db/WEB/ixtla01_c_cpcolonia_latlon_retro.php",
 
+  API_RETRO_UPDATE:
+    "https://ixtla-app.com/db/WEB/ixtla01_u_retro.php",
+
+  API_RETRO_CREATE:
+    "https://ixtla-app.com/db/WEB/ixtla01_i_retro.php",
+
+  API_RETRO_EVENT_12:
+    "https://ixtla-app.com/db/WEB/send_wapp_template_event_12.php",
+
   RATE_LABELS: {
     1: "Malo",
     2: "Regular",
@@ -71,6 +80,222 @@ const toast = (msg, type = "info") => {
    ========================================================================== */
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+async function sendJSON(url, body, method = "POST") {
+  const res = await fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(body || {}),
+  });
+
+  const txt = await res.text();
+  let json;
+
+  try {
+    json = JSON.parse(txt);
+  } catch {
+    json = { raw: txt };
+  }
+
+  if (!res.ok || json?.ok === false) {
+    throw new Error(json?.error || json?.msg || json?.message || json?.raw || `HTTP ${res.status}`);
+  }
+
+  return json;
+}
+
+function setBtnVisible(btn, visible) {
+  if (!btn) return;
+  btn.hidden = !visible;
+  btn.style.display = visible ? "" : "none";
+}
+
+function setBtnDisabled(btn, disabled) {
+  if (!btn) return;
+  btn.disabled = !!disabled;
+  btn.setAttribute("aria-disabled", disabled ? "true" : "false");
+}
+
+function syncRetroActionButtons(viewModel = State.retroViewModel) {
+  const resendBtn = $(SEL.retroResend);
+  const disableBtn = $(SEL.retroDisable);
+  const goBtn = $(SEL.retroGo);
+  const closeBtn = $(SEL.retroCloseFooter);
+
+  const status = Number(viewModel?.status ?? -1);
+  const busy = !!State.retroActionBusy;
+
+  setBtnVisible(closeBtn, true);
+  setBtnVisible(goBtn, true);
+
+  if (status === 1) {
+    setBtnVisible(resendBtn, true);
+    setBtnVisible(disableBtn, true);
+    disableBtn.textContent = "Inhabilitar encuesta";
+    disableBtn.dataset.action = "disable";
+    disableBtn.classList.remove("retro-btn--secondary");
+    disableBtn.classList.add("retro-btn--danger");
+  } else if (status === 3) {
+    setBtnVisible(resendBtn, false);
+    setBtnVisible(disableBtn, true);
+    disableBtn.textContent = "Habilitar encuesta";
+    disableBtn.dataset.action = "enable";
+    disableBtn.classList.remove("retro-btn--danger");
+    disableBtn.classList.add("retro-btn--secondary");
+  } else {
+    setBtnVisible(resendBtn, false);
+    setBtnVisible(disableBtn, false);
+    disableBtn.dataset.action = "";
+  }
+
+  setBtnDisabled(closeBtn, busy);
+  setBtnDisabled(goBtn, busy);
+  setBtnDisabled(resendBtn, busy);
+  setBtnDisabled(disableBtn, busy);
+}
+
+function updateRowInState(updatedRow) {
+  const id = Number(updatedRow?.id || 0);
+  if (!id) return;
+
+  const normalized = normalizeRow(updatedRow);
+
+  State.rows = State.rows.map((row) =>
+    Number(row?.id || 0) === id ? { ...row, ...normalized } : row,
+  );
+}
+
+async function refreshRetroDetailState(retroId) {
+  const id = Number(retroId || 0);
+  if (!id) return null;
+
+  const url = new URL(CONFIG.API_RETRO);
+  url.searchParams.set("id", String(id));
+
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const json = await res.json();
+  if (!json?.ok || !json?.data) {
+    throw new Error(json?.error || "No se pudo refrescar la retro.");
+  }
+
+  const retroRow = normalizeRow(json.data);
+  updateRowInState(retroRow);
+
+  const reqRow = await fetchRequerimientoById(retroRow.requerimiento_id);
+  const viewModel = buildRetroViewModel(retroRow, reqRow);
+
+  State.retroViewModel = viewModel;
+  fillRetroReadonlyModal(viewModel);
+
+  renderCounts();
+  applyPipelineAndRender();
+
+  return viewModel;
+}
+
+async function updateRetroStatus(retroId, nextStatus) {
+  return sendJSON(
+    CONFIG.API_RETRO_UPDATE,
+    {
+      id: Number(retroId),
+      status: Number(nextStatus),
+    },
+    "PUT"
+  );
+}
+
+async function resendRetroSurvey(viewModel) {
+  const phone = onlyDigits(viewModel?.telefono || "");
+  const folio = String(viewModel?.folio || "").trim();
+
+  if (!phone) {
+    throw new Error("La retro no tiene teléfono válido para reenviar.");
+  }
+
+  if (!folio) {
+    throw new Error("La retro no tiene folio válido para reenviar.");
+  }
+
+  return sendJSON(CONFIG.API_RETRO_EVENT_12, {
+    to: phone,
+    lang: "es_MX",
+    params: [folio],
+  });
+}
+
+async function handleRetroDisableEnable() {
+  const vm = State.retroViewModel;
+  if (!vm || State.retroActionBusy) return;
+
+  const retroId = Number(vm.retro_id || 0);
+  const currentStatus = Number(vm.status ?? -1);
+
+  if (!retroId) {
+    toast("No se encontró el id de la retro.", "warning");
+    return;
+  }
+
+  let nextStatus = null;
+  let successMsg = "";
+
+  if (currentStatus === 1) {
+    nextStatus = 3;
+    successMsg = "Encuesta inhabilitada correctamente.";
+  } else if (currentStatus === 3) {
+    nextStatus = 1;
+    successMsg = "Encuesta habilitada correctamente.";
+  } else {
+    return;
+  }
+
+  try {
+    State.retroActionBusy = true;
+    syncRetroActionButtons(vm);
+
+    await updateRetroStatus(retroId, nextStatus);
+    await refreshRetroDetailState(retroId);
+
+    toast(successMsg, "success");
+  } catch (e) {
+    err("handleRetroDisableEnable()", e);
+    toast(e?.message || "No se pudo actualizar la encuesta.", "error");
+  } finally {
+    State.retroActionBusy = false;
+    syncRetroActionButtons(State.retroViewModel);
+  }
+}
+
+async function handleRetroResend() {
+  const vm = State.retroViewModel;
+  if (!vm || State.retroActionBusy) return;
+
+  const status = Number(vm.status ?? -1);
+  if (status !== 1) return;
+
+  try {
+    State.retroActionBusy = true;
+    syncRetroActionButtons(vm);
+
+    await resendRetroSurvey(vm);
+
+    toast("Encuesta reenviada correctamente.", "success");
+  } catch (e) {
+    err("handleRetroResend()", e);
+    toast(e?.message || "No se pudo reenviar la encuesta.", "error");
+  } finally {
+    State.retroActionBusy = false;
+    syncRetroActionButtons(State.retroViewModel);
+  }
+}
 
 function getSortValue(row, key) {
   switch (key) {
@@ -482,6 +707,7 @@ const State = {
   retroViewOpen: false,
   retroViewModel: null,
   openRow: null,
+  retroActionBusy: false,
 
   sortKey: "folio",
   sortDir: "desc",
@@ -524,6 +750,8 @@ const SEL = {
   retroClose: "#retro-view-close",
   retroCloseFooter: "#retro-close-footer",
   retroGo: "#retro-go",
+  retroResend: "#retro-resend",
+  retroDisable: "#retro-disable",
 
   retroFolio: "#retro-folio",
   retroTramite: "#retro-tramite",
@@ -1178,6 +1406,8 @@ function fillRetroReadonlyModal(viewModel) {
 
   const goBtn = $(SEL.retroGo);
   if (goBtn) goBtn.dataset.reqId = String(viewModel?.requerimiento_id ?? "");
+
+  syncRetroActionButtons(viewModel);
 }
 
 function openRetroReadonlyModal(viewModel) {
@@ -1202,15 +1432,28 @@ function initRetroReadonlyModal() {
   const closeBtn = $(SEL.retroClose);
   const closeFooterBtn = $(SEL.retroCloseFooter);
   const goBtn = $(SEL.retroGo);
+  const resendBtn = $(SEL.retroResend);
+  const disableBtn = $(SEL.retroDisable);
 
   overlay?.addEventListener("click", closeRetroReadonlyModal);
   closeBtn?.addEventListener("click", closeRetroReadonlyModal);
   closeFooterBtn?.addEventListener("click", closeRetroReadonlyModal);
 
   goBtn?.addEventListener("click", () => {
+    if (State.retroActionBusy) return;
+
     const reqId = Number(goBtn.dataset.reqId || 0);
     if (!reqId) return;
+
     window.location.href = `/VIEWS/requerimiento.php?id=${reqId}`;
+  });
+
+  resendBtn?.addEventListener("click", async () => {
+    await handleRetroResend();
+  });
+
+  disableBtn?.addEventListener("click", async () => {
+    await handleRetroDisableEnable();
   });
 
   document.addEventListener("keydown", (e) => {
