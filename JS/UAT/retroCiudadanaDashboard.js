@@ -149,6 +149,8 @@ function syncRetroActionButtons(viewModel = State.retroViewModel) {
     setBtnVisible(resendBtn, false);
     setBtnVisible(disableBtn, false);
     disableBtn.dataset.action = "";
+    disableBtn.classList.remove("retro-btn--danger");
+    disableBtn.classList.remove("retro-btn--secondary");
   }
 
   setBtnDisabled(closeBtn, busy);

@@ -3468,10 +3468,14 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 
 
 
+/* =========================================================
+   BOTONES DINÁMICOS MODAL RETRO
+   ========================================================= */
+
 .retro-btn--danger {
   background: #b91c1c !important;
-  color: #fff !important;
-  border-color: #b91c1c !important;
+  color: #ffffff !important;
+  border: 1px solid #b91c1c !important;
 }
 
 .retro-btn--danger:hover {
@@ -3480,7 +3484,7 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 }
 
 .retro-btn--secondary {
-  background: #fff !important;
+  background: #ffffff !important;
   color: #334155 !important;
   border: 1px solid #cbd5e1 !important;
 }
@@ -3488,4 +3492,11 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
 .retro-btn--secondary:hover {
   background: #f8fafc !important;
   border-color: #94a3b8 !important;
+}
+
+.retro-btn--danger[disabled],
+.retro-btn--secondary[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
