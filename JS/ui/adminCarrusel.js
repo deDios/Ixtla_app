@@ -1032,12 +1032,12 @@
 
     if (!isOpen || !item) {
       return `
-        <div
-          class="admin-drawer-overlay"
-          id="admin-carrusel-drawer-overlay"
-          aria-hidden="true"
-        ></div>
-      `;
+      <div
+        class="admin-drawer-overlay"
+        id="admin-carrusel-drawer-overlay"
+        aria-hidden="true"
+      ></div>
+    `;
     }
 
     const isEdit = mode === "edit" || mode === "create";
@@ -1048,49 +1048,55 @@
         ? "Editar noticia"
         : "Detalle de noticia";
 
-    const drawerStatusLabel = Number(item.status) === 1 ? "Activo" : "Inactivo";
     const errors = state.drawer.errors || {};
-    const canSave = isDrawerValid();
-    const hasChanges = hasDrawerChanges();
+    const statusLabel = Number(item.status) === 1 ? "Activo" : "Inactivo";
     const saveDisabled =
       state.drawer.isSaving ||
       state.drawer.media.isUploading ||
-      (isCreate ? !canSave : !(canSave && hasChanges));
+      (isCreate ? !isDrawerValid() : !(isDrawerValid() && hasDrawerChanges()));
 
     const imageCandidates = getNoticiaImageCandidates(item.id);
     const imageUrl = imageCandidates[0];
 
     return `
-      <div
-        class="admin-drawer-overlay is-open"
-        id="admin-carrusel-drawer-overlay"
-        aria-hidden="false"
+    <div
+      class="admin-drawer-overlay is-open"
+      id="admin-carrusel-drawer-overlay"
+      aria-hidden="false"
+    >
+      <aside
+        class="admin-drawer admin-drawer--right is-open"
+        id="admin-carrusel-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-carrusel-drawer-title"
       >
-        <aside
-          class="admin-drawer admin-drawer--right is-open"
-          id="admin-carrusel-drawer"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="admin-carrusel-drawer-title"
-        >
-          <div class="admin-drawer__head">
-            <div>
-              <h3 class="admin-drawer__title" id="admin-carrusel-drawer-title">${escapeHtml(titleText)}</h3>
-            </div>
-
-            <button
-              type="button"
-              class="admin-drawer__close js-drawer-close"
-              aria-label="Cerrar drawer"
-              title="Cerrar"
-            >
-              ×
-            </button>
+        <div class="admin-drawer__head">
+          <div>
+            <h3 class="admin-drawer__title" id="admin-carrusel-drawer-title">
+              ${escapeHtml(titleText)}
+            </h3>
           </div>
 
-          <div class="admin-drawer__body">
-            <div class="admin-drawer__image-block">
-              <div class="admin-drawer__image-wrap ${!item.id ? "is-empty" : ""}">
+          <button
+            type="button"
+            class="admin-drawer__close js-drawer-close"
+            aria-label="Cerrar drawer"
+            title="Cerrar"
+            ${state.drawer.isSaving ? "disabled" : ""}
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="admin-drawer__body">
+          <div class="admin-drawer__media-grid admin-drawer__media-grid--single">
+            <section class="admin-drawer__media-slot admin-drawer__media-slot--noticia">
+              <div class="admin-drawer__media-head">
+                <span class="admin-drawer__label">Imagen</span>
+              </div>
+
+              <div class="admin-drawer__image-wrap ${item.id ? "" : "is-empty"}">
                 <img
                   src="${escapeAttr(imageUrl)}"
                   alt="${escapeHtml(item.titulo || "Vista previa")}"
@@ -1100,167 +1106,134 @@
                 />
               </div>
 
-              <div class="admin-drawer__image-actions">
-                <button
-                  type="button"
-                  class="admin-drawer__ghost-btn js-change-image"
-                  ${!item.id || isCreate || state.drawer.media.isUploading ? "disabled" : ""}
-                  title="${!item.id || isCreate ? "Primero guarda la noticia" : "Cambiar imagen"}"
-                >
-                  ${state.drawer.media.isUploading ? "Subiendo..." : "Cambiar imagen"}
-                </button>
+              <button
+                type="button"
+                class="admin-drawer__ghost-btn js-change-image"
+                ${!item.id || isCreate || state.drawer.media.isUploading ? "disabled" : ""}
+                title="${!item.id || isCreate ? "Primero guarda la noticia" : "Cambiar imagen"}"
+              >
+                ${state.drawer.media.isUploading ? "Subiendo..." : "Reemplazar imagen"}
+              </button>
 
+              <input
+                type="file"
+                id="admin-carrusel-image-input"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/heic,image/heif"
+                hidden
+              />
+            </section>
+          </div>
+
+          <div class="admin-drawer__grid">
+            <div class="admin-drawer__field">
+              <label class="admin-drawer__label" for="admin-carrusel-titulo">Título</label>
+              ${isEdit ? `
                 <input
-                  type="file"
-                  id="admin-carrusel-image-input"
-                  accept="image/png,image/jpeg,image/jpg,image/webp,image/heic,image/heif"
-                  hidden
+                  id="admin-carrusel-titulo"
+                  type="text"
+                  class="admin-drawer__input js-drawer-input ${errors.titulo ? "is-error" : ""}"
+                  data-field="titulo"
+                  value="${escapeAttr(item.titulo || "")}"
+                  maxlength="180"
                 />
-              </div>
+              ` : `
+                <div class="admin-drawer__readonly-value">
+                  ${escapeHtml(item.titulo || "Sin título")}
+                </div>
+              `}
             </div>
 
-            <div class="admin-drawer__grid">
-              <div class="admin-drawer__field">
-                <label class="admin-drawer__label" for="admin-carrusel-titulo">Título</label>
-                ${isEdit
-        ? `
+            <div class="admin-drawer__field">
+              <label class="admin-drawer__label" for="admin-carrusel-pie">Pie de pagina</label>
+              ${isEdit ? `
+                <input
+                  id="admin-carrusel-pie"
+                  type="text"
+                  class="admin-drawer__input js-drawer-input"
+                  data-field="pie_de_pagina"
+                  value="${escapeAttr(item.pie_de_pagina || "")}"
+                  maxlength="180"
+                />
+              ` : `
+                <div class="admin-drawer__readonly-value">
+                  ${escapeHtml(item.pie_de_pagina || "Sin pie de pagina")}
+                </div>
+              `}
+            </div>
+
+            <div class="admin-drawer__field admin-drawer__field--full">
+              <label class="admin-drawer__label" for="admin-carrusel-descripcion">Descripción</label>
+              ${isEdit ? `
+                <textarea
+                  id="admin-carrusel-descripcion"
+                  class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
+                  data-field="descripcion"
+                  rows="8"
+                >${escapeHtml(item.descripcion || "")}</textarea>
+              ` : `
+                <div class="admin-drawer__readonly-value admin-drawer__readonly-value--textarea">
+                  ${formatText(item.descripcion || "Sin descripción")}
+                </div>
+              `}
+            </div>
+
+            <div class="admin-drawer__field">
+              <span class="admin-drawer__label">Estado</span>
+              ${isEdit ? `
+                <label class="admin-switch admin-switch--drawer" title="Cambiar estatus">
                   <input
-                    id="admin-carrusel-titulo"
-                    type="text"
-                    class="admin-drawer__input js-drawer-input ${errors.titulo ? "is-error" : ""}"
-                    data-field="titulo"
-                    value="${escapeAttr(item.titulo || "")}"
-                    maxlength="180"
+                    type="checkbox"
+                    class="js-drawer-status"
+                    ${Number(item.status) === 1 ? "checked" : ""}
                   />
-                `
-        : `
-                  <div class="admin-drawer__readonly">
-                    ${escapeHtml(item.titulo || "Sin título")}
-                  </div>
-                `
-      }
-              </div>
-
-              <div class="admin-drawer__field">
-                <label class="admin-drawer__label" for="admin-carrusel-pie">Pie de pagina</label>
-                ${isEdit
-        ? `
-                  <input
-                    id="admin-carrusel-pie"
-                    type="text"
-                    class="admin-drawer__input js-drawer-input"
-                    data-field="pie_de_pagina"
-                    value="${escapeAttr(item.pie_de_pagina || "")}"
-                    maxlength="180"
-                  />
-                `
-        : `
-                  <div class="admin-drawer__readonly">
-                    ${escapeHtml(item.pie_de_pagina || "Sin pie de pagina")}
-                  </div>
-                `
-      }
-              </div>
-
-              <div class="admin-drawer__field admin-drawer__field--full">
-                <label class="admin-drawer__label" for="admin-carrusel-descripcion">Descripción</label>
-                ${isEdit
-        ? `
-                  <textarea
-                    id="admin-carrusel-descripcion"
-                    class="admin-drawer__textarea js-drawer-input ${errors.descripcion ? "is-error" : ""}"
-                    data-field="descripcion"
-                    rows="8"
-                  >${escapeHtml(item.descripcion || "")}</textarea>
-                `
-        : `
-                  <div class="admin-drawer__readonly admin-drawer__readonly--textarea">
-                    ${formatText(item.descripcion || "Sin descripción")}
-                  </div>
-                `
-      }
-              </div>
-
-              <div class="admin-drawer__field">
-                <span class="admin-drawer__label">Estado</span>
-
-                ${isEdit
-        ? `
-                  <label class="admin-switch admin-switch--drawer" title="Cambiar estatus">
-                    <input
-                      type="checkbox"
-                      class="js-drawer-status"
-                      ${Number(item.status) === 1 ? "checked" : ""}
-                    />
-                    <span class="admin-switch__track">
-                      <span class="admin-switch__text admin-switch__text--off"></span>
-                      <span class="admin-switch__text admin-switch__text--on"></span>
-                      <span class="admin-switch__thumb"></span>
-                    </span>
-                  </label>
-                `
-        : `
-                  <div class="admin-drawer__readonly">
-                    ${escapeHtml(drawerStatusLabel)}
-                  </div>
-                `
-      }
-              </div>
+                  <span class="admin-switch__track">
+                    <span class="admin-switch__text admin-switch__text--off"></span>
+                    <span class="admin-switch__text admin-switch__text--on"></span>
+                    <span class="admin-switch__thumb"></span>
+                  </span>
+                </label>
+              ` : `
+                <div class="admin-drawer__readonly-value">
+                  ${escapeHtml(statusLabel)}
+                </div>
+              `}
             </div>
           </div>
+        </div>
 
-          <div class="admin-drawer__foot">
-            <div class="admin-drawer__foot-left">
-              ${mode === "view"
-        ? `
-                <button
-                  type="button"
-                  class="hs-btn is-secondary js-edit-drawer"
-                >
-                  Editar noticia
-                </button>
-              `
-        : `
-                <button
-                  type="button"
-                  class="hs-btn is-secondary js-cancel-drawer"
-                >
-                  Cancelar
-                </button>
-              `
-      }
+        <div class="admin-drawer__footer">
+          <div class="admin-drawer__footer-actions">
+            ${mode === "view" ? `
+              <button type="button" class="admin-drawer__primary-btn js-edit-drawer">
+                Editar
+              </button>
+            ` : `
+              <button
+                type="button"
+                class="admin-drawer__primary-btn js-save-drawer"
+                ${saveDisabled ? "disabled" : ""}
+              >
+                ${state.drawer.isSaving ? "Guardando..." : isCreate ? "Crear" : "Guardar"}
+              </button>
+            `}
 
-              ${!isCreate
-        ? `
-                <button
-                  type="button"
-                  class="hs-btn is-secondary js-delete-drawer"
-                >
-                  ${state.drawer.confirmDelete ? "Confirmar eliminación" : "Eliminar noticia"}
-                </button>
-              `
-        : ""
-      }
-            </div>
+            ${!isCreate ? `
+              <button type="button" class="admin-drawer__danger-btn js-delete-drawer">
+                ${state.drawer.confirmDelete ? "Confirmar eliminación" : "Eliminar"}
+              </button>
+            ` : ""}
 
-            <div class="admin-drawer__foot-right">
-              ${mode !== "view"
-        ? `
-                <button
-                  type="button"
-                  class="hs-btn js-save-drawer"
-                  ${saveDisabled ? "disabled" : ""}
-                >
-                  ${state.drawer.isSaving ? "Guardando..." : isCreate ? "Crear noticia" : "Guardar cambios"}
-                </button>
-              `
-        : ""
-      }
-            </div>
+            <button
+              type="button"
+              class="admin-drawer__secondary-btn ${mode === "view" ? "js-drawer-close" : "js-cancel-drawer"}"
+            >
+              ${mode === "view" ? "Cerrar" : "Cancelar"}
+            </button>
           </div>
-        </aside>
-      </div>
-    `;
+        </div>
+      </aside>
+    </div>
+  `;
   }
 
   function bind() {
