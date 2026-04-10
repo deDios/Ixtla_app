@@ -14,7 +14,6 @@
 
     // Media
     MEDIA_UPLOAD: "/db/WEB/ixtla01_in_media.php",
-    MEDIA_LIST: "/db/WEB/ixtla01_c_media.php",
   };
 
   const NEWS_ASSETS_DIR = "/ASSETS/noticiasImg/";
@@ -24,8 +23,6 @@
 
   const state = {
     items: [],
-    filteredItems: [],
-    pagedItems: [],
     query: "",
     page: 1,
     limit: 4,
@@ -34,6 +31,7 @@
     isLoading: false,
     isReady: false,
     mediaVersion: {},
+    pendingStatusIds: {},
 
     drawer: {
       isOpen: false,
@@ -156,12 +154,6 @@
     return pages;
   }
 
-  function truncate(text, max = 140) {
-    const value = String(text || "").trim();
-    if (value.length <= max) return value;
-    return `${value.slice(0, max).trim()}…`;
-  }
-
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -194,6 +186,22 @@
     const safeId = Number(id) || 0;
     if (!safeId) return;
     state.mediaVersion[`noticia-${safeId}`] = version;
+  }
+
+  function isStatusPending(id) {
+    return state.pendingStatusIds[Number(id)] === true;
+  }
+
+  function setStatusPending(id, pending) {
+    const safeId = Number(id) || 0;
+    if (!safeId) return;
+
+    if (pending) {
+      state.pendingStatusIds[safeId] = true;
+      return;
+    }
+
+    delete state.pendingStatusIds[safeId];
   }
 
   function withMediaVersion(url, version) {
@@ -283,9 +291,6 @@
       state.items = Array.isArray(json?.data)
         ? json.data.map(normalizeItem)
         : [];
-
-      state.filteredItems = [...state.items];
-      state.pagedItems = [...state.items];
       state.total = Number(json?.total ?? state.items.length) || 0;
       state.totalPages = Math.max(1, Number(json?.total_pages ?? 1) || 1);
       state.page = Math.max(1, Number(json?.page ?? state.page) || 1);
@@ -511,6 +516,12 @@
     syncDrawerUi(root);
   }
 
+  function handleDocumentKeydown(event) {
+    if (event.key === "Escape" && state.drawer.isOpen) {
+      closeDrawer();
+    }
+  }
+
   async function saveDrawer() {
     const draft = state.drawer.draft;
     if (!draft || state.drawer.isSaving) return;
@@ -684,6 +695,9 @@
   async function toggleCardStatus(id, checked) {
     const item = state.items.find((x) => Number(x.id) === Number(id));
     if (!item) return;
+    if (isStatusPending(id) || state.drawer.isSaving || state.drawer.media.isUploading) {
+      return;
+    }
 
     const empleadoId = getEmpleadoIdFromSession();
     if (!empleadoId) {
@@ -693,6 +707,9 @@
     }
 
     try {
+      setStatusPending(id, true);
+      refreshView(false);
+
       await sendJSON(API.UPDATE, {
         id: Number(id),
         status: checked ? 1 : 0,
@@ -728,6 +745,9 @@
       err("Error cambiando estatus:", error);
       refreshView(false);
       toast(getErrorMessage(error, "No se pudo actualizar el estatus."), "error");
+    } finally {
+      setStatusPending(id, false);
+      refreshView(false);
     }
   }
 
@@ -740,7 +760,7 @@
     }
 
     if (!file) return;
-    if (state.drawer.media.isUploading) return;
+    if (state.drawer.media.isUploading || state.drawer.isSaving) return;
 
     try {
       state.drawer.media.isUploading = true;
@@ -877,6 +897,8 @@
       .map((item) => {
         const statusLabel = Number(item.status) === 1 ? "Activo" : "Inactivo";
         const checked = Number(item.status) === 1 ? "checked" : "";
+        const statusDisabled =
+          isStatusPending(item.id) || state.drawer.isSaving || state.drawer.media.isUploading;
 
         return `
           <article
@@ -898,6 +920,7 @@
                     class="js-toggle-status"
                     data-id="${item.id}"
                     ${checked}
+                    ${statusDisabled ? "disabled" : ""}
                   />
                   <span class="admin-switch__track">
                     <span class="admin-switch__text admin-switch__text--off"></span>
@@ -1087,15 +1110,6 @@
                   ${state.drawer.media.isUploading ? "Subiendo..." : "Cambiar imagen"}
                 </button>
 
-                <button
-                  type="button"
-                  class="admin-drawer__ghost-btn"
-                  disabled
-                  title="La eliminación física de imagen se ajustará junto con media"
-                >
-                  Eliminar imagen
-                </button>
-
                 <input
                   type="file"
                   id="admin-carrusel-image-input"
@@ -1253,6 +1267,9 @@
     const root = document.querySelector("#admin-view-root");
     if (!root) return;
 
+    document.removeEventListener("keydown", handleDocumentKeydown);
+    document.addEventListener("keydown", handleDocumentKeydown);
+
     wireImageFallbacks(root);
     syncDrawerUi(root);
 
@@ -1377,12 +1394,6 @@
         }
       });
     }
-
-    document.onkeydown = (event) => {
-      if (event.key === "Escape" && state.drawer.isOpen) {
-        closeDrawer();
-      }
-    };
   }
 
   window.AdminCarrusel = {
