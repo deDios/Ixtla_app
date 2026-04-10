@@ -48,6 +48,7 @@
     },
   };
 
+  // Initialization
   async function init() {
     state.isLoading = true;
 
@@ -60,6 +61,12 @@
     } finally {
       state.isLoading = false;
     }
+  }
+
+  // Helpers
+  function getNoticiaMediaTargetDir(id) {
+    const safeId = Number(id) || 0;
+    return safeId ? `noticia${safeId}` : "";
   }
 
   async function sendJSON(url, body, method = "POST") {
@@ -214,16 +221,14 @@
     const safeId = Number(id) || 0;
     const version = getNoticiaMediaVersion(safeId);
 
-    if (!safeId) {
-      return [NEWS_PLACEHOLDER];
-    }
+    if (!safeId) return [NEWS_PLACEHOLDER];
+
+    const dir = `noticia${safeId}`;
+    const file = `img${safeId}`;
 
     return [
       ...NEWS_MEDIA_EXTENSIONS.map((ext) =>
-        withMediaVersion(
-          `${NEWS_ASSETS_DIR}${getNoticiaMediaFileBase(safeId)}.${ext}`,
-          version
-        )
+        withMediaVersion(`${NEWS_ASSETS_DIR}${dir}/${file}.${ext}`, version)
       ),
       NEWS_PLACEHOLDER,
     ];
@@ -776,7 +781,7 @@
 
       const fd = new FormData();
       fd.append("bucket", NEWS_MEDIA_BUCKET);
-      fd.append("target_dir", "");
+      fd.append("target_dir", getNoticiaMediaTargetDir(id));
       fd.append("file_name", getNoticiaMediaFileBase(id));
       fd.append("replace", "1");
       fd.append("file", file);

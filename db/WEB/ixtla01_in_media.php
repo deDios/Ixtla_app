@@ -36,7 +36,7 @@ $ALLOWED_MIME = [
     'image/heif' => 'heif',
 ];
 
-$MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+$MAX_FILE_SIZE = 1 * 1024 * 1024; // 1 MB
 
 /* =========================================================
  * HELPERS
