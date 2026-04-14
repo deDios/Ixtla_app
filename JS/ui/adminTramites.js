@@ -1123,7 +1123,7 @@
                 <tr>
                   <th>Tipo de trámite</th>
                   <th>Descripción</th>
-                  <th>imagen</th>
+                  <th>Departamento</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
