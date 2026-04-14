@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ixtla App</title>
+    <link rel="stylesheet" href="/CSS/components copy.css">
+    <link rel="stylesheet" href="/CSS/index copy.css">
+    <link rel="stylesheet" href="/CSS/plantilla.css">
+    <link rel="icon" href="/favicon.ico">
+</head>
+
+<body>
+    <!-- Tope de pagina -->
+    <header id="header" data-link-home="/index.php">
+        <div class="social-bar-mobile">
+            <div class="social-icons">
+                <div class="icon-mobile"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
+                <div class="icon-mobile"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
+                <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
+                <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
+                <!-- El JSglobal reemplaza este avatar cuando hay sesión -->
+                <div class="user-icon-mobile" onclick="window.location.href='VIEW/Login.php'">
+                    <img src="/ASSETS/user/img_user1.png" alt="Usuario" />
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Top bar: logo a la izquierda, acciones (Hamburguesa) a la derecha -->
+        <div class="top-bar" id="top-bar">
+            <div id="logo-btn" class="logo" title="Ir al inicio" aria-label="Ir al inicio">
+                <!-- logo del header -->
+                <img class="logo-marca" src="/ASSETS/main_logo.png"
+                    alt="Ixtlahuacán de los Membrillos - Ayuntamiento" />
+            </div>
+
+
+            <div class="actions">
+                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
+                    onclick="window.location.href=this.getAttribute('href')">
+                    Contacto
+                </button>
+                <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
+                    onclick="toggleMenu()">
+                    <span></span><span></span><span></span>
+                </button>
+                <!-- El JSglobal inyecta aquí el avatar desktop si hay sesión -->
+            </div>
+        </div>
+
+
+        <!-- Subnav -- links a la izquierda, redes + avatar a la derecha -->
+        <nav id="mobile-menu" class="subnav" aria-label="Navegación secundaria">
+            <div class="nav-left">
+                <a href="/index.php" class="active">Inicio</a>
+                <a href="/VIEWS/tramiteDepartamento.php">Trámites y Seguimiento</a>
+            </div>
+
+
+            <div class="social-icons">
+                <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
+                <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+
+        <!-- seccion 1 -->
+        <section id="ix-carrusel-atencion">
+            <div class="ix-carousel" aria-label="Avisos del Ayuntamiento" data-loop="true" data-autoplay="0">
+                <h2 class="ix-c-title">Atención ciudadana</h2>
+                <div class="limite-carrusel">
+                    <div class="ix-viewport">
+                        <div class="ix-track">
+                            <!-- Slide 1 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/img1.png"
+                                            alt="Equipo junto al Pozo 3 La Mora" loading="lazy">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>¡Buenas noticias!</strong><br>
+                                            para Capilla del Refugio y Residencial La Capilla.<br><br>
+                                            Entregamos un nuevo pozo de agua que beneficiará a más de 6,000 habitantes,
+                                            abatiendo el rezago en el suministro del vital líquido.<br><br>
+                                            Seguimos trabajando con compromiso para llevar bienestar y
+                                            servicios dignos a todas las comunidades de Ixtlahuacán de los Membrillos.
+                                        </p>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <!-- Slide 2 -->
+                            <article class="ix-slide" aria-roledescription="slide">
+                                <div class="ix-card">
+                                    <figure class="ix-media">
+                                        <img src="/ASSETS/index/img2.png"
+                                            alt="Rehabilitación con asfalto en vialidades principales" loading="lazy">
+                                    </figure>
+                                    <div class="ix-content">
+                                        <p>
+                                            <strong>Seguimos trabajando por tu seguridad</strong><br><br>
+                                            Estamos rehabilitando con asfalto las principales vialidades en la zona de
+                                            la
+                                            carretera estatal a La Capilla del Refugio, así como en las colonias Valle
+                                            de
+                                            los Olivos, Sabinos y Girasoles.
+                                        </p>
+                                        <div class="ix-meta">
+                                            <time class="ix-date" datetime="2025-07-22">22 de Julio del 2025</time>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- controles -->
+                <div class="ix-controls">
+                    <button class="ix-nav ix-prev" type="button" aria-label="Anterior">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M14.5 4.5L7.5 12l7 7.5" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+
+                    <div class="ix-indicator" aria-live="polite" aria-atomic="true">
+                        <span class="ix-current">1</span>
+                        <span class="ix-sep">/</span>
+                        <span class="ix-total">8</span>
+                    </div>
+
+                    <button class="ix-nav ix-next" type="button" aria-label="Siguiente">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 4.5L16.5 12l-7 7.5" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+
+
+
+
+        <!-- seccion 2 -->
+        <section id="tramites" class="ix-section ix-deps" aria-labelledby="deps-title">
+            <div class="ix-wrap">
+                <h2 id="deps-title">Trámites / Departamentos</h2>
+
+                <div class="ix-grid">
+                    <!-- 1
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=samapa"
+                        aria-label="SAMAPA - Solicitud de atención a fugas y servicio de agua">
+                        <div class="ix-logo"><img src="/ASSETS/departamentos/samapa_icon.png" alt="SAMAPA"></div>
+                        <h3>Solicitud de atención a fugas y servicio de agua</h3>
+                        <p>Formulario para reportar fugas, baja presión o problemas de suministro, con folio de
+                            seguimiento.</p>
+                    </a>
+
+                     2
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=limpieza"
+                        aria-label="Servicios de recolección y limpieza">
+                        <div class="ix-logo"><img src="/ASSETS/departamentos/recoleccionLimpieza_icon.png"
+                                alt="Ayuntamiento Ixtlahuacán"></div>
+                        <h3>Servicios de recolección y limpieza</h3>
+                        <p>Reportes de residuos, limpieza de espacios públicos y mantenimiento general para un entorno
+                            ordenado.</p>
+                    </a>
+
+                     3
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=obras"
+                        aria-label="Dirección de obras y servicios públicos">
+                        <div class="ix-logo"><img src="/ASSETS/departamentos/obraPublica_icon.png"
+                                alt="Infraestructura y Obra Pública"></div>
+                        <h3>Dirección de obras y servicios públicos</h3>
+                        <p>Planeación y mantenimiento de la infraestructura urbana y coordinación de servicios públicos.
+                        </p>
+                    </a>
+
+                     4
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=alumbrado"
+                        aria-label="Gestión de alumbrado y energía urbana">
+                        <div class="ix-logo"><img src="/ASSETS/departamentos/cfe_icon.png" alt="CFE"></div>
+                        <h3>Gestión de alumbrado y energía urbana</h3>
+                        <p>Revisión de luminarias y administración de energía en espacios urbanos para mayor seguridad.
+                        </p>
+                    </a>
+
+                     5
+                    <a class="ix-tile" href="/VIEWS/tramiteDepartamento.php?dep=ambiental"
+                        aria-label="Gestión ambiental y ecología urbana">
+                        <div class="ix-logo"><img src="/ASSETS/departamentos/gestionAmbiental_icon.png"
+                                alt="Gestión Ambiental">
+                        </div>
+                        <h3>Gestión ambiental y ecología urbana</h3>
+                        <p>Conservación del medio ambiente, áreas verdes y reducción de la contaminación.</p>
+                    </a>
+                    -->
+                </div>
+
+                <p class="ix-note">
+                    La información es de carácter informativo. Los tiempos y requisitos pueden variar según el trámite o
+                    departamento. Para mayor certeza, comunícate con el área indicada o consulta los medios oficiales.
+                </p>
+            </div>
+        </section>
+
+
+
+    </main>
+
+    <!-- Pie de pagina -->
+    <footer id="site-footer">
+        <div class="limite">
+            <div class="footer-brand">
+                <img class="brand-lockup" src="/ASSETS/main_logo_al_frente.png"
+                    alt="Ixtlahuacán de los Membrillos - Ayuntamiento">
+            </div>
+
+            <div class="footer-cols">
+                <div class="col left">
+                    <div class="left-inner">
+                        <img class="footer-crest" src="/ASSETS/main_logo_shield.png" alt="Escudo municipal">
+                        <p class="copyright">
+                            © Presidente José Heriberto García Murillo Gobierno de Ixtlahuacán de los Membrillos 2021 |
+                            Todos los derechos reservados.
+                        </p>
+                    </div>
+                </div>
+                <div class="col right">
+                    <p class="location">
+                        Ubicación: Jardín, Ixtlahuacán de Los Membrillos Centro, 2 Jardín,
+                        45850 Ixtlahuacán de los Membrillos, Jal.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/JS/components.js"></script>
+    <script src="/JS/jsGlobal.js"></script>
+</body>
+
+</html>
