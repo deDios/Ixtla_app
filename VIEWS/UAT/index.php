@@ -249,8 +249,9 @@
         </div>
     </footer>
 
-    <script src="/JS/components.js"></script>
+    <script src="/JS/UAT/components.js"></script>
     <script src="/JS/jsGlobal.js"></script>
+    <script src="/JS/index.js"></script>
 </body>
 
 </html>
