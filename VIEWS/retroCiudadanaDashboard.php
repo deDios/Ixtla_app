@@ -12,7 +12,7 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/CSS/retroCiudadanaDashboard.css">
+    <link rel="stylesheet" href="/CSS/retroCiudadanaDashboardUAT.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="icon" href="/favicon.ico">
 </head>
@@ -211,6 +211,21 @@ ix_require_session();
                             </div>
 
                             <div class="legend retro-legend">
+
+                                <!-- boton para export de retros -->
+                                <button type="button" id="hs-btn-export-retro" class="hs-btn-new-req hs-btn-export-req"
+                                    title="Exportar retroalimentaciones"
+                                    data-label-default="Exportar retroalimentaciones" aria-disabled="false">
+                                    <svg class="hs-btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path fill="currentColor"
+                                            d="M12 3a1 1 0 0 1 1 1v9.59l2.3-2.3 1.4 1.42L12 17.41 7.3 12.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1z">
+                                        </path>
+                                        <path fill="currentColor"
+                                            d="M5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z"></path>
+                                    </svg>
+                                    <span>Exportar retroalimentaciones</span>
+                                </button>
+
                                 <span>Registros: <strong id="hs-legend-total">0</strong></span>
                                 <span style="margin:0 .4rem;">·</span>
                                 <span>Filtro: <strong id="hs-legend-status">Todos los status</strong></span>
@@ -810,8 +825,21 @@ ix_require_session();
                 <textarea id="retro-comentario" class="retro-input retro-textarea" rows="4" readonly></textarea>
 
                 <div class="retro-actions">
-                    <button id="retro-close-footer" class="retro-btn retro-btn--ghost" type="button">Cerrar</button>
-                    <button id="retro-go" class="retro-btn" type="button">Ir al requerimiento</button>
+                    <button id="retro-close-footer" class="retro-btn retro-btn--ghost" type="button">
+                        Cerrar
+                    </button>
+
+                    <button id="retro-go" class="retro-btn retro-btn--primary" type="button" data-req-id="16458">
+                        Ir al requerimiento
+                    </button>
+
+                    <button id="retro-resend" class="retro-btn retro-btn--secondary" type="button">
+                        Reenviar encuesta
+                    </button>
+
+                    <button id="retro-disable" class="retro-btn retro-btn--danger" type="button">
+                        Inhabilitar encuesta
+                    </button>
                 </div>
             </div>
         </div>
