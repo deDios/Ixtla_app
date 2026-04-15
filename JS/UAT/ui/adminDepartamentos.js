@@ -115,6 +115,20 @@
 
     if (!file) return;
 
+    if (!window.MediaUpload || typeof window.MediaUpload.compressImageForUpload !== "function") {
+      toast("No se encontró el módulo de compresión de imágenes.", "error");
+      return;
+    }
+
+    // validación previa a la compresión
+    const validation = window.MediaUpload.validateImageBeforeUpload?.(file, {
+      showFeedback: true,
+    });
+
+    if (validation && !validation.ok) {
+      return;
+    }
+
     try {
       state.drawer.isSaving = true;
       refreshView();
@@ -125,11 +139,9 @@
       fd.append("file_name", getDepartamentoMediaFileBase(id));
       fd.append("replace", "1");
 
-      // Comprimir imagen antes de subir
+      // intento de subir la imagen.
       const optimizedFile = await window.MediaUpload.compressImageForUpload(file, {
-        maxBytes: 500 * 1024,
-        maxWidth: 1200,
-        maxHeight: 1200,
+        profile: "logo",
         fileNameBase: getDepartamentoMediaFileBase(id),
       });
 
@@ -148,8 +160,6 @@
         json = { raw: txt };
       }
 
-      // Forzar actualización de la imagen en la UI
-
       if (!res.ok || json?.ok === false) {
         throw new Error(json?.error || json?.message || json?.raw || `HTTP ${res.status}`);
       }
@@ -160,7 +170,6 @@
 
       state.drawer.isSaving = false;
       refreshView();
-
     } catch (error) {
       err("Error subiendo imagen del departamento:", error);
       state.drawer.isSaving = false;
