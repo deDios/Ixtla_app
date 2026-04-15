@@ -167,16 +167,35 @@
 
     if (!file) return;
 
+    if (!window.MediaUpload || typeof window.MediaUpload.compressImageForUpload !== "function") {
+      toast("No se encontró el módulo de compresión de imágenes.", "error");
+      return;
+    }
+
+    const validation = window.MediaUpload.validateImageBeforeUpload?.(file, {
+      showFeedback: true,
+    });
+
+    if (validation && !validation.ok) {
+      return;
+    }
+
     try {
       state.drawer.isSaving = true;
-      refreshView();
+      refreshView(false);
 
       const fd = new FormData();
       fd.append("bucket", DEPT_MEDIA_BUCKET);
       fd.append("target_dir", "");
       fd.append("file_name", getDepartamentoMediaFileBase(id));
       fd.append("replace", "1");
-      fd.append("file", file);
+
+      const optimizedFile = await window.MediaUpload.compressImageForUpload(file, {
+        profile: "logo",
+        fileNameBase: getDepartamentoMediaFileBase(id),
+      });
+
+      fd.append("file", optimizedFile);
 
       const res = await fetch(API.MEDIA_UPLOAD, {
         method: "POST",
@@ -191,8 +210,6 @@
         json = { raw: txt };
       }
 
-      // Forzar actualización de la imagen en la UI
-
       if (!res.ok || json?.ok === false) {
         throw new Error(json?.error || json?.message || json?.raw || `HTTP ${res.status}`);
       }
@@ -202,12 +219,11 @@
       toast("Imagen del departamento actualizada correctamente.", "success");
 
       state.drawer.isSaving = false;
-      refreshView();
-
+      refreshView(false);
     } catch (error) {
       err("Error subiendo imagen del departamento:", error);
       state.drawer.isSaving = false;
-      refreshView();
+      refreshView(false);
       toast(getErrorMessage(error, "No se pudo subir la imagen."), "error");
     }
   }
@@ -540,7 +556,7 @@
             <input
               type="file"
               id="admin-departamento-image-input"
-              accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif"
+              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
               hidden
               ${!item.id || state.drawer.isSaving ? "disabled" : ""}
             />
@@ -854,13 +870,10 @@
 
     // aqui va el apartado para el bind de los  botones para subida de media de 
     // departamentos.
-    const changeImageBtn =
-      document.querySelector(".js-change-departamento-image");
-    const imageInput =
-      document.querySelector("#admin-departamento-image-input");
+    const changeImageBtn = document.querySelector(".js-change-departamento-image");
+    const imageInput = document.querySelector("#admin-departamento-image-input");
 
     if (changeImageBtn && imageInput) {
-
       changeImageBtn.addEventListener("click", () => {
         if (state.drawer.isSaving) return;
         imageInput.click();
@@ -868,11 +881,12 @@
 
       imageInput.addEventListener("change", async (event) => {
         const file = event.target?.files?.[0];
-        if (!file) return;
-        await uploadDepartamentoImage(file);
         event.target.value = "";
-      });
 
+        if (!file) return;
+
+        await uploadDepartamentoImage(file);
+      });
     }
 
 
