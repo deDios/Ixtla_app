@@ -4,6 +4,34 @@
     padding-top: 5rem;
 }
 
+.ix-content strong {
+    display: block;
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.ix-content p {
+    margin: 0 0 12px;
+}
+
+.ix-content .ix-pie {
+    color: #6f6f6f;
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.ix-meta {
+    grid-column: 1 / -1;
+    text-align: center;
+    margin-top: 0;
+}
+
+.ix-date {
+    font-size: .95rem;
+    color: var(--ix-muted, #777);
+    opacity: .95;
+}
+
 /*----------------------- seccion 2 ------------------------ */
 
 
@@ -126,9 +154,9 @@
     font-size: clamp(2.5rem, 2.2vw, 1.6rem);
 }
 
-.limite-carrusel{
-  max-width: 900px;
-  width: 100%;
-  margin-inline: auto;     
-  box-sizing: border-box;
+.limite-carrusel {
+    max-width: 900px;
+    width: 100%;
+    margin-inline: auto;
+    box-sizing: border-box;
 }
