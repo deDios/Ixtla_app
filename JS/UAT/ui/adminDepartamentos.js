@@ -124,7 +124,16 @@
       fd.append("target_dir", "");
       fd.append("file_name", getDepartamentoMediaFileBase(id));
       fd.append("replace", "1");
-      fd.append("file", file);
+
+      // Comprimir imagen antes de subir
+      const optimizedFile = await window.MediaUpload.compressImageForUpload(file, {
+        maxBytes: 500 * 1024,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        fileNameBase: getDepartamentoMediaFileBase(id),
+      });
+
+      fd.append("file", optimizedFile);
 
       const res = await fetch(API.MEDIA_UPLOAD, {
         method: "POST",
