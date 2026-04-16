@@ -625,8 +625,8 @@
       ADMIN: {
         enabled: true,
         url: "/VIEWS/admin.php",
-        allowedEmpIds: Array.isArray(window.NAV_CHAT_ALLOWED)
-          ? window.NAV_CHAT_ALLOWED.slice()
+        allowedEmpIds: Array.isArray(window.NAV_ADMIN_ALLOWED)
+          ? window.NAV_ADMIN_ALLOWED.slice()
           : [6, 2, 1, 15],
         cookieName: "ix_emp",
       },
