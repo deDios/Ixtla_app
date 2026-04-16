@@ -610,9 +610,7 @@
       CHAT: {
         enabled: true,
         url: "/VIEWS/whats_asesores.php",
-        allowedEmpIds: Array.isArray(window.NAV_CHAT_ALLOWED)
-          ? window.NAV_CHAT_ALLOWED.slice()
-          : [6, 5, 4, 2, 1, 15],
+        allowedEmpIds: [6, 5, 4, 2, 1, 15],
         cookieName: "ix_emp",
       },
       RETRO: {
@@ -625,9 +623,7 @@
       ADMIN: {
         enabled: true,
         url: "/VIEWS/admin.php",
-        allowedEmpIds: Array.isArray(window.NAV_ADMIN_ALLOWED)
-          ? window.NAV_ADMIN_ALLOWED.slice()
-          : [6, 2, 1, 15],
+        allowedEmpIds: [6, 2, 1, 15],
         cookieName: "ix_emp",
       },
     };
@@ -792,6 +788,57 @@
       });
     }
 
+    function maybeAddAdminLink() {
+      if (!CFG_OPS.ADMIN.enabled || !CFG_OPS.ADMIN.url) return;
+
+      const sess = readIxSession(CFG_OPS.ADMIN.cookieName);
+      const empIdRaw = sess?.empleado_id ?? sess?.id_empleado;
+      const empId = Number(empIdRaw ?? NaN);
+      if (!Number.isFinite(empId)) return;
+
+      const isAllowed = CFG_OPS.ADMIN.allowedEmpIds.includes(empId);
+
+      ensureNavLeftHosts();
+      const navs = document.querySelectorAll(
+        "#mobile-menu .nav-left, .subnav .nav-left",
+      );
+
+      navs.forEach((navLeft) => {
+        if (!navLeft) return;
+
+        const existing = navLeft.querySelector("#link-admin");
+
+        if (!isAllowed) {
+          existing?.remove();
+          return;
+        }
+
+        const isActive = normPath(CFG_OPS.ADMIN.url) === curPath();
+
+        if (existing) {
+          existing.classList.toggle("active", isActive);
+          return;
+        }
+
+        const a = document.createElement("a");
+        a.id = "link-admin";
+        a.href = CFG_OPS.ADMIN.url;
+        a.textContent = "Admin";
+        a.classList.toggle("active", isActive);
+
+        const retro = navLeft.querySelector("#link-retro");
+        const chat = navLeft.querySelector("#link-chat");
+
+        if (retro) {
+          retro.insertAdjacentElement("afterend", a);
+        } else if (chat) {
+          chat.insertAdjacentElement("afterend", a);
+        } else {
+          navLeft.appendChild(a);
+        }
+      });
+    }
+
     async function maybeAddRetroLink() {
       if (!CFG_OPS.RETRO.enabled || !CFG_OPS.RETRO.url) return;
 
@@ -878,6 +925,7 @@
       ensureLogoNavigates();
       maybeAddChatLink();
       await maybeAddRetroLink();
+      maybeAddAdminLink();
       mirrorActiveToMobile();
     }
 
@@ -936,6 +984,7 @@
           try {
             maybeAddChatLink();
             maybeAddRetroLink().catch(() => { });
+            maybeAddAdminLink();
             mirrorActiveToMobile();
             subnavs.forEach((nav) => {
               fixOperativeSocialHitbox(nav);
