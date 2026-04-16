@@ -356,7 +356,7 @@
               `Bienvenido, ${session.nombre || "usuario"}`,
               "exito",
             );
-          } catch {}
+          } catch { }
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
@@ -621,6 +621,14 @@
         label: "Retro",
         cookieName: "ix_emp",
         rbacUrl: "https://ixtla-app.com/db/web/ixtla01_rbac.php",
+      },
+      ADMIN: {
+        enabled: true,
+        url: "/VIEWS/admin.php",
+        allowedEmpIds: Array.isArray(window.NAV_CHAT_ALLOWED)
+          ? window.NAV_CHAT_ALLOWED.slice()
+          : [6, 2, 1, 15],
+        cookieName: "ix_emp",
       },
     };
 
@@ -914,12 +922,12 @@
       document.addEventListener(
         "DOMContentLoaded",
         () => {
-          mount().catch(() => {});
+          mount().catch(() => { });
         },
         { once: true },
       );
     } else {
-      mount().catch(() => {});
+      mount().catch(() => { });
     }
 
     if ("MutationObserver" in window) {
@@ -927,13 +935,13 @@
         if (isOperativeLike()) {
           try {
             maybeAddChatLink();
-            maybeAddRetroLink().catch(() => {});
+            maybeAddRetroLink().catch(() => { });
             mirrorActiveToMobile();
             subnavs.forEach((nav) => {
               fixOperativeSocialHitbox(nav);
               attachSocialClicks(nav);
             });
-          } catch {}
+          } catch { }
         }
       });
       obs.observe(header, { childList: true, subtree: true });
