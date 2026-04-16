@@ -604,11 +604,6 @@
             href: "/VIEWS/Tareas.php",
             matchers: ["tareas.php"],
           },
-          admin: {
-            label: "Admin",
-            href: "/VIEWS/admin.php",
-            matchers: ["admin.php"],
-          },
         },
         window.NAV_SECTIONS || {},
       ),
