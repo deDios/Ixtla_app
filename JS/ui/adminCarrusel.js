@@ -19,7 +19,7 @@
   const NEWS_ASSETS_DIR = "/ASSETS/noticiasImg/";
   const NEWS_PLACEHOLDER = "/ASSETS/main_logo_shield.png";
   const NEWS_MEDIA_BUCKET = "noticias";
-  const NEWS_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "heic", "heif"];
+  const NEWS_MEDIA_EXTENSIONS = ["webp", "png", "jpg", "jpeg"];
 
   const state = {
     items: [],
@@ -775,16 +775,35 @@
     if (!file) return;
     if (state.drawer.media.isUploading || state.drawer.isSaving) return;
 
+    if (!window.MediaUpload || typeof window.MediaUpload.compressImageForUpload !== "function") {
+      toast("No se encontró el módulo de compresión de imágenes.", "error");
+      return;
+    }
+
+    const validation = window.MediaUpload.validateImageBeforeUpload?.(file, {
+      showFeedback: true,
+    });
+
+    if (validation && !validation.ok) {
+      return;
+    }
+
     try {
       state.drawer.media.isUploading = true;
-      refreshView();
+      refreshView(false);
 
       const fd = new FormData();
       fd.append("bucket", NEWS_MEDIA_BUCKET);
       fd.append("target_dir", getNoticiaMediaTargetDir(id));
       fd.append("file_name", getNoticiaMediaFileBase(id));
       fd.append("replace", "1");
-      fd.append("file", file);
+
+      const optimizedFile = await window.MediaUpload.compressImageForUpload(file, {
+        profile: "photo",
+        fileNameBase: getNoticiaMediaFileBase(id),
+      });
+
+      fd.append("file", optimizedFile);
 
       const res = await fetch(API.MEDIA_UPLOAD, {
         method: "POST",
@@ -823,11 +842,11 @@
       }
 
       state.drawer.media.isUploading = false;
-      refreshView();
+      refreshView(false);
     } catch (error) {
       err("Error subiendo imagen:", error);
       state.drawer.media.isUploading = false;
-      refreshView();
+      refreshView(false);
       toast(
         getErrorMessage(
           error,

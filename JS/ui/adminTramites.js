@@ -247,8 +247,10 @@
     }
 
     return [
+      `${DEPT_ASSETS_DIR}dep_img${safeId}.webp`,
       `${DEPT_ASSETS_DIR}dep_img${safeId}.png`,
       `${DEPT_ASSETS_DIR}dep_img${safeId}.jpg`,
+      `${DEPT_ASSETS_DIR}dep_img${safeId}.jpeg`,
       DEPT_PLACEHOLDER,
     ];
   }
@@ -574,7 +576,7 @@
 
   const TRAMITE_MEDIA_BUCKET = "departamentos_modulos";
   const TRAMITE_MEDIA_DIR_PREFIX = "dep-";
-  const TRAMITE_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "heic", "heif"];
+  const TRAMITE_MEDIA_EXTENSIONS = ["webp", "png", "jpg", "jpeg"];
 
   function getTramiteIdForMedia() {
     return Number(state.drawer.selectedId || state.drawer.draft?.id || 0);
@@ -713,6 +715,20 @@
     }
 
     if (!file) return;
+    if (state.drawer.media.isUploading || state.drawer.isSaving) return;
+
+    if (!window.MediaUpload || typeof window.MediaUpload.compressImageForUpload !== "function") {
+      toast("No se encontró el módulo de compresión de imágenes.", "error");
+      return;
+    }
+
+    const validation = window.MediaUpload.validateImageBeforeUpload?.(file, {
+      showFeedback: true,
+    });
+
+    if (validation && !validation.ok) {
+      return;
+    }
 
     state.drawer.media.isUploading = true;
     refreshView(false);
@@ -723,7 +739,13 @@
       fd.append("target_dir", getTramiteMediaTargetDir(departamentoId));
       fd.append("file_name", getTramiteMediaFileBase(variant, tramiteId));
       fd.append("replace", "1");
-      fd.append("file", file);
+
+      const optimizedFile = await window.MediaUpload.compressImageForUpload(file, {
+        profile: variant === "icon" ? "icon" : "card",
+        fileNameBase: getTramiteMediaFileBase(variant, tramiteId),
+      });
+
+      fd.append("file", optimizedFile);
 
       const res = await fetch(API.MEDIA_UPLOAD, {
         method: "POST",
@@ -741,6 +763,7 @@
       if (!res.ok || json?.ok === false) {
         throw new Error(json?.error || json?.message || json?.raw || `HTTP ${res.status}`);
       }
+
       setTramiteMediaVersion(variant, tramiteId);
 
       toast(
@@ -764,7 +787,7 @@
 
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif";
+    input.accept = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 
     input.addEventListener("change", async (e) => {
       const file = e.target.files?.[0];
