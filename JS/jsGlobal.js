@@ -604,6 +604,11 @@
             href: "/VIEWS/Tareas.php",
             matchers: ["tareas.php"],
           },
+          admin: {
+            label: "Admin",
+            href: "/VIEWS/admin.php",
+            matchers: ["admin.php"],
+          },
         },
         window.NAV_SECTIONS || {},
       ),
@@ -953,7 +958,8 @@
       return (
         !!resolveActiveSectionKey() ||
         /home\.php/i.test(curLast()) ||
-        /retrociudadanadashboard\.php/i.test(curLast())
+        /retrociudadanadashboard\.php/i.test(curLast()) ||
+        /admin\.php/i.test(curLast())
       );
     }
 
