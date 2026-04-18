@@ -36,8 +36,8 @@
   const ENDPOINT =
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamentos.php";
   const REQUEST_BODY = { 
-    //status: "active"
-    all: true
+    status: 1
+    //all: true
    };
 
   // --- assets
@@ -210,5 +210,3 @@
     run();
   }
 })();
-
-// componente para levantamiento de requerimientois a partir del canal 2
