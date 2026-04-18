@@ -5,8 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
-    <link rel="stylesheet" href="/CSS/components.css">
-    <link rel="stylesheet" href="/CSS/index.css">
+    <link rel="stylesheet" href="/CSS/components copy.css">
+    <link rel="stylesheet" href="/CSS/index copy.css">
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="icon" href="/favicon.ico">
 </head>
@@ -69,6 +69,7 @@
     </header>
 
     <main>
+
         <!-- seccion 1 -->
         <section id="ix-carrusel-atencion">
             <div class="ix-carousel" aria-label="Avisos del Ayuntamiento" data-loop="true" data-autoplay="0">
@@ -76,7 +77,8 @@
                 <div class="limite-carrusel">
                     <div class="ix-viewport">
                         <div class="ix-track">
-                            <!-- Slide 1 -->
+
+                            <!-- Slide 1 
                             <article class="ix-slide" aria-roledescription="slide">
                                 <div class="ix-card">
                                     <figure class="ix-media">
@@ -95,144 +97,8 @@
                                     </div>
                                 </div>
                             </article>
-
-                            <!-- Slide 2 -->
-                            <article class="ix-slide" aria-roledescription="slide">
-                                <div class="ix-card">
-                                    <figure class="ix-media">
-                                        <img src="/ASSETS/index/img2.png"
-                                            alt="Rehabilitación con asfalto en vialidades principales" loading="lazy">
-                                    </figure>
-                                    <div class="ix-content">
-                                        <p>
-                                            <strong>Seguimos trabajando por tu seguridad</strong><br><br>
-                                            Estamos rehabilitando con asfalto las principales vialidades en la zona de
-                                            la
-                                            carretera estatal a La Capilla del Refugio, así como en las colonias Valle
-                                            de
-                                            los Olivos, Sabinos y Girasoles.
-                                        </p>
-                                        <div class="ix-meta">
-                                            <time class="ix-date" datetime="2025-07-22">22 de Julio del 2025</time>
-                                        </div>
-                                    </div>
-                                </div>
-                            </article>
-
-                            <!-- Slide 3 
-                            <article class="ix-slide" aria-roledescription="slide">
-                                <div class="ix-card">
-                                    <figure class="ix-media">
-                                        <img src="/ASSETS/index/infoImg1.jpg" alt="4º informe de gobierno"
-                                            loading="lazy">
-                                    </figure>
-                                    <div class="ix-content">
-                                        <p>
-                                            <strong>4º informe de gobierno</strong><br><br>
-                                            “Un paso más al frente“.
-                                        </p>
-                                        <div class="ix-meta">
-                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
-                                        </div>
-                                    </div>
-                                </div>
-                            </article>
-
-                             Slide 4 
-                            <article class="ix-slide" aria-roledescription="slide">
-                                <div class="ix-card">
-                                    <figure class="ix-media">
-                                        <img src="/ASSETS/index/infoImg2.jpg"
-                                            alt="4º informe de gobierno - imagen 2" loading="lazy">
-                                    </figure>
-                                    <div class="ix-content">
-                                        <p>
-                                            <strong>4º informe de gobierno</strong><br><br>
-                                            “Un paso más al frente“.
-                                        </p>
-                                        <div class="ix-meta">
-                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
-                                        </div>
-                                    </div>
-                                </div>
-                            </article>
-
-                            Slide 5 
-                            <article class="ix-slide" aria-roledescription="slide">
-                                <div class="ix-card">
-                                    <figure class="ix-media">
-                                        <img src="/ASSETS/index/infoImg3.jpg"
-                                            alt="4º informe de gobierno - imagen 3" loading="lazy">
-                                    </figure>
-                                    <div class="ix-content">
-                                        <p>
-                                            <strong>4º informe de gobierno</strong><br><br>
-                                            “Un paso más al frente“.
-                                        </p>
-                                        <div class="ix-meta">
-                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
-                                        </div>
-                                    </div>
-                                </div>
-                            </article>
-
-                             Slide 6 
-                            <article class="ix-slide" aria-roledescription="slide">
-                                <div class="ix-card">
-                                    <figure class="ix-media">
-                                        <img src="/ASSETS/index/infoImg4.jpg"
-                                            alt="4º informe de gobierno - imagen 4" loading="lazy">
-                                    </figure>
-                                    <div class="ix-content">
-                                        <p>
-                                            <strong>4º informe de gobierno</strong><br><br>
-                                            “Un paso más al frente“.
-                                        </p>
-                                        <div class="ix-meta">
-                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
-                                        </div>
-                                    </div>
-                                </div>
-                            </article>
-
-                             Slide 7 
-                            <article class="ix-slide" aria-roledescription="slide">
-                                <div class="ix-card">
-                                    <figure class="ix-media">
-                                        <img src="/ASSETS/index/infoImg5.jpg"
-                                            alt="4º informe de gobierno - imagen 5" loading="lazy">
-                                    </figure>
-                                    <div class="ix-content">
-                                        <p>
-                                            <strong>4º informe de gobierno</strong><br><br>
-                                            “Un paso más al frente“.
-                                        </p>
-                                        <div class="ix-meta">
-                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
-                                        </div>
-                                    </div>
-                                </div>
-                            </article>
-
-                             Slide 8 
-                            <article class="ix-slide" aria-roledescription="slide">
-                                <div class="ix-card">
-                                    <figure class="ix-media">
-                                        <img src="/ASSETS/index/infoImg6.jpg"
-                                            alt="4º informe de gobierno - imagen 6" loading="lazy">
-                                    </figure>
-                                    <div class="ix-content">
-                                        <p>
-                                            <strong>4º informe de gobierno</strong><br><br>
-                                            “Un paso más al frente“.
-                                        </p>
-                                        <div class="ix-meta">
-                                            <time class="ix-date" datetime="2025-09-28">28 de Septiembre del 2025</time>
-                                        </div>
-                                    </div>
-                                </div>
-                            </article>
                             -->
+
                         </div>
                     </div>
                 </div>
@@ -363,7 +229,8 @@
     </footer>
 
     <script src="/JS/components.js"></script>
-    <script src="JS/JSglobal.js"></script>
+    <script src="/JS/jsGlobal.js"></script>
+    <script src="/JS/index.js"></script>
 </body>
 
 </html>
