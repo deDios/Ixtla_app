@@ -5,8 +5,8 @@ import { setSession } from "/PRI/JS/auth/session.js";
   "use strict";
 
   /* -------------- CONFIG -------------- */
-  const ENDPOINT = "/PRI/db/WEB/ixtla-login.php";
-  // PRI\db\WEB\ixtla-login.php
+  const ENDPOINT = "/PRI/db/WEB/ixtla_login.php";
+  // PRI\db\WEB\ixtla_login.php
   const REDIRECT_OK = "/PRI/Views/home.php";
   // PRI\Views\home.php
 
