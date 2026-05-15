@@ -6,7 +6,9 @@ import { setSession } from "/PRI/JS/auth/session.js";
 
   /* -------------- CONFIG -------------- */
   const ENDPOINT = "/PRI/db/WEB/ixtla-login.php";
+  // PRI\db\WEB\ixtla-login.php
   const REDIRECT_OK = "/PRI/Views/home.php";
+  // PRI\Views\home.php
 
   const RECAPTCHA = {
     enabled: false,
