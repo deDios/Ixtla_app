@@ -1,5 +1,5 @@
 <?php
-// PRI/JS/auth/ix_guard.php
+// /PRI/JS/auth/ix_guard.php
 
 declare(strict_types=1);
 
@@ -12,55 +12,52 @@ function ix_require_session(array $options = []): void
         return;
     }
 
-    if (headers_sent()) {
-        echo '<script>window.location.href = ' . json_encode($loginUrl) . ';</script>';
-        exit;
-    }
-
     $rawCookie = $_COOKIE[$cookieName] ?? '';
 
     if ($rawCookie === '' || $rawCookie === null) {
-        ix_guard_clear_cookie($cookieName);
-        header('Location: ' . $loginUrl, true, 302);
-        exit;
+        ix_guard_redirect($cookieName, $loginUrl);
     }
 
     $jsonStr = base64_decode($rawCookie, true);
 
     if ($jsonStr === false || $jsonStr === '') {
-        ix_guard_clear_cookie($cookieName);
-        header('Location: ' . $loginUrl, true, 302);
-        exit;
+        ix_guard_redirect($cookieName, $loginUrl);
     }
 
     $payload = json_decode($jsonStr, true);
 
     if (!is_array($payload)) {
-        ix_guard_clear_cookie($cookieName);
-        header('Location: ' . $loginUrl, true, 302);
-        exit;
+        ix_guard_redirect($cookieName, $loginUrl);
     }
 
     if (isset($payload['exp']) && is_numeric($payload['exp'])) {
         $nowMs = (int) round(microtime(true) * 1000);
 
         if ($nowMs > (int) $payload['exp']) {
-            ix_guard_clear_cookie($cookieName);
-            header('Location: ' . $loginUrl, true, 302);
-            exit;
+            ix_guard_redirect($cookieName, $loginUrl);
         }
     }
 
-    $usuarioId = $payload['usuario_id'] ?? $payload['id_usuario'] ?? null;
+    $usuarioId = $payload['usuario_id'] ?? null;
 
     if (empty($usuarioId)) {
-        ix_guard_clear_cookie($cookieName);
-        header('Location: ' . $loginUrl, true, 302);
-        exit;
+        ix_guard_redirect($cookieName, $loginUrl);
     }
 
     $GLOBALS['red_session'] = $payload;
-    $GLOBALS['ix_session'] = $payload;
+}
+
+function ix_guard_redirect(string $cookieName, string $loginUrl): void
+{
+    ix_guard_clear_cookie($cookieName);
+
+    if (headers_sent()) {
+        echo '<script>window.location.href = ' . json_encode($loginUrl) . ';</script>';
+        exit;
+    }
+
+    header('Location: ' . $loginUrl, true, 302);
+    exit;
 }
 
 function ix_guard_clear_cookie(string $cookieName): void
