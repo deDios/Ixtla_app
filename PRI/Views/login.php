@@ -1,19 +1,12 @@
-<?php
-require_once __DIR__ . '/../JS/auth/ix_guard.php';
-
-ix_require_session([
-    'login_url' => '/PRI/Views/login.php'
-]);
-?>
 <!DOCTYPE html>
 <html lang="es">
 
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PRI</title>
+    <title>Ixtla App</title>
     <link rel="stylesheet" href="/PRI/CSS/plantilla.css">
-    <link rel="stylesheet" href="/PRI/CSS/home.css">
+    <link rel="stylesheet" href="/PRI/CSS/login.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -75,11 +68,53 @@ ix_require_session([
     </header>
 
     <main>
-        
         <!-------------------------- Seccion 1, login  --------------------------->
         <section id="auth-login" aria-labelledby="auth-title">
-            <h6>Bienvenido de vuelta!</h6>
+            <div class="auth-wrap">
+                <div class="auth-grid">
+
+                    <!-- imagen -->
+                    <div class="auth-photos">
+                        <img src="/ASSETS/portadaLogin.png" alt="Ixtlahuacán de los Membrillos">
+                    </div>
+
+                    <!-- formulario -->
+                    <div class="auth-panel">
+                        <h2 id="auth-title">
+                            <span>Atención ciudadana</span><br>
+                            <strong>Ixtlahuacán de los Membrillos</strong>
+                        </h2>
+
+                        <form class="auth-form" action="#" method="post" novalidate>
+                            <label class="field">
+                                <input type="text" name="usuario" autocomplete="username" placeholder="Usuario">
+                            </label>
+
+                            <label class="field">
+                                <input type="password" name="password" autocomplete="current-password"
+                                    placeholder="Contraseña">
+                            </label>
+
+                            <button type="submit" class="btn-login">Iniciar sesión</button>
+
+                            <div class="auth-divider" role="separator" aria-label="o">
+                                <span class="line"></span><span class="dot"></span><span class="line"></span>
+                            </div>
+                            <!-- <a href="/VIEWS/recover.php" class="forgot-link">¿Olvidaste tu contraseña?</a>  -->
+                        </form>
+                    </div>
+                </div>
+
+                <nav class="auth-mini-nav" aria-label="Enlaces informativos">
+                    <a href="https://maps.app.goo.gl/LZD6t8JeazxKa5wn9">Ubicación</a>
+                    <a href="https://www.instagram.com/imembrillosgob/">Galería</a>
+                    <!-- <a href="#">Información</a> este esta pendiente-->
+                </nav>
+                <p class="auth-copy">©2025 Municipio Ixtlahuacán de los Membrillos</p>
+            </div>
         </section>
+
+
 
     </main>
 
@@ -114,8 +149,10 @@ ix_require_session([
 
     <!-- ESPACIO PARA MODALES -->
 
-    <script src="/PRI/JS/jsGlobal.js"></script>
-    <script type="module" src="/PRI/JS/home.js"></script>
+    <script src="/PRI/JS/JSglobal.js"></script>
+    <script src="/PRI/JS/components.js"></script>
+    <script type="module" src="/PRI/JS/auth/session.js"></script>
+    <script type="module" src="/PRI/JS/login.js"></script>
 
 </body>
 
