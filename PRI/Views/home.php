@@ -1,9 +1,11 @@
 <?php
+/*
 require_once __DIR__ . '/../JS/auth/ix_guard.php';
 
 ix_require_session([
     'login_url' => '/PRI/Views/login.php'
 ]);
+*/
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -75,7 +77,7 @@ ix_require_session([
     </header>
 
     <main>
-        
+
         <!-------------------------- Seccion 1, login  --------------------------->
         <section id="auth-login" aria-labelledby="auth-title">
             <h6>Bienvenido de vuelta!</h6>
