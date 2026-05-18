@@ -8,12 +8,12 @@
   const GC_DEFAULT_CONFIG = {
     PATHS: {
       ASSETS: "/ASSETS",
-      VIEWS: "/VIEWS",
+      VIEWS: "/PRI/Views",
     },
     ROUTES: {
-      publicHome: "/index.php",
-      appHome: "/VIEWS/home.php",
-      login: "/VIEWS/login.php",
+      publicHome: "/PRI/index.php",
+      appHome: "/PRI/Views/home.php",
+      login: "/PRI/Views/login.php",
     },
     ASSETS: {
       DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
@@ -592,18 +592,20 @@
         {
           home: {
             label: "Home",
-            href: "/VIEWS/home.php",
+            href: "/PRI/Views/home.php",
             matchers: [
               "home.php",
               "requerimiento.php",
               /^\/VIEWS\/requerimiento\/\d+$/i,
             ],
           },
+          /*
           tareas: {
             label: "Tareas",
-            href: "/VIEWS/Tareas.php",
+            href: "/PRI/Views/Tareas.php",
             matchers: ["tareas.php"],
           },
+          */
         },
         window.NAV_SECTIONS || {},
       ),
