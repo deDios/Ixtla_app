@@ -383,6 +383,7 @@
 @media (max-width: 720px) {
     .red-home {
         padding: 24px 10px 56px;
+        padding-top: 5rem;
     }
 
     .red-heading {

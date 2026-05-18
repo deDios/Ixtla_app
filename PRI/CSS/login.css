@@ -1,3 +1,7 @@
+main {
+  background: white;
+}
+
 #auth-login{
   padding: clamp(24px, 5vw, 64px) 16px;
   padding-top: 8rem;

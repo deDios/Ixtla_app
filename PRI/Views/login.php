@@ -71,7 +71,7 @@
 
                     <!-- imagen -->
                     <div class="auth-photos">
-                        <img src="/ASSETS/portadaLogin.png" alt="Ixtlahuacán de los Membrillos">
+                        <img src="/PRI/Assets/PRI.png" alt="Ixtlahuacán de los Membrillos">
                     </div>
 
                     <!-- formulario -->
