@@ -71,7 +71,7 @@
 
                     <!-- imagen -->
                     <div class="auth-photos">
-                        <img src="/PRI/Assets/PRI.png" alt="Ixtlahuacán de los Membrillos">
+                        <img src="/PRI/Assets/Logo_PRI (2).png" alt="Ixtlahuacán de los Membrillos">
                     </div>
 
                     <!-- formulario -->
