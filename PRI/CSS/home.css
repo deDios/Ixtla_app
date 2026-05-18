@@ -1,0 +1,480 @@
+:root {
+  --red-primary: #2f8f6b;
+  --red-primary-dark: #247455;
+  --red-accent: #dc2626;
+  --red-text: #111827;
+  --red-muted: #6b7280;
+  --red-border: #eadada;
+  --red-soft: #f8f4f4;
+  --red-surface: #ffffff;
+  --red-shadow: 0 12px 28px rgba(17, 24, 39, 0.08);
+  --red-radius: 18px;
+}
+
+.red-home {
+  min-height: 70vh;
+  padding: clamp(24px, 5vw, 64px) 16px;
+  padding-top: 7rem;
+  background:
+    radial-gradient(circle at top left, rgba(47, 143, 107, 0.12), transparent 34%),
+    linear-gradient(180deg, #f7f7f7 0%, #ffffff 42%);
+  color: var(--red-text);
+}
+
+.red-shell {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(234, 218, 218, 0.9);
+  border-radius: 26px;
+  box-shadow: var(--red-shadow);
+  padding: clamp(18px, 3vw, 34px);
+}
+
+.red-top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(12px, 3vw, 24px);
+  margin-bottom: clamp(18px, 4vw, 32px);
+}
+
+.red-brand {
+  width: 70px;
+  height: 70px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border: 1px solid var(--red-border);
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.07);
+}
+
+.red-logo {
+  max-width: 54px;
+  max-height: 54px;
+  display: block;
+}
+
+.red-user h1 {
+  margin: 0;
+  font-size: clamp(1.45rem, 2vw, 2.3rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.red-user p {
+  margin: 4px 0 0;
+  color: var(--red-muted);
+  font-weight: 700;
+}
+
+.red-avatar {
+  width: 54px;
+  height: 54px;
+  border: 0;
+  padding: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e5e7eb;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.12);
+}
+
+.red-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.red-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 2vw, 22px);
+  margin-bottom: clamp(18px, 4vw, 28px);
+}
+
+.red-metric-card {
+  background: var(--red-surface);
+  border: 1px solid var(--red-border);
+  border-radius: var(--red-radius);
+  padding: clamp(16px, 2vw, 22px);
+  text-align: center;
+  box-shadow: 0 10px 22px rgba(127, 29, 29, 0.08);
+}
+
+.red-metric-card span {
+  display: block;
+  color: #594545;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.red-metric-card strong {
+  display: block;
+  color: var(--red-primary);
+  font-size: clamp(1.65rem, 3vw, 2.6rem);
+  line-height: 1;
+  font-weight: 900;
+}
+
+.red-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.red-search {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border: 1px solid var(--red-border);
+  border-radius: 14px;
+  background: #fff;
+  padding: 0 14px;
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.06);
+}
+
+.red-search svg {
+  width: 20px;
+  height: 20px;
+  color: #9ca3af;
+  flex: 0 0 auto;
+}
+
+.red-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  outline: 0;
+  font-size: 0.98rem;
+  color: var(--red-text);
+}
+
+.red-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.red-btn,
+.red-btn-add {
+  border: 0;
+  cursor: pointer;
+  font-weight: 900;
+  color: #fff;
+  background: var(--red-primary);
+  box-shadow: 0 8px 16px rgba(47, 143, 107, 0.22);
+  transition: transform 0.12s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.red-btn {
+  min-height: 46px;
+  padding: 0 22px;
+  border-radius: 14px;
+  font-size: 1rem;
+}
+
+.red-btn-add {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  font-size: 1.8rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+
+.red-btn:hover,
+.red-btn-add:hover {
+  background: var(--red-primary-dark);
+  transform: translateY(-1px);
+}
+
+.red-table-card {
+  background: #fff;
+  border: 1px solid var(--red-border);
+  border-radius: var(--red-radius);
+  overflow: hidden;
+  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.06);
+}
+
+.red-table-wrap {
+  overflow: auto;
+}
+
+.red-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 760px;
+}
+
+.red-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f0eeee;
+  color: #111827;
+  text-align: left;
+  font-size: 0.92rem;
+  padding: 14px 16px;
+  white-space: nowrap;
+}
+
+.red-table tbody td {
+  padding: 13px 16px;
+  border-top: 1px solid #f0dddd;
+  vertical-align: middle;
+  font-size: 0.92rem;
+}
+
+.red-table tbody tr {
+  transition: background 0.14s ease;
+}
+
+.red-table tbody tr:hover {
+  background: #fbf7f7;
+}
+
+.red-table .td-name {
+  font-weight: 800;
+}
+
+.red-table .td-muted {
+  color: var(--red-muted);
+}
+
+.red-ine {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  font-weight: 900;
+  color: #fff;
+  background: #22c55e;
+}
+
+.red-ine.is-missing {
+  background: #d1d5db;
+  color: #6b7280;
+}
+
+.red-open {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  color: #fff;
+  background: linear-gradient(135deg, #62bd91, #2f8f6b);
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.16s ease;
+}
+
+.red-open:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.red-mobile-list {
+  display: none;
+  padding: 14px;
+  gap: 12px;
+}
+
+.red-person-card {
+  border: 1px solid var(--red-border);
+  border-radius: 16px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.05);
+}
+
+.red-person-card h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.red-person-meta {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--red-muted);
+  font-size: 0.92rem;
+}
+
+.red-person-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.red-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #edf7f2;
+  color: var(--red-primary-dark);
+  font-weight: 900;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.red-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px;
+  border-top: 1px solid #f0dddd;
+}
+
+.red-pager button,
+.red-pager input {
+  height: 36px;
+  border: 1px solid var(--red-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--red-text);
+  font-weight: 800;
+}
+
+.red-pager button {
+  min-width: 38px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.red-pager button.is-active {
+  background: var(--red-primary);
+  border-color: var(--red-primary);
+  color: #fff;
+}
+
+.red-pager button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.red-pager input {
+  width: 64px;
+  padding: 0 8px;
+  text-align: center;
+}
+
+.red-pager span {
+  color: var(--red-muted);
+  font-size: 0.9rem;
+}
+
+.red-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--red-muted);
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .red-home {
+    padding-top: 6.5rem;
+  }
+
+  .red-top {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .red-metrics {
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .red-metric-card {
+    scroll-snap-align: start;
+  }
+
+  .red-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .red-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .red-btn {
+    flex: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .red-home {
+    padding-inline: 10px;
+    padding-top: 5.8rem;
+  }
+
+  .red-shell {
+    border-radius: 20px;
+    padding: 14px;
+  }
+
+  .red-top {
+    grid-template-columns: auto 1fr;
+  }
+
+  .red-avatar {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .red-brand {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+  }
+
+  .red-user {
+    grid-column: 1 / -1;
+  }
+
+  .red-user h1 {
+    font-size: 1.45rem;
+  }
+
+  .red-user p {
+    font-size: 0.95rem;
+  }
+
+  .red-table-wrap {
+    display: none;
+  }
+
+  .red-mobile-list {
+    display: grid;
+  }
+
+  .red-pager {
+    padding: 14px 10px;
+  }
+
+  .red-pager .page-number:not(.is-active) {
+    display: none;
+  }
+
+  .red-pager span {
+    width: 100%;
+    text-align: center;
+  }
+}

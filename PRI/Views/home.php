@@ -74,16 +74,87 @@ ix_require_session([
         </nav>
     </header>
 
-    <main>
+    <main class="red-home">
+        <section class="red-shell" aria-labelledby="red-title">
 
-        <!-------------------------- Seccion 1, login  --------------------------->
-        <section id="auth-login" aria-labelledby="auth-title">
-            <h6>Bienvenido de vuelta!</h6>
+            <header class="red-top">
+                <div class="red-brand">
+                    <img src="/PRI/ASSETS/pri-logo.png" alt="PRI" class="red-logo"
+                        onerror="this.style.display='none'">
+                </div>
+
+                <div class="red-user">
+                    <h1 id="red-title">Panel RED</h1>
+                    <p id="red-user-name">Juan Pablo García Casillas</p>
+                </div>
+
+                <button type="button" class="red-avatar" aria-label="Perfil">
+                    <img src="/ASSETS/user/img_user1.png" alt="Usuario">
+                </button>
+            </header>
+
+            <section class="red-metrics" aria-label="Resumen">
+                <article class="red-metric-card">
+                    <span>Afiliados</span>
+                    <strong id="metric-afiliados">0</strong>
+                </article>
+
+                <article class="red-metric-card">
+                    <span>Simpatizantes</span>
+                    <strong id="metric-simpatizantes">0</strong>
+                </article>
+
+                <article class="red-metric-card">
+                    <span>Promotores</span>
+                    <strong id="metric-promotores">0</strong>
+                </article>
+            </section>
+
+            <section class="red-toolbar" aria-label="Herramientas">
+                <div class="red-search" role="search">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="currentColor"
+                            d="M10 4a6 6 0 0 1 4.47 9.93l4.3 4.3l-1.42 1.41l-4.29-4.29A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8" />
+                    </svg>
+                    <input id="red-search" type="search" placeholder="Buscar por nombre, domicilio o tipo..."
+                        autocomplete="off">
+                </div>
+
+                <div class="red-actions">
+                    <button type="button" id="red-btn-export" class="red-btn red-btn-export">
+                        Exportar
+                    </button>
+
+                    <button type="button" id="red-btn-add" class="red-btn-add" aria-label="Agregar registro">
+                        +
+                    </button>
+                </div>
+            </section>
+
+            <section class="red-table-card" aria-label="Listado RED">
+                <div class="red-table-wrap">
+                    <table class="red-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Domicilio</th>
+                                <th>Tipo</th>
+                                <th>INE</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="red-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="red-mobile-list" class="red-mobile-list" aria-label="Listado móvil"></div>
+
+                <nav id="red-pager" class="red-pager" aria-label="Paginación"></nav>
+            </section>
+
         </section>
-
     </main>
 
-    <!-- Pie de pagina -->
     <footer id="site-footer">
         <div class="limite">
             <div class="footer-brand">
@@ -111,12 +182,9 @@ ix_require_session([
         </div>
     </footer>
 
-
-    <!-- ESPACIO PARA MODALES -->
-
-    <script src="/PRI/JS/jsGlobal.js"></script>
+    <script src="/PRI/JS/JSglobal.js"></script>
+    <script type="module" src="/PRI/JS/auth/session.js"></script>
     <script type="module" src="/PRI/JS/home.js"></script>
-
 </body>
 
 </html>
