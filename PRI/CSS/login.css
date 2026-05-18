@@ -221,6 +221,7 @@ main {
 @media (max-width: 520px) {
   #auth-login {
     padding: 28px 14px 44px;
+    padding-top: 4rem;
   }
 
   #auth-login .auth-grid {
