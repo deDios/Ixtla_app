@@ -44,10 +44,6 @@ ix_require_session([
 
 
             <div class="actions">
-                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
-                    onclick="window.location.href=this.getAttribute('href')">
-                    Contacto
-                </button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
@@ -80,7 +76,6 @@ ix_require_session([
             <div class="red-heading">
                 <div>
                     <p class="red-kicker">Panel principal</p>
-                    <h1 id="red-title">RED</h1>
                     <p id="red-user-name" class="red-user-name">Coordinador General 01</p>
                 </div>
             </div>

@@ -37,10 +37,6 @@
 
 
             <div class="actions">
-                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
-                    onclick="window.location.href=this.getAttribute('href')">
-                    Contacto
-                </button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
