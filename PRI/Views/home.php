@@ -75,25 +75,17 @@ ix_require_session([
     </header>
 
     <main class="red-home">
-        <section class="red-shell" aria-labelledby="red-title">
+        <section class="red-dashboard" aria-labelledby="red-title">
 
-            <header class="red-top">
-                <div class="red-brand">
-                    <img src="/PRI/ASSETS/pri-logo.png" alt="PRI" class="red-logo"
-                        onerror="this.style.display='none'">
+            <div class="red-heading">
+                <div>
+                    <p class="red-kicker">Panel principal</p>
+                    <h1 id="red-title">RED</h1>
+                    <p id="red-user-name" class="red-user-name">Coordinador General 01</p>
                 </div>
+            </div>
 
-                <div class="red-user">
-                    <h1 id="red-title">Panel RED</h1>
-                    <p id="red-user-name">Juan Pablo García Casillas</p>
-                </div>
-
-                <button type="button" class="red-avatar" aria-label="Perfil">
-                    <img src="/ASSETS/user/img_user1.png" alt="Usuario">
-                </button>
-            </header>
-
-            <section class="red-metrics" aria-label="Resumen">
+            <section class="red-metrics" aria-label="Resumen de registros">
                 <article class="red-metric-card">
                     <span>Afiliados</span>
                     <strong id="metric-afiliados">0</strong>
@@ -110,14 +102,19 @@ ix_require_session([
                 </article>
             </section>
 
-            <section class="red-toolbar" aria-label="Herramientas">
+            <section class="red-toolbar" aria-label="Herramientas de búsqueda y acciones">
                 <div class="red-search" role="search">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path fill="currentColor"
                             d="M10 4a6 6 0 0 1 4.47 9.93l4.3 4.3l-1.42 1.41l-4.29-4.29A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8" />
                     </svg>
-                    <input id="red-search" type="search" placeholder="Buscar por nombre, domicilio o tipo..."
-                        autocomplete="off">
+
+                    <input
+                        id="red-search"
+                        type="search"
+                        placeholder="Buscar por nombre, domicilio o tipo..."
+                        autocomplete="off"
+                        aria-label="Buscar registros RED">
                 </div>
 
                 <div class="red-actions">
@@ -185,6 +182,7 @@ ix_require_session([
     <script src="/PRI/JS/JSglobal.js"></script>
     <script type="module" src="/PRI/JS/auth/session.js"></script>
     <script type="module" src="/PRI/JS/home.js"></script>
+
 </body>
 
 </html>
