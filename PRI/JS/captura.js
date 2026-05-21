@@ -90,13 +90,30 @@ const SEL = {
 
     retry: "#scanner-btn-retry",
     continue: "#scanner-btn-continue",
-    process: "#scanner-btn-process",
+    processWatsonx: "#scanner-btn-process-watsonx",
+    processOpenAI: "#scanner-btn-process-openai",
     debugFile: "#scanner-btn-debug-file",
     debugFileInput: "#scanner-debug-file-input",
 
     summary: ".scanner-summary",
     previewFront: "#preview-front",
     previewBack: "#preview-back",
+
+    modal: "#ine-data-modal",
+    modalFecha: "#ine-modal-fecha",
+    modalNombre: "#ine-modal-nombre",
+    modalDomicilio: "#ine-modal-domicilio",
+    modalSeccion: "#ine-modal-seccion",
+    modalClave: "#ine-modal-clave",
+    modalCurp: "#ine-modal-curp",
+    modalVigencia: "#ine-modal-vigencia",
+    modalTelefono: "#ine-modal-telefono",
+    modalRegistrado: "#ine-modal-registrado",
+    modalEditado: "#ine-modal-editado",
+    modalFront: "#ine-modal-front",
+    modalBack: "#ine-modal-back",
+    modalJson: "#ine-modal-json",
+    modalAffiliate: "#ine-modal-affiliate",
 };
 
 function toast(message, type = "exito", duration = 5000) {
@@ -901,34 +918,45 @@ async function extractIdentificationData({
     };
 }
 
-async function processOCR() {
+async function processOCR(provider = "openai") {
     if (!State.captures.front || !State.captures.back) {
         toast("Primero captura frente y reverso de la INE.", "error", 7000);
         return;
     }
 
-    const processBtn = $(SEL.process);
+    const btn =
+        provider === "watsonx"
+            ? $(SEL.processWatsonx)
+            : $(SEL.processOpenAI);
 
-    if (processBtn) {
-        processBtn.disabled = true;
-        processBtn.textContent = "Procesando OCR...";
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = provider === "watsonx"
+            ? "Procesando Watsonx..."
+            : "Procesando OpenAI...";
     }
 
-    toast("Preparando frente y reverso para extracción...", "advertencia", 3500);
+    toast(
+        provider === "watsonx"
+            ? "Extrayendo datos con Watsonx..."
+            : "Extrayendo datos con OpenAI...",
+        "advertencia",
+        3500
+    );
 
     try {
         const compositeImage = await buildCompositeIneImageDataUrl();
         const imageSizeMb = dataUrlSizeMB(compositeImage);
 
         console.group("[Captura INE] Imagen compuesta para extracción");
+        console.log("Provider:", provider);
         console.log("Size MB:", Number(imageSizeMb.toFixed(3)));
         console.log("DataURL length:", compositeImage.length);
-        console.log("Endpoint OpenAI:", ENDPOINTS.extractOpenAI);
-        console.log("Endpoint Watsonx:", ENDPOINTS.extractWatsonx);
+        console.log("Endpoint:", provider === "watsonx" ? ENDPOINTS.extractWatsonx : ENDPOINTS.extractOpenAI);
         console.groupEnd();
 
         const result = await extractIdentificationData({
-            provider: CONFIG.EXTRACTION.provider,
+            provider,
             imageDataUrl: compositeImage,
             rawText: CONFIG.EXTRACTION.rawText,
             imagesCount: 2,
@@ -940,8 +968,16 @@ async function processOCR() {
         console.log(result);
         console.groupEnd();
 
-        toast("Extracción completada. Revisa consola.", "exito", 7000);
-        toast(result, "advertencia", 12000);
+        toast(
+            provider === "watsonx"
+                ? "Extracción Watsonx completada."
+                : "Extracción OpenAI completada.",
+            "exito",
+            6000
+        );
+
+        renderIneDataModal(result, provider);
+        openIneDataModal();
     } catch (error) {
         console.error("[Captura INE] Error en processOCR:", error);
 
@@ -951,9 +987,11 @@ async function processOCR() {
             10000
         );
     } finally {
-        if (processBtn) {
-            processBtn.disabled = false;
-            processBtn.textContent = "Procesar OCR";
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = provider === "watsonx"
+                ? "Extraer con Watsonx"
+                : "Extraer con OpenAI";
         }
     }
 }
@@ -1059,6 +1097,184 @@ function bindDebugImageFromPC() {
     });
 }
 
+function getTodayLongEs() {
+    return new Intl.DateTimeFormat("es-MX", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+    }).format(new Date());
+}
+
+function normalizeFieldName(value) {
+    return String(value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+
+function getFieldsFromExtraction(extraction) {
+    const result = extraction?.result || extraction?.raw?.result || extraction?.raw?.data || extraction?.raw || {};
+
+    if (Array.isArray(result.fields)) {
+        return result.fields;
+    }
+
+    if (Array.isArray(result?.result?.fields)) {
+        return result.result.fields;
+    }
+
+    if (Array.isArray(result?.data?.fields)) {
+        return result.data.fields;
+    }
+
+    return [];
+}
+
+function findExtractedValue(fields, aliases) {
+    const normalizedAliases = aliases.map(normalizeFieldName);
+
+    const field = fields.find((item) => {
+        const name = normalizeFieldName(item?.field_name);
+        const label = normalizeFieldName(item?.label_detected);
+
+        return normalizedAliases.includes(name) || normalizedAliases.includes(label);
+    });
+
+    const value = field?.value;
+
+    if (value === null || value === undefined || String(value).trim() === "") {
+        return "--------";
+    }
+
+    return String(value).trim();
+}
+
+function buildFullNameFromFields(fields) {
+    const nombres = findExtractedValue(fields, ["nombres"]);
+    const apellidoPaterno = findExtractedValue(fields, ["apellido_paterno"]);
+    const apellidoMaterno = findExtractedValue(fields, ["apellido_materno"]);
+    const nombreCompleto = findExtractedValue(fields, ["nombre_completo", "nombre"]);
+
+    const parts = [nombres, apellidoPaterno, apellidoMaterno]
+        .filter((value) => value && value !== "--------");
+
+    if (parts.length > 0) {
+        return parts.join(" ");
+    }
+
+    return nombreCompleto;
+}
+
+function buildVigenciaFromFields(fields) {
+    const inicio = findExtractedValue(fields, ["vigencia_inicio"]);
+    const fin = findExtractedValue(fields, ["vigencia_fin", "vigencia"]);
+
+    if (inicio !== "--------" && fin !== "--------") {
+        return `${inicio} - ${fin}`;
+    }
+
+    if (fin !== "--------") {
+        return fin;
+    }
+
+    return "--------";
+}
+
+function setText(selector, value) {
+    const el = $(selector);
+    if (el) el.textContent = value || "--------";
+}
+
+function renderIneDataModal(extraction, provider) {
+    const fields = getFieldsFromExtraction(extraction);
+
+    const nombre = buildFullNameFromFields(fields);
+    const domicilio = findExtractedValue(fields, [
+        "domicilio_texto",
+        "domicilio",
+        "domicilio_completo",
+        "direccion",
+    ]);
+
+    const seccion = findExtractedValue(fields, ["seccion_id", "seccion"]);
+    const clave = findExtractedValue(fields, ["clave_elector", "clave_de_elector"]);
+    const curp = findExtractedValue(fields, ["curp"]);
+    const vigencia = buildVigenciaFromFields(fields);
+
+    /*
+     * La INE normalmente no trae teléfono.
+     * Lo dejamos preparado por si después se cruza con formulario o BD.
+     */
+    const telefono = findExtractedValue(fields, ["telefono", "phone"]);
+
+    setText(SEL.modalFecha, getTodayLongEs());
+    setText(SEL.modalNombre, nombre);
+    setText(SEL.modalDomicilio, domicilio);
+    setText(SEL.modalSeccion, seccion);
+    setText(SEL.modalClave, clave);
+    setText(SEL.modalCurp, curp);
+    setText(SEL.modalVigencia, vigencia);
+    setText(SEL.modalTelefono, telefono);
+    setText(SEL.modalRegistrado, provider === "watsonx" ? "Watsonx" : "OpenAI");
+    setText(SEL.modalEditado, "--------");
+
+    const front = $(SEL.modalFront);
+    const back = $(SEL.modalBack);
+    const json = $(SEL.modalJson);
+
+    if (front && State.captures.front) front.src = State.captures.front;
+    if (back && State.captures.back) back.src = State.captures.back;
+
+    if (json) {
+        json.textContent = JSON.stringify(extraction, null, 2);
+    }
+}
+
+function openIneDataModal() {
+    const modal = $(SEL.modal);
+    if (!modal) return;
+
+    modal.hidden = false;
+    modal.setAttribute("aria-hidden", "false");
+
+    document.body.style.overflow = "hidden";
+}
+
+function closeIneDataModal() {
+    const modal = $(SEL.modal);
+    if (!modal) return;
+
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+
+    document.body.style.overflow = "";
+}
+
+function bindIneDataModal() {
+    document.addEventListener("click", (event) => {
+        const closeTarget = event.target.closest("[data-ine-modal-close]");
+
+        if (closeTarget) {
+            closeIneDataModal();
+            return;
+        }
+
+        if (event.target.closest(SEL.modalAffiliate)) {
+            console.log("[Captura INE] Afiliar simpatizante con datos:", State.extractionResult);
+            toast("Siguiente paso: conectar afiliación con backend.", "advertencia", 5000);
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeIneDataModal();
+        }
+    });
+}
+
 function closeScanner() {
     stopCamera();
     window.location.href = "/PRI/Views/home.php";
@@ -1068,9 +1284,12 @@ function bindEvents() {
     $(SEL.close)?.addEventListener("click", closeScanner);
     $(SEL.retry)?.addEventListener("click", retryCapture);
     $(SEL.continue)?.addEventListener("click", continueFlow);
-    $(SEL.process)?.addEventListener("click", processOCR);
+
+    $(SEL.processWatsonx)?.addEventListener("click", () => processOCR("watsonx"));
+    $(SEL.processOpenAI)?.addEventListener("click", () => processOCR("openai"));
 
     bindDebugImageFromPC();
+    bindIneDataModal();
 
     window.addEventListener("beforeunload", stopCamera);
 
