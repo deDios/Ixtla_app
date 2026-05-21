@@ -369,7 +369,7 @@
         <h1>Lectura de identificación</h1>
         <p>
             Toma una o varias fotos de la identificación. Puedes cargar frente y reverso para complementar la información.
-            La tabla final compara los resultados contra los campos objetivo de la tabla <strong>persona</strong>.
+            watsonx y OpenAI intentan leer la imagen directa. Si watsonx no soporta imagen, puedes usar OCR como respaldo.
         </p>
     </div>
 
@@ -407,10 +407,10 @@
                 <button class="btn secondary" id="rotateRightButton" type="button" disabled>
                     Girar imagen activa derecha
                 </button>
-                <button class="btn warning" id="ocrAutoButton" type="button" disabled>
+                <button class="btn warning" id="ocrAllButton" type="button" disabled>
                     OCR todas las imágenes
                 </button>
-                <button class="btn" id="ocrButton" type="button" disabled>
+                <button class="btn" id="ocrActiveButton" type="button" disabled>
                     OCR imagen activa
                 </button>
                 <button class="btn secondary" id="clearButton" type="button">
@@ -425,7 +425,8 @@
             </div>
 
             <div class="mini-info">
-                Para watsonx usa <strong>OCR todas las imágenes</strong>. Para OpenAI se enviará una imagen compuesta con todas las imágenes cargadas.
+                El OCR ya no acomoda automáticamente la imagen. Primero gira manualmente cada imagen si hace falta.
+                Después puedes usar <strong>OCR todas las imágenes</strong>.
             </div>
         </div>
 
@@ -433,8 +434,8 @@
             <h2>2. Texto OCR y análisis</h2>
 
             <p class="note">
-                El OCR puede tener errores. Puedes corregir manualmente el texto antes de mandarlo a watsonx.
-                OpenAI puede usar todas las imágenes directamente y también puede recibir el OCR como apoyo.
+                El OCR puede tener errores. Puedes corregir manualmente el texto antes de mandarlo como respaldo.
+                OpenAI y watsonx intentan analizar la imagen directa; el texto OCR queda como apoyo o fallback.
             </p>
 
             <textarea id="rawText" placeholder="Aquí aparecerá el texto detectado por OCR de todas las imágenes..."></textarea>
@@ -442,12 +443,12 @@
             <div class="provider-box">
                 <div class="provider-card">
                     <strong>watsonx</strong>
-                    <span>Usa el texto OCR leído por Tesseract.js de una o varias imágenes.</span>
+                    <span>Primero intenta leer la imagen directa. Si el modelo no soporta visión, usa el OCR como fallback.</span>
                 </div>
 
                 <div class="provider-card">
                     <strong>OpenAI</strong>
-                    <span>Usa una imagen compuesta con todas las fotos cargadas. El OCR es opcional como apoyo.</span>
+                    <span>Usa una imagen compuesta comprimida con todas las fotos cargadas. El OCR es opcional como apoyo.</span>
                 </div>
             </div>
 
@@ -509,8 +510,8 @@
     const stopCameraButton = document.getElementById("stopCameraButton");
     const rotateLeftButton = document.getElementById("rotateLeftButton");
     const rotateRightButton = document.getElementById("rotateRightButton");
-    const ocrAutoButton = document.getElementById("ocrAutoButton");
-    const ocrButton = document.getElementById("ocrButton");
+    const ocrAllButton = document.getElementById("ocrAllButton");
+    const ocrActiveButton = document.getElementById("ocrActiveButton");
     const clearButton = document.getElementById("clearButton");
     const analyzeWatsonxButton = document.getElementById("analyzeWatsonxButton");
     const analyzeOpenAIButton = document.getElementById("analyzeOpenAIButton");
@@ -533,10 +534,6 @@
     let documentImages = [];
     let activeImageIndex = -1;
 
-    /*
-     * Compatibilidad con funciones anteriores.
-     * originalImage y rotationAngle representan la imagen activa.
-     */
     let originalImage = null;
     let currentImageDataUrl = null;
     let rotationAngle = 0;
@@ -546,10 +543,6 @@
         openai: null
     };
 
-    /*
-     * Campos objetivo según tabla persona.
-     * Estos son los datos que intentaremos recuperar desde cualquier identificación, no solo INE.
-     */
     const personaFieldDefinitions = [
         {
             key: "nombres",
@@ -721,14 +714,14 @@
     stopCameraButton.addEventListener("click", stopCamera);
     rotateLeftButton.addEventListener("click", () => rotateImage(-90));
     rotateRightButton.addEventListener("click", () => rotateImage(90));
-    ocrAutoButton.addEventListener("click", runOcrAllImagesAutoOrientation);
-    ocrButton.addEventListener("click", runOcrCurrentOrientation);
+    ocrAllButton.addEventListener("click", runOcrAllImagesManualOrientation);
+    ocrActiveButton.addEventListener("click", runOcrCurrentOrientation);
     clearButton.addEventListener("click", clearAll);
     analyzeWatsonxButton.addEventListener("click", analyzeWithWatsonx);
     analyzeOpenAIButton.addEventListener("click", analyzeWithOpenAI);
 
     rawText.addEventListener("input", () => {
-        analyzeWatsonxButton.disabled = rawText.value.trim() === "";
+        analyzeWatsonxButton.disabled = documentImages.length === 0 && rawText.value.trim() === "";
     });
 
     function setStatus(element, message, type = "") {
@@ -741,12 +734,38 @@
         element.textContent = message;
     }
 
+    function resetAnalysisState(clearRawText = true) {
+        providerResults.watsonx = null;
+        providerResults.openai = null;
+
+        if (clearRawText) {
+            rawText.value = "";
+        }
+
+        fieldsBody.innerHTML = "";
+        fieldsTable.style.display = "none";
+        jsonOutput.textContent = "{}";
+        documentSummary.innerHTML = "";
+
+        analyzeWatsonxButton.disabled = documentImages.length === 0 && rawText.value.trim() === "";
+        analyzeOpenAIButton.disabled = documentImages.length === 0;
+
+        setStatus(
+            analyzeStatus,
+            documentImages.length > 0
+                ? "Imagen lista. Puedes analizar con watsonx/OpenAI o ejecutar OCR manual."
+                : "Esperando imagen o texto para analizar.",
+            documentImages.length > 0 ? "warning" : ""
+        );
+    }
+
     function enableImageActions(enabled) {
         rotateLeftButton.disabled = !enabled;
         rotateRightButton.disabled = !enabled;
-        ocrAutoButton.disabled = !enabled;
-        ocrButton.disabled = !enabled;
+        ocrAllButton.disabled = !enabled;
+        ocrActiveButton.disabled = !enabled;
         analyzeOpenAIButton.disabled = !enabled;
+        analyzeWatsonxButton.disabled = !enabled && rawText.value.trim() === "";
     }
 
     function syncActiveImageGlobals() {
@@ -796,29 +815,15 @@
 
         activeImageIndex = documentImages.length - 1;
 
-        providerResults.watsonx = null;
-        providerResults.openai = null;
-
         renderImageList();
         syncActiveImageGlobals();
-
         enableImageActions(documentImages.length > 0);
-
-        fieldsBody.innerHTML = "";
-        fieldsTable.style.display = "none";
-        jsonOutput.textContent = "{}";
-        documentSummary.innerHTML = "";
+        resetAnalysisState(true);
 
         setStatus(
             ocrStatus,
             `Imagen agregada correctamente. Total de imágenes: ${documentImages.length}.\nPuedes agregar frente y reverso para complementar información.`,
             "success"
-        );
-
-        setStatus(
-            analyzeStatus,
-            "Imagen lista. OpenAI puede analizar todas las imágenes. Para watsonx ejecuta OCR.",
-            "warning"
         );
     }
 
@@ -829,8 +834,7 @@
             const thumb = document.createElement("div");
             thumb.className = "image-thumb" + (index === activeImageIndex ? " active" : "");
 
-            const thumbDataUrl = buildRotatedImageDataUrlForItem(item, false, 320);
-
+            const thumbDataUrl = buildRotatedImageDataUrlForItem(item, false, 320, 0.80);
             item.previewDataUrl = thumbDataUrl;
 
             thumb.innerHTML = `
@@ -865,29 +869,25 @@
             activeImageIndex = -1;
             syncActiveImageGlobals();
             enableImageActions(false);
-            analyzeOpenAIButton.disabled = true;
-            analyzeWatsonxButton.disabled = rawText.value.trim() === "";
+            resetAnalysisState(true);
             setStatus(ocrStatus, "No hay imágenes cargadas.", "warning");
-        } else {
-            if (activeImageIndex >= documentImages.length) {
-                activeImageIndex = documentImages.length - 1;
-            }
-
-            if (activeImageIndex < 0) {
-                activeImageIndex = 0;
-            }
-
-            syncActiveImageGlobals();
-            enableImageActions(true);
-            setStatus(ocrStatus, `Imagen eliminada. Total de imágenes: ${documentImages.length}.`, "success");
+            return;
         }
 
-        providerResults.watsonx = null;
-        providerResults.openai = null;
+        if (activeImageIndex >= documentImages.length) {
+            activeImageIndex = documentImages.length - 1;
+        }
 
+        if (activeImageIndex < 0) {
+            activeImageIndex = 0;
+        }
+
+        syncActiveImageGlobals();
         renderImageList();
-        renderComparisonTable();
-        renderComparisonJson();
+        enableImageActions(true);
+        resetAnalysisState(true);
+
+        setStatus(ocrStatus, `Imagen eliminada. Total de imágenes: ${documentImages.length}.`, "success");
     }
 
     function handleImageUpload(event) {
@@ -995,7 +995,7 @@
         const context = canvas.getContext("2d", { willReadFrequently: true });
         context.drawImage(video, 0, 0, width, height);
 
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
 
         try {
             const image = await createImageFromDataUrl(dataUrl);
@@ -1036,15 +1036,11 @@
 
         renderPreviewFromOriginal();
         renderImageList();
-
-        providerResults.openai = null;
-
-        renderComparisonTable();
-        renderComparisonJson();
+        resetAnalysisState(true);
 
         setStatus(
             ocrStatus,
-            `Imagen activa girada a ${item.rotationAngle}°.\nOpenAI usará todas las imágenes con su rotación actual.`,
+            `Imagen activa girada a ${item.rotationAngle}°.\nEjecuta OCR nuevamente o analiza directo con watsonx/OpenAI.`,
             "success"
         );
     }
@@ -1068,21 +1064,22 @@
             return;
         }
 
-        currentImageDataUrl = buildRotatedImageDataUrlForItem(item, false, 1600);
+        currentImageDataUrl = buildRotatedImageDataUrlForItem(item, false, 1600, 0.88);
         preview.src = currentImageDataUrl;
         preview.style.display = "block";
     }
 
-    function buildRotatedImageDataUrlForItem(item, preprocessForOcr = false, maxSideOverride = null) {
+    function buildRotatedImageDataUrlForItem(item, preprocessForOcr = false, maxSideOverride = null, qualityOverride = null) {
         return buildRotatedImageDataUrlFromImage(
             item.image,
             item.rotationAngle,
             preprocessForOcr,
-            maxSideOverride
+            maxSideOverride,
+            qualityOverride
         );
     }
 
-    function buildRotatedImageDataUrlFromImage(image, angle, preprocessForOcr = false, maxSideOverride = null) {
+    function buildRotatedImageDataUrlFromImage(image, angle, preprocessForOcr = false, maxSideOverride = null, qualityOverride = null) {
         const normalizedAngle = normalizeAngle(angle);
 
         const sourceWidth = image.naturalWidth || image.width;
@@ -1129,26 +1126,19 @@
             preprocessCanvasForOcr(ctx, targetWidth, targetHeight);
         }
 
-        return canvas.toDataURL("image/jpeg", preprocessForOcr ? 0.98 : 0.92);
+        const quality = qualityOverride ?? (preprocessForOcr ? 0.95 : 0.88);
+
+        return canvas.toDataURL("image/jpeg", quality);
     }
 
-    /*
-     * Compatibilidad con código anterior.
-     */
     function buildRotatedImageDataUrl(image, angle, preprocessForOcr = false) {
-        return buildRotatedImageDataUrlFromImage(image, angle, preprocessForOcr, null);
+        return buildRotatedImageDataUrlFromImage(image, angle, preprocessForOcr, null, null);
     }
 
     function preprocessCanvasForOcr(ctx, width, height) {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
-        /*
-         * Preprocesamiento simple:
-         * - Escala de grises
-         * - Aumento de contraste
-         * - Umbral suave para mejorar texto oscuro sobre fondo claro
-         */
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
@@ -1183,18 +1173,19 @@
         }
 
         providerResults.watsonx = null;
+        providerResults.openai = null;
 
         analyzeWatsonxButton.disabled = true;
-        ocrButton.disabled = true;
-        ocrAutoButton.disabled = true;
+        ocrActiveButton.disabled = true;
+        ocrAllButton.disabled = true;
 
         renderComparisonTable();
         renderComparisonJson();
 
-        setStatus(ocrStatus, `Procesando OCR de ${item.label} con orientación ${item.rotationAngle}°...`);
+        setStatus(ocrStatus, `Procesando OCR de ${item.label} con orientación manual ${item.rotationAngle}°...`);
 
         try {
-            const ocrImageDataUrl = buildRotatedImageDataUrlForItem(item, true, 2200);
+            const ocrImageDataUrl = buildRotatedImageDataUrlForItem(item, true, 2200, 0.95);
             preview.src = ocrImageDataUrl;
 
             const result = await recognizeImage(ocrImageDataUrl, item.rotationAngle, false);
@@ -1202,10 +1193,10 @@
             const sectionText = buildOcrSectionText(item, result.text);
 
             rawText.value = sectionText.trim();
-            analyzeWatsonxButton.disabled = rawText.value.trim() === "";
+            analyzeWatsonxButton.disabled = rawText.value.trim() === "" && documentImages.length === 0;
 
             if (rawText.value.trim() === "") {
-                setStatus(ocrStatus, "No se detectó texto. Intenta girar la imagen o tomar otra foto.", "error");
+                setStatus(ocrStatus, "No se detectó texto. Gira manualmente la imagen o toma otra foto.", "error");
             } else {
                 setStatus(
                     ocrStatus,
@@ -1215,7 +1206,7 @@
 
                 setStatus(
                     analyzeStatus,
-                    "Texto OCR listo. Puedes analizarlo con watsonx o comparar usando OpenAI.",
+                    "Texto OCR listo. Puedes analizar con watsonx como fallback o comparar con OpenAI.",
                     "success"
                 );
             }
@@ -1223,12 +1214,12 @@
         } catch (error) {
             setStatus(ocrStatus, "Error al hacer OCR: " + error.message, "error");
         } finally {
-            ocrButton.disabled = false;
-            ocrAutoButton.disabled = false;
+            ocrActiveButton.disabled = documentImages.length === 0;
+            ocrAllButton.disabled = documentImages.length === 0;
         }
     }
 
-    async function runOcrAllImagesAutoOrientation() {
+    async function runOcrAllImagesManualOrientation() {
         if (documentImages.length === 0) {
             setStatus(ocrStatus, "Primero carga o captura una o más imágenes.", "error");
             return;
@@ -1236,10 +1227,11 @@
 
         rawText.value = "";
         providerResults.watsonx = null;
+        providerResults.openai = null;
 
         analyzeWatsonxButton.disabled = true;
-        ocrButton.disabled = true;
-        ocrAutoButton.disabled = true;
+        ocrActiveButton.disabled = true;
+        ocrAllButton.disabled = true;
         rotateLeftButton.disabled = true;
         rotateRightButton.disabled = true;
         analyzeOpenAIButton.disabled = true;
@@ -1248,83 +1240,55 @@
         renderComparisonJson();
 
         const allSections = [];
-        const globalScoreLines = [];
 
         try {
             for (let imgIndex = 0; imgIndex < documentImages.length; imgIndex++) {
                 const item = documentImages[imgIndex];
-                const angles = [item.rotationAngle, 0, 90, 180, 270]
-                    .filter((angle, index, array) => array.indexOf(angle) === index);
 
-                const results = [];
+                setStatus(
+                    ocrStatus,
+                    `Procesando OCR de ${item.label} (${imgIndex + 1} de ${documentImages.length})\nOrientación manual: ${item.rotationAngle}°`
+                );
 
-                for (let i = 0; i < angles.length; i++) {
-                    const angle = angles[i];
+                const ocrImageDataUrl = buildRotatedImageDataUrlForItem(item, true, 2200, 0.95);
+                const result = await recognizeImage(ocrImageDataUrl, item.rotationAngle, true);
 
-                    setStatus(
-                        ocrStatus,
-                        `Procesando ${item.label} (${imgIndex + 1} de ${documentImages.length})\nProbando orientación ${angle}° (${i + 1} de ${angles.length})...`
-                    );
-
-                    const tmpItem = {
-                        ...item,
-                        rotationAngle: angle
-                    };
-
-                    const ocrImageDataUrl = buildRotatedImageDataUrlForItem(tmpItem, true, 2200);
-                    const result = await recognizeImage(ocrImageDataUrl, angle, true);
-
-                    results.push(result);
-                }
-
-                results.sort((a, b) => b.score - a.score);
-
-                const best = results[0];
-
-                item.rotationAngle = best.angle;
-
-                const sectionText = buildOcrSectionText(item, best.text);
+                const sectionText = buildOcrSectionText(item, result.text);
                 allSections.push(sectionText);
-
-                const scoreLines = results.map(resultItem => {
-                    return `${item.label} ${resultItem.angle}° -> score ${resultItem.score.toFixed(2)}, confianza ${resultItem.confidence.toFixed(2)}, keywords ${resultItem.keywordHits}`;
-                });
-
-                globalScoreLines.push(...scoreLines);
             }
 
-            activeImageIndex = Math.min(activeImageIndex < 0 ? 0 : activeImageIndex, documentImages.length - 1);
             syncActiveImageGlobals();
             renderImageList();
 
             rawText.value = allSections.join("\n\n").trim();
-            analyzeWatsonxButton.disabled = rawText.value.trim() === "";
+            analyzeWatsonxButton.disabled = rawText.value.trim() === "" && documentImages.length === 0;
 
             if (rawText.value.trim() === "") {
-                setStatus(ocrStatus, "No se detectó texto en ninguna imagen. Intenta con fotos más claras.", "error");
+                setStatus(ocrStatus, "No se detectó texto en ninguna imagen. Gira manualmente o intenta con fotos más claras.", "error");
                 return;
             }
 
             setStatus(
                 ocrStatus,
-                `OCR completado para ${documentImages.length} imagen(es).\n\nResultados:\n${globalScoreLines.join("\n")}`,
+                `OCR completado para ${documentImages.length} imagen(es).\nNo se aplicó acomodo automático; se usó la orientación manual de cada imagen.`,
                 "success"
             );
 
             setStatus(
                 analyzeStatus,
-                "Texto OCR combinado listo. Puedes analizarlo con watsonx o comparar usando OpenAI.",
+                "Texto OCR combinado listo. Puedes analizarlo con watsonx o comparar con OpenAI.",
                 "success"
             );
 
         } catch (error) {
-            setStatus(ocrStatus, "Error al hacer OCR automático: " + error.message, "error");
+            setStatus(ocrStatus, "Error al hacer OCR: " + error.message, "error");
         } finally {
-            ocrButton.disabled = documentImages.length === 0;
-            ocrAutoButton.disabled = documentImages.length === 0;
+            ocrActiveButton.disabled = documentImages.length === 0;
+            ocrAllButton.disabled = documentImages.length === 0;
             rotateLeftButton.disabled = documentImages.length === 0;
             rotateRightButton.disabled = documentImages.length === 0;
             analyzeOpenAIButton.disabled = documentImages.length === 0;
+            analyzeWatsonxButton.disabled = documentImages.length === 0 && rawText.value.trim() === "";
         }
     }
 
@@ -1425,24 +1389,35 @@
     }
 
     async function analyzeWithWatsonx() {
-        const text = rawText.value.trim();
-
-        if (!text) {
-            setStatus(analyzeStatus, "No hay texto OCR para analizar con watsonx.", "error");
+        if (documentImages.length === 0 && rawText.value.trim() === "") {
+            setStatus(analyzeStatus, "Carga imágenes o ejecuta OCR antes de analizar con watsonx.", "error");
             return;
         }
 
         analyzeWatsonxButton.disabled = true;
-        setStatus(analyzeStatus, "Analizando texto OCR combinado con watsonx...");
+        setStatus(analyzeStatus, "Preparando imagen comprimida para watsonx...");
 
         try {
+            const imageDataUrl = documentImages.length > 0 ? buildCompressedCompositeImageForUpload() : "";
+            const imageSizeMb = imageDataUrl ? dataUrlSizeMB(imageDataUrl) : 0;
+
+            setStatus(
+                analyzeStatus,
+                `Enviando a watsonx.\nImagen: ${imageSizeMb.toFixed(2)} MB\nOCR auxiliar: ${rawText.value.trim() ? "sí" : "no"}`,
+                "warning"
+            );
+
             const response = await fetch("extract_identificacion.php", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    raw_text: text
+                    image_data_url: imageDataUrl,
+                    raw_text: rawText.value.trim().substring(0, 12000),
+                    prefer_image: imageDataUrl !== "",
+                    image_size_mb: Number(imageSizeMb.toFixed(3)),
+                    images_count: documentImages.length
                 })
             });
 
@@ -1459,7 +1434,17 @@
             }
 
             if (!response.ok || !data.ok) {
-                setStatus(analyzeStatus, data.error || "Error al analizar con watsonx.", "error");
+                if (data.requires_ocr) {
+                    setStatus(
+                        analyzeStatus,
+                        (data.error || "watsonx no pudo leer imagen directa.") +
+                        "\n\nEjecuta OCR todas las imágenes y vuelve a presionar Analizar con watsonx.",
+                        "warning"
+                    );
+                } else {
+                    setStatus(analyzeStatus, data.error || "Error al analizar con watsonx.", "error");
+                }
+
                 jsonOutput.textContent = JSON.stringify(data, null, 2);
                 return;
             }
@@ -1468,13 +1453,22 @@
                 data.result.provider = "watsonx";
             }
 
+            if (!data.result.mode && data.mode) {
+                data.result.mode = data.mode;
+            }
+
             renderStructuredData(data.result);
-            setStatus(analyzeStatus, "Análisis con watsonx completado.", "success");
+
+            setStatus(
+                analyzeStatus,
+                `Análisis con watsonx completado.\nModo usado: ${data.mode || data.result.mode || "N/D"}`,
+                "success"
+            );
 
         } catch (error) {
             setStatus(analyzeStatus, "Error de conexión con backend watsonx: " + error.message, "error");
         } finally {
-            analyzeWatsonxButton.disabled = rawText.value.trim() === "";
+            analyzeWatsonxButton.disabled = documentImages.length === 0 && rawText.value.trim() === "";
         }
     }
 
@@ -1485,14 +1479,17 @@
         }
 
         analyzeOpenAIButton.disabled = true;
-        setStatus(analyzeStatus, "Analizando todas las imágenes directamente con OpenAI...");
+        setStatus(analyzeStatus, "Comprimiendo imágenes y analizando con OpenAI...");
 
         try {
-            /*
-             * Se manda una imagen compuesta con todas las imágenes cargadas.
-             * No usamos versión blanco/negro porque OpenAI puede aprovechar detalles visuales.
-             */
-            const imageDataUrl = buildCompositeImageDataUrl(false);
+            const imageDataUrl = buildCompressedCompositeImageForUpload();
+            const imageSizeMb = dataUrlSizeMB(imageDataUrl);
+
+            setStatus(
+                analyzeStatus,
+                `Imagen compuesta comprimida.\nTamaño aproximado: ${imageSizeMb.toFixed(2)} MB\nEnviando a OpenAI...`,
+                "warning"
+            );
 
             const response = await fetch("extract_identificacion_openai.php", {
                 method: "POST",
@@ -1501,7 +1498,9 @@
                 },
                 body: JSON.stringify({
                     image_data_url: imageDataUrl,
-                    raw_text: rawText.value.trim()
+                    raw_text: rawText.value.trim().substring(0, 6000),
+                    image_size_mb: Number(imageSizeMb.toFixed(3)),
+                    images_count: documentImages.length
                 })
             });
 
@@ -1512,7 +1511,11 @@
             try {
                 data = JSON.parse(rawResponse);
             } catch (jsonError) {
-                setStatus(analyzeStatus, "El backend de OpenAI respondió algo que no es JSON.", "error");
+                setStatus(
+                    analyzeStatus,
+                    "El backend de OpenAI respondió algo que no es JSON. Revisa si sigue apareciendo 413 Request Entity Too Large.",
+                    "error"
+                );
                 jsonOutput.textContent = rawResponse;
                 return;
             }
@@ -1537,15 +1540,17 @@
         }
     }
 
-    function buildCompositeImageDataUrl(preprocessForOcr = false) {
+    function buildCompositeImageDataUrl(preprocessForOcr = false, options = {}) {
         if (documentImages.length === 0) {
             throw new Error("No hay imágenes para componer.");
         }
 
-        const maxWidth = 1800;
-        const padding = 40;
-        const labelHeight = 50;
-        const gap = 40;
+        const maxWidth = options.maxWidth || 1800;
+        const jpegQuality = options.quality ?? (preprocessForOcr ? 0.95 : 0.88);
+
+        const padding = Math.max(18, Math.round(maxWidth * 0.025));
+        const labelHeight = Math.max(32, Math.round(maxWidth * 0.035));
+        const gap = Math.max(20, Math.round(maxWidth * 0.025));
 
         const prepared = documentImages.map((item) => {
             const normalizedAngle = normalizeAngle(item.rotationAngle);
@@ -1592,8 +1597,8 @@
             const item = data.item;
 
             ctx.fillStyle = "#111827";
-            ctx.font = "bold 30px Arial";
-            ctx.fillText(`${index + 1}. ${item.label}`, padding, currentY + 32);
+            ctx.font = `bold ${Math.max(18, Math.round(maxWidth * 0.018))}px Arial`;
+            ctx.fillText(`${index + 1}. ${item.label}`, padding, currentY + Math.round(labelHeight * 0.65));
 
             currentY += labelHeight;
 
@@ -1622,7 +1627,42 @@
             preprocessCanvasForOcr(ctx, canvasWidth, canvasHeight);
         }
 
-        return canvas.toDataURL("image/jpeg", preprocessForOcr ? 0.98 : 0.92);
+        return canvas.toDataURL("image/jpeg", jpegQuality);
+    }
+
+    function buildCompressedCompositeImageForUpload() {
+        const targetMb = 0.85;
+
+        const profiles = [
+            { maxWidth: 1400, quality: 0.72 },
+            { maxWidth: 1200, quality: 0.65 },
+            { maxWidth: 1000, quality: 0.58 },
+            { maxWidth: 850, quality: 0.52 },
+            { maxWidth: 720, quality: 0.48 },
+            { maxWidth: 600, quality: 0.42 }
+        ];
+
+        let bestDataUrl = null;
+
+        for (const profile of profiles) {
+            const dataUrl = buildCompositeImageDataUrl(false, profile);
+            const sizeMb = dataUrlSizeMB(dataUrl);
+
+            bestDataUrl = dataUrl;
+
+            if (sizeMb <= targetMb) {
+                return dataUrl;
+            }
+        }
+
+        return bestDataUrl;
+    }
+
+    function dataUrlSizeMB(dataUrl) {
+        const base64 = String(dataUrl).split(",")[1] || "";
+        const bytes = base64.length * 0.75;
+
+        return bytes / (1024 * 1024);
     }
 
     function renderStructuredData(result) {
@@ -1652,7 +1692,7 @@
 
     function renderProviderSummary() {
         const watsonxStatus = providerResults.watsonx
-            ? `${providerResults.watsonx.document_type || "Documento"} / ${providerResults.watsonx.country || "País no detectado"} / Calidad: ${providerResults.watsonx.raw_text_quality || "N/D"}`
+            ? `${providerResults.watsonx.document_type || "Documento"} / ${providerResults.watsonx.country || "País no detectado"} / Calidad: ${providerResults.watsonx.raw_text_quality || "N/D"} / Modo: ${providerResults.watsonx.mode || "N/D"}`
             : "Pendiente";
 
         const openaiStatus = providerResults.openai
@@ -1747,10 +1787,6 @@
 
             const confidence = normalizeConfidence(field.confidence);
 
-            /*
-             * Si el proveedor manda dos veces el mismo campo,
-             * nos quedamos con el de mayor confianza.
-             */
             if (!map[targetKey] || confidence > normalizeConfidence(map[targetKey].confidence)) {
                 map[targetKey] = {
                     field_name: field.field_name || targetKey,
@@ -1822,9 +1858,6 @@
             return watsonxValue;
         }
 
-        /*
-         * Empate: preferimos OpenAI porque analiza imagen directa.
-         */
         return openaiValue;
     }
 
@@ -1897,7 +1930,6 @@
         }
 
         const text = String(value).trim();
-
         const normalized = normalizeText(text);
 
         if (

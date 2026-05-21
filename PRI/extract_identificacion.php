@@ -69,6 +69,19 @@ function loadEnv(): array
         $env["WATSONX_API_VERSION"] = "2024-10-08";
     }
 
+    /*
+     * Opcional para modelos multimodales.
+     * Ejemplos posibles dependiendo de catálogo/región:
+     * WATSONX_VISION_MODEL_ID=mistralai/pixtral-12b
+     * WATSONX_VISION_MODEL_ID=meta-llama/llama-3-2-11b-vision-instruct
+     *
+     * Si no existe, se intenta con WATSONX_MODEL_ID.
+     * Si ese modelo no soporta imagen, se usa OCR como fallback.
+     */
+    if (empty($env["WATSONX_VISION_MODEL_ID"])) {
+        $env["WATSONX_VISION_MODEL_ID"] = $env["WATSONX_MODEL_ID"];
+    }
+
     return $env;
 }
 
@@ -91,7 +104,7 @@ function curlRequest(string $url, string $method, array $headers = [], $body = n
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => $method,
         CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_TIMEOUT => 90,
+        CURLOPT_TIMEOUT => 120,
         CURLOPT_HEADER => false,
     ]);
 
@@ -162,6 +175,23 @@ function getIamToken(string $apiKey): string
     }
 
     return $response["json"]["access_token"];
+}
+
+function validateImageDataUrl(string $imageDataUrl): void
+{
+    if (!preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,/i', $imageDataUrl)) {
+        jsonResponse([
+            "ok" => false,
+            "error" => "La imagen debe venir como Data URL base64 válido: jpeg, jpg, png o webp."
+        ], 400);
+    }
+
+    if (strlen($imageDataUrl) > 15 * 1024 * 1024) {
+        jsonResponse([
+            "ok" => false,
+            "error" => "La imagen es demasiado grande. Reduce resolución antes de enviarla."
+        ], 400);
+    }
 }
 
 function extractWatsonxText(array $data): string
@@ -248,7 +278,7 @@ function isIneDocument(array $structured): bool
     return false;
 }
 
-function normalizeWatsonxStructuredResult(array $structured): array
+function normalizeWatsonxStructuredResult(array $structured, string $mode): array
 {
     if (empty($structured["fields"]) || !is_array($structured["fields"])) {
         $structured["fields"] = [];
@@ -273,55 +303,27 @@ function normalizeWatsonxStructuredResult(array $structured): array
         $normalizedFieldName = normalizeBasicText($fieldName);
         $normalizedLabel = normalizeBasicText($labelDetected);
 
-        /*
-         * Seguridad extra para INE:
-         * Si el modelo manda field_name=nombre/nombres/nombre_completo pero la etiqueta trae línea,
-         * reubicamos el campo según la regla del bloque NOMBRE.
-         */
         if ($isIne && in_array($normalizedFieldName, ["nombre", "nombres", "nombre_completo"], true)) {
-            if (
-                str_contains($normalizedLabel, "linea_1") ||
-                str_contains($normalizedLabel, "línea_1") ||
-                str_contains($normalizedLabel, "line_1")
-            ) {
+            if (str_contains($normalizedLabel, "linea_1") || str_contains($normalizedLabel, "line_1")) {
                 $field["field_name"] = "apellido_paterno";
-            } elseif (
-                str_contains($normalizedLabel, "linea_2") ||
-                str_contains($normalizedLabel, "línea_2") ||
-                str_contains($normalizedLabel, "line_2")
-            ) {
+            } elseif (str_contains($normalizedLabel, "linea_2") || str_contains($normalizedLabel, "line_2")) {
                 $field["field_name"] = "apellido_materno";
-            } elseif (
-                str_contains($normalizedLabel, "linea_3") ||
-                str_contains($normalizedLabel, "línea_3") ||
-                str_contains($normalizedLabel, "line_3")
-            ) {
+            } elseif (str_contains($normalizedLabel, "linea_3") || str_contains($normalizedLabel, "line_3")) {
                 $field["field_name"] = "nombres";
             } elseif (
                 $normalizedLabel === "nombre" ||
                 $normalizedLabel === "nombre_del_documento" ||
                 $normalizedLabel === "bloque_nombre"
             ) {
-                /*
-                 * Si watsonx no especifica línea y solo dice NOMBRE,
-                 * no lo mandamos a nombres porque en INE puede ser apellido paterno.
-                 */
                 $field["field_name"] = "nombre_bloque_no_separado";
-                $structured["notes"][] = "watsonx devolvió un valor bajo el título NOMBRE sin indicar línea. No se mapeó a nombres para evitar error en INE.";
+                $structured["notes"][] = "watsonx devolvió un valor bajo NOMBRE sin indicar línea. No se mapeó a nombres para evitar error en INE.";
             }
         }
 
-        /*
-         * Para documentos no INE, si watsonx usa field_name=nombre,
-         * lo tratamos como nombres solamente si el documento no parece usar el patrón INE.
-         */
         if (!$isIne && $normalizedFieldName === "nombre") {
             $field["field_name"] = "nombres";
         }
 
-        /*
-         * Alias comunes para alinear contra tabla persona.
-         */
         if ($normalizedFieldName === "seccion") {
             $field["field_name"] = "seccion_id";
         }
@@ -331,17 +333,9 @@ function normalizeWatsonxStructuredResult(array $structured): array
         }
 
         if ($normalizedFieldName === "vigencia") {
-            /*
-             * Si watsonx devuelve una vigencia compuesta, la dejamos como vigencia
-             * solo si no pudo separar. La vista puede mapear vigencia a vigencia_fin,
-             * pero lo ideal es que el prompt devuelva vigencia_inicio y vigencia_fin.
-             */
             $field["field_name"] = "vigencia_fin";
         }
 
-        /*
-         * Normalización básica de confidence.
-         */
         if (!isset($field["confidence"]) || !is_numeric($field["confidence"])) {
             $field["confidence"] = 0.5;
         } else {
@@ -356,9 +350,6 @@ function normalizeWatsonxStructuredResult(array $structured): array
 
         $field["provider"] = "watsonx";
 
-        /*
-         * No dejamos pasar valores vacíos para evitar contaminar la tabla.
-         */
         if ($value === null || trim((string)$value) === "") {
             continue;
         }
@@ -368,28 +359,22 @@ function normalizeWatsonxStructuredResult(array $structured): array
 
     $structured["fields"] = $normalizedFields;
     $structured["provider"] = "watsonx";
+    $structured["mode"] = $mode;
 
     return $structured;
 }
 
-function analyzeIdentificationText(string $rawText, array $env): array
+function getExtractionPrompt(string $rawText = ""): string
 {
-    $token = getIamToken($env["WATSONX_API_KEY"]);
-
-    $watsonxUrl = rtrim($env["WATSONX_URL"], "/");
-    $apiVersion = $env["WATSONX_API_VERSION"];
-
-    $url = "{$watsonxUrl}/ml/v1/text/chat?version={$apiVersion}";
-
-    $systemPrompt = <<<TXT
+    return <<<TXT
 Eres un extractor de datos para documentos de identificación.
-Tu tarea es convertir texto OCR en JSON estructurado para un CRM.
+Tu tarea es leer una identificación, ya sea desde imagen directa o desde texto OCR, y convertirla en JSON estructurado para un CRM.
 
 Reglas estrictas:
-1. Extrae únicamente datos que tengan un título, etiqueta o encabezado cercano antes del valor.
+1. Extrae únicamente datos visibles.
 2. No inventes datos.
 3. No corrijas datos si no estás seguro.
-4. Si un valor está incompleto o ilegible, inclúyelo tal como aparece y baja la confianza.
+4. Si un valor está incompleto o ilegible, inclúyelo como null o como texto parcial y baja la confianza.
 5. Responde únicamente JSON válido. No uses markdown.
 6. No incluyas explicaciones fuera del JSON.
 
@@ -398,7 +383,7 @@ Regla obligatoria para INE mexicana o credencial para votar:
 
 El bloque NOMBRE se interpreta por líneas, no como un solo nombre.
 
-Estructura esperada:
+Estructura esperada visual:
 NOMBRE
 LINEA_1
 LINEA_2
@@ -409,7 +394,7 @@ Asignación obligatoria:
 - LINEA_2 después de NOMBRE = apellido_materno
 - LINEA_3 después de NOMBRE = nombres
 
-Ejemplo:
+Ejemplo visual:
 NOMBRE
 DE DIOS
 GARCIA
@@ -509,8 +494,115 @@ whatsapp,
 email,
 numero_documento.
 
-Si detectas un título que no conoces, usa un field_name descriptivo en snake_case, pero no inventes campos.
+Texto OCR auxiliar, si existe. Úsalo como apoyo o fallback:
+{$rawText}
 TXT;
+}
+
+function parseWatsonxStructuredResponse(array $responseJson, string $mode): array
+{
+    $answerText = extractWatsonxText($responseJson);
+    $jsonText = cleanJsonFromModel($answerText);
+    $structured = json_decode($jsonText, true);
+
+    if (!is_array($structured)) {
+        return [
+            "ok" => false,
+            "error" => "watsonx respondió, pero no se pudo convertir la respuesta a JSON estructurado.",
+            "model_answer" => $answerText,
+            "json_error" => json_last_error_msg()
+        ];
+    }
+
+    $structured = normalizeWatsonxStructuredResult($structured, $mode);
+
+    return [
+        "ok" => true,
+        "result" => $structured
+    ];
+}
+
+function analyzeIdentificationImageWithWatsonx(string $imageDataUrl, string $rawText, array $env): array
+{
+    $token = getIamToken($env["WATSONX_API_KEY"]);
+    $watsonxUrl = rtrim($env["WATSONX_URL"], "/");
+    $apiVersion = $env["WATSONX_API_VERSION"];
+    $url = "{$watsonxUrl}/ml/v1/text/chat?version={$apiVersion}";
+
+    $prompt = getExtractionPrompt($rawText);
+
+    $payload = [
+        "model_id" => $env["WATSONX_VISION_MODEL_ID"],
+        "project_id" => $env["WATSONX_PROJECT_ID"],
+        "messages" => [
+            [
+                "role" => "user",
+                "content" => [
+                    [
+                        "type" => "text",
+                        "text" => $prompt
+                    ],
+                    [
+                        "type" => "image_url",
+                        "image_url" => [
+                            "url" => $imageDataUrl
+                        ]
+                    ]
+                ]
+            ]
+        ],
+        "max_tokens" => 1800,
+        "temperature" => 0,
+        "time_limit" => 20000
+    ];
+
+    $encodedPayload = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
+    if ($encodedPayload === false) {
+        return [
+            "ok" => false,
+            "error" => "No se pudo convertir el payload de imagen a JSON.",
+            "detalle" => json_last_error_msg()
+        ];
+    }
+
+    $headers = [
+        "Authorization: Bearer {$token}",
+        "Content-Type: application/json",
+        "Accept: application/json"
+    ];
+
+    $response = curlRequest($url, "POST", $headers, $encodedPayload);
+
+    if (!$response["ok"]) {
+        return [
+            "ok" => false,
+            "error" => "watsonx no pudo procesar la imagen directa con el modelo configurado.",
+            "http_code" => $response["http_code"],
+            "detalle" => $response["json"] ?? $response["raw"],
+            "model_id" => $env["WATSONX_VISION_MODEL_ID"]
+        ];
+    }
+
+    if (!is_array($response["json"])) {
+        return [
+            "ok" => false,
+            "error" => "watsonx.ai respondió algo que no es JSON válido.",
+            "raw" => $response["raw"]
+        ];
+    }
+
+    return parseWatsonxStructuredResponse($response["json"], "image_direct");
+}
+
+function analyzeIdentificationTextWithWatsonx(string $rawText, array $env): array
+{
+    $token = getIamToken($env["WATSONX_API_KEY"]);
+    $watsonxUrl = rtrim($env["WATSONX_URL"], "/");
+    $apiVersion = $env["WATSONX_API_VERSION"];
+    $url = "{$watsonxUrl}/ml/v1/text/chat?version={$apiVersion}";
+
+    $systemPrompt = getExtractionPrompt($rawText);
 
     $userPrompt = <<<TXT
 Texto OCR recibido:
@@ -518,13 +610,10 @@ Texto OCR recibido:
 {$rawText}
 
 Extrae los datos que tengan título o etiqueta antes del valor.
-
-Recuerda especialmente:
-- Si el documento es INE o credencial para votar, el bloque NOMBRE se separa por líneas:
-  línea 1 = apellido_paterno
-  línea 2 = apellido_materno
-  línea 3 = nombres
-- No uses field_name = nombre para INE.
+Recuerda: si el documento es INE o credencial para votar, el bloque NOMBRE se separa por líneas:
+- línea 1 = apellido_paterno
+- línea 2 = apellido_materno
+- línea 3 = nombres
 TXT;
 
     $payload = [
@@ -540,7 +629,7 @@ TXT;
                 "content" => $userPrompt
             ]
         ],
-        "max_tokens" => 1600,
+        "max_tokens" => 1800,
         "temperature" => 0,
         "time_limit" => 15000
     ];
@@ -550,7 +639,7 @@ TXT;
     if ($encodedPayload === false) {
         jsonResponse([
             "ok" => false,
-            "error" => "No se pudo convertir el payload a JSON.",
+            "error" => "No se pudo convertir el payload OCR a JSON.",
             "detalle" => json_last_error_msg()
         ], 500);
     }
@@ -564,43 +653,23 @@ TXT;
     $response = curlRequest($url, "POST", $headers, $encodedPayload);
 
     if (!$response["ok"]) {
-        jsonResponse([
+        return [
             "ok" => false,
-            "error" => "Error al consumir watsonx.ai",
+            "error" => "Error al consumir watsonx.ai con OCR",
             "http_code" => $response["http_code"],
             "detalle" => $response["json"] ?? $response["raw"]
-        ], 500);
+        ];
     }
 
     if (!is_array($response["json"])) {
-        jsonResponse([
+        return [
             "ok" => false,
             "error" => "watsonx.ai respondió algo que no es JSON válido.",
             "raw" => $response["raw"]
-        ], 500);
+        ];
     }
 
-    $answerText = extractWatsonxText($response["json"]);
-    $jsonText = cleanJsonFromModel($answerText);
-
-    $structured = json_decode($jsonText, true);
-
-    if (!is_array($structured)) {
-        jsonResponse([
-            "ok" => false,
-            "error" => "watsonx respondió, pero no se pudo convertir la respuesta a JSON estructurado.",
-            "model_answer" => $answerText,
-            "json_error" => json_last_error_msg()
-        ], 500);
-    }
-
-    if (empty($structured["fields"]) || !is_array($structured["fields"])) {
-        $structured["fields"] = [];
-    }
-
-    $structured = normalizeWatsonxStructuredResult($structured);
-
-    return $structured;
+    return parseWatsonxStructuredResponse($response["json"], "ocr_fallback");
 }
 
 function safeStringLength(string $value): int
@@ -640,27 +709,94 @@ try {
     }
 
     $rawText = trim((string)($input["raw_text"] ?? ""));
+    $imageDataUrl = trim((string)($input["image_data_url"] ?? ""));
+    $preferImage = filter_var($input["prefer_image"] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-    if ($rawText === "") {
-        jsonResponse([
-            "ok" => false,
-            "error" => "El texto OCR es obligatorio."
-        ], 400);
-    }
-
-    if (safeStringLength($rawText) > 12000) {
+    if ($rawText !== "" && safeStringLength($rawText) > 12000) {
         jsonResponse([
             "ok" => false,
             "error" => "El texto OCR es demasiado largo."
         ], 400);
     }
 
+    if ($imageDataUrl !== "") {
+        validateImageDataUrl($imageDataUrl);
+    }
+
+    if ($imageDataUrl === "" && $rawText === "") {
+        jsonResponse([
+            "ok" => false,
+            "error" => "Debes enviar image_data_url o raw_text."
+        ], 400);
+    }
+
     $env = loadEnv();
-    $result = analyzeIdentificationText($rawText, $env);
+
+    if ($preferImage && $imageDataUrl !== "") {
+        $imageResult = analyzeIdentificationImageWithWatsonx($imageDataUrl, $rawText, $env);
+
+        if ($imageResult["ok"] === true) {
+            jsonResponse([
+                "ok" => true,
+                "mode" => "image_direct",
+                "result" => $imageResult["result"]
+            ]);
+        }
+
+        if ($rawText !== "") {
+            $ocrResult = analyzeIdentificationTextWithWatsonx($rawText, $env);
+
+            if ($ocrResult["ok"] === true) {
+                $ocrResult["result"]["notes"][] = "Se intentó imagen directa en watsonx, pero falló. Se usó OCR como fallback.";
+                $ocrResult["result"]["watsonx_image_error"] = [
+                    "error" => $imageResult["error"] ?? "Error no especificado",
+                    "http_code" => $imageResult["http_code"] ?? null,
+                    "model_id" => $imageResult["model_id"] ?? null,
+                    "detalle" => $imageResult["detalle"] ?? null
+                ];
+
+                jsonResponse([
+                    "ok" => true,
+                    "mode" => "ocr_fallback",
+                    "result" => $ocrResult["result"]
+                ]);
+            }
+
+            jsonResponse([
+                "ok" => false,
+                "error" => "Falló la imagen directa y también el fallback OCR de watsonx.",
+                "image_error" => $imageResult,
+                "ocr_error" => $ocrResult
+            ], 500);
+        }
+
+        jsonResponse([
+            "ok" => false,
+            "requires_ocr" => true,
+            "error" => "El modelo watsonx configurado no procesó la imagen directa y no hay texto OCR para fallback.",
+            "detalle" => $imageResult,
+            "sugerencia" => "Usa un modelo multimodal en WATSONX_VISION_MODEL_ID o ejecuta OCR todas las imágenes y vuelve a intentar."
+        ], 422);
+    }
+
+    if ($rawText === "") {
+        jsonResponse([
+            "ok" => false,
+            "requires_ocr" => true,
+            "error" => "No hay texto OCR para analizar con watsonx."
+        ], 422);
+    }
+
+    $ocrResult = analyzeIdentificationTextWithWatsonx($rawText, $env);
+
+    if ($ocrResult["ok"] !== true) {
+        jsonResponse($ocrResult, 500);
+    }
 
     jsonResponse([
         "ok" => true,
-        "result" => $result
+        "mode" => "ocr_fallback",
+        "result" => $ocrResult["result"]
     ]);
 
 } catch (Throwable $e) {

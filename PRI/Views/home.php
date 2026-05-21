@@ -75,7 +75,7 @@ ix_require_session([
 
             <header class="red-panel-head">
                 <div class="red-panel-logo">
-                    <img src="/PRI/ASSETS/pri-logo.png" alt="PRI">
+                    <img src="/PRI/Assets/PRI.png" alt="PRI">
                 </div>
 
                 <h1 id="red-title" class="red-title">
