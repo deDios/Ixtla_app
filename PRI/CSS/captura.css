@@ -333,8 +333,8 @@
     display: block;
     width: 100%;
     aspect-ratio: 1.58 / 1;
-    object-fit: cover;
-    background: #e5e7eb;
+    object-fit: contain;
+    background: #111827;
 }
 
 .scanner-preview-grid figcaption {
@@ -632,7 +632,7 @@
 .ine-preview-row img {
     width: 170px;
     height: 95px;
-    object-fit: cover;
+    object-fit: contain;
     background: #111827;
     border: 1px solid #e5e7eb;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
@@ -730,7 +730,55 @@
 
 
 
+/* -------------------------------------------------------------------------- */
+/* Fix footer en vista Captura INE                                             */
+/* Evita que el footer global se encime al resumen en mobile                  */
+/* -------------------------------------------------------------------------- */
 
+#captura-ine {
+    position: relative;
+    z-index: 1;
+    min-height: calc(100vh - 101px);
+    padding-bottom: clamp(48px, 8vw, 90px);
+}
+
+#captura-ine ~ #site-footer {
+    position: relative !important;
+    inset: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    z-index: 0 !important;
+    flex-shrink: 0;
+}
+
+.scanner-summary {
+    position: relative;
+    z-index: 2;
+}
+
+.scanner-summary-card {
+    position: relative;
+    z-index: 2;
+    overflow: visible;
+}
+
+@media (max-width: 768px) {
+    #captura-ine {
+        min-height: auto;
+        padding-bottom: 44px;
+    }
+
+    #captura-ine ~ #site-footer {
+        margin-top: 0;
+    }
+
+    .scanner-summary {
+        margin-bottom: 28px;
+    }
+}
 
 
 /*----------------------------------------------------------------------------------------------------------------------*/

@@ -42,6 +42,13 @@ const CONFIG = {
         compositeQuality: 0.86,
         rawText: "",
     },
+
+    OCR: {
+        enabled: true,
+        lang: "spa+eng",
+        logger: true,
+        maxTextLengthWatsonx: 12000,
+    },
 };
 
 const ENDPOINTS = {
@@ -81,6 +88,7 @@ const SEL = {
     stage: ".scanner-stage",
     video: "#scanner-video",
     canvas: "#scanner-canvas",
+    guideBox: ".scanner-guide-box",
     close: "#scanner-close",
 
     progressBar: "#scanner-progress-bar",
@@ -537,23 +545,135 @@ function updateProgressUI(progress, result) {
     }
 }
 
-async function capturePhoto() {
-    const video = $(SEL.video);
+function clampNumber(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
 
-    if (!video) {
-        showError("No se pudo capturar la imagen.");
-        return;
+function getVideoCropFromGuide(video, guideBox, paddingRatio = 0.08) {
+    const videoRect = video.getBoundingClientRect();
+    const guideRect = guideBox.getBoundingClientRect();
+
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+
+    if (!videoWidth || !videoHeight) {
+        throw new Error("El video aún no tiene dimensiones válidas.");
     }
 
-    if (!window.PRIMedia?.compressVideoFrameToDataUrl) {
+    /*
+     * El video usa object-fit: cover.
+     * Por eso necesitamos convertir coordenadas visibles del DOM
+     * a coordenadas reales del frame de cámara.
+     */
+    const scale = Math.max(
+        videoRect.width / videoWidth,
+        videoRect.height / videoHeight
+    );
+
+    const renderedWidth = videoWidth * scale;
+    const renderedHeight = videoHeight * scale;
+
+    const offsetX = (videoRect.width - renderedWidth) / 2;
+    const offsetY = (videoRect.height - renderedHeight) / 2;
+
+    const guideX = guideRect.left - videoRect.left;
+    const guideY = guideRect.top - videoRect.top;
+
+    let sx = (guideX - offsetX) / scale;
+    let sy = (guideY - offsetY) / scale;
+    let sw = guideRect.width / scale;
+    let sh = guideRect.height / scale;
+
+    /*
+     * Le damos un pequeño margen al recorte para no cortar bordes de la INE.
+     */
+    const padX = sw * paddingRatio;
+    const padY = sh * paddingRatio;
+
+    sx -= padX;
+    sy -= padY;
+    sw += padX * 2;
+    sh += padY * 2;
+
+    sx = clampNumber(sx, 0, videoWidth - 1);
+    sy = clampNumber(sy, 0, videoHeight - 1);
+    sw = clampNumber(sw, 1, videoWidth - sx);
+    sh = clampNumber(sh, 1, videoHeight - sy);
+
+    return {
+        sx: Math.round(sx),
+        sy: Math.round(sy),
+        sw: Math.round(sw),
+        sh: Math.round(sh),
+    };
+}
+
+function captureGuideCropToCanvas() {
+    const video = $(SEL.video);
+    const guideBox = $(SEL.guideBox);
+
+    if (!video) {
+        throw new Error("No se encontró el video del scanner.");
+    }
+
+    if (!guideBox) {
+        throw new Error("No se encontró el recuadro guía del scanner.");
+    }
+
+    const crop = getVideoCropFromGuide(video, guideBox, 0.08);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = crop.sw;
+    canvas.height = crop.sh;
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+
+    if (!ctx) {
+        throw new Error("No se pudo crear canvas de recorte.");
+    }
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.drawImage(
+        video,
+        crop.sx,
+        crop.sy,
+        crop.sw,
+        crop.sh,
+        0,
+        0,
+        crop.sw,
+        crop.sh
+    );
+
+    console.group("[Captura INE] Recorte desde guía");
+    console.log("Video:", {
+        width: video.videoWidth,
+        height: video.videoHeight,
+    });
+    console.log("Crop:", crop);
+    console.log("Canvas:", {
+        width: canvas.width,
+        height: canvas.height,
+    });
+    console.groupEnd();
+
+    return canvas;
+}
+
+async function capturePhoto() {
+    if (!window.PRIMedia?.compressCanvasToDataUrl) {
         showError("No se encontró el módulo de compresión de imagen.");
-        toast("No se encontró /PRI/JS/media.js o no cargó correctamente.", "error", 7000);
+        toast("No se encontró PRIMedia.compressCanvasToDataUrl en /PRI/JS/media.js.", "error", 7000);
         return;
     }
 
     try {
-        const compressed = await window.PRIMedia.compressVideoFrameToDataUrl(
-            video,
+        const cropCanvas = captureGuideCropToCanvas();
+
+        const compressed = await window.PRIMedia.compressCanvasToDataUrl(
+            cropCanvas,
             CONFIG.MEDIA
         );
 
@@ -565,7 +685,7 @@ async function capturePhoto() {
             throw new Error("La imagen sigue pesando demasiado después de comprimirla.");
         }
 
-        console.group("[Captura INE] Imagen capturada");
+        console.group("[Captura INE] Imagen recortada capturada");
         console.log("Step:", State.step);
         console.log("Mime:", compressed.mime);
         console.log("Size KB:", compressed.sizeKB);
@@ -577,7 +697,7 @@ async function capturePhoto() {
         console.groupEnd();
 
         acceptCapturedINE(compressed.dataUrl, State.step, {
-            source: "camera",
+            source: "camera_crop",
             mime: compressed.mime,
             sizeKB: compressed.sizeKB,
             width: compressed.width,
@@ -585,10 +705,10 @@ async function capturePhoto() {
             quality: compressed.quality,
         });
     } catch (error) {
-        warn("Error preparando captura:", error);
+        warn("Error preparando captura recortada:", error);
 
         toast(
-            error?.message || "No se pudo comprimir la imagen.",
+            error?.message || "No se pudo recortar la imagen.",
             "error",
             7000
         );
@@ -812,6 +932,94 @@ async function buildCompositeIneImageDataUrl() {
     return canvas.toDataURL("image/jpeg", CONFIG.EXTRACTION.compositeQuality);
 }
 
+function ensureTesseractReady() {
+    if (!window.Tesseract?.recognize) {
+        throw new Error("Tesseract.js no está cargado. Revisa el script CDN antes de captura.js.");
+    }
+}
+
+function normalizeOcrText(text) {
+    return String(text || "")
+        .replace(/\r/g, "\n")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+}
+
+async function runOcrOnDataUrl(dataUrl, label = "Imagen") {
+    ensureTesseractReady();
+
+    if (!dataUrl) {
+        throw new Error(`No hay imagen para OCR: ${label}`);
+    }
+
+    console.group(`[Captura INE][OCR] Iniciando OCR ${label}`);
+    console.log("Lang:", CONFIG.OCR.lang);
+    console.log("DataURL length:", dataUrl.length);
+    console.groupEnd();
+
+    const result = await window.Tesseract.recognize(
+        dataUrl,
+        CONFIG.OCR.lang,
+        {
+            logger: (message) => {
+                if (!CONFIG.DEBUG || !CONFIG.OCR.logger) return;
+
+                if (message?.status) {
+                    console.log("[Captura INE][OCR]", label, message.status, message.progress ?? "");
+                }
+            },
+        }
+    );
+
+    const text = normalizeOcrText(result?.data?.text || "");
+    const confidence = Number(result?.data?.confidence || 0);
+
+    console.group(`[Captura INE][OCR] Resultado ${label}`);
+    console.log("Confidence:", confidence);
+    console.log("Text:", text);
+    console.groupEnd();
+
+    return {
+        label,
+        text,
+        confidence,
+        raw: result,
+    };
+}
+
+async function buildWatsonxRawTextFallback() {
+    if (!State.captures.front || !State.captures.back) {
+        throw new Error("Faltan capturas para generar OCR de respaldo.");
+    }
+
+    toast("Watsonx: generando OCR local de respaldo...", "advertencia", 4500);
+
+    const frontResult = await runOcrOnDataUrl(State.captures.front, "FRENTE INE");
+    const backResult = await runOcrOnDataUrl(State.captures.back, "REVERSO INE");
+
+    const rawText = normalizeOcrText(`
+=== FRENTE INE ===
+${frontResult.text}
+
+=== REVERSO INE ===
+${backResult.text}
+`);
+
+    console.group("[Captura INE][OCR] Texto fallback Watsonx");
+    console.log("Length:", rawText.length);
+    console.log("Front confidence:", frontResult.confidence);
+    console.log("Back confidence:", backResult.confidence);
+    console.log(rawText);
+    console.groupEnd();
+
+    if (!rawText) {
+        throw new Error("No se pudo generar texto OCR para Watsonx.");
+    }
+
+    return rawText.substring(0, CONFIG.OCR.maxTextLengthWatsonx);
+}
+
 async function extractIdentificationData({
     provider = CONFIG.EXTRACTION.provider,
     imageDataUrl,
@@ -833,7 +1041,7 @@ async function extractIdentificationData({
         provider === "watsonx"
             ? {
                 image_data_url: imageDataUrl,
-                raw_text: String(rawText || "").trim().substring(0, 12000),
+                raw_text: String(rawText || "").trim().substring(0, CONFIG.OCR.maxTextLengthWatsonx),
                 prefer_image: imageDataUrl !== "",
                 image_size_mb: Number(imageSizeMb.toFixed(3)),
                 images_count: imagesCount,
@@ -929,22 +1137,40 @@ async function processOCR(provider = "openai") {
             ? $(SEL.processWatsonx)
             : $(SEL.processOpenAI);
 
+    const originalText = btn?.textContent || "";
+
     if (btn) {
         btn.disabled = true;
         btn.textContent = provider === "watsonx"
-            ? "Procesando Watsonx..."
+            ? "Preparando OCR..."
             : "Procesando OpenAI...";
     }
 
     toast(
         provider === "watsonx"
-            ? "Extrayendo datos con Watsonx..."
+            ? "Preparando extracción con Watsonx..."
             : "Extrayendo datos con OpenAI...",
         "advertencia",
         3500
     );
 
     try {
+        let rawText = CONFIG.EXTRACTION.rawText;
+
+        if (provider === "watsonx") {
+            if (btn) btn.textContent = "Generando OCR local...";
+
+            rawText = await buildWatsonxRawTextFallback();
+
+            toast(
+                `OCR local listo para Watsonx (${rawText.length} caracteres).`,
+                "exito",
+                4000
+            );
+
+            if (btn) btn.textContent = "Procesando Watsonx...";
+        }
+
         const compositeImage = await buildCompositeIneImageDataUrl();
         const imageSizeMb = dataUrlSizeMB(compositeImage);
 
@@ -952,13 +1178,14 @@ async function processOCR(provider = "openai") {
         console.log("Provider:", provider);
         console.log("Size MB:", Number(imageSizeMb.toFixed(3)));
         console.log("DataURL length:", compositeImage.length);
+        console.log("Raw text length:", rawText.length);
         console.log("Endpoint:", provider === "watsonx" ? ENDPOINTS.extractWatsonx : ENDPOINTS.extractOpenAI);
         console.groupEnd();
 
         const result = await extractIdentificationData({
             provider,
             imageDataUrl: compositeImage,
-            rawText: CONFIG.EXTRACTION.rawText,
+            rawText,
             imagesCount: 2,
         });
 
@@ -966,6 +1193,7 @@ async function processOCR(provider = "openai") {
 
         console.group("[Captura INE] Resultado extracción");
         console.log(result);
+        console.table(getFieldsFromExtraction(result));
         console.groupEnd();
 
         toast(
@@ -989,9 +1217,11 @@ async function processOCR(provider = "openai") {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = provider === "watsonx"
-                ? "Extraer con Watsonx"
-                : "Extraer con OpenAI";
+            btn.textContent = originalText || (
+                provider === "watsonx"
+                    ? "Extraer con Watsonx"
+                    : "Extraer con OpenAI"
+            );
         }
     }
 }

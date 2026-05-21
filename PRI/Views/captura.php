@@ -294,6 +294,7 @@ ix_require_session([
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="/PRI/JS/JSglobal.js"></script>
     <script src="/PRI/JS/components.js"></script>
     <script src="/PRI/JS/media.js"></script>
