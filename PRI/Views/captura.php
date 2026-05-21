@@ -119,6 +119,18 @@ ix_require_session([
                         <button type="button" id="scanner-btn-continue" class="scanner-btn scanner-btn-continue" hidden>
                             Continuar
                         </button>
+
+                        <!-- ocultar cuando salga a prod esto es para debug -->
+                        <button type="button" id="scanner-btn-debug-file" class="scanner-btn scanner-btn-debug-file">
+                            Debug imagen PC
+                        </button>
+
+                        <input
+                            type="file"
+                            id="scanner-debug-file-input"
+                            accept="image/*"
+                            hidden>
+                        >
                     </div>
                 </div>
 

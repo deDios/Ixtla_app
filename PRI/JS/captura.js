@@ -86,6 +86,8 @@ const SEL = {
     retry: "#scanner-btn-retry",
     continue: "#scanner-btn-continue",
     process: "#scanner-btn-process",
+    debugFile: "#scanner-btn-debug-file",
+    debugFileInput: "#scanner-debug-file-input",
 
     summary: ".scanner-summary",
     previewFront: "#preview-front",
@@ -844,6 +846,106 @@ function showError(message) {
     if (next) next.hidden = true;
 }
 
+async function debugValidateImageFromPC(file) {
+    if (!(file instanceof File)) {
+        toast("Archivo inválido para debug.", "error", 7000);
+        return;
+    }
+
+    const side = State.step === "back" ? "back" : "front";
+
+    console.group("[Captura INE][DEBUG PC] Archivo seleccionado");
+    console.log("File:", file);
+    console.log("Nombre:", file.name);
+    console.log("Tipo:", file.type || "(sin mime)");
+    console.log("Peso KB:", Math.round(file.size / 1024));
+    console.log("Side actual:", side);
+    console.groupEnd();
+
+    toast(
+        `Debug PC: preparando imagen ${side === "front" ? "frente" : "reverso"}...`,
+        "advertencia",
+        3000
+    );
+
+    let prepared = null;
+
+    try {
+        if (!window.PRIMedia?.compressFileToDataUrl) {
+            throw new Error("No se encontró PRIMedia.compressFileToDataUrl.");
+        }
+
+        prepared = await window.PRIMedia.compressFileToDataUrl(file, {
+            ...CONFIG.MEDIA,
+            debug: true,
+        });
+
+        console.group("[Captura INE][DEBUG PC] Imagen preparada");
+        console.log("Nombre original:", file.name);
+        console.log("Mime salida:", prepared.mime);
+        console.log("Size KB:", prepared.sizeKB);
+        console.log("Width:", prepared.width);
+        console.log("Height:", prepared.height);
+        console.log("Quality:", prepared.quality);
+        console.log("Compressed:", prepared.compressed);
+        console.log("Original:", prepared.original);
+        console.log("Within limit:", prepared.withinLimit);
+        console.log("DataURL length:", prepared.dataUrl?.length || 0);
+        console.groupEnd();
+
+        toast(
+            `Debug PC: imagen lista (${prepared.sizeKB} KB). Enviando al scanner...`,
+            prepared.withinLimit ? "advertencia" : "error",
+            4000
+        );
+
+        if (!prepared.withinLimit) {
+            throw new Error("La imagen sigue pesando demasiado después de prepararla.");
+        }
+
+        State.captures[side] = prepared.dataUrl;
+
+        await validateCapturedINE(prepared.dataUrl, side);
+    } catch (error) {
+        console.error("[Captura INE][DEBUG PC] Error preparando/enviando imagen:", error);
+
+        toast(
+            error?.message || "No se pudo preparar la imagen desde PC.",
+            "error",
+            9000
+        );
+
+        showError(error?.message || "No se pudo preparar la imagen desde PC.");
+    }
+}
+
+function bindDebugImageFromPC() {
+    const btn = $(SEL.debugFile);
+    const input = $(SEL.debugFileInput);
+
+    if (!btn || !input) {
+        warn("No se encontró botón/input de debug PC.");
+        return;
+    }
+
+    btn.addEventListener("click", () => {
+        input.click();
+    });
+
+    input.addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+
+        if (!file) {
+            warn("[DEBUG PC] No se seleccionó archivo.");
+            return;
+        }
+
+        await debugValidateImageFromPC(file);
+
+        input.value = "";
+    });
+}
+
 function processOCR() {
     log("Enviar capturas al scanner/OCR:", {
         front: State.captures.front,
@@ -864,6 +966,8 @@ function bindEvents() {
     $(SEL.retry)?.addEventListener("click", retryCapture);
     $(SEL.continue)?.addEventListener("click", continueFlow);
     $(SEL.process)?.addEventListener("click", processOCR);
+
+    bindDebugImageFromPC();
 
     window.addEventListener("beforeunload", stopCamera);
 
