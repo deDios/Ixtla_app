@@ -59,10 +59,20 @@ def process_ine_image(img, include_boxes=False, side="front"):
         ocr_results.append(result)
 
     best_result = max(ocr_results, key=lambda item: item["score"])
-    merged_data = merge_best_data(ocr_results)
+
+    # Prioridad nueva:
+    # 1. OCR por regiones
+    # 2. OCR libre como fallback
+    merged_data = empty_ine_data()
 
     for key, value in region_data.items():
         if value and key in merged_data:
+            merged_data[key] = value
+
+    fallback_data = merge_best_data(ocr_results)
+
+    for key, value in fallback_data.items():
+        if not merged_data.get(key) and value:
             merged_data[key] = value
 
     return {
@@ -105,7 +115,11 @@ def merge_front_back_data(front_data, back_data, back_text):
     for key in merged.keys():
         if front_data.get(key):
             merged[key] = front_data[key]
-        elif back_data.get(key):
+
+        if key in ["nombre", "curp", "clave_elector"] and back_data.get(key):
+            if not merged.get(key):
+                merged[key] = back_data[key]
+        elif not merged.get(key) and back_data.get(key):
             merged[key] = back_data[key]
 
     mrz_name = extract_name_from_mrz(back_text)

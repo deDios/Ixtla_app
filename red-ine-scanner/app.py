@@ -25,6 +25,12 @@ pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tessera
 #     r"C:\Users\jacks\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
 # )
 
+# En producción, se asume que tesseract está en el PATH del sistema.
+# ejemplo: Linux con `sudo apt install tesseract-ocr` o Windows con Tesseract agregado al PATH.
+# Si se necesita una ruta personalizada, se puede configurar aquí.
+# pytesseract.pytesseract.tesseract_cmd = r"/usr/bin/tesseract"
+# algo asi.
+
 
 @app.route("/")
 def index():

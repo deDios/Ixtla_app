@@ -142,6 +142,12 @@ def process_front_by_regions(card_img):
                 best_method = method_name
 
         value = clean_region_value(field_name, best_text)
+
+        # Si la región no tuvo suficiente confianza semántica,
+        # no dejamos que contamine el resultado final.
+        if best_score < 40:
+            value = ""
+
         mapped_field = map_region_field(field_name)
 
         if mapped_field:
@@ -270,16 +276,27 @@ def clean_region_value(field_name, text):
         return municipio.group(0).zfill(3) if municipio else ""
 
     if field_name == "seccion":
-        seccion = re.search(r"\b\d{4}\b", clean)
-        return seccion.group(0) if seccion else ""
+        matches = re.findall(r"\b\d{4}\b", clean)
+
+        for item in matches:
+            if not item.startswith("20"):
+                return item
+
+        return ""
 
     if field_name == "vigencia":
         vigencia_range = re.search(r"20\d{2}\s*[- ]\s*20\d{2}", clean)
         if vigencia_range:
             return re.sub(r"\s+", "", vigencia_range.group(0))
 
-        vigencia_year = re.search(r"20\d{2}", clean)
-        return vigencia_year.group(0) if vigencia_year else ""
+        years = re.findall(r"20\d{2}", clean)
+
+        valid_years = [
+            year for year in years
+            if int(year) >= 2020
+        ]
+
+        return valid_years[-1] if valid_years else ""
 
     if field_name == "localidad_emision":
         return clean_localidad_emision(clean)
@@ -287,8 +304,17 @@ def clean_region_value(field_name, text):
     if field_name == "nombre":
         value = clean
         value = value.replace("NOMBRE", "")
+        value = re.sub(
+            r"\b(MEXICO|INSTITUTO|NACIONAL|ELECTORAL|CREDENCIAL|PARA|VOTAR|FECHA|NACIMIENTO)\b",
+            " ",
+            value
+        )
         value = re.sub(r"[^A-Z\s]", " ", value)
         value = re.sub(r"\s+", " ", value).strip()
+
+        if len(value.split()) > 5:
+            return ""
+
         return value
 
     if field_name == "domicilio":
