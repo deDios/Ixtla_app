@@ -270,24 +270,29 @@
       throw new Error("Archivo inválido.");
     }
 
-    const allowedTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/webp",
-    ];
+    const mime = String(file.type || "").toLowerCase();
 
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error("Formato no permitido. Usa JPG, PNG o WEBP.");
+    if (!mime.startsWith("image/")) {
+      throw new Error("Formato no permitido. Selecciona una imagen.");
     }
 
+    if (mime === "image/svg+xml") {
+      throw new Error("SVG no es permitido para OCR.");
+    }
+
+    /*
+     * Para debug:
+     * Si la imagen ya pesa menos del máximo, se manda tal cual.
+     * Esto permite probar extensiones como HEIC/HEIF/AVIF siempre que el navegador
+     * entregue un Data URL válido y el backend pueda procesarlas.
+     */
     if (file.size <= cfg.maxBytes) {
       return {
         dataUrl: await fileToDataUrl(file),
         blob: file,
         width: null,
         height: null,
-        mime: file.type,
+        mime: file.type || "image/unknown",
         quality: null,
         sizeBytes: file.size,
         sizeKB: Math.round(file.size / 1024),
@@ -298,8 +303,24 @@
       };
     }
 
-    const image = await fileToImage(file);
-    return compressImageElementToDataUrl(image, options);
+    /*
+     * Si pesa más del máximo, intentamos comprimirla.
+     * Esto funcionará bien para JPG/PNG/WEBP y formatos que el navegador pueda dibujar en canvas.
+     */
+    try {
+      const image = await fileToImage(file);
+      return compressImageElementToDataUrl(image, options);
+    } catch (error) {
+      debugWarn(
+        cfg.debug,
+        "No se pudo cargar la imagen para compresión:",
+        error
+      );
+
+      throw new Error(
+        "La imagen pesa más del límite y el navegador no pudo comprimir este formato."
+      );
+    }
   }
 
   window.PRIMedia = {
