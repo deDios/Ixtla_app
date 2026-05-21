@@ -14,7 +14,7 @@
     minQuality: 0.42,
     qualityStep: 0.07,
 
-    preferWebp: true,
+    preferWebp: false,
     background: "#ffffff",
 
     debug: true,
@@ -23,13 +23,13 @@
   const MIME_WEBP = "image/webp";
   const MIME_JPEG = "image/jpeg";
 
-  const log = (...args) => {
-    if (DEFAULTS.debug) console.log(TAG, ...args);
-  };
+  function debugLog(enabled, ...args) {
+    if (enabled) console.log(TAG, ...args);
+  }
 
-  const warn = (...args) => {
-    if (DEFAULTS.debug) console.warn(TAG, ...args);
-  };
+  function debugWarn(enabled, ...args) {
+    if (enabled) console.warn(TAG, ...args);
+  }
 
   function mergeOptions(options = {}) {
     return {
@@ -154,7 +154,7 @@
           extension: getExtensionFromMime(blob.type),
         };
 
-        log("Imagen procesada:", lastMeta);
+        debugLog(cfg.debug, "Imagen procesada:", lastMeta);
 
         if (blob.size <= cfg.maxBytes) {
           return {
@@ -172,7 +172,7 @@
     }
 
     if (lastBlob) {
-      warn("No se llegó al peso objetivo, se usará la última compresión:", lastMeta);
+      debugWarn(cfg.debug, "No se llegó al peso objetivo, se usará la última compresión:", lastMeta);
 
       return {
         dataUrl: await blobToDataUrl(lastBlob),

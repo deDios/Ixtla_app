@@ -28,17 +28,17 @@ const CONFIG = {
         maxBytes: 900 * 1024,
         maxWidth: 1280,
         maxHeight: 900,
-        minWidth: 520,
-        startQuality: 0.78,
-        minQuality: 0.42,
-        qualityStep: 0.07,
-        preferWebp: true,
+        minWidth: 720,
+        startQuality: 0.82,
+        minQuality: 0.58,
+        qualityStep: 0.06,
+        preferWebp: false,
         debug: true,
     },
 };
 
 const ENDPOINTS = {
-    validateIne: "/PRI/db/WEB/validar_ine_ocr.php",
+    validateIne: "/PRI/DB/WEB/validar_ine_ocr.php",
 };
 
 const TAG = "[Captura INE]";
