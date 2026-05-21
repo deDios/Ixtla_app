@@ -75,16 +75,16 @@ ix_require_session([
 
             <header class="red-panel-head">
                 <div class="red-panel-logo">
-                    <img src="/PRI/Assets/PRI.png" alt="PRI">
+                    <img src="/PRI/ASSETS/pri.png" alt="PRI">
                 </div>
 
-                <h1 id="red-title" class="red-title">
-                    <span id="red-user-name">Juan Pablo Garcia Casillas</span>
-                </h1>
+                <div class="red-panel-titlebox">
+                    <p class="red-panel-kicker">Panel principal RED</p>
 
-                <button type="button" class="red-user-avatar" aria-label="Perfil de usuario">
-                    <img src="/ASSETS/user/img_user1.png" alt="Usuario">
-                </button>
+                    <h1 id="red-title" class="red-title">
+                        <span id="red-user-name">Coordinador General 01</span>
+                    </h1>
+                </div>
             </header>
 
             <section class="red-metrics" aria-label="Resumen de registros">
