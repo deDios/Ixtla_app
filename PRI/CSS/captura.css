@@ -1,0 +1,439 @@
+:root {
+    --scan-primary: #2f8f6b;
+    --scan-primary-dark: #247455;
+    --scan-green: #9cff00;
+    --scan-error: #ff2b2b;
+    --scan-text: #ffffff;
+    --scan-muted: rgba(255, 255, 255, 0.82);
+    --scan-panel: #ffffff;
+    --scan-border: rgba(234, 218, 218, 0.9);
+    --scan-shadow: 0 16px 34px rgba(0, 0, 0, 0.18);
+    --scan-radius: 18px;
+}
+
+.captura-ine {
+    width: 100%;
+    min-height: 72vh;
+    box-sizing: border-box;
+    padding: clamp(24px, 4vw, 56px) clamp(14px, 4vw, 72px);
+    background:
+        radial-gradient(circle at top left, rgba(47, 143, 107, 0.10), transparent 34%),
+        linear-gradient(180deg, #f8faf9 0%, #ffffff 52%);
+}
+
+.scanner-shell {
+    width: min(760px, 100%);
+    margin: 0 auto;
+}
+
+.scanner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding: 18px 22px;
+    background: var(--scan-panel);
+    border: 1px solid var(--scan-border);
+    border-radius: var(--scan-radius);
+    box-shadow: 0 10px 24px rgba(17, 24, 39, 0.06);
+}
+
+.scanner-kicker {
+    margin: 0 0 4px;
+    color: var(--scan-primary);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.scanner-header h1 {
+    margin: 0;
+    color: #111827;
+    font-size: clamp(1.45rem, 3vw, 2.1rem);
+    line-height: 1.05;
+}
+
+.scanner-close {
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: #111827;
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.scanner-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 9 / 13.5;
+    min-height: 620px;
+    overflow: hidden;
+    border-radius: 22px;
+    background: #111;
+    box-shadow: var(--scan-shadow);
+}
+
+.scanner-video,
+.scanner-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.scanner-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(0, 0, 0, 0.56) 0%,
+            rgba(0, 0, 0, 0.28) 23%,
+            rgba(0, 0, 0, 0.08) 44%,
+            rgba(0, 0, 0, 0.32) 70%,
+            rgba(0, 0, 0, 0.58) 100%
+        );
+    pointer-events: none;
+}
+
+.scanner-copy {
+    position: absolute;
+    z-index: 5;
+    top: clamp(26px, 7vw, 58px);
+    left: 24px;
+    right: 24px;
+    text-align: center;
+    color: var(--scan-text);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
+
+.scanner-copy h2 {
+    margin: 0;
+    font-size: clamp(1.65rem, 5vw, 2.35rem);
+    line-height: 1.12;
+    font-weight: 800;
+}
+
+.scanner-copy p {
+    margin: 8px 0 0;
+    color: var(--scan-muted);
+    font-size: clamp(1.05rem, 3vw, 1.35rem);
+    line-height: 1.15;
+    font-weight: 700;
+}
+
+.scanner-copy strong {
+    color: var(--scan-green);
+    font-weight: 900;
+}
+
+.scanner-guide {
+    position: absolute;
+    z-index: 4;
+    left: 11%;
+    right: 11%;
+    top: 36%;
+    transform: translateY(-50%);
+    aspect-ratio: 1.58 / 1;
+    pointer-events: none;
+}
+
+.scanner-guide-box {
+    width: 100%;
+    height: 100%;
+    border: 4px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.08);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.scanner-stage.is-valid .scanner-guide-box,
+.scanner-stage[data-state="captured"] .scanner-guide-box {
+    border-color: var(--scan-green);
+    box-shadow:
+        0 0 0 999px rgba(0, 0, 0, 0.08),
+        0 0 18px rgba(156, 255, 0, 0.45);
+}
+
+.scanner-stage.is-error .scanner-guide-box,
+.scanner-stage[data-state="error"] .scanner-guide-box {
+    border-color: var(--scan-error);
+    box-shadow:
+        0 0 0 999px rgba(0, 0, 0, 0.08),
+        0 0 18px rgba(255, 43, 43, 0.35);
+}
+
+.scanner-feedback {
+    position: absolute;
+    z-index: 6;
+    left: 50%;
+    top: 46%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.scanner-feedback-icon {
+    width: 82px;
+    height: 82px;
+    border-radius: 999px;
+    display: none;
+    place-items: center;
+    color: #fff;
+    font-size: 3.8rem;
+    line-height: 1;
+    font-weight: 950;
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
+}
+
+.scanner-feedback-icon--ok {
+    background: #35c784;
+}
+
+.scanner-feedback-icon--error {
+    background: #f34c44;
+}
+
+.scanner-stage[data-state="captured"] .scanner-feedback-icon--ok {
+    display: grid;
+}
+
+.scanner-stage[data-state="error"] .scanner-feedback-icon--error {
+    display: grid;
+}
+
+.scanner-bottom {
+    position: absolute;
+    z-index: 5;
+    left: 24px;
+    right: 24px;
+    bottom: clamp(24px, 7vw, 54px);
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+}
+
+.scanner-progress {
+    width: min(340px, 82%);
+    height: 9px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(8px);
+}
+
+.scanner-progress-bar {
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--scan-green);
+    box-shadow: 0 0 14px rgba(156, 255, 0, 0.58);
+    transition: width 0.12s linear;
+}
+
+.scanner-status-text {
+    min-height: 1.4em;
+    margin: 0;
+    color: #fff;
+    text-align: center;
+    font-size: clamp(0.96rem, 2.5vw, 1.18rem);
+    font-weight: 800;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.72);
+}
+
+.scanner-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.scanner-btn {
+    min-height: 48px;
+    border: 0;
+    border-radius: 12px;
+    padding: 0 24px;
+    color: #fff;
+    background: var(--scan-primary);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+    font-size: 1.15rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.scanner-btn:hover {
+    background: var(--scan-primary-dark);
+}
+
+.scanner-btn-retry {
+    background: #ff0a78;
+}
+
+.scanner-btn-retry:hover {
+    background: #dc0064;
+}
+
+.scanner-stage[data-state="captured"] .scanner-progress,
+.scanner-stage[data-state="captured"] .scanner-status-text {
+    display: none;
+}
+
+.scanner-stage[data-state="error"] .scanner-progress {
+    display: none;
+}
+
+/* Summary */
+
+.scanner-summary {
+    margin-top: 18px;
+}
+
+.scanner-summary-card {
+    padding: 22px;
+    background: #fff;
+    border: 1px solid var(--scan-border);
+    border-radius: var(--scan-radius);
+    box-shadow: 0 10px 24px rgba(17, 24, 39, 0.06);
+}
+
+.scanner-summary-card h2 {
+    margin: 0 0 6px;
+    color: #111827;
+    font-size: 1.5rem;
+}
+
+.scanner-summary-card p {
+    margin: 0 0 16px;
+    color: #6b7280;
+    font-weight: 700;
+}
+
+.scanner-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.scanner-preview-grid figure {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--scan-border);
+    border-radius: 14px;
+    background: #f8faf9;
+}
+
+.scanner-preview-grid img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1.58 / 1;
+    object-fit: cover;
+    background: #e5e7eb;
+}
+
+.scanner-preview-grid figcaption {
+    padding: 10px 12px;
+    color: #111827;
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+.scanner-btn-process {
+    width: 100%;
+}
+
+/* Estados rápidos */
+
+.scanner-stage[data-step="back"] #scanner-step-title::after {
+    content: "";
+}
+
+.scanner-stage[data-state="error"] #scanner-step-title {
+    color: #fff;
+}
+
+.scanner-stage[data-state="error"] #scanner-step-title {
+    font-size: clamp(1.7rem, 5vw, 2.4rem);
+}
+
+/* Mobile */
+
+@media (max-width: 720px) {
+    .captura-ine {
+        padding: 18px 8px 42px;
+        padding-top: 5rem;
+    }
+
+    .scanner-shell {
+        width: 100%;
+    }
+
+    .scanner-header {
+        padding: 14px 16px;
+        margin-bottom: 12px;
+    }
+
+    .scanner-close {
+        width: 38px;
+        height: 38px;
+        font-size: 1.5rem;
+    }
+
+    .scanner-stage {
+        min-height: auto;
+        height: calc(100vh - 150px);
+        max-height: 760px;
+        border-radius: 0;
+    }
+
+    .scanner-copy {
+        top: 42px;
+        left: 18px;
+        right: 18px;
+    }
+
+    .scanner-guide {
+        left: 12%;
+        right: 12%;
+        top: 43%;
+    }
+
+    .scanner-guide-box {
+        border-width: 3px;
+    }
+
+    .scanner-feedback {
+        top: 49%;
+    }
+
+    .scanner-feedback-icon {
+        width: 72px;
+        height: 72px;
+        font-size: 3.2rem;
+    }
+
+    .scanner-bottom {
+        left: 16px;
+        right: 16px;
+        bottom: 32px;
+    }
+
+    .scanner-btn {
+        min-height: 46px;
+        padding: 0 22px;
+        font-size: 1.05rem;
+    }
+
+    .scanner-preview-grid {
+        grid-template-columns: 1fr;
+    }
+}

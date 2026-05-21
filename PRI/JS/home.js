@@ -504,8 +504,8 @@ function bindEvents() {
   $(SEL.btnExport)?.addEventListener("click", exportDummyCSV);
 
   $(SEL.btnAdd)?.addEventListener("click", () => {
-    log("Nuevo registro");
-    alert("Aquí abriremos el modal/drawer para crear un registro.");
+    log("Ir a captura INE");
+    window.location.href = "/PRI/Views/captura.php";
   });
 }
 
