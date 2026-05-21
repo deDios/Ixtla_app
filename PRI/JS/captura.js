@@ -21,8 +21,20 @@ const CONFIG = {
     MAX_LIGHTING: 235,
     MIN_EDGE_SCORE: 2.8,
 
-    // En modo fácil el frontend guía, pero no bloquea por ángulo/distancia exacta.
+    // en modo facil no pide que la foto sea perfecta, solo legible, es mas facil para el usuario.
     EASY_MODE: true,
+
+    MEDIA: {
+        maxBytes: 900 * 1024,
+        maxWidth: 1280,
+        maxHeight: 900,
+        minWidth: 520,
+        startQuality: 0.78,
+        minQuality: 0.42,
+        qualityStep: 0.07,
+        preferWebp: true,
+        debug: true,
+    },
 };
 
 const ENDPOINTS = {
@@ -478,307 +490,284 @@ function updateProgressUI(progress, result) {
 }
 
 async function capturePhoto() {
-    const video = $(SEL.video);
-    const canvas = $(SEL.canvas);
 
-    if (!video || !canvas) {
-        showError("No se pudo capturar la imagen.");
-        return;
-    }
+    async function validateCapturedINE(imageData, side) {
+        setStageState("processing");
 
-    const width = video.videoWidth || 1280;
-    const height = video.videoHeight || 720;
+        const text = $(SEL.statusText);
+        const retry = $(SEL.retry);
+        const next = $(SEL.continue);
+        const bar = $(SEL.progressBar);
 
-    canvas.width = width;
-    canvas.height = height;
+        if (retry) retry.hidden = true;
+        if (next) next.hidden = true;
+        if (bar) bar.style.width = "100%";
 
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    ctx.drawImage(video, 0, 0, width, height);
+        if (text) {
+            text.textContent =
+                side === "front"
+                    ? "Validando frente de INE..."
+                    : "Validando reverso de INE...";
+        }
 
-    const imageData = canvas.toDataURL("image/jpeg", CONFIG.CAPTURE_QUALITY);
-
-    State.captures[State.step] = imageData;
-
-    await validateCapturedINE(imageData, State.step);
-}
-
-async function validateCapturedINE(imageData, side) {
-    setStageState("processing");
-
-    const text = $(SEL.statusText);
-    const retry = $(SEL.retry);
-    const next = $(SEL.continue);
-    const bar = $(SEL.progressBar);
-
-    if (retry) retry.hidden = true;
-    if (next) next.hidden = true;
-    if (bar) bar.style.width = "100%";
-
-    if (text) {
-        text.textContent =
+        toast(
             side === "front"
                 ? "Validando frente de INE..."
-                : "Validando reverso de INE...";
-    }
+                : "Validando reverso de INE...",
+            "advertencia",
+            2500
+        );
 
-    toast(
-        side === "front"
-            ? "Validando frente de INE..."
-            : "Validando reverso de INE...",
-        "advertencia",
-        2500
-    );
+        try {
+            const result = await validateIneWithBackend(imageData, side);
 
-    try {
-        const result = await validateIneWithBackend(imageData, side);
+            State.validationResults[side] = result;
 
-        State.validationResults[side] = result;
+            console.group("[Captura INE] Resultado validación backend");
+            console.log("Side:", side);
+            console.log("Valid:", result.valid);
+            console.log("Message:", result.message);
+            console.log("Score:", result.score);
+            console.log("Checks:", result.checks);
+            console.log("Metrics:", result.metrics);
+            console.log("Raw:", result.raw);
+            console.groupEnd();
 
-        console.group("[Captura INE] Resultado validación backend");
-        console.log("Side:", side);
-        console.log("Valid:", result.valid);
-        console.log("Message:", result.message);
-        console.log("Score:", result.score);
-        console.log("Checks:", result.checks);
-        console.log("Metrics:", result.metrics);
-        console.log("Raw:", result.raw);
-        console.groupEnd();
+            if (!result.valid) {
+                State.captures[side] = null;
 
-        if (!result.valid) {
+                toast(
+                    result.message || "La foto no es válida. Intenta de nuevo.",
+                    "error",
+                    7000
+                );
+
+                showError(result.message || "La foto no es válida. Intenta de nuevo.");
+                return;
+            }
+
+            toast(
+                side === "front"
+                    ? "Frente validado correctamente"
+                    : "Reverso validado correctamente",
+                "exito",
+                4500
+            );
+
+            setStageState("captured");
+            updateCapturedUI();
+        } catch (error) {
+            warn("Error validando captura:", error);
+
             State.captures[side] = null;
 
             toast(
-                result.message || "La foto no es válida. Intenta de nuevo.",
+                error?.message || "No se pudo validar la captura.",
                 "error",
-                7000
+                8000
             );
 
-            showError(result.message || "La foto no es válida. Intenta de nuevo.");
+            showError("No se pudo validar la captura. Intenta de nuevo.");
+        }
+    }
+
+    async function validateIneWithBackend(imageData, side) {
+        const payload = {
+            side,
+            image: imageData,
+        };
+
+        console.group("[Captura INE] Enviando validación");
+        console.log("Endpoint:", ENDPOINTS.validateIne);
+        console.log("Side:", side);
+        console.log("Image length:", imageData?.length || 0);
+        console.log("Payload preview:", {
+            side: payload.side,
+            image: String(payload.image || "").slice(0, 80) + "...",
+        });
+        console.groupEnd();
+
+        const response = await fetch(ENDPOINTS.validateIne, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const raw = await response.text();
+
+        console.group("[Captura INE] Respuesta cruda endpoint");
+        console.log("HTTP status:", response.status);
+        console.log("OK:", response.ok);
+        console.log("Raw response:", raw);
+        console.groupEnd();
+
+        let json = null;
+
+        try {
+            json = JSON.parse(raw);
+        } catch (error) {
+            console.error("[Captura INE] JSON parse error:", error);
+            console.error("[Captura INE] Raw no JSON:", raw);
+
+            throw new Error("El endpoint no respondió JSON válido. Revisa consola.");
+        }
+
+        console.group("[Captura INE] JSON endpoint");
+        console.log(json);
+        console.groupEnd();
+
+        if (!response.ok || !json.ok) {
+            const backendError =
+                json.error ||
+                json.message ||
+                json.detail ||
+                `Error HTTP ${response.status}`;
+
+            throw new Error(backendError);
+        }
+
+        const result = json.data || json.result || json;
+
+        return {
+            valid: Boolean(result.valid),
+            message: result.message || "",
+            score: Number(result.score || result.confidence || 0),
+            checks: result.checks || {},
+            metrics: result.metrics || result.quality || {},
+            raw: result,
+        };
+    }
+
+    function updateCapturedUI() {
+        const retry = $(SEL.retry);
+        const next = $(SEL.continue);
+        const text = $(SEL.statusText);
+        const bar = $(SEL.progressBar);
+
+        if (bar) bar.style.width = "100%";
+
+        if (text) {
+            text.innerHTML =
+                State.step === "front"
+                    ? "<strong>¡Excelente! Frente validado correctamente</strong> Puedes continuar con el reverso"
+                    : "<strong>¡Excelente! Reverso validado correctamente</strong> Puedes revisar las capturas";
+        }
+
+        if (retry) retry.hidden = false;
+        if (next) next.hidden = false;
+
+        if (next) {
+            next.textContent = State.step === "front" ? "Capturar reverso" : "Ver resumen";
+        }
+    }
+
+    function retryCapture() {
+        State.scanProgress = 0;
+        State.lastValidTime = null;
+        State.autoCaptured = false;
+        State.captures[State.step] = null;
+        State.validationResults[State.step] = null;
+        PreviousFrameSignature = null;
+
+        const retry = $(SEL.retry);
+        const next = $(SEL.continue);
+        const bar = $(SEL.progressBar);
+        const text = $(SEL.statusText);
+
+        if (retry) retry.hidden = true;
+        if (next) next.hidden = true;
+        if (bar) bar.style.width = "0%";
+        if (text) text.textContent = "Coloca la INE dentro del recuadro";
+
+        setStageState("detecting");
+    }
+
+    function continueFlow() {
+        if (State.step === "front") {
+            setStep("back");
+            retryCapture();
             return;
         }
 
-        toast(
-            side === "front"
-                ? "Frente validado correctamente"
-                : "Reverso validado correctamente",
-            "exito",
-            4500
-        );
-
-        setStageState("captured");
-        updateCapturedUI();
-    } catch (error) {
-        warn("Error validando captura:", error);
-
-        State.captures[side] = null;
-
-        toast(
-            error?.message || "No se pudo validar la captura.",
-            "error",
-            8000
-        );
-
-        showError("No se pudo validar la captura. Intenta de nuevo.");
-    }
-}
-
-async function validateIneWithBackend(imageData, side) {
-    const payload = {
-        side,
-        image: imageData,
-    };
-
-    console.group("[Captura INE] Enviando validación");
-    console.log("Endpoint:", ENDPOINTS.validateIne);
-    console.log("Side:", side);
-    console.log("Image length:", imageData?.length || 0);
-    console.log("Payload preview:", {
-        side: payload.side,
-        image: String(payload.image || "").slice(0, 80) + "...",
-    });
-    console.groupEnd();
-
-    const response = await fetch(ENDPOINTS.validateIne, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-        body: JSON.stringify(payload),
-    });
-
-    const raw = await response.text();
-
-    console.group("[Captura INE] Respuesta cruda endpoint");
-    console.log("HTTP status:", response.status);
-    console.log("OK:", response.ok);
-    console.log("Raw response:", raw);
-    console.groupEnd();
-
-    let json = null;
-
-    try {
-        json = JSON.parse(raw);
-    } catch (error) {
-        console.error("[Captura INE] JSON parse error:", error);
-        console.error("[Captura INE] Raw no JSON:", raw);
-
-        throw new Error("El endpoint no respondió JSON válido. Revisa consola.");
+        showSummary();
     }
 
-    console.group("[Captura INE] JSON endpoint");
-    console.log(json);
-    console.groupEnd();
+    function showSummary() {
+        const stage = $(SEL.stage);
+        const summary = $(SEL.summary);
+        const front = $(SEL.previewFront);
+        const back = $(SEL.previewBack);
 
-    if (!response.ok || !json.ok) {
-        const backendError =
-            json.error ||
-            json.message ||
-            json.detail ||
-            `Error HTTP ${response.status}`;
+        if (stage) stage.hidden = true;
+        if (summary) summary.hidden = false;
 
-        throw new Error(backendError);
+        if (front && State.captures.front) front.src = State.captures.front;
+        if (back && State.captures.back) back.src = State.captures.back;
+
+        stopCamera();
+
+        log("Capturas listas:", {
+            captures: State.captures,
+            validationResults: State.validationResults,
+        });
     }
 
-    const result = json.data || json.result || json;
+    function showError(message) {
+        setStageState("error");
 
-    return {
-        valid: Boolean(result.valid),
-        message: result.message || "",
-        score: Number(result.score || result.confidence || 0),
-        checks: result.checks || {},
-        metrics: result.metrics || result.quality || {},
-        raw: result,
-    };
-}
+        State.scanProgress = 0;
+        State.lastValidTime = null;
+        State.autoCaptured = false;
 
-function updateCapturedUI() {
-    const retry = $(SEL.retry);
-    const next = $(SEL.continue);
-    const text = $(SEL.statusText);
-    const bar = $(SEL.progressBar);
+        const text = $(SEL.statusText);
+        const retry = $(SEL.retry);
+        const next = $(SEL.continue);
+        const bar = $(SEL.progressBar);
 
-    if (bar) bar.style.width = "100%";
-
-    if (text) {
-        text.innerHTML =
-            State.step === "front"
-                ? "<strong>¡Excelente! Frente validado correctamente</strong> Puedes continuar con el reverso"
-                : "<strong>¡Excelente! Reverso validado correctamente</strong> Puedes revisar las capturas";
+        if (bar) bar.style.width = "0%";
+        if (text) text.textContent = message;
+        if (retry) retry.hidden = false;
+        if (next) next.hidden = true;
     }
 
-    if (retry) retry.hidden = false;
-    if (next) next.hidden = false;
+    function processOCR() {
+        log("Enviar capturas al scanner/OCR:", {
+            front: State.captures.front,
+            back: State.captures.back,
+            validations: State.validationResults,
+        });
 
-    if (next) {
-        next.textContent = State.step === "front" ? "Capturar reverso" : "Ver resumen";
-    }
-}
-
-function retryCapture() {
-    State.scanProgress = 0;
-    State.lastValidTime = null;
-    State.autoCaptured = false;
-    State.captures[State.step] = null;
-    State.validationResults[State.step] = null;
-    PreviousFrameSignature = null;
-
-    const retry = $(SEL.retry);
-    const next = $(SEL.continue);
-    const bar = $(SEL.progressBar);
-    const text = $(SEL.statusText);
-
-    if (retry) retry.hidden = true;
-    if (next) next.hidden = true;
-    if (bar) bar.style.width = "0%";
-    if (text) text.textContent = "Coloca la INE dentro del recuadro";
-
-    setStageState("detecting");
-}
-
-function continueFlow() {
-    if (State.step === "front") {
-        setStep("back");
-        retryCapture();
-        return;
+        alert("Aquí enviaremos frente y reverso al scanner/OCR final.");
     }
 
-    showSummary();
-}
+    function closeScanner() {
+        stopCamera();
+        window.location.href = "/PRI/Views/home.php";
+    }
 
-function showSummary() {
-    const stage = $(SEL.stage);
-    const summary = $(SEL.summary);
-    const front = $(SEL.previewFront);
-    const back = $(SEL.previewBack);
+    function bindEvents() {
+        $(SEL.close)?.addEventListener("click", closeScanner);
+        $(SEL.retry)?.addEventListener("click", retryCapture);
+        $(SEL.continue)?.addEventListener("click", continueFlow);
+        $(SEL.process)?.addEventListener("click", processOCR);
 
-    if (stage) stage.hidden = true;
-    if (summary) summary.hidden = false;
+        window.addEventListener("beforeunload", stopCamera);
 
-    if (front && State.captures.front) front.src = State.captures.front;
-    if (back && State.captures.back) back.src = State.captures.back;
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                log("Documento oculto, cámara sigue activa hasta cerrar o salir.");
+            }
+        });
+    }
 
-    stopCamera();
+    function init() {
+        bindEvents();
+        setStep("front");
+        setStageState("idle");
+        startCamera();
+    }
 
-    log("Capturas listas:", {
-        captures: State.captures,
-        validationResults: State.validationResults,
-    });
-}
-
-function showError(message) {
-    setStageState("error");
-
-    State.scanProgress = 0;
-    State.lastValidTime = null;
-    State.autoCaptured = false;
-
-    const text = $(SEL.statusText);
-    const retry = $(SEL.retry);
-    const next = $(SEL.continue);
-    const bar = $(SEL.progressBar);
-
-    if (bar) bar.style.width = "0%";
-    if (text) text.textContent = message;
-    if (retry) retry.hidden = false;
-    if (next) next.hidden = true;
-}
-
-function processOCR() {
-    log("Enviar capturas al scanner/OCR:", {
-        front: State.captures.front,
-        back: State.captures.back,
-        validations: State.validationResults,
-    });
-
-    alert("Aquí enviaremos frente y reverso al scanner/OCR final.");
-}
-
-function closeScanner() {
-    stopCamera();
-    window.location.href = "/PRI/Views/home.php";
-}
-
-function bindEvents() {
-    $(SEL.close)?.addEventListener("click", closeScanner);
-    $(SEL.retry)?.addEventListener("click", retryCapture);
-    $(SEL.continue)?.addEventListener("click", continueFlow);
-    $(SEL.process)?.addEventListener("click", processOCR);
-
-    window.addEventListener("beforeunload", stopCamera);
-
-    document.addEventListener("visibilitychange", () => {
-        if (document.hidden) {
-            log("Documento oculto, cámara sigue activa hasta cerrar o salir.");
-        }
-    });
-}
-
-function init() {
-    bindEvents();
-    setStep("front");
-    setStageState("idle");
-    startCamera();
-}
-
-document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", init);
