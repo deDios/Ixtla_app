@@ -17,14 +17,14 @@
         <span class="scanner-badge">Demo local OCR</span>
         <h1>Scanner de INE</h1>
         <p>
-          Sube una imagen de prueba para procesarla con Python, OpenCV y Tesseract.
+          Sube el frente y reverso de una INE para procesarla con Python, OpenCV y Tesseract.
         </p>
       </div>
     </section>
 
     <section class="scanner-grid">
       <article class="scanner-card">
-        <h2>Imagen</h2>
+        <h2>Imágenes</h2>
 
         <form id="scanner-form">
           <div class="upload-group">
@@ -42,7 +42,7 @@
               <small>Imagen trasera de la INE</small>
             </label>
             <input type="file" id="ine-back" accept="image/*">
-            <img id="back-preview" class="image-preview" alt="Vissta previa reverso">
+            <img id="back-preview" class="image-preview" alt="Vista previa reverso">
           </div>
 
           <button type="submit" id="btn-scan">
@@ -55,6 +55,23 @@
         <h2>Datos detectados</h2>
         <div id="result-data" class="result-data">
           <p class="empty-state">Aquí aparecerán los campos detectados.</p>
+        </div>
+      </article>
+
+      <article class="scanner-card scanner-card--full">
+        <h2>Diagnóstico visual OCR</h2>
+
+        <div class="ocr-debug-toolbar">
+          <button type="button" data-ocr-side="front" class="is-active">Frente</button>
+          <button type="button" data-ocr-side="back">Reverso</button>
+        </div>
+
+        <div class="ocr-debug-canvas-wrap">
+          <canvas id="ocr-debug-canvas"></canvas>
+        </div>
+
+        <div id="ocr-debug-info" class="ocr-debug-info">
+          Esperando escaneo...
         </div>
       </article>
 
