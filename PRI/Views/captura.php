@@ -178,11 +178,7 @@ ix_require_session([
             <div class="ine-data-backdrop" data-ine-modal-close></div>
 
             <article class="ine-data-card" role="dialog" aria-modal="true" aria-labelledby="ine-data-title">
-                <header class="ine-data-head">
-                    <div class="ine-data-brand">
-                        <img src="/ASSETS/main_logo.png" alt="Ixtlahuacán de los Membrillos">
-                    </div>
-
+                <header class="ine-data-head ine-data-head--simple">
                     <div class="ine-data-titlebox">
                         <p class="ine-data-kicker">Datos extraídos</p>
                         <h2 id="ine-data-title">Validación de INE</h2>
