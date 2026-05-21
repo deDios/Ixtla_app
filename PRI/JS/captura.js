@@ -35,10 +35,18 @@ const CONFIG = {
         preferWebp: false,
         debug: true,
     },
+
+    EXTRACTION: {
+        provider: "openai", // "openai" | "watsonx"
+        compositeMaxWidth: 1400,
+        compositeQuality: 0.86,
+        rawText: "",
+    },
 };
 
 const ENDPOINTS = {
-    validateIne: "/PRI/DB/WEB/validar_ine_ocr.php",
+    extractWatsonx: "/PRI/extract_identificacion.php",
+    extractOpenAI: "/PRI/extract_identificacion_openai.php",
 };
 
 const TAG = "[Captura INE]";
@@ -64,10 +72,7 @@ const State = {
         back: null,
     },
 
-    validationResults: {
-        front: null,
-        back: null,
-    },
+    extractionResult: null,
 };
 
 let PreviousFrameSignature = null;
@@ -251,6 +256,14 @@ function analyzeCurrentFrame() {
     canvas.height = analysisHeight;
 
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    if (!ctx) {
+        return buildFrameResult({
+            hasCard: false,
+            reason: "no_context",
+        });
+    }
+
     ctx.drawImage(video, 0, 0, analysisWidth, analysisHeight);
 
     const imageData = ctx.getImageData(0, 0, analysisWidth, analysisHeight);
@@ -527,15 +540,15 @@ async function capturePhoto() {
             CONFIG.MEDIA
         );
 
-        State.captures[State.step] = compressed.dataUrl;
+        if (!compressed?.dataUrl) {
+            throw new Error("La compresión no devolvió una imagen válida.");
+        }
 
-        toast(
-            `Imagen optimizada: ${compressed.sizeKB} KB`,
-            compressed.withinLimit ? "advertencia" : "error",
-            3500
-        );
+        if (!compressed.withinLimit) {
+            throw new Error("La imagen sigue pesando demasiado después de comprimirla.");
+        }
 
-        console.group("[Captura INE] Imagen lista para validar");
+        console.group("[Captura INE] Imagen capturada");
         console.log("Step:", State.step);
         console.log("Mime:", compressed.mime);
         console.log("Size KB:", compressed.sizeKB);
@@ -546,7 +559,14 @@ async function capturePhoto() {
         console.log("DataURL length:", compressed.dataUrl.length);
         console.groupEnd();
 
-        await validateCapturedINE(compressed.dataUrl, State.step);
+        acceptCapturedINE(compressed.dataUrl, State.step, {
+            source: "camera",
+            mime: compressed.mime,
+            sizeKB: compressed.sizeKB,
+            width: compressed.width,
+            height: compressed.height,
+            quality: compressed.quality,
+        });
     } catch (error) {
         warn("Error preparando captura:", error);
 
@@ -560,198 +580,26 @@ async function capturePhoto() {
     }
 }
 
-async function validateCapturedINE(imageData, side) {
-    setStageState("processing");
+function acceptCapturedINE(imageData, side, meta = {}) {
+    State.captures[side] = imageData;
+    State.extractionResult = null;
 
-    const text = $(SEL.statusText);
-    const retry = $(SEL.retry);
-    const next = $(SEL.continue);
-    const bar = $(SEL.progressBar);
-
-    if (retry) retry.hidden = true;
-    if (next) next.hidden = true;
-    if (bar) bar.style.width = "100%";
-
-    if (text) {
-        text.textContent =
-            side === "front"
-                ? "Validando frente de INE..."
-                : "Validando reverso de INE...";
-    }
+    console.group("[Captura INE] Captura aceptada por validación visual JS");
+    console.log("Side:", side);
+    console.log("Image length:", imageData?.length || 0);
+    console.log("Meta:", meta);
+    console.groupEnd();
 
     toast(
         side === "front"
-            ? "Validando frente de INE..."
-            : "Validando reverso de INE...",
-        "advertencia",
-        2500
+            ? "Frente capturado correctamente"
+            : "Reverso capturado correctamente",
+        "exito",
+        3500
     );
 
-    try {
-        const result = await validateIneWithBackend(imageData, side);
-
-        State.validationResults[side] = result;
-
-        console.group("[Captura INE] Resultado validación backend");
-        console.log("Side:", side);
-        console.log("Valid:", result.valid);
-        console.log("Message:", result.message);
-        console.log("Score:", result.score);
-        console.log("Checks:", result.checks);
-        console.log("Metrics:", result.metrics);
-        console.log("Raw:", result.raw);
-        console.groupEnd();
-
-        if (!result.valid) {
-            State.captures[side] = null;
-
-            toast(
-                result.message || "La foto no es válida. Intenta de nuevo.",
-                "error",
-                7000
-            );
-
-            showError(result.message || "La foto no es válida. Intenta de nuevo.");
-            return;
-        }
-
-        toast(
-            side === "front"
-                ? "Frente validado correctamente"
-                : "Reverso validado correctamente",
-            "exito",
-            4500
-        );
-
-        setStageState("captured");
-        updateCapturedUI();
-    } catch (error) {
-        warn("Error validando captura:", error);
-
-        State.captures[side] = null;
-
-        toast(
-            error?.message || "No se pudo validar la captura.",
-            "error",
-            8000
-        );
-
-        showError("No se pudo validar la captura. Intenta de nuevo.");
-    }
-}
-
-async function validateIneWithBackend(imageData, side) {
-    const payload = {
-        side,
-        image: imageData,
-    };
-
-    console.group("[Captura INE] Enviando validación");
-    console.log("Endpoint:", ENDPOINTS.validateIne);
-    console.log("Side:", side);
-    console.log("Image length:", imageData?.length || 0);
-    console.log("Payload preview:", {
-        side: payload.side,
-        image: String(payload.image || "").slice(0, 80) + "...",
-    });
-    console.groupEnd();
-
-    toast(
-        `Enviando imagen al endpoint...\n${ENDPOINTS.validateIne}`,
-        "advertencia",
-        3000
-    );
-
-    let response;
-    let raw = "";
-
-    try {
-        response = await fetch(ENDPOINTS.validateIne, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        raw = await response.text();
-    } catch (error) {
-        console.error("[Captura INE] Error de red/fetch:", error);
-
-        toast(
-            `Error de red/fetch:\n${error?.message || error}`,
-            "error",
-            10000
-        );
-
-        throw error;
-    }
-
-    console.group("[Captura INE] Respuesta cruda endpoint");
-    console.log("HTTP status:", response.status);
-    console.log("OK:", response.ok);
-    console.log("Content-Type:", response.headers.get("content-type"));
-    console.log("Raw response:", raw);
-    console.groupEnd();
-
-    toast(
-        `HTTP ${response.status}\nOK: ${response.ok}\nRespuesta:\n${raw || "(vacía)"}`,
-        response.ok ? "advertencia" : "error",
-        12000
-    );
-
-    let json = null;
-
-    try {
-        json = JSON.parse(raw);
-    } catch (error) {
-        console.error("[Captura INE] JSON parse error:", error);
-        console.error("[Captura INE] Raw no JSON:", raw);
-
-        toast(
-            `NO ES JSON\nHTTP ${response.status}\nRespuesta cruda:\n${raw || "(vacía)"}`,
-            "error",
-            15000
-        );
-
-        throw new Error("El endpoint no respondió JSON válido. Revisa consola.");
-    }
-
-    console.group("[Captura INE] JSON endpoint");
-    console.log(json);
-    console.groupEnd();
-
-    toast(
-        {
-            status: response.status,
-            ok: response.ok,
-            json,
-        },
-        json.ok ? "exito" : "error",
-        12000
-    );
-
-    if (!response.ok || !json.ok) {
-        const backendError =
-            json.error ||
-            json.message ||
-            json.detail ||
-            `Error HTTP ${response.status}`;
-
-        throw new Error(backendError);
-    }
-
-    const result = json.data || json.result || json;
-
-    return {
-        valid: Boolean(result.valid),
-        message: result.message || "",
-        score: Number(result.score || result.confidence || 0),
-        checks: result.checks || {},
-        metrics: result.metrics || result.quality || {},
-        raw: result,
-    };
+    setStageState("captured");
+    updateCapturedUI();
 }
 
 function updateCapturedUI() {
@@ -765,8 +613,8 @@ function updateCapturedUI() {
     if (text) {
         text.innerHTML =
             State.step === "front"
-                ? "<strong>¡Excelente! Frente validado correctamente</strong> Puedes continuar con el reverso"
-                : "<strong>¡Excelente! Reverso validado correctamente</strong> Puedes revisar las capturas";
+                ? "<strong>¡Excelente! Frente capturado correctamente</strong> Puedes continuar con el reverso"
+                : "<strong>¡Excelente! Reverso capturado correctamente</strong> Puedes revisar las capturas";
     }
 
     if (retry) retry.hidden = false;
@@ -782,7 +630,7 @@ function retryCapture() {
     State.lastValidTime = null;
     State.autoCaptured = false;
     State.captures[State.step] = null;
-    State.validationResults[State.step] = null;
+    State.extractionResult = null;
     PreviousFrameSignature = null;
 
     const retry = $(SEL.retry);
@@ -823,8 +671,11 @@ function showSummary() {
     stopCamera();
 
     log("Capturas listas:", {
-        captures: State.captures,
-        validationResults: State.validationResults,
+        captures: {
+            front: State.captures.front ? `${State.captures.front.length} chars` : null,
+            back: State.captures.back ? `${State.captures.back.length} chars` : null,
+        },
+        extractionResult: State.extractionResult,
     });
 }
 
@@ -844,6 +695,267 @@ function showError(message) {
     if (text) text.textContent = message;
     if (retry) retry.hidden = false;
     if (next) next.hidden = true;
+}
+
+function loadImageFromDataUrl(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("No se pudo cargar una captura para componer."));
+
+        img.src = dataUrl;
+    });
+}
+
+function dataUrlSizeBytes(dataUrl) {
+    const base64 = String(dataUrl || "").split(",")[1] || "";
+    return Math.ceil((base64.length * 3) / 4);
+}
+
+function dataUrlSizeMB(dataUrl) {
+    return dataUrlSizeBytes(dataUrl) / 1024 / 1024;
+}
+
+async function buildCompositeIneImageDataUrl() {
+    if (!State.captures.front || !State.captures.back) {
+        throw new Error("Faltan capturas de frente y reverso.");
+    }
+
+    const frontImg = await loadImageFromDataUrl(State.captures.front);
+    const backImg = await loadImageFromDataUrl(State.captures.back);
+
+    const maxWidth = CONFIG.EXTRACTION.compositeMaxWidth;
+    const padding = 32;
+    const gap = 34;
+    const labelHeight = 42;
+
+    const frontRatio = Math.min(1, (maxWidth - padding * 2) / frontImg.width);
+    const backRatio = Math.min(1, (maxWidth - padding * 2) / backImg.width);
+
+    const frontWidth = Math.round(frontImg.width * frontRatio);
+    const frontHeight = Math.round(frontImg.height * frontRatio);
+
+    const backWidth = Math.round(backImg.width * backRatio);
+    const backHeight = Math.round(backImg.height * backRatio);
+
+    const canvasWidth = Math.max(frontWidth, backWidth) + padding * 2;
+    const canvasHeight =
+        padding +
+        labelHeight +
+        frontHeight +
+        gap +
+        labelHeight +
+        backHeight +
+        padding;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+
+    if (!ctx) {
+        throw new Error("No se pudo crear la imagen compuesta.");
+    }
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    ctx.fillStyle = "#111827";
+    ctx.font = "700 24px Arial";
+    ctx.textBaseline = "top";
+
+    let y = padding;
+
+    ctx.fillText("FRENTE INE", padding, y);
+    y += labelHeight;
+
+    ctx.drawImage(
+        frontImg,
+        Math.round((canvasWidth - frontWidth) / 2),
+        y,
+        frontWidth,
+        frontHeight
+    );
+
+    y += frontHeight + gap;
+
+    ctx.fillText("REVERSO INE", padding, y);
+    y += labelHeight;
+
+    ctx.drawImage(
+        backImg,
+        Math.round((canvasWidth - backWidth) / 2),
+        y,
+        backWidth,
+        backHeight
+    );
+
+    return canvas.toDataURL("image/jpeg", CONFIG.EXTRACTION.compositeQuality);
+}
+
+async function extractIdentificationData({
+    provider = CONFIG.EXTRACTION.provider,
+    imageDataUrl,
+    rawText = CONFIG.EXTRACTION.rawText,
+    imagesCount = 2,
+}) {
+    if (!imageDataUrl) {
+        throw new Error("No hay imagen para enviar a extracción.");
+    }
+
+    const endpoint =
+        provider === "watsonx"
+            ? ENDPOINTS.extractWatsonx
+            : ENDPOINTS.extractOpenAI;
+
+    const imageSizeMb = dataUrlSizeMB(imageDataUrl);
+
+    const payload =
+        provider === "watsonx"
+            ? {
+                image_data_url: imageDataUrl,
+                raw_text: String(rawText || "").trim().substring(0, 12000),
+                prefer_image: imageDataUrl !== "",
+                image_size_mb: Number(imageSizeMb.toFixed(3)),
+                images_count: imagesCount,
+            }
+            : {
+                image_data_url: imageDataUrl,
+                raw_text: String(rawText || "").trim().substring(0, 6000),
+                image_size_mb: Number(imageSizeMb.toFixed(3)),
+                images_count: imagesCount,
+            };
+
+    console.group("[Captura INE] Enviando extracción");
+    console.log("Provider:", provider);
+    console.log("Endpoint:", endpoint);
+    console.log("Image size MB:", payload.image_size_mb);
+    console.log("Images count:", payload.images_count);
+    console.log("Payload preview:", {
+        ...payload,
+        image_data_url: String(payload.image_data_url || "").slice(0, 90) + "...",
+    });
+    console.groupEnd();
+
+    toast(
+        `Enviando identificación a ${provider}...\nImagen: ${payload.image_size_mb} MB`,
+        "advertencia",
+        4000
+    );
+
+    let response;
+    let rawResponse = "";
+
+    try {
+        response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        rawResponse = await response.text();
+    } catch (error) {
+        console.error("[Captura INE] Error fetch extracción:", error);
+        throw new Error("Error de conexión con el endpoint de extracción: " + error.message);
+    }
+
+    console.group("[Captura INE] Respuesta cruda extracción");
+    console.log("HTTP status:", response.status);
+    console.log("OK:", response.ok);
+    console.log("Content-Type:", response.headers.get("content-type"));
+    console.log("Raw:", rawResponse);
+    console.groupEnd();
+
+    let data = null;
+
+    try {
+        data = JSON.parse(rawResponse);
+    } catch (error) {
+        console.error("[Captura INE] La extracción no respondió JSON:", error);
+        console.error("[Captura INE] Raw:", rawResponse);
+
+        throw new Error("El endpoint de extracción respondió algo que no es JSON.");
+    }
+
+    if (!response.ok || !data.ok) {
+        console.error("[Captura INE] Error backend extracción:", data);
+
+        throw new Error(
+            data.error ||
+            data.message ||
+            data.detalle ||
+            `Error HTTP ${response.status}`
+        );
+    }
+
+    return {
+        provider,
+        mode: data.mode || "image_direct",
+        result: data.result || data.data || data,
+        raw: data,
+    };
+}
+
+async function processOCR() {
+    if (!State.captures.front || !State.captures.back) {
+        toast("Primero captura frente y reverso de la INE.", "error", 7000);
+        return;
+    }
+
+    const processBtn = $(SEL.process);
+
+    if (processBtn) {
+        processBtn.disabled = true;
+        processBtn.textContent = "Procesando OCR...";
+    }
+
+    toast("Preparando frente y reverso para extracción...", "advertencia", 3500);
+
+    try {
+        const compositeImage = await buildCompositeIneImageDataUrl();
+        const imageSizeMb = dataUrlSizeMB(compositeImage);
+
+        console.group("[Captura INE] Imagen compuesta para extracción");
+        console.log("Size MB:", Number(imageSizeMb.toFixed(3)));
+        console.log("DataURL length:", compositeImage.length);
+        console.log("Endpoint OpenAI:", ENDPOINTS.extractOpenAI);
+        console.log("Endpoint Watsonx:", ENDPOINTS.extractWatsonx);
+        console.groupEnd();
+
+        const result = await extractIdentificationData({
+            provider: CONFIG.EXTRACTION.provider,
+            imageDataUrl: compositeImage,
+            rawText: CONFIG.EXTRACTION.rawText,
+            imagesCount: 2,
+        });
+
+        State.extractionResult = result;
+
+        console.group("[Captura INE] Resultado extracción");
+        console.log(result);
+        console.groupEnd();
+
+        toast("Extracción completada. Revisa consola.", "exito", 7000);
+        toast(result, "advertencia", 12000);
+    } catch (error) {
+        console.error("[Captura INE] Error en processOCR:", error);
+
+        toast(
+            error?.message || "No se pudo procesar la identificación.",
+            "error",
+            10000
+        );
+    } finally {
+        if (processBtn) {
+            processBtn.disabled = false;
+            processBtn.textContent = "Procesar OCR";
+        }
+    }
 }
 
 async function debugValidateImageFromPC(file) {
@@ -868,17 +980,23 @@ async function debugValidateImageFromPC(file) {
         3000
     );
 
-    let prepared = null;
-
     try {
         if (!window.PRIMedia?.compressFileToDataUrl) {
             throw new Error("No se encontró PRIMedia.compressFileToDataUrl.");
         }
 
-        prepared = await window.PRIMedia.compressFileToDataUrl(file, {
+        const prepared = await window.PRIMedia.compressFileToDataUrl(file, {
             ...CONFIG.MEDIA,
             debug: true,
         });
+
+        if (!prepared?.dataUrl) {
+            throw new Error("No se pudo preparar la imagen seleccionada.");
+        }
+
+        if (!prepared.withinLimit) {
+            throw new Error("La imagen sigue pesando demasiado después de prepararla.");
+        }
 
         console.group("[Captura INE][DEBUG PC] Imagen preparada");
         console.log("Nombre original:", file.name);
@@ -893,21 +1011,16 @@ async function debugValidateImageFromPC(file) {
         console.log("DataURL length:", prepared.dataUrl?.length || 0);
         console.groupEnd();
 
-        toast(
-            `Debug PC: imagen lista (${prepared.sizeKB} KB). Enviando al scanner...`,
-            prepared.withinLimit ? "advertencia" : "error",
-            4000
-        );
-
-        if (!prepared.withinLimit) {
-            throw new Error("La imagen sigue pesando demasiado después de prepararla.");
-        }
-
-        State.captures[side] = prepared.dataUrl;
-
-        await validateCapturedINE(prepared.dataUrl, side);
+        acceptCapturedINE(prepared.dataUrl, side, {
+            source: "debug_pc",
+            name: file.name,
+            type: file.type,
+            sizeKB: Math.round(file.size / 1024),
+            preparedSizeKB: prepared.sizeKB,
+            preparedMime: prepared.mime,
+        });
     } catch (error) {
-        console.error("[Captura INE][DEBUG PC] Error preparando/enviando imagen:", error);
+        console.error("[Captura INE][DEBUG PC] Error preparando imagen:", error);
 
         toast(
             error?.message || "No se pudo preparar la imagen desde PC.",
@@ -944,16 +1057,6 @@ function bindDebugImageFromPC() {
 
         input.value = "";
     });
-}
-
-function processOCR() {
-    log("Enviar capturas al scanner/OCR:", {
-        front: State.captures.front,
-        back: State.captures.back,
-        validations: State.validationResults,
-    });
-
-    alert("Aquí enviaremos frente y reverso al scanner/OCR final.");
 }
 
 function closeScanner() {
