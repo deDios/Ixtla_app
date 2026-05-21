@@ -19,16 +19,50 @@ def index():
 
 @app.route("/scan-ine", methods=["POST"])
 def scan_ine():
-    if "image" not in request.files:
-        return jsonify({"ok": False, "error": "No se recibió imagen"}), 400
+    if "front_image" not in request.files:
+        return jsonify({"ok": False, "error": "No se recibió la imagen frontal"}), 400
 
-    file = request.files["image"]
+    if "back_image" not in request.files:
+        return jsonify({"ok": False, "error": "No se recibió la imagen trasera"}), 400
+
+    front_img = read_uploaded_image(request.files["front_image"])
+    back_img = read_uploaded_image(request.files["back_image"])
+
+    if front_img is None:
+        return jsonify({"ok": False, "error": "No se pudo leer la imagen frontal"}), 400
+
+    if back_img is None:
+        return jsonify({"ok": False, "error": "No se pudo leer la imagen trasera"}), 400
+
+    front_result = process_ine_image(front_img)
+    back_result = process_ine_image(back_img)
+
+    merged_data = merge_front_back_data(
+        front_result["data"],
+        back_result["data"],
+        back_result["raw_text"]
+    )
+
+    return jsonify({
+        "ok": True,
+        "best_method": front_result["best_method"],
+        "score": front_result["score"],
+        "data": merged_data,
+        "front_raw_text": front_result["raw_text"],
+        "back_raw_text": back_result["raw_text"],
+        "front_debug_results": front_result["debug_results"],
+        "back_debug_results": back_result["debug_results"],
+        "front_crop_info": front_result["crop_info"],
+        "back_crop_info": back_result["crop_info"]
+    })
+
+
+def read_uploaded_image(file):
     file_bytes = np.frombuffer(file.read(), np.uint8)
-    img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    return cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
-    if img is None:
-        return jsonify({"ok": False, "error": "No se pudo leer la imagen"}), 400
 
+def process_ine_image(img):
     card_img, crop_info = crop_card_if_possible(img)
     variants = preprocess_variants(card_img)
 
@@ -49,15 +83,53 @@ def scan_ine():
     best_result = max(ocr_results, key=lambda item: item["score"])
     merged_data = merge_best_data(ocr_results)
 
-    return jsonify({
-        "ok": True,
+    return {
         "best_method": best_result["method"],
         "score": best_result["score"],
-        "crop_info": crop_info,
         "raw_text": best_result["raw_text"],
-        "data": merged_data,
-        "debug_results": ocr_results
-    })
+        "debug_results": ocr_results,
+        "crop_info": crop_info,
+        "data": merged_data
+    }
+
+
+def merge_front_back_data(front_data, back_data, back_text):
+    merged = empty_ine_data()
+
+    for key in merged.keys():
+        if front_data.get(key):
+            merged[key] = front_data[key]
+        elif back_data.get(key):
+            merged[key] = back_data[key]
+
+    mrz_name = extract_name_from_mrz(back_text)
+
+    if mrz_name:
+        merged["nombre"] = mrz_name
+
+    return merged
+
+
+def extract_name_from_mrz(text):
+    clean = normalize_text(text)
+    clean = clean.replace(" ", "")
+
+    mrz_match = re.search(
+        r"([A-Z]{2,})<<([A-Z]{2,})<<([A-Z<]{2,})",
+        clean
+    )
+
+    if not mrz_match:
+        return ""
+
+    apellido_1 = mrz_match.group(1).replace("<", " ").strip()
+    apellido_2 = mrz_match.group(2).replace("<", " ").strip()
+    nombres = mrz_match.group(3).replace("<", " ").strip()
+
+    full_name = f"{apellido_1} {apellido_2} {nombres}"
+    full_name = re.sub(r"\s+", " ", full_name).strip()
+
+    return full_name
 
 
 def crop_card_if_possible(img):
@@ -266,6 +338,133 @@ def normalize_ocr_code(value):
     value = value.replace("|", "1")
     return value
 
+
+def normalize_lines(text):
+    raw_lines = text.upper().splitlines()
+    lines = []
+
+    for line in raw_lines:
+        clean_line = normalize_text(line)
+        clean_line = re.sub(r"\s+", " ", clean_line).strip()
+
+        if clean_line:
+            lines.append(clean_line)
+
+    return lines
+
+
+def has_stop_word(line):
+    stops = [
+        "DOMICILIO",
+        "BOMICUO",
+        "DOMICUO",
+        "FECHA",
+        "SEXO",
+        "CLAVE",
+        "CURP",
+        "ESTADO",
+        "MUNICIPIO",
+        "SECCION",
+        "LOCALIDAD",
+        "EMISION",
+        "VIGENCIA",
+        "REGISTRO"
+    ]
+
+    return any(stop in line for stop in stops)
+
+
+def is_valid_name_line(line):
+    if not line:
+        return False
+
+    if len(line) < 3:
+        return False
+
+    if re.search(r"\d", line):
+        return False
+
+    bad_words = [
+        "MEXICO",
+        "INSTITUTO",
+        "NACIONAL",
+        "ELECTORAL",
+        "CREDENCIAL",
+        "PARA",
+        "VOTAR",
+        "FECHA",
+        "SEXO",
+        "DOMICILIO"
+    ]
+
+    if any(word in line for word in bad_words):
+        return False
+
+    words = line.split()
+
+    if len(words) > 4:
+        return False
+
+    return True
+
+
+def extract_name_from_lines(text):
+    lines = normalize_lines(text)
+
+    for index, line in enumerate(lines):
+        if "NOMBRE" not in line:
+            continue
+
+        candidates = []
+
+        for next_line in lines[index + 1:index + 6]:
+            if has_stop_word(next_line):
+                break
+
+            cleaned = re.sub(r"[^A-Z\s]", " ", next_line)
+            cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+            if is_valid_name_line(cleaned):
+                candidates.append(cleaned)
+
+        if candidates:
+            return " ".join(candidates[:4]).strip()
+
+    return ""
+
+
+def extract_address_from_lines(text):
+    lines = normalize_lines(text)
+
+    for index, line in enumerate(lines):
+        if "DOMICILIO" not in line and "BOMICUO" not in line and "DOMICUO" not in line:
+            continue
+
+        candidates = []
+
+        for next_line in lines[index + 1:index + 5]:
+            if any(stop in next_line for stop in [
+                "CLAVE",
+                "CURP",
+                "ESTADO",
+                "LOCALIDAD",
+                "MUNICIPIO",
+                "SECCION"
+            ]):
+                break
+
+            cleaned = re.sub(r"[^A-Z0-9\s.,#/-]", " ", next_line)
+            cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+            if len(cleaned) >= 4:
+                candidates.append(cleaned)
+
+        if candidates:
+            return " ".join(candidates).strip(" .,-")
+
+    return ""
+
+
 def extract_ine_data(text):
     clean = normalize_text(text)
     compact = clean.replace(" ", "")
@@ -331,19 +530,27 @@ def extract_ine_data(text):
     if emision:
         data["emision"] = emision.group(1)
 
-    domicilio = re.search(
-        r"D[O0]MICILI[O0]\s*(.*?)(CLAVE|CURP|ESTAD[O0]|LOCALIDAD|MUNICIPIO|SECCION)",
-        clean
-    )
-    if domicilio:
-        data["domicilio"] = domicilio.group(1).strip(" .,-")
+    domicilio_lineas = extract_address_from_lines(text)
+    if domicilio_lineas:
+        data["domicilio"] = domicilio_lineas
+    else:
+        domicilio = re.search(
+            r"D[O0]MICILI[O0]\s*(.*?)(CLAVE|CURP|ESTAD[O0]|LOCALIDAD|MUNICIPIO|SECCION)",
+            clean
+        )
+        if domicilio:
+            data["domicilio"] = domicilio.group(1).strip(" .,-")
 
-    nombre = re.search(
-        r"NOMBRE\s*(.*?)(D[O0]MICILI[O0]|FECHA DE NACIMIENTO|SEXO)",
-        clean
-    )
-    if nombre:
-        data["nombre"] = nombre.group(1).strip(" .,-")
+    nombre_lineas = extract_name_from_lines(text)
+    if nombre_lineas:
+        data["nombre"] = nombre_lineas
+    else:
+        nombre = re.search(
+            r"NOMBRE\s*(.*?)(D[O0]MICILI[O0]|FECHA DE NACIMIENTO|SEXO)",
+            clean
+        )
+        if nombre:
+            data["nombre"] = nombre.group(1).strip(" .,-")
 
     return data
 
@@ -429,45 +636,13 @@ def extract_fallback_data(text):
         if years:
             data["vigencia"] = years[-1]
 
-    lines = [line.strip() for line in text.upper().splitlines() if line.strip()]
-    possible_name = []
+    nombre_lineas = extract_name_from_lines(text)
+    if nombre_lineas:
+        data["nombre"] = nombre_lineas
 
-    for index, line in enumerate(lines):
-        line_clean = normalize_text(line)
-
-        if "NOMBRE" in line_clean:
-            for next_line in lines[index + 1:index + 5]:
-                next_clean = normalize_text(next_line)
-
-                if any(stop in next_clean for stop in [
-                    "DOMICILIO",
-                    "CLAVE",
-                    "CURP",
-                    "FECHA",
-                    "SEXO"
-                ]):
-                    break
-
-                only_letters = re.sub(
-                    r"[^A-ZÑÁÉÍÓÚ\s]",
-                    "",
-                    next_clean
-                ).strip()
-
-                if only_letters and len(only_letters) >= 3:
-                    possible_name.append(only_letters)
-
-            break
-
-    if possible_name:
-        data["nombre"] = " ".join(possible_name[:4]).strip()
-
-    domicilio = re.search(
-        r"D[O0]MICILI[O0]\s*(.*?)(CLAVE|CURP|ESTAD[O0]|LOCALIDAD|MUNICIPIO|SECCION)",
-        clean
-    )
-    if domicilio:
-        data["domicilio"] = domicilio.group(1).strip(" .,-")
+    domicilio_lineas = extract_address_from_lines(text)
+    if domicilio_lineas:
+        data["domicilio"] = domicilio_lineas
 
     return data
 

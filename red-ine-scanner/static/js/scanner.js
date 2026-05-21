@@ -17,45 +17,51 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector("#scanner-form");
-  const input = document.querySelector("#ine-image");
-  const preview = document.querySelector("#image-preview");
+
+  const frontInput = document.querySelector("#ine-front");
+  const backInput = document.querySelector("#ine-back");
+
+  const frontPreview = document.querySelector("#front-preview");
+  const backPreview = document.querySelector("#back-preview");
+
   const rawText = document.querySelector("#raw-text");
   const resultData = document.querySelector("#result-data");
   const btnScan = document.querySelector("#btn-scan");
 
-  if (!form || !input) {
-    console.warn("No se encontró el formulario o input del scanner.");
+  if (!form || !frontInput || !backInput) {
+    console.warn("No se encontró el formulario o inputs del scanner.");
     return;
   }
 
-  input.addEventListener("change", () => {
-    const file = input.files[0];
+  frontInput.addEventListener("change", () => {
+    renderPreview(frontInput, frontPreview);
+    resetResults();
+  });
 
-    if (!file) return;
-
-    if (preview) {
-      preview.src = URL.createObjectURL(file);
-      preview.style.display = "block";
-    }
-
-    if (rawText) rawText.textContent = "";
-    if (resultData) {
-      resultData.innerHTML = `<p class="empty-state">Aquí aparecerán los campos detectados.</p>`;
-    }
+  backInput.addEventListener("change", () => {
+    renderPreview(backInput, backPreview);
+    resetResults();
   });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const file = input.files[0];
+    const frontFile = frontInput.files[0];
+    const backFile = backInput.files[0];
 
-    if (!file) {
-      alert("Selecciona una imagen de la INE primero.");
+    if (!frontFile) {
+      alert("Selecciona la imagen frontal de la INE.");
+      return;
+    }
+
+    if (!backFile) {
+      alert("Selecciona la imagen trasera de la INE.");
       return;
     }
 
     const formData = new FormData();
-    formData.append("image", file);
+    formData.append("front_image", frontFile);
+    formData.append("back_image", backFile);
 
     try {
       setLoading(true);
@@ -68,15 +74,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
 
       console.log("Respuesta OCR:", data);
-      console.table(data.debug_results || []);
+      console.table(data.front_debug_results || []);
+      console.table(data.back_debug_results || []);
 
       if (!data.ok) {
-        alert(data.error || "Ocurrió un error al procesar la imagen.");
+        alert(data.error || "Ocurrió un error al procesar la INE.");
         return;
       }
 
       renderData(data.data, data.best_method, data.score);
-      renderRawText(data.raw_text);
+      renderRawText(data);
     } catch (error) {
       console.error("Error escaneando INE:", error);
       alert("No se pudo conectar con el servidor OCR.");
@@ -84,6 +91,23 @@ document.addEventListener("DOMContentLoaded", () => {
       setLoading(false);
     }
   });
+
+  function renderPreview(input, preview) {
+    const file = input.files[0];
+
+    if (!file || !preview) return;
+
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+  }
+
+  function resetResults() {
+    if (rawText) rawText.textContent = "Aquí aparecerá el texto leído por Tesseract.";
+
+    if (resultData) {
+      resultData.innerHTML = `<p class="empty-state">Aquí aparecerán los campos detectados.</p>`;
+    }
+  }
 
   function setLoading(isLoading) {
     if (!btnScan) return;
@@ -128,8 +152,15 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  function renderRawText(text) {
+  function renderRawText(data) {
     if (!rawText) return;
-    rawText.textContent = text || "No se detectó texto.";
+
+    rawText.textContent = `
+===== FRENTE =====
+${data.front_raw_text || "Sin texto frontal"}
+
+===== REVERSO =====
+${data.back_raw_text || "Sin texto trasero"}
+    `.trim();
   }
 });

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
+
 <body>
 
   <main class="scanner-page">
@@ -25,14 +27,23 @@
         <h2>Imagen</h2>
 
         <form id="scanner-form">
-          <label class="upload-box" for="ine-image">
-            <span>Seleccionar imagen</span>
-            <small>Formatos: JPG, PNG, WEBP</small>
-          </label>
+          <div class="upload-group">
+            <label class="upload-box" for="ine-front">
+              <span>Seleccionar frente</span>
+              <small>Imagen frontal de la INE</small>
+            </label>
+            <input type="file" id="ine-front" accept="image/*">
+            <img id="front-preview" class="image-preview" alt="Vista previa frente">
+          </div>
 
-          <input type="file" id="ine-image" accept="image/*">
-
-          <img id="image-preview" class="image-preview" alt="Vista previa de INE">
+          <div class="upload-group">
+            <label class="upload-box" for="ine-back">
+              <span>Seleccionar reverso</span>
+              <small>Imagen trasera de la INE</small>
+            </label>
+            <input type="file" id="ine-back" accept="image/*">
+            <img id="back-preview" class="image-preview" alt="Vissta previa reverso">
+          </div>
 
           <button type="submit" id="btn-scan">
             Escanear INE
@@ -56,4 +67,5 @@
 
   <script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
 </body>
+
 </html>

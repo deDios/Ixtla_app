@@ -186,3 +186,12 @@ body {
 .result-card .is-empty {
   color: #94a3b8;
 }
+
+.upload-group {
+  margin-bottom: 18px;
+}
+
+#ine-front,
+#ine-back {
+  display: none;
+}
