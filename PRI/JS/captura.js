@@ -80,6 +80,15 @@ const SEL = {
     previewBack: "#preview-back",
 };
 
+function toast(message, type = "exito", duration = 5000) {
+    if (typeof window.gcToast === "function") {
+        window.gcToast(message, type, duration);
+        return;
+    }
+
+    console.log(`[Toast fallback][${type}]`, message);
+}
+
 function setStageState(state) {
     State.state = state;
 
@@ -512,18 +521,49 @@ async function validateCapturedINE(imageData, side) {
                 : "Validando reverso de INE...";
     }
 
+    toast(
+        side === "front"
+            ? "Validando frente de INE..."
+            : "Validando reverso de INE...",
+        "advertencia",
+        2500
+    );
+
     try {
         const result = await validateIneWithBackend(imageData, side);
 
         State.validationResults[side] = result;
 
-        log("Validación backend:", result);
+        console.group("[Captura INE] Resultado validación backend");
+        console.log("Side:", side);
+        console.log("Valid:", result.valid);
+        console.log("Message:", result.message);
+        console.log("Score:", result.score);
+        console.log("Checks:", result.checks);
+        console.log("Metrics:", result.metrics);
+        console.log("Raw:", result.raw);
+        console.groupEnd();
 
         if (!result.valid) {
             State.captures[side] = null;
+
+            toast(
+                result.message || "La foto no es válida. Intenta de nuevo.",
+                "error",
+                7000
+            );
+
             showError(result.message || "La foto no es válida. Intenta de nuevo.");
             return;
         }
+
+        toast(
+            side === "front"
+                ? "Frente validado correctamente"
+                : "Reverso validado correctamente",
+            "exito",
+            4500
+        );
 
         setStageState("captured");
         updateCapturedUI();
@@ -532,35 +572,72 @@ async function validateCapturedINE(imageData, side) {
 
         State.captures[side] = null;
 
+        toast(
+            error?.message || "No se pudo validar la captura.",
+            "error",
+            8000
+        );
+
         showError("No se pudo validar la captura. Intenta de nuevo.");
     }
 }
 
 async function validateIneWithBackend(imageData, side) {
+    const payload = {
+        side,
+        image: imageData,
+    };
+
+    console.group("[Captura INE] Enviando validación");
+    console.log("Endpoint:", ENDPOINTS.validateIne);
+    console.log("Side:", side);
+    console.log("Image length:", imageData?.length || 0);
+    console.log("Payload preview:", {
+        side: payload.side,
+        image: String(payload.image || "").slice(0, 80) + "...",
+    });
+    console.groupEnd();
+
     const response = await fetch(ENDPOINTS.validateIne, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
         },
-        body: JSON.stringify({
-            side,
-            image: imageData,
-        }),
+        body: JSON.stringify(payload),
     });
 
     const raw = await response.text();
+
+    console.group("[Captura INE] Respuesta cruda endpoint");
+    console.log("HTTP status:", response.status);
+    console.log("OK:", response.ok);
+    console.log("Raw response:", raw);
+    console.groupEnd();
 
     let json = null;
 
     try {
         json = JSON.parse(raw);
-    } catch {
-        throw new Error("El endpoint no respondió JSON válido.");
+    } catch (error) {
+        console.error("[Captura INE] JSON parse error:", error);
+        console.error("[Captura INE] Raw no JSON:", raw);
+
+        throw new Error("El endpoint no respondió JSON válido. Revisa consola.");
     }
 
+    console.group("[Captura INE] JSON endpoint");
+    console.log(json);
+    console.groupEnd();
+
     if (!response.ok || !json.ok) {
-        throw new Error(json.error || `Error HTTP ${response.status}`);
+        const backendError =
+            json.error ||
+            json.message ||
+            json.detail ||
+            `Error HTTP ${response.status}`;
+
+        throw new Error(backendError);
     }
 
     const result = json.data || json.result || json;
