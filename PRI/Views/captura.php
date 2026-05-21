@@ -125,11 +125,7 @@ ix_require_session([
                             Debug imagen PC
                         </button>
 
-                        <input
-                            type="file"
-                            id="scanner-debug-file-input"
-                            accept="image/*"
-                            hidden>
+                        <input type="file" id="scanner-debug-file-input" accept="image/*" hidden>
                     </div>
                 </div>
 
@@ -157,7 +153,8 @@ ix_require_session([
                             Extraer con Watsonx
                         </button>
 
-                        <button type="button" id="scanner-btn-process-openai" class="scanner-btn scanner-btn-process scanner-btn-process--openai">
+                        <button type="button" id="scanner-btn-process-openai"
+                            class="scanner-btn scanner-btn-process scanner-btn-process--openai">
                             Extraer con OpenAI
                         </button>
                     </div>
@@ -176,92 +173,118 @@ ix_require_session([
 
 
         <!-- espacio para modales -->
+        <!-- espacio para modales -->
         <section id="ine-data-modal" class="ine-data-modal" hidden aria-hidden="true">
             <div class="ine-data-backdrop" data-ine-modal-close></div>
 
             <article class="ine-data-card" role="dialog" aria-modal="true" aria-labelledby="ine-data-title">
-                <button type="button" class="ine-data-close" data-ine-modal-close aria-label="Cerrar">
-                    ×
-                </button>
+                <header class="ine-data-head">
+                    <div class="ine-data-brand">
+                        <img src="/ASSETS/main_logo.png" alt="Ixtlahuacán de los Membrillos">
+                    </div>
 
-                <p class="ine-data-kicker">Datos de la INE</p>
+                    <div class="ine-data-titlebox">
+                        <p class="ine-data-kicker">Datos extraídos</p>
+                        <h2 id="ine-data-title">Validación de INE</h2>
+                    </div>
 
-                <div class="ine-data-date">
-                    <span class="ine-data-icon">▦</span>
-                    <strong>Fecha:</strong>
-                    <span id="ine-modal-fecha">--</span>
+                    <button type="button" class="ine-data-close" data-ine-modal-close aria-label="Cerrar">
+                        ×
+                    </button>
+                </header>
+
+                <div class="ine-data-body">
+                    <section class="ine-data-section">
+                        <div class="ine-data-meta">
+                            <div>
+                                <span>Fecha</span>
+                                <strong id="ine-modal-fecha">--</strong>
+                            </div>
+
+                            <div>
+                                <span>Proveedor</span>
+                                <strong id="ine-modal-registrado">--------</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="ine-data-section">
+                        <h3>Información principal</h3>
+
+                        <div class="ine-data-grid">
+                            <label class="ine-data-field">
+                                <span>Nombre completo</span>
+                                <output id="ine-modal-nombre">--------</output>
+                            </label>
+
+                            <label class="ine-data-field">
+                                <span>Teléfono</span>
+                                <output id="ine-modal-telefono">--------</output>
+                            </label>
+
+                            <label class="ine-data-field ine-data-field--full">
+                                <span>Domicilio</span>
+                                <output id="ine-modal-domicilio">--------</output>
+                            </label>
+
+                            <label class="ine-data-field">
+                                <span>Sección</span>
+                                <output id="ine-modal-seccion">--------</output>
+                            </label>
+
+                            <label class="ine-data-field">
+                                <span>Vigencia</span>
+                                <output id="ine-modal-vigencia">--------</output>
+                            </label>
+
+                            <label class="ine-data-field">
+                                <span>Clave de elector</span>
+                                <output id="ine-modal-clave">--------</output>
+                            </label>
+
+                            <label class="ine-data-field">
+                                <span>CURP</span>
+                                <output id="ine-modal-curp">--------</output>
+                            </label>
+
+                            <label class="ine-data-field">
+                                <span>Editado por</span>
+                                <output id="ine-modal-editado">--------</output>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="ine-data-section">
+                        <h3>Capturas INE</h3>
+
+                        <div class="ine-preview-row">
+                            <figure>
+                                <img id="ine-modal-front" src="" alt="Frente INE">
+                                <figcaption>Frente</figcaption>
+                            </figure>
+
+                            <figure>
+                                <img id="ine-modal-back" src="" alt="Reverso INE">
+                                <figcaption>Reverso</figcaption>
+                            </figure>
+                        </div>
+                    </section>
+
+                    <details class="ine-json-debug">
+                        <summary>Ver JSON debug</summary>
+                        <pre id="ine-modal-json">{}</pre>
+                    </details>
                 </div>
 
-                <h2 id="ine-data-title">Nombre completo</h2>
+                <footer class="ine-data-footer">
+                    <button type="button" class="ine-data-secondary" data-ine-modal-close>
+                        Cancelar
+                    </button>
 
-                <div class="ine-data-field">
-                    <span class="ine-data-icon">♙</span>
-                    <span id="ine-modal-nombre">--------</span>
-                </div>
-
-                <h3>Domicilio</h3>
-                <div class="ine-data-field">
-                    <span class="ine-data-icon">⌖</span>
-                    <span id="ine-modal-domicilio">--------</span>
-                </div>
-
-                <h3>Sección</h3>
-                <div class="ine-data-field">
-                    <span class="ine-data-icon">▤</span>
-                    <span id="ine-modal-seccion">--------</span>
-                </div>
-
-                <h3>Clave de elector</h3>
-                <div class="ine-data-field">
-                    <span class="ine-data-icon">▣</span>
-                    <span id="ine-modal-clave">--------</span>
-                </div>
-
-                <h3>Curp</h3>
-                <div class="ine-data-field">
-                    <span class="ine-data-icon">♙</span>
-                    <span id="ine-modal-curp">--------</span>
-                </div>
-
-                <h3>Vigencia</h3>
-                <div class="ine-data-field">
-                    <span class="ine-data-icon">▦</span>
-                    <span id="ine-modal-vigencia">--------</span>
-                </div>
-
-                <h3>Teléfono</h3>
-                <div class="ine-data-field">
-                    <span class="ine-data-icon">☎</span>
-                    <span id="ine-modal-telefono">--------</span>
-                </div>
-
-                <h3>Registrado por:</h3>
-                <div class="ine-data-field">
-                    <span class="ine-data-icon">♚</span>
-                    <span id="ine-modal-registrado">--------</span>
-                </div>
-
-                <h3>Editado por</h3>
-                <div class="ine-data-field">
-                    <span class="ine-data-icon">♚</span>
-                    <span id="ine-modal-editado">--------</span>
-                </div>
-
-                <h3 class="ine-preview-title">INE</h3>
-
-                <div class="ine-preview-row">
-                    <img id="ine-modal-front" src="" alt="Frente INE">
-                    <img id="ine-modal-back" src="" alt="Reverso INE">
-                </div>
-
-                <button type="button" id="ine-modal-affiliate" class="ine-affiliate-btn">
-                    Afiliar Simpatizante
-                </button>
-
-                <details class="ine-json-debug">
-                    <summary>Ver JSON debug</summary>
-                    <pre id="ine-modal-json">{}</pre>
-                </details>
+                    <button type="button" id="ine-modal-affiliate" class="ine-affiliate-btn">
+                        Afiliar simpatizante
+                    </button>
+                </footer>
             </article>
         </section>
     </main>
