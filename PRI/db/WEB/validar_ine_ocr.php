@@ -22,6 +22,61 @@ function jsonResponse(array $data, int $statusCode = 200): void
     exit;
 }
 
+function normalizeImageExtension(string $mimeSubtype): string
+{
+    $mimeSubtype = strtolower(trim($mimeSubtype));
+
+    $map = [
+        "jpeg" => "jpg",
+        "jpg" => "jpg",
+        "pjpeg" => "jpg",
+
+        "png" => "png",
+        "webp" => "webp",
+        "gif" => "gif",
+
+        "bmp" => "bmp",
+        "x-ms-bmp" => "bmp",
+
+        "tiff" => "tiff",
+        "tif" => "tiff",
+
+        "heic" => "heic",
+        "heif" => "heif",
+        "avif" => "avif",
+    ];
+
+    return $map[$mimeSubtype] ?? "";
+}
+
+function detectMimeFromBinary(string $binary): ?string
+{
+    if (!function_exists("finfo_open")) {
+        return null;
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+    if (!$finfo) {
+        return null;
+    }
+
+    $mime = finfo_buffer($finfo, $binary);
+    finfo_close($finfo);
+
+    return is_string($mime) ? strtolower($mime) : null;
+}
+
+function extensionFromDetectedMime(?string $mime): string
+{
+    if (!$mime || !str_starts_with($mime, "image/")) {
+        return "";
+    }
+
+    $subtype = substr($mime, strlen("image/"));
+    return normalizeImageExtension($subtype);
+}
+
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     jsonResponse([
         "ok" => false,
@@ -39,17 +94,16 @@ if ($raw === false || trim($raw) === "") {
 }
 
 /*
- * Límite de JSON completo.
- * Si desde JS comprimimos a ~900KB, base64 crecerá aprox 33%.
- * 2.5MB da margen sin aceptar payloads enormes.
+ * Límite del JSON completo.
+ * Si el JS comprime a 1MB, base64 puede crecer aprox 33%.
  */
-if (strlen($raw) > 2.5 * 1024 * 1024) {
+if (strlen($raw) > 3 * 1024 * 1024) {
     jsonResponse([
         "ok" => false,
         "error" => "La petición es demasiado grande. Reduce la imagen antes de enviarla.",
         "meta" => [
             "raw_size_kb" => round(strlen($raw) / 1024, 2),
-            "max_size_kb" => 2560
+            "max_size_kb" => 3072
         ]
     ], 413);
 }
@@ -65,7 +119,7 @@ if (!is_array($payload)) {
 }
 
 $side = strtolower(trim((string)($payload["side"] ?? "")));
-$imageDataUrl = (string)($payload["image"] ?? "");
+$imageDataUrl = trim((string)($payload["image"] ?? ""));
 
 if (!in_array($side, ["front", "back"], true)) {
     jsonResponse([
@@ -81,25 +135,42 @@ if ($imageDataUrl === "") {
     ], 400);
 }
 
+/*
+ * Aceptamos cualquier subtipo image/* razonable en Data URL.
+ * Rechazamos SVG porque no sirve para OCR y puede ser riesgoso.
+ */
 $matches = [];
 
-if (!preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,/i', $imageDataUrl, $matches)) {
+if (!preg_match('/^data:image\/([a-zA-Z0-9.+-]+);base64,/', $imageDataUrl, $matches)) {
     jsonResponse([
         "ok" => false,
-        "error" => "La imagen debe venir como Data URL base64 válido: jpeg, jpg, png o webp."
+        "error" => "La imagen debe venir como Data URL base64 válido: data:image/{tipo};base64,..."
     ], 400);
 }
 
-$mimeExt = strtolower($matches[1]);
+$declaredSubtype = strtolower($matches[1]);
 
-$extension = match ($mimeExt) {
-    "jpeg", "jpg" => "jpg",
-    "png" => "png",
-    "webp" => "webp",
-    default => "jpg"
-};
+if ($declaredSubtype === "svg+xml" || $declaredSubtype === "svg") {
+    jsonResponse([
+        "ok" => false,
+        "error" => "SVG no es un formato permitido para validación OCR."
+    ], 400);
+}
 
-$imageBase64 = preg_replace('/^data:image\/(jpeg|jpg|png|webp);base64,/i', '', $imageDataUrl);
+$declaredExtension = normalizeImageExtension($declaredSubtype);
+
+if ($declaredExtension === "") {
+    jsonResponse([
+        "ok" => false,
+        "error" => "Formato de imagen no permitido para validación OCR.",
+        "meta" => [
+            "declared_subtype" => $declaredSubtype,
+            "allowed" => ["jpg", "jpeg", "png", "webp", "gif", "bmp", "tiff", "heic", "heif", "avif"]
+        ]
+    ], 400);
+}
+
+$imageBase64 = preg_replace('/^data:image\/([a-zA-Z0-9.+-]+);base64,/', '', $imageDataUrl);
 
 if (!is_string($imageBase64) || $imageBase64 === "") {
     jsonResponse([
@@ -119,9 +190,15 @@ if ($imageBinary === false) {
 
 $imageSizeBytes = strlen($imageBinary);
 
+if ($imageSizeBytes <= 0) {
+    jsonResponse([
+        "ok" => false,
+        "error" => "La imagen está vacía."
+    ], 400);
+}
+
 /*
- * Límite real de archivo.
- * Si PRIMedia comprime a 900KB, debería pasar sin problema.
+ * Límite real del archivo binario.
  */
 if ($imageSizeBytes > 1.5 * 1024 * 1024) {
     jsonResponse([
@@ -132,6 +209,26 @@ if ($imageSizeBytes > 1.5 * 1024 * 1024) {
             "max_size_kb" => 1536
         ]
     ], 413);
+}
+
+/*
+ * Validación adicional por contenido real.
+ * Si finfo detecta un tipo distinto, usamos el detectado para la extensión.
+ */
+$detectedMime = detectMimeFromBinary($imageBinary);
+$detectedExtension = extensionFromDetectedMime($detectedMime);
+
+$extension = $detectedExtension !== "" ? $detectedExtension : $declaredExtension;
+
+if ($detectedMime !== null && !str_starts_with($detectedMime, "image/")) {
+    jsonResponse([
+        "ok" => false,
+        "error" => "El archivo enviado no parece ser una imagen real.",
+        "meta" => [
+            "detected_mime" => $detectedMime,
+            "declared_subtype" => $declaredSubtype
+        ]
+    ], 400);
 }
 
 $tempDir = __DIR__ . "/../../tmp/validacion_ine";
@@ -160,19 +257,7 @@ if (file_put_contents($imagePath, $imageBinary) === false) {
     ], 500);
 }
 
-/*
- * Script Python de validación visual.
- * Ajusta el nombre si tu script tiene otro path.
- */
 $pythonScript = __DIR__ . "/../../PY/validar_foto_ine.py";
-
-/*
- * En algunos servidores puede ser:
- * python
- * python3
- * py
- * /home/site/wwwroot/venv/bin/python
- */
 $pythonBin = "python3";
 
 if (!file_exists($pythonScript)) {
@@ -182,7 +267,11 @@ if (!file_exists($pythonScript)) {
         "ok" => false,
         "error" => "No existe el script Python de validación.",
         "meta" => [
-            "python_script" => $pythonScript
+            "python_script" => $pythonScript,
+            "image_saved_as" => $fileName,
+            "declared_subtype" => $declaredSubtype,
+            "detected_mime" => $detectedMime,
+            "extension" => $extension
         ]
     ], 500);
 }
@@ -205,7 +294,13 @@ if (!is_resource($process)) {
 
     jsonResponse([
         "ok" => false,
-        "error" => "No se pudo ejecutar el proceso de validación."
+        "error" => "No se pudo ejecutar el proceso de validación.",
+        "meta" => [
+            "image_saved_as" => $fileName,
+            "declared_subtype" => $declaredSubtype,
+            "detected_mime" => $detectedMime,
+            "extension" => $extension
+        ]
     ], 500);
 }
 
@@ -231,6 +326,8 @@ if ($statusCode !== 0) {
             "code" => $statusCode,
             "side" => $side,
             "image_size_kb" => round($imageSizeBytes / 1024, 2),
+            "declared_subtype" => $declaredSubtype,
+            "detected_mime" => $detectedMime,
             "extension" => $extension
         ]
     ], 500);
@@ -243,7 +340,14 @@ if (!is_array($result)) {
         "ok" => false,
         "error" => "Python no respondió JSON válido.",
         "raw" => trim((string)$output),
-        "stderr" => trim((string)$errorOutput)
+        "stderr" => trim((string)$errorOutput),
+        "meta" => [
+            "side" => $side,
+            "image_size_kb" => round($imageSizeBytes / 1024, 2),
+            "declared_subtype" => $declaredSubtype,
+            "detected_mime" => $detectedMime,
+            "extension" => $extension
+        ]
     ], 500);
 }
 
@@ -252,6 +356,8 @@ jsonResponse([
     "data" => $result,
     "meta" => [
         "side" => $side,
+        "declared_subtype" => $declaredSubtype,
+        "detected_mime" => $detectedMime,
         "extension" => $extension,
         "image_size_kb" => round($imageSizeBytes / 1024, 2)
     ]

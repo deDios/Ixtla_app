@@ -25,11 +25,11 @@ const CONFIG = {
     EASY_MODE: true,
 
     MEDIA: {
-        maxBytes: 900 * 1024,
+        maxBytes: 1024 * 1024,
         maxWidth: 1280,
         maxHeight: 900,
         minWidth: 720,
-        startQuality: 0.82,
+        startQuality: 0.86,
         minQuality: 0.58,
         qualityStep: 0.06,
         preferWebp: false,

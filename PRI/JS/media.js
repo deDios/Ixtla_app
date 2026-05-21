@@ -31,6 +31,17 @@
     if (enabled) console.warn(TAG, ...args);
   }
 
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
+
+      reader.readAsDataURL(file);
+    });
+  }
+
   function mergeOptions(options = {}) {
     return {
       ...DEFAULTS,
@@ -253,6 +264,40 @@
   }
 
   async function compressFileToDataUrl(file, options = {}) {
+    const cfg = mergeOptions(options);
+
+    if (!(file instanceof File)) {
+      throw new Error("Archivo inválido.");
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error("Formato no permitido. Usa JPG, PNG o WEBP.");
+    }
+
+    if (file.size <= cfg.maxBytes) {
+      return {
+        dataUrl: await fileToDataUrl(file),
+        blob: file,
+        width: null,
+        height: null,
+        mime: file.type,
+        quality: null,
+        sizeBytes: file.size,
+        sizeKB: Math.round(file.size / 1024),
+        extension: getExtensionFromMime(file.type),
+        compressed: false,
+        withinLimit: true,
+        original: true,
+      };
+    }
+
     const image = await fileToImage(file);
     return compressImageElementToDataUrl(image, options);
   }
@@ -274,5 +319,6 @@
     compressCanvasToDataUrl,
     compressImageElementToDataUrl,
     compressFileToDataUrl,
+    fileToDataUrl,
   };
 })(window);
