@@ -4,7 +4,6 @@
     --red-text: #111827;
     --red-muted: #6b7280;
     --red-border: #eadada;
-    --red-soft: #f8f4f4;
     --red-surface: #ffffff;
     --red-shadow: 0 10px 24px rgba(17, 24, 39, 0.06);
     --red-radius: 18px;
@@ -12,13 +11,12 @@
 
 .red-home {
     width: 100%;
-    min-height: auto;
-    padding: clamp(32px, 5vw, 72px) clamp(18px, 5vw, 96px);
-    padding-bottom: clamp(48px, 7vw, 96px);
     box-sizing: border-box;
     overflow: visible;
+    padding: clamp(32px, 5vw, 72px) clamp(18px, 5vw, 96px);
+    padding-bottom: clamp(48px, 7vw, 96px);
     background:
-        radial-gradient(circle at top left, rgba(47, 143, 107, 0.12), transparent 32%),
+        radial-gradient(circle at top left, rgba(47, 143, 107, 0.10), transparent 32%),
         linear-gradient(180deg, #f8faf9 0%, #ffffff 48%);
     color: var(--red-text);
 }
@@ -28,51 +26,72 @@
     margin: 0 auto;
 }
 
-.red-heading {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
+/* Header panel */
+
+.red-panel-head {
+    display: grid;
+    grid-template-columns: 90px 1fr 70px;
+    align-items: center;
     gap: 24px;
-    margin-bottom: clamp(20px, 3vw, 34px);
-    padding-bottom: 18px;
-    border-bottom: 1px solid rgba(234, 218, 218, 0.95);
+    margin-bottom: 26px;
 }
 
-.red-kicker {
-    margin: 0 0 4px;
-    color: var(--red-primary);
-    font-size: 0.88rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+.red-panel-logo {
+    width: 78px;
+    height: 78px;
+    display: grid;
+    place-items: center;
 }
 
-.red-heading h1 {
+.red-panel-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.red-title {
     margin: 0;
-    font-size: clamp(2.2rem, 4vw, 4.2rem);
-    line-height: 0.95;
-    letter-spacing: -0.07em;
-    font-weight: 950;
+    text-align: center;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 1.05;
+    font-weight: 900;
+    color: #050505;
 }
 
-.red-user-name {
-    margin: 10px 0 0;
-    color: var(--red-muted);
-    font-weight: 800;
+.red-user-avatar {
+    width: 58px;
+    height: 58px;
+    border: 0;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    background: #d1d1d1;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+    overflow: hidden;
 }
+
+.red-user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Métricas */
 
 .red-metrics {
     display: grid;
-    grid-template-columns: repeat(3, minmax(220px, 1fr));
-    gap: clamp(16px, 2vw, 26px);
-    margin-bottom: clamp(20px, 3vw, 32px);
+    grid-template-columns: repeat(3, minmax(190px, 1fr));
+    gap: clamp(14px, 2vw, 24px);
+    margin-bottom: 24px;
 }
 
 .red-metric-card {
     background: var(--red-surface);
     border: 1px solid var(--red-border);
     border-radius: var(--red-radius);
-    padding: clamp(20px, 2.4vw, 32px);
+    padding: 18px 22px;
     text-align: center;
     box-shadow: var(--red-shadow);
 }
@@ -81,20 +100,22 @@
     display: block;
     color: #594545;
     font-weight: 900;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .red-metric-card strong {
     display: block;
     color: var(--red-primary);
-    font-size: clamp(2rem, 3.8vw, 3.6rem);
+    font-size: clamp(2rem, 3vw, 3rem);
     line-height: 1;
     font-weight: 950;
 }
 
+/* Toolbar */
+
 .red-toolbar {
     display: grid;
-    grid-template-columns: minmax(280px, 1fr) auto;
+    grid-template-columns: minmax(240px, 1fr) auto;
     align-items: center;
     gap: 14px;
     margin-bottom: 16px;
@@ -102,14 +123,14 @@
 
 .red-search {
     min-width: 0;
+    min-height: 46px;
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 50px;
     border: 1px solid var(--red-border);
     border-radius: 14px;
     background: #fff;
-    padding: 0 16px;
+    padding: 0 14px;
     box-shadow: var(--red-shadow);
 }
 
@@ -147,17 +168,17 @@
 }
 
 .red-btn {
-    min-height: 50px;
+    min-height: 46px;
     padding: 0 24px;
     border-radius: 14px;
     font-size: 1rem;
 }
 
 .red-btn-add {
-    width: 50px;
-    height: 50px;
+    width: 46px;
+    height: 46px;
     border-radius: 999px;
-    font-size: 1.85rem;
+    font-size: 1.75rem;
     line-height: 1;
     display: grid;
     place-items: center;
@@ -168,6 +189,8 @@
     background: var(--red-primary-dark);
     transform: translateY(-1px);
 }
+
+/* Tabla */
 
 .red-table-card {
     background: #fff;
@@ -185,17 +208,18 @@
 
 .red-table {
     width: 100%;
-    min-width: 820px;
+    min-width: 900px;
     border-collapse: separate;
     border-spacing: 0;
 }
 
 .red-table thead th {
-    background: #f0eeee;
-    color: #111827;
+    background: #e9e9e9;
+    color: #111;
     text-align: left;
-    font-size: 0.92rem;
-    padding: 16px 22px;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 12px 14px;
     white-space: nowrap;
 }
 
@@ -208,10 +232,10 @@
 }
 
 .red-table tbody td {
-    padding: 16px 22px;
-    border-top: 1px solid #f0dddd;
+    padding: 10px 14px;
+    border-top: 1px solid #ffc2c2;
     vertical-align: middle;
-    font-size: 0.94rem;
+    font-size: 0.92rem;
 }
 
 .red-table tbody tr:hover {
@@ -222,44 +246,43 @@
     font-weight: 900;
 }
 
-.red-ine {
-    width: 28px;
-    height: 28px;
+.red-valid {
+    width: 26px;
+    height: 26px;
     border-radius: 999px;
     display: inline-grid;
     place-items: center;
     font-weight: 900;
     color: #fff;
-    background: #22c55e;
+    background: #4ade5c;
+    box-shadow: 0 6px 12px rgba(34, 197, 94, 0.35);
 }
 
-.red-ine.is-missing {
+.red-valid.is-missing {
     background: #d1d5db;
     color: #6b7280;
+    box-shadow: none;
 }
 
 .red-open {
     border: 0;
     border-radius: 999px;
-    padding: 8px 18px;
+    padding: 5px 18px;
     color: #fff;
-    background: linear-gradient(135deg, #62bd91, #2f8f6b);
-    font-weight: 900;
+    background: #6aa895;
+    font-weight: 800;
+    font-size: 1rem;
     cursor: pointer;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.18);
+    transition: transform 0.12s ease, background 0.16s ease;
 }
 
-.red-type {
-    display: inline-flex;
-    align-items: center;
-    min-height: 30px;
-    padding: 4px 12px;
-    border-radius: 999px;
-    background: #edf7f2;
-    color: var(--red-primary-dark);
-    font-weight: 900;
-    font-size: 0.82rem;
-    text-transform: capitalize;
+.red-open:hover {
+    background: var(--red-primary-dark);
+    transform: translateY(-1px);
 }
+
+/* Mobile cards */
 
 .red-mobile-list {
     display: none;
@@ -294,6 +317,8 @@
     justify-content: space-between;
     gap: 12px;
 }
+
+/* Paginación */
 
 .red-pager {
     display: flex;
@@ -350,6 +375,8 @@
     font-weight: 800;
 }
 
+/* Tablet */
+
 @media (max-width: 1024px) {
     .red-home {
         padding-inline: clamp(14px, 4vw, 28px);
@@ -380,18 +407,32 @@
     }
 }
 
+/* Mobile */
+
 @media (max-width: 720px) {
     .red-home {
         padding: 24px 10px 56px;
         padding-top: 5rem;
     }
 
-    .red-heading {
-        margin-bottom: 18px;
+    .red-panel-head {
+        grid-template-columns: 56px 1fr 48px;
+        gap: 10px;
+        margin-bottom: 20px;
     }
 
-    .red-heading h1 {
-        font-size: 2.4rem;
+    .red-panel-logo {
+        width: 54px;
+        height: 54px;
+    }
+
+    .red-title {
+        font-size: 1.45rem;
+    }
+
+    .red-user-avatar {
+        width: 44px;
+        height: 44px;
     }
 
     .red-metrics {

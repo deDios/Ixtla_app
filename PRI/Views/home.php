@@ -73,12 +73,19 @@ ix_require_session([
     <main class="red-home">
         <section class="red-dashboard" aria-labelledby="red-title">
 
-            <div class="red-heading">
-                <div>
-                    <p class="red-kicker">Panel principal</p>
-                    <p id="red-user-name" class="red-user-name">Coordinador General 01</p>
+            <header class="red-panel-head">
+                <div class="red-panel-logo">
+                    <img src="/PRI/ASSETS/pri-logo.png" alt="PRI">
                 </div>
-            </div>
+
+                <h1 id="red-title" class="red-title">
+                    <span id="red-user-name">Juan Pablo Garcia Casillas</span>
+                </h1>
+
+                <button type="button" class="red-user-avatar" aria-label="Perfil de usuario">
+                    <img src="/ASSETS/user/img_user1.png" alt="Usuario">
+                </button>
+            </header>
 
             <section class="red-metrics" aria-label="Resumen de registros">
                 <article class="red-metric-card">
@@ -107,7 +114,7 @@ ix_require_session([
                     <input
                         id="red-search"
                         type="search"
-                        placeholder="Buscar por nombre, domicilio o tipo..."
+                        placeholder="Buscar"
                         autocomplete="off"
                         aria-label="Buscar registros RED">
                 </div>
@@ -130,11 +137,13 @@ ix_require_session([
                             <tr>
                                 <th>Nombre</th>
                                 <th>Domicilio</th>
-                                <th>Tipo</th>
-                                <th>INE</th>
-                                <th>Acción</th>
+                                <th>Sección</th>
+                                <th>Teléfono</th>
+                                <th>Validez</th>
+                                <th>Inter</th>
                             </tr>
                         </thead>
+
                         <tbody id="red-table-body"></tbody>
                     </table>
                 </div>

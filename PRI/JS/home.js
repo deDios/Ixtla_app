@@ -43,86 +43,110 @@ const SEL = {
 const DUMMY_RED = [
   {
     id: 1,
-    nombre: "Luis Enrique Méndez Fernández",
-    domicilio: "Vicente Guerrero #4A",
-    ine: true,
+    nombre: "Luis Enrique Mendez",
+    domicilio: "Vicente Guerrero #4a",
+    seccion: "1592",
+    telefono: "3333333335",
+    validez: true,
     tipo: "afiliado",
   },
   {
     id: 2,
-    nombre: "Juan Pablo García Casillas",
+    nombre: "Juan Pablo Garcia",
     domicilio: "La Bandera #16",
-    ine: true,
+    seccion: "1592",
+    telefono: "3333333334",
+    validez: true,
     tipo: "simpatizante",
   },
   {
     id: 3,
-    nombre: "María Fernanda López Ramírez",
-    domicilio: "Hidalgo #120",
-    ine: false,
+    nombre: "Luis Enrique Mendez",
+    domicilio: "Vicente Guerrero #4a",
+    seccion: "1592",
+    telefono: "3333333333",
+    validez: true,
     tipo: "promotor",
   },
   {
     id: 4,
-    nombre: "Carlos Alberto Hernández Ruiz",
-    domicilio: "Morelos #45",
-    ine: true,
-    tipo: "afiliado",
-  },
-  {
-    id: 5,
-    nombre: "Ana Sofía Torres Medina",
-    domicilio: "Juárez #88",
-    ine: true,
+    nombre: "Juan Pablo Garcia",
+    domicilio: "La Bandera #16",
+    seccion: "1592",
+    telefono: "3333333332",
+    validez: true,
     tipo: "simpatizante",
   },
   {
+    id: 5,
+    nombre: "Luis Enrique Mendez",
+    domicilio: "Vicente Guerrero #4a",
+    seccion: "1592",
+    telefono: "3333333331",
+    validez: true,
+    tipo: "afiliado",
+  },
+  {
     id: 6,
-    nombre: "Roberto Sánchez Díaz",
-    domicilio: "Zaragoza #19",
-    ine: false,
+    nombre: "Juan Pablo Garcia",
+    domicilio: "La Bandera #16",
+    seccion: "1592",
+    telefono: "3333333330",
+    validez: true,
     tipo: "promotor",
   },
   {
     id: 7,
-    nombre: "Diana Carolina Vargas Pérez",
-    domicilio: "Reforma #33",
-    ine: true,
+    nombre: "Luis Enrique Mendez",
+    domicilio: "Vicente Guerrero #4a",
+    seccion: "1592",
+    telefono: "3333333336",
+    validez: true,
     tipo: "afiliado",
   },
   {
     id: 8,
-    nombre: "Miguel Ángel Castro Morales",
-    domicilio: "Independencia #71",
-    ine: true,
+    nombre: "Juan Pablo Garcia",
+    domicilio: "La Bandera #16",
+    seccion: "1592",
+    telefono: "3333333337",
+    validez: true,
     tipo: "simpatizante",
   },
   {
     id: 9,
-    nombre: "Paola Jiménez Aguilar",
-    domicilio: "Niños Héroes #12",
-    ine: true,
+    nombre: "Luis Enrique Mendez",
+    domicilio: "Vicente Guerrero #4a",
+    seccion: "1592",
+    telefono: "3333333338",
+    validez: true,
     tipo: "afiliado",
   },
   {
     id: 10,
-    nombre: "José Antonio Rivas Ortega",
-    domicilio: "Abasolo #9",
-    ine: false,
-    tipo: "promotor",
-  },
-  {
-    id: 11,
-    nombre: "Guadalupe Martínez Flores",
-    domicilio: "Constitución #66",
-    ine: true,
+    nombre: "Juan Pablo Garcia",
+    domicilio: "La Bandera #16",
+    seccion: "1592",
+    telefono: "3333333339",
+    validez: true,
     tipo: "simpatizante",
   },
   {
+    id: 11,
+    nombre: "María Fernanda López",
+    domicilio: "Hidalgo #120",
+    seccion: "1593",
+    telefono: "3333333340",
+    validez: false,
+    tipo: "promotor",
+  },
+  {
     id: 12,
-    nombre: "Fernando Núñez Salgado",
-    domicilio: "Allende #101",
-    ine: true,
+    nombre: "Carlos Alberto Hernández",
+    domicilio: "Morelos #45",
+    seccion: "1594",
+    telefono: "3333333341",
+    validez: true,
     tipo: "afiliado",
   },
 ];
@@ -234,8 +258,10 @@ function applyFilters() {
     const haystack = normalizeText([
       item.nombre,
       item.domicilio,
+      item.seccion,
+      item.telefono,
       item.tipo,
-      item.ine ? "ine verificada" : "sin ine",
+      item.validez ? "valido validado verificado" : "pendiente invalido",
     ].join(" "));
 
     return haystack.includes(q);
@@ -271,7 +297,7 @@ function renderTable() {
   if (!rows.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5">
+        <td colspan="6">
           <div class="red-empty">No se encontraron registros.</div>
         </td>
       </tr>
@@ -280,19 +306,18 @@ function renderTable() {
   }
 
   tbody.innerHTML = rows.map((item) => {
-    const ineClass = item.ine ? "red-ine" : "red-ine is-missing";
-    const ineText = item.ine ? "✓" : "—";
+    const validClass = item.validez ? "red-valid" : "red-valid is-missing";
+    const validText = item.validez ? "✓" : "—";
 
     return `
       <tr data-id="${escapeHTML(item.id)}">
         <td class="td-name">${escapeHTML(safeText(item.nombre))}</td>
         <td>${escapeHTML(safeText(item.domicilio))}</td>
+        <td>${escapeHTML(safeText(item.seccion))}</td>
+        <td>${escapeHTML(safeText(item.telefono))}</td>
         <td>
-          <span class="red-type">${escapeHTML(safeText(item.tipo))}</span>
-        </td>
-        <td>
-          <span class="${ineClass}" title="${item.ine ? "INE verificada" : "INE pendiente"}">
-            ${ineText}
+          <span class="${validClass}" title="${item.validez ? "Registro válido" : "Registro pendiente"}">
+            ${validText}
           </span>
         </td>
         <td>
@@ -317,8 +342,8 @@ function renderMobileCards() {
   }
 
   host.innerHTML = rows.map((item) => {
-    const ineClass = item.ine ? "red-ine" : "red-ine is-missing";
-    const ineText = item.ine ? "✓" : "—";
+    const validClass = item.validez ? "red-valid" : "red-valid is-missing";
+    const validText = item.validez ? "✓" : "—";
 
     return `
       <article class="red-person-card" data-id="${escapeHTML(item.id)}">
@@ -326,12 +351,14 @@ function renderMobileCards() {
 
         <div class="red-person-meta">
           <span><strong>Domicilio:</strong> ${escapeHTML(safeText(item.domicilio))}</span>
+          <span><strong>Sección:</strong> ${escapeHTML(safeText(item.seccion))}</span>
+          <span><strong>Teléfono:</strong> ${escapeHTML(safeText(item.telefono))}</span>
           <span><strong>Tipo:</strong> ${escapeHTML(safeText(item.tipo))}</span>
         </div>
 
         <footer>
-          <span class="${ineClass}" title="${item.ine ? "INE verificada" : "INE pendiente"}">
-            ${ineText}
+          <span class="${validClass}" title="${item.validez ? "Registro válido" : "Registro pendiente"}">
+            ${validText}
           </span>
 
           <button type="button" class="red-open" data-action="open" data-id="${escapeHTML(item.id)}">
@@ -414,13 +441,16 @@ function openRecord(id) {
 function exportDummyCSV() {
   const rows = State.rows;
 
-  const headers = ["ID", "Nombre", "Domicilio", "Tipo", "INE"];
+  const headers = ["ID", "Nombre", "Domicilio", "Seccion", "Telefono", "Tipo", "Validez"];
+
   const body = rows.map((item) => [
     item.id,
     item.nombre,
     item.domicilio,
+    item.seccion,
+    item.telefono,
     item.tipo,
-    item.ine ? "Verificada" : "Pendiente",
+    item.validez ? "Valido" : "Pendiente",
   ]);
 
   const csv = [headers, ...body]
