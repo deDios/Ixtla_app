@@ -93,12 +93,28 @@ const SEL = {
 };
 
 function toast(message, type = "exito", duration = 5000) {
+    let text = "";
+
+    if (typeof message === "string") {
+        text = message;
+    } else {
+        try {
+            text = JSON.stringify(message, null, 2);
+        } catch {
+            text = String(message);
+        }
+    }
+
+    if (text.length > 900) {
+        text = text.slice(0, 900) + "...";
+    }
+
     if (typeof window.gcToast === "function") {
-        window.gcToast(message, type, duration);
+        window.gcToast(text, type, duration);
         return;
     }
 
-    console.log(`[Toast fallback][${type}]`, message);
+    console.log(`[Toast fallback][${type}]`, text);
 }
 
 function setStageState(state) {
@@ -638,22 +654,50 @@ async function validateIneWithBackend(imageData, side) {
     });
     console.groupEnd();
 
-    const response = await fetch(ENDPOINTS.validateIne, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-        body: JSON.stringify(payload),
-    });
+    toast(
+        `Enviando imagen al endpoint...\n${ENDPOINTS.validateIne}`,
+        "advertencia",
+        3000
+    );
 
-    const raw = await response.text();
+    let response;
+    let raw = "";
+
+    try {
+        response = await fetch(ENDPOINTS.validateIne, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        raw = await response.text();
+    } catch (error) {
+        console.error("[Captura INE] Error de red/fetch:", error);
+
+        toast(
+            `Error de red/fetch:\n${error?.message || error}`,
+            "error",
+            10000
+        );
+
+        throw error;
+    }
 
     console.group("[Captura INE] Respuesta cruda endpoint");
     console.log("HTTP status:", response.status);
     console.log("OK:", response.ok);
+    console.log("Content-Type:", response.headers.get("content-type"));
     console.log("Raw response:", raw);
     console.groupEnd();
+
+    toast(
+        `HTTP ${response.status}\nOK: ${response.ok}\nRespuesta:\n${raw || "(vacía)"}`,
+        response.ok ? "advertencia" : "error",
+        12000
+    );
 
     let json = null;
 
@@ -663,12 +707,28 @@ async function validateIneWithBackend(imageData, side) {
         console.error("[Captura INE] JSON parse error:", error);
         console.error("[Captura INE] Raw no JSON:", raw);
 
+        toast(
+            `NO ES JSON\nHTTP ${response.status}\nRespuesta cruda:\n${raw || "(vacía)"}`,
+            "error",
+            15000
+        );
+
         throw new Error("El endpoint no respondió JSON válido. Revisa consola.");
     }
 
     console.group("[Captura INE] JSON endpoint");
     console.log(json);
     console.groupEnd();
+
+    toast(
+        {
+            status: response.status,
+            ok: response.ok,
+            json,
+        },
+        json.ok ? "exito" : "error",
+        12000
+    );
 
     if (!response.ok || !json.ok) {
         const backendError =
