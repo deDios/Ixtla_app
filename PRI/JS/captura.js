@@ -1345,8 +1345,25 @@ function normalizeFieldName(value) {
         .replace(/^_+|_+$/g, "");
 }
 
+function normalizeValue(value, fallback = "") {
+    if (value === null || value === undefined) return fallback;
+
+    const text = String(value).trim();
+
+    if (!text || text === "--------" || text.toLowerCase() === "null") {
+        return fallback;
+    }
+
+    return text;
+}
+
 function getFieldsFromExtraction(extraction) {
-    const result = extraction?.result || extraction?.raw?.result || extraction?.raw?.data || extraction?.raw || {};
+    const result =
+        extraction?.result ||
+        extraction?.raw?.result ||
+        extraction?.raw?.data ||
+        extraction?.raw ||
+        {};
 
     if (Array.isArray(result.fields)) {
         return result.fields;
@@ -1360,10 +1377,26 @@ function getFieldsFromExtraction(extraction) {
         return result.data.fields;
     }
 
+    if (result.persona && typeof result.persona === "object") {
+        return Object.entries(result.persona).map(([key, value]) => ({
+            field_name: key,
+            label_detected: key,
+            value,
+        }));
+    }
+
+    if (result.data?.persona && typeof result.data.persona === "object") {
+        return Object.entries(result.data.persona).map(([key, value]) => ({
+            field_name: key,
+            label_detected: key,
+            value,
+        }));
+    }
+
     return [];
 }
 
-function findExtractedValue(fields, aliases) {
+function findExtractedValue(fields, aliases, fallback = "") {
     const normalizedAliases = aliases.map(normalizeFieldName);
 
     const field = fields.find((item) => {
@@ -1373,23 +1406,58 @@ function findExtractedValue(fields, aliases) {
         return normalizedAliases.includes(name) || normalizedAliases.includes(label);
     });
 
-    const value = field?.value;
+    return normalizeValue(field?.value, fallback);
+}
 
-    if (value === null || value === undefined || String(value).trim() === "") {
-        return "--------";
+function setFieldValue(selector, value, fallback = "") {
+    const el = $(selector);
+    if (!el) return;
+
+    const cleanValue = normalizeValue(value, fallback);
+
+    if (
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        el instanceof HTMLSelectElement
+    ) {
+        if (el.type === "checkbox") {
+            el.checked = cleanValue === "1" || cleanValue === "true" || cleanValue === true;
+            return;
+        }
+
+        el.value = cleanValue;
+        return;
     }
 
-    return String(value).trim();
+    el.textContent = cleanValue || "--------";
+}
+
+function getFieldValue(selector) {
+    const el = $(selector);
+    if (!el) return "";
+
+    if (
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        el instanceof HTMLSelectElement
+    ) {
+        if (el.type === "checkbox") {
+            return el.checked ? "1" : "0";
+        }
+
+        return String(el.value || "").trim();
+    }
+
+    return String(el.textContent || "").trim();
 }
 
 function buildFullNameFromFields(fields) {
-    const nombres = findExtractedValue(fields, ["nombres"]);
-    const apellidoPaterno = findExtractedValue(fields, ["apellido_paterno"]);
-    const apellidoMaterno = findExtractedValue(fields, ["apellido_materno"]);
+    const nombres = findExtractedValue(fields, ["nombres", "nombre_s"]);
+    const apellidoPaterno = findExtractedValue(fields, ["apellido_paterno", "paterno"]);
+    const apellidoMaterno = findExtractedValue(fields, ["apellido_materno", "materno"]);
     const nombreCompleto = findExtractedValue(fields, ["nombre_completo", "nombre"]);
 
-    const parts = [nombres, apellidoPaterno, apellidoMaterno]
-        .filter((value) => value && value !== "--------");
+    const parts = [nombres, apellidoPaterno, apellidoMaterno].filter(Boolean);
 
     if (parts.length > 0) {
         return parts.join(" ");
@@ -1402,54 +1470,371 @@ function buildVigenciaFromFields(fields) {
     const inicio = findExtractedValue(fields, ["vigencia_inicio"]);
     const fin = findExtractedValue(fields, ["vigencia_fin", "vigencia"]);
 
-    if (inicio !== "--------" && fin !== "--------") {
+    if (inicio && fin) {
         return `${inicio} - ${fin}`;
     }
 
-    if (fin !== "--------") {
-        return fin;
-    }
+    if (fin) return fin;
 
-    return "--------";
+    return "";
 }
 
-function setText(selector, value) {
-    const el = $(selector);
-    if (el) el.textContent = value || "--------";
+function normalizeDateForInput(value) {
+    const text = normalizeValue(value);
+
+    if (!text) return "";
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+        return text;
+    }
+
+    const matchDMY = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+
+    if (matchDMY) {
+        const day = matchDMY[1].padStart(2, "0");
+        const month = matchDMY[2].padStart(2, "0");
+        const year = matchDMY[3];
+
+        return `${year}-${month}-${day}`;
+    }
+
+    return "";
+}
+
+function normalizeSexo(value) {
+    const text = normalizeValue(value).toUpperCase();
+
+    if (text === "H" || text.includes("HOMBRE") || text.includes("MASCULINO")) {
+        return "H";
+    }
+
+    if (text === "M" || text.includes("MUJER") || text.includes("FEMENINO")) {
+        return "M";
+    }
+
+    if (text === "X") {
+        return "X";
+    }
+
+    return "";
+}
+
+function splitNameFromFullName(fullName = "") {
+    const parts = normalizeValue(fullName)
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (parts.length <= 1) {
+        return {
+            nombres: fullName,
+            apellido_paterno: "",
+            apellido_materno: "",
+        };
+    }
+
+    if (parts.length === 2) {
+        return {
+            nombres: parts[0],
+            apellido_paterno: parts[1],
+            apellido_materno: "",
+        };
+    }
+
+    return {
+        nombres: parts.slice(0, -2).join(" "),
+        apellido_paterno: parts[parts.length - 2],
+        apellido_materno: parts[parts.length - 1],
+    };
+}
+
+function buildPersonaFromFields(fields) {
+    const nombreCompleto = buildFullNameFromFields(fields);
+    const splitName = splitNameFromFullName(nombreCompleto);
+
+    const nombres =
+        findExtractedValue(fields, ["nombres", "nombre_s", "nombre"]) ||
+        splitName.nombres;
+
+    const apellidoPaterno =
+        findExtractedValue(fields, [
+            "apellido_paterno",
+            "paterno",
+            "primer_apellido"
+        ]) ||
+        splitName.apellido_paterno;
+
+    const apellidoMaterno =
+        findExtractedValue(fields, [
+            "apellido_materno",
+            "materno",
+            "segundo_apellido"
+        ]) ||
+        splitName.apellido_materno;
+
+    return {
+        nombres,
+        apellido_paterno: apellidoPaterno,
+        apellido_materno: apellidoMaterno,
+        nombre_completo: [nombres, apellidoPaterno, apellidoMaterno]
+            .filter(Boolean)
+            .join(" "),
+
+        fecha_nacimiento: normalizeDateForInput(
+            findExtractedValue(fields, [
+                "fecha_nacimiento",
+                "nacimiento",
+                "fecha_de_nacimiento"
+            ])
+        ),
+
+        sexo: normalizeSexo(
+            findExtractedValue(fields, [
+                "sexo",
+                "genero"
+            ])
+        ),
+
+        curp: findExtractedValue(fields, [
+            "curp"
+        ]),
+
+        clave_elector: findExtractedValue(fields, [
+            "clave_elector",
+            "clave_de_elector",
+            "claveelector"
+        ]),
+
+        seccion: findExtractedValue(fields, [
+            "seccion",
+            "sección",
+            "seccion_electoral"
+        ]),
+
+        estado_num: findExtractedValue(fields, [
+            "estado_num",
+            "estado_ine",
+            "entidad_num",
+            "entidad_federativa_num",
+            "clave_estado",
+            "codigo_estado"
+        ]),
+
+        municipio_num: findExtractedValue(fields, [
+            "municipio_num",
+            "municipio_ine",
+            "municipio_clave",
+            "municipio_codigo",
+            "clave_municipio",
+            "codigo_municipio"
+        ]),
+
+        localidad_num: findExtractedValue(fields, [
+            "localidad_num",
+            "localidad_ine",
+            "localidad_clave",
+            "localidad_codigo",
+            "clave_localidad",
+            "codigo_localidad"
+        ]),
+
+        anio_registro: findExtractedValue(fields, [
+            "anio_registro",
+            "ano_registro",
+            "año_registro",
+            "registro",
+            "anio_de_registro",
+            "ano_de_registro"
+        ]),
+
+        emision: findExtractedValue(fields, [
+            "emision",
+            "emisión",
+            "anio_emision",
+            "ano_emision",
+            "año_emision",
+            "anio_de_emision",
+            "ano_de_emision"
+        ]),
+
+        vigencia_inicio: findExtractedValue(fields, [
+            "vigencia_inicio",
+            "inicio_vigencia",
+            "vigencia_desde"
+        ]),
+
+        vigencia_fin: findExtractedValue(fields, [
+            "vigencia_fin",
+            "vigencia",
+            "fin_vigencia",
+            "vigencia_hasta"
+        ]),
+
+        ocr: findExtractedValue(fields, [
+            "ocr",
+            "numero_ocr",
+            "ocr_num"
+        ]),
+
+        cic: findExtractedValue(fields, [
+            "cic",
+            "numero_cic",
+            "cic_num"
+        ]),
+
+        idmex: findExtractedValue(fields, [
+            "idmex",
+            "id_mex",
+            "id_mexico",
+            "identificador_mex",
+            "identificador_mexico"
+        ]),
+
+        domicilio_texto: findExtractedValue(fields, [
+            "domicilio_texto",
+            "domicilio",
+            "domicilio_completo",
+            "direccion",
+            "dirección"
+        ]),
+
+        calle: findExtractedValue(fields, [
+            "calle",
+            "vialidad"
+        ]),
+
+        numero_exterior: findExtractedValue(fields, [
+            "numero_exterior",
+            "num_ext",
+            "no_ext",
+            "numero_ext",
+            "exterior"
+        ]),
+
+        numero_interior: findExtractedValue(fields, [
+            "numero_interior",
+            "num_int",
+            "no_int",
+            "numero_int",
+            "interior"
+        ]),
+
+        colonia: findExtractedValue(fields, [
+            "colonia",
+            "col",
+            "asentamiento"
+        ]),
+
+        localidad: findExtractedValue(fields, [
+            "localidad",
+            "localidad_texto",
+            "localidad_nombre",
+            "ciudad",
+            "poblacion",
+            "población"
+        ]),
+
+        municipio: findExtractedValue(fields, [
+            "municipio",
+            "municipio_texto",
+            "municipio_nombre",
+            "delegacion",
+            "delegación"
+        ]),
+
+        estado: findExtractedValue(fields, [
+            "estado_texto",
+            "estado_nombre",
+            "entidad",
+            "entidad_federativa",
+            "estado"
+        ]),
+
+        codigo_postal: findExtractedValue(fields, [
+            "codigo_postal",
+            "código_postal",
+            "cp",
+            "c_p"
+        ]),
+
+        telefono: findExtractedValue(fields, [
+            "telefono",
+            "teléfono",
+            "phone"
+        ]),
+
+        whatsapp: findExtractedValue(fields, [
+            "whatsapp",
+            "whats"
+        ]),
+
+        email: findExtractedValue(fields, [
+            "email",
+            "correo",
+            "correo_electronico",
+            "correo_electrónico"
+        ]),
+    };
+}
+
+function fillPersonaForm(persona) {
+    setFieldValue("#ine-modal-nombres", persona.nombres);
+    setFieldValue("#ine-modal-apellido-paterno", persona.apellido_paterno);
+    setFieldValue("#ine-modal-apellido-materno", persona.apellido_materno);
+    setFieldValue("#ine-modal-fecha-nacimiento", persona.fecha_nacimiento);
+    setFieldValue("#ine-modal-sexo", persona.sexo);
+
+    setFieldValue("#ine-modal-nombre", persona.nombre_completo);
+
+    setFieldValue("#ine-modal-curp", persona.curp);
+    setFieldValue("#ine-modal-clave", persona.clave_elector);
+    setFieldValue("#ine-modal-seccion", persona.seccion);
+
+    setFieldValue("#ine-modal-estado-num", persona.estado_num);
+    setFieldValue("#ine-modal-municipio-num", persona.municipio_num);
+    setFieldValue("#ine-modal-localidad-num", persona.localidad_num);
+
+    setFieldValue("#ine-modal-anio-registro", persona.anio_registro);
+    setFieldValue("#ine-modal-emision", persona.emision);
+    setFieldValue("#ine-modal-vigencia-inicio", persona.vigencia_inicio);
+    setFieldValue("#ine-modal-vigencia-fin", persona.vigencia_fin);
+    setFieldValue("#ine-modal-vigencia", buildVigenciaFromPersona(persona));
+
+    setFieldValue("#ine-modal-ocr", persona.ocr);
+    setFieldValue("#ine-modal-cic", persona.cic);
+    setFieldValue("#ine-modal-idmex", persona.idmex);
+
+    setFieldValue("#ine-modal-domicilio", persona.domicilio_texto);
+    setFieldValue("#ine-modal-calle", persona.calle);
+    setFieldValue("#ine-modal-numero-exterior", persona.numero_exterior);
+    setFieldValue("#ine-modal-numero-interior", persona.numero_interior);
+    setFieldValue("#ine-modal-colonia", persona.colonia);
+    setFieldValue("#ine-modal-localidad", persona.localidad);
+    setFieldValue("#ine-modal-municipio", persona.municipio);
+    setFieldValue("#ine-modal-estado", persona.estado);
+    setFieldValue("#ine-modal-codigo-postal", persona.codigo_postal);
+
+    setFieldValue("#ine-modal-telefono", persona.telefono);
+    setFieldValue("#ine-modal-whatsapp", persona.whatsapp);
+    setFieldValue("#ine-modal-email", persona.email);
+}
+
+function buildVigenciaFromPersona(persona) {
+    if (persona.vigencia_inicio && persona.vigencia_fin) {
+        return `${persona.vigencia_inicio} - ${persona.vigencia_fin}`;
+    }
+
+    return persona.vigencia_fin || "";
 }
 
 function renderIneDataModal(extraction, provider) {
     const fields = getFieldsFromExtraction(extraction);
+    const persona = buildPersonaFromFields(fields);
 
-    const nombre = buildFullNameFromFields(fields);
-    const domicilio = findExtractedValue(fields, [
-        "domicilio_texto",
-        "domicilio",
-        "domicilio_completo",
-        "direccion",
-    ]);
+    setFieldValue(SEL.modalFecha, getTodayLongEs());
+    setFieldValue(SEL.modalRegistrado, provider === "watsonx" ? "Watsonx" : "OpenAI");
+    setFieldValue(SEL.modalEditado, "");
 
-    const seccion = findExtractedValue(fields, ["seccion_id", "seccion"]);
-    const clave = findExtractedValue(fields, ["clave_elector", "clave_de_elector"]);
-    const curp = findExtractedValue(fields, ["curp"]);
-    const vigencia = buildVigenciaFromFields(fields);
-
-    /*
-     * La INE normalmente no trae teléfono.
-     * Lo dejamos preparado por si después se cruza con formulario o BD.
-     */
-    const telefono = findExtractedValue(fields, ["telefono", "phone"]);
-
-    setText(SEL.modalFecha, getTodayLongEs());
-    setText(SEL.modalNombre, nombre);
-    setText(SEL.modalDomicilio, domicilio);
-    setText(SEL.modalSeccion, seccion);
-    setText(SEL.modalClave, clave);
-    setText(SEL.modalCurp, curp);
-    setText(SEL.modalVigencia, vigencia);
-    setText(SEL.modalTelefono, telefono);
-    setText(SEL.modalRegistrado, provider === "watsonx" ? "Watsonx" : "OpenAI");
-    setText(SEL.modalEditado, "--------");
+    fillPersonaForm(persona);
 
     const front = $(SEL.modalFront);
     const back = $(SEL.modalBack);
@@ -1459,8 +1844,136 @@ function renderIneDataModal(extraction, provider) {
     if (back && State.captures.back) back.src = State.captures.back;
 
     if (json) {
-        json.textContent = JSON.stringify(extraction, null, 2);
+        json.textContent = JSON.stringify(
+            {
+                provider,
+                persona,
+                extraction,
+            },
+            null,
+            2
+        );
     }
+}
+
+function getPersonaFormPayload() {
+    return {
+        nombres: getFieldValue("#ine-modal-nombres"),
+        apellido_paterno: getFieldValue("#ine-modal-apellido-paterno"),
+        apellido_materno: getFieldValue("#ine-modal-apellido-materno"),
+        fecha_nacimiento: getFieldValue("#ine-modal-fecha-nacimiento"),
+        sexo: getFieldValue("#ine-modal-sexo"),
+
+        curp: getFieldValue("#ine-modal-curp"),
+        clave_elector: getFieldValue("#ine-modal-clave"),
+
+        seccion: getFieldValue("#ine-modal-seccion"),
+        estado_num: getFieldValue("#ine-modal-estado-num"),
+        municipio_num: getFieldValue("#ine-modal-municipio-num"),
+        localidad_num: getFieldValue("#ine-modal-localidad-num"),
+
+        anio_registro: getFieldValue("#ine-modal-anio-registro"),
+        emision: getFieldValue("#ine-modal-emision"),
+        vigencia_inicio: getFieldValue("#ine-modal-vigencia-inicio"),
+        vigencia_fin: getFieldValue("#ine-modal-vigencia-fin"),
+
+        ocr: getFieldValue("#ine-modal-ocr"),
+        cic: getFieldValue("#ine-modal-cic"),
+        idmex: getFieldValue("#ine-modal-idmex"),
+
+        domicilio_texto: getFieldValue("#ine-modal-domicilio"),
+        calle: getFieldValue("#ine-modal-calle"),
+        numero_exterior: getFieldValue("#ine-modal-numero-exterior"),
+        numero_interior: getFieldValue("#ine-modal-numero-interior"),
+        colonia: getFieldValue("#ine-modal-colonia"),
+        localidad: getFieldValue("#ine-modal-localidad"),
+        municipio: getFieldValue("#ine-modal-municipio"),
+        estado: getFieldValue("#ine-modal-estado"),
+        codigo_postal: getFieldValue("#ine-modal-codigo-postal"),
+
+        telefono: getFieldValue("#ine-modal-telefono"),
+        whatsapp: getFieldValue("#ine-modal-whatsapp"),
+        email: getFieldValue("#ine-modal-email"),
+
+        acepta_tratamiento_datos: getFieldValue("#ine-modal-acepta-tratamiento"),
+        acepta_datos_sensibles: getFieldValue("#ine-modal-acepta-sensibles"),
+        acepta_contacto_whatsapp: getFieldValue("#ine-modal-acepta-whatsapp"),
+        aviso_privacidad_version: getFieldValue("#ine-modal-aviso-version"),
+
+        observaciones: getFieldValue("#ine-modal-observaciones"),
+
+        provider: getFieldValue(SEL.modalRegistrado),
+        fecha_extraccion_texto: getFieldValue(SEL.modalFecha),
+
+        capturas: {
+            front: State.captures.front,
+            back: State.captures.back,
+        },
+
+        extraction_result: State.extractionResult,
+    };
+}
+
+function validatePersonaPayload(payload) {
+    const errors = [];
+
+    if (!payload.nombres) {
+        errors.push("El nombre es obligatorio.");
+    }
+
+    if (!payload.curp) {
+        errors.push("La CURP es obligatoria.");
+    }
+
+    if (!payload.clave_elector) {
+        errors.push("La clave de elector es obligatoria.");
+    }
+
+    if (!payload.seccion) {
+        errors.push("La sección es obligatoria.");
+    }
+
+    if (payload.curp && payload.curp.length !== 18) {
+        errors.push("La CURP debe tener 18 caracteres.");
+    }
+
+    if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+        errors.push("El correo no tiene un formato válido.");
+    }
+
+    if (payload.acepta_tratamiento_datos !== "1") {
+        errors.push("Debe aceptar el tratamiento de datos personales.");
+    }
+
+    if (payload.acepta_datos_sensibles !== "1") {
+        errors.push("Debe aceptar el tratamiento de datos sensibles.");
+    }
+
+    return errors;
+}
+
+async function submitPersonaForm(event) {
+    event.preventDefault();
+
+    const payload = getPersonaFormPayload();
+    const errors = validatePersonaPayload(payload);
+
+    if (errors.length > 0) {
+        toast(errors.join("\n"), "error", 9000);
+        console.warn("[Captura INE] Formulario persona inválido:", errors, payload);
+        return;
+    }
+
+    console.group("[Captura INE] Payload listo para guardar persona");
+    console.log(payload);
+    console.groupEnd();
+
+    /*
+     * Aquí después conectamos el endpoint real de inserción.
+     * Importante: el backend debe generar uuid, hashes, cifrados,
+     * seccion_id, capturado_por, created_by y fecha_consentimiento.
+     */
+    toast("Datos listos. Falta conectar endpoint para guardar persona.", "advertencia", 7000);
 }
 
 function openIneDataModal() {
@@ -1492,11 +2005,18 @@ function bindIneDataModal() {
             return;
         }
 
-        if (event.target.closest(SEL.modalAffiliate)) {
-            console.log("[Captura INE] Afiliar simpatizante con datos:", State.extractionResult);
-            toast("Siguiente paso: conectar afiliación con backend.", "advertencia", 5000);
+        if (event.target.closest("#ine-modal-reprocess")) {
+            closeIneDataModal();
+            toast("Puedes volver a procesar la INE con Watsonx u OpenAI.", "advertencia", 4500);
+            return;
         }
     });
+
+    const form = $("#ine-persona-form");
+
+    if (form) {
+        form.addEventListener("submit", submitPersonaForm);
+    }
 
     document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
@@ -1507,6 +2027,12 @@ function bindIneDataModal() {
 
 function closeScanner() {
     stopCamera();
+
+    const modal = $(SEL.modal);
+    if (modal && !modal.hidden) {
+        closeIneDataModal();
+    }
+
     window.location.href = "/PRI/Views/home.php";
 }
 

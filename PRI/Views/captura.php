@@ -22,10 +22,21 @@ ix_require_session([
     <header id="header" data-link-home="/index.php">
         <div class="social-bar-mobile">
             <div class="social-icons">
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
-                <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
+                <div class="icon-mobile">
+                    <img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" />
+                </div>
+
+                <div class="icon-mobile">
+                    <img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" />
+                </div>
+
+                <div class="icon-mobile">
+                    <img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" />
+                </div>
+
+                <div class="icon-mobile">
+                    <img src="/ASSETS/social_icons/X_logo.png" alt="X" />
+                </div>
 
                 <div class="user-icon-mobile" onclick="window.location.href='/PRI/Views/login.php'">
                     <img src="/ASSETS/user/img_user1.png" alt="Usuario" />
@@ -40,9 +51,11 @@ ix_require_session([
             </div>
 
             <div class="actions">
-                <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
-                    onclick="toggleMenu()">
-                    <span></span><span></span><span></span>
+                <button type="button" class="hamburger" aria-controls="mobile-menu" aria-expanded="false"
+                    aria-label="Abrir menú" onclick="toggleMenu()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
                 </button>
             </div>
         </div>
@@ -53,10 +66,21 @@ ix_require_session([
             </div>
 
             <div class="social-icons">
-                <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
-                <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
-                <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
-                <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
+                <div class="circle-icon">
+                    <img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" />
+                </div>
+
+                <div class="circle-icon">
+                    <img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" />
+                </div>
+
+                <div class="circle-icon">
+                    <img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" />
+                </div>
+
+                <div class="circle-icon">
+                    <img src="/ASSETS/social_icons/X_logo.png" alt="X" />
+                </div>
             </div>
         </nav>
     </header>
@@ -76,7 +100,6 @@ ix_require_session([
             </header>
 
             <section class="scanner-stage" data-step="front" data-state="idle">
-
                 <video id="scanner-video" class="scanner-video" autoplay playsinline muted></video>
 
                 <canvas id="scanner-canvas" class="scanner-canvas" hidden></canvas>
@@ -120,7 +143,7 @@ ix_require_session([
                             Continuar
                         </button>
 
-                        <!-- ocultar cuando salga a prod esto es para debug -->
+                        <!-- Ocultar cuando salga a producción. Esto es solo para debug. -->
                         <button type="button" id="scanner-btn-debug-file" class="scanner-btn scanner-btn-debug-file">
                             Debug imagen PC
                         </button>
@@ -128,7 +151,6 @@ ix_require_session([
                         <input type="file" id="scanner-debug-file-input" accept="image/*" hidden>
                     </div>
                 </div>
-
             </section>
 
             <section class="scanner-summary" aria-label="Resumen de captura" hidden>
@@ -160,20 +182,9 @@ ix_require_session([
                     </div>
                 </article>
             </section>
-
         </section>
 
-
-
-
-
-
-
-
-
-
-        <!-- espacio para modales -->
-        <!-- espacio para modales -->
+        <!-- Modal de revisión / captura de persona -->
         <section id="ine-data-modal" class="ine-data-modal" hidden aria-hidden="true">
             <div class="ine-data-backdrop" data-ine-modal-close></div>
 
@@ -181,7 +192,7 @@ ix_require_session([
                 <header class="ine-data-head ine-data-head--simple">
                     <div class="ine-data-titlebox">
                         <p class="ine-data-kicker">Datos extraídos</p>
-                        <h2 id="ine-data-title">Validación de INE</h2>
+                        <h2 id="ine-data-title">Revisión de información INE</h2>
                     </div>
 
                     <button type="button" class="ine-data-close" data-ine-modal-close aria-label="Cerrar">
@@ -189,98 +200,308 @@ ix_require_session([
                     </button>
                 </header>
 
-                <div class="ine-data-body">
-                    <section class="ine-data-section">
-                        <div class="ine-data-meta">
-                            <div>
-                                <span>Fecha</span>
-                                <strong id="ine-modal-fecha">--</strong>
+                <form id="ine-persona-form" class="ine-persona-form" autocomplete="off">
+                    <div class="ine-data-body">
+
+                        <section class="ine-data-section">
+                            <div class="ine-data-meta">
+                                <div>
+                                    <span>Fecha de extracción</span>
+                                    <strong id="ine-modal-fecha">--</strong>
+                                </div>
+
+                                <div>
+                                    <span>Proveedor</span>
+                                    <strong id="ine-modal-registrado">--------</strong>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="ine-data-section">
+                            <h3>Identidad</h3>
+
+                            <div class="ine-data-grid">
+                                <label class="ine-data-field">
+                                    <span>Nombre(s)</span>
+                                    <input type="text" id="ine-modal-nombres" name="nombres" placeholder="Nombre(s)"
+                                        required>
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Apellido paterno</span>
+                                    <input type="text" id="ine-modal-apellido-paterno" name="apellido_paterno"
+                                        placeholder="Apellido paterno">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Apellido materno</span>
+                                    <input type="text" id="ine-modal-apellido-materno" name="apellido_materno"
+                                        placeholder="Apellido materno">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Fecha de nacimiento</span>
+                                    <input type="date" id="ine-modal-fecha-nacimiento" name="fecha_nacimiento">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Sexo</span>
+                                    <select id="ine-modal-sexo" name="sexo">
+                                        <option value="">Selecciona</option>
+                                        <option value="H">H</option>
+                                        <option value="M">M</option>
+                                        <option value="X">X</option>
+                                    </select>
+                                </label>
+
+                                <!-- Campo legacy para compatibilidad temporal con JS actual -->
+                                <input type="hidden" id="ine-modal-nombre" name="nombre_completo">
+                            </div>
+                        </section>
+
+                        <section class="ine-data-section">
+                            <h3>Datos de credencial</h3>
+
+                            <div class="ine-data-grid">
+                                <label class="ine-data-field">
+                                    <span>CURP</span>
+                                    <input type="text" id="ine-modal-curp" name="curp" maxlength="18"
+                                        placeholder="CURP">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Clave de elector</span>
+                                    <input type="text" id="ine-modal-clave" name="clave_elector"
+                                        placeholder="Clave de elector">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Sección</span>
+                                    <input type="text" id="ine-modal-seccion" name="seccion" placeholder="Sección">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Estado INE</span>
+                                    <input type="text" id="ine-modal-estado-num" name="estado_num" placeholder="Ej. 14">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Municipio INE</span>
+                                    <input type="text" id="ine-modal-municipio-num" name="municipio_num"
+                                        placeholder="Ej. 031">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Localidad INE</span>
+                                    <input type="text" id="ine-modal-localidad-num" name="localidad_num"
+                                        placeholder="Ej. 0011">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Año de registro</span>
+                                    <input type="number" id="ine-modal-anio-registro" name="anio_registro" min="1900"
+                                        max="2100" placeholder="Año">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Emisión</span>
+                                    <input type="number" id="ine-modal-emision" name="emision" min="1900" max="2100"
+                                        placeholder="Año">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Vigencia inicio</span>
+                                    <input type="number" id="ine-modal-vigencia-inicio" name="vigencia_inicio"
+                                        min="1900" max="2100" placeholder="Año">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Vigencia fin</span>
+                                    <input type="number" id="ine-modal-vigencia-fin" name="vigencia_fin" min="1900"
+                                        max="2100" placeholder="Año">
+                                </label>
+
+                                <!-- Campo legacy para compatibilidad temporal con JS actual -->
+                                <input type="hidden" id="ine-modal-vigencia" name="vigencia_texto">
+                            </div>
+                        </section>
+
+                        <section class="ine-data-section">
+                            <h3>Datos técnicos del reverso</h3>
+
+                            <div class="ine-data-grid">
+                                <label class="ine-data-field">
+                                    <span>OCR</span>
+                                    <input type="text" id="ine-modal-ocr" name="ocr" placeholder="OCR">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>CIC</span>
+                                    <input type="text" id="ine-modal-cic" name="cic" placeholder="CIC">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>IDMEX</span>
+                                    <input type="text" id="ine-modal-idmex" name="idmex" placeholder="IDMEX">
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="ine-data-section">
+                            <h3>Domicilio</h3>
+
+                            <div class="ine-data-grid">
+                                <label class="ine-data-field ine-data-field--full">
+                                    <span>Domicilio completo</span>
+                                    <textarea id="ine-modal-domicilio" name="domicilio_texto" rows="3"
+                                        placeholder="Domicilio completo extraído de la INE"></textarea>
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Calle</span>
+                                    <input type="text" id="ine-modal-calle" name="calle" placeholder="Calle">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Número exterior</span>
+                                    <input type="text" id="ine-modal-numero-exterior" name="numero_exterior"
+                                        placeholder="Número exterior">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Número interior</span>
+                                    <input type="text" id="ine-modal-numero-interior" name="numero_interior"
+                                        placeholder="Número interior">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Colonia</span>
+                                    <input type="text" id="ine-modal-colonia" name="colonia" placeholder="Colonia">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Localidad</span>
+                                    <input type="text" id="ine-modal-localidad" name="localidad"
+                                        placeholder="Localidad">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Municipio</span>
+                                    <input type="text" id="ine-modal-municipio" name="municipio"
+                                        placeholder="Municipio">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Estado</span>
+                                    <input type="text" id="ine-modal-estado" name="estado" placeholder="Estado">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Código postal</span>
+                                    <input type="text" id="ine-modal-codigo-postal" name="codigo_postal" maxlength="10"
+                                        placeholder="Código postal">
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="ine-data-section">
+                            <h3>Contacto</h3>
+
+                            <div class="ine-data-grid">
+                                <label class="ine-data-field">
+                                    <span>Teléfono</span>
+                                    <input type="tel" id="ine-modal-telefono" name="telefono" placeholder="Teléfono">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>WhatsApp</span>
+                                    <input type="tel" id="ine-modal-whatsapp" name="whatsapp" placeholder="WhatsApp">
+                                </label>
+
+                                <label class="ine-data-field">
+                                    <span>Email</span>
+                                    <input type="email" id="ine-modal-email" name="email"
+                                        placeholder="correo@ejemplo.com">
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="ine-data-section">
+                            <h3>Consentimiento</h3>
+
+                            <div class="ine-consent-list">
+                                <label class="ine-consent-item">
+                                    <input type="checkbox" id="ine-modal-acepta-tratamiento"
+                                        name="acepta_tratamiento_datos" value="1">
+                                    <span>Acepta tratamiento de datos personales</span>
+                                </label>
+
+                                <label class="ine-consent-item">
+                                    <input type="checkbox" id="ine-modal-acepta-sensibles" name="acepta_datos_sensibles"
+                                        value="1">
+                                    <span>Acepta tratamiento de datos sensibles</span>
+                                </label>
+
+                                <label class="ine-consent-item">
+                                    <input type="checkbox" id="ine-modal-acepta-whatsapp"
+                                        name="acepta_contacto_whatsapp" value="1">
+                                    <span>Acepta contacto por WhatsApp</span>
+                                </label>
                             </div>
 
-                            <div>
-                                <span>Proveedor</span>
-                                <strong id="ine-modal-registrado">--------</strong>
+                            <input type="hidden" id="ine-modal-aviso-version" name="aviso_privacidad_version"
+                                value="v1">
+                        </section>
+
+                        <section class="ine-data-section">
+                            <h3>Capturas INE</h3>
+
+                            <div class="ine-preview-row">
+                                <figure>
+                                    <img id="ine-modal-front" src="" alt="Frente INE">
+                                    <figcaption>Frente</figcaption>
+                                </figure>
+
+                                <figure>
+                                    <img id="ine-modal-back" src="" alt="Reverso INE">
+                                    <figcaption>Reverso</figcaption>
+                                </figure>
                             </div>
-                        </div>
-                    </section>
+                        </section>
 
-                    <section class="ine-data-section">
-                        <h3>Información principal</h3>
-
-                        <div class="ine-data-grid">
-                            <label class="ine-data-field">
-                                <span>Nombre completo</span>
-                                <output id="ine-modal-nombre">--------</output>
-                            </label>
-
-                            <label class="ine-data-field">
-                                <span>Teléfono</span>
-                                <output id="ine-modal-telefono">--------</output>
-                            </label>
+                        <section class="ine-data-section">
+                            <h3>Observaciones</h3>
 
                             <label class="ine-data-field ine-data-field--full">
-                                <span>Domicilio</span>
-                                <output id="ine-modal-domicilio">--------</output>
+                                <span>Notas adicionales</span>
+                                <textarea id="ine-modal-observaciones" name="observaciones" rows="3"
+                                    placeholder="Observaciones opcionales"></textarea>
                             </label>
+                        </section>
 
-                            <label class="ine-data-field">
-                                <span>Sección</span>
-                                <output id="ine-modal-seccion">--------</output>
-                            </label>
+                        <details class="ine-json-debug">
+                            <summary>Ver JSON debug</summary>
+                            <pre id="ine-modal-json">{}</pre>
+                        </details>
 
-                            <label class="ine-data-field">
-                                <span>Vigencia</span>
-                                <output id="ine-modal-vigencia">--------</output>
-                            </label>
+                        <!-- Campo legacy para compatibilidad temporal con JS actual -->
+                        <input type="hidden" id="ine-modal-editado" name="editado_por">
+                    </div>
 
-                            <label class="ine-data-field">
-                                <span>Clave de elector</span>
-                                <output id="ine-modal-clave">--------</output>
-                            </label>
+                    <footer class="ine-data-footer">
+                        <button type="button" class="ine-data-secondary" data-ine-modal-close>
+                            Cancelar
+                        </button>
 
-                            <label class="ine-data-field">
-                                <span>CURP</span>
-                                <output id="ine-modal-curp">--------</output>
-                            </label>
+                        <button type="button" id="ine-modal-reprocess" class="ine-data-secondary">
+                            Reprocesar
+                        </button>
 
-                            <label class="ine-data-field">
-                                <span>Editado por</span>
-                                <output id="ine-modal-editado">--------</output>
-                            </label>
-                        </div>
-                    </section>
-
-                    <section class="ine-data-section">
-                        <h3>Capturas INE</h3>
-
-                        <div class="ine-preview-row">
-                            <figure>
-                                <img id="ine-modal-front" src="" alt="Frente INE">
-                                <figcaption>Frente</figcaption>
-                            </figure>
-
-                            <figure>
-                                <img id="ine-modal-back" src="" alt="Reverso INE">
-                                <figcaption>Reverso</figcaption>
-                            </figure>
-                        </div>
-                    </section>
-
-                    <details class="ine-json-debug">
-                        <summary>Ver JSON debug</summary>
-                        <pre id="ine-modal-json">{}</pre>
-                    </details>
-                </div>
-
-                <footer class="ine-data-footer">
-                    <button type="button" class="ine-data-secondary" data-ine-modal-close>
-                        Cancelar
-                    </button>
-
-                    <button type="button" id="ine-modal-affiliate" class="ine-affiliate-btn">
-                        Afiliar simpatizante
-                    </button>
-                </footer>
+                        <button type="submit" id="ine-modal-affiliate" class="ine-affiliate-btn">
+                            Guardar persona
+                        </button>
+                    </footer>
+                </form>
             </article>
         </section>
     </main>
@@ -296,6 +517,7 @@ ix_require_session([
                 <div class="col left">
                     <div class="left-inner">
                         <img class="footer-crest" src="/ASSETS/main_logo_shield.png" alt="Escudo municipal">
+
                         <p class="copyright">
                             © Presidente José Heriberto García Murillo Gobierno de Ixtlahuacán de los Membrillos 2021 |
                             Todos los derechos reservados.
