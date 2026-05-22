@@ -1015,7 +1015,147 @@
     }
 }
 
+/* -------------------------------------------------------------------------- */
+/* FIX SCROLL MODAL INE MOBILE / FORM WRAPPER                                  */
+/* -------------------------------------------------------------------------- */
 
+/*
+   El modal ahora contiene un <form> entre .ine-data-card y .ine-data-body.
+   Este wrapper debe comportarse como columna flexible para que el body
+   pueda scrollear correctamente en mobile.
+*/
+
+.ine-persona-form {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.ine-persona-form .ine-data-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+.ine-persona-form .ine-data-footer {
+    flex: 0 0 auto;
+}
+
+/* Campos nuevos del formulario */
+.ine-data-field input,
+.ine-data-field select,
+.ine-data-field textarea {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: var(--ine-modal-muted);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.35;
+    box-sizing: border-box;
+}
+
+.ine-data-field textarea {
+    min-height: 70px;
+    resize: vertical;
+}
+
+.ine-data-field input::placeholder,
+.ine-data-field textarea::placeholder {
+    color: #a5adb8;
+}
+
+.ine-data-field select {
+    appearance: auto;
+}
+
+/* Checkboxes de consentimiento */
+.ine-consent-list {
+    display: grid;
+    gap: 12px;
+}
+
+.ine-consent-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--ine-modal-border-soft);
+    border-radius: 12px;
+    background: #f8fafc;
+    color: var(--ine-modal-text);
+    font-size: 0.94rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.ine-consent-item input {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+}
+
+/* Mobile: scroll más robusto dentro del modal */
+@media (max-width: 768px) {
+    .ine-data-modal {
+        overflow: hidden;
+        touch-action: none;
+    }
+
+    .ine-data-card {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .ine-persona-form {
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+    }
+
+    .ine-persona-form .ine-data-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto !important;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 18px;
+        touch-action: pan-y;
+    }
+
+    .ine-persona-form .ine-data-footer {
+        position: relative;
+        bottom: auto;
+        flex-shrink: 0;
+    }
+
+    .ine-data-field input,
+    .ine-data-field select,
+    .ine-data-field textarea {
+        font-size: 0.92rem;
+        line-height: 1.3;
+    }
+
+    .ine-data-field textarea {
+        min-height: 82px;
+    }
+
+    .ine-consent-item {
+        padding: 11px 12px;
+        font-size: 0.86rem;
+    }
+}
 
 
 
@@ -1149,3 +1289,4 @@
         border-radius: 12px;
     }
 }
+
