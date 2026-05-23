@@ -1157,6 +1157,79 @@
     }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Modal INE - detalles/acordeones y ayudas                                    */
+/* -------------------------------------------------------------------------- */
+
+.ine-data-help {
+    margin: 14px 0 0;
+    color: #6b7280;
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.ine-data-details {
+    margin: 0 0 22px;
+    border: 1px solid var(--ine-modal-border-soft);
+    border-radius: 14px;
+    background: #f8fafc;
+    overflow: hidden;
+}
+
+.ine-data-details summary {
+    cursor: pointer;
+    padding: 14px 18px;
+    color: var(--ine-modal-text);
+    font-size: 0.96rem;
+    font-weight: 900;
+    list-style: none;
+}
+
+.ine-data-details summary::-webkit-details-marker {
+    display: none;
+}
+
+.ine-data-details summary::after {
+    content: "＋";
+    float: right;
+    color: var(--ine-modal-green);
+    font-weight: 900;
+}
+
+.ine-data-details[open] summary::after {
+    content: "−";
+}
+
+.ine-data-section--inside {
+    margin: 0;
+    padding: 4px 18px 18px;
+}
+
+.ine-data-section--summary {
+    margin-bottom: 22px;
+}
+
+@media (max-width: 768px) {
+    .ine-data-help {
+        font-size: 0.84rem;
+    }
+
+    .ine-data-details {
+        margin-bottom: 18px;
+        border-radius: 12px;
+    }
+
+    .ine-data-details summary {
+        padding: 12px 14px;
+        font-size: 0.88rem;
+    }
+
+    .ine-data-section--inside {
+        padding: 2px 14px 14px;
+    }
+}
+
 
 
 
@@ -1274,7 +1347,7 @@
     margin: 0;
 }
 
-.scanner-extract-actions .scanner-btn + .scanner-btn {
+.scanner-extract-actions .scanner-btn+.scanner-btn {
     margin-top: 0;
 }
 
@@ -1289,4 +1362,3 @@
         border-radius: 12px;
     }
 }
-

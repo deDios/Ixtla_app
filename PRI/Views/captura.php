@@ -203,7 +203,8 @@ ix_require_session([
                 <form id="ine-persona-form" class="ine-persona-form" autocomplete="off">
                     <div class="ine-data-body">
 
-                        <section class="ine-data-section">
+                        <!-- Resumen de extracción -->
+                        <section class="ine-data-section ine-data-section--summary">
                             <div class="ine-data-meta">
                                 <div>
                                     <span>Fecha de extracción</span>
@@ -215,14 +216,20 @@ ix_require_session([
                                     <strong id="ine-modal-registrado">--------</strong>
                                 </div>
                             </div>
+
+                            <p class="ine-data-help">
+                                Revisa los datos antes de guardar. Algunos campos pueden variar según la generación de
+                                la INE.
+                            </p>
                         </section>
 
+                        <!-- Identidad -->
                         <section class="ine-data-section">
                             <h3>Identidad</h3>
 
                             <div class="ine-data-grid">
                                 <label class="ine-data-field">
-                                    <span>Nombre(s)</span>
+                                    <span>Nombre(s) *</span>
                                     <input type="text" id="ine-modal-nombres" name="nombres" placeholder="Nombre(s)"
                                         required>
                                 </label>
@@ -259,42 +266,26 @@ ix_require_session([
                             </div>
                         </section>
 
+                        <!-- Datos INE principales -->
                         <section class="ine-data-section">
                             <h3>Datos de credencial</h3>
 
                             <div class="ine-data-grid">
                                 <label class="ine-data-field">
-                                    <span>CURP</span>
+                                    <span>CURP *</span>
                                     <input type="text" id="ine-modal-curp" name="curp" maxlength="18"
                                         placeholder="CURP">
                                 </label>
 
                                 <label class="ine-data-field">
-                                    <span>Clave de elector</span>
+                                    <span>Clave de elector *</span>
                                     <input type="text" id="ine-modal-clave" name="clave_elector"
                                         placeholder="Clave de elector">
                                 </label>
 
                                 <label class="ine-data-field">
-                                    <span>Sección</span>
+                                    <span>Sección *</span>
                                     <input type="text" id="ine-modal-seccion" name="seccion" placeholder="Sección">
-                                </label>
-
-                                <label class="ine-data-field">
-                                    <span>Estado INE</span>
-                                    <input type="text" id="ine-modal-estado-num" name="estado_num" placeholder="Ej. 14">
-                                </label>
-
-                                <label class="ine-data-field">
-                                    <span>Municipio INE</span>
-                                    <input type="text" id="ine-modal-municipio-num" name="municipio_num"
-                                        placeholder="Ej. 031">
-                                </label>
-
-                                <label class="ine-data-field">
-                                    <span>Localidad INE</span>
-                                    <input type="text" id="ine-modal-localidad-num" name="localidad_num"
-                                        placeholder="Ej. 0011">
                                 </label>
 
                                 <label class="ine-data-field">
@@ -326,27 +317,7 @@ ix_require_session([
                             </div>
                         </section>
 
-                        <section class="ine-data-section">
-                            <h3>Datos técnicos del reverso</h3>
-
-                            <div class="ine-data-grid">
-                                <label class="ine-data-field">
-                                    <span>OCR</span>
-                                    <input type="text" id="ine-modal-ocr" name="ocr" placeholder="OCR">
-                                </label>
-
-                                <label class="ine-data-field">
-                                    <span>CIC</span>
-                                    <input type="text" id="ine-modal-cic" name="cic" placeholder="CIC">
-                                </label>
-
-                                <label class="ine-data-field">
-                                    <span>IDMEX</span>
-                                    <input type="text" id="ine-modal-idmex" name="idmex" placeholder="IDMEX">
-                                </label>
-                            </div>
-                        </section>
-
+                        <!-- Domicilio -->
                         <section class="ine-data-section">
                             <h3>Domicilio</h3>
 
@@ -404,6 +375,7 @@ ix_require_session([
                             </div>
                         </section>
 
+                        <!-- Contacto -->
                         <section class="ine-data-section">
                             <h3>Contacto</h3>
 
@@ -426,6 +398,7 @@ ix_require_session([
                             </div>
                         </section>
 
+                        <!-- Consentimiento -->
                         <section class="ine-data-section">
                             <h3>Consentimiento</h3>
 
@@ -433,13 +406,13 @@ ix_require_session([
                                 <label class="ine-consent-item">
                                     <input type="checkbox" id="ine-modal-acepta-tratamiento"
                                         name="acepta_tratamiento_datos" value="1">
-                                    <span>Acepta tratamiento de datos personales</span>
+                                    <span>Acepta tratamiento de datos personales *</span>
                                 </label>
 
                                 <label class="ine-consent-item">
                                     <input type="checkbox" id="ine-modal-acepta-sensibles" name="acepta_datos_sensibles"
                                         value="1">
-                                    <span>Acepta tratamiento de datos sensibles</span>
+                                    <span>Acepta tratamiento de datos sensibles *</span>
                                 </label>
 
                                 <label class="ine-consent-item">
@@ -453,34 +426,90 @@ ix_require_session([
                                 value="v1">
                         </section>
 
+                        <!-- Datos opcionales por generación de INE -->
+                        <details class="ine-data-details">
+                            <summary>Datos opcionales de generación INE</summary>
+
+                            <section class="ine-data-section ine-data-section--inside">
+                                <div class="ine-data-grid">
+                                    <label class="ine-data-field">
+                                        <span>Estado número</span>
+                                        <input type="text" id="ine-modal-estado-num" name="estado_num"
+                                            placeholder="Ej. 14">
+                                    </label>
+
+                                    <label class="ine-data-field">
+                                        <span>Municipio número</span>
+                                        <input type="text" id="ine-modal-municipio-num" name="municipio_num"
+                                            placeholder="Ej. 031">
+                                    </label>
+
+                                    <label class="ine-data-field">
+                                        <span>Localidad número</span>
+                                        <input type="text" id="ine-modal-localidad-num" name="localidad_num"
+                                            placeholder="Ej. 0011">
+                                    </label>
+                                </div>
+                            </section>
+                        </details>
+
+                        <!-- Datos técnicos del reverso -->
+                        <details class="ine-data-details">
+                            <summary>Datos técnicos del reverso</summary>
+
+                            <section class="ine-data-section ine-data-section--inside">
+                                <div class="ine-data-grid">
+                                    <label class="ine-data-field">
+                                        <span>OCR</span>
+                                        <input type="text" id="ine-modal-ocr" name="ocr" placeholder="OCR">
+                                    </label>
+
+                                    <label class="ine-data-field">
+                                        <span>CIC</span>
+                                        <input type="text" id="ine-modal-cic" name="cic" placeholder="CIC">
+                                    </label>
+
+                                    <label class="ine-data-field">
+                                        <span>IDMEX</span>
+                                        <input type="text" id="ine-modal-idmex" name="idmex" placeholder="IDMEX">
+                                    </label>
+                                </div>
+                            </section>
+                        </details>
+
+                        <!-- Observaciones -->
                         <section class="ine-data-section">
-                            <h3>Capturas INE</h3>
+                            <h3>Observaciones</h3>
+
+                            <div class="ine-data-grid">
+                                <label class="ine-data-field ine-data-field--full">
+                                    <span>Observaciones del capturista</span>
+                                    <textarea id="ine-modal-observaciones" name="observaciones" rows="3"
+                                        placeholder="Notas internas, correcciones manuales o dudas de captura"></textarea>
+                                </label>
+                            </div>
+                        </section>
+
+                        <!-- Capturas -->
+                        <details class="ine-data-details">
+                            <summary>Capturas INE</summary>
 
                             <div class="ine-preview-row">
                                 <figure>
-                                    <img id="ine-modal-front" src="" alt="Frente INE">
+                                    <img id="ine-modal-front" src="" alt="Captura frontal de INE">
                                     <figcaption>Frente</figcaption>
                                 </figure>
 
                                 <figure>
-                                    <img id="ine-modal-back" src="" alt="Reverso INE">
+                                    <img id="ine-modal-back" src="" alt="Captura posterior de INE">
                                     <figcaption>Reverso</figcaption>
                                 </figure>
                             </div>
-                        </section>
+                        </details>
 
-                        <section class="ine-data-section">
-                            <h3>Observaciones</h3>
-
-                            <label class="ine-data-field ine-data-field--full">
-                                <span>Notas adicionales</span>
-                                <textarea id="ine-modal-observaciones" name="observaciones" rows="3"
-                                    placeholder="Observaciones opcionales"></textarea>
-                            </label>
-                        </section>
-
+                        <!-- JSON debug -->
                         <details class="ine-json-debug">
-                            <summary>Ver JSON debug</summary>
+                            <summary>Ver JSON de extracción</summary>
                             <pre id="ine-modal-json">{}</pre>
                         </details>
 
@@ -503,6 +532,102 @@ ix_require_session([
                     </footer>
                 </form>
             </article>
+        </section>
+
+        <section class="ine-data-section">
+            <h3>Contacto</h3>
+
+            <div class="ine-data-grid">
+                <label class="ine-data-field">
+                    <span>Teléfono</span>
+                    <input type="tel" id="ine-modal-telefono" name="telefono" placeholder="Teléfono">
+                </label>
+
+                <label class="ine-data-field">
+                    <span>WhatsApp</span>
+                    <input type="tel" id="ine-modal-whatsapp" name="whatsapp" placeholder="WhatsApp">
+                </label>
+
+                <label class="ine-data-field">
+                    <span>Email</span>
+                    <input type="email" id="ine-modal-email" name="email" placeholder="correo@ejemplo.com">
+                </label>
+            </div>
+        </section>
+
+        <section class="ine-data-section">
+            <h3>Consentimiento</h3>
+
+            <div class="ine-consent-list">
+                <label class="ine-consent-item">
+                    <input type="checkbox" id="ine-modal-acepta-tratamiento" name="acepta_tratamiento_datos" value="1">
+                    <span>Acepta tratamiento de datos personales</span>
+                </label>
+
+                <label class="ine-consent-item">
+                    <input type="checkbox" id="ine-modal-acepta-sensibles" name="acepta_datos_sensibles" value="1">
+                    <span>Acepta tratamiento de datos sensibles</span>
+                </label>
+
+                <label class="ine-consent-item">
+                    <input type="checkbox" id="ine-modal-acepta-whatsapp" name="acepta_contacto_whatsapp" value="1">
+                    <span>Acepta contacto por WhatsApp</span>
+                </label>
+            </div>
+
+            <input type="hidden" id="ine-modal-aviso-version" name="aviso_privacidad_version" value="v1">
+        </section>
+
+        <section class="ine-data-section">
+            <h3>Capturas INE</h3>
+
+            <div class="ine-preview-row">
+                <figure>
+                    <img id="ine-modal-front" src="" alt="Frente INE">
+                    <figcaption>Frente</figcaption>
+                </figure>
+
+                <figure>
+                    <img id="ine-modal-back" src="" alt="Reverso INE">
+                    <figcaption>Reverso</figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <section class="ine-data-section">
+            <h3>Observaciones</h3>
+
+            <label class="ine-data-field ine-data-field--full">
+                <span>Notas adicionales</span>
+                <textarea id="ine-modal-observaciones" name="observaciones" rows="3"
+                    placeholder="Observaciones opcionales"></textarea>
+            </label>
+        </section>
+
+        <details class="ine-json-debug">
+            <summary>Ver JSON debug</summary>
+            <pre id="ine-modal-json">{}</pre>
+        </details>
+
+        <!-- Campo legacy para compatibilidad temporal con JS actual -->
+        <input type="hidden" id="ine-modal-editado" name="editado_por">
+        </div>
+
+        <footer class="ine-data-footer">
+            <button type="button" class="ine-data-secondary" data-ine-modal-close>
+                Cancelar
+            </button>
+
+            <button type="button" id="ine-modal-reprocess" class="ine-data-secondary">
+                Reprocesar
+            </button>
+
+            <button type="submit" id="ine-modal-affiliate" class="ine-affiliate-btn">
+                Guardar persona
+            </button>
+        </footer>
+        </form>
+        </article>
         </section>
     </main>
 
