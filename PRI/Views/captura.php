@@ -90,8 +90,8 @@ ix_require_session([
 
             <header class="scanner-header">
                 <div>
-                    <p class="scanner-kicker">Captura con escáner</p>
-                    <h1 id="scanner-title">Validación de INE</h1>
+                    <p class="scanner-kicker">Captura manual</p>
+                    <h1 id="scanner-title">Captura de INE</h1>
                 </div>
 
                 <button type="button" id="scanner-close" class="scanner-close" aria-label="Cerrar captura">
@@ -131,7 +131,7 @@ ix_require_session([
                     </div>
 
                     <p id="scanner-status-text" class="scanner-status-text">
-                        Coloca la INE dentro del recuadro
+                        Cuando la INE esté bien alineada, presiona Capturar
                     </p>
 
                     <div class="scanner-actions">
@@ -407,55 +407,27 @@ ix_require_session([
                             <h3>Consentimiento</h3>
 
                             <div class="ine-consent-list">
-                                <label class="ine-consent-item">
-                                    <input type="checkbox" id="ine-modal-acepta-tratamiento"
-                                        name="acepta_tratamiento_datos" value="1">
-                                    <span>Acepta tratamiento de datos personales *</span>
-                                </label>
+                                <label class="ine-consent-item ine-consent-item--single">
+                                    <input type="checkbox" id="ine-modal-acepta-terminos" name="acepta_terminos"
+                                        value="1" required>
 
-                                <label class="ine-consent-item">
-                                    <input type="checkbox" id="ine-modal-acepta-sensibles" name="acepta_datos_sensibles"
-                                        value="1">
-                                    <span>Acepta tratamiento de datos sensibles *</span>
-                                </label>
-
-                                <label class="ine-consent-item">
-                                    <input type="checkbox" id="ine-modal-acepta-whatsapp"
-                                        name="acepta_contacto_whatsapp" value="1">
-                                    <span>Acepta contacto por WhatsApp</span>
+                                    <span>
+                                        Acepto el tratamiento de mis datos personales conforme al aviso de privacidad
+                                        y autorizo el uso de la información capturada para el registro correspondiente.
+                                    </span>
                                 </label>
                             </div>
 
+                            <!-- Campos reales para compatibilidad con el DDL / backend -->
+                            <input type="hidden" id="ine-modal-acepta-tratamiento" name="acepta_tratamiento_datos"
+                                value="0">
+                            <input type="hidden" id="ine-modal-acepta-sensibles" name="acepta_datos_sensibles"
+                                value="0">
+                            <input type="hidden" id="ine-modal-acepta-whatsapp" name="acepta_contacto_whatsapp"
+                                value="0">
                             <input type="hidden" id="ine-modal-aviso-version" name="aviso_privacidad_version"
                                 value="v1">
                         </section>
-
-                        <!-- Datos opcionales por generación de INE -->
-                        <details class="ine-data-details">
-                            <summary>Datos opcionales de generación INE</summary>
-
-                            <section class="ine-data-section ine-data-section--inside">
-                                <div class="ine-data-grid">
-                                    <label class="ine-data-field">
-                                        <span>Estado número</span>
-                                        <input type="text" id="ine-modal-estado-num" name="estado_num"
-                                            placeholder="Ej. 14">
-                                    </label>
-
-                                    <label class="ine-data-field">
-                                        <span>Municipio número</span>
-                                        <input type="text" id="ine-modal-municipio-num" name="municipio_num"
-                                            placeholder="Ej. 031">
-                                    </label>
-
-                                    <label class="ine-data-field">
-                                        <span>Localidad número</span>
-                                        <input type="text" id="ine-modal-localidad-num" name="localidad_num"
-                                            placeholder="Ej. 0011">
-                                    </label>
-                                </div>
-                            </section>
-                        </details>
 
                         <!-- Datos técnicos del reverso -->
                         <details class="ine-data-details">
@@ -536,102 +508,6 @@ ix_require_session([
                     </footer>
                 </form>
             </article>
-        </section>
-
-        <section class="ine-data-section">
-            <h3>Contacto</h3>
-
-            <div class="ine-data-grid">
-                <label class="ine-data-field">
-                    <span>Teléfono</span>
-                    <input type="tel" id="ine-modal-telefono" name="telefono" placeholder="Teléfono">
-                </label>
-
-                <label class="ine-data-field">
-                    <span>WhatsApp</span>
-                    <input type="tel" id="ine-modal-whatsapp" name="whatsapp" placeholder="WhatsApp">
-                </label>
-
-                <label class="ine-data-field">
-                    <span>Email</span>
-                    <input type="email" id="ine-modal-email" name="email" placeholder="correo@ejemplo.com">
-                </label>
-            </div>
-        </section>
-
-        <section class="ine-data-section">
-            <h3>Consentimiento</h3>
-
-            <div class="ine-consent-list">
-                <label class="ine-consent-item">
-                    <input type="checkbox" id="ine-modal-acepta-tratamiento" name="acepta_tratamiento_datos" value="1">
-                    <span>Acepta tratamiento de datos personales</span>
-                </label>
-
-                <label class="ine-consent-item">
-                    <input type="checkbox" id="ine-modal-acepta-sensibles" name="acepta_datos_sensibles" value="1">
-                    <span>Acepta tratamiento de datos sensibles</span>
-                </label>
-
-                <label class="ine-consent-item">
-                    <input type="checkbox" id="ine-modal-acepta-whatsapp" name="acepta_contacto_whatsapp" value="1">
-                    <span>Acepta contacto por WhatsApp</span>
-                </label>
-            </div>
-
-            <input type="hidden" id="ine-modal-aviso-version" name="aviso_privacidad_version" value="v1">
-        </section>
-
-        <section class="ine-data-section">
-            <h3>Capturas INE</h3>
-
-            <div class="ine-preview-row">
-                <figure>
-                    <img id="ine-modal-front" src="" alt="Frente INE">
-                    <figcaption>Frente</figcaption>
-                </figure>
-
-                <figure>
-                    <img id="ine-modal-back" src="" alt="Reverso INE">
-                    <figcaption>Reverso</figcaption>
-                </figure>
-            </div>
-        </section>
-
-        <section class="ine-data-section">
-            <h3>Observaciones</h3>
-
-            <label class="ine-data-field ine-data-field--full">
-                <span>Notas adicionales</span>
-                <textarea id="ine-modal-observaciones" name="observaciones" rows="3"
-                    placeholder="Observaciones opcionales"></textarea>
-            </label>
-        </section>
-
-        <details class="ine-json-debug">
-            <summary>Ver JSON debug</summary>
-            <pre id="ine-modal-json">{}</pre>
-        </details>
-
-        <!-- Campo legacy para compatibilidad temporal con JS actual -->
-        <input type="hidden" id="ine-modal-editado" name="editado_por">
-        </div>
-
-        <footer class="ine-data-footer">
-            <button type="button" class="ine-data-secondary" data-ine-modal-close>
-                Cancelar
-            </button>
-
-            <button type="button" id="ine-modal-reprocess" class="ine-data-secondary">
-                Reprocesar
-            </button>
-
-            <button type="submit" id="ine-modal-affiliate" class="ine-affiliate-btn">
-                Guardar persona
-            </button>
-        </footer>
-        </form>
-        </article>
         </section>
     </main>
 

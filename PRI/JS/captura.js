@@ -3,27 +3,6 @@
 const CONFIG = {
     DEBUG: true,
 
-    // Tiempo que la INE debe mantenerse estable antes de autocapturar.
-    REQUIRED_STABLE_MS: 900,
-
-    // Cada cuántos ms analizamos el frame.
-    FRAME_ANALYSIS_INTERVAL: 120,
-
-    // Si algo falla, la barra baja lentamente para no frustrar al usuario.
-    PROGRESS_DECAY: 5,
-
-    // Calidad de imagen enviada al backend.
-    CAPTURE_QUALITY: 0.9,
-
-    // Validaciones visuales permisivas.
-    MIN_FOCUS_SCORE: 10,
-    MIN_LIGHTING: 35,
-    MAX_LIGHTING: 235,
-    MIN_EDGE_SCORE: 2.8,
-
-    // en modo facil no pide que la foto sea perfecta, solo legible, es mas facil para el usuario.
-    EASY_MODE: true,
-
     MEDIA: {
         maxBytes: 1024 * 1024,
         maxWidth: 1280,
@@ -67,13 +46,6 @@ const State = {
     state: "idle",
     stream: null,
 
-    scanProgress: 0,
-    lastValidTime: null,
-    autoCaptured: false,
-
-    lastFrameAnalysisAt: 0,
-    scannerLoopId: null,
-
     captures: {
         front: null,
         back: null,
@@ -82,12 +54,9 @@ const State = {
     extractionResult: null,
 };
 
-let PreviousFrameSignature = null;
-
 const SEL = {
     stage: ".scanner-stage",
     video: "#scanner-video",
-    canvas: "#scanner-canvas",
     guideBox: ".scanner-guide-box",
     close: "#scanner-close",
 
@@ -110,20 +79,16 @@ const SEL = {
 
     modal: "#ine-data-modal",
     modalFecha: "#ine-modal-fecha",
-    modalNombre: "#ine-modal-nombre",
-    modalDomicilio: "#ine-modal-domicilio",
-    modalSeccion: "#ine-modal-seccion",
-    modalClave: "#ine-modal-clave",
-    modalCurp: "#ine-modal-curp",
-    modalVigencia: "#ine-modal-vigencia",
-    modalTelefono: "#ine-modal-telefono",
     modalRegistrado: "#ine-modal-registrado",
     modalEditado: "#ine-modal-editado",
     modalFront: "#ine-modal-front",
     modalBack: "#ine-modal-back",
     modalJson: "#ine-modal-json",
-    modalAffiliate: "#ine-modal-affiliate",
 };
+
+/* -------------------------------------------------------------------------- */
+/* UTILIDADES                                                                  */
+/* -------------------------------------------------------------------------- */
 
 function toast(message, type = "exito", duration = 5000) {
     let text = "";
@@ -150,6 +115,147 @@ function toast(message, type = "exito", duration = 5000) {
     console.log(`[Toast fallback][${type}]`, text);
 }
 
+function clampNumber(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function normalizeFieldName(value) {
+    return String(value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+
+function normalizeValue(value, fallback = "") {
+    if (value === null || value === undefined) return fallback;
+
+    const text = String(value).trim();
+
+    if (
+        !text ||
+        text === "--------" ||
+        text === "--" ||
+        text.toLowerCase() === "null" ||
+        text.toLowerCase() === "undefined" ||
+        text.toLowerCase() === "no disponible" ||
+        text.toLowerCase() === "n/a"
+    ) {
+        return fallback;
+    }
+
+    return text;
+}
+
+function cleanUpper(value) {
+    return normalizeValue(value)
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
+}
+
+function onlyDigits(value) {
+    return normalizeValue(value).replace(/\D+/g, "");
+}
+
+function normalizeYear(value) {
+    const text = normalizeValue(value);
+    const match = text.match(/\b(19|20)\d{2}\b/);
+
+    return match ? match[0] : "";
+}
+
+function normalizeSex(value) {
+    const text = cleanUpper(value);
+
+    if (["H", "HOMBRE", "MASCULINO"].includes(text)) return "H";
+    if (["M", "MUJER", "FEMENINO"].includes(text)) return "M";
+    if (text === "X") return "X";
+
+    return "";
+}
+
+function normalizeDateToInput(value) {
+    const text = normalizeValue(value);
+
+    if (!text) return "";
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+        return text;
+    }
+
+    const dmy = text.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\b/);
+
+    if (dmy) {
+        const dd = dmy[1].padStart(2, "0");
+        const mm = dmy[2].padStart(2, "0");
+        const yyyy = dmy[3];
+
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    const compact = text.match(/\b(\d{2})(\d{2})(\d{2})\b/);
+
+    if (compact) {
+        const yy = Number(compact[1]);
+        const mm = compact[2];
+        const dd = compact[3];
+        const yyyy = yy > 30 ? `19${compact[1]}` : `20${compact[1]}`;
+
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    return "";
+}
+
+function getTodayLongEs() {
+    return new Intl.DateTimeFormat("es-MX", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+    }).format(new Date());
+}
+
+function setFieldValue(selector, value, fallback = "") {
+    const el = $(selector);
+    if (!el) return;
+
+    const cleanValue = normalizeValue(value, fallback);
+
+    if (el.type === "checkbox") {
+        el.checked = cleanValue === "1" || cleanValue === "true" || cleanValue === true;
+        return;
+    }
+
+    if ("value" in el) {
+        el.value = cleanValue;
+        return;
+    }
+
+    el.textContent = cleanValue;
+}
+
+function getFieldValue(selector) {
+    const el = $(selector);
+    if (!el) return "";
+
+    if (el.type === "checkbox") {
+        return el.checked ? "1" : "0";
+    }
+
+    if ("value" in el) {
+        return normalizeValue(el.value);
+    }
+
+    return normalizeValue(el.textContent);
+}
+
+/* -------------------------------------------------------------------------- */
+/* ESTADOS UI DEL SCANNER                                                      */
+/* -------------------------------------------------------------------------- */
+
 function setStageState(state) {
     State.state = state;
 
@@ -157,7 +263,6 @@ function setStageState(state) {
     if (!stage) return;
 
     stage.dataset.state = state;
-    stage.classList.toggle("is-valid", state === "validating");
     stage.classList.toggle("is-error", state === "error");
     stage.classList.toggle("is-processing", state === "processing");
 }
@@ -184,6 +289,27 @@ function setStep(step) {
         if (status) status.textContent = "Cuando el reverso esté bien alineado, presiona Capturar";
     }
 }
+
+function resetActionButtons() {
+    const capture = $(SEL.capture);
+    const retry = $(SEL.retry);
+    const next = $(SEL.continue);
+    const bar = $(SEL.progressBar);
+
+    if (capture) {
+        capture.hidden = false;
+        capture.disabled = false;
+        capture.textContent = "Capturar";
+    }
+
+    if (retry) retry.hidden = true;
+    if (next) next.hidden = true;
+    if (bar) bar.style.width = "0%";
+}
+
+/* -------------------------------------------------------------------------- */
+/* CÁMARA                                                                      */
+/* -------------------------------------------------------------------------- */
 
 async function startCamera() {
     const video = $(SEL.video);
@@ -215,6 +341,7 @@ async function startCamera() {
 
         setStageState("ready");
         setStep(State.step);
+        resetActionButtons();
 
         log("Cámara iniciada correctamente en modo captura manual.");
     } catch (error) {
@@ -224,11 +351,6 @@ async function startCamera() {
 }
 
 function stopCamera() {
-    if (State.scannerLoopId) {
-        cancelAnimationFrame(State.scannerLoopId);
-        State.scannerLoopId = null;
-    }
-
     if (!State.stream) return;
 
     State.stream.getTracks().forEach((track) => track.stop());
@@ -240,318 +362,9 @@ function stopCamera() {
     log("Cámara detenida.");
 }
 
-function startScannerLoop() {
-    const loop = (timestamp) => {
-        if (!State.stream) return;
-
-        const shouldAnalyze =
-            timestamp - State.lastFrameAnalysisAt >= CONFIG.FRAME_ANALYSIS_INTERVAL;
-
-        const canAnalyze =
-            !State.autoCaptured &&
-            State.state !== "captured" &&
-            State.state !== "error" &&
-            State.state !== "processing";
-
-        if (shouldAnalyze && canAnalyze) {
-            State.lastFrameAnalysisAt = timestamp;
-
-            const result = analyzeCurrentFrame();
-            updateScannerValidation(result);
-        }
-
-        State.scannerLoopId = requestAnimationFrame(loop);
-    };
-
-    State.scannerLoopId = requestAnimationFrame(loop);
-}
-
-function analyzeCurrentFrame() {
-    const video = $(SEL.video);
-    const canvas = $(SEL.canvas);
-
-    if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
-        return buildFrameResult({
-            hasCard: false,
-            reason: "no_video",
-        });
-    }
-
-    const analysisWidth = 360;
-    const ratio = video.videoHeight / video.videoWidth;
-    const analysisHeight = Math.round(analysisWidth * ratio);
-
-    canvas.width = analysisWidth;
-    canvas.height = analysisHeight;
-
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-
-    if (!ctx) {
-        return buildFrameResult({
-            hasCard: false,
-            reason: "no_context",
-        });
-    }
-
-    ctx.drawImage(video, 0, 0, analysisWidth, analysisHeight);
-
-    const imageData = ctx.getImageData(0, 0, analysisWidth, analysisHeight);
-    const data = imageData.data;
-
-    const metrics = calculateFrameMetrics(data, analysisWidth, analysisHeight);
-
-    const hasCard = metrics.edgeScore >= CONFIG.MIN_EDGE_SCORE;
-
-    const goodSize =
-        hasCard &&
-        metrics.guideCoverage >= 0.12 &&
-        metrics.guideCoverage <= 0.98;
-
-    const goodAngle = CONFIG.EASY_MODE
-        ? true
-        : hasCard && metrics.horizontalBalance >= 0.58;
-
-    const goodFocus = metrics.focusScore >= CONFIG.MIN_FOCUS_SCORE;
-
-    const goodLighting =
-        metrics.lighting >= CONFIG.MIN_LIGHTING &&
-        metrics.lighting <= CONFIG.MAX_LIGHTING;
-
-    const isStable =
-        hasCard &&
-        goodSize &&
-        goodAngle &&
-        goodFocus &&
-        goodLighting &&
-        metrics.motionScore <= 0.42;
-
-    return buildFrameResult({
-        hasCard,
-        goodSize,
-        goodAngle,
-        goodFocus,
-        goodLighting,
-        isStable,
-        metrics,
-    });
-}
-
-function buildFrameResult({
-    hasCard = false,
-    goodSize = false,
-    goodAngle = false,
-    goodFocus = false,
-    goodLighting = false,
-    isStable = false,
-    metrics = {},
-    reason = "",
-}) {
-    return {
-        hasCard,
-        goodSize,
-        goodAngle,
-        goodFocus,
-        goodLighting,
-        isStable,
-        reason,
-        metrics,
-    };
-}
-
-function calculateFrameMetrics(data, width, height) {
-    let totalGray = 0;
-    let focusTotal = 0;
-    let edgeCount = 0;
-    let guidePixels = 0;
-    let brightGuidePixels = 0;
-
-    let horizontalEdges = 0;
-    let verticalEdges = 0;
-
-    const guide = {
-        x1: Math.round(width * 0.11),
-        x2: Math.round(width * 0.89),
-        y1: Math.round(height * 0.25),
-        y2: Math.round(height * 0.58),
-    };
-
-    const grayAt = (x, y) => {
-        const index = (y * width + x) * 4;
-        const r = data[index];
-        const g = data[index + 1];
-        const b = data[index + 2];
-
-        return 0.299 * r + 0.587 * g + 0.114 * b;
-    };
-
-    for (let y = 1; y < height - 1; y += 2) {
-        for (let x = 1; x < width - 1; x += 2) {
-            const gray = grayAt(x, y);
-            totalGray += gray;
-
-            const gx = Math.abs(grayAt(x + 1, y) - grayAt(x - 1, y));
-            const gy = Math.abs(grayAt(x, y + 1) - grayAt(x, y - 1));
-            const edge = gx + gy;
-
-            focusTotal += edge;
-
-            const inGuide =
-                x >= guide.x1 &&
-                x <= guide.x2 &&
-                y >= guide.y1 &&
-                y <= guide.y2;
-
-            if (inGuide) {
-                guidePixels += 1;
-
-                if (gray > 70 && gray < 245) {
-                    brightGuidePixels += 1;
-                }
-
-                if (edge > 42) {
-                    edgeCount += 1;
-
-                    if (gx > gy) verticalEdges += 1;
-                    if (gy > gx) horizontalEdges += 1;
-                }
-            }
-        }
-    }
-
-    const sampledPixels = Math.floor((width * height) / 4);
-
-    const lighting = totalGray / Math.max(sampledPixels, 1);
-    const focusScore = focusTotal / Math.max(sampledPixels, 1);
-    const edgeScore = (edgeCount / Math.max(guidePixels, 1)) * 100;
-    const guideCoverage = brightGuidePixels / Math.max(guidePixels, 1);
-
-    const totalDirectionalEdges = horizontalEdges + verticalEdges;
-    const horizontalBalance =
-        totalDirectionalEdges > 0
-            ? Math.max(horizontalEdges, verticalEdges) / totalDirectionalEdges
-            : 0;
-
-    const frameSignature = {
-        lighting,
-        edgeScore,
-        guideCoverage,
-        focusScore,
-    };
-
-    const motionScore = PreviousFrameSignature
-        ? Math.min(
-            1,
-            (
-                Math.abs(frameSignature.lighting - PreviousFrameSignature.lighting) / 80 +
-                Math.abs(frameSignature.edgeScore - PreviousFrameSignature.edgeScore) / 35 +
-                Math.abs(frameSignature.guideCoverage - PreviousFrameSignature.guideCoverage) / 0.8 +
-                Math.abs(frameSignature.focusScore - PreviousFrameSignature.focusScore) / 40
-            ) / 4
-        )
-        : 1;
-
-    PreviousFrameSignature = frameSignature;
-
-    return {
-        lighting: Number(lighting.toFixed(2)),
-        focusScore: Number(focusScore.toFixed(2)),
-        edgeScore: Number(edgeScore.toFixed(2)),
-        guideCoverage: Number(guideCoverage.toFixed(3)),
-        horizontalBalance: Number(horizontalBalance.toFixed(3)),
-        motionScore: Number(motionScore.toFixed(3)),
-    };
-}
-
-function isValidationReady(result) {
-    if (CONFIG.EASY_MODE) {
-        return (
-            result.hasCard &&
-            result.goodFocus &&
-            result.goodLighting &&
-            result.isStable
-        );
-    }
-
-    return (
-        result.hasCard &&
-        result.goodSize &&
-        result.goodAngle &&
-        result.goodFocus &&
-        result.goodLighting &&
-        result.isStable
-    );
-}
-
-function updateScannerValidation(result) {
-    const valid = isValidationReady(result);
-    const now = performance.now();
-
-    if (CONFIG.DEBUG) {
-        console.log(`${TAG} frame:`, {
-            valid,
-            checks: {
-                hasCard: result.hasCard,
-                goodSize: result.goodSize,
-                goodAngle: result.goodAngle,
-                goodFocus: result.goodFocus,
-                goodLighting: result.goodLighting,
-                isStable: result.isStable,
-            },
-            metrics: result.metrics,
-            progress: Math.round(State.scanProgress),
-        });
-    }
-
-    if (valid) {
-        if (!State.lastValidTime) State.lastValidTime = now;
-
-        const elapsed = now - State.lastValidTime;
-        State.scanProgress = Math.min((elapsed / CONFIG.REQUIRED_STABLE_MS) * 100, 100);
-
-        setStageState("validating");
-    } else {
-        State.lastValidTime = null;
-        State.scanProgress = Math.max(State.scanProgress - CONFIG.PROGRESS_DECAY, 0);
-
-        setStageState("detecting");
-    }
-
-    updateProgressUI(State.scanProgress, result);
-
-    if (State.scanProgress >= 100 && !State.autoCaptured) {
-        State.autoCaptured = true;
-        capturePhoto();
-    }
-}
-
-function updateProgressUI(progress, result) {
-    const bar = $(SEL.progressBar);
-    const text = $(SEL.statusText);
-
-    if (bar) bar.style.width = `${progress}%`;
-
-    if (!text) return;
-
-    if (!result.hasCard) {
-        text.textContent = "Coloca la INE dentro del recuadro";
-    } else if (!result.goodFocus) {
-        text.textContent = "Mantén la cámara enfocada";
-    } else if (!result.goodLighting) {
-        text.textContent = "Mejora un poco la iluminación";
-    } else if (!result.isStable) {
-        text.textContent = "Mantén la INE estable";
-    } else if (!result.goodSize) {
-        text.textContent = "Ajusta ligeramente la distancia";
-    } else if (!result.goodAngle) {
-        text.textContent = "Endereza un poco la INE";
-    } else {
-        text.textContent = "Correcto, tomando foto...";
-    }
-}
-
-function clampNumber(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-}
+/* -------------------------------------------------------------------------- */
+/* CAPTURA MANUAL Y RECORTE                                                    */
+/* -------------------------------------------------------------------------- */
 
 function getVideoCropFromGuide(video, guideBox, paddingRatio = 0.08) {
     const videoRect = video.getBoundingClientRect();
@@ -564,11 +377,6 @@ function getVideoCropFromGuide(video, guideBox, paddingRatio = 0.08) {
         throw new Error("El video aún no tiene dimensiones válidas.");
     }
 
-    /*
-     * El video usa object-fit: cover.
-     * Por eso necesitamos convertir coordenadas visibles del DOM
-     * a coordenadas reales del frame de cámara.
-     */
     const scale = Math.max(
         videoRect.width / videoWidth,
         videoRect.height / videoHeight
@@ -588,9 +396,6 @@ function getVideoCropFromGuide(video, guideBox, paddingRatio = 0.08) {
     let sw = guideRect.width / scale;
     let sh = guideRect.height / scale;
 
-    /*
-     * Le damos un pequeño margen al recorte para no cortar bordes de la INE.
-     */
     const padX = sw * paddingRatio;
     const padY = sh * paddingRatio;
 
@@ -764,7 +569,7 @@ function acceptCapturedINE(imageData, side, meta = {}) {
     State.captures[side] = imageData;
     State.extractionResult = null;
 
-    console.group("[Captura INE] Captura aceptada por validación visual JS");
+    console.group("[Captura INE] Captura aceptada");
     console.log("Side:", side);
     console.log("Image length:", imageData?.length || 0);
     console.log("Meta:", meta);
@@ -813,36 +618,11 @@ function updateCapturedUI() {
 }
 
 function retryCapture() {
-    State.scanProgress = 0;
-    State.lastValidTime = null;
-    State.autoCaptured = false;
     State.captures[State.step] = null;
     State.extractionResult = null;
-    PreviousFrameSignature = null;
 
-    const capture = $(SEL.capture);
-    const retry = $(SEL.retry);
-    const next = $(SEL.continue);
-    const bar = $(SEL.progressBar);
-    const text = $(SEL.statusText);
-
-    if (capture) {
-        capture.hidden = false;
-        capture.disabled = false;
-        capture.textContent = "Capturar";
-    }
-
-    if (retry) retry.hidden = true;
-    if (next) next.hidden = true;
-    if (bar) bar.style.width = "0%";
-
-    if (text) {
-        text.textContent =
-            State.step === "front"
-                ? "Cuando la INE esté bien alineada, presiona Capturar"
-                : "Cuando el reverso esté bien alineado, presiona Capturar";
-    }
-
+    resetActionButtons();
+    setStep(State.step);
     setStageState("ready");
 }
 
@@ -871,20 +651,13 @@ function showSummary() {
     stopCamera();
 
     log("Capturas listas:", {
-        captures: {
-            front: State.captures.front ? `${State.captures.front.length} chars` : null,
-            back: State.captures.back ? `${State.captures.back.length} chars` : null,
-        },
-        extractionResult: State.extractionResult,
+        front: State.captures.front ? `${State.captures.front.length} chars` : null,
+        back: State.captures.back ? `${State.captures.back.length} chars` : null,
     });
 }
 
 function showError(message) {
     setStageState("error");
-
-    State.scanProgress = 0;
-    State.lastValidTime = null;
-    State.autoCaptured = false;
 
     const capture = $(SEL.capture);
     const text = $(SEL.statusText);
@@ -904,6 +677,10 @@ function showError(message) {
     if (retry) retry.hidden = false;
     if (next) next.hidden = true;
 }
+
+/* -------------------------------------------------------------------------- */
+/* IMAGEN COMPUESTA PARA EXTRACCIÓN                                            */
+/* -------------------------------------------------------------------------- */
 
 function loadImageFromDataUrl(dataUrl) {
     return new Promise((resolve, reject) => {
@@ -1003,6 +780,10 @@ async function buildCompositeIneImageDataUrl() {
     return canvas.toDataURL("image/jpeg", CONFIG.EXTRACTION.compositeQuality);
 }
 
+/* -------------------------------------------------------------------------- */
+/* OCR LOCAL PARA WATSONX                                                      */
+/* -------------------------------------------------------------------------- */
+
 function ensureTesseractReady() {
     if (!window.Tesseract?.recognize) {
         throw new Error("Tesseract.js no está cargado. Revisa el script CDN antes de captura.js.");
@@ -1090,6 +871,10 @@ ${backResult.text}
 
     return rawText.substring(0, CONFIG.OCR.maxTextLengthWatsonx);
 }
+
+/* -------------------------------------------------------------------------- */
+/* EXTRACCIÓN OPENAI / WATSONX                                                 */
+/* -------------------------------------------------------------------------- */
 
 async function extractIdentificationData({
     provider = CONFIG.EXTRACTION.provider,
@@ -1297,6 +1082,10 @@ async function processOCR(provider = "openai") {
     }
 }
 
+/* -------------------------------------------------------------------------- */
+/* DEBUG IMAGEN PC                                                             */
+/* -------------------------------------------------------------------------- */
+
 async function debugValidateImageFromPC(file) {
     if (!(file instanceof File)) {
         toast("Archivo inválido para debug.", "error", 7000);
@@ -1398,112 +1187,9 @@ function bindDebugImageFromPC() {
     });
 }
 
-function getTodayLongEs() {
-    return new Intl.DateTimeFormat("es-MX", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-    }).format(new Date());
-}
-
-function normalizeFieldName(value) {
-    return String(value || "")
-        .trim()
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "");
-}
-
-function normalizeValue(value, fallback = "") {
-    if (value === null || value === undefined) return fallback;
-
-    const text = String(value).trim();
-
-    if (
-        !text ||
-        text === "--------" ||
-        text === "--" ||
-        text.toLowerCase() === "null" ||
-        text.toLowerCase() === "undefined" ||
-        text.toLowerCase() === "no disponible" ||
-        text.toLowerCase() === "n/a"
-    ) {
-        return fallback;
-    }
-
-    return text;
-}
-
-function cleanUpper(value) {
-    return normalizeValue(value)
-        .replace(/\s+/g, " ")
-        .trim()
-        .toUpperCase();
-}
-
-function onlyDigits(value) {
-    return normalizeValue(value).replace(/\D+/g, "");
-}
-
-function normalizeYear(value) {
-    const text = normalizeValue(value);
-    const match = text.match(/\b(19|20)\d{2}\b/);
-
-    return match ? match[0] : "";
-}
-
-function normalizeSex(value) {
-    const text = cleanUpper(value);
-
-    if (["H", "HOMBRE", "MASCULINO", "M"].includes(text)) {
-        if (text === "MASCULINO") return "H";
-        if (text === "HOMBRE") return "H";
-    }
-
-    if (["MUJER", "FEMENINO"].includes(text)) return "M";
-    if (text === "M") return "M";
-    if (text === "X") return "X";
-
-    return "";
-}
-
-function normalizeDateToInput(value) {
-    const text = normalizeValue(value);
-
-    if (!text) return "";
-
-    // Ya viene en formato correcto.
-    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-        return text;
-    }
-
-    // Formatos comunes: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
-    const dmy = text.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\b/);
-
-    if (dmy) {
-        const dd = dmy[1].padStart(2, "0");
-        const mm = dmy[2].padStart(2, "0");
-        const yyyy = dmy[3];
-
-        return `${yyyy}-${mm}-${dd}`;
-    }
-
-    // Formato compacto posible desde MRZ: YYMMDD.
-    const compact = text.match(/\b(\d{2})(\d{2})(\d{2})\b/);
-
-    if (compact) {
-        const yy = Number(compact[1]);
-        const mm = compact[2];
-        const dd = compact[3];
-        const yyyy = yy > 30 ? `19${compact[1]}` : `20${compact[1]}`;
-
-        return `${yyyy}-${mm}-${dd}`;
-    }
-
-    return "";
-}
+/* -------------------------------------------------------------------------- */
+/* MAPEO DE EXTRACCIÓN A PERSONA                                               */
+/* -------------------------------------------------------------------------- */
 
 function getFieldsFromExtraction(extraction) {
     const result =
@@ -1513,37 +1199,15 @@ function getFieldsFromExtraction(extraction) {
         extraction?.raw ||
         {};
 
-    if (Array.isArray(result.fields)) {
-        return result.fields;
-    }
+    if (Array.isArray(result.fields)) return result.fields;
+    if (Array.isArray(result?.result?.fields)) return result.result.fields;
+    if (Array.isArray(result?.data?.fields)) return result.data.fields;
 
-    if (Array.isArray(result?.result?.fields)) {
-        return result.result.fields;
-    }
-
-    if (Array.isArray(result?.data?.fields)) {
-        return result.data.fields;
-    }
-
-    if (result.persona && typeof result.persona === "object") {
-        return objectToFields(result.persona);
-    }
-
-    if (result.data?.persona && typeof result.data.persona === "object") {
-        return objectToFields(result.data.persona);
-    }
-
-    if (result.extracted_data && typeof result.extracted_data === "object") {
-        return objectToFields(result.extracted_data);
-    }
-
-    if (result.data && typeof result.data === "object" && !Array.isArray(result.data)) {
-        return objectToFields(result.data);
-    }
-
-    if (typeof result === "object" && !Array.isArray(result)) {
-        return objectToFields(result);
-    }
+    if (result.persona && typeof result.persona === "object") return objectToFields(result.persona);
+    if (result.data?.persona && typeof result.data.persona === "object") return objectToFields(result.data.persona);
+    if (result.extracted_data && typeof result.extracted_data === "object") return objectToFields(result.extracted_data);
+    if (result.data && typeof result.data === "object" && !Array.isArray(result.data)) return objectToFields(result.data);
+    if (typeof result === "object" && !Array.isArray(result)) return objectToFields(result);
 
     return [];
 }
@@ -1567,40 +1231,6 @@ function findExtractedValue(fields, aliases, fallback = "") {
     });
 
     return normalizeValue(field?.value, fallback);
-}
-
-function setFieldValue(selector, value, fallback = "") {
-    const el = $(selector);
-    if (!el) return;
-
-    const cleanValue = normalizeValue(value, fallback);
-
-    if (el.type === "checkbox") {
-        el.checked = cleanValue === "1" || cleanValue === "true" || cleanValue === true;
-        return;
-    }
-
-    if ("value" in el) {
-        el.value = cleanValue;
-        return;
-    }
-
-    el.textContent = cleanValue;
-}
-
-function getFieldValue(selector) {
-    const el = $(selector);
-    if (!el) return "";
-
-    if (el.type === "checkbox") {
-        return el.checked ? "1" : "0";
-    }
-
-    if ("value" in el) {
-        return normalizeValue(el.value);
-    }
-
-    return normalizeValue(el.textContent);
 }
 
 function splitFullName(fullName) {
@@ -1680,6 +1310,7 @@ function parseVigencia(value) {
 
 function parseDomicilioParts(domicilio) {
     const text = cleanUpper(domicilio);
+
     const result = {
         calle: "",
         numero_exterior: "",
@@ -1848,27 +1479,6 @@ function buildPersonaFromFields(fields) {
             "sección_electoral",
         ])),
 
-        estado_num: onlyDigits(findExtractedValue(fields, [
-            "estado_num",
-            "estado_numero",
-            "estado_numerico",
-            "numero_estado",
-        ])),
-
-        municipio_num: onlyDigits(findExtractedValue(fields, [
-            "municipio_num",
-            "municipio_numero",
-            "municipio_numerico",
-            "numero_municipio",
-        ])),
-
-        localidad_num: onlyDigits(findExtractedValue(fields, [
-            "localidad_num",
-            "localidad_numero",
-            "localidad_numerico",
-            "numero_localidad",
-        ])),
-
         anio_registro: normalizeYear(findExtractedValue(fields, [
             "anio_registro",
             "año_registro",
@@ -2010,6 +1620,14 @@ function buildPersonaFromFields(fields) {
     return persona;
 }
 
+function buildVigenciaFromPersona(persona) {
+    if (persona.vigencia_inicio && persona.vigencia_fin) {
+        return `${persona.vigencia_inicio} - ${persona.vigencia_fin}`;
+    }
+
+    return persona.vigencia_fin || "";
+}
+
 function fillPersonaForm(persona) {
     setFieldValue("#ine-modal-nombres", persona.nombres);
     setFieldValue("#ine-modal-apellido-paterno", persona.apellido_paterno);
@@ -2022,10 +1640,6 @@ function fillPersonaForm(persona) {
     setFieldValue("#ine-modal-curp", persona.curp);
     setFieldValue("#ine-modal-clave", persona.clave_elector);
     setFieldValue("#ine-modal-seccion", persona.seccion);
-
-    setFieldValue("#ine-modal-estado-num", persona.estado_num);
-    setFieldValue("#ine-modal-municipio-num", persona.municipio_num);
-    setFieldValue("#ine-modal-localidad-num", persona.localidad_num);
 
     setFieldValue("#ine-modal-anio-registro", persona.anio_registro);
     setFieldValue("#ine-modal-emision", persona.emision);
@@ -2051,15 +1665,12 @@ function fillPersonaForm(persona) {
     setFieldValue("#ine-modal-whatsapp", persona.whatsapp);
     setFieldValue("#ine-modal-email", persona.email);
 
+    setFieldValue("#ine-modal-acepta-terminos", "0");
+    setFieldValue("#ine-modal-acepta-tratamiento", "0");
+    setFieldValue("#ine-modal-acepta-sensibles", "0");
+    setFieldValue("#ine-modal-acepta-whatsapp", "0");
+
     setFieldValue("#ine-modal-observaciones", "");
-}
-
-function buildVigenciaFromPersona(persona) {
-    if (persona.vigencia_inicio && persona.vigencia_fin) {
-        return `${persona.vigencia_inicio} - ${persona.vigencia_fin}`;
-    }
-
-    return persona.vigencia_fin || "";
 }
 
 function renderIneDataModal(extraction, provider) {
@@ -2099,7 +1710,23 @@ function renderIneDataModal(extraction, provider) {
     console.groupEnd();
 }
 
+/* -------------------------------------------------------------------------- */
+/* PAYLOAD Y VALIDACIÓN                                                        */
+/* -------------------------------------------------------------------------- */
+
+function syncConsentFields() {
+    const aceptaTerminos = getFieldValue("#ine-modal-acepta-terminos") === "1" ? "1" : "0";
+
+    setFieldValue("#ine-modal-acepta-tratamiento", aceptaTerminos);
+    setFieldValue("#ine-modal-acepta-sensibles", aceptaTerminos);
+    setFieldValue("#ine-modal-acepta-whatsapp", "0");
+
+    return aceptaTerminos;
+}
+
 function getPersonaFormPayload() {
+    const aceptaTerminos = syncConsentFields();
+
     const payload = {
         nombres: cleanUpper(getFieldValue("#ine-modal-nombres")),
         apellido_paterno: cleanUpper(getFieldValue("#ine-modal-apellido-paterno")),
@@ -2111,9 +1738,6 @@ function getPersonaFormPayload() {
         clave_elector: cleanUpper(getFieldValue("#ine-modal-clave")).replace(/[^A-Z0-9]/g, ""),
 
         seccion: onlyDigits(getFieldValue("#ine-modal-seccion")),
-        estado_num: onlyDigits(getFieldValue("#ine-modal-estado-num")),
-        municipio_num: onlyDigits(getFieldValue("#ine-modal-municipio-num")),
-        localidad_num: onlyDigits(getFieldValue("#ine-modal-localidad-num")),
 
         anio_registro: normalizeYear(getFieldValue("#ine-modal-anio-registro")),
         emision: normalizeYear(getFieldValue("#ine-modal-emision")),
@@ -2138,10 +1762,11 @@ function getPersonaFormPayload() {
         whatsapp: getFieldValue("#ine-modal-whatsapp"),
         email: getFieldValue("#ine-modal-email").toLowerCase(),
 
-        acepta_tratamiento_datos: getFieldValue("#ine-modal-acepta-tratamiento"),
-        acepta_datos_sensibles: getFieldValue("#ine-modal-acepta-sensibles"),
-        acepta_contacto_whatsapp: getFieldValue("#ine-modal-acepta-whatsapp"),
-        aviso_privacidad_version: getFieldValue("#ine-modal-aviso-version"),
+        acepta_terminos: aceptaTerminos,
+        acepta_tratamiento_datos: aceptaTerminos,
+        acepta_datos_sensibles: aceptaTerminos,
+        acepta_contacto_whatsapp: "0",
+        aviso_privacidad_version: getFieldValue("#ine-modal-aviso-version") || "v1",
 
         observaciones: getFieldValue("#ine-modal-observaciones"),
 
@@ -2204,12 +1829,8 @@ function validatePersonaPayload(payload) {
         errors.push("El correo no tiene un formato válido.");
     }
 
-    if (payload.acepta_tratamiento_datos !== "1") {
-        errors.push("Debe aceptar el tratamiento de datos personales.");
-    }
-
-    if (payload.acepta_datos_sensibles !== "1") {
-        errors.push("Debe aceptar el tratamiento de datos sensibles.");
+    if (payload.acepta_terminos !== "1") {
+        errors.push("Debe aceptar el aviso de privacidad y el tratamiento de datos.");
     }
 
     return errors;
@@ -2233,6 +1854,10 @@ async function submitPersonaForm(event) {
 
     toast("Datos listos para guardar persona. Revisa el payload en consola.", "exito", 7000);
 }
+
+/* -------------------------------------------------------------------------- */
+/* MODAL                                                                       */
+/* -------------------------------------------------------------------------- */
 
 function openIneDataModal() {
     const modal = $(SEL.modal);
@@ -2282,6 +1907,10 @@ function bindIneDataModal() {
         }
     });
 }
+
+/* -------------------------------------------------------------------------- */
+/* CIERRE / EVENTOS / INIT                                                     */
+/* -------------------------------------------------------------------------- */
 
 function closeScanner() {
     stopCamera();
