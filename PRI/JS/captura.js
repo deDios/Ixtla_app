@@ -96,6 +96,7 @@ const SEL = {
     stepTitle: "#scanner-step-title",
     stepHelp: "#scanner-step-help",
 
+    capture: "#scanner-btn-capture",
     retry: "#scanner-btn-retry",
     continue: "#scanner-btn-continue",
     processWatsonx: "#scanner-btn-process-watsonx",
@@ -169,15 +170,18 @@ function setStep(step) {
 
     const title = $(SEL.stepTitle);
     const help = $(SEL.stepHelp);
+    const status = $(SEL.statusText);
 
     if (step === "front") {
-        if (title) title.textContent = "Escanea la parte de enfrente de la INE";
-        if (help) help.innerHTML = "Hasta que el recuadro esté en <strong>verde</strong>";
+        if (title) title.textContent = "Coloca el frente de la INE dentro del recuadro";
+        if (help) help.innerHTML = "Acomoda la credencial y presiona <strong>Capturar</strong>";
+        if (status) status.textContent = "Cuando la INE esté bien alineada, presiona Capturar";
     }
 
     if (step === "back") {
-        if (title) title.textContent = "Escanea la parte trasera de la INE";
-        if (help) help.innerHTML = "Mantén visible el reverso completo";
+        if (title) title.textContent = "Coloca el reverso de la INE dentro del recuadro";
+        if (help) help.innerHTML = "Acomoda el reverso completo y presiona <strong>Capturar</strong>";
+        if (status) status.textContent = "Cuando el reverso esté bien alineado, presiona Capturar";
     }
 }
 
@@ -209,10 +213,10 @@ async function startCamera() {
 
         await video.play();
 
-        setStageState("detecting");
-        startScannerLoop();
+        setStageState("ready");
+        setStep(State.step);
 
-        log("Cámara iniciada correctamente.");
+        log("Cámara iniciada correctamente en modo captura manual.");
     } catch (error) {
         warn("No se pudo iniciar la cámara:", error);
         showError("No se pudo abrir la cámara. Revisa los permisos del navegador.");
@@ -662,6 +666,45 @@ function captureGuideCropToCanvas() {
     return canvas;
 }
 
+async function manualCapturePhoto() {
+    if (State.state === "captured" || State.state === "processing") {
+        return;
+    }
+
+    const captureBtn = $(SEL.capture);
+    const status = $(SEL.statusText);
+
+    try {
+        if (captureBtn) {
+            captureBtn.disabled = true;
+            captureBtn.textContent = "Capturando...";
+        }
+
+        if (status) {
+            status.textContent = "Preparando recorte...";
+        }
+
+        setStageState("processing");
+
+        await capturePhoto();
+    } catch (error) {
+        console.error("[Captura INE] Error en captura manual:", error);
+
+        toast(
+            error?.message || "No se pudo capturar la imagen.",
+            "error",
+            7000
+        );
+
+        showError("No se pudo capturar la imagen. Intenta de nuevo.");
+    } finally {
+        if (captureBtn && State.state !== "captured") {
+            captureBtn.disabled = false;
+            captureBtn.textContent = "Capturar";
+        }
+    }
+}
+
 async function capturePhoto() {
     if (!window.PRIMedia?.compressCanvasToDataUrl) {
         showError("No se encontró el módulo de compresión de imagen.");
@@ -740,12 +783,19 @@ function acceptCapturedINE(imageData, side, meta = {}) {
 }
 
 function updateCapturedUI() {
+    const capture = $(SEL.capture);
     const retry = $(SEL.retry);
     const next = $(SEL.continue);
     const text = $(SEL.statusText);
     const bar = $(SEL.progressBar);
 
     if (bar) bar.style.width = "100%";
+
+    if (capture) {
+        capture.hidden = true;
+        capture.disabled = false;
+        capture.textContent = "Capturar";
+    }
 
     if (text) {
         text.innerHTML =
@@ -770,17 +820,30 @@ function retryCapture() {
     State.extractionResult = null;
     PreviousFrameSignature = null;
 
+    const capture = $(SEL.capture);
     const retry = $(SEL.retry);
     const next = $(SEL.continue);
     const bar = $(SEL.progressBar);
     const text = $(SEL.statusText);
 
+    if (capture) {
+        capture.hidden = false;
+        capture.disabled = false;
+        capture.textContent = "Capturar";
+    }
+
     if (retry) retry.hidden = true;
     if (next) next.hidden = true;
     if (bar) bar.style.width = "0%";
-    if (text) text.textContent = "Coloca la INE dentro del recuadro";
 
-    setStageState("detecting");
+    if (text) {
+        text.textContent =
+            State.step === "front"
+                ? "Cuando la INE esté bien alineada, presiona Capturar"
+                : "Cuando el reverso esté bien alineado, presiona Capturar";
+    }
+
+    setStageState("ready");
 }
 
 function continueFlow() {
@@ -823,6 +886,7 @@ function showError(message) {
     State.lastValidTime = null;
     State.autoCaptured = false;
 
+    const capture = $(SEL.capture);
     const text = $(SEL.statusText);
     const retry = $(SEL.retry);
     const next = $(SEL.continue);
@@ -830,6 +894,13 @@ function showError(message) {
 
     if (bar) bar.style.width = "0%";
     if (text) text.textContent = message;
+
+    if (capture) {
+        capture.hidden = false;
+        capture.disabled = false;
+        capture.textContent = "Capturar";
+    }
+
     if (retry) retry.hidden = false;
     if (next) next.hidden = true;
 }
@@ -2225,6 +2296,7 @@ function closeScanner() {
 
 function bindEvents() {
     $(SEL.close)?.addEventListener("click", closeScanner);
+    $(SEL.capture)?.addEventListener("click", manualCapturePhoto);
     $(SEL.retry)?.addEventListener("click", retryCapture);
     $(SEL.continue)?.addEventListener("click", continueFlow);
 
@@ -2233,14 +2305,6 @@ function bindEvents() {
 
     bindDebugImageFromPC();
     bindIneDataModal();
-
-    window.addEventListener("beforeunload", stopCamera);
-
-    document.addEventListener("visibilitychange", () => {
-        if (document.hidden) {
-            log("Documento oculto, cámara sigue activa hasta cerrar o salir.");
-        }
-    });
 }
 
 function init() {

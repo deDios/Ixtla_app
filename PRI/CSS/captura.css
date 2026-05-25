@@ -1230,6 +1230,61 @@
     }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Scanner INE - modo captura manual                                           */
+/* -------------------------------------------------------------------------- */
+
+.scanner-stage[data-state="ready"] .scanner-guide-box {
+    border-color: rgba(255, 255, 255, 0.95);
+    box-shadow:
+        0 0 0 999px rgba(0, 0, 0, 0.08),
+        0 0 18px rgba(255, 255, 255, 0.18);
+}
+
+.scanner-stage[data-state="processing"] .scanner-guide-box {
+    border-color: var(--scan-green);
+    box-shadow:
+        0 0 0 999px rgba(0, 0, 0, 0.08),
+        0 0 18px rgba(156, 255, 0, 0.45);
+}
+
+.scanner-stage[data-state="ready"] .scanner-progress,
+.scanner-stage[data-state="processing"] .scanner-progress {
+    display: none;
+}
+
+.scanner-btn-capture {
+    min-width: 160px;
+    background: var(--scan-primary);
+}
+
+.scanner-btn-capture:hover {
+    background: var(--scan-primary-dark);
+}
+
+.scanner-btn-capture:disabled {
+    opacity: 0.72;
+    cursor: wait;
+}
+
+@media (max-width: 720px) {
+    .scanner-actions {
+        width: min(360px, 100%);
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .scanner-btn-capture,
+    .scanner-btn-retry,
+    .scanner-btn-continue {
+        width: 100%;
+    }
+
+    .scanner-status-text {
+        max-width: 92%;
+    }
+}
+
 
 
 

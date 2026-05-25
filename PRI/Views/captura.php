@@ -117,11 +117,11 @@ ix_require_session([
 
                 <div class="scanner-copy">
                     <h2 id="scanner-step-title">
-                        Escanea la parte de enfrente de la INE
+                        Coloca el frente de la INE dentro del recuadro
                     </h2>
 
                     <p id="scanner-step-help">
-                        Hasta que el recuadro esté en <strong>verde</strong>
+                        Acomoda la credencial y presiona <strong>Capturar</strong>
                     </p>
                 </div>
 
@@ -135,6 +135,10 @@ ix_require_session([
                     </p>
 
                     <div class="scanner-actions">
+                        <button type="button" id="scanner-btn-capture" class="scanner-btn scanner-btn-capture">
+                            Capturar
+                        </button>
+
                         <button type="button" id="scanner-btn-retry" class="scanner-btn scanner-btn-retry" hidden>
                             Reintentar
                         </button>
