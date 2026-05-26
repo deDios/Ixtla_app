@@ -337,13 +337,33 @@ async function startCamera() {
         State.stream = stream;
         video.srcObject = stream;
 
-        await video.play();
+        await new Promise((resolve) => {
+            if (video.readyState >= 2) {
+                resolve();
+                return;
+            }
 
-        sprepareCaptureStep("front");
+            video.onloadedmetadata = () => resolve();
+        });
+
+        try {
+            await video.play();
+        } catch (playError) {
+            warn("video.play() falló, pero el stream ya fue asignado:", playError);
+        }
+
+        prepareCaptureStep("front");
 
         log("Cámara iniciada correctamente en modo captura manual.");
     } catch (error) {
         warn("No se pudo iniciar la cámara:", error);
+
+        State.stream = null;
+
+        if (video) {
+            video.srcObject = null;
+        }
+
         showError("No se pudo abrir la cámara. Revisa los permisos del navegador.");
     }
 }
@@ -1998,7 +2018,7 @@ function init() {
     bindEvents();
     State.step = "front";
     State.state = "idle";
-    startCamera(); s
+    startCamera();
 }
 
 document.addEventListener("DOMContentLoaded", init);
