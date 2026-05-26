@@ -339,9 +339,7 @@ async function startCamera() {
 
         await video.play();
 
-        setStageState("ready");
-        setStep(State.step);
-        resetActionButtons();
+        sprepareCaptureStep("front");
 
         log("Cámara iniciada correctamente en modo captura manual.");
     } catch (error) {
@@ -613,27 +611,87 @@ function updateCapturedUI() {
     if (next) next.hidden = false;
 
     if (next) {
-        next.textContent = State.step === "front" ? "Capturar reverso" : "Ver resumen";
+        next.textContent = State.step === "front" ? "Continuar al reverso" : "Ver resumen";
     }
+}
+
+function prepareCaptureStep(step) {
+    State.step = step;
+    State.state = "ready";
+
+    const stage = $(SEL.stage);
+    const capture = $(SEL.capture);
+    const retry = $(SEL.retry);
+    const next = $(SEL.continue);
+    const bar = $(SEL.progressBar);
+
+    if (stage) {
+        stage.dataset.step = step;
+        stage.dataset.state = "ready";
+        stage.classList.remove("is-error", "is-processing");
+    }
+
+    if (bar) {
+        bar.style.width = "0%";
+    }
+
+    if (capture) {
+        capture.hidden = false;
+        capture.disabled = false;
+        capture.textContent = "Capturar";
+    }
+
+    if (retry) {
+        retry.hidden = true;
+    }
+
+    if (next) {
+        next.hidden = true;
+    }
+
+    setStep(step);
+
+    console.log("[Captura INE] Preparando paso:", {
+        step: State.step,
+        hasFront: Boolean(State.captures.front),
+        hasBack: Boolean(State.captures.back),
+    });
 }
 
 function retryCapture() {
     State.captures[State.step] = null;
     State.extractionResult = null;
 
-    resetActionButtons();
-    setStep(State.step);
-    setStageState("ready");
+    prepareCaptureStep(State.step);
 }
 
 function continueFlow() {
+    console.log("[Captura INE] continueFlow antes:", {
+        step: State.step,
+        hasFront: Boolean(State.captures.front),
+        hasBack: Boolean(State.captures.back),
+    });
+
     if (State.step === "front") {
-        setStep("back");
-        retryCapture();
+        if (!State.captures.front) {
+            toast("Primero captura el frente de la INE.", "error", 5000);
+            prepareCaptureStep("front");
+            return;
+        }
+
+        prepareCaptureStep("back");
         return;
     }
 
-    showSummary();
+    if (State.step === "back") {
+        if (!State.captures.back) {
+            toast("Primero captura el reverso de la INE.", "error", 5000);
+            prepareCaptureStep("back");
+            return;
+        }
+
+        showSummary();
+    }
 }
 
 function showSummary() {
@@ -1938,9 +1996,9 @@ function bindEvents() {
 
 function init() {
     bindEvents();
-    setStep("front");
-    setStageState("idle");
-    startCamera();
+    State.step = "front";
+    State.state = "idle";
+    startCamera(); s
 }
 
 document.addEventListener("DOMContentLoaded", init);
