@@ -1,78 +1,186 @@
 <?php
-// db\WEB\ixtla_c_bitacora_registro.php
+// db/WEB/ixtla_c_bitacora_registro.php
+
+declare(strict_types=1);
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+date_default_timezone_set('America/Mexico_City');
+
+/* ============================================================
+   CORS / SEGURIDAD
+   ============================================================ */
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
+
+$allowed_origins = [
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com'
+];
+
+if (in_array($origin, $allowed_origins, true)) {
   header("Access-Control-Allow-Origin: $origin");
   header("Vary: Origin");
 }
 
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: no-referrer");
+header("Content-Type: application/json; charset=utf-8");
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
   exit;
 }
 
-header('Content-Type: application/json; charset=utf-8');
-date_default_timezone_set('America/Mexico_City');
+/* ============================================================
+   HELPERS
+   ============================================================ */
 
-$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
-if ($path && file_exists($path)) {
-  include $path;
-} else {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se encontró conn_db.php en $path"], JSON_UNESCAPED_UNICODE));
+function json_response(array $data, int $status = 200): void
+{
+  http_response_code($status);
+  echo json_encode($data, JSON_UNESCAPED_UNICODE);
+  exit;
 }
 
-$in = json_decode(file_get_contents("php://input"), true) ?? [];
+function internal_error(string $message): void
+{
+  error_log('[IXTLA_C_BITACORA_REGISTRO] ' . $message);
 
-$bitacora_id  = isset($in['bitacora_id']) ? (int)$in['bitacora_id'] : (isset($in['id']) ? (int)$in['id'] : null);
-$tabla_nombre = isset($in['tabla_nombre']) ? trim((string)$in['tabla_nombre']) : '';
-$registro_id  = isset($in['registro_id']) ? (int)$in['registro_id'] : null;
-$accion       = isset($in['accion']) ? trim((string)$in['accion']) : '';
-$realizado_por = isset($in['realizado_por']) ? (int)$in['realizado_por'] : null;
-
-$fecha_inicio = isset($in['fecha_inicio']) ? trim((string)$in['fecha_inicio']) : '';
-$fecha_fin    = isset($in['fecha_fin']) ? trim((string)$in['fecha_fin']) : '';
-
-$q = isset($in['q']) ? trim((string)$in['q']) : '';
-
-$page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
-$pageSize = isset($in['page_size']) ? max(1, min(500, (int)$in['page_size'])) : 50;
-$offset = ($page - 1) * $pageSize;
-
-$con = conectar();
-if (!$con) {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se pudo conectar a la base de datos"], JSON_UNESCAPED_UNICODE));
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
 }
 
-$con->set_charset('utf8mb4');
+function read_json_body(): array
+{
+  $raw = file_get_contents("php://input");
 
-function bind_dynamic(mysqli_stmt $st, string $types, array &$params): void {
+  if (!$raw || trim($raw) === '') {
+    return [];
+  }
+
+  $in = json_decode($raw, true);
+
+  if (!is_array($in)) {
+    json_response([
+      "ok" => false,
+      "error" => "JSON inválido"
+    ], 400);
+  }
+
+  return $in;
+}
+
+function db(): mysqli
+{
+  $path = realpath("/home/site/wwwroot/db/conn/conn_db_2.php");
+
+  if (!$path || !file_exists($path)) {
+    internal_error("No se encontró conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php");
+  }
+
+  include_once $path;
+
+  if (!function_exists('conectar')) {
+    internal_error("No existe la función conectar() en conn_db_2.php");
+  }
+
+  $con = conectar();
+
+  if (!$con instanceof mysqli) {
+    internal_error("conectar() no regresó una conexión mysqli válida");
+  }
+
+  $con->set_charset('utf8mb4');
+  $con->query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+
+  return $con;
+}
+
+function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void
+{
+  if ($types === '' || empty($params)) {
+    return;
+  }
+
   $refs = [];
   $refs[] = $types;
 
-  foreach ($params as $k => &$v) {
-    $refs[] = &$v;
+  foreach ($params as $key => &$value) {
+    $refs[] = &$value;
   }
 
-  call_user_func_array([$st, 'bind_param'], $refs);
+  call_user_func_array([$stmt, 'bind_param'], $refs);
 }
 
-function decode_json_field($value) {
+function str_clean(array $in, string $key): string
+{
+  return isset($in[$key]) ? trim((string)$in[$key]) : '';
+}
+
+function int_or_null(array $in, string $key): ?int
+{
+  if (!isset($in[$key]) || $in[$key] === '') {
+    return null;
+  }
+
+  $value = (int)$in[$key];
+
+  return $value > 0 ? $value : null;
+}
+
+function nullable_int_from_row(array $row, string $key): ?int
+{
+  return isset($row[$key]) && $row[$key] !== null ? (int)$row[$key] : null;
+}
+
+function decode_json_field(mixed $value): mixed
+{
   if ($value === null || $value === '') {
     return null;
   }
 
+  if (!is_string($value)) {
+    return $value;
+  }
+
   $decoded = json_decode($value, true);
+
   return json_last_error() === JSON_ERROR_NONE ? $decoded : $value;
 }
 
-function bitacora_row(array $row): array {
+function normalize_date_start(string $value): string
+{
+  $value = trim($value);
+
+  if ($value === '') {
+    return '';
+  }
+
+  return strlen($value) === 10 ? $value . " 00:00:00" : $value;
+}
+
+function normalize_date_end(string $value): string
+{
+  $value = trim($value);
+
+  if ($value === '') {
+    return '';
+  }
+
+  return strlen($value) === 10 ? $value . " 23:59:59" : $value;
+}
+
+/* ============================================================
+   FORMATTER
+   ============================================================ */
+
+function bitacora_row(array $row): array
+{
   return [
     "bitacora_id" => (int)$row['bitacora_id'],
     "tabla_nombre" => $row['tabla_nombre'],
@@ -83,12 +191,18 @@ function bitacora_row(array $row): array {
     "valores_anteriores" => decode_json_field($row['valores_anteriores']),
     "valores_nuevos" => decode_json_field($row['valores_nuevos']),
 
-    "realizado_por" => isset($row['realizado_por']) ? (int)$row['realizado_por'] : null,
+    "realizado_por" => nullable_int_from_row($row, 'realizado_por'),
     "realizado_por_usuario" => [
-      "username" => $row['realizado_por_username'] ?? null,
-      "nombre" => $row['realizado_por_nombre'] ?? null,
-      "apellido_paterno" => $row['realizado_por_apellido_paterno'] ?? null,
-      "apellido_materno" => $row['realizado_por_apellido_materno'] ?? null
+      "usuario_id" => nullable_int_from_row($row, 'realizado_por'),
+      "username" => $row['realizado_por_username'],
+      "nombre" => $row['realizado_por_nombre'],
+      "apellido_paterno" => $row['realizado_por_apellido_paterno'],
+      "apellido_materno" => $row['realizado_por_apellido_materno'],
+      "nombre_completo" => trim(
+        (string)$row['realizado_por_nombre'] . ' ' .
+          (string)$row['realizado_por_apellido_paterno'] . ' ' .
+          (string)$row['realizado_por_apellido_materno']
+      )
     ],
 
     "realizado_at" => $row['realizado_at'],
@@ -97,153 +211,292 @@ function bitacora_row(array $row): array {
   ];
 }
 
-$baseSelect = "
-  SELECT
-    b.*,
-    u.username AS realizado_por_username,
-    u.nombre AS realizado_por_nombre,
-    u.apellido_paterno AS realizado_por_apellido_paterno,
-    u.apellido_materno AS realizado_por_apellido_materno
-  FROM bitacora_registro b
-  LEFT JOIN usuario u
-    ON u.usuario_id = b.realizado_por
-";
+/* ============================================================
+   SQL BASE
+   ============================================================ */
 
-if ($bitacora_id && $bitacora_id > 0) {
-  $sql = $baseSelect . "
-    WHERE b.bitacora_id = ?
-    LIMIT 1
-  ";
+function base_select(): string
+{
+  return "
+        SELECT
+            b.*,
+
+            u.username AS realizado_por_username,
+            u.nombre AS realizado_por_nombre,
+            u.apellido_paterno AS realizado_por_apellido_paterno,
+            u.apellido_materno AS realizado_por_apellido_materno
+
+        FROM bitacora_registro b
+
+        LEFT JOIN usuario u
+            ON u.usuario_id = b.realizado_por
+           AND u.deleted_at IS NULL
+    ";
+}
+
+function base_count(): string
+{
+  return "
+        FROM bitacora_registro b
+
+        LEFT JOIN usuario u
+            ON u.usuario_id = b.realizado_por
+           AND u.deleted_at IS NULL
+    ";
+}
+
+/* ============================================================
+   CONSULTAS
+   ============================================================ */
+
+function consultar_bitacora_por_id(mysqli $con, int $bitacora_id): array
+{
+  $sql = base_select() . "
+        WHERE b.bitacora_id = ?
+        LIMIT 1
+    ";
 
   $st = $con->prepare($sql);
   $st->bind_param("i", $bitacora_id);
   $st->execute();
+
   $row = $st->get_result()->fetch_assoc();
   $st->close();
-  $con->close();
 
   if (!$row) {
-    http_response_code(404);
-    die(json_encode(["ok" => false, "error" => "Registro de bitácora no encontrado"], JSON_UNESCAPED_UNICODE));
+    json_response([
+      "ok" => false,
+      "error" => "Registro de bitácora no encontrado"
+    ], 404);
   }
 
-  echo json_encode(["ok" => true, "data" => bitacora_row($row)], JSON_UNESCAPED_UNICODE);
-  exit;
+  return bitacora_row($row);
 }
 
-$where = ["1 = 1"];
-$types = "";
-$params = [];
+function consultar_bitacora(mysqli $con, array $in): array
+{
+  $tabla_nombre = str_clean($in, 'tabla_nombre');
+  $accion = str_clean($in, 'accion');
 
-if ($tabla_nombre !== '') {
-  $where[] = "b.tabla_nombre = ?";
-  $types .= "s";
-  $params[] = $tabla_nombre;
-}
+  $registro_id = int_or_null($in, 'registro_id');
+  $realizado_por = int_or_null($in, 'realizado_por');
 
-if ($registro_id !== null && $registro_id > 0) {
-  $where[] = "b.registro_id = ?";
-  $types .= "i";
-  $params[] = $registro_id;
-}
+  $fecha_inicio = normalize_date_start(str_clean($in, 'fecha_inicio'));
+  $fecha_fin = normalize_date_end(str_clean($in, 'fecha_fin'));
 
-if ($accion !== '') {
-  $where[] = "b.accion = ?";
-  $types .= "s";
-  $params[] = $accion;
-}
+  $q = str_clean($in, 'q');
 
-if ($realizado_por !== null && $realizado_por > 0) {
-  $where[] = "b.realizado_por = ?";
-  $types .= "i";
-  $params[] = $realizado_por;
-}
+  if ($q === '') {
+    $q = str_clean($in, 'search');
+  }
 
-if ($fecha_inicio !== '') {
-  $where[] = "b.realizado_at >= ?";
-  $types .= "s";
-  $params[] = $fecha_inicio . (strlen($fecha_inicio) === 10 ? " 00:00:00" : "");
-}
+  $page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
 
-if ($fecha_fin !== '') {
-  $where[] = "b.realizado_at <= ?";
-  $types .= "s";
-  $params[] = $fecha_fin . (strlen($fecha_fin) === 10 ? " 23:59:59" : "");
-}
+  $pageSize = 50;
 
-if ($q !== '') {
-  $like = "%$q%";
-  $where[] = "(
-    b.tabla_nombre LIKE ?
-    OR b.descripcion LIKE ?
-    OR b.ip_origen LIKE ?
-    OR b.user_agent LIKE ?
-    OR u.username LIKE ?
-    OR u.nombre LIKE ?
-  )";
+  if (isset($in['page_size'])) {
+    $pageSize = (int)$in['page_size'];
+  } elseif (isset($in['limit'])) {
+    $pageSize = (int)$in['limit'];
+  }
 
-  for ($i = 0; $i < 6; $i++) {
+  $pageSize = max(1, min(500, $pageSize));
+  $offset = ($page - 1) * $pageSize;
+
+  $where = ["1 = 1"];
+  $params = [];
+  $types = "";
+
+  if ($tabla_nombre !== '') {
+    $where[] = "b.tabla_nombre = ?";
+    $params[] = $tabla_nombre;
     $types .= "s";
-    $params[] = $like;
   }
+
+  if ($registro_id !== null) {
+    $where[] = "b.registro_id = ?";
+    $params[] = $registro_id;
+    $types .= "i";
+  }
+
+  if ($accion !== '') {
+    $where[] = "b.accion = ?";
+    $params[] = $accion;
+    $types .= "s";
+  }
+
+  if ($realizado_por !== null) {
+    $where[] = "b.realizado_por = ?";
+    $params[] = $realizado_por;
+    $types .= "i";
+  }
+
+  if ($fecha_inicio !== '') {
+    $where[] = "b.realizado_at >= ?";
+    $params[] = $fecha_inicio;
+    $types .= "s";
+  }
+
+  if ($fecha_fin !== '') {
+    $where[] = "b.realizado_at <= ?";
+    $params[] = $fecha_fin;
+    $types .= "s";
+  }
+
+  if ($q !== '') {
+    $like = "%$q%";
+
+    $where[] = "(
+            b.tabla_nombre LIKE ?
+            OR b.accion LIKE ?
+            OR b.descripcion LIKE ?
+            OR b.ip_origen LIKE ?
+            OR b.user_agent LIKE ?
+            OR u.username LIKE ?
+            OR u.nombre LIKE ?
+            OR u.apellido_paterno LIKE ?
+            OR u.apellido_materno LIKE ?
+            OR CONCAT_WS(' ', u.nombre, u.apellido_paterno, u.apellido_materno) LIKE ?
+        )";
+
+    for ($i = 0; $i < 10; $i++) {
+      $params[] = $like;
+      $types .= "s";
+    }
+  }
+
+  $whereSql = implode(" AND ", $where);
+
+  $countSql = "
+        SELECT COUNT(*) AS total
+        " . base_count() . "
+        WHERE $whereSql
+    ";
+
+  $countParams = $params;
+  $countTypes = $types;
+
+  $stCount = $con->prepare($countSql);
+
+  if ($countTypes !== '') {
+    bind_dynamic($stCount, $countTypes, $countParams);
+  }
+
+  $stCount->execute();
+  $totalRow = $stCount->get_result()->fetch_assoc();
+  $stCount->close();
+
+  $total = (int)($totalRow['total'] ?? 0);
+
+  $sql = base_select() . "
+        WHERE $whereSql
+        ORDER BY
+            b.realizado_at DESC,
+            b.bitacora_id DESC
+        LIMIT ? OFFSET ?
+    ";
+
+  $listParams = $params;
+  $listTypes = $types . "ii";
+
+  $listParams[] = $pageSize;
+  $listParams[] = $offset;
+
+  $st = $con->prepare($sql);
+  bind_dynamic($st, $listTypes, $listParams);
+  $st->execute();
+
+  $rs = $st->get_result();
+
+  $data = [];
+
+  while ($row = $rs->fetch_assoc()) {
+    $data[] = bitacora_row($row);
+  }
+
+  $st->close();
+
+  return [
+    "meta" => [
+      "page" => $page,
+      "page_size" => $pageSize,
+      "total" => $total,
+      "total_pages" => $pageSize > 0 ? (int)ceil($total / $pageSize) : 0
+    ],
+    "data" => $data
+  ];
 }
 
-$sql = "
-  $baseSelect
-  WHERE " . implode(" AND ", $where) . "
-  ORDER BY b.realizado_at DESC, b.bitacora_id DESC
-  LIMIT ? OFFSET ?
-";
+/* ============================================================
+   MAIN
+   ============================================================ */
 
-$types .= "ii";
-$params[] = $pageSize;
-$params[] = $offset;
+try {
+  if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    json_response([
+      "ok" => false,
+      "error" => "Método no permitido. Usa POST."
+    ], 405);
+  }
 
-$st = $con->prepare($sql);
-bind_dynamic($st, $types, $params);
-$st->execute();
-$rs = $st->get_result();
+  $in = read_json_body();
 
-$data = [];
-while ($row = $rs->fetch_assoc()) {
-  $data[] = bitacora_row($row);
+  $bitacora_id = null;
+
+  if (isset($in['bitacora_id'])) {
+    $bitacora_id = (int)$in['bitacora_id'];
+  } elseif (isset($in['id'])) {
+    $bitacora_id = (int)$in['id'];
+  }
+
+  $con = db();
+
+  if ($bitacora_id && $bitacora_id > 0) {
+    $data = consultar_bitacora_por_id($con, $bitacora_id);
+
+    $con->close();
+
+    json_response([
+      "ok" => true,
+      "data" => $data
+    ]);
+  }
+
+  $result = consultar_bitacora($con, $in);
+
+  $con->close();
+
+  json_response([
+    "ok" => true,
+    "meta" => $result["meta"],
+    "data" => $result["data"]
+  ]);
+} catch (mysqli_sql_exception $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  error_log('[IXTLA_C_BITACORA_REGISTRO][SQL] ' . $e->getMessage());
+
+  json_response([
+    "ok" => false,
+    "error" => "Error al consultar bitácora"
+  ], 500);
+} catch (Throwable $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  error_log('[IXTLA_C_BITACORA_REGISTRO][ERROR] ' . $e->getMessage());
+
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
 }
-
-$st->close();
-
-$countSql = "
-  SELECT COUNT(*) AS total
-  FROM bitacora_registro b
-  LEFT JOIN usuario u
-    ON u.usuario_id = b.realizado_por
-  WHERE " . implode(" AND ", $where) . "
-";
-
-$countParams = $params;
-array_pop($countParams);
-array_pop($countParams);
-
-$countTypes = substr($types, 0, -2);
-
-$st = $con->prepare($countSql);
-
-if ($countTypes !== '') {
-  bind_dynamic($st, $countTypes, $countParams);
-}
-
-$st->execute();
-$totalRow = $st->get_result()->fetch_assoc();
-$total = (int)$totalRow['total'];
-$st->close();
-
-$con->close();
-
-echo json_encode([
-  "ok" => true,
-  "meta" => [
-    "page" => $page,
-    "page_size" => $pageSize,
-    "total" => $total
-  ],
-  "data" => $data
-], JSON_UNESCAPED_UNICODE);
