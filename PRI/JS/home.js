@@ -503,10 +503,12 @@ function bindEvents() {
 
   $(SEL.btnExport)?.addEventListener("click", exportDummyCSV);
 
+  /* ya no se va a usar el boton para redirigir a la view captura.
   $(SEL.btnAdd)?.addEventListener("click", () => {
     log("Ir a captura INE");
     window.location.href = "/PRI/Views/captura.php";
   });
+  */
 }
 
 function init() {

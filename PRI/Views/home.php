@@ -156,6 +156,120 @@ ix_require_session([
         </section>
     </main>
 
+    <!-- Espacio para modales -->
+
+    <section id="ine-capture-modal" class="ine-capture-modal" hidden aria-hidden="true">
+        <div class="ine-capture-overlay" data-ine-capture-close></div>
+
+        <article class="ine-capture-dialog" role="dialog" aria-modal="true" aria-labelledby="ine-capture-title">
+            <header class="ine-capture-header">
+                <div class="ine-capture-brand">
+                    <img src="/ASSETS/main_logo.png" alt="PRI">
+                </div>
+
+                <div class="ine-capture-titlebox">
+                    <p class="ine-capture-kicker">Captura de identificación</p>
+                    <h2 id="ine-capture-title">Captura de INE</h2>
+                    <p id="ine-capture-subtitle">Coloca el frente de la INE dentro del recuadro</p>
+                </div>
+
+                <button type="button" class="ine-capture-close" data-ine-capture-close aria-label="Cerrar modal">
+                    ×
+                </button>
+            </header>
+
+            <div class="ine-capture-body">
+
+                <!-- Pantalla cámara -->
+                <section class="ine-capture-screen is-active" data-ine-screen="camera">
+                    <div class="ine-camera-stage" data-step="front" data-state="idle">
+                        <video id="ine-camera-video" class="ine-camera-video" autoplay playsinline muted></video>
+                        <canvas id="ine-camera-canvas" class="ine-camera-canvas" hidden></canvas>
+
+                        <div class="ine-camera-overlay" aria-hidden="true"></div>
+
+                        <div class="ine-camera-copy">
+                            <h3 id="ine-camera-step-title">Coloca el frente de la INE dentro del recuadro</h3>
+                            <p>Acomoda la credencial y presiona <strong>Capturar</strong></p>
+                        </div>
+
+                        <div class="ine-camera-guide" aria-hidden="true">
+                            <div class="ine-camera-guide-box"></div>
+                        </div>
+
+                        <div class="ine-camera-feedback" aria-hidden="true">
+                            <div class="ine-camera-feedback-icon ine-camera-feedback-icon--ok">✓</div>
+                            <div class="ine-camera-feedback-icon ine-camera-feedback-icon--error">×</div>
+                        </div>
+
+                        <div class="ine-camera-bottom">
+                            <p id="ine-camera-status" class="ine-camera-status">
+                                Cuando la INE esté bien alineada, presiona Capturar
+                            </p>
+
+                            <div class="ine-camera-actions">
+                                <button type="button" id="ine-btn-capture" class="ine-capture-btn ine-capture-btn--primary">
+                                    Capturar
+                                </button>
+
+                                <button type="button" id="ine-btn-retry" class="ine-capture-btn ine-capture-btn--danger" hidden>
+                                    Reintentar
+                                </button>
+
+                                <button type="button" id="ine-btn-next" class="ine-capture-btn ine-capture-btn--success" hidden>
+                                    Continuar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Pantalla resumen -->
+                <section class="ine-capture-screen" data-ine-screen="summary">
+                    <div class="ine-summary-card">
+                        <h3>Capturas listas</h3>
+                        <p>Revisa que el frente y reverso de la INE se vean correctamente antes de leer los datos.</p>
+
+                        <div class="ine-summary-grid">
+                            <figure>
+                                <img id="ine-preview-front" src="" alt="Vista previa del frente de la INE">
+                                <figcaption>Frente</figcaption>
+                            </figure>
+
+                            <figure>
+                                <img id="ine-preview-back" src="" alt="Vista previa del reverso de la INE">
+                                <figcaption>Reverso</figcaption>
+                            </figure>
+                        </div>
+
+                        <div class="ine-summary-actions">
+                            <button type="button" id="ine-btn-summary-retry" class="ine-capture-btn ine-capture-btn--ghost">
+                                Repetir captura
+                            </button>
+
+                            <button type="button" id="ine-btn-read-data" class="ine-capture-btn ine-capture-btn--primary">
+                                Leer datos
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Pantalla cargando -->
+                <section class="ine-capture-screen" data-ine-screen="loading">
+                    <div class="ine-loading-card">
+                        <div class="ine-loading-icon" aria-hidden="true">
+                            <span></span>
+                        </div>
+
+                        <h3>Leyendo datos de la INE</h3>
+                        <p>Estamos procesando las imágenes. Esto puede tardar unos segundos.</p>
+                    </div>
+                </section>
+
+            </div>
+        </article>
+    </section>
+
     <footer id="site-footer">
         <div class="limite">
             <div class="footer-brand">
@@ -186,6 +300,7 @@ ix_require_session([
     <script src="/PRI/JS/JSglobal.js"></script>
     <script type="module" src="/PRI/JS/auth/session.js"></script>
     <script type="module" src="/PRI/JS/home.js"></script>
+    <script type="module" src="/PRI/JS/home.modals.js"></script>
 
 </body>
 

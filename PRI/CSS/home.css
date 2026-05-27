@@ -467,3 +467,680 @@
     font-weight: 900;
     color: #050505;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------------- CSS PARA MODALES -----------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/* -------------------------------------------------------------------------- */
+/* MODAL CAPTURA INE                                                          */
+/* -------------------------------------------------------------------------- */
+
+#ine-capture-modal {
+    --ine-cap-z: 1120;
+    --ine-cap-bg: #ffffff;
+    --ine-cap-ink: #111827;
+    --ine-cap-muted: #667085;
+    --ine-cap-line: #e5e7eb;
+    --ine-cap-primary: #2f8f6b;
+    --ine-cap-primary-dark: #247455;
+    --ine-cap-success: #4d9c75;
+    --ine-cap-danger: #f00072;
+    --ine-cap-red: #ff2647;
+    --ine-cap-green: #9cff00;
+    --ine-cap-radius: 18px;
+    --ine-cap-shadow: 0 24px 70px rgba(15, 23, 42, 0.32);
+}
+
+#ine-capture-modal,
+#ine-capture-modal * {
+    box-sizing: border-box;
+}
+
+#ine-capture-modal[hidden] {
+    display: none !important;
+}
+
+.ine-capture-modal {
+    position: fixed;
+    inset: 0;
+    z-index: var(--ine-cap-z);
+}
+
+.ine-capture-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.62);
+    backdrop-filter: blur(3px);
+}
+
+.ine-capture-dialog {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: calc(var(--ine-cap-z) + 1);
+    width: clamp(360px, 94vw, 780px);
+    max-height: calc(100dvh - 48px);
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--ine-cap-bg);
+    color: var(--ine-cap-ink);
+    border: 1px solid var(--ine-cap-line);
+    border-radius: var(--ine-cap-radius);
+    box-shadow: var(--ine-cap-shadow);
+}
+
+.ine-capture-header {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--ine-cap-line);
+    background: #fff;
+}
+
+.ine-capture-brand {
+    width: 62px;
+    height: 62px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 999px;
+}
+
+.ine-capture-brand img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.ine-capture-titlebox {
+    min-width: 0;
+}
+
+.ine-capture-kicker {
+    margin: 0 0 4px;
+    color: var(--ine-cap-primary);
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.ine-capture-titlebox h2 {
+    margin: 0;
+    font-size: clamp(1.25rem, 2.4vw, 1.65rem);
+    line-height: 1.1;
+    font-weight: 900;
+}
+
+.ine-capture-titlebox p {
+    margin: 4px 0 0;
+    color: var(--ine-cap-muted);
+    font-size: 0.95rem;
+    line-height: 1.35;
+}
+
+.ine-capture-close {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #111827;
+    font-size: 1.55rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ine-capture-close:hover {
+    background: #e5e7eb;
+}
+
+.ine-capture-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 18px;
+    background: #f6f7f9;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ine-capture-body::-webkit-scrollbar {
+    width: 9px;
+}
+
+.ine-capture-body::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.ine-capture-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+    border: 2px solid #f1f5f9;
+}
+
+/* Pantallas internas */
+
+.ine-capture-screen {
+    display: none;
+}
+
+.ine-capture-screen.is-active {
+    display: block;
+}
+
+/* Cámara */
+
+.ine-camera-stage {
+    position: relative;
+    width: min(520px, 100%);
+    min-height: 640px;
+    aspect-ratio: 9 / 13.2;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 24px;
+    background: #050505;
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+}
+
+.ine-camera-video,
+.ine-camera-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #050505;
+}
+
+.ine-camera-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg,
+            rgba(0, 0, 0, 0.70) 0%,
+            rgba(0, 0, 0, 0.52) 23%,
+            rgba(0, 0, 0, 0.20) 48%,
+            rgba(0, 0, 0, 0.54) 72%,
+            rgba(0, 0, 0, 0.78) 100%);
+}
+
+.ine-camera-copy {
+    position: absolute;
+    z-index: 5;
+    top: clamp(26px, 5vw, 44px);
+    left: 24px;
+    right: 24px;
+    text-align: center;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.88);
+    pointer-events: none;
+}
+
+.ine-camera-copy h3 {
+    margin: 0;
+    font-size: clamp(1.35rem, 4vw, 1.95rem);
+    line-height: 1.16;
+    font-weight: 950;
+}
+
+.ine-camera-copy p {
+    margin: 10px 0 0;
+    font-size: clamp(0.98rem, 2.7vw, 1.2rem);
+    line-height: 1.2;
+    font-weight: 800;
+}
+
+.ine-camera-copy strong {
+    color: var(--ine-cap-green);
+    font-weight: 950;
+}
+
+.ine-camera-guide {
+    position: absolute;
+    z-index: 4;
+    left: 12%;
+    right: 12%;
+    top: 43%;
+    transform: translateY(-50%);
+    aspect-ratio: 1.58 / 1;
+    pointer-events: none;
+}
+
+.ine-camera-guide-box {
+    width: 100%;
+    height: 100%;
+    border: 3px solid var(--ine-cap-red);
+    box-shadow:
+        0 0 0 999px rgba(0, 0, 0, 0.03),
+        0 0 24px rgba(255, 38, 71, 0.25);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ine-camera-stage[data-state="captured"] .ine-camera-guide-box {
+    border-color: var(--ine-cap-green);
+    box-shadow:
+        0 0 0 999px rgba(0, 0, 0, 0.03),
+        0 0 22px rgba(156, 255, 0, 0.42);
+}
+
+.ine-camera-stage[data-state="error"] .ine-camera-guide-box {
+    border-color: var(--ine-cap-red);
+    box-shadow:
+        0 0 0 999px rgba(0, 0, 0, 0.03),
+        0 0 24px rgba(255, 38, 71, 0.40);
+}
+
+.ine-camera-feedback {
+    position: absolute;
+    z-index: 6;
+    left: 50%;
+    top: 67%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.ine-camera-feedback-icon {
+    width: 84px;
+    height: 84px;
+    display: none;
+    place-items: center;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 3.8rem;
+    line-height: 1;
+    font-weight: 950;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
+}
+
+.ine-camera-feedback-icon--ok {
+    background: #35c784;
+}
+
+.ine-camera-feedback-icon--error {
+    background: #f34c44;
+}
+
+.ine-camera-stage[data-state="captured"] .ine-camera-feedback-icon--ok {
+    display: grid;
+}
+
+.ine-camera-stage[data-state="error"] .ine-camera-feedback-icon--error {
+    display: grid;
+}
+
+.ine-camera-bottom {
+    position: absolute;
+    z-index: 5;
+    left: 22px;
+    right: 22px;
+    bottom: clamp(22px, 5vw, 38px);
+    display: grid;
+    gap: 12px;
+    justify-items: center;
+}
+
+.ine-camera-status {
+    min-height: 2.5em;
+    margin: 0;
+    max-width: 94%;
+    color: #fff;
+    text-align: center;
+    font-size: clamp(0.94rem, 2.4vw, 1.08rem);
+    line-height: 1.32;
+    font-weight: 900;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.82);
+}
+
+.ine-camera-actions,
+.ine-summary-actions {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.ine-capture-btn {
+    min-height: 48px;
+    border: 0;
+    border-radius: 12px;
+    padding: 0 24px;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.06s ease, background 0.18s ease, opacity 0.18s ease;
+}
+
+.ine-capture-btn:active {
+    transform: translateY(1px);
+}
+
+.ine-capture-btn:disabled {
+    opacity: 0.58;
+    cursor: not-allowed;
+}
+
+.ine-capture-btn--primary {
+    background: var(--ine-cap-primary);
+}
+
+.ine-capture-btn--primary:hover {
+    background: var(--ine-cap-primary-dark);
+}
+
+.ine-capture-btn--success {
+    background: var(--ine-cap-success);
+}
+
+.ine-capture-btn--danger {
+    background: var(--ine-cap-danger);
+}
+
+.ine-capture-btn--ghost {
+    background: #ffffff;
+    color: #1f2937;
+    border: 1px solid #d7dbe1;
+}
+
+/* Resumen */
+
+.ine-summary-card {
+    width: min(620px, 100%);
+    margin: 0 auto;
+    padding: 24px;
+    background: #fff;
+    border: 1px solid var(--ine-cap-line);
+    border-radius: 18px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+}
+
+.ine-summary-card h3,
+.ine-loading-card h3 {
+    margin: 0 0 8px;
+    color: #111827;
+    font-size: clamp(1.25rem, 3vw, 1.55rem);
+    font-weight: 900;
+    text-align: center;
+}
+
+.ine-summary-card p,
+.ine-loading-card p {
+    margin: 0 0 18px;
+    color: #667085;
+    font-weight: 650;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.ine-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.ine-summary-grid figure {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid #d7dbe1;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+.ine-summary-grid img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1.58 / 1;
+    object-fit: contain;
+    background: #111827;
+}
+
+.ine-summary-grid figcaption {
+    padding: 10px 12px;
+    color: #111827;
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+/* Loading */
+
+.ine-loading-card {
+    width: min(480px, 100%);
+    margin: 0 auto;
+    padding: 34px 24px;
+    background: #fff;
+    border: 1px solid var(--ine-cap-line);
+    border-radius: 18px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+    text-align: center;
+}
+
+.ine-loading-icon {
+    width: 88px;
+    height: 88px;
+    margin: 0 auto 18px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(47, 143, 107, 0.10);
+}
+
+.ine-loading-icon span {
+    width: 52px;
+    height: 52px;
+    display: block;
+    border-radius: 999px;
+    border: 6px solid #dbe8e2;
+    border-top-color: var(--ine-cap-primary);
+    animation: ine-loading-spin 0.9s linear infinite;
+}
+
+@keyframes ine-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* RESPONSIVE / IPHONE                                                        */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+    .ine-capture-dialog {
+        top: auto;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        width: min(94vw, 520px);
+        max-height: calc(100dvh - 88px - env(safe-area-inset-bottom));
+        border-radius: 22px;
+    }
+
+    .ine-capture-header {
+        grid-template-columns: 46px 1fr 38px;
+        gap: 12px;
+        padding: 12px 14px;
+    }
+
+    .ine-capture-brand {
+        width: 46px;
+        height: 46px;
+    }
+
+    .ine-capture-kicker {
+        font-size: 0.68rem;
+    }
+
+    .ine-capture-titlebox h2 {
+        font-size: 1.18rem;
+    }
+
+    .ine-capture-titlebox p {
+        font-size: 0.84rem;
+        line-height: 1.25;
+    }
+
+    .ine-capture-close {
+        width: 38px;
+        height: 38px;
+        font-size: 1.45rem;
+    }
+
+    .ine-capture-body {
+        padding: 10px;
+    }
+
+    .ine-camera-stage {
+        width: 100%;
+        min-height: auto;
+        height: min(670px, calc(100dvh - 190px - env(safe-area-inset-bottom)));
+        border-radius: 18px;
+    }
+
+    .ine-camera-copy {
+        top: 28px;
+        left: 16px;
+        right: 16px;
+    }
+
+    .ine-camera-copy h3 {
+        font-size: clamp(1.24rem, 6vw, 1.7rem);
+    }
+
+    .ine-camera-copy p {
+        font-size: clamp(0.94rem, 4vw, 1.08rem);
+    }
+
+    .ine-camera-guide {
+        left: 12%;
+        right: 12%;
+        top: 42%;
+    }
+
+    .ine-camera-feedback {
+        top: 66%;
+    }
+
+    .ine-camera-feedback-icon {
+        width: 72px;
+        height: 72px;
+        font-size: 3.1rem;
+    }
+
+    .ine-camera-bottom {
+        left: 14px;
+        right: 14px;
+        bottom: 18px;
+    }
+
+    .ine-camera-actions,
+    .ine-summary-actions {
+        gap: 10px;
+    }
+
+    .ine-capture-btn {
+        width: 100%;
+        min-height: 48px;
+        padding: 0 18px;
+        font-size: 1rem;
+    }
+
+    .ine-summary-card,
+    .ine-loading-card {
+        padding: 20px 16px;
+        border-radius: 16px;
+    }
+
+    .ine-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 390px) {
+    .ine-capture-dialog {
+        width: 96vw;
+        max-height: calc(100dvh - 76px - env(safe-area-inset-bottom));
+    }
+
+    .ine-camera-stage {
+        height: min(640px, calc(100dvh - 176px - env(safe-area-inset-bottom)));
+    }
+
+    .ine-camera-copy {
+        top: 22px;
+    }
+
+    .ine-camera-bottom {
+        bottom: 14px;
+    }
+
+    .ine-camera-status {
+        font-size: 0.9rem;
+    }
+}
+
+@supports not (height: 100dvh) {
+    .ine-capture-dialog {
+        max-height: calc(100vh - 48px);
+    }
+
+    @media (max-width: 720px) {
+        .ine-capture-dialog {
+            max-height: calc(100vh - 88px);
+        }
+
+        .ine-camera-stage {
+            height: calc(100vh - 190px);
+        }
+    }
+}

@@ -511,6 +511,13 @@ ix_require_session([
         </section>
     </main>
 
+    <!-- Espacio para modales -->
+    
+
+
+
+
+
     <footer id="site-footer">
         <div class="limite">
             <div class="footer-brand">
