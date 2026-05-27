@@ -538,13 +538,21 @@ function showSummary() {
     const front = $(SEL.previewFront);
     const back = $(SEL.previewBack);
 
-    if (front && State.captures.front) front.src = State.captures.front;
-    if (back && State.captures.back) back.src = State.captures.back;
+    if (front) {
+        front.src = State.captures.front || "";
+    }
+
+    if (back) {
+        back.src = State.captures.back || "";
+    }
 
     stopCamera();
     showScreen("summary");
 
-    log("Resumen mostrado.");
+    log("Resumen mostrado.", {
+        hasFront: Boolean(State.captures.front),
+        hasBack: Boolean(State.captures.back),
+    });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -772,8 +780,11 @@ async function processOpenAIData() {
         log("Extracción OpenAI completada:", payload);
 
         toast("Datos extraídos correctamente.", "exito", 4500);
-
+        /*
         closeCaptureModal();
+        openReviewModal(payload);
+        */
+        hideCaptureModalWithoutReset();
         openReviewModal(payload);
     } catch (error) {
         console.error("[RED Home Modals] Error OpenAI:", error);
@@ -1244,6 +1255,13 @@ async function openCaptureModal() {
     setModalOpen(true);
 
     await startCamera();
+}
+
+function hideCaptureModalWithoutReset() {
+    log("Ocultando modal captura INE sin limpiar capturas.");
+
+    stopCamera();
+    setModalOpen(false);
 }
 
 function closeCaptureModal() {
