@@ -260,6 +260,360 @@ ix_require_session([
         </article>
     </section>
 
+
+
+
+
+
+    <!---------------------- Modal revisión / alta de persona desde INE -------------------------->
+
+
+    <section id="ine-review-modal" class="ine-review-modal" hidden aria-hidden="true">
+        <div class="ine-review-overlay" data-ine-review-close></div>
+
+        <article class="ine-review-dialog" role="dialog" aria-modal="true" aria-labelledby="ine-review-title">
+            <header class="ine-review-header">
+                <div class="ine-review-titlebox">
+                    <p class="ine-review-kicker">Datos extraídos</p>
+                    <h2 id="ine-review-title">Revisión de información INE</h2>
+                </div>
+
+                <button type="button" class="ine-review-close" data-ine-review-close aria-label="Cerrar">
+                    ×
+                </button>
+            </header>
+
+            <form id="ine-review-form" class="ine-review-form" autocomplete="off">
+                <div class="ine-review-body">
+
+                    <!-- Resumen -->
+                    <section class="ine-review-section ine-review-section--summary">
+                        <div class="ine-review-meta">
+                            <label class="ine-review-field">
+                                <span>Fecha de extracción</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-fecha-extraccion"
+                                    name="fecha_extraccion"
+                                    placeholder="Fecha de extracción"
+                                    readonly>
+                            </label>
+                        </div>
+
+                        <div class="ine-review-warning" role="alert">
+                            <strong>Importante:</strong>
+                            La información fue extraída automáticamente de las imágenes de la INE.
+                            Revisa y corrige los datos antes de guardar la persona.
+                        </div>
+                    </section>
+
+                    <!-- Identidad -->
+                    <section class="ine-review-section">
+                        <h3>Identidad</h3>
+
+                        <div class="ine-review-grid">
+                            <label class="ine-review-field">
+                                <span>Nombre(s) *</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-nombres"
+                                    name="nombres"
+                                    placeholder="Nombre(s)"
+                                    required>
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Apellido paterno</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-apellido-paterno"
+                                    name="apellido_paterno"
+                                    placeholder="Apellido paterno">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Apellido materno</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-apellido-materno"
+                                    name="apellido_materno"
+                                    placeholder="Apellido materno">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Fecha de nacimiento</span>
+                                <input
+                                    type="date"
+                                    id="ine-review-fecha-nacimiento"
+                                    name="fecha_nacimiento">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Sexo</span>
+                                <select id="ine-review-sexo" name="sexo">
+                                    <option value="">Selecciona</option>
+                                    <option value="H">Hombre</option>
+                                    <option value="M">Mujer</option>
+                                    <option value="X">Otro / No especificado</option>
+                                </select>
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- Datos de credencial -->
+                    <section class="ine-review-section">
+                        <h3>Datos de credencial</h3>
+
+                        <div class="ine-review-grid">
+                            <label class="ine-review-field">
+                                <span>CURP</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-curp"
+                                    name="curp"
+                                    maxlength="18"
+                                    placeholder="CURP">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Clave de elector</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-clave-elector"
+                                    name="clave_elector"
+                                    placeholder="Clave de elector">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Sección</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-seccion"
+                                    name="seccion_id"
+                                    inputmode="numeric"
+                                    placeholder="Sección">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Año de registro</span>
+                                <input
+                                    type="number"
+                                    id="ine-review-anio-registro"
+                                    name="anio_registro"
+                                    min="1900"
+                                    max="2100"
+                                    placeholder="Año">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Emisión</span>
+                                <input
+                                    type="number"
+                                    id="ine-review-emision"
+                                    name="emision"
+                                    min="1900"
+                                    max="2100"
+                                    placeholder="Año">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Vigencia inicio</span>
+                                <input
+                                    type="number"
+                                    id="ine-review-vigencia-inicio"
+                                    name="vigencia_inicio"
+                                    min="1900"
+                                    max="2100"
+                                    placeholder="Año">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Vigencia fin</span>
+                                <input
+                                    type="number"
+                                    id="ine-review-vigencia-fin"
+                                    name="vigencia_fin"
+                                    min="1900"
+                                    max="2100"
+                                    placeholder="Año">
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- Domicilio -->
+                    <section class="ine-review-section">
+                        <h3>Domicilio</h3>
+
+                        <div class="ine-review-grid">
+                            <label class="ine-review-field ine-review-field--full">
+                                <span>Domicilio</span>
+                                <textarea
+                                    id="ine-review-domicilio"
+                                    name="domicilio_texto"
+                                    rows="3"
+                                    placeholder="Domicilio extraído de la INE"></textarea>
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Calle</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-calle"
+                                    name="calle"
+                                    placeholder="Calle">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Número exterior</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-numero-exterior"
+                                    name="numero_exterior"
+                                    placeholder="Número exterior">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Número interior</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-numero-interior"
+                                    name="numero_interior"
+                                    placeholder="Número interior">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Colonia</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-colonia"
+                                    name="colonia"
+                                    placeholder="Colonia">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Localidad</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-localidad"
+                                    name="localidad"
+                                    placeholder="Localidad">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Municipio</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-municipio"
+                                    name="municipio"
+                                    placeholder="Municipio">
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- Contacto -->
+                    <section class="ine-review-section">
+                        <h3>Contacto</h3>
+
+                        <div class="ine-review-grid">
+                            <label class="ine-review-field">
+                                <span>Teléfono</span>
+                                <input
+                                    type="tel"
+                                    id="ine-review-telefono"
+                                    name="telefono"
+                                    inputmode="tel"
+                                    placeholder="Teléfono">
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>WhatsApp</span>
+                                <input
+                                    type="tel"
+                                    id="ine-review-whatsapp"
+                                    name="whatsapp"
+                                    inputmode="tel"
+                                    placeholder="WhatsApp">
+                            </label>
+
+                            <label class="ine-review-field ine-review-field--full">
+                                <span>Email</span>
+                                <input
+                                    type="email"
+                                    id="ine-review-email"
+                                    name="email"
+                                    placeholder="correo@ejemplo.com">
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- Consentimiento -->
+                    <section class="ine-review-section">
+                        <h3>Consentimiento</h3>
+
+                        <div class="ine-review-consent-card">
+                            <label class="ine-review-check">
+                                <input
+                                    type="checkbox"
+                                    id="ine-review-acepta-tratamiento"
+                                    name="acepta_tratamiento_datos"
+                                    value="1">
+
+                                <span>
+                                    Acepto el tratamiento de mis datos personales conforme al aviso de privacidad
+                                    y autorizo el uso de la información capturada para el registro correspondiente.
+                                </span>
+                            </label>
+
+                            <label class="ine-review-check">
+                                <input
+                                    type="checkbox"
+                                    id="ine-review-acepta-whatsapp"
+                                    name="acepta_contacto_whatsapp"
+                                    value="1">
+
+                                <span>
+                                    Acepto recibir seguimiento o contacto por WhatsApp.
+                                </span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- Observaciones -->
+                    <section class="ine-review-section">
+                        <h3>Observaciones</h3>
+
+                        <div class="ine-review-grid">
+                            <label class="ine-review-field ine-review-field--full">
+                                <span>Notas adicionales</span>
+                                <textarea
+                                    id="ine-review-observaciones"
+                                    name="observaciones"
+                                    rows="3"
+                                    placeholder="Observaciones internas o aclaraciones del registro"></textarea>
+                            </label>
+                        </div>
+                    </section>
+
+                </div>
+
+                <footer class="ine-review-footer">
+                    <button type="submit" id="ine-modal-affiliate" class="ine-review-btn ine-review-btn--primary">
+                        Guardar persona
+                    </button>
+
+                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-ine-review-close>
+                        Cancelar
+                    </button>
+
+                    <button type="button" id="ine-btn-reprocess" class="ine-review-btn ine-review-btn--muted">
+                        Reprocesar
+                    </button>
+                </footer>
+            </form>
+        </article>
+    </section>
+
+
     <footer id="site-footer">
         <div class="limite">
             <div class="footer-brand">

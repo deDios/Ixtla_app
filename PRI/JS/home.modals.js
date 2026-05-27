@@ -2,7 +2,7 @@
 
 /* -------------------------------------------------------------------------- */
 /* RED HOME · MODALES                                                         */
-/* Modal captura INE: frente -> reverso -> resumen -> loader                  */
+/* Flujo: abrir scanner -> frente -> reverso -> resumen -> OpenAI -> revisión */
 /* -------------------------------------------------------------------------- */
 
 const CONFIG = {
@@ -14,9 +14,15 @@ const CONFIG = {
         facingMode: { ideal: "environment" },
     },
 
-    MOCK: {
-        readDelayMs: 2200,
+    EXTRACTION: {
+        compositeMaxWidth: 1400,
+        compositeQuality: 0.86,
+        rawText: "",
     },
+};
+
+const ENDPOINTS = {
+    extractOpenAI: "/PRI/extract_identificacion_openai.php",
 };
 
 const TAG = "[RED Home Modals]";
@@ -41,17 +47,12 @@ const SEL = {
     btnAdd: "#red-btn-add",
 
     modal: "#ine-capture-modal",
-    dialog: ".ine-capture-dialog",
     close: "[data-ine-capture-close]",
 
     screen: ".ine-capture-screen",
-    screenCamera: '[data-ine-screen="camera"]',
-    screenSummary: '[data-ine-screen="summary"]',
-    screenLoading: '[data-ine-screen="loading"]',
 
     stage: ".ine-camera-stage",
     video: "#ine-camera-video",
-    canvas: "#ine-camera-canvas",
     guideBox: ".ine-camera-guide-box",
 
     stepTitle: "#ine-camera-step-title",
@@ -65,19 +66,26 @@ const SEL = {
 
     previewFront: "#ine-preview-front",
     previewBack: "#ine-preview-back",
+
+    reviewModal: "#ine-review-modal",
+    reviewClose: "[data-ine-review-close]",
+    reviewForm: "#ine-review-form",
+    btnReprocess: "#ine-btn-reprocess",
 };
 
 /* -------------------------------------------------------------------------- */
-/* HELPERS                                                                    */
+/* HELPERS UI                                                                  */
 /* -------------------------------------------------------------------------- */
 
 function toast(message, type = "exito", duration = 4500) {
+    const safeType = type === "advertencia" ? "warning" : type;
+
     if (typeof window.gcToast === "function") {
-        window.gcToast(message, type, duration);
+        window.gcToast(message, safeType, duration);
         return;
     }
 
-    console.log(`[Toast fallback][${type}]`, message);
+    console.log(`[Toast fallback][${safeType}]`, message);
 }
 
 function setHidden(el, hidden) {
@@ -92,7 +100,27 @@ function setModalOpen(isOpen) {
     modal.hidden = !isOpen;
     modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
 
-    document.body.classList.toggle("ine-modal-open", isOpen);
+    syncBodyModalState();
+}
+
+function setReviewModalOpen(isOpen) {
+    const modal = $(SEL.reviewModal);
+    if (!modal) return;
+
+    modal.hidden = !isOpen;
+    modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
+
+    syncBodyModalState();
+}
+
+function syncBodyModalState() {
+    const captureModal = $(SEL.modal);
+    const reviewModal = $(SEL.reviewModal);
+
+    const captureOpen = Boolean(captureModal && !captureModal.hidden);
+    const reviewOpen = Boolean(reviewModal && !reviewModal.hidden);
+
+    document.body.classList.toggle("ine-modal-open", captureOpen || reviewOpen);
 }
 
 function showScreen(name) {
@@ -151,7 +179,6 @@ function prepareCaptureStep(step) {
     setStep(step);
     setCaptureState("ready");
     resetButtonsForCapture();
-
     showScreen("camera");
 
     log("Paso preparado:", {
@@ -232,6 +259,7 @@ async function startCamera() {
         log("Cámara iniciada correctamente.");
     } catch (error) {
         warn("No se pudo abrir la cámara:", error);
+
         State.stream = null;
         video.srcObject = null;
 
@@ -487,7 +515,7 @@ function continueFlow() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* RESUMEN / LECTURA SIMULADA                                                  */
+/* RESUMEN                                                                     */
 /* -------------------------------------------------------------------------- */
 
 function showSummary() {
@@ -503,72 +531,733 @@ function showSummary() {
     log("Resumen mostrado.");
 }
 
-async function simulateReadData() {
+/* -------------------------------------------------------------------------- */
+/* OPENAI                                                                      */
+/* -------------------------------------------------------------------------- */
+
+function dataUrlSizeBytes(dataUrl) {
+    const base64 = String(dataUrl || "").split(",")[1] || "";
+    return Math.ceil((base64.length * 3) / 4);
+}
+
+function dataUrlSizeMB(dataUrl) {
+    return dataUrlSizeBytes(dataUrl) / 1024 / 1024;
+}
+
+function loadImageFromDataUrl(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("No se pudo cargar una captura para procesarla."));
+
+        img.src = dataUrl;
+    });
+}
+
+async function buildCompositeIneImageDataUrl() {
+    if (!State.captures.front || !State.captures.back) {
+        throw new Error("Faltan capturas de frente y reverso.");
+    }
+
+    const frontImg = await loadImageFromDataUrl(State.captures.front);
+    const backImg = await loadImageFromDataUrl(State.captures.back);
+
+    const maxWidth = CONFIG.EXTRACTION.compositeMaxWidth;
+    const padding = 32;
+    const gap = 34;
+    const labelHeight = 42;
+
+    const frontRatio = Math.min(1, (maxWidth - padding * 2) / frontImg.width);
+    const backRatio = Math.min(1, (maxWidth - padding * 2) / backImg.width);
+
+    const frontWidth = Math.round(frontImg.width * frontRatio);
+    const frontHeight = Math.round(frontImg.height * frontRatio);
+
+    const backWidth = Math.round(backImg.width * backRatio);
+    const backHeight = Math.round(backImg.height * backRatio);
+
+    const canvasWidth = Math.max(frontWidth, backWidth) + padding * 2;
+    const canvasHeight =
+        padding +
+        labelHeight +
+        frontHeight +
+        gap +
+        labelHeight +
+        backHeight +
+        padding;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+
+    if (!ctx) {
+        throw new Error("No se pudo crear la imagen compuesta.");
+    }
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    ctx.fillStyle = "#111827";
+    ctx.font = "700 24px Arial";
+    ctx.textBaseline = "top";
+
+    let y = padding;
+
+    ctx.fillText("FRENTE INE", padding, y);
+    y += labelHeight;
+
+    ctx.drawImage(
+        frontImg,
+        Math.round((canvasWidth - frontWidth) / 2),
+        y,
+        frontWidth,
+        frontHeight
+    );
+
+    y += frontHeight + gap;
+
+    ctx.fillText("REVERSO INE", padding, y);
+    y += labelHeight;
+
+    ctx.drawImage(
+        backImg,
+        Math.round((canvasWidth - backWidth) / 2),
+        y,
+        backWidth,
+        backHeight
+    );
+
+    return canvas.toDataURL("image/jpeg", CONFIG.EXTRACTION.compositeQuality);
+}
+
+async function extractIdentificationData({
+    imageDataUrl,
+    rawText = "",
+    imagesCount = 2,
+}) {
+    if (!imageDataUrl) {
+        throw new Error("No hay imagen para enviar a OpenAI.");
+    }
+
+    const imageSizeMb = dataUrlSizeMB(imageDataUrl);
+
+    const payload = {
+        image_data_url: imageDataUrl,
+        raw_text: String(rawText || "").trim().substring(0, 6000),
+        image_size_mb: Number(imageSizeMb.toFixed(3)),
+        images_count: imagesCount,
+    };
+
+    console.group("[RED Home Modals] Enviando extracción OpenAI");
+    console.log("Endpoint:", ENDPOINTS.extractOpenAI);
+    console.log("Image size MB:", payload.image_size_mb);
+    console.log("Images count:", payload.images_count);
+    console.log("Payload preview:", {
+        ...payload,
+        image_data_url: String(payload.image_data_url || "").slice(0, 90) + "...",
+    });
+    console.groupEnd();
+
+    let response;
+    let rawResponse = "";
+
+    try {
+        response = await fetch(ENDPOINTS.extractOpenAI, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        rawResponse = await response.text();
+    } catch (error) {
+        throw new Error("Error de conexión con el endpoint de OpenAI: " + error.message);
+    }
+
+    console.group("[RED Home Modals] Respuesta OpenAI");
+    console.log("HTTP status:", response.status);
+    console.log("OK:", response.ok);
+    console.log("Content-Type:", response.headers.get("content-type"));
+    console.log("Raw:", rawResponse);
+    console.groupEnd();
+
+    let data = null;
+
+    try {
+        data = JSON.parse(rawResponse);
+    } catch {
+        console.error("[RED Home Modals] Respuesta no JSON:", rawResponse);
+        throw new Error("El endpoint de OpenAI respondió algo que no es JSON.");
+    }
+
+    if (!response.ok || !data.ok) {
+        throw new Error(
+            data.error ||
+            data.message ||
+            data.detalle ||
+            `Error HTTP ${response.status}`
+        );
+    }
+
+    return {
+        provider: "openai",
+        result: data.result || data.data || data,
+        raw: data,
+    };
+}
+
+async function processOpenAIData() {
     if (!State.captures.front || !State.captures.back) {
         toast("Necesitas capturar frente y reverso antes de leer datos.", "error", 5000);
         return;
     }
 
     const btnRead = $(SEL.btnReadData);
-    if (btnRead) btnRead.disabled = true;
+    const originalText = btnRead?.textContent || "Leer datos";
+
+    if (btnRead) {
+        btnRead.disabled = true;
+        btnRead.textContent = "Procesando...";
+    }
 
     showScreen("loading");
 
-    log("Simulando lectura OpenAI...", {
-        frontLength: State.captures.front.length,
-        backLength: State.captures.back.length,
-    });
+    try {
+        toast("Extrayendo datos con OpenAI...", "warning", 3500);
 
-    await new Promise((resolve) => setTimeout(resolve, CONFIG.MOCK.readDelayMs));
+        const compositeImage = await buildCompositeIneImageDataUrl();
 
-    const mockData = buildMockIneData();
+        const result = await extractIdentificationData({
+            imageDataUrl: compositeImage,
+            rawText: CONFIG.EXTRACTION.rawText,
+            imagesCount: 2,
+        });
 
-    const payload = {
-        provider: "openai_mock",
-        data: mockData,
-        images: {
-            front: State.captures.front,
-            back: State.captures.back,
-        },
-    };
+        const fields = getFieldsFromExtraction(result);
+        const persona = buildPersonaFromFields(fields);
 
-    log("Datos simulados:", payload);
+        const payload = {
+            provider: "openai",
+            extraction: result,
+            fields,
+            persona,
+            images: {
+                front: State.captures.front,
+                back: State.captures.back,
+                composite: compositeImage,
+            },
+        };
 
-    toast("Lectura simulada completada.", "exito", 3500);
+        log("Extracción OpenAI completada:", payload);
 
-    window.dispatchEvent(new CustomEvent("red:ine-data-ready", {
-        detail: payload,
-    }));
+        toast("Datos extraídos correctamente.", "exito", 4500);
 
-    if (btnRead) btnRead.disabled = false;
+        closeCaptureModal();
+        openReviewModal(payload);
+    } catch (error) {
+        console.error("[RED Home Modals] Error OpenAI:", error);
 
-    closeCaptureModal();
+        toast(
+            error?.message || "No se pudo procesar la identificación.",
+            "error",
+            9000
+        );
+
+        showScreen("summary");
+    } finally {
+        if (btnRead) {
+            btnRead.disabled = false;
+            btnRead.textContent = originalText;
+        }
+    }
 }
 
-function buildMockIneData() {
+/* -------------------------------------------------------------------------- */
+/* NORMALIZACIÓN / MAPEO                                                       */
+/* -------------------------------------------------------------------------- */
+
+function normalizeValue(value, fallback = "") {
+    if (value === null || value === undefined) return fallback;
+
+    const text = String(value).trim();
+
+    if (
+        !text ||
+        text === "--------" ||
+        text === "--" ||
+        text.toLowerCase() === "null" ||
+        text.toLowerCase() === "undefined" ||
+        text.toLowerCase() === "no disponible" ||
+        text.toLowerCase() === "n/a"
+    ) {
+        return fallback;
+    }
+
+    return text;
+}
+
+function cleanUpper(value) {
+    return normalizeValue(value)
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
+}
+
+function onlyDigits(value) {
+    return normalizeValue(value).replace(/\D+/g, "");
+}
+
+function normalizeYear(value) {
+    const text = normalizeValue(value);
+    const match = text.match(/\b(19|20)\d{2}\b/);
+    return match ? match[0] : "";
+}
+
+function normalizeFieldName(value) {
+    return String(value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+
+function normalizeSex(value) {
+    const text = cleanUpper(value);
+
+    if (["H", "HOMBRE", "MASCULINO"].includes(text)) return "H";
+    if (["M", "MUJER", "FEMENINO"].includes(text)) return "M";
+    if (text === "X") return "X";
+
+    return "";
+}
+
+function normalizeDateToInput(value) {
+    const text = normalizeValue(value);
+
+    if (!text) return "";
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+        return text;
+    }
+
+    const dmy = text.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\b/);
+
+    if (dmy) {
+        const dd = dmy[1].padStart(2, "0");
+        const mm = dmy[2].padStart(2, "0");
+        const yyyy = dmy[3];
+
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    const compact = text.match(/\b(\d{2})(\d{2})(\d{2})\b/);
+
+    if (compact) {
+        const yy = Number(compact[1]);
+        const mm = compact[2];
+        const dd = compact[3];
+        const yyyy = yy > 30 ? `19${compact[1]}` : `20${compact[1]}`;
+
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    return "";
+}
+
+function getTodayLongEs() {
+    return new Intl.DateTimeFormat("es-MX", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+    }).format(new Date());
+}
+
+function setFieldValue(selector, value, fallback = "") {
+    const el = $(selector);
+    if (!el) return;
+
+    const cleanValue = normalizeValue(value, fallback);
+
+    if (el.type === "checkbox") {
+        el.checked = cleanValue === "1" || cleanValue === "true" || cleanValue === true;
+        return;
+    }
+
+    if ("value" in el) {
+        el.value = cleanValue;
+        return;
+    }
+
+    el.textContent = cleanValue;
+}
+
+function getFieldValue(selector) {
+    const el = $(selector);
+    if (!el) return "";
+
+    if (el.type === "checkbox") {
+        return el.checked ? "1" : "0";
+    }
+
+    if ("value" in el) {
+        return normalizeValue(el.value);
+    }
+
+    return normalizeValue(el.textContent);
+}
+
+function objectToFields(object) {
+    return Object.entries(object || {}).map(([key, value]) => ({
+        field_name: key,
+        label_detected: key,
+        value,
+    }));
+}
+
+function getFieldsFromExtraction(extraction) {
+    const result =
+        extraction?.result ||
+        extraction?.raw?.result ||
+        extraction?.raw?.data ||
+        extraction?.raw ||
+        {};
+
+    if (Array.isArray(result.fields)) return result.fields;
+    if (Array.isArray(result?.result?.fields)) return result.result.fields;
+    if (Array.isArray(result?.data?.fields)) return result.data.fields;
+
+    if (result.persona && typeof result.persona === "object") return objectToFields(result.persona);
+    if (result.data?.persona && typeof result.data.persona === "object") return objectToFields(result.data.persona);
+    if (result.extracted_data && typeof result.extracted_data === "object") return objectToFields(result.extracted_data);
+    if (result.data && typeof result.data === "object" && !Array.isArray(result.data)) return objectToFields(result.data);
+    if (typeof result === "object" && !Array.isArray(result)) return objectToFields(result);
+
+    return [];
+}
+
+function findExtractedValue(fields, aliases, fallback = "") {
+    const normalizedAliases = aliases.map(normalizeFieldName);
+
+    const field = fields.find((item) => {
+        const name = normalizeFieldName(item?.field_name);
+        const label = normalizeFieldName(item?.label_detected);
+
+        return normalizedAliases.includes(name) || normalizedAliases.includes(label);
+    });
+
+    return normalizeValue(field?.value, fallback);
+}
+
+function parseVigencia(value) {
+    const text = normalizeValue(value);
+    const years = text.match(/\b(19|20)\d{2}\b/g) || [];
+
     return {
-        nombres: "JUAN PABLO",
-        apellido_paterno: "GARCIA",
-        apellido_materno: "CASILLAS",
-        fecha_nacimiento: "2000-04-16",
-        sexo: "H",
-        curp: "GACJ000416HJCRSNA1",
-        clave_elector: "GRCSJN00041614H990",
-        seccion: "1592",
-        anio_registro: "2018",
-        emision: "2019",
-        vigencia_inicio: "2019",
-        vigencia_fin: "2029",
-        domicilio_texto: "LA BANDERA #16, IXTLAHUACÁN DE LOS MEMBRILLOS, JAL.",
-        calle: "LA BANDERA",
-        numero_exterior: "16",
-        numero_interior: "",
-        colonia: "",
-        localidad: "IXTLAHUACÁN DE LOS MEMBRILLOS",
-        municipio: "IXTLAHUACÁN DE LOS MEMBRILLOS",
-        estado: "JALISCO",
-        codigo_postal: "",
+        vigencia_inicio: years.length >= 2 ? years[0] : "",
+        vigencia_fin: years.length >= 2 ? years[1] : (years[0] || ""),
     };
+}
+
+function buildPersonaFromFields(fields) {
+    const vigenciaTexto = findExtractedValue(fields, [
+        "vigencia",
+        "vigencia_texto",
+        "valid_until",
+        "expiration",
+    ]);
+
+    const vigenciaParts = parseVigencia(vigenciaTexto);
+
+    return {
+        nombres: cleanUpper(findExtractedValue(fields, [
+            "nombres",
+            "nombre_s",
+            "given_names",
+            "given_name",
+        ])),
+
+        apellido_paterno: cleanUpper(findExtractedValue(fields, [
+            "apellido_paterno",
+            "primer_apellido",
+            "paterno",
+            "surname_1",
+        ])),
+
+        apellido_materno: cleanUpper(findExtractedValue(fields, [
+            "apellido_materno",
+            "segundo_apellido",
+            "materno",
+            "surname_2",
+        ])),
+
+        fecha_nacimiento: normalizeDateToInput(findExtractedValue(fields, [
+            "fecha_nacimiento",
+            "fecha_de_nacimiento",
+            "nacimiento",
+            "date_of_birth",
+            "dob",
+        ])),
+
+        sexo: normalizeSex(findExtractedValue(fields, [
+            "sexo",
+            "genero",
+            "género",
+            "sex",
+            "gender",
+        ])),
+
+        curp: cleanUpper(findExtractedValue(fields, [
+            "curp",
+            "clave_unica",
+            "clave_unica_registro_poblacion",
+        ])).replace(/[^A-Z0-9]/g, ""),
+
+        clave_elector: cleanUpper(findExtractedValue(fields, [
+            "clave_elector",
+            "clave_de_elector",
+            "elector",
+            "clave",
+            "voter_key",
+        ])).replace(/[^A-Z0-9]/g, ""),
+
+        seccion_id: onlyDigits(findExtractedValue(fields, [
+            "seccion_id",
+            "seccion",
+            "sección",
+            "seccion_electoral",
+            "sección_electoral",
+        ])),
+
+        anio_registro: normalizeYear(findExtractedValue(fields, [
+            "anio_registro",
+            "año_registro",
+            "ano_registro",
+            "año_de_registro",
+            "anio_de_registro",
+        ])),
+
+        emision: normalizeYear(findExtractedValue(fields, [
+            "emision",
+            "emisión",
+            "anio_emision",
+            "año_emision",
+            "ano_emision",
+        ])),
+
+        vigencia_inicio: normalizeYear(findExtractedValue(fields, [
+            "vigencia_inicio",
+            "inicio_vigencia",
+            "valid_from",
+        ]) || vigenciaParts.vigencia_inicio),
+
+        vigencia_fin: normalizeYear(findExtractedValue(fields, [
+            "vigencia_fin",
+            "fin_vigencia",
+            "valid_until",
+            "expiration",
+        ]) || vigenciaParts.vigencia_fin),
+
+        domicilio_texto: cleanUpper(findExtractedValue(fields, [
+            "domicilio_texto",
+            "domicilio",
+            "direccion",
+            "dirección",
+            "address",
+        ])),
+
+        calle: cleanUpper(findExtractedValue(fields, [
+            "calle",
+            "street",
+        ])),
+
+        numero_exterior: cleanUpper(findExtractedValue(fields, [
+            "numero_exterior",
+            "número_exterior",
+            "num_ext",
+            "no_ext",
+            "exterior",
+        ])),
+
+        numero_interior: cleanUpper(findExtractedValue(fields, [
+            "numero_interior",
+            "número_interior",
+            "num_int",
+            "no_int",
+            "interior",
+        ])),
+
+        colonia: cleanUpper(findExtractedValue(fields, [
+            "colonia",
+            "col",
+            "neighborhood",
+        ])),
+
+        localidad: cleanUpper(findExtractedValue(fields, [
+            "localidad",
+            "localidad_texto",
+            "loc",
+        ])),
+
+        municipio: cleanUpper(findExtractedValue(fields, [
+            "municipio",
+            "municipio_texto",
+            "ciudad",
+            "city",
+        ])),
+
+        telefono: normalizeValue(findExtractedValue(fields, [
+            "telefono",
+            "teléfono",
+            "phone",
+        ])),
+
+        whatsapp: normalizeValue(findExtractedValue(fields, [
+            "whatsapp",
+            "whats",
+        ])),
+
+        email: normalizeValue(findExtractedValue(fields, [
+            "email",
+            "correo",
+            "correo_electronico",
+            "correo_electrónico",
+        ])),
+
+        observaciones: "",
+    };
+}
+
+function fillReviewForm(persona) {
+    setFieldValue("#ine-review-fecha-extraccion", getTodayLongEs());
+
+    setFieldValue("#ine-review-nombres", persona.nombres);
+    setFieldValue("#ine-review-apellido-paterno", persona.apellido_paterno);
+    setFieldValue("#ine-review-apellido-materno", persona.apellido_materno);
+    setFieldValue("#ine-review-fecha-nacimiento", persona.fecha_nacimiento);
+    setFieldValue("#ine-review-sexo", persona.sexo);
+
+    setFieldValue("#ine-review-curp", persona.curp);
+    setFieldValue("#ine-review-clave-elector", persona.clave_elector);
+    setFieldValue("#ine-review-seccion", persona.seccion_id);
+
+    setFieldValue("#ine-review-anio-registro", persona.anio_registro);
+    setFieldValue("#ine-review-emision", persona.emision);
+    setFieldValue("#ine-review-vigencia-inicio", persona.vigencia_inicio);
+    setFieldValue("#ine-review-vigencia-fin", persona.vigencia_fin);
+
+    setFieldValue("#ine-review-domicilio", persona.domicilio_texto);
+    setFieldValue("#ine-review-calle", persona.calle);
+    setFieldValue("#ine-review-numero-exterior", persona.numero_exterior);
+    setFieldValue("#ine-review-numero-interior", persona.numero_interior);
+    setFieldValue("#ine-review-colonia", persona.colonia);
+    setFieldValue("#ine-review-localidad", persona.localidad);
+    setFieldValue("#ine-review-municipio", persona.municipio);
+
+    setFieldValue("#ine-review-telefono", persona.telefono);
+    setFieldValue("#ine-review-whatsapp", persona.whatsapp);
+    setFieldValue("#ine-review-email", persona.email);
+
+    setFieldValue("#ine-review-acepta-tratamiento", "0");
+    setFieldValue("#ine-review-acepta-whatsapp", "0");
+    setFieldValue("#ine-review-observaciones", persona.observaciones);
+}
+
+/* -------------------------------------------------------------------------- */
+/* MODAL REVISIÓN                                                              */
+/* -------------------------------------------------------------------------- */
+
+function openReviewModal(payload) {
+    const modal = $(SEL.reviewModal);
+
+    if (!modal) {
+        warn("No existe #ine-review-modal en esta vista.");
+        console.log("Payload listo para review:", payload);
+        return;
+    }
+
+    fillReviewForm(payload.persona || {});
+    modal.__inePayload = payload;
+
+    setReviewModalOpen(true);
+
+    log("Modal de revisión abierto:", payload);
+}
+
+function closeReviewModal() {
+    setReviewModalOpen(false);
+}
+
+function collectReviewPayload() {
+    return {
+        nombres: getFieldValue("#ine-review-nombres"),
+        apellido_paterno: getFieldValue("#ine-review-apellido-paterno"),
+        apellido_materno: getFieldValue("#ine-review-apellido-materno"),
+        fecha_nacimiento: getFieldValue("#ine-review-fecha-nacimiento"),
+        sexo: getFieldValue("#ine-review-sexo"),
+
+        curp: getFieldValue("#ine-review-curp"),
+        clave_elector: getFieldValue("#ine-review-clave-elector"),
+        seccion_id: getFieldValue("#ine-review-seccion"),
+
+        anio_registro: getFieldValue("#ine-review-anio-registro"),
+        emision: getFieldValue("#ine-review-emision"),
+        vigencia_inicio: getFieldValue("#ine-review-vigencia-inicio"),
+        vigencia_fin: getFieldValue("#ine-review-vigencia-fin"),
+
+        domicilio_texto: getFieldValue("#ine-review-domicilio"),
+        calle: getFieldValue("#ine-review-calle"),
+        numero_exterior: getFieldValue("#ine-review-numero-exterior"),
+        numero_interior: getFieldValue("#ine-review-numero-interior"),
+        colonia: getFieldValue("#ine-review-colonia"),
+        localidad: getFieldValue("#ine-review-localidad"),
+        municipio: getFieldValue("#ine-review-municipio"),
+
+        telefono: getFieldValue("#ine-review-telefono"),
+        whatsapp: getFieldValue("#ine-review-whatsapp"),
+        email: getFieldValue("#ine-review-email"),
+
+        acepta_tratamiento_datos: getFieldValue("#ine-review-acepta-tratamiento"),
+        acepta_contacto_whatsapp: getFieldValue("#ine-review-acepta-whatsapp"),
+
+        observaciones: getFieldValue("#ine-review-observaciones"),
+    };
+}
+
+function handleReviewSubmit(event) {
+    event.preventDefault();
+
+    const payload = collectReviewPayload();
+
+    if (!payload.nombres) {
+        toast("El campo Nombre(s) es obligatorio.", "error", 5000);
+        return;
+    }
+
+    log("Payload listo para guardar persona:", payload);
+
+    toast("Datos listos para guardar. Falta conectar el endpoint de alta.", "warning", 5000);
+}
+
+function bindReviewModalEvents() {
+    $$(SEL.reviewClose).forEach((btn) => {
+        btn.addEventListener("click", closeReviewModal);
+    });
+
+    $(SEL.btnReprocess)?.addEventListener("click", async () => {
+        closeReviewModal();
+        resetCaptureFlow();
+        setModalOpen(true);
+        await startCamera();
+    });
+
+    $(SEL.reviewForm)?.addEventListener("submit", handleReviewSubmit);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -595,10 +1284,16 @@ function closeCaptureModal() {
 function handleEscape(event) {
     if (event.key !== "Escape") return;
 
-    const modal = $(SEL.modal);
-    if (!modal || modal.hidden) return;
+    const reviewModal = $(SEL.reviewModal);
+    if (reviewModal && !reviewModal.hidden) {
+        closeReviewModal();
+        return;
+    }
 
-    closeCaptureModal();
+    const captureModal = $(SEL.modal);
+    if (captureModal && !captureModal.hidden) {
+        closeCaptureModal();
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -623,17 +1318,11 @@ function bindCaptureModalEvents() {
         await startCamera();
     });
 
-    $(SEL.btnReadData)?.addEventListener("click", simulateReadData);
+    $(SEL.btnReadData)?.addEventListener("click", processOpenAIData);
 
     document.addEventListener("keydown", handleEscape);
 
-    /*
-     * Evento temporal para comprobar que el flujo ya entrega datos.
-     * Después aquí conectamos el modal/formulario de persona.
-     */
-    window.addEventListener("red:ine-data-ready", (event) => {
-        log("Evento red:ine-data-ready recibido:", event.detail);
-    });
+    bindReviewModalEvents();
 }
 
 function init() {
@@ -645,6 +1334,7 @@ function init() {
     }
 
     bindCaptureModalEvents();
+
     log("home.modals.js inicializado.");
 }
 
