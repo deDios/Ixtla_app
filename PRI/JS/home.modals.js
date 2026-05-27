@@ -464,8 +464,8 @@ function acceptCapture(imageData, side) {
     if (status) {
         status.innerHTML =
             side === "front"
-                ? "<strong>¡Excelente! Frente capturado correctamente.</strong><br>Continúa con el reverso."
-                : "<strong>¡Excelente! Reverso capturado correctamente.</strong><br>Ya puedes revisar las capturas.";
+                ? "<strong>Frente capturado.</strong><br>Continúa con el reverso de la INE."
+                : "<strong>Reverso capturado.</strong><br>Revisa las capturas antes de leer los datos.";
     }
 
     if (btnCapture) {
@@ -478,7 +478,7 @@ function acceptCapture(imageData, side) {
     setHidden(btnNext, false);
 
     if (btnNext) {
-        btnNext.textContent = side === "front" ? "Continuar al reverso" : "Ver resumen";
+        btnNext.textContent = side === "front" ? "Capturar reverso" : "Ver capturas";
     }
 
     toast(
@@ -1043,6 +1043,13 @@ function buildPersonaFromFields(fields) {
             "voter_key",
         ])).replace(/[^A-Z0-9]/g, ""),
 
+        idmex: cleanUpper(findExtractedValue(fields, [
+            "idmex",
+            "id_mex",
+            "id_mexico",
+            "idméx",
+        ])).replace(/[^A-Z0-9]/g, ""),
+
         seccion_id: onlyDigits(findExtractedValue(fields, [
             "seccion_id",
             "seccion",
@@ -1088,46 +1095,6 @@ function buildPersonaFromFields(fields) {
             "address",
         ])),
 
-        calle: cleanUpper(findExtractedValue(fields, [
-            "calle",
-            "street",
-        ])),
-
-        numero_exterior: cleanUpper(findExtractedValue(fields, [
-            "numero_exterior",
-            "número_exterior",
-            "num_ext",
-            "no_ext",
-            "exterior",
-        ])),
-
-        numero_interior: cleanUpper(findExtractedValue(fields, [
-            "numero_interior",
-            "número_interior",
-            "num_int",
-            "no_int",
-            "interior",
-        ])),
-
-        colonia: cleanUpper(findExtractedValue(fields, [
-            "colonia",
-            "col",
-            "neighborhood",
-        ])),
-
-        localidad: cleanUpper(findExtractedValue(fields, [
-            "localidad",
-            "localidad_texto",
-            "loc",
-        ])),
-
-        municipio: cleanUpper(findExtractedValue(fields, [
-            "municipio",
-            "municipio_texto",
-            "ciudad",
-            "city",
-        ])),
-
         telefono: normalizeValue(findExtractedValue(fields, [
             "telefono",
             "teléfono",
@@ -1161,6 +1128,7 @@ function fillReviewForm(persona) {
 
     setFieldValue("#ine-review-curp", persona.curp);
     setFieldValue("#ine-review-clave-elector", persona.clave_elector);
+    setFieldValue("#ine-review-idmex", persona.idmex);
     setFieldValue("#ine-review-seccion", persona.seccion_id);
 
     setFieldValue("#ine-review-anio-registro", persona.anio_registro);
@@ -1215,6 +1183,7 @@ function collectReviewPayload() {
 
         curp: getFieldValue("#ine-review-curp"),
         clave_elector: getFieldValue("#ine-review-clave-elector"),
+        idmex: getFieldValue("#ine-review-idmex"),
         seccion_id: getFieldValue("#ine-review-seccion"),
 
         anio_registro: getFieldValue("#ine-review-anio-registro"),

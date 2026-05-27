@@ -437,6 +437,15 @@ ix_require_session([
                                     max="2100"
                                     placeholder="Año">
                             </label>
+
+                            <label class="ine-review-field">
+                                <span>IDMEX</span>
+                                <input
+                                    type="text"
+                                    id="ine-review-idmex"
+                                    name="idmex"
+                                    placeholder="IDMEX">
+                            </label>
                         </div>
                     </section>
 

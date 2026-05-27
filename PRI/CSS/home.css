@@ -1146,6 +1146,17 @@
 }
 
 /* -------------------------------------------------------------------------- */
+/* PATCH · Scanner capturado sin palomita                                     */
+/* -------------------------------------------------------------------------- */
+
+.ine-camera-feedback,
+.ine-camera-feedback-icon,
+.ine-camera-stage[data-state="captured"] .ine-camera-feedback-icon--ok,
+.ine-camera-stage[data-state="error"] .ine-camera-feedback-icon--error {
+    display: none !important;
+}
+
+/* -------------------------------------------------------------------------- */
 /* PATCH · Header minimal modal captura INE                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -1519,6 +1530,10 @@ body.ine-modal-open {
 /* -------------------------------------------------------------------------- */
 
 @media (max-width: 720px) {
+    .red-dashboard {
+        padding-top: 3rem;
+    }
+
     #ine-review-modal {
         --ine-review-footer-h: 174px;
     }
