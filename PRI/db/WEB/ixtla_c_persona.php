@@ -1,60 +1,157 @@
 <?php
-// db\WEB\ixtla_c_persona.php
+// db/WEB/ixtla_c_persona.php
+
+declare(strict_types=1);
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+date_default_timezone_set('America/Mexico_City');
+
+/* ============================================================
+   CORS
+   ============================================================ */
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
+
+$allowed_origins = [
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com'
+];
+
+if (in_array($origin, $allowed_origins, true)) {
   header("Access-Control-Allow-Origin: $origin");
   header("Vary: Origin");
 }
 
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: no-referrer");
+header("Content-Type: application/json; charset=utf-8");
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
   exit;
 }
 
-header('Content-Type: application/json; charset=utf-8');
-date_default_timezone_set('America/Mexico_City');
+/* ============================================================
+   HELPERS
+   ============================================================ */
 
-$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
-if ($path && file_exists($path)) {
-  include $path;
-} else {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se encontró conn_db.php en $path"], JSON_UNESCAPED_UNICODE));
+function json_response(array $data, int $status = 200): void
+{
+  http_response_code($status);
+  echo json_encode($data, JSON_UNESCAPED_UNICODE);
+  exit;
 }
 
-$in = json_decode(file_get_contents("php://input"), true) ?? [];
+function internal_error(string $message): void
+{
+  error_log('[IXTLA_C_PERSONA] ' . $message);
 
-$persona_id = isset($in['persona_id']) ? (int)$in['persona_id'] : (isset($in['id']) ? (int)$in['id'] : null);
-$q = isset($in['q']) ? trim((string)$in['q']) : '';
-$seccion_id = isset($in['seccion_id']) ? (int)$in['seccion_id'] : null;
-$estatus_id = isset($in['estatus_id']) ? (int)$in['estatus_id'] : null;
-$telefono = isset($in['telefono']) ? trim((string)$in['telefono']) : '';
-$email = isset($in['email']) ? trim((string)$in['email']) : '';
-
-$page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
-$pageSize = isset($in['page_size']) ? max(1, min(500, (int)$in['page_size'])) : 50;
-$offset = ($page - 1) * $pageSize;
-
-$con = conectar();
-if (!$con) {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se pudo conectar a la base de datos"], JSON_UNESCAPED_UNICODE));
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
 }
 
-$con->set_charset('utf8mb4');
+function read_json_body(): array
+{
+  $raw = file_get_contents("php://input");
 
-function persona_row(array $row): array {
+  if (!$raw || trim($raw) === '') {
+    return [];
+  }
+
+  $in = json_decode($raw, true);
+
+  if (!is_array($in)) {
+    json_response([
+      "ok" => false,
+      "error" => "JSON inválido"
+    ], 400);
+  }
+
+  return $in;
+}
+
+function db(): mysqli
+{
+  $path = realpath("/home/site/wwwroot/db/conn/conn_db_2.php");
+
+  if (!$path || !file_exists($path)) {
+    internal_error("No se encontró conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php");
+  }
+
+  include_once $path;
+
+  if (!function_exists('conectar')) {
+    internal_error("No existe la función conectar() en conn_db_2.php");
+  }
+
+  $con = conectar();
+
+  if (!$con instanceof mysqli) {
+    internal_error("conectar() no regresó una conexión mysqli válida");
+  }
+
+  $con->set_charset('utf8mb4');
+  $con->query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+
+  return $con;
+}
+
+function bind_params(mysqli_stmt $stmt, string $types, array &$params): void
+{
+  if ($types === '' || empty($params)) {
+    return;
+  }
+
+  $refs = [];
+  $refs[] = $types;
+
+  foreach ($params as $key => &$value) {
+    $refs[] = &$value;
+  }
+
+  call_user_func_array([$stmt, 'bind_param'], $refs);
+}
+
+function int_or_null(array $in, string $key): ?int
+{
+  if (!isset($in[$key]) || $in[$key] === '') {
+    return null;
+  }
+
+  $value = (int)$in[$key];
+
+  return $value > 0 ? $value : null;
+}
+
+function str_clean(array $in, string $key): string
+{
+  return isset($in[$key]) ? trim((string)$in[$key]) : '';
+}
+
+/* ============================================================
+   FORMATTER
+   ============================================================ */
+
+function persona_row(array $row): array
+{
   return [
     "persona_id" => (int)$row['persona_id'],
     "uuid" => $row['uuid'],
+
     "nombres" => $row['nombres'],
     "apellido_paterno" => $row['apellido_paterno'],
     "apellido_materno" => $row['apellido_materno'],
+    "nombre_completo" => trim(
+      (string)$row['nombres'] . ' ' .
+        (string)$row['apellido_paterno'] . ' ' .
+        (string)$row['apellido_materno']
+    ),
+
     "fecha_nacimiento" => $row['fecha_nacimiento'],
     "sexo" => $row['sexo'],
 
@@ -84,13 +181,22 @@ function persona_row(array $row): array {
     "whatsapp" => $row['whatsapp'],
     "email" => $row['email'],
 
-    "acepta_tratamiento_datos" => (int)$row['acepta_tratamiento_datos'],
-    "acepta_datos_sensibles" => (int)$row['acepta_datos_sensibles'],
-    "acepta_contacto_whatsapp" => (int)$row['acepta_contacto_whatsapp'],
+    "acepta_tratamiento_datos" => isset($row['acepta_tratamiento_datos'])
+      ? (int)$row['acepta_tratamiento_datos']
+      : 0,
+
+    "acepta_datos_sensibles" => isset($row['acepta_datos_sensibles'])
+      ? (int)$row['acepta_datos_sensibles']
+      : 0,
+
+    "acepta_contacto_whatsapp" => isset($row['acepta_contacto_whatsapp'])
+      ? (int)$row['acepta_contacto_whatsapp']
+      : 0,
+
     "aviso_privacidad_version" => $row['aviso_privacidad_version'],
     "fecha_consentimiento" => $row['fecha_consentimiento'],
 
-    "estatus_id" => (int)$row['estatus_id'],
+    "estatus_id" => isset($row['estatus_id']) ? (int)$row['estatus_id'] : null,
     "estatus" => [
       "codigo" => $row['estatus_codigo'],
       "nombre" => $row['estatus_nombre']
@@ -98,21 +204,29 @@ function persona_row(array $row): array {
 
     "territorio" => [
       "seccion" => [
-        "territorio_id" => isset($row['seccion_territorio_id']) ? (int)$row['seccion_territorio_id'] : null,
+        "territorio_id" => isset($row['seccion_territorio_id'])
+          ? (int)$row['seccion_territorio_id']
+          : null,
         "codigo" => $row['seccion_codigo'],
         "nombre" => $row['seccion_nombre'],
         "tipo" => $row['seccion_tipo']
       ],
       "zona" => [
-        "territorio_id" => isset($row['zona_id']) ? (int)$row['zona_id'] : null,
+        "territorio_id" => isset($row['zona_id'])
+          ? (int)$row['zona_id']
+          : null,
         "codigo" => $row['zona_codigo'],
         "nombre" => $row['zona_nombre']
       ]
     ],
 
-    "capturado_por" => isset($row['capturado_por']) ? (int)$row['capturado_por'] : null,
+    "capturado_por" => isset($row['capturado_por'])
+      ? (int)$row['capturado_por']
+      : null,
+
     "fecha_captura" => $row['fecha_captura'],
     "observaciones" => $row['observaciones'],
+
     "created_at" => $row['created_at'],
     "created_by" => isset($row['created_by']) ? (int)$row['created_by'] : null,
     "updated_at" => $row['updated_at'],
@@ -120,142 +234,298 @@ function persona_row(array $row): array {
   ];
 }
 
-$baseSelect = "
-  SELECT
-    p.*,
-    e.codigo AS estatus_codigo,
-    e.nombre AS estatus_nombre,
-    t.territorio_id AS seccion_territorio_id,
-    t.codigo AS seccion_codigo,
-    t.nombre AS seccion_nombre,
-    t.tipo AS seccion_tipo,
-    z.territorio_id AS zona_id,
-    z.codigo AS zona_codigo,
-    z.nombre AS zona_nombre
-  FROM persona p
-  INNER JOIN cat_estatus e ON e.estatus_id = p.estatus_id
-  LEFT JOIN territorio t ON t.territorio_id = p.seccion_id
-  LEFT JOIN territorio z ON z.territorio_id = t.territorio_padre_id
-";
+/* ============================================================
+   SQL BASE
+   ============================================================ */
 
-if ($persona_id && $persona_id > 0) {
-  $sql = $baseSelect . "
-    WHERE p.persona_id = ?
-      AND p.deleted_at IS NULL
-    LIMIT 1
-  ";
+function base_select(): string
+{
+  return "
+        SELECT
+            p.*,
+
+            e.codigo AS estatus_codigo,
+            e.nombre AS estatus_nombre,
+
+            s.territorio_id AS seccion_territorio_id,
+            s.codigo AS seccion_codigo,
+            s.nombre AS seccion_nombre,
+            s.tipo AS seccion_tipo,
+
+            z.territorio_id AS zona_id,
+            z.codigo AS zona_codigo,
+            z.nombre AS zona_nombre
+
+        FROM persona p
+
+        INNER JOIN cat_estatus e
+            ON e.estatus_id = p.estatus_id
+
+        LEFT JOIN territorio s
+            ON s.territorio_id = p.seccion_id
+           AND s.deleted_at IS NULL
+
+        LEFT JOIN territorio z
+            ON z.territorio_id = s.territorio_padre_id
+           AND z.deleted_at IS NULL
+    ";
+}
+
+/* ============================================================
+   CONSULTAS
+   ============================================================ */
+
+function consultar_persona_por_id(mysqli $con, int $persona_id): array
+{
+  $sql = base_select() . "
+        WHERE p.persona_id = ?
+          AND p.deleted_at IS NULL
+        LIMIT 1
+    ";
 
   $st = $con->prepare($sql);
   $st->bind_param("i", $persona_id);
   $st->execute();
+
   $row = $st->get_result()->fetch_assoc();
   $st->close();
-  $con->close();
 
   if (!$row) {
-    http_response_code(404);
-    die(json_encode(["ok" => false, "error" => "Persona no encontrada"], JSON_UNESCAPED_UNICODE));
+    json_response([
+      "ok" => false,
+      "error" => "Persona no encontrada"
+    ], 404);
   }
 
-  echo json_encode(["ok" => true, "data" => persona_row($row)], JSON_UNESCAPED_UNICODE);
-  exit;
+  return persona_row($row);
 }
 
-$where = ["p.deleted_at IS NULL"];
-$types = "";
-$params = [];
+function consultar_personas(mysqli $con, array $in): array
+{
+  $q = str_clean($in, 'q');
 
-if ($q !== '') {
-  $like = "%$q%";
-  $where[] = "(
-    p.nombres LIKE ?
-    OR p.apellido_paterno LIKE ?
-    OR p.apellido_materno LIKE ?
-    OR p.email LIKE ?
-    OR p.telefono LIKE ?
-    OR p.whatsapp LIKE ?
-    OR p.municipio LIKE ?
-    OR p.estado LIKE ?
-    OR p.colonia LIKE ?
-  )";
+  if ($q === '') {
+    $q = str_clean($in, 'search');
+  }
 
-  for ($i = 0; $i < 9; $i++) {
+  $telefono = str_clean($in, 'telefono');
+  $email = str_clean($in, 'email');
+
+  $seccion_id = int_or_null($in, 'seccion_id');
+  $estatus_id = int_or_null($in, 'estatus_id');
+
+  $page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
+
+  $pageSize = 50;
+
+  if (isset($in['page_size'])) {
+    $pageSize = (int)$in['page_size'];
+  } elseif (isset($in['limit'])) {
+    $pageSize = (int)$in['limit'];
+  }
+
+  $pageSize = max(1, min(500, $pageSize));
+  $offset = ($page - 1) * $pageSize;
+
+  $where = [
+    "p.deleted_at IS NULL"
+  ];
+
+  $params = [];
+  $types = "";
+
+  if ($q !== '') {
+    $like = "%$q%";
+
+    $where[] = "(
+            p.nombres LIKE ?
+            OR p.apellido_paterno LIKE ?
+            OR p.apellido_materno LIKE ?
+            OR CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno) LIKE ?
+            OR p.email LIKE ?
+            OR p.telefono LIKE ?
+            OR p.whatsapp LIKE ?
+            OR p.domicilio_texto LIKE ?
+            OR p.colonia LIKE ?
+            OR p.localidad LIKE ?
+            OR p.municipio LIKE ?
+            OR p.estado LIKE ?
+            OR s.codigo LIKE ?
+            OR s.nombre LIKE ?
+            OR z.codigo LIKE ?
+            OR z.nombre LIKE ?
+        )";
+
+    for ($i = 0; $i < 16; $i++) {
+      $params[] = $like;
+      $types .= "s";
+    }
+  }
+
+  if ($seccion_id !== null) {
+    $where[] = "p.seccion_id = ?";
+    $params[] = $seccion_id;
+    $types .= "i";
+  }
+
+  if ($estatus_id !== null) {
+    $where[] = "p.estatus_id = ?";
+    $params[] = $estatus_id;
+    $types .= "i";
+  }
+
+  if ($telefono !== '') {
+    $where[] = "(p.telefono = ? OR p.whatsapp = ?)";
+    $params[] = $telefono;
+    $params[] = $telefono;
+    $types .= "ss";
+  }
+
+  if ($email !== '') {
+    $where[] = "p.email = ?";
+    $params[] = $email;
     $types .= "s";
-    $params[] = $like;
   }
-}
 
-if ($seccion_id !== null && $seccion_id > 0) {
-  $where[] = "p.seccion_id = ?";
-  $types .= "i";
-  $params[] = $seccion_id;
-}
+  $whereSql = implode(" AND ", $where);
 
-if ($estatus_id !== null && $estatus_id > 0) {
-  $where[] = "p.estatus_id = ?";
-  $types .= "i";
-  $params[] = $estatus_id;
-}
+  $countSql = "
+        SELECT COUNT(*) AS total
+        FROM persona p
 
-if ($telefono !== '') {
-  $where[] = "(p.telefono = ? OR p.whatsapp = ?)";
-  $types .= "ss";
-  $params[] = $telefono;
-  $params[] = $telefono;
-}
+        LEFT JOIN territorio s
+            ON s.territorio_id = p.seccion_id
+           AND s.deleted_at IS NULL
 
-if ($email !== '') {
-  $where[] = "p.email = ?";
-  $types .= "s";
-  $params[] = $email;
-}
+        LEFT JOIN territorio z
+            ON z.territorio_id = s.territorio_padre_id
+           AND z.deleted_at IS NULL
 
-$sql = "
-  SELECT SQL_CALC_FOUND_ROWS *
-  FROM (
-    $baseSelect
-    WHERE " . implode(" AND ", $where) . "
-  ) AS x
-  ORDER BY x.fecha_captura DESC, x.persona_id DESC
-  LIMIT ? OFFSET ?
-";
+        WHERE $whereSql
+    ";
 
-$types .= "ii";
-$params[] = $pageSize;
-$params[] = $offset;
+  $stCount = $con->prepare($countSql);
 
-$st = $con->prepare($sql);
-
-if ($types !== '') {
-  $refs = [];
-  $refs[] = $types;
-  foreach ($params as $k => &$v) {
-    $refs[] = &$v;
+  if ($types !== '') {
+    $countParams = $params;
+    bind_params($stCount, $types, $countParams);
   }
-  call_user_func_array([$st, 'bind_param'], $refs);
+
+  $stCount->execute();
+  $totalRow = $stCount->get_result()->fetch_assoc();
+  $stCount->close();
+
+  $total = (int)($totalRow['total'] ?? 0);
+
+  $sql = base_select() . "
+        WHERE $whereSql
+        ORDER BY
+            COALESCE(p.fecha_captura, p.created_at) DESC,
+            p.persona_id DESC
+        LIMIT ? OFFSET ?
+    ";
+
+  $listParams = $params;
+  $listTypes = $types . "ii";
+
+  $listParams[] = $pageSize;
+  $listParams[] = $offset;
+
+  $st = $con->prepare($sql);
+  bind_params($st, $listTypes, $listParams);
+  $st->execute();
+
+  $rs = $st->get_result();
+
+  $data = [];
+
+  while ($row = $rs->fetch_assoc()) {
+    $data[] = persona_row($row);
+  }
+
+  $st->close();
+
+  return [
+    "meta" => [
+      "page" => $page,
+      "page_size" => $pageSize,
+      "total" => $total,
+      "total_pages" => $pageSize > 0 ? (int)ceil($total / $pageSize) : 0
+    ],
+    "data" => $data
+  ];
 }
 
-$st->execute();
-$rs = $st->get_result();
+/* ============================================================
+   MAIN
+   ============================================================ */
 
-$data = [];
-while ($row = $rs->fetch_assoc()) {
-  $data[] = persona_row($row);
+try {
+  if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    json_response([
+      "ok" => false,
+      "error" => "Método no permitido. Usa POST."
+    ], 405);
+  }
+
+  $in = read_json_body();
+
+  $persona_id = null;
+
+  if (isset($in['persona_id'])) {
+    $persona_id = (int)$in['persona_id'];
+  } elseif (isset($in['id'])) {
+    $persona_id = (int)$in['id'];
+  }
+
+  $con = db();
+
+  if ($persona_id && $persona_id > 0) {
+    $data = consultar_persona_por_id($con, $persona_id);
+
+    $con->close();
+
+    json_response([
+      "ok" => true,
+      "data" => $data
+    ]);
+  }
+
+  $result = consultar_personas($con, $in);
+
+  $con->close();
+
+  json_response([
+    "ok" => true,
+    "meta" => $result["meta"],
+    "data" => $result["data"]
+  ]);
+} catch (mysqli_sql_exception $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  error_log('[IXTLA_C_PERSONA][SQL] ' . $e->getMessage());
+
+  json_response([
+    "ok" => false,
+    "error" => "Error al consultar personas"
+  ], 500);
+} catch (Throwable $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  error_log('[IXTLA_C_PERSONA][ERROR] ' . $e->getMessage());
+
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
 }
-
-$st->close();
-
-$totalRow = $con->query("SELECT FOUND_ROWS() AS total")->fetch_assoc();
-$total = (int)$totalRow['total'];
-
-$con->close();
-
-echo json_encode([
-  "ok" => true,
-  "meta" => [
-    "page" => $page,
-    "page_size" => $pageSize,
-    "total" => $total
-  ],
-  "data" => $data
-], JSON_UNESCAPED_UNICODE);
