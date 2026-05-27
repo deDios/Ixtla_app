@@ -1215,7 +1215,7 @@
     --ine-review-warning-line: #fed7aa;
     --ine-review-warning-text: #9a3412;
     --ine-review-radius: 18px;
-    --ine-review-shadow: 0 24px 70px rgba(15, 23, 42, 0.32);
+    --ine-review-shadow: 0 24px 70px rgba(32, 37, 48, 0.32);
     --ine-review-footer-h: 176px;
 }
 
@@ -1611,5 +1611,44 @@ body.ine-modal-open {
         .ine-review-dialog {
             max-height: calc(100vh - 88px);
         }
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* PATCH · Capturas INE en modal revisión                                     */
+/* -------------------------------------------------------------------------- */
+
+.ine-review-captures-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.ine-review-capture-card {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--ine-review-line-soft);
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+.ine-review-capture-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1.58 / 1;
+    object-fit: contain;
+    background: #111827;
+}
+
+.ine-review-capture-card figcaption {
+    padding: 10px 12px;
+    color: #111827;
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+@media (max-width: 720px) {
+    .ine-review-captures-grid {
+        grid-template-columns: 1fr;
     }
 }

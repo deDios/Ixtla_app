@@ -71,6 +71,9 @@ const SEL = {
     reviewClose: "[data-ine-review-close]",
     reviewForm: "#ine-review-form",
     btnReprocess: "#ine-btn-reprocess",
+
+    reviewFront: "#ine-review-front",
+    reviewBack: "#ine-review-back",
 };
 
 /* -------------------------------------------------------------------------- */
@@ -101,6 +104,19 @@ function setModalOpen(isOpen) {
     modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
 
     syncBodyModalState();
+}
+
+function paintReviewImages(payload) {
+    const front = $(SEL.reviewFront);
+    const back = $(SEL.reviewBack);
+
+    if (front && payload?.images?.front) {
+        front.src = payload.images.front;
+    }
+
+    if (back && payload?.images?.back) {
+        back.src = payload.images.back;
+    }
 }
 
 function setReviewModalOpen(isOpen) {
@@ -1153,12 +1169,6 @@ function fillReviewForm(persona) {
     setFieldValue("#ine-review-vigencia-fin", persona.vigencia_fin);
 
     setFieldValue("#ine-review-domicilio", persona.domicilio_texto);
-    setFieldValue("#ine-review-calle", persona.calle);
-    setFieldValue("#ine-review-numero-exterior", persona.numero_exterior);
-    setFieldValue("#ine-review-numero-interior", persona.numero_interior);
-    setFieldValue("#ine-review-colonia", persona.colonia);
-    setFieldValue("#ine-review-localidad", persona.localidad);
-    setFieldValue("#ine-review-municipio", persona.municipio);
 
     setFieldValue("#ine-review-telefono", persona.telefono);
     setFieldValue("#ine-review-whatsapp", persona.whatsapp);
@@ -1184,6 +1194,7 @@ function openReviewModal(payload) {
 
     fillReviewForm(payload.persona || {});
     modal.__inePayload = payload;
+    paintReviewImages(payload);
 
     setReviewModalOpen(true);
 
@@ -1212,12 +1223,6 @@ function collectReviewPayload() {
         vigencia_fin: getFieldValue("#ine-review-vigencia-fin"),
 
         domicilio_texto: getFieldValue("#ine-review-domicilio"),
-        calle: getFieldValue("#ine-review-calle"),
-        numero_exterior: getFieldValue("#ine-review-numero-exterior"),
-        numero_interior: getFieldValue("#ine-review-numero-interior"),
-        colonia: getFieldValue("#ine-review-colonia"),
-        localidad: getFieldValue("#ine-review-localidad"),
-        municipio: getFieldValue("#ine-review-municipio"),
 
         telefono: getFieldValue("#ine-review-telefono"),
         whatsapp: getFieldValue("#ine-review-whatsapp"),
@@ -1250,11 +1255,10 @@ function bindReviewModalEvents() {
         btn.addEventListener("click", closeReviewModal);
     });
 
-    $(SEL.btnReprocess)?.addEventListener("click", async () => {
+    $(SEL.btnReprocess)?.addEventListener("click", () => {
         closeReviewModal();
-        resetCaptureFlow();
         setModalOpen(true);
-        await startCamera();
+        showSummary();
     });
 
     $(SEL.reviewForm)?.addEventListener("submit", handleReviewSubmit);

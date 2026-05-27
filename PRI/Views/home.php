@@ -453,60 +453,6 @@ ix_require_session([
                                     rows="3"
                                     placeholder="Domicilio extraído de la INE"></textarea>
                             </label>
-
-                            <label class="ine-review-field">
-                                <span>Calle</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-calle"
-                                    name="calle"
-                                    placeholder="Calle">
-                            </label>
-
-                            <label class="ine-review-field">
-                                <span>Número exterior</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-numero-exterior"
-                                    name="numero_exterior"
-                                    placeholder="Número exterior">
-                            </label>
-
-                            <label class="ine-review-field">
-                                <span>Número interior</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-numero-interior"
-                                    name="numero_interior"
-                                    placeholder="Número interior">
-                            </label>
-
-                            <label class="ine-review-field">
-                                <span>Colonia</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-colonia"
-                                    name="colonia"
-                                    placeholder="Colonia">
-                            </label>
-
-                            <label class="ine-review-field">
-                                <span>Localidad</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-localidad"
-                                    name="localidad"
-                                    placeholder="Localidad">
-                            </label>
-
-                            <label class="ine-review-field">
-                                <span>Municipio</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-municipio"
-                                    name="municipio"
-                                    placeholder="Municipio">
-                            </label>
                         </div>
                     </section>
 
@@ -591,6 +537,23 @@ ix_require_session([
                                     rows="3"
                                     placeholder="Observaciones internas o aclaraciones del registro"></textarea>
                             </label>
+                        </div>
+                    </section>
+
+                    <!-- Capturas INE -->
+                    <section class="ine-review-section ine-review-section--captures">
+                        <h3>Capturas INE</h3>
+
+                        <div class="ine-review-captures-grid">
+                            <figure class="ine-review-capture-card">
+                                <img id="ine-review-front" src="" alt="Captura del frente de la INE">
+                                <figcaption>Frente</figcaption>
+                            </figure>
+
+                            <figure class="ine-review-capture-card">
+                                <img id="ine-review-back" src="" alt="Captura del reverso de la INE">
+                                <figcaption>Reverso</figcaption>
+                            </figure>
                         </div>
                     </section>
 
