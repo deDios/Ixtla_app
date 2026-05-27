@@ -1,302 +1,561 @@
 <?php
-// db\WEB\ixtla_c_persona_participacion.php
+// db/WEB/ixtla_c_persona_participacion.php
 
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
-  header("Access-Control-Allow-Origin: $origin");
-  header("Vary: Origin");
-}
+declare(strict_types=1);
 
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Max-Age: 86400");
-
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
-  http_response_code(204);
-  exit;
-}
-
-header('Content-Type: application/json; charset=utf-8');
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 date_default_timezone_set('America/Mexico_City');
 
-$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
-if ($path && file_exists($path)) {
-  include $path;
-} else {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se encontró conn_db.php en $path"], JSON_UNESCAPED_UNICODE));
+/* ============================================================
+   CORS 
+   ============================================================ */
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+$allowed_origins = [
+    'https://ixtla-app.com',
+    'https://www.ixtla-app.com'
+];
+
+if (in_array($origin, $allowed_origins, true)) {
+    header("Access-Control-Allow-Origin: $origin");
+    header("Vary: Origin");
 }
 
-$in = json_decode(file_get_contents("php://input"), true) ?? [];
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Max-Age: 86400");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: no-referrer");
+header("Content-Type: application/json; charset=utf-8");
 
-$participacion_id = isset($in['participacion_id']) ? (int)$in['participacion_id'] : (isset($in['id']) ? (int)$in['id'] : null);
-$persona_id = isset($in['persona_id']) ? (int)$in['persona_id'] : null;
-$tipo_participacion = isset($in['tipo_participacion']) ? trim((string)$in['tipo_participacion']) : null;
-$estatus_id = isset($in['estatus_id']) ? (int)$in['estatus_id'] : null;
-$territorio_id = isset($in['territorio_id']) ? (int)$in['territorio_id'] : null;
-$usuario_responsable_id = isset($in['usuario_responsable_id']) ? (int)$in['usuario_responsable_id'] : null;
-$fuente_captura = isset($in['fuente_captura']) ? trim((string)$in['fuente_captura']) : null;
-$activo = array_key_exists('activo', $in) ? (int)$in['activo'] : null;
-$q = isset($in['q']) ? trim((string)$in['q']) : '';
-
-$page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
-$pageSize = isset($in['page_size']) ? max(1, min(500, (int)$in['page_size'])) : 50;
-$offset = ($page - 1) * $pageSize;
-
-$con = conectar();
-if (!$con) {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se pudo conectar a la base de datos"], JSON_UNESCAPED_UNICODE));
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+    http_response_code(204);
+    exit;
 }
 
-$con->set_charset('utf8mb4');
+/* ============================================================
+   HELPERS
+   ============================================================ */
 
-function bind_dynamic(mysqli_stmt $st, string $types, array &$params): void {
-  $refs = [];
-  $refs[] = $types;
-
-  foreach ($params as $k => &$v) {
-    $refs[] = &$v;
-  }
-
-  call_user_func_array([$st, 'bind_param'], $refs);
+function json_response(array $data, int $status = 200): void {
+    http_response_code($status);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    exit;
 }
+
+function internal_error(string $message): void {
+    error_log('[IXTLA_C_PERSONA_PARTICIPACION] ' . $message);
+
+    json_response([
+        "ok" => false,
+        "error" => "Error interno del servidor"
+    ], 500);
+}
+
+function read_json_body(): array {
+    $raw = file_get_contents("php://input");
+
+    if (!$raw || trim($raw) === '') {
+        return [];
+    }
+
+    $in = json_decode($raw, true);
+
+    if (!is_array($in)) {
+        json_response([
+            "ok" => false,
+            "error" => "JSON inválido"
+        ], 400);
+    }
+
+    return $in;
+}
+
+function db(): mysqli {
+    $path = realpath("/home/site/wwwroot/db/conn/conn_db_2.php");
+
+    if (!$path || !file_exists($path)) {
+        internal_error("No se encontró conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php");
+    }
+
+    include_once $path;
+
+    if (!function_exists('conectar')) {
+        internal_error("No existe la función conectar() en conn_db_2.php");
+    }
+
+    $con = conectar();
+
+    if (!$con instanceof mysqli) {
+        internal_error("conectar() no regresó una conexión mysqli válida");
+    }
+
+    $con->set_charset('utf8mb4');
+    $con->query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+
+    return $con;
+}
+
+function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void {
+    if ($types === '' || empty($params)) {
+        return;
+    }
+
+    $refs = [];
+    $refs[] = $types;
+
+    foreach ($params as $key => &$value) {
+        $refs[] = &$value;
+    }
+
+    call_user_func_array([$stmt, 'bind_param'], $refs);
+}
+
+function str_clean(array $in, string $key): string {
+    return isset($in[$key]) ? trim((string)$in[$key]) : '';
+}
+
+function int_or_null(array $in, string $key): ?int {
+    if (!isset($in[$key]) || $in[$key] === '') {
+        return null;
+    }
+
+    $value = (int)$in[$key];
+
+    return $value > 0 ? $value : null;
+}
+
+function nullable_int_from_row(array $row, string $key): ?int {
+    return isset($row[$key]) && $row[$key] !== null ? (int)$row[$key] : null;
+}
+
+/* ============================================================
+   FORMATTER
+   ============================================================ */
 
 function participacion_row(array $row): array {
-  return [
-    "participacion_id" => (int)$row['participacion_id'],
-    "folio" => $row['folio'],
-    "persona_id" => (int)$row['persona_id'],
-    "tipo_participacion" => $row['tipo_participacion'],
-    "participacion_origen_id" => isset($row['participacion_origen_id']) ? (int)$row['participacion_origen_id'] : null,
+    return [
+        "participacion_id" => (int)$row['participacion_id'],
+        "folio" => $row['folio'],
 
-    "estatus_id" => (int)$row['estatus_id'],
-    "estatus" => [
-      "codigo" => $row['estatus_codigo'],
-      "nombre" => $row['estatus_nombre']
-    ],
+        "persona_id" => (int)$row['persona_id'],
+        "persona" => [
+            "persona_id" => (int)$row['persona_id'],
+            "nombres" => $row['persona_nombres'],
+            "apellido_paterno" => $row['persona_apellido_paterno'],
+            "apellido_materno" => $row['persona_apellido_materno'],
+            "nombre_completo" => trim(
+                (string)$row['persona_nombres'] . ' ' .
+                (string)$row['persona_apellido_paterno'] . ' ' .
+                (string)$row['persona_apellido_materno']
+            ),
+            "telefono" => $row['persona_telefono'],
+            "whatsapp" => $row['persona_whatsapp'],
+            "email" => $row['persona_email']
+        ],
 
-    "territorio_id" => isset($row['territorio_id']) ? (int)$row['territorio_id'] : null,
-    "territorio" => [
-      "codigo" => $row['territorio_codigo'],
-      "nombre" => $row['territorio_nombre'],
-      "tipo" => $row['territorio_tipo'],
-      "municipio" => $row['territorio_municipio'],
-      "estado" => $row['territorio_estado']
-    ],
+        "tipo_participacion" => $row['tipo_participacion'],
+        "participacion_origen_id" => nullable_int_from_row($row, 'participacion_origen_id'),
 
-    "usuario_responsable_id" => isset($row['usuario_responsable_id']) ? (int)$row['usuario_responsable_id'] : null,
-    "usuario_responsable" => [
-      "username" => $row['usuario_responsable_username'],
-      "nombre" => $row['usuario_responsable_nombre'],
-      "apellido_paterno" => $row['usuario_responsable_apellido_paterno'],
-      "apellido_materno" => $row['usuario_responsable_apellido_materno']
-    ],
+        "estatus_id" => (int)$row['estatus_id'],
+        "estatus" => [
+            "estatus_id" => (int)$row['estatus_id'],
+            "codigo" => $row['estatus_codigo'],
+            "nombre" => $row['estatus_nombre']
+        ],
 
-    "persona" => [
-      "nombres" => $row['persona_nombres'],
-      "apellido_paterno" => $row['persona_apellido_paterno'],
-      "apellido_materno" => $row['persona_apellido_materno'],
-      "telefono" => $row['persona_telefono'],
-      "whatsapp" => $row['persona_whatsapp'],
-      "email" => $row['persona_email']
-    ],
+        "territorio_id" => nullable_int_from_row($row, 'territorio_id'),
+        "territorio" => [
+            "territorio_id" => nullable_int_from_row($row, 'territorio_id'),
+            "codigo" => $row['territorio_codigo'],
+            "nombre" => $row['territorio_nombre'],
+            "tipo" => $row['territorio_tipo'],
+            "municipio" => $row['territorio_municipio'],
+            "estado" => $row['territorio_estado']
+        ],
 
-    "fuente_captura" => $row['fuente_captura'],
-    "fecha_registro" => $row['fecha_registro'],
-    "fecha_afiliacion" => $row['fecha_afiliacion'],
-    "numero_afiliacion" => $row['numero_afiliacion'],
-    "observaciones" => $row['observaciones'],
-    "activo" => (int)$row['activo'],
+        "usuario_responsable_id" => nullable_int_from_row($row, 'usuario_responsable_id'),
+        "usuario_responsable" => [
+            "usuario_id" => nullable_int_from_row($row, 'usuario_responsable_id'),
+            "username" => $row['usuario_responsable_username'],
+            "nombre" => $row['usuario_responsable_nombre'],
+            "apellido_paterno" => $row['usuario_responsable_apellido_paterno'],
+            "apellido_materno" => $row['usuario_responsable_apellido_materno'],
+            "nombre_completo" => trim(
+                (string)$row['usuario_responsable_nombre'] . ' ' .
+                (string)$row['usuario_responsable_apellido_paterno'] . ' ' .
+                (string)$row['usuario_responsable_apellido_materno']
+            )
+        ],
 
-    "created_at" => $row['created_at'],
-    "created_by" => isset($row['created_by']) ? (int)$row['created_by'] : null,
-    "updated_at" => $row['updated_at'],
-    "updated_by" => isset($row['updated_by']) ? (int)$row['updated_by'] : null
-  ];
+        "fuente_captura" => $row['fuente_captura'],
+        "fecha_registro" => $row['fecha_registro'],
+        "fecha_afiliacion" => $row['fecha_afiliacion'],
+        "numero_afiliacion" => $row['numero_afiliacion'],
+        "observaciones" => $row['observaciones'],
+        "activo" => (int)$row['activo'],
+
+        "created_at" => $row['created_at'],
+        "created_by" => nullable_int_from_row($row, 'created_by'),
+        "updated_at" => $row['updated_at'],
+        "updated_by" => nullable_int_from_row($row, 'updated_by')
+    ];
 }
 
-$baseSelect = "
-  SELECT
-    pp.*,
+/* ============================================================
+   SQL BASE
+   ============================================================ */
 
-    e.codigo AS estatus_codigo,
-    e.nombre AS estatus_nombre,
+function base_select(): string {
+    return "
+        SELECT
+            pp.*,
 
-    t.codigo AS territorio_codigo,
-    t.nombre AS territorio_nombre,
-    t.tipo AS territorio_tipo,
-    t.municipio AS territorio_municipio,
-    t.estado AS territorio_estado,
+            e.codigo AS estatus_codigo,
+            e.nombre AS estatus_nombre,
 
-    u.username AS usuario_responsable_username,
-    u.nombre AS usuario_responsable_nombre,
-    u.apellido_paterno AS usuario_responsable_apellido_paterno,
-    u.apellido_materno AS usuario_responsable_apellido_materno,
+            t.codigo AS territorio_codigo,
+            t.nombre AS territorio_nombre,
+            t.tipo AS territorio_tipo,
+            t.municipio AS territorio_municipio,
+            t.estado AS territorio_estado,
 
-    p.nombres AS persona_nombres,
-    p.apellido_paterno AS persona_apellido_paterno,
-    p.apellido_materno AS persona_apellido_materno,
-    p.telefono AS persona_telefono,
-    p.whatsapp AS persona_whatsapp,
-    p.email AS persona_email
+            u.username AS usuario_responsable_username,
+            u.nombre AS usuario_responsable_nombre,
+            u.apellido_paterno AS usuario_responsable_apellido_paterno,
+            u.apellido_materno AS usuario_responsable_apellido_materno,
 
-  FROM persona_participacion pp
-  INNER JOIN persona p
-    ON p.persona_id = pp.persona_id
-  INNER JOIN cat_estatus e
-    ON e.estatus_id = pp.estatus_id
-  LEFT JOIN territorio t
-    ON t.territorio_id = pp.territorio_id
-  LEFT JOIN usuario u
-    ON u.usuario_id = pp.usuario_responsable_id
-";
+            p.nombres AS persona_nombres,
+            p.apellido_paterno AS persona_apellido_paterno,
+            p.apellido_materno AS persona_apellido_materno,
+            p.telefono AS persona_telefono,
+            p.whatsapp AS persona_whatsapp,
+            p.email AS persona_email
 
-if ($participacion_id && $participacion_id > 0) {
-  $sql = $baseSelect . "
-    WHERE pp.participacion_id = ?
-      AND pp.deleted_at IS NULL
-    LIMIT 1
-  ";
+        FROM persona_participacion pp
 
-  $st = $con->prepare($sql);
-  $st->bind_param("i", $participacion_id);
-  $st->execute();
-  $row = $st->get_result()->fetch_assoc();
-  $st->close();
-  $con->close();
+        INNER JOIN persona p
+            ON p.persona_id = pp.persona_id
+           AND p.deleted_at IS NULL
 
-  if (!$row) {
-    http_response_code(404);
-    die(json_encode(["ok" => false, "error" => "Participación no encontrada"], JSON_UNESCAPED_UNICODE));
-  }
+        INNER JOIN cat_estatus e
+            ON e.estatus_id = pp.estatus_id
 
-  echo json_encode(["ok" => true, "data" => participacion_row($row)], JSON_UNESCAPED_UNICODE);
-  exit;
+        LEFT JOIN territorio t
+            ON t.territorio_id = pp.territorio_id
+           AND t.deleted_at IS NULL
+
+        LEFT JOIN usuario u
+            ON u.usuario_id = pp.usuario_responsable_id
+           AND u.deleted_at IS NULL
+    ";
 }
 
-$where = ["pp.deleted_at IS NULL"];
-$types = "";
-$params = [];
+function base_count(): string {
+    return "
+        FROM persona_participacion pp
 
-if ($persona_id !== null && $persona_id > 0) {
-  $where[] = "pp.persona_id = ?";
-  $types .= "i";
-  $params[] = $persona_id;
+        INNER JOIN persona p
+            ON p.persona_id = pp.persona_id
+           AND p.deleted_at IS NULL
+
+        INNER JOIN cat_estatus e
+            ON e.estatus_id = pp.estatus_id
+
+        LEFT JOIN territorio t
+            ON t.territorio_id = pp.territorio_id
+           AND t.deleted_at IS NULL
+
+        LEFT JOIN usuario u
+            ON u.usuario_id = pp.usuario_responsable_id
+           AND u.deleted_at IS NULL
+    ";
 }
 
-if ($tipo_participacion !== null && $tipo_participacion !== '') {
-  $where[] = "pp.tipo_participacion = ?";
-  $types .= "s";
-  $params[] = $tipo_participacion;
+/* ============================================================
+   CONSULTAS
+   ============================================================ */
+
+function consultar_participacion_por_id(mysqli $con, int $participacion_id): array {
+    $sql = base_select() . "
+        WHERE pp.participacion_id = ?
+          AND pp.deleted_at IS NULL
+        LIMIT 1
+    ";
+
+    $st = $con->prepare($sql);
+    $st->bind_param("i", $participacion_id);
+    $st->execute();
+
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+
+    if (!$row) {
+        json_response([
+            "ok" => false,
+            "error" => "Participación no encontrada"
+        ], 404);
+    }
+
+    return participacion_row($row);
 }
 
-if ($estatus_id !== null && $estatus_id > 0) {
-  $where[] = "pp.estatus_id = ?";
-  $types .= "i";
-  $params[] = $estatus_id;
+function consultar_participaciones(mysqli $con, array $in): array {
+    $persona_id = int_or_null($in, 'persona_id');
+    $estatus_id = int_or_null($in, 'estatus_id');
+    $territorio_id = int_or_null($in, 'territorio_id');
+    $usuario_responsable_id = int_or_null($in, 'usuario_responsable_id');
+
+    $tipo_participacion = str_clean($in, 'tipo_participacion');
+    $fuente_captura = str_clean($in, 'fuente_captura');
+
+    $q = str_clean($in, 'q');
+
+    if ($q === '') {
+        $q = str_clean($in, 'search');
+    }
+
+    $activo = null;
+
+    if (array_key_exists('activo', $in) && $in['activo'] !== '') {
+        $activo = (int)$in['activo'];
+        $activo = $activo === 1 ? 1 : 0;
+    }
+
+    $page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
+
+    $pageSize = 50;
+
+    if (isset($in['page_size'])) {
+        $pageSize = (int)$in['page_size'];
+    } elseif (isset($in['limit'])) {
+        $pageSize = (int)$in['limit'];
+    }
+
+    $pageSize = max(1, min(500, $pageSize));
+    $offset = ($page - 1) * $pageSize;
+
+    $where = [
+        "pp.deleted_at IS NULL"
+    ];
+
+    $params = [];
+    $types = "";
+
+    if ($persona_id !== null) {
+        $where[] = "pp.persona_id = ?";
+        $params[] = $persona_id;
+        $types .= "i";
+    }
+
+    if ($tipo_participacion !== '') {
+        $where[] = "pp.tipo_participacion = ?";
+        $params[] = $tipo_participacion;
+        $types .= "s";
+    }
+
+    if ($estatus_id !== null) {
+        $where[] = "pp.estatus_id = ?";
+        $params[] = $estatus_id;
+        $types .= "i";
+    }
+
+    if ($territorio_id !== null) {
+        $where[] = "pp.territorio_id = ?";
+        $params[] = $territorio_id;
+        $types .= "i";
+    }
+
+    if ($usuario_responsable_id !== null) {
+        $where[] = "pp.usuario_responsable_id = ?";
+        $params[] = $usuario_responsable_id;
+        $types .= "i";
+    }
+
+    if ($fuente_captura !== '') {
+        $where[] = "pp.fuente_captura = ?";
+        $params[] = $fuente_captura;
+        $types .= "s";
+    }
+
+    if ($activo !== null) {
+        $where[] = "pp.activo = ?";
+        $params[] = $activo;
+        $types .= "i";
+    }
+
+    if ($q !== '') {
+        $like = "%$q%";
+
+        $where[] = "(
+            pp.folio LIKE ?
+            OR pp.tipo_participacion LIKE ?
+            OR pp.fuente_captura LIKE ?
+            OR pp.numero_afiliacion LIKE ?
+            OR pp.observaciones LIKE ?
+
+            OR p.nombres LIKE ?
+            OR p.apellido_paterno LIKE ?
+            OR p.apellido_materno LIKE ?
+            OR CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno) LIKE ?
+            OR p.telefono LIKE ?
+            OR p.whatsapp LIKE ?
+            OR p.email LIKE ?
+
+            OR e.codigo LIKE ?
+            OR e.nombre LIKE ?
+
+            OR t.codigo LIKE ?
+            OR t.nombre LIKE ?
+            OR t.municipio LIKE ?
+            OR t.estado LIKE ?
+
+            OR u.username LIKE ?
+            OR u.nombre LIKE ?
+            OR u.apellido_paterno LIKE ?
+            OR u.apellido_materno LIKE ?
+            OR CONCAT_WS(' ', u.nombre, u.apellido_paterno, u.apellido_materno) LIKE ?
+        )";
+
+        for ($i = 0; $i < 23; $i++) {
+            $params[] = $like;
+            $types .= "s";
+        }
+    }
+
+    $whereSql = implode(" AND ", $where);
+
+    $countSql = "
+        SELECT COUNT(*) AS total
+        " . base_count() . "
+        WHERE $whereSql
+    ";
+
+    $countParams = $params;
+    $countTypes = $types;
+
+    $stCount = $con->prepare($countSql);
+
+    if ($countTypes !== '') {
+        bind_dynamic($stCount, $countTypes, $countParams);
+    }
+
+    $stCount->execute();
+    $totalRow = $stCount->get_result()->fetch_assoc();
+    $stCount->close();
+
+    $total = (int)($totalRow['total'] ?? 0);
+
+    $sql = base_select() . "
+        WHERE $whereSql
+        ORDER BY
+            COALESCE(pp.fecha_registro, pp.created_at) DESC,
+            pp.participacion_id DESC
+        LIMIT ? OFFSET ?
+    ";
+
+    $listParams = $params;
+    $listTypes = $types . "ii";
+
+    $listParams[] = $pageSize;
+    $listParams[] = $offset;
+
+    $st = $con->prepare($sql);
+    bind_dynamic($st, $listTypes, $listParams);
+    $st->execute();
+
+    $rs = $st->get_result();
+
+    $data = [];
+
+    while ($row = $rs->fetch_assoc()) {
+        $data[] = participacion_row($row);
+    }
+
+    $st->close();
+
+    return [
+        "meta" => [
+            "page" => $page,
+            "page_size" => $pageSize,
+            "total" => $total,
+            "total_pages" => $pageSize > 0 ? (int)ceil($total / $pageSize) : 0
+        ],
+        "data" => $data
+    ];
 }
 
-if ($territorio_id !== null && $territorio_id > 0) {
-  $where[] = "pp.territorio_id = ?";
-  $types .= "i";
-  $params[] = $territorio_id;
+/* ============================================================
+   MAIN
+   ============================================================ */
+
+try {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        json_response([
+            "ok" => false,
+            "error" => "Método no permitido. Usa POST."
+        ], 405);
+    }
+
+    $in = read_json_body();
+
+    $participacion_id = null;
+
+    if (isset($in['participacion_id'])) {
+        $participacion_id = (int)$in['participacion_id'];
+    } elseif (isset($in['id'])) {
+        $participacion_id = (int)$in['id'];
+    }
+
+    $con = db();
+
+    if ($participacion_id && $participacion_id > 0) {
+        $data = consultar_participacion_por_id($con, $participacion_id);
+
+        $con->close();
+
+        json_response([
+            "ok" => true,
+            "data" => $data
+        ]);
+    }
+
+    $result = consultar_participaciones($con, $in);
+
+    $con->close();
+
+    json_response([
+        "ok" => true,
+        "meta" => $result["meta"],
+        "data" => $result["data"]
+    ]);
+
+} catch (mysqli_sql_exception $e) {
+    if (isset($con) && $con instanceof mysqli) {
+        try {
+            $con->close();
+        } catch (Throwable $ignored) {}
+    }
+
+    error_log('[IXTLA_C_PERSONA_PARTICIPACION][SQL] ' . $e->getMessage());
+
+    json_response([
+        "ok" => false,
+        "error" => "Error al consultar participaciones"
+    ], 500);
+
+} catch (Throwable $e) {
+    if (isset($con) && $con instanceof mysqli) {
+        try {
+            $con->close();
+        } catch (Throwable $ignored) {}
+    }
+
+    error_log('[IXTLA_C_PERSONA_PARTICIPACION][ERROR] ' . $e->getMessage());
+
+    json_response([
+        "ok" => false,
+        "error" => "Error interno del servidor"
+    ], 500);
 }
-
-if ($usuario_responsable_id !== null && $usuario_responsable_id > 0) {
-  $where[] = "pp.usuario_responsable_id = ?";
-  $types .= "i";
-  $params[] = $usuario_responsable_id;
-}
-
-if ($fuente_captura !== null && $fuente_captura !== '') {
-  $where[] = "pp.fuente_captura = ?";
-  $types .= "s";
-  $params[] = $fuente_captura;
-}
-
-if ($activo !== null) {
-  $where[] = "pp.activo = ?";
-  $types .= "i";
-  $params[] = $activo;
-}
-
-if ($q !== '') {
-  $like = "%$q%";
-  $where[] = "(
-    pp.folio LIKE ?
-    OR pp.numero_afiliacion LIKE ?
-    OR p.nombres LIKE ?
-    OR p.apellido_paterno LIKE ?
-    OR p.apellido_materno LIKE ?
-    OR p.telefono LIKE ?
-    OR p.whatsapp LIKE ?
-    OR p.email LIKE ?
-  )";
-
-  for ($i = 0; $i < 8; $i++) {
-    $types .= "s";
-    $params[] = $like;
-  }
-}
-
-$sql = "
-  $baseSelect
-  WHERE " . implode(" AND ", $where) . "
-  ORDER BY pp.fecha_registro DESC, pp.participacion_id DESC
-  LIMIT ? OFFSET ?
-";
-
-$types .= "ii";
-$params[] = $pageSize;
-$params[] = $offset;
-
-$st = $con->prepare($sql);
-bind_dynamic($st, $types, $params);
-$st->execute();
-$rs = $st->get_result();
-
-$data = [];
-while ($row = $rs->fetch_assoc()) {
-  $data[] = participacion_row($row);
-}
-
-$st->close();
-
-/* Total */
-$countSql = "
-  SELECT COUNT(*) AS total
-  FROM persona_participacion pp
-  INNER JOIN persona p
-    ON p.persona_id = pp.persona_id
-  WHERE " . implode(" AND ", $where) . "
-";
-
-$countParams = $params;
-array_pop($countParams);
-array_pop($countParams);
-
-$countTypes = substr($types, 0, -2);
-
-$st = $con->prepare($countSql);
-
-if ($countTypes !== '') {
-  bind_dynamic($st, $countTypes, $countParams);
-}
-
-$st->execute();
-$totalRow = $st->get_result()->fetch_assoc();
-$total = (int)$totalRow['total'];
-$st->close();
-
-$con->close();
-
-echo json_encode([
-  "ok" => true,
-  "meta" => [
-    "page" => $page,
-    "page_size" => $pageSize,
-    "total" => $total
-  ],
-  "data" => $data
-], JSON_UNESCAPED_UNICODE);
