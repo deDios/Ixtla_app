@@ -470,12 +470,82 @@ function exportDummyCSV() {
   URL.revokeObjectURL(url);
 }
 
+function getNextMockId() {
+  const ids = State.universe.map((item) => Number(item.id) || 0);
+  return Math.max(0, ...ids) + 1;
+}
+
+function buildRedRowFromPersonaMock(persona = {}) {
+  const nombreCompleto = [
+    persona.nombres,
+    persona.apellido_paterno,
+    persona.apellido_materno,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return {
+    id: getNextMockId(),
+    nombre: nombreCompleto || "Persona sin nombre",
+    domicilio: persona.domicilio_texto || "—",
+    seccion: persona.seccion_id || "—",
+    telefono: persona.telefono || persona.whatsapp || "—",
+    validez: Boolean(persona.curp && persona.clave_elector && persona.seccion_id),
+    tipo: "simpatizante",
+
+    // Datos extra para futuro detalle/drawer
+    curp: persona.curp || "",
+    clave_elector: persona.clave_elector || "",
+    idmex: persona.idmex || "",
+    fecha_nacimiento: persona.fecha_nacimiento || "",
+    sexo: persona.sexo || "",
+    email: persona.email || "",
+    whatsapp: persona.whatsapp || "",
+    anio_registro: persona.anio_registro || "",
+    emision: persona.emision || "",
+    vigencia_inicio: persona.vigencia_inicio || "",
+    vigencia_fin: persona.vigencia_fin || "",
+    observaciones: persona.observaciones || "",
+    origen: "scanner_ine",
+    mock: true,
+    created_at: new Date().toISOString(),
+  };
+}
+
+function addPersonaMockToHome(persona) {
+  const row = buildRedRowFromPersonaMock(persona);
+
+  State.universe.unshift(row);
+  State.page = 1;
+
+  updateCounts();
+  applyFilters();
+
+  log("Persona escaneada agregada al mock de Home:", row);
+
+  return row;
+}
+
 function bindEvents() {
   const search = $(SEL.search);
   search?.addEventListener("input", () => {
     State.search = search.value;
     State.page = 1;
     applyFilters();
+  });
+
+  document.addEventListener("red:persona-mock-saved", (event) => {
+    const persona = event.detail?.persona;
+
+    if (!persona) {
+      warn("Evento red:persona-mock-saved sin persona:", event.detail);
+      return;
+    }
+
+    const row = addPersonaMockToHome(persona);
+
+    log("Persona agregada al listado desde evento:", row);
   });
 
   document.addEventListener("click", (event) => {

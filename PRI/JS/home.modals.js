@@ -41,6 +41,8 @@ const State = {
         front: null,
         back: null,
     },
+
+    personasMock: [],
 };
 
 const SEL = {
@@ -1215,19 +1217,112 @@ function collectReviewPayload() {
     };
 }
 
-function handleReviewSubmit(event) {
+function createMockPersonaId() {
+    return `PER-MOCK-${Date.now()}`;
+}
+
+function savePersonaToMock(payload) {
+    const reviewModal = $(SEL.reviewModal);
+    const originalPayload = reviewModal?.__inePayload || null;
+
+    const personaMock = {
+        persona_id: createMockPersonaId(),
+
+        ...payload,
+
+        origen: "scanner_ine",
+        provider: originalPayload?.provider || "openai",
+
+        images: {
+            front: originalPayload?.images?.front || "",
+            back: originalPayload?.images?.back || "",
+            composite: originalPayload?.images?.composite || "",
+        },
+
+        extraction: originalPayload?.extraction || null,
+        fields: originalPayload?.fields || [],
+
+        created_at: new Date().toISOString(),
+        updated_at: null,
+        mock: true,
+    };
+
+    State.personasMock.unshift(personaMock);
+
+    window.RED_PERSONAS_MOCK = State.personasMock;
+
+    document.dispatchEvent(
+        new CustomEvent("red:persona-mock-saved", {
+            detail: {
+                persona: payload,
+                saved: personaMock,
+                personas: State.personasMock,
+            },
+        })
+    );
+
+    log("Persona agregada a personasMock:", personaMock);
+    log("Personas mock actuales:", State.personasMock);
+
+    return personaMock;
+}
+
+async function handleReviewSubmit(event) {
     event.preventDefault();
+
+    const form = event.currentTarget;
+    const submitBtn = form?.querySelector('[type="submit"]');
 
     const payload = collectReviewPayload();
 
-    if (!payload.nombres) {
-        toast("El campo Nombre(s) es obligatorio.", "error", 5000);
+    if (!payload.curp) {
+        toast("El campo CURP es obligatorio.", "error", 5000);
         return;
     }
 
-    log("Payload listo para guardar persona:", payload);
+    if (!payload.clave_elector) {
+        toast("El campo Clave de elector es obligatorio.", "error", 5000);
+        return;
+    }
 
-    toast("Datos listos para guardar. Falta conectar el endpoint de alta.", "warning", 5000);
+    if (!payload.seccion_id) {
+        toast("El campo Sección es obligatorio.", "error", 5000);
+        return;
+    }
+
+    const reviewModal = $(SEL.reviewModal);
+    const originalText = submitBtn?.textContent || "Guardar persona";
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Guardando...";
+    }
+
+    try {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+
+        const personaMock = savePersonaToMock(payload);
+
+        if (reviewModal) {
+            reviewModal.__ineSavedPayload = personaMock;
+        }
+
+        log("Persona guardada en mock:", personaMock);
+
+        toast("Persona guardada correctamente.", "exito", 4500);
+
+        closeReviewModal();
+        resetCaptureFlow();
+
+    } catch (error) {
+        console.error("[RED Home Modals] Error guardando persona mock:", error);
+        toast("No se pudo guardar la persona en mock.", "error", 6000);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
 }
 
 function bindReviewModalEvents() {
