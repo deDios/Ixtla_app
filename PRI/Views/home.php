@@ -299,12 +299,6 @@ ix_require_session([
                                     readonly>
                             </label>
                         </div>
-
-                        <div class="ine-review-warning" role="alert">
-                            <strong>Importante:</strong>
-                            La información fue extraída automáticamente de las imágenes de la INE.
-                            Revisa y corrige los datos antes de guardar la persona.
-                        </div>
                     </section>
 
                     <!-- Identidad -->
@@ -546,6 +540,12 @@ ix_require_session([
                                     rows="3"
                                     placeholder="Observaciones internas o aclaraciones del registro"></textarea>
                             </label>
+                        </div>
+
+                        <div class="ine-review-warning" role="alert">
+                            <strong>Importante: La información fue extraída automáticamente.</strong>
+                            Valide esta información comparando contra el documento INE,
+                            realice los ajustes que sean necesarios y guarde el registro.
                         </div>
                     </section>
 
