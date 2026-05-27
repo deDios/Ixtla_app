@@ -523,33 +523,26 @@ async function simulateReadData() {
 
     const mockData = buildMockIneData();
 
-    log("Datos simulados:", mockData);
+    const payload = {
+        provider: "openai_mock",
+        data: mockData,
+        images: {
+            front: State.captures.front,
+            back: State.captures.back,
+        },
+    };
+
+    log("Datos simulados:", payload);
 
     toast("Lectura simulada completada.", "exito", 3500);
 
-    closeCaptureModal();
-
-    /*
-     * Siguiente paso:
-     * Aquí abriremos el modal grande de revisión/alta de persona
-     * y llamaremos una función tipo:
-     *
-     * window.REDHomePersonaModal?.open(mockData);
-     *
-     * Por ahora dejamos el evento listo para no acoplar todavía los modales.
-     */
     window.dispatchEvent(new CustomEvent("red:ine-data-ready", {
-        detail: {
-            provider: "openai_mock",
-            data: mockData,
-            images: {
-                front: State.captures.front,
-                back: State.captures.back,
-            },
-        },
+        detail: payload,
     }));
 
     if (btnRead) btnRead.disabled = false;
+
+    closeCaptureModal();
 }
 
 function buildMockIneData() {
