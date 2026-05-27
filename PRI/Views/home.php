@@ -162,17 +162,7 @@ ix_require_session([
         <div class="ine-capture-overlay" data-ine-capture-close></div>
 
         <article class="ine-capture-dialog" role="dialog" aria-modal="true" aria-labelledby="ine-capture-title">
-            <header class="ine-capture-header">
-                <div class="ine-capture-brand">
-                    <img src="/ASSETS/main_logo.png" alt="PRI">
-                </div>
-
-                <div class="ine-capture-titlebox">
-                    <p class="ine-capture-kicker">Captura de identificación</p>
-                    <h2 id="ine-capture-title">Captura de INE</h2>
-                    <p id="ine-capture-subtitle">Coloca el frente de la INE dentro del recuadro</p>
-                </div>
-
+            <header class="ine-capture-header ine-capture-header--minimal">
                 <button type="button" class="ine-capture-close" data-ine-capture-close aria-label="Cerrar modal">
                     ×
                 </button>

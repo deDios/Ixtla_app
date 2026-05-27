@@ -1144,3 +1144,46 @@
         }
     }
 }
+
+/* -------------------------------------------------------------------------- */
+/* PATCH · Header minimal modal captura INE                                   */
+/* -------------------------------------------------------------------------- */
+
+.ine-capture-header--minimal {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 58px;
+    padding: 10px 14px;
+    border-bottom: 0;
+    background: #fff;
+}
+
+.ine-capture-header--minimal .ine-capture-close {
+    width: 42px;
+    height: 42px;
+    background: #f3f4f6;
+}
+
+.ine-capture-header--minimal .ine-capture-close:hover {
+    background: #e5e7eb;
+}
+
+/* Ya no se usan en el header minimal, pero los dejamos seguros por si quedan en DOM */
+.ine-capture-header--minimal .ine-capture-brand,
+.ine-capture-header--minimal .ine-capture-titlebox,
+.ine-capture-header--minimal .ine-capture-kicker {
+    display: none !important;
+}
+
+@media (max-width: 720px) {
+    .ine-capture-header--minimal {
+        min-height: 54px;
+        padding: 8px 12px;
+    }
+
+    .ine-capture-header--minimal .ine-capture-close {
+        width: 40px;
+        height: 40px;
+    }
+}
