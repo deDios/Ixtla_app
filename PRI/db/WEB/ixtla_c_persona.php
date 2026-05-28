@@ -241,50 +241,65 @@ function persona_row(array $row): array
 function base_select(): string
 {
   return "
-        SELECT
-            p.*,
+    SELECT
+      p.*,
 
-            e.codigo AS estatus_codigo,
-            e.nombre AS estatus_nombre,
+      e.codigo AS estatus_codigo,
+      e.nombre AS estatus_nombre,
 
-            s.territorio_id AS seccion_territorio_id,
-            s.codigo AS seccion_codigo,
-            s.nombre AS seccion_nombre,
-            s.tipo AS seccion_tipo,
+      s.territorio_id AS seccion_territorio_id,
+      s.codigo AS seccion_codigo,
+      s.nombre AS seccion_nombre,
+      s.tipo AS seccion_tipo,
 
-            z.territorio_id AS zona_id,
-            z.codigo AS zona_codigo,
-            z.nombre AS zona_nombre
+      z.territorio_id AS zona_id,
+      z.codigo AS zona_codigo,
+      z.nombre AS zona_nombre
 
-        FROM persona p
+    FROM persona p
 
-        INNER JOIN cat_estatus e
-            ON e.estatus_id = p.estatus_id
+    INNER JOIN cat_estatus e
+      ON e.estatus_id = p.estatus_id
 
-        LEFT JOIN territorio s
-            ON s.territorio_id = p.seccion_id
-           AND s.deleted_at IS NULL
+    LEFT JOIN territorio s
+      ON s.territorio_id = p.seccion_id
+     AND s.deleted_at IS NULL
 
-        LEFT JOIN territorio z
-            ON z.territorio_id = s.territorio_padre_id
-           AND z.deleted_at IS NULL
-    ";
+    LEFT JOIN territorio z
+      ON z.territorio_id = s.territorio_padre_id
+     AND z.deleted_at IS NULL
+  ";
 }
 
 /* ============================================================
    CONSULTAS
    ============================================================ */
 
-function consultar_persona_por_id(mysqli $con, int $persona_id): array
+function consultar_persona_por_id(mysqli $con, int $persona_id, ?int $capturado_por = null): array
 {
+  $where = [
+    "p.persona_id = ?",
+    "p.deleted_at IS NULL"
+  ];
+
+  $params = [$persona_id];
+  $types = "i";
+
+  if ($capturado_por !== null) {
+    $where[] = "p.capturado_por = ?";
+    $params[] = $capturado_por;
+    $types .= "i";
+  }
+
+  $whereSql = implode(" AND ", $where);
+
   $sql = base_select() . "
-        WHERE p.persona_id = ?
-          AND p.deleted_at IS NULL
-        LIMIT 1
-    ";
+    WHERE $whereSql
+    LIMIT 1
+  ";
 
   $st = $con->prepare($sql);
-  $st->bind_param("i", $persona_id);
+  bind_params($st, $types, $params);
   $st->execute();
 
   $row = $st->get_result()->fetch_assoc();
@@ -313,6 +328,7 @@ function consultar_personas(mysqli $con, array $in): array
 
   $seccion_id = int_or_null($in, 'seccion_id');
   $estatus_id = int_or_null($in, 'estatus_id');
+  $capturado_por = int_or_null($in, 'capturado_por');
 
   $page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
 
@@ -338,23 +354,23 @@ function consultar_personas(mysqli $con, array $in): array
     $like = "%$q%";
 
     $where[] = "(
-            p.nombres LIKE ?
-            OR p.apellido_paterno LIKE ?
-            OR p.apellido_materno LIKE ?
-            OR CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno) LIKE ?
-            OR p.email LIKE ?
-            OR p.telefono LIKE ?
-            OR p.whatsapp LIKE ?
-            OR p.domicilio_texto LIKE ?
-            OR p.colonia LIKE ?
-            OR p.localidad LIKE ?
-            OR p.municipio LIKE ?
-            OR p.estado LIKE ?
-            OR s.codigo LIKE ?
-            OR s.nombre LIKE ?
-            OR z.codigo LIKE ?
-            OR z.nombre LIKE ?
-        )";
+      p.nombres LIKE ?
+      OR p.apellido_paterno LIKE ?
+      OR p.apellido_materno LIKE ?
+      OR CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno) LIKE ?
+      OR p.email LIKE ?
+      OR p.telefono LIKE ?
+      OR p.whatsapp LIKE ?
+      OR p.domicilio_texto LIKE ?
+      OR p.colonia LIKE ?
+      OR p.localidad LIKE ?
+      OR p.municipio LIKE ?
+      OR p.estado LIKE ?
+      OR s.codigo LIKE ?
+      OR s.nombre LIKE ?
+      OR z.codigo LIKE ?
+      OR z.nombre LIKE ?
+    )";
 
     for ($i = 0; $i < 16; $i++) {
       $params[] = $like;
@@ -374,6 +390,12 @@ function consultar_personas(mysqli $con, array $in): array
     $types .= "i";
   }
 
+  if ($capturado_por !== null) {
+    $where[] = "p.capturado_por = ?";
+    $params[] = $capturado_por;
+    $types .= "i";
+  }
+
   if ($telefono !== '') {
     $where[] = "(p.telefono = ? OR p.whatsapp = ?)";
     $params[] = $telefono;
@@ -390,19 +412,19 @@ function consultar_personas(mysqli $con, array $in): array
   $whereSql = implode(" AND ", $where);
 
   $countSql = "
-        SELECT COUNT(*) AS total
-        FROM persona p
+    SELECT COUNT(*) AS total
+    FROM persona p
 
-        LEFT JOIN territorio s
-            ON s.territorio_id = p.seccion_id
-           AND s.deleted_at IS NULL
+    LEFT JOIN territorio s
+      ON s.territorio_id = p.seccion_id
+     AND s.deleted_at IS NULL
 
-        LEFT JOIN territorio z
-            ON z.territorio_id = s.territorio_padre_id
-           AND z.deleted_at IS NULL
+    LEFT JOIN territorio z
+      ON z.territorio_id = s.territorio_padre_id
+     AND z.deleted_at IS NULL
 
-        WHERE $whereSql
-    ";
+    WHERE $whereSql
+  ";
 
   $stCount = $con->prepare($countSql);
 
@@ -418,12 +440,12 @@ function consultar_personas(mysqli $con, array $in): array
   $total = (int)($totalRow['total'] ?? 0);
 
   $sql = base_select() . "
-        WHERE $whereSql
-        ORDER BY
-            COALESCE(p.fecha_captura, p.created_at) DESC,
-            p.persona_id DESC
-        LIMIT ? OFFSET ?
-    ";
+    WHERE $whereSql
+    ORDER BY
+      COALESCE(p.fecha_captura, p.created_at) DESC,
+      p.persona_id DESC
+    LIMIT ? OFFSET ?
+  ";
 
   $listParams = $params;
   $listTypes = $types . "ii";
@@ -478,10 +500,12 @@ try {
     $persona_id = (int)$in['id'];
   }
 
+  $capturado_por = int_or_null($in, 'capturado_por');
+
   $con = db();
 
   if ($persona_id && $persona_id > 0) {
-    $data = consultar_persona_por_id($con, $persona_id);
+    $data = consultar_persona_por_id($con, $persona_id, $capturado_por);
 
     $con->close();
 
