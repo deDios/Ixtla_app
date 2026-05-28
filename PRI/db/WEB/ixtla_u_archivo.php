@@ -1,77 +1,164 @@
 <?php
-// db\WEB\ixtla_u_archivo.php
+// db/WEB/ixtla_u_archivo.php
+
+declare(strict_types=1);
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+date_default_timezone_set('America/Mexico_City');
+
+/* ============================================================
+   CORS
+   ============================================================ */
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
+
+$allowed_origins = [
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com'
+];
+
+if (in_array($origin, $allowed_origins, true)) {
   header("Access-Control-Allow-Origin: $origin");
   header("Vary: Origin");
 }
 
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: no-referrer");
+header("Content-Type: application/json; charset=utf-8");
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
   exit;
 }
 
-header('Content-Type: application/json; charset=utf-8');
-date_default_timezone_set('America/Mexico_City');
+/* ============================================================
+   HELPERS
+   ============================================================ */
 
-$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
-if ($path && file_exists($path)) {
-  include $path;
-} else {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se encontró conn_db.php en $path"], JSON_UNESCAPED_UNICODE));
+function json_response(array $data, int $status = 200): void
+{
+  http_response_code($status);
+  echo json_encode($data, JSON_UNESCAPED_UNICODE);
+  exit;
 }
 
-$in = json_decode(file_get_contents("php://input"), true) ?? [];
+function internal_error(string $message): void
+{
+  error_log('[IXTLA_U_ARCHIVO] ' . $message);
 
-function value_or_null(array $arr, string $key) {
-  if (!array_key_exists($key, $arr)) return null;
-  if ($arr[$key] === '') return null;
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
+}
+
+function read_json_body(): array
+{
+  $raw = file_get_contents("php://input");
+
+  if (!$raw || trim($raw) === '') {
+    json_response([
+      "ok" => false,
+      "error" => "Body JSON requerido"
+    ], 400);
+  }
+
+  $in = json_decode($raw, true);
+
+  if (!is_array($in)) {
+    json_response([
+      "ok" => false,
+      "error" => "JSON inválido"
+    ], 400);
+  }
+
+  return $in;
+}
+
+function db(): mysqli
+{
+  $path = realpath("/home/site/wwwroot/db/conn/conn_db_2.php");
+
+  if (!$path || !file_exists($path)) {
+    internal_error("No se encontró conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php");
+  }
+
+  include_once $path;
+
+  if (!function_exists('conectar')) {
+    internal_error("No existe la función conectar() en conn_db_2.php");
+  }
+
+  $con = conectar();
+
+  if (!$con instanceof mysqli) {
+    internal_error("conectar() no regresó una conexión mysqli válida");
+  }
+
+  $con->set_charset('utf8mb4');
+  $con->query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+  $con->query("SET time_zone='-06:00'");
+
+  return $con;
+}
+
+function value_or_null(array $arr, string $key): mixed
+{
+  if (!array_key_exists($key, $arr)) {
+    return null;
+  }
+
+  if ($arr[$key] === '') {
+    return null;
+  }
+
   return $arr[$key];
 }
 
-function bind_dynamic(mysqli_stmt $st, string $types, array &$params): void {
+function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void
+{
+  if ($types === '' || empty($params)) {
+    return;
+  }
+
   $refs = [];
   $refs[] = $types;
 
-  foreach ($params as $k => &$v) {
-    $refs[] = &$v;
+  foreach ($params as $key => &$value) {
+    $refs[] = &$value;
   }
 
-  call_user_func_array([$st, 'bind_param'], $refs);
+  call_user_func_array([$stmt, 'bind_param'], $refs);
 }
 
-function archivo_response(mysqli $con, int $archivo_id): array {
-  $sql = "
-    SELECT
-      a.*,
-      u.username AS uploaded_by_username,
-      u.nombre AS uploaded_by_nombre,
-      u.apellido_paterno AS uploaded_by_apellido_paterno,
-      u.apellido_materno AS uploaded_by_apellido_materno
-    FROM archivo a
-    LEFT JOIN usuario u
-      ON u.usuario_id = a.uploaded_by
-    WHERE a.archivo_id = ?
-    LIMIT 1
-  ";
+function str_clean(array $in, string $key): string
+{
+  return isset($in[$key]) ? trim((string)$in[$key]) : '';
+}
 
-  $st = $con->prepare($sql);
-  $st->bind_param("i", $archivo_id);
-  $st->execute();
-  $row = $st->get_result()->fetch_assoc();
-  $st->close();
+function nullable_int_from_row(array $row, string $key): ?int
+{
+  return isset($row[$key]) && $row[$key] !== null ? (int)$row[$key] : null;
+}
 
-  if (!$row) return [];
+function bool_int_from_input(array $in, string $key): int
+{
+  return ((int)$in[$key]) === 1 ? 1 : 0;
+}
 
+/* ============================================================
+   FORMATTER
+   ============================================================ */
+
+function archivo_row(array $row): array
+{
   return [
     "archivo_id" => (int)$row['archivo_id'],
     "uuid" => $row['uuid'],
+
     "entidad_tipo" => $row['entidad_tipo'],
     "entidad_id" => (int)$row['entidad_id'],
     "uso_archivo" => $row['uso_archivo'],
@@ -83,238 +170,522 @@ function archivo_response(mysqli $con, int $archivo_id): array {
 
     "mime_type" => $row['mime_type'],
     "extension" => $row['extension'],
-    "tamano_bytes" => isset($row['tamano_bytes']) ? (int)$row['tamano_bytes'] : null,
+    "tamano_bytes" => nullable_int_from_row($row, 'tamano_bytes'),
     "sha256_hash" => $row['sha256_hash'],
 
     "version_no" => (int)$row['version_no'],
     "es_actual" => (int)$row['es_actual'],
-    "reemplaza_archivo_id" => isset($row['reemplaza_archivo_id']) ? (int)$row['reemplaza_archivo_id'] : null,
+    "reemplaza_archivo_id" => nullable_int_from_row($row, 'reemplaza_archivo_id'),
     "privado" => (int)$row['privado'],
 
-    "uploaded_by" => isset($row['uploaded_by']) ? (int)$row['uploaded_by'] : null,
+    "uploaded_by" => nullable_int_from_row($row, 'uploaded_by'),
     "uploaded_by_usuario" => [
+      "usuario_id" => nullable_int_from_row($row, 'uploaded_by'),
       "username" => $row['uploaded_by_username'],
       "nombre" => $row['uploaded_by_nombre'],
       "apellido_paterno" => $row['uploaded_by_apellido_paterno'],
-      "apellido_materno" => $row['uploaded_by_apellido_materno']
+      "apellido_materno" => $row['uploaded_by_apellido_materno'],
+      "nombre_completo" => trim(
+        (string)$row['uploaded_by_nombre'] . ' ' .
+          (string)$row['uploaded_by_apellido_paterno'] . ' ' .
+          (string)$row['uploaded_by_apellido_materno']
+      )
     ],
 
     "uploaded_at" => $row['uploaded_at'],
     "updated_at" => $row['updated_at'],
-    "updated_by" => isset($row['updated_by']) ? (int)$row['updated_by'] : null,
-    "deleted_at" => $row['deleted_at'] ?? null,
-    "deleted_by" => isset($row['deleted_by']) ? (int)$row['deleted_by'] : null
+    "updated_by" => nullable_int_from_row($row, 'updated_by'),
+
+    "deleted_at" => $row['deleted_at'],
+    "deleted_by" => nullable_int_from_row($row, 'deleted_by')
   ];
 }
 
-$archivo_id = isset($in['archivo_id']) ? (int)$in['archivo_id'] : (isset($in['id']) ? (int)$in['id'] : 0);
+/* ============================================================
+   CONSULTA RESPUESTA
+   ============================================================ */
 
-if ($archivo_id <= 0) {
-  http_response_code(400);
-  die(json_encode(["ok" => false, "error" => "Falta parámetro obligatorio: archivo_id"], JSON_UNESCAPED_UNICODE));
+function get_archivo_full(mysqli $con, int $archivo_id, bool $include_deleted = false): array
+{
+  $whereDeleted = $include_deleted ? "" : "AND a.deleted_at IS NULL";
+
+  $sql = "
+        SELECT
+            a.*,
+
+            u.username AS uploaded_by_username,
+            u.nombre AS uploaded_by_nombre,
+            u.apellido_paterno AS uploaded_by_apellido_paterno,
+            u.apellido_materno AS uploaded_by_apellido_materno
+
+        FROM archivo a
+
+        LEFT JOIN usuario u
+            ON u.usuario_id = a.uploaded_by
+           AND u.deleted_at IS NULL
+
+        WHERE a.archivo_id = ?
+          $whereDeleted
+        LIMIT 1
+    ";
+
+  $st = $con->prepare($sql);
+  $st->bind_param("i", $archivo_id);
+  $st->execute();
+
+  $row = $st->get_result()->fetch_assoc();
+
+  $st->close();
+
+  if (!$row) {
+    json_response([
+      "ok" => false,
+      "error" => "Archivo no encontrado"
+    ], 404);
+  }
+
+  return archivo_row($row);
 }
 
-$entidadesValidas = ['PERSONA', 'USUARIO', 'PARTICIPACION'];
-$usosValidos = [
-  'INE_FRENTE',
-  'INE_REVERSO',
-  'FOTO_PERSONA',
-  'FOTO_USUARIO',
-  'COMPROBANTE_DOMICILIO',
-  'FIRMA',
-  'DOCUMENTO_AFILIACION',
-  'EVIDENCIA',
-  'OTRO'
-];
+/* ============================================================
+   VALIDACIONES
+   ============================================================ */
 
-if (array_key_exists('entidad_tipo', $in)) {
-  $entidad_tipo_validar = trim((string)$in['entidad_tipo']);
-  if (!in_array($entidad_tipo_validar, $entidadesValidas, true)) {
-    http_response_code(400);
-    die(json_encode(["ok" => false, "error" => "entidad_tipo inválido"], JSON_UNESCAPED_UNICODE));
+function validar_entidad_relacionada(mysqli $con, string $entidad_tipo, int $entidad_id): void
+{
+  $map = [
+    "PERSONA" => [
+      "tabla" => "persona",
+      "pk" => "persona_id"
+    ],
+    "USUARIO" => [
+      "tabla" => "usuario",
+      "pk" => "usuario_id"
+    ],
+    "PARTICIPACION" => [
+      "tabla" => "persona_participacion",
+      "pk" => "participacion_id"
+    ]
+  ];
+
+  if (!isset($map[$entidad_tipo])) {
+    json_response([
+      "ok" => false,
+      "error" => "entidad_tipo inválido"
+    ], 400);
+  }
+
+  $tabla = $map[$entidad_tipo]["tabla"];
+  $pk = $map[$entidad_tipo]["pk"];
+
+  $sql = "
+        SELECT 1
+        FROM $tabla
+        WHERE $pk = ?
+          AND deleted_at IS NULL
+        LIMIT 1
+    ";
+
+  $st = $con->prepare($sql);
+  $st->bind_param("i", $entidad_id);
+  $st->execute();
+
+  $exists = (bool)$st->get_result()->fetch_assoc();
+
+  $st->close();
+
+  if (!$exists) {
+    json_response([
+      "ok" => false,
+      "error" => "La entidad relacionada no existe"
+    ], 404);
   }
 }
 
-if (array_key_exists('uso_archivo', $in)) {
-  $uso_archivo_validar = trim((string)$in['uso_archivo']);
-  if (!in_array($uso_archivo_validar, $usosValidos, true)) {
-    http_response_code(400);
-    die(json_encode(["ok" => false, "error" => "uso_archivo inválido"], JSON_UNESCAPED_UNICODE));
+function validar_usuario_si_existe(mysqli $con, ?int $usuario_id, string $campo): void
+{
+  if ($usuario_id === null || $usuario_id <= 0) {
+    return;
+  }
+
+  $sql = "
+        SELECT 1
+        FROM usuario
+        WHERE usuario_id = ?
+          AND deleted_at IS NULL
+        LIMIT 1
+    ";
+
+  $st = $con->prepare($sql);
+  $st->bind_param("i", $usuario_id);
+  $st->execute();
+
+  $exists = (bool)$st->get_result()->fetch_assoc();
+
+  $st->close();
+
+  if (!$exists) {
+    json_response([
+      "ok" => false,
+      "error" => "$campo no existe en usuario"
+    ], 400);
   }
 }
 
-$con = conectar();
-if (!$con) {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se pudo conectar a la base de datos"], JSON_UNESCAPED_UNICODE));
-}
+function validar_archivo_reemplazo_si_existe(mysqli $con, ?int $archivo_id): void
+{
+  if ($archivo_id === null || $archivo_id <= 0) {
+    return;
+  }
 
-$con->set_charset('utf8mb4');
-$con->query("SET time_zone='-06:00'");
+  $sql = "
+        SELECT 1
+        FROM archivo
+        WHERE archivo_id = ?
+          AND deleted_at IS NULL
+        LIMIT 1
+    ";
 
-$st = $con->prepare("
-  SELECT *
-  FROM archivo
-  WHERE archivo_id = ?
-    AND deleted_at IS NULL
-  LIMIT 1
-");
+  $st = $con->prepare($sql);
+  $st->bind_param("i", $archivo_id);
+  $st->execute();
 
-$st->bind_param("i", $archivo_id);
-$st->execute();
-$current = $st->get_result()->fetch_assoc();
-$st->close();
+  $exists = (bool)$st->get_result()->fetch_assoc();
 
-if (!$current) {
-  $con->close();
-  http_response_code(404);
-  die(json_encode(["ok" => false, "error" => "Archivo no encontrado"], JSON_UNESCAPED_UNICODE));
-}
+  $st->close();
 
-$map = [
-  "entidad_tipo" => "s",
-  "entidad_id" => "i",
-  "uso_archivo" => "s",
-  "nombre_original" => "s",
-  "nombre_storage" => "s",
-  "url_archivo" => "s",
-  "url_thumbnail" => "s",
-  "mime_type" => "s",
-  "extension" => "s",
-  "tamano_bytes" => "i",
-  "sha256_hash" => "s",
-  "version_no" => "i",
-  "es_actual" => "i",
-  "reemplaza_archivo_id" => "i",
-  "privado" => "i",
-  "updated_by" => "i",
-  "deleted_at" => "s",
-  "deleted_by" => "i"
-];
-
-$set = [];
-$params = [];
-$types = "";
-
-foreach ($map as $field => $type) {
-  if (array_key_exists($field, $in)) {
-    $set[] = "$field = ?";
-    $params[] = value_or_null($in, $field);
-    $types .= $type;
+  if (!$exists) {
+    json_response([
+      "ok" => false,
+      "error" => "reemplaza_archivo_id no existe en archivo"
+    ], 400);
   }
 }
 
-if (!$set) {
-  $con->close();
-  http_response_code(400);
-  die(json_encode(["ok" => false, "error" => "No hay campos para actualizar"], JSON_UNESCAPED_UNICODE));
+function validar_catalogos_archivo(array $in): void
+{
+  $entidadesValidas = ['PERSONA', 'USUARIO', 'PARTICIPACION'];
+
+  $usosValidos = [
+    'INE_FRENTE',
+    'INE_REVERSO',
+    'FOTO_PERSONA',
+    'FOTO_USUARIO',
+    'COMPROBANTE_DOMICILIO',
+    'FIRMA',
+    'DOCUMENTO_AFILIACION',
+    'EVIDENCIA',
+    'OTRO'
+  ];
+
+  if (array_key_exists('entidad_tipo', $in)) {
+    $entidad_tipo = strtoupper(trim((string)$in['entidad_tipo']));
+
+    if (!in_array($entidad_tipo, $entidadesValidas, true)) {
+      json_response([
+        "ok" => false,
+        "error" => "entidad_tipo inválido"
+      ], 400);
+    }
+  }
+
+  if (array_key_exists('uso_archivo', $in)) {
+    $uso_archivo = strtoupper(trim((string)$in['uso_archivo']));
+
+    if (!in_array($uso_archivo, $usosValidos, true)) {
+      json_response([
+        "ok" => false,
+        "error" => "uso_archivo inválido"
+      ], 400);
+    }
+  }
 }
 
-$con->begin_transaction();
+/* ============================================================
+   UPDATE
+   ============================================================ */
 
-try {
-  /*
-    Si se marca este archivo como actual, desmarcamos los demás
-    del mismo grupo entidad_tipo + entidad_id + uso_archivo.
-  */
-  if (array_key_exists('es_actual', $in) && (int)$in['es_actual'] === 1) {
-    $entidad_tipo = array_key_exists('entidad_tipo', $in) ? trim((string)$in['entidad_tipo']) : $current['entidad_tipo'];
-    $entidad_id = array_key_exists('entidad_id', $in) ? (int)$in['entidad_id'] : (int)$current['entidad_id'];
-    $uso_archivo = array_key_exists('uso_archivo', $in) ? trim((string)$in['uso_archivo']) : $current['uso_archivo'];
+function actualizar_archivo(mysqli $con, array $in): array
+{
+  $archivo_id = isset($in['archivo_id'])
+    ? (int)$in['archivo_id']
+    : (isset($in['id']) ? (int)$in['id'] : 0);
 
-    $st = $con->prepare("
-      UPDATE archivo
-      SET es_actual = 0
-      WHERE entidad_tipo = ?
-        AND entidad_id = ?
-        AND uso_archivo = ?
-        AND archivo_id <> ?
-        AND deleted_at IS NULL
-    ");
+  if ($archivo_id <= 0) {
+    json_response([
+      "ok" => false,
+      "error" => "Falta parámetro obligatorio: archivo_id"
+    ], 400);
+  }
 
-    $st->bind_param("sisi", $entidad_tipo, $entidad_id, $uso_archivo, $archivo_id);
+  validar_catalogos_archivo($in);
 
-    if (!$st->execute()) {
-      $code = $st->errno;
-      $err = $st->error;
-      $st->close();
-      throw new Exception($err, $code);
+  $current = get_archivo_full($con, $archivo_id, false);
+
+  $next_entidad_tipo = array_key_exists('entidad_tipo', $in)
+    ? strtoupper(trim((string)$in['entidad_tipo']))
+    : $current['entidad_tipo'];
+
+  $next_entidad_id = array_key_exists('entidad_id', $in) && $in['entidad_id'] !== '' && $in['entidad_id'] !== null
+    ? (int)$in['entidad_id']
+    : (int)$current['entidad_id'];
+
+  $next_uso_archivo = array_key_exists('uso_archivo', $in)
+    ? strtoupper(trim((string)$in['uso_archivo']))
+    : $current['uso_archivo'];
+
+  if ($next_entidad_id <= 0) {
+    json_response([
+      "ok" => false,
+      "error" => "entidad_id inválido"
+    ], 400);
+  }
+
+  validar_entidad_relacionada($con, $next_entidad_tipo, $next_entidad_id);
+
+  $updated_by = null;
+
+  if (array_key_exists('updated_by', $in) && $in['updated_by'] !== '' && $in['updated_by'] !== null) {
+    $updated_by = (int)$in['updated_by'];
+    validar_usuario_si_existe($con, $updated_by, 'updated_by');
+  }
+
+  $deleted_by = null;
+
+  if (array_key_exists('deleted_by', $in) && $in['deleted_by'] !== '' && $in['deleted_by'] !== null) {
+    $deleted_by = (int)$in['deleted_by'];
+    validar_usuario_si_existe($con, $deleted_by, 'deleted_by');
+  }
+
+  $reemplaza_archivo_id = null;
+
+  if (array_key_exists('reemplaza_archivo_id', $in) && $in['reemplaza_archivo_id'] !== '' && $in['reemplaza_archivo_id'] !== null) {
+    $reemplaza_archivo_id = (int)$in['reemplaza_archivo_id'];
+
+    if ($reemplaza_archivo_id === $archivo_id) {
+      json_response([
+        "ok" => false,
+        "error" => "Un archivo no puede reemplazarse a sí mismo"
+      ], 400);
     }
 
+    validar_archivo_reemplazo_si_existe($con, $reemplaza_archivo_id);
+  }
+
+  /*
+      Si se marca este archivo como actual, desmarcamos los demás
+      del grupo final entidad_tipo + entidad_id + uso_archivo.
+    */
+  $next_es_actual = array_key_exists('es_actual', $in)
+    ? bool_int_from_input($in, 'es_actual')
+    : (int)$current['es_actual'];
+
+  if ($next_es_actual === 1) {
+    $st = $con->prepare("
+            UPDATE archivo
+            SET
+                es_actual = 0,
+                updated_by = ?
+            WHERE entidad_tipo = ?
+              AND entidad_id = ?
+              AND uso_archivo = ?
+              AND archivo_id <> ?
+              AND deleted_at IS NULL
+        ");
+
+    $st->bind_param(
+      "isisi",
+      $updated_by,
+      $next_entidad_tipo,
+      $next_entidad_id,
+      $next_uso_archivo,
+      $archivo_id
+    );
+
+    $st->execute();
     $st->close();
+  }
+
+  $map = [
+    "entidad_tipo" => "s",
+    "entidad_id" => "i",
+    "uso_archivo" => "s",
+    "nombre_original" => "s",
+    "nombre_storage" => "s",
+    "url_archivo" => "s",
+    "url_thumbnail" => "s",
+    "mime_type" => "s",
+    "extension" => "s",
+    "tamano_bytes" => "i",
+    "sha256_hash" => "s",
+    "version_no" => "i",
+    "es_actual" => "i",
+    "privado" => "i",
+    "deleted_at" => "s"
+  ];
+
+  $set = [];
+  $params = [];
+  $types = "";
+
+  foreach ($map as $field => $type) {
+    if (!array_key_exists($field, $in)) {
+      continue;
+    }
+
+    $set[] = "$field = ?";
+
+    if (in_array($field, ['entidad_tipo', 'uso_archivo'], true)) {
+      $params[] = strtoupper(trim((string)$in[$field]));
+    } elseif (in_array($field, ['es_actual', 'privado'], true)) {
+      $params[] = bool_int_from_input($in, $field);
+    } else {
+      $params[] = value_or_null($in, $field);
+    }
+
+    $types .= $type;
+  }
+
+  if ($reemplaza_archivo_id !== null) {
+    $set[] = "reemplaza_archivo_id = ?";
+    $params[] = $reemplaza_archivo_id;
+    $types .= "i";
+  } elseif (array_key_exists('reemplaza_archivo_id', $in) && ($in['reemplaza_archivo_id'] === '' || $in['reemplaza_archivo_id'] === null)) {
+    $set[] = "reemplaza_archivo_id = NULL";
+  }
+
+  if ($updated_by !== null) {
+    $set[] = "updated_by = ?";
+    $params[] = $updated_by;
+    $types .= "i";
+  }
+
+  if ($deleted_by !== null) {
+    $set[] = "deleted_by = ?";
+    $params[] = $deleted_by;
+    $types .= "i";
+  } elseif (array_key_exists('deleted_by', $in) && ($in['deleted_by'] === '' || $in['deleted_by'] === null)) {
+    $set[] = "deleted_by = NULL";
+  }
+
+  if (!$set) {
+    json_response([
+      "ok" => false,
+      "error" => "No hay campos para actualizar"
+    ], 400);
   }
 
   $params[] = $archivo_id;
   $types .= "i";
 
   $sql = "
-    UPDATE archivo
-    SET " . implode(", ", $set) . "
-    WHERE archivo_id = ?
-  ";
+        UPDATE archivo
+        SET " . implode(", ", $set) . "
+        WHERE archivo_id = ?
+    ";
 
   $st = $con->prepare($sql);
   bind_dynamic($st, $types, $params);
-
-  if (!$st->execute()) {
-    $code = $st->errno;
-    $err = $st->error;
-    $st->close();
-    throw new Exception($err, $code);
-  }
-
+  $st->execute();
   $st->close();
 
-  $data = archivo_response($con, $archivo_id);
+  $include_deleted = array_key_exists('deleted_at', $in) && $in['deleted_at'] !== '' && $in['deleted_at'] !== null;
 
-  $con->commit();
+  return get_archivo_full($con, $archivo_id, $include_deleted);
+}
 
-} catch (Exception $e) {
-  $con->rollback();
+/* ============================================================
+   MAIN
+   ============================================================ */
 
-  $code = $e->getCode();
-  $msg = $e->getMessage();
+try {
+  if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    json_response([
+      "ok" => false,
+      "error" => "Método no permitido. Usa POST."
+    ], 405);
+  }
+
+  $in = read_json_body();
+  $con = db();
+
+  $con->begin_transaction();
+
+  try {
+    $data = actualizar_archivo($con, $in);
+    $con->commit();
+  } catch (Throwable $e) {
+    $con->rollback();
+    throw $e;
+  }
 
   $con->close();
 
-  if ($code == 1062) {
+  json_response([
+    "ok" => true,
+    "message" => "Archivo actualizado correctamente",
+    "data" => $data
+  ]);
+} catch (mysqli_sql_exception $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  $code = (int)$e->getCode();
+  $msg = $e->getMessage();
+
+  error_log('[IXTLA_U_ARCHIVO][SQL] ' . $msg);
+
+  if ($code === 1062) {
     $campo = "único";
 
     if (stripos($msg, "uuid") !== false) {
       $campo = "uuid";
     }
 
-    http_response_code(409);
-    die(json_encode([
+    json_response([
       "ok" => false,
       "error" => "Duplicado en campo $campo",
-      "detail" => $msg,
       "code" => $code
-    ], JSON_UNESCAPED_UNICODE));
+    ], 409);
   }
 
-  if ($code == 1452) {
-    http_response_code(400);
-    die(json_encode([
+  if ($code === 1452) {
+    json_response([
       "ok" => false,
-      "error" => "FK inválida. Revisa reemplaza_archivo_id o uploaded_by",
-      "detail" => $msg,
+      "error" => "FK inválida. Revisa reemplaza_archivo_id, updated_by o deleted_by",
       "code" => $code
-    ], JSON_UNESCAPED_UNICODE));
+    ], 400);
   }
 
-  http_response_code(500);
-  die(json_encode([
+  if ($code === 1265 || $code === 1406 || $code === 1366) {
+    json_response([
+      "ok" => false,
+      "error" => "Dato inválido o demasiado largo para algún campo",
+      "code" => $code
+    ], 400);
+  }
+
+  json_response([
     "ok" => false,
     "error" => "No se pudo actualizar el archivo",
-    "detail" => $msg,
     "code" => $code
-  ], JSON_UNESCAPED_UNICODE));
+  ], 500);
+} catch (Throwable $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  error_log('[IXTLA_U_ARCHIVO][ERROR] ' . $e->getMessage());
+
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
 }
-
-$con->close();
-
-echo json_encode([
-  "ok" => true,
-  "data" => $data
-], JSON_UNESCAPED_UNICODE);
