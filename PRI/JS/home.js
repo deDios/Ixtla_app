@@ -46,7 +46,6 @@ const SEL = {
   metricSimpatizantes: "#metric-simpatizantes",
   metricPromotores: "#metric-promotores",
   btnExport: "#red-btn-export",
-  btnAdd: "#red-btn-add",
 
   ineReviewModal: "#ine-review-modal",
   ineReviewForm: "#ine-review-form",
@@ -716,18 +715,6 @@ function resetReviewModalToCaptureMode() {
   }
 }
 
-function getPersonaFullName(persona = {}, fallbackRow = {}) {
-  return (
-    persona.nombre_completo ||
-    [persona.nombres, persona.apellido_paterno, persona.apellido_materno]
-      .filter(Boolean)
-      .join(" ")
-      .trim() ||
-    fallbackRow.nombre ||
-    ""
-  );
-}
-
 function openPersonaReadonlyModal({
   loading = false,
   errorMessage = "",
@@ -790,75 +777,42 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
   const kicker = $(SEL.ineReviewKicker);
   const warning = $(SEL.ineReviewWarning);
 
-  const nombre = getPersonaFullName(p, row);
-  const estatusNombre = p.estatus?.nombre || row.estatus_nombre || "Sin estatus";
-  const estatusCodigo = p.estatus?.codigo || row.estatus_codigo || "";
-
   if (kicker) kicker.textContent = "Consulta de registro";
-  if (title) title.textContent = nombre || "Detalle de persona";
+  if (title) title.textContent = p.nombre_completo || row.nombre || "Detalle de persona";
 
   if (warning) {
     warning.innerHTML = `
       <strong>Consulta en solo lectura.</strong>
       Este registro se muestra para revisión. No se realizarán cambios desde esta vista.
-      <br><strong>Estatus:</strong> ${escapeHTML(estatusNombre)}${estatusCodigo ? ` (${escapeHTML(estatusCodigo)})` : ""}
     `;
   }
 
-  setFieldValue("#ine-review-fecha-extraccion", p.fecha_captura || p.created_at || "");
-  setFieldValue("#ine-review-nombres", p.nombres || nombre);
-  setFieldValue("#ine-review-apellido-paterno", p.apellido_paterno);
-  setFieldValue("#ine-review-apellido-materno", p.apellido_materno);
-  setFieldValue("#ine-review-fecha-nacimiento", p.fecha_nacimiento);
-  setFieldValue("#ine-review-sexo", p.sexo);
+  setFieldValue("#ine-review-fecha-extraccion", p.fecha_captura || "");
+  setFieldValue("#ine-review-nombres", p.nombres || "");
+  setFieldValue("#ine-review-apellido-paterno", p.apellido_paterno || "");
+  setFieldValue("#ine-review-apellido-materno", p.apellido_materno || "");
+  setFieldValue("#ine-review-fecha-nacimiento", p.fecha_nacimiento || "");
+  setFieldValue("#ine-review-sexo", p.sexo || "");
 
-  setFieldValue("#ine-review-curp", p.curp_hash ? "CURP capturada" : "No capturada");
-  setFieldValue(
-    "#ine-review-clave-elector",
-    p.clave_elector_hash ? "Clave de elector capturada" : "No capturada"
-  );
-  setFieldValue("#ine-review-idmex", p.idmex_hash ? "IDMEX capturado" : "No capturado");
+  setFieldValue("#ine-review-curp", p.curp || "");
+  setFieldValue("#ine-review-clave-elector", p.clave_elector || "");
+  setFieldValue("#ine-review-idmex", p.idmex || "");
 
-  setFieldValue(
-    "#ine-review-seccion",
-    p.territorio?.seccion?.codigo ||
-    p.territorio?.seccion?.nombre ||
-    p.seccion_id ||
-    row.seccion ||
-    ""
-  );
+  setFieldValue("#ine-review-seccion", p.seccion_id || "");
+  setFieldValue("#ine-review-anio-registro", p.anio_registro || "");
+  setFieldValue("#ine-review-emision", p.emision || "");
+  setFieldValue("#ine-review-vigencia-inicio", p.vigencia_inicio || "");
+  setFieldValue("#ine-review-vigencia-fin", p.vigencia_fin || "");
 
-  setFieldValue("#ine-review-anio-registro", p.anio_registro);
-  setFieldValue("#ine-review-emision", p.emision);
-  setFieldValue("#ine-review-vigencia-inicio", p.vigencia_inicio);
-  setFieldValue("#ine-review-vigencia-fin", p.vigencia_fin);
+  setFieldValue("#ine-review-domicilio", p.domicilio_texto || "");
+  setFieldValue("#ine-review-telefono", p.telefono || "");
+  setFieldValue("#ine-review-whatsapp", p.whatsapp || "");
+  setFieldValue("#ine-review-email", p.email || "");
 
-  setFieldValue("#ine-review-domicilio", p.domicilio_texto || row.domicilio);
-  setFieldValue("#ine-review-telefono", p.telefono || row.telefono);
-  setFieldValue("#ine-review-whatsapp", p.whatsapp);
-  setFieldValue("#ine-review-email", p.email);
+  setFieldValue("#ine-review-acepta-tratamiento", p.acepta_tratamiento_datos ?? "");
+  setFieldValue("#ine-review-acepta-whatsapp", p.acepta_contacto_whatsapp ?? "");
 
-  setFieldValue(
-    "#ine-review-acepta-tratamiento",
-    Number(p.acepta_tratamiento_datos) === 1 ? "1" : "0"
-  );
-
-  setFieldValue(
-    "#ine-review-acepta-whatsapp",
-    Number(p.acepta_contacto_whatsapp) === 1 ? "1" : "0"
-  );
-
-  setFieldValue(
-    "#ine-review-observaciones",
-    [
-      p.observaciones,
-      `Estatus: ${estatusNombre}${estatusCodigo ? ` (${estatusCodigo})` : ""}`,
-      p.capturado_por ? `Capturado por usuario ID: ${p.capturado_por}` : "",
-      p.persona_id ? `Persona ID: ${p.persona_id}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n")
-  );
+  setFieldValue("#ine-review-observaciones", p.observaciones || "");
 
   clearImage(SEL.ineReviewFront);
   clearImage(SEL.ineReviewBack);
@@ -948,22 +902,7 @@ function bindEvents() {
     }
   });
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-
-    const modal = $(SEL.ineReviewModal);
-    if (modal && modal.dataset.mode === "readonly" && !modal.hidden) {
-      setReviewModalOpen(false);
-    }
-  });
-
   $(SEL.btnExport)?.addEventListener("click", exportCSV);
-
-  // Cuando el usuario abre el flujo de captura, regresamos el modal existente
-  // a modo editable para que home.modals.js lo use normalmente.
-  $(SEL.btnAdd)?.addEventListener("click", () => {
-    resetReviewModalToCaptureMode();
-  });
 }
 
 /* -------------------------------------------------------------------------- */
