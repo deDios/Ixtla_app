@@ -238,12 +238,18 @@ async function loadPersonas() {
     });
 
     const personas = Array.isArray(out.data) ? out.data : [];
-
+    /*
     State.universe = personas
       .filter((persona) => {
         // Filtro defensivo.
         // Lo correcto es que el backend ya filtre por capturado_por/token.
         if (persona.capturado_por == null) return true;
+        return Number(persona.capturado_por) === Number(usuarioId);
+      })
+      .map(mapPersonaToRedRow);
+    */
+    State.universe = personas
+      .filter((persona) => {
         return Number(persona.capturado_por) === Number(usuarioId);
       })
       .map(mapPersonaToRedRow);
