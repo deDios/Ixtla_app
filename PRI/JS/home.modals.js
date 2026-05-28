@@ -1160,6 +1160,46 @@ function fillReviewForm(persona) {
     setFieldValue("#ine-review-observaciones", persona.observaciones);
 }
 
+function resetReviewModalForCapture() {
+    const modal = $(SEL.reviewModal);
+    const form = $(SEL.reviewForm);
+
+    if (!modal || !form) return;
+
+    modal.dataset.mode = "capture";
+    form.classList.remove("is-readonly");
+
+    form.querySelectorAll("input, textarea").forEach((field) => {
+        field.readOnly = false;
+    });
+
+    form.querySelectorAll("select").forEach((field) => {
+        field.disabled = false;
+    });
+
+    const saveBtn = $("#ine-modal-affiliate");
+    const reprocessBtn = $(SEL.btnReprocess);
+    const cancelBtn = form.querySelector("[data-ine-review-close]");
+    const title = $("#ine-review-title");
+    const kicker = $(".ine-review-kicker");
+    const warning = $(".ine-review-warning");
+
+    if (saveBtn) saveBtn.hidden = false;
+    if (reprocessBtn) reprocessBtn.hidden = false;
+    if (cancelBtn) cancelBtn.textContent = "Cancelar";
+
+    if (kicker) kicker.textContent = "Datos extraídos";
+    if (title) title.textContent = "Revisión de información INE";
+
+    if (warning) {
+        warning.innerHTML = `
+            <strong>Importante: La información fue extraída automáticamente.</strong>
+            Valide esta información comparando contra el documento INE,
+            realice los ajustes que sean necesarios y guarde el registro.
+        `;
+    }
+}
+
 /* -------------------------------------------------------------------------- */
 /* MODAL REVISIÓN                                                              */
 /* -------------------------------------------------------------------------- */
@@ -1173,6 +1213,7 @@ function openReviewModal(payload) {
         return;
     }
 
+    resetReviewModalForCapture();
     fillReviewForm(payload.persona || {});
     modal.__inePayload = payload;
     paintReviewImages(payload);

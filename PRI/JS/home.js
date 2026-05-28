@@ -47,13 +47,27 @@ const SEL = {
   metricPromotores: "#metric-promotores",
   btnExport: "#red-btn-export",
   btnAdd: "#red-btn-add",
+
+  ineReviewModal: "#ine-review-modal",
+  ineReviewForm: "#ine-review-form",
+  ineReviewTitle: "#ine-review-title",
+  ineReviewKicker: ".ine-review-kicker",
+  ineReviewWarning: ".ine-review-warning",
+  ineReviewSave: "#ine-modal-affiliate",
+  ineReviewReprocess: "#ine-btn-reprocess",
+  ineReviewFront: "#ine-review-front",
+  ineReviewBack: "#ine-review-back",
 };
 
 const ESTATUS_VALIDOS = new Set(["VALIDADO", "ACTIVO"]);
 
-function toast(msg, tipo = "exito") {
+/* -------------------------------------------------------------------------- */
+/* HELPERS                                                                     */
+/* -------------------------------------------------------------------------- */
+
+function toast(msg, tipo = "exito", duration = 4500) {
   if (typeof window.gcToast === "function") {
-    window.gcToast(msg, tipo);
+    window.gcToast(msg, tipo, duration);
     return;
   }
 
@@ -81,6 +95,37 @@ function escapeHTML(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+function setFieldValue(selector, value, fallback = "") {
+  const el = $(selector);
+  if (!el) return;
+
+  const clean = String(value ?? fallback ?? "").trim();
+
+  if (el.type === "checkbox") {
+    el.checked = clean === "1" || clean === "true";
+    return;
+  }
+
+  if ("value" in el) {
+    el.value = clean;
+    return;
+  }
+
+  el.textContent = clean;
+}
+
+function clearImage(selector) {
+  const img = $(selector);
+  if (!img) return;
+
+  img.removeAttribute("src");
+  img.alt = "";
+}
+
+/* -------------------------------------------------------------------------- */
+/* SESIÓN                                                                      */
+/* -------------------------------------------------------------------------- */
 
 function readCookiePayload() {
   try {
@@ -192,6 +237,10 @@ function hydrateUser() {
   if (userNameEl) userNameEl.textContent = `${fullName}${roleName}`;
 }
 
+/* -------------------------------------------------------------------------- */
+/* CARGA DE DATOS                                                              */
+/* -------------------------------------------------------------------------- */
+
 async function loadEstatusCatalog() {
   try {
     const out = await postJSON(CONFIG.ENDPOINT_ESTATUS, {
@@ -213,10 +262,12 @@ async function loadPersonas() {
 
   if (!usuarioId) {
     warn("No hay usuario_id en sesión. No se puede consultar personas capturadas.");
+
     State.universe = [];
     State.rows = [];
     updateCounts();
     render();
+
     toast("No se encontró usuario en sesión.", "error");
     return;
   }
@@ -228,30 +279,14 @@ async function loadPersonas() {
     const out = await postJSON(CONFIG.ENDPOINT_PERSONAS, {
       page: 1,
       page_size: 500,
-
-      // Regla acordada:
-      // personas asociadas al usuario que las capturó.
       capturado_por: usuarioId,
-
-      // Si el backend lo implementa, debe resolver este scope desde el token.
       scope: "mine",
     });
 
     const personas = Array.isArray(out.data) ? out.data : [];
-    /*
+
     State.universe = personas
-      .filter((persona) => {
-        // Filtro defensivo.
-        // Lo correcto es que el backend ya filtre por capturado_por/token.
-        if (persona.capturado_por == null) return true;
-        return Number(persona.capturado_por) === Number(usuarioId);
-      })
-      .map(mapPersonaToRedRow);
-    */
-    State.universe = personas
-      .filter((persona) => {
-        return Number(persona.capturado_por) === Number(usuarioId);
-      })
+      .filter((persona) => Number(persona.capturado_por) === Number(usuarioId))
       .map(mapPersonaToRedRow);
 
     State.page = 1;
@@ -309,9 +344,25 @@ function mapPersonaToRedRow(persona = {}) {
     validez: isEstatusValido(estatusCodigo),
     estatus_codigo: estatusCodigo,
     estatus_nombre: estatusNombre,
-    tipo: "simpatizante",
+    tipo: getTipoPersona(persona),
     raw: persona,
   };
+}
+
+function getTipoPersona(persona = {}) {
+  const rawTipo =
+    persona.tipo ||
+    persona.tipo_persona ||
+    persona.categoria ||
+    persona.rol_persona ||
+    "";
+
+  const tipo = normalizeText(rawTipo);
+
+  if (tipo === "afiliado") return "afiliado";
+  if (tipo === "promotor") return "promotor";
+
+  return "simpatizante";
 }
 
 function getEstatusNombreByCodigo(codigo) {
@@ -327,6 +378,10 @@ function getEstatusNombreByCodigo(codigo) {
 function isEstatusValido(codigo) {
   return ESTATUS_VALIDOS.has(String(codigo || "").toUpperCase());
 }
+
+/* -------------------------------------------------------------------------- */
+/* FILTROS / MÉTRICAS                                                          */
+/* -------------------------------------------------------------------------- */
 
 function updateCounts() {
   const counts = {
@@ -369,7 +424,9 @@ function applyFilters() {
       item.tipo,
       item.estatus_codigo,
       item.estatus_nombre,
-      item.validez ? "valido validado activo" : "pendiente inactivo rechazado baja duplicado capturado",
+      item.validez
+        ? "valido validado activo"
+        : "pendiente inactivo rechazado baja duplicado capturado",
     ].join(" "));
 
     return haystack.includes(q);
@@ -389,6 +446,10 @@ function getPageRows() {
   const start = (State.page - 1) * State.pageSize;
   return State.rows.slice(start, start + State.pageSize);
 }
+
+/* -------------------------------------------------------------------------- */
+/* RENDER                                                                      */
+/* -------------------------------------------------------------------------- */
 
 function renderLoading() {
   const tbody = $(SEL.tableBody);
@@ -551,6 +612,10 @@ function goToPage(page) {
   render();
 }
 
+/* -------------------------------------------------------------------------- */
+/* MODAL EXISTENTE DE REVISIÓN EN MODO SOLO LECTURA                            */
+/* -------------------------------------------------------------------------- */
+
 async function openRecord(id) {
   const local = State.universe.find((row) => Number(row.id) === Number(id));
 
@@ -559,7 +624,7 @@ async function openRecord(id) {
     return;
   }
 
-  openRevisionModal({
+  openPersonaReadonlyModal({
     loading: true,
     persona: local?.raw || null,
     fallbackRow: local || null,
@@ -568,6 +633,7 @@ async function openRecord(id) {
   try {
     const out = await postJSON(CONFIG.ENDPOINT_PERSONAS, {
       persona_id: Number(id),
+      capturado_por: getUsuarioId(),
     });
 
     const persona = out.data || null;
@@ -576,7 +642,7 @@ async function openRecord(id) {
       throw new Error("No se encontró información de la persona.");
     }
 
-    openRevisionModal({
+    openPersonaReadonlyModal({
       loading: false,
       persona,
       fallbackRow: local || null,
@@ -584,7 +650,7 @@ async function openRecord(id) {
   } catch (err) {
     error("No se pudo abrir detalle de persona:", err);
 
-    openRevisionModal({
+    openPersonaReadonlyModal({
       loading: false,
       errorMessage: err.message || "No se pudo cargar el detalle.",
       persona: local?.raw || null,
@@ -595,191 +661,212 @@ async function openRecord(id) {
   }
 }
 
-function ensureRevisionModal() {
-  let modal = $("#red-revision-modal");
+function setReviewModalOpen(isOpen) {
+  const modal = $(SEL.ineReviewModal);
+  if (!modal) return;
 
-  if (modal) return modal;
+  modal.hidden = !isOpen;
+  modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
 
-  modal = document.createElement("div");
-  modal.id = "red-revision-modal";
-  modal.className = "red-revision-modal";
-  modal.hidden = true;
-
-  modal.innerHTML = `
-    <div class="red-revision-backdrop" data-action="close-revision"></div>
-
-    <section class="red-revision-dialog" role="dialog" aria-modal="true" aria-labelledby="red-revision-title">
-      <header class="red-revision-header">
-        <div>
-          <p class="red-revision-kicker">Revisión</p>
-          <h2 id="red-revision-title">Detalle de persona</h2>
-        </div>
-
-        <button type="button" class="red-revision-close" data-action="close-revision" aria-label="Cerrar">
-          ×
-        </button>
-      </header>
-
-      <div class="red-revision-body" id="red-revision-body"></div>
-
-      <footer class="red-revision-footer">
-        <button type="button" class="red-open" data-action="close-revision">
-          Cerrar
-        </button>
-      </footer>
-    </section>
-  `;
-
-  document.body.appendChild(modal);
-
-  return modal;
+  document.body.classList.toggle("ine-modal-open", Boolean(isOpen));
 }
 
-function openRevisionModal({ loading = false, errorMessage = "", persona = null, fallbackRow = null } = {}) {
-  const modal = ensureRevisionModal();
-  const body = $("#red-revision-body", modal);
+function setReviewModalReadonlyMode(isReadonly) {
+  const modal = $(SEL.ineReviewModal);
+  const form = $(SEL.ineReviewForm);
 
-  modal.hidden = false;
-  requestAnimationFrame(() => modal.classList.add("is-open"));
+  if (!modal || !form) return;
 
-  if (!body) return;
+  modal.dataset.mode = isReadonly ? "readonly" : "capture";
+  form.classList.toggle("is-readonly", Boolean(isReadonly));
+
+  form.querySelectorAll("input, textarea").forEach((field) => {
+    field.readOnly = Boolean(isReadonly);
+  });
+
+  form.querySelectorAll("select").forEach((field) => {
+    field.disabled = Boolean(isReadonly);
+  });
+
+  const saveBtn = $(SEL.ineReviewSave);
+  const reprocessBtn = $(SEL.ineReviewReprocess);
+  const cancelBtn = form.querySelector("[data-ine-review-close]");
+
+  if (saveBtn) saveBtn.hidden = Boolean(isReadonly);
+  if (reprocessBtn) reprocessBtn.hidden = Boolean(isReadonly);
+  if (cancelBtn) cancelBtn.textContent = isReadonly ? "Cerrar" : "Cancelar";
+}
+
+function resetReviewModalToCaptureMode() {
+  const title = $(SEL.ineReviewTitle);
+  const kicker = $(SEL.ineReviewKicker);
+  const warning = $(SEL.ineReviewWarning);
+
+  setReviewModalReadonlyMode(false);
+
+  if (kicker) kicker.textContent = "Datos extraídos";
+  if (title) title.textContent = "Revisión de información INE";
+
+  if (warning) {
+    warning.innerHTML = `
+      <strong>Importante: La información fue extraída automáticamente.</strong>
+      Valide esta información comparando contra el documento INE,
+      realice los ajustes que sean necesarios y guarde el registro.
+    `;
+  }
+}
+
+function getPersonaFullName(persona = {}, fallbackRow = {}) {
+  return (
+    persona.nombre_completo ||
+    [persona.nombres, persona.apellido_paterno, persona.apellido_materno]
+      .filter(Boolean)
+      .join(" ")
+      .trim() ||
+    fallbackRow.nombre ||
+    ""
+  );
+}
+
+function openPersonaReadonlyModal({
+  loading = false,
+  errorMessage = "",
+  persona = null,
+  fallbackRow = null,
+} = {}) {
+  const modal = $(SEL.ineReviewModal);
+
+  if (!modal) {
+    warn("No existe #ine-review-modal para mostrar el detalle.");
+    return;
+  }
+
+  setReviewModalReadonlyMode(true);
+  setReviewModalOpen(true);
+
+  const title = $(SEL.ineReviewTitle);
+  const kicker = $(SEL.ineReviewKicker);
+  const warning = $(SEL.ineReviewWarning);
+
+  if (kicker) kicker.textContent = "Consulta de registro";
 
   if (loading) {
-    body.innerHTML = `<div class="red-empty">Cargando información de la persona...</div>`;
+    if (title) title.textContent = "Cargando detalle de persona...";
+    if (warning) {
+      warning.innerHTML = `
+        <strong>Consultando información.</strong>
+        Espera un momento mientras se carga el registro.
+      `;
+    }
     return;
   }
 
   if (errorMessage && !persona && !fallbackRow) {
-    body.innerHTML = `<div class="red-empty">${escapeHTML(errorMessage)}</div>`;
+    if (title) title.textContent = "No se pudo cargar el detalle";
+    if (warning) {
+      warning.innerHTML = `
+        <strong>Error.</strong>
+        ${escapeHTML(errorMessage)}
+      `;
+    }
     return;
   }
 
-  body.innerHTML = renderRevisionContent(persona, fallbackRow, errorMessage);
+  paintPersonaReadonlyData(persona || {}, fallbackRow || {});
+
+  if (errorMessage && warning) {
+    warning.innerHTML = `
+      <strong>Detalle parcial.</strong>
+      ${escapeHTML(errorMessage)}
+    `;
+  }
 }
 
-function closeRevisionModal() {
-  const modal = $("#red-revision-modal");
-  if (!modal) return;
-
-  modal.classList.remove("is-open");
-
-  setTimeout(() => {
-    modal.hidden = true;
-  }, 180);
-}
-
-function renderRevisionContent(persona = {}, fallbackRow = {}, errorMessage = "") {
+function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
   const p = persona || {};
   const row = fallbackRow || {};
 
-  const nombre =
-    p.nombre_completo ||
-    [p.nombres, p.apellido_paterno, p.apellido_materno]
-      .filter(Boolean)
-      .join(" ")
-      .trim() ||
-    row.nombre ||
-    "Persona sin nombre";
+  const title = $(SEL.ineReviewTitle);
+  const kicker = $(SEL.ineReviewKicker);
+  const warning = $(SEL.ineReviewWarning);
 
+  const nombre = getPersonaFullName(p, row);
   const estatusNombre = p.estatus?.nombre || row.estatus_nombre || "Sin estatus";
   const estatusCodigo = p.estatus?.codigo || row.estatus_codigo || "";
 
-  const seccion =
+  if (kicker) kicker.textContent = "Consulta de registro";
+  if (title) title.textContent = nombre || "Detalle de persona";
+
+  if (warning) {
+    warning.innerHTML = `
+      <strong>Consulta en solo lectura.</strong>
+      Este registro se muestra para revisión. No se realizarán cambios desde esta vista.
+      <br><strong>Estatus:</strong> ${escapeHTML(estatusNombre)}${estatusCodigo ? ` (${escapeHTML(estatusCodigo)})` : ""}
+    `;
+  }
+
+  setFieldValue("#ine-review-fecha-extraccion", p.fecha_captura || p.created_at || "");
+  setFieldValue("#ine-review-nombres", p.nombres || nombre);
+  setFieldValue("#ine-review-apellido-paterno", p.apellido_paterno);
+  setFieldValue("#ine-review-apellido-materno", p.apellido_materno);
+  setFieldValue("#ine-review-fecha-nacimiento", p.fecha_nacimiento);
+  setFieldValue("#ine-review-sexo", p.sexo);
+
+  setFieldValue("#ine-review-curp", p.curp_hash ? "CURP capturada" : "No capturada");
+  setFieldValue(
+    "#ine-review-clave-elector",
+    p.clave_elector_hash ? "Clave de elector capturada" : "No capturada"
+  );
+  setFieldValue("#ine-review-idmex", p.idmex_hash ? "IDMEX capturado" : "No capturado");
+
+  setFieldValue(
+    "#ine-review-seccion",
     p.territorio?.seccion?.codigo ||
     p.territorio?.seccion?.nombre ||
     p.seccion_id ||
     row.seccion ||
-    "—";
+    ""
+  );
 
-  const zona =
-    p.territorio?.zona?.codigo ||
-    p.territorio?.zona?.nombre ||
-    row.zona ||
-    "—";
+  setFieldValue("#ine-review-anio-registro", p.anio_registro);
+  setFieldValue("#ine-review-emision", p.emision);
+  setFieldValue("#ine-review-vigencia-inicio", p.vigencia_inicio);
+  setFieldValue("#ine-review-vigencia-fin", p.vigencia_fin);
 
-  return `
-    ${errorMessage ? `
-      <div class="red-revision-alert">
-        ${escapeHTML(errorMessage)}
-      </div>
-    ` : ""}
+  setFieldValue("#ine-review-domicilio", p.domicilio_texto || row.domicilio);
+  setFieldValue("#ine-review-telefono", p.telefono || row.telefono);
+  setFieldValue("#ine-review-whatsapp", p.whatsapp);
+  setFieldValue("#ine-review-email", p.email);
 
-    <section class="red-revision-summary">
-      <div>
-        <span class="red-revision-label">Nombre</span>
-        <strong>${escapeHTML(nombre)}</strong>
-      </div>
+  setFieldValue(
+    "#ine-review-acepta-tratamiento",
+    Number(p.acepta_tratamiento_datos) === 1 ? "1" : "0"
+  );
 
-      <div>
-        <span class="red-revision-label">Estatus</span>
-        <strong title="${escapeHTML(`Estatus: ${estatusNombre}`)}">
-          ${escapeHTML(estatusNombre)}
-          ${estatusCodigo ? `<small>(${escapeHTML(estatusCodigo)})</small>` : ""}
-        </strong>
-      </div>
-    </section>
+  setFieldValue(
+    "#ine-review-acepta-whatsapp",
+    Number(p.acepta_contacto_whatsapp) === 1 ? "1" : "0"
+  );
 
-    <section class="red-revision-grid">
-      ${infoItem("ID persona", p.persona_id || row.id)}
-      ${infoItem("Fecha de nacimiento", p.fecha_nacimiento)}
-      ${infoItem("Sexo", p.sexo)}
-      ${infoItem("Sección", seccion)}
-      ${infoItem("Zona", zona)}
-      ${infoItem("Domicilio", p.domicilio_texto || row.domicilio, true)}
-      ${infoItem("Teléfono", p.telefono || row.telefono)}
-      ${infoItem("WhatsApp", p.whatsapp)}
-      ${infoItem("Email", p.email)}
-      ${infoItem("Fecha de captura", p.fecha_captura)}
-      ${infoItem("Capturado por", p.capturado_por)}
-      ${infoItem("Observaciones", p.observaciones, true)}
-    </section>
+  setFieldValue(
+    "#ine-review-observaciones",
+    [
+      p.observaciones,
+      `Estatus: ${estatusNombre}${estatusCodigo ? ` (${estatusCodigo})` : ""}`,
+      p.capturado_por ? `Capturado por usuario ID: ${p.capturado_por}` : "",
+      p.persona_id ? `Persona ID: ${p.persona_id}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n")
+  );
 
-    <section class="red-revision-checks">
-      <h3>Indicadores de captura</h3>
-
-      <div class="red-revision-check-list">
-        ${checkItem("CURP capturada", Boolean(p.curp_hash))}
-        ${checkItem("Clave elector capturada", Boolean(p.clave_elector_hash))}
-        ${checkItem("OCR capturado", Boolean(p.ocr_hash))}
-        ${checkItem("CIC capturado", Boolean(p.cic_hash))}
-        ${checkItem("IDMEX capturado", Boolean(p.idmex_hash))}
-      </div>
-    </section>
-
-    <section class="red-revision-checks">
-      <h3>Consentimientos</h3>
-
-      <div class="red-revision-check-list">
-        ${checkItem("Tratamiento de datos", Number(p.acepta_tratamiento_datos) === 1)}
-        ${checkItem("Datos sensibles", Number(p.acepta_datos_sensibles) === 1)}
-        ${checkItem("Contacto por WhatsApp", Number(p.acepta_contacto_whatsapp) === 1)}
-      </div>
-
-      <div class="red-revision-grid is-compact">
-        ${infoItem("Aviso privacidad", p.aviso_privacidad_version)}
-        ${infoItem("Fecha consentimiento", p.fecha_consentimiento)}
-      </div>
-    </section>
-  `;
+  clearImage(SEL.ineReviewFront);
+  clearImage(SEL.ineReviewBack);
 }
 
-function infoItem(label, value, wide = false) {
-  return `
-    <div class="red-revision-item ${wide ? "is-wide" : ""}">
-      <span>${escapeHTML(label)}</span>
-      <strong>${escapeHTML(safeText(value))}</strong>
-    </div>
-  `;
-}
-
-function checkItem(label, ok) {
-  return `
-    <div class="red-revision-check ${ok ? "is-ok" : "is-missing"}">
-      <span>${ok ? "✓" : "—"}</span>
-      <strong>${escapeHTML(label)}</strong>
-    </div>
-  `;
-}
+/* -------------------------------------------------------------------------- */
+/* EXPORTACIÓN                                                                 */
+/* -------------------------------------------------------------------------- */
 
 function exportCSV() {
   const rows = State.rows;
@@ -825,6 +912,10 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
+/* -------------------------------------------------------------------------- */
+/* EVENTOS                                                                     */
+/* -------------------------------------------------------------------------- */
+
 function bindEvents() {
   const search = $(SEL.search);
 
@@ -835,12 +926,6 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
-    const closeRevisionBtn = event.target.closest("[data-action='close-revision']");
-    if (closeRevisionBtn) {
-      closeRevisionModal();
-      return;
-    }
-
     const openBtn = event.target.closest("[data-action='open']");
     if (openBtn) {
       openRecord(openBtn.dataset.id);
@@ -864,18 +949,26 @@ function bindEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeRevisionModal();
+    if (event.key !== "Escape") return;
+
+    const modal = $(SEL.ineReviewModal);
+    if (modal && modal.dataset.mode === "readonly" && !modal.hidden) {
+      setReviewModalOpen(false);
+    }
   });
 
   $(SEL.btnExport)?.addEventListener("click", exportCSV);
 
-  /* ya no se va a usar el boton para redirigir a la view captura.
+  // Cuando el usuario abre el flujo de captura, regresamos el modal existente
+  // a modo editable para que home.modals.js lo use normalmente.
   $(SEL.btnAdd)?.addEventListener("click", () => {
-    log("Ir a captura INE");
-    window.location.href = "/PRI/Views/captura.php";
+    resetReviewModalToCaptureMode();
   });
-  */
 }
+
+/* -------------------------------------------------------------------------- */
+/* INIT                                                                        */
+/* -------------------------------------------------------------------------- */
 
 async function init() {
   readSession();
