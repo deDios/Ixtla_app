@@ -1,74 +1,162 @@
 <?php
-// db\WEB\ixtla_c_archivo.php
+// db/WEB/ixtla_c_archivo.php
+
+declare(strict_types=1);
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+date_default_timezone_set('America/Mexico_City');
+
+/* ============================================================
+   CORS
+   ============================================================ */
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
+
+$allowed_origins = [
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com'
+];
+
+if (in_array($origin, $allowed_origins, true)) {
   header("Access-Control-Allow-Origin: $origin");
   header("Vary: Origin");
 }
 
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: no-referrer");
+header("Content-Type: application/json; charset=utf-8");
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
   exit;
 }
 
-header('Content-Type: application/json; charset=utf-8');
-date_default_timezone_set('America/Mexico_City');
+/* ============================================================
+   HELPERS
+   ============================================================ */
 
-$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
-if ($path && file_exists($path)) {
-  include $path;
-} else {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se encontró conn_db.php en $path"], JSON_UNESCAPED_UNICODE));
+function json_response(array $data, int $status = 200): void
+{
+  http_response_code($status);
+  echo json_encode($data, JSON_UNESCAPED_UNICODE);
+  exit;
 }
 
-$in = json_decode(file_get_contents("php://input"), true) ?? [];
+function internal_error(string $message): void
+{
+  error_log('[IXTLA_C_ARCHIVO] ' . $message);
 
-$archivo_id = isset($in['archivo_id']) ? (int)$in['archivo_id'] : (isset($in['id']) ? (int)$in['id'] : null);
-$uuid = isset($in['uuid']) ? trim((string)$in['uuid']) : '';
-
-$entidad_tipo = isset($in['entidad_tipo']) ? trim((string)$in['entidad_tipo']) : '';
-$entidad_id = isset($in['entidad_id']) ? (int)$in['entidad_id'] : null;
-$uso_archivo = isset($in['uso_archivo']) ? trim((string)$in['uso_archivo']) : '';
-
-$es_actual = array_key_exists('es_actual', $in) ? (int)$in['es_actual'] : null;
-$privado = array_key_exists('privado', $in) ? (int)$in['privado'] : null;
-$uploaded_by = isset($in['uploaded_by']) ? (int)$in['uploaded_by'] : null;
-$sha256_hash = isset($in['sha256_hash']) ? trim((string)$in['sha256_hash']) : '';
-$q = isset($in['q']) ? trim((string)$in['q']) : '';
-
-$page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
-$pageSize = isset($in['page_size']) ? max(1, min(500, (int)$in['page_size'])) : 50;
-$offset = ($page - 1) * $pageSize;
-
-$con = conectar();
-if (!$con) {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se pudo conectar a la base de datos"], JSON_UNESCAPED_UNICODE));
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
 }
 
-$con->set_charset('utf8mb4');
+function read_json_body(): array
+{
+  $raw = file_get_contents("php://input");
 
-function bind_dynamic(mysqli_stmt $st, string $types, array &$params): void {
+  if (!$raw || trim($raw) === '') {
+    return [];
+  }
+
+  $in = json_decode($raw, true);
+
+  if (!is_array($in)) {
+    json_response([
+      "ok" => false,
+      "error" => "JSON inválido"
+    ], 400);
+  }
+
+  return $in;
+}
+
+function db(): mysqli
+{
+  $path = realpath("/home/site/wwwroot/db/conn/conn_db_2.php");
+
+  if (!$path || !file_exists($path)) {
+    internal_error("No se encontró conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php");
+  }
+
+  include_once $path;
+
+  if (!function_exists('conectar')) {
+    internal_error("No existe la función conectar() en conn_db_2.php");
+  }
+
+  $con = conectar();
+
+  if (!$con instanceof mysqli) {
+    internal_error("conectar() no regresó una conexión mysqli válida");
+  }
+
+  $con->set_charset('utf8mb4');
+  $con->query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+
+  return $con;
+}
+
+function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void
+{
+  if ($types === '' || empty($params)) {
+    return;
+  }
+
   $refs = [];
   $refs[] = $types;
 
-  foreach ($params as $k => &$v) {
-    $refs[] = &$v;
+  foreach ($params as $key => &$value) {
+    $refs[] = &$value;
   }
 
-  call_user_func_array([$st, 'bind_param'], $refs);
+  call_user_func_array([$stmt, 'bind_param'], $refs);
 }
 
-function archivo_row(array $row): array {
+function str_clean(array $in, string $key): string
+{
+  return isset($in[$key]) ? trim((string)$in[$key]) : '';
+}
+
+function int_or_null(array $in, string $key): ?int
+{
+  if (!isset($in[$key]) || $in[$key] === '') {
+    return null;
+  }
+
+  $value = (int)$in[$key];
+
+  return $value > 0 ? $value : null;
+}
+
+function nullable_int_from_row(array $row, string $key): ?int
+{
+  return isset($row[$key]) && $row[$key] !== null ? (int)$row[$key] : null;
+}
+
+function bool_filter_or_null(array $in, string $key): ?int
+{
+  if (!array_key_exists($key, $in) || $in[$key] === '') {
+    return null;
+  }
+
+  return ((int)$in[$key]) === 1 ? 1 : 0;
+}
+
+/* ============================================================
+   FORMATTER
+   ============================================================ */
+
+function archivo_row(array $row): array
+{
   return [
     "archivo_id" => (int)$row['archivo_id'],
     "uuid" => $row['uuid'],
+
     "entidad_tipo" => $row['entidad_tipo'],
     "entidad_id" => (int)$row['entidad_id'],
     "uso_archivo" => $row['uso_archivo'],
@@ -80,202 +168,372 @@ function archivo_row(array $row): array {
 
     "mime_type" => $row['mime_type'],
     "extension" => $row['extension'],
-    "tamano_bytes" => isset($row['tamano_bytes']) ? (int)$row['tamano_bytes'] : null,
+    "tamano_bytes" => nullable_int_from_row($row, 'tamano_bytes'),
     "sha256_hash" => $row['sha256_hash'],
 
     "version_no" => (int)$row['version_no'],
     "es_actual" => (int)$row['es_actual'],
-    "reemplaza_archivo_id" => isset($row['reemplaza_archivo_id']) ? (int)$row['reemplaza_archivo_id'] : null,
+    "reemplaza_archivo_id" => nullable_int_from_row($row, 'reemplaza_archivo_id'),
     "privado" => (int)$row['privado'],
 
-    "uploaded_by" => isset($row['uploaded_by']) ? (int)$row['uploaded_by'] : null,
+    "uploaded_by" => nullable_int_from_row($row, 'uploaded_by'),
     "uploaded_by_usuario" => [
-      "username" => $row['uploaded_by_username'] ?? null,
-      "nombre" => $row['uploaded_by_nombre'] ?? null,
-      "apellido_paterno" => $row['uploaded_by_apellido_paterno'] ?? null,
-      "apellido_materno" => $row['uploaded_by_apellido_materno'] ?? null
+      "usuario_id" => nullable_int_from_row($row, 'uploaded_by'),
+      "username" => $row['uploaded_by_username'],
+      "nombre" => $row['uploaded_by_nombre'],
+      "apellido_paterno" => $row['uploaded_by_apellido_paterno'],
+      "apellido_materno" => $row['uploaded_by_apellido_materno'],
+      "nombre_completo" => trim(
+        (string)$row['uploaded_by_nombre'] . ' ' .
+          (string)$row['uploaded_by_apellido_paterno'] . ' ' .
+          (string)$row['uploaded_by_apellido_materno']
+      )
     ],
 
     "uploaded_at" => $row['uploaded_at'],
     "updated_at" => $row['updated_at'],
-    "updated_by" => isset($row['updated_by']) ? (int)$row['updated_by'] : null
+    "updated_by" => nullable_int_from_row($row, 'updated_by')
   ];
 }
 
-$baseSelect = "
-  SELECT
-    a.*,
-    u.username AS uploaded_by_username,
-    u.nombre AS uploaded_by_nombre,
-    u.apellido_paterno AS uploaded_by_apellido_paterno,
-    u.apellido_materno AS uploaded_by_apellido_materno
-  FROM archivo a
-  LEFT JOIN usuario u
-    ON u.usuario_id = a.uploaded_by
-";
+/* ============================================================
+   SQL BASE
+   ============================================================ */
 
-if ($archivo_id && $archivo_id > 0) {
-  $sql = $baseSelect . "
-    WHERE a.archivo_id = ?
-      AND a.deleted_at IS NULL
-    LIMIT 1
-  ";
+function base_select(): string
+{
+  return "
+        SELECT
+            a.*,
+
+            u.username AS uploaded_by_username,
+            u.nombre AS uploaded_by_nombre,
+            u.apellido_paterno AS uploaded_by_apellido_paterno,
+            u.apellido_materno AS uploaded_by_apellido_materno
+
+        FROM archivo a
+
+        LEFT JOIN usuario u
+            ON u.usuario_id = a.uploaded_by
+           AND u.deleted_at IS NULL
+    ";
+}
+
+function base_count(): string
+{
+  return "
+        FROM archivo a
+
+        LEFT JOIN usuario u
+            ON u.usuario_id = a.uploaded_by
+           AND u.deleted_at IS NULL
+    ";
+}
+
+/* ============================================================
+   CONSULTAS
+   ============================================================ */
+
+function consultar_archivo_por_id(mysqli $con, int $archivo_id): array
+{
+  $sql = base_select() . "
+        WHERE a.archivo_id = ?
+          AND a.deleted_at IS NULL
+        LIMIT 1
+    ";
 
   $st = $con->prepare($sql);
   $st->bind_param("i", $archivo_id);
   $st->execute();
+
   $row = $st->get_result()->fetch_assoc();
   $st->close();
-  $con->close();
 
   if (!$row) {
-    http_response_code(404);
-    die(json_encode(["ok" => false, "error" => "Archivo no encontrado"], JSON_UNESCAPED_UNICODE));
+    json_response([
+      "ok" => false,
+      "error" => "Archivo no encontrado"
+    ], 404);
   }
 
-  echo json_encode(["ok" => true, "data" => archivo_row($row)], JSON_UNESCAPED_UNICODE);
-  exit;
+  return archivo_row($row);
 }
 
-if ($uuid !== '') {
-  $sql = $baseSelect . "
-    WHERE a.uuid = ?
-      AND a.deleted_at IS NULL
-    LIMIT 1
-  ";
+function consultar_archivo_por_uuid(mysqli $con, string $uuid): array
+{
+  $sql = base_select() . "
+        WHERE a.uuid = ?
+          AND a.deleted_at IS NULL
+        LIMIT 1
+    ";
 
   $st = $con->prepare($sql);
   $st->bind_param("s", $uuid);
   $st->execute();
+
   $row = $st->get_result()->fetch_assoc();
   $st->close();
-  $con->close();
 
   if (!$row) {
-    http_response_code(404);
-    die(json_encode(["ok" => false, "error" => "Archivo no encontrado"], JSON_UNESCAPED_UNICODE));
+    json_response([
+      "ok" => false,
+      "error" => "Archivo no encontrado"
+    ], 404);
   }
 
-  echo json_encode(["ok" => true, "data" => archivo_row($row)], JSON_UNESCAPED_UNICODE);
-  exit;
+  return archivo_row($row);
 }
 
-$where = ["a.deleted_at IS NULL"];
-$types = "";
-$params = [];
+function consultar_archivos(mysqli $con, array $in): array
+{
+  $entidad_tipo = str_clean($in, 'entidad_tipo');
+  $uso_archivo = str_clean($in, 'uso_archivo');
+  $sha256_hash = str_clean($in, 'sha256_hash');
 
-if ($entidad_tipo !== '') {
-  $where[] = "a.entidad_tipo = ?";
-  $types .= "s";
-  $params[] = $entidad_tipo;
-}
+  $entidad_id = int_or_null($in, 'entidad_id');
+  $uploaded_by = int_or_null($in, 'uploaded_by');
 
-if ($entidad_id !== null && $entidad_id > 0) {
-  $where[] = "a.entidad_id = ?";
-  $types .= "i";
-  $params[] = $entidad_id;
-}
+  $es_actual = bool_filter_or_null($in, 'es_actual');
+  $privado = bool_filter_or_null($in, 'privado');
 
-if ($uso_archivo !== '') {
-  $where[] = "a.uso_archivo = ?";
-  $types .= "s";
-  $params[] = $uso_archivo;
-}
+  $q = str_clean($in, 'q');
 
-if ($es_actual !== null) {
-  $where[] = "a.es_actual = ?";
-  $types .= "i";
-  $params[] = $es_actual;
-}
+  if ($q === '') {
+    $q = str_clean($in, 'search');
+  }
 
-if ($privado !== null) {
-  $where[] = "a.privado = ?";
-  $types .= "i";
-  $params[] = $privado;
-}
+  $page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
 
-if ($uploaded_by !== null && $uploaded_by > 0) {
-  $where[] = "a.uploaded_by = ?";
-  $types .= "i";
-  $params[] = $uploaded_by;
-}
+  $pageSize = 50;
 
-if ($sha256_hash !== '') {
-  $where[] = "a.sha256_hash = ?";
-  $types .= "s";
-  $params[] = $sha256_hash;
-}
+  if (isset($in['page_size'])) {
+    $pageSize = (int)$in['page_size'];
+  } elseif (isset($in['limit'])) {
+    $pageSize = (int)$in['limit'];
+  }
 
-if ($q !== '') {
-  $like = "%$q%";
-  $where[] = "(
-    a.nombre_original LIKE ?
-    OR a.nombre_storage LIKE ?
-    OR a.url_archivo LIKE ?
-    OR a.mime_type LIKE ?
-    OR a.extension LIKE ?
-  )";
+  $pageSize = max(1, min(500, $pageSize));
+  $offset = ($page - 1) * $pageSize;
 
-  for ($i = 0; $i < 5; $i++) {
+  $where = [
+    "a.deleted_at IS NULL"
+  ];
+
+  $params = [];
+  $types = "";
+
+  if ($entidad_tipo !== '') {
+    $where[] = "a.entidad_tipo = ?";
+    $params[] = $entidad_tipo;
     $types .= "s";
-    $params[] = $like;
   }
+
+  if ($entidad_id !== null) {
+    $where[] = "a.entidad_id = ?";
+    $params[] = $entidad_id;
+    $types .= "i";
+  }
+
+  if ($uso_archivo !== '') {
+    $where[] = "a.uso_archivo = ?";
+    $params[] = $uso_archivo;
+    $types .= "s";
+  }
+
+  if ($es_actual !== null) {
+    $where[] = "a.es_actual = ?";
+    $params[] = $es_actual;
+    $types .= "i";
+  }
+
+  if ($privado !== null) {
+    $where[] = "a.privado = ?";
+    $params[] = $privado;
+    $types .= "i";
+  }
+
+  if ($uploaded_by !== null) {
+    $where[] = "a.uploaded_by = ?";
+    $params[] = $uploaded_by;
+    $types .= "i";
+  }
+
+  if ($sha256_hash !== '') {
+    $where[] = "a.sha256_hash = ?";
+    $params[] = $sha256_hash;
+    $types .= "s";
+  }
+
+  if ($q !== '') {
+    $like = "%$q%";
+
+    $where[] = "(
+            a.nombre_original LIKE ?
+            OR a.nombre_storage LIKE ?
+            OR a.url_archivo LIKE ?
+            OR a.url_thumbnail LIKE ?
+            OR a.mime_type LIKE ?
+            OR a.extension LIKE ?
+            OR a.entidad_tipo LIKE ?
+            OR a.uso_archivo LIKE ?
+            OR u.username LIKE ?
+            OR u.nombre LIKE ?
+            OR u.apellido_paterno LIKE ?
+            OR u.apellido_materno LIKE ?
+            OR CONCAT_WS(' ', u.nombre, u.apellido_paterno, u.apellido_materno) LIKE ?
+        )";
+
+    for ($i = 0; $i < 13; $i++) {
+      $params[] = $like;
+      $types .= "s";
+    }
+  }
+
+  $whereSql = implode(" AND ", $where);
+
+  $countSql = "
+        SELECT COUNT(*) AS total
+        " . base_count() . "
+        WHERE $whereSql
+    ";
+
+  $countParams = $params;
+  $countTypes = $types;
+
+  $stCount = $con->prepare($countSql);
+
+  if ($countTypes !== '') {
+    bind_dynamic($stCount, $countTypes, $countParams);
+  }
+
+  $stCount->execute();
+  $totalRow = $stCount->get_result()->fetch_assoc();
+  $stCount->close();
+
+  $total = (int)($totalRow['total'] ?? 0);
+
+  $sql = base_select() . "
+        WHERE $whereSql
+        ORDER BY
+            a.uploaded_at DESC,
+            a.archivo_id DESC
+        LIMIT ? OFFSET ?
+    ";
+
+  $listParams = $params;
+  $listTypes = $types . "ii";
+
+  $listParams[] = $pageSize;
+  $listParams[] = $offset;
+
+  $st = $con->prepare($sql);
+  bind_dynamic($st, $listTypes, $listParams);
+  $st->execute();
+
+  $rs = $st->get_result();
+
+  $data = [];
+
+  while ($row = $rs->fetch_assoc()) {
+    $data[] = archivo_row($row);
+  }
+
+  $st->close();
+
+  return [
+    "meta" => [
+      "page" => $page,
+      "page_size" => $pageSize,
+      "total" => $total,
+      "total_pages" => $pageSize > 0 ? (int)ceil($total / $pageSize) : 0
+    ],
+    "data" => $data
+  ];
 }
 
-$sql = "
-  $baseSelect
-  WHERE " . implode(" AND ", $where) . "
-  ORDER BY a.uploaded_at DESC, a.archivo_id DESC
-  LIMIT ? OFFSET ?
-";
+/* ============================================================
+   MAIN
+   ============================================================ */
 
-$types .= "ii";
-$params[] = $pageSize;
-$params[] = $offset;
+try {
+  if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    json_response([
+      "ok" => false,
+      "error" => "Método no permitido. Usa POST."
+    ], 405);
+  }
 
-$st = $con->prepare($sql);
-bind_dynamic($st, $types, $params);
-$st->execute();
-$rs = $st->get_result();
+  $in = read_json_body();
 
-$data = [];
-while ($row = $rs->fetch_assoc()) {
-  $data[] = archivo_row($row);
+  $archivo_id = null;
+
+  if (isset($in['archivo_id'])) {
+    $archivo_id = (int)$in['archivo_id'];
+  } elseif (isset($in['id'])) {
+    $archivo_id = (int)$in['id'];
+  }
+
+  $uuid = str_clean($in, 'uuid');
+
+  $con = db();
+
+  if ($archivo_id && $archivo_id > 0) {
+    $data = consultar_archivo_por_id($con, $archivo_id);
+
+    $con->close();
+
+    json_response([
+      "ok" => true,
+      "data" => $data
+    ]);
+  }
+
+  if ($uuid !== '') {
+    $data = consultar_archivo_por_uuid($con, $uuid);
+
+    $con->close();
+
+    json_response([
+      "ok" => true,
+      "data" => $data
+    ]);
+  }
+
+  $result = consultar_archivos($con, $in);
+
+  $con->close();
+
+  json_response([
+    "ok" => true,
+    "meta" => $result["meta"],
+    "data" => $result["data"]
+  ]);
+} catch (mysqli_sql_exception $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  error_log('[IXTLA_C_ARCHIVO][SQL] ' . $e->getMessage());
+
+  json_response([
+    "ok" => false,
+    "error" => "Error al consultar archivos"
+  ], 500);
+} catch (Throwable $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  error_log('[IXTLA_C_ARCHIVO][ERROR] ' . $e->getMessage());
+
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
 }
-
-$st->close();
-
-$countSql = "
-  SELECT COUNT(*) AS total
-  FROM archivo a
-  WHERE " . implode(" AND ", $where) . "
-";
-
-$countParams = $params;
-array_pop($countParams);
-array_pop($countParams);
-
-$countTypes = substr($types, 0, -2);
-
-$st = $con->prepare($countSql);
-
-if ($countTypes !== '') {
-  bind_dynamic($st, $countTypes, $countParams);
-}
-
-$st->execute();
-$totalRow = $st->get_result()->fetch_assoc();
-$total = (int)$totalRow['total'];
-$st->close();
-
-$con->close();
-
-echo json_encode([
-  "ok" => true,
-  "meta" => [
-    "page" => $page,
-    "page_size" => $pageSize,
-    "total" => $total
-  ],
-  "data" => $data
-], JSON_UNESCAPED_UNICODE);
