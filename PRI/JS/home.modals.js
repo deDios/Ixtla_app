@@ -1,8 +1,11 @@
 "use strict";
 
+import { Session } from "/PRI/JS/auth/session.js";
+
 /* -------------------------------------------------------------------------- */
 /* RED HOME · MODALES                                                         */
 /* Flujo: abrir scanner -> frente -> reverso -> resumen -> OpenAI -> revisión */
+/*       -> guardar persona -> registrar INE frente/reverso                   */
 /* -------------------------------------------------------------------------- */
 
 const CONFIG = {
@@ -14,20 +17,39 @@ const CONFIG = {
         facingMode: { ideal: "environment" },
     },
 
+    MEDIA: {
+        maxBytes: 900 * 1024,
+        maxWidth: 1280,
+        maxHeight: 900,
+        preferWebp: false,
+        debug: true,
+    },
+
     EXTRACTION: {
         compositeMaxWidth: 1400,
         compositeQuality: 0.86,
+        compositeMaxBytes: 1600 * 1024,
         rawText: "",
+    },
+
+    SAVE: {
+        estatusIdDefault: 1,
+        avisoPrivacidadVersion: "RED-INE-2026-01",
+        reloadPageAfterSave: true,
+        reloadDelayMs: 900,
     },
 };
 
 const ENDPOINTS = {
     extractOpenAI: "/PRI/extract_identificacion_openai.php",
+    insertPersona: "/PRI/db/WEB/ixtla_i_persona.php",
+    insertArchivo: "/PRI/db/WEB/ixtla_i_archivo.php",
 };
 
 const TAG = "[RED Home Modals]";
 const log = (...args) => CONFIG.DEBUG_LOGS && console.log(TAG, ...args);
 const warn = (...args) => CONFIG.DEBUG_LOGS && console.warn(TAG, ...args);
+const error = (...args) => CONFIG.DEBUG_LOGS && console.error(TAG, ...args);
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -37,12 +59,16 @@ const State = {
     step: "front",
     captureState: "idle",
 
+    session: null,
+    sessionData: null,
+    usuario: null,
+    rol: null,
+    token: "",
+
     captures: {
         front: null,
         back: null,
     },
-
-    personasMock: [],
 };
 
 const SEL = {
@@ -106,19 +132,6 @@ function setModalOpen(isOpen) {
     modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
 
     syncBodyModalState();
-}
-
-function paintReviewImages(payload) {
-    const front = $(SEL.reviewFront);
-    const back = $(SEL.reviewBack);
-
-    if (front && payload?.images?.front) {
-        front.src = payload.images.front;
-    }
-
-    if (back && payload?.images?.back) {
-        back.src = payload.images.back;
-    }
 }
 
 function setReviewModalOpen(isOpen) {
@@ -230,6 +243,124 @@ function lockCaptureButton(isLocked, text = "Capturar") {
 }
 
 /* -------------------------------------------------------------------------- */
+/* SESIÓN / HTTP                                                               */
+/* -------------------------------------------------------------------------- */
+
+function readCookiePayload() {
+    try {
+        const name = "ix_emp=";
+        const pair = document.cookie.split("; ").find((c) => c.startsWith(name));
+        if (!pair) return null;
+
+        const raw = decodeURIComponent(pair.slice(name.length));
+        return JSON.parse(decodeURIComponent(escape(atob(raw))));
+    } catch {
+        return null;
+    }
+}
+
+function normalizeSession(rawSession) {
+    const raw = rawSession || {};
+    const data = raw.data && typeof raw.data === "object" ? raw.data : raw;
+
+    return {
+        raw,
+        data,
+        token: data.token || raw.token || "",
+        usuario: data.usuario || raw.usuario || {},
+        rol: data.rol || raw.rol || {},
+        persona: data.persona || raw.persona || {},
+        territorios: Array.isArray(data.territorios) ? data.territorios : [],
+    };
+}
+
+function readSession() {
+    let session = null;
+
+    try {
+        session = Session?.get?.() || null;
+    } catch (err) {
+        warn("No se pudo leer Session.get()", err);
+    }
+
+    if (!session) session = readCookiePayload();
+
+    const normalized = normalizeSession(session);
+
+    State.session = session || null;
+    State.sessionData = normalized.data;
+    State.usuario = normalized.usuario;
+    State.rol = normalized.rol;
+    State.token = normalized.token;
+
+    log("Sesión detectada en modales:", State.session);
+    log("Sesión normalizada en modales:", normalized);
+
+    return normalized;
+}
+
+function getUsuarioId() {
+    return Number(State.usuario?.usuario_id || State.sessionData?.usuario_id || 0);
+}
+
+function getAuthHeaders() {
+    const headers = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+    };
+
+    if (State.token) {
+        headers.Authorization = `Bearer ${State.token}`;
+    }
+
+    return headers;
+}
+
+async function postJSON(url, body = {}) {
+    const response = await fetch(url, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(body),
+        cache: "no-store",
+    });
+
+    const status = response.status;
+    const raw = await response.text();
+
+    let data = null;
+
+    try {
+        data = raw ? JSON.parse(raw) : null;
+    } catch {
+        console.error(TAG, "Respuesta no JSON:", raw);
+        throw new Error("El endpoint respondió algo que no es JSON.");
+    }
+
+    log("POST:", url, "status:", status, "body:", previewPayload(body), "response:", data);
+
+    if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || data?.message || `Error HTTP ${status}`);
+    }
+
+    return data;
+}
+
+function previewPayload(payload) {
+    const clone = { ...(payload || {}) };
+
+    if (typeof clone.url_archivo === "string" && clone.url_archivo.startsWith("data:")) {
+        clone.url_archivo = clone.url_archivo.slice(0, 80) + "...";
+    }
+
+    if (typeof clone.image_data_url === "string" && clone.image_data_url.startsWith("data:")) {
+        clone.image_data_url = clone.image_data_url.slice(0, 80) + "...";
+    }
+
+    return clone;
+}
+
+/* -------------------------------------------------------------------------- */
 /* CÁMARA                                                                      */
 /* -------------------------------------------------------------------------- */
 
@@ -268,15 +399,15 @@ async function startCamera() {
 
         try {
             await video.play();
-        } catch (error) {
-            warn("video.play() falló, pero el stream ya fue asignado:", error);
+        } catch (err) {
+            warn("video.play() falló, pero el stream ya fue asignado:", err);
         }
 
         prepareCaptureStep(State.step || "front");
 
         log("Cámara iniciada correctamente.");
-    } catch (error) {
-        warn("No se pudo abrir la cámara:", error);
+    } catch (err) {
+        warn("No se pudo abrir la cámara:", err);
 
         State.stream = null;
         video.srcObject = null;
@@ -374,7 +505,7 @@ function getVideoCropFromGuide(video, guideBox, paddingRatio = 0.08) {
     };
 }
 
-function captureGuideImage() {
+async function captureGuideImage() {
     const video = $(SEL.video);
     const guideBox = $(SEL.guideBox);
 
@@ -417,17 +548,110 @@ function captureGuideImage() {
         crop.sh
     );
 
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+    const capture = await compressCanvasCapture(canvas, {
+        ...CONFIG.MEDIA,
+        label: State.step,
+    });
 
     log("Captura generada:", {
         step: State.step,
         crop,
-        width: canvas.width,
-        height: canvas.height,
-        dataUrlLength: dataUrl.length,
+        width: capture.width,
+        height: capture.height,
+        mime: capture.mime,
+        extension: capture.extension,
+        sizeKB: capture.sizeKB,
+        withinLimit: capture.withinLimit,
     });
 
-    return dataUrl;
+    return capture;
+}
+
+async function compressCanvasCapture(canvas, options = {}) {
+    if (window.PRIMedia?.compressCanvasToDataUrl) {
+        const result = await window.PRIMedia.compressCanvasToDataUrl(canvas, options);
+
+        return normalizeCaptureObject(result);
+    }
+
+    warn("window.PRIMedia no está disponible. Se usará canvas.toDataURL sin compresión avanzada.");
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+    const sizeBytes = dataUrlSizeBytes(dataUrl);
+
+    return normalizeCaptureObject({
+        dataUrl,
+        mime: "image/jpeg",
+        extension: "jpg",
+        sizeBytes,
+        sizeKB: Math.round(sizeBytes / 1024),
+        width: canvas.width,
+        height: canvas.height,
+        quality: 0.82,
+        compressed: false,
+        withinLimit: sizeBytes <= CONFIG.MEDIA.maxBytes,
+    });
+}
+
+function normalizeCaptureObject(input) {
+    if (!input) return null;
+
+    if (typeof input === "string") {
+        const sizeBytes = dataUrlSizeBytes(input);
+
+        return {
+            dataUrl: input,
+            mime: getMimeFromDataUrl(input) || "image/jpeg",
+            extension: getExtensionFromMime(getMimeFromDataUrl(input) || "image/jpeg"),
+            sizeBytes,
+            sizeKB: Math.round(sizeBytes / 1024),
+            width: null,
+            height: null,
+            quality: null,
+            compressed: false,
+            withinLimit: sizeBytes <= CONFIG.MEDIA.maxBytes,
+        };
+    }
+
+    const dataUrl = input.dataUrl || input.data_url || "";
+    const mime = input.mime || getMimeFromDataUrl(dataUrl) || "image/jpeg";
+    const sizeBytes = Number(input.sizeBytes || input.size_bytes || dataUrlSizeBytes(dataUrl) || 0);
+
+    return {
+        dataUrl,
+        blob: input.blob || null,
+        mime,
+        extension: input.extension || getExtensionFromMime(mime),
+        sizeBytes,
+        sizeKB: Number(input.sizeKB || Math.round(sizeBytes / 1024) || 0),
+        width: input.width || null,
+        height: input.height || null,
+        quality: input.quality ?? null,
+        compressed: Boolean(input.compressed),
+        withinLimit: input.withinLimit !== undefined ? Boolean(input.withinLimit) : true,
+        original: Boolean(input.original),
+    };
+}
+
+function getCaptureDataUrl(capture) {
+    if (!capture) return "";
+    if (typeof capture === "string") return capture;
+    return capture.dataUrl || "";
+}
+
+function getMimeFromDataUrl(dataUrl) {
+    const match = String(dataUrl || "").match(/^data:([^;]+);base64,/i);
+    return match ? match[1].toLowerCase() : "";
+}
+
+function getExtensionFromMime(mime) {
+    const clean = String(mime || "").toLowerCase();
+
+    if (clean === "image/webp") return "webp";
+    if (clean === "image/png") return "png";
+    if (clean === "image/jpeg" || clean === "image/jpg") return "jpg";
+
+    return "jpg";
 }
 
 async function captureCurrentStep() {
@@ -441,11 +665,11 @@ async function captureCurrentStep() {
 
         await new Promise((resolve) => setTimeout(resolve, 280));
 
-        const imageData = captureGuideImage();
+        const imageData = await captureGuideImage();
         acceptCapture(imageData, State.step);
-    } catch (error) {
-        warn("Error capturando imagen:", error);
-        showCameraError(error?.message || "No se pudo capturar la imagen.");
+    } catch (err) {
+        warn("Error capturando imagen:", err);
+        showCameraError(err?.message || "No se pudo capturar la imagen.");
     } finally {
         if (State.captureState !== "captured") {
             lockCaptureButton(false, "Capturar");
@@ -454,7 +678,7 @@ async function captureCurrentStep() {
 }
 
 function acceptCapture(imageData, side) {
-    State.captures[side] = imageData;
+    State.captures[side] = normalizeCaptureObject(imageData);
 
     setCaptureState("captured");
 
@@ -483,6 +707,8 @@ function acceptCapture(imageData, side) {
         btnNext.textContent = side === "front" ? "Capturar reverso" : "Ver capturas";
     }
 
+    const capture = State.captures[side];
+
     toast(
         side === "front"
             ? "Frente capturado correctamente"
@@ -495,6 +721,9 @@ function acceptCapture(imageData, side) {
         side,
         hasFront: Boolean(State.captures.front),
         hasBack: Boolean(State.captures.back),
+        mime: capture?.mime,
+        extension: capture?.extension,
+        sizeKB: capture?.sizeKB,
     });
 }
 
@@ -541,11 +770,11 @@ function showSummary() {
     const back = $(SEL.previewBack);
 
     if (front) {
-        front.src = State.captures.front || "";
+        front.src = getCaptureDataUrl(State.captures.front);
     }
 
     if (back) {
-        back.src = State.captures.back || "";
+        back.src = getCaptureDataUrl(State.captures.back);
     }
 
     stopCamera();
@@ -582,12 +811,15 @@ function loadImageFromDataUrl(dataUrl) {
 }
 
 async function buildCompositeIneImageDataUrl() {
-    if (!State.captures.front || !State.captures.back) {
+    const frontDataUrl = getCaptureDataUrl(State.captures.front);
+    const backDataUrl = getCaptureDataUrl(State.captures.back);
+
+    if (!frontDataUrl || !backDataUrl) {
         throw new Error("Faltan capturas de frente y reverso.");
     }
 
-    const frontImg = await loadImageFromDataUrl(State.captures.front);
-    const backImg = await loadImageFromDataUrl(State.captures.back);
+    const frontImg = await loadImageFromDataUrl(frontDataUrl);
+    const backImg = await loadImageFromDataUrl(backDataUrl);
 
     const maxWidth = CONFIG.EXTRACTION.compositeMaxWidth;
     const padding = 32;
@@ -656,6 +888,28 @@ async function buildCompositeIneImageDataUrl() {
         backHeight
     );
 
+    if (window.PRIMedia?.compressCanvasToDataUrl) {
+        const result = await window.PRIMedia.compressCanvasToDataUrl(canvas, {
+            ...CONFIG.MEDIA,
+            maxBytes: CONFIG.EXTRACTION.compositeMaxBytes,
+            maxWidth: CONFIG.EXTRACTION.compositeMaxWidth,
+            maxHeight: 1800,
+            startQuality: CONFIG.EXTRACTION.compositeQuality,
+            minQuality: 0.52,
+            label: "composite",
+        });
+
+        log("Imagen compuesta comprimida:", {
+            mime: result.mime,
+            extension: result.extension,
+            sizeKB: result.sizeKB,
+            width: result.width,
+            height: result.height,
+        });
+
+        return result.dataUrl;
+    }
+
     return canvas.toDataURL("image/jpeg", CONFIG.EXTRACTION.compositeQuality);
 }
 
@@ -681,10 +935,7 @@ async function extractIdentificationData({
     console.log("Endpoint:", ENDPOINTS.extractOpenAI);
     console.log("Image size MB:", payload.image_size_mb);
     console.log("Images count:", payload.images_count);
-    console.log("Payload preview:", {
-        ...payload,
-        image_data_url: String(payload.image_data_url || "").slice(0, 90) + "...",
-    });
+    console.log("Payload preview:", previewPayload(payload));
     console.groupEnd();
 
     let response;
@@ -701,8 +952,8 @@ async function extractIdentificationData({
         });
 
         rawResponse = await response.text();
-    } catch (error) {
-        throw new Error("Error de conexión con el endpoint de OpenAI: " + error.message);
+    } catch (err) {
+        throw new Error("Error de conexión con el endpoint de OpenAI: " + err.message);
     }
 
     console.group("[RED Home Modals] Respuesta OpenAI");
@@ -782,17 +1033,14 @@ async function processOpenAIData() {
         log("Extracción OpenAI completada:", payload);
 
         toast("Datos extraídos correctamente.", "exito", 4500);
-        /*
-        closeCaptureModal();
-        openReviewModal(payload);
-        */
+
         hideCaptureModalWithoutReset();
         openReviewModal(payload);
-    } catch (error) {
-        console.error("[RED Home Modals] Error OpenAI:", error);
+    } catch (err) {
+        console.error("[RED Home Modals] Error OpenAI:", err);
 
         toast(
-            error?.message || "No se pudo procesar la identificación.",
+            err?.message || "No se pudo procesar la identificación.",
             "error",
             9000
         );
@@ -839,6 +1087,19 @@ function cleanUpper(value) {
 
 function onlyDigits(value) {
     return normalizeValue(value).replace(/\D+/g, "");
+}
+
+function nullableString(value) {
+    const clean = normalizeValue(value);
+    return clean || null;
+}
+
+function nullableNumber(value) {
+    const clean = onlyDigits(value);
+    if (!clean) return null;
+
+    const number = Number(clean);
+    return Number.isFinite(number) && number > 0 ? number : null;
 }
 
 function normalizeYear(value) {
@@ -906,6 +1167,18 @@ function getTodayLongEs() {
         month: "long",
         year: "numeric",
     }).format(new Date());
+}
+
+function getTodayDateTimeForMysql() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mi = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 }
 
 function setFieldValue(selector, value, fallback = "") {
@@ -1063,6 +1336,18 @@ function buildPersonaFromFields(fields) {
             "idméx",
         ])).replace(/[^A-Z0-9]/g, ""),
 
+        ocr: cleanUpper(findExtractedValue(fields, [
+            "ocr",
+            "numero_ocr",
+            "ocr_number",
+        ])).replace(/[^A-Z0-9]/g, ""),
+
+        cic: cleanUpper(findExtractedValue(fields, [
+            "cic",
+            "numero_cic",
+            "cic_number",
+        ])).replace(/[^A-Z0-9]/g, ""),
+
         seccion_id: onlyDigits(findExtractedValue(fields, [
             "seccion_id",
             "seccion",
@@ -1130,6 +1415,10 @@ function buildPersonaFromFields(fields) {
     };
 }
 
+/* -------------------------------------------------------------------------- */
+/* MODAL REVISIÓN                                                              */
+/* -------------------------------------------------------------------------- */
+
 function fillReviewForm(persona) {
     setFieldValue("#ine-review-fecha-extraccion", getTodayLongEs());
 
@@ -1193,16 +1482,25 @@ function resetReviewModalForCapture() {
 
     if (warning) {
         warning.innerHTML = `
-            <strong>Importante: La información fue extraída automáticamente.</strong>
-            Valide esta información comparando contra el documento INE,
-            realice los ajustes que sean necesarios y guarde el registro.
-        `;
+      <strong>Importante: La información fue extraída automáticamente.</strong>
+      Valide esta información comparando contra el documento INE,
+      realice los ajustes que sean necesarios y guarde el registro.
+    `;
     }
 }
 
-/* -------------------------------------------------------------------------- */
-/* MODAL REVISIÓN                                                              */
-/* -------------------------------------------------------------------------- */
+function paintReviewImages(payload) {
+    const front = $(SEL.reviewFront);
+    const back = $(SEL.reviewBack);
+
+    if (front && payload?.images?.front) {
+        front.src = getCaptureDataUrl(payload.images.front);
+    }
+
+    if (back && payload?.images?.back) {
+        back.src = getCaptureDataUrl(payload.images.back);
+    }
+}
 
 function openReviewModal(payload) {
     const modal = $(SEL.reviewModal);
@@ -1258,54 +1556,203 @@ function collectReviewPayload() {
     };
 }
 
-function createMockPersonaId() {
-    return `PER-MOCK-${Date.now()}`;
+/* -------------------------------------------------------------------------- */
+/* HASH / PAYLOADS GUARDADO                                                    */
+/* -------------------------------------------------------------------------- */
+
+async function sha256Hex(value) {
+    const clean = normalizeValue(value);
+    if (!clean) return null;
+
+    if (!window.crypto?.subtle) {
+        warn("crypto.subtle no está disponible. No se pudo generar hash.");
+        return null;
+    }
+
+    const encoded = new TextEncoder().encode(clean);
+    const buffer = await crypto.subtle.digest("SHA-256", encoded);
+
+    return Array.from(new Uint8Array(buffer))
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
 }
 
-function savePersonaToMock(payload) {
-    const reviewModal = $(SEL.reviewModal);
-    const originalPayload = reviewModal?.__inePayload || null;
+async function buildPersonaInsertPayload(payload) {
+    const usuarioId = getUsuarioId();
 
-    const personaMock = {
-        persona_id: createMockPersonaId(),
+    const personaPayload = {
+        nombres: cleanUpper(payload.nombres),
+        apellido_paterno: nullableString(cleanUpper(payload.apellido_paterno)),
+        apellido_materno: nullableString(cleanUpper(payload.apellido_materno)),
+        fecha_nacimiento: nullableString(payload.fecha_nacimiento),
+        sexo: nullableString(normalizeSex(payload.sexo)),
 
-        ...payload,
+        curp_hash: await sha256Hex(cleanUpper(payload.curp).replace(/[^A-Z0-9]/g, "")),
+        clave_elector_hash: await sha256Hex(cleanUpper(payload.clave_elector).replace(/[^A-Z0-9]/g, "")),
+        idmex_hash: await sha256Hex(cleanUpper(payload.idmex).replace(/[^A-Z0-9]/g, "")),
 
-        origen: "scanner_ine",
-        provider: originalPayload?.provider || "openai",
+        seccion_id: nullableNumber(payload.seccion_id),
+        anio_registro: nullableNumber(payload.anio_registro),
+        emision: nullableNumber(payload.emision),
+        vigencia_inicio: nullableString(payload.vigencia_inicio),
+        vigencia_fin: nullableString(payload.vigencia_fin),
 
-        images: {
-            front: originalPayload?.images?.front || "",
-            back: originalPayload?.images?.back || "",
-            composite: originalPayload?.images?.composite || "",
-        },
+        domicilio_texto: nullableString(cleanUpper(payload.domicilio_texto)),
 
-        extraction: originalPayload?.extraction || null,
-        fields: originalPayload?.fields || [],
+        telefono: nullableString(payload.telefono),
+        whatsapp: nullableString(payload.whatsapp),
+        email: nullableString(payload.email),
 
-        created_at: new Date().toISOString(),
-        updated_at: null,
-        mock: true,
+        acepta_tratamiento_datos: Number(payload.acepta_tratamiento_datos) === 1 ? 1 : 0,
+        acepta_contacto_whatsapp: Number(payload.acepta_contacto_whatsapp) === 1 ? 1 : 0,
+        acepta_datos_sensibles: Number(payload.acepta_tratamiento_datos) === 1 ? 1 : 0,
+        aviso_privacidad_version: CONFIG.SAVE.avisoPrivacidadVersion,
+        fecha_consentimiento: Number(payload.acepta_tratamiento_datos) === 1 ? getTodayDateTimeForMysql() : null,
+
+        estatus_id: CONFIG.SAVE.estatusIdDefault,
+        capturado_por: usuarioId || null,
+        created_by: usuarioId || null,
+
+        observaciones: nullableString(payload.observaciones),
     };
 
-    State.personasMock.unshift(personaMock);
+    Object.keys(personaPayload).forEach((key) => {
+        if (personaPayload[key] === null || personaPayload[key] === "") {
+            delete personaPayload[key];
+        }
+    });
 
-    window.RED_PERSONAS_MOCK = State.personasMock;
+    return personaPayload;
+}
+
+function buildArchivoInsertPayload({ personaId, side, capture, usuarioId }) {
+    const usoArchivo = side === "front" ? "INE_FRENTE" : "INE_REVERSO";
+    const suffix = side === "front" ? "frente" : "reverso";
+    const normalizedCapture = normalizeCaptureObject(capture);
+    const extension = normalizedCapture?.extension || "jpg";
+    const mime = normalizedCapture?.mime || "image/jpeg";
+    const timestamp = Date.now();
+
+    return {
+        entidad_tipo: "PERSONA",
+        entidad_id: Number(personaId),
+        uso_archivo: usoArchivo,
+
+        nombre_original: `ine_${suffix}.${extension}`,
+        nombre_storage: `persona_${personaId}_ine_${suffix}_${timestamp}.${extension}`,
+
+        url_archivo: normalizedCapture?.dataUrl || "",
+        mime_type: mime,
+        extension,
+        tamano_bytes: normalizedCapture?.sizeBytes || null,
+
+        version_no: 1,
+        es_actual: 1,
+        privado: 1,
+
+        uploaded_by: usuarioId || null,
+        updated_by: usuarioId || null,
+    };
+}
+
+function validateReviewPayload(payload) {
+    if (!payload.nombres) {
+        toast("El campo Nombre es obligatorio.", "error", 5000);
+        return false;
+    }
+
+    if (!payload.curp) {
+        toast("El campo CURP es obligatorio.", "error", 5000);
+        return false;
+    }
+
+    if (!payload.clave_elector) {
+        toast("El campo Clave de elector es obligatorio.", "error", 5000);
+        return false;
+    }
+
+    if (!payload.seccion_id) {
+        toast("El campo Sección es obligatorio.", "error", 5000);
+        return false;
+    }
+
+    if (!State.captures.front || !State.captures.back) {
+        toast("Faltan las fotos de frente y reverso de la INE.", "error", 5000);
+        return false;
+    }
+
+    return true;
+}
+
+async function savePersonaAndFiles(payload) {
+    const reviewModal = $(SEL.reviewModal);
+    const originalPayload = reviewModal?.__inePayload || null;
+    const usuarioId = getUsuarioId();
+
+    const personaPayload = await buildPersonaInsertPayload(payload);
+
+    log("Payload persona listo:", personaPayload);
+
+    const personaResponse = await postJSON(ENDPOINTS.insertPersona, personaPayload);
+    const persona = personaResponse.data || null;
+    const personaId = Number(persona?.persona_id || 0);
+
+    if (!personaId) {
+        throw new Error("La persona fue creada, pero no se recibió persona_id.");
+    }
+
+    const captures = {
+        front: originalPayload?.images?.front || State.captures.front,
+        back: originalPayload?.images?.back || State.captures.back,
+    };
+
+    const archivoPayloads = [
+        buildArchivoInsertPayload({
+            personaId,
+            side: "front",
+            capture: captures.front,
+            usuarioId,
+        }),
+        buildArchivoInsertPayload({
+            personaId,
+            side: "back",
+            capture: captures.back,
+            usuarioId,
+        }),
+    ];
+
+    const archivos = [];
+    const erroresArchivo = [];
+
+    for (const archivoPayload of archivoPayloads) {
+        try {
+            const archivoResponse = await postJSON(ENDPOINTS.insertArchivo, archivoPayload);
+            archivos.push(archivoResponse.data || null);
+        } catch (err) {
+            erroresArchivo.push({
+                uso_archivo: archivoPayload.uso_archivo,
+                error: err?.message || "No se pudo registrar archivo.",
+            });
+
+            error(`No se pudo registrar ${archivoPayload.uso_archivo}:`, err);
+        }
+    }
+
+    const saved = {
+        persona,
+        archivos: archivos.filter(Boolean),
+        erroresArchivo,
+        extraction: originalPayload?.extraction || null,
+        fields: originalPayload?.fields || [],
+    };
 
     document.dispatchEvent(
-        new CustomEvent("red:persona-mock-saved", {
-            detail: {
-                persona: payload,
-                saved: personaMock,
-                personas: State.personasMock,
-            },
+        new CustomEvent("red:persona-saved", {
+            detail: saved,
         })
     );
 
-    log("Persona agregada a personasMock:", personaMock);
-    log("Personas mock actuales:", State.personasMock);
-
-    return personaMock;
+    return saved;
 }
 
 async function handleReviewSubmit(event) {
@@ -1316,18 +1763,7 @@ async function handleReviewSubmit(event) {
 
     const payload = collectReviewPayload();
 
-    if (!payload.curp) {
-        toast("El campo CURP es obligatorio.", "error", 5000);
-        return;
-    }
-
-    if (!payload.clave_elector) {
-        toast("El campo Clave de elector es obligatorio.", "error", 5000);
-        return;
-    }
-
-    if (!payload.seccion_id) {
-        toast("El campo Sección es obligatorio.", "error", 5000);
+    if (!validateReviewPayload(payload)) {
         return;
     }
 
@@ -1340,24 +1776,31 @@ async function handleReviewSubmit(event) {
     }
 
     try {
-        await new Promise((resolve) => setTimeout(resolve, 700));
-
-        const personaMock = savePersonaToMock(payload);
+        const saved = await savePersonaAndFiles(payload);
 
         if (reviewModal) {
-            reviewModal.__ineSavedPayload = personaMock;
+            reviewModal.__ineSavedPayload = saved;
         }
 
-        log("Persona guardada en mock:", personaMock);
+        log("Persona guardada en backend:", saved);
 
-        toast("Persona guardada correctamente.", "exito", 4500);
+        if (saved.erroresArchivo.length) {
+            toast("Persona guardada, pero una o más fotos no pudieron registrarse.", "warning", 7000);
+        } else {
+            toast("Persona y fotos de INE guardadas correctamente.", "exito", 5000);
+        }
 
         closeReviewModal();
         resetCaptureFlow();
 
-    } catch (error) {
-        console.error("[RED Home Modals] Error guardando persona mock:", error);
-        toast("No se pudo guardar la persona en mock.", "error", 6000);
+        if (CONFIG.SAVE.reloadPageAfterSave) {
+            window.setTimeout(() => {
+                window.location.reload();
+            }, CONFIG.SAVE.reloadDelayMs);
+        }
+    } catch (err) {
+        console.error("[RED Home Modals] Error guardando persona real:", err);
+        toast(err?.message || "No se pudo guardar la persona.", "error", 8000);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -1387,6 +1830,7 @@ function bindReviewModalEvents() {
 async function openCaptureModal() {
     log("Abriendo modal captura INE.");
 
+    readSession();
     resetCaptureFlow();
     setModalOpen(true);
 
@@ -1460,6 +1904,7 @@ function init() {
         return;
     }
 
+    readSession();
     bindCaptureModalEvents();
 
     log("home.modals.js inicializado.");
