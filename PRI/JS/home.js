@@ -7,6 +7,7 @@ const CONFIG = {
   PAGE_SIZE: 10,
   ENDPOINT_PERSONAS: "/PRI/db/WEB/ixtla_c_persona.php",
   ENDPOINT_ESTATUS: "/PRI/db/WEB/ixtla_c_cat_estatus.php",
+  ENDPOINT_ARCHIVOS: "/PRI/db/WEB/ixtla_c_archivo.php",
 };
 
 const TAG = "[RED Home]";
@@ -627,24 +628,45 @@ async function openRecord(id) {
     loading: true,
     persona: local?.raw || null,
     fallbackRow: local || null,
+    archivos: [],
   });
 
   try {
-    const out = await postJSON(CONFIG.ENDPOINT_PERSONAS, {
+    const personaOut = await postJSON(CONFIG.ENDPOINT_PERSONAS, {
       persona_id: Number(id),
       capturado_por: getUsuarioId(),
     });
 
-    const persona = out.data || null;
+    const persona = personaOut.data || null;
 
     if (!persona) {
       throw new Error("No se encontró información de la persona.");
+    }
+
+    let archivos = [];
+    let archivoError = "";
+
+    try {
+      const archivosOut = await postJSON(CONFIG.ENDPOINT_ARCHIVOS, {
+        entidad_tipo: "PERSONA",
+        entidad_id: Number(persona.persona_id || id),
+        es_actual: 1,
+        page: 1,
+        page_size: 20,
+      });
+
+      archivos = Array.isArray(archivosOut.data) ? archivosOut.data : [];
+    } catch (err) {
+      archivoError = err.message || "No se pudieron cargar los archivos de la persona.";
+      warn("No se pudieron cargar archivos de persona:", err);
     }
 
     openPersonaReadonlyModal({
       loading: false,
       persona,
       fallbackRow: local || null,
+      archivos,
+      errorMessage: archivoError,
     });
   } catch (err) {
     error("No se pudo abrir detalle de persona:", err);
@@ -654,6 +676,7 @@ async function openRecord(id) {
       errorMessage: err.message || "No se pudo cargar el detalle.",
       persona: local?.raw || null,
       fallbackRow: local || null,
+      archivos: [],
     });
 
     toast("No se pudo cargar el detalle de la persona.", "error");
@@ -720,6 +743,7 @@ function openPersonaReadonlyModal({
   errorMessage = "",
   persona = null,
   fallbackRow = null,
+  archivos = [],
 } = {}) {
   const modal = $(SEL.ineReviewModal);
 
@@ -738,12 +762,15 @@ function openPersonaReadonlyModal({
   if (kicker) kicker.textContent = "Consulta de registro";
 
   if (loading) {
+    clearImage(SEL.ineReviewFront);
+    clearImage(SEL.ineReviewBack);
+
     if (title) title.textContent = "Cargando detalle de persona...";
     if (warning) {
       warning.innerHTML = `
-        <strong>Consultando información.</strong>
-        Espera un momento mientras se carga el registro.
-      `;
+      <strong>Consultando información.</strong>
+      Espera un momento mientras se carga el registro.
+    `;
     }
     return;
   }
@@ -760,6 +787,7 @@ function openPersonaReadonlyModal({
   }
 
   paintPersonaReadonlyData(persona || {}, fallbackRow || {});
+  paintPersonaReadonlyImages(archivos);
 
   if (errorMessage && warning) {
     warning.innerHTML = `
@@ -794,11 +822,11 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
   setFieldValue("#ine-review-fecha-nacimiento", p.fecha_nacimiento || "");
   setFieldValue("#ine-review-sexo", p.sexo || "");
 
-  setFieldValue("#ine-review-curp", p.curp || "");
-  setFieldValue("#ine-review-clave-elector", p.clave_elector || "");
-  setFieldValue("#ine-review-idmex", p.idmex || "");
+  setFieldValue("#ine-review-curp", p.curp || shortHash(p.curp_hash));
+  setFieldValue("#ine-review-clave-elector", p.clave_elector || shortHash(p.clave_elector_hash));
+  setFieldValue("#ine-review-idmex", p.idmex || shortHash(p.idmex_hash));
 
-  setFieldValue("#ine-review-seccion", p.seccion_id || "");
+  setFieldValue("#ine-review-seccion", formatSeccionPersona(p, row));
   setFieldValue("#ine-review-anio-registro", p.anio_registro || "");
   setFieldValue("#ine-review-emision", p.emision || "");
   setFieldValue("#ine-review-vigencia-inicio", p.vigencia_inicio || "");
@@ -816,6 +844,81 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
 
   clearImage(SEL.ineReviewFront);
   clearImage(SEL.ineReviewBack);
+}
+
+function findArchivoByUso(archivos = [], usoArchivo = "") {
+  const target = String(usoArchivo || "").toUpperCase();
+
+  return archivos.find((archivo) => {
+    return String(archivo?.uso_archivo || "").toUpperCase() === target;
+  }) || null;
+}
+
+function setReadonlyImage(selector, src, altText) {
+  const img = $(selector);
+  if (!img) return;
+
+  const cleanSrc = String(src || "").trim();
+
+  if (!cleanSrc) {
+    img.removeAttribute("src");
+    img.alt = "Imagen no disponible";
+    return;
+  }
+
+  img.src = cleanSrc;
+  img.alt = altText || "Imagen INE";
+}
+
+function paintPersonaReadonlyImages(archivos = []) {
+  const frente = findArchivoByUso(archivos, "INE_FRENTE");
+  const reverso = findArchivoByUso(archivos, "INE_REVERSO");
+
+  setReadonlyImage(
+    SEL.ineReviewFront,
+    frente?.url_archivo || "",
+    "Frente de la INE"
+  );
+
+  setReadonlyImage(
+    SEL.ineReviewBack,
+    reverso?.url_archivo || "",
+    "Reverso de la INE"
+  );
+
+  log("Archivos pintados en modal readonly:", {
+    total: archivos.length,
+    frente: frente?.archivo_id || null,
+    reverso: reverso?.archivo_id || null,
+  });
+}
+
+function shortHash(value) {
+  const hash = String(value || "").trim();
+
+  if (!hash) return "";
+
+  if (hash.length <= 18) return hash;
+
+  return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
+}
+
+function formatSeccionPersona(persona = {}, fallbackRow = {}) {
+  const territorio = persona.territorio?.seccion || null;
+
+  if (territorio?.codigo && territorio?.nombre) {
+    return `${territorio.codigo} · ${territorio.nombre}`;
+  }
+
+  if (territorio?.codigo) {
+    return territorio.codigo;
+  }
+
+  if (territorio?.nombre) {
+    return territorio.nombre;
+  }
+
+  return persona.seccion_id || fallbackRow.seccion || "";
 }
 
 /* -------------------------------------------------------------------------- */
