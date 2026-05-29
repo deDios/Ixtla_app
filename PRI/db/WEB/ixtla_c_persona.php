@@ -7,6 +7,24 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 date_default_timezone_set('America/Mexico_City');
 
 /* ============================================================
+   CONFIG
+   ============================================================ */
+
+$DATA_SECRET = getenv('IXTLA_DATA_SECRET')
+  ?: getenv('IXTLA_JWT_SECRET')
+  ?: 'c6028c94e5ab1473f2dc40a327cd2faf5041afa364155b9778f4353a35b6f973b1b526619f9c1dbb561926df1fa0de68e97f297206c36ced85b8a39388112343';
+
+if (strlen($DATA_SECRET) < 64) {
+  http_response_code(500);
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode([
+    "ok" => false,
+    "error" => "Configuración de seguridad incompleta"
+  ], JSON_UNESCAPED_UNICODE);
+  exit;
+}
+
+/* ============================================================
    CORS
    ============================================================ */
 
@@ -133,12 +151,47 @@ function str_clean(array $in, string $key): string
   return isset($in[$key]) ? trim((string)$in[$key]) : '';
 }
 
+function sensitive_decrypt(mixed $encoded, string $secret): ?string
+{
+  if ($encoded === null || $encoded === '') {
+    return null;
+  }
+
+  $raw = base64_decode((string)$encoded, true);
+
+  if ($raw === false || strlen($raw) < 29) {
+    return null;
+  }
+
+  $key = hash('sha256', $secret, true);
+
+  $iv = substr($raw, 0, 12);
+  $tag = substr($raw, 12, 16);
+  $cipher = substr($raw, 28);
+
+  $plain = openssl_decrypt(
+    $cipher,
+    'aes-256-gcm',
+    $key,
+    OPENSSL_RAW_DATA,
+    $iv,
+    $tag
+  );
+
+  return $plain === false ? null : $plain;
+}
+
 /* ============================================================
    FORMATTER
    ============================================================ */
 
 function persona_row(array $row): array
 {
+  global $DATA_SECRET;
+
+  $curp = sensitive_decrypt($row['curp_enc'] ?? null, $DATA_SECRET);
+  $clave_elector = sensitive_decrypt($row['clave_elector_enc'] ?? null, $DATA_SECRET);
+
   return [
     "persona_id" => (int)$row['persona_id'],
     "uuid" => $row['uuid'],
@@ -154,6 +207,9 @@ function persona_row(array $row): array
 
     "fecha_nacimiento" => $row['fecha_nacimiento'],
     "sexo" => $row['sexo'],
+
+    "curp" => $curp,
+    "clave_elector" => $clave_elector,
 
     "curp_hash" => $row['curp_hash'],
     "clave_elector_hash" => $row['clave_elector_hash'],

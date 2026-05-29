@@ -7,6 +7,24 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 date_default_timezone_set('America/Mexico_City');
 
 /* ============================================================
+   CONFIG
+   ============================================================ */
+
+$DATA_SECRET = getenv('IXTLA_DATA_SECRET')
+  ?: getenv('IXTLA_JWT_SECRET')
+  ?: 'c6028c94e5ab1473f2dc40a327cd2faf5041afa364155b9778f4353a35b6f973b1b526619f9c1dbb561926df1fa0de68e97f297206c36ced85b8a39388112343';
+
+if (strlen($DATA_SECRET) < 64) {
+  http_response_code(500);
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode([
+    "ok" => false,
+    "error" => "Configuración de seguridad incompleta"
+  ], JSON_UNESCAPED_UNICODE);
+  exit;
+}
+
+/* ============================================================
    CORS
    ============================================================ */
 
@@ -163,12 +181,91 @@ function normalize_bool_int(mixed $value): int
   return ((int)$value) === 1 ? 1 : 0;
 }
 
+function sensitive_clean(mixed $value): string
+{
+  return strtoupper(trim((string)$value));
+}
+
+function sensitive_hash(mixed $value): ?string
+{
+  $clean = sensitive_clean($value);
+
+  if ($clean === '') {
+    return null;
+  }
+
+  return hash('sha256', $clean);
+}
+
+function sensitive_encrypt(mixed $value, string $secret): ?string
+{
+  $clean = sensitive_clean($value);
+
+  if ($clean === '') {
+    return null;
+  }
+
+  $key = hash('sha256', $secret, true);
+  $iv = random_bytes(12);
+  $tag = '';
+
+  $cipher = openssl_encrypt(
+    $clean,
+    'aes-256-gcm',
+    $key,
+    OPENSSL_RAW_DATA,
+    $iv,
+    $tag
+  );
+
+  if ($cipher === false) {
+    throw new Exception('No se pudo cifrar dato sensible');
+  }
+
+  return base64_encode($iv . $tag . $cipher);
+}
+
+function sensitive_decrypt(mixed $encoded, string $secret): ?string
+{
+  if ($encoded === null || $encoded === '') {
+    return null;
+  }
+
+  $raw = base64_decode((string)$encoded, true);
+
+  if ($raw === false || strlen($raw) < 29) {
+    return null;
+  }
+
+  $key = hash('sha256', $secret, true);
+
+  $iv = substr($raw, 0, 12);
+  $tag = substr($raw, 12, 16);
+  $cipher = substr($raw, 28);
+
+  $plain = openssl_decrypt(
+    $cipher,
+    'aes-256-gcm',
+    $key,
+    OPENSSL_RAW_DATA,
+    $iv,
+    $tag
+  );
+
+  return $plain === false ? null : $plain;
+}
+
 /* ============================================================
    FORMATTER
    ============================================================ */
 
 function persona_row(array $row): array
 {
+  global $DATA_SECRET;
+
+  $curp = sensitive_decrypt($row['curp_enc'] ?? null, $DATA_SECRET);
+  $clave_elector = sensitive_decrypt($row['clave_elector_enc'] ?? null, $DATA_SECRET);
+
   return [
     "persona_id" => (int)$row['persona_id'],
     "uuid" => $row['uuid'],
@@ -184,6 +281,9 @@ function persona_row(array $row): array
 
     "fecha_nacimiento" => $row['fecha_nacimiento'],
     "sexo" => $row['sexo'],
+
+    "curp" => $curp,
+    "clave_elector" => $clave_elector,
 
     "curp_hash" => $row['curp_hash'],
     "clave_elector_hash" => $row['clave_elector_hash'],
@@ -257,6 +357,21 @@ function insertar_persona(mysqli $con, array $in): array
     ? (int)$in['created_by']
     : $capturado_por;
 
+  global $DATA_SECRET;
+
+  $curp = sensitive_clean($in['curp'] ?? '');
+  $clave_elector = sensitive_clean($in['clave_elector'] ?? '');
+
+  if ($curp !== '') {
+    $in['curp_hash'] = sensitive_hash($curp);
+    $in['curp_enc'] = sensitive_encrypt($curp, $DATA_SECRET);
+  }
+
+  if ($clave_elector !== '') {
+    $in['clave_elector_hash'] = sensitive_hash($clave_elector);
+    $in['clave_elector_enc'] = sensitive_encrypt($clave_elector, $DATA_SECRET);
+  }
+
   $columns = [
     "uuid",
     "nombres",
@@ -298,7 +413,9 @@ function insertar_persona(mysqli $con, array $in): array
     "sexo" => "s",
 
     "curp_hash" => "s",
+    "curp_enc" => "s",
     "clave_elector_hash" => "s",
+    "clave_elector_enc" => "s",
     "ocr_hash" => "s",
     "cic_hash" => "s",
     "idmex_hash" => "s",
