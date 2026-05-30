@@ -82,12 +82,13 @@
     color: #594545;
     font-weight: 900;
     margin-bottom: 8px;
+    font-size: 10px;
 }
 
 .red-metric-card strong {
     display: block;
     color: var(--red-primary);
-    font-size: clamp(2rem, 3vw, 3rem);
+    font-size: clamp(1.5rem, 3vw, 4rem);
     line-height: 1;
     font-weight: 950;
 }
@@ -364,7 +365,7 @@
     }
 
     .red-metrics {
-        grid-template-columns: repeat(3, minmax(180px, 1fr));
+        grid-template-columns: repeat(3, minmax(100px, 1fr));
         overflow-x: auto;
         padding-bottom: 8px;
         scroll-snap-type: x mandatory;
@@ -447,7 +448,7 @@
 .red-panel-titlebox {
     min-width: 0;
     text-align: center;
-    padding-right: 86px;
+    /* padding-right: 6px; */
 }
 
 .red-panel-kicker {
@@ -462,9 +463,9 @@
 .red-title {
     margin: 0;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(2.1rem, 4vw, 3.4rem);
+    font-size: clamp(1.4rem, 4vw, 3.4rem);
     line-height: 1;
-    font-weight: 900;
+    font-weight: 200;
     color: #050505;
 }
 
