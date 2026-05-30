@@ -1587,8 +1587,8 @@ async function buildPersonaInsertPayload(payload) {
         fecha_nacimiento: nullableString(payload.fecha_nacimiento),
         sexo: nullableString(normalizeSex(payload.sexo)),
 
-        curp_hash: await sha256Hex(cleanUpper(payload.curp).replace(/[^A-Z0-9]/g, "")),
-        clave_elector_hash: await sha256Hex(cleanUpper(payload.clave_elector).replace(/[^A-Z0-9]/g, "")),
+        curp: nullableString(cleanUpper(payload.curp).replace(/[^A-Z0-9]/g, "")),
+        clave_elector: nullableString(cleanUpper(payload.clave_elector).replace(/[^A-Z0-9]/g, "")),
         idmex_hash: await sha256Hex(cleanUpper(payload.idmex).replace(/[^A-Z0-9]/g, "")),
 
         seccion_id: nullableNumber(payload.seccion_id),

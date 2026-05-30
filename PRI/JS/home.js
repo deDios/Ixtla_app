@@ -822,8 +822,8 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
   setFieldValue("#ine-review-fecha-nacimiento", p.fecha_nacimiento || "");
   setFieldValue("#ine-review-sexo", p.sexo || "");
 
-  setFieldValue("#ine-review-curp", p.curp || shortHash(p.curp_hash));
-  setFieldValue("#ine-review-clave-elector", p.clave_elector || shortHash(p.clave_elector_hash));
+  setFieldValue("#ine-review-curp", p.curp || "");
+  setFieldValue("#ine-review-clave-elector", p.clave_elector || "");
   setFieldValue("#ine-review-idmex", p.idmex || shortHash(p.idmex_hash));
 
   setFieldValue("#ine-review-seccion", formatSeccionPersona(p, row));
