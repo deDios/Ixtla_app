@@ -113,6 +113,9 @@ const SEL = {
     residenceForm: "#red-residence-form",
     residenceYes: "#red-residence-yes",
     residenceNo: "#red-residence-no",
+    residenceSeccionToggle: "#red-residence-seccion-toggle",
+    residenceSeccionText: "#red-residence-seccion-text",
+    residenceSeccionList: "#red-residence-seccion-list",
     residenceSeccion: "#red-residence-seccion",
     residenceDomicilio: "#red-residence-domicilio",
     residenceTelefono: "#red-residence-telefono",
@@ -430,18 +433,30 @@ function findSeccionByInput(value) {
 }
 
 function paintResidenceSecciones(selectedValue = "") {
-    const select = $(SEL.residenceSeccion);
-    if (!select) return;
+    const input = $(SEL.residenceSeccion);
+    const text = $(SEL.residenceSeccionText);
+    const list = $(SEL.residenceSeccionList);
+
+    if (!input || !text || !list) return;
 
     const cleanSelected = String(selectedValue || "").trim();
 
-    select.innerHTML = `<option value="">Selecciona una sección</option>`;
+    input.value = "";
+    text.textContent = "Selecciona una sección";
+    list.innerHTML = "";
 
     State.secciones.forEach((item) => {
-        const option = document.createElement("option");
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "red-residence-combo-option";
+        option.role = "option";
 
-        option.value = String(item.territorio_id || "");
-        option.textContent = `${item.codigo || "S/C"} - ${item.nombre || "Sección"}`;
+        const value = String(item.territorio_id || "");
+        const label = `${item.codigo || "S/C"} - ${item.nombre || "Sección"}`;
+
+        option.dataset.value = value;
+        option.dataset.label = label;
+        option.textContent = label;
 
         if (
             cleanSelected &&
@@ -450,11 +465,69 @@ function paintResidenceSecciones(selectedValue = "") {
                 String(item.codigo || "") === cleanSelected
             )
         ) {
-            option.selected = true;
+            option.classList.add("is-selected");
+            option.setAttribute("aria-selected", "true");
+            input.value = value;
+            text.textContent = label;
+        } else {
+            option.setAttribute("aria-selected", "false");
         }
 
-        select.appendChild(option);
+        option.addEventListener("click", () => {
+            selectResidenceSeccion(value, label);
+            closeResidenceSeccionList();
+        });
+
+        list.appendChild(option);
     });
+}
+
+function selectResidenceSeccion(value, label) {
+    const input = $(SEL.residenceSeccion);
+    const text = $(SEL.residenceSeccionText);
+    const list = $(SEL.residenceSeccionList);
+
+    if (input) input.value = value || "";
+    if (text) text.textContent = label || "Selecciona una sección";
+
+    if (list) {
+        list.querySelectorAll(".red-residence-combo-option").forEach((btn) => {
+            const selected = btn.dataset.value === String(value || "");
+            btn.classList.toggle("is-selected", selected);
+            btn.setAttribute("aria-selected", selected ? "true" : "false");
+        });
+    }
+}
+
+function openResidenceSeccionList() {
+    const toggle = $(SEL.residenceSeccionToggle);
+    const list = $(SEL.residenceSeccionList);
+
+    if (!toggle || !list || toggle.disabled) return;
+
+    list.hidden = false;
+    toggle.setAttribute("aria-expanded", "true");
+}
+
+function closeResidenceSeccionList() {
+    const toggle = $(SEL.residenceSeccionToggle);
+    const list = $(SEL.residenceSeccionList);
+
+    if (!toggle || !list) return;
+
+    list.hidden = true;
+    toggle.setAttribute("aria-expanded", "false");
+}
+
+function toggleResidenceSeccionList() {
+    const list = $(SEL.residenceSeccionList);
+    if (!list) return;
+
+    if (list.hidden) {
+        openResidenceSeccionList();
+    } else {
+        closeResidenceSeccionList();
+    }
 }
 
 function setResidenceModalOpen(isOpen) {
@@ -470,13 +543,24 @@ function setResidenceModalOpen(isOpen) {
 function resetResidenceModal() {
     const form = $(SEL.residenceForm);
     const seccion = $(SEL.residenceSeccion);
+    const seccionToggle = $(SEL.residenceSeccionToggle);
+    const seccionText = $(SEL.residenceSeccionText);
     const domicilio = $(SEL.residenceDomicilio);
     const telefono = $(SEL.residenceTelefono);
     const submit = $(SEL.residenceSubmit);
 
     if (form) form.reset();
 
-    [seccion, domicilio, telefono].forEach((field) => {
+    if (seccion) seccion.value = "";
+    if (seccionText) seccionText.textContent = "Selecciona una sección";
+    if (seccionToggle) {
+        seccionToggle.disabled = true;
+        seccionToggle.setAttribute("aria-expanded", "false");
+    }
+
+    closeResidenceSeccionList();
+
+    [domicilio, telefono].forEach((field) => {
         if (field) field.disabled = true;
     });
 
@@ -484,18 +568,20 @@ function resetResidenceModal() {
 }
 
 function enableResidenceFields() {
-    const seccion = $(SEL.residenceSeccion);
+    const seccionToggle = $(SEL.residenceSeccionToggle);
     const domicilio = $(SEL.residenceDomicilio);
     const telefono = $(SEL.residenceTelefono);
     const submit = $(SEL.residenceSubmit);
 
-    [seccion, domicilio, telefono].forEach((field) => {
+    if (seccionToggle) seccionToggle.disabled = false;
+
+    [domicilio, telefono].forEach((field) => {
         if (field) field.disabled = false;
     });
 
     if (submit) submit.disabled = false;
 
-    seccion?.focus();
+    seccionToggle?.focus();
 }
 
 async function openResidenceModal(pendingPayload) {
@@ -2070,6 +2156,16 @@ function bindResidenceModalEvents() {
             "warning",
             6000
         );
+    });
+
+    $(SEL.residenceSeccionToggle)?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggleResidenceSeccionList();
+    });
+
+    document.addEventListener("click", (event) => {
+        const combo = event.target.closest(".red-residence-field--combo");
+        if (!combo) closeResidenceSeccionList();
     });
 
     $(SEL.residenceForm)?.addEventListener("submit", async (event) => {

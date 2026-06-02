@@ -622,11 +622,31 @@ ix_require_session([
                 </div>
 
                 <form id="red-residence-form" class="red-residence-form" autocomplete="off">
-                    <label class="red-residence-field">
+                    <label class="red-residence-field red-residence-field--combo">
                         <span>Sección</span>
-                        <select id="red-residence-seccion" name="seccion_id" disabled>
-                            <option value="">Selecciona una sección</option>
-                        </select>
+
+                        <input
+                            type="hidden"
+                            id="red-residence-seccion"
+                            name="seccion_id">
+
+                        <button
+                            type="button"
+                            id="red-residence-seccion-toggle"
+                            class="red-residence-combo-toggle"
+                            disabled
+                            aria-haspopup="listbox"
+                            aria-expanded="false">
+                            <span id="red-residence-seccion-text">Selecciona una sección</span>
+                            <span class="red-residence-combo-chevron" aria-hidden="true">⌄</span>
+                        </button>
+
+                        <div
+                            id="red-residence-seccion-list"
+                            class="red-residence-combo-list"
+                            role="listbox"
+                            hidden>
+                        </div>
                     </label>
 
                     <label class="red-residence-field">
