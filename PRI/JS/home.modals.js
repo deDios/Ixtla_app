@@ -35,7 +35,9 @@ const CONFIG = {
     SAVE: {
         estatusIdDefault: 1,
         avisoPrivacidadVersion: "RED-INE-2026-01",
-        reloadPageAfterSave: true,
+        //reloadPageAfterSave: true,
+        //colocar true en prod
+        reloadPageAfterSave: false,
         reloadDelayMs: 900,
     },
 };
@@ -2136,6 +2138,9 @@ async function savePersonaAndFiles(payload) {
 
             console.error("[DEBUG i_archivo error]", {
                 uso_archivo: archivoPayload.uso_archivo,
+                status: err?.status || null,
+                endpoint_response: err?.response || null,
+                raw_response: err?.raw || null,
                 error: err,
                 message: msg,
                 payload_preview: {
