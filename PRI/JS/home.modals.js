@@ -2151,6 +2151,7 @@ function bindResidenceModalEvents() {
 
     $(SEL.residenceNo)?.addEventListener("click", () => {
         closeResidenceModal();
+        closeReviewModal();
         toast(
             "Solo se pueden dar de alta ciudadanos de Ixtlahuacán de los Membrillos.",
             "warning",
