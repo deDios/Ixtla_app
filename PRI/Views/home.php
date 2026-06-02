@@ -413,7 +413,7 @@ ix_require_session([
                                     name="emision"
                                     min="1900"
                                     max="2100"
-                                    placeholder="Año">
+                                    placeholder="00">
                             </label>
 
                             <label class="ine-review-field">
