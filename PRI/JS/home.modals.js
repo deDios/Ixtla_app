@@ -1257,7 +1257,6 @@ async function processOpenAIData() {
     showScreen("loading");
 
     try {
-        toast("Extrayendo datos con OpenAI...", "warning", 3500);
 
         const compositeImage = await buildCompositeIneImageDataUrl();
 
