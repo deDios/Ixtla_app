@@ -44,6 +44,7 @@ const ENDPOINTS = {
     extractOpenAI: "/PRI/extract_identificacion_openai.php",
     insertPersona: "/PRI/db/WEB/ixtla_i_persona.php",
     insertArchivo: "/PRI/db/WEB/ixtla_i_archivo.php",
+    territorios: "/PRI/db/WEB/ixtla_c_territorio.php",
 };
 
 const TAG = "[RED Home Modals]";
@@ -64,6 +65,10 @@ const State = {
     usuario: null,
     rol: null,
     token: "",
+
+    territorios: [],
+    secciones: [],
+    pendingReviewSubmit: null,
 
     captures: {
         front: null,
@@ -102,6 +107,16 @@ const SEL = {
 
     reviewFront: "#ine-review-front",
     reviewBack: "#ine-review-back",
+
+    residenceModal: "#red-residence-modal",
+    residenceClose: "[data-red-residence-close]",
+    residenceForm: "#red-residence-form",
+    residenceYes: "#red-residence-yes",
+    residenceNo: "#red-residence-no",
+    residenceSeccion: "#red-residence-seccion",
+    residenceDomicilio: "#red-residence-domicilio",
+    residenceTelefono: "#red-residence-telefono",
+    residenceSubmit: "#red-residence-submit",
 };
 
 /* -------------------------------------------------------------------------- */
@@ -147,11 +162,16 @@ function setReviewModalOpen(isOpen) {
 function syncBodyModalState() {
     const captureModal = $(SEL.modal);
     const reviewModal = $(SEL.reviewModal);
+    const residenceModal = $(SEL.residenceModal);
 
     const captureOpen = Boolean(captureModal && !captureModal.hidden);
     const reviewOpen = Boolean(reviewModal && !reviewModal.hidden);
+    const residenceOpen = Boolean(residenceModal && !residenceModal.hidden);
 
-    document.body.classList.toggle("ine-modal-open", captureOpen || reviewOpen);
+    document.body.classList.toggle(
+        "ine-modal-open",
+        captureOpen || reviewOpen || residenceOpen
+    );
 }
 
 function showScreen(name) {
@@ -358,6 +378,152 @@ function previewPayload(payload) {
     }
 
     return clone;
+}
+
+async function loadTerritoriosCatalog() {
+    if (State.secciones.length) return State.secciones;
+
+    try {
+        const out = await postJSON(ENDPOINTS.territorios, {
+            activo: 1,
+            page: 1,
+            page_size: 500,
+        });
+
+        State.territorios = Array.isArray(out.data) ? out.data : [];
+
+        State.secciones = State.territorios
+            .filter((item) => {
+                return (
+                    String(item?.tipo || "").toUpperCase() === "SECCION" &&
+                    Number(item?.activo) === 1
+                );
+            })
+            .sort((a, b) => {
+                const ac = Number(a.codigo) || 0;
+                const bc = Number(b.codigo) || 0;
+                return ac - bc;
+            });
+
+        log("Secciones cargadas:", State.secciones);
+
+        return State.secciones;
+    } catch (err) {
+        warn("No se pudieron cargar las secciones:", err);
+        State.territorios = [];
+        State.secciones = [];
+        return [];
+    }
+}
+
+function findSeccionByInput(value) {
+    const clean = String(value || "").trim();
+
+    if (!clean) return null;
+
+    return State.secciones.find((item) => {
+        return (
+            String(item.territorio_id || "") === clean ||
+            String(item.codigo || "") === clean
+        );
+    }) || null;
+}
+
+function paintResidenceSecciones(selectedValue = "") {
+    const select = $(SEL.residenceSeccion);
+    if (!select) return;
+
+    const cleanSelected = String(selectedValue || "").trim();
+
+    select.innerHTML = `<option value="">Selecciona una sección</option>`;
+
+    State.secciones.forEach((item) => {
+        const option = document.createElement("option");
+
+        option.value = String(item.territorio_id || "");
+        option.textContent = `${item.codigo || "S/C"} - ${item.nombre || "Sección"}`;
+
+        if (
+            cleanSelected &&
+            (
+                String(item.territorio_id || "") === cleanSelected ||
+                String(item.codigo || "") === cleanSelected
+            )
+        ) {
+            option.selected = true;
+        }
+
+        select.appendChild(option);
+    });
+}
+
+function setResidenceModalOpen(isOpen) {
+    const modal = $(SEL.residenceModal);
+    if (!modal) return;
+
+    modal.hidden = !isOpen;
+    modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
+
+    syncBodyModalState();
+}
+
+function resetResidenceModal() {
+    const form = $(SEL.residenceForm);
+    const seccion = $(SEL.residenceSeccion);
+    const domicilio = $(SEL.residenceDomicilio);
+    const telefono = $(SEL.residenceTelefono);
+    const submit = $(SEL.residenceSubmit);
+
+    if (form) form.reset();
+
+    [seccion, domicilio, telefono].forEach((field) => {
+        if (field) field.disabled = true;
+    });
+
+    if (submit) submit.disabled = true;
+}
+
+function enableResidenceFields() {
+    const seccion = $(SEL.residenceSeccion);
+    const domicilio = $(SEL.residenceDomicilio);
+    const telefono = $(SEL.residenceTelefono);
+    const submit = $(SEL.residenceSubmit);
+
+    [seccion, domicilio, telefono].forEach((field) => {
+        if (field) field.disabled = false;
+    });
+
+    if (submit) submit.disabled = false;
+
+    seccion?.focus();
+}
+
+async function openResidenceModal(pendingPayload) {
+    State.pendingReviewSubmit = pendingPayload || null;
+
+    resetResidenceModal();
+
+    await loadTerritoriosCatalog();
+
+    const currentSeccion = getFieldValue("#ine-review-seccion");
+    const currentDomicilio = getFieldValue("#ine-review-domicilio");
+    const currentTelefono = getFieldValue("#ine-review-telefono");
+
+    paintResidenceSecciones(currentSeccion);
+
+    setFieldValue(SEL.residenceDomicilio, currentDomicilio);
+    setFieldValue(SEL.residenceTelefono, currentTelefono);
+
+    setResidenceModalOpen(true);
+}
+
+function closeResidenceModal({ clearPending = true } = {}) {
+    setResidenceModalOpen(false);
+    resetResidenceModal();
+
+    if (clearPending) {
+        State.pendingReviewSubmit = null;
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1415,6 +1581,50 @@ function buildPersonaFromFields(fields) {
     };
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* -------------------------------------------------------------------------- */
 /* MODAL REVISIÓN                                                              */
 /* -------------------------------------------------------------------------- */
@@ -1672,8 +1882,7 @@ function validateReviewPayload(payload) {
     }
 
     if (!payload.seccion_id) {
-        toast("El campo Sección es obligatorio.", "error", 5000);
-        return false;
+        return true;
     }
 
     if (!State.captures.front || !State.captures.back) {
@@ -1755,6 +1964,31 @@ async function savePersonaAndFiles(payload) {
     return saved;
 }
 
+async function shouldOpenResidenceModalBeforeSave(payload) {
+    await loadTerritoriosCatalog();
+
+    const currentSeccion = String(payload?.seccion_id || "").trim();
+
+    if (!currentSeccion) {
+        return true;
+    }
+
+    const found = findSeccionByInput(currentSeccion);
+
+    if (!found) {
+        return true;
+    }
+
+    // Si el usuario capturó el código de sección, lo convertimos a territorio_id.
+    // Esto evita enviar "1593" cuando el backend necesita "78".
+    if (String(found.territorio_id || "") !== currentSeccion) {
+        setFieldValue("#ine-review-seccion", found.territorio_id);
+        payload.seccion_id = String(found.territorio_id);
+    }
+
+    return false;
+}
+
 async function handleReviewSubmit(event) {
     event.preventDefault();
 
@@ -1763,9 +1997,20 @@ async function handleReviewSubmit(event) {
 
     const payload = collectReviewPayload();
 
-    if (!validateReviewPayload(payload)) {
-        return;
+    if (!validateReviewPayload(payload)) return;
+
+    const isContinuingFromResidenceModal = Boolean(State.pendingReviewSubmit);
+
+    if (!isContinuingFromResidenceModal) {
+        const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(payload);
+
+        if (needsResidenceModal) {
+            await openResidenceModal(payload);
+            return;
+        }
     }
+
+    State.pendingReviewSubmit = null;
 
     const reviewModal = $(SEL.reviewModal);
     const originalText = submitBtn?.textContent || "Guardar persona";
@@ -1807,6 +2052,59 @@ async function handleReviewSubmit(event) {
             submitBtn.textContent = originalText;
         }
     }
+}
+
+function bindResidenceModalEvents() {
+    $$(SEL.residenceClose).forEach((btn) => {
+        btn.addEventListener("click", closeResidenceModal);
+    });
+
+    $(SEL.residenceYes)?.addEventListener("click", () => {
+        enableResidenceFields();
+    });
+
+    $(SEL.residenceNo)?.addEventListener("click", () => {
+        closeResidenceModal();
+        toast(
+            "Solo se pueden dar de alta ciudadanos de Ixtlahuacán de los Membrillos.",
+            "warning",
+            6000
+        );
+    });
+
+    $(SEL.residenceForm)?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const seccion = getFieldValue(SEL.residenceSeccion);
+        const domicilio = getFieldValue(SEL.residenceDomicilio);
+        const telefono = getFieldValue(SEL.residenceTelefono);
+
+        if (!seccion) {
+            toast("Selecciona una sección.", "warning", 4500);
+            return;
+        }
+
+        if (!domicilio) {
+            toast("Captura la calle actual de residencia.", "warning", 4500);
+            return;
+        }
+
+        if (!telefono) {
+            toast("Captura el método de contacto.", "warning", 4500);
+            return;
+        }
+
+        setFieldValue("#ine-review-seccion", seccion);
+        setFieldValue("#ine-review-domicilio", domicilio);
+        setFieldValue("#ine-review-telefono", telefono);
+
+        closeResidenceModal({ clearPending: false });
+
+        const form = $(SEL.reviewForm);
+        if (form) {
+            form.requestSubmit();
+        }
+    });
 }
 
 function bindReviewModalEvents() {
@@ -1855,6 +2153,12 @@ function closeCaptureModal() {
 function handleEscape(event) {
     if (event.key !== "Escape") return;
 
+    const residenceModal = $(SEL.residenceModal);
+    if (residenceModal && !residenceModal.hidden) {
+        closeResidenceModal();
+        return;
+    }
+
     const reviewModal = $(SEL.reviewModal);
     if (reviewModal && !reviewModal.hidden) {
         closeReviewModal();
@@ -1894,6 +2198,7 @@ function bindCaptureModalEvents() {
     document.addEventListener("keydown", handleEscape);
 
     bindReviewModalEvents();
+    bindResidenceModalEvents();
 }
 
 function init() {

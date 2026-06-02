@@ -586,6 +586,80 @@ ix_require_session([
     </section>
 
 
+    <!-- Modal aviso: sección fuera de RED / residencia actual -->
+
+    <section id="red-residence-modal" class="red-residence-modal" hidden aria-hidden="true">
+        <div class="red-residence-overlay" data-red-residence-close></div>
+
+        <article class="red-residence-dialog" role="dialog" aria-modal="true" aria-labelledby="red-residence-title">
+            <header class="red-residence-header">
+                <button type="button" class="red-residence-close" data-red-residence-close aria-label="Cerrar">
+                    ×
+                </button>
+            </header>
+
+            <div class="red-residence-body">
+                <div class="red-residence-icon" aria-hidden="true">!</div>
+
+                <p class="red-residence-kicker">Aviso</p>
+
+                <h2 id="red-residence-title">
+                    Detectamos que la “Sección” es de otra RED.
+                </h2>
+
+                <p class="red-residence-question">
+                    ¿Este residente vive en <strong>Ixtlahuacán de los Membrillos</strong>?
+                </p>
+
+                <div class="red-residence-choice">
+                    <button type="button" id="red-residence-yes" class="red-residence-btn red-residence-btn--yes">
+                        Sí
+                    </button>
+
+                    <button type="button" id="red-residence-no" class="red-residence-btn red-residence-btn--no">
+                        No
+                    </button>
+                </div>
+
+                <form id="red-residence-form" class="red-residence-form" autocomplete="off">
+                    <label class="red-residence-field">
+                        <span>Sección</span>
+                        <select id="red-residence-seccion" name="seccion_id" disabled>
+                            <option value="">Selecciona una sección</option>
+                        </select>
+                    </label>
+
+                    <label class="red-residence-field">
+                        <span>Calle actual de residencia</span>
+                        <input
+                            type="text"
+                            id="red-residence-domicilio"
+                            name="domicilio_texto"
+                            placeholder="Ej. Francisco I. Madero #2, Centro CP.45850"
+                            disabled>
+                    </label>
+
+                    <label class="red-residence-field">
+                        <span>Método de contacto</span>
+                        <input
+                            type="text"
+                            id="red-residence-telefono"
+                            name="telefono"
+                            placeholder="Ej. 3333333333"
+                            disabled>
+                    </label>
+
+                    <footer class="red-residence-footer">
+                        <button type="submit" id="red-residence-submit" class="red-residence-submit" disabled>
+                            Enviar
+                        </button>
+                    </footer>
+                </form>
+            </div>
+        </article>
+    </section>
+
+
     <footer id="site-footer">
         <div class="limite">
             <div class="footer-brand">

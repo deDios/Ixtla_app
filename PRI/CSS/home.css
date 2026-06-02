@@ -1668,3 +1668,389 @@ body.ine-modal-open {
         grid-template-columns: 1fr;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* -------------------------------------------------------------------------- */
+/* MODAL RESIDENCIA / SECCIÓN FUERA DE RED                                    */
+/* -------------------------------------------------------------------------- */
+
+#red-residence-modal {
+    --red-residence-z: 1140;
+    --red-residence-bg: #ffffff;
+    --red-residence-ink: #111827;
+    --red-residence-muted: #6b7280;
+    --red-residence-line: #e5e7eb;
+    --red-residence-primary: #2f8f6b;
+    --red-residence-primary-dark: #247455;
+    --red-residence-danger: #b91c1c;
+    --red-residence-danger-dark: #991b1b;
+    --red-residence-radius: 22px;
+    --red-residence-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
+}
+
+#red-residence-modal,
+#red-residence-modal * {
+    box-sizing: border-box;
+}
+
+#red-residence-modal[hidden] {
+    display: none !important;
+}
+
+.red-residence-modal {
+    position: fixed;
+    inset: 0;
+    z-index: var(--red-residence-z);
+}
+
+.red-residence-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.66);
+    backdrop-filter: blur(3px);
+}
+
+.red-residence-dialog {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: calc(var(--red-residence-z) + 1);
+    width: min(94vw, 520px);
+    max-height: calc(100dvh - 48px);
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--red-residence-bg);
+    color: var(--red-residence-ink);
+    border: 1px solid var(--red-residence-line);
+    border-radius: var(--red-residence-radius);
+    box-shadow: var(--red-residence-shadow);
+}
+
+.red-residence-header {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 52px;
+    padding: 10px 12px 0;
+    background: #fff;
+}
+
+.red-residence-close {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #111827;
+    font-size: 1.55rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.red-residence-close:hover {
+    background: #e5e7eb;
+}
+
+.red-residence-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 34px 34px;
+    text-align: center;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.red-residence-icon {
+    width: 78px;
+    height: 78px;
+    margin: 0 auto 12px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #e8f5ef;
+    color: var(--red-residence-primary);
+    font-size: 2.6rem;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.red-residence-kicker {
+    margin: 0 0 6px;
+    color: var(--red-residence-primary);
+    font-size: 0.8rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.red-residence-body h2 {
+    margin: 0 auto 10px;
+    max-width: 420px;
+    color: var(--red-residence-ink);
+    font-size: clamp(1.28rem, 4vw, 1.7rem);
+    line-height: 1.15;
+    font-weight: 950;
+}
+
+.red-residence-question {
+    margin: 0 auto 20px;
+    max-width: 390px;
+    color: var(--red-residence-muted);
+    font-size: 1rem;
+    line-height: 1.45;
+    font-weight: 700;
+}
+
+.red-residence-question strong {
+    color: var(--red-residence-ink);
+    font-weight: 950;
+}
+
+.red-residence-choice {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.red-residence-btn {
+    min-width: 96px;
+    min-height: 44px;
+    border: 0;
+    border-radius: 999px;
+    padding: 0 22px;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 950;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.18s ease, opacity 0.18s ease;
+}
+
+.red-residence-btn:active {
+    transform: translateY(1px);
+}
+
+.red-residence-btn--yes {
+    background: var(--red-residence-primary);
+    box-shadow: 0 8px 18px rgba(47, 143, 107, 0.25);
+}
+
+.red-residence-btn--yes:hover {
+    background: var(--red-residence-primary-dark);
+}
+
+.red-residence-btn--no {
+    background: var(--red-residence-danger);
+    box-shadow: 0 8px 18px rgba(185, 28, 28, 0.22);
+}
+
+.red-residence-btn--no:hover {
+    background: var(--red-residence-danger-dark);
+}
+
+.red-residence-form {
+    display: grid;
+    gap: 16px;
+    text-align: left;
+}
+
+.red-residence-field {
+    display: block;
+    padding: 0 0 10px;
+    border-bottom: 2px solid #d8dee6;
+}
+
+.red-residence-field span {
+    display: block;
+    margin-bottom: 9px;
+    color: var(--red-residence-ink);
+    font-size: 0.92rem;
+    font-weight: 950;
+    letter-spacing: 0.02em;
+}
+
+.red-residence-field input,
+.red-residence-field select {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #4b5563;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.red-residence-field input::placeholder {
+    color: #9ca3af;
+    font-weight: 650;
+}
+
+.red-residence-field:focus-within {
+    border-color: var(--red-residence-primary);
+    box-shadow: 0 2px 0 0 rgba(47, 143, 107, 0.22);
+}
+
+.red-residence-field input:disabled,
+.red-residence-field select:disabled {
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.red-residence-field:has(input:disabled),
+.red-residence-field:has(select:disabled) {
+    opacity: 0.65;
+}
+
+.red-residence-footer {
+    margin-top: 4px;
+}
+
+.red-residence-submit {
+    width: 100%;
+    min-height: 48px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--red-residence-primary);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 950;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(47, 143, 107, 0.24);
+    transition: transform 0.08s ease, background 0.18s ease, opacity 0.18s ease;
+}
+
+.red-residence-submit:hover {
+    background: var(--red-residence-primary-dark);
+}
+
+.red-residence-submit:active {
+    transform: translateY(1px);
+}
+
+.red-residence-submit:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* RESPONSIVE · MODAL RESIDENCIA                                              */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+    .red-residence-dialog {
+        top: auto;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        width: min(94vw, 520px);
+        max-height: calc(100dvh - 88px - env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        border-radius: 20px;
+    }
+
+    .red-residence-header {
+        min-height: 48px;
+        padding: 8px 10px 0;
+    }
+
+    .red-residence-close {
+        width: 38px;
+        height: 38px;
+        font-size: 1.45rem;
+    }
+
+    .red-residence-body {
+        padding: 4px 18px calc(22px + env(safe-area-inset-bottom));
+    }
+
+    .red-residence-icon {
+        width: 66px;
+        height: 66px;
+        margin-bottom: 10px;
+        font-size: 2.1rem;
+    }
+
+    .red-residence-kicker {
+        font-size: 0.72rem;
+    }
+
+    .red-residence-body h2 {
+        font-size: 1.18rem;
+    }
+
+    .red-residence-question {
+        font-size: 0.94rem;
+        margin-bottom: 18px;
+    }
+
+    .red-residence-choice {
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .red-residence-btn {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .red-residence-field span {
+        font-size: 0.88rem;
+    }
+
+    .red-residence-field input,
+    .red-residence-field select {
+        font-size: 0.96rem;
+    }
+}
+
+@media (max-width: 390px) {
+    .red-residence-dialog {
+        width: 96vw;
+        max-height: calc(100dvh - 76px - env(safe-area-inset-bottom));
+    }
+
+    .red-residence-body {
+        padding-inline: 14px;
+    }
+}
+
+@supports not (height: 100dvh) {
+    .red-residence-dialog {
+        max-height: calc(100vh - 48px);
+    }
+
+    @media (max-width: 720px) {
+        .red-residence-dialog {
+            max-height: calc(100vh - 88px);
+        }
+    }
+}
