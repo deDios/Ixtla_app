@@ -363,7 +363,14 @@ async function postJSON(url, body = {}) {
     log("POST:", url, "status:", status, "body:", previewPayload(body), "response:", data);
 
     if (!response.ok || !data?.ok) {
-        throw new Error(data?.error || data?.message || `Error HTTP ${status}`);
+        const msg = data?.error || data?.message || `Error HTTP ${status}`;
+
+        const debugError = new Error(msg);
+        debugError.status = status;
+        debugError.response = data;
+        debugError.raw = raw;
+
+        throw debugError;
     }
 
     return data;
@@ -2021,11 +2028,48 @@ async function savePersonaAndFiles(payload) {
     for (const archivoPayload of archivoPayloads) {
         try {
             const archivoResponse = await postJSON(ENDPOINTS.insertArchivo, archivoPayload);
+
+            console.log("[DEBUG i_archivo response]", {
+                uso_archivo: archivoPayload.uso_archivo,
+                response: archivoResponse,
+            });
+
+            toast(
+                `i_archivo ${archivoPayload.uso_archivo}: ${archivoResponse?.message || "OK"}`,
+                "exito",
+                9000
+            );
+
             archivos.push(archivoResponse.data || null);
         } catch (err) {
+            const msg = err?.message || "No se pudo registrar archivo.";
+
+            console.error("[DEBUG i_archivo error]", {
+                uso_archivo: archivoPayload.uso_archivo,
+                error: err,
+                message: msg,
+                payload_preview: {
+                    entidad_tipo: archivoPayload.entidad_tipo,
+                    entidad_id: archivoPayload.entidad_id,
+                    uso_archivo: archivoPayload.uso_archivo,
+                    nombre_storage: archivoPayload.nombre_storage,
+                    mime_type: archivoPayload.mime_type,
+                    extension: archivoPayload.extension,
+                    tamano_bytes: archivoPayload.tamano_bytes,
+                    url_archivo_length: String(archivoPayload.url_archivo || "").length,
+                    url_archivo_head: String(archivoPayload.url_archivo || "").slice(0, 60),
+                },
+            });
+
+            toast(
+                `ERROR i_archivo ${archivoPayload.uso_archivo}: ${msg}`,
+                "error",
+                12000
+            );
+
             erroresArchivo.push({
                 uso_archivo: archivoPayload.uso_archivo,
-                error: err?.message || "No se pudo registrar archivo.",
+                error: msg,
             });
 
             error(`No se pudo registrar ${archivoPayload.uso_archivo}:`, err);
