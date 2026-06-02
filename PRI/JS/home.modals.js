@@ -1927,6 +1927,89 @@ async function buildPersonaInsertPayload(payload) {
     return personaPayload;
 }
 
+async function compressCaptureForArchivo(capture, side = "archivo") {
+    const normalized = normalizeCaptureObject(capture);
+    const dataUrl = normalized?.dataUrl || "";
+
+    if (!dataUrl) {
+        return normalized;
+    }
+
+    const currentSizeKB = normalized?.sizeKB || Math.round(dataUrlSizeBytes(dataUrl) / 1024);
+
+    if (currentSizeKB <= 260) {
+        log("Captura ya está ligera para archivo:", {
+            side,
+            sizeKB: currentSizeKB,
+            mime: normalized.mime,
+            extension: normalized.extension,
+        });
+
+        return normalized;
+    }
+
+    if (!window.PRIMedia?.compressImageElementToDataUrl) {
+        warn("PRIMedia no está disponible para recomprimir archivo. Se usará captura original.", {
+            side,
+            sizeKB: currentSizeKB,
+        });
+
+        return normalized;
+    }
+
+    try {
+        const image = await loadImageFromDataUrl(dataUrl);
+
+        const compressed = await window.PRIMedia.compressImageElementToDataUrl(image, {
+            maxBytes: 260 * 1024,
+            maxWidth: 760,
+            maxHeight: 540,
+            minWidth: 360,
+            startQuality: 0.64,
+            minQuality: 0.38,
+            qualityStep: 0.06,
+            preferWebp: false,
+            background: "#ffffff",
+            debug: CONFIG.MEDIA.debug,
+            label: `archivo_${side}`,
+        });
+
+        const result = normalizeCaptureObject(compressed);
+
+        log("Captura recomprimida para i_archivo:", {
+            side,
+            beforeKB: currentSizeKB,
+            afterKB: result.sizeKB,
+            beforeLength: dataUrl.length,
+            afterLength: result.dataUrl.length,
+            mime: result.mime,
+            extension: result.extension,
+            withinLimit: result.withinLimit,
+        });
+
+        toast(
+            `Foto ${side === "front" ? "frente" : "reverso"} comprimida: ${currentSizeKB}KB → ${result.sizeKB}KB`,
+            "exito",
+            4500
+        );
+
+        return result;
+    } catch (err) {
+        warn("No se pudo recomprimir captura para archivo. Se usará original.", {
+            side,
+            error: err,
+        });
+
+        toast(
+            `No se pudo comprimir la foto ${side === "front" ? "frente" : "reverso"}. Se enviará original.`,
+            "warning",
+            6000
+        );
+
+        return normalized;
+    }
+}
+
 function buildArchivoInsertPayload({ personaId, side, capture, usuarioId }) {
     const usoArchivo = side === "front" ? "INE_FRENTE" : "INE_REVERSO";
     const suffix = side === "front" ? "frente" : "reverso";
@@ -2007,17 +2090,24 @@ async function savePersonaAndFiles(payload) {
         back: originalPayload?.images?.back || State.captures.back,
     };
 
+    toast("Comprimiendo fotos de INE para guardar...", "warning", 3500);
+
+    const archivoCaptures = {
+        front: await compressCaptureForArchivo(captures.front, "front"),
+        back: await compressCaptureForArchivo(captures.back, "back"),
+    };
+
     const archivoPayloads = [
         buildArchivoInsertPayload({
             personaId,
             side: "front",
-            capture: captures.front,
+            capture: archivoCaptures.front,
             usuarioId,
         }),
         buildArchivoInsertPayload({
             personaId,
             side: "back",
-            capture: captures.back,
+            capture: archivoCaptures.back,
             usuarioId,
         }),
     ];
