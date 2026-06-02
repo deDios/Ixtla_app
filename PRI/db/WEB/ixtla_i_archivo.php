@@ -38,13 +38,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
    HELPERS
    ============================================================ */
 
-function json_response(array $data, int $status = 200): void {
+function json_response(array $data, int $status = 200): void
+{
     http_response_code($status);
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-function internal_error(string $message): void {
+function internal_error(string $message): void
+{
     error_log('[IXTLA_I_ARCHIVO] ' . $message);
 
     json_response([
@@ -53,7 +55,8 @@ function internal_error(string $message): void {
     ], 500);
 }
 
-function read_json_body(): array {
+function read_json_body(): array
+{
     $raw = file_get_contents("php://input");
 
     if (!$raw || trim($raw) === '') {
@@ -75,7 +78,8 @@ function read_json_body(): array {
     return $in;
 }
 
-function db(): mysqli {
+function db(): mysqli
+{
     $path = realpath("/home/site/wwwroot/db/conn/conn_db_2.php");
 
     if (!$path || !file_exists($path)) {
@@ -101,7 +105,8 @@ function db(): mysqli {
     return $con;
 }
 
-function uuidv4(): string {
+function uuidv4(): string
+{
     $data = random_bytes(16);
 
     $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
@@ -110,7 +115,8 @@ function uuidv4(): string {
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 }
 
-function value_or_null(array $arr, string $key): mixed {
+function value_or_null(array $arr, string $key): mixed
+{
     if (!array_key_exists($key, $arr)) {
         return null;
     }
@@ -122,7 +128,8 @@ function value_or_null(array $arr, string $key): mixed {
     return $arr[$key];
 }
 
-function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void {
+function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void
+{
     if ($types === '' || empty($params)) {
         return;
     }
@@ -137,15 +144,18 @@ function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void {
     call_user_func_array([$stmt, 'bind_param'], $refs);
 }
 
-function str_clean(array $in, string $key): string {
+function str_clean(array $in, string $key): string
+{
     return isset($in[$key]) ? trim((string)$in[$key]) : '';
 }
 
-function nullable_int_from_row(array $row, string $key): ?int {
+function nullable_int_from_row(array $row, string $key): ?int
+{
     return isset($row[$key]) && $row[$key] !== null ? (int)$row[$key] : null;
 }
 
-function bool_int_from_input(array $in, string $key, int $default): int {
+function bool_int_from_input(array $in, string $key, int $default): int
+{
     if (!array_key_exists($key, $in) || $in[$key] === '') {
         return $default;
     }
@@ -153,11 +163,126 @@ function bool_int_from_input(array $in, string $key, int $default): int {
     return ((int)$in[$key]) === 1 ? 1 : 0;
 }
 
+
+function sanitize_storage_name(string $name, string $fallbackExt = 'jpg'): string
+{
+    $clean = trim($name);
+
+    $clean = preg_replace('/[^\w.\-]/u', '_', $clean) ?? '';
+    $clean = preg_replace('/_+/', '_', $clean) ?? '';
+    $clean = trim($clean, '._-');
+
+    if ($clean === '') {
+        $clean = 'archivo_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $fallbackExt;
+    }
+
+    if (!preg_match('/\.[a-zA-Z0-9]{2,5}$/', $clean)) {
+        $clean .= '.' . $fallbackExt;
+    }
+
+    return $clean;
+}
+
+function extension_from_mime(string $mime): string
+{
+    return match (strtolower($mime)) {
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'image/jpeg', 'image/jpg' => 'jpg',
+        default => 'jpg',
+    };
+}
+
+/**
+ * Convierte un Data URL base64 a archivo físico y devuelve la ruta pública.
+ *
+ * El frontend puede seguir mandando url_archivo como:
+ * data:image/jpeg;base64,/9j/...
+ *
+ * En BD ya no se guarda el string gigante; solo se guarda:
+ * /PRI/uploads/personas/{id}/archivo.jpg
+ */
+function guardar_data_url_archivo(array &$in, string $data_url, string $nombre_storage, string $entidad_tipo, int $entidad_id): string
+{
+    if (!preg_match('/^data:(image\/jpeg|image\/jpg|image\/png|image\/webp);base64,(.+)$/s', $data_url, $match)) {
+        json_response([
+            "ok" => false,
+            "error" => "Data URL de imagen inválido"
+        ], 400);
+    }
+
+    $mime = strtolower($match[1]);
+    $base64 = preg_replace('/\s+/', '', $match[2]) ?? '';
+
+    $binary = base64_decode($base64, true);
+
+    if ($binary === false) {
+        json_response([
+            "ok" => false,
+            "error" => "No se pudo decodificar la imagen"
+        ], 400);
+    }
+
+    $sizeBytes = strlen($binary);
+    $maxBytes = 2 * 1024 * 1024; // 2MB ya decodificado
+
+    if ($sizeBytes <= 0) {
+        json_response([
+            "ok" => false,
+            "error" => "La imagen está vacía"
+        ], 400);
+    }
+
+    if ($sizeBytes > $maxBytes) {
+        json_response([
+            "ok" => false,
+            "error" => "La imagen excede el peso máximo permitido"
+        ], 400);
+    }
+
+    $extension = extension_from_mime($mime);
+    $safeName = sanitize_storage_name($nombre_storage, $extension);
+
+    // Si el nombre venía con extensión distinta al MIME real, mantenemos el nombre limpio
+    // pero normalizamos la extensión para evitar inconsistencias.
+    $safeName = preg_replace('/\.[a-zA-Z0-9]{2,5}$/', '.' . $extension, $safeName) ?? $safeName;
+
+    $projectRoot = dirname(__DIR__, 2); // /home/site/wwwroot/PRI
+    $relativeDir = '/uploads/personas/' . $entidad_id;
+    $storageDir = $projectRoot . $relativeDir;
+    $publicDir = '/PRI' . $relativeDir;
+
+    if (!is_dir($storageDir)) {
+        if (!mkdir($storageDir, 0755, true) && !is_dir($storageDir)) {
+            internal_error("No se pudo crear el directorio de archivos: $storageDir");
+        }
+    }
+
+    $fullPath = $storageDir . '/' . $safeName;
+
+    if (file_put_contents($fullPath, $binary, LOCK_EX) === false) {
+        internal_error("No se pudo guardar el archivo físico: $fullPath");
+    }
+
+    // Completa/normaliza metadatos para que el insert quede consistente.
+    $in['nombre_storage'] = $safeName;
+    $in['mime_type'] = $mime;
+    $in['extension'] = $extension;
+    $in['tamano_bytes'] = $sizeBytes;
+
+    if (!array_key_exists('sha256_hash', $in) || trim((string)$in['sha256_hash']) === '') {
+        $in['sha256_hash'] = hash('sha256', $binary);
+    }
+
+    return $publicDir . '/' . $safeName;
+}
+
 /* ============================================================
    FORMATTER
    ============================================================ */
 
-function archivo_row(array $row): array {
+function archivo_row(array $row): array
+{
     return [
         "archivo_id" => (int)$row['archivo_id'],
         "uuid" => $row['uuid'],
@@ -190,8 +315,8 @@ function archivo_row(array $row): array {
             "apellido_materno" => $row['uploaded_by_apellido_materno'],
             "nombre_completo" => trim(
                 (string)$row['uploaded_by_nombre'] . ' ' .
-                (string)$row['uploaded_by_apellido_paterno'] . ' ' .
-                (string)$row['uploaded_by_apellido_materno']
+                    (string)$row['uploaded_by_apellido_paterno'] . ' ' .
+                    (string)$row['uploaded_by_apellido_materno']
             )
         ],
 
@@ -205,7 +330,8 @@ function archivo_row(array $row): array {
    CONSULTA RESPUESTA
    ============================================================ */
 
-function get_archivo_full(mysqli $con, int $archivo_id): array {
+function get_archivo_full(mysqli $con, int $archivo_id): array
+{
     $sql = "
         SELECT
             a.*,
@@ -245,7 +371,8 @@ function get_archivo_full(mysqli $con, int $archivo_id): array {
    VALIDACIONES
    ============================================================ */
 
-function validar_entidad_relacionada(mysqli $con, string $entidad_tipo, int $entidad_id): void {
+function validar_entidad_relacionada(mysqli $con, string $entidad_tipo, int $entidad_id): void
+{
     $map = [
         "PERSONA" => [
             "tabla" => "persona",
@@ -295,7 +422,8 @@ function validar_entidad_relacionada(mysqli $con, string $entidad_tipo, int $ent
     }
 }
 
-function validar_usuario_si_existe(mysqli $con, ?int $usuario_id, string $campo): void {
+function validar_usuario_si_existe(mysqli $con, ?int $usuario_id, string $campo): void
+{
     if ($usuario_id === null || $usuario_id <= 0) {
         return;
     }
@@ -324,7 +452,8 @@ function validar_usuario_si_existe(mysqli $con, ?int $usuario_id, string $campo)
     }
 }
 
-function validar_archivo_reemplazo_si_existe(mysqli $con, ?int $archivo_id): void {
+function validar_archivo_reemplazo_si_existe(mysqli $con, ?int $archivo_id): void
+{
     if ($archivo_id === null || $archivo_id <= 0) {
         return;
     }
@@ -357,7 +486,8 @@ function validar_archivo_reemplazo_si_existe(mysqli $con, ?int $archivo_id): voi
    INSERT
    ============================================================ */
 
-function insertar_archivo(mysqli $con, array $in): array {
+function insertar_archivo(mysqli $con, array $in): array
+{
     $entidad_tipo = strtoupper(str_clean($in, 'entidad_tipo'));
     $uso_archivo = strtoupper(str_clean($in, 'uso_archivo'));
 
@@ -413,6 +543,18 @@ function insertar_archivo(mysqli $con, array $in): array {
             "ok" => false,
             "error" => "Falta parámetro obligatorio: url_archivo"
         ], 400);
+    }
+
+    if (str_starts_with($url_archivo, 'data:image/')) {
+        $url_archivo = guardar_data_url_archivo(
+            $in,
+            $url_archivo,
+            $nombre_storage,
+            $entidad_tipo,
+            $entidad_id
+        );
+
+        $nombre_storage = str_clean($in, 'nombre_storage');
     }
 
     validar_entidad_relacionada($con, $entidad_tipo, $entidad_id);
@@ -605,12 +747,12 @@ try {
         "message" => "Archivo creado correctamente",
         "data" => $data
     ], 201);
-
 } catch (mysqli_sql_exception $e) {
     if (isset($con) && $con instanceof mysqli) {
         try {
             $con->close();
-        } catch (Throwable $ignored) {}
+        } catch (Throwable $ignored) {
+        }
     }
 
     $code = (int)$e->getCode();
@@ -653,12 +795,12 @@ try {
         "error" => "No se pudo crear el archivo",
         "code" => $code
     ], 500);
-
 } catch (Throwable $e) {
     if (isset($con) && $con instanceof mysqli) {
         try {
             $con->close();
-        } catch (Throwable $ignored) {}
+        } catch (Throwable $ignored) {
+        }
     }
 
     error_log('[IXTLA_I_ARCHIVO][ERROR] ' . $e->getMessage());

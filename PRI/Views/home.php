@@ -706,10 +706,10 @@ ix_require_session([
             </div>
         </div>
     </footer>
-
+    
+    <script src="/PRI/JS/media.js"></script>
     <script src="/PRI/JS/JSglobal.js"></script>
     <script src="/PRI/JS/components.js"></script>
-    <script src="/PRI/JS/media.js"></script>
     <script type="module" src="/PRI/JS/auth/session.js"></script>
     <script type="module" src="/PRI/JS/home.js"></script>
     <script type="module" src="/PRI/JS/home.modals.js"></script>
