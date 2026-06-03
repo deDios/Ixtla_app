@@ -111,11 +111,7 @@ ix_require_session([
                             d="M10 4a6 6 0 0 1 4.47 9.93l4.3 4.3l-1.42 1.41l-4.29-4.29A6 6 0 1 1 10 4m0 2a4 4 0 1 0 0 8a4 4 0 0 0 0-8" />
                     </svg>
 
-                    <input
-                        id="red-search"
-                        type="search"
-                        placeholder="Buscar"
-                        autocomplete="off"
+                    <input id="red-search" type="search" placeholder="Buscar" autocomplete="off"
                         aria-label="Buscar registros RED">
                 </div>
 
@@ -198,15 +194,18 @@ ix_require_session([
                             </p>
 
                             <div class="ine-camera-actions">
-                                <button type="button" id="ine-btn-capture" class="ine-capture-btn ine-capture-btn--primary">
+                                <button type="button" id="ine-btn-capture"
+                                    class="ine-capture-btn ine-capture-btn--primary">
                                     Capturar
                                 </button>
 
-                                <button type="button" id="ine-btn-retry" class="ine-capture-btn ine-capture-btn--danger" hidden>
+                                <button type="button" id="ine-btn-retry" class="ine-capture-btn ine-capture-btn--danger"
+                                    hidden>
                                     Reintentar
                                 </button>
 
-                                <button type="button" id="ine-btn-next" class="ine-capture-btn ine-capture-btn--success" hidden>
+                                <button type="button" id="ine-btn-next" class="ine-capture-btn ine-capture-btn--success"
+                                    hidden>
                                     Continuar
                                 </button>
                             </div>
@@ -233,11 +232,13 @@ ix_require_session([
                         </div>
 
                         <div class="ine-summary-actions">
-                            <button type="button" id="ine-btn-summary-retry" class="ine-capture-btn ine-capture-btn--ghost">
+                            <button type="button" id="ine-btn-summary-retry"
+                                class="ine-capture-btn ine-capture-btn--ghost">
                                 Repetir captura
                             </button>
 
-                            <button type="button" id="ine-btn-read-data" class="ine-capture-btn ine-capture-btn--primary">
+                            <button type="button" id="ine-btn-read-data"
+                                class="ine-capture-btn ine-capture-btn--primary">
                                 Leer datos
                             </button>
                         </div>
@@ -291,12 +292,8 @@ ix_require_session([
                         <div class="ine-review-meta">
                             <label class="ine-review-field">
                                 <span>Fecha de extracción</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-fecha-extraccion"
-                                    name="fecha_extraccion"
-                                    placeholder="Fecha de extracción"
-                                    readonly>
+                                <input type="text" id="ine-review-fecha-extraccion" name="fecha_extraccion"
+                                    placeholder="Fecha de extracción" readonly>
                             </label>
                         </div>
 
@@ -314,38 +311,25 @@ ix_require_session([
                         <div class="ine-review-grid">
                             <label class="ine-review-field">
                                 <span>Nombre(s) *</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-nombres"
-                                    name="nombres"
-                                    placeholder="Nombre(s)"
+                                <input type="text" id="ine-review-nombres" name="nombres" placeholder="Nombre(s)"
                                     required>
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Apellido paterno</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-apellido-paterno"
-                                    name="apellido_paterno"
+                                <input type="text" id="ine-review-apellido-paterno" name="apellido_paterno"
                                     placeholder="Apellido paterno">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Apellido materno</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-apellido-materno"
-                                    name="apellido_materno"
+                                <input type="text" id="ine-review-apellido-materno" name="apellido_materno"
                                     placeholder="Apellido materno">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Fecha de nacimiento</span>
-                                <input
-                                    type="date"
-                                    id="ine-review-fecha-nacimiento"
-                                    name="fecha_nacimiento">
+                                <input type="date" id="ine-review-fecha-nacimiento" name="fecha_nacimiento">
                             </label>
 
                             <label class="ine-review-field">
@@ -367,84 +351,48 @@ ix_require_session([
                         <div class="ine-review-grid">
                             <label class="ine-review-field">
                                 <span>CURP</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-curp"
-                                    name="curp"
-                                    maxlength="18"
-                                    placeholder="CURP">
+                                <input type="text" id="ine-review-curp" name="curp" maxlength="18" placeholder="CURP">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Clave de elector</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-clave-elector"
-                                    name="clave_elector"
+                                <input type="text" id="ine-review-clave-elector" name="clave_elector"
                                     placeholder="Clave de elector">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Sección</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-seccion"
-                                    name="seccion_id"
-                                    inputmode="numeric"
+                                <input type="text" id="ine-review-seccion" name="seccion_id" inputmode="numeric"
                                     placeholder="Sección">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Año de registro</span>
-                                <input
-                                    type="number"
-                                    id="ine-review-anio-registro"
-                                    name="anio_registro"
-                                    min="1900"
-                                    max="2100"
-                                    placeholder="Año">
+                                <input type="number" id="ine-review-anio-registro" name="anio_registro" min="1900"
+                                    max="2100" placeholder="Año">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Emisión</span>
-                                <input
-                                    type="number"
-                                    id="ine-review-emision"
-                                    name="emision"
-                                    min="1900"
-                                    max="2100"
+                                <input type="number" id="ine-review-emision" name="emision" min="1900" max="2100"
                                     placeholder="00">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Vigencia inicio</span>
-                                <input
-                                    type="number"
-                                    id="ine-review-vigencia-inicio"
-                                    name="vigencia_inicio"
-                                    min="1900"
-                                    max="2100"
-                                    placeholder="Año">
+                                <input type="number" id="ine-review-vigencia-inicio" name="vigencia_inicio" min="1900"
+                                    max="2100" placeholder="Año">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Vigencia fin</span>
-                                <input
-                                    type="number"
-                                    id="ine-review-vigencia-fin"
-                                    name="vigencia_fin"
-                                    min="1900"
-                                    max="2100"
-                                    placeholder="Año">
+                                <input type="number" id="ine-review-vigencia-fin" name="vigencia_fin" min="1900"
+                                    max="2100" placeholder="Año">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>IDMEX</span>
-                                <input
-                                    type="text"
-                                    id="ine-review-idmex"
-                                    name="idmex"
-                                    placeholder="IDMEX">
+                                <input type="text" id="ine-review-idmex" name="idmex" placeholder="IDMEX">
                             </label>
                         </div>
                     </section>
@@ -456,10 +404,7 @@ ix_require_session([
                         <div class="ine-review-grid">
                             <label class="ine-review-field ine-review-field--full">
                                 <span>Domicilio</span>
-                                <textarea
-                                    id="ine-review-domicilio"
-                                    name="domicilio_texto"
-                                    rows="3"
+                                <textarea id="ine-review-domicilio" name="domicilio_texto" rows="3"
                                     placeholder="Domicilio extraído de la INE"></textarea>
                             </label>
                         </div>
@@ -472,31 +417,19 @@ ix_require_session([
                         <div class="ine-review-grid">
                             <label class="ine-review-field">
                                 <span>Teléfono</span>
-                                <input
-                                    type="tel"
-                                    id="ine-review-telefono"
-                                    name="telefono"
-                                    inputmode="tel"
+                                <input type="tel" id="ine-review-telefono" name="telefono" inputmode="tel"
                                     placeholder="Teléfono">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>WhatsApp</span>
-                                <input
-                                    type="tel"
-                                    id="ine-review-whatsapp"
-                                    name="whatsapp"
-                                    inputmode="tel"
+                                <input type="tel" id="ine-review-whatsapp" name="whatsapp" inputmode="tel"
                                     placeholder="WhatsApp">
                             </label>
 
                             <label class="ine-review-field ine-review-field--full">
                                 <span>Email</span>
-                                <input
-                                    type="email"
-                                    id="ine-review-email"
-                                    name="email"
-                                    placeholder="correo@ejemplo.com">
+                                <input type="email" id="ine-review-email" name="email" placeholder="correo@ejemplo.com">
                             </label>
                         </div>
                     </section>
@@ -507,11 +440,8 @@ ix_require_session([
 
                         <div class="ine-review-consent-card">
                             <label class="ine-review-check">
-                                <input
-                                    type="checkbox"
-                                    id="ine-review-acepta-tratamiento"
-                                    name="acepta_tratamiento_datos"
-                                    value="1">
+                                <input type="checkbox" id="ine-review-acepta-tratamiento"
+                                    name="acepta_tratamiento_datos" value="1">
 
                                 <span>
                                     Acepto el tratamiento de mis datos personales conforme al aviso de privacidad
@@ -520,10 +450,7 @@ ix_require_session([
                             </label>
 
                             <label class="ine-review-check">
-                                <input
-                                    type="checkbox"
-                                    id="ine-review-acepta-whatsapp"
-                                    name="acepta_contacto_whatsapp"
+                                <input type="checkbox" id="ine-review-acepta-whatsapp" name="acepta_contacto_whatsapp"
                                     value="1">
 
                                 <span>
@@ -540,10 +467,7 @@ ix_require_session([
                         <div class="ine-review-grid">
                             <label class="ine-review-field ine-review-field--full">
                                 <span>Notas adicionales</span>
-                                <textarea
-                                    id="ine-review-observaciones"
-                                    name="observaciones"
-                                    rows="3"
+                                <textarea id="ine-review-observaciones" name="observaciones" rows="3"
                                     placeholder="Observaciones internas o aclaraciones del registro"></textarea>
                             </label>
                         </div>
@@ -625,47 +549,27 @@ ix_require_session([
                     <label class="red-residence-field red-residence-field--combo">
                         <span>Sección</span>
 
-                        <input
-                            type="hidden"
-                            id="red-residence-seccion"
-                            name="seccion_id">
+                        <input type="hidden" id="red-residence-seccion" name="seccion_id">
 
-                        <button
-                            type="button"
-                            id="red-residence-seccion-toggle"
-                            class="red-residence-combo-toggle"
-                            disabled
-                            aria-haspopup="listbox"
-                            aria-expanded="false">
+                        <button type="button" id="red-residence-seccion-toggle" class="red-residence-combo-toggle"
+                            disabled aria-haspopup="listbox" aria-expanded="false">
                             <span id="red-residence-seccion-text">Selecciona una sección</span>
                             <span class="red-residence-combo-chevron" aria-hidden="true">⌄</span>
                         </button>
 
-                        <div
-                            id="red-residence-seccion-list"
-                            class="red-residence-combo-list"
-                            role="listbox"
-                            hidden>
+                        <div id="red-residence-seccion-list" class="red-residence-combo-list" role="listbox" hidden>
                         </div>
                     </label>
 
                     <label class="red-residence-field">
                         <span>Calle actual de residencia</span>
-                        <input
-                            type="text"
-                            id="red-residence-domicilio"
-                            name="domicilio_texto"
-                            placeholder="Ej. Francisco I. Madero #2, Centro CP.45850"
-                            disabled>
+                        <input type="text" id="red-residence-domicilio" name="domicilio_texto"
+                            placeholder="Ej. Francisco I. Madero #2, Centro CP.45850" disabled>
                     </label>
 
                     <label class="red-residence-field">
                         <span>Método de contacto</span>
-                        <input
-                            type="text"
-                            id="red-residence-telefono"
-                            name="telefono"
-                            placeholder="Ej. 3333333333"
+                        <input type="text" id="red-residence-telefono" name="telefono" placeholder="Ej. 3333333333"
                             disabled>
                     </label>
 
@@ -679,6 +583,49 @@ ix_require_session([
         </article>
     </section>
 
+    <!-- Modal aviso: persona duplicada por CURP / clave de elector -->
+
+    <section id="red-duplicate-modal" class="red-duplicate-modal" hidden aria-hidden="true">
+        <div class="red-duplicate-overlay" data-red-duplicate-close></div>
+
+        <article class="red-duplicate-dialog" role="dialog" aria-modal="true" aria-labelledby="red-duplicate-title">
+            <header class="red-duplicate-header">
+                <button type="button" class="red-duplicate-close" data-red-duplicate-close aria-label="Cerrar">
+                    ×
+                </button>
+            </header>
+
+            <div class="red-duplicate-body">
+                <div class="red-duplicate-icon" aria-hidden="true">
+                    <span>👥</span>
+                </div>
+
+                <p class="red-duplicate-kicker">Aviso</p>
+
+                <h2 id="red-duplicate-title">
+                    Persona ya registrada
+                </h2>
+
+                <p id="red-duplicate-message" class="red-duplicate-message">
+                    Este simpatizante ya ha sido registrado.
+                </p>
+
+                <p id="red-duplicate-person" class="red-duplicate-person"></p>
+
+                <p id="red-duplicate-owner" class="red-duplicate-owner"></p>
+
+                <div class="red-duplicate-actions">
+                    <button type="button" id="red-duplicate-update" class="red-duplicate-btn red-duplicate-btn--update">
+                        Actualizar datos
+                    </button>
+
+                    <button type="button" class="red-duplicate-btn red-duplicate-btn--close" data-red-duplicate-close>
+                        ← Cerrar
+                    </button>
+                </div>
+            </div>
+        </article>
+    </section>
 
     <footer id="site-footer">
         <div class="limite">
@@ -706,7 +653,7 @@ ix_require_session([
             </div>
         </div>
     </footer>
-    
+
     <script src="/PRI/JS/media.js"></script>
     <script src="/PRI/JS/JSglobal.js"></script>
     <script src="/PRI/JS/components.js"></script>

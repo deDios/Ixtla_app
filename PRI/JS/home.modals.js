@@ -666,53 +666,16 @@ function getDuplicateOwnerLabel(existingPersona) {
 }
 
 function ensureDuplicateModal() {
-    let modal = $(SEL.duplicateModal);
+    const modal = $(SEL.duplicateModal);
 
-    if (modal) return modal;
+    if (!modal) {
+        warn("No existe #red-duplicate-modal en el HTML.");
+        return null;
+    }
 
-    modal = document.createElement("section");
-    modal.id = "red-duplicate-modal";
-    modal.className = "red-residence-modal red-duplicate-modal";
-    modal.hidden = true;
-    modal.setAttribute("aria-hidden", "true");
-
-    modal.innerHTML = `
-        <div class="red-residence-overlay" data-red-duplicate-close></div>
-
-        <article class="red-residence-dialog red-duplicate-dialog" role="dialog" aria-modal="true" aria-labelledby="red-duplicate-title">
-            <button type="button" class="red-residence-close" data-red-duplicate-close aria-label="Cerrar">
-                ×
-            </button>
-
-            <div class="red-duplicate-card">
-                <div class="red-duplicate-icon" aria-hidden="true">
-                    <span>👥</span>
-                </div>
-
-                <h3 id="red-duplicate-title">Aviso</h3>
-
-                <p id="red-duplicate-message" class="red-duplicate-message">
-                    Esta persona ya se encuentra registrada.
-                </p>
-
-                <p id="red-duplicate-person" class="red-duplicate-person"></p>
-
-                <p id="red-duplicate-owner" class="red-duplicate-owner"></p>
-
-                <div class="red-duplicate-actions">
-                    <button type="button" id="red-duplicate-update" class="red-duplicate-btn red-duplicate-btn--update">
-                        Actualizar datos
-                    </button>
-
-                    <button type="button" class="red-duplicate-btn red-duplicate-btn--close" data-red-duplicate-close>
-                        ← Cerrar
-                    </button>
-                </div>
-            </div>
-        </article>
-    `;
-
-    document.body.appendChild(modal);
+    if (modal.dataset.bound === "1") {
+        return modal;
+    }
 
     modal.querySelectorAll(SEL.duplicateClose).forEach((btn) => {
         btn.addEventListener("click", closeDuplicateModal);
@@ -764,11 +727,15 @@ function ensureDuplicateModal() {
         }
     });
 
+    modal.dataset.bound = "1";
+
     return modal;
 }
 
 function setDuplicateModalOpen(isOpen) {
     const modal = ensureDuplicateModal();
+
+    if (!modal) return;
 
     modal.hidden = !isOpen;
     modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
@@ -778,6 +745,11 @@ function setDuplicateModalOpen(isOpen) {
 
 function openDuplicateModal(duplicateData) {
     const modal = ensureDuplicateModal();
+
+    if (!modal) {
+        toast("La persona ya se encuentra registrada.", "warning", 6500);
+        return;
+    }
 
     const existingPersona = duplicateData?.existingPersona || null;
     const nombrePersona =
@@ -795,7 +767,7 @@ function openDuplicateModal(duplicateData) {
     const owner = modal.querySelector(SEL.duplicateOwner);
 
     if (title) {
-        title.textContent = "Aviso";
+        title.textContent = "Persona ya registrada";
     }
 
     if (message) {
@@ -814,8 +786,6 @@ function openDuplicateModal(duplicateData) {
     }
 
     setDuplicateModalOpen(true);
-
-    toast("La persona ya se encuentra registrada.", "warning", 6500);
 
     console.log("[RED duplicate persona]", duplicateData);
 }
@@ -2555,7 +2525,7 @@ async function handleReviewSubmit(event) {
 
         const duplicateData = getDuplicateDataFromError(err);
 
-        if (err?.status === 409 && duplicateData?.duplicate) {
+        if (duplicateData?.duplicate) {
             openDuplicateModal(duplicateData);
             return;
         }
