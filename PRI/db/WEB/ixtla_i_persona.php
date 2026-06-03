@@ -255,6 +255,167 @@ function sensitive_decrypt(mixed $encoded, string $secret): ?string
   return $plain === false ? null : $plain;
 }
 
+
+/* ============================================================
+   DUPLICADOS
+   ============================================================ */
+
+function get_duplicate_field_from_sql(string $sqlMessage): ?string
+{
+  if (stripos($sqlMessage, 'uq_persona_curp_hash') !== false) {
+    return 'curp_hash';
+  }
+
+  if (stripos($sqlMessage, 'uq_persona_clave_elector_hash') !== false) {
+    return 'clave_elector_hash';
+  }
+
+  return null;
+}
+
+function get_duplicate_label(string $field): string
+{
+  return match ($field) {
+    'curp_hash' => 'CURP',
+    'clave_elector_hash' => 'Clave de elector',
+    default => 'Dato único',
+  };
+}
+
+function get_hash_from_input_for_duplicate(array $in, string $field): ?string
+{
+  if ($field === 'curp_hash') {
+    if (array_key_exists('curp_hash', $in) && trim((string)$in['curp_hash']) !== '') {
+      return trim((string)$in['curp_hash']);
+    }
+
+    return sensitive_hash($in['curp'] ?? '');
+  }
+
+  if ($field === 'clave_elector_hash') {
+    if (array_key_exists('clave_elector_hash', $in) && trim((string)$in['clave_elector_hash']) !== '') {
+      return trim((string)$in['clave_elector_hash']);
+    }
+
+    return sensitive_hash($in['clave_elector'] ?? '');
+  }
+
+  return null;
+}
+
+function persona_duplicada_row(array $row): array
+{
+  $capturadorNombre = trim(
+    (string)($row['capturado_por_nombre'] ?? '') . ' ' .
+      (string)($row['capturado_por_apellido_paterno'] ?? '') . ' ' .
+      (string)($row['capturado_por_apellido_materno'] ?? '')
+  );
+
+  $personaNombre = trim(
+    (string)($row['nombres'] ?? '') . ' ' .
+      (string)($row['apellido_paterno'] ?? '') . ' ' .
+      (string)($row['apellido_materno'] ?? '')
+  );
+
+  return [
+    "persona_id" => (int)$row['persona_id'],
+    "uuid" => $row['uuid'],
+    "nombre_completo" => $personaNombre,
+    "nombres" => $row['nombres'],
+    "apellido_paterno" => $row['apellido_paterno'],
+    "apellido_materno" => $row['apellido_materno'],
+    "seccion_id" => nullable_int_from_row($row, 'seccion_id'),
+    "telefono" => $row['telefono'],
+    "whatsapp" => $row['whatsapp'],
+    "email" => $row['email'],
+    "estatus_id" => (int)$row['estatus_id'],
+    "capturado_por" => nullable_int_from_row($row, 'capturado_por'),
+    "capturado_por_usuario" => [
+      "usuario_id" => nullable_int_from_row($row, 'capturado_por'),
+      "username" => $row['capturado_por_username'],
+      "nombre" => $row['capturado_por_nombre'],
+      "apellido_paterno" => $row['capturado_por_apellido_paterno'],
+      "apellido_materno" => $row['capturado_por_apellido_materno'],
+      "nombre_completo" => $capturadorNombre,
+    ],
+    "fecha_captura" => $row['fecha_captura'],
+    "created_at" => $row['created_at'],
+    "updated_at" => $row['updated_at'],
+  ];
+}
+
+function buscar_persona_duplicada(mysqli $con, array $in, string $sqlMessage): ?array
+{
+  $field = get_duplicate_field_from_sql($sqlMessage);
+
+  if ($field === null) {
+    return null;
+  }
+
+  $hash = get_hash_from_input_for_duplicate($in, $field);
+
+  if ($hash === null || trim((string)$hash) === '') {
+    return [
+      "duplicate_field" => $field,
+      "duplicate_label" => get_duplicate_label($field),
+      "existing_persona" => null,
+    ];
+  }
+
+  $sql = "
+    SELECT
+      p.persona_id,
+      p.uuid,
+      p.nombres,
+      p.apellido_paterno,
+      p.apellido_materno,
+      p.seccion_id,
+      p.telefono,
+      p.whatsapp,
+      p.email,
+      p.estatus_id,
+      p.capturado_por,
+      p.fecha_captura,
+      p.created_at,
+      p.updated_at,
+
+      u.username AS capturado_por_username,
+      u.nombre AS capturado_por_nombre,
+      u.apellido_paterno AS capturado_por_apellido_paterno,
+      u.apellido_materno AS capturado_por_apellido_materno
+
+    FROM persona p
+    LEFT JOIN usuario u
+      ON u.usuario_id = p.capturado_por
+     AND u.deleted_at IS NULL
+    WHERE p.$field = ?
+      AND p.deleted_at IS NULL
+    LIMIT 1
+  ";
+
+  $st = $con->prepare($sql);
+  $st->bind_param('s', $hash);
+  $st->execute();
+  $row = $st->get_result()->fetch_assoc();
+  $st->close();
+
+  return [
+    "duplicate_field" => $field,
+    "duplicate_label" => get_duplicate_label($field),
+    "existing_persona" => $row ? persona_duplicada_row($row) : null,
+  ];
+}
+
+function cerrar_conexion_si_abierta(mixed $con): void
+{
+  if ($con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+}
+
 /* ============================================================
    FORMATTER
    ============================================================ */
@@ -541,13 +702,6 @@ try {
     "data" => $data
   ], 201);
 } catch (mysqli_sql_exception $e) {
-  if (isset($con) && $con instanceof mysqli) {
-    try {
-      $con->close();
-    } catch (Throwable $ignored) {
-    }
-  }
-
   $code = (int)$e->getCode();
   $msg = $e->getMessage();
 
@@ -555,6 +709,7 @@ try {
 
   if ($code === 1062) {
     $campo = "único";
+    $duplicateData = null;
 
     if (stripos($msg, "uq_persona_curp_hash") !== false) {
       $campo = "curp_hash";
@@ -564,12 +719,33 @@ try {
       $campo = "uuid";
     }
 
+    if (isset($con) && $con instanceof mysqli && in_array($campo, ['curp_hash', 'clave_elector_hash'], true)) {
+      try {
+        $duplicateData = buscar_persona_duplicada($con, $in ?? [], $msg);
+      } catch (Throwable $lookupError) {
+        error_log('[IXTLA_I_PERSONA][DUPLICATE_LOOKUP] ' . $lookupError->getMessage());
+      }
+    }
+
+    cerrar_conexion_si_abierta($con ?? null);
+
     json_response([
       "ok" => false,
-      "error" => "Duplicado en campo $campo",
-      "code" => $code
+      "error" => in_array($campo, ['curp_hash', 'clave_elector_hash'], true)
+        ? "La persona ya se encuentra registrada"
+        : "Duplicado en campo $campo",
+      "message" => in_array($campo, ['curp_hash', 'clave_elector_hash'], true)
+        ? "La persona ya se encuentra registrada"
+        : "Duplicado en campo $campo",
+      "code" => $code,
+      "duplicate" => in_array($campo, ['curp_hash', 'clave_elector_hash'], true),
+      "duplicate_field" => $duplicateData['duplicate_field'] ?? $campo,
+      "duplicate_label" => $duplicateData['duplicate_label'] ?? $campo,
+      "existing_persona" => $duplicateData['existing_persona'] ?? null
     ], 409);
   }
+
+  cerrar_conexion_si_abierta($con ?? null);
 
   if ($code === 1452) {
     json_response([
@@ -593,12 +769,7 @@ try {
     "code" => $code
   ], 500);
 } catch (Throwable $e) {
-  if (isset($con) && $con instanceof mysqli) {
-    try {
-      $con->close();
-    } catch (Throwable $ignored) {
-    }
-  }
+  cerrar_conexion_si_abierta($con ?? null);
 
   error_log('[IXTLA_I_PERSONA][ERROR] ' . $e->getMessage());
 

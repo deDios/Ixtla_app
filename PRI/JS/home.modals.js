@@ -35,8 +35,7 @@ const CONFIG = {
     SAVE: {
         estatusIdDefault: 1,
         avisoPrivacidadVersion: "RED-INE-2026-01",
-        //reloadPageAfterSave: true,
-        //colocar true en prod
+        //colocar en false
         reloadPageAfterSave: false,
         reloadDelayMs: 900,
     },
@@ -47,6 +46,7 @@ const ENDPOINTS = {
     insertPersona: "/PRI/db/WEB/ixtla_i_persona.php",
     insertArchivo: "/PRI/db/WEB/ixtla_i_archivo.php",
     territorios: "/PRI/db/WEB/ixtla_c_territorio.php",
+    updatePersona: "/PRI/db/WEB/ixtla_u_persona.php",
 };
 
 const TAG = "[RED Home Modals]";
@@ -122,6 +122,14 @@ const SEL = {
     residenceDomicilio: "#red-residence-domicilio",
     residenceTelefono: "#red-residence-telefono",
     residenceSubmit: "#red-residence-submit",
+
+    duplicateModal: "#red-duplicate-modal",
+    duplicateClose: "[data-red-duplicate-close]",
+    duplicateUpdate: "#red-duplicate-update",
+    duplicateTitle: "#red-duplicate-title",
+    duplicateMessage: "#red-duplicate-message",
+    duplicatePerson: "#red-duplicate-person",
+    duplicateOwner: "#red-duplicate-owner",
 };
 
 /* -------------------------------------------------------------------------- */
@@ -168,14 +176,16 @@ function syncBodyModalState() {
     const captureModal = $(SEL.modal);
     const reviewModal = $(SEL.reviewModal);
     const residenceModal = $(SEL.residenceModal);
+    const duplicateModal = $(SEL.duplicateModal);
 
     const captureOpen = Boolean(captureModal && !captureModal.hidden);
     const reviewOpen = Boolean(reviewModal && !reviewModal.hidden);
     const residenceOpen = Boolean(residenceModal && !residenceModal.hidden);
+    const duplicateOpen = Boolean(duplicateModal && !duplicateModal.hidden);
 
     document.body.classList.toggle(
         "ine-modal-open",
-        captureOpen || reviewOpen || residenceOpen
+        captureOpen || reviewOpen || residenceOpen || duplicateOpen
     );
 }
 
@@ -619,6 +629,215 @@ function closeResidenceModal({ clearPending = true } = {}) {
     if (clearPending) {
         State.pendingReviewSubmit = null;
     }
+}
+
+function getDuplicateDataFromError(err) {
+    const response = err?.response || null;
+
+    if (!response || response.duplicate !== true) {
+        return null;
+    }
+
+    return {
+        duplicate: true,
+        duplicateField: response.duplicate_field || "",
+        duplicateLabel: response.duplicate_label || "dato",
+        existingPersona: response.existing_persona || null,
+        message: response.message || response.error || "La persona ya se encuentra registrada.",
+        raw: response,
+    };
+}
+
+function getDuplicateOwnerLabel(existingPersona) {
+    const owner = existingPersona?.capturado_por_usuario || null;
+
+    if (!owner) {
+        return "un usuario del sistema";
+    }
+
+    const username = owner.username || owner.usuario_id || existingPersona?.capturado_por || "";
+    const nombre = owner.nombre_completo || owner.nombre || "";
+
+    if (username && nombre) {
+        return `${username} - ${nombre}`;
+    }
+
+    return nombre || username || "un usuario del sistema";
+}
+
+function ensureDuplicateModal() {
+    let modal = $(SEL.duplicateModal);
+
+    if (modal) return modal;
+
+    modal = document.createElement("section");
+    modal.id = "red-duplicate-modal";
+    modal.className = "red-residence-modal red-duplicate-modal";
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+
+    modal.innerHTML = `
+        <div class="red-residence-overlay" data-red-duplicate-close></div>
+
+        <article class="red-residence-dialog red-duplicate-dialog" role="dialog" aria-modal="true" aria-labelledby="red-duplicate-title">
+            <button type="button" class="red-residence-close" data-red-duplicate-close aria-label="Cerrar">
+                ×
+            </button>
+
+            <div class="red-duplicate-card">
+                <div class="red-duplicate-icon" aria-hidden="true">
+                    <span>👥</span>
+                </div>
+
+                <h3 id="red-duplicate-title">Aviso</h3>
+
+                <p id="red-duplicate-message" class="red-duplicate-message">
+                    Esta persona ya se encuentra registrada.
+                </p>
+
+                <p id="red-duplicate-person" class="red-duplicate-person"></p>
+
+                <p id="red-duplicate-owner" class="red-duplicate-owner"></p>
+
+                <div class="red-duplicate-actions">
+                    <button type="button" id="red-duplicate-update" class="red-duplicate-btn red-duplicate-btn--update">
+                        Actualizar datos
+                    </button>
+
+                    <button type="button" class="red-duplicate-btn red-duplicate-btn--close" data-red-duplicate-close>
+                        ← Cerrar
+                    </button>
+                </div>
+            </div>
+        </article>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll(SEL.duplicateClose).forEach((btn) => {
+        btn.addEventListener("click", closeDuplicateModal);
+    });
+
+    modal.querySelector(SEL.duplicateUpdate)?.addEventListener("click", async () => {
+        const duplicateData = modal.__duplicateData || null;
+        const btn = modal.querySelector(SEL.duplicateUpdate);
+        const originalText = btn?.textContent || "Actualizar datos";
+
+        if (!duplicateData?.existingPersona?.persona_id) {
+            toast("No se encontró la persona existente para actualizar.", "error", 7000);
+            return;
+        }
+
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "Actualizando...";
+            }
+
+            const saved = await updateDuplicatePersonaAndFiles(duplicateData);
+
+            console.log("[RED duplicate updated]", saved);
+
+            if (saved.erroresArchivo.length) {
+                toast("Datos actualizados, pero una o más fotos no pudieron registrarse.", "warning", 7000);
+            } else {
+                toast("Datos y fotos actualizados correctamente.", "exito", 6000);
+            }
+
+            closeDuplicateModal();
+            closeReviewModal();
+            resetCaptureFlow();
+
+            if (CONFIG.SAVE.reloadPageAfterSave) {
+                window.setTimeout(() => {
+                    window.location.reload();
+                }, CONFIG.SAVE.reloadDelayMs);
+            }
+        } catch (err) {
+            console.error("[RED duplicate update error]", err);
+            toast(err?.message || "No se pudieron actualizar los datos.", "error", 9000);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+    });
+
+    return modal;
+}
+
+function setDuplicateModalOpen(isOpen) {
+    const modal = ensureDuplicateModal();
+
+    modal.hidden = !isOpen;
+    modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
+
+    syncBodyModalState();
+}
+
+function openDuplicateModal(duplicateData) {
+    const modal = ensureDuplicateModal();
+
+    const existingPersona = duplicateData?.existingPersona || null;
+    const nombrePersona =
+        existingPersona?.nombre_completo ||
+        existingPersona?.nombres ||
+        "Esta persona";
+
+    const ownerLabel = getDuplicateOwnerLabel(existingPersona);
+
+    modal.__duplicateData = duplicateData;
+
+    const title = modal.querySelector(SEL.duplicateTitle);
+    const message = modal.querySelector(SEL.duplicateMessage);
+    const person = modal.querySelector(SEL.duplicatePerson);
+    const owner = modal.querySelector(SEL.duplicateOwner);
+
+    if (title) {
+        title.textContent = "Aviso";
+    }
+
+    if (message) {
+        message.innerHTML = `
+            Este simpatizante ya ha sido registrado<br>
+            por el afiliado <strong>(${escapeHTMLSafe(ownerLabel)})</strong>
+        `;
+    }
+
+    if (person) {
+        person.textContent = `(${nombrePersona})`;
+    }
+
+    if (owner) {
+        owner.innerHTML = `Registrado por: <strong>${escapeHTMLSafe(ownerLabel)}</strong>`;
+    }
+
+    setDuplicateModalOpen(true);
+
+    toast("La persona ya se encuentra registrada.", "warning", 6500);
+
+    console.log("[RED duplicate persona]", duplicateData);
+}
+
+function closeDuplicateModal() {
+    const modal = $(SEL.duplicateModal);
+    if (!modal) return;
+
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+    modal.__duplicateData = null;
+
+    syncBodyModalState();
+}
+
+function escapeHTMLSafe(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2070,23 +2289,7 @@ function validateReviewPayload(payload) {
     return true;
 }
 
-async function savePersonaAndFiles(payload) {
-    const reviewModal = $(SEL.reviewModal);
-    const originalPayload = reviewModal?.__inePayload || null;
-    const usuarioId = getUsuarioId();
-
-    const personaPayload = await buildPersonaInsertPayload(payload);
-
-    log("Payload persona listo:", personaPayload);
-
-    const personaResponse = await postJSON(ENDPOINTS.insertPersona, personaPayload);
-    const persona = personaResponse.data || null;
-    const personaId = Number(persona?.persona_id || 0);
-
-    if (!personaId) {
-        throw new Error("La persona fue creada, pero no se recibió persona_id.");
-    }
-
+async function saveFilesForPersona({ personaId, usuarioId, originalPayload }) {
     const captures = {
         front: originalPayload?.images?.front || State.captures.front,
         back: originalPayload?.images?.back || State.captures.back,
@@ -2171,10 +2374,39 @@ async function savePersonaAndFiles(payload) {
         }
     }
 
-    const saved = {
-        persona,
+    return {
         archivos: archivos.filter(Boolean),
         erroresArchivo,
+    };
+}
+
+async function savePersonaAndFiles(payload) {
+    const reviewModal = $(SEL.reviewModal);
+    const originalPayload = reviewModal?.__inePayload || null;
+    const usuarioId = getUsuarioId();
+
+    const personaPayload = await buildPersonaInsertPayload(payload);
+
+    log("Payload persona listo:", personaPayload);
+
+    const personaResponse = await postJSON(ENDPOINTS.insertPersona, personaPayload);
+    const persona = personaResponse.data || null;
+    const personaId = Number(persona?.persona_id || 0);
+
+    if (!personaId) {
+        throw new Error("La persona fue creada, pero no se recibió persona_id.");
+    }
+
+    const fileResult = await saveFilesForPersona({
+        personaId,
+        usuarioId,
+        originalPayload,
+    });
+
+    const saved = {
+        persona,
+        archivos: fileResult.archivos,
+        erroresArchivo: fileResult.erroresArchivo,
         extraction: originalPayload?.extraction || null,
         fields: originalPayload?.fields || [],
     };
@@ -2211,6 +2443,57 @@ async function shouldOpenResidenceModalBeforeSave(payload) {
     }
 
     return false;
+}
+
+async function updateDuplicatePersonaAndFiles(duplicateData) {
+    const reviewModal = $(SEL.reviewModal);
+    const originalPayload = reviewModal?.__inePayload || null;
+    const usuarioId = getUsuarioId();
+
+    const existingPersona = duplicateData?.existingPersona || null;
+    const personaId = Number(existingPersona?.persona_id || 0);
+
+    if (!personaId) {
+        throw new Error("No se encontró el ID de la persona existente.");
+    }
+
+    const payload = collectReviewPayload();
+    const personaPayload = await buildPersonaInsertPayload(payload);
+
+    delete personaPayload.created_by;
+    delete personaPayload.capturado_por;
+
+    personaPayload.persona_id = personaId;
+    personaPayload.updated_by = usuarioId || null;
+
+    log("Payload update persona duplicada listo:", personaPayload);
+
+    const personaResponse = await postJSON(ENDPOINTS.updatePersona, personaPayload);
+    const persona = personaResponse.data || null;
+
+    const fileResult = await saveFilesForPersona({
+        personaId,
+        usuarioId,
+        originalPayload,
+    });
+
+    const saved = {
+        persona,
+        archivos: fileResult.archivos,
+        erroresArchivo: fileResult.erroresArchivo,
+        duplicateUpdated: true,
+        duplicateData,
+        extraction: originalPayload?.extraction || null,
+        fields: originalPayload?.fields || [],
+    };
+
+    document.dispatchEvent(
+        new CustomEvent("red:persona-saved", {
+            detail: saved,
+        })
+    );
+
+    return saved;
 }
 
 async function handleReviewSubmit(event) {
@@ -2269,6 +2552,14 @@ async function handleReviewSubmit(event) {
         }
     } catch (err) {
         console.error("[RED Home Modals] Error guardando persona real:", err);
+
+        const duplicateData = getDuplicateDataFromError(err);
+
+        if (err?.status === 409 && duplicateData?.duplicate) {
+            openDuplicateModal(duplicateData);
+            return;
+        }
+
         toast(err?.message || "No se pudo guardar la persona.", "error", 8000);
     } finally {
         if (submitBtn) {
@@ -2387,6 +2678,12 @@ function closeCaptureModal() {
 
 function handleEscape(event) {
     if (event.key !== "Escape") return;
+
+    const duplicateModal = $(SEL.duplicateModal);
+    if (duplicateModal && !duplicateModal.hidden) {
+        closeDuplicateModal();
+        return;
+    }
 
     const residenceModal = $(SEL.residenceModal);
     if (residenceModal && !residenceModal.hidden) {
