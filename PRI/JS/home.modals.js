@@ -334,13 +334,12 @@ function getDeviceContext() {
 async function openPreferredCaptureMethod() {
     const device = getDeviceContext();
 
-    /* descomentar */
-    /*
+
     if (device.preferUpload) {
         showScreen("upload");
         return;
     }
-    */
+    
 
     if (device.preferCamera) {
         prepareCaptureStep("front");
