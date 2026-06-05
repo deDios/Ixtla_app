@@ -1,72 +1,255 @@
 <?php
-// db\WEB\ixtla_i_usuario_jerarquia.php
+// db/WEB/ixtla_i_usuario_jerarquia.php
+
+declare(strict_types=1);
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+date_default_timezone_set('America/Mexico_City');
+
+/* ============================================================
+   CORS
+   ============================================================ */
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
+
+$allowed_origins = [
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com'
+];
+
+if (in_array($origin, $allowed_origins, true)) {
   header("Access-Control-Allow-Origin: $origin");
   header("Vary: Origin");
 }
 
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: no-referrer");
+header("Content-Type: application/json; charset=utf-8");
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
   exit;
 }
 
-header('Content-Type: application/json; charset=utf-8');
-date_default_timezone_set('America/Mexico_City');
+/* ============================================================
+   HELPERS
+   ============================================================ */
 
-$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
-if ($path && file_exists($path)) {
-  include $path;
-} else {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se encontró conn_db.php en $path"], JSON_UNESCAPED_UNICODE));
+function json_response(array $data, int $status = 200): void
+{
+  http_response_code($status);
+  echo json_encode($data, JSON_UNESCAPED_UNICODE);
+  exit;
 }
 
-$in = json_decode(file_get_contents("php://input"), true) ?? [];
+function internal_error(string $message): void
+{
+  error_log('[IXTLA_I_USUARIO_JERARQUIA] ' . $message);
 
-function value_or_null(array $arr, string $key) {
-  if (!array_key_exists($key, $arr)) return null;
-  if ($arr[$key] === '') return null;
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
+}
+
+function read_json_body(): array
+{
+  $raw = file_get_contents("php://input");
+
+  if (!$raw || trim($raw) === '') {
+    json_response([
+      "ok" => false,
+      "error" => "Body JSON requerido"
+    ], 400);
+  }
+
+  $in = json_decode($raw, true);
+
+  if (!is_array($in)) {
+    json_response([
+      "ok" => false,
+      "error" => "JSON inválido"
+    ], 400);
+  }
+
+  return $in;
+}
+
+function db(): mysqli
+{
+  $path = realpath("/home/site/wwwroot/db/conn/conn_db_2.php");
+
+  if (!$path || !file_exists($path)) {
+    internal_error("No se encontró conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php");
+  }
+
+  include_once $path;
+
+  if (!function_exists('conectar')) {
+    internal_error("No existe la función conectar() en conn_db_2.php");
+  }
+
+  $con = conectar();
+
+  if (!$con instanceof mysqli) {
+    internal_error("conectar() no regresó una conexión mysqli válida");
+  }
+
+  $con->set_charset('utf8mb4');
+  $con->query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+  $con->query("SET time_zone='-06:00'");
+
+  return $con;
+}
+
+function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void
+{
+  if ($types === '' || empty($params)) {
+    return;
+  }
+
+  $refs = [];
+  $refs[] = $types;
+
+  foreach ($params as $key => &$value) {
+    $refs[] = &$value;
+  }
+
+  call_user_func_array([$stmt, 'bind_param'], $refs);
+}
+
+function nullable_int_from_row(array $row, string $key): ?int
+{
+  return isset($row[$key]) && $row[$key] !== null ? (int)$row[$key] : null;
+}
+
+function value_or_null(array $arr, string $key): mixed
+{
+  if (!array_key_exists($key, $arr)) {
+    return null;
+  }
+
+  if ($arr[$key] === '') {
+    return null;
+  }
+
   return $arr[$key];
 }
 
-function jerarquia_response(mysqli $con, int $usuario_jerarquia_id): array {
-  $sql = "
+function str_clean(array $in, string $key): string
+{
+  return isset($in[$key]) ? trim((string)$in[$key]) : '';
+}
+
+/* ============================================================
+   FORMATTERS
+   ============================================================ */
+
+function usuario_min_row(array $row, string $prefix): array
+{
+  $nombreCompleto = trim(
+    (string)($row[$prefix . '_nombre'] ?? '') . ' ' .
+      (string)($row[$prefix . '_apellido_paterno'] ?? '') . ' ' .
+      (string)($row[$prefix . '_apellido_materno'] ?? '')
+  );
+
+  return [
+    "usuario_id" => nullable_int_from_row($row, $prefix . '_usuario_id'),
+    "uuid" => $row[$prefix . '_uuid'] ?? null,
+    "username" => $row[$prefix . '_username'] ?? null,
+    "persona_id" => nullable_int_from_row($row, $prefix . '_persona_id'),
+    "rol_id" => nullable_int_from_row($row, $prefix . '_rol_id'),
+    "nombre" => $row[$prefix . '_nombre'] ?? null,
+    "apellido_paterno" => $row[$prefix . '_apellido_paterno'] ?? null,
+    "apellido_materno" => $row[$prefix . '_apellido_materno'] ?? null,
+    "nombre_completo" => $nombreCompleto,
+    "email" => $row[$prefix . '_email'] ?? null,
+    "telefono" => $row[$prefix . '_telefono'] ?? null,
+    "estatus_id" => nullable_int_from_row($row, $prefix . '_estatus_id')
+  ];
+}
+
+function jerarquia_row(array $row): array
+{
+  return [
+    "usuario_jerarquia_id" => (int)$row['usuario_jerarquia_id'],
+    "usuario_padre_id" => (int)$row['usuario_padre_id'],
+    "usuario_hijo_id" => (int)$row['usuario_hijo_id'],
+    "fecha_inicio" => $row['fecha_inicio'],
+    "fecha_fin" => $row['fecha_fin'],
+    "activo" => (int)$row['activo'],
+
+    "padre" => usuario_min_row($row, 'padre'),
+    "hijo" => usuario_min_row($row, 'hijo'),
+
+    "created_at" => $row['created_at'],
+    "created_by" => nullable_int_from_row($row, 'created_by'),
+    "updated_at" => $row['updated_at'],
+    "updated_by" => nullable_int_from_row($row, 'updated_by')
+  ];
+}
+
+/* ============================================================
+   SQL BASE
+   ============================================================ */
+
+function base_select(): string
+{
+  return "
     SELECT
-      uj.*,
+      uj.usuario_jerarquia_id,
+      uj.usuario_padre_id,
+      uj.usuario_hijo_id,
+      uj.fecha_inicio,
+      uj.fecha_fin,
+      uj.activo,
+      uj.created_at,
+      uj.created_by,
+      uj.updated_at,
+      uj.updated_by,
 
       up.usuario_id AS padre_usuario_id,
+      up.uuid AS padre_uuid,
       up.username AS padre_username,
+      up.persona_id AS padre_persona_id,
+      up.rol_id AS padre_rol_id,
       up.nombre AS padre_nombre,
       up.apellido_paterno AS padre_apellido_paterno,
       up.apellido_materno AS padre_apellido_materno,
       up.email AS padre_email,
-      rp.codigo AS padre_rol_codigo,
-      rp.nombre AS padre_rol_nombre,
+      up.telefono AS padre_telefono,
+      up.estatus_id AS padre_estatus_id,
 
       uh.usuario_id AS hijo_usuario_id,
+      uh.uuid AS hijo_uuid,
       uh.username AS hijo_username,
+      uh.persona_id AS hijo_persona_id,
+      uh.rol_id AS hijo_rol_id,
       uh.nombre AS hijo_nombre,
       uh.apellido_paterno AS hijo_apellido_paterno,
       uh.apellido_materno AS hijo_apellido_materno,
       uh.email AS hijo_email,
-      rh.codigo AS hijo_rol_codigo,
-      rh.nombre AS hijo_rol_nombre
+      uh.telefono AS hijo_telefono,
+      uh.estatus_id AS hijo_estatus_id
 
     FROM usuario_jerarquia uj
+
     INNER JOIN usuario up
       ON up.usuario_id = uj.usuario_padre_id
+     AND up.deleted_at IS NULL
+
     INNER JOIN usuario uh
       ON uh.usuario_id = uj.usuario_hijo_id
-    INNER JOIN cat_rol rp
-      ON rp.rol_id = up.rol_id
-    INNER JOIN cat_rol rh
-      ON rh.rol_id = uh.rol_id
+     AND uh.deleted_at IS NULL
+  ";
+}
+
+function obtener_jerarquia(mysqli $con, int $usuario_jerarquia_id): array
+{
+  $sql = base_select() . "
     WHERE uj.usuario_jerarquia_id = ?
     LIMIT 1
   ";
@@ -74,208 +257,316 @@ function jerarquia_response(mysqli $con, int $usuario_jerarquia_id): array {
   $st = $con->prepare($sql);
   $st->bind_param("i", $usuario_jerarquia_id);
   $st->execute();
+
   $row = $st->get_result()->fetch_assoc();
   $st->close();
 
-  if (!$row) return [];
+  if (!$row) {
+    internal_error("Jerarquía no encontrada después de insertar/reactivar. usuario_jerarquia_id=$usuario_jerarquia_id");
+  }
 
-  return [
-    "usuario_jerarquia_id" => (int)$row['usuario_jerarquia_id'],
-    "usuario_padre_id" => (int)$row['usuario_padre_id'],
-    "usuario_hijo_id" => (int)$row['usuario_hijo_id'],
-    "padre" => [
-      "usuario_id" => (int)$row['padre_usuario_id'],
-      "username" => $row['padre_username'],
-      "nombre" => $row['padre_nombre'],
-      "apellido_paterno" => $row['padre_apellido_paterno'],
-      "apellido_materno" => $row['padre_apellido_materno'],
-      "email" => $row['padre_email'],
-      "rol_codigo" => $row['padre_rol_codigo'],
-      "rol_nombre" => $row['padre_rol_nombre']
-    ],
-    "hijo" => [
-      "usuario_id" => (int)$row['hijo_usuario_id'],
-      "username" => $row['hijo_username'],
-      "nombre" => $row['hijo_nombre'],
-      "apellido_paterno" => $row['hijo_apellido_paterno'],
-      "apellido_materno" => $row['hijo_apellido_materno'],
-      "email" => $row['hijo_email'],
-      "rol_codigo" => $row['hijo_rol_codigo'],
-      "rol_nombre" => $row['hijo_rol_nombre']
-    ],
-    "fecha_inicio" => $row['fecha_inicio'],
-    "fecha_fin" => $row['fecha_fin'],
-    "activo" => (int)$row['activo'],
-    "created_at" => $row['created_at'],
-    "created_by" => isset($row['created_by']) ? (int)$row['created_by'] : null,
-    "updated_at" => $row['updated_at'],
-    "updated_by" => isset($row['updated_by']) ? (int)$row['updated_by'] : null
+  return jerarquia_row($row);
+}
+
+/* ============================================================
+   VALIDACIONES
+   ============================================================ */
+
+function validar_usuario_existe(mysqli $con, int $usuario_id, string $label): void
+{
+  $st = $con->prepare("
+    SELECT usuario_id
+    FROM usuario
+    WHERE usuario_id = ?
+      AND deleted_at IS NULL
+    LIMIT 1
+  ");
+
+  $st->bind_param("i", $usuario_id);
+  $st->execute();
+
+  $row = $st->get_result()->fetch_assoc();
+  $st->close();
+
+  if (!$row) {
+    json_response([
+      "ok" => false,
+      "error" => "$label no encontrado"
+    ], 404);
+  }
+}
+
+/* ============================================================
+   INSERT
+   ============================================================ */
+
+function insertar_usuario_jerarquia(mysqli $con, array $in): array
+{
+  $usuario_padre_id = isset($in['usuario_padre_id']) ? (int)$in['usuario_padre_id'] : 0;
+  $usuario_hijo_id = isset($in['usuario_hijo_id']) ? (int)$in['usuario_hijo_id'] : 0;
+
+  if ($usuario_padre_id <= 0) {
+    json_response([
+      "ok" => false,
+      "error" => "Falta parámetro obligatorio: usuario_padre_id"
+    ], 400);
+  }
+
+  if ($usuario_hijo_id <= 0) {
+    json_response([
+      "ok" => false,
+      "error" => "Falta parámetro obligatorio: usuario_hijo_id"
+    ], 400);
+  }
+
+  if ($usuario_padre_id === $usuario_hijo_id) {
+    json_response([
+      "ok" => false,
+      "error" => "El usuario padre y el usuario hijo no pueden ser el mismo"
+    ], 400);
+  }
+
+  validar_usuario_existe($con, $usuario_padre_id, "Usuario padre");
+  validar_usuario_existe($con, $usuario_hijo_id, "Usuario hijo");
+
+  $fecha_inicio = str_clean($in, 'fecha_inicio');
+
+  if ($fecha_inicio === '') {
+    $fecha_inicio = date('Y-m-d');
+  }
+
+  $fecha_fin = value_or_null($in, 'fecha_fin');
+
+  $activo = 1;
+
+  if (array_key_exists('activo', $in) && $in['activo'] !== '') {
+    $activo = ((int)$in['activo']) === 1 ? 1 : 0;
+  }
+
+  $created_by = isset($in['created_by']) && (int)$in['created_by'] > 0
+    ? (int)$in['created_by']
+    : null;
+
+  $updated_by = isset($in['updated_by']) && (int)$in['updated_by'] > 0
+    ? (int)$in['updated_by']
+    : $created_by;
+
+  /*
+    Regla importante:
+    Por el UNIQUE (usuario_padre_id, usuario_hijo_id), no se puede insertar
+    dos veces la misma relación. Si existe inactiva, la reactivamos.
+  */
+
+  $st = $con->prepare("
+    SELECT usuario_jerarquia_id, activo
+    FROM usuario_jerarquia
+    WHERE usuario_padre_id = ?
+      AND usuario_hijo_id = ?
+    LIMIT 1
+  ");
+
+  $st->bind_param("ii", $usuario_padre_id, $usuario_hijo_id);
+  $st->execute();
+
+  $existing = $st->get_result()->fetch_assoc();
+  $st->close();
+
+  if ($existing) {
+    $usuario_jerarquia_id = (int)$existing['usuario_jerarquia_id'];
+    $existing_activo = (int)$existing['activo'];
+
+    if ($existing_activo === 1) {
+      json_response([
+        "ok" => false,
+        "error" => "La relación de jerarquía ya existe",
+        "duplicate_field" => "usuario_padre_id_usuario_hijo_id",
+        "existing_id" => $usuario_jerarquia_id
+      ], 409);
+    }
+
+    $set = [
+      "fecha_inicio = ?",
+      "fecha_fin = ?",
+      "activo = 1"
+    ];
+
+    $params = [
+      $fecha_inicio,
+      $fecha_fin
+    ];
+
+    $types = "ss";
+
+    if ($updated_by !== null) {
+      $set[] = "updated_by = ?";
+      $params[] = $updated_by;
+      $types .= "i";
+    }
+
+    $params[] = $usuario_jerarquia_id;
+    $types .= "i";
+
+    $sql = "
+      UPDATE usuario_jerarquia
+      SET " . implode(", ", $set) . "
+      WHERE usuario_jerarquia_id = ?
+    ";
+
+    $st = $con->prepare($sql);
+    bind_dynamic($st, $types, $params);
+    $st->execute();
+    $st->close();
+
+    return obtener_jerarquia($con, $usuario_jerarquia_id);
+  }
+
+  $columns = [
+    "usuario_padre_id",
+    "usuario_hijo_id",
+    "fecha_inicio",
+    "activo"
   ];
-}
 
-$usuario_padre_id = isset($in['usuario_padre_id']) ? (int)$in['usuario_padre_id'] : 0;
-$usuario_hijo_id = isset($in['usuario_hijo_id']) ? (int)$in['usuario_hijo_id'] : 0;
+  $placeholders = [
+    "?",
+    "?",
+    "?",
+    "?"
+  ];
 
-if ($usuario_padre_id <= 0) {
-  http_response_code(400);
-  die(json_encode(["ok" => false, "error" => "Falta parámetro obligatorio: usuario_padre_id"], JSON_UNESCAPED_UNICODE));
-}
-
-if ($usuario_hijo_id <= 0) {
-  http_response_code(400);
-  die(json_encode(["ok" => false, "error" => "Falta parámetro obligatorio: usuario_hijo_id"], JSON_UNESCAPED_UNICODE));
-}
-
-if ($usuario_padre_id === $usuario_hijo_id) {
-  http_response_code(400);
-  die(json_encode(["ok" => false, "error" => "Un usuario no puede reportarse a sí mismo"], JSON_UNESCAPED_UNICODE));
-}
-
-$fecha_inicio = isset($in['fecha_inicio']) && trim((string)$in['fecha_inicio']) !== ''
-  ? trim((string)$in['fecha_inicio'])
-  : date('Y-m-d');
-
-$fecha_fin = value_or_null($in, 'fecha_fin');
-$activo = array_key_exists('activo', $in) ? (int)$in['activo'] : 1;
-$created_by = array_key_exists('created_by', $in) && $in['created_by'] !== null ? (int)$in['created_by'] : null;
-
-$con = conectar();
-if (!$con) {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se pudo conectar a la base de datos"], JSON_UNESCAPED_UNICODE));
-}
-
-$con->set_charset('utf8mb4');
-$con->query("SET time_zone='-06:00'");
-
-/* Validar usuario padre */
-$st = $con->prepare("
-  SELECT usuario_id
-  FROM usuario
-  WHERE usuario_id = ?
-    AND deleted_at IS NULL
-  LIMIT 1
-");
-$st->bind_param("i", $usuario_padre_id);
-$st->execute();
-$padre = $st->get_result()->fetch_assoc();
-$st->close();
-
-if (!$padre) {
-  $con->close();
-  http_response_code(400);
-  die(json_encode(["ok" => false, "error" => "usuario_padre_id inválido"], JSON_UNESCAPED_UNICODE));
-}
-
-/* Validar usuario hijo */
-$st = $con->prepare("
-  SELECT usuario_id
-  FROM usuario
-  WHERE usuario_id = ?
-    AND deleted_at IS NULL
-  LIMIT 1
-");
-$st->bind_param("i", $usuario_hijo_id);
-$st->execute();
-$hijo = $st->get_result()->fetch_assoc();
-$st->close();
-
-if (!$hijo) {
-  $con->close();
-  http_response_code(400);
-  die(json_encode(["ok" => false, "error" => "usuario_hijo_id inválido"], JSON_UNESCAPED_UNICODE));
-}
-
-$con->begin_transaction();
-
-try {
-  $sql = "
-    INSERT INTO usuario_jerarquia (
-      usuario_padre_id,
-      usuario_hijo_id,
-      fecha_inicio,
-      fecha_fin,
-      activo,
-      created_by
-    )
-    VALUES (?, ?, ?, ?, ?, ?)
-  ";
-
-  $st = $con->prepare($sql);
-  $st->bind_param(
-    "iissii",
+  $params = [
     $usuario_padre_id,
     $usuario_hijo_id,
     $fecha_inicio,
-    $fecha_fin,
-    $activo,
-    $created_by
-  );
+    $activo
+  ];
 
-  if (!$st->execute()) {
-    $code = $st->errno;
-    $err = $st->error;
-    $st->close();
-    throw new Exception($err, $code);
+  $types = "iisi";
+
+  if ($fecha_fin !== null) {
+    $columns[] = "fecha_fin";
+    $placeholders[] = "?";
+    $params[] = $fecha_fin;
+    $types .= "s";
   }
 
+  if ($created_by !== null) {
+    $columns[] = "created_by";
+    $placeholders[] = "?";
+    $params[] = $created_by;
+    $types .= "i";
+  }
+
+  if ($updated_by !== null) {
+    $columns[] = "updated_by";
+    $placeholders[] = "?";
+    $params[] = $updated_by;
+    $types .= "i";
+  }
+
+  $sql = "
+    INSERT INTO usuario_jerarquia (
+      " . implode(", ", $columns) . "
+    )
+    VALUES (
+      " . implode(", ", $placeholders) . "
+    )
+  ";
+
+  $st = $con->prepare($sql);
+  bind_dynamic($st, $types, $params);
+  $st->execute();
+
   $usuario_jerarquia_id = (int)$con->insert_id;
+
   $st->close();
 
-  $data = jerarquia_response($con, $usuario_jerarquia_id);
+  return obtener_jerarquia($con, $usuario_jerarquia_id);
+}
 
-  $con->commit();
+/* ============================================================
+   MAIN
+   ============================================================ */
 
-} catch (Exception $e) {
-  $con->rollback();
+try {
+  if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    json_response([
+      "ok" => false,
+      "error" => "Método no permitido. Usa POST."
+    ], 405);
+  }
 
-  $code = $e->getCode();
-  $msg = $e->getMessage();
+  $in = read_json_body();
+  $con = db();
+
+  $con->begin_transaction();
+
+  try {
+    $data = insertar_usuario_jerarquia($con, $in);
+    $con->commit();
+  } catch (Throwable $e) {
+    $con->rollback();
+    throw $e;
+  }
 
   $con->close();
 
-  if ($code == 1062) {
-    http_response_code(409);
-    die(json_encode([
-      "ok" => false,
-      "error" => "Ya existe esa relación jerárquica",
-      "detail" => $msg,
-      "code" => $code
-    ], JSON_UNESCAPED_UNICODE));
+  json_response([
+    "ok" => true,
+    "message" => "Relación de jerarquía creada correctamente",
+    "data" => $data
+  ], 201);
+} catch (mysqli_sql_exception $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
   }
 
-  if ($code == 1452) {
-    http_response_code(400);
-    die(json_encode([
+  $code = (int)$e->getCode();
+  $msg = $e->getMessage();
+
+  error_log('[IXTLA_I_USUARIO_JERARQUIA][SQL] ' . $msg);
+
+  if ($code === 1062) {
+    json_response([
       "ok" => false,
-      "error" => "FK inválida. Revisa usuario_padre_id o usuario_hijo_id",
-      "detail" => $msg,
-      "code" => $code
-    ], JSON_UNESCAPED_UNICODE));
+      "error" => "La relación de jerarquía ya existe",
+      "duplicate_field" => "usuario_padre_id_usuario_hijo_id"
+    ], 409);
   }
 
-  if ($code == 3819 || stripos($msg, 'chk_jerarquia_no_mismo_usuario') !== false) {
-    http_response_code(400);
-    die(json_encode([
+  if ($code === 1452) {
+    json_response([
       "ok" => false,
-      "error" => "Un usuario no puede reportarse a sí mismo",
-      "detail" => $msg,
-      "code" => $code
-    ], JSON_UNESCAPED_UNICODE));
+      "error" => "No se pudo crear la relación porque uno de los usuarios no existe"
+    ], 400);
   }
 
-  http_response_code(500);
-  die(json_encode([
+  if ($code === 3819 || stripos($msg, 'chk_jerarquia_no_mismo_usuario') !== false) {
+    json_response([
+      "ok" => false,
+      "error" => "El usuario padre y el usuario hijo no pueden ser el mismo"
+    ], 400);
+  }
+
+  json_response([
     "ok" => false,
-    "error" => "No se pudo crear la jerarquía",
-    "detail" => $msg,
-    "code" => $code
-  ], JSON_UNESCAPED_UNICODE));
+    "error" => "Error de base de datos"
+  ], 500);
+} catch (Throwable $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  error_log('[IXTLA_I_USUARIO_JERARQUIA][ERR] ' . $e->getMessage());
+
+  json_response([
+    "ok" => false,
+    "error" => "Error interno del servidor"
+  ], 500);
 }
-
-$con->close();
-
-echo json_encode([
-  "ok" => true,
-  "data" => $data
-], JSON_UNESCAPED_UNICODE);

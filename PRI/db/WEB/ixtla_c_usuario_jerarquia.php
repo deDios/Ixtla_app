@@ -7,8 +7,7 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 date_default_timezone_set('America/Mexico_City');
 
 /* ============================================================
-   CORS / SEGURIDAD
-   Mismas reglas base que ixtla_admin_service.php
+   CORS
    ============================================================ */
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -98,11 +97,12 @@ function db(): mysqli
 
   $con->set_charset('utf8mb4');
   $con->query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+  $con->query("SET time_zone='-06:00'");
 
   return $con;
 }
 
-function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void
+function bind_params(mysqli_stmt $stmt, string $types, array &$params): void
 {
   if ($types === '' || empty($params)) {
     return;
@@ -118,11 +118,6 @@ function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void
   call_user_func_array([$stmt, 'bind_param'], $refs);
 }
 
-function str_clean(array $in, string $key): string
-{
-  return isset($in[$key]) ? trim((string)$in[$key]) : '';
-}
-
 function int_or_null(array $in, string $key): ?int
 {
   if (!isset($in[$key]) || $in[$key] === '') {
@@ -134,14 +129,43 @@ function int_or_null(array $in, string $key): ?int
   return $value > 0 ? $value : null;
 }
 
+function str_clean(array $in, string $key): string
+{
+  return isset($in[$key]) ? trim((string)$in[$key]) : '';
+}
+
 function nullable_int_from_row(array $row, string $key): ?int
 {
   return isset($row[$key]) && $row[$key] !== null ? (int)$row[$key] : null;
 }
 
 /* ============================================================
-   FORMATTER
+   FORMATTERS
    ============================================================ */
+
+function usuario_min_row(array $row, string $prefix): array
+{
+  $nombreCompleto = trim(
+    (string)($row[$prefix . '_nombre'] ?? '') . ' ' .
+      (string)($row[$prefix . '_apellido_paterno'] ?? '') . ' ' .
+      (string)($row[$prefix . '_apellido_materno'] ?? '')
+  );
+
+  return [
+    "usuario_id" => nullable_int_from_row($row, $prefix . '_usuario_id'),
+    "uuid" => $row[$prefix . '_uuid'] ?? null,
+    "username" => $row[$prefix . '_username'] ?? null,
+    "persona_id" => nullable_int_from_row($row, $prefix . '_persona_id'),
+    "rol_id" => nullable_int_from_row($row, $prefix . '_rol_id'),
+    "nombre" => $row[$prefix . '_nombre'] ?? null,
+    "apellido_paterno" => $row[$prefix . '_apellido_paterno'] ?? null,
+    "apellido_materno" => $row[$prefix . '_apellido_materno'] ?? null,
+    "nombre_completo" => $nombreCompleto,
+    "email" => $row[$prefix . '_email'] ?? null,
+    "telefono" => $row[$prefix . '_telefono'] ?? null,
+    "estatus_id" => nullable_int_from_row($row, $prefix . '_estatus_id')
+  ];
+}
 
 function jerarquia_row(array $row): array
 {
@@ -149,46 +173,12 @@ function jerarquia_row(array $row): array
     "usuario_jerarquia_id" => (int)$row['usuario_jerarquia_id'],
     "usuario_padre_id" => (int)$row['usuario_padre_id'],
     "usuario_hijo_id" => (int)$row['usuario_hijo_id'],
-
-    "padre" => [
-      "usuario_id" => (int)$row['padre_usuario_id'],
-      "username" => $row['padre_username'],
-      "nombre" => $row['padre_nombre'],
-      "apellido_paterno" => $row['padre_apellido_paterno'],
-      "apellido_materno" => $row['padre_apellido_materno'],
-      "nombre_completo" => trim(
-        (string)$row['padre_nombre'] . ' ' .
-          (string)$row['padre_apellido_paterno'] . ' ' .
-          (string)$row['padre_apellido_materno']
-      ),
-      "email" => $row['padre_email'],
-      "rol" => [
-        "codigo" => $row['padre_rol_codigo'],
-        "nombre" => $row['padre_rol_nombre']
-      ]
-    ],
-
-    "hijo" => [
-      "usuario_id" => (int)$row['hijo_usuario_id'],
-      "username" => $row['hijo_username'],
-      "nombre" => $row['hijo_nombre'],
-      "apellido_paterno" => $row['hijo_apellido_paterno'],
-      "apellido_materno" => $row['hijo_apellido_materno'],
-      "nombre_completo" => trim(
-        (string)$row['hijo_nombre'] . ' ' .
-          (string)$row['hijo_apellido_paterno'] . ' ' .
-          (string)$row['hijo_apellido_materno']
-      ),
-      "email" => $row['hijo_email'],
-      "rol" => [
-        "codigo" => $row['hijo_rol_codigo'],
-        "nombre" => $row['hijo_rol_nombre']
-      ]
-    ],
-
     "fecha_inicio" => $row['fecha_inicio'],
     "fecha_fin" => $row['fecha_fin'],
     "activo" => (int)$row['activo'],
+
+    "padre" => usuario_min_row($row, 'padre'),
+    "hijo" => usuario_min_row($row, 'hijo'),
 
     "created_at" => $row['created_at'],
     "created_by" => nullable_int_from_row($row, 'created_by'),
@@ -204,64 +194,52 @@ function jerarquia_row(array $row): array
 function base_select(): string
 {
   return "
-        SELECT
-            uj.*,
+    SELECT
+      uj.usuario_jerarquia_id,
+      uj.usuario_padre_id,
+      uj.usuario_hijo_id,
+      uj.fecha_inicio,
+      uj.fecha_fin,
+      uj.activo,
+      uj.created_at,
+      uj.created_by,
+      uj.updated_at,
+      uj.updated_by,
 
-            up.usuario_id AS padre_usuario_id,
-            up.username AS padre_username,
-            up.nombre AS padre_nombre,
-            up.apellido_paterno AS padre_apellido_paterno,
-            up.apellido_materno AS padre_apellido_materno,
-            up.email AS padre_email,
-            rp.codigo AS padre_rol_codigo,
-            rp.nombre AS padre_rol_nombre,
+      up.usuario_id AS padre_usuario_id,
+      up.uuid AS padre_uuid,
+      up.username AS padre_username,
+      up.persona_id AS padre_persona_id,
+      up.rol_id AS padre_rol_id,
+      up.nombre AS padre_nombre,
+      up.apellido_paterno AS padre_apellido_paterno,
+      up.apellido_materno AS padre_apellido_materno,
+      up.email AS padre_email,
+      up.telefono AS padre_telefono,
+      up.estatus_id AS padre_estatus_id,
 
-            uh.usuario_id AS hijo_usuario_id,
-            uh.username AS hijo_username,
-            uh.nombre AS hijo_nombre,
-            uh.apellido_paterno AS hijo_apellido_paterno,
-            uh.apellido_materno AS hijo_apellido_materno,
-            uh.email AS hijo_email,
-            rh.codigo AS hijo_rol_codigo,
-            rh.nombre AS hijo_rol_nombre
+      uh.usuario_id AS hijo_usuario_id,
+      uh.uuid AS hijo_uuid,
+      uh.username AS hijo_username,
+      uh.persona_id AS hijo_persona_id,
+      uh.rol_id AS hijo_rol_id,
+      uh.nombre AS hijo_nombre,
+      uh.apellido_paterno AS hijo_apellido_paterno,
+      uh.apellido_materno AS hijo_apellido_materno,
+      uh.email AS hijo_email,
+      uh.telefono AS hijo_telefono,
+      uh.estatus_id AS hijo_estatus_id
 
-        FROM usuario_jerarquia uj
+    FROM usuario_jerarquia uj
 
-        INNER JOIN usuario up
-            ON up.usuario_id = uj.usuario_padre_id
-           AND up.deleted_at IS NULL
+    INNER JOIN usuario up
+      ON up.usuario_id = uj.usuario_padre_id
+     AND up.deleted_at IS NULL
 
-        INNER JOIN usuario uh
-            ON uh.usuario_id = uj.usuario_hijo_id
-           AND uh.deleted_at IS NULL
-
-        INNER JOIN cat_rol rp
-            ON rp.rol_id = up.rol_id
-
-        INNER JOIN cat_rol rh
-            ON rh.rol_id = uh.rol_id
-    ";
-}
-
-function base_count(): string
-{
-  return "
-        FROM usuario_jerarquia uj
-
-        INNER JOIN usuario up
-            ON up.usuario_id = uj.usuario_padre_id
-           AND up.deleted_at IS NULL
-
-        INNER JOIN usuario uh
-            ON uh.usuario_id = uj.usuario_hijo_id
-           AND uh.deleted_at IS NULL
-
-        INNER JOIN cat_rol rp
-            ON rp.rol_id = up.rol_id
-
-        INNER JOIN cat_rol rh
-            ON rh.rol_id = uh.rol_id
-    ";
+    INNER JOIN usuario uh
+      ON uh.usuario_id = uj.usuario_hijo_id
+     AND uh.deleted_at IS NULL
+  ";
 }
 
 /* ============================================================
@@ -271,9 +249,9 @@ function base_count(): string
 function consultar_jerarquia_por_id(mysqli $con, int $usuario_jerarquia_id): array
 {
   $sql = base_select() . "
-        WHERE uj.usuario_jerarquia_id = ?
-        LIMIT 1
-    ";
+    WHERE uj.usuario_jerarquia_id = ?
+    LIMIT 1
+  ";
 
   $st = $con->prepare($sql);
   $st->bind_param("i", $usuario_jerarquia_id);
@@ -285,7 +263,7 @@ function consultar_jerarquia_por_id(mysqli $con, int $usuario_jerarquia_id): arr
   if (!$row) {
     json_response([
       "ok" => false,
-      "error" => "Jerarquía no encontrada"
+      "error" => "Relación de jerarquía no encontrada"
     ], 404);
   }
 
@@ -294,23 +272,22 @@ function consultar_jerarquia_por_id(mysqli $con, int $usuario_jerarquia_id): arr
 
 function consultar_jerarquias(mysqli $con, array $in): array
 {
-  $usuario_padre_id = int_or_null($in, 'usuario_padre_id');
-  $usuario_hijo_id = int_or_null($in, 'usuario_hijo_id');
-
   $q = str_clean($in, 'q');
 
   if ($q === '') {
     $q = str_clean($in, 'search');
   }
 
+  $usuario_padre_id = int_or_null($in, 'usuario_padre_id');
+  $usuario_hijo_id = int_or_null($in, 'usuario_hijo_id');
+  $created_by = int_or_null($in, 'created_by');
+  $updated_by = int_or_null($in, 'updated_by');
+
   $activo = null;
 
   if (array_key_exists('activo', $in) && $in['activo'] !== '') {
-    $activo = (int)$in['activo'];
-    $activo = $activo === 1 ? 1 : 0;
+    $activo = ((int)$in['activo']) === 1 ? 1 : 0;
   }
-
-  $solo_vigentes = !empty($in['solo_vigentes']);
 
   $page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
 
@@ -325,7 +302,7 @@ function consultar_jerarquias(mysqli $con, array $in): array
   $pageSize = max(1, min(500, $pageSize));
   $offset = ($page - 1) * $pageSize;
 
-  $where = ["1 = 1"];
+  $where = [];
   $params = [];
   $types = "";
 
@@ -347,55 +324,69 @@ function consultar_jerarquias(mysqli $con, array $in): array
     $types .= "i";
   }
 
-  if ($solo_vigentes) {
-    $where[] = "uj.activo = 1";
-    $where[] = "uj.fecha_fin IS NULL";
+  if ($created_by !== null) {
+    $where[] = "uj.created_by = ?";
+    $params[] = $created_by;
+    $types .= "i";
+  }
+
+  if ($updated_by !== null) {
+    $where[] = "uj.updated_by = ?";
+    $params[] = $updated_by;
+    $types .= "i";
   }
 
   if ($q !== '') {
     $like = "%$q%";
 
     $where[] = "(
-            up.username LIKE ?
-            OR up.nombre LIKE ?
-            OR up.apellido_paterno LIKE ?
-            OR up.apellido_materno LIKE ?
-            OR CONCAT_WS(' ', up.nombre, up.apellido_paterno, up.apellido_materno) LIKE ?
-            OR up.email LIKE ?
-            OR rp.codigo LIKE ?
-            OR rp.nombre LIKE ?
+      up.username LIKE ?
+      OR up.nombre LIKE ?
+      OR up.apellido_paterno LIKE ?
+      OR up.apellido_materno LIKE ?
+      OR CONCAT_WS(' ', up.nombre, up.apellido_paterno, up.apellido_materno) LIKE ?
+      OR up.email LIKE ?
+      OR up.telefono LIKE ?
 
-            OR uh.username LIKE ?
-            OR uh.nombre LIKE ?
-            OR uh.apellido_paterno LIKE ?
-            OR uh.apellido_materno LIKE ?
-            OR CONCAT_WS(' ', uh.nombre, uh.apellido_paterno, uh.apellido_materno) LIKE ?
-            OR uh.email LIKE ?
-            OR rh.codigo LIKE ?
-            OR rh.nombre LIKE ?
-        )";
+      OR uh.username LIKE ?
+      OR uh.nombre LIKE ?
+      OR uh.apellido_paterno LIKE ?
+      OR uh.apellido_materno LIKE ?
+      OR CONCAT_WS(' ', uh.nombre, uh.apellido_paterno, uh.apellido_materno) LIKE ?
+      OR uh.email LIKE ?
+      OR uh.telefono LIKE ?
+    )";
 
-    for ($i = 0; $i < 16; $i++) {
+    for ($i = 0; $i < 14; $i++) {
       $params[] = $like;
       $types .= "s";
     }
   }
 
-  $whereSql = implode(" AND ", $where);
+  $whereSql = !empty($where)
+    ? "WHERE " . implode(" AND ", $where)
+    : "";
 
   $countSql = "
-        SELECT COUNT(*) AS total
-        " . base_count() . "
-        WHERE $whereSql
-    ";
+    SELECT COUNT(*) AS total
+    FROM usuario_jerarquia uj
 
-  $countParams = $params;
-  $countTypes = $types;
+    INNER JOIN usuario up
+      ON up.usuario_id = uj.usuario_padre_id
+     AND up.deleted_at IS NULL
+
+    INNER JOIN usuario uh
+      ON uh.usuario_id = uj.usuario_hijo_id
+     AND uh.deleted_at IS NULL
+
+    $whereSql
+  ";
 
   $stCount = $con->prepare($countSql);
 
-  if ($countTypes !== '') {
-    bind_dynamic($stCount, $countTypes, $countParams);
+  if ($types !== '') {
+    $countParams = $params;
+    bind_params($stCount, $types, $countParams);
   }
 
   $stCount->execute();
@@ -405,13 +396,13 @@ function consultar_jerarquias(mysqli $con, array $in): array
   $total = (int)($totalRow['total'] ?? 0);
 
   $sql = base_select() . "
-        WHERE $whereSql
-        ORDER BY
-            uj.activo DESC,
-            uj.fecha_inicio DESC,
-            uj.usuario_jerarquia_id DESC
-        LIMIT ? OFFSET ?
-    ";
+    $whereSql
+    ORDER BY
+      uj.activo DESC,
+      uj.fecha_inicio DESC,
+      uj.usuario_jerarquia_id DESC
+    LIMIT ? OFFSET ?
+  ";
 
   $listParams = $params;
   $listTypes = $types . "ii";
@@ -420,7 +411,7 @@ function consultar_jerarquias(mysqli $con, array $in): array
   $listParams[] = $offset;
 
   $st = $con->prepare($sql);
-  bind_dynamic($st, $listTypes, $listParams);
+  bind_params($st, $listTypes, $listParams);
   $st->execute();
 
   $rs = $st->get_result();
@@ -470,7 +461,6 @@ try {
 
   if ($usuario_jerarquia_id && $usuario_jerarquia_id > 0) {
     $data = consultar_jerarquia_por_id($con, $usuario_jerarquia_id);
-
     $con->close();
 
     json_response([
@@ -480,7 +470,6 @@ try {
   }
 
   $result = consultar_jerarquias($con, $in);
-
   $con->close();
 
   json_response([
@@ -500,7 +489,7 @@ try {
 
   json_response([
     "ok" => false,
-    "error" => "Error al consultar jerarquía de usuarios"
+    "error" => "Error de base de datos"
   ], 500);
 } catch (Throwable $e) {
   if (isset($con) && $con instanceof mysqli) {
@@ -510,7 +499,7 @@ try {
     }
   }
 
-  error_log('[IXTLA_C_USUARIO_JERARQUIA][ERROR] ' . $e->getMessage());
+  error_log('[IXTLA_C_USUARIO_JERARQUIA][ERR] ' . $e->getMessage());
 
   json_response([
     "ok" => false,
