@@ -71,6 +71,7 @@ const State = {
     territorios: [],
     secciones: [],
     pendingReviewSubmit: null,
+    pendingDuplicateUpdate: null,
 
     captures: {
         front: null,
@@ -98,6 +99,16 @@ const SEL = {
     btnNext: "#ine-btn-next",
     btnSummaryRetry: "#ine-btn-summary-retry",
     btnReadData: "#ine-btn-read-data",
+
+    btnUseCamera: "#ine-btn-use-camera",
+    btnUseUpload: "#ine-btn-use-upload",
+
+    uploadFront: "#ine-upload-front",
+    uploadBack: "#ine-upload-back",
+    uploadPreviewFront: "#ine-upload-preview-front",
+    uploadPreviewBack: "#ine-upload-preview-back",
+    btnUploadBack: "#ine-btn-upload-back",
+    btnUploadContinue: "#ine-btn-upload-continue",
 
     previewFront: "#ine-preview-front",
     previewBack: "#ine-preview-back",
@@ -266,7 +277,8 @@ function resetCaptureFlow() {
     if (front) front.removeAttribute("src");
     if (back) back.removeAttribute("src");
 
-    prepareCaptureStep("front");
+    clearUploadInputs();
+    showScreen("method");
 }
 
 function lockCaptureButton(isLocked, text = "Capturar") {
@@ -275,6 +287,171 @@ function lockCaptureButton(isLocked, text = "Capturar") {
 
     btnCapture.disabled = Boolean(isLocked);
     btnCapture.textContent = text;
+}
+
+function getDeviceContext() {
+    const ua = navigator.userAgent || "";
+    const platform = navigator.platform || "";
+    const maxTouchPoints = navigator.maxTouchPoints || 0;
+
+    const isIPhone = /iPhone/i.test(ua);
+    const isIPad =
+        /iPad/i.test(ua) ||
+        (platform === "MacIntel" && maxTouchPoints > 1);
+
+    const isAndroid = /Android/i.test(ua);
+    const isMobileUA = /Mobi|Android|iPhone|iPod/i.test(ua);
+    const isTouch = maxTouchPoints > 0;
+    const isSmallScreen = window.matchMedia("(max-width: 900px)").matches;
+
+    const isTablet =
+        isIPad ||
+        (isAndroid && !/Mobile/i.test(ua)) ||
+        (isTouch && window.matchMedia("(min-width: 721px) and (max-width: 1180px)").matches);
+
+    const isMobile =
+        isIPhone ||
+        (isAndroid && /Mobile/i.test(ua)) ||
+        (isMobileUA && isSmallScreen);
+
+    const isDesktop = !isMobile && !isTablet;
+
+    return {
+        isMobile,
+        isTablet,
+        isIPhone,
+        isIPad,
+        isAndroid,
+        isTouch,
+        isSmallScreen,
+        isDesktop,
+        preferCamera: isMobile || isTablet,
+        preferUpload: isDesktop,
+    };
+}
+
+function openPreferredCaptureMethod() {
+    const device = getDeviceContext();
+
+    if (device.preferUpload) {
+        showScreen("upload");
+        return;
+    }
+
+    showScreen("method");
+}
+
+function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("No se pudo leer la imagen seleccionada."));
+
+        reader.readAsDataURL(file);
+    });
+}
+
+function dataUrlToCanvas(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+
+            const ctx = canvas.getContext("2d", { alpha: false });
+
+            if (!ctx) {
+                reject(new Error("No se pudo preparar la imagen."));
+                return;
+            }
+
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            resolve(canvas);
+        };
+
+        img.onerror = () => reject(new Error("La imagen seleccionada no se pudo cargar."));
+        img.src = dataUrl;
+    });
+}
+
+function syncUploadContinueButton() {
+    const btn = $(SEL.btnUploadContinue);
+    if (!btn) return;
+
+    btn.disabled = !(State.captures.front && State.captures.back);
+}
+
+function clearUploadInputs() {
+    const inputFront = $(SEL.uploadFront);
+    const inputBack = $(SEL.uploadBack);
+    const previewFront = $(SEL.uploadPreviewFront);
+    const previewBack = $(SEL.uploadPreviewBack);
+
+    if (inputFront) inputFront.value = "";
+    if (inputBack) inputBack.value = "";
+
+    if (previewFront) {
+        previewFront.removeAttribute("src");
+        previewFront.hidden = true;
+    }
+
+    if (previewBack) {
+        previewBack.removeAttribute("src");
+        previewBack.hidden = true;
+    }
+
+    syncUploadContinueButton();
+}
+
+async function handleUploadFile(side, file) {
+    if (!file) return;
+
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+        toast("Solo se permiten imágenes JPG, PNG o WEBP.", "warning", 5000);
+        return;
+    }
+
+    try {
+        const dataUrl = await fileToDataUrl(file);
+        const canvas = await dataUrlToCanvas(dataUrl);
+
+        const capture = await compressCanvasCapture(canvas, {
+            ...CONFIG.MEDIA,
+            label: `upload-${side}`,
+        });
+
+        State.captures[side] = normalizeCaptureObject(capture);
+
+        const previewSelector = side === "front"
+            ? SEL.uploadPreviewFront
+            : SEL.uploadPreviewBack;
+
+        const preview = $(previewSelector);
+
+        if (preview) {
+            preview.src = getCaptureDataUrl(State.captures[side]);
+            preview.hidden = false;
+        }
+
+        syncUploadContinueButton();
+
+        toast(
+            side === "front"
+                ? "Frente cargado correctamente."
+                : "Reverso cargado correctamente.",
+            "exito",
+            3000
+        );
+    } catch (err) {
+        console.error("[RED upload INE error]", err);
+        toast(err?.message || "No se pudo cargar la imagen.", "error", 6000);
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -665,6 +842,66 @@ function getDuplicateOwnerLabel(existingPersona) {
     return nombre || username || "un usuario del sistema";
 }
 
+async function runDuplicateUpdate(duplicateData, btn = null) {
+    const originalText = btn?.textContent || "Actualizar datos";
+
+    if (!duplicateData?.existingPersona?.persona_id) {
+        toast("No se encontró la persona existente para actualizar.", "error", 7000);
+        return;
+    }
+
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = "Actualizando...";
+        }
+
+        const saved = await updateDuplicatePersonaAndFiles(duplicateData);
+
+        console.log("[RED duplicate updated]", saved);
+
+        if (saved.erroresArchivo.length) {
+            toast("Datos actualizados, pero una o más fotos no pudieron registrarse.", "warning", 7000);
+        } else {
+            toast("Datos y fotos actualizados correctamente.", "exito", 6000);
+        }
+
+        closeDuplicateModal();
+        closeReviewModal();
+        resetCaptureFlow();
+
+        if (CONFIG.SAVE.reloadPageAfterSave) {
+            window.setTimeout(() => {
+                window.location.reload();
+            }, CONFIG.SAVE.reloadDelayMs);
+        }
+    } catch (err) {
+        console.error("[RED duplicate update error]", err);
+        toast(err?.message || "No se pudieron actualizar los datos.", "error", 9000);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    }
+}
+
+async function handleDuplicateUpdateRequest(duplicateData, btn = null) {
+    const payload = collectReviewPayload();
+
+    if (!validateReviewPayload(payload)) return;
+
+    const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(payload);
+
+    if (needsResidenceModal) {
+        State.pendingDuplicateUpdate = duplicateData;
+        await openResidenceModal(payload);
+        return;
+    }
+
+    await runDuplicateUpdate(duplicateData, btn);
+}
+
 function ensureDuplicateModal() {
     const modal = $(SEL.duplicateModal);
 
@@ -684,47 +921,8 @@ function ensureDuplicateModal() {
     modal.querySelector(SEL.duplicateUpdate)?.addEventListener("click", async () => {
         const duplicateData = modal.__duplicateData || null;
         const btn = modal.querySelector(SEL.duplicateUpdate);
-        const originalText = btn?.textContent || "Actualizar datos";
 
-        if (!duplicateData?.existingPersona?.persona_id) {
-            toast("No se encontró la persona existente para actualizar.", "error", 7000);
-            return;
-        }
-
-        try {
-            if (btn) {
-                btn.disabled = true;
-                btn.textContent = "Actualizando...";
-            }
-
-            const saved = await updateDuplicatePersonaAndFiles(duplicateData);
-
-            console.log("[RED duplicate updated]", saved);
-
-            if (saved.erroresArchivo.length) {
-                toast("Datos actualizados, pero una o más fotos no pudieron registrarse.", "warning", 7000);
-            } else {
-                toast("Datos y fotos actualizados correctamente.", "exito", 6000);
-            }
-
-            closeDuplicateModal();
-            closeReviewModal();
-            resetCaptureFlow();
-
-            if (CONFIG.SAVE.reloadPageAfterSave) {
-                window.setTimeout(() => {
-                    window.location.reload();
-                }, CONFIG.SAVE.reloadDelayMs);
-            }
-        } catch (err) {
-            console.error("[RED duplicate update error]", err);
-            toast(err?.message || "No se pudieron actualizar los datos.", "error", 9000);
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.textContent = originalText;
-            }
-        }
+        await handleDuplicateUpdateRequest(duplicateData, btn);
     });
 
     modal.dataset.bound = "1";
@@ -1557,6 +1755,14 @@ function normalizeYear(value) {
     return match ? match[0] : "";
 }
 
+function normalizeEmision(value) {
+    const clean = onlyDigits(value);
+
+    if (!clean) return "";
+
+    return clean.slice(0, 2).padStart(2, "0");
+}
+
 function normalizeFieldName(value) {
     return String(value || "")
         .trim()
@@ -1813,12 +2019,13 @@ function buildPersonaFromFields(fields) {
             "anio_de_registro",
         ])),
 
-        emision: normalizeYear(findExtractedValue(fields, [
+        emision: normalizeEmision(findExtractedValue(fields, [
             "emision",
             "emisión",
-            "anio_emision",
-            "año_emision",
-            "ano_emision",
+            "numero_emision",
+            "número_emisión",
+            "num_emision",
+            "emission",
         ])),
 
         vigencia_inicio: normalizeYear(findExtractedValue(fields, [
@@ -2549,8 +2756,12 @@ function bindResidenceModalEvents() {
     });
 
     $(SEL.residenceNo)?.addEventListener("click", () => {
+        State.pendingDuplicateUpdate = null;
+
         closeResidenceModal();
         closeReviewModal();
+        closeDuplicateModal();
+
         toast(
             "Solo se pueden dar de alta ciudadanos de Ixtlahuacán de los Membrillos.",
             "warning",
@@ -2596,10 +2807,19 @@ function bindResidenceModalEvents() {
 
         closeResidenceModal({ clearPending: false });
 
+        const pendingDuplicate = State.pendingDuplicateUpdate;
+
+        if (pendingDuplicate) {
+            State.pendingDuplicateUpdate = null;
+            await runDuplicateUpdate(pendingDuplicate, $(SEL.duplicateUpdate));
+            return;
+        }
+
         const form = $(SEL.reviewForm);
         if (form) {
             form.requestSubmit();
         }
+
     });
 }
 
@@ -2628,7 +2848,7 @@ async function openCaptureModal() {
     resetCaptureFlow();
     setModalOpen(true);
 
-    await startCamera();
+    openPreferredCaptureMethod();
 }
 
 function hideCaptureModalWithoutReset() {
@@ -2684,15 +2904,48 @@ function bindCaptureModalEvents() {
         btn.addEventListener("click", closeCaptureModal);
     });
 
+    $(SEL.btnUseCamera)?.addEventListener("click", async () => {
+        prepareCaptureStep("front");
+        await startCamera();
+    });
+
+    $(SEL.btnUseUpload)?.addEventListener("click", () => {
+        stopCamera();
+        clearUploadInputs();
+        showScreen("upload");
+    });
+
+    $(SEL.uploadFront)?.addEventListener("change", async (event) => {
+        await handleUploadFile("front", event.target.files?.[0] || null);
+    });
+
+    $(SEL.uploadBack)?.addEventListener("change", async (event) => {
+        await handleUploadFile("back", event.target.files?.[0] || null);
+    });
+
+    $(SEL.btnUploadBack)?.addEventListener("click", () => {
+        clearUploadInputs();
+        openPreferredCaptureMethod();
+    });
+
+    $(SEL.btnUploadContinue)?.addEventListener("click", () => {
+        if (!State.captures.front || !State.captures.back) {
+            toast("Sube el frente y reverso de la INE.", "warning", 4500);
+            return;
+        }
+
+        showSummary();
+    });
+
     $(SEL.btnCapture)?.addEventListener("click", captureCurrentStep);
     $(SEL.btnRetry)?.addEventListener("click", retryCurrentStep);
     $(SEL.btnNext)?.addEventListener("click", continueFlow);
 
-    $(SEL.btnSummaryRetry)?.addEventListener("click", async () => {
+    $(SEL.btnSummaryRetry)?.addEventListener("click", () => {
         stopCamera();
         resetCaptureFlow();
         setModalOpen(true);
-        await startCamera();
+        openPreferredCaptureMethod();
     });
 
     $(SEL.btnReadData)?.addEventListener("click", processOpenAIData);

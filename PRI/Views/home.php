@@ -166,8 +166,31 @@ ix_require_session([
 
             <div class="ine-capture-body">
 
+                <!-- Pantalla método -->
+                <section class="ine-capture-screen is-active" data-ine-screen="method">
+                    <div class="ine-method-card">
+                        <p class="ine-method-kicker">Captura INE</p>
+                        <h3>Selecciona cómo cargar la identificación</h3>
+                        <p>
+                            Puedes usar la cámara del dispositivo o subir imágenes ya tomadas del frente y reverso.
+                        </p>
+
+                        <div class="ine-method-actions">
+                            <button type="button" id="ine-btn-use-camera"
+                                class="ine-capture-btn ine-capture-btn--primary">
+                                Usar cámara
+                            </button>
+
+                            <button type="button" id="ine-btn-use-upload"
+                                class="ine-capture-btn ine-capture-btn--ghost">
+                                Subir imágenes
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Pantalla cámara -->
-                <section class="ine-capture-screen is-active" data-ine-screen="camera">
+                <section class="ine-capture-screen" data-ine-screen="camera">
                     <div class="ine-camera-stage" data-step="front" data-state="idle">
                         <video id="ine-camera-video" class="ine-camera-video" autoplay playsinline muted></video>
                         <canvas id="ine-camera-canvas" class="ine-camera-canvas" hidden></canvas>
@@ -209,6 +232,46 @@ ix_require_session([
                                     Continuar
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Pantalla subir imágenes -->
+                <section class="ine-capture-screen" data-ine-screen="upload">
+                    <div class="ine-upload-card">
+                        <p class="ine-method-kicker">Carga manual</p>
+                        <h3>Sube las imágenes de la INE</h3>
+                        <p>
+                            Selecciona una imagen del frente y una del reverso.
+                            Formatos permitidos: JPG, PNG o WEBP.
+                        </p>
+
+                        <div class="ine-upload-grid">
+                            <label class="ine-upload-box" for="ine-upload-front">
+                                <span>Frente de la INE</span>
+                                <input type="file" id="ine-upload-front" accept="image/jpeg,image/png,image/webp">
+                                <img id="ine-upload-preview-front" alt="Vista previa frente" hidden>
+                                <small>Seleccionar frente</small>
+                            </label>
+
+                            <label class="ine-upload-box" for="ine-upload-back">
+                                <span>Reverso de la INE</span>
+                                <input type="file" id="ine-upload-back" accept="image/jpeg,image/png,image/webp">
+                                <img id="ine-upload-preview-back" alt="Vista previa reverso" hidden>
+                                <small>Seleccionar reverso</small>
+                            </label>
+                        </div>
+
+                        <div class="ine-summary-actions">
+                            <button type="button" id="ine-btn-upload-back"
+                                class="ine-capture-btn ine-capture-btn--ghost">
+                                Volver
+                            </button>
+
+                            <button type="button" id="ine-btn-upload-continue"
+                                class="ine-capture-btn ine-capture-btn--primary" disabled>
+                                Ver capturas
+                            </button>
                         </div>
                     </div>
                 </section>
@@ -374,8 +437,8 @@ ix_require_session([
 
                             <label class="ine-review-field">
                                 <span>Emisión</span>
-                                <input type="number" id="ine-review-emision" name="emision" min="1900" max="2100"
-                                    placeholder="00">
+                                <input type="text" id="ine-review-emision" name="emision" inputmode="numeric"
+                                    maxlength="2" pattern="[0-9]{1,2}" placeholder="00">
                             </label>
 
                             <label class="ine-review-field">
