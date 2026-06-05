@@ -72,6 +72,7 @@ const State = {
     secciones: [],
     pendingReviewSubmit: null,
     pendingDuplicateUpdate: null,
+    residenceContext: null,
 
     captures: {
         front: null,
@@ -330,11 +331,17 @@ function getDeviceContext() {
     };
 }
 
-function openPreferredCaptureMethod() {
+async function openPreferredCaptureMethod() {
     const device = getDeviceContext();
 
     if (device.preferUpload) {
         showScreen("upload");
+        return;
+    }
+
+    if (device.preferCamera) {
+        prepareCaptureStep("front");
+        await startCamera();
         return;
     }
 
@@ -780,8 +787,9 @@ function enableResidenceFields() {
     seccionToggle?.focus();
 }
 
-async function openResidenceModal(pendingPayload) {
+async function openResidenceModal(pendingPayload, context = "save") {
     State.pendingReviewSubmit = pendingPayload || null;
+    State.residenceContext = context;
 
     resetResidenceModal();
 
@@ -895,7 +903,7 @@ async function handleDuplicateUpdateRequest(duplicateData, btn = null) {
 
     if (needsResidenceModal) {
         State.pendingDuplicateUpdate = duplicateData;
-        await openResidenceModal(payload);
+        await openResidenceModal(payload, "duplicate");
         return;
     }
 
@@ -2218,6 +2226,15 @@ function openReviewModal(payload) {
 
     setReviewModalOpen(true);
 
+    window.setTimeout(async () => {
+        const reviewPayload = collectReviewPayload();
+        const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(reviewPayload);
+
+        if (needsResidenceModal) {
+            await openResidenceModal(reviewPayload, "review");
+        }
+    }, 0);
+
     log("Modal de revisión abierto:", payload);
 }
 
@@ -2689,7 +2706,7 @@ async function handleReviewSubmit(event) {
         const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(payload);
 
         if (needsResidenceModal) {
-            await openResidenceModal(payload);
+            await openResidenceModal(payload, "save");
             return;
         }
     }
@@ -2757,6 +2774,8 @@ function bindResidenceModalEvents() {
 
     $(SEL.residenceNo)?.addEventListener("click", () => {
         State.pendingDuplicateUpdate = null;
+        State.pendingReviewSubmit = null;
+        State.residenceContext = null;
 
         closeResidenceModal();
         closeReviewModal();
@@ -2807,11 +2826,19 @@ function bindResidenceModalEvents() {
 
         closeResidenceModal({ clearPending: false });
 
+        const residenceContext = State.residenceContext;
+        State.residenceContext = null;
+
         const pendingDuplicate = State.pendingDuplicateUpdate;
 
         if (pendingDuplicate) {
             State.pendingDuplicateUpdate = null;
             await runDuplicateUpdate(pendingDuplicate, $(SEL.duplicateUpdate));
+            return;
+        }
+
+        if (residenceContext === "review") {
+            State.pendingReviewSubmit = null;
             return;
         }
 
@@ -2848,7 +2875,7 @@ async function openCaptureModal() {
     resetCaptureFlow();
     setModalOpen(true);
 
-    openPreferredCaptureMethod();
+    await openPreferredCaptureMethod();
 }
 
 function hideCaptureModalWithoutReset() {
@@ -2923,9 +2950,9 @@ function bindCaptureModalEvents() {
         await handleUploadFile("back", event.target.files?.[0] || null);
     });
 
-    $(SEL.btnUploadBack)?.addEventListener("click", () => {
+    $(SEL.btnUploadBack)?.addEventListener("click", async () => {
         clearUploadInputs();
-        openPreferredCaptureMethod();
+        await openPreferredCaptureMethod();
     });
 
     $(SEL.btnUploadContinue)?.addEventListener("click", () => {
@@ -2941,11 +2968,11 @@ function bindCaptureModalEvents() {
     $(SEL.btnRetry)?.addEventListener("click", retryCurrentStep);
     $(SEL.btnNext)?.addEventListener("click", continueFlow);
 
-    $(SEL.btnSummaryRetry)?.addEventListener("click", () => {
+    $(SEL.btnSummaryRetry)?.addEventListener("click", async () => {
         stopCamera();
         resetCaptureFlow();
         setModalOpen(true);
-        openPreferredCaptureMethod();
+        await openPreferredCaptureMethod();
     });
 
     $(SEL.btnReadData)?.addEventListener("click", processOpenAIData);
