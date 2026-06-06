@@ -10,6 +10,11 @@ const CONFIG = {
   ENDPOINT_ARCHIVOS: "/PRI/db/WEB/ixtla_c_archivo.php",
 };
 
+//cordinador general = ve todo
+//cordinador de zona = ve sus registros + los de sus hijos (endpoint c_usuario_jerarquia.php)
+//cordinador general = ve sus registros + los de sus hijos (endpoint c_usuario_jerarquia.php)
+//cordinador general = ve solo sus registros
+
 const TAG = "[RED Home]";
 const log = (...args) => CONFIG.DEBUG_LOGS && console.log(TAG, ...args);
 const warn = (...args) => CONFIG.DEBUG_LOGS && console.warn(TAG, ...args);
