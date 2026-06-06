@@ -8,12 +8,14 @@ const CONFIG = {
   ENDPOINT_PERSONAS: "/PRI/db/WEB/ixtla_c_persona.php",
   ENDPOINT_ESTATUS: "/PRI/db/WEB/ixtla_c_cat_estatus.php",
   ENDPOINT_ARCHIVOS: "/PRI/db/WEB/ixtla_c_archivo.php",
+  ENDPOINT_USUARIO_JERARQUIA: "/PRI/db/WEB/ixtla_c_usuario_jerarquia.php",
 };
 
-//cordinador general = ve todo
-//cordinador de zona = ve sus registros + los de sus hijos (endpoint c_usuario_jerarquia.php)
-//cordinador general = ve sus registros + los de sus hijos (endpoint c_usuario_jerarquia.php)
-//cordinador general = ve solo sus registros
+// ADMIN = ve todo
+// COORD_GENERAL = ve todo
+// COORD_ZONA = ve sus registros + registros de hijos directos
+// COORD_SECCION = ve sus registros + registros de hijos directos
+// PROMOTOR = ve solo sus registros
 
 const TAG = "[RED Home]";
 const log = (...args) => CONFIG.DEBUG_LOGS && console.log(TAG, ...args);
@@ -262,6 +264,119 @@ async function loadEstatusCatalog() {
   }
 }
 
+function getRolCodigo() {
+  return String(
+    State.rol?.codigo ||
+    State.sessionData?.rol_codigo ||
+    State.sessionData?.rol?.codigo ||
+    ""
+  ).toUpperCase();
+}
+
+function getRolId() {
+  return Number(
+    State.rol?.rol_id ||
+    State.sessionData?.rol_id ||
+    State.sessionData?.rol?.rol_id ||
+    0
+  );
+}
+
+function canSeeAllPersonas() {
+  const rolCodigo = getRolCodigo();
+  const rolId = getRolId();
+
+  return (
+    rolCodigo === "ADMIN" ||
+    rolCodigo === "COORD_GENERAL" ||
+    rolId === 1 ||
+    rolId === 2
+  );
+}
+
+function canSeeChildrenPersonas() {
+  const rolCodigo = getRolCodigo();
+
+  return (
+    rolCodigo === "COORD_ZONA" ||
+    rolCodigo === "COORD_SECCION"
+  );
+}
+
+async function fetchAllPages(url, baseBody = {}) {
+  let page = 1;
+  let totalPages = 1;
+  const data = [];
+
+  do {
+    const out = await postJSON(url, {
+      ...baseBody,
+      page,
+      page_size: 500,
+    });
+
+    if (Array.isArray(out.data)) {
+      data.push(...out.data);
+    }
+
+    totalPages = Number(out.meta?.total_pages || 1);
+    page += 1;
+  } while (page <= totalPages);
+
+  return data;
+}
+
+async function getDirectChildrenIds(usuarioId) {
+  const hijos = await fetchAllPages(CONFIG.ENDPOINT_USUARIO_JERARQUIA, {
+    usuario_padre_id: usuarioId,
+    activo: 1,
+  });
+
+  return hijos
+    .map((item) => Number(item.usuario_hijo_id || item.hijo?.usuario_id || 0))
+    .filter((id) => id > 0);
+}
+
+async function getVisibleOwnerIds(usuarioId) {
+  if (canSeeAllPersonas()) {
+    return null;
+  }
+
+  const ids = new Set([Number(usuarioId)]);
+
+  if (canSeeChildrenPersonas()) {
+    const hijos = await getDirectChildrenIds(usuarioId);
+    hijos.forEach((id) => ids.add(Number(id)));
+  }
+
+  return Array.from(ids);
+}
+
+async function getVisiblePersonas(usuarioId) {
+  const ownerIds = await getVisibleOwnerIds(usuarioId);
+
+  if (ownerIds === null) {
+    return fetchAllPages(CONFIG.ENDPOINT_PERSONAS, {});
+  }
+
+  const responses = await Promise.all(
+    ownerIds.map((ownerId) =>
+      fetchAllPages(CONFIG.ENDPOINT_PERSONAS, {
+        capturado_por: ownerId,
+      })
+    )
+  );
+
+  const map = new Map();
+
+  responses.flat().forEach((persona) => {
+    const id = Number(persona.persona_id || 0);
+    if (id > 0) map.set(id, persona);
+  });
+
+  return Array.from(map.values());
+}
+
 async function loadPersonas() {
   const usuarioId = getUsuarioId();
 
@@ -281,27 +396,22 @@ async function loadPersonas() {
   renderLoading();
 
   try {
-    const out = await postJSON(CONFIG.ENDPOINT_PERSONAS, {
-      page: 1,
-      page_size: 500,
-      capturado_por: usuarioId,
-      scope: "mine",
-    });
+    const personas = await getVisiblePersonas(usuarioId);
 
-    const personas = Array.isArray(out.data) ? out.data : [];
-
-    State.universe = personas
-      .filter((persona) => Number(persona.capturado_por) === Number(usuarioId))
-      .map(mapPersonaToRedRow);
-
+    State.universe = personas.map(mapPersonaToRedRow);
     State.page = 1;
 
     updateCounts();
     applyFilters();
 
-    log("Personas reales cargadas:", State.universe);
+    log("Personas visibles cargadas:", {
+      usuarioId,
+      rol: getRolCodigo(),
+      total: State.universe.length,
+      rows: State.universe,
+    });
   } catch (err) {
-    error("No se pudieron cargar personas reales:", err);
+    error("No se pudieron cargar personas visibles:", err);
 
     State.universe = [];
     State.rows = [];
@@ -637,10 +747,17 @@ async function openRecord(id) {
   });
 
   try {
-    const personaOut = await postJSON(CONFIG.ENDPOINT_PERSONAS, {
+    const localOwnerId = Number(local?.raw?.capturado_por || 0);
+
+    const personaBody = {
       persona_id: Number(id),
-      capturado_por: getUsuarioId(),
-    });
+    };
+
+    if (!canSeeAllPersonas() && localOwnerId > 0) {
+      personaBody.capturado_por = localOwnerId;
+    }
+
+    const personaOut = await postJSON(CONFIG.ENDPOINT_PERSONAS, personaBody);
 
     const persona = personaOut.data || null;
 
