@@ -5,6 +5,7 @@ ix_require_session([
     'login_url' => '/PRI/Views/login.php'
 ]);
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 

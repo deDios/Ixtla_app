@@ -2,7 +2,7 @@
 "use strict";
 
 const COOKIE_NAME = "red_user";
-const COOKIE_TTL_MS = 1 * 60 * 60 * 1000; // 1 hora
+const COOKIE_TTL_MS = 3 * 60 * 60 * 1000; // 3 horas
 
 const DEBUG = false;
 

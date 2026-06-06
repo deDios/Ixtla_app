@@ -7,8 +7,7 @@ mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 date_default_timezone_set('America/Mexico_City');
 
 /* ============================================================
-   CORS / SEGURIDAD
-   Mismas reglas base que ixtla_admin_service.php
+   CORS
    ============================================================ */
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -39,13 +38,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
    HELPERS
    ============================================================ */
 
-function json_response(array $data, int $status = 200): void {
+function json_response(array $data, int $status = 200): void
+{
     http_response_code($status);
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-function internal_error(string $message): void {
+function internal_error(string $message): void
+{
     error_log('[IXTLA_C_CAT_ROL] ' . $message);
 
     json_response([
@@ -54,7 +55,8 @@ function internal_error(string $message): void {
     ], 500);
 }
 
-function read_json_body(): array {
+function read_json_body(): array
+{
     $raw = file_get_contents("php://input");
 
     if (!$raw || trim($raw) === '') {
@@ -73,7 +75,8 @@ function read_json_body(): array {
     return $in;
 }
 
-function db(): mysqli {
+function db(): mysqli
+{
     $path = realpath("/home/site/wwwroot/db/conn/conn_db_2.php");
 
     if (!$path || !file_exists($path)) {
@@ -94,11 +97,13 @@ function db(): mysqli {
 
     $con->set_charset('utf8mb4');
     $con->query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+    $con->query("SET time_zone='-06:00'");
 
     return $con;
 }
 
-function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void {
+function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void
+{
     if ($types === '' || empty($params)) {
         return;
     }
@@ -113,11 +118,18 @@ function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void {
     call_user_func_array([$stmt, 'bind_param'], $refs);
 }
 
-function str_clean(array $in, string $key): string {
+function str_clean(array $in, string $key): string
+{
     return isset($in[$key]) ? trim((string)$in[$key]) : '';
 }
 
-function int_or_null(array $in, string $key): ?int {
+function upper_clean(array $in, string $key): string
+{
+    return isset($in[$key]) ? strtoupper(trim((string)$in[$key])) : '';
+}
+
+function int_or_null(array $in, string $key): ?int
+{
     if (!isset($in[$key]) || $in[$key] === '') {
         return null;
     }
@@ -131,7 +143,8 @@ function int_or_null(array $in, string $key): ?int {
    FORMATTER
    ============================================================ */
 
-function rol_row(array $row): array {
+function rol_row(array $row): array
+{
     return [
         "rol_id" => (int)$row['rol_id'],
         "codigo" => $row['codigo'],
@@ -148,13 +161,14 @@ function rol_row(array $row): array {
    CONSULTAS
    ============================================================ */
 
-function consultar_rol_por_id(mysqli $con, int $rol_id): array {
+function consultar_rol_por_id(mysqli $con, int $rol_id): array
+{
     $sql = "
-        SELECT *
-        FROM cat_rol
-        WHERE rol_id = ?
-        LIMIT 1
-    ";
+    SELECT *
+    FROM cat_rol
+    WHERE rol_id = ?
+    LIMIT 1
+  ";
 
     $st = $con->prepare($sql);
     $st->bind_param("i", $rol_id);
@@ -173,13 +187,14 @@ function consultar_rol_por_id(mysqli $con, int $rol_id): array {
     return rol_row($row);
 }
 
-function consultar_rol_por_codigo(mysqli $con, string $codigo): array {
+function consultar_rol_por_codigo(mysqli $con, string $codigo): array
+{
     $sql = "
-        SELECT *
-        FROM cat_rol
-        WHERE codigo COLLATE utf8mb4_unicode_ci = ? COLLATE utf8mb4_unicode_ci
-        LIMIT 1
-    ";
+    SELECT *
+    FROM cat_rol
+    WHERE codigo COLLATE utf8mb4_unicode_ci = ? COLLATE utf8mb4_unicode_ci
+    LIMIT 1
+  ";
 
     $st = $con->prepare($sql);
     $st->bind_param("s", $codigo);
@@ -198,7 +213,8 @@ function consultar_rol_por_codigo(mysqli $con, string $codigo): array {
     return rol_row($row);
 }
 
-function consultar_roles(mysqli $con, array $in): array {
+function consultar_roles(mysqli $con, array $in): array
+{
     $q = str_clean($in, 'q');
 
     if ($q === '') {
@@ -210,8 +226,7 @@ function consultar_roles(mysqli $con, array $in): array {
     $activo = null;
 
     if (array_key_exists('activo', $in) && $in['activo'] !== '') {
-        $activo = (int)$in['activo'];
-        $activo = $activo === 1 ? 1 : 0;
+        $activo = ((int)$in['activo']) === 1 ? 1 : 0;
     }
 
     $page = isset($in['page']) ? max(1, (int)$in['page']) : 1;
@@ -247,10 +262,10 @@ function consultar_roles(mysqli $con, array $in): array {
         $like = "%$q%";
 
         $where[] = "(
-            codigo LIKE ?
-            OR nombre LIKE ?
-            OR descripcion LIKE ?
-        )";
+      codigo LIKE ?
+      OR nombre LIKE ?
+      OR descripcion LIKE ?
+    )";
 
         for ($i = 0; $i < 3; $i++) {
             $params[] = $like;
@@ -261,18 +276,16 @@ function consultar_roles(mysqli $con, array $in): array {
     $whereSql = implode(" AND ", $where);
 
     $countSql = "
-        SELECT COUNT(*) AS total
-        FROM cat_rol
-        WHERE $whereSql
-    ";
-
-    $countParams = $params;
-    $countTypes = $types;
+    SELECT COUNT(*) AS total
+    FROM cat_rol
+    WHERE $whereSql
+  ";
 
     $stCount = $con->prepare($countSql);
 
-    if ($countTypes !== '') {
-        bind_dynamic($stCount, $countTypes, $countParams);
+    if ($types !== '') {
+        $countParams = $params;
+        bind_dynamic($stCount, $types, $countParams);
     }
 
     $stCount->execute();
@@ -282,12 +295,12 @@ function consultar_roles(mysqli $con, array $in): array {
     $total = (int)($totalRow['total'] ?? 0);
 
     $sql = "
-        SELECT *
-        FROM cat_rol
-        WHERE $whereSql
-        ORDER BY nivel_jerarquico ASC, rol_id ASC
-        LIMIT ? OFFSET ?
-    ";
+    SELECT *
+    FROM cat_rol
+    WHERE $whereSql
+    ORDER BY nivel_jerarquico ASC, rol_id ASC
+    LIMIT ? OFFSET ?
+  ";
 
     $listParams = $params;
     $listTypes = $types . "ii";
@@ -342,11 +355,7 @@ try {
         $rol_id = (int)$in['id'];
     }
 
-    $codigo = '';
-
-    if (isset($in['codigo'])) {
-        $codigo = strtoupper(trim((string)$in['codigo']));
-    }
+    $codigo = upper_clean($in, 'codigo');
 
     $con = db();
 
@@ -381,29 +390,29 @@ try {
         "meta" => $result["meta"],
         "data" => $result["data"]
     ]);
-
 } catch (mysqli_sql_exception $e) {
     if (isset($con) && $con instanceof mysqli) {
         try {
             $con->close();
-        } catch (Throwable $ignored) {}
+        } catch (Throwable $ignored) {
+        }
     }
 
     error_log('[IXTLA_C_CAT_ROL][SQL] ' . $e->getMessage());
 
     json_response([
         "ok" => false,
-        "error" => "Error al consultar roles"
+        "error" => "Error de base de datos"
     ], 500);
-
 } catch (Throwable $e) {
     if (isset($con) && $con instanceof mysqli) {
         try {
             $con->close();
-        } catch (Throwable $ignored) {}
+        } catch (Throwable $ignored) {
+        }
     }
 
-    error_log('[IXTLA_C_CAT_ROL][ERROR] ' . $e->getMessage());
+    error_log('[IXTLA_C_CAT_ROL][ERR] ' . $e->getMessage());
 
     json_response([
         "ok" => false,
