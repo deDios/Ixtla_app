@@ -362,43 +362,32 @@ function build_red_home_where(array $in, array $scope, string &$types, array &$p
   $usuario_responsable_id = int_or_null($in, 'usuario_responsable_id');
 
   $where = [
-    'p.deleted_at IS NULL',
-    'pp.deleted_at IS NULL',
-    'pp.activo = 1',
-    "NOT EXISTS (
-      SELECT 1
-      FROM persona_participacion pp2
-      WHERE pp2.persona_id = pp.persona_id
-        AND pp2.deleted_at IS NULL
-        AND pp2.activo = 1
-        AND (
-          CASE pp2.tipo_participacion
-            WHEN 'AFILIADO' THEN 2
-            WHEN 'SIMPATIZANTE' THEN 1
-            ELSE 0
-          END
-        ) > (
-          CASE pp.tipo_participacion
-            WHEN 'AFILIADO' THEN 2
-            WHEN 'SIMPATIZANTE' THEN 1
-            ELSE 0
-          END
-        )
-    )"
+    'p.deleted_at IS NULL'
   ];
 
+  /*
+    Fallback temporal:
+    - Si la persona tiene participación activa, se usa pp.
+    - Si no tiene participación activa, pp viene NULL y se trata como SIMPATIZANTE.
+  */
+
   if (!$scope['can_see_all']) {
-    $where[] = make_in_clause('pp.usuario_responsable_id', $scope['visible_user_ids'], $types, $params);
+    $where[] = make_in_clause(
+      'COALESCE(pp.usuario_responsable_id, p.capturado_por)',
+      $scope['visible_user_ids'],
+      $types,
+      $params
+    );
   }
 
   if ($usuario_responsable_id !== null) {
-    $where[] = 'pp.usuario_responsable_id = ?';
+    $where[] = 'COALESCE(pp.usuario_responsable_id, p.capturado_por) = ?';
     $params[] = $usuario_responsable_id;
     $types .= 'i';
   }
 
   if ($tipo !== '' && in_array($tipo, ['SIMPATIZANTE', 'AFILIADO'], true)) {
-    $where[] = 'pp.tipo_participacion = ?';
+    $where[] = "COALESCE(pp.tipo_participacion, 'SIMPATIZANTE') = ?";
     $params[] = $tipo;
     $types .= 's';
   }
@@ -410,13 +399,13 @@ function build_red_home_where(array $in, array $scope, string &$types, array &$p
   }
 
   if ($territorio_id !== null) {
-    $where[] = 'pp.territorio_id = ?';
+    $where[] = 'COALESCE(pp.territorio_id, p.seccion_id) = ?';
     $params[] = $territorio_id;
     $types .= 'i';
   }
 
   if ($estatus_id !== null) {
-    $where[] = 'pp.estatus_id = ?';
+    $where[] = 'COALESCE(pp.estatus_id, p.estatus_id) = ?';
     $params[] = $estatus_id;
     $types .= 'i';
   }
@@ -478,7 +467,12 @@ function build_metric_scope_where(array $scope, string &$types, array &$params):
     return '1 = 1';
   }
 
-  return make_in_clause('pp.usuario_responsable_id', $scope['visible_user_ids'], $types, $params);
+  return make_in_clause(
+    'COALESCE(pp.usuario_responsable_id, p.capturado_por)',
+    $scope['visible_user_ids'],
+    $types,
+    $params
+  );
 }
 
 /* ============================================================
@@ -488,14 +482,35 @@ function build_metric_scope_where(array $scope, string &$types, array &$params):
 function red_home_from(): string
 {
   return "
-    FROM persona_participacion pp
+    FROM persona p
 
-    INNER JOIN persona p
-      ON p.persona_id = pp.persona_id
-     AND p.deleted_at IS NULL
+    LEFT JOIN persona_participacion pp
+      ON pp.persona_id = p.persona_id
+     AND pp.deleted_at IS NULL
+     AND pp.activo = 1
+     AND NOT EXISTS (
+        SELECT 1
+        FROM persona_participacion pp2
+        WHERE pp2.persona_id = p.persona_id
+          AND pp2.deleted_at IS NULL
+          AND pp2.activo = 1
+          AND (
+            CASE pp2.tipo_participacion
+              WHEN 'AFILIADO' THEN 2
+              WHEN 'SIMPATIZANTE' THEN 1
+              ELSE 0
+            END
+          ) > (
+            CASE pp.tipo_participacion
+              WHEN 'AFILIADO' THEN 2
+              WHEN 'SIMPATIZANTE' THEN 1
+              ELSE 0
+            END
+          )
+      )
 
     INNER JOIN cat_estatus e
-      ON e.estatus_id = pp.estatus_id
+      ON e.estatus_id = COALESCE(pp.estatus_id, p.estatus_id)
 
     LEFT JOIN territorio s
       ON s.territorio_id = p.seccion_id
@@ -506,7 +521,7 @@ function red_home_from(): string
      AND z.deleted_at IS NULL
 
     LEFT JOIN territorio t
-      ON t.territorio_id = pp.territorio_id
+      ON t.territorio_id = COALESCE(pp.territorio_id, p.seccion_id)
      AND t.deleted_at IS NULL
 
     LEFT JOIN territorio tz
@@ -514,7 +529,7 @@ function red_home_from(): string
      AND tz.deleted_at IS NULL
 
     LEFT JOIN usuario ur
-      ON ur.usuario_id = pp.usuario_responsable_id
+      ON ur.usuario_id = COALESCE(pp.usuario_responsable_id, p.capturado_por)
      AND ur.deleted_at IS NULL
   ";
 }
@@ -570,17 +585,17 @@ function red_home_select(): string
 
       pp.participacion_id,
       pp.folio,
-      pp.tipo_participacion,
+      COALESCE(pp.tipo_participacion, 'SIMPATIZANTE') AS tipo_participacion,
       pp.participacion_origen_id,
-      pp.estatus_id AS participacion_estatus_id,
-      pp.territorio_id,
-      pp.usuario_responsable_id,
+      COALESCE(pp.estatus_id, p.estatus_id) AS participacion_estatus_id,
+      COALESCE(pp.territorio_id, p.seccion_id) AS territorio_id,
+      COALESCE(pp.usuario_responsable_id, p.capturado_por) AS usuario_responsable_id,
       pp.fuente_captura,
-      pp.fecha_registro,
+      COALESCE(pp.fecha_registro, p.fecha_captura, p.created_at) AS fecha_registro,
       pp.fecha_afiliacion,
       pp.numero_afiliacion,
       pp.observaciones AS participacion_observaciones,
-      pp.activo AS participacion_activo,
+      COALESCE(pp.activo, 1) AS participacion_activo,
       pp.created_at AS participacion_created_at,
       pp.updated_at AS participacion_updated_at,
 
@@ -627,14 +642,14 @@ function red_home_row(array $row): array
 
   $nombreCompleto = trim(
     (string)$row['nombres'] . ' ' .
-    (string)$row['apellido_paterno'] . ' ' .
-    (string)$row['apellido_materno']
+      (string)$row['apellido_paterno'] . ' ' .
+      (string)$row['apellido_materno']
   );
 
   $responsableNombre = trim(
     (string)($row['responsable_nombre'] ?? '') . ' ' .
-    (string)($row['responsable_apellido_paterno'] ?? '') . ' ' .
-    (string)($row['responsable_apellido_materno'] ?? '')
+      (string)($row['responsable_apellido_paterno'] ?? '') . ' ' .
+      (string)($row['responsable_apellido_materno'] ?? '')
   );
 
   return [
@@ -677,10 +692,11 @@ function red_home_row(array $row): array
     'updated_by' => nullable_int_from_row($row, 'updated_by'),
 
     'participacion' => [
-      'participacion_id' => (int)$row['participacion_id'],
+      'participacion_id' => nullable_int_from_row($row, 'participacion_id'),
       'folio' => $row['folio'],
-      'tipo_participacion' => $row['tipo_participacion'],
-      'tipo_actual' => $row['tipo_participacion'],
+      'tipo_participacion' => $row['tipo_participacion'] ?: 'SIMPATIZANTE',
+      'tipo_actual' => $row['tipo_participacion'] ?: 'SIMPATIZANTE',
+      'fallback' => empty($row['participacion_id']),
       'participacion_origen_id' => nullable_int_from_row($row, 'participacion_origen_id'),
       'estatus_id' => (int)$row['participacion_estatus_id'],
       'estatus' => [
@@ -787,14 +803,15 @@ function consultar_red_home(mysqli $con, array $in, array $scope): array
   $sql = red_home_select() . red_home_from() . "
     WHERE $whereSql
     ORDER BY
-      CASE pp.tipo_participacion
+      CASE COALESCE(pp.tipo_participacion, 'SIMPATIZANTE')
         WHEN 'AFILIADO' THEN 2
         WHEN 'SIMPATIZANTE' THEN 1
         ELSE 0
       END DESC,
-      COALESCE(pp.fecha_afiliacion, DATE(pp.fecha_registro)) DESC,
-      pp.fecha_registro DESC,
-      pp.participacion_id DESC
+      COALESCE(pp.fecha_afiliacion, DATE(pp.fecha_registro), DATE(p.fecha_captura), DATE(p.created_at)) DESC,
+      COALESCE(pp.fecha_registro, p.fecha_captura, p.created_at) DESC,
+      COALESCE(pp.participacion_id, 0) DESC,
+      p.persona_id DESC
     LIMIT ? OFFSET ?
   ";
 
@@ -845,14 +862,15 @@ function consultar_metricas(mysqli $con, array $scope): array
   $scopeWhere = build_metric_scope_where($scope, $typesScope, $paramsScope);
 
   $afiliadosSql = "
-    SELECT COUNT(DISTINCT pp.persona_id) AS total
-    FROM persona_participacion pp
-    INNER JOIN persona p
-      ON p.persona_id = pp.persona_id
-     AND p.deleted_at IS NULL
-    WHERE pp.deleted_at IS NULL
-      AND pp.activo = 1
-      AND pp.tipo_participacion = 'AFILIADO'
+    SELECT COUNT(DISTINCT p.persona_id) AS total
+    FROM persona p
+    LEFT JOIN persona_participacion pp
+      ON pp.persona_id = p.persona_id
+     AND pp.deleted_at IS NULL
+     AND pp.activo = 1
+     AND pp.tipo_participacion = 'AFILIADO'
+    WHERE p.deleted_at IS NULL
+      AND pp.participacion_id IS NOT NULL
       AND $scopeWhere
   ";
 
@@ -862,23 +880,28 @@ function consultar_metricas(mysqli $con, array $scope): array
   $paramsScope2 = [];
   $scopeWhere2 = build_metric_scope_where($scope, $typesScope2, $paramsScope2);
 
+  /*
+    Simpatizantes:
+    - Personas sin AFILIADO activo.
+    - Incluye personas sin participación todavía.
+  */
   $simpatizantesSql = "
-    SELECT COUNT(DISTINCT pp.persona_id) AS total
-    FROM persona_participacion pp
-    INNER JOIN persona p
-      ON p.persona_id = pp.persona_id
-     AND p.deleted_at IS NULL
-    WHERE pp.deleted_at IS NULL
-      AND pp.activo = 1
-      AND pp.tipo_participacion = 'SIMPATIZANTE'
+    SELECT COUNT(DISTINCT p.persona_id) AS total
+    FROM persona p
+    LEFT JOIN persona_participacion pp
+      ON pp.persona_id = p.persona_id
+     AND pp.deleted_at IS NULL
+     AND pp.activo = 1
+     AND pp.tipo_participacion = 'SIMPATIZANTE'
+    WHERE p.deleted_at IS NULL
       AND $scopeWhere2
       AND NOT EXISTS (
         SELECT 1
-        FROM persona_participacion pp2
-        WHERE pp2.persona_id = pp.persona_id
-          AND pp2.deleted_at IS NULL
-          AND pp2.activo = 1
-          AND pp2.tipo_participacion = 'AFILIADO'
+        FROM persona_participacion pp_af
+        WHERE pp_af.persona_id = p.persona_id
+          AND pp_af.deleted_at IS NULL
+          AND pp_af.activo = 1
+          AND pp_af.tipo_participacion = 'AFILIADO'
       )
   ";
 
@@ -889,14 +912,14 @@ function consultar_metricas(mysqli $con, array $scope): array
   $scopeWhere3 = build_metric_scope_where($scope, $typesScope3, $paramsScope3);
 
   $responsablesSql = "
-    SELECT COUNT(DISTINCT pp.usuario_responsable_id) AS total
-    FROM persona_participacion pp
-    INNER JOIN persona p
-      ON p.persona_id = pp.persona_id
-     AND p.deleted_at IS NULL
-    WHERE pp.deleted_at IS NULL
-      AND pp.activo = 1
-      AND pp.usuario_responsable_id IS NOT NULL
+    SELECT COUNT(DISTINCT COALESCE(pp.usuario_responsable_id, p.capturado_por)) AS total
+    FROM persona p
+    LEFT JOIN persona_participacion pp
+      ON pp.persona_id = p.persona_id
+     AND pp.deleted_at IS NULL
+     AND pp.activo = 1
+    WHERE p.deleted_at IS NULL
+      AND COALESCE(pp.usuario_responsable_id, p.capturado_por) IS NOT NULL
       AND $scopeWhere3
   ";
 
@@ -905,8 +928,6 @@ function consultar_metricas(mysqli $con, array $scope): array
   return [
     'afiliados' => $afiliados,
     'simpatizantes' => $simpatizantes,
-    // Mantengo el nombre promotores porque el home actual espera metricPromotores.
-    // Aquí representa usuarios responsables con registros activos dentro del alcance.
     'promotores' => $responsablesConRegistros,
     'responsables_con_registros' => $responsablesConRegistros,
   ];
