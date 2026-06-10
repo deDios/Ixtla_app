@@ -5,17 +5,10 @@ import { Session } from "/PRI/JS/auth/session.js";
 const CONFIG = {
   DEBUG_LOGS: true,
   PAGE_SIZE: 10,
+  ENDPOINT_RED_HOME: "/PRI/db/WEB/ixtla_c_red_home.php",
   ENDPOINT_PERSONAS: "/PRI/db/WEB/ixtla_c_persona.php",
-  ENDPOINT_ESTATUS: "/PRI/db/WEB/ixtla_c_cat_estatus.php",
   ENDPOINT_ARCHIVOS: "/PRI/db/WEB/ixtla_c_archivo.php",
-  ENDPOINT_USUARIO_JERARQUIA: "/PRI/db/WEB/ixtla_c_usuario_jerarquia.php",
 };
-
-// ADMIN = ve todo
-// COORD_GENERAL = ve todo
-// COORD_ZONA = ve sus registros + registros de hijos directos
-// COORD_SECCION = ve sus registros + registros de hijos directos
-// PROMOTOR = ve solo sus registros
 
 const TAG = "[RED Home]";
 const log = (...args) => CONFIG.DEBUG_LOGS && console.log(TAG, ...args);
@@ -30,13 +23,16 @@ const State = {
   usuario: null,
   rol: null,
   token: "",
-  estatusCatalog: [],
-  universe: [],
+
   rows: [],
   search: "",
   page: 1,
   pageSize: CONFIG.PAGE_SIZE,
+  total: 0,
+  totalPages: 1,
   loading: false,
+  scope: null,
+
   counts: {
     afiliados: 0,
     simpatizantes: 0,
@@ -69,7 +65,7 @@ const SEL = {
 const ESTATUS_VALIDOS = new Set(["VALIDADO", "ACTIVO"]);
 
 /* -------------------------------------------------------------------------- */
-/* HELPERS                                                                     */
+/* HELPERS                                                                    */
 /* -------------------------------------------------------------------------- */
 
 function toast(msg, tipo = "exito", duration = 4500) {
@@ -103,6 +99,15 @@ function escapeHTML(value) {
     .replaceAll("'", "&#039;");
 }
 
+function debounce(fn, delay = 350) {
+  let timer = null;
+
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
 function setFieldValue(selector, value, fallback = "") {
   const el = $(selector);
   if (!el) return;
@@ -131,7 +136,7 @@ function clearImage(selector) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SESIÓN                                                                      */
+/* SESIÓN                                                                     */
 /* -------------------------------------------------------------------------- */
 
 function readCookiePayload() {
@@ -191,6 +196,24 @@ function getUsuarioId() {
   return Number(State.usuario?.usuario_id || State.sessionData?.usuario_id || 0);
 }
 
+function getRolCodigo() {
+  return String(
+    State.rol?.codigo ||
+    State.sessionData?.rol_codigo ||
+    State.sessionData?.rol?.codigo ||
+    ""
+  ).toUpperCase();
+}
+
+function getRolId() {
+  return Number(
+    State.rol?.rol_id ||
+    State.sessionData?.rol_id ||
+    State.sessionData?.rol?.rol_id ||
+    0
+  );
+}
+
 function getAuthHeaders() {
   const headers = {
     "Content-Type": "application/json",
@@ -214,12 +237,21 @@ async function postJSON(url, body = {}) {
   });
 
   const status = resp.status;
-  const out = await resp.json().catch(() => null);
+  const raw = await resp.text();
+
+  let out = null;
+
+  try {
+    out = raw ? JSON.parse(raw) : null;
+  } catch {
+    console.error(TAG, "Respuesta no JSON:", raw);
+    throw new Error("El endpoint respondió algo que no es JSON.");
+  }
 
   log("POST:", url, "status:", status, "body:", body, "response:", out);
 
   if (!resp.ok || !out?.ok) {
-    const msg = out?.error || `Error HTTP ${status}`;
+    const msg = out?.error || out?.message || `Error HTTP ${status}`;
     throw new Error(msg);
   }
 
@@ -245,190 +277,94 @@ function hydrateUser() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* CARGA DE DATOS                                                              */
+/* CARGA DASHBOARD SERVER-SIDE                                                */
 /* -------------------------------------------------------------------------- */
 
-async function loadEstatusCatalog() {
-  try {
-    const out = await postJSON(CONFIG.ENDPOINT_ESTATUS, {
-      activo: 1,
-      page: 1,
-      page_size: 100,
-    });
-
-    State.estatusCatalog = Array.isArray(out.data) ? out.data : [];
-    log("Catálogo de estatus cargado:", State.estatusCatalog);
-  } catch (err) {
-    warn("No se pudo cargar catálogo de estatus. Se usará estatus de persona.", err);
-    State.estatusCatalog = [];
-  }
+function buildDashboardPayload(overrides = {}) {
+  return {
+    usuario_id: getUsuarioId(),
+    rol_codigo: getRolCodigo(),
+    rol_id: getRolId(),
+    page: State.page,
+    page_size: State.pageSize,
+    search: State.search,
+    ...overrides,
+  };
 }
 
-function getRolCodigo() {
-  return String(
-    State.rol?.codigo ||
-    State.sessionData?.rol_codigo ||
-    State.sessionData?.rol?.codigo ||
-    ""
-  ).toUpperCase();
-}
-
-function getRolId() {
-  return Number(
-    State.rol?.rol_id ||
-    State.sessionData?.rol_id ||
-    State.sessionData?.rol?.rol_id ||
-    0
-  );
-}
-
-function canSeeAllPersonas() {
-  const rolCodigo = getRolCodigo();
-  const rolId = getRolId();
-
-  return (
-    rolCodigo === "ADMIN" ||
-    rolCodigo === "COORD_GENERAL" ||
-    rolId === 1 ||
-    rolId === 2
-  );
-}
-
-function canSeeChildrenPersonas() {
-  const rolCodigo = getRolCodigo();
-
-  return (
-    rolCodigo === "COORD_ZONA" ||
-    rolCodigo === "COORD_SECCION"
-  );
-}
-
-async function fetchAllPages(url, baseBody = {}) {
-  let page = 1;
-  let totalPages = 1;
-  const data = [];
-
-  do {
-    const out = await postJSON(url, {
-      ...baseBody,
-      page,
-      page_size: 500,
-    });
-
-    if (Array.isArray(out.data)) {
-      data.push(...out.data);
-    }
-
-    totalPages = Number(out.meta?.total_pages || 1);
-    page += 1;
-  } while (page <= totalPages);
-
-  return data;
-}
-
-async function getDirectChildrenIds(usuarioId) {
-  const hijos = await fetchAllPages(CONFIG.ENDPOINT_USUARIO_JERARQUIA, {
-    usuario_padre_id: usuarioId,
-    activo: 1,
-  });
-
-  return hijos
-    .map((item) => Number(item.usuario_hijo_id || item.hijo?.usuario_id || 0))
-    .filter((id) => id > 0);
-}
-
-async function getVisibleOwnerIds(usuarioId) {
-  if (canSeeAllPersonas()) {
-    return null;
-  }
-
-  const ids = new Set([Number(usuarioId)]);
-
-  if (canSeeChildrenPersonas()) {
-    const hijos = await getDirectChildrenIds(usuarioId);
-    hijos.forEach((id) => ids.add(Number(id)));
-  }
-
-  return Array.from(ids);
-}
-
-async function getVisiblePersonas(usuarioId) {
-  const ownerIds = await getVisibleOwnerIds(usuarioId);
-
-  if (ownerIds === null) {
-    return fetchAllPages(CONFIG.ENDPOINT_PERSONAS, {});
-  }
-
-  const responses = await Promise.all(
-    ownerIds.map((ownerId) =>
-      fetchAllPages(CONFIG.ENDPOINT_PERSONAS, {
-        capturado_por: ownerId,
-      })
-    )
-  );
-
-  const map = new Map();
-
-  responses.flat().forEach((persona) => {
-    const id = Number(persona.persona_id || 0);
-    if (id > 0) map.set(id, persona);
-  });
-
-  return Array.from(map.values());
-}
-
-async function loadPersonas() {
+async function loadDashboard({ keepPage = true } = {}) {
   const usuarioId = getUsuarioId();
 
-  if (!usuarioId) {
-    warn("No hay usuario_id en sesión. No se puede consultar personas capturadas.");
+  if (!usuarioId && getRolCodigo() !== "ADMIN" && getRolCodigo() !== "COORD_GENERAL") {
+    warn("No hay usuario_id en sesión. No se puede consultar dashboard RED.");
 
-    State.universe = [];
     State.rows = [];
-    updateCounts();
+    State.total = 0;
+    State.totalPages = 1;
+    setCounts({ afiliados: 0, simpatizantes: 0, promotores: 0 });
     render();
 
     toast("No se encontró usuario en sesión.", "error");
     return;
   }
 
+  if (!keepPage) State.page = 1;
+
   State.loading = true;
   renderLoading();
 
   try {
-    const personas = await getVisiblePersonas(usuarioId);
+    const out = await postJSON(CONFIG.ENDPOINT_RED_HOME, buildDashboardPayload());
 
-    State.universe = personas.map(mapPersonaToRedRow);
-    State.page = 1;
+    State.rows = Array.isArray(out.data) ? out.data.map(mapRedHomeToRow) : [];
+    State.scope = out.scope || null;
+    State.page = Number(out.meta?.page || State.page || 1);
+    State.pageSize = Number(out.meta?.page_size || State.pageSize || CONFIG.PAGE_SIZE);
+    State.total = Number(out.meta?.total || 0);
+    State.totalPages = Math.max(1, Number(out.meta?.total_pages || 1));
 
-    updateCounts();
-    applyFilters();
+    setCounts(out.metrics || {});
 
-    log("Personas visibles cargadas:", {
-      usuarioId,
-      rol: getRolCodigo(),
-      total: State.universe.length,
-      rows: State.universe,
+    log("Dashboard RED cargado:", {
+      page: State.page,
+      total: State.total,
+      totalPages: State.totalPages,
+      scope: State.scope,
+      rows: State.rows,
+      metrics: State.counts,
     });
-  } catch (err) {
-    error("No se pudieron cargar personas visibles:", err);
 
-    State.universe = [];
+    render();
+  } catch (err) {
+    error("No se pudo cargar dashboard RED:", err);
+
     State.rows = [];
-    updateCounts();
+    State.total = 0;
+    State.totalPages = 1;
+    setCounts({ afiliados: 0, simpatizantes: 0, promotores: 0 });
     render();
 
-    toast("No se pudieron cargar las personas.", "error");
+    toast("No se pudieron cargar los registros RED.", "error");
   } finally {
     State.loading = false;
   }
 }
 
-function mapPersonaToRedRow(persona = {}) {
-  const estatusCodigo = String(persona.estatus?.codigo || "").toUpperCase();
+function mapRedHomeToRow(persona = {}) {
+  const participacion = persona.participacion || {};
+  const estatus = participacion.estatus || {};
+
+  const estatusCodigo = String(
+    estatus.codigo ||
+    persona.estatus_codigo ||
+    persona.participacion_estatus_codigo ||
+    ""
+  ).toUpperCase();
+
   const estatusNombre =
-    persona.estatus?.nombre ||
-    getEstatusNombreByCodigo(estatusCodigo) ||
+    estatus.nombre ||
+    persona.estatus_nombre ||
+    persona.participacion_estatus_nombre ||
     "Sin estatus";
 
   const nombre =
@@ -440,7 +376,9 @@ function mapPersonaToRedRow(persona = {}) {
 
   const seccion =
     persona.territorio?.seccion?.codigo ||
+    persona.seccion_codigo ||
     persona.territorio?.seccion?.nombre ||
+    persona.seccion_nombre ||
     persona.seccion_id ||
     "—";
 
@@ -449,8 +387,16 @@ function mapPersonaToRedRow(persona = {}) {
     persona.territorio?.zona?.nombre ||
     "—";
 
+  const tipo = normalizeTipoParticipacion(
+    participacion.tipo_actual ||
+    participacion.tipo_participacion ||
+    persona.tipo_participacion ||
+    "SIMPATIZANTE"
+  );
+
   return {
     id: persona.persona_id,
+    participacion_id: participacion.participacion_id || persona.participacion_id || null,
     nombre: nombre || "Persona sin nombre",
     domicilio: persona.domicilio_texto || "—",
     seccion,
@@ -459,35 +405,19 @@ function mapPersonaToRedRow(persona = {}) {
     validez: isEstatusValido(estatusCodigo),
     estatus_codigo: estatusCodigo,
     estatus_nombre: estatusNombre,
-    tipo: getTipoPersona(persona),
+    tipo,
+    responsable: persona.responsable || null,
     raw: persona,
   };
 }
 
-function getTipoPersona(persona = {}) {
-  const rawTipo =
-    persona.tipo ||
-    persona.tipo_persona ||
-    persona.categoria ||
-    persona.rol_persona ||
-    "";
+function normalizeTipoParticipacion(value) {
+  const tipo = normalizeText(value).replaceAll(" ", "_").toUpperCase();
 
-  const tipo = normalizeText(rawTipo);
-
-  if (tipo === "afiliado") return "afiliado";
-  if (tipo === "promotor") return "promotor";
+  if (tipo === "AFILIADO") return "afiliado";
+  if (tipo === "PROMOTOR") return "promotor";
 
   return "simpatizante";
-}
-
-function getEstatusNombreByCodigo(codigo) {
-  const target = String(codigo || "").toUpperCase();
-
-  const found = State.estatusCatalog.find(
-    (item) => String(item.codigo || "").toUpperCase() === target
-  );
-
-  return found?.nombre || "";
 }
 
 function isEstatusValido(codigo) {
@@ -495,75 +425,35 @@ function isEstatusValido(codigo) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* FILTROS / MÉTRICAS                                                          */
+/* MÉTRICAS                                                                   */
 /* -------------------------------------------------------------------------- */
 
-function updateCounts() {
-  const counts = {
-    afiliados: 0,
-    simpatizantes: 0,
-    promotores: 0,
+function setCounts(metrics = {}) {
+  State.counts = {
+    afiliados: Number(metrics.afiliados || 0),
+    simpatizantes: Number(metrics.simpatizantes || 0),
+    promotores: Number(metrics.promotores || metrics.responsables_con_registros || 0),
   };
-
-  State.universe.forEach((item) => {
-    const tipo = normalizeText(item.tipo);
-
-    if (tipo === "afiliado") counts.afiliados += 1;
-    if (tipo === "simpatizante") counts.simpatizantes += 1;
-    if (tipo === "promotor") counts.promotores += 1;
-  });
-
-  State.counts = counts;
 
   const afiliadosEl = $(SEL.metricAfiliados);
   const simpatizantesEl = $(SEL.metricSimpatizantes);
   const promotoresEl = $(SEL.metricPromotores);
 
-  if (afiliadosEl) afiliadosEl.textContent = counts.afiliados.toLocaleString("es-MX");
-  if (simpatizantesEl) simpatizantesEl.textContent = counts.simpatizantes.toLocaleString("es-MX");
-  if (promotoresEl) promotoresEl.textContent = counts.promotores.toLocaleString("es-MX");
-}
-
-function applyFilters() {
-  const q = normalizeText(State.search);
-
-  State.rows = State.universe.filter((item) => {
-    if (!q) return true;
-
-    const haystack = normalizeText([
-      item.nombre,
-      item.domicilio,
-      item.seccion,
-      item.zona,
-      item.telefono,
-      item.tipo,
-      item.estatus_codigo,
-      item.estatus_nombre,
-      item.validez
-        ? "valido validado activo"
-        : "pendiente inactivo rechazado baja duplicado capturado",
-    ].join(" "));
-
-    return haystack.includes(q);
-  });
-
-  const maxPage = getMaxPage();
-  if (State.page > maxPage) State.page = maxPage || 1;
-
-  render();
+  if (afiliadosEl) afiliadosEl.textContent = State.counts.afiliados.toLocaleString("es-MX");
+  if (simpatizantesEl) simpatizantesEl.textContent = State.counts.simpatizantes.toLocaleString("es-MX");
+  if (promotoresEl) promotoresEl.textContent = State.counts.promotores.toLocaleString("es-MX");
 }
 
 function getMaxPage() {
-  return Math.max(1, Math.ceil(State.rows.length / State.pageSize));
+  return Math.max(1, State.totalPages || 1);
 }
 
 function getPageRows() {
-  const start = (State.page - 1) * State.pageSize;
-  return State.rows.slice(start, start + State.pageSize);
+  return State.rows;
 }
 
 /* -------------------------------------------------------------------------- */
-/* RENDER                                                                      */
+/* RENDER                                                                     */
 /* -------------------------------------------------------------------------- */
 
 function renderLoading() {
@@ -575,14 +465,14 @@ function renderLoading() {
     tbody.innerHTML = `
       <tr>
         <td colspan="6">
-          <div class="red-empty">Cargando personas...</div>
+          <div class="red-empty">Cargando registros...</div>
         </td>
       </tr>
     `;
   }
 
   if (mobile) {
-    mobile.innerHTML = `<div class="red-empty">Cargando personas...</div>`;
+    mobile.innerHTML = `<div class="red-empty">Cargando registros...</div>`;
   }
 
   if (pager) pager.innerHTML = "";
@@ -660,6 +550,7 @@ function renderMobileCards() {
         <span><strong>Domicilio:</strong> ${escapeHTML(safeText(item.domicilio))}</span>
         <span><strong>Sección:</strong> ${escapeHTML(safeText(item.seccion))}</span>
         <span><strong>Teléfono:</strong> ${escapeHTML(safeText(item.telefono))}</span>
+        <span><strong>Tipo:</strong> ${escapeHTML(formatTipo(item.tipo))}</span>
         <span><strong>Estatus:</strong> ${escapeHTML(safeText(item.estatus_nombre))}</span>
       </div>
 
@@ -674,11 +565,20 @@ function renderMobileCards() {
   `).join("");
 }
 
+function formatTipo(tipo) {
+  const clean = normalizeText(tipo);
+
+  if (clean === "afiliado") return "Afiliado";
+  if (clean === "promotor") return "Promotor";
+
+  return "Simpatizante";
+}
+
 function renderPager() {
   const pager = $(SEL.pager);
   if (!pager) return;
 
-  const total = State.rows.length;
+  const total = State.total;
   const maxPage = getMaxPage();
 
   if (!total) {
@@ -702,7 +602,7 @@ function renderPager() {
 
     <button type="button" data-page="${State.page + 1}" ${State.page >= maxPage ? "disabled" : ""}>›</button>
 
-    <span>Pág. ${State.page} de ${maxPage}</span>
+    <span>Pág. ${State.page} de ${maxPage} · ${total.toLocaleString("es-MX")} registros</span>
 
     <input id="red-page-jump" type="number" min="1" max="${maxPage}" aria-label="Ir a página">
     <button type="button" data-action="jump">Ir</button>
@@ -717,22 +617,22 @@ function buildPageList(current, max) {
     .sort((a, b) => a - b);
 }
 
-function goToPage(page) {
+async function goToPage(page) {
   const maxPage = getMaxPage();
   const next = Math.min(Math.max(Number(page) || 1, 1), maxPage);
 
   if (next === State.page) return;
 
   State.page = next;
-  render();
+  await loadDashboard({ keepPage: true });
 }
 
 /* -------------------------------------------------------------------------- */
-/* MODAL EXISTENTE DE REVISIÓN EN MODO SOLO LECTURA                            */
+/* MODAL EXISTENTE DE REVISIÓN EN MODO SOLO LECTURA                           */
 /* -------------------------------------------------------------------------- */
 
 async function openRecord(id) {
-  const local = State.universe.find((row) => Number(row.id) === Number(id));
+  const local = State.rows.find((row) => Number(row.id) === Number(id));
 
   if (!id) {
     warn("openRecord sin id");
@@ -747,17 +647,9 @@ async function openRecord(id) {
   });
 
   try {
-    const localOwnerId = Number(local?.raw?.capturado_por || 0);
-
-    const personaBody = {
+    const personaOut = await postJSON(CONFIG.ENDPOINT_PERSONAS, {
       persona_id: Number(id),
-    };
-
-    if (!canSeeAllPersonas() && localOwnerId > 0) {
-      personaBody.capturado_por = localOwnerId;
-    }
-
-    const personaOut = await postJSON(CONFIG.ENDPOINT_PERSONAS, personaBody);
+    });
 
     const persona = personaOut.data || null;
 
@@ -890,9 +782,9 @@ function openPersonaReadonlyModal({
     if (title) title.textContent = "Cargando detalle de persona...";
     if (warning) {
       warning.innerHTML = `
-      <strong>Consultando información.</strong>
-      Espera un momento mientras se carga el registro.
-    `;
+        <strong>Consultando información.</strong>
+        Espera un momento mientras se carga el registro.
+      `;
     }
     return;
   }
@@ -931,9 +823,12 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
   if (title) title.textContent = p.nombre_completo || row.nombre || "Detalle de persona";
 
   if (warning) {
+    const tipo = p.participacion?.tipo_actual || p.participacion?.actual?.tipo_participacion || row.tipo || "";
+    const tipoText = tipo ? ` Participación actual: <strong>${escapeHTML(formatTipo(tipo))}</strong>.` : "";
+
     warning.innerHTML = `
       <strong>Consulta en solo lectura.</strong>
-      Este registro se muestra para revisión. No se realizarán cambios desde esta vista.
+      Este registro se muestra para revisión. No se realizarán cambios desde esta vista.${tipoText}
     `;
   }
 
@@ -962,7 +857,7 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
   setFieldValue("#ine-review-acepta-tratamiento", p.acepta_tratamiento_datos ?? "");
   setFieldValue("#ine-review-acepta-whatsapp", p.acepta_contacto_whatsapp ?? "");
 
-  setFieldValue("#ine-review-observaciones", p.observaciones || "");
+  setFieldValue("#ine-review-observaciones", p.observaciones || p.persona_observaciones || "");
 
   clearImage(SEL.ineReviewFront);
   clearImage(SEL.ineReviewBack);
@@ -1019,7 +914,6 @@ function shortHash(value) {
   const hash = String(value || "").trim();
 
   if (!hash) return "";
-
   if (hash.length <= 18) return hash;
 
   return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
@@ -1032,23 +926,23 @@ function formatSeccionPersona(persona = {}, fallbackRow = {}) {
     return `${territorio.codigo} · ${territorio.nombre}`;
   }
 
-  if (territorio?.codigo) {
-    return territorio.codigo;
-  }
-
-  if (territorio?.nombre) {
-    return territorio.nombre;
-  }
+  if (territorio?.codigo) return territorio.codigo;
+  if (territorio?.nombre) return territorio.nombre;
 
   return persona.seccion_id || fallbackRow.seccion || "";
 }
 
 /* -------------------------------------------------------------------------- */
-/* EXPORTACIÓN                                                                 */
+/* EXPORTACIÓN                                                                */
 /* -------------------------------------------------------------------------- */
 
 function exportCSV() {
   const rows = State.rows;
+
+  if (!rows.length) {
+    toast("No hay registros para exportar en esta página.", "advertencia");
+    return;
+  }
 
   const headers = [
     "ID",
@@ -1069,7 +963,7 @@ function exportCSV() {
     item.seccion,
     item.zona,
     item.telefono,
-    item.tipo,
+    formatTipo(item.tipo),
     item.estatus_nombre,
     item.validez ? "Valido" : "Pendiente",
   ]);
@@ -1083,28 +977,32 @@ function exportCSV() {
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = `red_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `red_export_pagina_${State.page}_${new Date().toISOString().slice(0, 10)}.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();
 
   URL.revokeObjectURL(url);
+
+  if (State.total > rows.length) {
+    toast("Se exportó solo la página actual.", "advertencia", 5000);
+  }
 }
 
-/* --------------------------------------------------------------------------- */
-/* EVENTOS                                                                     */
-/* --------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/* EVENTOS                                                                    */
+/* -------------------------------------------------------------------------- */
 
 function bindEvents() {
   const search = $(SEL.search);
+  const handleSearch = debounce(async () => {
+    State.search = search?.value || "";
+    await loadDashboard({ keepPage: false });
+  }, 350);
 
-  search?.addEventListener("input", () => {
-    State.search = search.value;
-    State.page = 1;
-    applyFilters();
-  });
+  search?.addEventListener("input", handleSearch);
 
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     const openBtn = event.target.closest("[data-action='open']");
     if (openBtn) {
       openRecord(openBtn.dataset.id);
@@ -1117,21 +1015,25 @@ function bindEvents() {
 
       if (action === "jump") {
         const input = $("#red-page-jump");
-        goToPage(input?.value);
+        await goToPage(input?.value);
         return;
       }
 
       if (pagerBtn.dataset.page) {
-        goToPage(pagerBtn.dataset.page);
+        await goToPage(pagerBtn.dataset.page);
       }
     }
   });
 
   $(SEL.btnExport)?.addEventListener("click", exportCSV);
+
+  document.addEventListener("red:persona-saved", async () => {
+    await loadDashboard({ keepPage: false });
+  });
 }
 
 /* -------------------------------------------------------------------------- */
-/* INIT                                                                        */
+/* INIT                                                                       */
 /* -------------------------------------------------------------------------- */
 
 async function init() {
@@ -1139,10 +1041,12 @@ async function init() {
   hydrateUser();
   bindEvents();
 
-  await loadEstatusCatalog();
-  await loadPersonas();
+  await loadDashboard({ keepPage: true });
 
-  log("Home RED inicializado");
+  log("Home RED inicializado con endpoint server-side");
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+// Permite que otros módulos restauren el modal de revisión si lo necesitan.
+window.redResetReviewModalToCaptureMode = resetReviewModalToCaptureMode;

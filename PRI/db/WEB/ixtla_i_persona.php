@@ -416,6 +416,415 @@ function cerrar_conexion_si_abierta(mixed $con): void
   }
 }
 
+
+/* ============================================================
+   PARTICIPACIÓN RED
+   ============================================================ */
+
+function normalizar_tipo_participacion(mixed $value): ?string
+{
+  $tipo = strtoupper(trim((string)$value));
+
+  if ($tipo === '') {
+    return null;
+  }
+
+  return match ($tipo) {
+    'AFILIADO' => 'AFILIADO',
+    'SIMPATIZANTE' => 'SIMPATIZANTE',
+    default => null,
+  };
+}
+
+function generar_folio_participacion(string $tipo, int $persona_id): string
+{
+  $prefix = $tipo === 'AFILIADO' ? 'AFI' : 'SIM';
+  return 'RED-' . $prefix . '-' . $persona_id . '-' . date('YmdHis') . '-' . strtoupper(bin2hex(random_bytes(2)));
+}
+
+function int_input_or_null(array $in, array $keys): ?int
+{
+  foreach ($keys as $key) {
+    if (array_key_exists($key, $in) && $in[$key] !== '' && (int)$in[$key] > 0) {
+      return (int)$in[$key];
+    }
+  }
+
+  return null;
+}
+
+function str_input_or_null(array $in, array $keys): ?string
+{
+  foreach ($keys as $key) {
+    if (array_key_exists($key, $in)) {
+      $value = trim((string)$in[$key]);
+      return $value !== '' ? $value : null;
+    }
+  }
+
+  return null;
+}
+
+function fuente_captura_or_null(mixed $value): ?string
+{
+  $fuente = strtoupper(trim((string)$value));
+
+  if ($fuente === '') {
+    return null;
+  }
+
+  return in_array($fuente, ['PORTAL', 'BRIGADA', 'IMPORTACION', 'FORMULARIO_WEB', 'OTRO'], true)
+    ? $fuente
+    : null;
+}
+
+function obtener_participaciones_activas(mysqli $con, int $persona_id): array
+{
+  $sql = "
+    SELECT
+      pp.participacion_id,
+      pp.folio,
+      pp.persona_id,
+      pp.tipo_participacion,
+      pp.participacion_origen_id,
+      pp.estatus_id,
+      pp.territorio_id,
+      pp.usuario_responsable_id,
+      pp.fuente_captura,
+      pp.fecha_registro,
+      pp.fecha_afiliacion,
+      pp.numero_afiliacion,
+      pp.observaciones,
+      pp.activo,
+      pp.created_at,
+      pp.created_by,
+      pp.updated_at,
+      pp.updated_by,
+
+      ce.codigo AS estatus_codigo,
+      ce.nombre AS estatus_nombre,
+
+      t.codigo AS territorio_codigo,
+      t.nombre AS territorio_nombre,
+      t.tipo AS territorio_tipo,
+
+      u.username AS responsable_username,
+      u.nombre AS responsable_nombre,
+      u.apellido_paterno AS responsable_apellido_paterno,
+      u.apellido_materno AS responsable_apellido_materno
+
+    FROM persona_participacion pp
+
+    LEFT JOIN cat_estatus ce
+      ON ce.estatus_id = pp.estatus_id
+
+    LEFT JOIN territorio t
+      ON t.territorio_id = pp.territorio_id
+     AND t.deleted_at IS NULL
+
+    LEFT JOIN usuario u
+      ON u.usuario_id = pp.usuario_responsable_id
+     AND u.deleted_at IS NULL
+
+    WHERE pp.persona_id = ?
+      AND pp.deleted_at IS NULL
+      AND pp.activo = 1
+
+    ORDER BY
+      CASE pp.tipo_participacion
+        WHEN 'AFILIADO' THEN 2
+        WHEN 'SIMPATIZANTE' THEN 1
+        ELSE 0
+      END DESC,
+      pp.fecha_registro DESC,
+      pp.participacion_id DESC
+  ";
+
+  $st = $con->prepare($sql);
+  $st->bind_param("i", $persona_id);
+  $st->execute();
+
+  $rs = $st->get_result();
+  $data = [];
+
+  while ($row = $rs->fetch_assoc()) {
+    $responsableNombre = trim(
+      (string)($row['responsable_nombre'] ?? '') . ' ' .
+        (string)($row['responsable_apellido_paterno'] ?? '') . ' ' .
+        (string)($row['responsable_apellido_materno'] ?? '')
+    );
+
+    $data[] = [
+      "participacion_id" => (int)$row['participacion_id'],
+      "folio" => $row['folio'],
+      "persona_id" => (int)$row['persona_id'],
+      "tipo_participacion" => $row['tipo_participacion'],
+      "participacion_origen_id" => nullable_int_from_row($row, 'participacion_origen_id'),
+      "estatus_id" => (int)$row['estatus_id'],
+      "estatus" => [
+        "codigo" => $row['estatus_codigo'],
+        "nombre" => $row['estatus_nombre']
+      ],
+      "territorio_id" => nullable_int_from_row($row, 'territorio_id'),
+      "territorio" => [
+        "territorio_id" => nullable_int_from_row($row, 'territorio_id'),
+        "codigo" => $row['territorio_codigo'],
+        "nombre" => $row['territorio_nombre'],
+        "tipo" => $row['territorio_tipo']
+      ],
+      "usuario_responsable_id" => nullable_int_from_row($row, 'usuario_responsable_id'),
+      "usuario_responsable" => [
+        "usuario_id" => nullable_int_from_row($row, 'usuario_responsable_id'),
+        "username" => $row['responsable_username'],
+        "nombre" => $row['responsable_nombre'],
+        "apellido_paterno" => $row['responsable_apellido_paterno'],
+        "apellido_materno" => $row['responsable_apellido_materno'],
+        "nombre_completo" => $responsableNombre
+      ],
+      "fuente_captura" => $row['fuente_captura'],
+      "fecha_registro" => $row['fecha_registro'],
+      "fecha_afiliacion" => $row['fecha_afiliacion'],
+      "numero_afiliacion" => $row['numero_afiliacion'],
+      "observaciones" => $row['observaciones'],
+      "activo" => (int)$row['activo'],
+      "created_at" => $row['created_at'],
+      "created_by" => nullable_int_from_row($row, 'created_by'),
+      "updated_at" => $row['updated_at'],
+      "updated_by" => nullable_int_from_row($row, 'updated_by')
+    ];
+  }
+
+  $st->close();
+
+  return $data;
+}
+
+function obtener_participacion_resumen(mysqli $con, int $persona_id): array
+{
+  $participaciones = obtener_participaciones_activas($con, $persona_id);
+
+  $principal = $participaciones[0] ?? null;
+
+  $tieneSimpatizante = false;
+  $tieneAfiliado = false;
+
+  foreach ($participaciones as $participacion) {
+    if (($participacion['tipo_participacion'] ?? '') === 'SIMPATIZANTE') {
+      $tieneSimpatizante = true;
+    }
+
+    if (($participacion['tipo_participacion'] ?? '') === 'AFILIADO') {
+      $tieneAfiliado = true;
+    }
+  }
+
+  return [
+    "actual" => $principal,
+    "tipo_actual" => $principal['tipo_participacion'] ?? null,
+    "tiene_simpatizante_activo" => $tieneSimpatizante,
+    "tiene_afiliado_activo" => $tieneAfiliado,
+    "participaciones_activas" => count($participaciones),
+    "activas" => $participaciones
+  ];
+}
+
+function buscar_participacion_sin_filtrar_activo(mysqli $con, int $persona_id, string $tipo): ?array
+{
+  $sql = "
+    SELECT participacion_id, activo, deleted_at
+    FROM persona_participacion
+    WHERE persona_id = ?
+      AND tipo_participacion = ?
+    LIMIT 1
+  ";
+
+  $st = $con->prepare($sql);
+  $st->bind_param("is", $persona_id, $tipo);
+  $st->execute();
+
+  $row = $st->get_result()->fetch_assoc();
+  $st->close();
+
+  return $row ?: null;
+}
+
+function activar_o_insertar_participacion(mysqli $con, int $persona_id, string $tipo, array $in, ?int $usuarioActor = null): void
+{
+  $existente = buscar_participacion_sin_filtrar_activo($con, $persona_id, $tipo);
+
+  $estatusId = int_input_or_null($in, ['participacion_estatus_id', 'estatus_participacion_id']) ?? 4;
+  $territorioId = int_input_or_null($in, ['participacion_territorio_id', 'territorio_id', 'seccion_id']);
+  $responsableId = int_input_or_null($in, ['usuario_responsable_id', 'capturado_por', 'created_by', 'updated_by']) ?? $usuarioActor;
+  $fuenteCaptura = fuente_captura_or_null($in['fuente_captura'] ?? null);
+  $fechaAfiliacion = $tipo === 'AFILIADO'
+    ? str_input_or_null($in, ['fecha_afiliacion'])
+    : null;
+  $numeroAfiliacion = $tipo === 'AFILIADO'
+    ? str_input_or_null($in, ['numero_afiliacion'])
+    : null;
+  $observaciones = str_input_or_null($in, ['observaciones_participacion']);
+
+  if ($existente) {
+    $set = [
+      "activo = 1",
+      "deleted_at = NULL",
+      "deleted_by = NULL",
+      "estatus_id = ?"
+    ];
+
+    $params = [$estatusId];
+    $types = "i";
+
+    if ($territorioId !== null) {
+      $set[] = "territorio_id = ?";
+      $params[] = $territorioId;
+      $types .= "i";
+    }
+
+    if ($responsableId !== null) {
+      $set[] = "usuario_responsable_id = ?";
+      $params[] = $responsableId;
+      $types .= "i";
+    }
+
+    if ($fuenteCaptura !== null) {
+      $set[] = "fuente_captura = ?";
+      $params[] = $fuenteCaptura;
+      $types .= "s";
+    }
+
+    if ($fechaAfiliacion !== null) {
+      $set[] = "fecha_afiliacion = ?";
+      $params[] = $fechaAfiliacion;
+      $types .= "s";
+    }
+
+    if ($numeroAfiliacion !== null) {
+      $set[] = "numero_afiliacion = ?";
+      $params[] = $numeroAfiliacion;
+      $types .= "s";
+    }
+
+    if ($observaciones !== null) {
+      $set[] = "observaciones = ?";
+      $params[] = $observaciones;
+      $types .= "s";
+    }
+
+    if ($usuarioActor !== null) {
+      $set[] = "updated_by = ?";
+      $params[] = $usuarioActor;
+      $types .= "i";
+    }
+
+    $params[] = (int)$existente['participacion_id'];
+    $types .= "i";
+
+    $sql = "
+      UPDATE persona_participacion
+      SET " . implode(", ", $set) . "
+      WHERE participacion_id = ?
+    ";
+
+    $st = $con->prepare($sql);
+    bind_dynamic($st, $types, $params);
+    $st->execute();
+    $st->close();
+
+    return;
+  }
+
+  $folio = generar_folio_participacion($tipo, $persona_id);
+  $createdBy = $usuarioActor;
+
+  $sql = "
+    INSERT INTO persona_participacion (
+      folio,
+      persona_id,
+      tipo_participacion,
+      estatus_id,
+      territorio_id,
+      usuario_responsable_id,
+      fuente_captura,
+      fecha_afiliacion,
+      numero_afiliacion,
+      observaciones,
+      activo,
+      created_by
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+  ";
+
+  $params = [
+    $folio,
+    $persona_id,
+    $tipo,
+    $estatusId,
+    $territorioId,
+    $responsableId,
+    $fuenteCaptura,
+    $fechaAfiliacion,
+    $numeroAfiliacion,
+    $observaciones,
+    $createdBy
+  ];
+
+  $types = "sisiiissssi";
+
+  $st = $con->prepare($sql);
+  bind_dynamic($st, $types, $params);
+  $st->execute();
+  $st->close();
+}
+
+function desactivar_participacion(mysqli $con, int $persona_id, string $tipo, ?int $usuarioActor = null): void
+{
+  $existente = buscar_participacion_sin_filtrar_activo($con, $persona_id, $tipo);
+
+  if (!$existente) {
+    return;
+  }
+
+  $sql = "
+    UPDATE persona_participacion
+    SET activo = 0,
+        updated_by = ?
+    WHERE participacion_id = ?
+  ";
+
+  $participacionId = (int)$existente['participacion_id'];
+  $st = $con->prepare($sql);
+  $st->bind_param("ii", $usuarioActor, $participacionId);
+  $st->execute();
+  $st->close();
+}
+
+function sincronizar_participaciones_persona(mysqli $con, int $persona_id, array $in, ?int $usuarioActor = null, bool $usarDefaultSimpatizante = false): void
+{
+  $tipo = null;
+
+  if (array_key_exists('tipo_participacion', $in)) {
+    $tipo = normalizar_tipo_participacion($in['tipo_participacion']);
+  } elseif (array_key_exists('participacion', $in)) {
+    $tipo = normalizar_tipo_participacion($in['participacion']);
+  } elseif ($usarDefaultSimpatizante) {
+    $tipo = 'SIMPATIZANTE';
+  }
+
+  if ($tipo === null) {
+    return;
+  }
+
+  if ($tipo === 'AFILIADO') {
+    activar_o_insertar_participacion($con, $persona_id, 'SIMPATIZANTE', $in, $usuarioActor);
+    activar_o_insertar_participacion($con, $persona_id, 'AFILIADO', $in, $usuarioActor);
+    return;
+  }
+
+  activar_o_insertar_participacion($con, $persona_id, 'SIMPATIZANTE', $in, $usuarioActor);
+  desactivar_participacion($con, $persona_id, 'AFILIADO', $usuarioActor);
+}
+
 /* ============================================================
    FORMATTER
    ============================================================ */
@@ -648,6 +1057,8 @@ function insertar_persona(mysqli $con, array $in): array
 
   $st->close();
 
+  sincronizar_participaciones_persona($con, $persona_id, $in, $created_by, true);
+
   $st = $con->prepare("
         SELECT *
         FROM persona
@@ -666,7 +1077,10 @@ function insertar_persona(mysqli $con, array $in): array
     internal_error("Persona insertada pero no encontrada. persona_id=$persona_id");
   }
 
-  return persona_row($row);
+  $data = persona_row($row);
+  $data["participacion"] = obtener_participacion_resumen($con, $persona_id);
+
+  return $data;
 }
 
 /* ============================================================
