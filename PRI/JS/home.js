@@ -73,6 +73,7 @@ const SEL = {
   ineReviewEstatus: "#ine-review-estatus",
   ineReviewAfiliado: "#ine-review-es-afiliado",
   ineReviewSaveStatus: "#ine-review-save-status",
+  ineReviewAdminbar: "#ine-review-adminbar",
 };
 
 const ESTATUS_VALIDOS = new Set(["VALIDADO", "ACTIVO"]);
@@ -1009,11 +1010,13 @@ function setReviewModalReadonlyMode(isReadonly) {
   const statusSaveBtn = $(SEL.ineReviewSaveStatus);
   const reprocessBtn = $(SEL.ineReviewReprocess);
   const cancelBtn = form.querySelector("[data-ine-review-close]");
+  const adminbar = $(SEL.ineReviewAdminbar);
 
   if (saveBtn) saveBtn.hidden = Boolean(isReadonly);
   if (statusSaveBtn) statusSaveBtn.hidden = !Boolean(isReadonly);
   if (reprocessBtn) reprocessBtn.hidden = Boolean(isReadonly);
   if (cancelBtn) cancelBtn.textContent = isReadonly ? "Cerrar" : "Cancelar";
+  if (adminbar) adminbar.hidden = !Boolean(isReadonly);
 
   syncReadonlyStatusSaveButton();
 }

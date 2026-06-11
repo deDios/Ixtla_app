@@ -354,7 +354,7 @@ ix_require_session([
                     <!-- Resumen -->
                     <section class="ine-review-section ine-review-section--summary">
 
-                        <div class="ine-review-adminbar" id="ine-review-adminbar">
+                        <div class="ine-review-adminbar" id="ine-review-adminbar" hidden>
                             <label class="ine-review-field ine-review-status-field">
                                 <span>Estado</span>
 

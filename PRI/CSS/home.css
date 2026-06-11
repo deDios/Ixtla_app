@@ -2729,9 +2729,6 @@ body.ine-modal-open {
     gap: 30px;
     margin-bottom: 22px;
     padding: 16px 18px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 18px;
-    background: rgba(248, 250, 252, 0.82);
 }
 
 .ine-review-status-field {
@@ -2888,10 +2885,7 @@ body.ine-modal-open {
 }
 
 /* Modo readonly: adminbar activa, resto lectura */
-.ine-review-modal[data-mode="readonly"] .ine-review-adminbar {
-    border-color: rgba(16, 185, 129, 0.16);
-    background: rgba(16, 185, 129, 0.045);
-}
+.ine-review-modal[data-mode="readonly"] .ine-review-adminbar {}
 
 .ine-review-modal[data-mode="readonly"] .ine-review-status-select,
 .ine-review-modal[data-mode="readonly"] .ine-review-affiliate-toggle,
