@@ -2554,9 +2554,6 @@ body.ine-modal-open {
     gap: 30px;
     margin-bottom: 22px;
     padding: 16px 18px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 18px;
-    background: rgba(248, 250, 252, 0.82);
 }
 
 .ine-review-status-field {
@@ -2712,6 +2709,237 @@ body.ine-modal-open {
 
     .ine-review-affiliate-text {
         font-size: 1rem;
+    }
+}
+
+@media (min-width: 721px) {
+    .ine-review-adminbar {
+        max-width: 640px;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* RED · Modal readonly: Estado + Afiliado + Footer actions                   */
+/* -------------------------------------------------------------------------- */
+
+.ine-review-adminbar {
+    display: grid;
+    grid-template-columns: minmax(260px, 380px) auto;
+    align-items: end;
+    gap: 30px;
+    margin-bottom: 22px;
+    padding: 16px 18px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 18px;
+    background: rgba(248, 250, 252, 0.82);
+}
+
+.ine-review-status-field {
+    min-width: 0;
+    margin: 0;
+}
+
+.ine-review-status-field>span {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    color: #0f172a;
+}
+
+.ine-review-status-select {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 42px 8px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    border-radius: 12px;
+    background-color: #ffffff;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #334155;
+    outline: none;
+    cursor: pointer;
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background-color 160ms ease;
+}
+
+.ine-review-status-select:hover {
+    border-color: rgba(16, 185, 129, 0.48);
+}
+
+.ine-review-status-select:focus {
+    border-color: rgba(16, 185, 129, 0.9);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+}
+
+.ine-review-affiliate-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    min-height: 42px;
+    margin: 0 0 2px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.ine-review-affiliate-text {
+    font-size: 1.02rem;
+    font-weight: 900;
+    color: #0f172a;
+    line-height: 1;
+}
+
+.ine-review-toggle-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.ine-review-toggle-wrap input {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ine-review-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 54px;
+    height: 30px;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.36);
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    box-shadow:
+        inset 0 1px 2px rgba(15, 23, 42, 0.08),
+        0 4px 12px rgba(15, 23, 42, 0.12);
+    transition:
+        background-color 160ms ease,
+        border-color 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.ine-review-switch-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.24);
+    transform: translateX(0);
+    transition:
+        transform 180ms ease,
+        background-color 160ms ease;
+}
+
+.ine-review-toggle-wrap input:checked+.ine-review-switch {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.62);
+}
+
+.ine-review-toggle-wrap input:checked+.ine-review-switch .ine-review-switch-dot {
+    transform: translateX(24px);
+    background: #84cc16;
+}
+
+.ine-review-toggle-wrap input:focus-visible+.ine-review-switch {
+    box-shadow:
+        0 0 0 4px rgba(16, 185, 129, 0.16),
+        inset 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.ine-review-toggle-wrap input:disabled+.ine-review-switch {
+    opacity: 0.58;
+    cursor: not-allowed;
+}
+
+.ine-review-affiliate-toggle:has(input:disabled) {
+    cursor: not-allowed;
+}
+
+/* Footer del modal: Guardar / Cerrar / Reprocesar */
+.ine-review-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 18px 28px;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.ine-review-status-save {
+    min-width: 140px;
+}
+
+.ine-review-status-save:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    filter: grayscale(0.2);
+}
+
+/* Modo readonly: adminbar activa, resto lectura */
+.ine-review-modal[data-mode="readonly"] .ine-review-adminbar {
+    border-color: rgba(16, 185, 129, 0.16);
+    background: rgba(16, 185, 129, 0.045);
+}
+
+.ine-review-modal[data-mode="readonly"] .ine-review-status-select,
+.ine-review-modal[data-mode="readonly"] .ine-review-affiliate-toggle,
+.ine-review-modal[data-mode="readonly"] .ine-review-status-save {
+    pointer-events: auto;
+}
+
+/* Mobile */
+@media (max-width: 720px) {
+    .ine-review-adminbar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        gap: 14px;
+        padding: 14px;
+        margin-bottom: 18px;
+    }
+
+    .ine-review-affiliate-toggle {
+        justify-content: space-between;
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 14px;
+        background: #ffffff;
+    }
+
+    .ine-review-affiliate-text {
+        font-size: 1rem;
+    }
+
+    .ine-review-footer {
+        position: sticky;
+        bottom: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 14px 16px;
+        background: #ffffff;
+    }
+
+    .ine-review-footer .ine-review-btn {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .ine-review-status-save {
+        width: 100%;
+        min-width: 0;
     }
 }
 

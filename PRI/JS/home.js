@@ -8,6 +8,8 @@ const CONFIG = {
   ENDPOINT_RED_HOME: "/PRI/db/WEB/ixtla_c_red_home.php",
   ENDPOINT_PERSONAS: "/PRI/db/WEB/ixtla_c_persona.php",
   ENDPOINT_ARCHIVOS: "/PRI/db/WEB/ixtla_c_archivo.php",
+  ENDPOINT_UPDATE_PERSONA: "/PRI/db/WEB/ixtla_u_persona.php",
+  ENDPOINT_CAT_ESTATUS: "/PRI/db/WEB/ixtla_c_cat_estatus.php",
 };
 
 const TAG = "[RED Home]";
@@ -38,6 +40,13 @@ const State = {
     simpatizantes: 0,
     promotores: 0,
   },
+
+  estatus: [],
+
+  readonlyRecord: null,
+  readonlyOriginalStatusId: null,
+  readonlySavingStatus: false,
+  readonlyChangingAffiliate: false,
 };
 
 const SEL = {
@@ -60,6 +69,10 @@ const SEL = {
   ineReviewReprocess: "#ine-btn-reprocess",
   ineReviewFront: "#ine-review-front",
   ineReviewBack: "#ine-review-back",
+
+  ineReviewEstatus: "#ine-review-estatus",
+  ineReviewAfiliado: "#ine-review-es-afiliado",
+  ineReviewSaveStatus: "#ine-review-save-status",
 };
 
 const ESTATUS_VALIDOS = new Set(["VALIDADO", "ACTIVO"]);
@@ -68,6 +81,57 @@ const ESTATUS_VALIDOS = new Set(["VALIDADO", "ACTIVO"]);
 /* HELPERS                                                                    */
 /* -------------------------------------------------------------------------- */
 
+async function loadCatEstatus() {
+  if (Array.isArray(State.estatus) && State.estatus.length) {
+    return State.estatus;
+  }
+
+  const out = await postJSON(CONFIG.ENDPOINT_CAT_ESTATUS, {
+    page: 1,
+    activo: 1,
+    page_size: 20,
+  });
+
+  State.estatus = Array.isArray(out.data) ? out.data : [];
+
+  return State.estatus;
+}
+
+function getCurrentParticipacion(persona = {}, fallbackRow = {}) {
+  return (
+    persona?.participacion?.actual ||
+    persona?.participacion ||
+    fallbackRow?.raw?.participacion ||
+    {}
+  );
+}
+
+function getCurrentStatusId(persona = {}, fallbackRow = {}) {
+  const participacion = getCurrentParticipacion(persona, fallbackRow);
+
+  return Number(
+    participacion?.estatus_id ||
+    persona?.estatus_id ||
+    fallbackRow?.raw?.estatus_id ||
+    fallbackRow?.raw?.participacion?.estatus_id ||
+    0
+  );
+}
+
+function isPersonaAfiliada(persona = {}, fallbackRow = {}) {
+  const participacion = getCurrentParticipacion(persona, fallbackRow);
+
+  const tipo = String(
+    persona?.participacion?.tipo_actual ||
+    participacion?.tipo_actual ||
+    participacion?.tipo_participacion ||
+    fallbackRow?.tipo ||
+    ""
+  ).toUpperCase();
+
+  return tipo === "AFILIADO";
+}
+
 function toast(msg, tipo = "exito", duration = 4500) {
   if (typeof window.gcToast === "function") {
     window.gcToast(msg, tipo, duration);
@@ -75,6 +139,191 @@ function toast(msg, tipo = "exito", duration = 4500) {
   }
 
   console[tipo === "error" ? "error" : "log"]("[toast]", tipo, msg);
+}
+
+function paintReadonlyStatusOptions(persona = {}, fallbackRow = {}) {
+  const select = $(SEL.ineReviewEstatus);
+  if (!select) return;
+
+  const currentStatusId = getCurrentStatusId(persona, fallbackRow);
+
+  select.innerHTML = `<option value="">Selecciona un estado</option>`;
+
+  State.estatus.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = String(item.estatus_id);
+    option.textContent = item.nombre || item.codigo || `Estatus ${item.estatus_id}`;
+    option.dataset.codigo = item.codigo || "";
+    option.selected = Number(item.estatus_id) === currentStatusId;
+
+    select.appendChild(option);
+  });
+
+  State.readonlyOriginalStatusId = currentStatusId || null;
+  syncReadonlyStatusSaveButton();
+}
+
+function paintReadonlyAffiliateToggle(persona = {}, fallbackRow = {}) {
+  const input = $(SEL.ineReviewAfiliado);
+  if (!input) return;
+
+  input.checked = isPersonaAfiliada(persona, fallbackRow);
+}
+
+function getReadonlySelectedStatusId() {
+  const select = $(SEL.ineReviewEstatus);
+  return Number(select?.value || 0);
+}
+
+function syncReadonlyStatusSaveButton() {
+  const btn = $(SEL.ineReviewSaveStatus);
+  if (!btn) return;
+
+  const selectedStatusId = getReadonlySelectedStatusId();
+  const originalStatusId = Number(State.readonlyOriginalStatusId || 0);
+
+  const changed =
+    selectedStatusId > 0 &&
+    originalStatusId > 0 &&
+    selectedStatusId !== originalStatusId;
+
+  btn.disabled = !changed || State.readonlySavingStatus;
+}
+
+async function updateReadonlyAffiliate(isAfiliado) {
+  const record = State.readonlyRecord || {};
+  const persona = record.persona || {};
+  const fallbackRow = record.fallbackRow || {};
+
+  const personaId = Number(persona.persona_id || fallbackRow.id || 0);
+
+  if (!personaId) {
+    toast("No se encontró la persona para actualizar afiliación.", "error");
+    return;
+  }
+
+  const input = $(SEL.ineReviewAfiliado);
+  const previousValue = !isAfiliado;
+
+  if (State.readonlyChangingAffiliate) return;
+
+  State.readonlyChangingAffiliate = true;
+
+  if (input) input.disabled = true;
+
+  try {
+    const tipoParticipacion = isAfiliado ? "AFILIADO" : "SIMPATIZANTE";
+    const originalStatusId = Number(State.readonlyOriginalStatusId || 0);
+
+    const payload = {
+      persona_id: personaId,
+      tipo_participacion: tipoParticipacion,
+      updated_by: getUsuarioId() || null,
+      usuario_responsable_id: getUsuarioId() || null,
+      fuente_captura: "PORTAL",
+    };
+
+    if (originalStatusId > 0) {
+      payload.participacion_estatus_id = originalStatusId;
+    }
+
+    const out = await postJSON(CONFIG.ENDPOINT_UPDATE_PERSONA, payload);
+
+    const updatedPersona = out.data || null;
+
+    if (updatedPersona) {
+      State.readonlyRecord.persona = updatedPersona;
+      paintPersonaReadonlyData(updatedPersona, fallbackRow);
+      paintReadonlyStatusOptions(updatedPersona, fallbackRow);
+      paintReadonlyAffiliateToggle(updatedPersona, fallbackRow);
+    }
+
+    toast(
+      isAfiliado
+        ? "La persona ahora está marcada como afiliada."
+        : "Se quitó la afiliación. La persona queda como simpatizante.",
+      "exito"
+    );
+
+    await loadDashboard({ keepPage: true });
+  } catch (err) {
+    error("No se pudo actualizar afiliación:", err);
+
+    if (input) input.checked = previousValue;
+
+    toast(err?.message || "No se pudo actualizar la afiliación.", "error");
+  } finally {
+    State.readonlyChangingAffiliate = false;
+
+    if (input) input.disabled = false;
+  }
+}
+
+async function saveReadonlyStatus() {
+  const record = State.readonlyRecord || {};
+  const persona = record.persona || {};
+  const fallbackRow = record.fallbackRow || {};
+
+  const personaId = Number(persona.persona_id || fallbackRow.id || 0);
+  const estatusId = getReadonlySelectedStatusId();
+
+  if (!personaId) {
+    toast("No se encontró la persona para actualizar estatus.", "error");
+    return;
+  }
+
+  if (!estatusId) {
+    toast("Selecciona un estatus válido.", "warning");
+    return;
+  }
+
+  const btn = $(SEL.ineReviewSaveStatus);
+  const afiliadoInput = $(SEL.ineReviewAfiliado);
+  const isAfiliado = Boolean(afiliadoInput?.checked);
+
+  State.readonlySavingStatus = true;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Guardando...";
+  }
+
+  try {
+    const out = await postJSON(CONFIG.ENDPOINT_UPDATE_PERSONA, {
+      persona_id: personaId,
+      tipo_participacion: isAfiliado ? "AFILIADO" : "SIMPATIZANTE",
+      participacion_estatus_id: estatusId,
+      updated_by: getUsuarioId() || null,
+      usuario_responsable_id: getUsuarioId() || null,
+      fuente_captura: "PORTAL",
+    });
+
+    const updatedPersona = out.data || null;
+
+    if (updatedPersona) {
+      State.readonlyRecord.persona = updatedPersona;
+      paintPersonaReadonlyData(updatedPersona, fallbackRow);
+      paintReadonlyStatusOptions(updatedPersona, fallbackRow);
+      paintReadonlyAffiliateToggle(updatedPersona, fallbackRow);
+    } else {
+      State.readonlyOriginalStatusId = estatusId;
+      syncReadonlyStatusSaveButton();
+    }
+
+    toast("Estatus actualizado correctamente.", "exito");
+
+    await loadDashboard({ keepPage: true });
+  } catch (err) {
+    error("No se pudo actualizar estatus:", err);
+    toast(err?.message || "No se pudo actualizar el estatus.", "error");
+  } finally {
+    State.readonlySavingStatus = false;
+
+    if (btn) {
+      btn.textContent = "Guardar";
+    }
+
+    syncReadonlyStatusSaveButton();
+  }
 }
 
 function safeText(value, fallback = "—") {
@@ -639,7 +888,7 @@ async function openRecord(id) {
     return;
   }
 
-  openPersonaReadonlyModal({
+  await openPersonaReadonlyModal({
     loading: true,
     persona: local?.raw || null,
     fallbackRow: local || null,
@@ -675,7 +924,7 @@ async function openRecord(id) {
       warn("No se pudieron cargar archivos de persona:", err);
     }
 
-    openPersonaReadonlyModal({
+    await openPersonaReadonlyModal({
       loading: false,
       persona,
       fallbackRow: local || null,
@@ -685,7 +934,7 @@ async function openRecord(id) {
   } catch (err) {
     error("No se pudo abrir detalle de persona:", err);
 
-    openPersonaReadonlyModal({
+    await openPersonaReadonlyModal({
       loading: false,
       errorMessage: err.message || "No se pudo cargar el detalle.",
       persona: local?.raw || null,
@@ -713,10 +962,22 @@ function setReviewModalReadonlyMode(isReadonly) {
 
   if (!modal || !form) return;
 
+  const editableReadonlyIds = new Set([
+    "ine-review-estatus",
+    "ine-review-es-afiliado",
+    "ine-review-save-status",
+  ]);
+
   modal.dataset.mode = isReadonly ? "readonly" : "capture";
   form.classList.toggle("is-readonly", Boolean(isReadonly));
 
   form.querySelectorAll("input, textarea").forEach((field) => {
+    if (isReadonly && editableReadonlyIds.has(field.id)) {
+      field.disabled = false;
+      field.readOnly = false;
+      return;
+    }
+
     if (field.type === "checkbox" || field.type === "radio") {
       field.disabled = Boolean(isReadonly);
       return;
@@ -725,17 +986,36 @@ function setReviewModalReadonlyMode(isReadonly) {
     field.readOnly = Boolean(isReadonly);
   });
 
-  form.querySelectorAll("select").forEach((field) => {
+  form.querySelectorAll("select, button").forEach((field) => {
+    if (field.matches("[data-ine-review-close]")) {
+      field.disabled = false;
+      return;
+    }
+
+    if (isReadonly && editableReadonlyIds.has(field.id)) {
+      field.disabled = false;
+      return;
+    }
+
+    if (field.id === "ine-review-save-status") {
+      field.disabled = true;
+      return;
+    }
+
     field.disabled = Boolean(isReadonly);
   });
 
   const saveBtn = $(SEL.ineReviewSave);
+  const statusSaveBtn = $(SEL.ineReviewSaveStatus);
   const reprocessBtn = $(SEL.ineReviewReprocess);
   const cancelBtn = form.querySelector("[data-ine-review-close]");
 
   if (saveBtn) saveBtn.hidden = Boolean(isReadonly);
+  if (statusSaveBtn) statusSaveBtn.hidden = !Boolean(isReadonly);
   if (reprocessBtn) reprocessBtn.hidden = Boolean(isReadonly);
   if (cancelBtn) cancelBtn.textContent = isReadonly ? "Cerrar" : "Cancelar";
+
+  syncReadonlyStatusSaveButton();
 }
 
 function resetReviewModalToCaptureMode() {
@@ -757,7 +1037,7 @@ function resetReviewModalToCaptureMode() {
   }
 }
 
-function openPersonaReadonlyModal({
+async function openPersonaReadonlyModal({
   loading = false,
   errorMessage = "",
   persona = null,
@@ -773,6 +1053,7 @@ function openPersonaReadonlyModal({
 
   setReviewModalReadonlyMode(true);
   setReviewModalOpen(true);
+  await loadCatEstatus();
 
   const title = $(SEL.ineReviewTitle);
   const kicker = $(SEL.ineReviewKicker);
@@ -807,6 +1088,14 @@ function openPersonaReadonlyModal({
 
   paintPersonaReadonlyData(persona || {}, fallbackRow || {});
   paintPersonaReadonlyImages(archivos);
+
+  State.readonlyRecord = {
+    persona: persona || {},
+    fallbackRow: fallbackRow || {},
+  };
+
+  paintReadonlyStatusOptions(persona || {}, fallbackRow || {});
+  paintReadonlyAffiliateToggle(persona || {}, fallbackRow || {});
 
   if (errorMessage && warning) {
     warning.innerHTML = `
@@ -1031,6 +1320,18 @@ function bindEvents() {
   });
 
   $(SEL.btnExport)?.addEventListener("click", exportCSV);
+
+  $(SEL.ineReviewEstatus)?.addEventListener("change", () => {
+    syncReadonlyStatusSaveButton();
+  });
+
+  $(SEL.ineReviewSaveStatus)?.addEventListener("click", async () => {
+    await saveReadonlyStatus();
+  });
+
+  $(SEL.ineReviewAfiliado)?.addEventListener("change", async (event) => {
+    await updateReadonlyAffiliate(Boolean(event.target.checked));
+  });
 
   document.addEventListener("red:persona-saved", async () => {
     await loadDashboard({ keepPage: false });
