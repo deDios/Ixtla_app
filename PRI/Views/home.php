@@ -364,14 +364,14 @@ ix_require_session([
                             </label>
 
                             <label class="ine-review-affiliate-toggle" for="ine-review-es-afiliado">
-                                <span class="ine-review-affiliate-text">
-                                    Afiliado
-                                </span>
+                                <span class="ine-review-affiliate-text">Afiliado</span>
 
-                                <input type="checkbox" id="ine-review-es-afiliado" name="es_afiliado" value="1">
+                                <span class="ine-review-toggle-wrap">
+                                    <input type="checkbox" id="ine-review-es-afiliado" name="es_afiliado" value="1">
 
-                                <span class="ine-review-switch" aria-hidden="true">
-                                    <span class="ine-review-switch-dot"></span>
+                                    <span class="ine-review-switch" aria-hidden="true">
+                                        <span class="ine-review-switch-dot"></span>
+                                    </span>
                                 </span>
                             </label>
                         </div>
