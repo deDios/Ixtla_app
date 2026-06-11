@@ -33,10 +33,9 @@ const CONFIG = {
     },
 
     SAVE: {
-        estatusIdDefault: 1,
+        personaEstatusIdCapturado: 1,
         avisoPrivacidadVersion: "RED-INE-2026-01",
-        //colocar en false
-        reloadPageAfterSave: true,
+        reloadPageAfterSave: false,
         reloadDelayMs: 900,
     },
 };
@@ -339,7 +338,7 @@ async function openPreferredCaptureMethod() {
         showScreen("upload");
         return;
     }
-    
+
 
     if (device.preferCamera) {
         prepareCaptureStep("front");
@@ -2328,11 +2327,17 @@ async function buildPersonaInsertPayload(payload) {
         aviso_privacidad_version: CONFIG.SAVE.avisoPrivacidadVersion,
         fecha_consentimiento: Number(payload.acepta_tratamiento_datos) === 1 ? getTodayDateTimeForMysql() : null,
 
-        estatus_id: CONFIG.SAVE.estatusIdDefault,
+        estatus_id: CONFIG.SAVE.personaEstatusIdCapturado,
         capturado_por: usuarioId || null,
         created_by: usuarioId || null,
 
         observaciones: nullableString(payload.observaciones),
+
+        tipo_participacion: "SIMPATIZANTE",
+        participacion_territorio_id: nullableNumber(payload.seccion_id),
+        usuario_responsable_id: usuarioId || null,
+        fuente_captura: "PORTAL",
+        fecha_registro: getTodayDateTimeForMysql(),
     };
 
     Object.keys(personaPayload).forEach((key) => {

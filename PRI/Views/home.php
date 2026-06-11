@@ -353,6 +353,29 @@ ix_require_session([
 
                     <!-- Resumen -->
                     <section class="ine-review-section ine-review-section--summary">
+
+                        <div class="ine-review-adminbar" id="ine-review-adminbar">
+                            <label class="ine-review-field ine-review-status-field">
+                                <span>Estado</span>
+
+                                <select id="ine-review-estatus" name="estatus_id" class="ine-review-status-select">
+                                    <option value="">Selecciona un estado</option>
+                                </select>
+                            </label>
+
+                            <label class="ine-review-affiliate-toggle" for="ine-review-es-afiliado">
+                                <span class="ine-review-affiliate-text">
+                                    Afiliado
+                                </span>
+
+                                <input type="checkbox" id="ine-review-es-afiliado" name="es_afiliado" value="1">
+
+                                <span class="ine-review-switch" aria-hidden="true">
+                                    <span class="ine-review-switch-dot"></span>
+                                </span>
+                            </label>
+                        </div>
+
                         <div class="ine-review-meta">
                             <label class="ine-review-field">
                                 <span>Fecha de extracción</span>

@@ -717,6 +717,11 @@ function setReviewModalReadonlyMode(isReadonly) {
   form.classList.toggle("is-readonly", Boolean(isReadonly));
 
   form.querySelectorAll("input, textarea").forEach((field) => {
+    if (field.type === "checkbox" || field.type === "radio") {
+      field.disabled = Boolean(isReadonly);
+      return;
+    }
+
     field.readOnly = Boolean(isReadonly);
   });
 

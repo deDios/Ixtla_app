@@ -6,8 +6,10 @@
 
   Objetivo:
   - Resolver en servidor el universo visible por jerarquía.
-  - Consultar personas desde persona_participacion con prioridad:
-      AFILIADO > SIMPATIZANTE
+  - Consultar personas desde persona, con LEFT JOIN a persona_participacion.
+  - Si hay participación activa, priorizar:
+    AFILIADO > SIMPATIZANTE
+  - Si no hay participación, tratar temporalmente como SIMPATIZANTE.
   - Paginar en SQL.
   - Calcular métricas sin cargar todo el universo en el front.
 
@@ -257,11 +259,13 @@ function make_in_clause(string $field, array $ids, string &$types, array &$param
   return "$field IN ($placeholders)";
 }
 
-/* ============================================================
-   JERARQUÍA
-   ============================================================ */
+/*
+  Devuelve el usuario actual + toda su jerarquía descendiente.
+  Ejemplo:
+  Coordinador Zona -> Coordinadores Sección -> Promotores.
+*/
 
-function get_descendant_user_ids(mysqli $con, int $usuario_id): array
+function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
 {
   if ($usuario_id <= 0) {
     return [];
@@ -331,7 +335,11 @@ function build_scope(mysqli $con, array $in): array
     ], 400);
   }
 
-  $ids = get_descendant_user_ids($con, $usuarioId);
+  $ids = get_self_and_descendant_user_ids($con, $usuarioId);
+
+  if (empty($ids)) {
+    $ids = [$usuarioId];
+  }
 
   return [
     'can_see_all' => false,
@@ -509,7 +517,7 @@ function red_home_from(): string
           )
       )
 
-    INNER JOIN cat_estatus e
+    LEFT JOIN cat_estatus e
       ON e.estatus_id = COALESCE(pp.estatus_id, p.estatus_id)
 
     LEFT JOIN territorio s
