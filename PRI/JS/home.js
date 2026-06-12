@@ -777,13 +777,19 @@ function renderTable() {
   }
 
   tbody.innerHTML = rows.map((item) => `
-    <tr data-id="${escapeHTML(item.id)}">
+    <tr
+      class="red-row"
+      data-id="${escapeHTML(item.id)}"
+      data-action="open"
+      tabindex="0"
+      role="button"
+      aria-label="Abrir registro de ${escapeHTML(safeText(item.nombre))}">
       <td class="td-name">${escapeHTML(safeText(item.nombre))}</td>
       <td>${escapeHTML(safeText(item.domicilio))}</td>
       <td>${escapeHTML(safeText(item.seccion))}</td>
-      <td>${escapeHTML(safeText(item.telefono))}</td>
-      <td>${renderStatusIcon(item)}</td>
-      <td>
+      <td class="td-phone">${escapeHTML(safeText(item.telefono))}</td>
+      <td class="td-valid">${renderStatusIcon(item)}</td>
+      <td class="td-actions">
         <button type="button" class="red-open" data-action="open" data-id="${escapeHTML(item.id)}">
           Abrir
         </button>
@@ -1324,11 +1330,27 @@ function bindEvents() {
   search?.addEventListener("input", handleSearch);
 
   document.addEventListener("click", async (event) => {
-    const openBtn = event.target.closest("[data-action='open']");
-    if (openBtn) {
-      openRecord(openBtn.dataset.id);
+    const openTarget = event.target.closest("[data-action='open']");
+    if (openTarget) {
+      const row = openTarget.closest("[data-id]");
+      const id = openTarget.dataset.id || row?.dataset.id;
+
+      if (id) {
+        openRecord(id);
+      }
+
       return;
     }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+
+      const row = event.target.closest(".red-row[data-action='open']");
+      if (!row) return;
+
+      event.preventDefault();
+      openRecord(row.dataset.id);
+    });
 
     const pagerBtn = event.target.closest("#red-pager button");
     if (pagerBtn) {

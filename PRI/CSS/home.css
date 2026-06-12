@@ -2688,7 +2688,7 @@ body.ine-modal-open {
     cursor: not-allowed;
 }
 
-/* Mobile */
+/* Mobile ahora habran 3 columnas principales. */
 @media (max-width: 720px) {
     .ine-review-adminbar {
         grid-template-columns: 1fr;
@@ -2715,6 +2715,108 @@ body.ine-modal-open {
 @media (min-width: 721px) {
     .ine-review-adminbar {
         max-width: 640px;
+    }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* HOME RED · TABLA MOBILE COMPACTA                                           */
+/* -------------------------------------------------------------------------- */
+
+.red-row {
+    cursor: pointer;
+}
+
+.red-row:focus-visible {
+    outline: 3px solid rgba(47, 143, 107, 0.35);
+    outline-offset: -3px;
+}
+
+@media (max-width: 720px) {
+    .red-table-card {
+        overflow: hidden;
+        border-radius: 0 0 var(--red-radius) var(--red-radius);
+    }
+
+    .red-table-wrap {
+        display: block;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    .red-mobile-list {
+        display: none !important;
+    }
+
+    .red-table {
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .red-table thead th {
+        padding: 12px 12px;
+        font-size: 0.92rem;
+        font-weight: 900;
+        background: #e9e9e9;
+        color: #111827;
+        border-bottom: 1px solid #ffc2c2;
+    }
+
+    .red-table thead th:nth-child(1),
+    .red-table tbody td:nth-child(1) {
+        width: 38%;
+    }
+
+    .red-table thead th:nth-child(2),
+    .red-table tbody td:nth-child(2) {
+        width: 44%;
+    }
+
+    .red-table thead th:nth-child(3),
+    .red-table tbody td:nth-child(3) {
+        width: 18%;
+        text-align: center;
+    }
+
+    .red-table thead th:nth-child(n+4),
+    .red-table tbody td:nth-child(n+4) {
+        display: none;
+    }
+
+    .red-table tbody tr {
+        transition: background 0.14s ease, transform 0.12s ease;
+    }
+
+    .red-table tbody tr:active {
+        background: rgba(47, 143, 107, 0.08);
+    }
+
+    .red-table tbody td {
+        padding: 10px 12px;
+        border-top: 0;
+        border-bottom: 1px solid #ffc2c2;
+        vertical-align: top;
+        font-size: 0.82rem;
+        line-height: 1.25;
+        color: #111827;
+    }
+
+    .red-table tbody td.td-name {
+        font-weight: 950;
+        text-transform: uppercase;
+        word-break: break-word;
+    }
+
+    .red-table tbody td:nth-child(2) {
+        word-break: break-word;
+    }
+
+    .red-table tbody td:nth-child(3) {
+        font-weight: 900;
+        white-space: nowrap;
     }
 }
 
