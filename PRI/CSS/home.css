@@ -2735,7 +2735,6 @@ body.ine-modal-open {
 @media (max-width: 720px) {
     .red-table-card {
         overflow: hidden;
-        border-radius: 0 0 var(--red-radius) var(--red-radius);
     }
 
     .red-table-wrap {
