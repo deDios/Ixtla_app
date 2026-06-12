@@ -464,6 +464,17 @@ function getRolId() {
   );
 }
 
+function isPromotorRole() {
+  const rolCodigo = getRolCodigo();
+  const rolId = getRolId();
+
+  return rolCodigo === "PROMOTOR" || rolId === 5;
+}
+
+function canEditReadonlyAdminbar() {
+  return !isPromotorRole();
+}
+
 function getAuthHeaders() {
   const headers = {
     "Content-Type": "application/json",
@@ -1012,11 +1023,21 @@ function setReviewModalReadonlyMode(isReadonly) {
   const cancelBtn = form.querySelector("[data-ine-review-close]");
   const adminbar = $(SEL.ineReviewAdminbar);
 
+  const showReadonlyAdminbar = Boolean(isReadonly) && canEditReadonlyAdminbar();
+
   if (saveBtn) saveBtn.hidden = Boolean(isReadonly);
-  if (statusSaveBtn) statusSaveBtn.hidden = !Boolean(isReadonly);
+  if (statusSaveBtn) statusSaveBtn.hidden = !showReadonlyAdminbar;
   if (reprocessBtn) reprocessBtn.hidden = Boolean(isReadonly);
   if (cancelBtn) cancelBtn.textContent = isReadonly ? "Cerrar" : "Cancelar";
-  if (adminbar) adminbar.hidden = !Boolean(isReadonly);
+  if (adminbar) adminbar.hidden = !showReadonlyAdminbar;
+
+  if (!showReadonlyAdminbar) {
+    const estatusSelect = $(SEL.ineReviewEstatus);
+    const afiliadoInput = $(SEL.ineReviewAfiliado);
+
+    if (estatusSelect) estatusSelect.disabled = true;
+    if (afiliadoInput) afiliadoInput.disabled = true;
+  }
 
   syncReadonlyStatusSaveButton();
 }
@@ -1056,7 +1077,10 @@ async function openPersonaReadonlyModal({
 
   setReviewModalReadonlyMode(true);
   setReviewModalOpen(true);
-  await loadCatEstatus();
+
+  if (canEditReadonlyAdminbar()) {
+    await loadCatEstatus();
+  }
 
   const title = $(SEL.ineReviewTitle);
   const kicker = $(SEL.ineReviewKicker);
