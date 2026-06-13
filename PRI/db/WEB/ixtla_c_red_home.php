@@ -915,30 +915,61 @@ function consultar_metricas(mysqli $con, array $scope): array
 
   $simpatizantes = count_metric($con, $simpatizantesSql, $typesScope2, $paramsScope2);
 
-  $typesScope3 = '';
-  $paramsScope3 = [];
-  $scopeWhere3 = build_metric_scope_where($scope, $typesScope3, $paramsScope3);
-
-  $responsablesSql = "
-    SELECT COUNT(DISTINCT COALESCE(pp.usuario_responsable_id, p.capturado_por)) AS total
-    FROM persona p
-    LEFT JOIN persona_participacion pp
-      ON pp.persona_id = p.persona_id
-     AND pp.deleted_at IS NULL
-     AND pp.activo = 1
-    WHERE p.deleted_at IS NULL
-      AND COALESCE(pp.usuario_responsable_id, p.capturado_por) IS NOT NULL
-      AND $scopeWhere3
-  ";
-
-  $responsablesConRegistros = count_metric($con, $responsablesSql, $typesScope3, $paramsScope3);
+  $promotores = contar_promotores_visibles($con, $scope);
 
   return [
     'afiliados' => $afiliados,
     'simpatizantes' => $simpatizantes,
-    'promotores' => $responsablesConRegistros,
-    'responsables_con_registros' => $responsablesConRegistros,
+    'promotores' => $promotores,
+    'promotores_visibles' => $promotores,
   ];
+}
+
+function contar_promotores_visibles(mysqli $con, array $scope): int
+{
+  /*
+    Promotores:
+    - Se cuentan usuarios con rol PROMOTOR.
+    - No se cuentan coordinadores.
+    - Para ADMIN / COORD_GENERAL se cuentan todos los promotores activos.
+    - Para los demás roles se cuentan solo los promotores dentro de su jerarquía descendiente.
+  */
+
+  if ($scope['can_see_all']) {
+    $sql = "
+      SELECT COUNT(DISTINCT u.usuario_id) AS total
+      FROM usuario u
+      INNER JOIN cat_rol r
+        ON r.rol_id = u.rol_id
+      WHERE u.deleted_at IS NULL
+        AND r.codigo = 'PROMOTOR'
+    ";
+
+    return count_metric($con, $sql);
+  }
+
+  $visibleIds = $scope['visible_user_ids'] ?? [];
+
+  if (empty($visibleIds)) {
+    return 0;
+  }
+
+  $types = '';
+  $params = [];
+
+  $whereVisible = make_in_clause('u.usuario_id', $visibleIds, $types, $params);
+
+  $sql = "
+    SELECT COUNT(DISTINCT u.usuario_id) AS total
+    FROM usuario u
+    INNER JOIN cat_rol r
+      ON r.rol_id = u.rol_id
+    WHERE u.deleted_at IS NULL
+      AND r.codigo = 'PROMOTOR'
+      AND $whereVisible
+  ";
+
+  return count_metric($con, $sql, $types, $params);
 }
 
 /* ============================================================
