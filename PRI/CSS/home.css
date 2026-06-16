@@ -3082,3 +3082,38 @@ body.ine-modal-open {
     grid-template-columns: auto;
     justify-content: flex-start;
 }
+
+/* -------------------------------------------------------------------------- */
+/* HOME RED · Encabezados ordenables                                           */
+/* -------------------------------------------------------------------------- */
+
+.red-table th[data-sort-key] {
+    cursor: pointer;
+    user-select: none;
+}
+
+.red-table th[data-sort-key]:hover {
+    background: #dedede;
+}
+
+.red-table th[data-sort-key]:focus-visible {
+    outline: 3px solid rgba(47, 143, 107, 0.28);
+    outline-offset: -3px;
+}
+
+.red-table th[data-sort-key]::after {
+    display: inline-block;
+    width: 1em;
+    margin-left: 6px;
+    color: var(--red-primary);
+    font-size: 0.72em;
+    font-weight: 950;
+}
+
+.red-table th[data-sort-key][data-sort-dir="asc"]::after {
+    content: "▲";
+}
+
+.red-table th[data-sort-key][data-sort-dir="desc"]::after {
+    content: "▼";
+}

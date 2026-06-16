@@ -35,6 +35,11 @@ const State = {
   loading: false,
   scope: null,
 
+  sort: {
+    key: "default",
+    dir: "desc",
+  },
+
   counts: {
     afiliados: 0,
     simpatizantes: 0,
@@ -549,6 +554,8 @@ function buildDashboardPayload(overrides = {}) {
     page: State.page,
     page_size: State.pageSize,
     search: State.search,
+    sort_key: State.sort.key,
+    sort_dir: State.sort.dir,
     ...overrides,
   };
 }
@@ -743,6 +750,7 @@ function render() {
   renderTable();
   renderMobileCards();
   renderPager();
+  paintSortHeaders();
 }
 
 function renderStatusIcon(item) {
@@ -897,6 +905,108 @@ async function goToPage(page) {
 
   State.page = next;
   await loadDashboard({ keepPage: true });
+}
+
+/* -------------------------------------------------------------------------- */
+/* SORT TABLA                                                                  */
+/* -------------------------------------------------------------------------- */
+
+const TABLE_SORT_HEADERS = [
+  { index: 0, key: "nombre" },
+  { index: 1, key: "domicilio" },
+  { index: 2, key: "seccion" },
+  { index: 3, key: "telefono" },
+  { index: 4, key: "estatus" },
+];
+
+function ensureSortHeaders() {
+  const headers = Array.from(document.querySelectorAll(".red-table thead th"));
+
+  TABLE_SORT_HEADERS.forEach(({ index, key }) => {
+    const th = headers[index];
+
+    if (!th) return;
+
+    th.dataset.sortKey = key;
+    th.setAttribute("tabindex", "0");
+
+    if (!th.hasAttribute("aria-sort")) {
+      th.setAttribute("aria-sort", "none");
+    }
+  });
+}
+
+function paintSortHeaders() {
+  const headers = document.querySelectorAll(".red-table thead th[data-sort-key]");
+
+  headers.forEach((th) => {
+    const key = th.dataset.sortKey || "";
+    const isActive = key === State.sort.key;
+
+    th.dataset.sortDir = isActive ? State.sort.dir : "";
+
+    th.setAttribute(
+      "aria-sort",
+      isActive
+        ? State.sort.dir === "asc"
+          ? "ascending"
+          : "descending"
+        : "none"
+    );
+
+    th.title = isActive
+      ? `Ordenado ${State.sort.dir === "asc" ? "ascendente" : "descendente"}`
+      : "Click para ordenar";
+  });
+}
+
+async function updateSortByHeader(th) {
+  const key = th?.dataset?.sortKey || "";
+
+  if (!key) return;
+
+  if (State.sort.key === key) {
+    State.sort.dir = State.sort.dir === "asc" ? "desc" : "asc";
+  } else {
+    State.sort.key = key;
+    State.sort.dir = "asc";
+  }
+
+  State.page = 1;
+
+  paintSortHeaders();
+
+  await loadDashboard({ keepPage: true });
+}
+
+function bindSortHeaders() {
+  ensureSortHeaders();
+
+  const headers = document.querySelectorAll(".red-table thead th[data-sort-key]");
+
+  headers.forEach((th) => {
+    if (th.dataset.sortBound === "1") return;
+
+    th.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      await updateSortByHeader(th);
+    });
+
+    th.addEventListener("keydown", async (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      await updateSortByHeader(th);
+    });
+
+    th.dataset.sortBound = "1";
+  });
+
+  paintSortHeaders();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1331,6 +1441,7 @@ function exportCSV() {
 /* -------------------------------------------------------------------------- */
 
 function bindEvents() {
+  bindSortHeaders();
   const search = $(SEL.search);
   const handleSearch = debounce(async () => {
     State.search = search?.value || "";
