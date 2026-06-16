@@ -36,8 +36,8 @@ const State = {
   scope: null,
 
   sort: {
-    key: "default",
-    dir: "desc",
+    key: "nombre",
+    dir: "asc",
   },
 
   counts: {
