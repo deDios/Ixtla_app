@@ -2799,6 +2799,19 @@ body.ine-modal-open {
         display: none;
     }
 
+    .red-table thead th:nth-child(5) {
+        font-size: 0 !important;
+    }
+
+    .red-table thead th:nth-child(5)::before {
+        content: "Estatus";
+        display: inline-block;
+        font-size: 0.9rem !important;
+        font-weight: 900;
+        color: #111827;
+        vertical-align: middle;
+    }
+
     .red-table thead th:nth-child(5)[data-sort-dir="asc"]::after,
     .red-table thead th:nth-child(5)[data-sort-dir="desc"]::after {
         display: inline-block;
@@ -3021,8 +3034,7 @@ body.ine-modal-open {
 }
 
 /* Modo readonly: adminbar activa, resto lectura */
-.ine-review-modal[data-mode="readonly"] .ine-review-adminbar {}
-
+/*.ine-review-modal[data-mode="readonly"] .ine-review-adminbar {}*/
 .ine-review-modal[data-mode="readonly"] .ine-review-status-select,
 .ine-review-modal[data-mode="readonly"] .ine-review-affiliate-toggle,
 .ine-review-modal[data-mode="readonly"] .ine-review-status-save {
