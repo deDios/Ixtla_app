@@ -2080,50 +2080,6 @@ function buildPersonaFromFields(fields) {
     };
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* -------------------------------------------------------------------------- */
 /* MODAL REVISIÓN                                                              */
 /* -------------------------------------------------------------------------- */
@@ -2158,6 +2114,40 @@ function fillReviewForm(persona) {
     setFieldValue("#ine-review-observaciones", persona.observaciones);
 }
 
+function setReviewCreateAdminbar() {
+    const adminbar = $("#ine-review-adminbar");
+    const statusField = $(".ine-review-status-field");
+    const estatusSelect = $("#ine-review-estatus");
+    const afiliadoInput = $("#ine-review-es-afiliado");
+    const saveStatusBtn = $("#ine-review-save-status");
+
+    /*
+      Alta nueva desde INE:
+      - Sí mostramos adminbar para que aparezca Afiliado.
+      - Ocultamos Estado.
+      - No mostramos botón Guardar de status.
+      - Afiliado inicia apagado: default SIMPATIZANTE.
+    */
+
+    if (adminbar) adminbar.hidden = false;
+    if (statusField) statusField.hidden = true;
+
+    if (estatusSelect) {
+        estatusSelect.disabled = true;
+        estatusSelect.value = "";
+    }
+
+    if (afiliadoInput) {
+        afiliadoInput.disabled = false;
+        afiliadoInput.checked = false;
+    }
+
+    if (saveStatusBtn) {
+        saveStatusBtn.hidden = true;
+        saveStatusBtn.disabled = true;
+    }
+}
+
 function resetReviewModalForCapture() {
     const modal = $(SEL.reviewModal);
     const form = $(SEL.reviewForm);
@@ -2168,6 +2158,7 @@ function resetReviewModalForCapture() {
     form.classList.remove("is-readonly");
 
     form.querySelectorAll("input, textarea").forEach((field) => {
+        field.disabled = false;
         field.readOnly = false;
     });
 
@@ -2182,7 +2173,12 @@ function resetReviewModalForCapture() {
     const kicker = $(".ine-review-kicker");
     const warning = $(".ine-review-warning");
 
-    if (saveBtn) saveBtn.hidden = false;
+    if (saveBtn) {
+        saveBtn.hidden = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Guardar persona";
+    }
+
     if (reprocessBtn) reprocessBtn.hidden = false;
     if (cancelBtn) cancelBtn.textContent = "Cancelar";
 
@@ -2196,6 +2192,8 @@ function resetReviewModalForCapture() {
       realice los ajustes que sean necesarios y guarde el registro.
     `;
     }
+
+    setReviewCreateAdminbar();
 }
 
 function paintReviewImages(payload) {
@@ -2270,6 +2268,8 @@ function collectReviewPayload() {
         acepta_tratamiento_datos: getFieldValue("#ine-review-acepta-tratamiento"),
         acepta_contacto_whatsapp: getFieldValue("#ine-review-acepta-whatsapp"),
 
+        es_afiliado: getFieldValue("#ine-review-es-afiliado"),
+
         observaciones: getFieldValue("#ine-review-observaciones"),
     };
 }
@@ -2297,6 +2297,9 @@ async function sha256Hex(value) {
 
 async function buildPersonaInsertPayload(payload) {
     const usuarioId = getUsuarioId();
+
+    const esAfiliado = Number(payload.es_afiliado) === 1;
+    const tipoParticipacion = esAfiliado ? "AFILIADO" : "SIMPATIZANTE";
 
     const personaPayload = {
         nombres: cleanUpper(payload.nombres),
@@ -2333,7 +2336,7 @@ async function buildPersonaInsertPayload(payload) {
 
         observaciones: nullableString(payload.observaciones),
 
-        tipo_participacion: "SIMPATIZANTE",
+        tipo_participacion: tipoParticipacion,
         participacion_territorio_id: nullableNumber(payload.seccion_id),
         usuario_responsable_id: usuarioId || null,
         fuente_captura: "PORTAL",

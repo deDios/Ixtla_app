@@ -3043,3 +3043,17 @@ body.ine-modal-open {
         max-width: 640px;
     }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Parche para mostar / ocultar el apartado de status                         */
+/* -------------------------------------------------------------------------- */
+
+.ine-review-adminbar[hidden],
+.ine-review-status-field[hidden] {
+    display: none !important;
+}
+
+#ine-review-modal[data-mode="capture"] .ine-review-adminbar {
+    grid-template-columns: auto;
+    justify-content: flex-start;
+}
