@@ -2718,18 +2718,12 @@ body.ine-modal-open {
     }
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* HOME RED · TABLA MOBILE COMPACTA                                           */
 /* -------------------------------------------------------------------------- */
 
-.red-row {
-    cursor: pointer;
-}
-
-.red-row:focus-visible {
-    outline: 3px solid rgba(47, 143, 107, 0.35);
-    outline-offset: -3px;
+.red-status-mobile-text {
+    display: none;
 }
 
 @media (max-width: 720px) {
@@ -2756,33 +2750,63 @@ body.ine-modal-open {
     }
 
     .red-table thead th {
-        padding: 12px 12px;
-        font-size: 0.92rem;
+        padding: 12px 10px;
+        font-size: 0.9rem;
         font-weight: 900;
         background: #e9e9e9;
         color: #111827;
         border-bottom: 1px solid #ffc2c2;
     }
 
-    .red-table thead th:nth-child(1),
-    .red-table tbody td:nth-child(1) {
-        width: 38%;
+    .red-table tbody td {
+        padding: 10px 10px;
+        border-top: 0;
+        border-bottom: 1px solid #ffc2c2;
+        vertical-align: middle;
+        font-size: 0.82rem;
+        line-height: 1.25;
+        color: #111827;
     }
 
-    .red-table thead th:nth-child(2),
-    .red-table tbody td:nth-child(2) {
-        width: 44%;
+    /* Mobile: columnas visibles = Nombre, Sección, Estatus */
+    .red-table thead th:nth-child(1),
+    .red-table tbody td:nth-child(1) {
+        display: table-cell;
+        width: 48%;
     }
 
     .red-table thead th:nth-child(3),
     .red-table tbody td:nth-child(3) {
-        width: 18%;
+        display: table-cell;
+        width: 22%;
         text-align: center;
     }
 
-    .red-table thead th:nth-child(n+4),
-    .red-table tbody td:nth-child(n+4) {
+    .red-table thead th:nth-child(5),
+    .red-table tbody td:nth-child(5) {
+        display: table-cell;
+        width: 30%;
+        text-align: center;
+    }
+
+    /* Ocultar Domicilio, Teléfono e Inter solo en mobile */
+    .red-table thead th:nth-child(2),
+    .red-table tbody td:nth-child(2),
+    .red-table thead th:nth-child(4),
+    .red-table tbody td:nth-child(4),
+    .red-table thead th:nth-child(6),
+    .red-table tbody td:nth-child(6) {
         display: none;
+    }
+
+    /* Cambiar visualmente "Validez" por "Estatus" solo en mobile */
+    .red-table thead th:nth-child(5) {
+        font-size: 0;
+    }
+
+    .red-table thead th:nth-child(5)::before {
+        content: "Estatus";
+        font-size: 0.9rem;
     }
 
     .red-table tbody tr {
@@ -2793,29 +2817,30 @@ body.ine-modal-open {
         background: rgba(47, 143, 107, 0.08);
     }
 
-    .red-table tbody td {
-        padding: 10px 12px;
-        border-top: 0;
-        border-bottom: 1px solid #ffc2c2;
-        vertical-align: top;
-        font-size: 0.82rem;
-        line-height: 1.25;
-        color: #111827;
-    }
-
     .red-table tbody td.td-name {
         font-weight: 950;
         text-transform: uppercase;
         word-break: break-word;
     }
 
-    .red-table tbody td:nth-child(2) {
-        word-break: break-word;
-    }
-
     .red-table tbody td:nth-child(3) {
         font-weight: 900;
         white-space: nowrap;
+    }
+
+    .red-table tbody td.td-valid {
+        text-align: center;
+    }
+
+    .red-status-mobile-text {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.68rem;
+        font-weight: 900;
+        line-height: 1.1;
+        color: #374151;
+        text-transform: uppercase;
+        word-break: break-word;
     }
 }
 

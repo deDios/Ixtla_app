@@ -777,25 +777,30 @@ function renderTable() {
   }
 
   tbody.innerHTML = rows.map((item) => `
-    <tr
-      class="red-row"
-      data-id="${escapeHTML(item.id)}"
-      data-action="open"
-      tabindex="0"
-      role="button"
-      aria-label="Abrir registro de ${escapeHTML(safeText(item.nombre))}">
-      <td class="td-name">${escapeHTML(safeText(item.nombre))}</td>
-      <td>${escapeHTML(safeText(item.domicilio))}</td>
-      <td>${escapeHTML(safeText(item.seccion))}</td>
-      <td class="td-phone">${escapeHTML(safeText(item.telefono))}</td>
-      <td class="td-valid">${renderStatusIcon(item)}</td>
-      <td class="td-actions">
-        <button type="button" class="red-open" data-action="open" data-id="${escapeHTML(item.id)}">
-          Abrir
-        </button>
-      </td>
-    </tr>
-  `).join("");
+  <tr
+    class="red-row"
+    data-id="${escapeHTML(item.id)}"
+    data-action="open"
+    tabindex="0"
+    role="button"
+    aria-label="Abrir registro de ${escapeHTML(safeText(item.nombre))}">
+    <td class="td-name">${escapeHTML(safeText(item.nombre))}</td>
+    <td>${escapeHTML(safeText(item.domicilio))}</td>
+    <td>${escapeHTML(safeText(item.seccion))}</td>
+    <td class="td-phone">${escapeHTML(safeText(item.telefono))}</td>
+    <td class="td-valid">
+      ${renderStatusIcon(item)}
+      <span class="red-status-mobile-text">
+        ${escapeHTML(safeText(item.estatus_nombre))}
+      </span>
+    </td>
+    <td class="td-actions">
+      <button type="button" class="red-open" data-action="open" data-id="${escapeHTML(item.id)}">
+        Abrir
+      </button>
+    </td>
+  </tr>
+`).join("");
 }
 
 function renderMobileCards() {
@@ -1038,7 +1043,7 @@ function setReviewModalReadonlyMode(isReadonly) {
   if (reprocessBtn) reprocessBtn.hidden = Boolean(isReadonly);
   if (cancelBtn) cancelBtn.textContent = isReadonly ? "Cerrar" : "Cancelar";
   if (adminbar) adminbar.hidden = !showReadonlyAdminbar;
-  
+
   if (statusField) { statusField.hidden = !showReadonlyAdminbar; }
   if (affiliateToggle) { affiliateToggle.hidden = !showReadonlyAdminbar; }
 
