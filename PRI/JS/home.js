@@ -1379,6 +1379,17 @@ function bindEvents() {
   });
 
   $(SEL.ineReviewAfiliado)?.addEventListener("change", async (event) => {
+    const modal = $(SEL.ineReviewModal);
+    const mode = modal?.dataset?.mode || "capture";
+
+    /*
+      para que no este saliendo el toast de "No se puede actualizar estatus" cuando se cambia el checkbox de afiliado
+      en el modo de captura, solo se permite actualizar el estatus cuando se esta en modo readonly.
+    */
+    if (mode !== "readonly") {
+      return;
+    }
+
     await updateReadonlyAffiliate(Boolean(event.target.checked));
   });
 
