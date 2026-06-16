@@ -2799,14 +2799,24 @@ body.ine-modal-open {
         display: none;
     }
 
-    /* Cambiar visualmente "Validez" por "Estatus" solo en mobile */
-    .red-table thead th:nth-child(5) {
-        font-size: 0;
+    .red-table thead th:nth-child(5)[data-sort-dir="asc"]::after,
+    .red-table thead th:nth-child(5)[data-sort-dir="desc"]::after {
+        display: inline-block;
+        width: auto;
+        margin-left: 4px;
+        color: var(--red-primary);
+        font-size: 0.72rem !important;
+        font-weight: 950;
+        line-height: 1;
+        vertical-align: middle;
     }
 
-    .red-table thead th:nth-child(5)::before {
-        content: "Estatus";
-        font-size: 0.9rem;
+    .red-table thead th:nth-child(5)[data-sort-dir="asc"]::after {
+        content: "▲";
+    }
+
+    .red-table thead th:nth-child(5)[data-sort-dir="desc"]::after {
+        content: "▼";
     }
 
     .red-table tbody tr {
