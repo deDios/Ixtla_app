@@ -1028,6 +1028,8 @@ function setReviewModalReadonlyMode(isReadonly) {
   const reprocessBtn = $(SEL.ineReviewReprocess);
   const cancelBtn = form.querySelector("[data-ine-review-close]");
   const adminbar = $(SEL.ineReviewAdminbar);
+  const statusField = form.querySelector(".ine-review-status-field");
+  const affiliateToggle = form.querySelector(".ine-review-affiliate-toggle");
 
   const showReadonlyAdminbar = Boolean(isReadonly) && canEditReadonlyAdminbar();
 
@@ -1036,6 +1038,9 @@ function setReviewModalReadonlyMode(isReadonly) {
   if (reprocessBtn) reprocessBtn.hidden = Boolean(isReadonly);
   if (cancelBtn) cancelBtn.textContent = isReadonly ? "Cerrar" : "Cancelar";
   if (adminbar) adminbar.hidden = !showReadonlyAdminbar;
+  
+  if (statusField) { statusField.hidden = !showReadonlyAdminbar; }
+  if (affiliateToggle) { affiliateToggle.hidden = !showReadonlyAdminbar; }
 
   if (!showReadonlyAdminbar) {
     const estatusSelect = $(SEL.ineReviewEstatus);
