@@ -769,6 +769,96 @@ function red_home_row(array $row): array
   ];
 }
 
+function red_home_sort_dir(array $in): string
+{
+  $dir = strtolower(str_clean($in, 'sort_dir'));
+
+  return $dir === 'asc' ? 'ASC' : 'DESC';
+}
+
+function red_home_order_by(array $in): string
+{
+  $key = strtolower(str_clean($in, 'sort_key'));
+  $dir = red_home_sort_dir($in);
+
+  switch ($key) {
+    case 'nombre':
+      return "
+        ORDER BY
+          CASE
+            WHEN TRIM(CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno)) = '' THEN 1
+            ELSE 0
+          END ASC,
+          CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno) $dir,
+          p.apellido_paterno $dir,
+          p.apellido_materno $dir,
+          p.nombres $dir,
+          p.persona_id DESC
+      ";
+
+    case 'domicilio':
+      return "
+        ORDER BY
+          CASE
+            WHEN COALESCE(NULLIF(p.domicilio_texto, ''), '') = '' THEN 1
+            ELSE 0
+          END ASC,
+          COALESCE(NULLIF(p.domicilio_texto, ''), '') $dir,
+          CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno) ASC,
+          p.persona_id DESC
+      ";
+
+    case 'seccion':
+      return "
+        ORDER BY
+          CASE
+            WHEN COALESCE(NULLIF(s.codigo, ''), '') = '' THEN 1
+            ELSE 0
+          END ASC,
+          CAST(COALESCE(NULLIF(s.codigo, ''), '0') AS UNSIGNED) $dir,
+          COALESCE(s.codigo, '') $dir,
+          CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno) ASC,
+          p.persona_id DESC
+      ";
+
+    case 'telefono':
+      return "
+        ORDER BY
+          CASE
+            WHEN COALESCE(NULLIF(p.telefono, ''), NULLIF(p.whatsapp, ''), '') = '' THEN 1
+            ELSE 0
+          END ASC,
+          COALESCE(NULLIF(p.telefono, ''), NULLIF(p.whatsapp, ''), '') $dir,
+          CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno) ASC,
+          p.persona_id DESC
+      ";
+
+    case 'estatus':
+      return "
+        ORDER BY
+          COALESCE(pp.estatus_id, p.estatus_id, 0) $dir,
+          COALESCE(e.nombre, '') $dir,
+          CONCAT_WS(' ', p.nombres, p.apellido_paterno, p.apellido_materno) ASC,
+          p.persona_id DESC
+      ";
+
+    case 'default':
+    default:
+      return "
+        ORDER BY
+          CASE COALESCE(pp.tipo_participacion, 'SIMPATIZANTE')
+            WHEN 'AFILIADO' THEN 2
+            WHEN 'SIMPATIZANTE' THEN 1
+            ELSE 0
+          END DESC,
+          COALESCE(pp.fecha_afiliacion, DATE(pp.fecha_registro), DATE(p.fecha_captura), DATE(p.created_at)) DESC,
+          COALESCE(pp.fecha_registro, p.fecha_captura, p.created_at) DESC,
+          COALESCE(pp.participacion_id, 0) DESC,
+          p.persona_id DESC
+      ";
+  }
+}
+
 /* ============================================================
    CONSULTAS DASHBOARD
    ============================================================ */
@@ -808,19 +898,12 @@ function consultar_red_home(mysqli $con, array $in, array $scope): array
 
   $total = (int)($totalRow['total'] ?? 0);
 
+  $orderSql = red_home_order_by($in);
+
   $sql = red_home_select() . red_home_from() . "
-    WHERE $whereSql
-    ORDER BY
-      CASE COALESCE(pp.tipo_participacion, 'SIMPATIZANTE')
-        WHEN 'AFILIADO' THEN 2
-        WHEN 'SIMPATIZANTE' THEN 1
-        ELSE 0
-      END DESC,
-      COALESCE(pp.fecha_afiliacion, DATE(pp.fecha_registro), DATE(p.fecha_captura), DATE(p.created_at)) DESC,
-      COALESCE(pp.fecha_registro, p.fecha_captura, p.created_at) DESC,
-      COALESCE(pp.participacion_id, 0) DESC,
-      p.persona_id DESC
-    LIMIT ? OFFSET ?
+  WHERE $whereSql
+  $orderSql
+  LIMIT ? OFFSET ?
   ";
 
   $listParams = $params;
