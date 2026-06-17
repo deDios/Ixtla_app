@@ -413,6 +413,7 @@ Reglas para otros campos:
 20. Si no detectas un campo, no lo regreses.
 21. Teléfono, WhatsApp y email solo deben devolverse si aparecen explícitamente en la identificación o documento.
 22. Los consentimientos de privacidad no deben extraerse del documento.
+23. El campo de sección tiene 4 dígitos y busca el valor que se encuentra a la derecha de la etiqueta sección o abajo de la etiqueta sección.
 
 Formato obligatorio:
 {

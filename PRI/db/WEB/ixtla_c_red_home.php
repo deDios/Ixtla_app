@@ -21,6 +21,8 @@ declare(strict_types=1);
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 date_default_timezone_set('America/Mexico_City');
 
+const USUARIO_ESTATUS_INACTIVO_ID = 5;
+
 /* ============================================================
    CONFIG
    ============================================================ */
@@ -259,6 +261,11 @@ function make_in_clause(string $field, array $ids, string &$types, array &$param
   return "$field IN ($placeholders)";
 }
 
+function is_usuario_inactivo(?int $estatusId): bool
+{
+  return $estatusId === USUARIO_ESTATUS_INACTIVO_ID;
+}
+
 /*
   Devuelve el usuario actual + toda su jerarquía descendiente.
   Ejemplo:
@@ -268,23 +275,46 @@ function make_in_clause(string $field, array $ids, string &$types, array &$param
 function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
 {
   if ($usuario_id <= 0) {
-    return [];
+    return [
+      'all_ids' => [],
+      'active_ids' => [],
+    ];
   }
 
-  $visited = [];
+  $visitedAll = [];
+  $visitedActive = [];
   $queue = [$usuario_id];
+
+  $selfStatusSql = "
+    SELECT estatus_id
+    FROM usuario
+    WHERE usuario_id = ?
+      AND deleted_at IS NULL
+    LIMIT 1
+  ";
+
+  $stSelf = $con->prepare($selfStatusSql);
+  $stSelf->bind_param('i', $usuario_id);
+  $stSelf->execute();
+  $selfRow = $stSelf->get_result()->fetch_assoc();
+  $stSelf->close();
+
+  if ($selfRow) {
+    $visitedAll[$usuario_id] = true;
+
+    $selfStatusId = isset($selfRow['estatus_id']) ? (int)$selfRow['estatus_id'] : null;
+    if (!is_usuario_inactivo($selfStatusId)) {
+      $visitedActive[$usuario_id] = true;
+    }
+  }
 
   while (!empty($queue)) {
     $current = array_shift($queue);
 
-    if (isset($visited[$current])) {
-      continue;
-    }
-
-    $visited[$current] = true;
-
     $sql = "
-      SELECT uj.usuario_hijo_id
+      SELECT
+        uj.usuario_hijo_id,
+        uh.estatus_id
       FROM usuario_jerarquia uj
       INNER JOIN usuario uh
         ON uh.usuario_id = uj.usuario_hijo_id
@@ -302,8 +332,20 @@ function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
 
     while ($row = $rs->fetch_assoc()) {
       $childId = (int)$row['usuario_hijo_id'];
+      $childStatusId = isset($row['estatus_id']) ? (int)$row['estatus_id'] : null;
 
-      if ($childId > 0 && !isset($visited[$childId])) {
+      if ($childId <= 0) {
+        continue;
+      }
+
+      $isNew = !isset($visitedAll[$childId]);
+      $visitedAll[$childId] = true;
+
+      if (!is_usuario_inactivo($childStatusId)) {
+        $visitedActive[$childId] = true;
+      }
+
+      if ($isNew) {
         $queue[] = $childId;
       }
     }
@@ -311,7 +353,10 @@ function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
     $st->close();
   }
 
-  return array_map('intval', array_keys($visited));
+  return [
+    'all_ids' => array_map('intval', array_keys($visitedAll)),
+    'active_ids' => array_map('intval', array_keys($visitedActive)),
+  ];
 }
 
 function build_scope(mysqli $con, array $in): array
@@ -336,16 +381,20 @@ function build_scope(mysqli $con, array $in): array
   }
 
   $ids = get_self_and_descendant_user_ids($con, $usuarioId);
+  $allIds = $ids['all_ids'] ?? [];
+  $activeIds = $ids['active_ids'] ?? [];
 
-  if (empty($ids)) {
-    $ids = [$usuarioId];
+  if (empty($allIds)) {
+    $allIds = [$usuarioId];
   }
 
   return [
     'can_see_all' => false,
     'usuario_id' => $usuarioId,
-    'visible_user_ids' => $ids,
-    'visible_user_count' => count($ids),
+    'visible_user_ids' => $allIds,
+    'visible_user_count' => count($allIds),
+    'visible_active_user_ids' => $activeIds,
+    'visible_active_user_count' => count($activeIds),
   ];
 }
 
@@ -993,7 +1042,7 @@ function consultar_metricas(mysqli $con, array $scope): array
           AND pp_af.deleted_at IS NULL
           AND pp_af.activo = 1
           AND pp_af.tipo_participacion = 'AFILIADO'
-      )
+      ) 
   ";
 
   $simpatizantes = count_metric($con, $simpatizantesSql, $typesScope2, $paramsScope2);
@@ -1026,12 +1075,13 @@ function contar_promotores_visibles(mysqli $con, array $scope): int
         ON r.rol_id = u.rol_id
       WHERE u.deleted_at IS NULL
         AND r.codigo = 'PROMOTOR'
+        AND COALESCE(u.estatus_id, 0) <> ?
     ";
 
-    return count_metric($con, $sql);
+    return count_metric($con, $sql, 'i', [USUARIO_ESTATUS_INACTIVO_ID]);
   }
 
-  $visibleIds = $scope['visible_user_ids'] ?? [];
+  $visibleIds = $scope['visible_active_user_ids'] ?? [];
 
   if (empty($visibleIds)) {
     return 0;
