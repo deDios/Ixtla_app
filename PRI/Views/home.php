@@ -356,10 +356,10 @@ ix_require_session([
 
                         <div class="ine-review-adminbar" id="ine-review-adminbar" hidden>
                             <label class="ine-review-field ine-review-status-field">
-                                <span>Estado</span>
+                                <span>Estatus</span>
 
                                 <select id="ine-review-estatus" name="estatus_id" class="ine-review-status-select">
-                                    <option value="">Selecciona un estado</option>
+                                    <option value="">Selecciona un estatus</option>
                                 </select>
                             </label>
 
