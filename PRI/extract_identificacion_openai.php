@@ -389,31 +389,31 @@ Respuesta correcta:
 }
 
 Reglas adicionales para el bloque NOMBRE:
-8. En INE, nunca pongas LINEA_1 del bloque NOMBRE como nombres.
-9. En INE, no uses field_name = "nombre" para el bloque NOMBRE. Usa solamente apellido_paterno, apellido_materno y nombres.
-10. Conserva partículas de apellido como DE, DEL, DE LA, DE LOS, LOS, LAS, SAN, SANTA.
-11. Si el bloque NOMBRE no tiene tres líneas claras:
+8. El campo de sección tiene 4 dígitos y busca el valor que se encuentra a la derecha de la etiqueta sección o abajo de la etiqueta sección.
+9. En INE, nunca pongas LINEA_1 del bloque NOMBRE como nombres.
+10. En INE, no uses field_name = "nombre" para el bloque NOMBRE. Usa solamente apellido_paterno, apellido_materno y nombres.
+11. Conserva partículas de apellido como DE, DEL, DE LA, DE LOS, LOS, LAS, SAN, SANTA.
+12. Si el bloque NOMBRE no tiene tres líneas claras:
     - Si solo hay una línea, usa field_name = "nombre_completo" y baja la confianza.
     - Si hay dos líneas, usa field_name = "nombre_completo" y agrega una nota de baja confianza.
     - Si hay más de tres líneas, intenta separar usando el patrón de INE y agrega una nota.
-12. Si el documento no es INE y el nombre viene en otro formato, usa el título visible del documento y normaliza al campo más cercano.
+13. Si el documento no es INE y el nombre viene en otro formato, usa el título visible del documento y normaliza al campo más cercano.
 
 Reglas para otros campos:
-13. Para DOMICILIO, primero extrae domicilio_texto. Solo separa calle, numero_exterior, numero_interior, colonia, localidad, municipio, estado y codigo_postal si se distinguen claramente.
-14. No inventes fecha_emision si no existe un título claro de FECHA DE EMISIÓN.
-15. Para VIGENCIA tipo "2020 - 2030", separa:
+14. Para DOMICILIO, primero extrae domicilio_texto. Solo separa calle, numero_exterior, numero_interior, colonia, localidad, municipio, estado y codigo_postal si se distinguen claramente.
+15. No inventes fecha_emision si no existe un título claro de FECHA DE EMISIÓN.
+16. Para VIGENCIA tipo "2020 - 2030", separa:
     - vigencia_inicio = 2020
     - vigencia_fin = 2030
-16. Para AÑO DE REGISTRO tipo "2010 03", separa:
+17. Para AÑO DE REGISTRO tipo "2010 03", separa:
     - anio_registro = 2010
     - emision = 03
-17. Si detectas CLAVE DE ELECTOR, captura el valor completo, no solo una parte.
-18. Si detectas CURP, debe tener 18 caracteres alfanuméricos si se distingue completo.
-19. Si detectas OCR, CIC o IDMEX, devuélvelos en sus campos correspondientes.
-20. Si no detectas un campo, no lo regreses.
-21. Teléfono, WhatsApp y email solo deben devolverse si aparecen explícitamente en la identificación o documento.
-22. Los consentimientos de privacidad no deben extraerse del documento.
-23. El campo de sección tiene 4 dígitos y busca el valor que se encuentra a la derecha de la etiqueta sección o abajo de la etiqueta sección.
+18. Si detectas CLAVE DE ELECTOR, captura el valor completo, no solo una parte.
+19. Si detectas CURP, debe tener 18 caracteres alfanuméricos si se distingue completo.
+20. Si detectas OCR, CIC o IDMEX, devuélvelos en sus campos correspondientes.
+21. Si no detectas un campo, no lo regreses.
+22. Teléfono, WhatsApp y email solo deben devolverse si aparecen explícitamente en la identificación o documento.
+23. Los consentimientos de privacidad no deben extraerse del documento.
 
 Formato obligatorio:
 {

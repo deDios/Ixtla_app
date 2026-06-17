@@ -81,25 +81,139 @@
   );
   const AVATAR_BASE = abs(CFG.ASSETS.AVATAR_BASE || "/ASSETS/user/userImgs");
 
-  /* ===================== SESIÓN (COOKIE ix_emp) ===================== */
-  function getIxSession() {
+  /* ===================== SESIÓN (COOKIE ix_emp / red_user) ===================== */
+
+  const COOKIE_IXTLA = "ix_emp";
+  const COOKIE_RED = "red_user";
+
+  function readJsonCookie(cookieName) {
     try {
-      const m = document.cookie
+      const encodedName = encodeURIComponent(cookieName) + "=";
+
+      const pair = document.cookie
         .split("; ")
-        .find((c) => c.startsWith("ix_emp="));
-      if (!m) return null;
-      const raw = decodeURIComponent(m.split("=")[1] || "");
+        .find((c) => c.startsWith(encodedName) || c.startsWith(cookieName + "="));
+
+      if (!pair) return null;
+
+      const raw = decodeURIComponent(pair.split("=")[1] || "");
+
       return JSON.parse(decodeURIComponent(escape(atob(raw))));
     } catch {
       return null;
     }
   }
 
+  function isRedContext() {
+    return location.pathname.toLowerCase().startsWith("/pri/");
+  }
+
+  function getIxSession() {
+    /*
+      RED usa red_user.
+      Ixtla App usa ix_emp.
+  
+      Como este JS se comparte, damos prioridad según el contexto.
+    */
+    if (isRedContext()) {
+      return readJsonCookie(COOKIE_RED) || readJsonCookie(COOKIE_IXTLA);
+    }
+
+    return readJsonCookie(COOKIE_IXTLA) || readJsonCookie(COOKIE_RED);
+  }
+
+  function expireCookie(cookieName) {
+    const secure = location.protocol === "https:" ? "; Secure" : "";
+
+    document.cookie = `${encodeURIComponent(cookieName)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; path=/; SameSite=Lax${secure}`;
+  }
+
   function clearIxSession() {
-    document.cookie =
-      "ix_emp=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
-    document.cookie =
-      "usuario=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    expireCookie(COOKIE_IXTLA);
+    expireCookie("usuario");
+    expireCookie(COOKIE_RED);
+
+    try {
+      sessionStorage.removeItem("bienvenidaMostrada");
+      sessionStorage.removeItem("red_user");
+      localStorage.removeItem("red_user");
+    } catch { }
+  }
+
+  function getSessionData(session) {
+    if (!session || typeof session !== "object") return {};
+
+    return session.data && typeof session.data === "object"
+      ? session.data
+      : session;
+  }
+
+  function joinName(...parts) {
+    return parts
+      .map((part) => String(part ?? "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function getSessionDisplayName(session) {
+    const data = getSessionData(session);
+    const usuario = data.usuario && typeof data.usuario === "object" ? data.usuario : {};
+    const persona = data.persona && typeof data.persona === "object" ? data.persona : {};
+
+    const candidates = [
+      data.nombre_completo,
+      usuario.nombre_completo,
+      persona.nombre_completo,
+
+      joinName(data.nombre, data.apellido_paterno, data.apellido_materno),
+      joinName(usuario.nombre, usuario.apellido_paterno, usuario.apellido_materno),
+      joinName(persona.nombres, persona.apellido_paterno, persona.apellido_materno),
+
+      joinName(data.nombre, data.apellidos),
+
+      data.username,
+      usuario.username,
+      data.email,
+      usuario.email,
+    ];
+
+    return candidates.find((value) => String(value || "").trim()) || "Usuario";
+  }
+
+  function getSessionAvatarId(session) {
+    const data = getSessionData(session);
+    const usuario = data.usuario && typeof data.usuario === "object" ? data.usuario : {};
+
+    return (
+      data.id_usuario ??
+      data.usuario_id ??
+      usuario.id_usuario ??
+      usuario.usuario_id ??
+      data.id_empleado ??
+      data.empleado_id ??
+      null
+    );
+  }
+
+  function isSessionLogged(session) {
+    const data = getSessionData(session);
+    const usuario = data.usuario && typeof data.usuario === "object" ? data.usuario : {};
+
+    return Boolean(
+      data.token ||
+      data.usuario_id ||
+      usuario.usuario_id ||
+      data.id_usuario ||
+      data.empleado_id ||
+      data.id_empleado ||
+      data.email ||
+      data.nombre ||
+      data.nombre_completo ||
+      usuario.nombre ||
+      usuario.nombre_completo
+    );
   }
 
   /* ===================== UTILS ===================== */
@@ -151,15 +265,19 @@
   }
 
   /* ===================== AVATAR HELPERS ===================== */
-  function gcAvatarUrlFor(id) {
-    if (id == null) return DEFAULT_AVATAR;
-    return `${AVATAR_BASE}/img_${id}.png`;
-  }
-
   function setAvatarSrc(imgEl, session) {
-    const cookieUrl = session?.avatarUrl || session?.avatar || null;
-    const id =
-      session?.id_usuario != null ? String(session.id_usuario).trim() : null;
+    const data = getSessionData(session);
+    const usuario = data.usuario && typeof data.usuario === "object" ? data.usuario : {};
+
+    const cookieUrl =
+      data.avatarUrl ||
+      data.avatar ||
+      usuario.avatarUrl ||
+      usuario.avatar ||
+      null;
+
+    const idRaw = getSessionAvatarId(session);
+    const id = idRaw != null ? String(idRaw).trim() : null;
 
     const candidates = [
       ...(cookieUrl ? [cookieUrl] : []),
@@ -174,9 +292,10 @@
       cacheBust: true,
     });
 
-    imgEl.alt = session?.nombre
-      ? `${session.nombre} ${session?.apellidos || ""}`.trim()
-      : "Avatar";
+    const displayName = getSessionDisplayName(session);
+
+    imgEl.alt = displayName;
+    imgEl.title = displayName;
     imgEl.loading = "lazy";
   }
 
@@ -212,7 +331,7 @@
     if (wrap) {
       const emailSpan = wrap.querySelector(".user-email");
       const img = wrap.querySelector("img.img-perfil");
-      if (emailSpan && session?.email) emailSpan.textContent = session.email;
+      if (emailSpan) emailSpan.textContent = getSessionDisplayName(session);
       if (img) setAvatarSrc(img, session);
     }
 
@@ -281,7 +400,8 @@
   /* ===================== TOPBAR (avatar, dropdown, mobile) ===================== */
   document.addEventListener("DOMContentLoaded", () => {
     const session = getIxSession();
-    const isLogged = !!(session?.email || session?.nombre);
+    const isLogged = isSessionLogged(session);
+    const displayName = getSessionDisplayName(session);
 
     // --- Desktop ---
     const actions = document.querySelector(".actions");
@@ -289,7 +409,7 @@
       actions.querySelector(".user-icon")?.remove();
 
       if (isLogged) {
-        const emailShown = session.email || "Usuario";
+        const emailShown = displayName;
         const wrap = document.createElement("div");
         wrap.className = "user-icon";
         wrap.setAttribute("role", "button");
@@ -344,16 +464,17 @@
         dd.querySelector("li:nth-child(1)")?.addEventListener("click", () => {
           window.location.href = routeAppHome;
         });
-        dd.querySelector("#logout-btn")?.addEventListener("click", () => {
+
+        dd.querySelector("#logout-btn")?.addEventListener("click", (e) => {
+          e.stopPropagation();
           clearIxSession();
-          sessionStorage.removeItem("bienvenidaMostrada");
           window.location.href = routeLogin;
         });
 
         if (!sessionStorage.getItem("bienvenidaMostrada")) {
           try {
             window.gcToast?.(
-              `Bienvenido, ${session.nombre || "usuario"}`,
+              `¡Bienvenido, ${displayName}!`,
               "exito",
             );
           } catch { }
@@ -452,11 +573,12 @@
             e.stopPropagation();
             window.location.href = routeAppHome;
           });
+
         dropdownMobile
           .querySelector("#logout-btn-mobile")
-          ?.addEventListener("click", () => {
+          ?.addEventListener("click", (e) => {
+            e.stopPropagation();
             clearIxSession();
-            sessionStorage.removeItem("bienvenidaMostrada");
             window.location.href = routeLogin;
           });
 

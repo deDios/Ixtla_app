@@ -327,9 +327,6 @@ ix_require_session([
 
 
 
-
-
-
     <!---------------------- Modal revisión / alta de persona desde INE -------------------------->
 
 
