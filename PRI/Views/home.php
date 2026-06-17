@@ -747,7 +747,7 @@ ix_require_session([
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 
     <script src="/PRI/JS/media.js"></script>
-    <script src="/PRI/JS/JSglobal.js"></script>
+    <script src="/PRI/JS/jsGlobal.js"></script>
     <script src="/PRI/JS/components.js"></script>
     <script type="module" src="/PRI/JS/auth/session.js"></script>
     <script type="module" src="/PRI/JS/home.js"></script>

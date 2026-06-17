@@ -1,151 +1,78 @@
-// JS Global (Ixtla App) — versión consolidada y segura para todas las views
 (() => {
   "use strict";
-  if (window.__gcGlobalInit) return;
-  window.__gcGlobalInit = true;
 
-  /* ===================== CONFIG ===================== */
-  const GC_DEFAULT_CONFIG = {
-    PATHS: {
-      ASSETS: "/ASSETS",
-      VIEWS: "/PRI/Views",
-    },
-    ROUTES: {
-      publicHome: "/PRI/index.php",
-      appHome: "/PRI/Views/home.php",
-      login: "/PRI/Views/login.php",
-    },
-    ASSETS: {
-      DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
-      AVATAR_BASE: "/ASSETS/user/userImgs",
-    },
-    SOCIAL: {
-      facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
-      instagram: "https://www.instagram.com/imembrillosgob/",
-      youtube:
-        "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
-      x: "https://twitter.com",
-    },
-    FLAGS: {
-      stickyHeaderOffset: 50,
-      animateOnView: true,
-    },
+  if (window.__priGlobalInit) return;
+  window.__priGlobalInit = true;
+
+  const ROUTES = {
+    publicHome: "/PRI/index.php",
+    appHome: "/PRI/Views/home.php",
+    login: "/PRI/Views/login.php",
   };
 
-  const CFG = (function merge(base) {
-    const out = structuredClone
-      ? structuredClone(base)
-      : JSON.parse(JSON.stringify(base));
-    const src = window.GC_CONFIG || {};
-    function deepMerge(target, from) {
-      for (const k of Object.keys(from || {})) {
-        if (from[k] && typeof from[k] === "object" && !Array.isArray(from[k])) {
-          target[k] =
-            target[k] && typeof target[k] === "object" ? target[k] : {};
-          deepMerge(target[k], from[k]);
-        } else {
-          target[k] = from[k];
-        }
-      }
-    }
-    deepMerge(out, src);
-    return out;
-  })(GC_DEFAULT_CONFIG);
+  const ASSETS = {
+    defaultAvatar: "/ASSETS/user/img_user1.png",
+    avatarBase: "/ASSETS/user/userImgs",
+    dropdownHome: "/ASSETS/user/userMenu/homebtn.png",
+    dropdownLogout: "/ASSETS/user/userMenu/logoutbtn.png",
+  };
 
-  /* ===================== HELPERS PATHS ===================== */
-  const abs = (p) => new URL(p, window.location.origin).pathname;
-  const join = (...parts) =>
-    parts
-      .filter(Boolean)
-      .map((s, i) =>
-        i === 0 ? s.replace(/\/+$/g, "") : s.replace(/^\/+|\/+$/g, ""),
-      )
-      .join("/")
-      .replace(/\/{2,}/g, "/");
+  const SOCIAL = {
+    facebook: "https://www.facebook.com/GobIxtlahuacanMembrillos/",
+    instagram: "https://www.instagram.com/imembrillosgob/",
+    youtube:
+      "https://www.youtube.com/channel/UC1ZKpGArLJac1ghYW5io5OA/videos",
+    x: "https://twitter.com",
+  };
 
-  const asset = (sub) => abs(join(CFG.PATHS.ASSETS, sub));
-  const view = (sub) => abs(join(CFG.PATHS.VIEWS, sub));
+  const COOKIE_NAME = "red_user";
+  const DEFAULT_AVATAR = ASSETS.defaultAvatar;
+  const AVATAR_BASE = ASSETS.avatarBase;
 
-  const routePublicHome = CFG.ROUTES?.publicHome
-    ? abs(CFG.ROUTES.publicHome)
-    : abs("/index.php");
-  const routeAppHome = CFG.ROUTES?.appHome
-    ? abs(CFG.ROUTES.appHome)
-    : view("home.php");
-  const routeLogin = CFG.ROUTES?.login
-    ? abs(CFG.ROUTES.login)
-    : view("login.php");
-
-  const DEFAULT_AVATAR = abs(
-    CFG.ASSETS.DEFAULT_AVATAR || "/ASSETS/user/img_user1.png",
-  );
-  const AVATAR_BASE = abs(CFG.ASSETS.AVATAR_BASE || "/ASSETS/user/userImgs");
-
-  /* ===================== SESIÓN (COOKIE ix_emp / red_user) ===================== */
-
-  const COOKIE_IXTLA = "ix_emp";
-  const COOKIE_RED = "red_user";
-
-  function readJsonCookie(cookieName) {
+  function withBust(url) {
     try {
-      const encodedName = encodeURIComponent(cookieName) + "=";
+      const parsed = new URL(url, window.location.origin);
+      parsed.searchParams.set("v", Date.now().toString());
+      return `${parsed.pathname}?${parsed.searchParams.toString()}`;
+    } catch {
+      return `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+    }
+  }
 
-      const pair = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith(encodedName) || c.startsWith(cookieName + "="));
+  function readSessionCookie() {
+    try {
+      const encodedName = `${encodeURIComponent(COOKIE_NAME)}=`;
+      const pair = document.cookie.split("; ").find((cookie) => {
+        return cookie.startsWith(encodedName);
+      });
 
       if (!pair) return null;
 
-      const raw = decodeURIComponent(pair.split("=")[1] || "");
-
+      const raw = decodeURIComponent(pair.slice(encodedName.length));
       return JSON.parse(decodeURIComponent(escape(atob(raw))));
     } catch {
       return null;
     }
   }
 
-  function isRedContext() {
-    return location.pathname.toLowerCase().startsWith("/pri/");
-  }
-
-  function getIxSession() {
-    /*
-      RED usa red_user.
-      Ixtla App usa ix_emp.
-  
-      Como este JS se comparte, damos prioridad según el contexto.
-    */
-    if (isRedContext()) {
-      return readJsonCookie(COOKIE_RED) || readJsonCookie(COOKIE_IXTLA);
-    }
-
-    return readJsonCookie(COOKIE_IXTLA) || readJsonCookie(COOKIE_RED);
-  }
-
-  function expireCookie(cookieName) {
+  function expireCookie(name) {
     const secure = location.protocol === "https:" ? "; Secure" : "";
-
-    document.cookie = `${encodeURIComponent(cookieName)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; path=/; SameSite=Lax${secure}`;
+    document.cookie = `${encodeURIComponent(name)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; path=/; SameSite=Lax${secure}`;
   }
 
-  function clearIxSession() {
-    expireCookie(COOKIE_IXTLA);
-    expireCookie("usuario");
-    expireCookie(COOKIE_RED);
+  function clearSession() {
+    expireCookie(COOKIE_NAME);
 
     try {
       sessionStorage.removeItem("bienvenidaMostrada");
-      sessionStorage.removeItem("red_user");
-      localStorage.removeItem("red_user");
+      sessionStorage.removeItem(COOKIE_NAME);
+      localStorage.removeItem(COOKIE_NAME);
     } catch { }
   }
 
   function getSessionData(session) {
     if (!session || typeof session !== "object") return {};
-
-    return session.data && typeof session.data === "object"
-      ? session.data
-      : session;
+    return session.data && typeof session.data === "object" ? session.data : session;
   }
 
   function joinName(...parts) {
@@ -159,968 +86,344 @@
 
   function getSessionDisplayName(session) {
     const data = getSessionData(session);
-    const usuario = data.usuario && typeof data.usuario === "object" ? data.usuario : {};
-    const persona = data.persona && typeof data.persona === "object" ? data.persona : {};
+    const rol = data.rol && typeof data.rol === "object" ? data.rol : {};
 
-    const candidates = [
-      data.nombre_completo,
-      usuario.nombre_completo,
-      persona.nombre_completo,
+    const name =
+      data.nombre_completo ||
+      joinName(data.nombre, data.apellido_paterno, data.apellido_materno) ||
+      data.username ||
+      "Usuario RED";
 
-      joinName(data.nombre, data.apellido_paterno, data.apellido_materno),
-      joinName(usuario.nombre, usuario.apellido_paterno, usuario.apellido_materno),
-      joinName(persona.nombres, persona.apellido_paterno, persona.apellido_materno),
-
-      joinName(data.nombre, data.apellidos),
-
-      data.username,
-      usuario.username,
-      data.email,
-      usuario.email,
-    ];
-
-    return candidates.find((value) => String(value || "").trim()) || "Usuario";
+    return rol.nombre ? `${name}` : name;
   }
 
   function getSessionAvatarId(session) {
     const data = getSessionData(session);
-    const usuario = data.usuario && typeof data.usuario === "object" ? data.usuario : {};
 
-    return (
-      data.id_usuario ??
-      data.usuario_id ??
-      usuario.id_usuario ??
-      usuario.usuario_id ??
-      data.id_empleado ??
-      data.empleado_id ??
-      null
-    );
+    return data.usuario_id != null ? String(data.usuario_id).trim() : "";
   }
 
   function isSessionLogged(session) {
     const data = getSessionData(session);
-    const usuario = data.usuario && typeof data.usuario === "object" ? data.usuario : {};
 
     return Boolean(
-      data.token ||
       data.usuario_id ||
-      usuario.usuario_id ||
-      data.id_usuario ||
-      data.empleado_id ||
-      data.id_empleado ||
-      data.email ||
+      data.username ||
       data.nombre ||
       data.nombre_completo ||
-      usuario.nombre ||
-      usuario.nombre_completo
+      data.rol?.rol_id,
     );
   }
 
-  /* ===================== UTILS ===================== */
-  const withBust = (url) => {
-    try {
-      const u = new URL(url, window.location.origin);
-      u.searchParams.set("v", Date.now().toString());
-      return u.pathname + "?" + u.searchParams.toString();
-    } catch {
-      return url + (url.includes("?") ? "&" : "?") + "v=" + Date.now();
-    }
-  };
+  function setImgWithFallback(imgEl, candidates, placeholder = DEFAULT_AVATAR) {
+    const queue = (Array.isArray(candidates) ? candidates : [candidates]).filter(Boolean);
+    let index = 0;
 
-  function setImgWithExtFallback(
-    imgEl,
-    bases,
-    { extOrder = ["png", "jpg"], placeholder, cacheBust = true } = {},
-  ) {
-    const isAbsolute = (u) => /^https?:\/\//i.test(u) || u.startsWith("/");
-    const hasExt = (u) => /\.[a-zA-Z0-9]{2,5}(\?|#|$)/.test(u);
-
-    const queue = [];
-    const baseArr = Array.isArray(bases) ? bases : [bases];
-    baseArr.forEach((b) => {
-      if (!b) return;
-      if (hasExt(b)) queue.push(b);
-      else extOrder.forEach((ext) => queue.push(`${b}.${ext}`));
-    });
-
-    let i = 0;
     const tryNext = () => {
-      if (i >= queue.length) {
-        if (placeholder) {
-          imgEl.onerror = null;
-          imgEl.src = cacheBust ? withBust(placeholder) : placeholder;
-        }
+      if (index >= queue.length) {
+        imgEl.onerror = null;
+        imgEl.src = withBust(placeholder);
         return;
       }
-      const url = queue[i++];
+
+      const current = queue[index++];
       imgEl.onerror = tryNext;
       imgEl.onload = () => {
-        imgEl.dataset.srcResolved = url;
         imgEl.onerror = null;
       };
-      imgEl.src = cacheBust && isAbsolute(url) ? withBust(url) : url;
+      imgEl.src = withBust(current);
     };
 
     tryNext();
   }
 
-  /* ===================== AVATAR HELPERS ===================== */
+  function gcAvatarUrlFor(id) {
+    const clean = String(id ?? "").trim();
+    if (!clean) return DEFAULT_AVATAR;
+    return `${AVATAR_BASE}/img_${clean}.png`;
+  }
+
   function setAvatarSrc(imgEl, session) {
-    const data = getSessionData(session);
-    const usuario = data.usuario && typeof data.usuario === "object" ? data.usuario : {};
+    if (!imgEl) return;
 
-    const cookieUrl =
-      data.avatarUrl ||
-      data.avatar ||
-      usuario.avatarUrl ||
-      usuario.avatar ||
-      null;
+    const id = getSessionAvatarId(session);
+    const candidates = id
+      ? [
+        `${AVATAR_BASE}/img_${id}.png`,
+        `${AVATAR_BASE}/img_${id}.jpg`,
+        `${AVATAR_BASE}/user_${id}.png`,
+        `${AVATAR_BASE}/user_${id}.jpg`,
+      ]
+      : [DEFAULT_AVATAR];
 
-    const idRaw = getSessionAvatarId(session);
-    const id = idRaw != null ? String(idRaw).trim() : null;
-
-    const candidates = [
-      ...(cookieUrl ? [cookieUrl] : []),
-      ...(id ? [`${AVATAR_BASE}/img_${id}`] : []),
-      ...(id ? [`${AVATAR_BASE}/user_${id}`] : []),
-      DEFAULT_AVATAR,
-    ];
-
-    setImgWithExtFallback(imgEl, candidates, {
-      extOrder: ["png", "jpg"],
-      placeholder: DEFAULT_AVATAR,
-      cacheBust: true,
-    });
+    setImgWithFallback(imgEl, candidates, DEFAULT_AVATAR);
 
     const displayName = getSessionDisplayName(session);
-
     imgEl.alt = displayName;
     imgEl.title = displayName;
     imgEl.loading = "lazy";
   }
 
-  function gcRefreshAvatarEverywhere(url, sessionOverride) {
-    const session = sessionOverride || getIxSession();
+  function gcRefreshAvatarEverywhere(_, sessionOverride) {
+    const session = sessionOverride || readSessionCookie();
 
     document.querySelectorAll(".actions .img-perfil").forEach((img) => {
-      if (url) img.src = withBust(url);
-      else setAvatarSrc(img, session);
+      setAvatarSrc(img, session);
     });
 
-    const mobImg = document.querySelector(".user-icon-mobile img");
-    if (mobImg) {
-      if (url) mobImg.src = withBust(url);
-      else setAvatarSrc(mobImg, session);
+    const mobileImg = document.querySelector(".user-icon-mobile img");
+    if (mobileImg) setAvatarSrc(mobileImg, session);
+  }
+
+  function gcRefreshHeader(sessionOverride) {
+    const session = sessionOverride || readSessionCookie();
+    const displayName = getSessionDisplayName(session);
+
+    const desktopWrap = document.querySelector(".actions .user-icon");
+    if (desktopWrap) {
+      const emailSpan = desktopWrap.querySelector(".user-email");
+      const img = desktopWrap.querySelector("img.img-perfil");
+
+      if (emailSpan) emailSpan.textContent = displayName;
+      if (img) setAvatarSrc(img, session);
     }
 
-    const side = document.getElementById("hs-avatar");
-    if (side) {
-      if (url) side.src = withBust(url);
-      else setAvatarSrc(side, session);
-    }
+    const mobileImg = document.querySelector(".user-icon-mobile img");
+    if (mobileImg) setAvatarSrc(mobileImg, session);
+
+    document.dispatchEvent(
+      new CustomEvent("gc:header-refreshed", { detail: { session } }),
+    );
   }
 
   window.gcSetAvatarSrc = setAvatarSrc;
   window.gcAvatarUrlFor = gcAvatarUrlFor;
   window.gcRefreshAvatarEverywhere = gcRefreshAvatarEverywhere;
+  window.gcRefreshHeader = gcRefreshHeader;
 
-  window.gcRefreshHeader = function gcRefreshHeader(sessionOverride) {
-    const session = sessionOverride || getIxSession();
-
-    const wrap = document.querySelector(".actions .user-icon");
-    if (wrap) {
-      const emailSpan = wrap.querySelector(".user-email");
-      const img = wrap.querySelector("img.img-perfil");
-      if (emailSpan) emailSpan.textContent = getSessionDisplayName(session);
-      if (img) setAvatarSrc(img, session);
-    }
-
-    const mobImg = document.querySelector(".user-icon-mobile img");
-    if (mobImg) setAvatarSrc(mobImg, session);
-
-    document.dispatchEvent(
-      new CustomEvent("gc:header-refreshed", { detail: { session } }),
-    );
-  };
-
-  document.addEventListener("gc:avatar-updated", (e) => {
-    const url = e?.detail?.url || null;
-    gcRefreshAvatarEverywhere(url);
+  document.addEventListener("gc:avatar-updated", () => {
+    gcRefreshAvatarEverywhere();
   });
 
-  /* ===================== VH MOBILE ===================== */
-  const applyVH = () =>
+  function applyVH() {
     document.documentElement.style.setProperty(
       "--vh",
       `${window.innerHeight * 0.01}px`,
     );
-  applyVH();
-  window.addEventListener("resize", applyVH);
+  }
 
-  /* ===================== ANIMACIONES (.animado) ===================== */
-  document.addEventListener("DOMContentLoaded", () => {
-    if (!CFG.FLAGS.animateOnView) return;
-    const animados = document.querySelectorAll(".animado");
-    if (!animados.length) return;
-    const io = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("visible");
-            io.unobserve(e.target);
-          }
-        }),
-      { threshold: 0.2 },
-    );
-    animados.forEach((el) => io.observe(el));
-  });
-
-  /* ===================== MENÚ HAMBURGUESA ===================== */
   window.toggleMenu = function toggleMenu() {
     const menu = document.getElementById("mobile-menu");
     if (!menu) return;
+
     const burger = document.querySelector(".hamburger");
     const isOpen = menu.classList.toggle("show");
+
     menu.hidden = !isOpen;
     if (burger) burger.setAttribute("aria-expanded", String(isOpen));
   };
 
-  /* ===================== HEADER STICKY ===================== */
-  document.addEventListener("DOMContentLoaded", () => {
-    const header = document.getElementById("header");
-    if (!header) return;
-    const onScroll = () =>
-      window.scrollY > (CFG.FLAGS.stickyHeaderOffset || 50)
-        ? header.classList.add("scrolled")
-        : header.classList.remove("scrolled");
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-  });
+  function bindSocialClicks(root) {
+    if (!root) return;
 
-  /* ===================== TOPBAR (avatar, dropdown, mobile) ===================== */
-  document.addEventListener("DOMContentLoaded", () => {
-    const session = getIxSession();
+    root.querySelectorAll(".icon-mobile, .circle-icon").forEach((element) => {
+      if (element.__priSocialBound) return;
+
+      const img = element.querySelector("img") || element;
+      let key = String(img.alt || "").trim().toLowerCase().replace(/\s+/g, "");
+
+      if (key === "twitter") key = "x";
+      if (key === "yt") key = "youtube";
+
+      const url = SOCIAL[key];
+      if (!url) return;
+
+      element.style.cursor = "pointer";
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        window.open(url, "_blank", "noopener");
+      });
+
+      if (!/^(a|button)$/i.test(element.tagName)) {
+        element.tabIndex = 0;
+        element.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          window.open(url, "_blank", "noopener");
+        });
+      }
+
+      element.__priSocialBound = true;
+    });
+  }
+
+  function buildDesktopUserMenu(session) {
+    const wrap = document.createElement("div");
+    wrap.className = "user-icon";
+    wrap.setAttribute("role", "button");
+    wrap.setAttribute("tabindex", "0");
+    wrap.setAttribute("aria-haspopup", "true");
+    wrap.setAttribute("aria-expanded", "false");
+    wrap.innerHTML = `
+      <span class="user-email"></span>
+      <img alt="Perfil" title="Perfil" class="img-perfil" />
+      <div class="dropdown-menu" id="user-dropdown" role="menu" aria-hidden="true">
+        <ul>
+          <li id="header-home-btn" role="menuitem" tabindex="-1">
+            <img src="${ASSETS.dropdownHome}" alt="" aria-hidden="true" />
+            Ir a Home
+          </li>
+          <li id="header-logout-btn" role="menuitem" tabindex="-1">
+            <img src="${ASSETS.dropdownLogout}" alt="" aria-hidden="true" />
+            Cerrar sesión
+          </li>
+        </ul>
+      </div>
+    `;
+
+    const emailSpan = wrap.querySelector(".user-email");
+    if (emailSpan) emailSpan.textContent = getSessionDisplayName(session);
+
+    const img = wrap.querySelector(".img-perfil");
+    if (img) setAvatarSrc(img, session);
+
+    const dropdown = wrap.querySelector("#user-dropdown");
+
+    const open = (flag) => {
+      dropdown.classList.toggle("active", flag);
+      dropdown.setAttribute("aria-hidden", String(!flag));
+      wrap.setAttribute("aria-expanded", String(flag));
+    };
+
+    const toggle = (event) => {
+      event?.stopPropagation();
+      open(!dropdown.classList.contains("active"));
+    };
+
+    wrap.addEventListener("click", toggle);
+    wrap.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggle(event);
+      }
+
+      if (event.key === "Escape") open(false);
+    });
+
+    document.addEventListener("click", () => open(false));
+
+    wrap.querySelector("#header-home-btn")?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      window.location.href = ROUTES.appHome;
+    });
+
+    wrap.querySelector("#header-logout-btn")?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      clearSession();
+      window.location.href = ROUTES.login;
+    });
+
+    return wrap;
+  }
+
+  function mountHeaderSessionUI() {
+    const session = readSessionCookie();
     const isLogged = isSessionLogged(session);
-    const displayName = getSessionDisplayName(session);
-
-    // --- Desktop ---
     const actions = document.querySelector(".actions");
+
     if (actions) {
       actions.querySelector(".user-icon")?.remove();
 
       if (isLogged) {
-        const emailShown = displayName;
-        const wrap = document.createElement("div");
-        wrap.className = "user-icon";
-        wrap.setAttribute("role", "button");
-        wrap.setAttribute("tabindex", "0");
-        wrap.setAttribute("aria-haspopup", "true");
-        wrap.setAttribute("aria-expanded", "false");
-        wrap.innerHTML = `
-          <span class="user-email"></span>
-          <img alt="Perfil" title="Perfil" class="img-perfil" />
-          <div class="dropdown-menu" id="user-dropdown" role="menu" aria-hidden="true">
-            <ul>
-              <li role="menuitem" tabindex="-1">
-                <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
-                Ir a Home
-              </li>
-              <li id="logout-btn" role="menuitem" tabindex="-1">
-                <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
-                Logout
-              </li>
-            </ul>
-          </div>`;
-        actions.appendChild(wrap);
+        actions.appendChild(buildDesktopUserMenu(session));
         actions.classList.add("mostrar");
 
-        const emailSpan = wrap.querySelector(".user-email");
-        if (emailSpan) emailSpan.textContent = emailShown;
-
-        const img = wrap.querySelector("img.img-perfil");
-        if (img) setAvatarSrc(img, session);
-
-        const dd = wrap.querySelector("#user-dropdown");
-        const open = (flag) => {
-          dd.classList.toggle("active", flag);
-          dd.setAttribute("aria-hidden", String(!flag));
-          wrap.setAttribute("aria-expanded", String(!!flag));
-        };
-        const toggle = (e) => {
-          e?.stopPropagation();
-          open(!dd.classList.contains("active"));
-        };
-
-        wrap.addEventListener("click", toggle);
-        wrap.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            toggle(e);
+        try {
+          if (!sessionStorage.getItem("bienvenidaMostrada")) {
+            window.gcToast?.(`Bienvenido, ${getSessionDisplayName(session)}`, "exito");
+            sessionStorage.setItem("bienvenidaMostrada", "true");
           }
-          if (e.key === "Escape") open(false);
-        });
-        document.addEventListener("click", () => open(false));
-
-        dd.querySelector("li:nth-child(1)")?.addEventListener("click", () => {
-          window.location.href = routeAppHome;
-        });
-
-        dd.querySelector("#logout-btn")?.addEventListener("click", (e) => {
-          e.stopPropagation();
-          clearIxSession();
-          window.location.href = routeLogin;
-        });
-
-        if (!sessionStorage.getItem("bienvenidaMostrada")) {
-          try {
-            window.gcToast?.(
-              `¡Bienvenido, ${displayName}!`,
-              "exito",
-            );
-          } catch { }
-          sessionStorage.setItem("bienvenidaMostrada", "true");
-        }
+        } catch { }
       } else {
-        const loginIcon = document.createElement("div");
-        loginIcon.className = "user-icon";
-        loginIcon.innerHTML = `<img src="${withBust(
-          DEFAULT_AVATAR,
-        )}" alt="Usuario" title="Iniciar sesión" class="img-perfil" />`;
-        loginIcon.addEventListener(
-          "click",
-          () => (window.location.href = routeLogin),
-        );
-        actions.appendChild(loginIcon);
-        actions.classList.add("mostrar");
+        actions.classList.remove("mostrar");
       }
     }
 
-    // --- Mobile ---
-    const socialIconsContainer =
-      document.querySelector("#header .social-bar-mobile .social-icons") ||
-      document.querySelector("#header .subnav .social-icons") ||
-      document.querySelector(".social-icons");
+    const mobileWrap = document.querySelector(".user-icon-mobile");
+    const mobileImg = mobileWrap?.querySelector("img");
 
-    if (socialIconsContainer) {
-      socialIconsContainer.querySelector(".user-icon-mobile")?.remove();
-
-      const mob = document.createElement("div");
-      mob.className = "user-icon-mobile";
-      mob.innerHTML = `<img alt="Perfil" title="Perfil" src="${withBust(
-        DEFAULT_AVATAR,
-      )}" />`;
-      socialIconsContainer.appendChild(mob);
-      const mobImg = mob.querySelector("img");
-
+    if (mobileImg) {
       if (isLogged) {
-        const dropdownMobileId = "user-dropdown-mobile";
-        document.getElementById(dropdownMobileId)?.remove();
-
-        const dropdownMobile = document.createElement("div");
-        dropdownMobile.className = "dropdown-menu mobile";
-        dropdownMobile.id = dropdownMobileId;
-        dropdownMobile.innerHTML = `
-          <ul>
-            <li>
-              <img src="${asset("/user/userMenu/homebtn.png")}" alt="" aria-hidden="true" />
-              Ir a Home
-            </li>
-            <li id="logout-btn-mobile">
-              <img src="${asset("/user/userMenu/logoutbtn.png")}" alt="" aria-hidden="true" />
-              Logout
-            </li>
-          </ul>`;
-        document.body.appendChild(dropdownMobile);
-
-        const reposition = () => {
-          const rect = mob.getBoundingClientRect();
-          dropdownMobile.style.top = `${rect.bottom + window.scrollY}px`;
-          const w = dropdownMobile.offsetWidth || 180;
-          const left = Math.max(8, rect.right - w);
-          dropdownMobile.style.left = `${left + window.scrollX}px`;
+        setAvatarSrc(mobileImg, session);
+        mobileWrap.style.cursor = "pointer";
+        mobileWrap.onclick = () => {
+          window.location.href = ROUTES.appHome;
         };
-
-        mobImg?.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const willOpen = !dropdownMobile.classList.contains("active");
-          if (willOpen) {
-            dropdownMobile.classList.add("active");
-            reposition();
-          } else {
-            dropdownMobile.classList.remove("active");
-          }
-        });
-
-        document.addEventListener("click", () =>
-          dropdownMobile.classList.remove("active"),
-        );
-        document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape") dropdownMobile.classList.remove("active");
-        });
-        const onRepositionIfOpen = () => {
-          if (dropdownMobile.classList.contains("active")) reposition();
-        };
-        window.addEventListener("resize", onRepositionIfOpen, {
-          passive: true,
-        });
-        window.addEventListener("scroll", onRepositionIfOpen, {
-          passive: true,
-        });
-
-        dropdownMobile
-          .querySelector("li:first-child")
-          ?.addEventListener("click", (e) => {
-            e.stopPropagation();
-            window.location.href = routeAppHome;
-          });
-
-        dropdownMobile
-          .querySelector("#logout-btn-mobile")
-          ?.addEventListener("click", (e) => {
-            e.stopPropagation();
-            clearIxSession();
-            window.location.href = routeLogin;
-          });
-
-        setAvatarSrc(mobImg, session);
       } else {
-        mob.addEventListener(
-          "click",
-          () => (window.location.href = routeLogin),
-        );
+        mobileImg.src = withBust(DEFAULT_AVATAR);
+        mobileWrap.style.cursor = "pointer";
+        mobileWrap.onclick = () => {
+          window.location.href = ROUTES.login;
+        };
       }
     }
-  });
-
-  /* ===================== SOCIAL BINDER (GLOBAL) ===================== */
-  const DEFAULT_SOCIAL = Object.assign({}, GC_DEFAULT_CONFIG.SOCIAL);
-
-  function getSocialMap() {
-    // Prioridad: NAV_SOCIAL (por vista) > GC_CONFIG.SOCIAL > defaults
-    return Object.assign(
-      {},
-      DEFAULT_SOCIAL,
-      (window.GC_CONFIG && window.GC_CONFIG.SOCIAL) || {},
-      window.NAV_SOCIAL || {},
-    );
   }
 
-  // (Operativo) evita overlays: asegura que social-icons sí reciba clicks
-  function fixOperativeSocialHitbox(nav) {
-    if (!nav) return;
-    const left = nav.querySelector(".nav-left");
-    const socials = nav.querySelector(".social-icons");
-    if (!socials) return;
-
-    socials.style.position = socials.style.position || "relative";
-    socials.style.zIndex = "50";
-    socials.style.pointerEvents = "auto";
-
-    socials
-      .querySelectorAll(".circle-icon, .icon-mobile, img")
-      .forEach((el) => {
-        el.style.pointerEvents = "auto";
-      });
-
-    if (left) {
-      left.style.position = left.style.position || "relative";
-      left.style.zIndex = "1";
-    }
-  }
-
-  function attachSocialClicks(root) {
-    if (!root) return;
-    const socialMap = getSocialMap();
-
-    root.querySelectorAll(".icon-mobile, .circle-icon").forEach((el) => {
-      // IMPORTANTÍSIMO:
-      // NO usar dataset.* como guard, porque en operativas el HTML puede venir "marcado"
-      // sin que exista listener real (te pasa ahorita). Usamos una marca runtime.
-      if (el.__gcSocialBound) return;
-
-      const img = el.querySelector("img") || el;
-
-      let key = (img.alt || "").trim().toLowerCase();
-      key = key.replace(/\s+/g, ""); // por si vienen espacios
-
-      // alias comunes
-      if (key === "twitter") key = "x";
-      if (key === "yt") key = "youtube";
-      if (key === "youtub" || key === "youtubé") key = "youtube";
-
-      const url = socialMap[key];
-      if (!url) return;
-
-      el.style.cursor = "pointer";
-
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        window.open(url, "_blank", "noopener");
-      });
-
-      if (!/^(a|button)$/i.test(el.tagName)) {
-        el.tabIndex = 0;
-        el.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            window.open(url, "_blank", "noopener");
-          }
-        });
-      }
-
-      // Marca runtime (real)
-      el.__gcSocialBound = true;
-    });
-  }
-
-  /* ===================== SUBNAV + REDES (NO depende de data-subnav-init) ===================== */
-  document.addEventListener("DOMContentLoaded", () => {
-    const header = document.getElementById("header");
-    if (!header) return;
-
-    // OJO: NO usar data-subnav-init porque puede venir desde backend.
-    if (header.dataset.gcSubnavBound === "1") return;
-    header.dataset.gcSubnavBound = "1";
-
-    const nav = header.querySelector(".subnav");
-
-    // Bind socials en subnav y barra móvil
-    attachSocialClicks(nav);
-    attachSocialClicks(header.querySelector(".social-bar-mobile"));
-
-    // Logo → Home público
+  function bindHeaderHome() {
     const logoBtn = document.getElementById("logo-btn");
-    if (logoBtn && logoBtn.dataset.logoBound !== "1") {
-      logoBtn.style.cursor = "pointer";
-      const goPublicHome = () => (window.location.href = routePublicHome);
-      logoBtn.addEventListener("click", goPublicHome);
-      logoBtn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          goPublicHome();
-        }
-      });
-      logoBtn.dataset.logoBound = "1";
-    }
-  });
+    if (!logoBtn || logoBtn.dataset.logoBound === "1") return;
 
-  /* ===================== SUBNAV OPERATIVO (render + active + chat) ===================== */
-  (function SubnavOperativo() {
-    //view retro: VIEWS/retroCiudadanaDashboard.php
-    "use strict";
-
-    const CFG_OPS = {
-      SECTIONS: Object.assign(
-        {
-          home: {
-            label: "Home",
-            href: "/PRI/Views/home.php",
-            matchers: [
-              "home.php",
-              "requerimiento.php",
-              /^\/VIEWS\/requerimiento\/\d+$/i,
-            ],
-          },
-          /*
-          tareas: {
-            label: "Tareas",
-            href: "/PRI/Views/Tareas.php",
-            matchers: ["tareas.php"],
-          },
-          */
-        },
-        window.NAV_SECTIONS || {},
-      ),
-      CHAT: {
-        enabled: true,
-        url: "/VIEWS/whats_asesores.php",
-        allowedEmpIds: [6, 5, 4, 2, 1, 15],
-        cookieName: "ix_emp",
-      },
-      RETRO: {
-        enabled: true,
-        url: "/VIEWS/retroCiudadanaDashboard.php",
-        label: "Retro",
-        cookieName: "ix_emp",
-        rbacUrl: "https://ixtla-app.com/db/web/ixtla01_rbac.php",
-      },
-      ADMIN: {
-        enabled: true,
-        url: "/VIEWS/admin.php",
-        allowedEmpIds: [6, 2, 1, 15],
-        cookieName: "ix_emp",
-      },
-    };
-
-    const normPath = (u) => {
-      try {
-        const url = new URL(u, location.origin);
-        return decodeURIComponent(
-          url.pathname.toLowerCase().replace(/\/+$/, ""),
-        );
-      } catch {
-        return "";
-      }
-    };
-    const curPath = () => normPath(location.pathname);
-    const curLast = () =>
-      decodeURIComponent((curPath().split("/").pop() || "").toLowerCase());
-
-    function matchOne(m) {
-      if (typeof m === "string") return curLast() === m.toLowerCase();
-      if (m instanceof RegExp) return m.test(curPath());
-      return false;
-    }
-
-    function resolveActiveSectionKey() {
-      for (const [key, sec] of Object.entries(CFG_OPS.SECTIONS)) {
-        if ((sec.matchers || []).some(matchOne)) return key;
-      }
-      for (const [key, sec] of Object.entries(CFG_OPS.SECTIONS)) {
-        const last = decodeURIComponent(
-          (normPath(sec.href).split("/").pop() || "").toLowerCase(),
-        );
-        if (curLast() === last) return key;
-      }
-      for (const [key, sec] of Object.entries(CFG_OPS.SECTIONS)) {
-        if (normPath(sec.href) === curPath()) return key;
-      }
-      return null;
-    }
-
-    function readIxSession(cookieName) {
-      try {
-        const m = document.cookie
-          .split("; ")
-          .find((c) => c.startsWith(cookieName + "="));
-        if (!m) return null;
-        const raw = decodeURIComponent(m.split("=")[1] || "");
-        return JSON.parse(decodeURIComponent(escape(atob(raw))));
-      } catch {
-        return null;
-      }
-    }
-
-    let __rbacCache = null;
-    let __rbacPromise = null;
-
-    async function fetchRBACByEmpleadoId(empleadoId) {
-      if (!Number.isFinite(Number(empleadoId)) || Number(empleadoId) <= 0) {
-        return null;
-      }
-
-      try {
-        const res = await fetch(CFG_OPS.RETRO.rbacUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            empleado_id: Number(empleadoId),
-          }),
-        });
-
-        const json = await res.json().catch(() => null);
-        if (!res.ok || !json?.ok || !json?.data) {
-          console.warn("[SubnavOps][RBAC] respuesta no válida:", json);
-          return null;
-        }
-
-        return json.data;
-      } catch (e) {
-        console.warn("[SubnavOps][RBAC] error fetch:", e);
-        return null;
-      }
-    }
-
-    async function getRetroRBAC() {
-      if (__rbacCache) return __rbacCache;
-      if (__rbacPromise) return __rbacPromise;
-
-      const sess = readIxSession(CFG_OPS.RETRO.cookieName);
-      const empleadoId = Number(sess?.empleado_id ?? sess?.id_empleado ?? NaN);
-
-      if (!Number.isFinite(empleadoId)) return null;
-
-      __rbacPromise = fetchRBACByEmpleadoId(empleadoId)
-        .then((rbac) => {
-          __rbacCache = rbac || null;
-          return __rbacCache;
-        })
-        .finally(() => {
-          __rbacPromise = null;
-        });
-
-      return __rbacPromise;
-    }
-
-    function canViewRetroFromRBAC(rbac) {
-      const f = rbac?.flags || {};
-      return !!(f.is_presidencia || f.is_director || f.is_primera_linea);
-    }
-
-    function getSocialMarkup(nav) {
-      const existing = nav.querySelector(".social-icons");
-      if (existing) return existing.outerHTML;
-      return `
-        <div class="social-icons">
-          <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
-          <div class="circle-icon"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
-          <div class="circle-icon"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
-          <div class="circle-icon"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
-        </div>`;
-    }
-
-    function ensureNavLeftHosts() {
-      document.querySelectorAll("#mobile-menu").forEach((menu) => {
-        if (!menu.querySelector(".nav-left")) {
-          const div = document.createElement("div");
-          div.className = "nav-left";
-          menu.insertBefore(div, menu.firstChild || null);
-        }
-      });
-    }
-
-    function maybeAddChatLink() {
-      if (!CFG_OPS.CHAT.enabled || !CFG_OPS.CHAT.url) return;
-
-      const sess = readIxSession(CFG_OPS.CHAT.cookieName);
-      const empIdRaw = sess?.empleado_id ?? sess?.id_empleado;
-      const empId = Number(empIdRaw ?? NaN);
-      if (!Number.isFinite(empId)) return;
-
-      const isAllowed = CFG_OPS.CHAT.allowedEmpIds.includes(empId);
-      if (!isAllowed) return;
-
-      ensureNavLeftHosts();
-      const navs = document.querySelectorAll(
-        "#mobile-menu .nav-left, .subnav .nav-left",
-      );
-
-      navs.forEach((navLeft) => {
-        if (!navLeft) return;
-        if (navLeft.querySelector("#link-chat")) return;
-
-        const a = document.createElement("a");
-        a.id = "link-chat";
-        a.href = CFG_OPS.CHAT.url;
-        a.textContent = "Chat";
-        a.target = "_blank";
-        a.rel = "noopener";
-        navLeft.appendChild(a);
-      });
-    }
-
-    function maybeAddAdminLink() {
-      if (!CFG_OPS.ADMIN.enabled || !CFG_OPS.ADMIN.url) return;
-
-      const sess = readIxSession(CFG_OPS.ADMIN.cookieName);
-      const empIdRaw = sess?.empleado_id ?? sess?.id_empleado;
-      const empId = Number(empIdRaw ?? NaN);
-      if (!Number.isFinite(empId)) return;
-
-      const isAllowed = CFG_OPS.ADMIN.allowedEmpIds.includes(empId);
-
-      ensureNavLeftHosts();
-      const navs = document.querySelectorAll(
-        "#mobile-menu .nav-left, .subnav .nav-left",
-      );
-
-      navs.forEach((navLeft) => {
-        if (!navLeft) return;
-
-        const existing = navLeft.querySelector("#link-admin");
-
-        if (!isAllowed) {
-          existing?.remove();
-          return;
-        }
-
-        const isActive = normPath(CFG_OPS.ADMIN.url) === curPath();
-
-        if (existing) {
-          existing.classList.toggle("active", isActive);
-          return;
-        }
-
-        const a = document.createElement("a");
-        a.id = "link-admin";
-        a.href = CFG_OPS.ADMIN.url;
-        a.textContent = "Admin";
-        a.classList.toggle("active", isActive);
-
-        const retro = navLeft.querySelector("#link-retro");
-        const chat = navLeft.querySelector("#link-chat");
-
-        if (retro) {
-          retro.insertAdjacentElement("afterend", a);
-        } else if (chat) {
-          chat.insertAdjacentElement("afterend", a);
-        } else {
-          navLeft.appendChild(a);
-        }
-      });
-    }
-
-    async function maybeAddRetroLink() {
-      if (!CFG_OPS.RETRO.enabled || !CFG_OPS.RETRO.url) return;
-
-      const rbac = await getRetroRBAC();
-      const allowed = canViewRetroFromRBAC(rbac);
-
-      ensureNavLeftHosts();
-      const navs = document.querySelectorAll(
-        "#mobile-menu .nav-left, .subnav .nav-left",
-      );
-
-      navs.forEach((navLeft) => {
-        if (!navLeft) return;
-
-        const existing = navLeft.querySelector("#link-retro");
-
-        if (!allowed) {
-          existing?.remove();
-          return;
-        }
-
-        const isActive = normPath(CFG_OPS.RETRO.url) === curPath();
-
-        if (existing) {
-          existing.classList.toggle("active", isActive);
-          return;
-        }
-
-        const a = document.createElement("a");
-        a.id = "link-retro";
-        a.href = CFG_OPS.RETRO.url;
-        a.textContent = CFG_OPS.RETRO.label;
-        a.classList.toggle("active", isActive);
-
-        const chat = navLeft.querySelector("#link-chat");
-        if (chat) {
-          chat.insertAdjacentElement("afterend", a);
-        } else {
-          navLeft.appendChild(a);
-        }
-      });
-    }
-
-    function mkLink(label, href, isActive) {
-      return `<a href="${href}" class="${isActive ? "active" : ""}">${label}</a>`;
-    }
-
-    function mirrorActiveToMobile() {
-      const activeHref = document
-        .querySelector(".subnav .nav-left a.active")
-        ?.getAttribute("href");
-      if (!activeHref) return;
-      const target = normPath(activeHref);
-      document.querySelectorAll("#mobile-menu a").forEach((a) => {
-        a.classList.toggle(
-          "active",
-          normPath(a.getAttribute("href") || "") === target,
-        );
-      });
-    }
-
-    function ensureLogoNavigates() {
-      const logoBtn = document.getElementById("logo-btn");
-      if (!logoBtn || logoBtn.dataset.logoBound === "1") return;
-      logoBtn.style.cursor = "pointer";
-      logoBtn.addEventListener("click", () => {
-        const to = window.NAV_HOME_LINK || "/index.php";
-        window.location.href = to;
-      });
-      logoBtn.dataset.logoBound = "1";
-    }
-
-    async function renderOperative(nav) {
-      const activeKey = resolveActiveSectionKey();
-      const left = Object.entries(CFG_OPS.SECTIONS)
-        .map(([key, sec]) => mkLink(sec.label, sec.href, key === activeKey))
-        .join("");
-
-      nav.innerHTML = `<div class="nav-left">${left}</div>${getSocialMarkup(nav)}`;
-
-      fixOperativeSocialHitbox(nav);
-      attachSocialClicks(nav);
-
-      ensureLogoNavigates();
-      maybeAddChatLink();
-      await maybeAddRetroLink();
-      maybeAddAdminLink();
-      mirrorActiveToMobile();
-    }
-
-    function restoreOriginal(nav) {
-      if (nav.dataset.originalHtml) nav.innerHTML = nav.dataset.originalHtml;
-
-      // Re-bindea socials también al restaurar
-      attachSocialClicks(nav);
-
-      ensureLogoNavigates();
-      mirrorActiveToMobile();
-    }
-
-    const header = document.getElementById("header");
-    if (!header) return;
-
-    const subnavs = Array.from(header.querySelectorAll(".subnav"));
-    if (!subnavs.length) return;
-
-    subnavs.forEach((nav) => {
-      if (!nav.dataset.originalHtml) nav.dataset.originalHtml = nav.innerHTML;
+    logoBtn.style.cursor = "pointer";
+    logoBtn.addEventListener("click", () => {
+      window.location.href = ROUTES.publicHome;
+    });
+    logoBtn.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      window.location.href = ROUTES.publicHome;
     });
 
-    function isOperativeLike() {
-      return (
-        !!resolveActiveSectionKey() ||
-        /home\.php/i.test(curLast()) ||
-        /retrociudadanadashboard\.php/i.test(curLast()) ||
-        /admin\.php/i.test(curLast())
-      );
+    logoBtn.dataset.logoBound = "1";
+  }
+
+  function normalizeSubnavForPri() {
+    const nav = document.getElementById("mobile-menu");
+    if (!nav) return;
+
+    const navLeft = nav.querySelector(".nav-left");
+    if (!navLeft) return;
+
+    const currentPath = location.pathname.toLowerCase();
+    const isLogin = currentPath.endsWith("/pri/views/login.php");
+
+    navLeft.innerHTML = isLogin
+      ? `<a href="${ROUTES.publicHome}" class="active">Inicio</a>`
+      : `<a href="${ROUTES.appHome}" class="active">Home</a>`;
+  }
+
+  applyVH();
+  window.addEventListener("resize", applyVH);
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".animado").forEach((element) => {
+      element.classList.add("visible");
+    });
+
+    const header = document.getElementById("header");
+    if (header) {
+      const onScroll = () => {
+        if (window.scrollY > 50) header.classList.add("scrolled");
+        else header.classList.remove("scrolled");
+      };
+
+      onScroll();
+      window.addEventListener("scroll", onScroll, { passive: true });
     }
 
-    async function mount() {
-      const operative = isOperativeLike();
-
-      for (const nav of subnavs) {
-        if (operative) await renderOperative(nav);
-        else restoreOriginal(nav);
-      }
-    }
-
-    if (document.readyState === "loading") {
-      document.addEventListener(
-        "DOMContentLoaded",
-        () => {
-          mount().catch(() => { });
-        },
-        { once: true },
-      );
-    } else {
-      mount().catch(() => { });
-    }
-
-    if ("MutationObserver" in window) {
-      const obs = new MutationObserver(() => {
-        if (isOperativeLike()) {
-          try {
-            maybeAddChatLink();
-            maybeAddRetroLink().catch(() => { });
-            maybeAddAdminLink();
-            mirrorActiveToMobile();
-            subnavs.forEach((nav) => {
-              fixOperativeSocialHitbox(nav);
-              attachSocialClicks(nav);
-            });
-          } catch { }
-        }
-      });
-      obs.observe(header, { childList: true, subtree: true });
-    }
-
-    window.SubnavOps = { refresh: mount };
-  })();
+    bindHeaderHome();
+    normalizeSubnavForPri();
+    mountHeaderSessionUI();
+    bindSocialClicks(document.getElementById("header"));
+    bindSocialClicks(document.querySelector(".social-bar-mobile"));
+  });
 })();

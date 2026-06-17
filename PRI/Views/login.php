@@ -143,7 +143,7 @@
 
     <!-- ESPACIO PARA MODALES -->
 
-    <script src="/PRI/JS/JSglobal.js"></script>
+    <script src="/PRI/JS/jsGlobal.js"></script>
     <script src="/PRI/JS/components.js"></script>
     <script type="module" src="/PRI/JS/auth/session.js"></script>
     <script type="module" src="/PRI/JS/login.js"></script>
