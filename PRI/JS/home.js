@@ -1,6 +1,7 @@
 "use strict";
 
 import { Session } from "/PRI/JS/auth/session.js";
+import { initExportXLSXHome } from "/PRI/JS/ui/exportXLSXHome.js";
 
 const CONFIG = {
   DEBUG_LOGS: true,
@@ -616,6 +617,45 @@ async function loadDashboard({ keepPage = true } = {}) {
   } finally {
     State.loading = false;
   }
+}
+
+async function fetchRowsForExport() {
+  const usuarioId = getUsuarioId();
+  const rolCodigo = getRolCodigo();
+
+  if (!usuarioId && rolCodigo !== "ADMIN" && rolCodigo !== "COORD_GENERAL") {
+    throw new Error("No se encontró usuario en sesión para exportar.");
+  }
+
+  const pageSize = 200;
+  const firstOut = await postJSON(
+    CONFIG.ENDPOINT_RED_HOME,
+    buildDashboardPayload({
+      page: 1,
+      page_size: pageSize,
+    }),
+  );
+
+  const totalPages = Math.max(1, Number(firstOut.meta?.total_pages || 1));
+  const rows = Array.isArray(firstOut.data)
+    ? firstOut.data.map(mapRedHomeToRow)
+    : [];
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const out = await postJSON(
+      CONFIG.ENDPOINT_RED_HOME,
+      buildDashboardPayload({
+        page,
+        page_size: pageSize,
+      }),
+    );
+
+    if (Array.isArray(out.data) && out.data.length) {
+      rows.push(...out.data.map(mapRedHomeToRow));
+    }
+  }
+
+  return rows;
 }
 
 function mapRedHomeToRow(persona = {}) {
@@ -1380,63 +1420,6 @@ function formatSeccionPersona(persona = {}, fallbackRow = {}) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* EXPORTACIÓN                                                                */
-/* -------------------------------------------------------------------------- */
-
-function exportCSV() {
-  const rows = State.rows;
-
-  if (!rows.length) {
-    toast("No hay registros para exportar en esta página.", "advertencia");
-    return;
-  }
-
-  const headers = [
-    "ID",
-    "Nombre",
-    "Domicilio",
-    "Seccion",
-    "Zona",
-    "Telefono",
-    "Tipo",
-    "Estatus",
-    "Validez",
-  ];
-
-  const body = rows.map((item) => [
-    item.id,
-    item.nombre,
-    item.domicilio,
-    item.seccion,
-    item.zona,
-    item.telefono,
-    formatTipo(item.tipo),
-    item.estatus_nombre,
-    item.validez ? "Valido" : "Pendiente",
-  ]);
-
-  const csv = [headers, ...body]
-    .map((row) => row.map((cell) => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(","))
-    .join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `red_export_pagina_${State.page}_${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  URL.revokeObjectURL(url);
-
-  if (State.total > rows.length) {
-    toast("Se exportó solo la página actual.", "advertencia", 5000);
-  }
-}
-
-/* -------------------------------------------------------------------------- */
 /* EVENTOS                                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -1489,8 +1472,6 @@ function bindEvents() {
     }
   });
 
-  $(SEL.btnExport)?.addEventListener("click", exportCSV);
-
   $(SEL.ineReviewEstatus)?.addEventListener("change", () => {
     syncReadonlyStatusSaveButton();
   });
@@ -1527,6 +1508,11 @@ async function init() {
   readSession();
   hydrateUser();
   bindEvents();
+  initExportXLSXHome({
+    buttonId: "red-btn-export",
+    fetchRows: fetchRowsForExport,
+    toast,
+  });
 
   await loadDashboard({ keepPage: true });
 

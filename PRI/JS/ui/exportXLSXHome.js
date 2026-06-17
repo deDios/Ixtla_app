@@ -1,209 +1,231 @@
 // /JS/ui/exportXLSXHome.js
 export function initExportXLSXHome({
-  buttonId = "hs-btn-export-req",
-  State,
-  normalizeStatusKey,
-  formatDateMXShort,
+  buttonId = "red-btn-export",
+  fetchRows,
   toast,
-  mode = "view", // "view" = respeta filtros/búsqueda | "all" = todo visible por rol
 } = {}) {
   const btn = document.getElementById(buttonId);
-  if (!btn) return;
+  if (!btn || typeof fetchRows !== "function") return;
 
-  btn.addEventListener("click", (e) => {
-    e.preventDefault();
+  btn.addEventListener("click", async (event) => {
+    event.preventDefault();
+
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Exportando...";
+
     try {
       if (!window.XLSX) {
-        console.error("[ExportXLSX] XLSX no cargado. Falta xlsx.full.min.js");
-        toast?.("No se pudo exportar (XLSX no cargado).", "error");
+        throw new Error("XLSX no está cargado en la vista.");
+      }
+
+      const rows = await fetchRows();
+
+      if (!Array.isArray(rows) || !rows.length) {
+        toast?.("No hay personas para exportar.", "warning");
         return;
       }
-      exportXLSX({ State, normalizeStatusKey, formatDateMXShort, toast, mode });
+
+      const data = rows.map(mapPersonRowForExcel);
+      downloadWorkbook(data, makeFilename("red_personas"));
+      toast?.(`Exportadas: ${rows.length} persona(s).`, "exito");
     } catch (err) {
-      console.error("[ExportXLSX] error:", err);
-      toast?.("No se pudo exportar. Revisa consola.", "error");
+      console.error("[ExportXLSXHome] error:", err);
+      toast?.("No se pudo exportar el archivo de Excel.", "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
     }
   });
 }
 
-function exportXLSX({
-  State,
-  normalizeStatusKey,
-  formatDateMXShort,
-  toast,
-  mode,
-}) {
-  const rows =
-    mode === "all"
-      ? Array.isArray(State.rows)
-        ? State.rows
-        : []
-      : getRowsForViewExport(State, normalizeStatusKey);
+function mapPersonRowForExcel(row) {
+  const raw = row?.raw || {};
+  const participacion = raw?.participacion || {};
+  const territorio = raw?.territorio || {};
+  const responsable = raw?.responsable || row?.responsable || {};
 
-  if (!rows.length) {
-    toast?.("No hay requerimientos para exportar.", "warn");
-    return;
+  const nombreCompleto =
+    raw?.nombre_completo ||
+    row?.nombre ||
+    [
+      raw?.nombres,
+      raw?.apellido_paterno,
+      raw?.apellido_materno,
+    ].filter(Boolean).join(" ").trim() ||
+    "Sin nombre";
+
+  const seccion =
+    territorio?.seccion?.codigo ||
+    raw?.seccion_codigo ||
+    row?.seccion ||
+    "—";
+
+  const zona =
+    territorio?.zona?.nombre ||
+    territorio?.zona?.codigo ||
+    raw?.zona_nombre ||
+    row?.zona ||
+    "—";
+
+  const responsableNombre =
+    responsable?.nombre_completo ||
+    [
+      responsable?.nombre,
+      responsable?.apellido_paterno,
+      responsable?.apellido_materno,
+    ].filter(Boolean).join(" ").trim() ||
+    responsable?.username ||
+    "—";
+
+  const telefonoPrincipal = raw?.telefono || raw?.whatsapp || row?.telefono || "—";
+  const observaciones = [raw?.persona_observaciones, participacion?.observaciones]
+    .filter((value, index, arr) => value && arr.indexOf(value) === index)
+    .join(" | ");
+
+  return {
+    ID: row?.id || raw?.persona_id || "—",
+    "Nombre completo": nombreCompleto,
+    "Tipo de participación": formatTipoParticipacion(
+      participacion?.tipo_actual ||
+      participacion?.tipo_participacion ||
+      raw?.tipo_participacion ||
+      row?.tipo
+    ),
+    Estatus: raw?.participacion_estatus_nombre || row?.estatus_nombre || "Sin estatus",
+    Validez: row?.validez ? "Válido" : "Pendiente",
+    Sección: seccion,
+    Zona: zona,
+    Domicilio: raw?.domicilio_texto || row?.domicilio || "—",
+    "Teléfono principal": telefonoPrincipal,
+    WhatsApp: raw?.whatsapp || "—",
+    Email: raw?.email || "—",
+    CURP: raw?.curp || "—",
+    "Clave de elector": raw?.clave_elector || "—",
+    "Fecha de nacimiento": formatDate(raw?.fecha_nacimiento),
+    Sexo: formatSexo(raw?.sexo),
+    "Año de registro": raw?.anio_registro || "—",
+    Emisión: raw?.emision || "—",
+    "Vigencia inicio": raw?.vigencia_inicio || "—",
+    "Vigencia fin": raw?.vigencia_fin || "—",
+    Responsable: responsableNombre,
+    "Fecha de registro": formatDateTime(
+      participacion?.fecha_registro || raw?.fecha_captura || raw?.created_at
+    ),
+    "Fecha de afiliación": formatDate(participacion?.fecha_afiliacion),
+    "Última actualización": formatDateTime(raw?.updated_at || participacion?.updated_at),
+    Observaciones: observaciones || "—",
+  };
+}
+
+function downloadWorkbook(rows, filename) {
+  const XLSX = window.XLSX;
+  const headers = Object.keys(rows[0] || {});
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+
+  worksheet["!cols"] = headers.map((header) => ({
+    wch: Math.max(
+      12,
+      Math.min(
+        40,
+        String(header).length + 4,
+        ...rows.map((row) => String(normalizeCellValue(row[header])).length + 2),
+      ),
+    ),
+  }));
+
+  if (worksheet["!ref"]) {
+    const range = XLSX.utils.decode_range(worksheet["!ref"]);
+    worksheet["!autofilter"] = { ref: XLSX.utils.encode_range(range) };
   }
 
-  // === Columnas “para empleados” (operativas) ===
-  const data = rows.map((r) => {
-    const raw = r?.raw || r?.__raw || r || {};
-
-    const departamento =
-      r?.departamento ||
-      raw?.departamento_nombre ||
-      raw?.departamento?.nombre ||
-      "—";
-
-    const tramite =
-      r?.tramite || raw?.tramite_nombre || raw?.tramite?.nombre || "—";
-
-    const asignado =
-      r?.asignadoFull ||
-      r?.asignadoNombre ||
-      r?.asignado ||
-      raw?.asignado_nombre_completo ||
-      "Sin asignar";
-
-    const tel = r?.tel || raw?.contacto_telefono || "—";
-    const solicitadoRaw = r?.creado || raw?.created_at || r?.created_at || null;
-    const solicitado = formatDateMXShort
-      ? formatDateMXShort(solicitadoRaw)
-      : safeDateMXShort(solicitadoRaw);
-
-    return {
-      Folio: r?.folio || raw?.folio || "—",
-      Departamento: departamento,
-      "Tipo de trámite": tramite,
-      Asunto: r?.asunto || raw?.asunto || "—",
-      Asignado: asignado,
-      Teléfono: tel,
-      Solicitado: solicitado || "—",
-      Estatus: r?.estatus?.label || "—",
-      //Prioridad: mapPrioridad(raw?.prioridad), comentado porque prioridad no sirve mostrarlo
-      Canal: mapCanal(raw?.canal),
-      "Contacto nombre": raw?.contacto_nombre || "—",
-      "Contacto correo": raw?.contacto_email || "—",
-      Calle: raw?.contacto_calle || "—",
-      Colonia: raw?.contacto_colonia || "—",
-      CP: raw?.contacto_cp || "—",
-      Actualizado: raw?.updated_at || r?.updated_at || "—",
-      "Cerrado en": raw?.cerrado_en || "—",
-    };
-  });
-
-  const XLSX = window.XLSX;
-
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Requerimientos");
-
-  // Autofiltro (Excel dropdowns) :contentReference[oaicite:3]{index=3}
-  const range = XLSX.utils.decode_range(ws["!ref"]);
-  ws["!autofilter"] = { ref: XLSX.utils.encode_range(range) };
-
-  // Anchos
-  ws["!cols"] = [
-    { wch: 16 }, // Folio
-    { wch: 22 }, // Depto
-    { wch: 26 }, // Trámite
-    { wch: 30 }, // Asunto
-    { wch: 18 }, // Asignado
-    { wch: 14 }, // Tel
-    { wch: 12 }, // Solicitado
-    { wch: 14 }, // Estatus
-    { wch: 10 }, // Prioridad
-    { wch: 10 }, // Canal
-    { wch: 18 }, // Contacto nombre
-    { wch: 22 }, // Contacto correo
-    { wch: 18 }, // Calle
-    { wch: 16 }, // Colonia
-    { wch: 10 }, // CP
-    { wch: 18 }, // Actualizado
-    { wch: 18 }, // Cerrado en
-  ];
-
-  // Freeze header: algunas builds lo soportan, otras no. recordar tener cuidado con esto pero jala
-  // Si no lo soporta, no pasa nada.
   try {
-    ws["!freeze"] = {
+    worksheet["!freeze"] = {
       xSplit: 0,
       ySplit: 1,
       topLeftCell: "A2",
       activePane: "bottomLeft",
       state: "frozen",
     };
-  } catch (_) {}
+  } catch (_) { }
 
-  const filename = makeFilename("requerimientos");
-  XLSX.writeFile(wb, filename);
-
-  toast?.(`Exportados: ${rows.length} requerimiento(s).`, "success");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Personas RED");
+  XLSX.writeFile(workbook, filename);
 }
 
-function getRowsForViewExport(State, normalizeStatusKey) {
-  const all = Array.isArray(State.rows) ? State.rows : [];
-  let filtered = all;
+function formatTipoParticipacion(value) {
+  const clean = String(value ?? "").trim().toLowerCase();
 
-  if (State.filterKey && State.filterKey !== "todos") {
-    if (State.filterKey === "activo") {
-      filtered = filtered.filter((r) => {
-        const k = normalizeStatusKey(r.estatus?.key || "");
-        return k !== "pausado" && k !== "cancelado" && k !== "finalizado";
-      });
-    } else {
-      filtered = filtered.filter(
-        (r) => normalizeStatusKey(r.estatus?.key) === State.filterKey,
-      );
-    }
-  }
+  if (clean === "afiliado") return "Afiliado";
+  if (clean === "promotor") return "Promotor";
+  if (clean === "simpatizante") return "Simpatizante";
 
-  if (State.search) {
-    const q = String(State.search || "").toLowerCase();
-    filtered = filtered.filter((r) => {
-      const asunto = String(r.asunto || "").toLowerCase();
-      const asign = String(r.asignado || r.asignadoNombre || "").toLowerCase();
-      const est = String(r.estatus?.label || "").toLowerCase();
-      const folio = String(r.folio || "").toLowerCase();
-      const depto = String(r.departamento || "").toLowerCase();
-      return (
-        asunto.includes(q) ||
-        asign.includes(q) ||
-        est.includes(q) ||
-        depto.includes(q) ||
-        folio.includes(q)
-      );
-    });
-  }
-
-  return filtered;
+  return clean ? capitalizeWords(clean.replaceAll("_", " ")) : "Simpatizante";
 }
 
-function mapPrioridad(p) {
-  const n = Number(p);
-  if (n === 1) return "Baja";
-  if (n === 2) return "Media";
-  if (n === 3) return "Alta";
-  return "—";
+function formatSexo(value) {
+  const clean = String(value ?? "").trim().toUpperCase();
+
+  if (clean === "H") return "Hombre";
+  if (clean === "M") return "Mujer";
+  if (clean === "X") return "No especificado";
+
+  return clean || "—";
 }
-function mapCanal(c) {
-  const n = Number(c);
-  if (!Number.isFinite(n)) return "—";
-  return `Canal ${n}`;
+
+function formatDate(value) {
+  if (!value) return "—";
+
+  const normalized = String(value).trim();
+  const date = new Date(normalized.includes("T") ? normalized : normalized.replace(" ", "T"));
+
+  if (Number.isNaN(date.getTime())) return normalized;
+
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "America/Mexico_City",
+  }).format(date);
 }
-function safeDateMXShort(v) {
-  if (!v) return "—";
-  const d = new Date(String(v).replace(" ", "T"));
-  if (isNaN(d)) return "—";
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yy = String(d.getFullYear()).slice(-2);
-  return `${dd}/${mm}/${yy}`;
+
+function formatDateTime(value) {
+  if (!value) return "—";
+
+  const normalized = String(value).trim();
+  const date = new Date(normalized.includes("T") ? normalized : normalized.replace(" ", "T"));
+
+  if (Number.isNaN(date.getTime())) return normalized;
+
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Mexico_City",
+  }).format(date);
 }
+
+function normalizeCellValue(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  return String(value);
+}
+
+function capitalizeWords(value) {
+  return String(value)
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function makeFilename(prefix) {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+
   return `${prefix}_${yyyy}-${mm}-${dd}.xlsx`;
 }

@@ -746,6 +746,9 @@ ix_require_session([
         </div>
     </footer>
 
+    <!-- componente de sheetjs -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
     <script src="/PRI/JS/media.js"></script>
     <script src="/PRI/JS/JSglobal.js"></script>
     <script src="/PRI/JS/components.js"></script>
