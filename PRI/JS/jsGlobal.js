@@ -138,25 +138,21 @@
   }
 
   function gcAvatarUrlFor(id) {
-    const clean = String(id ?? "").trim();
-    if (!clean) return DEFAULT_AVATAR;
-    return `${AVATAR_BASE}/img_${clean}.png`;
+    void id;
+    return DEFAULT_AVATAR;
   }
 
   function setAvatarSrc(imgEl, session) {
     if (!imgEl) return;
+    void session;
 
-    const id = getSessionAvatarId(session);
-    const candidates = id
-      ? [
-        `${AVATAR_BASE}/img_${id}.png`,
-        `${AVATAR_BASE}/img_${id}.jpg`,
-        `${AVATAR_BASE}/user_${id}.png`,
-        `${AVATAR_BASE}/user_${id}.jpg`,
-      ]
-      : [DEFAULT_AVATAR];
-
-    setImgWithFallback(imgEl, candidates, DEFAULT_AVATAR);
+    /*
+      Temporalmente dejamos la imagen default fija para RED.
+      Si después vuelven a activar avatares por usuario, aquí se restaura
+      la resolución por usuario_id / rutas de imagen.
+    */
+    imgEl.onerror = null;
+    imgEl.src = withBust(DEFAULT_AVATAR);
 
     const displayName = getSessionDisplayName(session);
     imgEl.alt = displayName;
@@ -326,6 +322,92 @@
     return wrap;
   }
 
+  function buildMobileUserMenu(session) {
+    const mobileWrap = document.querySelector(".user-icon-mobile");
+    const mobileImg = mobileWrap?.querySelector("img");
+
+    if (!mobileWrap || !mobileImg) return;
+
+    mobileWrap.querySelector(".dropdown-menu.mobile")?.remove();
+
+    setAvatarSrc(mobileImg, session);
+    mobileWrap.style.cursor = "pointer";
+    mobileWrap.setAttribute("role", "button");
+    mobileWrap.setAttribute("tabindex", "0");
+    mobileWrap.setAttribute("aria-haspopup", "true");
+    mobileWrap.setAttribute("aria-expanded", "false");
+
+    const dropdownMobile = document.createElement("div");
+    dropdownMobile.className = "dropdown-menu mobile";
+    dropdownMobile.setAttribute("aria-hidden", "true");
+    dropdownMobile.innerHTML = `
+      <ul>
+        <li id="header-home-btn-mobile" role="menuitem" tabindex="-1">
+          <img src="${ASSETS.dropdownHome}" alt="" aria-hidden="true" />
+          Ir a Home
+        </li>
+        <li id="header-logout-btn-mobile" role="menuitem" tabindex="-1">
+          <img src="${ASSETS.dropdownLogout}" alt="" aria-hidden="true" />
+          Cerrar sesión
+        </li>
+      </ul>
+    `;
+
+    mobileWrap.appendChild(dropdownMobile);
+
+    const open = (flag) => {
+      dropdownMobile.classList.toggle("active", flag);
+      dropdownMobile.setAttribute("aria-hidden", String(!flag));
+      mobileWrap.setAttribute("aria-expanded", String(flag));
+    };
+
+    const toggle = (event) => {
+      event?.preventDefault();
+      event?.stopPropagation();
+      open(!dropdownMobile.classList.contains("active"));
+    };
+
+    mobileWrap.onclick = toggle;
+    mobileWrap.onkeydown = (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        toggle(event);
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        open(false);
+      }
+    };
+
+    dropdownMobile.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+
+    dropdownMobile
+      .querySelector("#header-home-btn-mobile")
+      ?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        window.location.href = ROUTES.appHome;
+      });
+
+    dropdownMobile
+      .querySelector("#header-logout-btn-mobile")
+      ?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        clearSession();
+        window.location.href = ROUTES.login;
+      });
+
+    if (!document.body.dataset.priMobileDropdownBound) {
+      document.addEventListener("click", () => open(false));
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") open(false);
+      });
+
+      document.body.dataset.priMobileDropdownBound = "1";
+    }
+  }
+
   function mountHeaderSessionUI() {
     const session = readSessionCookie();
     const isLogged = isSessionLogged(session);
@@ -354,14 +436,16 @@
 
     if (mobileImg) {
       if (isLogged) {
-        setAvatarSrc(mobileImg, session);
-        mobileWrap.style.cursor = "pointer";
-        mobileWrap.onclick = () => {
-          window.location.href = ROUTES.appHome;
-        };
+        buildMobileUserMenu(session);
       } else {
+        mobileWrap.querySelector(".dropdown-menu.mobile")?.remove();
         mobileImg.src = withBust(DEFAULT_AVATAR);
         mobileWrap.style.cursor = "pointer";
+        mobileWrap.removeAttribute("role");
+        mobileWrap.removeAttribute("tabindex");
+        mobileWrap.removeAttribute("aria-haspopup");
+        mobileWrap.removeAttribute("aria-expanded");
+        mobileWrap.onkeydown = null;
         mobileWrap.onclick = () => {
           window.location.href = ROUTES.login;
         };
