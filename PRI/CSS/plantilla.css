@@ -687,6 +687,10 @@ header.scrolled .subnav {
     position: relative;
   }
 
+  .user-icon-mobile {
+    overflow: visible;
+  }
+
   /* Íconos de redes: se mantienen pequeños */
   .icon-mobile img {
     width: 20px;
@@ -703,6 +707,19 @@ header.scrolled .subnav {
     object-position: center;
     display: block;
     border-radius: 50%;
+  }
+
+  .user-icon-mobile .dropdown-menu.mobile {
+    top: calc(100% + 10px);
+    right: -4px;
+    left: auto;
+    width: 190px;
+    transform: translateY(-8px);
+    z-index: 1200;
+  }
+
+  .user-icon-mobile .dropdown-menu.mobile.active {
+    transform: translateY(0);
   }
 
   .icon-mobile:hover, .user-icon-mobile:hover {
