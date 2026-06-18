@@ -1422,7 +1422,7 @@ function paintReadonlySeccionField(persona = {}, fallbackRow = {}) {
   if (text) text.textContent = seccionCodigo || "Sin sección";
 }
 
-function formatSeccionPersona(persona = {}, fallbackRow = {}) {
+function formatSeccionPersonaLegacy(persona = {}, fallbackRow = {}) {
   const territorio = persona.territorio?.seccion || null;
 
   if (territorio?.codigo && territorio?.nombre) {
@@ -1431,6 +1431,14 @@ function formatSeccionPersona(persona = {}, fallbackRow = {}) {
 
   if (territorio?.codigo) return territorio.codigo;
   if (territorio?.nombre) return territorio.nombre;
+
+  return persona.seccion_id || fallbackRow.seccion || "";
+}
+
+function formatSeccionPersona(persona = {}, fallbackRow = {}) {
+  const territorio = persona.territorio?.seccion || null;
+
+  if (territorio?.codigo) return territorio.codigo;
 
   return persona.seccion_id || fallbackRow.seccion || "";
 }
