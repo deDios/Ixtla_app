@@ -120,6 +120,9 @@ const SEL = {
 
     reviewFront: "#ine-review-front",
     reviewBack: "#ine-review-back",
+    reviewSeccionToggle: "#ine-review-seccion-toggle",
+    reviewSeccionText: "#ine-review-seccion-text",
+    reviewSeccionList: "#ine-review-seccion-list",
 
     residenceModal: "#red-residence-modal",
     residenceClose: "[data-red-residence-close]",
@@ -636,6 +639,113 @@ function findSeccionByInput(value) {
     }) || null;
 }
 
+function getSeccionCodeLabel(item) {
+    return String(
+        item?.codigo ||
+        item?.territorio_id ||
+        "S/C"
+    ).trim();
+}
+
+function syncComboSelection(list, value) {
+    if (!list) return;
+
+    list.querySelectorAll(".red-residence-combo-option").forEach((btn) => {
+        const selected = btn.dataset.value === String(value || "");
+        btn.classList.toggle("is-selected", selected);
+        btn.setAttribute("aria-selected", selected ? "true" : "false");
+    });
+}
+
+function paintReviewSecciones(selectedValue = "") {
+    const input = $("#ine-review-seccion");
+    const text = $(SEL.reviewSeccionText);
+    const list = $(SEL.reviewSeccionList);
+
+    if (!input || !text || !list) return;
+
+    const cleanSelected = String(selectedValue || "").trim();
+    const selectedItem = findSeccionByInput(cleanSelected);
+
+    input.value = selectedItem ? String(selectedItem.territorio_id || "") : "";
+    text.textContent = selectedItem
+        ? getSeccionCodeLabel(selectedItem)
+        : cleanSelected || "Selecciona una sección";
+    list.innerHTML = "";
+
+    State.secciones.forEach((item) => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "red-residence-combo-option";
+        option.role = "option";
+
+        const value = String(item.territorio_id || "");
+        const label = getSeccionCodeLabel(item);
+
+        option.dataset.value = value;
+        option.dataset.label = label;
+        option.textContent = label;
+
+        const isSelected = selectedItem && value === String(selectedItem.territorio_id || "");
+        option.classList.toggle("is-selected", Boolean(isSelected));
+        option.setAttribute("aria-selected", isSelected ? "true" : "false");
+
+        option.addEventListener("click", () => {
+            selectReviewSeccion(value, label);
+            closeReviewSeccionList();
+        });
+
+        list.appendChild(option);
+    });
+}
+
+async function syncReviewSeccionField(selectedValue = "") {
+    await loadTerritoriosCatalog();
+    paintReviewSecciones(selectedValue);
+}
+
+function selectReviewSeccion(value, label) {
+    const input = $("#ine-review-seccion");
+    const text = $(SEL.reviewSeccionText);
+    const list = $(SEL.reviewSeccionList);
+
+    if (input) input.value = String(value || "").trim();
+    if (text) text.textContent = label || "Selecciona una sección";
+
+    syncComboSelection(list, value);
+}
+
+function openReviewSeccionList() {
+    const toggle = $(SEL.reviewSeccionToggle);
+    const list = $(SEL.reviewSeccionList);
+
+    if (!toggle || !list || toggle.disabled) return;
+
+    list.hidden = false;
+    toggle.setAttribute("aria-expanded", "true");
+}
+
+function closeReviewSeccionList() {
+    const toggle = $(SEL.reviewSeccionToggle);
+    const list = $(SEL.reviewSeccionList);
+
+    if (!toggle || !list) return;
+
+    list.hidden = true;
+    toggle.setAttribute("aria-expanded", "false");
+}
+
+function toggleReviewSeccionList() {
+    const list = $(SEL.reviewSeccionList);
+    if (!list) return;
+
+    if (list.hidden) {
+        openReviewSeccionList();
+    } else {
+        closeReviewSeccionList();
+    }
+}
+
 function paintResidenceSecciones(selectedValue = "") {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
@@ -701,6 +811,67 @@ function selectResidenceSeccion(value, label) {
             btn.setAttribute("aria-selected", selected ? "true" : "false");
         });
     }
+}
+
+function paintResidenceSecciones(selectedValue = "") {
+    const input = $(SEL.residenceSeccion);
+    const text = $(SEL.residenceSeccionText);
+    const list = $(SEL.residenceSeccionList);
+
+    if (!input || !text || !list) return;
+
+    const cleanSelected = String(selectedValue || "").trim();
+
+    input.value = "";
+    text.textContent = "Selecciona una sección";
+    list.innerHTML = "";
+
+    State.secciones.forEach((item) => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "red-residence-combo-option";
+        option.role = "option";
+
+        const value = String(item.territorio_id || "");
+        const label = getSeccionCodeLabel(item);
+
+        option.dataset.value = value;
+        option.dataset.label = label;
+        option.textContent = label;
+
+        if (
+            cleanSelected &&
+            (
+                String(item.territorio_id || "") === cleanSelected ||
+                String(item.codigo || "") === cleanSelected
+            )
+        ) {
+            option.classList.add("is-selected");
+            option.setAttribute("aria-selected", "true");
+            input.value = value;
+            text.textContent = label;
+        } else {
+            option.setAttribute("aria-selected", "false");
+        }
+
+        option.addEventListener("click", () => {
+            selectResidenceSeccion(value, label);
+            closeResidenceSeccionList();
+        });
+
+        list.appendChild(option);
+    });
+}
+
+function selectResidenceSeccion(value, label) {
+    const input = $(SEL.residenceSeccion);
+    const text = $(SEL.residenceSeccionText);
+    const list = $(SEL.residenceSeccionList);
+
+    if (input) input.value = value || "";
+    if (text) text.textContent = label || "Selecciona una sección";
+
+    syncComboSelection(list, value);
 }
 
 function openResidenceSeccionList() {
@@ -1691,7 +1862,7 @@ async function processOpenAIData() {
         toast("Datos extraídos correctamente.", "exito", 4500);
 
         hideCaptureModalWithoutReset();
-        openReviewModal(payload);
+        await openReviewModal(payload);
     } catch (err) {
         console.error("[RED Home Modals] Error OpenAI:", err);
 
@@ -2151,6 +2322,7 @@ function setReviewCreateAdminbar() {
 function resetReviewModalForCapture() {
     const modal = $(SEL.reviewModal);
     const form = $(SEL.reviewForm);
+    const seccionText = $(SEL.reviewSeccionText);
 
     if (!modal || !form) return;
 
@@ -2165,6 +2337,12 @@ function resetReviewModalForCapture() {
     form.querySelectorAll("select").forEach((field) => {
         field.disabled = false;
     });
+
+    closeReviewSeccionList();
+
+    if (seccionText) {
+        seccionText.textContent = "Selecciona una sección";
+    }
 
     const saveBtn = $("#ine-modal-affiliate");
     const reprocessBtn = $(SEL.btnReprocess);
@@ -2209,7 +2387,7 @@ function paintReviewImages(payload) {
     }
 }
 
-function openReviewModal(payload) {
+async function openReviewModal(payload) {
     const modal = $(SEL.reviewModal);
 
     if (!modal) {
@@ -2220,6 +2398,7 @@ function openReviewModal(payload) {
 
     resetReviewModalForCapture();
     fillReviewForm(payload.persona || {});
+    await syncReviewSeccionField(payload?.persona?.seccion_id || "");
     modal.__inePayload = payload;
     paintReviewImages(payload);
 
@@ -2238,6 +2417,7 @@ function openReviewModal(payload) {
 }
 
 function closeReviewModal() {
+    closeReviewSeccionList();
     setReviewModalOpen(false);
 }
 
@@ -2642,7 +2822,7 @@ async function shouldOpenResidenceModalBeforeSave(payload) {
     // Si el usuario capturó el código de sección, lo convertimos a territorio_id.
     // Esto evita enviar "1593" cuando el backend necesita "78".
     if (String(found.territorio_id || "") !== currentSeccion) {
-        setFieldValue("#ine-review-seccion", found.territorio_id);
+        selectReviewSeccion(found.territorio_id, getSeccionCodeLabel(found));
         payload.seccion_id = String(found.territorio_id);
     }
 
@@ -2830,7 +3010,11 @@ function bindResidenceModalEvents() {
             return;
         }
 
-        setFieldValue("#ine-review-seccion", seccion);
+        const foundSeccion = findSeccionByInput(seccion);
+        selectReviewSeccion(
+            seccion,
+            foundSeccion ? getSeccionCodeLabel(foundSeccion) : seccion
+        );
         setFieldValue("#ine-review-domicilio", domicilio);
         setFieldValue("#ine-review-telefono", telefono);
 
@@ -2863,6 +3047,16 @@ function bindResidenceModalEvents() {
 function bindReviewModalEvents() {
     $$(SEL.reviewClose).forEach((btn) => {
         btn.addEventListener("click", closeReviewModal);
+    });
+
+    $(SEL.reviewSeccionToggle)?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggleReviewSeccionList();
+    });
+
+    document.addEventListener("click", (event) => {
+        const combo = event.target.closest(".ine-review-field--combo");
+        if (!combo) closeReviewSeccionList();
     });
 
     $(SEL.btnReprocess)?.addEventListener("click", () => {

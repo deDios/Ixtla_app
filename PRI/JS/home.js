@@ -1330,7 +1330,7 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
   setFieldValue("#ine-review-clave-elector", p.clave_elector || "");
   setFieldValue("#ine-review-idmex", p.idmex || shortHash(p.idmex_hash));
 
-  setFieldValue("#ine-review-seccion", formatSeccionPersona(p, row));
+  paintReadonlySeccionField(p, row);
   setFieldValue("#ine-review-anio-registro", p.anio_registro || "");
   setFieldValue("#ine-review-emision", p.emision || "");
   setFieldValue("#ine-review-vigencia-inicio", p.vigencia_inicio || "");
@@ -1404,6 +1404,22 @@ function shortHash(value) {
   if (hash.length <= 18) return hash;
 
   return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
+}
+
+function paintReadonlySeccionField(persona = {}, fallbackRow = {}) {
+  const input = $("#ine-review-seccion");
+  const text = $("#ine-review-seccion-text");
+
+  const seccionId = String(persona?.seccion_id || "").trim();
+  const seccionCodigo = String(
+    persona?.territorio?.seccion?.codigo ||
+    fallbackRow?.seccion ||
+    persona?.seccion_id ||
+    ""
+  ).trim();
+
+  if (input) input.value = seccionId;
+  if (text) text.textContent = seccionCodigo || "Sin sección";
 }
 
 function formatSeccionPersona(persona = {}, fallbackRow = {}) {

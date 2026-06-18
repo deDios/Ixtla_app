@@ -1390,6 +1390,18 @@
     grid-column: 1 / -1;
 }
 
+.ine-review-field--combo {
+    position: relative;
+}
+
+.ine-review-field--combo .red-residence-combo-toggle {
+    margin-top: 2px;
+}
+
+.ine-review-field--combo .red-residence-combo-list {
+    z-index: 30;
+}
+
 .ine-review-field span {
     display: block;
     margin: 0 0 10px;

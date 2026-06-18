@@ -444,10 +444,20 @@ ix_require_session([
                                     placeholder="Clave de elector">
                             </label>
 
-                            <label class="ine-review-field">
+                            <label class="ine-review-field ine-review-field--combo">
                                 <span>Sección</span>
-                                <input type="text" id="ine-review-seccion" name="seccion_id" inputmode="numeric"
-                                    placeholder="Sección">
+
+                                <input type="hidden" id="ine-review-seccion" name="seccion_id">
+
+                                <button type="button" id="ine-review-seccion-toggle" class="red-residence-combo-toggle"
+                                    aria-haspopup="listbox" aria-expanded="false">
+                                    <span id="ine-review-seccion-text">Selecciona una sección</span>
+                                    <span class="red-residence-combo-chevron" aria-hidden="true">⌄</span>
+                                </button>
+
+                                <div id="ine-review-seccion-list" class="red-residence-combo-list" role="listbox"
+                                    hidden>
+                                </div>
                             </label>
 
                             <label class="ine-review-field">
