@@ -746,7 +746,7 @@ function toggleReviewSeccionList() {
     }
 }
 
-function paintResidenceSecciones(selectedValue = "") {
+function paintResidenceSeccionesLegacy(selectedValue = "") {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
@@ -796,7 +796,7 @@ function paintResidenceSecciones(selectedValue = "") {
     });
 }
 
-function selectResidenceSeccion(value, label) {
+function selectResidenceSeccionLegacy(value, label) {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
