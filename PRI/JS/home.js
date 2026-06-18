@@ -9,6 +9,7 @@ const CONFIG = {
   ENDPOINT_RED_HOME: "/PRI/db/WEB/ixtla_c_red_home.php",
   ENDPOINT_PERSONAS: "/PRI/db/WEB/ixtla_c_persona.php",
   ENDPOINT_ARCHIVOS: "/PRI/db/WEB/ixtla_c_archivo.php",
+  ENDPOINT_USUARIOS: "/PRI/db/WEB/ixtla_c_usuario.php",
   ENDPOINT_UPDATE_PERSONA: "/PRI/db/WEB/ixtla_u_persona.php",
   ENDPOINT_CAT_ESTATUS: "/PRI/db/WEB/ixtla_c_cat_estatus.php",
 };
@@ -48,6 +49,7 @@ const State = {
   },
 
   estatus: [],
+  usuariosById: new Map(),
 
   readonlyRecord: null,
   readonlyOriginalStatusId: null,
@@ -1368,6 +1370,8 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
 
   clearImage(SEL.ineReviewFront);
   clearImage(SEL.ineReviewBack);
+
+  refreshReadonlyAuditUsers(p);
 }
 
 function findArchivoByUso(archivos = [], usoArchivo = "") {
@@ -1449,6 +1453,68 @@ function formatReadonlyAuditUser(value, fallback = "Sin dato") {
   if (userId > 0) return `Usuario ID ${userId}`;
 
   return fallback;
+}
+
+async function loadUsuarioById(usuarioId) {
+  const id = Number(usuarioId || 0);
+  if (id <= 0) return null;
+
+  if (State.usuariosById.has(id)) {
+    return State.usuariosById.get(id);
+  }
+
+  const pending = postJSON(CONFIG.ENDPOINT_USUARIOS, { usuario_id: id })
+    .then((out) => out?.data || null)
+    .catch((err) => {
+      State.usuariosById.delete(id);
+      throw err;
+    });
+
+  State.usuariosById.set(id, pending);
+
+  const usuario = await pending;
+  State.usuariosById.set(id, usuario);
+
+  return usuario;
+}
+
+async function refreshReadonlyAuditUsers(persona = {}) {
+  const captureField = $("#ine-review-capturado-por");
+  const updatedField = $("#ine-review-updated-by");
+
+  const capturadoPorId = Number(persona?.capturado_por || persona?.created_by || 0);
+  const updatedById = Number(persona?.updated_by || 0);
+
+  try {
+    if (capturadoPorId > 0 && captureField) {
+      const usuario = await loadUsuarioById(capturadoPorId);
+      const nombreCompleto = String(usuario?.nombre_completo || "").trim();
+
+      if (nombreCompleto) {
+        setFieldValue("#ine-review-capturado-por", nombreCompleto);
+      }
+    }
+  } catch (err) {
+    warn("No se pudo resolver capturado_por:", err);
+  }
+
+  try {
+    if (!updatedField) return;
+
+    if (updatedById <= 0) {
+      setFieldValue("#ine-review-updated-by", "Este registro aún no ha sido editado");
+      return;
+    }
+
+    const usuario = await loadUsuarioById(updatedById);
+    const nombreCompleto = String(usuario?.nombre_completo || "").trim();
+
+    if (nombreCompleto) {
+      setFieldValue("#ine-review-updated-by", nombreCompleto);
+    }
+  } catch (err) {
+    warn("No se pudo resolver updated_by:", err);
+  }
 }
 
 function formatSeccionPersonaLegacy(persona = {}, fallbackRow = {}) {
