@@ -2357,7 +2357,10 @@ function resetReviewModalForCapture() {
         saveBtn.textContent = "Guardar persona";
     }
 
-    if (reprocessBtn) reprocessBtn.hidden = false;
+    if (reprocessBtn) {
+        reprocessBtn.hidden = false;
+        reprocessBtn.disabled = false;
+    }
     if (cancelBtn) cancelBtn.textContent = "Cancelar";
 
     if (kicker) kicker.textContent = "Datos extraídos";
