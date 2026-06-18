@@ -641,7 +641,8 @@ function findSeccionByInput(value) {
 
 function getSeccionCodeLabel(item) {
     return String(
-        item?.codigo ||
+        item?.nombre ||
+        // item?.codigo || esto es para mostrar el codigo en vez del nombre
         item?.territorio_id ||
         "S/C"
     ).trim();

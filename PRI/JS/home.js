@@ -1412,7 +1412,8 @@ function paintReadonlySeccionField(persona = {}, fallbackRow = {}) {
 
   const seccionId = String(persona?.seccion_id || "").trim();
   const seccionCodigo = String(
-    persona?.territorio?.seccion?.codigo ||
+    persona?.territorio?.seccion?.nombre ||
+    // persona?.territorio?.seccion?.codigo || // para mostrar el codigo en vez del nombre
     fallbackRow?.seccion ||
     persona?.seccion_id ||
     ""
