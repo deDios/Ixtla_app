@@ -1313,13 +1313,33 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
     const tipo = p.participacion?.tipo_actual || p.participacion?.actual?.tipo_participacion || row.tipo || "";
     const tipoText = tipo ? ` Participación actual: <strong>${escapeHTML(formatTipo(tipo))}</strong>.` : "";
 
+    /*
     warning.innerHTML = `
       <strong>Consulta en solo lectura.</strong>
       Este registro se muestra para revisión. No se realizarán cambios desde esta vista.${tipoText}
     `;
+    */
+
+    warning.innerHTML = `
+      <strong>Consulta en solo lectura.</strong>
+    `;
   }
 
   setFieldValue("#ine-review-fecha-extraccion", p.fecha_captura || "");
+  setFieldValue(
+    "#ine-review-capturado-por",
+    formatReadonlyAuditUser(
+      p.capturado_por || p.created_by,
+      "Sin capturador registrado"
+    )
+  );
+  setFieldValue(
+    "#ine-review-updated-by",
+    formatReadonlyAuditUser(
+      p.updated_by,
+      "Este registro aún no ha sido editado"
+    )
+  );
   setFieldValue("#ine-review-nombres", p.nombres || "");
   setFieldValue("#ine-review-apellido-paterno", p.apellido_paterno || "");
   setFieldValue("#ine-review-apellido-materno", p.apellido_materno || "");
@@ -1421,6 +1441,14 @@ function paintReadonlySeccionField(persona = {}, fallbackRow = {}) {
 
   if (input) input.value = seccionId;
   if (text) text.textContent = seccionCodigo || "Sin sección";
+}
+
+function formatReadonlyAuditUser(value, fallback = "Sin dato") {
+  const userId = Number(value || 0);
+
+  if (userId > 0) return `Usuario ID ${userId}`;
+
+  return fallback;
 }
 
 function formatSeccionPersonaLegacy(persona = {}, fallbackRow = {}) {

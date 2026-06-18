@@ -1006,6 +1006,7 @@ function getDuplicateDataFromError(err) {
     };
 }
 
+// bandera para pablo
 function getDuplicateOwnerLabel(existingPersona) {
     const owner = existingPersona?.capturado_por_usuario || null;
 
@@ -1161,7 +1162,7 @@ function openDuplicateModal(duplicateData) {
     }
 
     if (owner) {
-        owner.innerHTML = `Registrado por: <strong>${escapeHTMLSafe(ownerLabel)}</strong>`;
+        owner.textContent = "";
     }
 
     setDuplicateModalOpen(true);

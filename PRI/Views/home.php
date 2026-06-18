@@ -379,6 +379,18 @@ ix_require_session([
                                 <input type="text" id="ine-review-fecha-extraccion" name="fecha_extraccion"
                                     placeholder="Fecha de extracción" readonly>
                             </label>
+
+                            <label class="ine-review-field">
+                                <span>Capturado por</span>
+                                <input type="text" id="ine-review-capturado-por" name="capturado_por_label"
+                                    placeholder="Capturado por" readonly>
+                            </label>
+
+                            <label class="ine-review-field">
+                                <span>Última edición por</span>
+                                <input type="text" id="ine-review-updated-by" name="updated_by_label"
+                                    placeholder="Última edición por" readonly>
+                            </label>
                         </div>
 
                         <div class="ine-review-warning" role="alert">
