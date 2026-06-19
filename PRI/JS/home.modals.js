@@ -47,6 +47,7 @@ const ENDPOINTS = {
     insertArchivo: "/PRI/db/WEB/ixtla_i_archivo.php",
     personas: "/PRI/db/WEB/ixtla_c_persona.php",
     territorios: "/PRI/db/WEB/ixtla_c_territorio.php",
+    usuarios: "/PRI/db/WEB/ixtla_c_usuario.php",
     updatePersona: "/PRI/db/WEB/ixtla_u_persona.php",
 };
 
@@ -71,6 +72,7 @@ const State = {
 
     territorios: [],
     secciones: [],
+    usuariosById: new Map(),
     pendingReviewSubmit: null,
     pendingDuplicateUpdate: null,
     residenceContext: null,
@@ -1016,6 +1018,83 @@ function buildDuplicateDataFromPersona(existingPersona, duplicateField, duplicat
     };
 }
 
+function formatAuditUserLabel(value, fallback = "Sin dato") {
+    const userId = Number(value || 0);
+    return userId > 0 ? `Usuario ID ${userId}` : fallback;
+}
+
+async function loadUsuarioNombreById(usuarioId) {
+    const id = Number(usuarioId || 0);
+    if (id <= 0) return "";
+
+    if (State.usuariosById.has(id)) {
+        return await State.usuariosById.get(id);
+    }
+
+    const pending = postJSON(ENDPOINTS.usuarios, { usuario_id: id })
+        .then((out) => String(out?.data?.nombre_completo || "").trim())
+        .catch((err) => {
+            State.usuariosById.delete(id);
+            throw err;
+        });
+
+    State.usuariosById.set(id, pending);
+
+    const nombre = await pending;
+    State.usuariosById.set(id, Promise.resolve(nombre));
+
+    return nombre;
+}
+
+async function hydrateDuplicateAuditFields(existingPersona) {
+    if (!existingPersona) return;
+
+    setFieldValue(
+        "#ine-review-fecha-extraccion",
+        existingPersona?.fecha_captura || ""
+    );
+
+    setFieldValue(
+        "#ine-review-capturado-por",
+        formatAuditUserLabel(
+            existingPersona?.capturado_por,
+            "Sin capturador registrado"
+        )
+    );
+
+    setFieldValue(
+        "#ine-review-updated-by",
+        formatAuditUserLabel(
+            existingPersona?.updated_by,
+            "Este registro aún no ha sido editado"
+        )
+    );
+
+    try {
+        const capturadoPorId = Number(existingPersona?.capturado_por || 0);
+        if (capturadoPorId > 0) {
+            const nombreCapturador = await loadUsuarioNombreById(capturadoPorId);
+            if (nombreCapturador) {
+                setFieldValue("#ine-review-capturado-por", nombreCapturador);
+            }
+        }
+    } catch (err) {
+        warn("No se pudo resolver capturado_por en duplicado:", err);
+    }
+
+    try {
+        const updatedById = Number(existingPersona?.updated_by || 0);
+        if (updatedById > 0) {
+            const nombreEditor = await loadUsuarioNombreById(updatedById);
+            if (nombreEditor) {
+                setFieldValue("#ine-review-updated-by", nombreEditor);
+            }
+        }
+    } catch (err) {
+        warn("No se pudo resolver updated_by en duplicado:", err);
+    }
+}
+
 async function findDuplicatePersonaBeforeSave(payload) {
     const curp = cleanUpper(payload?.curp || "").replace(/[^A-Z0-9]/g, "");
     const claveElector = cleanUpper(payload?.clave_elector || "").replace(/[^A-Z0-9]/g, "");
@@ -1079,6 +1158,8 @@ function syncReviewPrimaryAction(duplicateData = null) {
 
     saveBtn.textContent = "Actualizar persona";
     saveBtn.disabled = !canUpdate;
+
+    hydrateDuplicateAuditFields(duplicateData.existingPersona || null);
 }
 
 async function runDuplicateUpdate(duplicateData, btn = null) {
@@ -2445,6 +2526,9 @@ function resetReviewModalForCapture() {
     });
 
     [
+        "#ine-review-fecha-extraccion",
+        "#ine-review-capturado-por",
+        "#ine-review-updated-by",
         "#ine-review-curp",
         "#ine-review-clave-elector",
         "#ine-review-idmex",
