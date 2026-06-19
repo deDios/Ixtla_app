@@ -2731,18 +2731,18 @@ async function openReviewModal(payload) {
 
         if (!isValidCurp(reviewPayload.curp)) {
             openValidationModal({
-                title: "CURP no válida",
+                title: "CURP/CLAVE no válidas",
                 message:
-                    "La CURP capturada no cumple con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
+                    "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
             });
             return;
         }
 
         if (!isValidClaveElector(reviewPayload.clave_elector)) {
             openValidationModal({
-                title: "Clave de elector no válida",
+                title: "CURP/CLAVE no válidas",
                 message:
-                    "La clave de elector capturada no cumple con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
+                    "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
             });
             return;
         }
@@ -3013,18 +3013,18 @@ function validateReviewPayload(payload) {
 
     if (!isValidCurp(payload.curp)) {
         openValidationModal({
-            title: "CURP no válida",
+            title: "CURP/CLAVE no válidas",
             message:
-                "La CURP capturada no cumple con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
+                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
         });
         return false;
     }
 
     if (!isValidClaveElector(payload.clave_elector)) {
         openValidationModal({
-            title: "Clave de elector no válida",
+            title: "CURP/CLAVE no válidas",
             message:
-                "La clave de elector capturada no cumple con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
+                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
         });
         return false;
     }
