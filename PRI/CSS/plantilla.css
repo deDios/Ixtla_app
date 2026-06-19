@@ -22,8 +22,8 @@
   --ix-fg: #222;
   --ix-muted: #797777;
   --ix-topbar-desktop-h: 97px;
-  --ix-subnav-desktop-top: 97px;
-  --ix-header-mobile-stack: 120px;
+  --ix-subnav-desktop-top: 130px;
+  --ix-header-mobile-stack: 145px;
 
   --ix-green: #859F8E;
   --ix-green-soft: #f3f7f3;
@@ -690,7 +690,7 @@ header.scrolled .subnav {
     justify-content: flex-end;
     align-items: center;
     position: fixed;
-    top: 72px;
+    top: 98px;
     width: 100%;
     z-index: 1001;
     background: #f1f1f1;

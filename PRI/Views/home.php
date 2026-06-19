@@ -741,13 +741,15 @@ ix_require_session([
                 <div class="col left">
                     <div class="left-inner">
                         <p class="copyright">
-                            RED PRI Ixtlahuacán de los Membrillos | Organización, seguimiento y vinculación territorial del partido.
+                            RED PRI Ixtlahuacán de los Membrillos | Organización, seguimiento y vinculación territorial
+                            del partido.
                         </p>
                     </div>
                 </div>
                 <div class="col right">
                     <p class="location">
-                        Plataforma de uso interno para registro, afiliación, promoción y control operativo de estructura.
+                        © Copyright 2026, Todos los derechos reservados | GodCode Software | Francisco, C. Madero 1C,
+                        Ixtlahuacan de Los Membrillos Centro, La Arena, 45850 Ixtlahuacán de los Membrillos, Jal.
                     </p>
                 </div>
             </div>
