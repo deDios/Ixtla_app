@@ -4,6 +4,15 @@ import { getDeviceContext } from "/PRI/JS/ui/deviceContext.js";
 
 const PREVIEW_LIMIT = 5;
 const FILE_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const PREVIEW_COLUMNS = [
+  "ID",
+  "Nombre completo",
+  "Tipo de participacion",
+  "Estatus",
+  "Validez",
+  "Seccion",
+  "Zona",
+];
 
 export function initExportXLSXHome({
   buttonId = "red-btn-export",
@@ -81,7 +90,7 @@ function ensureExportPreviewModal() {
         </div>
 
         <button type="button" class="red-export-preview-close" data-red-export-close aria-label="Cerrar">
-          ×
+          &times;
         </button>
       </header>
 
@@ -121,7 +130,6 @@ function openExportPreviewModal({
   const summary = modal.querySelector("#red-export-preview-summary");
   const list = modal.querySelector("#red-export-preview-list");
   const shareBtn = modal.querySelector("#red-export-preview-share");
-
   const previewRows = rows.slice(0, PREVIEW_LIMIT);
 
   if (summary) {
@@ -200,40 +208,15 @@ async function shareOrDownloadFile(exportFile, totalRows, toast) {
 }
 
 function renderPreviewTable(rows) {
-  const previewData = rows.map((row, index) => {
-    const raw = row?.raw || {};
-    const nombre =
-      raw?.nombre_completo ||
-      row?.nombre ||
-      [
-        raw?.nombres,
-        raw?.apellido_paterno,
-        raw?.apellido_materno,
-      ].filter(Boolean).join(" ").trim() ||
-      "Sin nombre";
-
-    const tipo = formatTipoParticipacion(
-      raw?.participacion?.tipo_actual ||
-      raw?.participacion?.tipo_participacion ||
-      raw?.tipo_participacion ||
-      row?.tipo
-    );
-
-    const seccion =
-      raw?.territorio?.seccion?.nombre ||
-      raw?.territorio?.seccion?.codigo ||
-      raw?.seccion_nombre ||
-      raw?.seccion_codigo ||
-      row?.seccion ||
-      "-";
-
-    return {
-      "#": index + 1,
-      Nombre: nombre,
-      Tipo: tipo,
-      Seccion: seccion,
-    };
-  });
+  const previewData = rows
+    .map(mapPersonRowForExcel)
+    .map((rowData) => {
+      const reduced = {};
+      PREVIEW_COLUMNS.forEach((column) => {
+        reduced[column] = rowData[column] ?? "-";
+      });
+      return reduced;
+    });
 
   const worksheet = window.XLSX.utils.json_to_sheet(previewData);
   const table = window.XLSX.utils.sheet_to_html(worksheet, {
@@ -242,15 +225,7 @@ function renderPreviewTable(rows) {
   });
 
   return `
-    <div class="red-export-preview-sheet-wrap">
-      <div class="red-export-preview-sheet-caption">
-        <span>RESULT</span>
-      </div>
-      <div class="red-export-preview-sheet-meta">
-        <span>Show Less</span>
-        <strong>Showing ${previewData.length} rows</strong>
-        <span>Show More</span>
-      </div>
+    <div class="red-export-preview-sheet-frame">
       <div class="red-export-preview-sheet-table">
         ${table}
       </div>
