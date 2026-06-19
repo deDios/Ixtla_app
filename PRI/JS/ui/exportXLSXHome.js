@@ -496,17 +496,19 @@ function getShareCapability(exportFile) {
     };
   }
 
-  const permissionsPolicy = document.permissionsPolicy || document.featurePolicy || null;
-  if (permissionsPolicy && typeof permissionsPolicy.allowsFeature === "function") {
-    try {
-      if (!permissionsPolicy.allowsFeature("web-share")) {
-        return {
-          canShareFiles: false,
-          reason: "El navegador bloqueo la funcion nativa de compartir en esta pagina. Se descargo el Excel.",
-        };
-      }
-    } catch (_) { }
-  }
+  // Pre-check desactivado temporalmente para dejar que navigator.share()
+  // revele el error real del navegador en este contexto.
+  // const permissionsPolicy = document.permissionsPolicy || document.featurePolicy || null;
+  // if (permissionsPolicy && typeof permissionsPolicy.allowsFeature === "function") {
+  //   try {
+  //     if (!permissionsPolicy.allowsFeature("web-share")) {
+  //       return {
+  //         canShareFiles: false,
+  //         reason: "El navegador bloqueo la funcion nativa de compartir en esta pagina. Se descargo el Excel.",
+  //       };
+  //     }
+  //   } catch (_) { }
+  // }
 
   if (typeof navigator.canShare !== "function") {
     return {
