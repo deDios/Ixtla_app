@@ -194,9 +194,10 @@ async function shareOrDownloadFile(exportFile, totalRows, toast) {
 
       if (shouldFallbackToDownload(err)) {
         console.warn("[ExportXLSXHome][share-fallback]", err);
-        downloadFile(exportFile);
-        toast?.(buildShareErrorMessage(err, "El navegador rechazo compartir el archivo. Se descargo el Excel."), "warning");
-        return;
+        // bandera de descarga de archivo
+        // downloadFile(exportFile);
+        // toast?.(buildShareErrorMessage(err, "El navegador rechazo compartir el archivo. Se descargo el Excel."), "warning");
+        throw err;
       }
 
       throw err;
