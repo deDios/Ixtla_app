@@ -1129,6 +1129,7 @@ async function handleDuplicateUpdateRequest(duplicateData, btn = null) {
     const existingPersona = duplicateData?.existingPersona || null;
 
     if (!canCurrentUserUpdateDuplicate(existingPersona)) {
+        closeDuplicateModal({ closeReview: true, warnLocked: true });
         toast(
             "Solo el usuario que capturó originalmente este registro puede actualizarlo.",
             "warning",
@@ -1165,7 +1166,13 @@ function ensureDuplicateModal() {
     }
 
     modal.querySelectorAll(SEL.duplicateClose).forEach((btn) => {
-        btn.addEventListener("click", closeDuplicateModal);
+        btn.addEventListener("click", () => {
+            const isLocked = Boolean(modal.__duplicateLocked);
+            closeDuplicateModal({
+                closeReview: isLocked,
+                warnLocked: isLocked,
+            });
+        });
     });
 
     modal.querySelector(SEL.duplicateUpdate)?.addEventListener("click", async () => {
@@ -1250,11 +1257,11 @@ function openDuplicateModal(duplicateData) {
     console.log("[RED duplicate persona]", duplicateData);
 }
 
-function closeDuplicateModal() {
+function closeDuplicateModal({ closeReview = false, warnLocked = false } = {}) {
     const modal = $(SEL.duplicateModal);
     if (!modal) return;
 
-    const shouldWarnLockedClose = Boolean(modal.__duplicateLocked);
+    const shouldWarnLockedClose = Boolean(modal.__duplicateLocked) && warnLocked;
 
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
@@ -1262,6 +1269,10 @@ function closeDuplicateModal() {
     modal.__duplicateLocked = false;
 
     syncBodyModalState();
+
+    if (closeReview) {
+        closeReviewModal();
+    }
 
     if (shouldWarnLockedClose) {
         toast(
@@ -3138,7 +3149,6 @@ function bindResidenceModalEvents() {
 
         if (pendingDuplicate) {
             State.pendingDuplicateUpdate = null;
-            await runDuplicateUpdate(pendingDuplicate, $(SEL.duplicateUpdate));
             return;
         }
 
