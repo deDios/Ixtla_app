@@ -163,16 +163,35 @@ function closeExportPreviewModal(modal) {
   document.body.classList.remove("red-export-preview-open");
 }
 
+function getSharePayload(exportFile, totalRows) {
+  return {
+    title: exportFile.filename,
+    text: `Exportacion RED (${totalRows} personas)`,
+    files: [exportFile.file],
+  };
+}
+
 async function shareOrDownloadFile(exportFile, totalRows, toast) {
-  const shareCapability = getShareCapability(exportFile);
+  const sharePayload = getSharePayload(exportFile, totalRows);
+  const shareCapability = getShareCapability(exportFile, sharePayload);
+
+  console.log("[ExportXLSXHome][share-debug]", {
+    filename: exportFile?.filename,
+    fileName: exportFile?.file?.name,
+    fileType: exportFile?.file?.type,
+    blobType: exportFile?.blob?.type,
+    size: exportFile?.blob?.size,
+    canShareFiles: shareCapability.canShareFiles,
+    reason: shareCapability.reason,
+    isSecureContext: window.isSecureContext,
+    hasNavigatorShare: typeof navigator.share === "function",
+    hasNavigatorCanShare: typeof navigator.canShare === "function",
+  });
 
   if (shareCapability.canShareFiles) {
     try {
-      await navigator.share({
-        title: exportFile.filename,
-        text: `Exportacion RED (${totalRows} personas)`,
-        files: [exportFile.file],
-      });
+      await navigator.share(sharePayload);
+
       toast?.(`Archivo listo para compartir: ${totalRows} persona(s).`, "exito");
       return;
     } catch (err) {
@@ -180,14 +199,21 @@ async function shareOrDownloadFile(exportFile, totalRows, toast) {
         return;
       }
 
+      console.warn("[ExportXLSXHome][share-error]", {
+        name: err?.name,
+        message: err?.message,
+        error: err,
+      });
+
       if (shouldFallbackToDownload(err)) {
-        console.warn("[ExportXLSXHome][share-fallback]", err);
         downloadFile(exportFile);
-        toast?.("No se pudo abrir el panel para compartir. Se descargo el archivo.", "warning");
+        toast?.("No se pudo compartir desde este navegador. Se descargó el Excel.", "warning");
         return;
       }
 
-      throw err;
+      downloadFile(exportFile);
+      toast?.("El navegador rechazó compartir el archivo. Se descargó el Excel.", "warning");
+      return;
     }
   }
 
@@ -483,93 +509,113 @@ function makeFilename(prefix, extension = ".xlsx") {
   return `${prefix}_${yyyy}-${mm}-${dd}${extension}`;
 }
 
-function getShareCapability(exportFile) {
+function getShareCapability(exportFile, sharePayload = null) {
   if (typeof navigator === "undefined") {
     return {
       canShareFiles: false,
-      reason: "El dispositivo no soporta compartir archivos desde esta vista. Se descargo el Excel.",
+      reason: "El dispositivo no soporta compartir archivos desde esta vista. Se descargó el Excel.",
     };
   }
 
   if (!window.isSecureContext) {
     return {
       canShareFiles: false,
-      reason: "Compartir archivos requiere HTTPS o un contexto seguro. Se descargo el Excel.",
+      reason: "Compartir archivos requiere HTTPS o un contexto seguro. Se descargó el Excel.",
     };
+  }
+
+  const permissionsPolicy = document.permissionsPolicy || document.featurePolicy || null;
+
+  if (permissionsPolicy && typeof permissionsPolicy.allowsFeature === "function") {
+    try {
+      if (!permissionsPolicy.allowsFeature("web-share")) {
+        return {
+          canShareFiles: false,
+          reason: "El navegador bloqueó la función nativa de compartir en esta página. Se descargó el Excel.",
+        };
+      }
+    } catch (_) { }
   }
 
   if (typeof navigator.share !== "function") {
     return {
       canShareFiles: false,
-      reason: "Tu navegador no expone la API nativa de compartir. Se descargo el Excel.",
+      reason: "Tu navegador no expone la API nativa de compartir. Se descargó el Excel.",
     };
   }
 
   if (!exportFile?.file) {
     return {
       canShareFiles: false,
-      reason: "Este navegador no permite adjuntar el archivo al compartir. Se descargo el Excel.",
+      reason: "Este navegador no permite adjuntar el archivo al compartir. Se descargó el Excel.",
     };
   }
-
-  // Pre-check desactivado temporalmente para dejar que navigator.share()
-  // revele el error real del navegador en este contexto.
-  // const permissionsPolicy = document.permissionsPolicy || document.featurePolicy || null;
-  // if (permissionsPolicy && typeof permissionsPolicy.allowsFeature === "function") {
-  //   try {
-  //     if (!permissionsPolicy.allowsFeature("web-share")) {
-  //       return {
-  //         canShareFiles: false,
-  //         reason: "El navegador bloqueo la funcion nativa de compartir en esta pagina. Se descargo el Excel.",
-  //       };
-  //     }
-  //   } catch (_) { }
-  // }
 
   if (typeof navigator.canShare !== "function") {
     return {
       canShareFiles: false,
-      reason: "Tu navegador no valida archivos para compartir. Se descargo el Excel.",
+      reason: "Tu navegador no valida archivos para compartir. Se descargó el Excel.",
     };
   }
 
   try {
-    if (!navigator.canShare({ files: [exportFile.file] })) {
+    const payload = sharePayload || { files: [exportFile.file] };
+
+    if (!navigator.canShare(payload)) {
       return {
         canShareFiles: false,
-        reason: "Tu navegador no acepta compartir este archivo directamente. Se descargo el Excel.",
+        reason: "Tu navegador no acepta compartir este archivo directamente. Se descargó el Excel.",
       };
     }
-  } catch (_) {
+  } catch (err) {
+    console.warn("[ExportXLSXHome][canShare-error]", err);
+
     return {
       canShareFiles: false,
-      reason: "El navegador rechazo preparar el archivo para compartir. Se descargo el Excel.",
+      reason: "El navegador rechazó preparar el archivo para compartir. Se descargó el Excel.",
     };
   }
 
   return {
     canShareFiles: true,
-    reason: "Tu navegador no permite compartir archivos. Se descargo el Excel.",
+    reason: "Tu navegador no permite compartir archivos. Se descargó el Excel.",
   };
 }
 
 function isUserCancelledShare(err) {
-  const name = String(err?.name || "");
-  const message = String(err?.message || "").toLowerCase();
-
-  return name === "AbortError" || message.includes("canceled") || message.includes("cancelled");
-}
-
-function shouldFallbackToDownload(err) {
-  const name = String(err?.name || "");
+  const name = String(err?.name || "").toLowerCase();
   const message = String(err?.message || "").toLowerCase();
 
   return (
-    name === "NotAllowedError" ||
-    name === "NotSupportedError" ||
+    name === "aborterror" ||
+    message.includes("canceled") ||
+    message.includes("cancelled") ||
+    message.includes("cancelado") ||
+    message.includes("cancelada")
+  );
+}
+
+function shouldFallbackToDownload(err) {
+  const name = String(err?.name || "").toLowerCase();
+  const message = String(err?.message || "").toLowerCase();
+
+  return (
+    name === "notallowederror" ||
+    name === "notsupportederror" ||
+    name === "securityerror" ||
+    name === "invalidstateerror" ||
+    name === "dataerror" ||
+    name === "typeerror" ||
     message.includes("permission denied") ||
+    message.includes("permission") ||
+    message.includes("denied") ||
+    message.includes("permiso") ||
+    message.includes("denegado") ||
     message.includes("permissions policy") ||
+    message.includes("web-share") ||
     message.includes("not allowed") ||
-    message.includes("not supported")
+    message.includes("not supported") ||
+    message.includes("cannot share") ||
+    message.includes("share failed")
   );
 }
