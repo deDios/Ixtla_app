@@ -653,6 +653,10 @@ header.scrolled .subnav {
 
 /* Tablet & abajo */
 @media (max-width: 768px) {
+  .top-bar {
+    min-height: 72px;
+    padding: 1rem;
+  }
 
   /* Acciones: solo hamburguesa */
   .top-bar .actions {
@@ -675,7 +679,7 @@ header.scrolled .subnav {
     justify-content: flex-end;
     align-items: center;
     position: fixed;
-    top: 110px;
+    top: 72px;
     width: 100%;
     z-index: 1001;
     background: #f1f1f1;
@@ -771,14 +775,15 @@ header.scrolled .subnav {
   }
 
   /* Subnav en columna, botones al inicio y a todo lo ancho */
-  .subnav {
+  .subnav,
+  .subnav:not(.show) {
     display: none;
   }
 
   .subnav.show {
     display: flex;
     position: fixed;
-    top: 110px;
+    top: 118px;
     left: 0;
     right: 0;
     background: #f9f9f9;
@@ -789,8 +794,12 @@ header.scrolled .subnav {
     gap: 12px;
     box-shadow: var(--ix-shadow-soft);
     overflow-y: auto;
-    max-height: calc(100vh - 120px);
-    top: 154px;
+    max-height: calc(100vh - 128px);
+  }
+
+  header.scrolled .subnav.show {
+    top: 44px;
+    max-height: calc(100vh - 54px);
   }
 
   .subnav .nav-left {
