@@ -734,6 +734,46 @@ ix_require_session([
         </article>
     </section>
 
+    <!-- Modal aviso: validación de CURP / clave de elector -->
+
+    <section id="red-validation-modal" class="red-validation-modal" hidden aria-hidden="true">
+        <div class="red-validation-overlay" data-red-validation-close></div>
+
+        <article class="red-validation-dialog" role="dialog" aria-modal="true" aria-labelledby="red-validation-title">
+            <header class="red-validation-header">
+                <button type="button" class="red-validation-close" data-red-validation-close aria-label="Cerrar">
+                    ×
+                </button>
+            </header>
+
+            <div class="red-validation-body">
+                <div class="red-validation-icon" aria-hidden="true">!</div>
+
+                <p class="red-validation-kicker">Validación</p>
+
+                <h2 id="red-validation-title">
+                    No pudimos validar los datos
+                </h2>
+
+                <p id="red-validation-message" class="red-validation-message">
+                    Verifica la captura e inténtalo nuevamente.
+                </p>
+
+                <div class="red-validation-actions">
+                    <button type="button" id="red-validation-recapture"
+                        class="red-validation-btn red-validation-btn--primary">
+                        Volver a capturar
+                    </button>
+
+                    <button type="button" class="red-validation-btn red-validation-btn--close"
+                        data-red-validation-close>
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </article>
+    </section>
+
     <footer id="site-footer">
         <div class="limite">
 

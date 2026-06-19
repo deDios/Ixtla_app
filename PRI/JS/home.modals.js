@@ -148,6 +148,12 @@ const SEL = {
     duplicateMessage: "#red-duplicate-message",
     duplicatePerson: "#red-duplicate-person",
     duplicateOwner: "#red-duplicate-owner",
+
+    validationModal: "#red-validation-modal",
+    validationClose: "[data-red-validation-close]",
+    validationTitle: "#red-validation-title",
+    validationMessage: "#red-validation-message",
+    validationRecapture: "#red-validation-recapture",
 };
 
 /* -------------------------------------------------------------------------- */
@@ -195,15 +201,17 @@ function syncBodyModalState() {
     const reviewModal = $(SEL.reviewModal);
     const residenceModal = $(SEL.residenceModal);
     const duplicateModal = $(SEL.duplicateModal);
+    const validationModal = $(SEL.validationModal);
 
     const captureOpen = Boolean(captureModal && !captureModal.hidden);
     const reviewOpen = Boolean(reviewModal && !reviewModal.hidden);
     const residenceOpen = Boolean(residenceModal && !residenceModal.hidden);
     const duplicateOpen = Boolean(duplicateModal && !duplicateModal.hidden);
+    const validationOpen = Boolean(validationModal && !validationModal.hidden);
 
     document.body.classList.toggle(
         "ine-modal-open",
-        captureOpen || reviewOpen || residenceOpen || duplicateOpen
+        captureOpen || reviewOpen || residenceOpen || duplicateOpen || validationOpen
     );
 }
 
@@ -1363,6 +1371,104 @@ function closeDuplicateModal({ closeReview = false, warnLocked = false } = {}) {
             7000
         );
     }
+}
+
+function ensureValidationModal() {
+    const modal = $(SEL.validationModal);
+
+    if (!modal) {
+        warn("No existe #red-validation-modal en el HTML.");
+        return null;
+    }
+
+    if (modal.dataset.bound === "1") {
+        return modal;
+    }
+
+    modal.querySelectorAll(SEL.validationClose).forEach((btn) => {
+        btn.addEventListener("click", () => {
+            closeValidationModal();
+        });
+    });
+
+    modal.querySelector(SEL.validationRecapture)?.addEventListener("click", async () => {
+        closeValidationModal();
+        closeDuplicateModal();
+        closeResidenceModal({ clearPending: true });
+        closeReviewModal();
+        resetCaptureFlow();
+        setModalOpen(true);
+        await openPreferredCaptureMethod();
+    });
+
+    modal.dataset.bound = "1";
+
+    return modal;
+}
+
+function setValidationModalOpen(isOpen) {
+    const modal = ensureValidationModal();
+
+    if (!modal) return;
+
+    modal.hidden = !isOpen;
+    modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
+
+    syncBodyModalState();
+}
+
+function openValidationModal({
+    title = "No pudimos validar los datos",
+    message = "Verifica la captura e inténtalo nuevamente.",
+} = {}) {
+    const modal = ensureValidationModal();
+    if (!modal) return;
+
+    const titleEl = modal.querySelector(SEL.validationTitle);
+    const messageEl = modal.querySelector(SEL.validationMessage);
+
+    if (titleEl) {
+        titleEl.textContent = title;
+    }
+
+    if (messageEl) {
+        messageEl.textContent = message;
+    }
+
+    setValidationModalOpen(true);
+}
+
+function closeValidationModal() {
+    const modal = $(SEL.validationModal);
+    if (!modal) return;
+
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+
+    syncBodyModalState();
+}
+
+function normalizeCurp(value) {
+    return cleanUpper(value).replace(/[^A-Z0-9]/g, "");
+}
+
+function normalizeClaveElector(value) {
+    return cleanUpper(value).replace(/[^A-Z0-9]/g, "");
+}
+
+function isValidCurp(value) {
+    const curp = normalizeCurp(value);
+    const curpPattern =
+        /^[A-Z][AEIOUX][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9]\d$/;
+
+    return curpPattern.test(curp);
+}
+
+function isValidClaveElector(value) {
+    const clave = normalizeClaveElector(value);
+    const clavePattern = /^[A-Z]{6}\d{8}[A-Z]\d{3}$/;
+
+    return clavePattern.test(clave);
 }
 
 function escapeHTMLSafe(value) {
@@ -2642,8 +2748,8 @@ function collectReviewPayload() {
         fecha_nacimiento: getFieldValue("#ine-review-fecha-nacimiento"),
         sexo: getFieldValue("#ine-review-sexo"),
 
-        curp: getFieldValue("#ine-review-curp"),
-        clave_elector: getFieldValue("#ine-review-clave-elector"),
+        curp: normalizeCurp(getFieldValue("#ine-review-curp")),
+        clave_elector: normalizeClaveElector(getFieldValue("#ine-review-clave-elector")),
         idmex: getFieldValue("#ine-review-idmex"),
         seccion_id: getFieldValue("#ine-review-seccion"),
 
@@ -2871,6 +2977,24 @@ function validateReviewPayload(payload) {
 
     if (!payload.clave_elector) {
         toast("El campo Clave de elector es obligatorio.", "error", 5000);
+        return false;
+    }
+
+    if (!isValidCurp(payload.curp)) {
+        openValidationModal({
+            title: "CURP no válida",
+            message:
+                "La CURP capturada no cumple con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
+        });
+        return false;
+    }
+
+    if (!isValidClaveElector(payload.clave_elector)) {
+        openValidationModal({
+            title: "Clave de elector no válida",
+            message:
+                "La clave de elector capturada no cumple con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
+        });
         return false;
     }
 
@@ -3316,6 +3440,12 @@ function closeCaptureModal() {
 
 function handleEscape(event) {
     if (event.key !== "Escape") return;
+
+    const validationModal = $(SEL.validationModal);
+    if (validationModal && !validationModal.hidden) {
+        closeValidationModal();
+        return;
+    }
 
     const duplicateModal = $(SEL.duplicateModal);
     if (duplicateModal && !duplicateModal.hidden) {
