@@ -131,6 +131,7 @@ function openExportPreviewModal({
   const list = modal.querySelector("#red-export-preview-list");
   const shareBtn = modal.querySelector("#red-export-preview-share");
   const previewRows = rows.slice(0, PREVIEW_LIMIT);
+  const exportFile = buildWorkbookFile(rows);
 
   if (summary) {
     summary.textContent = `Se compartiran ${rows.length} personas. Vista previa de ${previewRows.length}.`;
@@ -146,10 +147,9 @@ function openExportPreviewModal({
     shareBtn.onclick = async () => {
       const originalText = shareBtn.textContent;
       shareBtn.disabled = true;
-      shareBtn.textContent = "Preparando...";
+      shareBtn.textContent = "Compartiendo...";
 
       try {
-        const exportFile = buildWorkbookFile(rows);
         await shareOrDownloadFile(exportFile, rows.length, toast);
         closeExportPreviewModal(modal);
       } catch (err) {
