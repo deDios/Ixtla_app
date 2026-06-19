@@ -45,6 +45,7 @@ const ENDPOINTS = {
     extractOpenAI: "/PRI/extract_identificacion_openai.php",
     insertPersona: "/PRI/db/WEB/ixtla_i_persona.php",
     insertArchivo: "/PRI/db/WEB/ixtla_i_archivo.php",
+    personas: "/PRI/db/WEB/ixtla_c_persona.php",
     territorios: "/PRI/db/WEB/ixtla_c_territorio.php",
     updatePersona: "/PRI/db/WEB/ixtla_u_persona.php",
 };
@@ -993,6 +994,91 @@ function canCurrentUserUpdateDuplicate(existingPersona) {
     );
 
     return currentUserId > 0 && ownerUserId > 0 && currentUserId === ownerUserId;
+}
+
+function buildDuplicateDataFromPersona(existingPersona, duplicateField, duplicateLabel) {
+    if (!existingPersona?.persona_id) {
+        return null;
+    }
+
+    return {
+        duplicate: true,
+        duplicateField: duplicateField || "",
+        duplicateLabel: duplicateLabel || "dato",
+        existingPersona,
+        message: `La persona ya se encuentra registrada por ${duplicateLabel || "dato"}.`,
+        raw: {
+            duplicate: true,
+            duplicate_field: duplicateField || "",
+            duplicate_label: duplicateLabel || "dato",
+            existing_persona: existingPersona,
+        },
+    };
+}
+
+async function findDuplicatePersonaBeforeSave(payload) {
+    const curp = cleanUpper(payload?.curp || "").replace(/[^A-Z0-9]/g, "");
+    const claveElector = cleanUpper(payload?.clave_elector || "").replace(/[^A-Z0-9]/g, "");
+
+    if (curp) {
+        try {
+            const out = await postJSON(ENDPOINTS.personas, {
+                curp,
+                page: 1,
+                page_size: 1,
+            });
+
+            const existingPersona = Array.isArray(out?.data) ? out.data[0] || null : null;
+            const duplicateData = buildDuplicateDataFromPersona(existingPersona, "curp_hash", "CURP");
+            if (duplicateData) return duplicateData;
+        } catch (err) {
+            if (err?.status !== 404) {
+                warn("No se pudo consultar duplicado por CURP:", err);
+            }
+        }
+    }
+
+    if (claveElector) {
+        try {
+            const out = await postJSON(ENDPOINTS.personas, {
+                clave_elector: claveElector,
+                page: 1,
+                page_size: 1,
+            });
+
+            const existingPersona = Array.isArray(out?.data) ? out.data[0] || null : null;
+            const duplicateData = buildDuplicateDataFromPersona(existingPersona, "clave_elector_hash", "Clave de elector");
+            if (duplicateData) return duplicateData;
+        } catch (err) {
+            if (err?.status !== 404) {
+                warn("No se pudo consultar duplicado por clave de elector:", err);
+            }
+        }
+    }
+
+    return null;
+}
+
+function syncReviewPrimaryAction(duplicateData = null) {
+    const reviewModal = $(SEL.reviewModal);
+    const saveBtn = $("#ine-modal-affiliate");
+
+    if (reviewModal) {
+        reviewModal.__precheckedDuplicateData = duplicateData || null;
+    }
+
+    if (!saveBtn) return;
+
+    if (!duplicateData?.duplicate) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Guardar persona";
+        return;
+    }
+
+    const canUpdate = canCurrentUserUpdateDuplicate(duplicateData.existingPersona || null);
+
+    saveBtn.textContent = "Actualizar persona";
+    saveBtn.disabled = !canUpdate;
 }
 
 async function runDuplicateUpdate(duplicateData, btn = null) {
@@ -2334,6 +2420,7 @@ function resetReviewModalForCapture() {
     if (!modal || !form) return;
 
     modal.dataset.mode = "capture";
+    modal.__precheckedDuplicateData = null;
     form.classList.remove("is-readonly");
 
     form.querySelectorAll("input, textarea").forEach((field) => {
@@ -2416,6 +2503,15 @@ async function openReviewModal(payload) {
 
     window.setTimeout(async () => {
         const reviewPayload = collectReviewPayload();
+        const duplicateData = await findDuplicatePersonaBeforeSave(reviewPayload);
+
+        syncReviewPrimaryAction(duplicateData);
+
+        if (duplicateData?.duplicate) {
+            openDuplicateModal(duplicateData);
+            return;
+        }
+
         const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(reviewPayload);
 
         if (needsResidenceModal) {
@@ -2901,6 +2997,13 @@ async function handleReviewSubmit(event) {
     if (!validateReviewPayload(payload)) return;
 
     const isContinuingFromResidenceModal = Boolean(State.pendingReviewSubmit);
+    const reviewModal = $(SEL.reviewModal);
+    const duplicateData = reviewModal?.__precheckedDuplicateData || null;
+
+    if (duplicateData?.duplicate) {
+        await handleDuplicateUpdateRequest(duplicateData, submitBtn);
+        return;
+    }
 
     if (!isContinuingFromResidenceModal) {
         const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(payload);
@@ -2912,8 +3015,6 @@ async function handleReviewSubmit(event) {
     }
 
     State.pendingReviewSubmit = null;
-
-    const reviewModal = $(SEL.reviewModal);
     const originalText = submitBtn?.textContent || "Guardar persona";
 
     if (submitBtn) {
