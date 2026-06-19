@@ -25,7 +25,7 @@ export function initExportXLSXHome({
 
     try {
       if (!window.XLSX) {
-        throw new Error("XLSX no está cargado en la vista.");
+        throw new Error("XLSX no esta cargado en la vista.");
       }
 
       const rows = await fetchRows();
@@ -75,7 +75,7 @@ function ensureExportPreviewModal() {
     <article class="red-export-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="red-export-preview-title">
       <header class="red-export-preview-header">
         <div class="red-export-preview-titlebox">
-          <p class="red-export-preview-kicker">Exportación RED</p>
+          <p class="red-export-preview-kicker">Exportacion RED</p>
           <h2 id="red-export-preview-title">Vista previa para compartir</h2>
           <p id="red-export-preview-summary" class="red-export-preview-summary"></p>
         </div>
@@ -125,46 +125,11 @@ function openExportPreviewModal({
   const previewRows = rows.slice(0, PREVIEW_LIMIT);
 
   if (summary) {
-    summary.textContent = `Se compartirán ${rows.length} personas. Vista previa de ${previewRows.length}.`;
+    summary.textContent = `Se compartiran ${rows.length} personas. Vista previa de ${previewRows.length}.`;
   }
 
   if (list) {
-    list.innerHTML = previewRows.map((row, index) => {
-      const raw = row?.raw || {};
-      const nombre =
-        raw?.nombre_completo ||
-        row?.nombre ||
-        [
-          raw?.nombres,
-          raw?.apellido_paterno,
-          raw?.apellido_materno,
-        ].filter(Boolean).join(" ").trim() ||
-        "Sin nombre";
-
-      const tipo = formatTipoParticipacion(
-        raw?.participacion?.tipo_actual ||
-        raw?.participacion?.tipo_participacion ||
-        raw?.tipo_participacion ||
-        row?.tipo
-      );
-
-      const seccion =
-        raw?.territorio?.seccion?.nombre ||
-        raw?.territorio?.seccion?.codigo ||
-        raw?.seccion_nombre ||
-        raw?.seccion_codigo ||
-        row?.seccion ||
-        "—";
-
-      return `
-        <article class="red-export-preview-card">
-          <span class="red-export-preview-index">#${index + 1}</span>
-          <h3>${escapeHTML(nombre)}</h3>
-          <p><strong>Tipo:</strong> ${escapeHTML(tipo)}</p>
-          <p><strong>Sección:</strong> ${escapeHTML(String(seccion))}</p>
-        </article>
-      `;
-    }).join("");
+    list.innerHTML = renderPreviewTable(previewRows);
   }
 
   if (shareBtn) {
@@ -203,24 +168,94 @@ function closeExportPreviewModal(modal) {
 }
 
 async function shareOrDownloadFile(exportFile, totalRows, toast) {
-  const canShareFiles =
-    typeof navigator !== "undefined" &&
-    typeof navigator.share === "function" &&
-    typeof navigator.canShare === "function" &&
-    navigator.canShare({ files: [exportFile.file] });
+  const shareCapability = getShareCapability(exportFile);
 
-  if (canShareFiles) {
-    await navigator.share({
-      title: exportFile.filename,
-      text: `Exportación RED (${totalRows} personas)`,
-      files: [exportFile.file],
-    });
-    toast?.(`Archivo listo para compartir: ${totalRows} persona(s).`, "exito");
-    return;
+  if (shareCapability.canShareFiles) {
+    try {
+      await navigator.share({
+        title: exportFile.filename,
+        text: `Exportacion RED (${totalRows} personas)`,
+        files: [exportFile.file],
+      });
+      toast?.(`Archivo listo para compartir: ${totalRows} persona(s).`, "exito");
+      return;
+    } catch (err) {
+      if (isUserCancelledShare(err)) {
+        return;
+      }
+
+      if (shouldFallbackToDownload(err)) {
+        console.warn("[ExportXLSXHome][share-fallback]", err);
+        downloadFile(exportFile);
+        toast?.("El navegador rechazo compartir el archivo. Se descargo el Excel.", "warning");
+        return;
+      }
+
+      throw err;
+    }
   }
 
   downloadFile(exportFile);
-  toast?.("Tu navegador no permite compartir archivos. Se descargó el Excel.", "warning");
+  toast?.(shareCapability.reason, "warning");
+}
+
+function renderPreviewTable(rows) {
+  const previewData = rows.map((row, index) => {
+    const raw = row?.raw || {};
+    const nombre =
+      raw?.nombre_completo ||
+      row?.nombre ||
+      [
+        raw?.nombres,
+        raw?.apellido_paterno,
+        raw?.apellido_materno,
+      ].filter(Boolean).join(" ").trim() ||
+      "Sin nombre";
+
+    const tipo = formatTipoParticipacion(
+      raw?.participacion?.tipo_actual ||
+      raw?.participacion?.tipo_participacion ||
+      raw?.tipo_participacion ||
+      row?.tipo
+    );
+
+    const seccion =
+      raw?.territorio?.seccion?.nombre ||
+      raw?.territorio?.seccion?.codigo ||
+      raw?.seccion_nombre ||
+      raw?.seccion_codigo ||
+      row?.seccion ||
+      "-";
+
+    return {
+      "#": index + 1,
+      Nombre: nombre,
+      Tipo: tipo,
+      Seccion: seccion,
+    };
+  });
+
+  const worksheet = window.XLSX.utils.json_to_sheet(previewData);
+  const table = window.XLSX.utils.sheet_to_html(worksheet, {
+    id: "red-export-preview-sheet",
+    editable: false,
+  });
+
+  return `
+    <div class="red-export-preview-sheet-wrap">
+      <div class="red-export-preview-sheet-caption">
+        <span>RESULT</span>
+      </div>
+      <div class="red-export-preview-sheet-meta">
+        <span>Show Less</span>
+        <strong>Showing ${previewData.length} rows</strong>
+        <span>Show More</span>
+      </div>
+      <div class="red-export-preview-sheet-table">
+        ${table}
+      </div>
+    </div>
+  `;
 }
 
 function buildWorkbookFile(rows) {
@@ -233,13 +268,23 @@ function buildWorkbookFile(rows) {
   });
 
   const blob = new Blob([arrayBuffer], { type: FILE_MIME });
-  const file = new File([blob], filename, { type: FILE_MIME });
+  const file = createFileFromBlob(blob, filename);
 
   return {
     filename,
     blob,
     file,
   };
+}
+
+function createFileFromBlob(blob, filename) {
+  if (typeof File !== "function") return null;
+
+  try {
+    return new File([blob], filename, { type: FILE_MIME });
+  } catch (_) {
+    return null;
+  }
 }
 
 function buildWorkbook(rows) {
@@ -311,14 +356,14 @@ function mapPersonRowForExcel(row) {
     territorio?.seccion?.codigo ||
     raw?.seccion_codigo ||
     row?.seccion ||
-    "—";
+    "-";
 
   const zona =
     territorio?.zona?.nombre ||
     territorio?.zona?.codigo ||
     raw?.zona_nombre ||
     row?.zona ||
-    "—";
+    "-";
 
   const responsableNombre =
     responsable?.nombre_completo ||
@@ -328,45 +373,45 @@ function mapPersonRowForExcel(row) {
       responsable?.apellido_materno,
     ].filter(Boolean).join(" ").trim() ||
     responsable?.username ||
-    "—";
+    "-";
 
-  const telefonoPrincipal = raw?.telefono || raw?.whatsapp || row?.telefono || "—";
+  const telefonoPrincipal = raw?.telefono || raw?.whatsapp || row?.telefono || "-";
   const observaciones = [raw?.persona_observaciones, participacion?.observaciones]
     .filter((value, index, arr) => value && arr.indexOf(value) === index)
     .join(" | ");
 
   return {
-    ID: row?.id || raw?.persona_id || "—",
+    ID: row?.id || raw?.persona_id || "-",
     "Nombre completo": nombreCompleto,
-    "Tipo de participación": formatTipoParticipacion(
+    "Tipo de participacion": formatTipoParticipacion(
       participacion?.tipo_actual ||
       participacion?.tipo_participacion ||
       raw?.tipo_participacion ||
       row?.tipo
     ),
     Estatus: raw?.participacion_estatus_nombre || row?.estatus_nombre || "Sin estatus",
-    Validez: row?.validez ? "Válido" : "Pendiente",
-    Sección: seccion,
+    Validez: row?.validez ? "Valido" : "Pendiente",
+    Seccion: seccion,
     Zona: zona,
-    Domicilio: raw?.domicilio_texto || row?.domicilio || "—",
-    "Teléfono principal": telefonoPrincipal,
-    WhatsApp: raw?.whatsapp || "—",
-    Email: raw?.email || "—",
-    CURP: raw?.curp || "—",
-    "Clave de elector": raw?.clave_elector || "—",
+    Domicilio: raw?.domicilio_texto || row?.domicilio || "-",
+    "Telefono principal": telefonoPrincipal,
+    WhatsApp: raw?.whatsapp || "-",
+    Email: raw?.email || "-",
+    CURP: raw?.curp || "-",
+    "Clave de elector": raw?.clave_elector || "-",
     "Fecha de nacimiento": formatDate(raw?.fecha_nacimiento),
     Sexo: formatSexo(raw?.sexo),
-    "Año de registro": raw?.anio_registro || "—",
-    Emisión: raw?.emision || "—",
-    "Vigencia inicio": raw?.vigencia_inicio || "—",
-    "Vigencia fin": raw?.vigencia_fin || "—",
+    "Anio de registro": raw?.anio_registro || "-",
+    Emision: raw?.emision || "-",
+    "Vigencia inicio": raw?.vigencia_inicio || "-",
+    "Vigencia fin": raw?.vigencia_fin || "-",
     Responsable: responsableNombre,
     "Fecha de registro": formatDateTime(
       participacion?.fecha_registro || raw?.fecha_captura || raw?.created_at
     ),
-    "Fecha de afiliación": formatDate(participacion?.fecha_afiliacion),
-    "Última actualización": formatDateTime(raw?.updated_at || participacion?.updated_at),
-    Observaciones: observaciones || "—",
+    "Fecha de afiliacion": formatDate(participacion?.fecha_afiliacion),
+    "Ultima actualizacion": formatDateTime(raw?.updated_at || participacion?.updated_at),
+    Observaciones: observaciones || "-",
   };
 }
 
@@ -387,11 +432,11 @@ function formatSexo(value) {
   if (clean === "M") return "Mujer";
   if (clean === "X") return "No especificado";
 
-  return clean || "—";
+  return clean || "-";
 }
 
 function formatDate(value) {
-  if (!value) return "—";
+  if (!value) return "-";
 
   const normalized = String(value).trim();
   const date = new Date(normalized.includes("T") ? normalized : normalized.replace(" ", "T"));
@@ -407,7 +452,7 @@ function formatDate(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "—";
+  if (!value) return "-";
 
   const normalized = String(value).trim();
   const date = new Date(normalized.includes("T") ? normalized : normalized.replace(" ", "T"));
@@ -425,7 +470,7 @@ function formatDateTime(value) {
 }
 
 function normalizeCellValue(value) {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "-";
   return String(value);
 }
 
@@ -446,11 +491,91 @@ function makeFilename(prefix) {
   return `${prefix}_${yyyy}-${mm}-${dd}.xlsx`;
 }
 
-function escapeHTML(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function getShareCapability(exportFile) {
+  if (typeof navigator === "undefined") {
+    return {
+      canShareFiles: false,
+      reason: "El dispositivo no soporta compartir archivos desde esta vista. Se descargo el Excel.",
+    };
+  }
+
+  if (!window.isSecureContext) {
+    return {
+      canShareFiles: false,
+      reason: "Compartir archivos requiere HTTPS o un contexto seguro. Se descargo el Excel.",
+    };
+  }
+
+  if (typeof navigator.share !== "function") {
+    return {
+      canShareFiles: false,
+      reason: "Tu navegador no expone la API nativa de compartir. Se descargo el Excel.",
+    };
+  }
+
+  if (!exportFile?.file) {
+    return {
+      canShareFiles: false,
+      reason: "Este navegador no permite adjuntar el archivo al compartir. Se descargo el Excel.",
+    };
+  }
+
+  const permissionsPolicy = document.permissionsPolicy || document.featurePolicy || null;
+  if (permissionsPolicy && typeof permissionsPolicy.allowsFeature === "function") {
+    try {
+      if (!permissionsPolicy.allowsFeature("web-share")) {
+        return {
+          canShareFiles: false,
+          reason: "El navegador bloqueo la funcion nativa de compartir en esta pagina. Se descargo el Excel.",
+        };
+      }
+    } catch (_) { }
+  }
+
+  if (typeof navigator.canShare !== "function") {
+    return {
+      canShareFiles: false,
+      reason: "Tu navegador no valida archivos para compartir. Se descargo el Excel.",
+    };
+  }
+
+  try {
+    if (!navigator.canShare({ files: [exportFile.file] })) {
+      return {
+        canShareFiles: false,
+        reason: "Tu navegador no acepta compartir este archivo directamente. Se descargo el Excel.",
+      };
+    }
+  } catch (_) {
+    return {
+      canShareFiles: false,
+      reason: "El navegador rechazo preparar el archivo para compartir. Se descargo el Excel.",
+    };
+  }
+
+  return {
+    canShareFiles: true,
+    reason: "Tu navegador no permite compartir archivos. Se descargo el Excel.",
+  };
+}
+
+function isUserCancelledShare(err) {
+  const name = String(err?.name || "");
+  const message = String(err?.message || "").toLowerCase();
+
+  return name === "AbortError" || message.includes("canceled") || message.includes("cancelled");
+}
+
+function shouldFallbackToDownload(err) {
+  const name = String(err?.name || "");
+  const message = String(err?.message || "").toLowerCase();
+
+  return (
+    name === "NotAllowedError" ||
+    name === "NotSupportedError" ||
+    message.includes("permission denied") ||
+    message.includes("permissions policy") ||
+    message.includes("not allowed") ||
+    message.includes("not supported")
+  );
 }
