@@ -984,6 +984,17 @@ function getDuplicateOwnerLabel(existingPersona) {
     return nombre || username || "un usuario del sistema";
 }
 
+function canCurrentUserUpdateDuplicate(existingPersona) {
+    const currentUserId = getUsuarioId();
+    const ownerUserId = Number(
+        existingPersona?.capturado_por_usuario?.usuario_id ||
+        existingPersona?.capturado_por ||
+        0
+    );
+
+    return currentUserId > 0 && ownerUserId > 0 && currentUserId === ownerUserId;
+}
+
 async function runDuplicateUpdate(duplicateData, btn = null) {
     const originalText = btn?.textContent || "Actualizar datos";
 
@@ -1029,6 +1040,17 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
 }
 
 async function handleDuplicateUpdateRequest(duplicateData, btn = null) {
+    const existingPersona = duplicateData?.existingPersona || null;
+
+    if (!canCurrentUserUpdateDuplicate(existingPersona)) {
+        toast(
+            "Solo el usuario que capturó originalmente este registro puede actualizarlo.",
+            "warning",
+            7000
+        );
+        return;
+    }
+
     const payload = collectReviewPayload();
 
     if (!validateReviewPayload(payload)) return;
@@ -1098,13 +1120,16 @@ function openDuplicateModal(duplicateData) {
         "Esta persona";
 
     const ownerLabel = getDuplicateOwnerLabel(existingPersona);
+    const canUpdate = canCurrentUserUpdateDuplicate(existingPersona);
 
     modal.__duplicateData = duplicateData;
+    modal.__duplicateLocked = !canUpdate;
 
     const title = modal.querySelector(SEL.duplicateTitle);
     const message = modal.querySelector(SEL.duplicateMessage);
     const person = modal.querySelector(SEL.duplicatePerson);
     const owner = modal.querySelector(SEL.duplicateOwner);
+    const updateBtn = modal.querySelector(SEL.duplicateUpdate);
 
     if (title) {
         title.textContent = "Persona ya registrada";
@@ -1122,7 +1147,16 @@ function openDuplicateModal(duplicateData) {
     }
 
     if (owner) {
-        owner.textContent = "";
+        owner.textContent = canUpdate
+            ? ""
+            : "Solo el usuario capturador puede actualizar este registro.";
+    }
+
+    if (updateBtn) {
+        updateBtn.disabled = !canUpdate;
+        updateBtn.title = canUpdate
+            ? "Actualizar datos de la persona"
+            : "Solo el capturador original puede actualizar este registro";
     }
 
     setDuplicateModalOpen(true);
@@ -1134,11 +1168,22 @@ function closeDuplicateModal() {
     const modal = $(SEL.duplicateModal);
     if (!modal) return;
 
+    const shouldWarnLockedClose = Boolean(modal.__duplicateLocked);
+
     modal.hidden = true;
     modal.setAttribute("aria-hidden", "true");
     modal.__duplicateData = null;
+    modal.__duplicateLocked = false;
 
     syncBodyModalState();
+
+    if (shouldWarnLockedClose) {
+        toast(
+            "Solo el usuario que capturó puede actualizar esta persona.",
+            "warning",
+            7000
+        );
+    }
 }
 
 function escapeHTMLSafe(value) {
