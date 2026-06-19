@@ -1386,19 +1386,13 @@ function ensureValidationModal() {
     }
 
     modal.querySelectorAll(SEL.validationClose).forEach((btn) => {
-        btn.addEventListener("click", () => {
-            closeValidationModal();
+        btn.addEventListener("click", async () => {
+            await abortValidationFlow();
         });
     });
 
     modal.querySelector(SEL.validationRecapture)?.addEventListener("click", async () => {
-        closeValidationModal();
-        closeDuplicateModal();
-        closeResidenceModal({ clearPending: true });
-        closeReviewModal();
-        resetCaptureFlow();
-        setModalOpen(true);
-        await openPreferredCaptureMethod();
+        await restartCaptureFromValidation();
     });
 
     modal.dataset.bound = "1";
@@ -1446,6 +1440,24 @@ function closeValidationModal() {
     modal.setAttribute("aria-hidden", "true");
 
     syncBodyModalState();
+}
+
+async function abortValidationFlow() {
+    closeValidationModal();
+    closeDuplicateModal();
+    closeResidenceModal({ clearPending: true });
+    closeReviewModal();
+    closeCaptureModal();
+}
+
+async function restartCaptureFromValidation() {
+    closeValidationModal();
+    closeDuplicateModal();
+    closeResidenceModal({ clearPending: true });
+    closeReviewModal();
+    resetCaptureFlow();
+    setModalOpen(true);
+    await openPreferredCaptureMethod();
 }
 
 function normalizeCurp(value) {
@@ -2716,6 +2728,25 @@ async function openReviewModal(payload) {
 
     window.setTimeout(async () => {
         const reviewPayload = collectReviewPayload();
+
+        if (!isValidCurp(reviewPayload.curp)) {
+            openValidationModal({
+                title: "CURP no válida",
+                message:
+                    "La CURP capturada no cumple con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
+            });
+            return;
+        }
+
+        if (!isValidClaveElector(reviewPayload.clave_elector)) {
+            openValidationModal({
+                title: "Clave de elector no válida",
+                message:
+                    "La clave de elector capturada no cumple con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
+            });
+            return;
+        }
+
         const duplicateData = await findDuplicatePersonaBeforeSave(reviewPayload);
 
         syncReviewPrimaryAction(duplicateData);
@@ -3443,7 +3474,7 @@ function handleEscape(event) {
 
     const validationModal = $(SEL.validationModal);
     if (validationModal && !validationModal.hidden) {
-        closeValidationModal();
+        abortValidationFlow();
         return;
     }
 
