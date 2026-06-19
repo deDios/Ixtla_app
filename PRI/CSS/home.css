@@ -30,10 +30,11 @@
 
 .red-panel-head {
     display: grid;
-    grid-template-columns: 90px 1fr 70px;
+    grid-template-columns: 1fr;
     align-items: center;
-    gap: 24px;
+    gap: 14px;
     margin-bottom: 26px;
+    justify-items: center;
 }
 
 .red-panel-logo {
@@ -548,18 +549,13 @@ body.red-export-preview-open {
 
 @media (max-width: 720px) {
     .red-panel-head {
-        grid-template-columns: 58px 1fr;
-        gap: 12px;
+        grid-template-columns: 1fr;
+        gap: 8px;
         padding: 14px;
     }
 
-    .red-panel-logo {
-        width: 54px;
-        height: 54px;
-    }
-
     .red-panel-titlebox {
-        text-align: left;
+        text-align: center;
         padding-right: 0;
     }
 
@@ -603,15 +599,16 @@ body.red-export-preview-open {
 
 .red-panel-head {
     display: grid;
-    grid-template-columns: 86px 1fr;
+    grid-template-columns: 1fr;
     align-items: center;
-    gap: 22px;
+    gap: 12px;
     margin-bottom: 24px;
     padding: 18px 22px;
     background: rgba(255, 255, 255, 0.88);
     border: 1px solid rgba(234, 218, 218, 0.9);
     border-radius: var(--red-radius);
     box-shadow: var(--red-shadow);
+    justify-items: center;
 }
 
 .red-panel-logo {

@@ -578,7 +578,6 @@ header.scrolled .subnav {
 #site-footer .left-inner {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
   padding: 8px 0;
 }
 
@@ -599,10 +598,12 @@ header.scrolled .subnav {
 
 #site-footer .copyright {
   max-width: 680px;
+  font-weight: 700;
 }
 
 #site-footer .location {
   max-width: 440px;
+  text-align: right;
 }
 
 /* ============== 12) Toasts =============================== */
@@ -844,9 +845,7 @@ header.scrolled .subnav {
   }
 
   #site-footer .left-inner {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
+    display: block;
   }
 
   #site-footer .footer-crest {
@@ -863,6 +862,7 @@ header.scrolled .subnav {
 
   #site-footer .location {
     max-width: none;
+    text-align: left;
   }
 }
 
@@ -876,20 +876,12 @@ header.scrolled .subnav {
     gap: 10px;
   }
 
-  #site-footer .left-inner {
-    gap: 12px;
-  }
-
   #site-footer .footer-crest {
     height: 64px;
   }
 }
 
 @media (max-width: 480px) {
-  #site-footer .left-inner {
-    align-items: center;
-  }
-
   #site-footer .copyright,
   #site-footer .location {
     text-align: left;
