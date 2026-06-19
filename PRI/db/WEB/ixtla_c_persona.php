@@ -151,6 +151,22 @@ function str_clean(array $in, string $key): string
   return isset($in[$key]) ? trim((string)$in[$key]) : '';
 }
 
+function sensitive_clean(mixed $value): string
+{
+  return strtoupper(trim((string)$value));
+}
+
+function sensitive_hash(mixed $value): ?string
+{
+  $clean = sensitive_clean($value);
+
+  if ($clean === '') {
+    return null;
+  }
+
+  return hash('sha256', $clean);
+}
+
 function sensitive_decrypt(mixed $encoded, string $secret): ?string
 {
   if ($encoded === null || $encoded === '') {
@@ -606,6 +622,18 @@ function consultar_personas(mysqli $con, array $in): array
 
   $telefono = str_clean($in, 'telefono');
   $email = str_clean($in, 'email');
+  $curp = str_clean($in, 'curp');
+  $clave_elector = str_clean($in, 'clave_elector');
+  $curp_hash = str_clean($in, 'curp_hash');
+  $clave_elector_hash = str_clean($in, 'clave_elector_hash');
+
+  if ($curp_hash === '' && $curp !== '') {
+    $curp_hash = sensitive_hash($curp) ?? '';
+  }
+
+  if ($clave_elector_hash === '' && $clave_elector !== '') {
+    $clave_elector_hash = sensitive_hash($clave_elector) ?? '';
+  }
 
   $seccion_id = int_or_null($in, 'seccion_id');
   $estatus_id = int_or_null($in, 'estatus_id');
@@ -687,6 +715,18 @@ function consultar_personas(mysqli $con, array $in): array
   if ($email !== '') {
     $where[] = "p.email = ?";
     $params[] = $email;
+    $types .= "s";
+  }
+
+  if ($curp_hash !== '') {
+    $where[] = "p.curp_hash = ?";
+    $params[] = $curp_hash;
+    $types .= "s";
+  }
+
+  if ($clave_elector_hash !== '') {
+    $where[] = "p.clave_elector_hash = ?";
+    $params[] = $clave_elector_hash;
     $types .= "s";
   }
 
