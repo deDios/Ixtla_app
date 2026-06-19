@@ -195,7 +195,7 @@ async function shareOrDownloadFile(exportFile, totalRows, toast) {
       if (shouldFallbackToDownload(err)) {
         console.warn("[ExportXLSXHome][share-fallback]", err);
         downloadFile(exportFile);
-        toast?.("El navegador rechazo compartir el archivo. Se descargo el Excel.", "warning");
+        toast?.(buildShareErrorMessage(err, "El navegador rechazo compartir el archivo. Se descargo el Excel."), "warning");
         return;
       }
 
@@ -553,4 +553,23 @@ function shouldFallbackToDownload(err) {
     message.includes("not allowed") ||
     message.includes("not supported")
   );
+}
+
+function buildShareErrorMessage(err, fallbackMessage) {
+  const name = String(err?.name || "").trim();
+  const message = String(err?.message || "").trim();
+
+  if (name && message) {
+    return `${fallbackMessage} Error: ${name} - ${message}`;
+  }
+
+  if (name) {
+    return `${fallbackMessage} Error: ${name}`;
+  }
+
+  if (message) {
+    return `${fallbackMessage} Error: ${message}`;
+  }
+
+  return fallbackMessage;
 }
