@@ -21,6 +21,9 @@
   --ix-bg: #f9f9f9;
   --ix-fg: #222;
   --ix-muted: #797777;
+  --ix-topbar-desktop-h: 97px;
+  --ix-subnav-desktop-top: 97px;
+  --ix-header-mobile-stack: 120px;
 
   --ix-green: #859F8E;
   --ix-green-soft: #f3f7f3;
@@ -33,7 +36,8 @@
   --ix-shadow-soft: 0 4px 6px rgba(0, 0, 0, .05);
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -49,7 +53,7 @@ body {
 }
 
 main {
-  margin-top: 101px;
+  margin-top: 142px;
   flex: 1;
 }
 
@@ -77,6 +81,7 @@ header {
   top: 0;
   left: 0;
   right: 0;
+  min-height: var(--ix-topbar-desktop-h);
   background: var(--ix-white);
   display: flex;
   justify-content: space-between;
@@ -121,7 +126,7 @@ header.scrolled .top-bar {
 /* ============== 4) Subnav (desktop) ===================== */
 .subnav {
   position: fixed;
-  top: 112px;
+  top: var(--ix-subnav-desktop-top);
   left: 0;
   right: 0;
   background: #f1f1f1;
@@ -589,7 +594,8 @@ header.scrolled .subnav {
   object-fit: contain;
 }
 
-#site-footer .copyright, #site-footer .location {
+#site-footer .copyright,
+#site-footer .location {
   margin: 0;
   color: #4f5651;
   line-height: 1.55;
@@ -653,6 +659,10 @@ header.scrolled .subnav {
 
 /* Tablet & abajo */
 @media (max-width: 768px) {
+  main {
+    margin-top: 120px;
+  }
+
   .top-bar {
     min-height: 72px;
     padding: 1rem;
@@ -664,7 +674,8 @@ header.scrolled .subnav {
     gap: .5rem;
   }
 
-  .top-bar .actions .btn, .top-bar .actions .user-icon {
+  .top-bar .actions .btn,
+  .top-bar .actions .user-icon {
     display: none !important;
   }
 
@@ -730,7 +741,7 @@ header.scrolled .subnav {
   }
 
   /* Avatar mobile: ocupa todo el círculo sin verse “mini recortado” */
-  .user-icon-mobile > img {
+  .user-icon-mobile>img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -770,7 +781,8 @@ header.scrolled .subnav {
     flex: 0 0 22px;
   }
 
-  .icon-mobile:hover, .user-icon-mobile:hover {
+  .icon-mobile:hover,
+  .user-icon-mobile:hover {
     transform: scale(1.05);
   }
 
@@ -783,7 +795,7 @@ header.scrolled .subnav {
   .subnav.show {
     display: flex;
     position: fixed;
-    top: 118px;
+    top: var(--ix-header-mobile-stack);
     left: 0;
     right: 0;
     background: #f9f9f9;
@@ -794,7 +806,7 @@ header.scrolled .subnav {
     gap: 12px;
     box-shadow: var(--ix-shadow-soft);
     overflow-y: auto;
-    max-height: calc(100vh - 128px);
+    max-height: calc(100vh - var(--ix-header-mobile-stack));
   }
 
   header.scrolled .subnav.show {
@@ -845,7 +857,8 @@ header.scrolled .subnav {
     max-width: min(60vw, 240px);
   }
 
-  #site-footer .copyright, #site-footer .location {
+  #site-footer .copyright,
+  #site-footer .location {
     font-size: .76rem;
   }
 
@@ -891,6 +904,7 @@ header.scrolled .subnav {
 }
 
 @media (max-width: 480px) {
+
   #site-footer .copyright,
   #site-footer .location {
     text-align: left;
