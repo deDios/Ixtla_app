@@ -1146,6 +1146,7 @@ async function handleDuplicateUpdateRequest(duplicateData, btn = null) {
 
     if (needsResidenceModal) {
         State.pendingDuplicateUpdate = duplicateData;
+        closeDuplicateModal();
         await openResidenceModal(payload, "duplicate");
         return;
     }
@@ -2441,6 +2442,17 @@ function resetReviewModalForCapture() {
 
     form.querySelectorAll("select").forEach((field) => {
         field.disabled = false;
+    });
+
+    [
+        "#ine-review-curp",
+        "#ine-review-clave-elector",
+        "#ine-review-idmex",
+    ].forEach((selector) => {
+        const field = $(selector);
+        if (field) {
+            field.readOnly = true;
+        }
     });
 
     closeReviewSeccionList();

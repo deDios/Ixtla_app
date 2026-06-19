@@ -443,12 +443,12 @@ ix_require_session([
                         <div class="ine-review-grid">
                             <label class="ine-review-field">
                                 <span>CURP</span>
-                                <input type="text" id="ine-review-curp" name="curp" maxlength="18" placeholder="CURP">
+                                <input type="text" id="ine-review-curp" name="curp" maxlength="18" placeholder="CURP" readonly>
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Clave de elector</span>
-                                <input type="text" id="ine-review-clave-elector" name="clave_elector"
+                                <input type="text" id="ine-review-clave-elector" name="clave_elector" readonly
                                     placeholder="Clave de elector">
                             </label>
 
@@ -494,7 +494,7 @@ ix_require_session([
 
                             <label class="ine-review-field">
                                 <span>IDMEX</span>
-                                <input type="text" id="ine-review-idmex" name="idmex" placeholder="IDMEX">
+                                <input type="text" id="ine-review-idmex" name="idmex" placeholder="IDMEX" readonly>
                             </label>
                         </div>
                     </section>
