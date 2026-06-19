@@ -39,7 +39,7 @@ ix_require_session([
         <div class="top-bar" id="top-bar">
             <div id="logo-btn" class="logo" title="Ir al inicio" aria-label="Ir al inicio">
                 <!-- logo del header -->
-                <img class="logo-marca" src="/ASSETS/main_logo.png"
+                <img class="logo-marca" src="/PRI/Assets/Logo_PRI%20(2).png"
                     alt="Ixtlahuacán de los Membrillos - Ayuntamiento" />
             </div>
 
@@ -741,14 +741,14 @@ ix_require_session([
     <footer id="site-footer">
         <div class="limite">
             <div class="footer-brand">
-                <img class="brand-lockup" src="/ASSETS/main_logo_al_frente.png"
+                <img class="brand-lockup" src="/PRI/Assets/Logo_PRI%20(2).png"
                     alt="Ixtlahuacán de los Membrillos - Ayuntamiento">
             </div>
 
             <div class="footer-cols">
                 <div class="col left">
                     <div class="left-inner">
-                        <img class="footer-crest" src="/ASSETS/main_logo_shield.png" alt="Escudo municipal">
+                        <img class="footer-crest" src="/PRI/Assets/Logo_PRI%20(2).png" alt="PRI - Red Ixtlahuacán de los Membrillos">
                         <p class="copyright">
                             © Presidente José Heriberto García Murillo Gobierno de Ixtlahuacán de los Membrillos 2021 |
                             Todos los derechos reservados.

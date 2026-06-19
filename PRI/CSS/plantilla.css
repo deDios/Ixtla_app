@@ -54,7 +54,11 @@ main {
 }
 
 .logo-marca {
-  max-height: 80px;
+  display: block;
+  height: 64px;
+  width: auto;
+  max-width: min(44vw, 290px);
+  object-fit: contain;
 }
 
 .limite {
@@ -93,6 +97,7 @@ header.scrolled .top-bar {
 .logo {
   display: flex;
   align-items: center;
+  min-width: 0;
   font-size: 1.5rem;
   font-weight: bold;
   color: #0a61d0;
@@ -526,10 +531,11 @@ header.scrolled .subnav {
 
 /* ============== 11) Footer =============================== */
 #site-footer {
-  background: #D9D9D9;
+  background:
+    linear-gradient(180deg, #e2e4e2 0%, #d4d6d4 100%);
   color: #2b2b2b;
   border-top: 1px solid var(--ix-border);
-  padding: 28px 16px 32px;
+  padding: 30px 16px 34px;
 }
 
 #site-footer .limite {
@@ -540,21 +546,28 @@ header.scrolled .subnav {
 #site-footer .footer-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  justify-content: center;
+  padding: 16px 20px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
 
 #site-footer .brand-lockup {
-  height: 90px;
+  height: 84px;
+  max-width: min(100%, 360px);
   width: auto;
   display: block;
+  object-fit: contain;
 }
 
 #site-footer .footer-cols {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 #site-footer .footer-cols .col {
@@ -563,21 +576,33 @@ header.scrolled .subnav {
 }
 
 #site-footer .left-inner {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 8px 0;
 }
 
 #site-footer .footer-crest {
   display: none;
-  height: 48px;
+  height: 58px;
   width: auto;
   flex: 0 0 auto;
+  object-fit: contain;
 }
 
 #site-footer .copyright, #site-footer .location {
   margin: 0;
-  color: var(--ix-muted);
-  line-height: 1.45;
-  font-size: .98rem;
+  color: #4f5651;
+  line-height: 1.55;
+  font-size: .95rem;
+}
+
+#site-footer .copyright {
+  max-width: 680px;
+}
+
+#site-footer .location {
+  max-width: 440px;
 }
 
 /* ============== 12) Toasts =============================== */
@@ -801,12 +826,17 @@ header.scrolled .subnav {
 }
 
 @media (max-width: 768px) {
-  #site-footer .copyright, #site-footer .location {
-    font-size: .7rem;
+  .top-bar {
+    padding: .85rem 1rem;
   }
 
-  #site-footer .location {
-    padding-left: 77px;
+  .logo-marca {
+    height: 54px;
+    max-width: min(60vw, 240px);
+  }
+
+  #site-footer .copyright, #site-footer .location {
+    font-size: .76rem;
   }
 
   #site-footer .footer-brand {
@@ -830,6 +860,10 @@ header.scrolled .subnav {
   #site-footer .copyright {
     margin-top: 2px;
   }
+
+  #site-footer .location {
+    max-width: none;
+  }
 }
 
 @media (max-width: 560px) {
@@ -842,12 +876,25 @@ header.scrolled .subnav {
     gap: 10px;
   }
 
+  #site-footer .left-inner {
+    gap: 12px;
+  }
+
   #site-footer .footer-crest {
-    height: 80px;
+    height: 64px;
   }
 }
 
 @media (max-width: 480px) {
+  #site-footer .left-inner {
+    align-items: center;
+  }
+
+  #site-footer .copyright,
+  #site-footer .location {
+    text-align: left;
+  }
+
   .gc-toast-container {
     top: auto;
     bottom: 20px;
@@ -865,7 +912,12 @@ header.scrolled .subnav {
 }
 
 @media (max-width: 360px) {
+  .logo-marca {
+    height: 48px;
+    max-width: 64vw;
+  }
+
   #site-footer .footer-crest {
-    height: 34px;
+    height: 48px;
   }
 }
