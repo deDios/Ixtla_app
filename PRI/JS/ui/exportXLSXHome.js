@@ -1,4 +1,10 @@
-// /JS/ui/exportXLSXHome.js
+"use strict";
+
+import { getDeviceContext } from "/PRI/JS/ui/deviceContext.js";
+
+const PREVIEW_LIMIT = 5;
+const FILE_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 export function initExportXLSXHome({
   buttonId = "red-btn-export",
   fetchRows,
@@ -7,12 +13,15 @@ export function initExportXLSXHome({
   const btn = document.getElementById(buttonId);
   if (!btn || typeof fetchRows !== "function") return;
 
+  const modal = ensureExportPreviewModal();
+  if (!modal) return;
+
   btn.addEventListener("click", async (event) => {
     event.preventDefault();
 
     const originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = "Exportando...";
+    btn.textContent = "Preparando...";
 
     try {
       if (!window.XLSX) {
@@ -26,17 +35,260 @@ export function initExportXLSXHome({
         return;
       }
 
-      const data = rows.map(mapPersonRowForExcel);
-      downloadWorkbook(data, makeFilename("red_personas"));
-      toast?.(`Exportadas: ${rows.length} persona(s).`, "exito");
+      const device = getDeviceContext();
+
+      if (device.isDesktop) {
+        const exportFile = buildWorkbookFile(rows);
+        downloadFile(exportFile);
+        toast?.(`Exportadas: ${rows.length} persona(s).`, "exito");
+        return;
+      }
+
+      openExportPreviewModal({
+        modal,
+        rows,
+        toast,
+      });
     } catch (err) {
       console.error("[ExportXLSXHome] error:", err);
-      toast?.("No se pudo exportar el archivo de Excel.", "error");
+      toast?.(err?.message || "No se pudo exportar el archivo de Excel.", "error");
     } finally {
       btn.disabled = false;
       btn.textContent = originalText;
     }
   });
+}
+
+function ensureExportPreviewModal() {
+  let modal = document.getElementById("red-export-preview-modal");
+  if (modal) return modal;
+
+  modal = document.createElement("section");
+  modal.id = "red-export-preview-modal";
+  modal.className = "red-export-preview-modal";
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+
+  modal.innerHTML = `
+    <div class="red-export-preview-overlay" data-red-export-close></div>
+
+    <article class="red-export-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="red-export-preview-title">
+      <header class="red-export-preview-header">
+        <div class="red-export-preview-titlebox">
+          <p class="red-export-preview-kicker">Exportación RED</p>
+          <h2 id="red-export-preview-title">Vista previa para compartir</h2>
+          <p id="red-export-preview-summary" class="red-export-preview-summary"></p>
+        </div>
+
+        <button type="button" class="red-export-preview-close" data-red-export-close aria-label="Cerrar">
+          ×
+        </button>
+      </header>
+
+      <div class="red-export-preview-body">
+        <div id="red-export-preview-list" class="red-export-preview-list"></div>
+      </div>
+
+      <footer class="red-export-preview-footer">
+        <button type="button" id="red-export-preview-share" class="red-export-preview-share">
+          Compartir
+        </button>
+      </footer>
+    </article>
+  `;
+
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll("[data-red-export-close]").forEach((node) => {
+    node.addEventListener("click", () => closeExportPreviewModal(modal));
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (modal.hidden) return;
+
+    closeExportPreviewModal(modal);
+  });
+
+  return modal;
+}
+
+function openExportPreviewModal({
+  modal,
+  rows,
+  toast,
+}) {
+  const summary = modal.querySelector("#red-export-preview-summary");
+  const list = modal.querySelector("#red-export-preview-list");
+  const shareBtn = modal.querySelector("#red-export-preview-share");
+
+  const previewRows = rows.slice(0, PREVIEW_LIMIT);
+
+  if (summary) {
+    summary.textContent = `Se compartirán ${rows.length} personas. Vista previa de ${previewRows.length}.`;
+  }
+
+  if (list) {
+    list.innerHTML = previewRows.map((row, index) => {
+      const raw = row?.raw || {};
+      const nombre =
+        raw?.nombre_completo ||
+        row?.nombre ||
+        [
+          raw?.nombres,
+          raw?.apellido_paterno,
+          raw?.apellido_materno,
+        ].filter(Boolean).join(" ").trim() ||
+        "Sin nombre";
+
+      const tipo = formatTipoParticipacion(
+        raw?.participacion?.tipo_actual ||
+        raw?.participacion?.tipo_participacion ||
+        raw?.tipo_participacion ||
+        row?.tipo
+      );
+
+      const seccion =
+        raw?.territorio?.seccion?.nombre ||
+        raw?.territorio?.seccion?.codigo ||
+        raw?.seccion_nombre ||
+        raw?.seccion_codigo ||
+        row?.seccion ||
+        "—";
+
+      return `
+        <article class="red-export-preview-card">
+          <span class="red-export-preview-index">#${index + 1}</span>
+          <h3>${escapeHTML(nombre)}</h3>
+          <p><strong>Tipo:</strong> ${escapeHTML(tipo)}</p>
+          <p><strong>Sección:</strong> ${escapeHTML(String(seccion))}</p>
+        </article>
+      `;
+    }).join("");
+  }
+
+  if (shareBtn) {
+    shareBtn.disabled = false;
+    shareBtn.textContent = "Compartir";
+    shareBtn.onclick = async () => {
+      const originalText = shareBtn.textContent;
+      shareBtn.disabled = true;
+      shareBtn.textContent = "Preparando...";
+
+      try {
+        const exportFile = buildWorkbookFile(rows);
+        await shareOrDownloadFile(exportFile, rows.length, toast);
+        closeExportPreviewModal(modal);
+      } catch (err) {
+        console.error("[ExportXLSXHome][share] error:", err);
+        toast?.(err?.message || "No se pudo compartir el archivo.", "error");
+      } finally {
+        shareBtn.disabled = false;
+        shareBtn.textContent = originalText;
+      }
+    };
+  }
+
+  modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("red-export-preview-open");
+}
+
+function closeExportPreviewModal(modal) {
+  if (!modal) return;
+
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("red-export-preview-open");
+}
+
+async function shareOrDownloadFile(exportFile, totalRows, toast) {
+  const canShareFiles =
+    typeof navigator !== "undefined" &&
+    typeof navigator.share === "function" &&
+    typeof navigator.canShare === "function" &&
+    navigator.canShare({ files: [exportFile.file] });
+
+  if (canShareFiles) {
+    await navigator.share({
+      title: exportFile.filename,
+      text: `Exportación RED (${totalRows} personas)`,
+      files: [exportFile.file],
+    });
+    toast?.(`Archivo listo para compartir: ${totalRows} persona(s).`, "exito");
+    return;
+  }
+
+  downloadFile(exportFile);
+  toast?.("Tu navegador no permite compartir archivos. Se descargó el Excel.", "warning");
+}
+
+function buildWorkbookFile(rows) {
+  const data = rows.map(mapPersonRowForExcel);
+  const workbook = buildWorkbook(data);
+  const filename = makeFilename("red_personas");
+  const arrayBuffer = window.XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+  });
+
+  const blob = new Blob([arrayBuffer], { type: FILE_MIME });
+  const file = new File([blob], filename, { type: FILE_MIME });
+
+  return {
+    filename,
+    blob,
+    file,
+  };
+}
+
+function buildWorkbook(rows) {
+  const XLSX = window.XLSX;
+  const headers = Object.keys(rows[0] || {});
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+
+  worksheet["!cols"] = headers.map((header) => ({
+    wch: Math.max(
+      12,
+      Math.min(
+        40,
+        String(header).length + 4,
+        ...rows.map((row) => String(normalizeCellValue(row[header])).length + 2),
+      ),
+    ),
+  }));
+
+  if (worksheet["!ref"]) {
+    const range = XLSX.utils.decode_range(worksheet["!ref"]);
+    worksheet["!autofilter"] = { ref: XLSX.utils.encode_range(range) };
+  }
+
+  try {
+    worksheet["!freeze"] = {
+      xSplit: 0,
+      ySplit: 1,
+      topLeftCell: "A2",
+      activePane: "bottomLeft",
+      state: "frozen",
+    };
+  } catch (_) { }
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Personas RED");
+  return workbook;
+}
+
+function downloadFile(exportFile) {
+  const objectUrl = URL.createObjectURL(exportFile.blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = objectUrl;
+  anchor.download = exportFile.filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
 }
 
 function mapPersonRowForExcel(row) {
@@ -118,42 +370,6 @@ function mapPersonRowForExcel(row) {
   };
 }
 
-function downloadWorkbook(rows, filename) {
-  const XLSX = window.XLSX;
-  const headers = Object.keys(rows[0] || {});
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const workbook = XLSX.utils.book_new();
-
-  worksheet["!cols"] = headers.map((header) => ({
-    wch: Math.max(
-      12,
-      Math.min(
-        40,
-        String(header).length + 4,
-        ...rows.map((row) => String(normalizeCellValue(row[header])).length + 2),
-      ),
-    ),
-  }));
-
-  if (worksheet["!ref"]) {
-    const range = XLSX.utils.decode_range(worksheet["!ref"]);
-    worksheet["!autofilter"] = { ref: XLSX.utils.encode_range(range) };
-  }
-
-  try {
-    worksheet["!freeze"] = {
-      xSplit: 0,
-      ySplit: 1,
-      topLeftCell: "A2",
-      activePane: "bottomLeft",
-      state: "frozen",
-    };
-  } catch (_) { }
-
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Personas RED");
-  XLSX.writeFile(workbook, filename);
-}
-
 function formatTipoParticipacion(value) {
   const clean = String(value ?? "").trim().toLowerCase();
 
@@ -228,4 +444,13 @@ function makeFilename(prefix) {
   const dd = String(now.getDate()).padStart(2, "0");
 
   return `${prefix}_${yyyy}-${mm}-${dd}.xlsx`;
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
