@@ -4,6 +4,7 @@ import { getDeviceContext } from "/PRI/JS/ui/deviceContext.js";
 
 const PREVIEW_LIMIT = 5;
 const FILE_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const CSV_MIME = "text/csv;charset=utf-8";
 const PREVIEW_COLUMNS = [
   "ID",
   "Nombre completo",
@@ -99,8 +100,11 @@ function ensureExportPreviewModal() {
       </div>
 
       <footer class="red-export-preview-footer">
-        <button type="button" id="red-export-preview-share" class="red-export-preview-share">
-          Compartir
+        <button type="button" id="red-export-preview-share-xlsx" class="red-export-preview-share">
+          Compartir Excel
+        </button>
+        <button type="button" id="red-export-preview-share-csv" class="red-export-preview-share red-export-preview-share--secondary">
+          Compartir CSV
         </button>
       </footer>
     </article>
@@ -129,9 +133,11 @@ function openExportPreviewModal({
 }) {
   const summary = modal.querySelector("#red-export-preview-summary");
   const list = modal.querySelector("#red-export-preview-list");
-  const shareBtn = modal.querySelector("#red-export-preview-share");
+  const shareXlsxBtn = modal.querySelector("#red-export-preview-share-xlsx");
+  const shareCsvBtn = modal.querySelector("#red-export-preview-share-csv");
   const previewRows = rows.slice(0, PREVIEW_LIMIT);
-  const exportFile = buildWorkbookFile(rows);
+  const exportXlsxFile = buildWorkbookFile(rows);
+  const exportCsvFile = buildCSVFile(rows);
 
   if (summary) {
     summary.textContent = `Se compartiran ${rows.length} personas. Vista previa de ${previewRows.length}.`;
@@ -141,26 +147,23 @@ function openExportPreviewModal({
     list.innerHTML = renderPreviewTable(previewRows);
   }
 
-  if (shareBtn) {
-    shareBtn.disabled = false;
-    shareBtn.textContent = "Compartir";
-    shareBtn.onclick = async () => {
-      const originalText = shareBtn.textContent;
-      shareBtn.disabled = true;
-      shareBtn.textContent = "Compartiendo...";
+  bindShareButton({
+    button: shareXlsxBtn,
+    exportFile: exportXlsxFile,
+    totalRows: rows.length,
+    toast,
+    modal,
+    loadingText: "Compartiendo Excel...",
+  });
 
-      try {
-        await shareOrDownloadFile(exportFile, rows.length, toast);
-        closeExportPreviewModal(modal);
-      } catch (err) {
-        console.error("[ExportXLSXHome][share] error:", err);
-        toast?.(err?.message || "No se pudo compartir el archivo.", "error");
-      } finally {
-        shareBtn.disabled = false;
-        shareBtn.textContent = originalText;
-      }
-    };
-  }
+  bindShareButton({
+    button: shareCsvBtn,
+    exportFile: exportCsvFile,
+    totalRows: rows.length,
+    toast,
+    modal,
+    loadingText: "Compartiendo CSV...",
+  });
 
   modal.hidden = false;
   modal.setAttribute("aria-hidden", "false");
@@ -208,6 +211,35 @@ async function shareOrDownloadFile(exportFile, totalRows, toast) {
   toast?.(shareCapability.reason, "warning");
 }
 
+function bindShareButton({
+  button,
+  exportFile,
+  totalRows,
+  toast,
+  modal,
+  loadingText,
+}) {
+  if (!button) return;
+
+  button.disabled = false;
+  button.onclick = async () => {
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = loadingText;
+
+    try {
+      await shareOrDownloadFile(exportFile, totalRows, toast);
+      closeExportPreviewModal(modal);
+    } catch (err) {
+      console.error("[ExportXLSXHome][share] error:", err);
+      toast?.(err?.message || "No se pudo compartir el archivo.", "error");
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  };
+}
+
 function renderPreviewTable(rows) {
   const previewData = rows
     .map(mapPersonRowForExcel)
@@ -253,11 +285,27 @@ function buildWorkbookFile(rows) {
   };
 }
 
-function createFileFromBlob(blob, filename) {
+function buildCSVFile(rows) {
+  const data = rows.map(mapPersonRowForExcel);
+  const worksheet = window.XLSX.utils.json_to_sheet(data);
+  const csv = window.XLSX.utils.sheet_to_csv(worksheet);
+  const filename = makeFilename("red_personas", ".csv");
+  const csvWithBom = `\uFEFF${csv}`;
+  const blob = new Blob([csvWithBom], { type: CSV_MIME });
+  const file = createFileFromBlob(blob, filename, CSV_MIME);
+
+  return {
+    filename,
+    blob,
+    file,
+  };
+}
+
+function createFileFromBlob(blob, filename, mimeType = FILE_MIME) {
   if (typeof File !== "function") return null;
 
   try {
-    return new File([blob], filename, { type: FILE_MIME });
+    return new File([blob], filename, { type: mimeType });
   } catch (_) {
     return null;
   }
@@ -458,13 +506,13 @@ function capitalizeWords(value) {
     .join(" ");
 }
 
-function makeFilename(prefix) {
+function makeFilename(prefix, extension = ".xlsx") {
   const now = new Date();
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
 
-  return `${prefix}_${yyyy}-${mm}-${dd}.xlsx`;
+  return `${prefix}_${yyyy}-${mm}-${dd}${extension}`;
 }
 
 function getShareCapability(exportFile) {
