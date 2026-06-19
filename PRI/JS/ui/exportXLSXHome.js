@@ -4,7 +4,6 @@ import { getDeviceContext } from "/PRI/JS/ui/deviceContext.js";
 
 const PREVIEW_LIMIT = 5;
 const FILE_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const CSV_MIME = "text/csv;charset=utf-8";
 const PREVIEW_COLUMNS = [
   "ID",
   "Nombre completo",
@@ -100,11 +99,8 @@ function ensureExportPreviewModal() {
       </div>
 
       <footer class="red-export-preview-footer">
-        <button type="button" id="red-export-preview-share-xlsx" class="red-export-preview-share">
-          Compartir Excel
-        </button>
-        <button type="button" id="red-export-preview-share-csv" class="red-export-preview-share red-export-preview-share--secondary">
-          Compartir CSV
+        <button type="button" id="red-export-preview-share" class="red-export-preview-share">
+          Compartir
         </button>
       </footer>
     </article>
@@ -133,11 +129,9 @@ function openExportPreviewModal({
 }) {
   const summary = modal.querySelector("#red-export-preview-summary");
   const list = modal.querySelector("#red-export-preview-list");
-  const shareXlsxBtn = modal.querySelector("#red-export-preview-share-xlsx");
-  const shareCsvBtn = modal.querySelector("#red-export-preview-share-csv");
+  const shareBtn = modal.querySelector("#red-export-preview-share");
   const previewRows = rows.slice(0, PREVIEW_LIMIT);
-  const exportXlsxFile = buildWorkbookFile(rows);
-  const exportCsvFile = buildCSVFile(rows);
+  const exportFile = buildWorkbookFile(rows);
 
   if (summary) {
     summary.textContent = `Se compartiran ${rows.length} personas. Vista previa de ${previewRows.length}.`;
@@ -148,21 +142,12 @@ function openExportPreviewModal({
   }
 
   bindShareButton({
-    button: shareXlsxBtn,
-    exportFile: exportXlsxFile,
+    button: shareBtn,
+    exportFile,
     totalRows: rows.length,
     toast,
     modal,
-    loadingText: "Compartiendo Excel...",
-  });
-
-  bindShareButton({
-    button: shareCsvBtn,
-    exportFile: exportCsvFile,
-    totalRows: rows.length,
-    toast,
-    modal,
-    loadingText: "Compartiendo CSV...",
+    loadingText: "Compartiendo...",
   });
 
   modal.hidden = false;
@@ -197,10 +182,9 @@ async function shareOrDownloadFile(exportFile, totalRows, toast) {
 
       if (shouldFallbackToDownload(err)) {
         console.warn("[ExportXLSXHome][share-fallback]", err);
-        // bandera de descarga de archivo
-        // downloadFile(exportFile);
-        // toast?.(buildShareErrorMessage(err, "El navegador rechazo compartir el archivo. Se descargo el Excel."), "warning");
-        throw err;
+        downloadFile(exportFile);
+        toast?.("No se pudo abrir el panel para compartir. Se descargo el archivo.", "warning");
+        return;
       }
 
       throw err;
@@ -277,22 +261,6 @@ function buildWorkbookFile(rows) {
 
   const blob = new Blob([arrayBuffer], { type: FILE_MIME });
   const file = createFileFromBlob(blob, filename);
-
-  return {
-    filename,
-    blob,
-    file,
-  };
-}
-
-function buildCSVFile(rows) {
-  const data = rows.map(mapPersonRowForExcel);
-  const worksheet = window.XLSX.utils.json_to_sheet(data);
-  const csv = window.XLSX.utils.sheet_to_csv(worksheet);
-  const filename = makeFilename("red_personas", ".csv");
-  const csvWithBom = `\uFEFF${csv}`;
-  const blob = new Blob([csvWithBom], { type: CSV_MIME });
-  const file = createFileFromBlob(blob, filename, CSV_MIME);
 
   return {
     filename,
@@ -604,23 +572,4 @@ function shouldFallbackToDownload(err) {
     message.includes("not allowed") ||
     message.includes("not supported")
   );
-}
-
-function buildShareErrorMessage(err, fallbackMessage) {
-  const name = String(err?.name || "").trim();
-  const message = String(err?.message || "").trim();
-
-  if (name && message) {
-    return `${fallbackMessage} Error: ${name} - ${message}`;
-  }
-
-  if (name) {
-    return `${fallbackMessage} Error: ${name}`;
-  }
-
-  if (message) {
-    return `${fallbackMessage} Error: ${message}`;
-  }
-
-  return fallbackMessage;
 }

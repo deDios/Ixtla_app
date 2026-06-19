@@ -307,12 +307,10 @@ body.red-export-preview-open {
     padding: 16px 24px 22px;
     border-top: 1px solid rgba(15, 23, 42, 0.08);
     background: rgba(255, 255, 255, 0.98);
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
 }
 
 .red-export-preview-share {
+    width: 100%;
     min-height: 50px;
     border: 0;
     border-radius: 16px;
@@ -327,12 +325,6 @@ body.red-export-preview-open {
 .red-export-preview-share:disabled {
     opacity: 0.65;
     cursor: not-allowed;
-}
-
-.red-export-preview-share--secondary {
-    background: #eef2f6;
-    color: #111827;
-    box-shadow: none;
 }
 
 /* Tabla */
@@ -598,7 +590,6 @@ body.red-export-preview-open {
 
     .red-export-preview-footer {
         padding: 14px 18px calc(16px + env(safe-area-inset-bottom));
-        grid-template-columns: 1fr;
     }
 
     .red-export-preview-sheet-table th,
