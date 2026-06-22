@@ -4,8 +4,8 @@ import { Session } from "/PRI/JS/auth/session.js";
 import { getDeviceContext } from "/PRI/JS/ui/deviceContext.js";
 
 /* -------------------------------------------------------------------------- */
-/* RED HOME Â· MODALES                                                         */
-/* Flujo: abrir scanner -> frente -> reverso -> resumen -> OpenAI -> revisiÃ³n */
+/* RED HOME · MODALES                                                         */
+/* Flujo: abrir scanner -> frente -> reverso -> resumen -> OpenAI -> revisión */
 /*       -> guardar persona -> registrar INE frente/reverso                   */
 /* -------------------------------------------------------------------------- */
 
@@ -281,12 +281,12 @@ function setStep(step) {
 
     if (step === "front") {
         if (title) title.textContent = "Coloca el frente de la INE dentro del recuadro";
-        if (status) status.textContent = "Cuando la INE estÃ© bien alineada, presiona Capturar";
+        if (status) status.textContent = "Cuando la INE este bien alineada, presiona Capturar";
     }
 
     if (step === "back") {
         if (title) title.textContent = "Coloca el reverso de la INE dentro del recuadro";
-        if (status) status.textContent = "Cuando el reverso estÃ© bien alineado, presiona Capturar";
+        if (status) status.textContent = "Cuando el reverso este bien alineado, presiona Capturar";
     }
 }
 
@@ -433,7 +433,7 @@ async function handleUploadFile(side, file) {
     if (!file) return;
 
     if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
-        toast("Solo se permiten imÃ¡genes JPG, PNG o WEBP.", "warning", 5000);
+        toast("Solo se permiten imágenes JPG, PNG o WEBP.", "warning", 5000);
         return;
     }
 
@@ -475,7 +475,7 @@ async function handleUploadFile(side, file) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SESIÃ“N / HTTP                                                               */
+/* SESION / HTTP                                                               */
 /* -------------------------------------------------------------------------- */
 
 function readCookiePayload() {
@@ -525,8 +525,8 @@ function readSession() {
     State.rol = normalized.rol;
     State.token = normalized.token;
 
-    log("SesiÃ³n detectada en modales:", State.session);
-    log("SesiÃ³n normalizada en modales:", normalized);
+    log("Sesión detectada en modales:", State.session);
+    log("Sesión normalizada en modales:", normalized);
 
     return normalized;
 }
@@ -566,7 +566,7 @@ async function postJSON(url, body = {}) {
         data = raw ? JSON.parse(raw) : null;
     } catch {
         console.error(TAG, "Respuesta no JSON:", raw);
-        throw new Error("El endpoint respondiÃ³ algo que no es JSON.");
+        throw new Error("El endpoint respondio algo que no es JSON.");
     }
 
     log("POST:", url, "status:", status, "body:", previewPayload(body), "response:", data);
@@ -624,7 +624,7 @@ async function loadTerritoriosCatalog() {
                 return ac - bc;
             });
 
-        log("Secciones cargadas:", State.secciones);
+        log("Secciónes cargadas:", State.secciones);
 
         return State.secciones;
     } catch (err) {
@@ -635,7 +635,7 @@ async function loadTerritoriosCatalog() {
     }
 }
 
-function findSeccionByInput(value) {
+function findSecciónByInput(value) {
     const clean = String(value || "").trim();
 
     if (!clean) return null;
@@ -648,7 +648,7 @@ function findSeccionByInput(value) {
     }) || null;
 }
 
-function getSeccionCodeLabel(item) {
+function getSecciónCodeLabel(item) {
     return String(
         item?.nombre ||
         // item?.codigo || esto es para mostrar el codigo en vez del nombre
@@ -667,7 +667,7 @@ function syncComboSelection(list, value) {
     });
 }
 
-function paintReviewSecciones(selectedValue = "") {
+function paintReviewSecciónes(selectedValue = "") {
     const input = $("#ine-review-seccion");
     const text = $(SEL.reviewSeccionText);
     const list = $(SEL.reviewSeccionList);
@@ -675,12 +675,12 @@ function paintReviewSecciones(selectedValue = "") {
     if (!input || !text || !list) return;
 
     const cleanSelected = String(selectedValue || "").trim();
-    const selectedItem = findSeccionByInput(cleanSelected);
+    const selectedItem = findSecciónByInput(cleanSelected);
 
     input.value = selectedItem ? String(selectedItem.territorio_id || "") : "";
     text.textContent = selectedItem
-        ? getSeccionCodeLabel(selectedItem)
-        : cleanSelected || "Selecciona una secciÃ³n";
+        ? getSecciónCodeLabel(selectedItem)
+        : cleanSelected || "Selecciona una seccion";
     list.innerHTML = "";
 
     State.secciones.forEach((item) => {
@@ -690,7 +690,7 @@ function paintReviewSecciones(selectedValue = "") {
         option.role = "option";
 
         const value = String(item.territorio_id || "");
-        const label = getSeccionCodeLabel(item);
+        const label = getSecciónCodeLabel(item);
 
         option.dataset.value = value;
         option.dataset.label = label;
@@ -701,31 +701,31 @@ function paintReviewSecciones(selectedValue = "") {
         option.setAttribute("aria-selected", isSelected ? "true" : "false");
 
         option.addEventListener("click", () => {
-            selectReviewSeccion(value, label);
-            closeReviewSeccionList();
+            selectReviewSección(value, label);
+            closeReviewSecciónList();
         });
 
         list.appendChild(option);
     });
 }
 
-async function syncReviewSeccionField(selectedValue = "") {
+async function syncReviewSecciónField(selectedValue = "") {
     await loadTerritoriosCatalog();
-    paintReviewSecciones(selectedValue);
+    paintReviewSecciónes(selectedValue);
 }
 
-function selectReviewSeccion(value, label) {
+function selectReviewSección(value, label) {
     const input = $("#ine-review-seccion");
     const text = $(SEL.reviewSeccionText);
     const list = $(SEL.reviewSeccionList);
 
     if (input) input.value = String(value || "").trim();
-    if (text) text.textContent = label || "Selecciona una secciÃ³n";
+    if (text) text.textContent = label || "Selecciona una seccion";
 
     syncComboSelection(list, value);
 }
 
-function openReviewSeccionList() {
+function openReviewSecciónList() {
     const toggle = $(SEL.reviewSeccionToggle);
     const list = $(SEL.reviewSeccionList);
 
@@ -735,7 +735,7 @@ function openReviewSeccionList() {
     toggle.setAttribute("aria-expanded", "true");
 }
 
-function closeReviewSeccionList() {
+function closeReviewSecciónList() {
     const toggle = $(SEL.reviewSeccionToggle);
     const list = $(SEL.reviewSeccionList);
 
@@ -745,18 +745,18 @@ function closeReviewSeccionList() {
     toggle.setAttribute("aria-expanded", "false");
 }
 
-function toggleReviewSeccionList() {
+function toggleReviewSecciónList() {
     const list = $(SEL.reviewSeccionList);
     if (!list) return;
 
     if (list.hidden) {
-        openReviewSeccionList();
+        openReviewSecciónList();
     } else {
-        closeReviewSeccionList();
+        closeReviewSecciónList();
     }
 }
 
-function paintResidenceSeccionesLegacy(selectedValue = "") {
+function paintResidenceSecciónesLegacy(selectedValue = "") {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
@@ -766,7 +766,7 @@ function paintResidenceSeccionesLegacy(selectedValue = "") {
     const cleanSelected = String(selectedValue || "").trim();
 
     input.value = "";
-    text.textContent = "Selecciona una secciÃ³n";
+    text.textContent = "Selecciona una seccion";
     list.innerHTML = "";
 
     State.secciones.forEach((item) => {
@@ -776,7 +776,7 @@ function paintResidenceSeccionesLegacy(selectedValue = "") {
         option.role = "option";
 
         const value = String(item.territorio_id || "");
-        const label = `${item.codigo || "S/C"} - ${item.nombre || "SecciÃ³n"}`;
+        const label = `${item.codigo || "S/C"} - ${item.nombre || "Sección"}`;
 
         option.dataset.value = value;
         option.dataset.label = label;
@@ -798,21 +798,21 @@ function paintResidenceSeccionesLegacy(selectedValue = "") {
         }
 
         option.addEventListener("click", () => {
-            selectResidenceSeccion(value, label);
-            closeResidenceSeccionList();
+            selectResidenceSección(value, label);
+            closeResidenceSecciónList();
         });
 
         list.appendChild(option);
     });
 }
 
-function selectResidenceSeccionLegacy(value, label) {
+function selectResidenceSecciónLegacy(value, label) {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
 
     if (input) input.value = value || "";
-    if (text) text.textContent = label || "Selecciona una secciÃ³n";
+    if (text) text.textContent = label || "Selecciona una seccion";
 
     if (list) {
         list.querySelectorAll(".red-residence-combo-option").forEach((btn) => {
@@ -823,7 +823,7 @@ function selectResidenceSeccionLegacy(value, label) {
     }
 }
 
-function paintResidenceSecciones(selectedValue = "") {
+function paintResidenceSecciónes(selectedValue = "") {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
@@ -833,7 +833,7 @@ function paintResidenceSecciones(selectedValue = "") {
     const cleanSelected = String(selectedValue || "").trim();
 
     input.value = "";
-    text.textContent = "Selecciona una secciÃ³n";
+    text.textContent = "Selecciona una seccion";
     list.innerHTML = "";
 
     State.secciones.forEach((item) => {
@@ -843,7 +843,7 @@ function paintResidenceSecciones(selectedValue = "") {
         option.role = "option";
 
         const value = String(item.territorio_id || "");
-        const label = getSeccionCodeLabel(item);
+        const label = getSecciónCodeLabel(item);
 
         option.dataset.value = value;
         option.dataset.label = label;
@@ -865,26 +865,26 @@ function paintResidenceSecciones(selectedValue = "") {
         }
 
         option.addEventListener("click", () => {
-            selectResidenceSeccion(value, label);
-            closeResidenceSeccionList();
+            selectResidenceSección(value, label);
+            closeResidenceSecciónList();
         });
 
         list.appendChild(option);
     });
 }
 
-function selectResidenceSeccion(value, label) {
+function selectResidenceSección(value, label) {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
 
     if (input) input.value = value || "";
-    if (text) text.textContent = label || "Selecciona una secciÃ³n";
+    if (text) text.textContent = label || "Selecciona una seccion";
 
     syncComboSelection(list, value);
 }
 
-function openResidenceSeccionList() {
+function openResidenceSecciónList() {
     const toggle = $(SEL.residenceSeccionToggle);
     const list = $(SEL.residenceSeccionList);
 
@@ -894,7 +894,7 @@ function openResidenceSeccionList() {
     toggle.setAttribute("aria-expanded", "true");
 }
 
-function closeResidenceSeccionList() {
+function closeResidenceSecciónList() {
     const toggle = $(SEL.residenceSeccionToggle);
     const list = $(SEL.residenceSeccionList);
 
@@ -904,14 +904,14 @@ function closeResidenceSeccionList() {
     toggle.setAttribute("aria-expanded", "false");
 }
 
-function toggleResidenceSeccionList() {
+function toggleResidenceSecciónList() {
     const list = $(SEL.residenceSeccionList);
     if (!list) return;
 
     if (list.hidden) {
-        openResidenceSeccionList();
+        openResidenceSecciónList();
     } else {
-        closeResidenceSeccionList();
+        closeResidenceSecciónList();
     }
 }
 
@@ -937,13 +937,13 @@ function resetResidenceModal() {
     if (form) form.reset();
 
     if (seccion) seccion.value = "";
-    if (seccionText) seccionText.textContent = "Selecciona una secciÃ³n";
+    if (seccionText) seccionText.textContent = "Selecciona una seccion";
     if (seccionToggle) {
         seccionToggle.disabled = true;
         seccionToggle.setAttribute("aria-expanded", "false");
     }
 
-    closeResidenceSeccionList();
+    closeResidenceSecciónList();
 
     [domicilio, telefono].forEach((field) => {
         if (field) field.disabled = true;
@@ -977,11 +977,11 @@ async function openResidenceModal(pendingPayload, context = "save") {
 
     await loadTerritoriosCatalog();
 
-    const currentSeccion = getFieldValue("#ine-review-seccion");
+    const currentSección = getFieldValue("#ine-review-seccion");
     const currentDomicilio = getFieldValue("#ine-review-domicilio");
     const currentTelefono = getFieldValue("#ine-review-telefono");
 
-    paintResidenceSecciones(currentSeccion);
+    paintResidenceSecciónes(currentSección);
 
     setFieldValue(SEL.residenceDomicilio, currentDomicilio);
     setFieldValue(SEL.residenceTelefono, currentTelefono);
@@ -1112,7 +1112,7 @@ async function hydrateDuplicateAuditFields(existingPersona) {
         "#ine-review-updated-by",
         formatAuditUserLabel(
             existingPersona?.updated_by,
-            "Este registro aÃºn no ha sido editado"
+            "Este registro aún no ha sido editado"
         )
     );
 
@@ -1212,7 +1212,7 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
     const originalText = btn?.textContent || "Actualizar datos";
 
     if (!duplicateData?.existingPersona?.persona_id) {
-        toast("No se encontrÃ³ la persona existente para actualizar.", "error", 7000);
+        toast("No se encontró la persona existente para actualizar.", "error", 7000);
         return;
     }
 
@@ -1227,7 +1227,7 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
         console.log("[RED duplicate updated]", saved);
 
         if (saved.erroresArchivo.length) {
-            toast("Datos actualizados, pero una o mÃ¡s fotos no pudieron registrarse.", "warning", 7000);
+            toast("Datos actualizados, pero una o mas fotos no pudieron registrarse.", "warning", 7000);
         } else {
             toast("Datos y fotos actualizados correctamente.", "exito", 6000);
         }
@@ -1258,7 +1258,7 @@ async function handleDuplicateUpdateRequest(duplicateData, btn = null) {
     if (!canCurrentUserUpdateDuplicate(existingPersona)) {
         closeDuplicateModal({ closeReview: true, warnLocked: true });
         toast(
-            "Solo el usuario que capturÃ³ originalmente este registro puede actualizarlo.",
+            "Solo el usuario que capturo originalmente este registro puede actualizarlo.",
             "warning",
             7000
         );
@@ -1404,7 +1404,7 @@ function closeDuplicateModal({ closeReview = false, warnLocked = false } = {}) {
 
     if (shouldWarnLockedClose) {
         toast(
-            "Solo el usuario que capturÃ³ puede actualizar esta persona.",
+            "Solo el usuario que capturo puede actualizar esta persona.",
             "warning",
             7000
         );
@@ -1451,7 +1451,7 @@ function setValidationModalOpen(isOpen) {
 
 function openValidationModal({
     title = "No pudimos validar los datos",
-    message = "Verifica la captura e intÃ©ntalo nuevamente.",
+    message = "Verifica la captura e intentalo nuevamente.",
 } = {}) {
     const modal = ensureValidationModal();
     if (!modal) return;
@@ -1531,19 +1531,19 @@ function escapeHTMLSafe(value) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* CÃMARA                                                                      */
+/* CAMARA                                                                      */
 /* -------------------------------------------------------------------------- */
 
 async function startCamera() {
     const video = $(SEL.video);
 
     if (!video) {
-        warn("No se encontrÃ³ el video del modal.");
+        warn("No se encontró el video del modal.");
         return;
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-        showCameraError("Tu navegador no permite usar la cÃ¡mara.");
+        showCameraError("Tu navegador no permite usar la cámara.");
         return;
     }
 
@@ -1570,19 +1570,19 @@ async function startCamera() {
         try {
             await video.play();
         } catch (err) {
-            warn("video.play() fallÃ³, pero el stream ya fue asignado:", err);
+            warn("video.play() falló, pero el stream ya fue asignado:", err);
         }
 
         prepareCaptureStep(State.step || "front");
 
-        log("CÃ¡mara iniciada correctamente.");
+        log("Camara iniciada correctamente.");
     } catch (err) {
-        warn("No se pudo abrir la cÃ¡mara:", err);
+        warn("No se pudo abrir la cámara:", err);
 
         State.stream = null;
         video.srcObject = null;
 
-        showCameraError("No se pudo abrir la cÃ¡mara. Revisa los permisos del navegador.");
+        showCameraError("No se pudo abrir la cámara. Revisa los permisos del navegador.");
     }
 }
 
@@ -1595,7 +1595,7 @@ function stopCamera() {
     const video = $(SEL.video);
     if (video) video.srcObject = null;
 
-    log("CÃ¡mara detenida.");
+    log("Camara detenida.");
 }
 
 function showCameraError(message) {
@@ -1632,7 +1632,7 @@ function getVideoCropFromGuide(video, guideBox, paddingRatio = 0.08) {
     const videoHeight = video.videoHeight;
 
     if (!videoWidth || !videoHeight) {
-        throw new Error("El video aÃºn no tiene dimensiones vÃ¡lidas.");
+        throw new Error("El video aún no tiene dimensiones válidas.");
     }
 
     const scale = Math.max(
@@ -1680,15 +1680,15 @@ async function captureGuideImage() {
     const guideBox = $(SEL.guideBox);
 
     if (!video) {
-        throw new Error("No se encontrÃ³ el video.");
+        throw new Error("No se encontró el video.");
     }
 
     if (!guideBox) {
-        throw new Error("No se encontrÃ³ el recuadro guÃ­a.");
+        throw new Error("No se encontró el recuadro guía.");
     }
 
     if (!video.videoWidth || !video.videoHeight) {
-        throw new Error("La cÃ¡mara aÃºn no estÃ¡ lista para capturar.");
+        throw new Error("La cámara aún no está lista para capturar.");
     }
 
     const crop = getVideoCropFromGuide(video, guideBox, 0.08);
@@ -1744,7 +1744,7 @@ async function compressCanvasCapture(canvas, options = {}) {
         return normalizeCaptureObject(result);
     }
 
-    warn("window.PRIMedia no estÃ¡ disponible. Se usarÃ¡ canvas.toDataURL sin compresiÃ³n avanzada.");
+    warn("window.PRIMedia no esta disponible. Se usará canvas.toDataURL sin compresión avanzada.");
 
     const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
     const sizeBytes = dataUrlSizeBytes(dataUrl);
@@ -1860,7 +1860,7 @@ function acceptCapture(imageData, side) {
     if (status) {
         status.innerHTML =
             side === "front"
-                ? "<strong>Frente capturado.</strong><br>ContinÃºa con el reverso de la INE."
+                ? "<strong>Frente capturado.</strong><br>Continua con el reverso de la INE."
                 : "<strong>Reverso capturado.</strong><br>Revisa las capturas antes de leer los datos.";
     }
 
@@ -2101,7 +2101,7 @@ async function extractIdentificationData({
         images_count: imagesCount,
     };
 
-    console.group("[RED Home Modals] Enviando extracciÃ³n OpenAI");
+    console.group("[RED Home Modals] Enviando extraccion OpenAI");
     console.log("Endpoint:", ENDPOINTS.extractOpenAI);
     console.log("Image size MB:", payload.image_size_mb);
     console.log("Images count:", payload.images_count);
@@ -2123,7 +2123,7 @@ async function extractIdentificationData({
 
         rawResponse = await response.text();
     } catch (err) {
-        throw new Error("Error de conexiÃ³n con el endpoint de OpenAI: " + err.message);
+        throw new Error("Error de conexion con el endpoint de OpenAI: " + err.message);
     }
 
     console.group("[RED Home Modals] Respuesta OpenAI");
@@ -2139,7 +2139,7 @@ async function extractIdentificationData({
         data = JSON.parse(rawResponse);
     } catch {
         console.error("[RED Home Modals] Respuesta no JSON:", rawResponse);
-        throw new Error("El endpoint de OpenAI respondiÃ³ algo que no es JSON.");
+        throw new Error("El endpoint de OpenAI respondio algo que no es JSON.");
     }
 
     if (!response.ok || !data.ok) {
@@ -2199,9 +2199,9 @@ async function processOpenAIData() {
             },
         };
 
-        log("ExtracciÃ³n OpenAI completada:", payload);
+        log("Extraccion OpenAI completada:", payload);
 
-        toast("Datos extraÃ­dos correctamente.", "exito", 4500);
+        toast("Datos extraídos correctamente.", "exito", 4500);
 
         hideCaptureModalWithoutReset();
         await openReviewModal(payload);
@@ -2209,7 +2209,7 @@ async function processOpenAIData() {
         console.error("[RED Home Modals] Error OpenAI:", err);
 
         toast(
-            err?.message || "No se pudo procesar la identificaciÃ³n.",
+            err?.message || "No se pudo procesar la identificación.",
             "error",
             9000
         );
@@ -2224,7 +2224,7 @@ async function processOpenAIData() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* NORMALIZACIÃ“N / MAPEO                                                       */
+/* NORMALIZACION / MAPEO                                                       */
 /* -------------------------------------------------------------------------- */
 
 function normalizeValue(value, fallback = "") {
@@ -2277,7 +2277,7 @@ function normalizeYear(value) {
     return match ? match[0] : "";
 }
 
-function normalizeEmision(value) {
+function normalizeEmisión(value) {
     const clean = onlyDigits(value);
 
     if (!clean) return "";
@@ -2487,7 +2487,7 @@ function buildPersonaFromFields(fields) {
         sexo: normalizeSex(findExtractedValue(fields, [
             "sexo",
             "genero",
-            "gÃ©nero",
+            "genero",
             "sex",
             "gender",
         ])),
@@ -2510,7 +2510,7 @@ function buildPersonaFromFields(fields) {
             "idmex",
             "id_mex",
             "id_mexico",
-            "idmÃ©x",
+            "idmex",
         ])).replace(/[^A-Z0-9]/g, ""),
 
         ocr: cleanUpper(findExtractedValue(fields, [
@@ -2528,24 +2528,24 @@ function buildPersonaFromFields(fields) {
         seccion_id: onlyDigits(findExtractedValue(fields, [
             "seccion_id",
             "seccion",
-            "secciÃ³n",
+            "seccion",
             "seccion_electoral",
-            "secciÃ³n_electoral",
+            "seccion_electoral",
         ])),
 
         anio_registro: normalizeYear(findExtractedValue(fields, [
             "anio_registro",
-            "aÃ±o_registro",
+            "anio_registro",
             "ano_registro",
-            "aÃ±o_de_registro",
+            "anio_de_registro",
             "anio_de_registro",
         ])),
 
-        emision: normalizeEmision(findExtractedValue(fields, [
+        emision: normalizeEmisión(findExtractedValue(fields, [
             "emision",
-            "emisiÃ³n",
+            "emision",
             "numero_emision",
-            "nÃºmero_emisiÃ³n",
+            "numero_emision",
             "num_emision",
             "emission",
         ])),
@@ -2567,13 +2567,13 @@ function buildPersonaFromFields(fields) {
             "domicilio_texto",
             "domicilio",
             "direccion",
-            "direcciÃ³n",
+            "direccion",
             "address",
         ])),
 
         telefono: normalizeValue(findExtractedValue(fields, [
             "telefono",
-            "telÃ©fono",
+            "telefono",
             "phone",
         ])),
 
@@ -2585,8 +2585,8 @@ function buildPersonaFromFields(fields) {
         email: normalizeValue(findExtractedValue(fields, [
             "email",
             "correo",
-            "correo_electronico",
-            "correo_electrÃ³nico",
+            "correo_electrónico",
+            "correo_electrónico",
         ])),
 
         observaciones: "",
@@ -2594,7 +2594,7 @@ function buildPersonaFromFields(fields) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* MODAL REVISIÃ“N                                                              */
+/* MODAL REVISION                                                              */
 /* -------------------------------------------------------------------------- */
 
 function fillReviewForm(persona) {
@@ -2636,9 +2636,9 @@ function setReviewCreateAdminbar() {
 
     /*
       Alta nueva desde INE:
-      - SÃ­ mostramos adminbar para que aparezca Afiliado.
+      - Si mostramos adminbar para que aparezca Afiliado.
       - Ocultamos Estado.
-      - No mostramos botÃ³n Guardar de status.
+      - No mostramos boton Guardar de status.
       - Afiliado inicia apagado: default SIMPATIZANTE.
     */
 
@@ -2695,10 +2695,10 @@ function resetReviewModalForCapture() {
         }
     });
 
-    closeReviewSeccionList();
+    closeReviewSecciónList();
 
     if (seccionText) {
-        seccionText.textContent = "Selecciona una secciÃ³n";
+        seccionText.textContent = "Selecciona una seccion";
     }
 
     const saveBtn = $("#ine-modal-affiliate");
@@ -2720,13 +2720,13 @@ function resetReviewModalForCapture() {
     }
     if (cancelBtn) cancelBtn.textContent = "Cancelar";
 
-    if (kicker) kicker.textContent = "Datos extraÃ­dos";
-    if (title) title.textContent = "RevisiÃ³n de informaciÃ³n INE";
+    if (kicker) kicker.textContent = "Datos extraídos";
+    if (title) title.textContent = "Revisión de información INE";
 
     if (warning) {
         warning.innerHTML = `
-      <strong>Importante: La informaciÃ³n fue extraÃ­da automÃ¡ticamente.</strong>
-      Valide esta informaciÃ³n comparando contra el documento INE,
+      <strong>Importante: La información fue extraída automáticamente.</strong>
+      Valide esta información comparando contra el documento INE,
       realice los ajustes que sean necesarios y guarde el registro.
     `;
     }
@@ -2758,7 +2758,7 @@ async function openReviewModal(payload) {
 
     resetReviewModalForCapture();
     fillReviewForm(payload.persona || {});
-    await syncReviewSeccionField(payload?.persona?.seccion_id || "");
+    await syncReviewSecciónField(payload?.persona?.seccion_id || "");
     modal.__inePayload = payload;
     paintReviewImages(payload);
 
@@ -2769,7 +2769,7 @@ async function openReviewModal(payload) {
 
         if (!isValidCurp(reviewPayload.curp)) {
             openValidationModal({
-                title: "CURP/CLAVE no vÃ¡lidas",
+                title: "CURP/CLAVE no válidas",
                 message:
                     "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
             });
@@ -2778,7 +2778,7 @@ async function openReviewModal(payload) {
 
         if (!isValidClaveElector(reviewPayload.clave_elector)) {
             openValidationModal({
-                title: "CURP/CLAVE no vÃ¡lidas",
+                title: "CURP/CLAVE no válidas",
                 message:
                     "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
             });
@@ -2801,11 +2801,11 @@ async function openReviewModal(payload) {
         }
     }, 0);
 
-    log("Modal de revisiÃ³n abierto:", payload);
+    log("Modal de revisión abierto:", payload);
 }
 
 function closeReviewModal() {
-    closeReviewSeccionList();
+    closeReviewSecciónList();
     setReviewModalOpen(false);
 }
 
@@ -2851,7 +2851,7 @@ async function sha256Hex(value) {
     if (!clean) return null;
 
     if (!window.crypto?.subtle) {
-        warn("crypto.subtle no estÃ¡ disponible. No se pudo generar hash.");
+        warn("crypto.subtle no esta disponible. No se pudo generar hash.");
         return null;
     }
 
@@ -2931,7 +2931,7 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
     const currentSizeKB = normalized?.sizeKB || Math.round(dataUrlSizeBytes(dataUrl) / 1024);
 
     if (currentSizeKB <= 260) {
-        log("Captura ya estÃ¡ ligera para archivo:", {
+        log("Captura ya esta ligera para archivo:", {
             side,
             sizeKB: currentSizeKB,
             mime: normalized.mime,
@@ -2942,7 +2942,7 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
     }
 
     if (!window.PRIMedia?.compressImageElementToDataUrl) {
-        warn("PRIMedia no estÃ¡ disponible para recomprimir archivo. Se usarÃ¡ captura original.", {
+        warn("PRIMedia no esta disponible para recomprimir archivo. Se usará captura original.", {
             side,
             sizeKB: currentSizeKB,
         });
@@ -2981,20 +2981,20 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
         });
 
         toast(
-            `Foto ${side === "front" ? "frente" : "reverso"} comprimida: ${currentSizeKB}KB â†’ ${result.sizeKB}KB`,
+            `Foto ${side === "front" ? "frente" : "reverso"} comprimida: ${currentSizeKB}KB -> ${result.sizeKB}KB`,
             "exito",
             4500
         );
 
         return result;
     } catch (err) {
-        warn("No se pudo recomprimir captura para archivo. Se usarÃ¡ original.", {
+        warn("No se pudo recomprimir captura para archivo. Se usará original.", {
             side,
             error: err,
         });
 
         toast(
-            `No se pudo comprimir la foto ${side === "front" ? "frente" : "reverso"}. Se enviarÃ¡ original.`,
+            `No se pudo comprimir la foto ${side === "front" ? "frente" : "reverso"}. Se enviara original.`,
             "warning",
             6000
         );
@@ -3051,18 +3051,18 @@ function validateReviewPayload(payload) {
 
     if (!isValidCurp(payload.curp)) {
         openValidationModal({
-            title: "CURP/CLAVE no vÃ¡lidas",
+            title: "CURP/CLAVE no válidas",
             message:
-                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la informaciÃ³n o volver a capturar la INE.",
+                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
         });
         return false;
     }
 
     if (!isValidClaveElector(payload.clave_elector)) {
         openValidationModal({
-            title: "CURP/CLAVE no vÃ¡lidas",
+            title: "CURP/CLAVE no válidas",
             message:
-                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la informaciÃ³n o volver a capturar la INE.",
+                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
         });
         return false;
     }
@@ -3184,7 +3184,7 @@ async function savePersonaAndFiles(payload) {
     const personaId = Number(persona?.persona_id || 0);
 
     if (!personaId) {
-        throw new Error("La persona fue creada, pero no se recibiÃ³ persona_id.");
+        throw new Error("La persona fue creada, pero no se recibio persona_id.");
     }
 
     const fileResult = await saveFilesForPersona({
@@ -3213,22 +3213,22 @@ async function savePersonaAndFiles(payload) {
 async function shouldOpenResidenceModalBeforeSave(payload) {
     await loadTerritoriosCatalog();
 
-    const currentSeccion = String(payload?.seccion_id || "").trim();
+    const currentSección = String(payload?.seccion_id || "").trim();
 
-    if (!currentSeccion) {
+    if (!currentSección) {
         return true;
     }
 
-    const found = findSeccionByInput(currentSeccion);
+    const found = findSecciónByInput(currentSección);
 
     if (!found) {
         return true;
     }
 
-    // Si el usuario capturÃ³ el cÃ³digo de secciÃ³n, lo convertimos a territorio_id.
+    // Si el usuario capturo el codigo de seccion, lo convertimos a territorio_id.
     // Esto evita enviar "1593" cuando el backend necesita "78".
-    if (String(found.territorio_id || "") !== currentSeccion) {
-        selectReviewSeccion(found.territorio_id, getSeccionCodeLabel(found));
+    if (String(found.territorio_id || "") !== currentSección) {
+        selectReviewSección(found.territorio_id, getSecciónCodeLabel(found));
         payload.seccion_id = String(found.territorio_id);
     }
 
@@ -3244,7 +3244,7 @@ async function updateDuplicatePersonaAndFiles(duplicateData) {
     const personaId = Number(existingPersona?.persona_id || 0);
 
     if (!personaId) {
-        throw new Error("No se encontrÃ³ el ID de la persona existente.");
+        throw new Error("No se encontró el ID de la persona existente.");
     }
 
     const payload = collectReviewPayload();
@@ -3332,7 +3332,7 @@ async function handleReviewSubmit(event) {
         log("Persona guardada en backend:", saved);
 
         if (saved.erroresArchivo.length) {
-            toast("Persona guardada, pero una o mÃ¡s fotos no pudieron registrarse.", "warning", 7000);
+            toast("Persona guardada, pero una o mas fotos no pudieron registrarse.", "warning", 7000);
         } else {
             toast("Persona y fotos de INE guardadas correctamente.", "exito", 5000);
         }
@@ -3383,7 +3383,7 @@ function bindResidenceModalEvents() {
         closeDuplicateModal();
 
         toast(
-            "Solo se pueden dar de alta ciudadanos de IxtlahuacÃ¡n de los Membrillos.",
+            "Solo se pueden dar de alta ciudadanos de Ixtlahuacan de los Membrillos.",
             "warning",
             6000
         );
@@ -3391,12 +3391,12 @@ function bindResidenceModalEvents() {
 
     $(SEL.residenceSeccionToggle)?.addEventListener("click", (event) => {
         event.stopPropagation();
-        toggleResidenceSeccionList();
+        toggleResidenceSecciónList();
     });
 
     document.addEventListener("click", (event) => {
         const combo = event.target.closest(".red-residence-field--combo");
-        if (!combo) closeResidenceSeccionList();
+        if (!combo) closeResidenceSecciónList();
     });
 
     $(SEL.residenceForm)?.addEventListener("submit", async (event) => {
@@ -3407,7 +3407,7 @@ function bindResidenceModalEvents() {
         const telefono = getFieldValue(SEL.residenceTelefono);
 
         if (!seccion) {
-            toast("Selecciona una secciÃ³n.", "warning", 4500);
+            toast("Selecciona una seccion.", "warning", 4500);
             return;
         }
 
@@ -3417,14 +3417,14 @@ function bindResidenceModalEvents() {
         }
 
         if (!telefono) {
-            toast("Captura el mÃ©todo de contacto.", "warning", 4500);
+            toast("Captura el método de contacto.", "warning", 4500);
             return;
         }
 
-        const foundSeccion = findSeccionByInput(seccion);
-        selectReviewSeccion(
+        const foundSección = findSecciónByInput(seccion);
+        selectReviewSección(
             seccion,
-            foundSeccion ? getSeccionCodeLabel(foundSeccion) : seccion
+            foundSección ? getSecciónCodeLabel(foundSección) : seccion
         );
         setFieldValue("#ine-review-domicilio", domicilio);
         setFieldValue("#ine-review-telefono", telefono);
@@ -3558,12 +3558,12 @@ function setAffiliateStep(step) {
 
     if (step === "front") {
         if (title) title.textContent = "Coloca la primera imagen dentro del recuadro";
-        if (status) status.textContent = "Cuando la imagen estx bien alineada, presiona Capturar";
+        if (status) status.textContent = "Cuando la imagen este bien alineada, presiona Capturar";
     }
 
     if (step === "back") {
         if (title) title.textContent = "Coloca la segunda imagen dentro del recuadro";
-        if (status) status.textContent = "Cuando la imagen estx bien alineada, presiona Capturar";
+        if (status) status.textContent = "Cuando la imagen este bien alineada, presiona Capturar";
     }
 }
 
@@ -3600,12 +3600,12 @@ async function startAffiliateCamera() {
     const video = $(SEL.affiliateVideo);
 
     if (!video) {
-        warn("No se encontro el video del modal de afiliado.");
+        warn("No se encontró el video del modal de afiliado.");
         return;
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-        toast("Tu navegador no permite usar la camara.", "error", 6000);
+        toast("Tu navegador no permite usar la cámara.", "error", 6000);
         return;
     }
 
@@ -3632,15 +3632,15 @@ async function startAffiliateCamera() {
         try {
             await video.play();
         } catch (err) {
-            warn("affiliate video.play() fallo:", err);
+            warn("affiliate video.play() falló:", err);
         }
 
         prepareAffiliateCaptureStep(State.affiliateMedia.step || "front");
     } catch (err) {
-        warn("No se pudo abrir la camara para afiliado:", err);
+        warn("No se pudo abrir la cámara para afiliado:", err);
         State.affiliateMedia.stream = null;
         video.srcObject = null;
-        toast("No se pudo abrir la camara. Revisa los permisos del navegador.", "error", 6000);
+        toast("No se pudo abrir la cámara. Revisa los permisos del navegador.", "error", 6000);
     }
 }
 
@@ -3655,7 +3655,7 @@ async function handleAffiliateUploadFile(side, file) {
     if (!file) return;
 
     if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
-        toast("Solo se permiten imagenes JPG, PNG o WEBP.", "warning", 5000);
+        toast("Solo se permiten imágenes JPG, PNG o WEBP.", "warning", 5000);
         return;
     }
 
@@ -3788,7 +3788,7 @@ function closeAffiliateMediaModal({ revertToggle = true } = {}) {
 
 function completeAffiliateMediaDemo() {
     if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
-        toast("Necesitas capturar ambas imagenes antes de continuar.", "warning", 5000);
+        toast("Necesitas capturar ambas imágenes antes de continuar.", "warning", 5000);
         return;
     }
 
@@ -3796,7 +3796,7 @@ function completeAffiliateMediaDemo() {
     setAffiliateToggleValue(true);
     setAffiliateMediaModalOpen(false);
     stopAffiliateCamera();
-    toast("Demo de documentos de afiliacion lista. Axn no se envia a backend.", "exito", 5000);
+    toast("Demo de documentos de afiliación lista. Aún no se envía a backend.", "exito", 5000);
     resetAffiliateMediaState({ preserveToggle: false });
 }
 
@@ -3855,7 +3855,7 @@ function bindAffiliateMediaEvents() {
 
     $(SEL.affiliateBtnUploadContinue)?.addEventListener("click", () => {
         if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
-            toast("Carga ambas imagenes antes de continuar.", "warning", 5000);
+            toast("Carga ambas imágenes antes de continuar.", "warning", 5000);
             return;
         }
 
@@ -3881,12 +3881,12 @@ function bindReviewModalEvents() {
 
     $(SEL.reviewSeccionToggle)?.addEventListener("click", (event) => {
         event.stopPropagation();
-        toggleReviewSeccionList();
+        toggleReviewSecciónList();
     });
 
     document.addEventListener("click", (event) => {
         const combo = event.target.closest(".ine-review-field--combo");
-        if (!combo) closeReviewSeccionList();
+        if (!combo) closeReviewSecciónList();
     });
 
     $(SEL.btnReprocess)?.addEventListener("click", () => {
@@ -4064,6 +4064,7 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
 
 
 

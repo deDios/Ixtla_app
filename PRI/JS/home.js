@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 import { Session } from "/PRI/JS/auth/session.js";
 import { initExportXLSXHome } from "/PRI/JS/ui/exportXLSXHome.js";
@@ -106,7 +106,7 @@ async function loadCatEstatus() {
   return State.estatus;
 }
 
-function getCurrentParticipacion(persona = {}, fallbackRow = {}) {
+function getCurrentParticipación(persona = {}, fallbackRow = {}) {
   return (
     persona?.participacion?.actual ||
     persona?.participacion ||
@@ -116,7 +116,7 @@ function getCurrentParticipacion(persona = {}, fallbackRow = {}) {
 }
 
 function getCurrentStatusId(persona = {}, fallbackRow = {}) {
-  const participacion = getCurrentParticipacion(persona, fallbackRow);
+  const participacion = getCurrentParticipación(persona, fallbackRow);
 
   return Number(
     participacion?.estatus_id ||
@@ -128,7 +128,7 @@ function getCurrentStatusId(persona = {}, fallbackRow = {}) {
 }
 
 function isPersonaAfiliada(persona = {}, fallbackRow = {}) {
-  const participacion = getCurrentParticipacion(persona, fallbackRow);
+  const participacion = getCurrentParticipación(persona, fallbackRow);
 
   const tipo = String(
     persona?.participacion?.tipo_actual ||
@@ -221,12 +221,12 @@ async function updateReadonlyAffiliate(isAfiliado) {
   if (input) input.disabled = true;
 
   try {
-    const tipoParticipacion = isAfiliado ? "AFILIADO" : "SIMPATIZANTE";
+    const tipoParticipación = isAfiliado ? "AFILIADO" : "SIMPATIZANTE";
     const originalStatusId = Number(State.readonlyOriginalStatusId || 0);
 
     const payload = {
       persona_id: personaId,
-      tipo_participacion: tipoParticipacion,
+      tipo_participacion: tipoParticipación,
       updated_by: getUsuarioId() || null,
       usuario_responsable_id: getUsuarioId() || null,
       fuente_captura: "PORTAL",
@@ -335,7 +335,7 @@ async function saveReadonlyStatus() {
   }
 }
 
-function safeText(value, fallback = "—") {
+function safeText(value, fallback = "-") {
   const text = String(value ?? "").trim();
   return text || fallback;
 }
@@ -684,20 +684,20 @@ function mapRedHomeToRow(persona = {}) {
       .join(" ")
       .trim();
 
-  const seccion =
-    persona.territorio?.seccion?.codigo ||
-    persona.seccion_codigo ||
-    persona.territorio?.seccion?.nombre ||
-    persona.seccion_nombre ||
-    persona.seccion_id ||
-    "—";
+  const sección =
+    persona.territorio?.sección?.codigo ||
+    persona.sección_codigo ||
+    persona.territorio?.sección?.nombre ||
+    persona.sección_nombre ||
+    persona.sección_id ||
+    "-";
 
   const zona =
     persona.territorio?.zona?.codigo ||
     persona.territorio?.zona?.nombre ||
-    "—";
+    "-";
 
-  const tipo = normalizeTipoParticipacion(
+  const tipo = normalizeTipoParticipación(
     participacion.tipo_actual ||
     participacion.tipo_participacion ||
     persona.tipo_participacion ||
@@ -708,10 +708,10 @@ function mapRedHomeToRow(persona = {}) {
     id: persona.persona_id,
     participacion_id: participacion.participacion_id || persona.participacion_id || null,
     nombre: nombre || "Persona sin nombre",
-    domicilio: persona.domicilio_texto || "—",
-    seccion,
+    domicilio: persona.domicilio_texto || "-",
+    sección,
     zona,
-    telefono: persona.telefono || persona.whatsapp || "—",
+    telefono: persona.telefono || persona.whatsapp || "-",
     validez: isEstatusValido(estatusCodigo),
     estatus_codigo: estatusCodigo,
     estatus_nombre: estatusNombre,
@@ -721,7 +721,7 @@ function mapRedHomeToRow(persona = {}) {
   };
 }
 
-function normalizeTipoParticipacion(value) {
+function normalizeTipoParticipación(value) {
   const tipo = normalizeText(value).replaceAll(" ", "_").toUpperCase();
 
   if (tipo === "AFILIADO") return "afiliado";
@@ -735,7 +735,7 @@ function isEstatusValido(codigo) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* MÉTRICAS                                                                   */
+/* METRICAS                                                                   */
 /* -------------------------------------------------------------------------- */
 
 function setCounts(metrics = {}) {
@@ -797,7 +797,7 @@ function render() {
 
 function renderStatusIcon(item) {
   const validClass = item.validez ? "red-valid" : "red-valid is-missing";
-  const validText = item.validez ? "✓" : "—";
+  const validText = item.validez ? "✓" : "-";
   const title = item.estatus_nombre
     ? `Estatus: ${item.estatus_nombre}`
     : "Estatus: Sin estatus";
@@ -836,7 +836,7 @@ function renderTable() {
     aria-label="Abrir registro de ${escapeHTML(safeText(item.nombre))}">
     <td class="td-name">${escapeHTML(safeText(item.nombre))}</td>
     <td>${escapeHTML(safeText(item.domicilio))}</td>
-    <td>${escapeHTML(safeText(item.seccion))}</td>
+    <td>${escapeHTML(safeText(item.sección))}</td>
     <td class="td-phone">${escapeHTML(safeText(item.telefono))}</td>
     <td class="td-valid">
       ${renderStatusIcon(item)}
@@ -870,7 +870,7 @@ function renderMobileCards() {
 
       <div class="red-person-meta">
         <span><strong>Domicilio:</strong> ${escapeHTML(safeText(item.domicilio))}</span>
-        <span><strong>Sección:</strong> ${escapeHTML(safeText(item.seccion))}</span>
+        <span><strong>Sección:</strong> ${escapeHTML(safeText(item.sección))}</span>
         <span><strong>Teléfono:</strong> ${escapeHTML(safeText(item.telefono))}</span>
         <span><strong>Tipo:</strong> ${escapeHTML(formatTipo(item.tipo))}</span>
         <span><strong>Estatus:</strong> ${escapeHTML(safeText(item.estatus_nombre))}</span>
@@ -911,7 +911,7 @@ function renderPager() {
   const pages = buildPageList(State.page, maxPage);
 
   pager.innerHTML = `
-    <button type="button" data-page="${State.page - 1}" ${State.page <= 1 ? "disabled" : ""}>‹</button>
+    <button type="button" data-page="${State.page - 1}" ${State.page <= 1 ? "disabled" : ""}><</button>
 
     ${pages.map((page) => `
       <button
@@ -922,9 +922,9 @@ function renderPager() {
       </button>
     `).join("")}
 
-    <button type="button" data-page="${State.page + 1}" ${State.page >= maxPage ? "disabled" : ""}>›</button>
+    <button type="button" data-page="${State.page + 1}" ${State.page >= maxPage ? "disabled" : ""}>></button>
 
-    <span>Pág. ${State.page} de ${maxPage} · ${total.toLocaleString("es-MX")} registros</span>
+    <span>Pag. ${State.page} de ${maxPage} · ${total.toLocaleString("es-MX")} registros</span>
 
     <input id="red-page-jump" type="number" min="1" max="${maxPage}" aria-label="Ir a página">
     <button type="button" data-action="jump">Ir</button>
@@ -956,7 +956,7 @@ async function goToPage(page) {
 const TABLE_SORT_HEADERS = [
   { index: 0, key: "nombre" },
   { index: 1, key: "domicilio" },
-  { index: 2, key: "seccion" },
+  { index: 2, key: "sección" },
   { index: 3, key: "telefono" },
   { index: 4, key: "estatus" },
 ];
@@ -1431,20 +1431,20 @@ function shortHash(value) {
 }
 
 function paintReadonlySeccionField(persona = {}, fallbackRow = {}) {
-  const input = $("#ine-review-seccion");
-  const text = $("#ine-review-seccion-text");
+  const input = $("#ine-review-sección");
+  const text = $("#ine-review-sección-text");
 
-  const seccionId = String(persona?.seccion_id || "").trim();
-  const seccionCodigo = String(
-    persona?.territorio?.seccion?.nombre ||
-    // persona?.territorio?.seccion?.codigo || // para mostrar el codigo en vez del nombre
-    fallbackRow?.seccion ||
-    persona?.seccion_id ||
+  const secciónId = String(persona?.sección_id || "").trim();
+  const secciónCodigo = String(
+    persona?.territorio?.sección?.nombre ||
+    // persona?.territorio?.sección?.codigo || // para mostrar el codigo en vez del nombre
+    fallbackRow?.sección ||
+    persona?.sección_id ||
     ""
   ).trim();
 
-  if (input) input.value = seccionId;
-  if (text) text.textContent = seccionCodigo || "Sin sección";
+  if (input) input.value = secciónId;
+  if (text) text.textContent = secciónCodigo || "Sin sección";
 }
 
 function formatReadonlyAuditUser(value, fallback = "Sin dato") {
@@ -1518,7 +1518,7 @@ async function refreshReadonlyAuditUsers(persona = {}) {
 }
 
 function formatSeccionPersonaLegacy(persona = {}, fallbackRow = {}) {
-  const territorio = persona.territorio?.seccion || null;
+  const territorio = persona.territorio?.sección || null;
 
   if (territorio?.codigo && territorio?.nombre) {
     return `${territorio.codigo} · ${territorio.nombre}`;
@@ -1527,15 +1527,15 @@ function formatSeccionPersonaLegacy(persona = {}, fallbackRow = {}) {
   if (territorio?.codigo) return territorio.codigo;
   if (territorio?.nombre) return territorio.nombre;
 
-  return persona.seccion_id || fallbackRow.seccion || "";
+  return persona.sección_id || fallbackRow.sección || "";
 }
 
 function formatSeccionPersona(persona = {}, fallbackRow = {}) {
-  const territorio = persona.territorio?.seccion || null;
+  const territorio = persona.territorio?.sección || null;
 
   if (territorio?.codigo) return territorio.codigo;
 
-  return persona.seccion_id || fallbackRow.seccion || "";
+  return persona.sección_id || fallbackRow.sección || "";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1650,4 +1650,6 @@ document.addEventListener("DOMContentLoaded", init);
 
 // Permite que otros módulos restauren el modal de revisión si lo necesitan.
 window.redResetReviewModalToCaptureMode = resetReviewModalToCaptureMode;
+
+
 
