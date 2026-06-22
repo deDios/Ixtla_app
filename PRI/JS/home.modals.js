@@ -1,11 +1,11 @@
-"use strict";
+﻿"use strict";
 
 import { Session } from "/PRI/JS/auth/session.js";
 import { getDeviceContext } from "/PRI/JS/ui/deviceContext.js";
 
 /* -------------------------------------------------------------------------- */
-/* RED HOME · MODALES                                                         */
-/* Flujo: abrir scanner -> frente -> reverso -> resumen -> OpenAI -> revisión */
+/* RED HOME Â· MODALES                                                         */
+/* Flujo: abrir scanner -> frente -> reverso -> resumen -> OpenAI -> revisiÃ³n */
 /*       -> guardar persona -> registrar INE frente/reverso                   */
 /* -------------------------------------------------------------------------- */
 
@@ -81,6 +81,20 @@ const State = {
         front: null,
         back: null,
     },
+
+    affiliateMedia: {
+        stream: null,
+        step: "front",
+        captureState: "idle",
+        completed: false,
+        pendingInput: null,
+        previousChecked: false,
+        mode: "capture",
+        captures: {
+            front: null,
+            back: null,
+        },
+    },
 };
 
 const SEL = {
@@ -154,6 +168,28 @@ const SEL = {
     validationTitle: "#red-validation-title",
     validationMessage: "#red-validation-message",
     validationRecapture: "#red-validation-recapture",
+
+    affiliateModal: "#affiliate-media-modal",
+    affiliateClose: "[data-affiliate-media-close]",
+    affiliateVideo: "#affiliate-camera-video",
+    affiliateGuideBox: "#affiliate-camera-guide-box",
+    affiliateStepTitle: "#affiliate-camera-step-title",
+    affiliateStatus: "#affiliate-camera-status",
+    affiliateBtnCapture: "#affiliate-btn-capture",
+    affiliateBtnRetry: "#affiliate-btn-retry",
+    affiliateBtnNext: "#affiliate-btn-next",
+    affiliateBtnUseCamera: "#affiliate-btn-use-camera",
+    affiliateBtnUseUpload: "#affiliate-btn-use-upload",
+    affiliateUploadFront: "#affiliate-upload-front",
+    affiliateUploadBack: "#affiliate-upload-back",
+    affiliateUploadPreviewFront: "#affiliate-upload-preview-front",
+    affiliateUploadPreviewBack: "#affiliate-upload-preview-back",
+    affiliateBtnUploadBack: "#affiliate-btn-upload-back",
+    affiliateBtnUploadContinue: "#affiliate-btn-upload-continue",
+    affiliatePreviewFront: "#affiliate-preview-front",
+    affiliatePreviewBack: "#affiliate-preview-back",
+    affiliateBtnSummaryRetry: "#affiliate-btn-summary-retry",
+    affiliateBtnComplete: "#affiliate-btn-complete",
 };
 
 /* -------------------------------------------------------------------------- */
@@ -202,16 +238,18 @@ function syncBodyModalState() {
     const residenceModal = $(SEL.residenceModal);
     const duplicateModal = $(SEL.duplicateModal);
     const validationModal = $(SEL.validationModal);
+    const affiliateModal = $(SEL.affiliateModal);
 
     const captureOpen = Boolean(captureModal && !captureModal.hidden);
     const reviewOpen = Boolean(reviewModal && !reviewModal.hidden);
     const residenceOpen = Boolean(residenceModal && !residenceModal.hidden);
     const duplicateOpen = Boolean(duplicateModal && !duplicateModal.hidden);
     const validationOpen = Boolean(validationModal && !validationModal.hidden);
+    const affiliateOpen = Boolean(affiliateModal && !affiliateModal.hidden);
 
     document.body.classList.toggle(
         "ine-modal-open",
-        captureOpen || reviewOpen || residenceOpen || duplicateOpen || validationOpen
+        captureOpen || reviewOpen || residenceOpen || duplicateOpen || validationOpen || affiliateOpen
     );
 }
 
@@ -243,12 +281,12 @@ function setStep(step) {
 
     if (step === "front") {
         if (title) title.textContent = "Coloca el frente de la INE dentro del recuadro";
-        if (status) status.textContent = "Cuando la INE esté bien alineada, presiona Capturar";
+        if (status) status.textContent = "Cuando la INE estÃ© bien alineada, presiona Capturar";
     }
 
     if (step === "back") {
         if (title) title.textContent = "Coloca el reverso de la INE dentro del recuadro";
-        if (status) status.textContent = "Cuando el reverso esté bien alineado, presiona Capturar";
+        if (status) status.textContent = "Cuando el reverso estÃ© bien alineado, presiona Capturar";
     }
 }
 
@@ -395,7 +433,7 @@ async function handleUploadFile(side, file) {
     if (!file) return;
 
     if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
-        toast("Solo se permiten imágenes JPG, PNG o WEBP.", "warning", 5000);
+        toast("Solo se permiten imÃ¡genes JPG, PNG o WEBP.", "warning", 5000);
         return;
     }
 
@@ -437,7 +475,7 @@ async function handleUploadFile(side, file) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SESIÓN / HTTP                                                               */
+/* SESIÃ“N / HTTP                                                               */
 /* -------------------------------------------------------------------------- */
 
 function readCookiePayload() {
@@ -487,8 +525,8 @@ function readSession() {
     State.rol = normalized.rol;
     State.token = normalized.token;
 
-    log("Sesión detectada en modales:", State.session);
-    log("Sesión normalizada en modales:", normalized);
+    log("SesiÃ³n detectada en modales:", State.session);
+    log("SesiÃ³n normalizada en modales:", normalized);
 
     return normalized;
 }
@@ -528,7 +566,7 @@ async function postJSON(url, body = {}) {
         data = raw ? JSON.parse(raw) : null;
     } catch {
         console.error(TAG, "Respuesta no JSON:", raw);
-        throw new Error("El endpoint respondió algo que no es JSON.");
+        throw new Error("El endpoint respondiÃ³ algo que no es JSON.");
     }
 
     log("POST:", url, "status:", status, "body:", previewPayload(body), "response:", data);
@@ -642,7 +680,7 @@ function paintReviewSecciones(selectedValue = "") {
     input.value = selectedItem ? String(selectedItem.territorio_id || "") : "";
     text.textContent = selectedItem
         ? getSeccionCodeLabel(selectedItem)
-        : cleanSelected || "Selecciona una sección";
+        : cleanSelected || "Selecciona una secciÃ³n";
     list.innerHTML = "";
 
     State.secciones.forEach((item) => {
@@ -682,7 +720,7 @@ function selectReviewSeccion(value, label) {
     const list = $(SEL.reviewSeccionList);
 
     if (input) input.value = String(value || "").trim();
-    if (text) text.textContent = label || "Selecciona una sección";
+    if (text) text.textContent = label || "Selecciona una secciÃ³n";
 
     syncComboSelection(list, value);
 }
@@ -728,7 +766,7 @@ function paintResidenceSeccionesLegacy(selectedValue = "") {
     const cleanSelected = String(selectedValue || "").trim();
 
     input.value = "";
-    text.textContent = "Selecciona una sección";
+    text.textContent = "Selecciona una secciÃ³n";
     list.innerHTML = "";
 
     State.secciones.forEach((item) => {
@@ -738,7 +776,7 @@ function paintResidenceSeccionesLegacy(selectedValue = "") {
         option.role = "option";
 
         const value = String(item.territorio_id || "");
-        const label = `${item.codigo || "S/C"} - ${item.nombre || "Sección"}`;
+        const label = `${item.codigo || "S/C"} - ${item.nombre || "SecciÃ³n"}`;
 
         option.dataset.value = value;
         option.dataset.label = label;
@@ -774,7 +812,7 @@ function selectResidenceSeccionLegacy(value, label) {
     const list = $(SEL.residenceSeccionList);
 
     if (input) input.value = value || "";
-    if (text) text.textContent = label || "Selecciona una sección";
+    if (text) text.textContent = label || "Selecciona una secciÃ³n";
 
     if (list) {
         list.querySelectorAll(".red-residence-combo-option").forEach((btn) => {
@@ -795,7 +833,7 @@ function paintResidenceSecciones(selectedValue = "") {
     const cleanSelected = String(selectedValue || "").trim();
 
     input.value = "";
-    text.textContent = "Selecciona una sección";
+    text.textContent = "Selecciona una secciÃ³n";
     list.innerHTML = "";
 
     State.secciones.forEach((item) => {
@@ -841,7 +879,7 @@ function selectResidenceSeccion(value, label) {
     const list = $(SEL.residenceSeccionList);
 
     if (input) input.value = value || "";
-    if (text) text.textContent = label || "Selecciona una sección";
+    if (text) text.textContent = label || "Selecciona una secciÃ³n";
 
     syncComboSelection(list, value);
 }
@@ -899,7 +937,7 @@ function resetResidenceModal() {
     if (form) form.reset();
 
     if (seccion) seccion.value = "";
-    if (seccionText) seccionText.textContent = "Selecciona una sección";
+    if (seccionText) seccionText.textContent = "Selecciona una secciÃ³n";
     if (seccionToggle) {
         seccionToggle.disabled = true;
         seccionToggle.setAttribute("aria-expanded", "false");
@@ -1074,7 +1112,7 @@ async function hydrateDuplicateAuditFields(existingPersona) {
         "#ine-review-updated-by",
         formatAuditUserLabel(
             existingPersona?.updated_by,
-            "Este registro aún no ha sido editado"
+            "Este registro aÃºn no ha sido editado"
         )
     );
 
@@ -1174,7 +1212,7 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
     const originalText = btn?.textContent || "Actualizar datos";
 
     if (!duplicateData?.existingPersona?.persona_id) {
-        toast("No se encontró la persona existente para actualizar.", "error", 7000);
+        toast("No se encontrÃ³ la persona existente para actualizar.", "error", 7000);
         return;
     }
 
@@ -1189,7 +1227,7 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
         console.log("[RED duplicate updated]", saved);
 
         if (saved.erroresArchivo.length) {
-            toast("Datos actualizados, pero una o más fotos no pudieron registrarse.", "warning", 7000);
+            toast("Datos actualizados, pero una o mÃ¡s fotos no pudieron registrarse.", "warning", 7000);
         } else {
             toast("Datos y fotos actualizados correctamente.", "exito", 6000);
         }
@@ -1220,7 +1258,7 @@ async function handleDuplicateUpdateRequest(duplicateData, btn = null) {
     if (!canCurrentUserUpdateDuplicate(existingPersona)) {
         closeDuplicateModal({ closeReview: true, warnLocked: true });
         toast(
-            "Solo el usuario que capturó originalmente este registro puede actualizarlo.",
+            "Solo el usuario que capturÃ³ originalmente este registro puede actualizarlo.",
             "warning",
             7000
         );
@@ -1366,7 +1404,7 @@ function closeDuplicateModal({ closeReview = false, warnLocked = false } = {}) {
 
     if (shouldWarnLockedClose) {
         toast(
-            "Solo el usuario que capturó puede actualizar esta persona.",
+            "Solo el usuario que capturÃ³ puede actualizar esta persona.",
             "warning",
             7000
         );
@@ -1413,7 +1451,7 @@ function setValidationModalOpen(isOpen) {
 
 function openValidationModal({
     title = "No pudimos validar los datos",
-    message = "Verifica la captura e inténtalo nuevamente.",
+    message = "Verifica la captura e intÃ©ntalo nuevamente.",
 } = {}) {
     const modal = ensureValidationModal();
     if (!modal) return;
@@ -1493,19 +1531,19 @@ function escapeHTMLSafe(value) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* CÁMARA                                                                      */
+/* CÃMARA                                                                      */
 /* -------------------------------------------------------------------------- */
 
 async function startCamera() {
     const video = $(SEL.video);
 
     if (!video) {
-        warn("No se encontró el video del modal.");
+        warn("No se encontrÃ³ el video del modal.");
         return;
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-        showCameraError("Tu navegador no permite usar la cámara.");
+        showCameraError("Tu navegador no permite usar la cÃ¡mara.");
         return;
     }
 
@@ -1532,19 +1570,19 @@ async function startCamera() {
         try {
             await video.play();
         } catch (err) {
-            warn("video.play() falló, pero el stream ya fue asignado:", err);
+            warn("video.play() fallÃ³, pero el stream ya fue asignado:", err);
         }
 
         prepareCaptureStep(State.step || "front");
 
-        log("Cámara iniciada correctamente.");
+        log("CÃ¡mara iniciada correctamente.");
     } catch (err) {
-        warn("No se pudo abrir la cámara:", err);
+        warn("No se pudo abrir la cÃ¡mara:", err);
 
         State.stream = null;
         video.srcObject = null;
 
-        showCameraError("No se pudo abrir la cámara. Revisa los permisos del navegador.");
+        showCameraError("No se pudo abrir la cÃ¡mara. Revisa los permisos del navegador.");
     }
 }
 
@@ -1557,7 +1595,7 @@ function stopCamera() {
     const video = $(SEL.video);
     if (video) video.srcObject = null;
 
-    log("Cámara detenida.");
+    log("CÃ¡mara detenida.");
 }
 
 function showCameraError(message) {
@@ -1594,7 +1632,7 @@ function getVideoCropFromGuide(video, guideBox, paddingRatio = 0.08) {
     const videoHeight = video.videoHeight;
 
     if (!videoWidth || !videoHeight) {
-        throw new Error("El video aún no tiene dimensiones válidas.");
+        throw new Error("El video aÃºn no tiene dimensiones vÃ¡lidas.");
     }
 
     const scale = Math.max(
@@ -1642,15 +1680,15 @@ async function captureGuideImage() {
     const guideBox = $(SEL.guideBox);
 
     if (!video) {
-        throw new Error("No se encontró el video.");
+        throw new Error("No se encontrÃ³ el video.");
     }
 
     if (!guideBox) {
-        throw new Error("No se encontró el recuadro guía.");
+        throw new Error("No se encontrÃ³ el recuadro guÃ­a.");
     }
 
     if (!video.videoWidth || !video.videoHeight) {
-        throw new Error("La cámara aún no está lista para capturar.");
+        throw new Error("La cÃ¡mara aÃºn no estÃ¡ lista para capturar.");
     }
 
     const crop = getVideoCropFromGuide(video, guideBox, 0.08);
@@ -1706,7 +1744,7 @@ async function compressCanvasCapture(canvas, options = {}) {
         return normalizeCaptureObject(result);
     }
 
-    warn("window.PRIMedia no está disponible. Se usará canvas.toDataURL sin compresión avanzada.");
+    warn("window.PRIMedia no estÃ¡ disponible. Se usarÃ¡ canvas.toDataURL sin compresiÃ³n avanzada.");
 
     const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
     const sizeBytes = dataUrlSizeBytes(dataUrl);
@@ -1822,7 +1860,7 @@ function acceptCapture(imageData, side) {
     if (status) {
         status.innerHTML =
             side === "front"
-                ? "<strong>Frente capturado.</strong><br>Continúa con el reverso de la INE."
+                ? "<strong>Frente capturado.</strong><br>ContinÃºa con el reverso de la INE."
                 : "<strong>Reverso capturado.</strong><br>Revisa las capturas antes de leer los datos.";
     }
 
@@ -2063,7 +2101,7 @@ async function extractIdentificationData({
         images_count: imagesCount,
     };
 
-    console.group("[RED Home Modals] Enviando extracción OpenAI");
+    console.group("[RED Home Modals] Enviando extracciÃ³n OpenAI");
     console.log("Endpoint:", ENDPOINTS.extractOpenAI);
     console.log("Image size MB:", payload.image_size_mb);
     console.log("Images count:", payload.images_count);
@@ -2085,7 +2123,7 @@ async function extractIdentificationData({
 
         rawResponse = await response.text();
     } catch (err) {
-        throw new Error("Error de conexión con el endpoint de OpenAI: " + err.message);
+        throw new Error("Error de conexiÃ³n con el endpoint de OpenAI: " + err.message);
     }
 
     console.group("[RED Home Modals] Respuesta OpenAI");
@@ -2101,7 +2139,7 @@ async function extractIdentificationData({
         data = JSON.parse(rawResponse);
     } catch {
         console.error("[RED Home Modals] Respuesta no JSON:", rawResponse);
-        throw new Error("El endpoint de OpenAI respondió algo que no es JSON.");
+        throw new Error("El endpoint de OpenAI respondiÃ³ algo que no es JSON.");
     }
 
     if (!response.ok || !data.ok) {
@@ -2161,9 +2199,9 @@ async function processOpenAIData() {
             },
         };
 
-        log("Extracción OpenAI completada:", payload);
+        log("ExtracciÃ³n OpenAI completada:", payload);
 
-        toast("Datos extraídos correctamente.", "exito", 4500);
+        toast("Datos extraÃ­dos correctamente.", "exito", 4500);
 
         hideCaptureModalWithoutReset();
         await openReviewModal(payload);
@@ -2171,7 +2209,7 @@ async function processOpenAIData() {
         console.error("[RED Home Modals] Error OpenAI:", err);
 
         toast(
-            err?.message || "No se pudo procesar la identificación.",
+            err?.message || "No se pudo procesar la identificaciÃ³n.",
             "error",
             9000
         );
@@ -2186,7 +2224,7 @@ async function processOpenAIData() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* NORMALIZACIÓN / MAPEO                                                       */
+/* NORMALIZACIÃ“N / MAPEO                                                       */
 /* -------------------------------------------------------------------------- */
 
 function normalizeValue(value, fallback = "") {
@@ -2449,7 +2487,7 @@ function buildPersonaFromFields(fields) {
         sexo: normalizeSex(findExtractedValue(fields, [
             "sexo",
             "genero",
-            "género",
+            "gÃ©nero",
             "sex",
             "gender",
         ])),
@@ -2472,7 +2510,7 @@ function buildPersonaFromFields(fields) {
             "idmex",
             "id_mex",
             "id_mexico",
-            "idméx",
+            "idmÃ©x",
         ])).replace(/[^A-Z0-9]/g, ""),
 
         ocr: cleanUpper(findExtractedValue(fields, [
@@ -2490,24 +2528,24 @@ function buildPersonaFromFields(fields) {
         seccion_id: onlyDigits(findExtractedValue(fields, [
             "seccion_id",
             "seccion",
-            "sección",
+            "secciÃ³n",
             "seccion_electoral",
-            "sección_electoral",
+            "secciÃ³n_electoral",
         ])),
 
         anio_registro: normalizeYear(findExtractedValue(fields, [
             "anio_registro",
-            "año_registro",
+            "aÃ±o_registro",
             "ano_registro",
-            "año_de_registro",
+            "aÃ±o_de_registro",
             "anio_de_registro",
         ])),
 
         emision: normalizeEmision(findExtractedValue(fields, [
             "emision",
-            "emisión",
+            "emisiÃ³n",
             "numero_emision",
-            "número_emisión",
+            "nÃºmero_emisiÃ³n",
             "num_emision",
             "emission",
         ])),
@@ -2529,13 +2567,13 @@ function buildPersonaFromFields(fields) {
             "domicilio_texto",
             "domicilio",
             "direccion",
-            "dirección",
+            "direcciÃ³n",
             "address",
         ])),
 
         telefono: normalizeValue(findExtractedValue(fields, [
             "telefono",
-            "teléfono",
+            "telÃ©fono",
             "phone",
         ])),
 
@@ -2548,7 +2586,7 @@ function buildPersonaFromFields(fields) {
             "email",
             "correo",
             "correo_electronico",
-            "correo_electrónico",
+            "correo_electrÃ³nico",
         ])),
 
         observaciones: "",
@@ -2556,7 +2594,7 @@ function buildPersonaFromFields(fields) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* MODAL REVISIÓN                                                              */
+/* MODAL REVISIÃ“N                                                              */
 /* -------------------------------------------------------------------------- */
 
 function fillReviewForm(persona) {
@@ -2598,9 +2636,9 @@ function setReviewCreateAdminbar() {
 
     /*
       Alta nueva desde INE:
-      - Sí mostramos adminbar para que aparezca Afiliado.
+      - SÃ­ mostramos adminbar para que aparezca Afiliado.
       - Ocultamos Estado.
-      - No mostramos botón Guardar de status.
+      - No mostramos botÃ³n Guardar de status.
       - Afiliado inicia apagado: default SIMPATIZANTE.
     */
 
@@ -2660,7 +2698,7 @@ function resetReviewModalForCapture() {
     closeReviewSeccionList();
 
     if (seccionText) {
-        seccionText.textContent = "Selecciona una sección";
+        seccionText.textContent = "Selecciona una secciÃ³n";
     }
 
     const saveBtn = $("#ine-modal-affiliate");
@@ -2682,13 +2720,13 @@ function resetReviewModalForCapture() {
     }
     if (cancelBtn) cancelBtn.textContent = "Cancelar";
 
-    if (kicker) kicker.textContent = "Datos extraídos";
-    if (title) title.textContent = "Revisión de información INE";
+    if (kicker) kicker.textContent = "Datos extraÃ­dos";
+    if (title) title.textContent = "RevisiÃ³n de informaciÃ³n INE";
 
     if (warning) {
         warning.innerHTML = `
-      <strong>Importante: La información fue extraída automáticamente.</strong>
-      Valide esta información comparando contra el documento INE,
+      <strong>Importante: La informaciÃ³n fue extraÃ­da automÃ¡ticamente.</strong>
+      Valide esta informaciÃ³n comparando contra el documento INE,
       realice los ajustes que sean necesarios y guarde el registro.
     `;
     }
@@ -2731,7 +2769,7 @@ async function openReviewModal(payload) {
 
         if (!isValidCurp(reviewPayload.curp)) {
             openValidationModal({
-                title: "CURP/CLAVE no válidas",
+                title: "CURP/CLAVE no vÃ¡lidas",
                 message:
                     "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
             });
@@ -2740,7 +2778,7 @@ async function openReviewModal(payload) {
 
         if (!isValidClaveElector(reviewPayload.clave_elector)) {
             openValidationModal({
-                title: "CURP/CLAVE no válidas",
+                title: "CURP/CLAVE no vÃ¡lidas",
                 message:
                     "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
             });
@@ -2763,7 +2801,7 @@ async function openReviewModal(payload) {
         }
     }, 0);
 
-    log("Modal de revisión abierto:", payload);
+    log("Modal de revisiÃ³n abierto:", payload);
 }
 
 function closeReviewModal() {
@@ -2813,7 +2851,7 @@ async function sha256Hex(value) {
     if (!clean) return null;
 
     if (!window.crypto?.subtle) {
-        warn("crypto.subtle no está disponible. No se pudo generar hash.");
+        warn("crypto.subtle no estÃ¡ disponible. No se pudo generar hash.");
         return null;
     }
 
@@ -2893,7 +2931,7 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
     const currentSizeKB = normalized?.sizeKB || Math.round(dataUrlSizeBytes(dataUrl) / 1024);
 
     if (currentSizeKB <= 260) {
-        log("Captura ya está ligera para archivo:", {
+        log("Captura ya estÃ¡ ligera para archivo:", {
             side,
             sizeKB: currentSizeKB,
             mime: normalized.mime,
@@ -2904,7 +2942,7 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
     }
 
     if (!window.PRIMedia?.compressImageElementToDataUrl) {
-        warn("PRIMedia no está disponible para recomprimir archivo. Se usará captura original.", {
+        warn("PRIMedia no estÃ¡ disponible para recomprimir archivo. Se usarÃ¡ captura original.", {
             side,
             sizeKB: currentSizeKB,
         });
@@ -2943,20 +2981,20 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
         });
 
         toast(
-            `Foto ${side === "front" ? "frente" : "reverso"} comprimida: ${currentSizeKB}KB → ${result.sizeKB}KB`,
+            `Foto ${side === "front" ? "frente" : "reverso"} comprimida: ${currentSizeKB}KB â†’ ${result.sizeKB}KB`,
             "exito",
             4500
         );
 
         return result;
     } catch (err) {
-        warn("No se pudo recomprimir captura para archivo. Se usará original.", {
+        warn("No se pudo recomprimir captura para archivo. Se usarÃ¡ original.", {
             side,
             error: err,
         });
 
         toast(
-            `No se pudo comprimir la foto ${side === "front" ? "frente" : "reverso"}. Se enviará original.`,
+            `No se pudo comprimir la foto ${side === "front" ? "frente" : "reverso"}. Se enviarÃ¡ original.`,
             "warning",
             6000
         );
@@ -3013,18 +3051,18 @@ function validateReviewPayload(payload) {
 
     if (!isValidCurp(payload.curp)) {
         openValidationModal({
-            title: "CURP/CLAVE no válidas",
+            title: "CURP/CLAVE no vÃ¡lidas",
             message:
-                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
+                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la informaciÃ³n o volver a capturar la INE.",
         });
         return false;
     }
 
     if (!isValidClaveElector(payload.clave_elector)) {
         openValidationModal({
-            title: "CURP/CLAVE no válidas",
+            title: "CURP/CLAVE no vÃ¡lidas",
             message:
-                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
+                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la informaciÃ³n o volver a capturar la INE.",
         });
         return false;
     }
@@ -3146,7 +3184,7 @@ async function savePersonaAndFiles(payload) {
     const personaId = Number(persona?.persona_id || 0);
 
     if (!personaId) {
-        throw new Error("La persona fue creada, pero no se recibió persona_id.");
+        throw new Error("La persona fue creada, pero no se recibiÃ³ persona_id.");
     }
 
     const fileResult = await saveFilesForPersona({
@@ -3187,7 +3225,7 @@ async function shouldOpenResidenceModalBeforeSave(payload) {
         return true;
     }
 
-    // Si el usuario capturó el código de sección, lo convertimos a territorio_id.
+    // Si el usuario capturÃ³ el cÃ³digo de secciÃ³n, lo convertimos a territorio_id.
     // Esto evita enviar "1593" cuando el backend necesita "78".
     if (String(found.territorio_id || "") !== currentSeccion) {
         selectReviewSeccion(found.territorio_id, getSeccionCodeLabel(found));
@@ -3206,7 +3244,7 @@ async function updateDuplicatePersonaAndFiles(duplicateData) {
     const personaId = Number(existingPersona?.persona_id || 0);
 
     if (!personaId) {
-        throw new Error("No se encontró el ID de la persona existente.");
+        throw new Error("No se encontrÃ³ el ID de la persona existente.");
     }
 
     const payload = collectReviewPayload();
@@ -3294,7 +3332,7 @@ async function handleReviewSubmit(event) {
         log("Persona guardada en backend:", saved);
 
         if (saved.erroresArchivo.length) {
-            toast("Persona guardada, pero una o más fotos no pudieron registrarse.", "warning", 7000);
+            toast("Persona guardada, pero una o mÃ¡s fotos no pudieron registrarse.", "warning", 7000);
         } else {
             toast("Persona y fotos de INE guardadas correctamente.", "exito", 5000);
         }
@@ -3345,7 +3383,7 @@ function bindResidenceModalEvents() {
         closeDuplicateModal();
 
         toast(
-            "Solo se pueden dar de alta ciudadanos de Ixtlahuacán de los Membrillos.",
+            "Solo se pueden dar de alta ciudadanos de IxtlahuacÃ¡n de los Membrillos.",
             "warning",
             6000
         );
@@ -3369,7 +3407,7 @@ function bindResidenceModalEvents() {
         const telefono = getFieldValue(SEL.residenceTelefono);
 
         if (!seccion) {
-            toast("Selecciona una sección.", "warning", 4500);
+            toast("Selecciona una secciÃ³n.", "warning", 4500);
             return;
         }
 
@@ -3379,7 +3417,7 @@ function bindResidenceModalEvents() {
         }
 
         if (!telefono) {
-            toast("Captura el método de contacto.", "warning", 4500);
+            toast("Captura el mÃ©todo de contacto.", "warning", 4500);
             return;
         }
 
@@ -3416,6 +3454,426 @@ function bindResidenceModalEvents() {
     });
 }
 
+function setAffiliateToggleValue(checked) {
+    const input = State.affiliateMedia.pendingInput;
+    if (!input) return;
+
+    input.checked = Boolean(checked);
+}
+
+function resetAffiliateMediaState({ preserveToggle = false } = {}) {
+    if (State.affiliateMedia.stream) {
+        State.affiliateMedia.stream.getTracks().forEach((track) => track.stop());
+        State.affiliateMedia.stream = null;
+    }
+
+    State.affiliateMedia.step = "front";
+    State.affiliateMedia.captureState = "idle";
+    State.affiliateMedia.completed = false;
+    State.affiliateMedia.mode = "capture";
+
+    State.affiliateMedia.captures.front = null;
+    State.affiliateMedia.captures.back = null;
+
+    const modal = $(SEL.affiliateModal);
+    if (modal) {
+        modal.querySelectorAll("[data-affiliate-screen]").forEach((screen) => {
+            screen.classList.toggle("is-active", screen.dataset.affiliateScreen === "method");
+        });
+    }
+
+    [SEL.affiliatePreviewFront, SEL.affiliatePreviewBack].forEach((selector) => {
+        const img = $(selector);
+        if (img) img.removeAttribute("src");
+    });
+
+    [SEL.affiliateUploadPreviewFront, SEL.affiliateUploadPreviewBack].forEach((selector) => {
+        const img = $(selector);
+        if (img) {
+            img.removeAttribute("src");
+            img.hidden = true;
+        }
+    });
+
+    [SEL.affiliateUploadFront, SEL.affiliateUploadBack].forEach((selector) => {
+        const input = $(selector);
+        if (input) input.value = "";
+    });
+
+    const uploadContinue = $(SEL.affiliateBtnUploadContinue);
+    if (uploadContinue) uploadContinue.disabled = true;
+
+    const btnCapture = $(SEL.affiliateBtnCapture);
+    const btnRetry = $(SEL.affiliateBtnRetry);
+    const btnNext = $(SEL.affiliateBtnNext);
+    if (btnCapture) {
+        btnCapture.hidden = false;
+        btnCapture.disabled = false;
+        btnCapture.textContent = "Capturar";
+    }
+    setHidden(btnRetry, true);
+    setHidden(btnNext, true);
+
+    if (!preserveToggle) {
+        State.affiliateMedia.pendingInput = null;
+        State.affiliateMedia.previousChecked = false;
+    }
+}
+
+function setAffiliateMediaModalOpen(isOpen) {
+    const modal = $(SEL.affiliateModal);
+    if (!modal) return;
+
+    modal.hidden = !isOpen;
+    modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
+    syncBodyModalState();
+}
+
+function showAffiliateScreen(name) {
+    const modal = $(SEL.affiliateModal);
+    if (!modal) return;
+
+    modal.querySelectorAll("[data-affiliate-screen]").forEach((screen) => {
+        screen.classList.toggle("is-active", screen.dataset.affiliateScreen === name);
+    });
+}
+
+function setAffiliateCaptureState(state) {
+    State.affiliateMedia.captureState = state;
+
+    const stage = $(SEL.affiliateModal)?.querySelector(".ine-camera-stage");
+    if (stage) stage.dataset.affiliateState = state;
+}
+
+function setAffiliateStep(step) {
+    State.affiliateMedia.step = step;
+
+    const stage = $(SEL.affiliateModal)?.querySelector(".ine-camera-stage");
+    const title = $(SEL.affiliateStepTitle);
+    const status = $(SEL.affiliateStatus);
+
+    if (stage) {
+        stage.dataset.affiliateStep = step;
+    }
+
+    if (step === "front") {
+        if (title) title.textContent = "Coloca la primera imagen dentro del recuadro";
+        if (status) status.textContent = "Cuando la imagen estx bien alineada, presiona Capturar";
+    }
+
+    if (step === "back") {
+        if (title) title.textContent = "Coloca la segunda imagen dentro del recuadro";
+        if (status) status.textContent = "Cuando la imagen estx bien alineada, presiona Capturar";
+    }
+}
+
+function prepareAffiliateCaptureStep(step) {
+    setAffiliateStep(step);
+    setAffiliateCaptureState("ready");
+
+    const btnCapture = $(SEL.affiliateBtnCapture);
+    const btnRetry = $(SEL.affiliateBtnRetry);
+    const btnNext = $(SEL.affiliateBtnNext);
+
+    if (btnCapture) {
+        btnCapture.hidden = false;
+        btnCapture.disabled = false;
+        btnCapture.textContent = "Capturar";
+    }
+
+    setHidden(btnRetry, true);
+    setHidden(btnNext, true);
+    showAffiliateScreen("camera");
+}
+
+function stopAffiliateCamera() {
+    if (!State.affiliateMedia.stream) return;
+
+    State.affiliateMedia.stream.getTracks().forEach((track) => track.stop());
+    State.affiliateMedia.stream = null;
+
+    const video = $(SEL.affiliateVideo);
+    if (video) video.srcObject = null;
+}
+
+async function startAffiliateCamera() {
+    const video = $(SEL.affiliateVideo);
+
+    if (!video) {
+        warn("No se encontro el video del modal de afiliado.");
+        return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+        toast("Tu navegador no permite usar la camara.", "error", 6000);
+        return;
+    }
+
+    stopAffiliateCamera();
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: CONFIG.CAMERA,
+            audio: false,
+        });
+
+        State.affiliateMedia.stream = stream;
+        video.srcObject = stream;
+
+        await new Promise((resolve) => {
+            if (video.readyState >= 2) {
+                resolve();
+                return;
+            }
+
+            video.onloadedmetadata = () => resolve();
+        });
+
+        try {
+            await video.play();
+        } catch (err) {
+            warn("affiliate video.play() fallo:", err);
+        }
+
+        prepareAffiliateCaptureStep(State.affiliateMedia.step || "front");
+    } catch (err) {
+        warn("No se pudo abrir la camara para afiliado:", err);
+        State.affiliateMedia.stream = null;
+        video.srcObject = null;
+        toast("No se pudo abrir la camara. Revisa los permisos del navegador.", "error", 6000);
+    }
+}
+
+function syncAffiliateUploadContinueButton() {
+    const btn = $(SEL.affiliateBtnUploadContinue);
+    if (!btn) return;
+
+    btn.disabled = !(State.affiliateMedia.captures.front && State.affiliateMedia.captures.back);
+}
+
+async function handleAffiliateUploadFile(side, file) {
+    if (!file) return;
+
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+        toast("Solo se permiten imagenes JPG, PNG o WEBP.", "warning", 5000);
+        return;
+    }
+
+    try {
+        const dataUrl = await fileToDataUrl(file);
+        const canvas = await dataUrlToCanvas(dataUrl);
+        const capture = await compressCanvasCapture(canvas, {
+            ...CONFIG.MEDIA,
+            label: `affiliate-upload-${side}`,
+        });
+
+        State.affiliateMedia.captures[side] = normalizeCaptureObject(capture);
+
+        const preview = $(side === "front" ? SEL.affiliateUploadPreviewFront : SEL.affiliateUploadPreviewBack);
+        if (preview) {
+            preview.src = getCaptureDataUrl(State.affiliateMedia.captures[side]);
+            preview.hidden = false;
+        }
+
+        syncAffiliateUploadContinueButton();
+    } catch (err) {
+        console.error("[Affiliate upload error]", err);
+        toast(err?.message || "No se pudo cargar la imagen.", "error", 6000);
+    }
+}
+
+async function captureAffiliateGuideImage() {
+    const video = $(SEL.affiliateVideo);
+    const guideBox = $(SEL.affiliateGuideBox);
+
+    if (!video || !guideBox) {
+        throw new Error("No se pudo preparar la captura de afiliado.");
+    }
+
+    const crop = getVideoCropFromGuide(video, guideBox, 0.08);
+    const canvas = document.createElement("canvas");
+    canvas.width = crop.sw;
+    canvas.height = crop.sh;
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) {
+        throw new Error("No se pudo preparar el canvas de afiliado.");
+    }
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh);
+
+    return await compressCanvasCapture(canvas, {
+        ...CONFIG.MEDIA,
+        label: `affiliate-${State.affiliateMedia.step}`,
+    });
+}
+
+async function captureAffiliateCurrentStep() {
+    if (State.affiliateMedia.captureState === "captured" || State.affiliateMedia.captureState === "processing") {
+        return;
+    }
+
+    setAffiliateCaptureState("processing");
+
+    try {
+        const imageData = await captureAffiliateGuideImage();
+        const side = State.affiliateMedia.step;
+
+        State.affiliateMedia.captures[side] = normalizeCaptureObject(imageData);
+        setAffiliateCaptureState("captured");
+
+        const btnCapture = $(SEL.affiliateBtnCapture);
+        const btnRetry = $(SEL.affiliateBtnRetry);
+        const btnNext = $(SEL.affiliateBtnNext);
+        if (btnCapture) btnCapture.hidden = true;
+        setHidden(btnRetry, false);
+        setHidden(btnNext, false);
+        if (btnNext) btnNext.textContent = side === "front" ? "Capturar segunda imagen" : "Ver capturas";
+    } catch (err) {
+        console.error("[Affiliate capture error]", err);
+        setAffiliateCaptureState("error");
+        toast(err?.message || "No se pudo capturar la imagen.", "error", 6000);
+    }
+}
+
+function retryAffiliateCurrentStep() {
+    State.affiliateMedia.captures[State.affiliateMedia.step] = null;
+    prepareAffiliateCaptureStep(State.affiliateMedia.step);
+}
+
+function showAffiliateSummary() {
+    const front = $(SEL.affiliatePreviewFront);
+    const back = $(SEL.affiliatePreviewBack);
+
+    if (front) front.src = getCaptureDataUrl(State.affiliateMedia.captures.front);
+    if (back) back.src = getCaptureDataUrl(State.affiliateMedia.captures.back);
+
+    stopAffiliateCamera();
+    showAffiliateScreen("summary");
+}
+
+function goNextAffiliateStep() {
+    if (State.affiliateMedia.step === "front") {
+        if (!State.affiliateMedia.captures.front) {
+            prepareAffiliateCaptureStep("front");
+            return;
+        }
+
+        prepareAffiliateCaptureStep("back");
+        return;
+    }
+
+    if (State.affiliateMedia.step === "back") {
+        if (!State.affiliateMedia.captures.back) {
+            prepareAffiliateCaptureStep("back");
+            return;
+        }
+
+        showAffiliateSummary();
+    }
+}
+
+function closeAffiliateMediaModal({ revertToggle = true } = {}) {
+    stopAffiliateCamera();
+    setAffiliateMediaModalOpen(false);
+
+    if (revertToggle) {
+        setAffiliateToggleValue(State.affiliateMedia.previousChecked);
+    }
+
+    resetAffiliateMediaState();
+}
+
+function completeAffiliateMediaDemo() {
+    if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
+        toast("Necesitas capturar ambas imagenes antes de continuar.", "warning", 5000);
+        return;
+    }
+
+    State.affiliateMedia.completed = true;
+    setAffiliateToggleValue(true);
+    setAffiliateMediaModalOpen(false);
+    stopAffiliateCamera();
+    toast("Demo de documentos de afiliacion lista. Axn no se envia a backend.", "exito", 5000);
+    resetAffiliateMediaState({ preserveToggle: false });
+}
+
+async function openAffiliateMediaDemo({ input = null, mode = "capture" } = {}) {
+    const modal = $(SEL.affiliateModal);
+    if (!modal) {
+        warn("No existe #affiliate-media-modal en el HTML.");
+        return false;
+    }
+
+    State.affiliateMedia.pendingInput = input || $("#ine-review-es-afiliado");
+    State.affiliateMedia.previousChecked = Boolean(input?.checked) ? false : Boolean(input?.checked);
+    State.affiliateMedia.mode = mode;
+
+    resetAffiliateMediaState({ preserveToggle: true });
+    setAffiliateMediaModalOpen(true);
+
+    const device = getDeviceContext();
+    if (device.preferUpload) {
+        showAffiliateScreen("upload");
+    } else if (device.preferCamera) {
+        await startAffiliateCamera();
+    } else {
+        showAffiliateScreen("method");
+    }
+
+    return true;
+}
+
+function bindAffiliateMediaEvents() {
+    $$(SEL.affiliateClose).forEach((btn) => {
+        btn.addEventListener("click", () => closeAffiliateMediaModal({ revertToggle: true }));
+    });
+
+    $(SEL.affiliateBtnUseCamera)?.addEventListener("click", async () => {
+        prepareAffiliateCaptureStep("front");
+        await startAffiliateCamera();
+    });
+
+    $(SEL.affiliateBtnUseUpload)?.addEventListener("click", () => {
+        stopAffiliateCamera();
+        showAffiliateScreen("upload");
+    });
+
+    $(SEL.affiliateUploadFront)?.addEventListener("change", async (event) => {
+        await handleAffiliateUploadFile("front", event.target.files?.[0] || null);
+    });
+
+    $(SEL.affiliateUploadBack)?.addEventListener("change", async (event) => {
+        await handleAffiliateUploadFile("back", event.target.files?.[0] || null);
+    });
+
+    $(SEL.affiliateBtnUploadBack)?.addEventListener("click", () => {
+        showAffiliateScreen("method");
+    });
+
+    $(SEL.affiliateBtnUploadContinue)?.addEventListener("click", () => {
+        if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
+            toast("Carga ambas imagenes antes de continuar.", "warning", 5000);
+            return;
+        }
+
+        showAffiliateSummary();
+    });
+
+    $(SEL.affiliateBtnCapture)?.addEventListener("click", captureAffiliateCurrentStep);
+    $(SEL.affiliateBtnRetry)?.addEventListener("click", retryAffiliateCurrentStep);
+    $(SEL.affiliateBtnNext)?.addEventListener("click", goNextAffiliateStep);
+    $(SEL.affiliateBtnSummaryRetry)?.addEventListener("click", async () => {
+        resetAffiliateMediaState({ preserveToggle: true });
+        setAffiliateMediaModalOpen(true);
+        await startAffiliateCamera();
+    });
+    $(SEL.affiliateBtnComplete)?.addEventListener("click", completeAffiliateMediaDemo);
+}
+
+window.redOpenAffiliateMediaDemo = openAffiliateMediaDemo;
 function bindReviewModalEvents() {
     $$(SEL.reviewClose).forEach((btn) => {
         btn.addEventListener("click", closeReviewModal);
@@ -3435,6 +3893,25 @@ function bindReviewModalEvents() {
         closeReviewModal();
         setModalOpen(true);
         showSummary();
+    });
+
+    $("#ine-review-es-afiliado")?.addEventListener("change", async (event) => {
+        const modal = $(SEL.reviewModal);
+        const mode = modal?.dataset?.mode || "capture";
+
+        if (mode !== "capture") {
+            return;
+        }
+
+        if (!event.target.checked) {
+            State.affiliateMedia.completed = false;
+            return;
+        }
+
+        await openAffiliateMediaDemo({
+            input: event.target,
+            mode: "capture",
+        });
     });
 
     $(SEL.reviewForm)?.addEventListener("submit", handleReviewSubmit);
@@ -3475,6 +3952,12 @@ function handleEscape(event) {
     const validationModal = $(SEL.validationModal);
     if (validationModal && !validationModal.hidden) {
         abortValidationFlow();
+        return;
+    }
+
+    const affiliateModal = $(SEL.affiliateModal);
+    if (affiliateModal && !affiliateModal.hidden) {
+        closeAffiliateMediaModal({ revertToggle: true });
         return;
     }
 
@@ -3563,6 +4046,7 @@ function bindCaptureModalEvents() {
 
     bindReviewModalEvents();
     bindResidenceModalEvents();
+    bindAffiliateMediaEvents();
 }
 
 function init() {
@@ -3580,3 +4064,7 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+
+
+

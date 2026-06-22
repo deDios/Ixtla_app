@@ -1611,6 +1611,14 @@ function bindEvents() {
       return;
     }
 
+    if (event.target.checked && typeof window.redOpenAffiliateMediaDemo === "function") {
+      await window.redOpenAffiliateMediaDemo({
+        input: event.target,
+        mode: "readonly",
+      });
+      return;
+    }
+
     await updateReadonlyAffiliate(Boolean(event.target.checked));
   });
 
@@ -1642,3 +1650,4 @@ document.addEventListener("DOMContentLoaded", init);
 
 // Permite que otros módulos restauren el modal de revisión si lo necesitan.
 window.redResetReviewModalToCaptureMode = resetReviewModalToCaptureMode;
+
