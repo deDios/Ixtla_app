@@ -1646,10 +1646,10 @@ async function init() {
   log("Home RED inicializado con endpoint server-side");
 }
 
+window.redConfirmReadonlyAffiliateDemo = async function redConfirmReadonlyAffiliateDemo() {
+  await updateReadonlyAffiliate(true);
+};
 document.addEventListener("DOMContentLoaded", init);
 
 // Permite que otros módulos restauren el modal de revisión si lo necesitan.
 window.redResetReviewModalToCaptureMode = resetReviewModalToCaptureMode;
-
-
-

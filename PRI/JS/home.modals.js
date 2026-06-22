@@ -3786,11 +3786,13 @@ function closeAffiliateMediaModal({ revertToggle = true } = {}) {
     resetAffiliateMediaState();
 }
 
-function completeAffiliateMediaDemo() {
+async function completeAffiliateMediaDemo() {
     if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
         toast("Necesitas capturar ambas imágenes antes de continuar.", "warning", 5000);
         return;
     }
+
+    const isReadonly = State.affiliateMedia.mode === "readonly";
 
     State.affiliateMedia.completed = true;
     setAffiliateToggleValue(true);
@@ -3798,6 +3800,10 @@ function completeAffiliateMediaDemo() {
     stopAffiliateCamera();
     toast("Demo de documentos de afiliación lista. Aún no se envía a backend.", "exito", 5000);
     resetAffiliateMediaState({ preserveToggle: false });
+
+    if (isReadonly && typeof window.redConfirmReadonlyAffiliateDemo === "function") {
+        await window.redConfirmReadonlyAffiliateDemo();
+    }
 }
 
 async function openAffiliateMediaDemo({ input = null, mode = "capture" } = {}) {
@@ -4064,8 +4070,3 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
-
-
-
-
-
