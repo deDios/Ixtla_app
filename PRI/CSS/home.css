@@ -3525,3 +3525,51 @@ body.ine-modal-open {
 .red-table th[data-sort-key][data-sort-dir="desc"]::after {
     content: "▼";
 }
+
+/* -------------------------------------------------------------------------- */
+/* MODAL DEMO · AFILIADO                                                      */
+/* -------------------------------------------------------------------------- */
+
+#affiliate-media-modal {
+    --ine-cap-z: 1185;
+}
+
+#affiliate-media-modal,
+#affiliate-media-modal * {
+    box-sizing: border-box;
+}
+
+#affiliate-media-modal[hidden] {
+    display: none !important;
+}
+
+#affiliate-media-modal .ine-capture-overlay {
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(4px);
+}
+
+#affiliate-media-modal .ine-capture-dialog {
+    z-index: calc(var(--ine-cap-z) + 1);
+}
+
+#affiliate-media-modal .ine-upload-box {
+    min-height: 230px;
+}
+
+#affiliate-media-modal .ine-camera-stage {
+    min-height: min(680px, calc(100dvh - 200px));
+}
+
+@media (max-width: 720px) {
+    #affiliate-media-modal .ine-capture-dialog {
+        max-height: calc(100dvh - 72px - env(safe-area-inset-bottom));
+        top: 50%;
+        bottom: auto;
+        transform: translate(-50%, -50%);
+    }
+
+    #affiliate-media-modal .ine-upload-box {
+        min-height: 200px;
+    }
+}
+
