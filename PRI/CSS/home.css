@@ -692,7 +692,7 @@ body.red-export-preview-open {
 /* MODAL CAPTURA INE                                                          */
 /* -------------------------------------------------------------------------- */
 
-#ine-capture-modal {
+.ine-capture-modal {
     --ine-cap-z: 1120;
     --ine-cap-bg: #ffffff;
     --ine-cap-ink: #111827;
@@ -708,12 +708,12 @@ body.red-export-preview-open {
     --ine-cap-shadow: 0 24px 70px rgba(15, 23, 42, 0.32);
 }
 
-#ine-capture-modal,
-#ine-capture-modal * {
+.ine-capture-modal,
+.ine-capture-modal * {
     box-sizing: border-box;
 }
 
-#ine-capture-modal[hidden] {
+.ine-capture-modal[hidden] {
     display: none !important;
 }
 
@@ -945,14 +945,16 @@ body.red-export-preview-open {
     transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.ine-camera-stage[data-state="captured"] .ine-camera-guide-box {
+.ine-camera-stage[data-state="captured"] .ine-camera-guide-box,
+.ine-camera-stage[data-affiliate-state="captured"] .ine-camera-guide-box {
     border-color: var(--ine-cap-green);
     box-shadow:
         0 0 0 999px rgba(0, 0, 0, 0.03),
         0 0 22px rgba(156, 255, 0, 0.42);
 }
 
-.ine-camera-stage[data-state="error"] .ine-camera-guide-box {
+.ine-camera-stage[data-state="error"] .ine-camera-guide-box,
+.ine-camera-stage[data-affiliate-state="error"] .ine-camera-guide-box {
     border-color: var(--ine-cap-red);
     box-shadow:
         0 0 0 999px rgba(0, 0, 0, 0.03),
@@ -989,11 +991,13 @@ body.red-export-preview-open {
     background: #f34c44;
 }
 
-.ine-camera-stage[data-state="captured"] .ine-camera-feedback-icon--ok {
+.ine-camera-stage[data-state="captured"] .ine-camera-feedback-icon--ok,
+.ine-camera-stage[data-affiliate-state="captured"] .ine-camera-feedback-icon--ok {
     display: grid;
 }
 
-.ine-camera-stage[data-state="error"] .ine-camera-feedback-icon--error {
+.ine-camera-stage[data-state="error"] .ine-camera-feedback-icon--error,
+.ine-camera-stage[data-affiliate-state="error"] .ine-camera-feedback-icon--error {
     display: grid;
 }
 
@@ -3534,30 +3538,8 @@ body.ine-modal-open {
     --ine-cap-z: 1185;
 }
 
-#affiliate-media-modal,
-#affiliate-media-modal * {
-    box-sizing: border-box;
-}
-
-#affiliate-media-modal[hidden] {
-    display: none !important;
-}
-
-#affiliate-media-modal .ine-capture-overlay {
-    background: rgba(15, 23, 42, 0.72);
-    backdrop-filter: blur(4px);
-}
-
 #affiliate-media-modal .ine-capture-dialog {
     z-index: calc(var(--ine-cap-z) + 1);
-}
-
-#affiliate-media-modal .ine-upload-box {
-    min-height: 230px;
-}
-
-#affiliate-media-modal .ine-camera-stage {
-    min-height: min(680px, calc(100dvh - 200px));
 }
 
 @media (max-width: 720px) {
@@ -3566,10 +3548,6 @@ body.ine-modal-open {
         top: 50%;
         bottom: auto;
         transform: translate(-50%, -50%);
-    }
-
-    #affiliate-media-modal .ine-upload-box {
-        min-height: 200px;
     }
 }
 

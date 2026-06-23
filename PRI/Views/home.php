@@ -400,21 +400,24 @@ ix_require_session([
                     <div class="ine-upload-card">
                         <p class="ine-method-kicker">Carga manual</p>
                         <h3>Sube las imágenes del afiliado</h3>
-                        <p>Selecciona una primera imagen y una segunda imagen. Formatos permitidos: JPG, PNG o WEBP.</p>
+                        <p>
+                            Selecciona una imagen del frente y una del reverso.
+                            Formatos permitidos: JPG, PNG o WEBP.
+                        </p>
 
                         <div class="ine-upload-grid">
                             <label class="ine-upload-box" for="affiliate-upload-front">
-                                <span>Imagen 1</span>
+                                <span>Frente del afiliado</span>
                                 <input type="file" id="affiliate-upload-front" accept="image/jpeg,image/png,image/webp">
                                 <img id="affiliate-upload-preview-front" alt="Vista previa imagen 1" hidden>
-                                <small>Seleccionar imagen 1</small>
+                                <small>Seleccionar frente</small>
                             </label>
 
                             <label class="ine-upload-box" for="affiliate-upload-back">
-                                <span>Imagen 2</span>
+                                <span>Reverso del afiliado</span>
                                 <input type="file" id="affiliate-upload-back" accept="image/jpeg,image/png,image/webp">
                                 <img id="affiliate-upload-preview-back" alt="Vista previa imagen 2" hidden>
-                                <small>Seleccionar imagen 2</small>
+                                <small>Seleccionar reverso</small>
                             </label>
                         </div>
 
