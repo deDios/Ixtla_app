@@ -1024,7 +1024,15 @@ function getDuplicateOwnerLabel(existingPersona) {
     const owner = existingPersona?.capturado_por_usuario || null;
 
     if (!owner) {
-        return "un usuario del sistema";
+        const ownerUserId = Number(
+            existingPersona?.created_by ||
+            existingPersona?.capturado_por ||
+            0
+        );
+
+        return ownerUserId > 0
+            ? `Usuario ID ${ownerUserId}`
+            : "un usuario del sistema";
     }
 
     const username = owner.username || owner.usuario_id || existingPersona?.capturado_por || "";
@@ -1042,6 +1050,7 @@ function canCurrentUserUpdateDuplicate(existingPersona) {
     const ownerUserId = Number(
         existingPersona?.capturado_por_usuario?.usuario_id ||
         existingPersona?.capturado_por ||
+        existingPersona?.created_by ||
         0
     );
 
@@ -1094,6 +1103,47 @@ async function loadUsuarioNombreById(usuarioId) {
     State.usuariosById.set(id, Promise.resolve(nombre));
 
     return nombre;
+}
+
+function paintDuplicateOwnerMessage(modal, ownerLabel) {
+    const message = modal?.querySelector(SEL.duplicateMessage);
+    if (!message) return;
+
+    message.innerHTML = `
+        Este simpatizante ya ha sido registrado<br>
+        por el afiliado <strong>(${escapeHTMLSafe(ownerLabel)})</strong>
+    `;
+}
+
+async function hydrateDuplicateOwnerMessage(modal, existingPersona) {
+    const ownerUserId = Number(
+        existingPersona?.created_by ||
+        existingPersona?.capturado_por_usuario?.usuario_id ||
+        existingPersona?.capturado_por ||
+        0
+    );
+
+    if (ownerUserId <= 0) return;
+
+    try {
+        const nombreCompleto = await loadUsuarioNombreById(ownerUserId);
+        const currentPersonaId = Number(
+            modal?.__duplicateData?.existingPersona?.persona_id ||
+            0
+        );
+
+        if (
+            !nombreCompleto ||
+            modal?.hidden ||
+            currentPersonaId !== Number(existingPersona?.persona_id || 0)
+        ) {
+            return;
+        }
+
+        paintDuplicateOwnerMessage(modal, nombreCompleto);
+    } catch (err) {
+        warn("No se pudo resolver el nombre del capturador para el modal duplicado:", err);
+    }
 }
 
 async function hydrateDuplicateAuditFields(existingPersona) {
@@ -1351,7 +1401,6 @@ function openDuplicateModal(duplicateData) {
     modal.__duplicateLocked = !canUpdate;
 
     const title = modal.querySelector(SEL.duplicateTitle);
-    const message = modal.querySelector(SEL.duplicateMessage);
     const person = modal.querySelector(SEL.duplicatePerson);
     const owner = modal.querySelector(SEL.duplicateOwner);
     const updateBtn = modal.querySelector(SEL.duplicateUpdate);
@@ -1360,12 +1409,7 @@ function openDuplicateModal(duplicateData) {
         title.textContent = "Persona ya registrada";
     }
 
-    if (message) {
-        message.innerHTML = `
-            Este simpatizante ya ha sido registrado<br>
-            por el afiliado <strong>(${escapeHTMLSafe(ownerLabel)})</strong>
-        `;
-    }
+    paintDuplicateOwnerMessage(modal, ownerLabel);
 
     if (person) {
         person.textContent = `(${nombrePersona})`;
@@ -1385,6 +1429,7 @@ function openDuplicateModal(duplicateData) {
     }
 
     setDuplicateModalOpen(true);
+    hydrateDuplicateOwnerMessage(modal, existingPersona);
 
     console.log("[RED duplicate persona]", duplicateData);
 }
