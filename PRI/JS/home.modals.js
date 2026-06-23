@@ -1351,7 +1351,7 @@ function ensureDuplicateModal() {
         btn.addEventListener("click", () => {
             const isLocked = Boolean(modal.__duplicateLocked);
             closeDuplicateModal({
-                closeReview: isLocked,
+                closeReview: true,
                 warnLocked: isLocked,
             });
         });
