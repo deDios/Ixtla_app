@@ -460,7 +460,7 @@ ix_require_session([
 
                             <button type="button" id="affiliate-btn-complete"
                                 class="ine-capture-btn ine-capture-btn--primary">
-                                Usar capturas
+                                Confirmar afiliación
                             </button>
                         </div>
                     </div>
