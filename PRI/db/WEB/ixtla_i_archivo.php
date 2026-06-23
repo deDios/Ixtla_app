@@ -501,6 +501,8 @@ function insertar_archivo(mysqli $con, array $in): array
     $usosValidos = [
         'INE_FRENTE',
         'INE_REVERSO',
+        'AFILIADO_FRENTE',
+        'AFILIADO_REVERSO',
         'FOTO_PERSONA',
         'FOTO_USUARIO',
         'COMPROBANTE_DOMICILIO',

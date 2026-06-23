@@ -138,6 +138,9 @@ const SEL = {
 
     reviewFront: "#ine-review-front",
     reviewBack: "#ine-review-back",
+    reviewAffiliateSection: "#ine-review-affiliate-captures-section",
+    reviewAffiliateFront: "#ine-review-affiliate-front",
+    reviewAffiliateBack: "#ine-review-affiliate-back",
     reviewSeccionToggle: "#ine-review-seccion-toggle",
     reviewSeccionText: "#ine-review-seccion-text",
     reviewSeccionList: "#ine-review-seccion-list",
@@ -323,6 +326,7 @@ function resetCaptureFlow() {
     State.captureState = "idle";
     State.captures.front = null;
     State.captures.back = null;
+    resetAffiliateMediaState();
 
     const front = $(SEL.previewFront);
     const back = $(SEL.previewBack);
@@ -2745,6 +2749,30 @@ function paintReviewImages(payload) {
     if (back && payload?.images?.back) {
         back.src = getCaptureDataUrl(payload.images.back);
     }
+
+    paintReviewAffiliateImages(null);
+}
+
+function paintReviewAffiliateImages(captures = null) {
+    const section = $(SEL.reviewAffiliateSection);
+    const front = $(SEL.reviewAffiliateFront);
+    const back = $(SEL.reviewAffiliateBack);
+
+    const frontSrc = captures?.front ? getCaptureDataUrl(captures.front) : "";
+    const backSrc = captures?.back ? getCaptureDataUrl(captures.back) : "";
+    const hasBoth = Boolean(frontSrc && backSrc);
+
+    if (front) {
+        if (frontSrc) front.src = frontSrc;
+        else front.removeAttribute("src");
+    }
+
+    if (back) {
+        if (backSrc) back.src = backSrc;
+        else back.removeAttribute("src");
+    }
+
+    if (section) section.hidden = !hasBoth;
 }
 
 async function openReviewModal(payload) {
@@ -2923,6 +2951,7 @@ async function buildPersonaInsertPayload(payload) {
 async function compressCaptureForArchivo(capture, side = "archivo") {
     const normalized = normalizeCaptureObject(capture);
     const dataUrl = normalized?.dataUrl || "";
+    const sideLabel = String(side).includes("front") ? "frente" : "reverso";
 
     if (!dataUrl) {
         return normalized;
@@ -2981,7 +3010,7 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
         });
 
         toast(
-            `Foto ${side === "front" ? "frente" : "reverso"} comprimida: ${currentSizeKB}KB -> ${result.sizeKB}KB`,
+            `Foto ${sideLabel} comprimida: ${currentSizeKB}KB -> ${result.sizeKB}KB`,
             "exito",
             4500
         );
@@ -2994,7 +3023,7 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
         });
 
         toast(
-            `No se pudo comprimir la foto ${side === "front" ? "frente" : "reverso"}. Se enviara original.`,
+            `No se pudo comprimir la foto ${sideLabel}. Se enviara original.`,
             "warning",
             6000
         );
@@ -3003,9 +3032,13 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
     }
 }
 
-function buildArchivoInsertPayload({ personaId, side, capture, usuarioId }) {
-    const usoArchivo = side === "front" ? "INE_FRENTE" : "INE_REVERSO";
+function buildArchivoInsertPayload({ personaId, side, capture, usuarioId, group = "ine" }) {
+    const isAffiliate = group === "affiliate";
+    const usoArchivo = isAffiliate
+        ? (side === "front" ? "AFILIADO_FRENTE" : "AFILIADO_REVERSO")
+        : (side === "front" ? "INE_FRENTE" : "INE_REVERSO");
     const suffix = side === "front" ? "frente" : "reverso";
+    const prefix = isAffiliate ? "afiliado" : "ine";
     const normalizedCapture = normalizeCaptureObject(capture);
     const extension = normalizedCapture?.extension || "jpg";
     const mime = normalizedCapture?.mime || "image/jpeg";
@@ -3016,8 +3049,8 @@ function buildArchivoInsertPayload({ personaId, side, capture, usuarioId }) {
         entidad_id: Number(personaId),
         uso_archivo: usoArchivo,
 
-        nombre_original: `ine_${suffix}.${extension}`,
-        nombre_storage: `persona_${personaId}_ine_${suffix}_${timestamp}.${extension}`,
+        nombre_original: `${prefix}_${suffix}.${extension}`,
+        nombre_storage: `persona_${personaId}_${prefix}_${suffix}_${timestamp}.${extension}`,
 
         url_archivo: normalizedCapture?.dataUrl || "",
         mime_type: mime,
@@ -3079,11 +3112,19 @@ function validateReviewPayload(payload) {
     return true;
 }
 
-async function saveFilesForPersona({ personaId, usuarioId, originalPayload }) {
+async function saveFilesForPersona({ personaId, usuarioId, originalPayload, includeAffiliate = false }) {
     const captures = {
         front: originalPayload?.images?.front || State.captures.front,
         back: originalPayload?.images?.back || State.captures.back,
     };
+    const affiliateCaptures = {
+        front: State.affiliateMedia.captures.front,
+        back: State.affiliateMedia.captures.back,
+    };
+    const shouldSaveAffiliate =
+        Boolean(includeAffiliate) &&
+        Boolean(State.affiliateMedia.completed) &&
+        Boolean(affiliateCaptures.front && affiliateCaptures.back);
 
     toast("Comprimiendo fotos de INE para guardar...", "warning", 3500);
 
@@ -3106,6 +3147,32 @@ async function saveFilesForPersona({ personaId, usuarioId, originalPayload }) {
             usuarioId,
         }),
     ];
+
+    if (shouldSaveAffiliate) {
+        toast("Comprimiendo fotos de afiliado para guardar...", "warning", 3500);
+
+        const affiliateArchivoCaptures = {
+            front: await compressCaptureForArchivo(affiliateCaptures.front, "affiliate-front"),
+            back: await compressCaptureForArchivo(affiliateCaptures.back, "affiliate-back"),
+        };
+
+        archivoPayloads.push(
+            buildArchivoInsertPayload({
+                personaId,
+                side: "front",
+                capture: affiliateArchivoCaptures.front,
+                usuarioId,
+                group: "affiliate",
+            }),
+            buildArchivoInsertPayload({
+                personaId,
+                side: "back",
+                capture: affiliateArchivoCaptures.back,
+                usuarioId,
+                group: "affiliate",
+            })
+        );
+    }
 
     const archivos = [];
     const erroresArchivo = [];
@@ -3191,6 +3258,7 @@ async function savePersonaAndFiles(payload) {
         personaId,
         usuarioId,
         originalPayload,
+        includeAffiliate: Number(payload.es_afiliado) === 1,
     });
 
     const saved = {
@@ -3265,6 +3333,7 @@ async function updateDuplicatePersonaAndFiles(duplicateData) {
         personaId,
         usuarioId,
         originalPayload,
+        includeAffiliate: Number(payload.es_afiliado) === 1,
     });
 
     const saved = {
@@ -3461,7 +3530,11 @@ function setAffiliateToggleValue(checked) {
     input.checked = Boolean(checked);
 }
 
-function resetAffiliateMediaState({ preserveToggle = false } = {}) {
+function resetAffiliateMediaState({
+    preserveToggle = false,
+    preserveCaptures = false,
+    preserveCompleted = false,
+} = {}) {
     if (State.affiliateMedia.stream) {
         State.affiliateMedia.stream.getTracks().forEach((track) => track.stop());
         State.affiliateMedia.stream = null;
@@ -3469,11 +3542,16 @@ function resetAffiliateMediaState({ preserveToggle = false } = {}) {
 
     State.affiliateMedia.step = "front";
     State.affiliateMedia.captureState = "idle";
-    State.affiliateMedia.completed = false;
+    if (!preserveCompleted) {
+        State.affiliateMedia.completed = false;
+    }
     State.affiliateMedia.mode = "capture";
 
-    State.affiliateMedia.captures.front = null;
-    State.affiliateMedia.captures.back = null;
+    if (!preserveCaptures) {
+        State.affiliateMedia.captures.front = null;
+        State.affiliateMedia.captures.back = null;
+        paintReviewAffiliateImages(null);
+    }
 
     const modal = $(SEL.affiliateModal);
     if (modal) {
@@ -3793,16 +3871,25 @@ async function completeAffiliateMediaDemo() {
     }
 
     const isReadonly = State.affiliateMedia.mode === "readonly";
+    const completedCaptures = {
+        front: State.affiliateMedia.captures.front,
+        back: State.affiliateMedia.captures.back,
+    };
 
     State.affiliateMedia.completed = true;
     setAffiliateToggleValue(true);
     setAffiliateMediaModalOpen(false);
     stopAffiliateCamera();
-    toast("Demo de documentos de afiliación lista. Aún no se envía a backend.", "exito", 5000);
-    resetAffiliateMediaState({ preserveToggle: false });
+    paintReviewAffiliateImages(completedCaptures);
+    toast("Documentos de afiliación listos.", "exito", 5000);
+    resetAffiliateMediaState({
+        preserveToggle: true,
+        preserveCaptures: true,
+        preserveCompleted: true,
+    });
 
     if (isReadonly && typeof window.redConfirmReadonlyAffiliateDemo === "function") {
-        await window.redConfirmReadonlyAffiliateDemo();
+        await window.redConfirmReadonlyAffiliateDemo({ captures: completedCaptures });
     }
 }
 
@@ -3910,7 +3997,7 @@ function bindReviewModalEvents() {
         }
 
         if (!event.target.checked) {
-            State.affiliateMedia.completed = false;
+            resetAffiliateMediaState({ preserveToggle: true });
             return;
         }
 

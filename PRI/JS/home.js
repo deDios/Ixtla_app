@@ -9,6 +9,7 @@ const CONFIG = {
   ENDPOINT_RED_HOME: "/PRI/db/WEB/ixtla_c_red_home.php",
   ENDPOINT_PERSONAS: "/PRI/db/WEB/ixtla_c_persona.php",
   ENDPOINT_ARCHIVOS: "/PRI/db/WEB/ixtla_c_archivo.php",
+  ENDPOINT_INSERT_ARCHIVO: "/PRI/db/WEB/ixtla_i_archivo.php",
   ENDPOINT_USUARIOS: "/PRI/db/WEB/ixtla_c_usuario.php",
   ENDPOINT_UPDATE_PERSONA: "/PRI/db/WEB/ixtla_u_persona.php",
   ENDPOINT_CAT_ESTATUS: "/PRI/db/WEB/ixtla_c_cat_estatus.php",
@@ -77,6 +78,9 @@ const SEL = {
   ineReviewReprocess: "#ine-btn-reprocess",
   ineReviewFront: "#ine-review-front",
   ineReviewBack: "#ine-review-back",
+  ineReviewAffiliateSection: "#ine-review-affiliate-captures-section",
+  ineReviewAffiliateFront: "#ine-review-affiliate-front",
+  ineReviewAffiliateBack: "#ine-review-affiliate-back",
 
   ineReviewEstatus: "#ine-review-estatus",
   ineReviewAfiliado: "#ine-review-es-afiliado",
@@ -247,6 +251,10 @@ async function updateReadonlyAffiliate(isAfiliado) {
       paintReadonlyAffiliateToggle(updatedPersona, fallbackRow);
     }
 
+    if (!isAfiliado) {
+      paintPersonaReadonlyAffiliateImages([]);
+    }
+
     toast(
       isAfiliado
         ? "La persona ahora está marcada como afiliada."
@@ -266,6 +274,85 @@ async function updateReadonlyAffiliate(isAfiliado) {
 
     if (input) input.disabled = false;
   }
+}
+
+function normalizeReadonlyCapture(capture) {
+  if (!capture) return null;
+
+  if (typeof capture === "string") {
+    return {
+      dataUrl: capture,
+      mime: capture.match(/^data:([^;]+);base64,/)?.[1] || "image/jpeg",
+      extension: capture.match(/^data:image\/([^;]+);base64,/)?.[1] || "jpg",
+      sizeBytes: Math.round((capture.length * 3) / 4),
+    };
+  }
+
+  const dataUrl = capture.dataUrl || capture.url || "";
+  return {
+    ...capture,
+    dataUrl,
+    mime: capture.mime || dataUrl.match(/^data:([^;]+);base64,/)?.[1] || "image/jpeg",
+    extension: capture.extension || dataUrl.match(/^data:image\/([^;]+);base64,/)?.[1] || "jpg",
+    sizeBytes: capture.sizeBytes || Math.round((String(dataUrl).length * 3) / 4),
+  };
+}
+
+function buildReadonlyAffiliateArchivoPayload({ personaId, side, capture }) {
+  const normalized = normalizeReadonlyCapture(capture);
+  const suffix = side === "front" ? "frente" : "reverso";
+  const extension = normalized?.extension || "jpg";
+  const timestamp = Date.now();
+
+  return {
+    entidad_tipo: "PERSONA",
+    entidad_id: Number(personaId),
+    uso_archivo: side === "front" ? "AFILIADO_FRENTE" : "AFILIADO_REVERSO",
+    nombre_original: `afiliado_${suffix}.${extension}`,
+    nombre_storage: `persona_${personaId}_afiliado_${suffix}_${timestamp}.${extension}`,
+    url_archivo: normalized?.dataUrl || "",
+    mime_type: normalized?.mime || "image/jpeg",
+    extension,
+    tamano_bytes: normalized?.sizeBytes || null,
+    version_no: 1,
+    es_actual: 1,
+    privado: 1,
+    uploaded_by: getUsuarioId() || null,
+    updated_by: getUsuarioId() || null,
+  };
+}
+
+async function saveReadonlyAffiliateFiles({ personaId, captures }) {
+  const normalizedCaptures = {
+    front: normalizeReadonlyCapture(captures?.front),
+    back: normalizeReadonlyCapture(captures?.back),
+  };
+
+  if (!normalizedCaptures.front?.dataUrl || !normalizedCaptures.back?.dataUrl) {
+    return [];
+  }
+
+  const payloads = [
+    buildReadonlyAffiliateArchivoPayload({
+      personaId,
+      side: "front",
+      capture: normalizedCaptures.front,
+    }),
+    buildReadonlyAffiliateArchivoPayload({
+      personaId,
+      side: "back",
+      capture: normalizedCaptures.back,
+    }),
+  ];
+
+  const saved = [];
+
+  for (const payload of payloads) {
+    const out = await postJSON(CONFIG.ENDPOINT_INSERT_ARCHIVO, payload);
+    if (out?.data) saved.push(out.data);
+  }
+
+  return saved;
 }
 
 async function saveReadonlyStatus() {
@@ -1259,6 +1346,7 @@ async function openPersonaReadonlyModal({
   if (loading) {
     clearImage(SEL.ineReviewFront);
     clearImage(SEL.ineReviewBack);
+    paintPersonaReadonlyAffiliateImages([]);
 
     if (title) title.textContent = "Cargando detalle de persona...";
     if (warning) {
@@ -1281,13 +1369,13 @@ async function openPersonaReadonlyModal({
     return;
   }
 
-  paintPersonaReadonlyData(persona || {}, fallbackRow || {});
-  paintPersonaReadonlyImages(archivos);
-
   State.readonlyRecord = {
     persona: persona || {},
     fallbackRow: fallbackRow || {},
   };
+
+  paintPersonaReadonlyData(persona || {}, fallbackRow || {});
+  paintPersonaReadonlyImages(archivos);
 
   paintReadonlyStatusOptions(persona || {}, fallbackRow || {});
   paintReadonlyAffiliateToggle(persona || {}, fallbackRow || {});
@@ -1368,9 +1456,6 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
 
   setFieldValue("#ine-review-observaciones", p.observaciones || p.persona_observaciones || "");
 
-  clearImage(SEL.ineReviewFront);
-  clearImage(SEL.ineReviewBack);
-
   refreshReadonlyAuditUsers(p);
 }
 
@@ -1414,11 +1499,40 @@ function paintPersonaReadonlyImages(archivos = []) {
     "Reverso de la INE"
   );
 
+  paintPersonaReadonlyAffiliateImages(archivos);
+
   log("Archivos pintados en modal readonly:", {
     total: archivos.length,
     frente: frente?.archivo_id || null,
     reverso: reverso?.archivo_id || null,
   });
+}
+
+function isCurrentReadonlyRecordAfiliado() {
+  const record = State.readonlyRecord || {};
+  return isPersonaAfiliada(record.persona || {}, record.fallbackRow || {});
+}
+
+function paintPersonaReadonlyAffiliateImages(archivos = [], { forceShow = false } = {}) {
+  const section = $(SEL.ineReviewAffiliateSection);
+  const canShowAffiliateImages = forceShow || isCurrentReadonlyRecordAfiliado();
+  const frente = findArchivoByUso(archivos, "AFILIADO_FRENTE");
+  const reverso = findArchivoByUso(archivos, "AFILIADO_REVERSO");
+  const hasBoth = Boolean(canShowAffiliateImages && frente?.url_archivo && reverso?.url_archivo);
+
+  setReadonlyImage(
+    SEL.ineReviewAffiliateFront,
+    hasBoth ? frente?.url_archivo || "" : "",
+    "Frente del afiliado"
+  );
+
+  setReadonlyImage(
+    SEL.ineReviewAffiliateBack,
+    hasBoth ? reverso?.url_archivo || "" : "",
+    "Reverso del afiliado"
+  );
+
+  if (section) section.hidden = !hasBoth;
 }
 
 function shortHash(value) {
@@ -1646,8 +1760,27 @@ async function init() {
   log("Home RED inicializado con endpoint server-side");
 }
 
-window.redConfirmReadonlyAffiliateDemo = async function redConfirmReadonlyAffiliateDemo() {
+window.redConfirmReadonlyAffiliateDemo = async function redConfirmReadonlyAffiliateDemo({ captures = null } = {}) {
   await updateReadonlyAffiliate(true);
+
+  const record = State.readonlyRecord || {};
+  const persona = record.persona || {};
+  const fallbackRow = record.fallbackRow || {};
+  const personaId = Number(persona.persona_id || fallbackRow.id || 0);
+
+  if (!personaId || !captures?.front || !captures?.back) return;
+
+  try {
+    const archivos = await saveReadonlyAffiliateFiles({ personaId, captures });
+
+    if (archivos.length) {
+      paintPersonaReadonlyAffiliateImages(archivos, { forceShow: true });
+      toast("Fotos de afiliado guardadas correctamente.", "exito");
+    }
+  } catch (err) {
+    error("No se pudieron guardar fotos de afiliado:", err);
+    toast(err?.message || "La afiliación se actualizó, pero no se pudieron guardar las fotos.", "error", 7000);
+  }
 };
 document.addEventListener("DOMContentLoaded", init);
 

@@ -340,7 +340,7 @@ ix_require_session([
                     <div class="ine-method-card">
                         <p class="ine-method-kicker">Afiliado</p>
                         <h3 id="affiliate-media-title">Captura documentos de afiliación</h3>
-                        <p>Demo sin endpoints. Puedes usar la cámara del dispositivo o subir dos imágenes.</p>
+                        <p>Puedes usar la cámara del dispositivo o subir dos imágenes del documento.</p>
 
                         <div class="ine-method-actions">
                             <button type="button" id="affiliate-btn-use-camera"
@@ -460,7 +460,7 @@ ix_require_session([
 
                             <button type="button" id="affiliate-btn-complete"
                                 class="ine-capture-btn ine-capture-btn--primary">
-                                Guardar demo
+                                Usar capturas
                             </button>
                         </div>
                     </div>
@@ -734,6 +734,24 @@ ix_require_session([
                             <figure class="ine-review-capture-card">
                                 <img id="ine-review-back" src="" alt="Captura del reverso de la INE">
                                 <figcaption>Reverso</figcaption>
+                            </figure>
+                        </div>
+                    </section>
+
+                    <!-- Capturas afiliado -->
+                    <section id="ine-review-affiliate-captures-section"
+                        class="ine-review-section ine-review-section--captures" hidden>
+                        <h3>Capturas afiliado</h3>
+
+                        <div class="ine-review-captures-grid">
+                            <figure class="ine-review-capture-card">
+                                <img id="ine-review-affiliate-front" src="" alt="Captura del frente del afiliado">
+                                <figcaption>Frente afiliado</figcaption>
+                            </figure>
+
+                            <figure class="ine-review-capture-card">
+                                <img id="ine-review-affiliate-back" src="" alt="Captura del reverso del afiliado">
+                                <figcaption>Reverso afiliado</figcaption>
                             </figure>
                         </div>
                     </section>
