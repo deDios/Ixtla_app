@@ -369,8 +369,6 @@ function validar_catalogos_archivo(array $in): void
   $usosValidos = [
     'INE_FRENTE',
     'INE_REVERSO',
-    'AFILIADO_FRENTE',
-    'AFILIADO_REVERSO',
     'FOTO_PERSONA',
     'FOTO_USUARIO',
     'COMPROBANTE_DOMICILIO',

@@ -301,17 +301,17 @@ function normalizeReadonlyCapture(capture) {
 }
 
 function buildReadonlyAffiliateArchivoPayload({ personaId, side, capture }) {
-  const normalized = normalizeReadonlyCapture(capture);
-  const suffix = side === "front" ? "frente" : "reverso";
-  const extension = normalized?.extension || "jpg";
+    const normalized = normalizeReadonlyCapture(capture);
+    const fileBase = side === "front" ? "foto_persona" : "documento_afiliacion";
+    const extension = normalized?.extension || "jpg";
   const timestamp = Date.now();
 
   return {
     entidad_tipo: "PERSONA",
     entidad_id: Number(personaId),
-    uso_archivo: side === "front" ? "AFILIADO_FRENTE" : "AFILIADO_REVERSO",
-    nombre_original: `afiliado_${suffix}.${extension}`,
-    nombre_storage: `persona_${personaId}_afiliado_${suffix}_${timestamp}.${extension}`,
+    uso_archivo: side === "front" ? "FOTO_PERSONA" : "DOCUMENTO_AFILIACION",
+    nombre_original: `${fileBase}.${extension}`,
+    nombre_storage: `persona_${personaId}_${fileBase}_${timestamp}.${extension}`,
     url_archivo: normalized?.dataUrl || "",
     mime_type: normalized?.mime || "image/jpeg",
     extension,
@@ -1518,20 +1518,24 @@ function isCurrentReadonlyRecordAfiliado() {
 function paintPersonaReadonlyAffiliateImages(archivos = [], { forceShow = false } = {}) {
   const section = $(SEL.ineReviewAffiliateSection);
   const canShowAffiliateImages = forceShow || isCurrentReadonlyRecordAfiliado();
-  const frente = findArchivoByUso(archivos, "AFILIADO_FRENTE");
-  const reverso = findArchivoByUso(archivos, "AFILIADO_REVERSO");
-  const hasBoth = Boolean(canShowAffiliateImages && frente?.url_archivo && reverso?.url_archivo);
+  const fotoPersona = findArchivoByUso(archivos, "FOTO_PERSONA");
+  const documentoAfiliacion = findArchivoByUso(archivos, "DOCUMENTO_AFILIACION");
+  const hasBoth = Boolean(
+    canShowAffiliateImages &&
+    fotoPersona?.url_archivo &&
+    documentoAfiliacion?.url_archivo
+  );
 
   setReadonlyImage(
     SEL.ineReviewAffiliateFront,
-    hasBoth ? frente?.url_archivo || "" : "",
-    "Frente del afiliado"
+    hasBoth ? fotoPersona?.url_archivo || "" : "",
+    "Foto de la persona"
   );
 
   setReadonlyImage(
     SEL.ineReviewAffiliateBack,
-    hasBoth ? reverso?.url_archivo || "" : "",
-    "Reverso del afiliado"
+    hasBoth ? documentoAfiliacion?.url_archivo || "" : "",
+    "Documento de afiliación"
   );
 
   if (section) section.hidden = !hasBoth;

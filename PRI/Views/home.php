@@ -401,23 +401,23 @@ ix_require_session([
                         <p class="ine-method-kicker">Carga manual</p>
                         <h3>Sube las imágenes del afiliado</h3>
                         <p>
-                            Selecciona una imagen del frente y una del reverso.
+                            Selecciona una foto de la persona y una imagen del documento de afiliación.
                             Formatos permitidos: JPG, PNG o WEBP.
                         </p>
 
                         <div class="ine-upload-grid">
                             <label class="ine-upload-box" for="affiliate-upload-front">
-                                <span>Frente del afiliado</span>
+                                <span>Foto de la persona</span>
                                 <input type="file" id="affiliate-upload-front" accept="image/jpeg,image/png,image/webp">
-                                <img id="affiliate-upload-preview-front" alt="Vista previa imagen 1" hidden>
-                                <small>Seleccionar frente</small>
+                                <img id="affiliate-upload-preview-front" alt="Vista previa de la persona" hidden>
+                                <small>Seleccionar foto</small>
                             </label>
 
                             <label class="ine-upload-box" for="affiliate-upload-back">
-                                <span>Reverso del afiliado</span>
+                                <span>Documento de afiliación</span>
                                 <input type="file" id="affiliate-upload-back" accept="image/jpeg,image/png,image/webp">
-                                <img id="affiliate-upload-preview-back" alt="Vista previa imagen 2" hidden>
-                                <small>Seleccionar reverso</small>
+                                <img id="affiliate-upload-preview-back" alt="Vista previa del documento de afiliación" hidden>
+                                <small>Seleccionar documento</small>
                             </label>
                         </div>
 
@@ -442,13 +442,13 @@ ix_require_session([
 
                         <div class="ine-summary-grid">
                             <figure>
-                                <img id="affiliate-preview-front" src="" alt="Vista previa imagen 1">
-                                <figcaption>Imagen 1</figcaption>
+                                <img id="affiliate-preview-front" src="" alt="Vista previa de la persona">
+                                <figcaption>Foto de la persona</figcaption>
                             </figure>
 
                             <figure>
-                                <img id="affiliate-preview-back" src="" alt="Vista previa imagen 2">
-                                <figcaption>Imagen 2</figcaption>
+                                <img id="affiliate-preview-back" src="" alt="Vista previa del documento de afiliación">
+                                <figcaption>Documento de afiliación</figcaption>
                             </figure>
                         </div>
 
@@ -741,17 +741,17 @@ ix_require_session([
                     <!-- Capturas afiliado -->
                     <section id="ine-review-affiliate-captures-section"
                         class="ine-review-section ine-review-section--captures" hidden>
-                        <h3>Capturas afiliado</h3>
+                        <h3>Evidencia de afiliación</h3>
 
                         <div class="ine-review-captures-grid">
                             <figure class="ine-review-capture-card">
-                                <img id="ine-review-affiliate-front" src="" alt="Captura del frente del afiliado">
-                                <figcaption>Frente afiliado</figcaption>
+                                <img id="ine-review-affiliate-front" src="" alt="Foto de la persona afiliada">
+                                <figcaption>Foto de la persona</figcaption>
                             </figure>
 
                             <figure class="ine-review-capture-card">
-                                <img id="ine-review-affiliate-back" src="" alt="Captura del reverso del afiliado">
-                                <figcaption>Reverso afiliado</figcaption>
+                                <img id="ine-review-affiliate-back" src="" alt="Documento de afiliación">
+                                <figcaption>Documento de afiliación</figcaption>
                             </figure>
                         </div>
                     </section>

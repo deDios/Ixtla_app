@@ -3086,10 +3086,12 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
 function buildArchivoInsertPayload({ personaId, side, capture, usuarioId, group = "ine" }) {
     const isAffiliate = group === "affiliate";
     const usoArchivo = isAffiliate
-        ? (side === "front" ? "AFILIADO_FRENTE" : "AFILIADO_REVERSO")
+        ? (side === "front" ? "FOTO_PERSONA" : "DOCUMENTO_AFILIACION")
         : (side === "front" ? "INE_FRENTE" : "INE_REVERSO");
     const suffix = side === "front" ? "frente" : "reverso";
-    const prefix = isAffiliate ? "afiliado" : "ine";
+    const fileBase = isAffiliate
+        ? (side === "front" ? "foto_persona" : "documento_afiliacion")
+        : `ine_${suffix}`;
     const normalizedCapture = normalizeCaptureObject(capture);
     const extension = normalizedCapture?.extension || "jpg";
     const mime = normalizedCapture?.mime || "image/jpeg";
@@ -3100,8 +3102,8 @@ function buildArchivoInsertPayload({ personaId, side, capture, usuarioId, group 
         entidad_id: Number(personaId),
         uso_archivo: usoArchivo,
 
-        nombre_original: `${prefix}_${suffix}.${extension}`,
-        nombre_storage: `persona_${personaId}_${prefix}_${suffix}_${timestamp}.${extension}`,
+        nombre_original: `${fileBase}.${extension}`,
+        nombre_storage: `persona_${personaId}_${fileBase}_${timestamp}.${extension}`,
 
         url_archivo: normalizedCapture?.dataUrl || "",
         mime_type: mime,
@@ -3314,8 +3316,8 @@ async function rollbackAffiliateIfFilesIncomplete({
             .filter(Boolean)
     );
     const affiliateFilesComplete =
-        savedUsages.has("AFILIADO_FRENTE") &&
-        savedUsages.has("AFILIADO_REVERSO");
+        savedUsages.has("FOTO_PERSONA") &&
+        savedUsages.has("DOCUMENTO_AFILIACION");
 
     if (affiliateFilesComplete) return false;
 
@@ -3754,12 +3756,12 @@ function setAffiliateStep(step) {
     }
 
     if (step === "front") {
-        if (title) title.textContent = "Coloca la primera imagen dentro del recuadro";
+        if (title) title.textContent = "Coloca la foto de la persona dentro del recuadro";
         if (status) status.textContent = "Cuando la imagen este bien alineada, presiona Capturar";
     }
 
     if (step === "back") {
-        if (title) title.textContent = "Coloca la segunda imagen dentro del recuadro";
+        if (title) title.textContent = "Coloca el documento de afiliación dentro del recuadro";
         if (status) status.textContent = "Cuando la imagen este bien alineada, presiona Capturar";
     }
 }
@@ -3927,7 +3929,7 @@ async function captureAffiliateCurrentStep() {
         if (btnCapture) btnCapture.hidden = true;
         setHidden(btnRetry, false);
         setHidden(btnNext, false);
-        if (btnNext) btnNext.textContent = side === "front" ? "Capturar segunda imagen" : "Ver capturas";
+        if (btnNext) btnNext.textContent = side === "front" ? "Capturar documento" : "Ver capturas";
     } catch (err) {
         console.error("[Affiliate capture error]", err);
         setAffiliateCaptureState("error");
