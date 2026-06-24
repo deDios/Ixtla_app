@@ -1280,7 +1280,13 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
 
         console.log("[RED duplicate updated]", saved);
 
-        if (saved.erroresArchivo.length) {
+        if (saved.afiliacionRevertida) {
+            toast(
+                "Datos actualizados, pero la afiliación no se confirmó porque faltaron fotos. La persona quedó como simpatizante.",
+                "warning",
+                9000
+            );
+        } else if (saved.erroresArchivo.length) {
             toast("Datos actualizados, pero una o mas fotos no pudieron registrarse.", "warning", 7000);
         } else {
             toast("Datos y fotos actualizados correctamente.", "exito", 6000);
@@ -3145,6 +3151,18 @@ function validateReviewPayload(payload) {
         return false;
     }
 
+    if (
+        Number(payload.es_afiliado) === 1 &&
+        (
+            !State.affiliateMedia.completed ||
+            !State.affiliateMedia.captures.front ||
+            !State.affiliateMedia.captures.back
+        )
+    ) {
+        toast("Completa las dos fotos de afiliación antes de guardar.", "error", 6000);
+        return false;
+    }
+
     if (!payload.seccion_id) {
         return true;
     }
@@ -3282,6 +3300,37 @@ async function saveFilesForPersona({ personaId, usuarioId, originalPayload, incl
     };
 }
 
+async function rollbackAffiliateIfFilesIncomplete({
+    personaId,
+    usuarioId,
+    includeAffiliate,
+    fileResult,
+}) {
+    if (!includeAffiliate) return false;
+
+    const savedUsages = new Set(
+        (fileResult?.archivos || [])
+            .map((archivo) => String(archivo?.uso_archivo || "").toUpperCase())
+            .filter(Boolean)
+    );
+    const affiliateFilesComplete =
+        savedUsages.has("AFILIADO_FRENTE") &&
+        savedUsages.has("AFILIADO_REVERSO");
+
+    if (affiliateFilesComplete) return false;
+
+    await postJSON(ENDPOINTS.updatePersona, {
+        persona_id: Number(personaId),
+        tipo_participacion: "SIMPATIZANTE",
+        updated_by: usuarioId || null,
+        usuario_responsable_id: usuarioId || null,
+        fuente_captura: "PORTAL",
+    });
+
+    setAffiliateToggleValue(false);
+    return true;
+}
+
 async function savePersonaAndFiles(payload) {
     const reviewModal = $(SEL.reviewModal);
     const originalPayload = reviewModal?.__inePayload || null;
@@ -3299,17 +3348,25 @@ async function savePersonaAndFiles(payload) {
         throw new Error("La persona fue creada, pero no se recibio persona_id.");
     }
 
+    const includeAffiliate = Number(payload.es_afiliado) === 1;
     const fileResult = await saveFilesForPersona({
         personaId,
         usuarioId,
         originalPayload,
-        includeAffiliate: Number(payload.es_afiliado) === 1,
+        includeAffiliate,
+    });
+    const afiliacionRevertida = await rollbackAffiliateIfFilesIncomplete({
+        personaId,
+        usuarioId,
+        includeAffiliate,
+        fileResult,
     });
 
     const saved = {
         persona,
         archivos: fileResult.archivos,
         erroresArchivo: fileResult.erroresArchivo,
+        afiliacionRevertida,
         extraction: originalPayload?.extraction || null,
         fields: originalPayload?.fields || [],
     };
@@ -3374,17 +3431,25 @@ async function updateDuplicatePersonaAndFiles(duplicateData) {
     const personaResponse = await postJSON(ENDPOINTS.updatePersona, personaPayload);
     const persona = personaResponse.data || null;
 
+    const includeAffiliate = Number(payload.es_afiliado) === 1;
     const fileResult = await saveFilesForPersona({
         personaId,
         usuarioId,
         originalPayload,
-        includeAffiliate: Number(payload.es_afiliado) === 1,
+        includeAffiliate,
+    });
+    const afiliacionRevertida = await rollbackAffiliateIfFilesIncomplete({
+        personaId,
+        usuarioId,
+        includeAffiliate,
+        fileResult,
     });
 
     const saved = {
         persona,
         archivos: fileResult.archivos,
         erroresArchivo: fileResult.erroresArchivo,
+        afiliacionRevertida,
         duplicateUpdated: true,
         duplicateData,
         extraction: originalPayload?.extraction || null,
@@ -3445,7 +3510,13 @@ async function handleReviewSubmit(event) {
 
         log("Persona guardada en backend:", saved);
 
-        if (saved.erroresArchivo.length) {
+        if (saved.afiliacionRevertida) {
+            toast(
+                "Persona guardada como simpatizante porque no pudieron registrarse ambas fotos de afiliación.",
+                "warning",
+                9000
+            );
+        } else if (saved.erroresArchivo.length) {
             toast("Persona guardada, pero una o mas fotos no pudieron registrarse.", "warning", 7000);
         } else {
             toast("Persona y fotos de INE guardadas correctamente.", "exito", 5000);
@@ -3909,7 +3980,7 @@ function closeAffiliateMediaModal({ revertToggle = true } = {}) {
     resetAffiliateMediaState();
 }
 
-async function completeAffiliateMediaDemo() {
+async function completeAffiliateMedia() {
     if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
         toast("Necesitas capturar ambas imágenes antes de continuar.", "warning", 5000);
         return;
@@ -3920,25 +3991,58 @@ async function completeAffiliateMediaDemo() {
         front: State.affiliateMedia.captures.front,
         back: State.affiliateMedia.captures.back,
     };
+    const completeBtn = $(SEL.affiliateBtnComplete);
+    const originalBtnText = completeBtn?.textContent || "Confirmar afiliación";
+
+    if (isReadonly) {
+        if (completeBtn) {
+            completeBtn.disabled = true;
+            completeBtn.textContent = "Guardando...";
+        }
+
+        try {
+            if (typeof window.redConfirmReadonlyAffiliate !== "function") {
+                throw new Error("No está disponible el guardado de afiliación.");
+            }
+
+            const saved = await window.redConfirmReadonlyAffiliate({
+                captures: completedCaptures,
+            });
+
+            if (!saved) {
+                throw new Error("No se pudo confirmar la afiliación.");
+            }
+        } catch (err) {
+            setAffiliateToggleValue(State.affiliateMedia.previousChecked);
+            error("No se pudo guardar la afiliación:", err);
+            toast(err?.message || "No se pudo guardar la afiliación y sus fotos.", "error", 7000);
+            return;
+        } finally {
+            if (completeBtn) {
+                completeBtn.disabled = false;
+                completeBtn.textContent = originalBtnText;
+            }
+        }
+    }
 
     State.affiliateMedia.completed = true;
     setAffiliateToggleValue(true);
     setAffiliateMediaModalOpen(false);
     stopAffiliateCamera();
     paintReviewAffiliateImages(completedCaptures);
-    toast("Documentos de afiliación listos.", "exito", 5000);
+
+    if (!isReadonly) {
+        toast("Documentos listos. Se guardarán junto con la persona.", "exito", 5000);
+    }
+
     resetAffiliateMediaState({
         preserveToggle: true,
         preserveCaptures: true,
         preserveCompleted: true,
     });
-
-    if (isReadonly && typeof window.redConfirmReadonlyAffiliateDemo === "function") {
-        await window.redConfirmReadonlyAffiliateDemo({ captures: completedCaptures });
-    }
 }
 
-async function openAffiliateMediaDemo({ input = null, mode = "capture" } = {}) {
+async function openAffiliateMedia({ input = null, mode = "capture" } = {}) {
     const modal = $(SEL.affiliateModal);
     if (!modal) {
         warn("No existe #affiliate-media-modal en el HTML.");
@@ -3948,6 +4052,14 @@ async function openAffiliateMediaDemo({ input = null, mode = "capture" } = {}) {
     State.affiliateMedia.pendingInput = input || $("#ine-review-es-afiliado");
     State.affiliateMedia.previousChecked = Boolean(input?.checked) ? false : Boolean(input?.checked);
     State.affiliateMedia.mode = mode;
+
+    const completeBtn = $(SEL.affiliateBtnComplete);
+    if (completeBtn) {
+        completeBtn.disabled = false;
+        completeBtn.textContent = mode === "readonly"
+            ? "Guardar afiliación"
+            : "Confirmar afiliación";
+    }
 
     resetAffiliateMediaState({ preserveToggle: true });
     setAffiliateMediaModalOpen(true);
@@ -4008,10 +4120,10 @@ function bindAffiliateMediaEvents() {
         setAffiliateMediaModalOpen(true);
         await startAffiliateCamera();
     });
-    $(SEL.affiliateBtnComplete)?.addEventListener("click", completeAffiliateMediaDemo);
+    $(SEL.affiliateBtnComplete)?.addEventListener("click", completeAffiliateMedia);
 }
 
-window.redOpenAffiliateMediaDemo = openAffiliateMediaDemo;
+window.redOpenAffiliateMedia = openAffiliateMedia;
 function bindReviewModalEvents() {
     $$(SEL.reviewClose).forEach((btn) => {
         btn.addEventListener("click", closeReviewModal);
@@ -4046,7 +4158,7 @@ function bindReviewModalEvents() {
             return;
         }
 
-        await openAffiliateMediaDemo({
+        await openAffiliateMedia({
             input: event.target,
             mode: "capture",
         });

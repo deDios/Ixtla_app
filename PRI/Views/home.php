@@ -323,7 +323,7 @@ ix_require_session([
 
 
 
-    <!---------------------- Modal demo media afiliado -------------------------->
+    <!---------------------- Modal media afiliado ------------------------------->
 
     <section id="affiliate-media-modal" class="ine-capture-modal" hidden aria-hidden="true">
         <div class="ine-capture-overlay" data-affiliate-media-close></div>

@@ -212,13 +212,13 @@ async function updateReadonlyAffiliate(isAfiliado) {
 
   if (!personaId) {
     toast("No se encontró la persona para actualizar afiliación.", "error");
-    return;
+    return false;
   }
 
   const input = $(SEL.ineReviewAfiliado);
   const previousValue = !isAfiliado;
 
-  if (State.readonlyChangingAffiliate) return;
+  if (State.readonlyChangingAffiliate) return false;
 
   State.readonlyChangingAffiliate = true;
 
@@ -263,12 +263,14 @@ async function updateReadonlyAffiliate(isAfiliado) {
     );
 
     await loadDashboard({ keepPage: true });
+    return true;
   } catch (err) {
     error("No se pudo actualizar afiliación:", err);
 
     if (input) input.checked = previousValue;
 
     toast(err?.message || "No se pudo actualizar la afiliación.", "error");
+    return false;
   } finally {
     State.readonlyChangingAffiliate = false;
 
@@ -1725,8 +1727,8 @@ function bindEvents() {
       return;
     }
 
-    if (event.target.checked && typeof window.redOpenAffiliateMediaDemo === "function") {
-      await window.redOpenAffiliateMediaDemo({
+    if (event.target.checked && typeof window.redOpenAffiliateMedia === "function") {
+      await window.redOpenAffiliateMedia({
         input: event.target,
         mode: "readonly",
       });
@@ -1760,27 +1762,34 @@ async function init() {
   log("Home RED inicializado con endpoint server-side");
 }
 
-window.redConfirmReadonlyAffiliateDemo = async function redConfirmReadonlyAffiliateDemo({ captures = null } = {}) {
-  await updateReadonlyAffiliate(true);
-
+window.redConfirmReadonlyAffiliate = async function redConfirmReadonlyAffiliate({ captures = null } = {}) {
   const record = State.readonlyRecord || {};
   const persona = record.persona || {};
   const fallbackRow = record.fallbackRow || {};
   const personaId = Number(persona.persona_id || fallbackRow.id || 0);
+  const input = $(SEL.ineReviewAfiliado);
 
-  if (!personaId || !captures?.front || !captures?.back) return;
-
-  try {
-    const archivos = await saveReadonlyAffiliateFiles({ personaId, captures });
-
-    if (archivos.length) {
-      paintPersonaReadonlyAffiliateImages(archivos, { forceShow: true });
-      toast("Fotos de afiliado guardadas correctamente.", "exito");
-    }
-  } catch (err) {
-    error("No se pudieron guardar fotos de afiliado:", err);
-    toast(err?.message || "La afiliación se actualizó, pero no se pudieron guardar las fotos.", "error", 7000);
+  if (!personaId || !captures?.front || !captures?.back) {
+    if (input) input.checked = false;
+    throw new Error("No se pudo identificar la persona o faltan fotos de afiliación.");
   }
+
+  const archivos = await saveReadonlyAffiliateFiles({ personaId, captures });
+
+  if (archivos.length !== 2) {
+    if (input) input.checked = false;
+    throw new Error("No se pudieron guardar ambas fotos de afiliación.");
+  }
+
+  const updated = await updateReadonlyAffiliate(true);
+  if (!updated) {
+    if (input) input.checked = false;
+    throw new Error("Las fotos se guardaron, pero no se pudo actualizar la afiliación.");
+  }
+
+  paintPersonaReadonlyAffiliateImages(archivos, { forceShow: true });
+  toast("Afiliación y fotos guardadas correctamente.", "exito");
+  return true;
 };
 document.addEventListener("DOMContentLoaded", init);
 
