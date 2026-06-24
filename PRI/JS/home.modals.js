@@ -3650,6 +3650,7 @@ function resetAffiliateMediaState({
     preserveToggle = false,
     preserveCaptures = false,
     preserveCompleted = false,
+    preserveMode = false,
 } = {}) {
     if (State.affiliateMedia.stream) {
         State.affiliateMedia.stream.getTracks().forEach((track) => track.stop());
@@ -3661,7 +3662,9 @@ function resetAffiliateMediaState({
     if (!preserveCompleted) {
         State.affiliateMedia.completed = false;
     }
-    State.affiliateMedia.mode = "capture";
+    if (!preserveMode) {
+        State.affiliateMedia.mode = "capture";
+    }
 
     if (!preserveCaptures) {
         State.affiliateMedia.captures.front = null;
@@ -3986,7 +3989,9 @@ async function completeAffiliateMedia() {
         return;
     }
 
-    const isReadonly = State.affiliateMedia.mode === "readonly";
+    const affiliateModal = $(SEL.affiliateModal);
+    const currentMode = affiliateModal?.dataset?.affiliateMode || State.affiliateMedia.mode;
+    const isReadonly = currentMode === "readonly";
     const completedCaptures = {
         front: State.affiliateMedia.captures.front,
         back: State.affiliateMedia.captures.back,
@@ -4051,7 +4056,11 @@ async function openAffiliateMedia({ input = null, mode = "capture" } = {}) {
 
     State.affiliateMedia.pendingInput = input || $("#ine-review-es-afiliado");
     State.affiliateMedia.previousChecked = Boolean(input?.checked) ? false : Boolean(input?.checked);
+
+    resetAffiliateMediaState({ preserveToggle: true });
+
     State.affiliateMedia.mode = mode;
+    modal.dataset.affiliateMode = mode;
 
     const completeBtn = $(SEL.affiliateBtnComplete);
     if (completeBtn) {
@@ -4061,7 +4070,6 @@ async function openAffiliateMedia({ input = null, mode = "capture" } = {}) {
             : "Confirmar afiliación";
     }
 
-    resetAffiliateMediaState({ preserveToggle: true });
     setAffiliateMediaModalOpen(true);
 
     const device = getDeviceContext();
@@ -4116,7 +4124,10 @@ function bindAffiliateMediaEvents() {
     $(SEL.affiliateBtnRetry)?.addEventListener("click", retryAffiliateCurrentStep);
     $(SEL.affiliateBtnNext)?.addEventListener("click", goNextAffiliateStep);
     $(SEL.affiliateBtnSummaryRetry)?.addEventListener("click", async () => {
-        resetAffiliateMediaState({ preserveToggle: true });
+        resetAffiliateMediaState({
+            preserveToggle: true,
+            preserveMode: true,
+        });
         setAffiliateMediaModalOpen(true);
         await startAffiliateCamera();
     });
