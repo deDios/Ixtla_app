@@ -467,14 +467,6 @@ async function handleUploadFile(side, file) {
         }
 
         syncUploadContinueButton();
-
-        toast(
-            side === "front"
-                ? "Frente cargado correctamente."
-                : "Reverso cargado correctamente.",
-            "exito",
-            3000
-        );
     } catch (err) {
         console.error("[RED upload INE error]", err);
         toast(err?.message || "No se pudo cargar la imagen.", "error", 6000);
@@ -1941,14 +1933,6 @@ function acceptCapture(imageData, side) {
 
     const capture = State.captures[side];
 
-    toast(
-        side === "front"
-            ? "Frente capturado correctamente"
-            : "Reverso capturado correctamente",
-        "exito",
-        3000
-    );
-
     log("Captura aceptada:", {
         side,
         hasFront: Boolean(State.captures.front),
@@ -2262,8 +2246,6 @@ async function processOpenAIData() {
         };
 
         log("Extraccion OpenAI completada:", payload);
-
-        toast("Datos extraídos correctamente.", "exito", 4500);
 
         hideCaptureModalWithoutReset();
         await openReviewModal(payload);
@@ -3013,7 +2995,6 @@ async function buildPersonaInsertPayload(payload) {
 async function compressCaptureForArchivo(capture, side = "archivo") {
     const normalized = normalizeCaptureObject(capture);
     const dataUrl = normalized?.dataUrl || "";
-    const sideLabel = String(side).includes("front") ? "frente" : "reverso";
 
     if (!dataUrl) {
         return normalized;
@@ -3071,24 +3052,12 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
             withinLimit: result.withinLimit,
         });
 
-        toast(
-            `Foto ${sideLabel} comprimida: ${currentSizeKB}KB -> ${result.sizeKB}KB`,
-            "exito",
-            4500
-        );
-
         return result;
     } catch (err) {
         warn("No se pudo recomprimir captura para archivo. Se usará original.", {
             side,
             error: err,
         });
-
-        toast(
-            `No se pudo comprimir la foto ${sideLabel}. Se enviara original.`,
-            "warning",
-            6000
-        );
 
         return normalized;
     }
@@ -3202,8 +3171,6 @@ async function saveFilesForPersona({ personaId, usuarioId, originalPayload, incl
         Boolean(State.affiliateMedia.completed) &&
         Boolean(affiliateCaptures.front && affiliateCaptures.back);
 
-    toast("Comprimiendo fotos de INE para guardar...", "warning", 3500);
-
     const archivoCaptures = {
         front: await compressCaptureForArchivo(captures.front, "front"),
         back: await compressCaptureForArchivo(captures.back, "back"),
@@ -3225,8 +3192,6 @@ async function saveFilesForPersona({ personaId, usuarioId, originalPayload, incl
     ];
 
     if (shouldSaveAffiliate) {
-        toast("Comprimiendo fotos de afiliado para guardar...", "warning", 3500);
-
         const affiliateArchivoCaptures = {
             front: await compressCaptureForArchivo(affiliateCaptures.front, "affiliate-front"),
             back: await compressCaptureForArchivo(affiliateCaptures.back, "affiliate-back"),
@@ -3262,12 +3227,6 @@ async function saveFilesForPersona({ personaId, usuarioId, originalPayload, incl
                 response: archivoResponse,
             });
 
-            toast(
-                `i_archivo ${archivoPayload.uso_archivo}: ${archivoResponse?.message || "OK"}`,
-                "exito",
-                9000
-            );
-
             archivos.push(archivoResponse.data || null);
         } catch (err) {
             const msg = err?.message || "No se pudo registrar archivo.";
@@ -3291,12 +3250,6 @@ async function saveFilesForPersona({ personaId, usuarioId, originalPayload, incl
                     url_archivo_head: String(archivoPayload.url_archivo || "").slice(0, 60),
                 },
             });
-
-            toast(
-                `ERROR i_archivo ${archivoPayload.uso_archivo}: ${msg}`,
-                "error",
-                12000
-            );
 
             erroresArchivo.push({
                 uso_archivo: archivoPayload.uso_archivo,

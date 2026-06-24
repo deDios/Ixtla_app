@@ -203,7 +203,7 @@ function syncReadonlyStatusSaveButton() {
   btn.disabled = !changed || State.readonlySavingStatus;
 }
 
-async function updateReadonlyAffiliate(isAfiliado) {
+async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
   const record = State.readonlyRecord || {};
   const persona = record.persona || {};
   const fallbackRow = record.fallbackRow || {};
@@ -255,12 +255,14 @@ async function updateReadonlyAffiliate(isAfiliado) {
       paintPersonaReadonlyAffiliateImages([]);
     }
 
-    toast(
-      isAfiliado
-        ? "La persona ahora está marcada como afiliada."
-        : "Se quitó la afiliación. La persona queda como simpatizante.",
-      "exito"
-    );
+    if (!silent) {
+      toast(
+        isAfiliado
+          ? "La persona ahora está marcada como afiliada."
+          : "Se quitó la afiliación. La persona queda como simpatizante.",
+        "exito"
+      );
+    }
 
     await loadDashboard({ keepPage: true });
     return true;
@@ -1786,7 +1788,7 @@ window.redConfirmReadonlyAffiliate = async function redConfirmReadonlyAffiliate(
     throw new Error("No se pudieron guardar ambas fotos de afiliación.");
   }
 
-  const updated = await updateReadonlyAffiliate(true);
+  const updated = await updateReadonlyAffiliate(true, { silent: true });
   if (!updated) {
     if (input) input.checked = false;
     throw new Error("Las fotos se guardaron, pero no se pudo actualizar la afiliación.");
