@@ -35,6 +35,7 @@ const CONFIG = {
 
     SAVE: {
         personaEstatusIdCapturado: 1,
+        personaEstatusIdPendienteValidacion: 2,
         avisoPrivacidadVersion: "RED-INE-2026-01",
         reloadPageAfterSave: false,
         reloadDelayMs: 900,
@@ -76,6 +77,7 @@ const State = {
     pendingReviewSubmit: null,
     pendingDuplicateUpdate: null,
     residenceContext: null,
+    requiresPendingValidation: false,
 
     captures: {
         front: null,
@@ -324,6 +326,7 @@ function prepareCaptureStep(step) {
 function resetCaptureFlow() {
     State.step = "front";
     State.captureState = "idle";
+    State.requiresPendingValidation = false;
     State.captures.front = null;
     State.captures.back = null;
     resetAffiliateMediaState();
@@ -976,6 +979,10 @@ function enableResidenceFields() {
 async function openResidenceModal(pendingPayload, context = "save") {
     State.pendingReviewSubmit = pendingPayload || null;
     State.residenceContext = context;
+
+    if (context === "save" || context === "review") {
+        State.requiresPendingValidation = true;
+    }
 
     resetResidenceModal();
 
@@ -2947,6 +2954,9 @@ async function buildPersonaInsertPayload(payload) {
 
     const esAfiliado = Number(payload.es_afiliado) === 1;
     const tipoParticipacion = esAfiliado ? "AFILIADO" : "SIMPATIZANTE";
+    const estatusId = State.requiresPendingValidation
+        ? CONFIG.SAVE.personaEstatusIdPendienteValidacion
+        : CONFIG.SAVE.personaEstatusIdCapturado;
 
     const personaPayload = {
         nombres: cleanUpper(payload.nombres),
@@ -2977,13 +2987,14 @@ async function buildPersonaInsertPayload(payload) {
         aviso_privacidad_version: CONFIG.SAVE.avisoPrivacidadVersion,
         fecha_consentimiento: Number(payload.acepta_tratamiento_datos) === 1 ? getTodayDateTimeForMysql() : null,
 
-        estatus_id: CONFIG.SAVE.personaEstatusIdCapturado,
+        estatus_id: estatusId,
         capturado_por: usuarioId || null,
         created_by: usuarioId || null,
 
         observaciones: nullableString(payload.observaciones),
 
         tipo_participacion: tipoParticipacion,
+        participacion_estatus_id: estatusId,
         participacion_territorio_id: nullableNumber(payload.seccion_id),
         usuario_responsable_id: usuarioId || null,
         fuente_captura: "PORTAL",

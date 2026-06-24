@@ -12,7 +12,6 @@ const CONFIG = {
   ENDPOINT_INSERT_ARCHIVO: "/PRI/db/WEB/ixtla_i_archivo.php",
   ENDPOINT_USUARIOS: "/PRI/db/WEB/ixtla_c_usuario.php",
   ENDPOINT_UPDATE_PERSONA: "/PRI/db/WEB/ixtla_u_persona.php",
-  ENDPOINT_CAT_ESTATUS: "/PRI/db/WEB/ixtla_c_cat_estatus.php",
 };
 
 const TAG = "[RED Home]";
@@ -89,6 +88,13 @@ const SEL = {
 };
 
 const ESTATUS_VALIDOS = new Set(["VALIDADO", "ACTIVO"]);
+const PERSON_STATUS_OPTIONS = Object.freeze([
+  { estatus_id: 1, codigo: "CAPTURADO", nombre: "Capturado" },
+  { estatus_id: 2, codigo: "PENDIENTE_VALIDACION", nombre: "Pendiente de validación" },
+  { estatus_id: 4, codigo: "ACTIVO", nombre: "Activo" },
+  { estatus_id: 5, codigo: "INACTIVO", nombre: "Inactivo" },
+  { estatus_id: 8, codigo: "DUPLICADO", nombre: "Duplicado" },
+]);
 
 /* -------------------------------------------------------------------------- */
 /* HELPERS                                                                    */
@@ -99,13 +105,7 @@ async function loadCatEstatus() {
     return State.estatus;
   }
 
-  const out = await postJSON(CONFIG.ENDPOINT_CAT_ESTATUS, {
-    page: 1,
-    activo: 1,
-    page_size: 20,
-  });
-
-  State.estatus = Array.isArray(out.data) ? out.data : [];
+  State.estatus = PERSON_STATUS_OPTIONS.map((item) => ({ ...item }));
 
   return State.estatus;
 }
@@ -388,6 +388,7 @@ async function saveReadonlyStatus() {
   try {
     const out = await postJSON(CONFIG.ENDPOINT_UPDATE_PERSONA, {
       persona_id: personaId,
+      estatus_id: estatusId,
       tipo_participacion: isAfiliado ? "AFILIADO" : "SIMPATIZANTE",
       participacion_estatus_id: estatusId,
       updated_by: getUsuarioId() || null,
