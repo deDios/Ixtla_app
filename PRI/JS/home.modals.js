@@ -479,7 +479,7 @@ async function handleUploadFile(side, file) {
 
 function readCookiePayload() {
     try {
-        const name = "ix_emp=";
+        const name = encodeURIComponent("red_user") + "=";
         const pair = document.cookie.split("; ").find((c) => c.startsWith(name));
         if (!pair) return null;
 
@@ -2302,6 +2302,15 @@ function onlyDigits(value) {
     return normalizeValue(value).replace(/\D+/g, "");
 }
 
+function normalizePhone(value) {
+    return onlyDigits(value).slice(0, 12);
+}
+
+function hasValidPhoneLength(value) {
+    const length = normalizePhone(value).length;
+    return length >= 10 && length <= 12;
+}
+
 function nullableString(value) {
     const clean = normalizeValue(value);
     return clean || null;
@@ -2897,7 +2906,7 @@ function collectReviewPayload() {
 
         domicilio_texto: getFieldValue("#ine-review-domicilio"),
 
-        telefono: getFieldValue("#ine-review-telefono"),
+        telefono: normalizePhone(getFieldValue("#ine-review-telefono")),
         whatsapp: getFieldValue("#ine-review-whatsapp"),
         email: getFieldValue("#ine-review-email"),
 
@@ -3130,6 +3139,11 @@ function validateReviewPayload(payload) {
             message:
                 "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
         });
+        return false;
+    }
+
+    if (payload.telefono && !hasValidPhoneLength(payload.telefono)) {
+        toast("El teléfono debe contener entre 10 y 12 números.", "error", 5000);
         return false;
     }
 
@@ -3555,7 +3569,7 @@ function bindResidenceModalEvents() {
 
         const seccion = getFieldValue(SEL.residenceSeccion);
         const domicilio = getFieldValue(SEL.residenceDomicilio);
-        const telefono = getFieldValue(SEL.residenceTelefono);
+        const telefono = normalizePhone(getFieldValue(SEL.residenceTelefono));
 
         if (!seccion) {
             toast("Selecciona una seccion.", "warning", 4500);
@@ -3569,6 +3583,11 @@ function bindResidenceModalEvents() {
 
         if (!telefono) {
             toast("Captura el método de contacto.", "warning", 4500);
+            return;
+        }
+
+        if (!hasValidPhoneLength(telefono)) {
+            toast("El teléfono debe contener entre 10 y 12 números.", "warning", 4500);
             return;
         }
 

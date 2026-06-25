@@ -665,8 +665,7 @@ ix_require_session([
                         <div class="ine-review-grid">
                             <label class="ine-review-field">
                                 <span>Teléfono</span>
-                                <input type="tel" id="ine-review-telefono" name="telefono" inputmode="tel"
-                                    placeholder="Teléfono">
+                                <input type="tel" id="ine-review-telefono" name="telefono" inputmode="tel" minlength="10" maxlength="12" pattern="[0-9]{10,12}" placeholder="Teléfono" title="Captura entre 10 y 12 números">
                             </label>
 
                             <label class="ine-review-field">
@@ -840,8 +839,7 @@ ix_require_session([
 
                     <label class="red-residence-field">
                         <span>Método de contacto</span>
-                        <input type="text" id="red-residence-telefono" name="telefono" placeholder="Ej. 3333333333"
-                            disabled>
+                        <input type="tel" id="red-residence-telefono" name="telefono" inputmode="tel" minlength="10" maxlength="12" pattern="[0-9]{10,12}" placeholder="Ej. 3333333333" title="Captura entre 10 y 12 números" disabled>
                     </label>
 
                     <footer class="red-residence-footer">

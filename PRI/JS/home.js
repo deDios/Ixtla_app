@@ -491,7 +491,7 @@ function clearImage(selector) {
 
 function readCookiePayload() {
   try {
-    const name = "ix_emp=";
+    const name = encodeURIComponent("red_user") + "=";
     const pair = document.cookie.split("; ").find((c) => c.startsWith(name));
     if (!pair) return null;
 
@@ -1688,15 +1688,6 @@ function bindEvents() {
       return;
     }
 
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-
-      const row = event.target.closest(".red-row[data-action='open']");
-      if (!row) return;
-
-      event.preventDefault();
-      openRecord(row.dataset.id);
-    });
 
     const pagerBtn = event.target.closest("#red-pager button");
     if (pagerBtn) {
@@ -1712,6 +1703,16 @@ function bindEvents() {
         await goToPage(pagerBtn.dataset.page);
       }
     }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+
+    const row = event.target.closest?.(".red-row[data-action='open']");
+    if (!row) return;
+
+    event.preventDefault();
+    openRecord(row.dataset.id);
   });
 
   $(SEL.ineReviewEstatus)?.addEventListener("change", () => {
