@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../JS/auth/ix_guard.php';
 
 ix_require_session([
@@ -960,7 +960,7 @@ ix_require_session([
                 </h2>
 
                 <p id="red-revoke-affiliate-message" class="red-revoke-affiliate-message">
-                    La persona dejara de estar marcada como afiliada y volvera al estado de simpatizante.
+                    La persona dejara de estar marcada como afiliada y volvera al estado de simpatizante (las capturas de la persona y documento de la afiliación se eliminarán).
                 </p>
 
                 <p id="red-revoke-affiliate-person" class="red-revoke-affiliate-person"></p>
