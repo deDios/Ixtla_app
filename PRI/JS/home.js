@@ -1221,16 +1221,6 @@ async function openRecord(id) {
   }
 }
 
-function setReviewModalOpen(isOpen) {
-  const modal = $(SEL.ineReviewModal);
-  if (!modal) return;
-
-  modal.hidden = !isOpen;
-  modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
-
-  document.body.classList.toggle("ine-modal-open", Boolean(isOpen));
-}
-
 function setReviewModalReadonlyMode(isReadonly) {
   const modal = $(SEL.ineReviewModal);
   const form = $(SEL.ineReviewForm);
@@ -1397,6 +1387,7 @@ async function confirmRevokeAffiliate() {
     }
   }
 }
+
 function resetReviewModalToCaptureMode() {
   const title = $(SEL.ineReviewTitle);
   const kicker = $(SEL.ineReviewKicker);
