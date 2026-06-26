@@ -311,9 +311,9 @@ function normalizeReadonlyCapture(capture) {
 }
 
 function buildReadonlyAffiliateArchivoPayload({ personaId, side, capture }) {
-    const normalized = normalizeReadonlyCapture(capture);
-    const fileBase = side === "front" ? "foto_persona" : "documento_afiliacion";
-    const extension = normalized?.extension || "jpg";
+  const normalized = normalizeReadonlyCapture(capture);
+  const fileBase = side === "front" ? "foto_persona" : "documento_afiliacion";
+  const extension = normalized?.extension || "jpg";
   const timestamp = Date.now();
 
   return {
@@ -1368,7 +1368,7 @@ function openRevokeAffiliateModal() {
   State.readonlyRevokeAffiliatePending = true;
 
   if (message) {
-    message.textContent = "La persona dejara de estar marcada como afiliada y volvera al estado de simpatizante.";
+    message.textContent = "La persona dejará de ser parte de los afiliados y se agregará como un simpatizante.";
   }
 
   if (personText) {

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../JS/auth/ix_guard.php';
 
 ix_require_session([
@@ -339,8 +339,8 @@ ix_require_session([
                 <section class="ine-capture-screen is-active" data-affiliate-screen="method">
                     <div class="ine-method-card">
                         <p class="ine-method-kicker">Afiliado</p>
-                        <h3 id="affiliate-media-title">Captura documentos de afiliación</h3>
-                        <p>Puedes usar la cámara del dispositivo o subir dos imágenes del documento.</p>
+                        <h3 id="affiliate-media-title">Captura evidencia de afiliación</h3>
+                        <p>Puedes usar la cámara del dispositivo o subir dos imágenes: el documento de afiliación y una foto del afiliado con fondo blanco.</p>
 
                         <div class="ine-method-actions">
                             <button type="button" id="affiliate-btn-use-camera"
@@ -363,8 +363,8 @@ ix_require_session([
                         <div class="ine-camera-overlay" aria-hidden="true"></div>
 
                         <div class="ine-camera-copy">
-                            <h3 id="affiliate-camera-step-title">Coloca la primera imagen dentro del recuadro</h3>
-                            <p>Acomoda el documento y presiona <strong>Capturar</strong></p>
+                            <h3 id="affiliate-camera-step-title">Captura el documento de afiliación</h3>
+                            <p id="affiliate-camera-helper">Centra el documento y presiona <strong>Capturar</strong></p>
                         </div>
 
                         <div class="ine-camera-guide" aria-hidden="true">
@@ -399,25 +399,25 @@ ix_require_session([
                 <section class="ine-capture-screen" data-affiliate-screen="upload">
                     <div class="ine-upload-card">
                         <p class="ine-method-kicker">Carga manual</p>
-                        <h3>Sube las imágenes del afiliado</h3>
+                        <h3>Sube la evidencia del afiliado</h3>
                         <p>
-                            Selecciona una foto de la persona y una imagen del documento de afiliación.
+                            Selecciona primero el documento de afiliación y después una foto del afiliado con fondo blanco.
                             Formatos permitidos: JPG, PNG o WEBP.
                         </p>
 
                         <div class="ine-upload-grid">
                             <label class="ine-upload-box" for="affiliate-upload-front">
-                                <span>Foto de la persona</span>
+                                <span>Documento de afiliación</span>
                                 <input type="file" id="affiliate-upload-front" accept="image/jpeg,image/png,image/webp">
-                                <img id="affiliate-upload-preview-front" alt="Vista previa de la persona" hidden>
-                                <small>Seleccionar foto</small>
+                                <img id="affiliate-upload-preview-front" alt="Vista previa del documento de afiliación" hidden>
+                                <small>Seleccionar documento</small>
                             </label>
 
                             <label class="ine-upload-box" for="affiliate-upload-back">
-                                <span>Documento de afiliación</span>
+                                <span>Foto del afiliado con fondo blanco</span>
                                 <input type="file" id="affiliate-upload-back" accept="image/jpeg,image/png,image/webp">
-                                <img id="affiliate-upload-preview-back" alt="Vista previa del documento de afiliación" hidden>
-                                <small>Seleccionar documento</small>
+                                <img id="affiliate-upload-preview-back" alt="Vista previa de la foto del afiliado" hidden>
+                                <small>Seleccionar foto</small>
                             </label>
                         </div>
 
@@ -442,13 +442,13 @@ ix_require_session([
 
                         <div class="ine-summary-grid">
                             <figure>
-                                <img id="affiliate-preview-front" src="" alt="Vista previa de la persona">
-                                <figcaption>Foto de la persona</figcaption>
+                                <img id="affiliate-preview-front" src="" alt="Vista previa del documento de afiliación">
+                                <figcaption>Documento de afiliación</figcaption>
                             </figure>
 
                             <figure>
-                                <img id="affiliate-preview-back" src="" alt="Vista previa del documento de afiliación">
-                                <figcaption>Documento de afiliación</figcaption>
+                                <img id="affiliate-preview-back" src="" alt="Vista previa de la foto del afiliado">
+                                <figcaption>Foto del afiliado con fondo blanco</figcaption>
                             </figure>
                         </div>
 
@@ -744,13 +744,13 @@ ix_require_session([
 
                         <div class="ine-review-captures-grid">
                             <figure class="ine-review-capture-card">
-                                <img id="ine-review-affiliate-front" src="" alt="Foto de la persona afiliada">
-                                <figcaption>Foto de la persona</figcaption>
+                                <img id="ine-review-affiliate-front" src="" alt="Documento de afiliación">
+                                <figcaption>Documento de afiliación</figcaption>
                             </figure>
 
                             <figure class="ine-review-capture-card">
-                                <img id="ine-review-affiliate-back" src="" alt="Documento de afiliación">
-                                <figcaption>Documento de afiliación</figcaption>
+                                <img id="ine-review-affiliate-back" src="" alt="Foto del afiliado con fondo blanco">
+                                <figcaption>Foto del afiliado con fondo blanco</figcaption>
                             </figure>
                         </div>
                     </section>

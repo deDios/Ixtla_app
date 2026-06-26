@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 
 import { Session } from "/PRI/JS/auth/session.js";
 import { getDeviceContext } from "/PRI/JS/ui/deviceContext.js";
@@ -180,6 +180,7 @@ const SEL = {
     affiliateVideo: "#affiliate-camera-video",
     affiliateGuideBox: "#affiliate-camera-guide-box",
     affiliateStepTitle: "#affiliate-camera-step-title",
+    affiliateHelper: "#affiliate-camera-helper",
     affiliateStatus: "#affiliate-camera-status",
     affiliateBtnCapture: "#affiliate-btn-capture",
     affiliateBtnRetry: "#affiliate-btn-retry",
@@ -3085,11 +3086,11 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
 function buildArchivoInsertPayload({ personaId, side, capture, usuarioId, group = "ine" }) {
     const isAffiliate = group === "affiliate";
     const usoArchivo = isAffiliate
-        ? (side === "front" ? "FOTO_PERSONA" : "DOCUMENTO_AFILIACION")
+        ? (side === "front" ? "DOCUMENTO_AFILIACION" : "FOTO_PERSONA")
         : (side === "front" ? "INE_FRENTE" : "INE_REVERSO");
     const suffix = side === "front" ? "frente" : "reverso";
     const fileBase = isAffiliate
-        ? (side === "front" ? "foto_persona" : "documento_afiliacion")
+        ? (side === "front" ? "documento_afiliacion" : "foto_persona")
         : `ine_${suffix}`;
     const normalizedCapture = normalizeCaptureObject(capture);
     const extension = normalizedCapture?.extension || "jpg";
@@ -3746,6 +3747,7 @@ function setAffiliateStep(step) {
 
     const stage = $(SEL.affiliateModal)?.querySelector(".ine-camera-stage");
     const title = $(SEL.affiliateStepTitle);
+    const helper = $(SEL.affiliateHelper);
     const status = $(SEL.affiliateStatus);
 
     if (stage) {
@@ -3753,13 +3755,15 @@ function setAffiliateStep(step) {
     }
 
     if (step === "front") {
-        if (title) title.textContent = "Coloca la foto de la persona dentro del recuadro";
-        if (status) status.textContent = "Cuando la imagen este bien alineada, presiona Capturar";
+        if (title) title.textContent = "Captura el documento de afiliación";
+        if (helper) helper.innerHTML = "Centra el documento y presiona <strong>Capturar</strong>";
+        if (status) status.textContent = "Cuando el documento se vea completo, presiona Capturar";
     }
 
     if (step === "back") {
-        if (title) title.textContent = "Coloca el documento de afiliación dentro del recuadro";
-        if (status) status.textContent = "Cuando la imagen este bien alineada, presiona Capturar";
+        if (title) title.textContent = "Captura la foto del afiliado con fondo blanco";
+        if (helper) helper.innerHTML = "Asegura fondo blanco y rostro visible antes de <strong>Capturar</strong>";
+        if (status) status.textContent = "Cuando la foto se vea clara y centrada, presiona Capturar";
     }
 }
 
@@ -3926,7 +3930,7 @@ async function captureAffiliateCurrentStep() {
         if (btnCapture) btnCapture.hidden = true;
         setHidden(btnRetry, false);
         setHidden(btnNext, false);
-        if (btnNext) btnNext.textContent = side === "front" ? "Capturar documento" : "Ver capturas";
+        if (btnNext) btnNext.textContent = side === "front" ? "Capturar foto del afiliado" : "Ver capturas";
     } catch (err) {
         console.error("[Affiliate capture error]", err);
         setAffiliateCaptureState("error");

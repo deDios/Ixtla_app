@@ -3877,3 +3877,14 @@ body.ine-modal-open {
         }
     }
 }
+
+#affiliate-media-modal .ine-camera-guide-box {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+#affiliate-media-modal .ine-camera-stage[data-affiliate-state="captured"] .ine-camera-guide-box,
+#affiliate-media-modal .ine-camera-stage[data-affiliate-state="error"] .ine-camera-guide-box {
+    border: 0 !important;
+    box-shadow: none !important;
+}
