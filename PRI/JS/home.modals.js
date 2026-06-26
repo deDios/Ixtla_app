@@ -146,6 +146,7 @@ const SEL = {
     reviewSeccionToggle: "#ine-review-seccion-toggle",
     reviewSeccionText: "#ine-review-seccion-text",
     reviewSeccionList: "#ine-review-seccion-list",
+    reviewTelefono: "#ine-review-telefono",
 
     residenceModal: "#red-residence-modal",
     residenceClose: "[data-red-residence-close]",
@@ -2311,6 +2312,15 @@ function hasValidPhoneLength(value) {
     return length >= 10 && length <= 12;
 }
 
+function sanitizePhoneInput(input) {
+    if (!input) return;
+
+    const normalized = normalizePhone(input.value);
+    if (input.value !== normalized) {
+        input.value = normalized;
+    }
+}
+
 function nullableString(value) {
     const clean = normalizeValue(value);
     return clean || null;
@@ -3559,6 +3569,10 @@ function bindResidenceModalEvents() {
         toggleResidenceSecciónList();
     });
 
+    $(SEL.residenceTelefono)?.addEventListener("input", (event) => {
+        sanitizePhoneInput(event.target);
+    });
+
     document.addEventListener("click", (event) => {
         const combo = event.target.closest(".red-residence-field--combo");
         if (!combo) closeResidenceSecciónList();
@@ -4158,6 +4172,10 @@ function bindReviewModalEvents() {
             input: event.target,
             mode: "capture",
         });
+    });
+
+    $(SEL.reviewTelefono)?.addEventListener("input", (event) => {
+        sanitizePhoneInput(event.target);
     });
 
     $(SEL.reviewForm)?.addEventListener("submit", handleReviewSubmit);
