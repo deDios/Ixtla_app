@@ -384,6 +384,29 @@ body.red-export-preview-open {
     font-weight: 900;
 }
 
+.red-section-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 4px 10px;
+    border: 1px solid rgba(47, 143, 107, 0.22);
+    border-radius: 999px;
+    background: rgba(47, 143, 107, 0.08);
+    color: #1f6d52;
+    font-size: 0.82rem;
+    font-weight: 900;
+    line-height: 1.1;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.red-section-chip.is-empty {
+    border-color: #e5e7eb;
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: default;
+}
+
 .red-valid {
     width: 26px;
     height: 26px;

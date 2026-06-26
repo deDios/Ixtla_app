@@ -1081,7 +1081,10 @@ function contar_promotores_visibles(mysqli $con, array $scope): int
     return count_metric($con, $sql, 'i', [USUARIO_ESTATUS_INACTIVO_ID]);
   }
 
-  $visibleIds = $scope['visible_active_user_ids'] ?? [];
+  $visibleIds = array_values(array_filter(
+    $scope['visible_active_user_ids'] ?? [],
+    fn($id) => (int)$id > 0 && (int)$id !== (int)($scope['usuario_id'] ?? 0)
+  ));
 
   if (empty($visibleIds)) {
     return 0;

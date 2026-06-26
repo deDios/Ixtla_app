@@ -784,13 +784,20 @@ function mapRedHomeToRow(persona = {}) {
       .join(" ")
       .trim();
 
-  const sección =
-    persona.territorio?.sección?.codigo ||
-    persona.sección_codigo ||
-    persona.territorio?.sección?.nombre ||
-    persona.sección_nombre ||
-    persona.sección_id ||
-    "-";
+  const seccionCodigo = String(
+    persona.territorio?.seccion?.codigo ||
+    persona.seccion_codigo ||
+    persona.seccion_id ||
+    ""
+  ).trim();
+
+  const seccionNombre = String(
+    persona.territorio?.seccion?.nombre ||
+    persona.seccion_nombre ||
+    ""
+  ).trim();
+
+  const seccion = seccionCodigo || seccionNombre || "-";
 
   const zona =
     persona.territorio?.zona?.codigo ||
@@ -809,7 +816,9 @@ function mapRedHomeToRow(persona = {}) {
     participacion_id: participacion.participacion_id || persona.participacion_id || null,
     nombre: nombre || "Persona sin nombre",
     domicilio: persona.domicilio_texto || "-",
-    sección,
+    seccion,
+    seccion_codigo: seccionCodigo || seccion,
+    seccion_nombre: seccionNombre,
     zona,
     telefono: persona.telefono || persona.whatsapp || "-",
     validez: isEstatusValido(estatusCodigo),
@@ -834,6 +843,19 @@ function isEstatusValido(codigo) {
   return ESTATUS_VALIDOS.has(String(codigo || "").toUpperCase());
 }
 
+
+function renderSeccionValue(item) {
+  const codigo = safeText(item.seccion_codigo || item.seccion, "-");
+  const nombre = String(item.seccion_nombre || "").trim();
+  const isEmpty = codigo === "-";
+  const titleAttr = nombre ? ` title="${escapeHTML(nombre)}"` : "";
+  const ariaLabel = nombre
+    ? `Seccion ${codigo}. ${nombre}`
+    : `Seccion ${codigo}`;
+  const chipClass = isEmpty ? "red-section-chip is-empty" : "red-section-chip";
+
+  return `<span class="${chipClass}"${titleAttr} aria-label="${escapeHTML(ariaLabel)}">${escapeHTML(codigo)}</span>`;
+}
 /* -------------------------------------------------------------------------- */
 /* METRICAS                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -936,7 +958,7 @@ function renderTable() {
     aria-label="Abrir registro de ${escapeHTML(safeText(item.nombre))}">
     <td class="td-name">${escapeHTML(safeText(item.nombre))}</td>
     <td>${escapeHTML(safeText(item.domicilio))}</td>
-    <td>${escapeHTML(safeText(item.sección))}</td>
+    <td class="td-section">${renderSeccionValue(item)}</td>
     <td class="td-phone">${escapeHTML(safeText(item.telefono))}</td>
     <td class="td-valid">
       ${renderStatusIcon(item)}
@@ -970,7 +992,7 @@ function renderMobileCards() {
 
       <div class="red-person-meta">
         <span><strong>Domicilio:</strong> ${escapeHTML(safeText(item.domicilio))}</span>
-        <span><strong>Sección:</strong> ${escapeHTML(safeText(item.sección))}</span>
+        <span><strong>Sección:</strong> ${renderSeccionValue(item)}</span>
         <span><strong>Teléfono:</strong> ${escapeHTML(safeText(item.telefono))}</span>
         <span><strong>Tipo:</strong> ${escapeHTML(formatTipo(item.tipo))}</span>
         <span><strong>Estatus:</strong> ${escapeHTML(safeText(item.estatus_nombre))}</span>
@@ -1056,7 +1078,7 @@ async function goToPage(page) {
 const TABLE_SORT_HEADERS = [
   { index: 0, key: "nombre" },
   { index: 1, key: "domicilio" },
-  { index: 2, key: "sección" },
+  { index: 2, key: "seccion" },
   { index: 3, key: "telefono" },
   { index: 4, key: "estatus" },
 ];
