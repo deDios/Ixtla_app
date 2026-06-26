@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../JS/auth/ix_guard.php';
 
 ix_require_session([
@@ -936,6 +936,49 @@ ix_require_session([
         </article>
     </section>
 
+    <section id="red-revoke-affiliate-modal" class="red-revoke-affiliate-modal" hidden aria-hidden="true">
+        <div class="red-revoke-affiliate-overlay" data-red-revoke-affiliate-close></div>
+
+        <article class="red-revoke-affiliate-dialog" role="dialog" aria-modal="true"
+            aria-labelledby="red-revoke-affiliate-title">
+            <header class="red-revoke-affiliate-header">
+                <button type="button" class="red-revoke-affiliate-close" data-red-revoke-affiliate-close
+                    aria-label="Cerrar">
+                    &times;
+                </button>
+            </header>
+
+            <div class="red-revoke-affiliate-body">
+                <div class="red-revoke-affiliate-icon" aria-hidden="true">
+                    <span>&times;</span>
+                </div>
+
+                <p class="red-revoke-affiliate-kicker">Confirmacion</p>
+
+                <h2 id="red-revoke-affiliate-title">
+                    ¿Quieres revocar la afiliacion?
+                </h2>
+
+                <p id="red-revoke-affiliate-message" class="red-revoke-affiliate-message">
+                    La persona dejara de estar marcada como afiliada y volvera al estado de simpatizante.
+                </p>
+
+                <p id="red-revoke-affiliate-person" class="red-revoke-affiliate-person"></p>
+
+                <div class="red-revoke-affiliate-actions">
+                    <button type="button" id="red-revoke-affiliate-confirm"
+                        class="red-revoke-affiliate-btn red-revoke-affiliate-btn--danger">
+                        Si, revocar afiliacion
+                    </button>
+
+                    <button type="button" class="red-revoke-affiliate-btn red-revoke-affiliate-btn--cancel"
+                        data-red-revoke-affiliate-close>
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </article>
+    </section>
     <footer id="site-footer">
         <div class="limite">
 

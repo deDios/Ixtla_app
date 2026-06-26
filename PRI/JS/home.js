@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 
 import { Session } from "/PRI/JS/auth/session.js";
 import { initExportXLSXHome } from "/PRI/JS/ui/exportXLSXHome.js";
@@ -20,6 +20,7 @@ const warn = (...args) => CONFIG.DEBUG_LOGS && console.warn(TAG, ...args);
 const error = (...args) => CONFIG.DEBUG_LOGS && console.error(TAG, ...args);
 
 const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 const State = {
   session: null,
@@ -55,6 +56,7 @@ const State = {
   readonlyOriginalStatusId: null,
   readonlySavingStatus: false,
   readonlyChangingAffiliate: false,
+  readonlyRevokeAffiliatePending: false,
 };
 
 const SEL = {
@@ -85,6 +87,12 @@ const SEL = {
   ineReviewAfiliado: "#ine-review-es-afiliado",
   ineReviewSaveStatus: "#ine-review-save-status",
   ineReviewAdminbar: "#ine-review-adminbar",
+
+  revokeAffiliateModal: "#red-revoke-affiliate-modal",
+  revokeAffiliateClose: "[data-red-revoke-affiliate-close]",
+  revokeAffiliateMessage: "#red-revoke-affiliate-message",
+  revokeAffiliatePerson: "#red-revoke-affiliate-person",
+  revokeAffiliateConfirm: "#red-revoke-affiliate-confirm",
 };
 
 const ESTATUS_VALIDOS = new Set(["VALIDADO", "ACTIVO"]);
@@ -1302,6 +1310,93 @@ function setReviewModalReadonlyMode(isReadonly) {
   syncReadonlyStatusSaveButton();
 }
 
+function syncReadonlyModalBodyState() {
+  const reviewModal = $(SEL.ineReviewModal);
+  const revokeModal = $(SEL.revokeAffiliateModal);
+  const reviewOpen = Boolean(reviewModal && !reviewModal.hidden);
+  const revokeOpen = Boolean(revokeModal && !revokeModal.hidden);
+
+  document.body.classList.toggle("ine-modal-open", reviewOpen || revokeOpen);
+}
+
+function setReviewModalOpen(isOpen) {
+  const modal = $(SEL.ineReviewModal);
+  if (!modal) return;
+
+  modal.hidden = !isOpen;
+  modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
+
+  syncReadonlyModalBodyState();
+}
+
+function setRevokeAffiliateModalOpen(isOpen) {
+  const modal = $(SEL.revokeAffiliateModal);
+  if (!modal) return;
+
+  modal.hidden = !isOpen;
+  modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
+
+  syncReadonlyModalBodyState();
+}
+
+function openRevokeAffiliateModal() {
+  const modal = $(SEL.revokeAffiliateModal);
+  const personText = $(SEL.revokeAffiliatePerson);
+  const message = $(SEL.revokeAffiliateMessage);
+  const record = State.readonlyRecord || {};
+  const persona = record.persona || {};
+  const fallbackRow = record.fallbackRow || {};
+  const personName = String(persona.nombre_completo || fallbackRow.nombre || "").trim();
+
+  if (!modal) {
+    updateReadonlyAffiliate(false);
+    return;
+  }
+
+  State.readonlyRevokeAffiliatePending = true;
+
+  if (message) {
+    message.textContent = "La persona dejara de estar marcada como afiliada y volvera al estado de simpatizante.";
+  }
+
+  if (personText) {
+    personText.textContent = personName || "";
+  }
+
+  setRevokeAffiliateModalOpen(true);
+}
+
+function closeRevokeAffiliateModal({ restoreToggle = true } = {}) {
+  const input = $(SEL.ineReviewAfiliado);
+
+  setRevokeAffiliateModalOpen(false);
+  State.readonlyRevokeAffiliatePending = false;
+
+  if (restoreToggle && input) {
+    input.checked = true;
+  }
+}
+
+async function confirmRevokeAffiliate() {
+  const confirmBtn = $(SEL.revokeAffiliateConfirm);
+  const originalText = confirmBtn?.textContent || "Si, revocar afiliacion";
+
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Revocando...";
+  }
+
+  closeRevokeAffiliateModal({ restoreToggle: false });
+
+  try {
+    await updateReadonlyAffiliate(false);
+  } finally {
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = originalText;
+    }
+  }
+}
 function resetReviewModalToCaptureMode() {
   const title = $(SEL.ineReviewTitle);
   const kicker = $(SEL.ineReviewKicker);
@@ -1335,6 +1430,8 @@ async function openPersonaReadonlyModal({
     return;
   }
 
+  State.readonlyRevokeAffiliatePending = false;
+  setRevokeAffiliateModalOpen(false);
   setReviewModalReadonlyMode(true);
   setReviewModalOpen(true);
 
@@ -1743,9 +1840,23 @@ function bindEvents() {
       return;
     }
 
+    if (!event.target.checked) {
+      openRevokeAffiliateModal();
+      return;
+    }
+
     await updateReadonlyAffiliate(Boolean(event.target.checked));
   });
 
+  $$(SEL.revokeAffiliateClose).forEach((btn) => {
+    btn.addEventListener("click", () => {
+      closeRevokeAffiliateModal({ restoreToggle: true });
+    });
+  });
+
+  $(SEL.revokeAffiliateConfirm)?.addEventListener("click", async () => {
+    await confirmRevokeAffiliate();
+  });
   document.addEventListener("red:persona-saved", async () => {
     await loadDashboard({ keepPage: false });
   });

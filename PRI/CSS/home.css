@@ -3633,3 +3633,224 @@ body.ine-modal-open {
         font-size: 0.96rem;
     }
 }
+
+/* -------------------------------------------------------------------------- */
+/* MODAL CONFIRMACION · REVOCAR AFILIADO                                      */
+/* -------------------------------------------------------------------------- */
+
+#red-revoke-affiliate-modal {
+    --red-revoke-affiliate-z: 1170;
+    --red-revoke-affiliate-bg: #ffffff;
+    --red-revoke-affiliate-ink: #111827;
+    --red-revoke-affiliate-muted: #6b7280;
+    --red-revoke-affiliate-line: #e5e7eb;
+    --red-revoke-affiliate-danger: #b91c1c;
+    --red-revoke-affiliate-danger-dark: #991b1b;
+    --red-revoke-affiliate-cancel: #475569;
+    --red-revoke-affiliate-cancel-dark: #334155;
+    --red-revoke-affiliate-radius: 22px;
+    --red-revoke-affiliate-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
+}
+
+#red-revoke-affiliate-modal,
+#red-revoke-affiliate-modal * {
+    box-sizing: border-box;
+}
+
+#red-revoke-affiliate-modal[hidden] {
+    display: none !important;
+}
+
+.red-revoke-affiliate-modal {
+    position: fixed;
+    inset: 0;
+    z-index: var(--red-revoke-affiliate-z);
+}
+
+.red-revoke-affiliate-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.66);
+    backdrop-filter: blur(3px);
+}
+
+.red-revoke-affiliate-dialog {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: calc(var(--red-revoke-affiliate-z) + 1);
+    width: min(94vw, 390px);
+    max-height: calc(100dvh - 48px);
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--red-revoke-affiliate-bg);
+    color: var(--red-revoke-affiliate-ink);
+    border: 1px solid var(--red-revoke-affiliate-line);
+    border-radius: var(--red-revoke-affiliate-radius);
+    box-shadow: var(--red-revoke-affiliate-shadow);
+}
+
+.red-revoke-affiliate-header {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 48px;
+    padding: 10px 12px 0;
+    background: #fff;
+}
+
+.red-revoke-affiliate-close {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #111827;
+    font-size: 1.45rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.red-revoke-affiliate-close:hover {
+    background: #e5e7eb;
+}
+
+.red-revoke-affiliate-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 28px 30px;
+    text-align: center;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.red-revoke-affiliate-icon {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 10px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #fef2f2;
+    color: var(--red-revoke-affiliate-danger);
+    font-size: 1.55rem;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.red-revoke-affiliate-kicker {
+    margin: 0 0 6px;
+    color: var(--red-revoke-affiliate-danger);
+    font-size: 0.78rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.red-revoke-affiliate-body h2 {
+    margin: 0 auto 8px;
+    color: var(--red-revoke-affiliate-ink);
+    font-size: clamp(1.22rem, 4vw, 1.55rem);
+    line-height: 1.15;
+    font-weight: 950;
+}
+
+.red-revoke-affiliate-message,
+.red-revoke-affiliate-person {
+    margin: 6px auto 0;
+    max-width: 300px;
+    color: var(--red-revoke-affiliate-muted);
+    font-size: 0.94rem;
+    line-height: 1.45;
+    font-weight: 700;
+}
+
+.red-revoke-affiliate-person {
+    color: var(--red-revoke-affiliate-ink);
+    font-weight: 850;
+}
+
+.red-revoke-affiliate-actions {
+    margin-top: 18px;
+    display: grid;
+    gap: 10px;
+    justify-items: center;
+}
+
+.red-revoke-affiliate-btn {
+    width: min(220px, 100%);
+    min-height: 42px;
+    border: 0;
+    border-radius: 12px;
+    padding: 0 18px;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 950;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.18s ease, opacity 0.18s ease;
+}
+
+.red-revoke-affiliate-btn:active {
+    transform: translateY(1px);
+}
+
+.red-revoke-affiliate-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.red-revoke-affiliate-btn--danger {
+    background: var(--red-revoke-affiliate-danger);
+    box-shadow: 0 10px 20px rgba(185, 28, 28, 0.22);
+}
+
+.red-revoke-affiliate-btn--danger:hover {
+    background: var(--red-revoke-affiliate-danger-dark);
+}
+
+.red-revoke-affiliate-btn--cancel {
+    background: var(--red-revoke-affiliate-cancel);
+    box-shadow: 0 10px 20px rgba(71, 85, 105, 0.22);
+}
+
+.red-revoke-affiliate-btn--cancel:hover {
+    background: var(--red-revoke-affiliate-cancel-dark);
+}
+
+@media (max-width: 720px) {
+    .red-revoke-affiliate-dialog {
+        top: auto;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        width: min(94vw, 420px);
+        max-height: calc(100dvh - 88px - env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        border-radius: 20px;
+    }
+
+    .red-revoke-affiliate-body {
+        padding: 4px 22px calc(24px + env(safe-area-inset-bottom));
+    }
+
+    .red-revoke-affiliate-btn {
+        width: 100%;
+    }
+}
+
+@supports not (height: 100dvh) {
+    .red-revoke-affiliate-dialog {
+        max-height: calc(100vh - 48px);
+    }
+
+    @media (max-width: 720px) {
+        .red-revoke-affiliate-dialog {
+            max-height: calc(100vh - 88px);
+        }
+    }
+}
