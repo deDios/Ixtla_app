@@ -606,7 +606,7 @@ ix_require_session([
                                 <button type="button" id="ine-review-seccion-toggle" class="red-residence-combo-toggle"
                                     aria-haspopup="listbox" aria-expanded="false">
                                     <span id="ine-review-seccion-text">Selecciona una seccion</span>
-                                    <span class="red-residence-combo-chevron" aria-hidden="true">v</span>
+                                    <span class="red-residence-combo-chevron" aria-hidden="true"></span>
                                 </button>
 
                                 <div id="ine-review-seccion-list" class="red-residence-combo-list" role="listbox"
@@ -824,7 +824,7 @@ ix_require_session([
                         <button type="button" id="red-residence-seccion-toggle" class="red-residence-combo-toggle"
                             disabled aria-haspopup="listbox" aria-expanded="false">
                             <span id="red-residence-seccion-text">Selecciona una seccion</span>
-                            <span class="red-residence-combo-chevron" aria-hidden="true">v</span>
+                            <span class="red-residence-combo-chevron" aria-hidden="true"></span>
                         </button>
 
                         <div id="red-residence-seccion-list" class="red-residence-combo-list" role="listbox" hidden>
