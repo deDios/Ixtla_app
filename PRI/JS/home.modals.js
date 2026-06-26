@@ -153,6 +153,9 @@ const SEL = {
     residenceForm: "#red-residence-form",
     residenceYes: "#red-residence-yes",
     residenceNo: "#red-residence-no",
+    residenceTitle: "#red-residence-title",
+    residenceQuestion: "#red-residence-question",
+    residenceChoice: "#red-residence-choice",
     residenceSeccionToggle: "#red-residence-seccion-toggle",
     residenceSeccionText: "#red-residence-seccion-text",
     residenceSeccionList: "#red-residence-seccion-list",
@@ -928,6 +931,9 @@ function setResidenceModalOpen(isOpen) {
 
 function resetResidenceModal() {
     const form = $(SEL.residenceForm);
+    const title = $(SEL.residenceTitle);
+    const question = $(SEL.residenceQuestion);
+    const choice = $(SEL.residenceChoice);
     const seccion = $(SEL.residenceSeccion);
     const seccionToggle = $(SEL.residenceSeccionToggle);
     const seccionText = $(SEL.residenceSeccionText);
@@ -936,6 +942,13 @@ function resetResidenceModal() {
     const submit = $(SEL.residenceSubmit);
 
     if (form) form.reset();
+
+    if (title) title.textContent = "Detectamos que la \"Sección\" es de otra RED.";
+    if (question) {
+        question.hidden = false;
+        question.innerHTML = "¿Este residente vive en <strong>Ixtlahuacán de los Membrillos</strong>?";
+    }
+    if (choice) choice.hidden = false;
 
     if (seccion) seccion.value = "";
     if (seccionText) seccionText.textContent = "Selecciona una seccion";
@@ -954,10 +967,20 @@ function resetResidenceModal() {
 }
 
 function enableResidenceFields() {
+    const title = $(SEL.residenceTitle);
+    const question = $(SEL.residenceQuestion);
+    const choice = $(SEL.residenceChoice);
     const seccionToggle = $(SEL.residenceSeccionToggle);
     const domicilio = $(SEL.residenceDomicilio);
     const telefono = $(SEL.residenceTelefono);
     const submit = $(SEL.residenceSubmit);
+
+    if (title) title.textContent = "Captura la residencia actual";
+    if (question) {
+        question.hidden = false;
+        question.textContent = "Selecciona la sección actual en Ixtlahuacán de los Membrillos y agrega un medio de contacto.";
+    }
+    if (choice) choice.hidden = true;
 
     if (seccionToggle) seccionToggle.disabled = false;
 
@@ -1506,8 +1529,8 @@ function setValidationModalOpen(isOpen) {
 }
 
 function openValidationModal({
-    title = "No pudimos validar los datos",
-    message = "Verifica la captura e intentalo nuevamente.",
+    title = "Documento no válido.",
+    message = "El documento capturado no cumple con la validación esperada.",
 } = {}) {
     const modal = ensureValidationModal();
     if (!modal) return;
@@ -2857,18 +2880,18 @@ async function openReviewModal(payload) {
 
         if (!isValidCurp(reviewPayload.curp)) {
             openValidationModal({
-                title: "CURP/CLAVE no válidas",
+                title: "Documento no válido.",
                 message:
-                    "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
+                    "El documento capturado no cumple con la validación esperada.",
             });
             return;
         }
 
         if (!isValidClaveElector(reviewPayload.clave_elector)) {
             openValidationModal({
-                title: "CURP/CLAVE no válidas",
+                title: "Documento no válido.",
                 message:
-                    "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes volver a capturar la INE o cerrar el flujo.",
+                    "El documento capturado no cumple con la validación esperada.",
             });
             return;
         }
@@ -3137,18 +3160,18 @@ function validateReviewPayload(payload) {
 
     if (!isValidCurp(payload.curp)) {
         openValidationModal({
-            title: "CURP/CLAVE no válidas",
+                title: "Documento no válido.",
             message:
-                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
+                "El documento capturado no cumple con la validación esperada.",
         });
         return false;
     }
 
     if (!isValidClaveElector(payload.clave_elector)) {
         openValidationModal({
-            title: "CURP/CLAVE no válidas",
+                title: "Documento no válido.",
             message:
-                "La CURP o la clave de elector capturadas no cumplen con el formato esperado. Puedes cerrar para revisar la información o volver a capturar la INE.",
+                "El documento capturado no cumple con la validación esperada.",
         });
         return false;
     }

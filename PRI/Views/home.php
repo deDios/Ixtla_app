@@ -801,11 +801,11 @@ ix_require_session([
                     Detectamos que la “Sección” es de otra RED.
                 </h2>
 
-                <p class="red-residence-question">
+                <p id="red-residence-question" class="red-residence-question">
                     ¿Este residente vive en <strong>Ixtlahuacán de los Membrillos</strong>?
                 </p>
 
-                <div class="red-residence-choice">
+                <div id="red-residence-choice" class="red-residence-choice">
                     <button type="button" id="red-residence-yes" class="red-residence-btn red-residence-btn--yes">
                         Si
                     </button>
@@ -879,7 +879,7 @@ ix_require_session([
                     Este simpatizante ya ha sido registrado.
                 </p>
 
-                <p id="red-duplicate-person" class="red-duplicate-person"></p>
+                <p id="red-duplicate-person" class="red-duplicate-person" hidden></p>
 
                 <p id="red-duplicate-owner" class="red-duplicate-owner"></p>
 
@@ -914,11 +914,11 @@ ix_require_session([
                 <p class="red-validation-kicker">Validacion</p>
 
                 <h2 id="red-validation-title">
-                    No pudimos validar los datos
+                    Documento no válido.
                 </h2>
 
                 <p id="red-validation-message" class="red-validation-message">
-                    Verifica la captura e intentalo nuevamente.
+                    El documento capturado no cumple con la validación esperada.
                 </p>
 
                 <div class="red-validation-actions">
@@ -960,10 +960,10 @@ ix_require_session([
                 </h2>
 
                 <p id="red-revoke-affiliate-message" class="red-revoke-affiliate-message">
-                    La persona dejara de estar marcada como afiliada y volvera al estado de simpatizante (las capturas de la persona y documento de la afiliación se eliminarán).
+                    La persona dejara de estar marcada como afiliada y volvera al estado de simpatizante.
                 </p>
 
-                <p id="red-revoke-affiliate-person" class="red-revoke-affiliate-person"></p>
+                <p id="red-revoke-affiliate-person" class="red-revoke-affiliate-person" hidden></p>
 
                 <div class="red-revoke-affiliate-actions">
                     <button type="button" id="red-revoke-affiliate-confirm"
