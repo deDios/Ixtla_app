@@ -76,6 +76,7 @@ const SEL = {
   ineReviewKicker: ".ine-review-kicker",
   ineReviewWarning: ".ine-review-warning",
   ineReviewSave: "#ine-modal-affiliate",
+  ineReviewEdit: "#ine-review-edit",
   ineReviewReprocess: "#ine-btn-reprocess",
   ineReviewFront: "#ine-review-front",
   ineReviewBack: "#ine-review-back",
@@ -98,7 +99,7 @@ const SEL = {
 const ESTATUS_VALIDOS = new Set(["VALIDADO", "ACTIVO"]);
 const PERSON_STATUS_OPTIONS = Object.freeze([
   { estatus_id: 1, codigo: "CAPTURADO", nombre: "Capturado" },
-  { estatus_id: 2, codigo: "PENDIENTE_VALIDACION", nombre: "Pendiente de validación" },
+  { estatus_id: 2, codigo: "PENDIENTE_VALIDACION", nombre: "Pendiente de validacion" },
   { estatus_id: 4, codigo: "ACTIVO", nombre: "Activo" },
   { estatus_id: 5, codigo: "INACTIVO", nombre: "Inactivo" },
   { estatus_id: 8, codigo: "DUPLICADO", nombre: "Duplicado" },
@@ -118,7 +119,7 @@ async function loadCatEstatus() {
   return State.estatus;
 }
 
-function getCurrentParticipación(persona = {}, fallbackRow = {}) {
+function getCurrentParticipacion(persona = {}, fallbackRow = {}) {
   return (
     persona?.participacion?.actual ||
     persona?.participacion ||
@@ -128,7 +129,7 @@ function getCurrentParticipación(persona = {}, fallbackRow = {}) {
 }
 
 function getCurrentStatusId(persona = {}, fallbackRow = {}) {
-  const participacion = getCurrentParticipación(persona, fallbackRow);
+  const participacion = getCurrentParticipacion(persona, fallbackRow);
 
   return Number(
     participacion?.estatus_id ||
@@ -140,7 +141,7 @@ function getCurrentStatusId(persona = {}, fallbackRow = {}) {
 }
 
 function isPersonaAfiliada(persona = {}, fallbackRow = {}) {
-  const participacion = getCurrentParticipación(persona, fallbackRow);
+  const participacion = getCurrentParticipacion(persona, fallbackRow);
 
   const tipo = String(
     persona?.participacion?.tipo_actual ||
@@ -211,6 +212,22 @@ function syncReadonlyStatusSaveButton() {
   btn.disabled = !changed || State.readonlySavingStatus;
 }
 
+function syncReadonlyEditButton() {
+  const btn = $(SEL.ineReviewEdit);
+  if (!btn) return;
+
+  const modal = $(SEL.ineReviewModal);
+  const isReadonly = (modal?.dataset?.mode || "capture") === "readonly";
+  const canEdit = canEditReadonlyAdminbar();
+  const hidden = !isReadonly || isPromotorRole();
+
+  btn.hidden = hidden;
+  btn.disabled = !canEdit;
+  btn.title = canEdit
+    ? "Editar registro"
+    : "No tienes permiso para editar este registro";
+}
+
 async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
   const record = State.readonlyRecord || {};
   const persona = record.persona || {};
@@ -219,7 +236,7 @@ async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
   const personaId = Number(persona.persona_id || fallbackRow.id || 0);
 
   if (!personaId) {
-    toast("No se encontró la persona para actualizar afiliación.", "error");
+    toast("No se encontro la persona para actualizar afiliacion.", "error");
     return false;
   }
 
@@ -233,12 +250,12 @@ async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
   if (input) input.disabled = true;
 
   try {
-    const tipoParticipación = isAfiliado ? "AFILIADO" : "SIMPATIZANTE";
+    const tipoParticipacion = isAfiliado ? "AFILIADO" : "SIMPATIZANTE";
     const originalStatusId = Number(State.readonlyOriginalStatusId || 0);
 
     const payload = {
       persona_id: personaId,
-      tipo_participacion: tipoParticipación,
+      tipo_participacion: tipoParticipacion,
       updated_by: getUsuarioId() || null,
       usuario_responsable_id: getUsuarioId() || null,
       fuente_captura: "PORTAL",
@@ -266,8 +283,8 @@ async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
     if (!silent) {
       toast(
         isAfiliado
-          ? "La persona ahora está marcada como afiliada."
-          : "Se quitó la afiliación. La persona queda como simpatizante.",
+          ? "La persona ahora esta marcada como afiliada."
+          : "Se quito la afiliacion. La persona queda como simpatizante.",
         "exito"
       );
     }
@@ -275,11 +292,11 @@ async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
     await loadDashboard({ keepPage: true });
     return true;
   } catch (err) {
-    error("No se pudo actualizar afiliación:", err);
+    error("No se pudo actualizar afiliacion:", err);
 
     if (input) input.checked = previousValue;
 
-    toast(err?.message || "No se pudo actualizar la afiliación.", "error");
+    toast(err?.message || "No se pudo actualizar la afiliacion.", "error");
     return false;
   } finally {
     State.readonlyChangingAffiliate = false;
@@ -376,12 +393,12 @@ async function saveReadonlyStatus() {
   const estatusId = getReadonlySelectedStatusId();
 
   if (!personaId) {
-    toast("No se encontró la persona para actualizar estatus.", "error");
+    toast("No se encontro la persona para actualizar estatus.", "error");
     return;
   }
 
   if (!estatusId) {
-    toast("Selecciona un estatus válido.", "warning");
+    toast("Selecciona un estatus valido.", "warning");
     return;
   }
 
@@ -494,7 +511,7 @@ function clearImage(selector) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SESIÓN                                                                     */
+/* SESION                                                                     */
 /* -------------------------------------------------------------------------- */
 
 function readCookiePayload() {
@@ -544,8 +561,8 @@ function readSession() {
   State.rol = normalized.rol;
   State.token = normalized.token;
 
-  log("Sesión detectada:", State.session);
-  log("Sesión normalizada:", normalized);
+  log("Sesion detectada:", State.session);
+  log("Sesion normalizada:", normalized);
 
   return normalized;
 }
@@ -579,8 +596,66 @@ function isPromotorRole() {
   return rolCodigo === "PROMOTOR" || rolId === 5;
 }
 
+function canFrontendEditReadonlyPersona(persona = {}, fallbackRow = {}) {
+  if (isPromotorRole()) {
+    return false;
+  }
+
+  const rolCodigo = getRolCodigo();
+  const tipo = normalizeTipoParticipacion(
+    persona.participacion?.tipo_actual ||
+    persona.participacion?.actual?.tipo_participacion ||
+    persona.tipo_participacion ||
+    fallbackRow.tipo ||
+    fallbackRow.raw?.tipo_participacion ||
+    "SIMPATIZANTE"
+  );
+
+  if (rolCodigo === "ADMIN" || rolCodigo === "COORD_GENERAL") {
+    return true;
+  }
+
+  if (rolCodigo === "COORD_ZONA" || rolCodigo === "COORD_SECCION") {
+    return tipo !== "afiliado";
+  }
+
+  return false;
+}
+
+function canBackendEditReadonlyPersona(persona = {}, fallbackRow = {}) {
+  const directPermission = persona.permissions?.edit;
+
+  if (typeof directPermission === "boolean") {
+    return directPermission;
+  }
+
+  const fallbackPermission = fallbackRow.permissions?.edit;
+  if (typeof fallbackPermission === "boolean") {
+    return fallbackPermission;
+  }
+
+  const rawPermission = fallbackRow.raw?.permissions?.edit;
+  if (typeof rawPermission === "boolean") {
+    return rawPermission;
+  }
+
+  return null;
+}
+
+function canEditReadonlyPersona(persona = {}, fallbackRow = {}) {
+  const frontendAllowed = canFrontendEditReadonlyPersona(persona, fallbackRow);
+  const backendAllowed = canBackendEditReadonlyPersona(persona, fallbackRow);
+
+  if (typeof backendAllowed === "boolean") {
+    return frontendAllowed && backendAllowed;
+  }
+
+  return frontendAllowed;
+}
+
 function canEditReadonlyAdminbar() {
-  return !isPromotorRole();
+  const record = State.readonlyRecord || {};
+  return canEditReadonlyPersona(record.persona || {}, record.fallbackRow || {});
 }
 
 function getAuthHeaders() {
@@ -614,7 +689,7 @@ async function postJSON(url, body = {}) {
     out = raw ? JSON.parse(raw) : null;
   } catch {
     console.error(TAG, "Respuesta no JSON:", raw);
-    throw new Error("El endpoint respondió algo que no es JSON.");
+    throw new Error("El endpoint respondio algo que no es JSON.");
   }
 
   log("POST:", url, "status:", status, "body:", body, "response:", out);
@@ -639,7 +714,7 @@ function hydrateUser() {
     usuario.username ||
     "Usuario RED";
 
-  const roleName = rol.nombre ? ` · ${rol.nombre}` : "";
+  const roleName = rol.nombre ? ` - ${rol.nombre}` : "";
 
   const userNameEl = $(SEL.userName);
   if (userNameEl) userNameEl.textContent = `${fullName}${roleName}`;
@@ -667,7 +742,7 @@ async function loadDashboard({ keepPage = true } = {}) {
   const usuarioId = getUsuarioId();
 
   if (!usuarioId && getRolCodigo() !== "ADMIN" && getRolCodigo() !== "COORD_GENERAL") {
-    warn("No hay usuario_id en sesión. No se puede consultar dashboard RED.");
+    warn("No hay usuario_id en sesion. No se puede consultar dashboard RED.");
 
     State.rows = [];
     State.total = 0;
@@ -675,7 +750,7 @@ async function loadDashboard({ keepPage = true } = {}) {
     setCounts({ afiliados: 0, simpatizantes: 0, promotores: 0 });
     render();
 
-    toast("No se encontró usuario en sesión.", "error");
+    toast("No se encontro usuario en sesion.", "error");
     return;
   }
 
@@ -726,7 +801,7 @@ async function fetchRowsForExport() {
   const rolCodigo = getRolCodigo();
 
   if (!usuarioId && rolCodigo !== "ADMIN" && rolCodigo !== "COORD_GENERAL") {
-    throw new Error("No se encontró usuario en sesión para exportar.");
+    throw new Error("No se encontro usuario en sesion para exportar.");
   }
 
   const pageSize = 200;
@@ -804,7 +879,7 @@ function mapRedHomeToRow(persona = {}) {
     persona.territorio?.zona?.nombre ||
     "-";
 
-  const tipo = normalizeTipoParticipación(
+  const tipo = normalizeTipoParticipacion(
     participacion.tipo_actual ||
     participacion.tipo_participacion ||
     persona.tipo_participacion ||
@@ -826,11 +901,12 @@ function mapRedHomeToRow(persona = {}) {
     estatus_nombre: estatusNombre,
     tipo,
     responsable: persona.responsable || null,
+    permissions: persona.permissions || null,
     raw: persona,
   };
 }
 
-function normalizeTipoParticipación(value) {
+function normalizeTipoParticipacion(value) {
   const tipo = normalizeText(value).replaceAll(" ", "_").toUpperCase();
 
   if (tipo === "AFILIADO") return "afiliado";
@@ -919,7 +995,7 @@ function render() {
 
 function renderStatusIcon(item) {
   const validClass = item.validez ? "red-valid" : "red-valid is-missing";
-  const validText = item.validez ? "✓" : "-";
+  const validText = item.validez ? "?" : "-";
   const title = item.estatus_nombre
     ? `Estatus: ${item.estatus_nombre}`
     : "Estatus: Sin estatus";
@@ -992,8 +1068,8 @@ function renderMobileCards() {
 
       <div class="red-person-meta">
         <span><strong>Domicilio:</strong> ${escapeHTML(safeText(item.domicilio))}</span>
-        <span><strong>Sección:</strong> ${renderSeccionValue(item)}</span>
-        <span><strong>Teléfono:</strong> ${escapeHTML(safeText(item.telefono))}</span>
+        <span><strong>Seccion:</strong> ${renderSeccionValue(item)}</span>
+        <span><strong>Telefono:</strong> ${escapeHTML(safeText(item.telefono))}</span>
         <span><strong>Tipo:</strong> ${escapeHTML(formatTipo(item.tipo))}</span>
         <span><strong>Estatus:</strong> ${escapeHTML(safeText(item.estatus_nombre))}</span>
       </div>
@@ -1046,9 +1122,9 @@ function renderPager() {
 
     <button type="button" data-page="${State.page + 1}" ${State.page >= maxPage ? "disabled" : ""}>></button>
 
-    <span>Pag. ${State.page} de ${maxPage} · ${total.toLocaleString("es-MX")} registros</span>
+    <span>Pag. ${State.page} de ${maxPage} - ${total.toLocaleString("es-MX")} registros</span>
 
-    <input id="red-page-jump" type="number" min="1" max="${maxPage}" aria-label="Ir a página">
+    <input id="red-page-jump" type="number" min="1" max="${maxPage}" aria-label="Ir a pagina">
     <button type="button" data-action="jump">Ir</button>
   `;
 }
@@ -1174,7 +1250,7 @@ function bindSortHeaders() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* MODAL EXISTENTE DE REVISIÓN EN MODO SOLO LECTURA                           */
+/* MODAL EXISTENTE DE REVISION EN MODO SOLO LECTURA                           */
 /* -------------------------------------------------------------------------- */
 
 async function openRecord(id) {
@@ -1195,12 +1271,15 @@ async function openRecord(id) {
   try {
     const personaOut = await postJSON(CONFIG.ENDPOINT_PERSONAS, {
       persona_id: Number(id),
+      usuario_id: getUsuarioId(),
+      rol_codigo: getRolCodigo(),
+      rol_id: getRolId(),
     });
 
     const persona = personaOut.data || null;
 
     if (!persona) {
-      throw new Error("No se encontró información de la persona.");
+      throw new Error("No se encontro informacion de la persona.");
     }
 
     let archivos = [];
@@ -1253,6 +1332,7 @@ function setReviewModalReadonlyMode(isReadonly) {
     "ine-review-estatus",
     "ine-review-es-afiliado",
     "ine-review-save-status",
+    "ine-review-edit",
   ]);
 
   modal.dataset.mode = isReadonly ? "readonly" : "capture";
@@ -1293,6 +1373,7 @@ function setReviewModalReadonlyMode(isReadonly) {
   });
 
   const saveBtn = $(SEL.ineReviewSave);
+  const editBtn = $(SEL.ineReviewEdit);
   const statusSaveBtn = $(SEL.ineReviewSaveStatus);
   const reprocessBtn = $(SEL.ineReviewReprocess);
   const cancelBtn = form.querySelector("[data-ine-review-close]");
@@ -1308,6 +1389,11 @@ function setReviewModalReadonlyMode(isReadonly) {
   if (cancelBtn) cancelBtn.textContent = isReadonly ? "Cerrar" : "Cancelar";
   if (adminbar) adminbar.hidden = !showReadonlyAdminbar;
 
+  if (editBtn) {
+    editBtn.hidden = !Boolean(isReadonly) || isPromotorRole();
+    editBtn.disabled = !showReadonlyAdminbar;
+  }
+
   if (statusField) { statusField.hidden = !showReadonlyAdminbar; }
   if (affiliateToggle) { affiliateToggle.hidden = !showReadonlyAdminbar; }
 
@@ -1320,6 +1406,7 @@ function setReviewModalReadonlyMode(isReadonly) {
   }
 
   syncReadonlyStatusSaveButton();
+  syncReadonlyEditButton();
 }
 
 function syncReadonlyModalBodyState() {
@@ -1368,7 +1455,7 @@ function openRevokeAffiliateModal() {
   State.readonlyRevokeAffiliatePending = true;
 
   if (message) {
-    message.textContent = "La persona dejará de ser parte de los afiliados y se agregará como un simpatizante.";
+    message.textContent = "La persona dejara de ser parte de los afiliados y se agregara como un simpatizante.";
   }
 
   if (personText) {
@@ -1417,13 +1504,13 @@ function resetReviewModalToCaptureMode() {
 
   setReviewModalReadonlyMode(false);
 
-  if (kicker) kicker.textContent = "Datos extraídos";
-  if (title) title.textContent = "Revisión de información INE";
+  if (kicker) kicker.textContent = "Datos extraidos";
+  if (title) title.textContent = "Revision de informacion INE";
 
   if (warning) {
     warning.innerHTML = `
-      <strong>Importante: La información fue extraída automáticamente.</strong>
-      Valide esta información comparando contra el documento INE,
+      <strong>Importante: La informacion fue extraida automaticamente.</strong>
+      Valide esta informacion comparando contra el documento INE,
       realice los ajustes que sean necesarios y guarde el registro.
     `;
   }
@@ -1444,6 +1531,10 @@ async function openPersonaReadonlyModal({
   }
 
   State.readonlyRevokeAffiliatePending = false;
+  State.readonlyRecord = {
+    persona: persona || {},
+    fallbackRow: fallbackRow || {},
+  };
   setRevokeAffiliateModalOpen(false);
   setReviewModalReadonlyMode(true);
   setReviewModalOpen(true);
@@ -1466,7 +1557,7 @@ async function openPersonaReadonlyModal({
     if (title) title.textContent = "Cargando detalle de persona...";
     if (warning) {
       warning.innerHTML = `
-        <strong>Consultando información.</strong>
+        <strong>Consultando informacion.</strong>
         Espera un momento mientras se carga el registro.
       `;
     }
@@ -1489,6 +1580,7 @@ async function openPersonaReadonlyModal({
     fallbackRow: fallbackRow || {},
   };
 
+  setReviewModalReadonlyMode(true);
   paintPersonaReadonlyData(persona || {}, fallbackRow || {});
   paintPersonaReadonlyImages(archivos);
 
@@ -1516,12 +1608,12 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
 
   if (warning) {
     const tipo = p.participacion?.tipo_actual || p.participacion?.actual?.tipo_participacion || row.tipo || "";
-    const tipoText = tipo ? ` Participación actual: <strong>${escapeHTML(formatTipo(tipo))}</strong>.` : "";
+    const tipoText = tipo ? ` Participacion actual: <strong>${escapeHTML(formatTipo(tipo))}</strong>.` : "";
 
     /*
     warning.innerHTML = `
       <strong>Consulta en solo lectura.</strong>
-      Este registro se muestra para revisión. No se realizarán cambios desde esta vista.${tipoText}
+      Este registro se muestra para revision. No se realizaran cambios desde esta vista.${tipoText}
     `;
     */
 
@@ -1542,7 +1634,7 @@ function paintPersonaReadonlyData(persona = {}, fallbackRow = {}) {
     "#ine-review-updated-by",
     formatReadonlyAuditUser(
       p.updated_by,
-      "Este registro aún no ha sido editado"
+      "Este registro aun no ha sido editado"
     )
   );
   setFieldValue("#ine-review-nombres", p.nombres || "");
@@ -1648,7 +1740,7 @@ function paintPersonaReadonlyAffiliateImages(archivos = [], { forceShow = false 
   setReadonlyImage(
     SEL.ineReviewAffiliateBack,
     hasBoth ? documentoAfiliacion?.url_archivo || "" : "",
-    "Documento de afiliación"
+    "Documento de afiliacion"
   );
 
   if (section) section.hidden = !hasBoth;
@@ -1664,20 +1756,20 @@ function shortHash(value) {
 }
 
 function paintReadonlySeccionField(persona = {}, fallbackRow = {}) {
-  const input = $("#ine-review-sección");
-  const text = $("#ine-review-sección-text");
+  const input = $("#ine-review-seccion");
+  const text = $("#ine-review-seccion-text");
 
-  const secciónId = String(persona?.sección_id || "").trim();
-  const secciónCodigo = String(
-    persona?.territorio?.sección?.nombre ||
-    // persona?.territorio?.sección?.codigo || // para mostrar el codigo en vez del nombre
-    fallbackRow?.sección ||
-    persona?.sección_id ||
+  const seccionId = String(persona?.seccion_id || "").trim();
+  const seccionCodigo = String(
+    persona?.territorio?.seccion?.nombre ||
+    // persona?.territorio?.seccion?.codigo || // para mostrar el codigo en vez del nombre
+    fallbackRow?.seccion ||
+    persona?.seccion_id ||
     ""
   ).trim();
 
-  if (input) input.value = secciónId;
-  if (text) text.textContent = secciónCodigo || "Sin sección";
+  if (input) input.value = seccionId;
+  if (text) text.textContent = seccionCodigo || "Sin seccion";
 }
 
 function formatReadonlyAuditUser(value, fallback = "Sin dato") {
@@ -1735,7 +1827,7 @@ async function refreshReadonlyAuditUsers(persona = {}) {
     if (!updatedField) return;
 
     if (updatedById <= 0) {
-      setFieldValue("#ine-review-updated-by", "Este registro aún no ha sido editado");
+      setFieldValue("#ine-review-updated-by", "Este registro aun no ha sido editado");
       return;
     }
 
@@ -1751,24 +1843,24 @@ async function refreshReadonlyAuditUsers(persona = {}) {
 }
 
 function formatSeccionPersonaLegacy(persona = {}, fallbackRow = {}) {
-  const territorio = persona.territorio?.sección || null;
+  const territorio = persona.territorio?.seccion || null;
 
   if (territorio?.codigo && territorio?.nombre) {
-    return `${territorio.codigo} · ${territorio.nombre}`;
+    return `${territorio.codigo} - ${territorio.nombre}`;
   }
 
   if (territorio?.codigo) return territorio.codigo;
   if (territorio?.nombre) return territorio.nombre;
 
-  return persona.sección_id || fallbackRow.sección || "";
+  return persona.seccion_id || fallbackRow.seccion || "";
 }
 
 function formatSeccionPersona(persona = {}, fallbackRow = {}) {
-  const territorio = persona.territorio?.sección || null;
+  const territorio = persona.territorio?.seccion || null;
 
   if (territorio?.codigo) return territorio.codigo;
 
-  return persona.sección_id || fallbackRow.sección || "";
+  return persona.seccion_id || fallbackRow.seccion || "";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1831,6 +1923,15 @@ function bindEvents() {
 
   $(SEL.ineReviewSaveStatus)?.addEventListener("click", async () => {
     await saveReadonlyStatus();
+  });
+
+  $(SEL.ineReviewEdit)?.addEventListener("click", () => {
+    if (!canEditReadonlyAdminbar()) {
+      toast("No tienes permiso para editar este registro.", "warning");
+      return;
+    }
+
+    toast("Permiso de edicion validado. El flujo completo de edicion se habilitara en el siguiente parche.", "warning");
   });
 
   $(SEL.ineReviewAfiliado)?.addEventListener("change", async (event) => {
@@ -1903,27 +2004,27 @@ window.redConfirmReadonlyAffiliate = async function redConfirmReadonlyAffiliate(
 
   if (!personaId || !captures?.front || !captures?.back) {
     if (input) input.checked = false;
-    throw new Error("No se pudo identificar la persona o faltan fotos de afiliación.");
+    throw new Error("No se pudo identificar la persona o faltan fotos de afiliacion.");
   }
 
   const archivos = await saveReadonlyAffiliateFiles({ personaId, captures });
 
   if (archivos.length !== 2) {
     if (input) input.checked = false;
-    throw new Error("No se pudieron guardar ambas fotos de afiliación.");
+    throw new Error("No se pudieron guardar ambas fotos de afiliacion.");
   }
 
   const updated = await updateReadonlyAffiliate(true, { silent: true });
   if (!updated) {
     if (input) input.checked = false;
-    throw new Error("Las fotos se guardaron, pero no se pudo actualizar la afiliación.");
+    throw new Error("Las fotos se guardaron, pero no se pudo actualizar la afiliacion.");
   }
 
   paintPersonaReadonlyAffiliateImages(archivos, { forceShow: true });
-  toast("Afiliación y fotos guardadas correctamente.", "exito");
+  toast("Afiliacion y fotos guardadas correctamente.", "exito");
   return true;
 };
 document.addEventListener("DOMContentLoaded", init);
 
-// Permite que otros módulos restauren el modal de revisión si lo necesitan.
+// Permite que otros modulos restauren el modal de revision si lo necesitan.
 window.redResetReviewModalToCaptureMode = resetReviewModalToCaptureMode;

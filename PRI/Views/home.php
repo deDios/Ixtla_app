@@ -762,6 +762,10 @@ ix_require_session([
                         Guardar persona
                     </button>
 
+                    <button type="button" id="ine-review-edit" class="ine-review-btn ine-review-btn--ghost" hidden>
+                        Editar
+                    </button>
+
                     <button type="button" id="ine-review-save-status"
                         class="ine-review-btn ine-review-btn--primary ine-review-status-save" disabled hidden>
                         Guardar

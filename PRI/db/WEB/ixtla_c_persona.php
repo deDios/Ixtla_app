@@ -151,6 +151,43 @@ function str_clean(array $in, string $key): string
   return isset($in[$key]) ? trim((string)$in[$key]) : '';
 }
 
+function normalize_rol_codigo(array $in): string
+{
+  $rol = str_clean($in, 'rol_codigo');
+
+  if ($rol === '' && isset($in['rol']) && is_array($in['rol'])) {
+    $rol = trim((string)($in['rol']['codigo'] ?? ''));
+  }
+
+  return strtoupper($rol);
+}
+
+function can_edit_persona_record(array $in, array $data): bool
+{
+  $rolCodigo = normalize_rol_codigo($in);
+
+  if ($rolCodigo === 'ADMIN' || $rolCodigo === 'COORD_GENERAL') {
+    return true;
+  }
+
+  if ($rolCodigo === 'PROMOTOR') {
+    return false;
+  }
+
+  $tipo = strtoupper(trim((string)(
+    $data['participacion']['tipo_actual']
+      ?? $data['participacion']['actual']['tipo_participacion']
+      ?? $data['tipo_participacion']
+      ?? 'SIMPATIZANTE'
+  )));
+
+  if (in_array($rolCodigo, ['COORD_ZONA', 'COORD_SECCION'], true)) {
+    return $tipo !== 'AFILIADO';
+  }
+
+  return false;
+}
+
 function sensitive_clean(mixed $value): string
 {
   return strtoupper(trim((string)$value));
@@ -420,7 +457,7 @@ function obtener_participacion_resumen(mysqli $con, int $persona_id): array
    FORMATTER
    ============================================================ */
 
-function persona_row(array $row, ?mysqli $con = null): array
+function persona_row(array $row, ?mysqli $con = null, array $auth = []): array
 {
   global $DATA_SECRET;
 
@@ -528,6 +565,10 @@ function persona_row(array $row, ?mysqli $con = null): array
     $data["participacion"] = obtener_participacion_resumen($con, (int)$row['persona_id']);
   }
 
+  $data["permissions"] = [
+    "edit" => can_edit_persona_record($auth, $data),
+  ];
+
   return $data;
 }
 
@@ -572,7 +613,7 @@ function base_select(): string
    CONSULTAS
    ============================================================ */
 
-function consultar_persona_por_id(mysqli $con, int $persona_id, ?int $capturado_por = null): array
+function consultar_persona_por_id(mysqli $con, int $persona_id, ?int $capturado_por = null, array $auth = []): array
 {
   $where = [
     "p.persona_id = ?",
@@ -609,7 +650,7 @@ function consultar_persona_por_id(mysqli $con, int $persona_id, ?int $capturado_
     ], 404);
   }
 
-  return persona_row($row, $con);
+  return persona_row($row, $con, $auth);
 }
 
 function consultar_personas(mysqli $con, array $in): array
@@ -783,7 +824,7 @@ function consultar_personas(mysqli $con, array $in): array
   $data = [];
 
   while ($row = $rs->fetch_assoc()) {
-    $data[] = persona_row($row, $con);
+    $data[] = persona_row($row, $con, $in);
   }
 
   $st->close();
@@ -826,7 +867,7 @@ try {
   $con = db();
 
   if ($persona_id && $persona_id > 0) {
-    $data = consultar_persona_por_id($con, $persona_id, $capturado_por);
+    $data = consultar_persona_por_id($con, $persona_id, $capturado_por, $in);
 
     $con->close();
 

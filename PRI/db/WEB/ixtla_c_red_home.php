@@ -5,13 +5,13 @@
   Endpoint para hacerle la vida mas facil al front.
 
   Objetivo:
-  - Resolver en servidor el universo visible por jerarquía.
+  - Resolver en servidor el universo visible por jerarquÃ­a.
   - Consultar personas desde persona, con LEFT JOIN a persona_participacion.
-  - Si hay participación activa, priorizar:
+  - Si hay participaciÃ³n activa, priorizar:
     AFILIADO > SIMPATIZANTE
-  - Si no hay participación, tratar temporalmente como SIMPATIZANTE.
+  - Si no hay participaciÃ³n, tratar temporalmente como SIMPATIZANTE.
   - Paginar en SQL.
-  - Calcular métricas sin cargar todo el universo en el front.
+  - Calcular mÃ©tricas sin cargar todo el universo en el front.
 
   No requiere tablas ni columnas nuevas.
 */
@@ -36,7 +36,7 @@ if (strlen($DATA_SECRET) < 64) {
   header('Content-Type: application/json; charset=utf-8');
   echo json_encode([
     "ok" => false,
-    "error" => "Configuración de seguridad incompleta"
+    "error" => "ConfiguraciÃ³n de seguridad incompleta"
   ], JSON_UNESCAPED_UNICODE);
   exit;
 }
@@ -103,7 +103,7 @@ function read_json_body(): array
   if (!is_array($in)) {
     json_response([
       "ok" => false,
-      "error" => "JSON inválido"
+      "error" => "JSON invÃ¡lido"
     ], 400);
   }
 
@@ -115,19 +115,19 @@ function db(): mysqli
   $path = realpath('/home/site/wwwroot/db/conn/conn_db_2.php');
 
   if (!$path || !file_exists($path)) {
-    internal_error('No se encontró conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php');
+    internal_error('No se encontrÃ³ conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php');
   }
 
   include_once $path;
 
   if (!function_exists('conectar')) {
-    internal_error('No existe la función conectar() en conn_db_2.php');
+    internal_error('No existe la funciÃ³n conectar() en conn_db_2.php');
   }
 
   $con = conectar();
 
   if (!$con instanceof mysqli) {
-    internal_error('conectar() no regresó una conexión mysqli válida');
+    internal_error('conectar() no regresÃ³ una conexiÃ³n mysqli vÃ¡lida');
   }
 
   $con->set_charset('utf8mb4');
@@ -230,6 +230,27 @@ function get_usuario_id_from_input(array $in): int
   return 0;
 }
 
+
+function can_edit_persona_record(array $in, array $row): bool
+{
+  $rolCodigo = normalize_rol_codigo($in);
+  $tipo = strtoupper(trim((string)($row['tipo_participacion'] ?? 'SIMPATIZANTE')));
+
+  if ($rolCodigo === 'ADMIN' || $rolCodigo === 'COORD_GENERAL') {
+    return true;
+  }
+
+  if ($rolCodigo === 'PROMOTOR') {
+    return false;
+  }
+
+  if (in_array($rolCodigo, ['COORD_ZONA', 'COORD_SECCION'], true)) {
+    return $tipo !== 'AFILIADO';
+  }
+
+  return false;
+}
+
 function can_see_all(array $in): bool
 {
   $rolCodigo = normalize_rol_codigo($in);
@@ -267,9 +288,9 @@ function is_usuario_inactivo(?int $estatusId): bool
 }
 
 /*
-  Devuelve el usuario actual + toda su jerarquía descendiente.
+  Devuelve el usuario actual + toda su jerarquÃ­a descendiente.
   Ejemplo:
-  Coordinador Zona -> Coordinadores Sección -> Promotores.
+  Coordinador Zona -> Coordinadores SecciÃ³n -> Promotores.
 */
 
 function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
@@ -399,7 +420,7 @@ function build_scope(mysqli $con, array $in): array
 }
 
 /* ============================================================
-   WHERE DINÁMICO
+   WHERE DINÃMICO
    ============================================================ */
 
 function build_red_home_where(array $in, array $scope, string &$types, array &$params): string
@@ -424,8 +445,8 @@ function build_red_home_where(array $in, array $scope, string &$types, array &$p
 
   /*
     Fallback temporal:
-    - Si la persona tiene participación activa, se usa pp.
-    - Si no tiene participación activa, pp viene NULL y se trata como SIMPATIZANTE.
+    - Si la persona tiene participaciÃ³n activa, se usa pp.
+    - Si no tiene participaciÃ³n activa, pp viene NULL y se trata como SIMPATIZANTE.
   */
 
   if (!$scope['can_see_all']) {
@@ -690,7 +711,7 @@ function red_home_select(): string
    FORMATTER
    ============================================================ */
 
-function red_home_row(array $row): array
+function red_home_row(array $row, array $in = []): array
 {
   global $DATA_SECRET;
 
@@ -815,6 +836,9 @@ function red_home_row(array $row): array
     'estatus_nombre' => $row['participacion_estatus_nombre'],
     'seccion_codigo' => $row['seccion_codigo'],
     'seccion_nombre' => $row['seccion_nombre'],
+    'permissions' => [
+      'edit' => can_edit_persona_record($in, $row),
+    ],
   ];
 }
 
@@ -968,7 +992,7 @@ function consultar_red_home(mysqli $con, array $in, array $scope): array
   $data = [];
 
   while ($row = $rs->fetch_assoc()) {
-    $data[] = red_home_row($row);
+    $data[] = red_home_row($row, $in);
   }
 
   $st->close();
@@ -1023,7 +1047,7 @@ function consultar_metricas(mysqli $con, array $scope): array
   /*
     Simpatizantes:
     - Personas sin AFILIADO activo.
-    - Incluye personas sin participación todavía.
+    - Incluye personas sin participaciÃ³n todavÃ­a.
   */
   $simpatizantesSql = "
     SELECT COUNT(DISTINCT p.persona_id) AS total
@@ -1064,7 +1088,7 @@ function contar_promotores_visibles(mysqli $con, array $scope): int
     - Se cuentan usuarios con rol PROMOTOR.
     - No se cuentan coordinadores.
     - Para ADMIN / COORD_GENERAL se cuentan todos los promotores activos.
-    - Para los demás roles se cuentan solo los promotores dentro de su jerarquía descendiente.
+    - Para los demÃ¡s roles se cuentan solo los promotores dentro de su jerarquÃ­a descendiente.
   */
 
   if ($scope['can_see_all']) {
@@ -1116,7 +1140,7 @@ try {
   if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     json_response([
       'ok' => false,
-      'error' => 'Método no permitido. Usa POST.'
+      'error' => 'MÃ©todo no permitido. Usa POST.'
     ], 405);
   }
 
