@@ -323,7 +323,7 @@ function syncReadonlyPersonEditMode() {
   if (savePersonBtn) {
     savePersonBtn.hidden = !isEditing;
     savePersonBtn.disabled = !isEditing || State.readonlySavingPerson;
-    savePersonBtn.textContent = State.readonlySavingPerson ? "Guardando..." : "Guardar cambios";
+    savePersonBtn.textContent = State.readonlySavingPerson ? "Guardando..." : "Guardar";
   }
 
   if (cancelEditBtn) {

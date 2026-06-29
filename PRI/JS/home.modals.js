@@ -2687,7 +2687,7 @@ function buildPersonaFromFields(fields) {
 function fillReviewForm(persona) {
     setFieldValue("#ine-review-fecha-extraccion", getTodayLongEs());
 
-    setFieldValue("#ine-review-nombres", personaunombres);
+    setFieldValue("#ine-review-nombres", persona.nombres);
     setFieldValue("#ine-review-apellido-paterno", persona.apellido_paterno);
     setFieldValue("#ine-review-apellido-materno", persona.apellido_materno);
     setFieldValue("#ine-review-fecha-nacimiento", persona.fecha_nacimiento);
