@@ -1273,7 +1273,7 @@ function render() {
 
 function renderStatusIcon(item) {
   const validClass = item.validez ? "red-valid" : "red-valid is-missing";
-  const validText = item.validez ? "?" : "-";
+  const validText = item.validez ? "&#10003;" : "-";
   const title = item.estatus_nombre
     ? `Estatus: ${item.estatus_nombre}`
     : "Estatus: Sin estatus";
