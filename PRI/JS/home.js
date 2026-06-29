@@ -220,6 +220,9 @@ function syncReadonlyStatusSaveButton() {
   const btn = $(SEL.ineReviewSaveStatus);
   if (!btn) return;
 
+  const modal = $(SEL.ineReviewModal);
+  const isReadonly = (modal?.dataset?.mode || "capture") === "readonly";
+  const canEdit = canEditReadonlyAdminbar();
   const selectedStatusId = getReadonlySelectedStatusId();
   const originalStatusId = Number(State.readonlyOriginalStatusId || 0);
 
@@ -228,6 +231,7 @@ function syncReadonlyStatusSaveButton() {
     originalStatusId > 0 &&
     selectedStatusId !== originalStatusId;
 
+  btn.hidden = !isReadonly || !canEdit || State.readonlyEditing || !changed;
   btn.disabled = !changed || State.readonlySavingStatus;
 }
 
