@@ -4,9 +4,9 @@ import { Session } from "/PRI/JS/auth/session.js";
 import { getDeviceContext } from "/PRI/JS/ui/deviceContext.js";
 
 /* -------------------------------------------------------------------------- */
-/* RED HOME · MODALES                                                         */
-/* Flujo: abrir scanner -> frente -> reverso -> resumen -> OpenAI -> revisión */
-/*       -> guardar persona -> registrar INE frente/reverso                   */
+/* RED HOME - MODALES                                                         */
+/* Flujo: abrir scanner -> frente -> reverso -> resumen -> OpenAI -> revision */
+/*       -> guiardar persona -> registrar INE frente/reverso                   */
 /* -------------------------------------------------------------------------- */
 
 const CONFIG = {
@@ -445,7 +445,7 @@ async function handleUploadFile(side, file) {
     if (!file) return;
 
     if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
-        toast("Solo se permiten imágenes JPG, PNG o WEBP.", "warning", 5000);
+        toast("Solo se permiten imagenes JPG, PNG o WEBP.", "warning", 5000);
         return;
     }
 
@@ -529,8 +529,8 @@ function readSession() {
     State.rol = normalized.rol;
     State.token = normalized.token;
 
-    log("Sesión detectada en modales:", State.session);
-    log("Sesión normalizada en modales:", normalized);
+    log("Sesion detectada en modales:", State.session);
+    log("Sesion normalizada en modales:", normalized);
 
     return normalized;
 }
@@ -628,7 +628,7 @@ async function loadTerritoriosCatalog() {
                 return ac - bc;
             });
 
-        log("Secciónes cargadas:", State.secciones);
+        log("Secciones cargadas:", State.secciones);
 
         return State.secciones;
     } catch (err) {
@@ -639,7 +639,7 @@ async function loadTerritoriosCatalog() {
     }
 }
 
-function findSecciónByInput(value) {
+function findSeccionByInput(value) {
     const clean = String(value || "").trim();
 
     if (!clean) return null;
@@ -652,7 +652,7 @@ function findSecciónByInput(value) {
     }) || null;
 }
 
-function getSecciónCodeLabel(item) {
+function getSeccionCodeLabel(item) {
     return String(
         item?.nombre ||
         // item?.codigo || esto es para mostrar el codigo en vez del nombre
@@ -671,7 +671,7 @@ function syncComboSelection(list, value) {
     });
 }
 
-function paintReviewSecciónes(selectedValue = "") {
+function paintReviewSecciones(selectedValue = "") {
     const input = $("#ine-review-seccion");
     const text = $(SEL.reviewSeccionText);
     const list = $(SEL.reviewSeccionList);
@@ -679,11 +679,11 @@ function paintReviewSecciónes(selectedValue = "") {
     if (!input || !text || !list) return;
 
     const cleanSelected = String(selectedValue || "").trim();
-    const selectedItem = findSecciónByInput(cleanSelected);
+    const selectedItem = findSeccionByInput(cleanSelected);
 
     input.value = selectedItem ? String(selectedItem.territorio_id || "") : "";
     text.textContent = selectedItem
-        ? getSecciónCodeLabel(selectedItem)
+        ? getSeccionCodeLabel(selectedItem)
         : cleanSelected || "Selecciona una seccion";
     list.innerHTML = "";
 
@@ -694,7 +694,7 @@ function paintReviewSecciónes(selectedValue = "") {
         option.role = "option";
 
         const value = String(item.territorio_id || "");
-        const label = getSecciónCodeLabel(item);
+        const label = getSeccionCodeLabel(item);
 
         option.dataset.value = value;
         option.dataset.label = label;
@@ -705,20 +705,20 @@ function paintReviewSecciónes(selectedValue = "") {
         option.setAttribute("aria-selected", isSelected ? "true" : "false");
 
         option.addEventListener("click", () => {
-            selectReviewSección(value, label);
-            closeReviewSecciónList();
+            selectReviewSeccion(value, label);
+            closeReviewSeccionList();
         });
 
         list.appendChild(option);
     });
 }
 
-async function syncReviewSecciónField(selectedValue = "") {
+async function syncReviewSeccionField(selectedValue = "") {
     await loadTerritoriosCatalog();
-    paintReviewSecciónes(selectedValue);
+    paintReviewSecciones(selectedValue);
 }
 
-function selectReviewSección(value, label) {
+function selectReviewSeccion(value, label) {
     const input = $("#ine-review-seccion");
     const text = $(SEL.reviewSeccionText);
     const list = $(SEL.reviewSeccionList);
@@ -729,7 +729,7 @@ function selectReviewSección(value, label) {
     syncComboSelection(list, value);
 }
 
-function openReviewSecciónList() {
+function openReviewSeccionList() {
     const toggle = $(SEL.reviewSeccionToggle);
     const list = $(SEL.reviewSeccionList);
 
@@ -739,7 +739,7 @@ function openReviewSecciónList() {
     toggle.setAttribute("aria-expanded", "true");
 }
 
-function closeReviewSecciónList() {
+function closeReviewSeccionList() {
     const toggle = $(SEL.reviewSeccionToggle);
     const list = $(SEL.reviewSeccionList);
 
@@ -749,25 +749,25 @@ function closeReviewSecciónList() {
     toggle.setAttribute("aria-expanded", "false");
 }
 
-function toggleReviewSecciónList() {
+function toggleReviewSeccionList() {
     const list = $(SEL.reviewSeccionList);
     if (!list) return;
 
     if (list.hidden) {
-        openReviewSecciónList();
+        openReviewSeccionList();
     } else {
-        closeReviewSecciónList();
+        closeReviewSeccionList();
     }
 }
 
-function paintResidenceSecciónesLegacy(selectedValue = "") {
+function paintResidenceSeccionesLegacy(selectedValue = "") {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
 
     if (!input || !text || !list) return;
 
-    const cleanSelected = String(selectedValue || "").trim();
+    const cleaunSelected = String(selectedValue || "").trim();
 
     input.value = "";
     text.textContent = "Selecciona una seccion";
@@ -780,17 +780,17 @@ function paintResidenceSecciónesLegacy(selectedValue = "") {
         option.role = "option";
 
         const value = String(item.territorio_id || "");
-        const label = `${item.codigo || "S/C"} - ${item.nombre || "Sección"}`;
+        const label = `${item.codigo || "S/C"} - ${item.nombre || "Seccion"}`;
 
         option.dataset.value = value;
         option.dataset.label = label;
         option.textContent = label;
 
         if (
-            cleanSelected &&
+            cleaunSelected &&
             (
-                String(item.territorio_id || "") === cleanSelected ||
-                String(item.codigo || "") === cleanSelected
+                String(item.territorio_id || "") === cleaunSelected ||
+                String(item.codigo || "") === cleaunSelected
             )
         ) {
             option.classList.add("is-selected");
@@ -802,15 +802,15 @@ function paintResidenceSecciónesLegacy(selectedValue = "") {
         }
 
         option.addEventListener("click", () => {
-            selectResidenceSección(value, label);
-            closeResidenceSecciónList();
+            selectResidenceSeccion(value, label);
+            closeResidenceSeccionList();
         });
 
         list.appendChild(option);
     });
 }
 
-function selectResidenceSecciónLegacy(value, label) {
+function selectResidenceSeccionLegacy(value, label) {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
@@ -827,14 +827,14 @@ function selectResidenceSecciónLegacy(value, label) {
     }
 }
 
-function paintResidenceSecciónes(selectedValue = "") {
+function paintResidenceSecciones(selectedValue = "") {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
 
     if (!input || !text || !list) return;
 
-    const cleanSelected = String(selectedValue || "").trim();
+    const cleaunSelected = String(selectedValue || "").trim();
 
     input.value = "";
     text.textContent = "Selecciona una seccion";
@@ -847,17 +847,17 @@ function paintResidenceSecciónes(selectedValue = "") {
         option.role = "option";
 
         const value = String(item.territorio_id || "");
-        const label = getSecciónCodeLabel(item);
+        const label = getSeccionCodeLabel(item);
 
         option.dataset.value = value;
         option.dataset.label = label;
         option.textContent = label;
 
         if (
-            cleanSelected &&
+            cleaunSelected &&
             (
-                String(item.territorio_id || "") === cleanSelected ||
-                String(item.codigo || "") === cleanSelected
+                String(item.territorio_id || "") === cleaunSelected ||
+                String(item.codigo || "") === cleaunSelected
             )
         ) {
             option.classList.add("is-selected");
@@ -869,15 +869,15 @@ function paintResidenceSecciónes(selectedValue = "") {
         }
 
         option.addEventListener("click", () => {
-            selectResidenceSección(value, label);
-            closeResidenceSecciónList();
+            selectResidenceSeccion(value, label);
+            closeResidenceSeccionList();
         });
 
         list.appendChild(option);
     });
 }
 
-function selectResidenceSección(value, label) {
+function selectResidenceSeccion(value, label) {
     const input = $(SEL.residenceSeccion);
     const text = $(SEL.residenceSeccionText);
     const list = $(SEL.residenceSeccionList);
@@ -888,7 +888,7 @@ function selectResidenceSección(value, label) {
     syncComboSelection(list, value);
 }
 
-function openResidenceSecciónList() {
+function openResidenceSeccionList() {
     const toggle = $(SEL.residenceSeccionToggle);
     const list = $(SEL.residenceSeccionList);
 
@@ -898,7 +898,7 @@ function openResidenceSecciónList() {
     toggle.setAttribute("aria-expanded", "true");
 }
 
-function closeResidenceSecciónList() {
+function closeResidenceSeccionList() {
     const toggle = $(SEL.residenceSeccionToggle);
     const list = $(SEL.residenceSeccionList);
 
@@ -908,14 +908,14 @@ function closeResidenceSecciónList() {
     toggle.setAttribute("aria-expanded", "false");
 }
 
-function toggleResidenceSecciónList() {
+function toggleResidenceSeccionList() {
     const list = $(SEL.residenceSeccionList);
     if (!list) return;
 
     if (list.hidden) {
-        openResidenceSecciónList();
+        openResidenceSeccionList();
     } else {
-        closeResidenceSecciónList();
+        closeResidenceSeccionList();
     }
 }
 
@@ -943,10 +943,10 @@ function resetResidenceModal() {
 
     if (form) form.reset();
 
-    if (title) title.textContent = "Detectamos que la \"Sección\" es de otra RED.";
+    if (title) title.textContent = "Detectamos que la Seccion es de otra RED.";
     if (question) {
         question.hidden = false;
-        question.innerHTML = "¿Este residente vive en <strong>Ixtlahuacán de los Membrillos</strong>?";
+        question.innerHTML = "Este residente vive en <strong>Ixtlahuacan de los Membrillos</strong>?";
     }
     if (choice) choice.hidden = false;
 
@@ -957,7 +957,7 @@ function resetResidenceModal() {
         seccionToggle.setAttribute("aria-expanded", "false");
     }
 
-    closeResidenceSecciónList();
+    closeResidenceSeccionList();
 
     [domicilio, telefono].forEach((field) => {
         if (field) field.disabled = true;
@@ -978,7 +978,7 @@ function enableResidenceFields() {
     if (title) title.textContent = "Captura la residencia actual";
     if (question) {
         question.hidden = false;
-        question.textContent = "Selecciona la sección actual en Ixtlahuacán de los Membrillos y agrega un medio de contacto.";
+        question.textContent = "Selecciona la seccion actual en Ixtlahuacan de los Membrillos y agrega un medio de contacto.";
     }
     if (choice) choice.hidden = true;
 
@@ -1005,11 +1005,11 @@ async function openResidenceModal(pendingPayload, context = "save") {
 
     await loadTerritoriosCatalog();
 
-    const currentSección = getFieldValue("#ine-review-seccion");
+    const currentSeccion = getFieldValue("#ine-review-seccion");
     const currentDomicilio = getFieldValue("#ine-review-domicilio");
     const currentTelefono = getFieldValue("#ine-review-telefono");
 
-    paintResidenceSecciónes(currentSección);
+    paintResidenceSecciones(currentSeccion);
 
     setFieldValue(SEL.residenceDomicilio, currentDomicilio);
     setFieldValue(SEL.residenceTelefono, currentTelefono);
@@ -1043,7 +1043,7 @@ function getDuplicateDataFromError(err) {
     };
 }
 
-// bandera para pablo
+// baundera para pablo
 function getDuplicateOwnerLabel(existingPersona) {
     const owner = existingPersona?.capturado_por_usuario || null;
 
@@ -1069,7 +1069,7 @@ function getDuplicateOwnerLabel(existingPersona) {
     return nombre || username || "un usuario del sistema";
 }
 
-function canCurrentUserUpdateDuplicate(existingPersona) {
+function caunCurrentUserUpdateDuplicate(existingPersona) {
     const currentUserId = getUsuarioId();
     const ownerUserId = Number(
         existingPersona?.capturado_por_usuario?.usuario_id ||
@@ -1190,7 +1190,7 @@ async function hydrateDuplicateAuditFields(existingPersona) {
         "#ine-review-updated-by",
         formatAuditUserLabel(
             existingPersona?.updated_by,
-            "Este registro aún no ha sido editado"
+            "Este registro aun no ha sido editado"
         )
     );
 
@@ -1220,8 +1220,8 @@ async function hydrateDuplicateAuditFields(existingPersona) {
 }
 
 async function findDuplicatePersonaBeforeSave(payload) {
-    const curp = cleanUpper(payload?.curp || "").replace(/[^A-Z0-9]/g, "");
-    const claveElector = cleanUpper(payload?.clave_elector || "").replace(/[^A-Z0-9]/g, "");
+    const curp = cleaunUpper(payload?.curp || "").replace(/[^A-Z0-9]/g, "");
+    const claveElector = cleaunUpper(payload?.clave_elector || "").replace(/[^A-Z0-9]/g, "");
 
     if (curp) {
         try {
@@ -1278,10 +1278,10 @@ function syncReviewPrimaryAction(duplicateData = null) {
         return;
     }
 
-    const canUpdate = canCurrentUserUpdateDuplicate(duplicateData.existingPersona || null);
+    const caunUpdate = caunCurrentUserUpdateDuplicate(duplicateData.existingPersona || null);
 
     saveBtn.textContent = "Actualizar persona";
-    saveBtn.disabled = !canUpdate;
+    saveBtn.disabled = !caunUpdate;
 
     hydrateDuplicateAuditFields(duplicateData.existingPersona || null);
 }
@@ -1290,14 +1290,14 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
     const originalText = btn?.textContent || "Actualizar datos";
 
     if (!duplicateData?.existingPersona?.persona_id) {
-        toast("No se encontró la persona existente para actualizar.", "error", 7000);
+        toast("No se encontro la persona existente para actualizar.", "error", 7000);
         return;
     }
 
     try {
         if (btn) {
             btn.disabled = true;
-            btn.textContent = "Actualizando...";
+            btn.textContent = "Actualizaundo...";
         }
 
         const saved = await updateDuplicatePersonaAndFiles(duplicateData);
@@ -1306,7 +1306,7 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
 
         if (saved.afiliacionRevertida) {
             toast(
-                "Datos actualizados, pero la afiliación no se confirmó porque faltaron fotos. La persona quedó como simpatizante.",
+                "Datos actualizados, pero la afiliacion no se confirmo porque faltaron fotos. La persona quedo como simpatizante.",
                 "warning",
                 9000
             );
@@ -1336,10 +1336,10 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
     }
 }
 
-async function handleDuplicateUpdateRequest(duplicateData, btn = null) {
+async function haundleDuplicateUpdateRequest(duplicateData, btn = null) {
     const existingPersona = duplicateData?.existingPersona || null;
 
-    if (!canCurrentUserUpdateDuplicate(existingPersona)) {
+    if (!caunCurrentUserUpdateDuplicate(existingPersona)) {
         closeDuplicateModal({ closeReview: true, warnLocked: true });
         toast(
             "Solo el usuario que capturo originalmente este registro puede actualizarlo.",
@@ -1391,7 +1391,7 @@ function ensureDuplicateModal() {
         const duplicateData = modal.__duplicateData || null;
         const btn = modal.querySelector(SEL.duplicateUpdate);
 
-        await handleDuplicateUpdateRequest(duplicateData, btn);
+        await haundleDuplicateUpdateRequest(duplicateData, btn);
     });
 
     modal.dataset.bound = "1";
@@ -1425,10 +1425,10 @@ function openDuplicateModal(duplicateData) {
         "Esta persona";
 
     const ownerLabel = getDuplicateOwnerLabel(existingPersona);
-    const canUpdate = canCurrentUserUpdateDuplicate(existingPersona);
+    const caunUpdate = caunCurrentUserUpdateDuplicate(existingPersona);
 
     modal.__duplicateData = duplicateData;
-    modal.__duplicateLocked = !canUpdate;
+    modal.__duplicateLocked = !caunUpdate;
 
     const title = modal.querySelector(SEL.duplicateTitle);
     const person = modal.querySelector(SEL.duplicatePerson);
@@ -1446,14 +1446,14 @@ function openDuplicateModal(duplicateData) {
     }
 
     if (owner) {
-        owner.textContent = canUpdate
+        owner.textContent = caunUpdate
             ? ""
             : "Solo el usuario capturador puede actualizar este registro.";
     }
 
     if (updateBtn) {
-        updateBtn.disabled = !canUpdate;
-        updateBtn.title = canUpdate
+        updateBtn.disabled = !caunUpdate;
+        updateBtn.title = caunUpdate
             ? "Actualizar datos de la persona"
             : "Solo el capturador original puede actualizar este registro";
     }
@@ -1529,8 +1529,8 @@ function setValidationModalOpen(isOpen) {
 }
 
 function openValidationModal({
-    title = "Documento no válido.",
-    message = "El documento capturado no cumple con la validación esperada.",
+    title = "Documento no valido.",
+    message = "El documento capturado no cumple con la validacion esperada.",
 } = {}) {
     const modal = ensureValidationModal();
     if (!modal) return;
@@ -1578,11 +1578,11 @@ async function restartCaptureFromValidation() {
 }
 
 function normalizeCurp(value) {
-    return cleanUpper(value).replace(/[^A-Z0-9]/g, "");
+    return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 function normalizeClaveElector(value) {
-    return cleanUpper(value).replace(/[^A-Z0-9]/g, "");
+    return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 function isValidCurp(value) {
@@ -1601,7 +1601,7 @@ function isValidClaveElector(value) {
 }
 
 function escapeHTMLSafe(value) {
-    return String(value ?? "")
+    return String(value || "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -1617,12 +1617,12 @@ async function startCamera() {
     const video = $(SEL.video);
 
     if (!video) {
-        warn("No se encontró el video del modal.");
+        warn("No se encontro el video del modal.");
         return;
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-        showCameraError("Tu navegador no permite usar la cámara.");
+        showCameraError("Tu navegador no permite usar la camara.");
         return;
     }
 
@@ -1649,19 +1649,19 @@ async function startCamera() {
         try {
             await video.play();
         } catch (err) {
-            warn("video.play() falló, pero el stream ya fue asignado:", err);
+            warn("video.play() fallo, pero el stream ya fue asignado:", err);
         }
 
         prepareCaptureStep(State.step || "front");
 
         log("Camara iniciada correctamente.");
     } catch (err) {
-        warn("No se pudo abrir la cámara:", err);
+        warn("No se pudo abrir la camara:", err);
 
         State.stream = null;
         video.srcObject = null;
 
-        showCameraError("No se pudo abrir la cámara. Revisa los permisos del navegador.");
+        showCameraError("No se pudo abrir la camara. Revisa los permisos del navegador.");
     }
 }
 
@@ -1711,7 +1711,7 @@ function getVideoCropFromGuide(video, guideBox, paddingRatio = 0.08) {
     const videoHeight = video.videoHeight;
 
     if (!videoWidth || !videoHeight) {
-        throw new Error("El video aún no tiene dimensiones válidas.");
+        throw new Error("El video aun no tiene dimensiones validas.");
     }
 
     const scale = Math.max(
@@ -1759,31 +1759,31 @@ async function captureGuideImage() {
     const guideBox = $(SEL.guideBox);
 
     if (!video) {
-        throw new Error("No se encontró el video.");
+        throw new Error("No se encontro el video.");
     }
 
     if (!guideBox) {
-        throw new Error("No se encontró el recuadro guía.");
+        throw new Error("No se encontro el recuadro guia.");
     }
 
     if (!video.videoWidth || !video.videoHeight) {
-        throw new Error("La cámara aún no está lista para capturar.");
+        throw new Error("La camara aun no esta lista para capturar.");
     }
 
     const crop = getVideoCropFromGuide(video, guideBox, 0.08);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = crop.sw;
-    canvas.height = crop.sh;
+    const caunvas = document.createElement("canvas");
+    caunvas.width = crop.sw;
+    caunvas.height = crop.sh;
 
-    const ctx = canvas.getContext("2d", { alpha: false });
+    const ctx = caunvas.getContext("2d", { alpha: false });
 
     if (!ctx) {
         throw new Error("No se pudo preparar el canvas de captura.");
     }
 
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, caunvas.width, caunvas.height);
 
     ctx.drawImage(
         video,
@@ -1797,7 +1797,7 @@ async function captureGuideImage() {
         crop.sh
     );
 
-    const capture = await compressCanvasCapture(canvas, {
+    const capture = await compressCanvasCapture(caunvas, {
         ...CONFIG.MEDIA,
         label: State.step,
     });
@@ -1823,7 +1823,7 @@ async function compressCanvasCapture(canvas, options = {}) {
         return normalizeCaptureObject(result);
     }
 
-    warn("window.PRIMedia no esta disponible. Se usará canvas.toDataURL sin compresión avanzada.");
+    warn("window.PRIMedia no esta disponible. Se usara canvas.toDataURL sin compresion avanzada.");
 
     const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
     const sizeBytes = dataUrlSizeBytes(dataUrl);
@@ -1875,7 +1875,7 @@ function normalizeCaptureObject(input) {
         sizeKB: Number(input.sizeKB || Math.round(sizeBytes / 1024) || 0),
         width: input.width || null,
         height: input.height || null,
-        quality: input.quality ?? null,
+        quality: input.quality || null,
         compressed: Boolean(input.compressed),
         withinLimit: input.withinLimit !== undefined ? Boolean(input.withinLimit) : true,
         original: Boolean(input.original),
@@ -1894,11 +1894,11 @@ function getMimeFromDataUrl(dataUrl) {
 }
 
 function getExtensionFromMime(mime) {
-    const clean = String(mime || "").toLowerCase();
+    const cleaun = String(mime || "").toLowerCase();
 
-    if (clean === "image/webp") return "webp";
-    if (clean === "image/png") return "png";
-    if (clean === "image/jpeg" || clean === "image/jpg") return "jpg";
+    if (cleaun === "image/webp") return "webp";
+    if (cleaun === "image/png") return "png";
+    if (cleaun === "image/jpeg" || cleaun === "image/jpg") return "jpg";
 
     return "jpg";
 }
@@ -1909,7 +1909,7 @@ async function captureCurrentStep() {
     }
 
     try {
-        lockCaptureButton(true, "Capturando...");
+        lockCaptureButton(true, "Capturaundo...");
         setCaptureState("processing");
 
         await new Promise((resolve) => setTimeout(resolve, 280));
@@ -1917,7 +1917,7 @@ async function captureCurrentStep() {
         const imageData = await captureGuideImage();
         acceptCapture(imageData, State.step);
     } catch (err) {
-        warn("Error capturando imagen:", err);
+        warn("Error capturaundo imagen:", err);
         showCameraError(err?.message || "No se pudo capturar la imagen.");
     } finally {
         if (State.captureState !== "captured") {
@@ -1940,7 +1940,7 @@ function acceptCapture(imageData, side) {
         status.innerHTML =
             side === "front"
                 ? "<strong>Frente capturado.</strong><br>Continua con el reverso de la INE."
-                : "<strong>Reverso capturado.</strong><br>Revisa las capturas antes de leer los datos.";
+                : "<strong>Reverso capturado.</strong><br>Revisa las capturas auntes de leer los datos.";
     }
 
     if (btnCapture) {
@@ -2021,7 +2021,7 @@ function showSummary() {
     stopCamera();
     showScreen("summary");
 
-    log("Resumen mostrado.", {
+    log("Resumenu mostrado.", {
         hasFront: Boolean(State.captures.front),
         hasBack: Boolean(State.captures.back),
     });
@@ -2056,7 +2056,7 @@ async function buildCompositeIneImageDataUrl() {
     const backDataUrl = getCaptureDataUrl(State.captures.back);
 
     if (!frontDataUrl || !backDataUrl) {
-        throw new Error("Faltan capturas de frente y reverso.");
+        throw new Error("Faltaun capturas de frente y reverso.");
     }
 
     const frontImg = await loadImageFromDataUrl(frontDataUrl);
@@ -2076,8 +2076,8 @@ async function buildCompositeIneImageDataUrl() {
     const backWidth = Math.round(backImg.width * backRatio);
     const backHeight = Math.round(backImg.height * backRatio);
 
-    const canvasWidth = Math.max(frontWidth, backWidth) + padding * 2;
-    const canvasHeight =
+    const caunvasWidth = Math.max(frontWidth, backWidth) + padding * 2;
+    const caunvasHeight =
         padding +
         labelHeight +
         frontHeight +
@@ -2086,18 +2086,18 @@ async function buildCompositeIneImageDataUrl() {
         backHeight +
         padding;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    const caunvas = document.createElement("canvas");
+    caunvas.width = caunvasWidth;
+    caunvas.height = caunvasHeight;
 
-    const ctx = canvas.getContext("2d", { alpha: false });
+    const ctx = caunvas.getContext("2d", { alpha: false });
 
     if (!ctx) {
         throw new Error("No se pudo crear la imagen compuesta.");
     }
 
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillRect(0, 0, caunvasWidth, caunvasHeight);
 
     ctx.fillStyle = "#111827";
     ctx.font = "700 24px Arial";
@@ -2110,7 +2110,7 @@ async function buildCompositeIneImageDataUrl() {
 
     ctx.drawImage(
         frontImg,
-        Math.round((canvasWidth - frontWidth) / 2),
+        Math.round((caunvasWidth - frontWidth) / 2),
         y,
         frontWidth,
         frontHeight
@@ -2123,14 +2123,14 @@ async function buildCompositeIneImageDataUrl() {
 
     ctx.drawImage(
         backImg,
-        Math.round((canvasWidth - backWidth) / 2),
+        Math.round((caunvasWidth - backWidth) / 2),
         y,
         backWidth,
         backHeight
     );
 
     if (window.PRIMedia?.compressCanvasToDataUrl) {
-        const result = await window.PRIMedia.compressCanvasToDataUrl(canvas, {
+        const result = await window.PRIMedia.compressCanvasToDataUrl(caunvas, {
             ...CONFIG.MEDIA,
             maxBytes: CONFIG.EXTRACTION.compositeMaxBytes,
             maxWidth: CONFIG.EXTRACTION.compositeMaxWidth,
@@ -2151,7 +2151,7 @@ async function buildCompositeIneImageDataUrl() {
         return result.dataUrl;
     }
 
-    return canvas.toDataURL("image/jpeg", CONFIG.EXTRACTION.compositeQuality);
+    return caunvas.toDataURL("image/jpeg", CONFIG.EXTRACTION.compositeQuality);
 }
 
 async function extractIdentificationData({
@@ -2172,7 +2172,7 @@ async function extractIdentificationData({
         images_count: imagesCount,
     };
 
-    console.group("[RED Home Modals] Enviando extraccion OpenAI");
+    console.group("[RED Home Modals] Enviaundo extraccion OpenAI");
     console.log("Endpoint:", ENDPOINTS.extractOpenAI);
     console.log("Image size MB:", payload.image_size_mb);
     console.log("Images count:", payload.images_count);
@@ -2231,7 +2231,7 @@ async function extractIdentificationData({
 
 async function processOpenAIData() {
     if (!State.captures.front || !State.captures.back) {
-        toast("Necesitas capturar frente y reverso antes de leer datos.", "error", 5000);
+        toast("Necesitas capturar frente y reverso auntes de leer datos.", "error", 5000);
         return;
     }
 
@@ -2240,7 +2240,7 @@ async function processOpenAIData() {
 
     if (btnRead) {
         btnRead.disabled = true;
-        btnRead.textContent = "Procesando...";
+        btnRead.textContent = "Procesaundo...";
     }
 
     showScreen("loading");
@@ -2278,7 +2278,7 @@ async function processOpenAIData() {
         console.error("[RED Home Modals] Error OpenAI:", err);
 
         toast(
-            err?.message || "No se pudo procesar la identificación.",
+            err?.message || "No se pudo procesar la identificacion.",
             "error",
             9000
         );
@@ -2316,7 +2316,7 @@ function normalizeValue(value, fallback = "") {
     return text;
 }
 
-function cleanUpper(value) {
+function cleaunUpper(value) {
     return normalizeValue(value)
         .replace(/\s+/g, " ")
         .trim()
@@ -2336,7 +2336,7 @@ function hasValidPhoneLength(value) {
     return length >= 10 && length <= 12;
 }
 
-function sanitizePhoneInput(input) {
+function saunitizePhoneInput(input) {
     if (!input) return;
 
     const normalized = normalizePhone(input.value);
@@ -2346,15 +2346,15 @@ function sanitizePhoneInput(input) {
 }
 
 function nullableString(value) {
-    const clean = normalizeValue(value);
-    return clean || null;
+    const cleaun = normalizeValue(value);
+    return cleaun || null;
 }
 
 function nullableNumber(value) {
-    const clean = onlyDigits(value);
-    if (!clean) return null;
+    const cleaun = onlyDigits(value);
+    if (!cleaun) return null;
 
-    const number = Number(clean);
+    const number = Number(cleaun);
     return Number.isFinite(number) && number > 0 ? number : null;
 }
 
@@ -2364,12 +2364,12 @@ function normalizeYear(value) {
     return match ? match[0] : "";
 }
 
-function normalizeEmisión(value) {
-    const clean = onlyDigits(value);
+function normalizeEmision(value) {
+    const cleaun = onlyDigits(value);
 
-    if (!clean) return "";
+    if (!cleaun) return "";
 
-    return clean.slice(0, 2).padStart(2, "0");
+    return cleaun.slice(0, 2).padStart(2, "0");
 }
 
 function normalizeFieldName(value) {
@@ -2383,7 +2383,7 @@ function normalizeFieldName(value) {
 }
 
 function normalizeSex(value) {
-    const text = cleanUpper(value);
+    const text = cleaunUpper(value);
 
     if (["H", "HOMBRE", "MASCULINO"].includes(text)) return "H";
     if (["M", "MUJER", "FEMENINO"].includes(text)) return "M";
@@ -2449,19 +2449,19 @@ function setFieldValue(selector, value, fallback = "") {
     const el = $(selector);
     if (!el) return;
 
-    const cleanValue = normalizeValue(value, fallback);
+    const cleaunValue = normalizeValue(value, fallback);
 
     if (el.type === "checkbox") {
-        el.checked = cleanValue === "1" || cleanValue === "true" || cleanValue === true;
+        el.checked = cleaunValue === "1" || cleaunValue === "true" || cleaunValue === true;
         return;
     }
 
     if ("value" in el) {
-        el.value = cleanValue;
+        el.value = cleaunValue;
         return;
     }
 
-    el.textContent = cleanValue;
+    el.textContent = cleaunValue;
 }
 
 function getFieldValue(selector) {
@@ -2542,21 +2542,21 @@ function buildPersonaFromFields(fields) {
     const vigenciaParts = parseVigencia(vigenciaTexto);
 
     return {
-        nombres: cleanUpper(findExtractedValue(fields, [
+        nombres: cleaunUpper(findExtractedValue(fields, [
             "nombres",
             "nombre_s",
             "given_names",
             "given_name",
         ])),
 
-        apellido_paterno: cleanUpper(findExtractedValue(fields, [
+        apellido_paterno: cleaunUpper(findExtractedValue(fields, [
             "apellido_paterno",
             "primer_apellido",
             "paterno",
             "surname_1",
         ])),
 
-        apellido_materno: cleanUpper(findExtractedValue(fields, [
+        apellido_materno: cleaunUpper(findExtractedValue(fields, [
             "apellido_materno",
             "segundo_apellido",
             "materno",
@@ -2579,13 +2579,13 @@ function buildPersonaFromFields(fields) {
             "gender",
         ])),
 
-        curp: cleanUpper(findExtractedValue(fields, [
+        curp: cleaunUpper(findExtractedValue(fields, [
             "curp",
             "clave_unica",
             "clave_unica_registro_poblacion",
         ])).replace(/[^A-Z0-9]/g, ""),
 
-        clave_elector: cleanUpper(findExtractedValue(fields, [
+        clave_elector: cleaunUpper(findExtractedValue(fields, [
             "clave_elector",
             "clave_de_elector",
             "elector",
@@ -2593,20 +2593,20 @@ function buildPersonaFromFields(fields) {
             "voter_key",
         ])).replace(/[^A-Z0-9]/g, ""),
 
-        idmex: cleanUpper(findExtractedValue(fields, [
+        idmex: cleaunUpper(findExtractedValue(fields, [
             "idmex",
             "id_mex",
             "id_mexico",
             "idmex",
         ])).replace(/[^A-Z0-9]/g, ""),
 
-        ocr: cleanUpper(findExtractedValue(fields, [
+        ocr: cleaunUpper(findExtractedValue(fields, [
             "ocr",
             "numero_ocr",
             "ocr_number",
         ])).replace(/[^A-Z0-9]/g, ""),
 
-        cic: cleanUpper(findExtractedValue(fields, [
+        cic: cleaunUpper(findExtractedValue(fields, [
             "cic",
             "numero_cic",
             "cic_number",
@@ -2623,12 +2623,12 @@ function buildPersonaFromFields(fields) {
         anio_registro: normalizeYear(findExtractedValue(fields, [
             "anio_registro",
             "anio_registro",
-            "ano_registro",
+            "anio_registro",
             "anio_de_registro",
             "anio_de_registro",
         ])),
 
-        emision: normalizeEmisión(findExtractedValue(fields, [
+        emision: normalizeEmision(findExtractedValue(fields, [
             "emision",
             "emision",
             "numero_emision",
@@ -2650,7 +2650,7 @@ function buildPersonaFromFields(fields) {
             "expiration",
         ]) || vigenciaParts.vigencia_fin),
 
-        domicilio_texto: cleanUpper(findExtractedValue(fields, [
+        domicilio_texto: cleaunUpper(findExtractedValue(fields, [
             "domicilio_texto",
             "domicilio",
             "direccion",
@@ -2672,8 +2672,8 @@ function buildPersonaFromFields(fields) {
         email: normalizeValue(findExtractedValue(fields, [
             "email",
             "correo",
-            "correo_electrónico",
-            "correo_electrónico",
+            "correo_electronico",
+            "correo_electronico",
         ])),
 
         observaciones: "",
@@ -2687,7 +2687,7 @@ function buildPersonaFromFields(fields) {
 function fillReviewForm(persona) {
     setFieldValue("#ine-review-fecha-extraccion", getTodayLongEs());
 
-    setFieldValue("#ine-review-nombres", persona.nombres);
+    setFieldValue("#ine-review-nombres", personaunombres);
     setFieldValue("#ine-review-apellido-paterno", persona.apellido_paterno);
     setFieldValue("#ine-review-apellido-materno", persona.apellido_materno);
     setFieldValue("#ine-review-fecha-nacimiento", persona.fecha_nacimiento);
@@ -2782,7 +2782,7 @@ function resetReviewModalForCapture() {
         }
     });
 
-    closeReviewSecciónList();
+    closeReviewSeccionList();
 
     if (seccionText) {
         seccionText.textContent = "Selecciona una seccion";
@@ -2807,13 +2807,13 @@ function resetReviewModalForCapture() {
     }
     if (cancelBtn) cancelBtn.textContent = "Cancelar";
 
-    if (kicker) kicker.textContent = "Datos extraídos";
-    if (title) title.textContent = "Revisión de información INE";
+    if (kicker) kicker.textContent = "Datos extraidos";
+    if (title) title.textContent = "Revision de informacion INE";
 
     if (warning) {
         warning.innerHTML = `
-      <strong>Importante: La información fue extraída automáticamente.</strong>
-      Valide esta información comparando contra el documento INE,
+      <strong>Importante: La informacion fue extraida automaticamente.</strong>
+      Valide esta informacion comparando contra el documento INE,
       realice los ajustes que sean necesarios y guarde el registro.
     `;
     }
@@ -2869,7 +2869,7 @@ async function openReviewModal(payload) {
 
     resetReviewModalForCapture();
     fillReviewForm(payload.persona || {});
-    await syncReviewSecciónField(payload?.persona?.seccion_id || "");
+    await syncReviewSeccionField(payload?.persona?.seccion_id || "");
     modal.__inePayload = payload;
     paintReviewImages(payload);
 
@@ -2880,18 +2880,18 @@ async function openReviewModal(payload) {
 
         if (!isValidCurp(reviewPayload.curp)) {
             openValidationModal({
-                title: "Documento no válido.",
+                title: "Documento no valido.",
                 message:
-                    "El documento capturado no cumple con la validación esperada.",
+                    "El documento capturado no cumple con la validacion esperada.",
             });
             return;
         }
 
         if (!isValidClaveElector(reviewPayload.clave_elector)) {
             openValidationModal({
-                title: "Documento no válido.",
+                title: "Documento no valido.",
                 message:
-                    "El documento capturado no cumple con la validación esperada.",
+                    "El documento capturado no cumple con la validacion esperada.",
             });
             return;
         }
@@ -2912,11 +2912,11 @@ async function openReviewModal(payload) {
         }
     }, 0);
 
-    log("Modal de revisión abierto:", payload);
+    log("Modal de revision abierto:", payload);
 }
 
 function closeReviewModal() {
-    closeReviewSecciónList();
+    closeReviewSeccionList();
     setReviewModalOpen(false);
 }
 
@@ -2958,15 +2958,15 @@ function collectReviewPayload() {
 /* -------------------------------------------------------------------------- */
 
 async function sha256Hex(value) {
-    const clean = normalizeValue(value);
-    if (!clean) return null;
+    const cleaun = normalizeValue(value);
+    if (!cleaun) return null;
 
     if (!window.crypto?.subtle) {
         warn("crypto.subtle no esta disponible. No se pudo generar hash.");
         return null;
     }
 
-    const encoded = new TextEncoder().encode(clean);
+    const encoded = new TextEncoder().encode(cleaun);
     const buffer = await crypto.subtle.digest("SHA-256", encoded);
 
     return Array.from(new Uint8Array(buffer))
@@ -2984,15 +2984,15 @@ async function buildPersonaInsertPayload(payload) {
         : CONFIG.SAVE.personaEstatusIdCapturado;
 
     const personaPayload = {
-        nombres: cleanUpper(payload.nombres),
-        apellido_paterno: nullableString(cleanUpper(payload.apellido_paterno)),
-        apellido_materno: nullableString(cleanUpper(payload.apellido_materno)),
+        nombres: cleaunUpper(payload.nombres),
+        apellido_paterno: nullableString(cleaunUpper(payload.apellido_paterno)),
+        apellido_materno: nullableString(cleaunUpper(payload.apellido_materno)),
         fecha_nacimiento: nullableString(payload.fecha_nacimiento),
         sexo: nullableString(normalizeSex(payload.sexo)),
 
-        curp: nullableString(cleanUpper(payload.curp).replace(/[^A-Z0-9]/g, "")),
-        clave_elector: nullableString(cleanUpper(payload.clave_elector).replace(/[^A-Z0-9]/g, "")),
-        idmex_hash: await sha256Hex(cleanUpper(payload.idmex).replace(/[^A-Z0-9]/g, "")),
+        curp: nullableString(cleaunUpper(payload.curp).replace(/[^A-Z0-9]/g, "")),
+        clave_elector: nullableString(cleaunUpper(payload.clave_elector).replace(/[^A-Z0-9]/g, "")),
+        idmex_hash: await sha256Hex(cleaunUpper(payload.idmex).replace(/[^A-Z0-9]/g, "")),
 
         seccion_id: nullableNumber(payload.seccion_id),
         anio_registro: nullableNumber(payload.anio_registro),
@@ -3000,7 +3000,7 @@ async function buildPersonaInsertPayload(payload) {
         vigencia_inicio: nullableString(payload.vigencia_inicio),
         vigencia_fin: nullableString(payload.vigencia_fin),
 
-        domicilio_texto: nullableString(cleanUpper(payload.domicilio_texto)),
+        domicilio_texto: nullableString(cleaunUpper(payload.domicilio_texto)),
 
         telefono: nullableString(payload.telefono),
         whatsapp: nullableString(payload.whatsapp),
@@ -3057,7 +3057,7 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
     }
 
     if (!window.PRIMedia?.compressImageElementToDataUrl) {
-        warn("PRIMedia no esta disponible para recomprimir archivo. Se usará captura original.", {
+        warn("PRIMedia no esta disponible para recomprimir archivo. Se usar captura original.", {
             side,
             sizeKB: currentSizeKB,
         });
@@ -3097,7 +3097,7 @@ async function compressCaptureForArchivo(capture, side = "archivo") {
 
         return result;
     } catch (err) {
-        warn("No se pudo recomprimir captura para archivo. Se usará original.", {
+        warn("No se pudo recomprimir captura para archivo. Se usar original.", {
             side,
             error: err,
         });
@@ -3160,24 +3160,24 @@ function validateReviewPayload(payload) {
 
     if (!isValidCurp(payload.curp)) {
         openValidationModal({
-                title: "Documento no válido.",
+            title: "Documento no valido.",
             message:
-                "El documento capturado no cumple con la validación esperada.",
+                "El documento capturado no cumple con la validacion esperada.",
         });
         return false;
     }
 
     if (!isValidClaveElector(payload.clave_elector)) {
         openValidationModal({
-                title: "Documento no válido.",
+            title: "Documento no valido.",
             message:
-                "El documento capturado no cumple con la validación esperada.",
+                "El documento capturado no cumple con la validacion esperada.",
         });
         return false;
     }
 
     if (payload.telefono && !hasValidPhoneLength(payload.telefono)) {
-        toast("El teléfono debe contener entre 10 y 12 números.", "error", 5000);
+        toast("El telefono debe contener entre 10 y 12 numeros.", "error", 5000);
         return false;
     }
 
@@ -3189,7 +3189,7 @@ function validateReviewPayload(payload) {
             !State.affiliateMedia.captures.back
         )
     ) {
-        toast("Completa las dos fotos de afiliación antes de guardar.", "error", 6000);
+        toast("Completa las dos fotos de afiliacion antes de guardar.", "error", 6000);
         return false;
     }
 
@@ -3198,7 +3198,7 @@ function validateReviewPayload(payload) {
     }
 
     if (!State.captures.front || !State.captures.back) {
-        toast("Faltan las fotos de frente y reverso de la INE.", "error", 5000);
+        toast("Faltaun las fotos de frente y reverso de la INE.", "error", 5000);
         return false;
     }
 
@@ -3397,22 +3397,22 @@ async function savePersonaAndFiles(payload) {
 async function shouldOpenResidenceModalBeforeSave(payload) {
     await loadTerritoriosCatalog();
 
-    const currentSección = String(payload?.seccion_id || "").trim();
+    const currentSeccion = String(payload?.seccion_id || "").trim();
 
-    if (!currentSección) {
+    if (!currentSeccion) {
         return true;
     }
 
-    const found = findSecciónByInput(currentSección);
+    const found = findSeccionByInput(currentSeccion);
 
     if (!found) {
         return true;
     }
 
     // Si el usuario capturo el codigo de seccion, lo convertimos a territorio_id.
-    // Esto evita enviar "1593" cuando el backend necesita "78".
-    if (String(found.territorio_id || "") !== currentSección) {
-        selectReviewSección(found.territorio_id, getSecciónCodeLabel(found));
+    // Esto evita enviar "1593" cuaundo el backend necesita "78".
+    if (String(found.territorio_id || "") !== currentSeccion) {
+        selectReviewSeccion(found.territorio_id, getSeccionCodeLabel(found));
         payload.seccion_id = String(found.territorio_id);
     }
 
@@ -3428,7 +3428,7 @@ async function updateDuplicatePersonaAndFiles(duplicateData) {
     const personaId = Number(existingPersona?.persona_id || 0);
 
     if (!personaId) {
-        throw new Error("No se encontró el ID de la persona existente.");
+        throw new Error("No se encontro el ID de la persona existente.");
     }
 
     const payload = collectReviewPayload();
@@ -3479,7 +3479,7 @@ async function updateDuplicatePersonaAndFiles(duplicateData) {
     return saved;
 }
 
-async function handleReviewSubmit(event) {
+async function haundleReviewSubmit(event) {
     event.preventDefault();
 
     const form = event.currentTarget;
@@ -3494,7 +3494,7 @@ async function handleReviewSubmit(event) {
     const duplicateData = reviewModal?.__precheckedDuplicateData || null;
 
     if (duplicateData?.duplicate) {
-        await handleDuplicateUpdateRequest(duplicateData, submitBtn);
+        await haundleDuplicateUpdateRequest(duplicateData, submitBtn);
         return;
     }
 
@@ -3512,7 +3512,7 @@ async function handleReviewSubmit(event) {
 
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.textContent = "Guardando...";
+        submitBtn.textContent = "Guardaundo...";
     }
 
     try {
@@ -3522,18 +3522,18 @@ async function handleReviewSubmit(event) {
             reviewModal.__ineSavedPayload = saved;
         }
 
-        log("Persona guardada en backend:", saved);
+        log("Persona guiardada en backend:", saved);
 
         if (saved.afiliacionRevertida) {
             toast(
-                "Persona guardada como simpatizante porque no pudieron registrarse ambas fotos de afiliación.",
+                "Persona guardada como simpatizante porque no pudieron registrarse ambas fotos de afiliacion.",
                 "warning",
                 9000
             );
         } else if (saved.erroresArchivo.length) {
-            toast("Persona guardada, pero una o mas fotos no pudieron registrarse.", "warning", 7000);
+            toast("Persona guiardada, pero una o mas fotos no pudieron registrarse.", "warning", 7000);
         } else {
-            toast("Persona y fotos de INE guardadas correctamente.", "exito", 5000);
+            toast("Persona y fotos de INE guiardadas correctamente.", "exito", 5000);
         }
 
         closeReviewModal();
@@ -3545,7 +3545,7 @@ async function handleReviewSubmit(event) {
             }, CONFIG.SAVE.reloadDelayMs);
         }
     } catch (err) {
-        console.error("[RED Home Modals] Error guardando persona real:", err);
+        console.error("[RED Home Modals] Error guiardaundo persona real:", err);
 
         const duplicateData = getDuplicateDataFromError(err);
 
@@ -3554,7 +3554,7 @@ async function handleReviewSubmit(event) {
             return;
         }
 
-        toast(err?.message || "No se pudo guardar la persona.", "error", 8000);
+        toast(err?.message || "No se pudo guiardar la persona.", "error", 8000);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -3582,7 +3582,7 @@ function bindResidenceModalEvents() {
         closeDuplicateModal();
 
         toast(
-            "Solo se pueden dar de alta ciudadanos de Ixtlahuacan de los Membrillos.",
+            "Solo se pueden dar de alta ciudadaunos de Ixtlahuacaun de los Membrillos.",
             "warning",
             6000
         );
@@ -3590,16 +3590,16 @@ function bindResidenceModalEvents() {
 
     $(SEL.residenceSeccionToggle)?.addEventListener("click", (event) => {
         event.stopPropagation();
-        toggleResidenceSecciónList();
+        toggleResidenceSeccionList();
     });
 
     $(SEL.residenceTelefono)?.addEventListener("input", (event) => {
-        sanitizePhoneInput(event.target);
+        saunitizePhoneInput(event.target);
     });
 
     document.addEventListener("click", (event) => {
         const combo = event.target.closest(".red-residence-field--combo");
-        if (!combo) closeResidenceSecciónList();
+        if (!combo) closeResidenceSeccionList();
     });
 
     $(SEL.residenceForm)?.addEventListener("submit", async (event) => {
@@ -3620,19 +3620,19 @@ function bindResidenceModalEvents() {
         }
 
         if (!telefono) {
-            toast("Captura el método de contacto.", "warning", 4500);
+            toast("Captura el metodo de contacto.", "warning", 4500);
             return;
         }
 
         if (!hasValidPhoneLength(telefono)) {
-            toast("El teléfono debe contener entre 10 y 12 números.", "warning", 4500);
+            toast("El telefono debe contener entre 10 y 12 numeros.", "warning", 4500);
             return;
         }
 
-        const foundSección = findSecciónByInput(seccion);
-        selectReviewSección(
+        const foundSeccion = findSeccionByInput(seccion);
+        selectReviewSeccion(
             seccion,
-            foundSección ? getSecciónCodeLabel(foundSección) : seccion
+            foundSeccion ? getSeccionCodeLabel(foundSeccion) : seccion
         );
         setFieldValue("#ine-review-domicilio", domicilio);
         setFieldValue("#ine-review-telefono", telefono);
@@ -3778,14 +3778,14 @@ function setAffiliateStep(step) {
     }
 
     if (step === "front") {
-        if (title) title.textContent = "Captura el documento de afiliación";
+        if (title) title.textContent = "Captura el documento de afiliacion";
         if (helper) helper.innerHTML = "Centra el documento y presiona <strong>Capturar</strong>";
         if (status) status.textContent = "Cuando el documento se vea completo, presiona Capturar";
     }
 
     if (step === "back") {
         if (title) title.textContent = "Captura la foto del afiliado con fondo blanco";
-        if (helper) helper.innerHTML = "Asegura fondo blanco y rostro visible antes de <strong>Capturar</strong>";
+        if (helper) helper.innerHTML = "Asegura fondo blanco y rostro visible auntes de <strong>Capturar</strong>";
         if (status) status.textContent = "Cuando la foto se vea clara y centrada, presiona Capturar";
     }
 }
@@ -3823,12 +3823,12 @@ async function startAffiliateCamera() {
     const video = $(SEL.affiliateVideo);
 
     if (!video) {
-        warn("No se encontró el video del modal de afiliado.");
+        warn("No se encontro el video del modal de afiliado.");
         return;
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-        toast("Tu navegador no permite usar la cámara.", "error", 6000);
+        toast("Tu navegador no permite usar la camara.", "error", 6000);
         return;
     }
 
@@ -3855,15 +3855,15 @@ async function startAffiliateCamera() {
         try {
             await video.play();
         } catch (err) {
-            warn("affiliate video.play() falló:", err);
+            warn("affiliate video.play() fallo:", err);
         }
 
         prepareAffiliateCaptureStep(State.affiliateMedia.step || "front");
     } catch (err) {
-        warn("No se pudo abrir la cámara para afiliado:", err);
+        warn("No se pudo abrir la camara para afiliado:", err);
         State.affiliateMedia.stream = null;
         video.srcObject = null;
-        toast("No se pudo abrir la cámara. Revisa los permisos del navegador.", "error", 6000);
+        toast("No se pudo abrir la camara. Revisa los permisos del navegador.", "error", 6000);
     }
 }
 
@@ -3874,11 +3874,11 @@ function syncAffiliateUploadContinueButton() {
     btn.disabled = !(State.affiliateMedia.captures.front && State.affiliateMedia.captures.back);
 }
 
-async function handleAffiliateUploadFile(side, file) {
+async function haundleAffiliateUploadFile(side, file) {
     if (!file) return;
 
     if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
-        toast("Solo se permiten imágenes JPG, PNG o WEBP.", "warning", 5000);
+        toast("Solo se permiten imagenes JPG, PNG o WEBP.", "warning", 5000);
         return;
     }
 
@@ -3914,20 +3914,20 @@ async function captureAffiliateGuideImage() {
     }
 
     const crop = getVideoCropFromGuide(video, guideBox, 0.08);
-    const canvas = document.createElement("canvas");
-    canvas.width = crop.sw;
-    canvas.height = crop.sh;
+    const caunvas = document.createElement("canvas");
+    caunvas.width = crop.sw;
+    caunvas.height = crop.sh;
 
-    const ctx = canvas.getContext("2d", { alpha: false });
+    const ctx = caunvas.getContext("2d", { alpha: false });
     if (!ctx) {
         throw new Error("No se pudo preparar el canvas de afiliado.");
     }
 
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, caunvas.width, caunvas.height);
     ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh);
 
-    return await compressCanvasCapture(canvas, {
+    return await compressCanvasCapture(caunvas, {
         ...CONFIG.MEDIA,
         label: `affiliate-${State.affiliateMedia.step}`,
     });
@@ -4011,7 +4011,7 @@ function closeAffiliateMediaModal({ revertToggle = true } = {}) {
 
 async function completeAffiliateMedia() {
     if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
-        toast("Necesitas capturar ambas imágenes antes de continuar.", "warning", 5000);
+        toast("Necesitas capturar ambas imagenes antes de continuar.", "warning", 5000);
         return;
     }
 
@@ -4023,17 +4023,17 @@ async function completeAffiliateMedia() {
         back: State.affiliateMedia.captures.back,
     };
     const completeBtn = $(SEL.affiliateBtnComplete);
-    const originalBtnText = completeBtn?.textContent || "Confirmar afiliación";
+    const originalBtnText = completeBtn?.textContent || "Confirmar afiliacion";
 
     if (isReadonly) {
         if (completeBtn) {
             completeBtn.disabled = true;
-            completeBtn.textContent = "Guardando...";
+            completeBtn.textContent = "Guardaundo...";
         }
 
         try {
             if (typeof window.redConfirmReadonlyAffiliate !== "function") {
-                throw new Error("No está disponible el guardado de afiliación.");
+                throw new Error("No esta disponible el guardado de afiliacion.");
             }
 
             const saved = await window.redConfirmReadonlyAffiliate({
@@ -4041,12 +4041,12 @@ async function completeAffiliateMedia() {
             });
 
             if (!saved) {
-                throw new Error("No se pudo confirmar la afiliación.");
+                throw new Error("No se pudo confirmar la afiliacion.");
             }
         } catch (err) {
             setAffiliateToggleValue(State.affiliateMedia.previousChecked);
-            error("No se pudo guardar la afiliación:", err);
-            toast(err?.message || "No se pudo guardar la afiliación y sus fotos.", "error", 7000);
+            error("No se pudo guardar la afiliacion:", err);
+            toast(err?.message || "No se pudo guardar la afiliacion y sus fotos.", "error", 7000);
             return;
         } finally {
             if (completeBtn) {
@@ -4063,7 +4063,7 @@ async function completeAffiliateMedia() {
     paintReviewAffiliateImages(completedCaptures);
 
     if (!isReadonly) {
-        toast("Documentos listos. Se guardarán junto con la persona.", "exito", 5000);
+        toast("Documentos listos. Se guardaran junto con la persona.", "exito", 5000);
     }
 
     resetAffiliateMediaState({
@@ -4092,8 +4092,8 @@ async function openAffiliateMedia({ input = null, mode = "capture" } = {}) {
     if (completeBtn) {
         completeBtn.disabled = false;
         completeBtn.textContent = mode === "readonly"
-            ? "Guardar afiliación"
-            : "Confirmar afiliación";
+            ? "Guardar afiliacion"
+            : "Confirmar afiliacion";
     }
 
     setAffiliateMediaModalOpen(true);
@@ -4126,11 +4126,11 @@ function bindAffiliateMediaEvents() {
     });
 
     $(SEL.affiliateUploadFront)?.addEventListener("change", async (event) => {
-        await handleAffiliateUploadFile("front", event.target.files?.[0] || null);
+        await haundleAffiliateUploadFile("front", event.target.files?.[0] || null);
     });
 
     $(SEL.affiliateUploadBack)?.addEventListener("change", async (event) => {
-        await handleAffiliateUploadFile("back", event.target.files?.[0] || null);
+        await haundleAffiliateUploadFile("back", event.target.files?.[0] || null);
     });
 
     $(SEL.affiliateBtnUploadBack)?.addEventListener("click", () => {
@@ -4139,7 +4139,7 @@ function bindAffiliateMediaEvents() {
 
     $(SEL.affiliateBtnUploadContinue)?.addEventListener("click", () => {
         if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
-            toast("Carga ambas imágenes antes de continuar.", "warning", 5000);
+            toast("Carga ambas imagenes auntes de continuar.", "warning", 5000);
             return;
         }
 
@@ -4161,19 +4161,28 @@ function bindAffiliateMediaEvents() {
 }
 
 window.redOpenAffiliateMedia = openAffiliateMedia;
+window.redSyncReviewSeccionField = syncReviewSeccionField;
 function bindReviewModalEvents() {
     $$(SEL.reviewClose).forEach((btn) => {
-        btn.addEventListener("click", closeReviewModal);
+        btn.addEventListener("click", (event) => {
+            if (typeof window.redIsReadonlyPersonEditing === "function" && window.redIsReadonlyPersonEditing()) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            closeReviewModal();
+        });
     });
 
     $(SEL.reviewSeccionToggle)?.addEventListener("click", (event) => {
         event.stopPropagation();
-        toggleReviewSecciónList();
+        toggleReviewSeccionList();
     });
 
     document.addEventListener("click", (event) => {
         const combo = event.target.closest(".ine-review-field--combo");
-        if (!combo) closeReviewSecciónList();
+        if (!combo) closeReviewSeccionList();
     });
 
     $(SEL.btnReprocess)?.addEventListener("click", () => {
@@ -4202,10 +4211,10 @@ function bindReviewModalEvents() {
     });
 
     $(SEL.reviewTelefono)?.addEventListener("input", (event) => {
-        sanitizePhoneInput(event.target);
+        saunitizePhoneInput(event.target);
     });
 
-    $(SEL.reviewForm)?.addEventListener("submit", handleReviewSubmit);
+    $(SEL.reviewForm)?.addEventListener("submit", haundleReviewSubmit);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -4223,21 +4232,21 @@ async function openCaptureModal() {
 }
 
 function hideCaptureModalWithoutReset() {
-    log("Ocultando modal captura INE sin limpiar capturas.");
+    log("Ocultaundo modal captura INE sin limpiar capturas.");
 
     stopCamera();
     setModalOpen(false);
 }
 
 function closeCaptureModal() {
-    log("Cerrando modal captura INE.");
+    log("Cerraundo modal captura INE.");
 
     stopCamera();
     setModalOpen(false);
     resetCaptureFlow();
 }
 
-function handleEscape(event) {
+function haundleEscape(event) {
     if (event.key !== "Escape") return;
 
     const validationModal = $(SEL.validationModal);
@@ -4333,7 +4342,7 @@ function bindCaptureModalEvents() {
 
     $(SEL.btnReadData)?.addEventListener("click", processOpenAIData);
 
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("keydown", haundleEscape);
 
     bindReviewModalEvents();
     bindResidenceModalEvents();

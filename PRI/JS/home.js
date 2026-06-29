@@ -55,8 +55,11 @@ const State = {
   readonlyRecord: null,
   readonlyOriginalStatusId: null,
   readonlySavingStatus: false,
+  readonlySavingPerson: false,
   readonlyChangingAffiliate: false,
   readonlyRevokeAffiliatePending: false,
+  readonlyEditing: false,
+  readonlyEditSnapshot: null,
 };
 
 const SEL = {
@@ -77,6 +80,8 @@ const SEL = {
   ineReviewWarning: ".ine-review-warning",
   ineReviewSave: "#ine-modal-affiliate",
   ineReviewEdit: "#ine-review-edit",
+  ineReviewSavePerson: "#ine-review-save-person",
+  ineReviewCancelEdit: "#ine-review-cancel-edit",
   ineReviewReprocess: "#ine-btn-reprocess",
   ineReviewFront: "#ine-review-front",
   ineReviewBack: "#ine-review-back",
@@ -103,6 +108,20 @@ const PERSON_STATUS_OPTIONS = Object.freeze([
   { estatus_id: 4, codigo: "ACTIVO", nombre: "Activo" },
   { estatus_id: 5, codigo: "INACTIVO", nombre: "Inactivo" },
   { estatus_id: 8, codigo: "DUPLICADO", nombre: "Duplicado" },
+]);
+
+const READONLY_PERSON_EDITABLE_FIELD_IDS = new Set([
+  "ine-review-seccion-toggle",
+  "ine-review-domicilio",
+  "ine-review-telefono",
+  "ine-review-whatsapp",
+  "ine-review-email",
+  "ine-review-observaciones",
+]);
+
+const READONLY_PERSON_ACTION_BUTTON_IDS = new Set([
+  "ine-review-save-person",
+  "ine-review-cancel-edit",
 ]);
 
 /* -------------------------------------------------------------------------- */
@@ -219,13 +238,268 @@ function syncReadonlyEditButton() {
   const modal = $(SEL.ineReviewModal);
   const isReadonly = (modal?.dataset?.mode || "capture") === "readonly";
   const canEdit = canEditReadonlyAdminbar();
-  const hidden = !isReadonly || isPromotorRole();
+  const hidden = !isReadonly || isPromotorRole() || State.readonlyEditing;
 
   btn.hidden = hidden;
   btn.disabled = !canEdit;
   btn.title = canEdit
     ? "Editar registro"
     : "No tienes permiso para editar este registro";
+}
+
+function sanitizeReadonlyPhone(value) {
+  return String(value ?? "")
+    .replace(/\s+/g, "")
+    .replace(/[^\d]/g, "")
+    .trim();
+}
+
+function readReadonlyPersonEditableValues() {
+  return {
+    seccion_id: String($("#ine-review-seccion")?.value || "").trim(),
+    seccion_text: String($("#ine-review-seccion-text")?.textContent || "").trim(),
+    domicilio_texto: String($("#ine-review-domicilio")?.value || "").trim(),
+    telefono: sanitizeReadonlyPhone($("#ine-review-telefono")?.value || ""),
+    whatsapp: sanitizeReadonlyPhone($("#ine-review-whatsapp")?.value || ""),
+    email: String($("#ine-review-email")?.value || "").trim(),
+    observaciones: String($("#ine-review-observaciones")?.value || "").trim(),
+  };
+}
+
+function applyReadonlyPersonEditableValues(values = {}) {
+  const seccionInput = $("#ine-review-seccion");
+  const seccionText = $("#ine-review-seccion-text");
+
+  if (seccionInput) seccionInput.value = String(values.seccion_id || "").trim();
+  if (seccionText) {
+    seccionText.textContent = String(values.seccion_text || "Selecciona una seccion").trim() || "Selecciona una seccion";
+  }
+
+  setFieldValue("#ine-review-domicilio", values.domicilio_texto || "");
+  setFieldValue("#ine-review-telefono", values.telefono || "");
+  setFieldValue("#ine-review-whatsapp", values.whatsapp || "");
+  setFieldValue("#ine-review-email", values.email || "");
+  setFieldValue("#ine-review-observaciones", values.observaciones || "");
+}
+
+function setReadonlyPersonEditingContent(isEditing) {
+  const kicker = $(SEL.ineReviewKicker);
+  const warning = $(SEL.ineReviewWarning);
+
+  if (!isEditing) return;
+
+  if (kicker) kicker.textContent = "Edicion de registro";
+
+  if (warning) {
+    warning.innerHTML = `
+      <strong>Modo edicion.</strong>
+      Solo puedes actualizar datos de contacto, domicilio, seccion y observaciones.
+      Los datos extraidos de la INE no son editables desde esta vista.
+    `;
+  }
+}
+
+function syncReadonlyPersonEditMode() {
+  const modal = $(SEL.ineReviewModal);
+  const form = $(SEL.ineReviewForm);
+
+  if (!modal || !form) return;
+
+  const isReadonly = (modal.dataset.mode || "capture") === "readonly";
+  const isEditing = Boolean(isReadonly && State.readonlyEditing);
+  const savePersonBtn = $(SEL.ineReviewSavePerson);
+  const cancelEditBtn = $(SEL.ineReviewCancelEdit);
+  const statusSaveBtn = $(SEL.ineReviewSaveStatus);
+  const reprocessBtn = $(SEL.ineReviewReprocess);
+  const adminbar = $(SEL.ineReviewAdminbar);
+  const editBtn = $(SEL.ineReviewEdit);
+  const statusField = form.querySelector(".ine-review-status-field");
+  const affiliateToggle = form.querySelector(".ine-review-affiliate-toggle");
+
+  if (savePersonBtn) {
+    savePersonBtn.hidden = !isEditing;
+    savePersonBtn.disabled = !isEditing || State.readonlySavingPerson;
+    savePersonBtn.textContent = State.readonlySavingPerson ? "Guardando..." : "Guardar cambios";
+  }
+
+  if (cancelEditBtn) {
+    cancelEditBtn.hidden = !isEditing;
+    cancelEditBtn.disabled = !isEditing || State.readonlySavingPerson;
+  }
+
+  if (!isEditing) {
+    return;
+  }
+
+  form.querySelectorAll("input, textarea").forEach((field) => {
+    if (field.type === "hidden") {
+      field.disabled = false;
+      return;
+    }
+
+    if (field.type === "checkbox" || field.type === "radio") {
+      field.disabled = true;
+      return;
+    }
+
+    const editable = READONLY_PERSON_EDITABLE_FIELD_IDS.has(field.id);
+    field.disabled = false;
+    field.readOnly = !editable;
+  });
+
+  form.querySelectorAll("select, button").forEach((field) => {
+    if (READONLY_PERSON_ACTION_BUTTON_IDS.has(field.id)) {
+      field.disabled = State.readonlySavingPerson;
+      return;
+    }
+
+    if (READONLY_PERSON_EDITABLE_FIELD_IDS.has(field.id)) {
+      field.disabled = false;
+      return;
+    }
+
+    if (field.matches("[data-ine-review-close]")) {
+      field.disabled = true;
+      return;
+    }
+
+    field.disabled = true;
+  });
+
+  if (editBtn) editBtn.hidden = true;
+  if (statusSaveBtn) statusSaveBtn.hidden = true;
+  if (reprocessBtn) reprocessBtn.hidden = true;
+  if (adminbar) adminbar.hidden = true;
+  if (statusField) statusField.hidden = true;
+  if (affiliateToggle) affiliateToggle.hidden = true;
+
+  setReadonlyPersonEditingContent(true);
+}
+
+async function enterReadonlyPersonEditMode() {
+  if (!canEditReadonlyAdminbar()) {
+    toast("No tienes permiso para editar este registro.", "warning");
+    return;
+  }
+
+  State.readonlyEditSnapshot = readReadonlyPersonEditableValues();
+  State.readonlyEditing = true;
+  syncReadonlyPersonEditMode();
+
+  if (typeof window.redSyncReviewSeccionField === "function") {
+    try {
+      await window.redSyncReviewSeccionField(State.readonlyEditSnapshot?.seccion_id || "");
+    } catch (err) {
+      warn("No se pudo sincronizar el catalogo de secciones para edicion:", err);
+    }
+  }
+
+  $("#ine-review-domicilio")?.focus();
+}
+
+function cancelReadonlyPersonEdit() {
+  const record = State.readonlyRecord || {};
+
+  State.readonlyEditing = false;
+  State.readonlySavingPerson = false;
+
+  applyReadonlyPersonEditableValues(State.readonlyEditSnapshot || {});
+  State.readonlyEditSnapshot = null;
+  setReviewModalReadonlyMode(true);
+  paintPersonaReadonlyData(record.persona || {}, record.fallbackRow || {});
+  paintReadonlyStatusOptions(record.persona || {}, record.fallbackRow || {});
+  paintReadonlyAffiliateToggle(record.persona || {}, record.fallbackRow || {});
+}
+
+function validateReadonlyPersonPayload(payload) {
+  if (payload.telefono && !/^\d{10,12}$/.test(payload.telefono)) {
+    throw new Error("El telefono debe capturarse con 10 a 12 numeros.");
+  }
+
+  if (payload.whatsapp && !/^\d{10,12}$/.test(payload.whatsapp)) {
+    throw new Error("El WhatsApp debe capturarse con 10 a 12 numeros.");
+  }
+}
+
+function buildReadonlyPersonUpdatePayload(personaId) {
+  const values = readReadonlyPersonEditableValues();
+  const payload = {
+    persona_id: Number(personaId),
+    seccion_id: values.seccion_id ? Number(values.seccion_id) : null,
+    domicilio_texto: values.domicilio_texto || null,
+    telefono: values.telefono || null,
+    whatsapp: values.whatsapp || null,
+    email: values.email || null,
+    observaciones: values.observaciones || null,
+    updated_by: getUsuarioId() || null,
+    usuario_id: getUsuarioId() || null,
+    rol_codigo: getRolCodigo(),
+    rol_id: getRolId(),
+    update_context: "RED_HOME_PERSON_EDIT",
+  };
+
+  validateReadonlyPersonPayload(payload);
+  return payload;
+}
+
+async function saveReadonlyPerson() {
+  const record = State.readonlyRecord || {};
+  const persona = record.persona || {};
+  const fallbackRow = record.fallbackRow || {};
+  const personaId = Number(persona.persona_id || fallbackRow.id || 0);
+
+  if (!personaId) {
+    toast("No se encontro la persona para actualizar.", "error");
+    return;
+  }
+
+  if (!canEditReadonlyAdminbar()) {
+    toast("No tienes permiso para editar este registro.", "warning");
+    return;
+  }
+
+  if (State.readonlySavingPerson) {
+    return;
+  }
+
+  try {
+    State.readonlySavingPerson = true;
+    syncReadonlyPersonEditMode();
+
+    const out = await postJSON(
+      CONFIG.ENDPOINT_UPDATE_PERSONA,
+      buildReadonlyPersonUpdatePayload(personaId),
+    );
+
+    const updatedPersona = out.data || null;
+    if (!updatedPersona) {
+      throw new Error("No se recibio la persona actualizada.");
+    }
+
+    const updatedRow = mapRedHomeToRow(updatedPersona);
+
+    State.readonlyRecord = {
+      persona: updatedPersona,
+      fallbackRow: updatedRow,
+    };
+    State.readonlyEditing = false;
+    State.readonlyEditSnapshot = null;
+
+    setReviewModalReadonlyMode(true);
+    paintPersonaReadonlyData(updatedPersona, updatedRow);
+    paintReadonlyStatusOptions(updatedPersona, updatedRow);
+    paintReadonlyAffiliateToggle(updatedPersona, updatedRow);
+
+    toast("Datos de la persona actualizados correctamente.", "exito");
+    await loadDashboard({ keepPage: true });
+  } catch (err) {
+    error("No se pudo actualizar la persona:", err);
+    toast(err?.message || "No se pudo actualizar la persona.", "error");
+  } finally {
+    State.readonlySavingPerson = false;
+    syncReadonlyPersonEditMode();
+    syncReadonlyEditButton();
+  }
 }
 
 async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
@@ -1407,6 +1681,7 @@ function setReviewModalReadonlyMode(isReadonly) {
 
   syncReadonlyStatusSaveButton();
   syncReadonlyEditButton();
+  syncReadonlyPersonEditMode();
 }
 
 function syncReadonlyModalBodyState() {
@@ -1502,6 +1777,9 @@ function resetReviewModalToCaptureMode() {
   const kicker = $(SEL.ineReviewKicker);
   const warning = $(SEL.ineReviewWarning);
 
+  State.readonlyEditing = false;
+  State.readonlySavingPerson = false;
+  State.readonlyEditSnapshot = null;
   setReviewModalReadonlyMode(false);
 
   if (kicker) kicker.textContent = "Datos extraidos";
@@ -1531,6 +1809,9 @@ async function openPersonaReadonlyModal({
   }
 
   State.readonlyRevokeAffiliatePending = false;
+  State.readonlyEditing = false;
+  State.readonlySavingPerson = false;
+  State.readonlyEditSnapshot = null;
   State.readonlyRecord = {
     persona: persona || {},
     fallbackRow: fallbackRow || {},
@@ -1925,13 +2206,16 @@ function bindEvents() {
     await saveReadonlyStatus();
   });
 
-  $(SEL.ineReviewEdit)?.addEventListener("click", () => {
-    if (!canEditReadonlyAdminbar()) {
-      toast("No tienes permiso para editar este registro.", "warning");
-      return;
-    }
+  $(SEL.ineReviewEdit)?.addEventListener("click", async () => {
+    await enterReadonlyPersonEditMode();
+  });
 
-    toast("Permiso de edicion validado. El flujo completo de edicion se habilitara en el siguiente parche.", "warning");
+  $(SEL.ineReviewSavePerson)?.addEventListener("click", async () => {
+    await saveReadonlyPerson();
+  });
+
+  $(SEL.ineReviewCancelEdit)?.addEventListener("click", () => {
+    cancelReadonlyPersonEdit();
   });
 
   $(SEL.ineReviewAfiliado)?.addEventListener("change", async (event) => {
@@ -1971,7 +2255,9 @@ function bindEvents() {
   $(SEL.revokeAffiliateConfirm)?.addEventListener("click", async () => {
     await confirmRevokeAffiliate();
   });
-  document.addEventListener("red:persona-saved", async () => {
+  window.redIsReadonlyPersonEditing = () => Boolean(State.readonlyEditing);
+
+document.addEventListener("red:persona-saved", async () => {
     await loadDashboard({ keepPage: false });
   });
 }

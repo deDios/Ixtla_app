@@ -5,13 +5,13 @@
   Endpoint para hacerle la vida mas facil al front.
 
   Objetivo:
-  - Resolver en servidor el universo visible por jerarquÃ­a.
+  - Resolver en servidor el universo visible por jerarquia.
   - Consultar personas desde persona, con LEFT JOIN a persona_participacion.
-  - Si hay participaciÃ³n activa, priorizar:
+  - Si hay participacion activa, priorizar:
     AFILIADO > SIMPATIZANTE
-  - Si no hay participaciÃ³n, tratar temporalmente como SIMPATIZANTE.
+  - Si no hay participacion, tratar temporalmente como SIMPATIZANTE.
   - Paginar en SQL.
-  - Calcular mÃ©tricas sin cargar todo el universo en el front.
+  - Calcular metricas sin cargar todo el universo en el front.
 
   No requiere tablas ni columnas nuevas.
 */
@@ -36,7 +36,7 @@ if (strlen($DATA_SECRET) < 64) {
   header('Content-Type: application/json; charset=utf-8');
   echo json_encode([
     "ok" => false,
-    "error" => "ConfiguraciÃ³n de seguridad incompleta"
+    "error" => "Configuracion de seguridad incompleta"
   ], JSON_UNESCAPED_UNICODE);
   exit;
 }
@@ -103,7 +103,7 @@ function read_json_body(): array
   if (!is_array($in)) {
     json_response([
       "ok" => false,
-      "error" => "JSON invÃ¡lido"
+      "error" => "JSON invalido"
     ], 400);
   }
 
@@ -115,19 +115,19 @@ function db(): mysqli
   $path = realpath('/home/site/wwwroot/db/conn/conn_db_2.php');
 
   if (!$path || !file_exists($path)) {
-    internal_error('No se encontrÃ³ conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php');
+    internal_error('No se encontro conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php');
   }
 
   include_once $path;
 
   if (!function_exists('conectar')) {
-    internal_error('No existe la funciÃ³n conectar() en conn_db_2.php');
+    internal_error('No existe la funcion conectar() en conn_db_2.php');
   }
 
   $con = conectar();
 
   if (!$con instanceof mysqli) {
-    internal_error('conectar() no regresÃ³ una conexiÃ³n mysqli vÃ¡lida');
+    internal_error('conectar() no regreso una conexion mysqli valida');
   }
 
   $con->set_charset('utf8mb4');
@@ -288,9 +288,9 @@ function is_usuario_inactivo(?int $estatusId): bool
 }
 
 /*
-  Devuelve el usuario actual + toda su jerarquÃ­a descendiente.
+  Devuelve el usuario actual + toda su jerarquia descendiente.
   Ejemplo:
-  Coordinador Zona -> Coordinadores SecciÃ³n -> Promotores.
+  Coordinador Zona -> Coordinadores Seccion -> Promotores.
 */
 
 function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
@@ -420,7 +420,7 @@ function build_scope(mysqli $con, array $in): array
 }
 
 /* ============================================================
-   WHERE DINÃMICO
+   WHERE DINAMICO
    ============================================================ */
 
 function build_red_home_where(array $in, array $scope, string &$types, array &$params): string
@@ -445,8 +445,8 @@ function build_red_home_where(array $in, array $scope, string &$types, array &$p
 
   /*
     Fallback temporal:
-    - Si la persona tiene participaciÃ³n activa, se usa pp.
-    - Si no tiene participaciÃ³n activa, pp viene NULL y se trata como SIMPATIZANTE.
+    - Si la persona tiene participacion activa, se usa pp.
+    - Si no tiene participacion activa, pp viene NULL y se trata como SIMPATIZANTE.
   */
 
   if (!$scope['can_see_all']) {
@@ -1047,7 +1047,7 @@ function consultar_metricas(mysqli $con, array $scope): array
   /*
     Simpatizantes:
     - Personas sin AFILIADO activo.
-    - Incluye personas sin participaciÃ³n todavÃ­a.
+    - Incluye personas sin participacion todavia.
   */
   $simpatizantesSql = "
     SELECT COUNT(DISTINCT p.persona_id) AS total
@@ -1088,7 +1088,7 @@ function contar_promotores_visibles(mysqli $con, array $scope): int
     - Se cuentan usuarios con rol PROMOTOR.
     - No se cuentan coordinadores.
     - Para ADMIN / COORD_GENERAL se cuentan todos los promotores activos.
-    - Para los demÃ¡s roles se cuentan solo los promotores dentro de su jerarquÃ­a descendiente.
+    - Para los demas roles se cuentan solo los promotores dentro de su jerarquia descendiente.
   */
 
   if ($scope['can_see_all']) {
@@ -1140,7 +1140,7 @@ try {
   if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     json_response([
       'ok' => false,
-      'error' => 'MÃ©todo no permitido. Usa POST.'
+      'error' => 'Metodo no permitido. Usa POST.'
     ], 405);
   }
 

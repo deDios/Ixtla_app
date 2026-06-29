@@ -19,7 +19,7 @@ ix_require_session([
 </head>
 
 <body>
-    <!-- Tope de pagina -->
+    <!-- Tope de página -->
     <header id="header" data-link-home="/index.php">
         <div class="social-bar-mobile">
             <div class="social-icons">
@@ -27,7 +27,7 @@ ix_require_session([
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
-                <!-- El JSglobal reemplaza este avatar cuando hay sesión -->
+                <!-- El JS global reemplaza este avatar cuando hay sesión -->
                 <div class="user-icon-mobile" onclick="window.location.href='VIEW/Login.php'">
                     <img src="/ASSETS/user/img_user1.png" alt="Usuario" />
                 </div>
@@ -45,11 +45,11 @@ ix_require_session([
 
 
             <div class="actions">
-                <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
+                <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menu"
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
                 </button>
-                <!-- El JSglobal inyecta aquí el avatar desktop si hay sesión -->
+                <!-- El JS global inyecta aquí el avatar desktop si hay sesión -->
             </div>
         </div>
 
@@ -163,11 +163,11 @@ ix_require_session([
 
             <div class="ine-capture-body">
 
-                <!-- Pantalla metodo -->
+                <!-- Pantalla método -->
                 <section class="ine-capture-screen is-active" data-ine-screen="method">
                     <div class="ine-method-card">
                         <p class="ine-method-kicker">Captura INE</p>
-                        <h3>Selecciona como cargar la identificacion</h3>
+                        <h3>Selecciona cómo cargar la identificación</h3>
                         <p>
                             Puedes usar la cámara del dispositivo o subir imágenes ya tomadas del frente y reverso.
                         </p>
@@ -204,13 +204,13 @@ ix_require_session([
                         </div>
 
                         <div class="ine-camera-feedback" aria-hidden="true">
-                            <div class="ine-camera-feedback-icon ine-camera-feedback-icon--ok">✓</div>
+                            <div class="ine-camera-feedback-icon ine-camera-feedback-icon--ok">&#10003;</div>
                             <div class="ine-camera-feedback-icon ine-camera-feedback-icon--error">&times;</div>
                         </div>
 
                         <div class="ine-camera-bottom">
                             <p id="ine-camera-status" class="ine-camera-status">
-                                Cuando la INE este bien alineada, presiona Capturar
+                                Cuando la INE esté bien alineada, presiona Capturar
                             </p>
 
                             <div class="ine-camera-actions">
@@ -219,8 +219,8 @@ ix_require_session([
                                     Capturar
                                 </button>
 
-                                <button type="button" id="ine-btn-retry" class="ine-capture-btn ine-capture-btn--danger"
-                                    hidden>
+                                <button type="button" id="ine-btn-retry"
+                                    class="ine-capture-btn ine-capture-btn--danger" hidden>
                                     Reintentar
                                 </button>
 
@@ -340,7 +340,8 @@ ix_require_session([
                     <div class="ine-method-card">
                         <p class="ine-method-kicker">Afiliado</p>
                         <h3 id="affiliate-media-title">Captura evidencia de afiliación</h3>
-                        <p>Puedes usar la cámara del dispositivo o subir dos imágenes: el documento de afiliación y una foto del afiliado con fondo blanco.</p>
+                        <p>Puedes usar la cámara del dispositivo o subir dos imágenes: el documento de afiliación y una
+                            foto del afiliado con fondo blanco.</p>
 
                         <div class="ine-method-actions">
                             <button type="button" id="affiliate-btn-use-camera"
@@ -373,7 +374,7 @@ ix_require_session([
 
                         <div class="ine-camera-bottom">
                             <p id="affiliate-camera-status" class="ine-camera-status">
-                                Cuando la imagen este bien alineada, presiona Capturar
+                                Cuando la imagen esté bien alineada, presiona Capturar
                             </p>
 
                             <div class="ine-camera-actions">
@@ -401,7 +402,8 @@ ix_require_session([
                         <p class="ine-method-kicker">Carga manual</p>
                         <h3>Sube la evidencia del afiliado</h3>
                         <p>
-                            Selecciona primero el documento de afiliación y después una foto del afiliado con fondo blanco.
+                            Selecciona primero el documento de afiliación y después una foto del afiliado con fondo
+                            blanco.
                             Formatos permitidos: JPG, PNG o WEBP.
                         </p>
 
@@ -409,14 +411,16 @@ ix_require_session([
                             <label class="ine-upload-box" for="affiliate-upload-front">
                                 <span>Documento de afiliación</span>
                                 <input type="file" id="affiliate-upload-front" accept="image/jpeg,image/png,image/webp">
-                                <img id="affiliate-upload-preview-front" alt="Vista previa del documento de afiliación" hidden>
+                                <img id="affiliate-upload-preview-front" alt="Vista previa del documento de afiliación"
+                                    hidden>
                                 <small>Seleccionar documento</small>
                             </label>
 
                             <label class="ine-upload-box" for="affiliate-upload-back">
                                 <span>Foto del afiliado con fondo blanco</span>
                                 <input type="file" id="affiliate-upload-back" accept="image/jpeg,image/png,image/webp">
-                                <img id="affiliate-upload-preview-back" alt="Vista previa de la foto del afiliado" hidden>
+                                <img id="affiliate-upload-preview-back" alt="Vista previa de la foto del afiliado"
+                                    hidden>
                                 <small>Seleccionar foto</small>
                             </label>
                         </div>
@@ -605,7 +609,7 @@ ix_require_session([
 
                                 <button type="button" id="ine-review-seccion-toggle" class="red-residence-combo-toggle"
                                     aria-haspopup="listbox" aria-expanded="false">
-                                    <span id="ine-review-seccion-text">Selecciona una seccion</span>
+                                    <span id="ine-review-seccion-text">Selecciona una sección</span>
                                     <span class="red-residence-combo-chevron" aria-hidden="true"></span>
                                 </button>
 
@@ -617,7 +621,7 @@ ix_require_session([
                             <label class="ine-review-field">
                                 <span>Año de registro</span>
                                 <input type="number" id="ine-review-anio-registro" name="anio_registro" min="1900"
-                                    max="2100" placeholder="Anio">
+                                    max="2100" placeholder="Año">
                             </label>
 
                             <label class="ine-review-field">
@@ -629,13 +633,13 @@ ix_require_session([
                             <label class="ine-review-field">
                                 <span>Vigencia inicio</span>
                                 <input type="number" id="ine-review-vigencia-inicio" name="vigencia_inicio" min="1900"
-                                    max="2100" placeholder="Anio">
+                                    max="2100" placeholder="Año">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Vigencia fin</span>
                                 <input type="number" id="ine-review-vigencia-fin" name="vigencia_fin" min="1900"
-                                    max="2100" placeholder="Anio">
+                                    max="2100" placeholder="Año">
                             </label>
 
                             <label class="ine-review-field">
@@ -665,7 +669,9 @@ ix_require_session([
                         <div class="ine-review-grid">
                             <label class="ine-review-field">
                                 <span>Teléfono</span>
-                                <input type="tel" id="ine-review-telefono" name="telefono" inputmode="tel" minlength="10" maxlength="12" pattern="[0-9]{10,12}" placeholder="Teléfono" title="Captura entre 10 y 12 números">
+                                <input type="tel" id="ine-review-telefono" name="telefono" inputmode="tel"
+                                    minlength="10" maxlength="12" pattern="[0-9]{10,12}" placeholder="Teléfono"
+                                    title="Captura entre 10 y 12 números">
                             </label>
 
                             <label class="ine-review-field">
@@ -766,6 +772,16 @@ ix_require_session([
                         Editar
                     </button>
 
+                    <button type="button" id="ine-review-save-person" class="ine-review-btn ine-review-btn--primary"
+                        hidden>
+                        Guardar cambios
+                    </button>
+
+                    <button type="button" id="ine-review-cancel-edit" class="ine-review-btn ine-review-btn--ghost"
+                        hidden>
+                        Cancelar edición
+                    </button>
+
                     <button type="button" id="ine-review-save-status"
                         class="ine-review-btn ine-review-btn--primary ine-review-status-save" disabled hidden>
                         Guardar
@@ -784,7 +800,7 @@ ix_require_session([
     </section>
 
 
-    <!-- Modal aviso: seccion fuera de RED / residencia actual -->
+    <!-- Modal aviso: sección fuera de RED / residencia actual -->
 
     <section id="red-residence-modal" class="red-residence-modal" hidden aria-hidden="true">
         <div class="red-residence-overlay" data-red-residence-close></div>
@@ -802,7 +818,7 @@ ix_require_session([
                 <p class="red-residence-kicker">Aviso</p>
 
                 <h2 id="red-residence-title">
-                    Detectamos que la “Sección” es de otra RED.
+                    Detectamos que la "Sección" es de otra RED.
                 </h2>
 
                 <p id="red-residence-question" class="red-residence-question">
@@ -827,7 +843,7 @@ ix_require_session([
 
                         <button type="button" id="red-residence-seccion-toggle" class="red-residence-combo-toggle"
                             disabled aria-haspopup="listbox" aria-expanded="false">
-                            <span id="red-residence-seccion-text">Selecciona una seccion</span>
+                            <span id="red-residence-seccion-text">Selecciona una sección</span>
                             <span class="red-residence-combo-chevron" aria-hidden="true"></span>
                         </button>
 
@@ -843,7 +859,9 @@ ix_require_session([
 
                     <label class="red-residence-field">
                         <span>Método de contacto</span>
-                        <input type="tel" id="red-residence-telefono" name="telefono" inputmode="tel" minlength="10" maxlength="12" pattern="[0-9]{10,12}" placeholder="Ej. 3333333333" title="Captura entre 10 y 12 números" disabled>
+                        <input type="tel" id="red-residence-telefono" name="telefono" inputmode="tel" minlength="10"
+                            maxlength="12" pattern="[0-9]{10,12}" placeholder="Ej. 3333333333"
+                            title="Captura entre 10 y 12 números" disabled>
                     </label>
 
                     <footer class="red-residence-footer">
@@ -900,7 +918,7 @@ ix_require_session([
         </article>
     </section>
 
-    <!-- Modal aviso: validacion de CURP / clave de elector -->
+    <!-- Modal aviso: validación de CURP / clave de elector -->
 
     <section id="red-validation-modal" class="red-validation-modal" hidden aria-hidden="true">
         <div class="red-validation-overlay" data-red-validation-close></div>
@@ -915,7 +933,7 @@ ix_require_session([
             <div class="red-validation-body">
                 <div class="red-validation-icon" aria-hidden="true">!</div>
 
-                <p class="red-validation-kicker">Validacion</p>
+                <p class="red-validation-kicker">Validación</p>
 
                 <h2 id="red-validation-title">
                     Documento no válido.
@@ -957,14 +975,14 @@ ix_require_session([
                     <span>&times;</span>
                 </div>
 
-                <p class="red-revoke-affiliate-kicker">Confirmacion</p>
+                <p class="red-revoke-affiliate-kicker">Confirmación</p>
 
                 <h2 id="red-revoke-affiliate-title">
-                    ¿Quieres revocar la afiliacion?
+                    ¿Quieres revocar la afiliación?
                 </h2>
 
                 <p id="red-revoke-affiliate-message" class="red-revoke-affiliate-message">
-                    La persona dejara de estar marcada como afiliada y volvera al estado de simpatizante.
+                    La persona dejará de estar marcada como afiliada y volverá al estado de simpatizante.
                 </p>
 
                 <p id="red-revoke-affiliate-person" class="red-revoke-affiliate-person" hidden></p>
@@ -972,7 +990,7 @@ ix_require_session([
                 <div class="red-revoke-affiliate-actions">
                     <button type="button" id="red-revoke-affiliate-confirm"
                         class="red-revoke-affiliate-btn red-revoke-affiliate-btn--danger">
-                        Si, revocar afiliacion
+                        Sí, revocar afiliación
                     </button>
 
                     <button type="button" class="red-revoke-affiliate-btn red-revoke-affiliate-btn--cancel"
@@ -997,7 +1015,7 @@ ix_require_session([
                 </div>
                 <div class="col right">
                     <p class="location">
-                        © Copyright 2026, Todos los derechos reservados | GodCode Software | Francisco, C. Madero 1C,
+                        (c) Copyright 2026, Todos los derechos reservados | GodCode Software | Francisco, C. Madero 1C,
                         Ixtlahuacán de Los Membrillos Centro, La Arena, 45850 Ixtlahuacán de los Membrillos, Jal.
                     </p>
                 </div>

@@ -19,7 +19,7 @@ if (strlen($DATA_SECRET) < 64) {
   header('Content-Type: application/json; charset=utf-8');
   echo json_encode([
     "ok" => false,
-    "error" => "Configuración de seguridad incompleta"
+    "error" => "Configuracion de seguridad incompleta"
   ], JSON_UNESCAPED_UNICODE);
   exit;
 }
@@ -89,7 +89,7 @@ function read_json_body(): array
   if (!is_array($in)) {
     json_response([
       "ok" => false,
-      "error" => "JSON inválido"
+      "error" => "JSON invalido"
     ], 400);
   }
 
@@ -101,19 +101,19 @@ function db(): mysqli
   $path = realpath("/home/site/wwwroot/db/conn/conn_db_2.php");
 
   if (!$path || !file_exists($path)) {
-    internal_error("No se encontró conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php");
+    internal_error("No se encontro conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php");
   }
 
   include_once $path;
 
   if (!function_exists('conectar')) {
-    internal_error("No existe la función conectar() en conn_db_2.php");
+    internal_error("No existe la funcion conectar() en conn_db_2.php");
   }
 
   $con = conectar();
 
   if (!$con instanceof mysqli) {
-    internal_error("conectar() no regresó una conexión mysqli válida");
+    internal_error("conectar() no regreso una conexion mysqli valida");
   }
 
   $con->set_charset('utf8mb4');
@@ -242,7 +242,7 @@ function sensitive_decrypt(mixed $encoded, string $secret): ?string
 
 
 /* ============================================================
-   PARTICIPACIÓN RED
+   PARTICIPACION RED
    ============================================================ */
 
 function normalizar_tipo_participacion(mixed $value): ?string
@@ -300,6 +300,83 @@ function fuente_captura_or_null(mixed $value): ?string
   return in_array($fuente, ['PORTAL', 'BRIGADA', 'IMPORTACION', 'FORMULARIO_WEB', 'OTRO'], true)
     ? $fuente
     : null;
+}
+
+function normalize_rol_codigo(array $in): string
+{
+  $rol = trim((string)($in['rol_codigo'] ?? ''));
+
+  if ($rol === '' && isset($in['rol']) && is_array($in['rol'])) {
+    $rol = trim((string)($in['rol']['codigo'] ?? ''));
+  }
+
+  return strtoupper($rol);
+}
+
+function is_red_home_person_edit_context(array $in): bool
+{
+  return strtoupper(trim((string)($in['update_context'] ?? ''))) === 'RED_HOME_PERSON_EDIT';
+}
+
+function filter_red_home_person_edit_input(array $in): array
+{
+  if (!is_red_home_person_edit_context($in)) {
+    return $in;
+  }
+
+  $allowedKeys = [
+    'persona_id',
+    'id',
+    'seccion_id',
+    'domicilio_texto',
+    'telefono',
+    'whatsapp',
+    'email',
+    'observaciones',
+    'updated_by',
+    'usuario_id',
+    'rol_codigo',
+    'rol_id',
+    'update_context',
+  ];
+
+  $filtered = [];
+
+  foreach ($allowedKeys as $key) {
+    if (array_key_exists($key, $in)) {
+      $filtered[$key] = $in[$key];
+    }
+  }
+
+  return $filtered;
+}
+
+function assert_red_home_person_edit_permission(mysqli $con, array $in, int $persona_id): void
+{
+  if (!is_red_home_person_edit_context($in)) {
+    return;
+  }
+
+  $rolCodigo = normalize_rol_codigo($in);
+  $resumen = obtener_participacion_resumen($con, $persona_id);
+  $tipo = strtoupper(trim((string)($resumen["tipo_actual"] ?? $resumen["actual"]["tipo_participacion"] ?? "SIMPATIZANTE")));
+
+  $allowed = false;
+
+  if ($rolCodigo === 'ADMIN' || $rolCodigo === 'COORD_GENERAL') {
+    $allowed = true;
+  } elseif (in_array($rolCodigo, ['COORD_ZONA', 'COORD_SECCION'], true)) {
+    $allowed = $tipo !== 'AFILIADO';
+  }
+
+  if ($allowed) {
+    return;
+  }
+
+  json_response([
+    'ok' => false,
+    'error' => 'No tienes permiso para editar este registro.'
+  ], 403);
 }
 
 function obtener_participaciones_activas(mysqli $con, int $persona_id): array
@@ -444,7 +521,7 @@ function obtener_participacion_resumen(mysqli $con, int $persona_id): array
 
   return [
     "actual" => $principal,
-    "tipo_actual" => $principal['tipo_participacion'] ?? null,
+    "tipo_actual" => $principal["tipo_participacion"] ?? null,
     "tiene_simpatizante_activo" => $tieneSimpatizante,
     "tiene_afiliado_activo" => $tieneAfiliado,
     "participaciones_activas" => count($participaciones),
@@ -476,10 +553,10 @@ function activar_o_insertar_participacion(mysqli $con, int $persona_id, string $
 {
   $existente = buscar_participacion_sin_filtrar_activo($con, $persona_id, $tipo);
 
-  $estatusId = int_input_or_null($in, ['participacion_estatus_id', 'estatus_participacion_id']) ?? 4;
+  $estatusId = int_input_or_null($in, ["participacion_estatus_id", "estatus_participacion_id"]) ?? 4;
   $territorioId = int_input_or_null($in, ['participacion_territorio_id', 'territorio_id', 'seccion_id']);
-  $responsableId = int_input_or_null($in, ['usuario_responsable_id', 'capturado_por', 'created_by', 'updated_by']) ?? $usuarioActor;
-  $fuenteCaptura = fuente_captura_or_null($in['fuente_captura'] ?? null);
+  $responsableId = int_input_or_null($in, ["usuario_responsable_id", "capturado_por", "created_by", "updated_by"]) ?? $usuarioActor;
+  $fuenteCaptura = fuente_captura_or_null($in["fuente_captura"] ?? null);
   $fechaAfiliacion = $tipo === 'AFILIADO'
     ? str_input_or_null($in, ['fecha_afiliacion'])
     : null;
@@ -657,8 +734,8 @@ function persona_row(array $row): array
 {
   global $DATA_SECRET;
 
-  $curp = sensitive_decrypt($row['curp_enc'] ?? null, $DATA_SECRET);
-  $clave_elector = sensitive_decrypt($row['clave_elector_enc'] ?? null, $DATA_SECRET);
+  $curp = sensitive_decrypt($row["curp_enc"] ?? null, $DATA_SECRET);
+  $clave_elector = sensitive_decrypt($row["clave_elector_enc"] ?? null, $DATA_SECRET);
 
   return [
     "persona_id" => (int)$row['persona_id'],
@@ -739,7 +816,7 @@ function actualizar_persona(mysqli $con, array $in): array
   if ($persona_id <= 0) {
     json_response([
       "ok" => false,
-      "error" => "Falta parámetro obligatorio: persona_id"
+      "error" => "Falta parametro obligatorio: persona_id"
     ], 400);
   }
 
@@ -759,14 +836,17 @@ function actualizar_persona(mysqli $con, array $in): array
   if (!$exists) {
     json_response([
       "ok" => false,
-      "error" => "Persona no encontrada"
+      "error" => "Persona no encontroada"
     ], 404);
   }
 
+  assert_red_home_person_edit_permission($con, $in, $persona_id);
+  $in = filter_red_home_person_edit_input($in);
+
   /*
     Si el front manda curp o clave_elector, el endpoint genera:
-    - *_hash para duplicados/búsqueda
-    - *_enc para poder consultar el dato después
+    - *_hash para duplicados/busqueda
+    - *_enc para poder consultar el dato despues
 
     Si manda curp: "" o clave_elector: "", se limpian hash y enc.
   */
@@ -912,7 +992,7 @@ function actualizar_persona(mysqli $con, array $in): array
   $st->close();
 
   if (!$row) {
-    internal_error("Persona actualizada pero no encontrada. persona_id=$persona_id");
+    internal_error("Persona actualizada pero no encontroada. persona_id=$persona_id");
   }
 
   $data = persona_row($row);
@@ -929,7 +1009,7 @@ try {
   if (!in_array(($_SERVER['REQUEST_METHOD'] ?? ''), ['POST', 'PUT', 'PATCH'], true)) {
     json_response([
       "ok" => false,
-      "error" => "Método no permitido. Usa POST, PUT o PATCH."
+      "error" => "Metodo no permitido. Usa POST, PUT o PATCH."
     ], 405);
   }
 
@@ -967,7 +1047,7 @@ try {
   error_log('[IXTLA_U_PERSONA][SQL] ' . $msg);
 
   if ($code === 1062) {
-    $campo = "único";
+    $campo = "unico";
 
     if (stripos($msg, "uq_persona_curp_hash") !== false) {
       $campo = "CURP";
@@ -987,7 +1067,7 @@ try {
   if ($code === 1452) {
     json_response([
       "ok" => false,
-      "error" => "FK inválida. Revisa estatus_id, seccion_id o updated_by",
+      "error" => "FK invalida. Revisa estatus_id, seccion_id o updated_by",
       "code" => $code
     ], 400);
   }
@@ -995,7 +1075,7 @@ try {
   if ($code === 1265 || $code === 1406 || $code === 1366) {
     json_response([
       "ok" => false,
-      "error" => "Dato inválido o demasiado largo para algún campo",
+      "error" => "Dato invalido o demasiado largo para algun campo",
       "code" => $code
     ], 400);
   }
