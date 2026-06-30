@@ -205,6 +205,63 @@ function toast(msg, tipo = "exito", duration = 4500) {
   console[tipo === "error" ? "error" : "log"]("[toast]", tipo, msg);
 }
 
+function normalizeValue(value, fallback = "") {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+
+  return String(value);
+}
+
+function safeText(value, fallback = "-") {
+  const text = normalizeValue(value, fallback).trim();
+  return text || fallback;
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function setFieldValue(selector, value, fallback = "") {
+  const field = $(selector);
+  if (!field) return;
+
+  const normalized = normalizeValue(value, fallback);
+
+  if (field.type === "checkbox") {
+    field.checked = normalized === "1" || normalized === "true" || normalized === true;
+    return;
+  }
+
+  if ("value" in field) {
+    field.value = normalized;
+    return;
+  }
+
+  field.textContent = normalized;
+}
+
+function clearImage(selector) {
+  const img = $(selector);
+  if (!img) return;
+
+  img.removeAttribute("src");
+  img.alt = "Imagen no disponible";
+}
+
+function isPromotorRole() {
+  return getRolCodigo() === "PROMOTOR";
+}
+
+function canEditReadonlyAdminbar() {
+  const role = getRolCodigo();
+  return role === "ADMIN" || role === "COORD_GENERAL";
+}
 function paintReadonlyStatusOptions(persona = {}, fallbackRow = {}) {
   const select = $(SEL.ineReviewEstatus);
   if (!select) return;
@@ -1086,6 +1143,14 @@ function mapRedHomeToRow(persona = {}) {
     permissions: persona.permissions || null,
     raw: persona,
   };
+}
+
+function normalizeText(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 function normalizeTipoParticipacion(value) {
