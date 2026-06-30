@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 
 import { Session } from "/PRI/JS/auth/session.js";
 import { initExportXLSXHome } from "/PRI/JS/ui/exportXLSXHome.js";
@@ -1900,6 +1900,15 @@ function resetReadonlyVisualImages() {
   State.readonlyVisualImages = {};
 }
 
+function hasReadonlyVisualImage(kind) {
+  return getReadonlyVisualImage(kind) !== "";
+}
+
+function getReadonlyRecordArchivos() {
+  const record = State.readonlyRecord || {};
+  return Array.isArray(record.archivos) ? record.archivos : [];
+}
+
 function syncReadonlyImageActionButtons() {
   const modal = $(SEL.ineReviewModal);
   const isReadonly = (modal?.dataset?.mode || "capture") === "readonly";
@@ -1979,8 +1988,11 @@ function paintPersonaReadonlyAffiliateImages(archivos = [], { forceShow = false 
     "Documento de afiliacion"
   );
 
+  const hasVisualAffiliateImages = hasReadonlyVisualImage("affiliate_front") || hasReadonlyVisualImage("affiliate_back");
+  const shouldShowSection = canShowAffiliateImages && (hasBoth || hasVisualAffiliateImages || canEditReadonlyAdminbar());
+
   if (section) {
-    section.hidden = !(canShowAffiliateImages && (hasBoth || getReadonlyVisualImage("affiliate_front") || getReadonlyVisualImage("affiliate_back")));
+    section.hidden = !shouldShowSection;
   }
 
   syncReadonlyImageActionButtons();
@@ -2107,6 +2119,19 @@ function formatSeccionPersona(persona = {}, fallbackRow = {}) {
 /* EVENTOS                                                                    */
 /* -------------------------------------------------------------------------- */
 
+function debounce(fn, wait = 250) {
+  let timeoutId = null;
+
+  return (...args) => {
+    if (timeoutId) clearTimeout(timeoutId);
+
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      fn(...args);
+    }, wait);
+  };
+}
+
 function bindEvents() {
   bindSortHeaders();
   const search = $(SEL.search);
@@ -2175,47 +2200,43 @@ function bindEvents() {
 
   $(SEL.ineReviewCancelEdit)?.addEventListener("click", () => {
     cancelReadonlyPersonEdit();
+  });
 
-    $$("[data-readonly-image-pick]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const kind = button.dataset.readonlyImagePick;
-        const input = $(`[data-readonly-image-input="${kind}"]`);
-        input?.click();
-      });
+  $$("[data-readonly-image-pick]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const kind = button.dataset.readonlyImagePick;
+      const input = $(`[data-readonly-image-input="${kind}"]`);
+      input?.click();
     });
+  });
 
-    $$("[data-readonly-image-input]").forEach((input) => {
-      input.addEventListener("change", async (event) => {
-        const kind = event.target.dataset.readonlyImageInput;
-        const file = event.target.files?.[0] || null;
-        const config = READONLY_IMAGE_CONFIG[kind];
+  $$("[data-readonly-image-input]").forEach((input) => {
+    input.addEventListener("change", async (event) => {
+      const kind = event.target.dataset.readonlyImageInput;
+      const file = event.target.files?.[0] || null;
+      const config = READONLY_IMAGE_CONFIG[kind];
 
-        if (!file || !config) return;
+      if (!file || !config) return;
 
-        try {
-          const dataUrl = await readFileAsDataUrl(file);
-          setReadonlyVisualImage(kind, dataUrl);
-
-          const record = State.readonlyRecord || {};
-          paintPersonaReadonlyImages(record.archivos || []);
-          toast(config.previewMessage, "warning");
-        } catch (err) {
-          toast(err?.message || "No se pudo cargar la vista previa.", "error");
-        } finally {
-          event.target.value = "";
-        }
-      });
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        setReadonlyVisualImage(kind, dataUrl);
+        paintPersonaReadonlyImages(getReadonlyRecordArchivos());
+        toast(config.previewMessage, "warning");
+      } catch (err) {
+        toast(err?.message || "No se pudo cargar la vista previa.", "error");
+      } finally {
+        event.target.value = "";
+      }
     });
+  });
 
-    $$("[data-readonly-image-reset]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const kind = button.dataset.readonlyImageReset;
-        setReadonlyVisualImage(kind, "");
-
-        const record = State.readonlyRecord || {};
-        paintPersonaReadonlyImages(record.archivos || []);
-        toast("Se restauro la imagen original en la vista previa.", "exito");
-      });
+  $$("[data-readonly-image-reset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const kind = button.dataset.readonlyImageReset;
+      setReadonlyVisualImage(kind, "");
+      paintPersonaReadonlyImages(getReadonlyRecordArchivos());
+      toast("Se restauro la imagen original en la vista previa.", "exito");
     });
   });
 
