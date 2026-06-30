@@ -333,11 +333,16 @@ function filter_red_home_person_edit_input(array $in): array
     'whatsapp',
     'email',
     'observaciones',
+    'estatus_id',
+    'tipo_participacion',
+    'participacion_estatus_id',
     'updated_by',
     'usuario_id',
+    'usuario_responsable_id',
     'rol_codigo',
     'rol_id',
     'update_context',
+    'fuente_captura',
   ];
 
   $filtered = [];
@@ -1100,3 +1105,4 @@ try {
     "error" => "Error interno del servidor"
   ], 500);
 }
+

@@ -1,0 +1,583 @@
+﻿diff --git a/PRI/JS/home.js b/PRI/JS/home.js
+index 38078f6..b2fd23a 100644
+--- a/PRI/JS/home.js
++++ b/PRI/JS/home.js
+@@ -1,4 +1,4 @@
+-"use strict";
++´╗┐"use strict";
+ 
+ import { Session } from "/PRI/JS/auth/session.js";
+ import { initExportXLSXHome } from "/PRI/JS/ui/exportXLSXHome.js";
+@@ -60,6 +60,7 @@ const State = {
+   readonlyRevokeAffiliatePending: false,
+   readonlyEditing: false,
+   readonlyEditSnapshot: null,
++  readonlyVisualImages: {},
+ };
+ 
+ const SEL = {
+@@ -102,6 +103,28 @@ const SEL = {
+ };
+ 
+ const ESTATUS_VALIDOS = new Set(["VALIDADO", "ACTIVO"]);
++const READONLY_IMAGE_CONFIG = Object.freeze({
++  ine_front: {
++    selector: "#ine-review-front",
++    emptyAlt: "Captura del frente no disponible",
++    previewMessage: "Vista previa actualizada para el frente de la INE. Aun no se guarda.",
++  },
++  ine_back: {
++    selector: "#ine-review-back",
++    emptyAlt: "Captura del reverso no disponible",
++    previewMessage: "Vista previa actualizada para el reverso de la INE. Aun no se guarda.",
++  },
++  affiliate_front: {
++    selector: "#ine-review-affiliate-front",
++    emptyAlt: "Documento de afiliacion no disponible",
++    previewMessage: "Vista previa actualizada para el documento de afiliacion. Aun no se guarda.",
++  },
++  affiliate_back: {
++    selector: "#ine-review-affiliate-back",
++    emptyAlt: "Foto del afiliado no disponible",
++    previewMessage: "Vista previa actualizada para la foto del afiliado. Aun no se guarda.",
++  },
++});
+ const PERSON_STATUS_OPTIONS = Object.freeze([
+   { estatus_id: 1, codigo: "CAPTURADO", nombre: "Capturado" },
+   { estatus_id: 2, codigo: "PENDIENTE_VALIDACION", nombre: "Pendiente de validacion" },
+@@ -389,6 +412,7 @@ async function enterReadonlyPersonEditMode() {
+   State.readonlyEditSnapshot = readReadonlyPersonEditableValues();
+   State.readonlyEditing = true;
+   syncReadonlyPersonEditMode();
++  syncReadonlyImageActionButtons();
+ 
+   if (typeof window.redSyncReviewSeccionField === "function") {
+     try {
+@@ -428,18 +452,15 @@ function validateReadonlyPersonPayload(payload) {
+ function buildReadonlyPersonUpdatePayload(personaId) {
+   const values = readReadonlyPersonEditableValues();
+   const payload = {
+-    persona_id: Number(personaId),
+-    seccion_id: values.seccion_id ? Number(values.seccion_id) : null,
+-    domicilio_texto: values.domicilio_texto || null,
+-    telefono: values.telefono || null,
+-    whatsapp: values.whatsapp || null,
+-    email: values.email || null,
+-    observaciones: values.observaciones || null,
++    persona_id: personaId,
++    tipo_participacion: tipoParticipacion,
+     updated_by: getUsuarioId() || null,
+     usuario_id: getUsuarioId() || null,
++    usuario_responsable_id: getUsuarioId() || null,
+     rol_codigo: getRolCodigo(),
+     rol_id: getRolId(),
+     update_context: "RED_HOME_PERSON_EDIT",
++    fuente_captura: "PORTAL",
+   };
+ 
+   validateReadonlyPersonPayload(payload);
+@@ -535,7 +556,11 @@ async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
+       persona_id: personaId,
+       tipo_participacion: tipoParticipacion,
+       updated_by: getUsuarioId() || null,
++      usuario_id: getUsuarioId() || null,
+       usuario_responsable_id: getUsuarioId() || null,
++      rol_codigo: getRolCodigo(),
++      rol_id: getRolId(),
++      update_context: "RED_HOME_PERSON_EDIT",
+       fuente_captura: "PORTAL",
+     };
+ 
+@@ -697,7 +722,11 @@ async function saveReadonlyStatus() {
+       tipo_participacion: isAfiliado ? "AFILIADO" : "SIMPATIZANTE",
+       participacion_estatus_id: estatusId,
+       updated_by: getUsuarioId() || null,
++      usuario_id: getUsuarioId() || null,
+       usuario_responsable_id: getUsuarioId() || null,
++      rol_codigo: getRolCodigo(),
++      rol_id: getRolId(),
++      update_context: "RED_HOME_PERSON_EDIT",
+       fuente_captura: "PORTAL",
+     });
+ 
+@@ -714,7 +743,6 @@ async function saveReadonlyStatus() {
+     }
+ 
+     toast("Estatus actualizado correctamente.", "exito");
+-
+     await loadDashboard({ keepPage: true });
+   } catch (err) {
+     error("No se pudo actualizar estatus:", err);
+@@ -730,68 +758,6 @@ async function saveReadonlyStatus() {
+   }
+ }
+ 
+-function safeText(value, fallback = "-") {
+-  const text = String(value ?? "").trim();
+-  return text || fallback;
+-}
+-
+-function normalizeText(value) {
+-  return String(value ?? "")
+-    .toLowerCase()
+-    .normalize("NFD")
+-    .replace(/\p{Diacritic}/gu, "")
+-    .trim();
+-}
+-
+-function escapeHTML(value) {
+-  return String(value ?? "")
+-    .replaceAll("&", "&amp;")
+-    .replaceAll("<", "&lt;")
+-    .replaceAll(">", "&gt;")
+-    .replaceAll('"', "&quot;")
+-    .replaceAll("'", "&#039;");
+-}
+-
+-function debounce(fn, delay = 350) {
+-  let timer = null;
+-
+-  return (...args) => {
+-    clearTimeout(timer);
+-    timer = setTimeout(() => fn(...args), delay);
+-  };
+-}
+-
+-function setFieldValue(selector, value, fallback = "") {
+-  const el = $(selector);
+-  if (!el) return;
+-
+-  const clean = String(value ?? fallback ?? "").trim();
+-
+-  if (el.type === "checkbox") {
+-    el.checked = clean === "1" || clean === "true";
+-    return;
+-  }
+-
+-  if ("value" in el) {
+-    el.value = clean;
+-    return;
+-  }
+-
+-  el.textContent = clean;
+-}
+-
+-function clearImage(selector) {
+-  const img = $(selector);
+-  if (!img) return;
+-
+-  img.removeAttribute("src");
+-  img.alt = "";
+-}
+-
+-/* -------------------------------------------------------------------------- */
+-/* SESION                                                                     */
+-/* -------------------------------------------------------------------------- */
+-
+ function readCookiePayload() {
+   try {
+     const name = encodeURIComponent("red_user") + "=";
+@@ -808,15 +774,25 @@ function readCookiePayload() {
+ function normalizeSession(rawSession) {
+   const raw = rawSession || {};
+   const data = raw.data && typeof raw.data === "object" ? raw.data : raw;
++  const usuario = data.usuario || raw.usuario || {
++    usuario_id: data.usuario_id ?? raw.usuario_id ?? null,
++    username: data.username || raw.username || "",
++    nombre: data.nombre || raw.nombre || "",
++    apellido_paterno: data.apellido_paterno || raw.apellido_paterno || "",
++    apellido_materno: data.apellido_materno || raw.apellido_materno || "",
++  };
++  const rol = data.rol || raw.rol || {
++    rol_id: data.rol_id ?? raw.rol_id ?? null,
++    codigo: data.rol_codigo || raw.rol_codigo || "",
++    nombre: data.rol_nombre || raw.rol_nombre || "",
++  };
+ 
+   return {
+     raw,
+     data,
+     token: data.token || raw.token || "",
+-    usuario: data.usuario || raw.usuario || {},
+-    rol: data.rol || raw.rol || {},
+-    persona: data.persona || raw.persona || {},
+-    territorios: Array.isArray(data.territorios) ? data.territorios : [],
++    usuario,
++    rol,
+   };
+ }
+ 
+@@ -839,9 +815,6 @@ function readSession() {
+   State.rol = normalized.rol;
+   State.token = normalized.token;
+ 
+-  log("Sesion detectada:", State.session);
+-  log("Sesion normalizada:", normalized);
+-
+   return normalized;
+ }
+ 
+@@ -852,10 +825,10 @@ function getUsuarioId() {
+ function getRolCodigo() {
+   return String(
+     State.rol?.codigo ||
+-    State.sessionData?.rol_codigo ||
+     State.sessionData?.rol?.codigo ||
++    State.sessionData?.rol_codigo ||
+     ""
+-  ).toUpperCase();
++  ).trim().toUpperCase();
+ }
+ 
+ function getRolId() {
+@@ -867,75 +840,6 @@ function getRolId() {
+   );
+ }
+ 
+-function isPromotorRole() {
+-  const rolCodigo = getRolCodigo();
+-  const rolId = getRolId();
+-
+-  return rolCodigo === "PROMOTOR" || rolId === 5;
+-}
+-
+-function canFrontendEditReadonlyPersona(persona = {}, fallbackRow = {}) {
+-  if (isPromotorRole()) {
+-    return false;
+-  }
+-
+-  const rolCodigo = getRolCodigo();
+-  const tipo = normalizeTipoParticipacion(
+-    persona.participacion?.tipo_actual ||
+-    persona.participacion?.actual?.tipo_participacion ||
+-    persona.tipo_participacion ||
+-    fallbackRow.tipo ||
+-    fallbackRow.raw?.tipo_participacion ||
+-    "SIMPATIZANTE"
+-  );
+-
+-  if (rolCodigo === "ADMIN" || rolCodigo === "COORD_GENERAL") {
+-    return true;
+-  }
+-
+-  if (rolCodigo === "COORD_ZONA" || rolCodigo === "COORD_SECCION") {
+-    return tipo !== "afiliado";
+-  }
+-
+-  return false;
+-}
+-
+-function canBackendEditReadonlyPersona(persona = {}, fallbackRow = {}) {
+-  const directPermission = persona.permissions?.edit;
+-
+-  if (typeof directPermission === "boolean") {
+-    return directPermission;
+-  }
+-
+-  const fallbackPermission = fallbackRow.permissions?.edit;
+-  if (typeof fallbackPermission === "boolean") {
+-    return fallbackPermission;
+-  }
+-
+-  const rawPermission = fallbackRow.raw?.permissions?.edit;
+-  if (typeof rawPermission === "boolean") {
+-    return rawPermission;
+-  }
+-
+-  return null;
+-}
+-
+-function canEditReadonlyPersona(persona = {}, fallbackRow = {}) {
+-  const frontendAllowed = canFrontendEditReadonlyPersona(persona, fallbackRow);
+-  const backendAllowed = canBackendEditReadonlyPersona(persona, fallbackRow);
+-
+-  if (typeof backendAllowed === "boolean") {
+-    return frontendAllowed && backendAllowed;
+-  }
+-
+-  return frontendAllowed;
+-}
+-
+-function canEditReadonlyAdminbar() {
+-  const record = State.readonlyRecord || {};
+-  return canEditReadonlyPersona(record.persona || {}, record.fallbackRow || {});
+-}
+-
+ function getAuthHeaders() {
+   const headers = {
+     "Content-Type": "application/json",
+@@ -1784,6 +1688,7 @@ function resetReviewModalToCaptureMode() {
+   State.readonlyEditing = false;
+   State.readonlySavingPerson = false;
+   State.readonlyEditSnapshot = null;
++  resetReadonlyVisualImages();
+   setReviewModalReadonlyMode(false);
+ 
+   if (kicker) kicker.textContent = "Datos extraidos";
+@@ -1816,9 +1721,11 @@ async function openPersonaReadonlyModal({
+   State.readonlyEditing = false;
+   State.readonlySavingPerson = false;
+   State.readonlyEditSnapshot = null;
++  resetReadonlyVisualImages();
+   State.readonlyRecord = {
+     persona: persona || {},
+     fallbackRow: fallbackRow || {},
++    archivos: Array.isArray(archivos) ? archivos : [],
+   };
+   setRevokeAffiliateModalOpen(false);
+   setReviewModalReadonlyMode(true);
+@@ -1863,6 +1770,7 @@ async function openPersonaReadonlyModal({
+   State.readonlyRecord = {
+     persona: persona || {},
+     fallbackRow: fallbackRow || {},
++    archivos: Array.isArray(archivos) ? archivos : [],
+   };
+ 
+   setReviewModalReadonlyMode(true);
+@@ -1975,23 +1883,66 @@ function setReadonlyImage(selector, src, altText) {
+   img.alt = altText || "Imagen INE";
+ }
+ 
++function getReadonlyVisualImage(kind) {
++  return String(State.readonlyVisualImages?.[kind] || "").trim();
++}
++
++function setReadonlyVisualImage(kind, dataUrl = "") {
++  if (!READONLY_IMAGE_CONFIG[kind]) return;
++
++  State.readonlyVisualImages = {
++    ...(State.readonlyVisualImages || {}),
++    [kind]: String(dataUrl || "").trim(),
++  };
++}
++
++function resetReadonlyVisualImages() {
++  State.readonlyVisualImages = {};
++}
++
++function syncReadonlyImageActionButtons() {
++  const modal = $(SEL.ineReviewModal);
++  const isReadonly = (modal?.dataset?.mode || "capture") === "readonly";
++  const canEdit = canEditReadonlyAdminbar();
++  const showActions = Boolean(isReadonly && canEdit && !State.readonlyEditing);
++
++  $$("[data-readonly-image-actions]").forEach((container) => {
++    container.hidden = !showActions;
++  });
++
++  $$("[data-readonly-image-reset]").forEach((button) => {
++    const kind = button.dataset.readonlyImageReset;
++    button.hidden = !showActions || !getReadonlyVisualImage(kind);
++  });
++}
++
++function readFileAsDataUrl(file) {
++  return new Promise((resolve, reject) => {
++    const reader = new FileReader();
++    reader.onload = () => resolve(String(reader.result || ""));
++    reader.onerror = () => reject(new Error("No se pudo leer la imagen seleccionada."));
++    reader.readAsDataURL(file);
++  });
++}
++
+ function paintPersonaReadonlyImages(archivos = []) {
+   const frente = findArchivoByUso(archivos, "INE_FRENTE");
+   const reverso = findArchivoByUso(archivos, "INE_REVERSO");
+ 
+   setReadonlyImage(
+     SEL.ineReviewFront,
+-    frente?.url_archivo || "",
++    getReadonlyVisualImage("ine_front") || frente?.url_archivo || "",
+     "Frente de la INE"
+   );
+ 
+   setReadonlyImage(
+     SEL.ineReviewBack,
+-    reverso?.url_archivo || "",
++    getReadonlyVisualImage("ine_back") || reverso?.url_archivo || "",
+     "Reverso de la INE"
+   );
+ 
+   paintPersonaReadonlyAffiliateImages(archivos);
++  syncReadonlyImageActionButtons();
+ 
+   log("Archivos pintados en modal readonly:", {
+     total: archivos.length,
+@@ -2018,17 +1969,21 @@ function paintPersonaReadonlyAffiliateImages(archivos = [], { forceShow = false
+ 
+   setReadonlyImage(
+     SEL.ineReviewAffiliateFront,
+-    hasBoth ? fotoPersona?.url_archivo || "" : "",
++    getReadonlyVisualImage("affiliate_front") || (hasBoth ? fotoPersona?.url_archivo || "" : ""),
+     "Foto de la persona"
+   );
+ 
+   setReadonlyImage(
+     SEL.ineReviewAffiliateBack,
+-    hasBoth ? documentoAfiliacion?.url_archivo || "" : "",
++    getReadonlyVisualImage("affiliate_back") || (hasBoth ? documentoAfiliacion?.url_archivo || "" : ""),
+     "Documento de afiliacion"
+   );
+ 
+-  if (section) section.hidden = !hasBoth;
++  if (section) {
++    section.hidden = !(canShowAffiliateImages && (hasBoth || getReadonlyVisualImage("affiliate_front") || getReadonlyVisualImage("affiliate_back")));
++  }
++
++  syncReadonlyImageActionButtons();
+ }
+ 
+ function shortHash(value) {
+@@ -2220,6 +2175,48 @@ function bindEvents() {
+ 
+   $(SEL.ineReviewCancelEdit)?.addEventListener("click", () => {
+     cancelReadonlyPersonEdit();
++
++    $$("[data-readonly-image-pick]").forEach((button) => {
++      button.addEventListener("click", () => {
++        const kind = button.dataset.readonlyImagePick;
++        const input = $(`[data-readonly-image-input="${kind}"]`);
++        input?.click();
++      });
++    });
++
++    $$("[data-readonly-image-input]").forEach((input) => {
++      input.addEventListener("change", async (event) => {
++        const kind = event.target.dataset.readonlyImageInput;
++        const file = event.target.files?.[0] || null;
++        const config = READONLY_IMAGE_CONFIG[kind];
++
++        if (!file || !config) return;
++
++        try {
++          const dataUrl = await readFileAsDataUrl(file);
++          setReadonlyVisualImage(kind, dataUrl);
++
++          const record = State.readonlyRecord || {};
++          paintPersonaReadonlyImages(record.archivos || []);
++          toast(config.previewMessage, "warning");
++        } catch (err) {
++          toast(err?.message || "No se pudo cargar la vista previa.", "error");
++        } finally {
++          event.target.value = "";
++        }
++      });
++    });
++
++    $$("[data-readonly-image-reset]").forEach((button) => {
++      button.addEventListener("click", () => {
++        const kind = button.dataset.readonlyImageReset;
++        setReadonlyVisualImage(kind, "");
++
++        const record = State.readonlyRecord || {};
++        paintPersonaReadonlyImages(record.archivos || []);
++        toast("Se restauro la imagen original en la vista previa.", "exito");
++      });
++    });
+   });
+ 
+   $(SEL.ineReviewAfiliado)?.addEventListener("change", async (event) => {
+@@ -2261,7 +2258,7 @@ function bindEvents() {
+   });
+   window.redIsReadonlyPersonEditing = () => Boolean(State.readonlyEditing);
+ 
+-document.addEventListener("red:persona-saved", async () => {
++  document.addEventListener("red:persona-saved", async () => {
+     await loadDashboard({ keepPage: false });
+   });
+ }
+@@ -2318,3 +2315,4 @@ document.addEventListener("DOMContentLoaded", init);
+ 
+ // Permite que otros modulos restauren el modal de revision si lo necesitan.
+ window.redResetReviewModalToCaptureMode = resetReviewModalToCaptureMode;
++
+diff --git a/PRI/Views/home.php b/PRI/Views/home.php
+index 8b40002..69f0690 100644
+--- a/PRI/Views/home.php
++++ b/PRI/Views/home.php
+@@ -734,11 +734,29 @@ ix_require_session([
+                             <figure class="ine-review-capture-card">
+                                 <img id="ine-review-front" src="" alt="Captura del frente de la INE">
+                                 <figcaption>Frente</figcaption>
++                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
++                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="ine_front">
++                                        Reemplazar
++                                    </button>
++                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="ine_front" hidden>
++                                        Restaurar
++                                    </button>
++                                    <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="ine_front" hidden>
++                                </div>
+                             </figure>
+ 
+                             <figure class="ine-review-capture-card">
+                                 <img id="ine-review-back" src="" alt="Captura del reverso de la INE">
+                                 <figcaption>Reverso</figcaption>
++                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
++                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="ine_back">
++                                        Reemplazar
++                                    </button>
++                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="ine_back" hidden>
++                                        Restaurar
++                                    </button>
++                                    <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="ine_back" hidden>
++                                </div>
+                             </figure>
+                         </div>
+                     </section>
+@@ -752,11 +770,29 @@ ix_require_session([
+                             <figure class="ine-review-capture-card">
+                                 <img id="ine-review-affiliate-front" src="" alt="Documento de afiliaci├│n">
+                                 <figcaption>Documento de afiliaci├│n</figcaption>
++                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
++                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_front">
++                                        Reemplazar
++                                    </button>
++                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="affiliate_front" hidden>
++                                        Restaurar
++                                    </button>
++                                    <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="affiliate_front" hidden>
++                                </div>
+                             </figure>
+ 
+                             <figure class="ine-review-capture-card">
+                                 <img id="ine-review-affiliate-back" src="" alt="Foto del afiliado con fondo blanco">
+                                 <figcaption>Foto del afiliado con fondo blanco</figcaption>
++                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
++                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_back">
++                                        Reemplazar
++                                    </button>
++                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="affiliate_back" hidden>
++                                        Restaurar
++                                    </button>
++                                    <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="affiliate_back" hidden>
++                                </div>
+                             </figure>
+                         </div>
+                     </section>
+diff --git a/PRI/db/WEB/ixtla_u_persona.php b/PRI/db/WEB/ixtla_u_persona.php
+index 4f1c239..43f9b0d 100644
+--- a/PRI/db/WEB/ixtla_u_persona.php
++++ b/PRI/db/WEB/ixtla_u_persona.php
+@@ -333,11 +333,16 @@ function filter_red_home_person_edit_input(array $in): array
+     'whatsapp',
+     'email',
+     'observaciones',
++    'estatus_id',
++    'tipo_participacion',
++    'participacion_estatus_id',
+     'updated_by',
+     'usuario_id',
++    'usuario_responsable_id',
+     'rol_codigo',
+     'rol_id',
+     'update_context',
++    'fuente_captura',
+   ];
+ 
+   $filtered = [];
+@@ -1100,3 +1105,4 @@ try {
+     "error" => "Error interno del servidor"
+   ], 500);
+ }
++

@@ -734,11 +734,29 @@ ix_require_session([
                             <figure class="ine-review-capture-card">
                                 <img id="ine-review-front" src="" alt="Captura del frente de la INE">
                                 <figcaption>Frente</figcaption>
+                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="ine_front">
+                                        Reemplazar
+                                    </button>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="ine_front" hidden>
+                                        Restaurar
+                                    </button>
+                                    <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="ine_front" hidden>
+                                </div>
                             </figure>
 
                             <figure class="ine-review-capture-card">
                                 <img id="ine-review-back" src="" alt="Captura del reverso de la INE">
                                 <figcaption>Reverso</figcaption>
+                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="ine_back">
+                                        Reemplazar
+                                    </button>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="ine_back" hidden>
+                                        Restaurar
+                                    </button>
+                                    <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="ine_back" hidden>
+                                </div>
                             </figure>
                         </div>
                     </section>
@@ -752,11 +770,29 @@ ix_require_session([
                             <figure class="ine-review-capture-card">
                                 <img id="ine-review-affiliate-front" src="" alt="Documento de afiliación">
                                 <figcaption>Documento de afiliación</figcaption>
+                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_front">
+                                        Reemplazar
+                                    </button>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="affiliate_front" hidden>
+                                        Restaurar
+                                    </button>
+                                    <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="affiliate_front" hidden>
+                                </div>
                             </figure>
 
                             <figure class="ine-review-capture-card">
                                 <img id="ine-review-affiliate-back" src="" alt="Foto del afiliado con fondo blanco">
                                 <figcaption>Foto del afiliado con fondo blanco</figcaption>
+                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_back">
+                                        Reemplazar
+                                    </button>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="affiliate_back" hidden>
+                                        Restaurar
+                                    </button>
+                                    <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="affiliate_back" hidden>
+                                </div>
                             </figure>
                         </div>
                     </section>
