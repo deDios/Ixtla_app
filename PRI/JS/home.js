@@ -442,6 +442,10 @@ function syncReadonlyPersonEditMode() {
       return;
     }
 
+    if (field.matches("[data-readonly-image-pick]")) {
+      field.disabled = false;
+      return;
+    }
     if (field.matches("[data-ine-review-close]")) {
       field.disabled = true;
       return;
@@ -1612,6 +1616,10 @@ function setReviewModalReadonlyMode(isReadonly) {
       return;
     }
 
+    if (isReadonly && field.matches("[data-readonly-image-pick]")) {
+      field.disabled = false;
+      return;
+    }
     if (field.id === "ine-review-save-status") {
       field.disabled = true;
       return;
