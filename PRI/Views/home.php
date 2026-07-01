@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../JS/auth/ix_guard.php';
 
 ix_require_session([
@@ -728,10 +728,6 @@ ix_require_session([
 
                     <!-- Capturas INE -->
                     <section class="ine-review-section ine-review-section--captures">
-                        <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                            Capturas INE
-                            <span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:#eef2f6;color:#506173;font-size:12px;font-weight:700;letter-spacing:.02em;">Solo consulta</span>
-                        </h3>
 
                         <div class="ine-review-captures-grid">
                             <figure class="ine-review-capture-card">

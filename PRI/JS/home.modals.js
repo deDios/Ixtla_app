@@ -3674,6 +3674,7 @@ function resetAffiliateMediaState({
     preserveCaptures = false,
     preserveCompleted = false,
     preserveMode = false,
+    preserveTargetKind = false,
 } = {}) {
     if (State.affiliateMedia.stream) {
         State.affiliateMedia.stream.getTracks().forEach((track) => track.stop());
@@ -3688,6 +3689,9 @@ function resetAffiliateMediaState({
     if (!preserveMode) {
         State.affiliateMedia.mode = "capture";
     }
+    if (!preserveTargetKind) {
+        State.affiliateMedia.targetKind = "";
+    }
 
     if (!preserveCaptures) {
         State.affiliateMedia.captures.front = null;
@@ -3698,6 +3702,7 @@ function resetAffiliateMediaState({
     const modal = $(SEL.affiliateModal);
     if (modal) {
         modal.querySelectorAll("[data-affiliate-screen]").forEach((screen) => {
+            screen.hidden = false;
             screen.classList.toggle("is-active", screen.dataset.affiliateScreen === "method");
         });
     }
@@ -3867,9 +3872,95 @@ async function startAffiliateCamera() {
     }
 }
 
+function getAffiliateSingleUploadSide() {
+    return State.affiliateMedia.targetKind === "affiliate_back" ? "back" : "front";
+}
+
+function isAffiliateSingleUploadMode() {
+    return State.affiliateMedia.mode === "readonly-single-upload";
+}
+
+function configureAffiliateSingleUploadUI() {
+    const modal = $(SEL.affiliateModal);
+    if (!modal) return;
+
+    const uploadScreen = modal.querySelector("[data-affiliate-screen=\"upload\"]");
+    const methodScreen = modal.querySelector("[data-affiliate-screen=\"method\"]");
+    const cameraScreen = modal.querySelector("[data-affiliate-screen=\"camera\"]");
+    const summaryScreen = modal.querySelector("[data-affiliate-screen=\"summary\"]");
+    const uploadCard = uploadScreen?.querySelector(".ine-upload-card");
+    const uploadTitle = uploadCard?.querySelector("h3");
+    const uploadText = uploadCard?.querySelector("p:not(.ine-method-kicker)");
+    const frontLabel = modal.querySelector('label[for="affiliate-upload-front"]');
+    const backLabel = modal.querySelector('label[for="affiliate-upload-back"]');
+    const backBtn = $(SEL.affiliateBtnUploadBack);
+    const continueBtn = $(SEL.affiliateBtnUploadContinue);
+    const retryBtn = $(SEL.affiliateBtnSummaryRetry);
+    const targetSide = getAffiliateSingleUploadSide();
+
+    if (methodScreen) methodScreen.hidden = true;
+    if (cameraScreen) cameraScreen.hidden = true;
+    if (summaryScreen) summaryScreen.hidden = true;
+    if (uploadTitle) {
+        uploadTitle.textContent = targetSide === "front"
+            ? "Sube el documento de afiliacion"
+            : "Sube la foto del afiliado";
+    }
+    if (uploadText) {
+        uploadText.textContent = targetSide === "front"
+            ? "Selecciona unicamente el documento de afiliacion. Formatos permitidos: JPG, PNG o WEBP."
+            : "Selecciona unicamente la foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
+    }
+    if (frontLabel) frontLabel.hidden = targetSide !== "front";
+    if (backLabel) backLabel.hidden = targetSide !== "back";
+    if (backBtn) backBtn.textContent = "Cancelar";
+    if (continueBtn) {
+        continueBtn.textContent = "Guardar imagen";
+        continueBtn.disabled = true;
+    }
+    if (retryBtn) retryBtn.hidden = true;
+}
+
+function restoreAffiliateMediaUI() {
+    const modal = $(SEL.affiliateModal);
+    if (!modal) return;
+
+    const uploadScreen = modal.querySelector("[data-affiliate-screen=\"upload\"]");
+    const methodScreen = modal.querySelector("[data-affiliate-screen=\"method\"]");
+    const cameraScreen = modal.querySelector("[data-affiliate-screen=\"camera\"]");
+    const summaryScreen = modal.querySelector("[data-affiliate-screen=\"summary\"]");
+    const uploadCard = uploadScreen?.querySelector(".ine-upload-card");
+    const uploadTitle = uploadCard?.querySelector("h3");
+    const uploadText = uploadCard?.querySelector("p:not(.ine-method-kicker)");
+    const frontLabel = modal.querySelector('label[for="affiliate-upload-front"]');
+    const backLabel = modal.querySelector('label[for="affiliate-upload-back"]');
+    const backBtn = $(SEL.affiliateBtnUploadBack);
+    const continueBtn = $(SEL.affiliateBtnUploadContinue);
+    const retryBtn = $(SEL.affiliateBtnSummaryRetry);
+
+    if (methodScreen) methodScreen.hidden = false;
+    if (cameraScreen) cameraScreen.hidden = false;
+    if (summaryScreen) summaryScreen.hidden = false;
+    if (uploadTitle) uploadTitle.textContent = "Sube la evidencia del afiliado";
+    if (uploadText) {
+        uploadText.textContent = "Selecciona primero el documento de afiliacion y despues una foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
+    }
+    if (frontLabel) frontLabel.hidden = false;
+    if (backLabel) backLabel.hidden = false;
+    if (backBtn) backBtn.textContent = "Volver";
+    if (continueBtn) continueBtn.textContent = "Ver capturas";
+    if (retryBtn) retryBtn.hidden = false;
+}
+
 function syncAffiliateUploadContinueButton() {
     const btn = $(SEL.affiliateBtnUploadContinue);
     if (!btn) return;
+
+    if (isAffiliateSingleUploadMode()) {
+        const targetSide = getAffiliateSingleUploadSide();
+        btn.disabled = !State.affiliateMedia.captures[targetSide];
+        return;
+    }
 
     btn.disabled = !(State.affiliateMedia.captures.front && State.affiliateMedia.captures.back);
 }
@@ -4010,14 +4101,61 @@ function closeAffiliateMediaModal({ revertToggle = true } = {}) {
 }
 
 async function completeAffiliateMedia() {
+    const affiliateModal = $(SEL.affiliateModal);
+    const currentMode = affiliateModal?.dataset?.affiliateMode || State.affiliateMedia.mode;
+    const isReadonly = currentMode === "readonly";
+    const isSingleUpload = currentMode === "readonly-single-upload";
+    const targetSide = getAffiliateSingleUploadSide();
+
+    if (isSingleUpload) {
+        const singleCapture = State.affiliateMedia.captures[targetSide];
+        if (!singleCapture) {
+            toast("Selecciona una imagen antes de continuar.", "warning", 5000);
+            return;
+        }
+
+        const completeBtn = $(SEL.affiliateBtnUploadContinue);
+        const originalBtnText = completeBtn?.textContent || "Guardar imagen";
+        if (completeBtn) {
+            completeBtn.disabled = true;
+            completeBtn.textContent = "Guardando...";
+        }
+
+        try {
+            if (typeof window.redSaveReadonlyAffiliateSingleImage !== "function") {
+                throw new Error("No esta disponible la actualizacion de imagen.");
+            }
+
+            const saved = await window.redSaveReadonlyAffiliateSingleImage({
+                targetKind: State.affiliateMedia.targetKind,
+                capture: singleCapture,
+            });
+
+            if (!saved) {
+                throw new Error("No se pudo guardar la imagen seleccionada.");
+            }
+
+            setAffiliateMediaModalOpen(false);
+            stopAffiliateCamera();
+            resetAffiliateMediaState();
+            return;
+        } catch (err) {
+            error("No se pudo guardar la imagen individual:", err);
+            toast(err?.message || "No se pudo guardar la imagen.", "error", 7000);
+            return;
+        } finally {
+            if (completeBtn) {
+                completeBtn.disabled = false;
+                completeBtn.textContent = originalBtnText;
+            }
+        }
+    }
+
     if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
         toast("Necesitas capturar ambas imagenes antes de continuar.", "warning", 5000);
         return;
     }
 
-    const affiliateModal = $(SEL.affiliateModal);
-    const currentMode = affiliateModal?.dataset?.affiliateMode || State.affiliateMedia.mode;
-    const isReadonly = currentMode === "readonly";
     const completedCaptures = {
         front: State.affiliateMedia.captures.front,
         back: State.affiliateMedia.captures.back,
@@ -4073,7 +4211,7 @@ async function completeAffiliateMedia() {
     });
 }
 
-async function openAffiliateMedia({ input = null, mode = "capture" } = {}) {
+async function openAffiliateMedia({ input = null, mode = "capture", targetKind = "" } = {}) {
     const modal = $(SEL.affiliateModal);
     if (!modal) {
         warn("No existe #affiliate-media-modal en el HTML.");
@@ -4086,7 +4224,10 @@ async function openAffiliateMedia({ input = null, mode = "capture" } = {}) {
     resetAffiliateMediaState({ preserveToggle: true });
 
     State.affiliateMedia.mode = mode;
+    State.affiliateMedia.targetKind = targetKind || "";
     modal.dataset.affiliateMode = mode;
+
+    restoreAffiliateMediaUI();
 
     const completeBtn = $(SEL.affiliateBtnComplete);
     if (completeBtn) {
@@ -4097,6 +4238,12 @@ async function openAffiliateMedia({ input = null, mode = "capture" } = {}) {
     }
 
     setAffiliateMediaModalOpen(true);
+
+    if (mode === "readonly-single-upload") {
+        configureAffiliateSingleUploadUI();
+        showAffiliateScreen("upload");
+        return true;
+    }
 
     const device = getDeviceContext();
     if (device.preferUpload) {

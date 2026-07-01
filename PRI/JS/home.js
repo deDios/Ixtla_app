@@ -687,27 +687,28 @@ function normalizeReadonlyCapture(capture) {
   };
 }
 
-function buildReadonlyAffiliateArchivoPayload({ personaId, side, capture }) {
+function buildReadonlyAffiliateArchivoPayload({ personaId, side, capture, replacesArchivoId = null }) {
   const normalized = normalizeReadonlyCapture(capture);
-  const fileBase = side === "front" ? "foto_persona" : "documento_afiliacion";
+  const isDocument = side === "front";
+  const fileBase = isDocument ? "documento_afiliacion" : "foto_persona";
   const extension = normalized?.extension || "jpg";
   const timestamp = Date.now();
 
   return {
     entidad_tipo: "PERSONA",
     entidad_id: Number(personaId),
-    uso_archivo: side === "front" ? "FOTO_PERSONA" : "DOCUMENTO_AFILIACION",
+    uso_archivo: isDocument ? "DOCUMENTO_AFILIACION" : "FOTO_PERSONA",
     nombre_original: `${fileBase}.${extension}`,
     nombre_storage: `persona_${personaId}_${fileBase}_${timestamp}.${extension}`,
     url_archivo: normalized?.dataUrl || "",
     mime_type: normalized?.mime || "image/jpeg",
     extension,
     tamano_bytes: normalized?.sizeBytes || null,
-    version_no: 1,
     es_actual: 1,
     privado: 1,
     uploaded_by: getUsuarioId() || null,
     updated_by: getUsuarioId() || null,
+    reemplaza_archivo_id: Number(replacesArchivoId || 0) || null,
   };
 }
 
@@ -1978,15 +1979,18 @@ function syncReadonlyImageActionButtons() {
   const modal = $(SEL.ineReviewModal);
   const isReadonly = (modal?.dataset?.mode || "capture") === "readonly";
   const canEdit = canEditReadonlyAdminbar();
-  const showActions = Boolean(isReadonly && canEdit && !State.readonlyEditing);
+  const showActions = Boolean(isReadonly && canEdit && State.readonlyEditing);
 
   $$("[data-readonly-image-actions]").forEach((container) => {
-    container.hidden = !showActions;
+    const button = container.querySelector("[data-readonly-image-pick]");
+    const kind = String(button?.dataset?.readonlyImagePick || "");
+    const isAffiliateKind = kind.startsWith("affiliate_");
+    container.hidden = !showActions || !isAffiliateKind;
   });
 
-  $$("[data-readonly-image-reset]").forEach((button) => {
-    const kind = button.dataset.readonlyImageReset;
-    button.hidden = !showActions || !getReadonlyVisualImage(kind);
+  $$('[data-readonly-image-reset]').forEach((button) => {
+    const kind = String(button.dataset.readonlyImageReset || "");
+    button.hidden = !showActions || !kind.startsWith("affiliate_") || !getReadonlyVisualImage(kind);
   });
 }
 
@@ -2043,14 +2047,14 @@ function paintPersonaReadonlyAffiliateImages(archivos = [], { forceShow = false 
 
   setReadonlyImage(
     SEL.ineReviewAffiliateFront,
-    getReadonlyVisualImage("affiliate_front") || (hasBoth ? fotoPersona?.url_archivo || "" : ""),
-    "Foto de la persona"
+    getReadonlyVisualImage("affiliate_front") || (hasBoth ? documentoAfiliacion?.url_archivo || "" : ""),
+    "Documento de afiliacion"
   );
 
   setReadonlyImage(
     SEL.ineReviewAffiliateBack,
-    getReadonlyVisualImage("affiliate_back") || (hasBoth ? documentoAfiliacion?.url_archivo || "" : ""),
-    "Documento de afiliacion"
+    getReadonlyVisualImage("affiliate_back") || (hasBoth ? fotoPersona?.url_archivo || "" : ""),
+    "Foto del afiliado"
   );
 
   const hasVisualAffiliateImages = hasReadonlyVisualImage("affiliate_front") || hasReadonlyVisualImage("affiliate_back");
@@ -2268,8 +2272,17 @@ function bindEvents() {
   });
 
   $$("[data-readonly-image-pick]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const kind = button.dataset.readonlyImagePick;
+    button.addEventListener("click", async () => {
+      const kind = String(button.dataset.readonlyImagePick || "");
+
+      if (kind.startsWith("affiliate_") && typeof window.redOpenAffiliateMedia === "function") {
+        await window.redOpenAffiliateMedia({
+          mode: "readonly-single-upload",
+          targetKind: kind,
+        });
+        return;
+      }
+
       const input = $(`[data-readonly-image-input="${kind}"]`);
       input?.click();
     });
@@ -2367,6 +2380,58 @@ async function init() {
 
   log("Home RED inicializado con endpoint server-side");
 }
+
+async function saveReadonlyAffiliateSingleFile({ personaId, targetKind, capture }) {
+  const normalizedCapture = normalizeReadonlyCapture(capture);
+  if (!normalizedCapture?.dataUrl) {
+    throw new Error("No se recibio la imagen a reemplazar.");
+  }
+
+  const side = targetKind === "affiliate_back" ? "back" : "front";
+  const usoArchivo = side === "front" ? "DOCUMENTO_AFILIACION" : "FOTO_PERSONA";
+  const currentArchivo = findArchivoByUso(getReadonlyRecordArchivos(), usoArchivo);
+  const payload = buildReadonlyAffiliateArchivoPayload({
+    personaId,
+    side,
+    capture: normalizedCapture,
+    replacesArchivoId: currentArchivo?.archivo_id || null,
+  });
+
+  const out = await postJSON(CONFIG.ENDPOINT_INSERT_ARCHIVO, payload);
+  if (!out?.data) {
+    throw new Error("No se pudo guardar la nueva imagen.");
+  }
+
+  return out.data;
+}
+
+window.redSaveReadonlyAffiliateSingleImage = async function redSaveReadonlyAffiliateSingleImage({ targetKind = "", capture = null } = {}) {
+  const record = State.readonlyRecord || {};
+  const persona = record.persona || {};
+  const fallbackRow = record.fallbackRow || {};
+  const personaId = Number(persona.persona_id || fallbackRow.id || 0);
+
+  if (!personaId) {
+    throw new Error("No se pudo identificar la persona para actualizar la imagen.");
+  }
+
+  const savedArchivo = await saveReadonlyAffiliateSingleFile({ personaId, targetKind, capture });
+  const usoArchivo = String(savedArchivo?.uso_archivo || "").toUpperCase();
+  const currentArchivos = getReadonlyRecordArchivos();
+  const updatedArchivos = currentArchivos
+    .filter((archivo) => String(archivo?.uso_archivo || "").toUpperCase() !== usoArchivo)
+    .concat(savedArchivo);
+
+  if (State.readonlyRecord) {
+    State.readonlyRecord.archivos = updatedArchivos;
+  }
+
+  setReadonlyVisualImage(targetKind, "");
+  paintPersonaReadonlyAffiliateImages(updatedArchivos, { forceShow: true });
+  await loadDashboard({ keepPage: true });
+  toast("Imagen actualizada correctamente.", "exito");
+  return true;
+};
 
 window.redConfirmReadonlyAffiliate = async function redConfirmReadonlyAffiliate({ captures = null } = {}) {
   const record = State.readonlyRecord || {};
