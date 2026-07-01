@@ -212,6 +212,7 @@ const SEL = {
     affiliateReplaceCopy: "#affiliate-replace-copy",
     affiliateReplaceLabel: "#affiliate-replace-label",
     affiliateReplaceInput: "#affiliate-replace-input",
+    affiliateReplacePreview: "#affiliate-replace-preview",
     affiliateReplaceFile: "#affiliate-replace-file",
     affiliateReplaceCancel: "#affiliate-replace-cancel",
     affiliateReplaceSave: "#affiliate-replace-save",
@@ -3792,10 +3793,17 @@ function resetAffiliateReplaceState() {
     State.affiliateReplace.capture = null;
 
     const input = $(SEL.affiliateReplaceInput);
+    const picker = $(SEL.affiliateReplaceModal)?.querySelector(".red-affiliate-replace-picker");
+    const preview = $(SEL.affiliateReplacePreview);
     const fileText = $(SEL.affiliateReplaceFile);
     const saveBtn = $(SEL.affiliateReplaceSave);
 
     if (input) input.value = "";
+    if (picker) picker.classList.remove("has-preview");
+    if (preview) {
+        preview.removeAttribute("src");
+        preview.hidden = true;
+    }
     if (fileText) {
         fileText.textContent = "Ningun archivo seleccionado";
         fileText.classList.remove("is-selected");
@@ -4306,14 +4314,34 @@ async function openAffiliateMedia({ input = null, mode = "capture" } = {}) {
 }
 
 async function handleAffiliateReplaceFile(file) {
-    if (!file) return;
-
+    const picker = $(SEL.affiliateReplaceModal)?.querySelector(".red-affiliate-replace-picker");
+    const preview = $(SEL.affiliateReplacePreview);
     const fileText = $(SEL.affiliateReplaceFile);
     const saveBtn = $(SEL.affiliateReplaceSave);
+
+    if (!file) {
+        State.affiliateReplace.capture = null;
+        if (picker) picker.classList.remove("has-preview");
+        if (preview) {
+            preview.removeAttribute("src");
+            preview.hidden = true;
+        }
+        if (fileText) {
+            fileText.textContent = "Ningun archivo seleccionado";
+            fileText.classList.remove("is-selected");
+        }
+        if (saveBtn) saveBtn.disabled = true;
+        return;
+    }
 
     try {
         State.affiliateReplace.capture = await buildCaptureFromImageFile(file, "affiliate-replace");
 
+        if (picker) picker.classList.add("has-preview");
+        if (preview) {
+            preview.src = State.affiliateReplace.capture?.dataUrl || "";
+            preview.hidden = !preview.src;
+        }
         if (fileText) {
             fileText.textContent = file.name || "Archivo listo para guardar";
             fileText.classList.add("is-selected");
@@ -4322,6 +4350,11 @@ async function handleAffiliateReplaceFile(file) {
         if (saveBtn) saveBtn.disabled = false;
     } catch (err) {
         State.affiliateReplace.capture = null;
+        if (picker) picker.classList.remove("has-preview");
+        if (preview) {
+            preview.removeAttribute("src");
+            preview.hidden = true;
+        }
         if (fileText) {
             fileText.textContent = err?.message || "No se pudo preparar la imagen.";
             fileText.classList.remove("is-selected");

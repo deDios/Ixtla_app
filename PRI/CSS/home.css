@@ -3669,6 +3669,24 @@ body.ine-modal-open {
     cursor: pointer;
 }
 
+.red-affiliate-replace-preview {
+    display: block;
+    width: 100%;
+    max-height: 220px;
+    object-fit: contain;
+    border-radius: 16px;
+    background: #f8fafc;
+}
+
+.red-affiliate-replace-picker.has-preview {
+    padding: 14px;
+    background: #ffffff;
+}
+
+.red-affiliate-replace-picker.has-preview #affiliate-replace-label {
+    display: none;
+}
+
 .red-affiliate-replace-picker:hover {
     border-color: #9ccfb8;
     background: linear-gradient(180deg, #f8fffb 0%, #f1faf5 100%);

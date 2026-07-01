@@ -542,6 +542,7 @@ async function saveReadonlyPerson() {
   const record = State.readonlyRecord || {};
   const persona = record.persona || {};
   const fallbackRow = record.fallbackRow || {};
+  const archivos = Array.isArray(record.archivos) ? record.archivos : [];
   const personaId = Number(persona.persona_id || fallbackRow.id || 0);
 
   if (!personaId) {
@@ -577,6 +578,7 @@ async function saveReadonlyPerson() {
     State.readonlyRecord = {
       persona: updatedPersona,
       fallbackRow: updatedRow,
+      archivos,
     };
     State.readonlyEditing = false;
     State.readonlyEditSnapshot = null;
