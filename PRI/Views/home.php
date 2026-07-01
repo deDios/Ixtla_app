@@ -19,7 +19,7 @@ ix_require_session([
 </head>
 
 <body>
-    <!-- Tope de pÃ¡gina -->
+    <!-- Tope de página -->
     <header id="header" data-link-home="/index.php">
         <div class="social-bar-mobile">
             <div class="social-icons">
@@ -27,7 +27,7 @@ ix_require_session([
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
-                <!-- El JS global reemplaza este avatar cuando hay sesiÃ³n -->
+                <!-- El JS global reemplaza este avatar cuando hay sesión -->
                 <div class="user-icon-mobile" onclick="window.location.href='VIEW/Login.php'">
                     <img src="/ASSETS/user/img_user1.png" alt="Usuario" />
                 </div>
@@ -40,7 +40,7 @@ ix_require_session([
             <div id="logo-btn" class="logo" title="Ir al inicio" aria-label="Ir al inicio">
                 <!-- logo del header -->
                 <img class="logo-marca" src="/PRI/Assets/Logo_PRI%20(2).png"
-                    alt="IxtlahuacÃ¡n de los Membrillos - Ayuntamiento" />
+                    alt="Ixtlahuacán de los Membrillos - Ayuntamiento" />
             </div>
 
 
@@ -49,16 +49,16 @@ ix_require_session([
                     onclick="toggleMenu()">
                     <span></span><span></span><span></span>
                 </button>
-                <!-- El JS global inyecta aquÃ­ el avatar desktop si hay sesiÃ³n -->
+                <!-- El JS global inyecta aquí el avatar desktop si hay sesión -->
             </div>
         </div>
 
 
         <!-- Subnav -- links a la izquierda, redes + avatar a la derecha -->
-        <nav id="mobile-menu" class="subnav" aria-label="NavegaciÃ³n secundaria">
+        <nav id="mobile-menu" class="subnav" aria-label="Navegación secundaria">
             <div class="nav-left">
                 <a href="/index.php">Inicio</a>
-                <a href="/VIEWS/tramiteDepartamento.php">TrÃ¡mites y Seguimiento</a>
+                <a href="/VIEWS/tramiteDepartamento.php">Trámites y Seguimiento</a>
             </div>
 
 
@@ -101,7 +101,7 @@ ix_require_session([
                 </article>
             </section>
 
-            <section class="red-toolbar" aria-label="Herramientas de bÃºsqueda y acciones">
+            <section class="red-toolbar" aria-label="Herramientas de búsqueda y acciones">
                 <div class="red-search" role="search">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path fill="currentColor"
@@ -130,8 +130,8 @@ ix_require_session([
                             <tr>
                                 <th>Nombre</th>
                                 <th>Domicilio</th>
-                                <th>SecciÃ³n</th>
-                                <th>TelÃ©fono</th>
+                                <th>Sección</th>
+                                <th>Teléfono</th>
                                 <th>Validez</th>
                                 <th>Inter</th>
                             </tr>
@@ -141,9 +141,9 @@ ix_require_session([
                     </table>
                 </div>
 
-                <div id="red-mobile-list" class="red-mobile-list" aria-label="Listado mÃ³vil"></div>
+                <div id="red-mobile-list" class="red-mobile-list" aria-label="Listado móvil"></div>
 
-                <nav id="red-pager" class="red-pager" aria-label="PaginaciÃ³n"></nav>
+                <nav id="red-pager" class="red-pager" aria-label="Paginación"></nav>
             </section>
 
         </section>
@@ -163,30 +163,30 @@ ix_require_session([
 
             <div class="ine-capture-body">
 
-                <!-- Pantalla mÃ©todo -->
+                <!-- Pantalla método -->
                 <section class="ine-capture-screen is-active" data-ine-screen="method">
                     <div class="ine-method-card">
                         <p class="ine-method-kicker">Captura INE</p>
-                        <h3>Selecciona cÃ³mo cargar la identificaciÃ³n</h3>
+                        <h3>Selecciona cómo cargar la identificación</h3>
                         <p>
-                            Puedes usar la cÃ¡mara del dispositivo o subir imÃ¡genes ya tomadas del frente y reverso.
+                            Puedes usar la cámara del dispositivo o subir imágenes ya tomadas del frente y reverso.
                         </p>
 
                         <div class="ine-method-actions">
                             <button type="button" id="ine-btn-use-camera"
                                 class="ine-capture-btn ine-capture-btn--primary">
-                                Usar cÃ¡mara
+                                Usar cámara
                             </button>
 
                             <button type="button" id="ine-btn-use-upload"
                                 class="ine-capture-btn ine-capture-btn--ghost">
-                                Subir imÃ¡genes
+                                Subir imágenes
                             </button>
                         </div>
                     </div>
                 </section>
 
-                <!-- Pantalla cÃ¡mara -->
+                <!-- Pantalla cámara -->
                 <section class="ine-capture-screen" data-ine-screen="camera">
                     <div class="ine-camera-stage" data-step="front" data-state="idle">
                         <video id="ine-camera-video" class="ine-camera-video" autoplay playsinline muted></video>
@@ -210,7 +210,7 @@ ix_require_session([
 
                         <div class="ine-camera-bottom">
                             <p id="ine-camera-status" class="ine-camera-status">
-                                Cuando la INE estÃ© bien alineada, presiona Capturar
+                                Cuando la INE esté bien alineada, presiona Capturar
                             </p>
 
                             <div class="ine-camera-actions">
@@ -233,11 +233,11 @@ ix_require_session([
                     </div>
                 </section>
 
-                <!-- Pantalla subir imÃ¡genes -->
+                <!-- Pantalla subir imágenes -->
                 <section class="ine-capture-screen" data-ine-screen="upload">
                     <div class="ine-upload-card">
                         <p class="ine-method-kicker">Carga manual</p>
-                        <h3>Sube las imÃ¡genes de la INE</h3>
+                        <h3>Sube las imágenes de la INE</h3>
                         <p>
                             Selecciona una imagen del frente y una del reverso.
                             Formatos permitidos: JPG, PNG o WEBP.
@@ -313,7 +313,7 @@ ix_require_session([
                         </div>
 
                         <h3>Leyendo datos de la INE</h3>
-                        <p>Estamos procesando las imÃ¡genes. Esto puede tardar unos segundos.</p>
+                        <p>Estamos procesando las imágenes. Esto puede tardar unos segundos.</p>
                     </div>
                 </section>
 
@@ -339,19 +339,19 @@ ix_require_session([
                 <section class="ine-capture-screen is-active" data-affiliate-screen="method">
                     <div class="ine-method-card">
                         <p class="ine-method-kicker">Afiliado</p>
-                        <h3 id="affiliate-media-title">Captura evidencia de afiliaciÃ³n</h3>
-                        <p>Puedes usar la cÃ¡mara del dispositivo o subir dos imÃ¡genes: el documento de afiliaciÃ³n y una
+                        <h3 id="affiliate-media-title">Captura evidencia de afiliación</h3>
+                        <p>Puedes usar la cámara del dispositivo o subir dos imágenes: el documento de afiliación y una
                             foto del afiliado con fondo blanco.</p>
 
                         <div class="ine-method-actions">
                             <button type="button" id="affiliate-btn-use-camera"
                                 class="ine-capture-btn ine-capture-btn--primary">
-                                Usar cÃ¡mara
+                                Usar cámara
                             </button>
 
                             <button type="button" id="affiliate-btn-use-upload"
                                 class="ine-capture-btn ine-capture-btn--ghost">
-                                Subir imÃ¡genes
+                                Subir imágenes
                             </button>
                         </div>
                     </div>
@@ -364,7 +364,7 @@ ix_require_session([
                         <div class="ine-camera-overlay" aria-hidden="true"></div>
 
                         <div class="ine-camera-copy">
-                            <h3 id="affiliate-camera-step-title">Captura el documento de afiliaciÃ³n</h3>
+                            <h3 id="affiliate-camera-step-title">Captura el documento de afiliación</h3>
                             <p id="affiliate-camera-helper">Centra el documento y presiona <strong>Capturar</strong></p>
                         </div>
 
@@ -374,7 +374,7 @@ ix_require_session([
 
                         <div class="ine-camera-bottom">
                             <p id="affiliate-camera-status" class="ine-camera-status">
-                                Cuando la imagen estÃ© bien alineada, presiona Capturar
+                                Cuando la imagen esté bien alineada, presiona Capturar
                             </p>
 
                             <div class="ine-camera-actions">
@@ -402,16 +402,16 @@ ix_require_session([
                         <p class="ine-method-kicker">Carga manual</p>
                         <h3>Sube la evidencia del afiliado</h3>
                         <p>
-                            Selecciona primero el documento de afiliaciÃ³n y despuÃ©s una foto del afiliado con fondo
+                            Selecciona primero el documento de afiliación y después una foto del afiliado con fondo
                             blanco.
                             Formatos permitidos: JPG, PNG o WEBP.
                         </p>
 
                         <div class="ine-upload-grid">
                             <label class="ine-upload-box" for="affiliate-upload-front">
-                                <span>Documento de afiliaciÃ³n</span>
+                                <span>Documento de afiliación</span>
                                 <input type="file" id="affiliate-upload-front" accept="image/jpeg,image/png,image/webp">
-                                <img id="affiliate-upload-preview-front" alt="Vista previa del documento de afiliaciÃ³n"
+                                <img id="affiliate-upload-preview-front" alt="Vista previa del documento de afiliación"
                                     hidden>
                                 <small>Seleccionar documento</small>
                             </label>
@@ -442,12 +442,12 @@ ix_require_session([
                 <section class="ine-capture-screen" data-affiliate-screen="summary">
                     <div class="ine-summary-card">
                         <h3>Capturas listas</h3>
-                        <p>Revisa que ambas imÃ¡genes se vean correctamente antes de continuar.</p>
+                        <p>Revisa que ambas imágenes se vean correctamente antes de continuar.</p>
 
                         <div class="ine-summary-grid">
                             <figure>
-                                <img id="affiliate-preview-front" src="" alt="Vista previa del documento de afiliaciÃ³n">
-                                <figcaption>Documento de afiliaciÃ³n</figcaption>
+                                <img id="affiliate-preview-front" src="" alt="Vista previa del documento de afiliación">
+                                <figcaption>Documento de afiliación</figcaption>
                             </figure>
 
                             <figure>
@@ -464,7 +464,7 @@ ix_require_session([
 
                             <button type="button" id="affiliate-btn-complete"
                                 class="ine-capture-btn ine-capture-btn--primary">
-                                Confirmar afiliaciÃ³n
+                                Confirmar afiliación
                             </button>
                         </div>
                     </div>
@@ -481,8 +481,8 @@ ix_require_session([
         <article class="ine-review-dialog" role="dialog" aria-modal="true" aria-labelledby="ine-review-title">
             <header class="ine-review-header">
                 <div class="ine-review-titlebox">
-                    <p class="ine-review-kicker">Datos extraÃ­dos</p>
-                    <h2 id="ine-review-title">RevisiÃ³n de informaciÃ³n INE</h2>
+                    <p class="ine-review-kicker">Datos extraídos</p>
+                    <h2 id="ine-review-title">Revisión de información INE</h2>
                 </div>
 
                 <button type="button" class="ine-review-close" data-ine-review-close aria-label="Cerrar">
@@ -520,9 +520,9 @@ ix_require_session([
 
                         <div class="ine-review-meta">
                             <label class="ine-review-field">
-                                <span>Fecha de extracciÃ³n</span>
+                                <span>Fecha de extracción</span>
                                 <input type="text" id="ine-review-fecha-extraccion" name="fecha_extraccion"
-                                    placeholder="Fecha de extracciÃ³n" readonly>
+                                    placeholder="Fecha de extracción" readonly>
                             </label>
 
                             <label class="ine-review-field">
@@ -532,15 +532,15 @@ ix_require_session([
                             </label>
 
                             <label class="ine-review-field">
-                                <span>Ãšltima ediciÃ³n por</span>
+                                <span>Última edición por</span>
                                 <input type="text" id="ine-review-updated-by" name="updated_by_label"
-                                    placeholder="Ãšltima ediciÃ³n por" readonly>
+                                    placeholder="Última edición por" readonly>
                             </label>
                         </div>
 
                         <div class="ine-review-warning" role="alert">
-                            <strong>Importante: La informaciÃ³n fue extraÃ­da automÃ¡ticamente.</strong>
-                            Valide esta informaciÃ³n comparando contra el documento INE,
+                            <strong>Importante: La información fue extraída automáticamente.</strong>
+                            Valide esta información comparando contra el documento INE,
                             realice los ajustes que sean necesarios y guarde el registro.
                         </div>
                     </section>
@@ -603,13 +603,13 @@ ix_require_session([
                             </label>
 
                             <label class="ine-review-field ine-review-field--combo">
-                                <span>SecciÃ³n</span>
+                                <span>Sección</span>
 
                                 <input type="hidden" id="ine-review-seccion" name="seccion_id">
 
                                 <button type="button" id="ine-review-seccion-toggle" class="red-residence-combo-toggle"
                                     aria-haspopup="listbox" aria-expanded="false">
-                                    <span id="ine-review-seccion-text">Selecciona una secciÃ³n</span>
+                                    <span id="ine-review-seccion-text">Selecciona una sección</span>
                                     <span class="red-residence-combo-chevron" aria-hidden="true"></span>
                                 </button>
 
@@ -619,13 +619,13 @@ ix_require_session([
                             </label>
 
                             <label class="ine-review-field">
-                                <span>AÃ±o de registro</span>
+                                <span>Año de registro</span>
                                 <input type="number" id="ine-review-anio-registro" name="anio_registro" min="1900"
-                                    max="2100" placeholder="AÃ±o">
+                                    max="2100" placeholder="Año">
                             </label>
 
                             <label class="ine-review-field">
-                                <span>EmisiÃ³n</span>
+                                <span>Emisión</span>
                                 <input type="text" id="ine-review-emision" name="emision" inputmode="numeric"
                                     maxlength="2" pattern="[0-9]{1,2}" placeholder="00">
                             </label>
@@ -633,13 +633,13 @@ ix_require_session([
                             <label class="ine-review-field">
                                 <span>Vigencia inicio</span>
                                 <input type="number" id="ine-review-vigencia-inicio" name="vigencia_inicio" min="1900"
-                                    max="2100" placeholder="AÃ±o">
+                                    max="2100" placeholder="Año">
                             </label>
 
                             <label class="ine-review-field">
                                 <span>Vigencia fin</span>
                                 <input type="number" id="ine-review-vigencia-fin" name="vigencia_fin" min="1900"
-                                    max="2100" placeholder="AÃ±o">
+                                    max="2100" placeholder="Año">
                             </label>
 
                             <label class="ine-review-field">
@@ -657,7 +657,7 @@ ix_require_session([
                             <label class="ine-review-field ine-review-field--full">
                                 <span>Domicilio</span>
                                 <textarea id="ine-review-domicilio" name="domicilio_texto" rows="3"
-                                    placeholder="Domicilio extraÃ­do de la INE"></textarea>
+                                    placeholder="Domicilio extraído de la INE"></textarea>
                             </label>
                         </div>
                     </section>
@@ -668,10 +668,10 @@ ix_require_session([
 
                         <div class="ine-review-grid">
                             <label class="ine-review-field">
-                                <span>TelÃ©fono</span>
+                                <span>Teléfono</span>
                                 <input type="tel" id="ine-review-telefono" name="telefono" inputmode="tel"
-                                    minlength="10" maxlength="12" pattern="[0-9]{10,12}" placeholder="TelÃ©fono"
-                                    title="Captura entre 10 y 12 nÃºmeros">
+                                    minlength="10" maxlength="12" pattern="[0-9]{10,12}" placeholder="Teléfono"
+                                    title="Captura entre 10 y 12 números">
                             </label>
 
                             <label class="ine-review-field">
@@ -698,7 +698,7 @@ ix_require_session([
 
                                 <span>
                                     Acepto el tratamiento de mis datos personales conforme al aviso de privacidad
-                                    y autorizo el uso de la informaciÃ³n capturada para el registro correspondiente.
+                                    y autorizo el uso de la información capturada para el registro correspondiente.
                                 </span>
                             </label>
 
@@ -748,47 +748,27 @@ ix_require_session([
 
                     <!-- Capturas afiliado -->
                     <section id="ine-review-affiliate-captures-section"
-                        class="ine-review-section ine-review-section--captures" hidden
-                        style="padding:18px;border:1px solid #dbe7df;border-radius:22px;background:linear-gradient(180deg,#f8fcf9 0%,#eef6f0 100%);box-shadow:0 14px 36px rgba(38,74,56,.08);">
-                        <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
-                            Evidencia de afiliacion
-                            <span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:#dff2e6;color:#1e6b47;font-size:12px;font-weight:700;letter-spacing:.02em;">Editable visualmente</span>
-                        </h3>
-
-                        <p style="margin:0 0 14px;color:#4f6357;font-size:13px;line-height:1.45;">
-                            Solo esta evidencia puede reemplazarse en la vista de revision.
-                        </p>
+                        class="ine-review-section ine-review-section--captures" hidden>
+                        <h3>Evidencia de afiliación</h3>
 
                         <div class="ine-review-captures-grid">
-                            <figure class="ine-review-capture-card" style="overflow:hidden;border:1px solid #d5e4da;border-radius:18px;background:#fff;box-shadow:0 10px 24px rgba(30,79,55,.08);">
-                                <img id="ine-review-affiliate-front" src="" alt="Documento de afiliacion">
-                                <figcaption style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 10px;">
-                                    <span>Documento de afiliacion</span>
-                                    <span style="font-size:11px;color:#607266;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Editable</span>
-                                </figcaption>
-                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:0 16px 16px;background:linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(244,249,246,1) 100%);">
-                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_front" style="border-color:#bfd8c6;background:#f3fbf6;color:#1f6b48;font-weight:700;">
+                            <figure class="ine-review-capture-card">
+                                <img id="ine-review-affiliate-front" src="" alt="Documento de afiliación">
+                                <figcaption>Documento de afiliación</figcaption>
+                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_front">
                                         Reemplazar
-                                    </button>
-                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="affiliate_front" hidden style="border-color:#d7dfda;background:#fff;color:#5d6c63;font-weight:700;">
-                                        Restaurar
                                     </button>
                                     <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="affiliate_front" hidden>
                                 </div>
                             </figure>
 
-                            <figure class="ine-review-capture-card" style="overflow:hidden;border:1px solid #d5e4da;border-radius:18px;background:#fff;box-shadow:0 10px 24px rgba(30,79,55,.08);">
+                            <figure class="ine-review-capture-card">
                                 <img id="ine-review-affiliate-back" src="" alt="Foto del afiliado con fondo blanco">
-                                <figcaption style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 10px;">
-                                    <span>Foto del afiliado con fondo blanco</span>
-                                    <span style="font-size:11px;color:#607266;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Editable</span>
-                                </figcaption>
-                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:0 16px 16px;background:linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(244,249,246,1) 100%);">
-                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_back" style="border-color:#bfd8c6;background:#f3fbf6;color:#1f6b48;font-weight:700;">
+                                <figcaption>Foto del afiliado con fondo blanco</figcaption>
+                                <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_back">
                                         Reemplazar
-                                    </button>
-                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-reset="affiliate_back" hidden style="border-color:#d7dfda;background:#fff;color:#5d6c63;font-weight:700;">
-                                        Restaurar
                                     </button>
                                     <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="affiliate_back" hidden>
                                 </div>
@@ -814,7 +794,7 @@ ix_require_session([
 
                     <button type="button" id="ine-review-cancel-edit" class="ine-review-btn ine-review-btn--ghost"
                         hidden>
-                        Cancelar ediciÃ³n
+                        Cancelar edición
                     </button>
 
                     <button type="button" id="ine-review-save-status"
@@ -835,7 +815,7 @@ ix_require_session([
     </section>
 
 
-    <!-- Modal aviso: secciÃ³n fuera de RED / residencia actual -->
+    <!-- Modal aviso: sección fuera de RED / residencia actual -->
 
     <section id="red-residence-modal" class="red-residence-modal" hidden aria-hidden="true">
         <div class="red-residence-overlay" data-red-residence-close></div>
@@ -853,11 +833,11 @@ ix_require_session([
                 <p class="red-residence-kicker">Aviso</p>
 
                 <h2 id="red-residence-title">
-                    Detectamos que la "SecciÃ³n" es de otra RED.
+                    Detectamos que la "Sección" es de otra RED.
                 </h2>
 
                 <p id="red-residence-question" class="red-residence-question">
-                    Â¿Este residente vive en <strong>IxtlahuacÃ¡n de los Membrillos</strong>?
+                    ¿Este residente vive en <strong>Ixtlahuacán de los Membrillos</strong>?
                 </p>
 
                 <div id="red-residence-choice" class="red-residence-choice">
@@ -872,13 +852,13 @@ ix_require_session([
 
                 <form id="red-residence-form" class="red-residence-form" autocomplete="off">
                     <label class="red-residence-field red-residence-field--combo">
-                        <span>SecciÃ³n</span>
+                        <span>Sección</span>
 
                         <input type="hidden" id="red-residence-seccion" name="seccion_id">
 
                         <button type="button" id="red-residence-seccion-toggle" class="red-residence-combo-toggle"
                             disabled aria-haspopup="listbox" aria-expanded="false">
-                            <span id="red-residence-seccion-text">Selecciona una secciÃ³n</span>
+                            <span id="red-residence-seccion-text">Selecciona una sección</span>
                             <span class="red-residence-combo-chevron" aria-hidden="true"></span>
                         </button>
 
@@ -893,10 +873,10 @@ ix_require_session([
                     </label>
 
                     <label class="red-residence-field">
-                        <span>MÃ©todo de contacto</span>
+                        <span>Método de contacto</span>
                         <input type="tel" id="red-residence-telefono" name="telefono" inputmode="tel" minlength="10"
                             maxlength="12" pattern="[0-9]{10,12}" placeholder="Ej. 3333333333"
-                            title="Captura entre 10 y 12 nÃºmeros" disabled>
+                            title="Captura entre 10 y 12 números" disabled>
                     </label>
 
                     <footer class="red-residence-footer">
@@ -953,7 +933,7 @@ ix_require_session([
         </article>
     </section>
 
-    <!-- Modal aviso: validaciÃ³n de CURP / clave de elector -->
+    <!-- Modal aviso: validación de CURP / clave de elector -->
 
     <section id="red-validation-modal" class="red-validation-modal" hidden aria-hidden="true">
         <div class="red-validation-overlay" data-red-validation-close></div>
@@ -968,14 +948,14 @@ ix_require_session([
             <div class="red-validation-body">
                 <div class="red-validation-icon" aria-hidden="true">!</div>
 
-                <p class="red-validation-kicker">ValidaciÃ³n</p>
+                <p class="red-validation-kicker">Validación</p>
 
                 <h2 id="red-validation-title">
-                    Documento no vÃ¡lido.
+                    Documento no válido.
                 </h2>
 
                 <p id="red-validation-message" class="red-validation-message">
-                    El documento capturado no cumple con la validaciÃ³n esperada.
+                    El documento capturado no cumple con la validación esperada.
                 </p>
 
                 <div class="red-validation-actions">
@@ -1010,14 +990,14 @@ ix_require_session([
                     <span>&times;</span>
                 </div>
 
-                <p class="red-revoke-affiliate-kicker">ConfirmaciÃ³n</p>
+                <p class="red-revoke-affiliate-kicker">Confirmación</p>
 
                 <h2 id="red-revoke-affiliate-title">
-                    Â¿Quieres revocar la afiliaciÃ³n?
+                    ¿Quieres revocar la afiliación?
                 </h2>
 
                 <p id="red-revoke-affiliate-message" class="red-revoke-affiliate-message">
-                    La persona dejarÃ¡ de estar marcada como afiliada y volverÃ¡ al estado de simpatizante.
+                    La persona dejará de estar marcada como afiliada y volverá al estado de simpatizante.
                 </p>
 
                 <p id="red-revoke-affiliate-person" class="red-revoke-affiliate-person" hidden></p>
@@ -1025,7 +1005,7 @@ ix_require_session([
                 <div class="red-revoke-affiliate-actions">
                     <button type="button" id="red-revoke-affiliate-confirm"
                         class="red-revoke-affiliate-btn red-revoke-affiliate-btn--danger">
-                        SÃ­, revocar afiliaciÃ³n
+                        Sí, revocar afiliación
                     </button>
 
                     <button type="button" class="red-revoke-affiliate-btn red-revoke-affiliate-btn--cancel"
@@ -1043,7 +1023,7 @@ ix_require_session([
                 <div class="col left">
                     <div class="left-inner">
                         <p class="copyright">
-                            RED PRI IxtlahuacÃ¡n de los Membrillos | OrganizaciÃ³n, seguimiento y vinculaciÃ³n territorial
+                            RED PRI Ixtlahuacán de los Membrillos | Organización, seguimiento y vinculación territorial
                             del partido.
                         </p>
                     </div>
@@ -1051,7 +1031,7 @@ ix_require_session([
                 <div class="col right">
                     <p class="location">
                         (c) Copyright 2026, Todos los derechos reservados | GodCode Software | Francisco, C. Madero 1C,
-                        IxtlahuacÃ¡n de Los Membrillos Centro, La Arena, 45850 IxtlahuacÃ¡n de los Membrillos, Jal.
+                        Ixtlahuacán de Los Membrillos Centro, La Arena, 45850 Ixtlahuacán de los Membrillos, Jal.
                     </p>
                 </div>
             </div>
