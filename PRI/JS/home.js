@@ -503,6 +503,10 @@ function cancelReadonlyPersonEdit() {
   paintPersonaReadonlyData(record.persona || {}, record.fallbackRow || {});
   paintReadonlyStatusOptions(record.persona || {}, record.fallbackRow || {});
   paintReadonlyAffiliateToggle(record.persona || {}, record.fallbackRow || {});
+  // Restore affiliate images and UI state when cancelling edit
+  resetReadonlyVisualImages();
+  paintPersonaReadonlyImages(getReadonlyRecordArchivos());
+  syncReadonlyImageActionButtons();
 }
 
 function validateReadonlyPersonPayload(payload) {
@@ -581,6 +585,10 @@ async function saveReadonlyPerson() {
     paintPersonaReadonlyData(updatedPersona, updatedRow);
     paintReadonlyStatusOptions(updatedPersona, updatedRow);
     paintReadonlyAffiliateToggle(updatedPersona, updatedRow);
+    // Ensure affiliate images and preview state are refreshed after save
+    resetReadonlyVisualImages();
+    paintPersonaReadonlyImages(getReadonlyRecordArchivos());
+    syncReadonlyImageActionButtons();
 
     toast("Datos de la persona actualizados correctamente.", "exito");
     await loadDashboard({ keepPage: true });

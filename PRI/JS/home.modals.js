@@ -3903,13 +3903,13 @@ function configureAffiliateSingleUploadUI() {
     if (summaryScreen) summaryScreen.hidden = true;
     if (uploadTitle) {
         uploadTitle.textContent = targetSide === "front"
-            ? "Sube el documento de afiliacion"
-            : "Sube la foto del afiliado";
+            ? "Reemplaza el documento de afiliacion"
+            : "Reemplaza la foto del afiliado";
     }
     if (uploadText) {
         uploadText.textContent = targetSide === "front"
-            ? "Selecciona unicamente el documento de afiliacion. Formatos permitidos: JPG, PNG o WEBP."
-            : "Selecciona unicamente la foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
+            ? "Selecciona únicamente el documento de afiliación a reemplazar. Formatos permitidos: JPG, PNG o WEBP."
+            : "Selecciona únicamente la foto del afiliado a reemplazar (fondo blanco). Formatos permitidos: JPG, PNG o WEBP.";
     }
     if (frontLabel) frontLabel.hidden = targetSide !== "front";
     if (backLabel) backLabel.hidden = targetSide !== "back";
@@ -3943,7 +3943,7 @@ function restoreAffiliateMediaUI() {
     if (summaryScreen) summaryScreen.hidden = false;
     if (uploadTitle) uploadTitle.textContent = "Sube la evidencia del afiliado";
     if (uploadText) {
-        uploadText.textContent = "Selecciona primero el documento de afiliacion y despues una foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
+        uploadText.textContent = "Selecciona primero el documento de afiliación y después una foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
     }
     if (frontLabel) frontLabel.hidden = false;
     if (backLabel) backLabel.hidden = false;
