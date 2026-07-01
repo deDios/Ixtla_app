@@ -2448,8 +2448,9 @@ window.redSaveReadonlyAffiliateSingleImage = async function redSaveReadonlyAffil
     State.readonlyRecord.archivos = updatedArchivos;
   }
 
-  setReadonlyVisualImage(targetKind, "");
-  paintPersonaReadonlyAffiliateImages(updatedArchivos, { forceShow: true });
+  // Repaint all images using the same method as cancel edit, ensuring consistency
+  resetReadonlyVisualImages();
+  paintPersonaReadonlyImages(updatedArchivos);
   await loadDashboard({ keepPage: true });
   toast("Imagen actualizada correctamente.", "exito");
   return true;

@@ -3911,8 +3911,25 @@ function configureAffiliateSingleUploadUI() {
             ? "Selecciona únicamente el documento de afiliación a reemplazar. Formatos permitidos: JPG, PNG o WEBP."
             : "Selecciona únicamente la foto del afiliado a reemplazar (fondo blanco). Formatos permitidos: JPG, PNG o WEBP.";
     }
-    if (frontLabel) frontLabel.hidden = targetSide !== "front";
-    if (backLabel) backLabel.hidden = targetSide !== "back";
+    function hideUploadContainer(label, show) {
+        if (!label) return;
+        const modalRoot = modal;
+        let container = label.closest('.ine-upload-card') || label.closest('.ine-upload-col') || label.closest('.upload-col') || label.closest('.col') || label.parentElement;
+        if (container) container.hidden = !show;
+
+        const inputId = label.getAttribute('for');
+        if (inputId) {
+            const inputEl = modalRoot.querySelector(`#${inputId}`);
+            if (inputEl) inputEl.hidden = !show;
+        }
+
+        const previewId = inputId === 'affiliate-upload-front' ? 'affiliate-upload-preview-front' : 'affiliate-upload-preview-back';
+        const previewEl = modalRoot.querySelector(`#${previewId}`);
+        if (previewEl) previewEl.hidden = !show;
+    }
+
+    hideUploadContainer(frontLabel, targetSide === "front");
+    hideUploadContainer(backLabel, targetSide === "back");
     if (backBtn) backBtn.textContent = "Cancelar";
     if (continueBtn) {
         continueBtn.textContent = "Guardar imagen";
@@ -3945,8 +3962,25 @@ function restoreAffiliateMediaUI() {
     if (uploadText) {
         uploadText.textContent = "Selecciona primero el documento de afiliación y después una foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
     }
-    if (frontLabel) frontLabel.hidden = false;
-    if (backLabel) backLabel.hidden = false;
+    function showUploadContainer(label) {
+        if (!label) return;
+        const modalRoot = modal;
+        let container = label.closest('.ine-upload-card') || label.closest('.ine-upload-col') || label.closest('.upload-col') || label.closest('.col') || label.parentElement;
+        if (container) container.hidden = false;
+
+        const inputId = label.getAttribute('for');
+        if (inputId) {
+            const inputEl = modalRoot.querySelector(`#${inputId}`);
+            if (inputEl) inputEl.hidden = false;
+        }
+
+        const previewId = inputId === 'affiliate-upload-front' ? 'affiliate-upload-preview-front' : 'affiliate-upload-preview-back';
+        const previewEl = modalRoot.querySelector(`#${previewId}`);
+        if (previewEl) previewEl.hidden = false;
+    }
+
+    showUploadContainer(frontLabel);
+    showUploadContainer(backLabel);
     if (backBtn) backBtn.textContent = "Volver";
     if (continueBtn) continueBtn.textContent = "Ver capturas";
     if (retryBtn) retryBtn.hidden = false;
