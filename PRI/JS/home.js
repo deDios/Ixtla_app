@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 import { Session } from "/PRI/JS/auth/session.js";
 import { initExportXLSXHome } from "/PRI/JS/ui/exportXLSXHome.js";
@@ -338,6 +338,11 @@ function sanitizeReadonlyPhone(value) {
     .trim();
 }
 
+function getReadonlySelectedTipoParticipacion() {
+  const afiliadoInput = $(SEL.ineReviewAfiliado);
+  return Boolean(afiliadoInput?.checked) ? "AFILIADO" : "SIMPATIZANTE";
+}
+
 function readReadonlyPersonEditableValues() {
   return {
     seccion_id: String($("#ine-review-seccion")?.value || "").trim(),
@@ -514,7 +519,8 @@ function buildReadonlyPersonUpdatePayload(personaId) {
   const values = readReadonlyPersonEditableValues();
   const payload = {
     persona_id: personaId,
-    tipo_participacion: tipoParticipacion,
+    tipo_participacion: getReadonlySelectedTipoParticipacion(),
+    ...values,
     updated_by: getUsuarioId() || null,
     usuario_id: getUsuarioId() || null,
     usuario_responsable_id: getUsuarioId() || null,
@@ -610,7 +616,7 @@ async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
   if (input) input.disabled = true;
 
   try {
-    const tipoParticipacion = isAfiliado ? "AFILIADO" : "SIMPATIZANTE";
+    const tipoParticipacion = getReadonlySelectedTipoParticipacion();
     const originalStatusId = Number(State.readonlyOriginalStatusId || 0);
 
     const payload = {
@@ -2047,26 +2053,26 @@ function paintPersonaReadonlyAffiliateImages(archivos = [], { forceShow = false 
   const canShowAffiliateImages = forceShow || isCurrentReadonlyRecordAfiliado();
   const fotoPersona = findArchivoByUso(archivos, "FOTO_PERSONA");
   const documentoAfiliacion = findArchivoByUso(archivos, "DOCUMENTO_AFILIACION");
-  const hasBoth = Boolean(
-    canShowAffiliateImages &&
-    fotoPersona?.url_archivo &&
-    documentoAfiliacion?.url_archivo
+  const hasFrontImage = Boolean(
+    getReadonlyVisualImage("affiliate_front") || documentoAfiliacion?.url_archivo
   );
+  const hasBackImage = Boolean(
+    getReadonlyVisualImage("affiliate_back") || fotoPersona?.url_archivo
+  );
+  const hasVisualAffiliateImages = hasReadonlyVisualImage("affiliate_front") || hasReadonlyVisualImage("affiliate_back");
+  const shouldShowSection = canShowAffiliateImages && (hasFrontImage || hasBackImage || hasVisualAffiliateImages || canEditReadonlyAdminbar());
 
   setReadonlyImage(
     SEL.ineReviewAffiliateFront,
-    getReadonlyVisualImage("affiliate_front") || (hasBoth ? documentoAfiliacion?.url_archivo || "" : ""),
+    getReadonlyVisualImage("affiliate_front") || documentoAfiliacion?.url_archivo || "",
     "Documento de afiliacion"
   );
 
   setReadonlyImage(
     SEL.ineReviewAffiliateBack,
-    getReadonlyVisualImage("affiliate_back") || (hasBoth ? fotoPersona?.url_archivo || "" : ""),
+    getReadonlyVisualImage("affiliate_back") || fotoPersona?.url_archivo || "",
     "Foto del afiliado"
   );
-
-  const hasVisualAffiliateImages = hasReadonlyVisualImage("affiliate_front") || hasReadonlyVisualImage("affiliate_back");
-  const shouldShowSection = canShowAffiliateImages && (hasBoth || hasVisualAffiliateImages || canEditReadonlyAdminbar());
 
   if (section) {
     section.hidden = !shouldShowSection;
