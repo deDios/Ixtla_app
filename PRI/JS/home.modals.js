@@ -4252,8 +4252,11 @@ async function openAffiliateMedia({ input = null, mode = "capture", targetKind =
         return false;
     }
 
-    State.affiliateMedia.pendingInput = input || $("#ine-review-es-afiliado");
-    State.affiliateMedia.previousChecked = Boolean(input?.checked) ? false : Boolean(input?.checked);
+    const resolvedInput = input || (mode === "capture" ? $("#ine-review-es-afiliado") : null);
+    State.affiliateMedia.pendingInput = resolvedInput;
+    State.affiliateMedia.previousChecked = mode === "capture"
+        ? !Boolean(resolvedInput?.checked)
+        : Boolean(resolvedInput?.checked);
 
     resetAffiliateMediaState({ preserveToggle: true });
 
@@ -4315,10 +4318,20 @@ function bindAffiliateMediaEvents() {
     });
 
     $(SEL.affiliateBtnUploadBack)?.addEventListener("click", () => {
+        if (isAffiliateSingleUploadMode()) {
+            closeAffiliateMediaModal({ revertToggle: false });
+            return;
+        }
+
         showAffiliateScreen("method");
     });
 
-    $(SEL.affiliateBtnUploadContinue)?.addEventListener("click", () => {
+    $(SEL.affiliateBtnUploadContinue)?.addEventListener("click", async () => {
+        if (isAffiliateSingleUploadMode()) {
+            await completeAffiliateMedia();
+            return;
+        }
+
         if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
             toast("Carga ambas imagenes auntes de continuar.", "warning", 5000);
             return;
