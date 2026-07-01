@@ -97,6 +97,11 @@ const State = {
             back: null,
         },
     },
+
+    affiliateReplace: {
+        targetKind: "",
+        capture: null,
+    },
 };
 
 const SEL = {
@@ -200,6 +205,16 @@ const SEL = {
     affiliatePreviewBack: "#affiliate-preview-back",
     affiliateBtnSummaryRetry: "#affiliate-btn-summary-retry",
     affiliateBtnComplete: "#affiliate-btn-complete",
+
+    affiliateReplaceModal: "#affiliate-replace-modal",
+    affiliateReplaceClose: "[data-affiliate-replace-close]",
+    affiliateReplaceTitle: "#affiliate-replace-title",
+    affiliateReplaceCopy: "#affiliate-replace-copy",
+    affiliateReplaceLabel: "#affiliate-replace-label",
+    affiliateReplaceInput: "#affiliate-replace-input",
+    affiliateReplaceFile: "#affiliate-replace-file",
+    affiliateReplaceCancel: "#affiliate-replace-cancel",
+    affiliateReplaceSave: "#affiliate-replace-save",
 };
 
 /* -------------------------------------------------------------------------- */
@@ -249,6 +264,7 @@ function syncBodyModalState() {
     const duplicateModal = $(SEL.duplicateModal);
     const validationModal = $(SEL.validationModal);
     const affiliateModal = $(SEL.affiliateModal);
+    const affiliateReplaceModal = $(SEL.affiliateReplaceModal);
 
     const captureOpen = Boolean(captureModal && !captureModal.hidden);
     const reviewOpen = Boolean(reviewModal && !reviewModal.hidden);
@@ -256,10 +272,11 @@ function syncBodyModalState() {
     const duplicateOpen = Boolean(duplicateModal && !duplicateModal.hidden);
     const validationOpen = Boolean(validationModal && !validationModal.hidden);
     const affiliateOpen = Boolean(affiliateModal && !affiliateModal.hidden);
+    const affiliateReplaceOpen = Boolean(affiliateReplaceModal && !affiliateReplaceModal.hidden);
 
     document.body.classList.toggle(
         "ine-modal-open",
-        captureOpen || reviewOpen || residenceOpen || duplicateOpen || validationOpen || affiliateOpen
+        captureOpen || reviewOpen || residenceOpen || duplicateOpen || validationOpen || affiliateOpen || affiliateReplaceOpen
     );
 }
 
@@ -412,6 +429,23 @@ function dataUrlToCanvas(dataUrl) {
     });
 }
 
+async function buildCaptureFromImageFile(file, label) {
+    if (!file) return null;
+
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+        throw new Error("Solo se permiten imagenes JPG, PNG o WEBP.");
+    }
+
+    const dataUrl = await fileToDataUrl(file);
+    const canvas = await dataUrlToCanvas(dataUrl);
+    const capture = await compressCanvasCapture(canvas, {
+        ...CONFIG.MEDIA,
+        label,
+    });
+
+    return normalizeCaptureObject(capture);
+}
+
 function syncUploadContinueButton() {
     const btn = $(SEL.btnUploadContinue);
     if (!btn) return;
@@ -444,21 +478,8 @@ function clearUploadInputs() {
 async function handleUploadFile(side, file) {
     if (!file) return;
 
-    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
-        toast("Solo se permiten imagenes JPG, PNG o WEBP.", "warning", 5000);
-        return;
-    }
-
     try {
-        const dataUrl = await fileToDataUrl(file);
-        const canvas = await dataUrlToCanvas(dataUrl);
-
-        const capture = await compressCanvasCapture(canvas, {
-            ...CONFIG.MEDIA,
-            label: `upload-${side}`,
-        });
-
-        State.captures[side] = normalizeCaptureObject(capture);
+        State.captures[side] = await buildCaptureFromImageFile(file, `upload-${side}`);
 
         const previewSelector = side === "front"
             ? SEL.uploadPreviewFront
@@ -3674,7 +3695,6 @@ function resetAffiliateMediaState({
     preserveCaptures = false,
     preserveCompleted = false,
     preserveMode = false,
-    preserveTargetKind = false,
 } = {}) {
     if (State.affiliateMedia.stream) {
         State.affiliateMedia.stream.getTracks().forEach((track) => track.stop());
@@ -3688,9 +3708,6 @@ function resetAffiliateMediaState({
     }
     if (!preserveMode) {
         State.affiliateMedia.mode = "capture";
-    }
-    if (!preserveTargetKind) {
-        State.affiliateMedia.targetKind = "";
     }
 
     if (!preserveCaptures) {
@@ -3752,6 +3769,77 @@ function setAffiliateMediaModalOpen(isOpen) {
     modal.hidden = !isOpen;
     modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
     syncBodyModalState();
+}
+
+function getAffiliateReplaceConfig(targetKind = "") {
+    if (targetKind === "affiliate_back") {
+        return {
+            title: "Reemplazar foto del afiliado",
+            copy: "Selecciona únicamente la foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.",
+            buttonLabel: "Seleccionar foto",
+        };
+    }
+
+    return {
+        title: "Reemplazar documento de afiliacion",
+        copy: "Selecciona únicamente el documento de afiliacion a reemplazar. Formatos permitidos: JPG, PNG o WEBP.",
+        buttonLabel: "Seleccionar documento",
+    };
+}
+
+function resetAffiliateReplaceState() {
+    State.affiliateReplace.targetKind = "";
+    State.affiliateReplace.capture = null;
+
+    const input = $(SEL.affiliateReplaceInput);
+    const fileText = $(SEL.affiliateReplaceFile);
+    const saveBtn = $(SEL.affiliateReplaceSave);
+
+    if (input) input.value = "";
+    if (fileText) {
+        fileText.textContent = "Ningun archivo seleccionado";
+        fileText.classList.remove("is-selected");
+    }
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Guardar imagen";
+    }
+}
+
+function setAffiliateReplaceModalOpen(isOpen) {
+    const modal = $(SEL.affiliateReplaceModal);
+    if (!modal) return;
+
+    modal.hidden = !isOpen;
+    modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
+    syncBodyModalState();
+}
+
+function closeAffiliateReplaceModal() {
+    setAffiliateReplaceModalOpen(false);
+    resetAffiliateReplaceState();
+}
+
+function openAffiliateReplaceModal({ targetKind = "" } = {}) {
+    const modal = $(SEL.affiliateReplaceModal);
+    if (!modal) {
+        warn("No existe #affiliate-replace-modal en el HTML.");
+        return false;
+    }
+
+    const config = getAffiliateReplaceConfig(targetKind);
+    const title = $(SEL.affiliateReplaceTitle);
+    const copy = $(SEL.affiliateReplaceCopy);
+    const label = $(SEL.affiliateReplaceLabel);
+
+    if (title) title.textContent = config.title;
+    if (copy) copy.textContent = config.copy;
+    if (label) label.textContent = config.buttonLabel;
+
+    resetAffiliateReplaceState();
+    State.affiliateReplace.targetKind = targetKind || "affiliate_front";
+    setAffiliateReplaceModalOpen(true);
+    return true;
 }
 
 function showAffiliateScreen(name) {
@@ -3872,15 +3960,9 @@ async function startAffiliateCamera() {
     }
 }
 
-function getAffiliateSingleUploadSide() {
-    return State.affiliateMedia.targetKind === "affiliate_back" ? "back" : "front";
-}
-
-function isAffiliateSingleUploadMode() {
-    return State.affiliateMedia.mode === "readonly-single-upload";
-}
-
 function configureAffiliateSingleUploadUI() {
+    // Legacy no-op: el reemplazo individual ahora vive en su propio modal.
+    return;
     const modal = $(SEL.affiliateModal);
     if (!modal) return;
 
@@ -3990,32 +4072,14 @@ function syncAffiliateUploadContinueButton() {
     const btn = $(SEL.affiliateBtnUploadContinue);
     if (!btn) return;
 
-    if (isAffiliateSingleUploadMode()) {
-        const targetSide = getAffiliateSingleUploadSide();
-        btn.disabled = !State.affiliateMedia.captures[targetSide];
-        return;
-    }
-
     btn.disabled = !(State.affiliateMedia.captures.front && State.affiliateMedia.captures.back);
 }
 
 async function haundleAffiliateUploadFile(side, file) {
     if (!file) return;
 
-    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
-        toast("Solo se permiten imagenes JPG, PNG o WEBP.", "warning", 5000);
-        return;
-    }
-
     try {
-        const dataUrl = await fileToDataUrl(file);
-        const canvas = await dataUrlToCanvas(dataUrl);
-        const capture = await compressCanvasCapture(canvas, {
-            ...CONFIG.MEDIA,
-            label: `affiliate-upload-${side}`,
-        });
-
-        State.affiliateMedia.captures[side] = normalizeCaptureObject(capture);
+        State.affiliateMedia.captures[side] = await buildCaptureFromImageFile(file, `affiliate-upload-${side}`);
 
         const preview = $(side === "front" ? SEL.affiliateUploadPreviewFront : SEL.affiliateUploadPreviewBack);
         if (preview) {
@@ -4138,52 +4202,6 @@ async function completeAffiliateMedia() {
     const affiliateModal = $(SEL.affiliateModal);
     const currentMode = affiliateModal?.dataset?.affiliateMode || State.affiliateMedia.mode;
     const isReadonly = currentMode === "readonly";
-    const isSingleUpload = currentMode === "readonly-single-upload";
-    const targetSide = getAffiliateSingleUploadSide();
-
-    if (isSingleUpload) {
-        const singleCapture = State.affiliateMedia.captures[targetSide];
-        if (!singleCapture) {
-            toast("Selecciona una imagen antes de continuar.", "warning", 5000);
-            return;
-        }
-
-        const completeBtn = $(SEL.affiliateBtnUploadContinue);
-        const originalBtnText = completeBtn?.textContent || "Guardar imagen";
-        if (completeBtn) {
-            completeBtn.disabled = true;
-            completeBtn.textContent = "Guardando...";
-        }
-
-        try {
-            if (typeof window.redSaveReadonlyAffiliateSingleImage !== "function") {
-                throw new Error("No esta disponible la actualizacion de imagen.");
-            }
-
-            const saved = await window.redSaveReadonlyAffiliateSingleImage({
-                targetKind: State.affiliateMedia.targetKind,
-                capture: singleCapture,
-            });
-
-            if (!saved) {
-                throw new Error("No se pudo guardar la imagen seleccionada.");
-            }
-
-            setAffiliateMediaModalOpen(false);
-            stopAffiliateCamera();
-            resetAffiliateMediaState();
-            return;
-        } catch (err) {
-            error("No se pudo guardar la imagen individual:", err);
-            toast(err?.message || "No se pudo guardar la imagen.", "error", 7000);
-            return;
-        } finally {
-            if (completeBtn) {
-                completeBtn.disabled = false;
-                completeBtn.textContent = originalBtnText;
-            }
-        }
-    }
 
     if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
         toast("Necesitas capturar ambas imagenes antes de continuar.", "warning", 5000);
@@ -4245,7 +4263,7 @@ async function completeAffiliateMedia() {
     });
 }
 
-async function openAffiliateMedia({ input = null, mode = "capture", targetKind = "" } = {}) {
+async function openAffiliateMedia({ input = null, mode = "capture" } = {}) {
     const modal = $(SEL.affiliateModal);
     if (!modal) {
         warn("No existe #affiliate-media-modal en el HTML.");
@@ -4261,7 +4279,6 @@ async function openAffiliateMedia({ input = null, mode = "capture", targetKind =
     resetAffiliateMediaState({ preserveToggle: true });
 
     State.affiliateMedia.mode = mode;
-    State.affiliateMedia.targetKind = targetKind || "";
     modal.dataset.affiliateMode = mode;
 
     restoreAffiliateMediaUI();
@@ -4276,12 +4293,6 @@ async function openAffiliateMedia({ input = null, mode = "capture", targetKind =
 
     setAffiliateMediaModalOpen(true);
 
-    if (mode === "readonly-single-upload") {
-        configureAffiliateSingleUploadUI();
-        showAffiliateScreen("upload");
-        return true;
-    }
-
     const device = getDeviceContext();
     if (device.preferUpload) {
         showAffiliateScreen("upload");
@@ -4292,6 +4303,88 @@ async function openAffiliateMedia({ input = null, mode = "capture", targetKind =
     }
 
     return true;
+}
+
+async function handleAffiliateReplaceFile(file) {
+    if (!file) return;
+
+    const fileText = $(SEL.affiliateReplaceFile);
+    const saveBtn = $(SEL.affiliateReplaceSave);
+
+    try {
+        State.affiliateReplace.capture = await buildCaptureFromImageFile(file, "affiliate-replace");
+
+        if (fileText) {
+            fileText.textContent = file.name || "Archivo listo para guardar";
+            fileText.classList.add("is-selected");
+        }
+
+        if (saveBtn) saveBtn.disabled = false;
+    } catch (err) {
+        State.affiliateReplace.capture = null;
+        if (fileText) {
+            fileText.textContent = err?.message || "No se pudo preparar la imagen.";
+            fileText.classList.remove("is-selected");
+        }
+        if (saveBtn) saveBtn.disabled = true;
+        toast(err?.message || "No se pudo cargar la imagen.", "error", 6000);
+    }
+}
+
+async function saveAffiliateReplaceModal() {
+    const saveBtn = $(SEL.affiliateReplaceSave);
+    const capture = State.affiliateReplace.capture;
+    const targetKind = State.affiliateReplace.targetKind || "affiliate_front";
+
+    if (!capture) {
+        toast("Selecciona una imagen antes de guardar.", "warning", 5000);
+        return;
+    }
+
+    const originalText = saveBtn?.textContent || "Guardar imagen";
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Guardando...";
+    }
+
+    try {
+        if (typeof window.redSaveReadonlyAffiliateSingleImage !== "function") {
+            throw new Error("No esta disponible la actualizacion de imagen.");
+        }
+
+        const saved = await window.redSaveReadonlyAffiliateSingleImage({
+            targetKind,
+            capture,
+        });
+
+        if (!saved) {
+            throw new Error("No se pudo guardar la imagen seleccionada.");
+        }
+
+        closeAffiliateReplaceModal();
+    } catch (err) {
+        error("No se pudo guardar la imagen individual:", err);
+        toast(err?.message || "No se pudo guardar la imagen.", "error", 7000);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = !State.affiliateReplace.capture;
+            saveBtn.textContent = originalText;
+        }
+    }
+}
+
+function bindAffiliateReplaceEvents() {
+    $$(SEL.affiliateReplaceClose).forEach((btn) => {
+        btn.addEventListener("click", closeAffiliateReplaceModal);
+    });
+
+    $(SEL.affiliateReplaceCancel)?.addEventListener("click", closeAffiliateReplaceModal);
+
+    $(SEL.affiliateReplaceInput)?.addEventListener("change", async (event) => {
+        await handleAffiliateReplaceFile(event.target.files?.[0] || null);
+    });
+
+    $(SEL.affiliateReplaceSave)?.addEventListener("click", saveAffiliateReplaceModal);
 }
 
 function bindAffiliateMediaEvents() {
@@ -4318,20 +4411,10 @@ function bindAffiliateMediaEvents() {
     });
 
     $(SEL.affiliateBtnUploadBack)?.addEventListener("click", () => {
-        if (isAffiliateSingleUploadMode()) {
-            closeAffiliateMediaModal({ revertToggle: false });
-            return;
-        }
-
         showAffiliateScreen("method");
     });
 
-    $(SEL.affiliateBtnUploadContinue)?.addEventListener("click", async () => {
-        if (isAffiliateSingleUploadMode()) {
-            await completeAffiliateMedia();
-            return;
-        }
-
+    $(SEL.affiliateBtnUploadContinue)?.addEventListener("click", () => {
         if (!State.affiliateMedia.captures.front || !State.affiliateMedia.captures.back) {
             toast("Carga ambas imagenes auntes de continuar.", "warning", 5000);
             return;
@@ -4355,6 +4438,7 @@ function bindAffiliateMediaEvents() {
 }
 
 window.redOpenAffiliateMedia = openAffiliateMedia;
+window.redOpenAffiliateReplaceModal = openAffiliateReplaceModal;
 window.redSyncReviewSeccionField = syncReviewSeccionField;
 function bindReviewModalEvents() {
     $$(SEL.reviewClose).forEach((btn) => {
@@ -4446,6 +4530,12 @@ function haundleEscape(event) {
     const validationModal = $(SEL.validationModal);
     if (validationModal && !validationModal.hidden) {
         abortValidationFlow();
+        return;
+    }
+
+    const affiliateReplaceModal = $(SEL.affiliateReplaceModal);
+    if (affiliateReplaceModal && !affiliateReplaceModal.hidden) {
+        closeAffiliateReplaceModal();
         return;
     }
 
@@ -4541,6 +4631,7 @@ function bindCaptureModalEvents() {
     bindReviewModalEvents();
     bindResidenceModalEvents();
     bindAffiliateMediaEvents();
+    bindAffiliateReplaceEvents();
 }
 
 function init() {

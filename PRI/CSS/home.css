@@ -3565,12 +3565,189 @@ body.ine-modal-open {
     z-index: calc(var(--ine-cap-z) + 1);
 }
 
+#affiliate-replace-modal {
+    --red-affiliate-replace-z: 1190;
+    --red-affiliate-replace-bg: #ffffff;
+    --red-affiliate-replace-ink: #111827;
+    --red-affiliate-replace-muted: #64748b;
+    --red-affiliate-replace-line: #d7e0ea;
+    --red-affiliate-replace-brand: #2f8f68;
+    --red-affiliate-replace-brand-dark: #277957;
+    --red-affiliate-replace-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+#affiliate-replace-modal[hidden] {
+    display: none !important;
+}
+
+.red-affiliate-replace-modal {
+    position: fixed;
+    inset: 0;
+    z-index: var(--red-affiliate-replace-z);
+}
+
+.red-affiliate-replace-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.52);
+    backdrop-filter: blur(4px);
+}
+
+.red-affiliate-replace-dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(480px, calc(100vw - 32px));
+    transform: translate(-50%, -50%);
+    background: var(--red-affiliate-replace-bg);
+    border: 1px solid rgba(215, 224, 234, 0.95);
+    border-radius: 26px;
+    box-shadow: var(--red-affiliate-replace-shadow);
+    overflow: hidden;
+}
+
+.red-affiliate-replace-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 14px 14px 0;
+}
+
+.red-affiliate-replace-close {
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: var(--red-affiliate-replace-ink);
+    font-size: 1.9rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.red-affiliate-replace-body {
+    padding: 12px 32px 32px;
+    text-align: center;
+}
+
+.red-affiliate-replace-kicker {
+    margin: 0 0 10px;
+    color: #64748b;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.red-affiliate-replace-body h3 {
+    margin: 0 0 12px;
+    color: var(--red-affiliate-replace-ink);
+    font-size: clamp(1.6rem, 2vw, 2rem);
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.red-affiliate-replace-copy {
+    margin: 0 auto 22px;
+    max-width: 38ch;
+    color: var(--red-affiliate-replace-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+    font-weight: 700;
+}
+
+.red-affiliate-replace-picker {
+    display: grid;
+    place-items: center;
+    min-height: 168px;
+    padding: 20px;
+    border: 2px dashed var(--red-affiliate-replace-line);
+    border-radius: 22px;
+    background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+    color: var(--red-affiliate-replace-ink);
+    font-size: 1.02rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.red-affiliate-replace-picker:hover {
+    border-color: #9ccfb8;
+    background: linear-gradient(180deg, #f8fffb 0%, #f1faf5 100%);
+}
+
+.red-affiliate-replace-file {
+    margin: 14px 0 0;
+    min-height: 24px;
+    color: var(--red-affiliate-replace-muted);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.red-affiliate-replace-file.is-selected {
+    color: var(--red-affiliate-replace-ink);
+}
+
+.red-affiliate-replace-actions {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 24px;
+}
+
+.red-affiliate-replace-btn {
+    min-width: 154px;
+    min-height: 46px;
+    padding: 0 18px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.red-affiliate-replace-btn:disabled {
+    opacity: 0.58;
+    cursor: not-allowed;
+}
+
+.red-affiliate-replace-btn--ghost {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+.red-affiliate-replace-btn--primary {
+    background: var(--red-affiliate-replace-brand);
+    color: #ffffff;
+}
+
+.red-affiliate-replace-btn--primary:hover:not(:disabled) {
+    background: var(--red-affiliate-replace-brand-dark);
+}
+
 @media (max-width: 720px) {
     #affiliate-media-modal .ine-capture-dialog {
         max-height: calc(100dvh - 72px - env(safe-area-inset-bottom));
         top: 50%;
         bottom: auto;
         transform: translate(-50%, -50%);
+    }
+
+    .red-affiliate-replace-dialog {
+        width: min(100vw - 24px, 460px);
+        border-radius: 22px;
+    }
+
+    .red-affiliate-replace-body {
+        padding: 12px 20px 24px;
+    }
+
+    .red-affiliate-replace-actions {
+        flex-direction: column;
+    }
+
+    .red-affiliate-replace-btn {
+        width: 100%;
     }
 }
 

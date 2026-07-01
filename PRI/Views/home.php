@@ -472,6 +472,50 @@ ix_require_session([
             </div>
         </article>
     </section>
+
+    <section id="affiliate-replace-modal" class="red-affiliate-replace-modal" hidden aria-hidden="true">
+        <div class="red-affiliate-replace-overlay" data-affiliate-replace-close></div>
+
+        <article class="red-affiliate-replace-dialog" role="dialog" aria-modal="true"
+            aria-labelledby="affiliate-replace-title">
+            <header class="red-affiliate-replace-header">
+                <button type="button" class="red-affiliate-replace-close" data-affiliate-replace-close
+                    aria-label="Cerrar modal">
+                    &times;
+                </button>
+            </header>
+
+            <div class="red-affiliate-replace-body">
+                <p class="red-affiliate-replace-kicker">Carga manual</p>
+                <h3 id="affiliate-replace-title">Reemplazar imagen</h3>
+                <p id="affiliate-replace-copy" class="red-affiliate-replace-copy">
+                    Selecciona una imagen JPG, PNG o WEBP.
+                </p>
+
+                <label class="red-affiliate-replace-picker" for="affiliate-replace-input">
+                    <span id="affiliate-replace-label">Seleccionar imagen</span>
+                    <input type="file" id="affiliate-replace-input" accept="image/jpeg,image/png,image/webp" hidden>
+                </label>
+
+                <p id="affiliate-replace-file" class="red-affiliate-replace-file">
+                    Ningún archivo seleccionado
+                </p>
+
+                <div class="red-affiliate-replace-actions">
+                    <button type="button" id="affiliate-replace-cancel"
+                        class="red-affiliate-replace-btn red-affiliate-replace-btn--ghost">
+                        Cancelar
+                    </button>
+
+                    <button type="button" id="affiliate-replace-save"
+                        class="red-affiliate-replace-btn red-affiliate-replace-btn--primary" disabled>
+                        Guardar imagen
+                    </button>
+                </div>
+            </div>
+        </article>
+    </section>
+
     <!---------------------- Modal revision / alta de persona desde INE -------------------------->
 
 

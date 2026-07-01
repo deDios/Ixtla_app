@@ -2297,9 +2297,8 @@ function bindEvents() {
     button.addEventListener("click", async () => {
       const kind = String(button.dataset.readonlyImagePick || "");
 
-      if (kind.startsWith("affiliate_") && typeof window.redOpenAffiliateMedia === "function") {
-        await window.redOpenAffiliateMedia({
-          mode: "readonly-single-upload",
+      if (kind.startsWith("affiliate_") && typeof window.redOpenAffiliateReplaceModal === "function") {
+        await window.redOpenAffiliateReplaceModal({
           targetKind: kind,
         });
         return;
