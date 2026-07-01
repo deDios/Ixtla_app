@@ -3690,7 +3690,7 @@ body.ine-modal-open {
 
 .red-affiliate-replace-preview {
     display: block;
-    width: 100%;
+    width: min(240px, 100%);
     max-height: 140px;
     object-fit: contain;
     border-radius: 12px;
