@@ -756,7 +756,7 @@ ix_require_session([
                                 <img id="ine-review-affiliate-front" src="" alt="Documento de afiliación">
                                 <figcaption>Documento de afiliación</figcaption>
                                 <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
-                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_front">
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_front" style="border-color:#bfd8c6;background:#f3fbf6;color:#1f6b48;font-weight:700;">
                                         Reemplazar
                                     </button>
                                     <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="affiliate_front" hidden>
@@ -767,7 +767,7 @@ ix_require_session([
                                 <img id="ine-review-affiliate-back" src="" alt="Foto del afiliado con fondo blanco">
                                 <figcaption>Foto del afiliado con fondo blanco</figcaption>
                                 <div class="ine-review-capture-actions" data-readonly-image-actions hidden>
-                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_back">
+                                    <button type="button" class="ine-review-btn ine-review-btn--ghost" data-readonly-image-pick="affiliate_back" style="border-color:#bfd8c6;background:#f3fbf6;color:#1f6b48;font-weight:700;">
                                         Reemplazar
                                     </button>
                                     <input type="file" accept="image/jpeg,image/png,image/webp" data-readonly-image-input="affiliate_back" hidden>
