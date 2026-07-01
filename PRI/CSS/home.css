@@ -3597,7 +3597,7 @@ body.ine-modal-open {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: min(480px, calc(100vw - 32px));
+    width: min(620px, calc(100vw - 32px));
     transform: translate(-50%, -50%);
     background: var(--red-affiliate-replace-bg);
     border: 1px solid rgba(215, 224, 234, 0.95);
@@ -3625,7 +3625,9 @@ body.ine-modal-open {
 }
 
 .red-affiliate-replace-body {
-    width: min(620px, 100%);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     margin: 0 auto;
     padding: 26px;
     text-align: center;
@@ -3770,7 +3772,7 @@ body.ine-modal-open {
     }
 
     .red-affiliate-replace-dialog {
-        width: min(100vw - 24px, 460px);
+        width: min(100vw - 24px, 620px);
         border-radius: 22px;
     }
 
