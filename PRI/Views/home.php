@@ -493,7 +493,7 @@ ix_require_session([
                 </p>
 
                 <label class="red-affiliate-replace-picker" for="affiliate-replace-input">
-                    <img id="affiliate-replace-preview" class="red-affiliate-replace-preview" alt="Vista previa de la imagen seleccionada" hidden>
+                    <img id="affiliate-replace-preview" class="red-affiliate-replace-preview" alt="" hidden>
                     <span id="affiliate-replace-label">Seleccionar imagen</span>
                     <input type="file" id="affiliate-replace-input" accept="image/jpeg,image/png,image/webp" hidden>
                 </label>
