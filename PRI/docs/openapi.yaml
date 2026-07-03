@@ -1,0 +1,1272 @@
+﻿openapi: 3.0.3
+info:
+  title: Ixtla App API
+  version: 0.1.0
+  description: |
+    Primer contrato OpenAPI para los endpoints PHP usados por el modulo RED.
+
+    Notas de esta version:
+    - La API actual usa mayormente `POST`, incluso para consultas.
+    - El spec describe el comportamiento real del proyecto hoy, no una refactorizacion ideal.
+    - Se documento primero el flujo visible para frontend: login, dashboard RED y personas.
+servers:
+  - url: /
+    description: Mismo host donde corre la app
+tags:
+  - name: Auth
+    description: Inicio de sesion y emision de token
+  - name: RED
+    description: Dashboard principal de RED
+  - name: Personas
+    description: Consulta y alta de personas
+paths:
+  /PRI/db/WEB/ixtla_login.php:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesion
+      description: Valida credenciales, registra el login y devuelve un JWT junto con datos del usuario.
+      operationId: loginUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              basico:
+                value:
+                  username: admin@example.com
+                  password: secret123
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
+        '400':
+          description: JSON invalido o parametros incompletos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Credenciales invalidas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiError'
+                  - type: object
+                    properties:
+                      attempts_left:
+                        type: integer
+                        nullable: true
+        '423':
+          description: Cuenta bloqueada temporalmente
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/LoginLockedResponse'
+                  - $ref: '#/components/schemas/LoginBlockedAttemptsResponse'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /PRI/db/WEB/ixtla_c_red_home.php:
+    post:
+      tags: [RED]
+      summary: Consultar dashboard RED
+      description: |
+        Resuelve el universo visible por jerarquia, aplica filtros y devuelve
+        metricas y listado paginado de personas y participaciones.
+      operationId: consultarRedHome
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedHomeRequest'
+            examples:
+              listado_basico:
+                value:
+                  usuario_id: 15
+                  rol_codigo: COORD_ZONA
+                  page: 1
+                  page_size: 10
+                  search: garcia
+                  sort_key: default
+                  sort_dir: desc
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedHomeResponse'
+        '400':
+          description: Request invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /PRI/db/WEB/ixtla_c_persona.php:
+    post:
+      tags: [Personas]
+      summary: Consultar personas
+      description: |
+        Consulta una persona por `persona_id` o devuelve un listado paginado con filtros.
+        Si se envia `persona_id` o `id`, la respuesta `data` es un objeto.
+        Si no se envia id, la respuesta `data` es un arreglo con `meta`.
+      operationId: consultarPersonas
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonaQueryRequest'
+            examples:
+              por_id:
+                value:
+                  persona_id: 102
+                  rol_codigo: ADMIN
+              listado:
+                value:
+                  page: 1
+                  page_size: 20
+                  q: lopez
+                  estatus_id: 4
+                  seccion_id: 321
+                  rol_codigo: COORD_GENERAL
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PersonaDetailResponse'
+                  - $ref: '#/components/schemas/PersonaListResponse'
+        '404':
+          description: Persona no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /PRI/db/WEB/ixtla_i_persona.php:
+    post:
+      tags: [Personas]
+      summary: Crear persona
+      description: |
+        Inserta una persona y sincroniza su participacion RED inicial.
+        Si `tipo_participacion` no se envia, el backend puede crear por default una participacion
+        de tipo `SIMPATIZANTE`.
+      operationId: crearPersona
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePersonaRequest'
+            examples:
+              simpatizante:
+                value:
+                  nombres: Juan
+                  apellido_paterno: Perez
+                  apellido_materno: Garcia
+                  telefono: "3312345678"
+                  seccion_id: 321
+                  estatus_id: 1
+                  capturado_por: 15
+                  created_by: 15
+                  tipo_participacion: SIMPATIZANTE
+                  acepta_tratamiento_datos: 1
+                  acepta_datos_sensibles: 1
+              afiliado:
+                value:
+                  nombres: Maria
+                  apellido_paterno: Lopez
+                  telefono: "3331234567"
+                  curp: LOPM900101MJCXXX01
+                  clave_elector: ABCD123456HDFRNN09
+                  seccion_id: 321
+                  capturado_por: 8
+                  created_by: 8
+                  tipo_participacion: AFILIADO
+                  fecha_afiliacion: '2026-07-02'
+                  numero_afiliacion: AFI-2026-0001
+      responses:
+        '201':
+          description: Persona creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatePersonaResponse'
+        '400':
+          description: Datos invalidos o FK invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Persona duplicada por dato sensible unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicatePersonaResponse'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+components:
+  schemas:
+    ApiError:
+      type: object
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+          nullable: true
+        code:
+          type: integer
+          nullable: true
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: Username o email
+        password:
+          type: string
+          format: password
+
+    LoginSuccessResponse:
+      type: object
+      required: [token, token_type, expires_at, expires_in_seconds, usuario, persona, rol, territorios]
+      properties:
+        token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_at:
+          type: string
+          example: '2026-07-02 22:30:00'
+        expires_in_seconds:
+          type: integer
+          example: 28800
+        usuario:
+          $ref: '#/components/schemas/UsuarioSesion'
+        persona:
+          $ref: '#/components/schemas/PersonaSesion'
+        rol:
+          $ref: '#/components/schemas/Rol'
+        parent_user:
+          allOf:
+            - $ref: '#/components/schemas/UsuarioPadre'
+          nullable: true
+        territorios:
+          type: array
+          items:
+            $ref: '#/components/schemas/TerritorioAsignado'
+
+    LoginLockedResponse:
+      type: object
+      required: [ok, error, locked_until, minutes_left]
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Cuenta temporalmente bloqueada
+        locked_until:
+          type: string
+        minutes_left:
+          type: integer
+
+    LoginBlockedAttemptsResponse:
+      type: object
+      required: [ok, error, blocked_minutes]
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Cuenta bloqueada por multiples intentos fallidos
+        blocked_minutes:
+          type: integer
+
+    UsuarioSesion:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+        uuid:
+          type: string
+        username:
+          type: string
+        nombre:
+          type: string
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        persona_id:
+          type: integer
+          nullable: true
+        requiere_cambio_password:
+          type: boolean
+        ultimo_login_at:
+          type: string
+        total_hijos_directos:
+          type: integer
+
+    PersonaSesion:
+      type: object
+      properties:
+        persona_id:
+          type: integer
+          nullable: true
+        nombres:
+          type: string
+          nullable: true
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+
+    UsuarioPadre:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+        username:
+          type: string
+        nombre:
+          type: string
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        rol_codigo:
+          type: string
+        rol_nombre:
+          type: string
+
+    Rol:
+      type: object
+      properties:
+        rol_id:
+          type: integer
+        codigo:
+          type: string
+          example: COORD_GENERAL
+        nombre:
+          type: string
+        nivel_jerarquico:
+          type: integer
+
+    TerritorioAsignado:
+      type: object
+      properties:
+        territorio_id:
+          type: integer
+        territorio_padre_id:
+          type: integer
+          nullable: true
+        tipo:
+          type: string
+          example: SECCION
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+        municipio:
+          type: string
+          nullable: true
+        estado:
+          type: string
+          nullable: true
+        distrito_local:
+          type: string
+          nullable: true
+        distrito_federal:
+          type: string
+          nullable: true
+        fecha_inicio:
+          type: string
+          nullable: true
+        fecha_fin:
+          type: string
+          nullable: true
+
+    PermissionFlags:
+      type: object
+      properties:
+        edit:
+          type: boolean
+
+    EstatusSimple:
+      type: object
+      properties:
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+
+    TerritorioSimple:
+      type: object
+      properties:
+        territorio_id:
+          type: integer
+          nullable: true
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+        tipo:
+          type: string
+          nullable: true
+
+    ResponsableResumen:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        nombre_completo:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+
+    ParticipacionActual:
+      type: object
+      properties:
+        participacion_id:
+          type: integer
+          nullable: true
+        folio:
+          type: string
+          nullable: true
+        tipo_participacion:
+          type: string
+          nullable: true
+          enum: [SIMPATIZANTE, AFILIADO]
+        tipo_actual:
+          type: string
+          nullable: true
+        fallback:
+          type: boolean
+          nullable: true
+        participacion_origen_id:
+          type: integer
+          nullable: true
+        estatus_id:
+          type: integer
+        estatus:
+          $ref: '#/components/schemas/EstatusSimple'
+        territorio_id:
+          type: integer
+          nullable: true
+        usuario_responsable_id:
+          type: integer
+          nullable: true
+        fuente_captura:
+          type: string
+          nullable: true
+        fecha_registro:
+          type: string
+          nullable: true
+        fecha_afiliacion:
+          type: string
+          nullable: true
+        numero_afiliacion:
+          type: string
+          nullable: true
+        observaciones:
+          type: string
+          nullable: true
+        activo:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+
+    ParticipacionResumen:
+      type: object
+      properties:
+        actual:
+          allOf:
+            - $ref: '#/components/schemas/ParticipacionActiva'
+          nullable: true
+        tipo_actual:
+          type: string
+          nullable: true
+        tiene_simpatizante_activo:
+          type: boolean
+        tiene_afiliado_activo:
+          type: boolean
+        participaciones_activas:
+          type: integer
+        activas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParticipacionActiva'
+
+    ParticipacionActiva:
+      type: object
+      properties:
+        participacion_id:
+          type: integer
+        folio:
+          type: string
+          nullable: true
+        persona_id:
+          type: integer
+        tipo_participacion:
+          type: string
+          enum: [SIMPATIZANTE, AFILIADO]
+        participacion_origen_id:
+          type: integer
+          nullable: true
+        estatus_id:
+          type: integer
+        estatus:
+          $ref: '#/components/schemas/EstatusSimple'
+        territorio_id:
+          type: integer
+          nullable: true
+        territorio:
+          $ref: '#/components/schemas/TerritorioSimple'
+        usuario_responsable_id:
+          type: integer
+          nullable: true
+        usuario_responsable:
+          $ref: '#/components/schemas/ResponsableBasico'
+        fuente_captura:
+          type: string
+          nullable: true
+        fecha_registro:
+          type: string
+          nullable: true
+        fecha_afiliacion:
+          type: string
+          nullable: true
+        numero_afiliacion:
+          type: string
+          nullable: true
+        observaciones:
+          type: string
+          nullable: true
+        activo:
+          type: integer
+        created_at:
+          type: string
+          nullable: true
+        created_by:
+          type: integer
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+
+    ResponsableBasico:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        nombre_completo:
+          type: string
+          nullable: true
+
+    TerritorioPersona:
+      type: object
+      properties:
+        seccion:
+          $ref: '#/components/schemas/TerritorioSimple'
+        zona:
+          type: object
+          properties:
+            territorio_id:
+              type: integer
+              nullable: true
+            codigo:
+              type: string
+              nullable: true
+            nombre:
+              type: string
+              nullable: true
+        participacion:
+          type: object
+          properties:
+            territorio_id:
+              type: integer
+              nullable: true
+            codigo:
+              type: string
+              nullable: true
+            nombre:
+              type: string
+              nullable: true
+            tipo:
+              type: string
+              nullable: true
+            zona:
+              type: object
+              properties:
+                territorio_id:
+                  type: integer
+                  nullable: true
+                codigo:
+                  type: string
+                  nullable: true
+                nombre:
+                  type: string
+                  nullable: true
+
+    Persona:
+      type: object
+      properties:
+        persona_id:
+          type: integer
+        uuid:
+          type: string
+        nombres:
+          type: string
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        nombre_completo:
+          type: string
+        fecha_nacimiento:
+          type: string
+          nullable: true
+        sexo:
+          type: string
+          nullable: true
+        curp:
+          type: string
+          nullable: true
+        clave_elector:
+          type: string
+          nullable: true
+        curp_hash:
+          type: string
+          nullable: true
+        clave_elector_hash:
+          type: string
+          nullable: true
+        ocr_hash:
+          type: string
+          nullable: true
+        cic_hash:
+          type: string
+          nullable: true
+        idmex_hash:
+          type: string
+          nullable: true
+        seccion_id:
+          type: integer
+          nullable: true
+        anio_registro:
+          type: integer
+          nullable: true
+        emision:
+          type: integer
+          nullable: true
+        vigencia_inicio:
+          type: string
+          nullable: true
+        vigencia_fin:
+          type: string
+          nullable: true
+        domicilio_texto:
+          type: string
+          nullable: true
+        calle:
+          type: string
+          nullable: true
+        numero_exterior:
+          type: string
+          nullable: true
+        numero_interior:
+          type: string
+          nullable: true
+        colonia:
+          type: string
+          nullable: true
+        localidad:
+          type: string
+          nullable: true
+        municipio:
+          type: string
+          nullable: true
+        estado:
+          type: string
+          nullable: true
+        codigo_postal:
+          type: string
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        whatsapp:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        acepta_tratamiento_datos:
+          type: integer
+        acepta_datos_sensibles:
+          type: integer
+        acepta_contacto_whatsapp:
+          type: integer
+        aviso_privacidad_version:
+          type: string
+          nullable: true
+        fecha_consentimiento:
+          type: string
+          nullable: true
+        estatus_id:
+          type: integer
+          nullable: true
+        estatus:
+          $ref: '#/components/schemas/EstatusSimple'
+        territorio:
+          $ref: '#/components/schemas/TerritorioPersona'
+        capturado_por:
+          type: integer
+          nullable: true
+        fecha_captura:
+          type: string
+          nullable: true
+        observaciones:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          nullable: true
+        created_by:
+          type: integer
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+        participacion:
+          $ref: '#/components/schemas/ParticipacionResumen'
+        permissions:
+          $ref: '#/components/schemas/PermissionFlags'
+
+    RedHomeItem:
+      type: object
+      properties:
+        persona_id:
+          type: integer
+        uuid:
+          type: string
+        nombres:
+          type: string
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        nombre_completo:
+          type: string
+        telefono:
+          type: string
+          nullable: true
+        whatsapp:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        domicilio_texto:
+          type: string
+          nullable: true
+        seccion_id:
+          type: integer
+          nullable: true
+        participacion:
+          $ref: '#/components/schemas/ParticipacionActual'
+        territorio:
+          $ref: '#/components/schemas/TerritorioPersona'
+        responsable:
+          $ref: '#/components/schemas/ResponsableResumen'
+        tipo_participacion:
+          type: string
+          nullable: true
+        estatus_id:
+          type: integer
+        estatus_codigo:
+          type: string
+          nullable: true
+        estatus_nombre:
+          type: string
+          nullable: true
+        seccion_codigo:
+          type: string
+          nullable: true
+        seccion_nombre:
+          type: string
+          nullable: true
+        permissions:
+          $ref: '#/components/schemas/PermissionFlags'
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+
+    RedCounts:
+      type: object
+      properties:
+        afiliados:
+          type: integer
+        simpatizantes:
+          type: integer
+        promotores:
+          type: integer
+
+    RedScope:
+      type: object
+      properties:
+        can_see_all:
+          type: boolean
+        usuario_id:
+          type: integer
+          nullable: true
+        visible_user_ids:
+          type: array
+          items:
+            type: integer
+        visible_user_count:
+          type: integer
+          nullable: true
+        visible_active_user_ids:
+          type: array
+          items:
+            type: integer
+        visible_active_user_count:
+          type: integer
+          nullable: true
+
+    RedHomeRequest:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+        rol_codigo:
+          type: string
+          description: ADMIN, COORD_GENERAL, COORD_ZONA, COORD_SECCION, PROMOTOR
+        rol:
+          type: object
+          properties:
+            codigo:
+              type: string
+        q:
+          type: string
+        search:
+          type: string
+        tipo_participacion:
+          type: string
+          enum: [SIMPATIZANTE, AFILIADO]
+        telefono:
+          type: string
+        email:
+          type: string
+        seccion_id:
+          type: integer
+        territorio_id:
+          type: integer
+        estatus_id:
+          type: integer
+        usuario_responsable_id:
+          type: integer
+        page:
+          type: integer
+          default: 1
+        page_size:
+          type: integer
+          default: 10
+        limit:
+          type: integer
+        sort_key:
+          type: string
+          enum: [default, nombre, domicilio, seccion, telefono, estatus]
+        sort_dir:
+          type: string
+          enum: [asc, desc]
+
+    RedHomeResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        counts:
+          $ref: '#/components/schemas/RedCounts'
+        scope:
+          $ref: '#/components/schemas/RedScope'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RedHomeItem'
+
+    PersonaQueryRequest:
+      type: object
+      properties:
+        persona_id:
+          type: integer
+        id:
+          type: integer
+        q:
+          type: string
+        search:
+          type: string
+        telefono:
+          type: string
+        email:
+          type: string
+        curp:
+          type: string
+        clave_elector:
+          type: string
+        curp_hash:
+          type: string
+        clave_elector_hash:
+          type: string
+        seccion_id:
+          type: integer
+        estatus_id:
+          type: integer
+        capturado_por:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+        limit:
+          type: integer
+        rol_codigo:
+          type: string
+        rol:
+          type: object
+          properties:
+            codigo:
+              type: string
+
+    PersonaDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Persona'
+
+    PersonaListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Persona'
+
+    CreatePersonaRequest:
+      type: object
+      required: [nombres]
+      properties:
+        nombres:
+          type: string
+        apellido_paterno:
+          type: string
+        apellido_materno:
+          type: string
+        fecha_nacimiento:
+          type: string
+          example: '1990-01-01'
+        sexo:
+          type: string
+        curp:
+          type: string
+        clave_elector:
+          type: string
+        ocr_hash:
+          type: string
+        cic_hash:
+          type: string
+        idmex_hash:
+          type: string
+        seccion_id:
+          type: integer
+        anio_registro:
+          type: integer
+        emision:
+          type: integer
+        vigencia_inicio:
+          type: string
+        vigencia_fin:
+          type: string
+        domicilio_texto:
+          type: string
+        calle:
+          type: string
+        numero_exterior:
+          type: string
+        numero_interior:
+          type: string
+        colonia:
+          type: string
+        localidad:
+          type: string
+        municipio:
+          type: string
+        estado:
+          type: string
+        codigo_postal:
+          type: string
+        telefono:
+          type: string
+        whatsapp:
+          type: string
+        email:
+          type: string
+        acepta_tratamiento_datos:
+          type: integer
+          enum: [0, 1]
+        acepta_datos_sensibles:
+          type: integer
+          enum: [0, 1]
+        acepta_contacto_whatsapp:
+          type: integer
+          enum: [0, 1]
+        aviso_privacidad_version:
+          type: string
+        fecha_consentimiento:
+          type: string
+        estatus_id:
+          type: integer
+        capturado_por:
+          type: integer
+        created_by:
+          type: integer
+        observaciones:
+          type: string
+        tipo_participacion:
+          type: string
+          enum: [SIMPATIZANTE, AFILIADO]
+        participacion:
+          type: string
+          enum: [SIMPATIZANTE, AFILIADO]
+        participacion_estatus_id:
+          type: integer
+        estatus_participacion_id:
+          type: integer
+        participacion_territorio_id:
+          type: integer
+        territorio_id:
+          type: integer
+        usuario_responsable_id:
+          type: integer
+        fuente_captura:
+          type: string
+          enum: [PORTAL, BRIGADA, IMPORTACION, FORMULARIO_WEB, OTRO]
+        fecha_afiliacion:
+          type: string
+        numero_afiliacion:
+          type: string
+        observaciones_participacion:
+          type: string
+
+    CreatePersonaResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Persona creada correctamente
+        data:
+          $ref: '#/components/schemas/Persona'
+
+    ExistingPersonaBrief:
+      type: object
+      properties:
+        persona_id:
+          type: integer
+        uuid:
+          type: string
+        nombre_completo:
+          type: string
+        nombres:
+          type: string
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        seccion_id:
+          type: integer
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        whatsapp:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        estatus_id:
+          type: integer
+        capturado_por:
+          type: integer
+          nullable: true
+        capturado_por_usuario:
+          $ref: '#/components/schemas/ResponsableBasico'
+        fecha_captura:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+
+    DuplicatePersonaResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: integer
+          example: 1062
+        duplicate:
+          type: boolean
+        duplicate_field:
+          type: string
+        duplicate_label:
+          type: string
+        existing_persona:
+          allOf:
+            - $ref: '#/components/schemas/ExistingPersonaBrief'
+          nullable: true
