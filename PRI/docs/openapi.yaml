@@ -238,6 +238,302 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
 
+  /PRI/db/WEB/ixtla_u_persona.php:
+    post:
+      tags: [Personas]
+      summary: Actualizar persona
+      description: |
+        Actualiza una persona existente. El frontend RED usa normalmente `POST`,
+        pero el endpoint tambien acepta `PUT` y `PATCH`.
+
+        Si `update_context` es `RED_HOME_PERSON_EDIT`, el backend restringe los
+        campos permitidos y valida permisos segun rol y tipo de participacion.
+      operationId: actualizarPersonaPost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePersonaRequest'
+            examples:
+              general:
+                value:
+                  persona_id: 102
+                  telefono: "3312345678"
+                  email: persona@example.com
+                  updated_by: 15
+              red_home:
+                value:
+                  persona_id: 102
+                  seccion_id: 321
+                  domicilio_texto: Calle Reforma 10
+                  telefono: "3312345678"
+                  estatus_id: 4
+                  tipo_participacion: AFILIADO
+                  participacion_estatus_id: 4
+                  usuario_responsable_id: 15
+                  rol_codigo: COORD_GENERAL
+                  update_context: RED_HOME_PERSON_EDIT
+                  updated_by: 15
+      responses:
+        '200':
+          description: Persona actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdatePersonaResponse'
+        '400':
+          description: Datos invalidos o request incompleto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Sin permisos para editar el registro en el contexto RED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Persona no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por dato unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      tags: [Personas]
+      summary: Actualizar persona
+      description: Misma operacion que `POST` sobre este endpoint.
+      operationId: actualizarPersonaPut
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePersonaRequest'
+      responses:
+        '200':
+          description: Persona actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdatePersonaResponse'
+        '400':
+          description: Datos invalidos o request incompleto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Sin permisos para editar el registro en el contexto RED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Persona no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por dato unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    patch:
+      tags: [Personas]
+      summary: Actualizar persona parcialmente
+      description: Misma operacion que `POST` sobre este endpoint.
+      operationId: actualizarPersonaPatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePersonaRequest'
+      responses:
+        '200':
+          description: Persona actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdatePersonaResponse'
+        '400':
+          description: Datos invalidos o request incompleto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Sin permisos para editar el registro en el contexto RED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Persona no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por dato unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /PRI/db/WEB/ixtla_c_archivo.php:
+    post:
+      tags: [Personas]
+      summary: Consultar archivos
+      description: |
+        Consulta un archivo por `archivo_id` o `uuid`, o devuelve un listado paginado.
+        En el home RED se usa sobre todo para cargar archivos actuales de una persona.
+      operationId: consultarArchivos
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchivoQueryRequest'
+            examples:
+              por_id:
+                value:
+                  archivo_id: 55
+              listado_persona:
+                value:
+                  entidad_tipo: PERSONA
+                  entidad_id: 102
+                  es_actual: 1
+                  page: 1
+                  page_size: 20
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ArchivoDetailResponse'
+                  - $ref: '#/components/schemas/ArchivoListResponse'
+        '400':
+          description: Request invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Archivo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /PRI/db/WEB/ixtla_i_archivo.php:
+    post:
+      tags: [Personas]
+      summary: Crear archivo
+      description: |
+        Registra un archivo asociado a una entidad.
+
+        Si `url_archivo` llega como `data:image/...;base64,...`, el backend guarda el
+        binario en `/PRI/uploads/personas/{id}/` y en base de datos conserva la URL publica.
+      operationId: crearArchivo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateArchivoRequest'
+            examples:
+              documento_afiliacion:
+                value:
+                  entidad_tipo: PERSONA
+                  entidad_id: 102
+                  uso_archivo: DOCUMENTO_AFILIACION
+                  nombre_original: documento_afiliacion.jpg
+                  nombre_storage: persona_102_documento_afiliacion_1720000000.jpg
+                  url_archivo: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
+                  mime_type: image/jpeg
+                  extension: jpg
+                  tamano_bytes: 145678
+                  es_actual: 1
+                  privado: 1
+                  uploaded_by: 15
+                  updated_by: 15
+              consulta_publica:
+                value:
+                  entidad_tipo: PERSONA
+                  entidad_id: 102
+                  uso_archivo: INE_FRENTE
+                  nombre_storage: persona_102_ine_frente.jpg
+                  url_archivo: /PRI/uploads/personas/102/persona_102_ine_frente.jpg
+                  es_actual: 1
+                  privado: 1
+      responses:
+        '201':
+          description: Archivo creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateArchivoResponse'
+        '400':
+          description: Datos invalidos o FK invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Entidad relacionada no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 components:
   schemas:
     ApiError:
@@ -564,6 +860,9 @@ components:
 
     ParticipacionResumen:
       type: object
+      description: |
+        Resumen de participaciones activas de la persona.
+        En personas afiliadas es normal que `activas` incluya tanto `AFILIADO` como `SIMPATIZANTE`.
       properties:
         actual:
           allOf:
@@ -667,6 +966,9 @@ components:
 
     TerritorioPersona:
       type: object
+      description: |
+        En consulta individual de persona normalmente vienen `seccion` y `zona`.
+        El bloque `participacion` aparece en respuestas donde el endpoint tambien expone el territorio asociado a la participacion activa.
       properties:
         seccion:
           $ref: '#/components/schemas/TerritorioSimple'
@@ -712,6 +1014,9 @@ components:
 
     Persona:
       type: object
+      description: |
+        Representa el payload de persona que consume el modulo RED.
+        Los textos pueden reflejar problemas de encoding del origen si el backend devuelve cadenas mal codificadas.
       properties:
         persona_id:
           type: integer
@@ -1067,7 +1372,175 @@ components:
           type: boolean
           example: true
         data:
-          $ref: '#/components/schemas/Persona'
+          allOf:
+            - $ref: '#/components/schemas/Persona'
+          example:
+            persona_id: 8333
+            uuid: 50c0d201-50f8-4d21-a953-601ffb2c4e5e
+            nombres: ALONDRA
+            apellido_paterno: MARTINEZ
+            apellido_materno: CARDONA
+            nombre_completo: ALONDRA MARTINEZ CARDONA
+            fecha_nacimiento: '1996-03-07'
+            sexo: M
+            curp: MACA960307MNLRRL04
+            clave_elector: MRCRAL96030719M800
+            curp_hash: c187a0ef5cafc2ec8cfd0eb295d773c5a09b4a257ea6d621b0f93de1018c7ee6
+            clave_elector_hash: e43886481e6cde50a240be931d8349319b214916a20bfcd959550bbc74b63d46
+            ocr_hash: null
+            cic_hash: null
+            idmex_hash: 29ab8a5e28fc1011f01fcc8928d25670e654d4d91642567f54dece0f118da519
+            seccion_id: 77
+            anio_registro: 2014
+            emision: null
+            vigencia_inicio: '2014'
+            vigencia_fin: '2024'
+            domicilio_texto: C N-23 128 FRACC METROPLEX 66612 APODACA N L
+            calle: null
+            numero_exterior: null
+            numero_interior: null
+            colonia: null
+            localidad: null
+            municipio: null
+            estado: null
+            codigo_postal: null
+            telefono: '331212122222'
+            whatsapp: null
+            email: null
+            acepta_tratamiento_datos: 0
+            acepta_datos_sensibles: 0
+            acepta_contacto_whatsapp: 0
+            aviso_privacidad_version: RED-INE-2026-01
+            fecha_consentimiento: null
+            estatus_id: 2
+            estatus:
+              codigo: PENDIENTE_VALIDACION
+              nombre: Pendiente de validacion
+            territorio:
+              seccion:
+                territorio_id: 77
+                codigo: '1592'
+                nombre: Seccion 1592 - Centro / Presidencia Municipal
+                tipo: SECCION
+              zona:
+                territorio_id: 71
+                codigo: ZONA-01
+                nombre: Zona 01 - Cabecera / Centro
+            capturado_por: 50
+            fecha_captura: '2026-06-25 19:42:57'
+            observaciones: null
+            created_at: '2026-06-25 19:42:57'
+            created_by: 50
+            updated_at: null
+            updated_by: null
+            participacion:
+              actual:
+                participacion_id: 34
+                folio: RED-AFI-8333-20260625194257-D8E8
+                persona_id: 8333
+                tipo_participacion: AFILIADO
+                participacion_origen_id: null
+                estatus_id: 2
+                estatus:
+                  codigo: PENDIENTE_VALIDACION
+                  nombre: Pendiente de validacion
+                territorio_id: 77
+                territorio:
+                  territorio_id: 77
+                  codigo: '1592'
+                  nombre: Seccion 1592 - Centro / Presidencia Municipal
+                  tipo: SECCION
+                usuario_responsable_id: 50
+                usuario_responsable:
+                  usuario_id: 50
+                  username: CorZon01
+                  nombre: Coordinador de Zona 01
+                  apellido_paterno: null
+                  apellido_materno: null
+                  nombre_completo: Coordinador de Zona 01
+                fuente_captura: PORTAL
+                fecha_registro: '2026-06-25 19:42:57'
+                fecha_afiliacion: null
+                numero_afiliacion: null
+                observaciones: null
+                activo: 1
+                created_at: '2026-06-25 19:42:57'
+                created_by: 50
+                updated_at: null
+                updated_by: null
+              tipo_actual: AFILIADO
+              tiene_simpatizante_activo: true
+              tiene_afiliado_activo: true
+              participaciones_activas: 2
+              activas:
+                - participacion_id: 34
+                  folio: RED-AFI-8333-20260625194257-D8E8
+                  persona_id: 8333
+                  tipo_participacion: AFILIADO
+                  participacion_origen_id: null
+                  estatus_id: 2
+                  estatus:
+                    codigo: PENDIENTE_VALIDACION
+                    nombre: Pendiente de validacion
+                  territorio_id: 77
+                  territorio:
+                    territorio_id: 77
+                    codigo: '1592'
+                    nombre: Seccion 1592 - Centro / Presidencia Municipal
+                    tipo: SECCION
+                  usuario_responsable_id: 50
+                  usuario_responsable:
+                    usuario_id: 50
+                    username: CorZon01
+                    nombre: Coordinador de Zona 01
+                    apellido_paterno: null
+                    apellido_materno: null
+                    nombre_completo: Coordinador de Zona 01
+                  fuente_captura: PORTAL
+                  fecha_registro: '2026-06-25 19:42:57'
+                  fecha_afiliacion: null
+                  numero_afiliacion: null
+                  observaciones: null
+                  activo: 1
+                  created_at: '2026-06-25 19:42:57'
+                  created_by: 50
+                  updated_at: null
+                  updated_by: null
+                - participacion_id: 33
+                  folio: RED-SIM-8333-20260625194257-34BA
+                  persona_id: 8333
+                  tipo_participacion: SIMPATIZANTE
+                  participacion_origen_id: null
+                  estatus_id: 2
+                  estatus:
+                    codigo: PENDIENTE_VALIDACION
+                    nombre: Pendiente de validacion
+                  territorio_id: 77
+                  territorio:
+                    territorio_id: 77
+                    codigo: '1592'
+                    nombre: Seccion 1592 - Centro / Presidencia Municipal
+                    tipo: SECCION
+                  usuario_responsable_id: 50
+                  usuario_responsable:
+                    usuario_id: 50
+                    username: CorZon01
+                    nombre: Coordinador de Zona 01
+                    apellido_paterno: null
+                    apellido_materno: null
+                    nombre_completo: Coordinador de Zona 01
+                  fuente_captura: PORTAL
+                  fecha_registro: '2026-06-25 19:42:57'
+                  fecha_afiliacion: null
+                  numero_afiliacion: null
+                  observaciones: null
+                  activo: 1
+                  created_at: '2026-06-25 19:42:57'
+                  created_by: 50
+                  updated_at: null
+                  updated_by: null
+            permissions:
+              edit: false
 
     PersonaListResponse:
       type: object
@@ -1081,6 +1554,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Persona'
+          example:
+            - persona_id: 8333
+              uuid: 50c0d201-50f8-4d21-a953-601ffb2c4e5e
+              nombre_completo: ALONDRA MARTINEZ CARDONA
+              telefono: '331212122222'
+              estatus_id: 2
+              estatus:
+                codigo: PENDIENTE_VALIDACION
+                nombre: Pendiente de validacion
+              participacion:
+                tipo_actual: AFILIADO
+                participaciones_activas: 2
+              permissions:
+                edit: false
 
     CreatePersonaRequest:
       type: object
@@ -1246,6 +1733,318 @@ components:
           type: string
           nullable: true
 
+    UpdatePersonaRequest:
+      type: object
+      required: [persona_id]
+      properties:
+        persona_id:
+          type: integer
+        id:
+          type: integer
+        nombres:
+          type: string
+        apellido_paterno:
+          type: string
+        apellido_materno:
+          type: string
+        fecha_nacimiento:
+          type: string
+        sexo:
+          type: string
+        curp:
+          type: string
+        clave_elector:
+          type: string
+        ocr_hash:
+          type: string
+        cic_hash:
+          type: string
+        idmex_hash:
+          type: string
+        seccion_id:
+          type: integer
+        anio_registro:
+          type: integer
+        emision:
+          type: integer
+        vigencia_inicio:
+          type: string
+        vigencia_fin:
+          type: string
+        domicilio_texto:
+          type: string
+        calle:
+          type: string
+        numero_exterior:
+          type: string
+        numero_interior:
+          type: string
+        colonia:
+          type: string
+        localidad:
+          type: string
+        municipio:
+          type: string
+        estado:
+          type: string
+        codigo_postal:
+          type: string
+        telefono:
+          type: string
+        whatsapp:
+          type: string
+        email:
+          type: string
+        acepta_tratamiento_datos:
+          type: integer
+          enum: [0, 1]
+        acepta_datos_sensibles:
+          type: integer
+          enum: [0, 1]
+        acepta_contacto_whatsapp:
+          type: integer
+          enum: [0, 1]
+        aviso_privacidad_version:
+          type: string
+        fecha_consentimiento:
+          type: string
+        estatus_id:
+          type: integer
+        observaciones:
+          type: string
+        tipo_participacion:
+          type: string
+          enum: [SIMPATIZANTE, AFILIADO]
+        participacion:
+          type: string
+          enum: [SIMPATIZANTE, AFILIADO]
+        participacion_estatus_id:
+          type: integer
+        estatus_participacion_id:
+          type: integer
+        participacion_territorio_id:
+          type: integer
+        territorio_id:
+          type: integer
+        usuario_responsable_id:
+          type: integer
+        fuente_captura:
+          type: string
+          enum: [PORTAL, BRIGADA, IMPORTACION, FORMULARIO_WEB, OTRO]
+        fecha_afiliacion:
+          type: string
+        numero_afiliacion:
+          type: string
+        observaciones_participacion:
+          type: string
+        updated_by:
+          type: integer
+        usuario_id:
+          type: integer
+        rol_codigo:
+          type: string
+        rol_id:
+          type: integer
+        rol:
+          type: object
+          properties:
+            codigo:
+              type: string
+        update_context:
+          type: string
+          example: RED_HOME_PERSON_EDIT
+
+    UpdatePersonaResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Persona actualizada correctamente
+        data:
+          $ref: '#/components/schemas/Persona'
+
+    Archivo:
+      type: object
+      properties:
+        archivo_id:
+          type: integer
+        uuid:
+          type: string
+        entidad_tipo:
+          type: string
+          enum: [PERSONA, USUARIO, PARTICIPACION]
+        entidad_id:
+          type: integer
+        uso_archivo:
+          type: string
+          enum: [INE_FRENTE, INE_REVERSO, FOTO_PERSONA, FOTO_USUARIO, COMPROBANTE_DOMICILIO, FIRMA, DOCUMENTO_AFILIACION, EVIDENCIA, OTRO]
+        nombre_original:
+          type: string
+          nullable: true
+        nombre_storage:
+          type: string
+        url_archivo:
+          type: string
+        url_thumbnail:
+          type: string
+          nullable: true
+        mime_type:
+          type: string
+          nullable: true
+        extension:
+          type: string
+          nullable: true
+        tamano_bytes:
+          type: integer
+          nullable: true
+        sha256_hash:
+          type: string
+          nullable: true
+        version_no:
+          type: integer
+        es_actual:
+          type: integer
+        reemplaza_archivo_id:
+          type: integer
+          nullable: true
+        privado:
+          type: integer
+        uploaded_by:
+          type: integer
+          nullable: true
+        uploaded_by_usuario:
+          $ref: '#/components/schemas/ResponsableBasico'
+        uploaded_at:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+
+    ArchivoQueryRequest:
+      type: object
+      properties:
+        archivo_id:
+          type: integer
+        id:
+          type: integer
+        uuid:
+          type: string
+        entidad_tipo:
+          type: string
+          enum: [PERSONA, USUARIO, PARTICIPACION]
+        entidad_id:
+          type: integer
+        uso_archivo:
+          type: string
+        sha256_hash:
+          type: string
+        uploaded_by:
+          type: integer
+        es_actual:
+          type: integer
+          enum: [0, 1]
+        privado:
+          type: integer
+          enum: [0, 1]
+        q:
+          type: string
+        search:
+          type: string
+        page:
+          type: integer
+        page_size:
+          type: integer
+        limit:
+          type: integer
+
+    ArchivoDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Archivo'
+
+    ArchivoListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Archivo'
+
+    CreateArchivoRequest:
+      type: object
+      required: [entidad_tipo, entidad_id, uso_archivo, nombre_storage, url_archivo]
+      properties:
+        uuid:
+          type: string
+        entidad_tipo:
+          type: string
+          enum: [PERSONA, USUARIO, PARTICIPACION]
+        entidad_id:
+          type: integer
+        uso_archivo:
+          type: string
+          enum: [INE_FRENTE, INE_REVERSO, FOTO_PERSONA, FOTO_USUARIO, COMPROBANTE_DOMICILIO, FIRMA, DOCUMENTO_AFILIACION, EVIDENCIA, OTRO]
+        nombre_original:
+          type: string
+        nombre_storage:
+          type: string
+        url_archivo:
+          type: string
+          description: URL publica ya resuelta o Data URL base64 de imagen.
+        url_thumbnail:
+          type: string
+        mime_type:
+          type: string
+        extension:
+          type: string
+        tamano_bytes:
+          type: integer
+        sha256_hash:
+          type: string
+        version_no:
+          type: integer
+        es_actual:
+          type: integer
+          enum: [0, 1]
+          default: 1
+        privado:
+          type: integer
+          enum: [0, 1]
+          default: 1
+        reemplaza_archivo_id:
+          type: integer
+        uploaded_by:
+          type: integer
+        updated_by:
+          type: integer
+
+    CreateArchivoResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Archivo creado correctamente
+        data:
+          $ref: '#/components/schemas/Archivo'
     DuplicatePersonaResponse:
       type: object
       properties:
@@ -1269,3 +2068,5 @@ components:
           allOf:
             - $ref: '#/components/schemas/ExistingPersonaBrief'
           nullable: true
+
+
