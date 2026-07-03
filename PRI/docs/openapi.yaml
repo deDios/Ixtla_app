@@ -7,8 +7,7 @@ info:
 
     Notas de esta version:
     - La API actual usa mayormente `POST`, incluso para consultas.
-    - El spec describe el comportamiento real del proyecto hoy, no una refactorizacion ideal.
-    - Se documento primero el flujo visible para frontend: login, dashboard RED y personas.
+    - El spec describe el comportamiento real del proyecto hoy en dia.
 servers:
   - url: /
     description: Mismo host donde corre la app
