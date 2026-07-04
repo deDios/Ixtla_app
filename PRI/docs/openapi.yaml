@@ -7,7 +7,7 @@ info:
 
     Notas de esta version:
     - La API actual usa mayormente `POST`, incluso para consultas.
-    - El spec describe el comportamiento real del proyecto hoy en dia.
+    - El spec describe el comportamiento real del proyecto hoy en dia.`n    - Algunos endpoints aceptan Authorization desde frontend, pero la validacion backend no esta aplicada de forma uniforme; las reglas de negocio tambien dependen de campos de contexto enviados en el body.
 servers:
   - url: /
     description: Mismo host donde corre la app
@@ -524,6 +524,58 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '409':
           description: Duplicado por uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_c_persona_participacion.php:
+    post:
+      tags: [Personas]
+      summary: Consultar participaciones
+      description: |
+        Consulta una participacion por `participacion_id` o devuelve un listado paginado.
+        En la practica, este endpoint se usa junto con reglas de frontend y campos de contexto;
+        no se documenta Bearer como obligatorio mientras la validacion backend no sea uniforme.
+      operationId: consultarParticipaciones
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipacionQueryRequest'
+            examples:
+              por_id:
+                value:
+                  participacion_id: 29
+              listado_persona:
+                value:
+                  persona_id: 8328
+                  activo: 1
+                  page: 1
+                  page_size: 20
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ParticipacionDetailResponse'
+                  - $ref: '#/components/schemas/ParticipacionListResponse'
+        '400':
+          description: Request invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Participacion no encontrada
           content:
             application/json:
               schema:
@@ -1733,6 +1785,326 @@ components:
           type: string
           nullable: true
 
+    ParticipacionPersonaResumen:
+      type: object
+      properties:
+        persona_id:
+          type: integer
+        nombres:
+          type: string
+          nullable: true
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        nombre_completo:
+          type: string
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        whatsapp:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+
+    ParticipacionEstatusDetalle:
+      type: object
+      properties:
+        estatus_id:
+          type: integer
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+
+    ParticipacionTerritorioDetalle:
+      type: object
+      properties:
+        territorio_id:
+          type: integer
+          nullable: true
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+        tipo:
+          type: string
+          nullable: true
+        municipio:
+          type: string
+          nullable: true
+        estado:
+          type: string
+          nullable: true
+
+    Participacion:
+      type: object
+      description: |
+        Representa una fila de persona_participacion devuelta por consulta.
+        Incluye resumen de persona, estatus, territorio y usuario responsable.
+      properties:
+        participacion_id:
+          type: integer
+        folio:
+          type: string
+          nullable: true
+        persona_id:
+          type: integer
+        persona:
+          $ref: '#/components/schemas/ParticipacionPersonaResumen'
+        tipo_participacion:
+          type: string
+          enum: [SIMPATIZANTE, AFILIADO]
+        participacion_origen_id:
+          type: integer
+          nullable: true
+        estatus_id:
+          type: integer
+        estatus:
+          $ref: '#/components/schemas/ParticipacionEstatusDetalle'
+        territorio_id:
+          type: integer
+          nullable: true
+        territorio:
+          $ref: '#/components/schemas/ParticipacionTerritorioDetalle'
+        usuario_responsable_id:
+          type: integer
+          nullable: true
+        usuario_responsable:
+          $ref: '#/components/schemas/ResponsableBasico'
+        fuente_captura:
+          type: string
+          nullable: true
+        fecha_registro:
+          type: string
+          nullable: true
+        fecha_afiliacion:
+          type: string
+          nullable: true
+        numero_afiliacion:
+          type: string
+          nullable: true
+        observaciones:
+          type: string
+          nullable: true
+        activo:
+          type: integer
+        created_at:
+          type: string
+          nullable: true
+        created_by:
+          type: integer
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+
+    ParticipacionQueryRequest:
+      type: object
+      properties:
+        participacion_id:
+          type: integer
+        id:
+          type: integer
+        persona_id:
+          type: integer
+        estatus_id:
+          type: integer
+        territorio_id:
+          type: integer
+        usuario_responsable_id:
+          type: integer
+        tipo_participacion:
+          type: string
+          enum: [SIMPATIZANTE, AFILIADO]
+        fuente_captura:
+          type: string
+          enum: [PORTAL, BRIGADA, IMPORTACION, FORMULARIO_WEB, OTRO]
+        activo:
+          type: integer
+          enum: [0, 1]
+        q:
+          type: string
+        search:
+          type: string
+        page:
+          type: integer
+        page_size:
+          type: integer
+        limit:
+          type: integer
+
+    ParticipacionDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Participacion'
+          example:
+            participacion_id: 29
+            folio: RED-AFI-8328-20260625165711-FD5A
+            persona_id: 8328
+            persona:
+              persona_id: 8328
+              nombres: DULCE MARIA
+              apellido_paterno: RODRIGUEZ
+              apellido_materno: BALLEZA
+              nombre_completo: DULCE MARIA RODRIGUEZ BALLEZA
+              telefono: '3321224567'
+              whatsapp: null
+              email: null
+            tipo_participacion: AFILIADO
+            participacion_origen_id: null
+            estatus_id: 4
+            estatus:
+              estatus_id: 4
+              codigo: ACTIVO
+              nombre: Activo
+            territorio_id: 79
+            territorio:
+              territorio_id: 79
+              codigo: '1594'
+              nombre: Seccion 1594 - Atequiza / Centro
+              tipo: SECCION
+              municipio: Ixtlahuacan de los Membrillos
+              estado: Jalisco
+            usuario_responsable_id: 1
+            usuario_responsable:
+              usuario_id: 1
+              username: CorGral01
+              nombre: Coordinador General 01
+              apellido_paterno: null
+              apellido_materno: null
+              nombre_completo: Coordinador General 01
+            fuente_captura: PORTAL
+            fecha_registro: '2026-06-25 16:57:11'
+            fecha_afiliacion: null
+            numero_afiliacion: null
+            observaciones: null
+            activo: 1
+            created_at: '2026-06-25 16:57:11'
+            created_by: 1
+            updated_at: '2026-06-30 19:58:54'
+            updated_by: 1
+
+    ParticipacionListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Participacion'
+          example:
+            - participacion_id: 29
+              folio: RED-AFI-8328-20260625165711-FD5A
+              persona_id: 8328
+              persona:
+                persona_id: 8328
+                nombres: DULCE MARIA
+                apellido_paterno: RODRIGUEZ
+                apellido_materno: BALLEZA
+                nombre_completo: DULCE MARIA RODRIGUEZ BALLEZA
+                telefono: '3321224567'
+                whatsapp: null
+                email: null
+              tipo_participacion: AFILIADO
+              participacion_origen_id: null
+              estatus_id: 4
+              estatus:
+                estatus_id: 4
+                codigo: ACTIVO
+                nombre: Activo
+              territorio_id: 79
+              territorio:
+                territorio_id: 79
+                codigo: '1594'
+                nombre: Seccion 1594 - Atequiza / Centro
+                tipo: SECCION
+                municipio: Ixtlahuacan de los Membrillos
+                estado: Jalisco
+              usuario_responsable_id: 1
+              usuario_responsable:
+                usuario_id: 1
+                username: CorGral01
+                nombre: Coordinador General 01
+                apellido_paterno: null
+                apellido_materno: null
+                nombre_completo: Coordinador General 01
+              fuente_captura: PORTAL
+              fecha_registro: '2026-06-25 16:57:11'
+              fecha_afiliacion: null
+              numero_afiliacion: null
+              observaciones: null
+              activo: 1
+              created_at: '2026-06-25 16:57:11'
+              created_by: 1
+              updated_at: '2026-06-30 19:58:54'
+              updated_by: 1
+            - participacion_id: 26
+              folio: RED-SIM-8328-20260625112745-1043
+              persona_id: 8328
+              persona:
+                persona_id: 8328
+                nombres: DULCE MARIA
+                apellido_paterno: RODRIGUEZ
+                apellido_materno: BALLEZA
+                nombre_completo: DULCE MARIA RODRIGUEZ BALLEZA
+                telefono: '3321224567'
+                whatsapp: null
+                email: null
+              tipo_participacion: SIMPATIZANTE
+              participacion_origen_id: null
+              estatus_id: 4
+              estatus:
+                estatus_id: 4
+                codigo: ACTIVO
+                nombre: Activo
+              territorio_id: 79
+              territorio:
+                territorio_id: 79
+                codigo: '1594'
+                nombre: Seccion 1594 - Atequiza / Centro
+                tipo: SECCION
+                municipio: Ixtlahuacan de los Membrillos
+                estado: Jalisco
+              usuario_responsable_id: 1
+              usuario_responsable:
+                usuario_id: 1
+                username: CorGral01
+                nombre: Coordinador General 01
+                apellido_paterno: null
+                apellido_materno: null
+                nombre_completo: Coordinador General 01
+              fuente_captura: PORTAL
+              fecha_registro: '2026-06-25 11:27:45'
+              fecha_afiliacion: null
+              numero_afiliacion: null
+              observaciones: null
+              activo: 1
+              created_at: '2026-06-25 11:27:45'
+              created_by: 11
+              updated_at: '2026-06-30 19:58:54'
+              updated_by: 1
     UpdatePersonaRequest:
       type: object
       required: [persona_id]
@@ -1868,6 +2240,11 @@ components:
 
     Archivo:
       type: object
+      description: |
+        Representa un archivo asociado a una entidad del sistema.
+        Cuando `es_actual` es 1, el archivo se considera la version vigente para esa combinacion
+        de `entidad_tipo`, `entidad_id` y `uso_archivo`. Si reemplaza otro archivo, ese vinculo
+        se refleja en `reemplaza_archivo_id`.
       properties:
         archivo_id:
           type: integer
@@ -1971,7 +2348,37 @@ components:
           type: boolean
           example: true
         data:
-          $ref: '#/components/schemas/Archivo'
+          allOf:
+            - $ref: '#/components/schemas/Archivo'
+          example:
+            archivo_id: 119
+            uuid: 5e29adbd-19d6-40eb-80f2-5624c4574e14
+            entidad_tipo: PERSONA
+            entidad_id: 8328
+            uso_archivo: FOTO_PERSONA
+            nombre_original: foto_persona.jpg
+            nombre_storage: persona_8328_foto_persona_1782890030624.jpg
+            url_archivo: /PRI/uploads/personas/8328/persona_8328_foto_persona_1782890030624.jpg
+            url_thumbnail: null
+            mime_type: image/jpeg
+            extension: jpg
+            tamano_bytes: 127676
+            sha256_hash: 1189e67dc11d6b31e0f0a88141b204b9cac04897cb2e6c8027210c3390c89ba1
+            version_no: 10
+            es_actual: 1
+            reemplaza_archivo_id: 118
+            privado: 1
+            uploaded_by: 1
+            uploaded_by_usuario:
+              usuario_id: 1
+              username: CorGral01
+              nombre: Coordinador General 01
+              apellido_paterno: null
+              apellido_materno: null
+              nombre_completo: Coordinador General 01
+            uploaded_at: '2026-07-01 01:13:36'
+            updated_at: null
+            updated_by: 1
 
     ArchivoListResponse:
       type: object
@@ -1985,6 +2392,63 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Archivo'
+          example:
+            - archivo_id: 119
+              uuid: 5e29adbd-19d6-40eb-80f2-5624c4574e14
+              entidad_tipo: PERSONA
+              entidad_id: 8328
+              uso_archivo: FOTO_PERSONA
+              nombre_original: foto_persona.jpg
+              nombre_storage: persona_8328_foto_persona_1782890030624.jpg
+              url_archivo: /PRI/uploads/personas/8328/persona_8328_foto_persona_1782890030624.jpg
+              url_thumbnail: null
+              mime_type: image/jpeg
+              extension: jpg
+              tamano_bytes: 127676
+              sha256_hash: 1189e67dc11d6b31e0f0a88141b204b9cac04897cb2e6c8027210c3390c89ba1
+              version_no: 10
+              es_actual: 1
+              reemplaza_archivo_id: 118
+              privado: 1
+              uploaded_by: 1
+              uploaded_by_usuario:
+                usuario_id: 1
+                username: CorGral01
+                nombre: Coordinador General 01
+                apellido_paterno: null
+                apellido_materno: null
+                nombre_completo: Coordinador General 01
+              uploaded_at: '2026-07-01 01:13:36'
+              updated_at: null
+              updated_by: 1
+            - archivo_id: 92
+              uuid: 13122c6d-6a91-4b4a-b2e5-8cdaf3b74419
+              entidad_tipo: PERSONA
+              entidad_id: 8328
+              uso_archivo: DOCUMENTO_AFILIACION
+              nombre_original: documento_afiliacion.jpg
+              nombre_storage: persona_8328_documento_afiliacion_1782428229759.jpg
+              url_archivo: /PRI/uploads/personas/8328/persona_8328_documento_afiliacion_1782428229759.jpg
+              url_thumbnail: null
+              mime_type: image/jpeg
+              extension: jpg
+              tamano_bytes: 51414
+              sha256_hash: 5dfb71cb5c51e18a289e7799fce3140aa2bd9c567b681a1144b06ef72af192c1
+              version_no: 1
+              es_actual: 1
+              reemplaza_archivo_id: null
+              privado: 1
+              uploaded_by: 1
+              uploaded_by_usuario:
+                usuario_id: 1
+                username: CorGral01
+                nombre: Coordinador General 01
+                apellido_paterno: null
+                apellido_materno: null
+                nombre_completo: Coordinador General 01
+              uploaded_at: '2026-06-25 16:57:11'
+              updated_at: null
+              updated_by: 1
 
     CreateArchivoRequest:
       type: object
@@ -2068,5 +2532,7 @@ components:
           allOf:
             - $ref: '#/components/schemas/ExistingPersonaBrief'
           nullable: true
+
+
 
 
