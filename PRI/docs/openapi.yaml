@@ -7,7 +7,8 @@ info:
 
     Notas de esta version:
     - La API actual usa mayormente `POST`, incluso para consultas.
-    - El spec describe el comportamiento real del proyecto hoy en dia.`n    - Algunos endpoints aceptan Authorization desde frontend, pero la validacion backend no esta aplicada de forma uniforme; las reglas de negocio tambien dependen de campos de contexto enviados en el body.
+    - El spec describe el comportamiento real del proyecto hoy en dia.
+    - Algunos endpoints aceptan Authorization desde frontend, pero la validacion backend no esta aplicada de forma uniforme; las reglas de negocio tambien dependen de campos de contexto enviados en el body.
 servers:
   - url: /
     description: Mismo host donde corre la app
@@ -576,6 +577,400 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '404':
           description: Participacion no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_u_persona_participacion.php:
+    post:
+      tags: [Personas]
+      summary: Actualizar participacion
+      description: |
+        Actualiza una participacion existente por `participacion_id`.
+        Aunque el endpoint anuncia varios metodos HTTP, en la practica el frontend trabaja con JSON
+        y este contrato lo documenta con `POST` como flujo principal.
+      operationId: actualizarParticipacionPost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateParticipacionRequest'
+            examples:
+              cambio_estatus:
+                value:
+                  participacion_id: 29
+                  estatus_id: 4
+                  updated_by: 1
+              cambio_tipo_contexto_red:
+                value:
+                  participacion_id: 26
+                  tipo_participacion: AFILIADO
+                  estatus_id: 4
+                  territorio_id: 79
+                  usuario_responsable_id: 1
+                  fuente_captura: PORTAL
+                  updated_by: 1
+      responses:
+        '200':
+          description: Participacion actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateParticipacionResponse'
+        '400':
+          description: Datos invalidos o request incompleto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Participacion no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por campo unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      tags: [Personas]
+      summary: Actualizar participacion
+      description: Misma operacion que `POST` sobre este endpoint.
+      operationId: actualizarParticipacionPut
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateParticipacionRequest'
+      responses:
+        '200':
+          description: Participacion actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateParticipacionResponse'
+        '400':
+          description: Datos invalidos o request incompleto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Participacion no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por campo unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    patch:
+      tags: [Personas]
+      summary: Actualizar participacion parcialmente
+      description: Misma operacion que `POST` sobre este endpoint.
+      operationId: actualizarParticipacionPatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateParticipacionRequest'
+      responses:
+        '200':
+          description: Participacion actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateParticipacionResponse'
+        '400':
+          description: Datos invalidos o request incompleto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Participacion no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por campo unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_c_usuario.php:
+    post:
+      tags: [Personas]
+      summary: Consultar usuarios
+      description: |
+        Consulta un usuario por `usuario_id` o devuelve un listado paginado.
+        El frontend lo usa sobre todo para cargar detalle de responsable/capturador y para filtros administrativos.
+      operationId: consultarUsuarios
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioQueryRequest'
+            examples:
+              por_id:
+                value:
+                  usuario_id: 1
+              listado:
+                value:
+                  rol_codigo: COORD_GENERAL
+                  estatus_codigo: ACTIVO
+                  include_deleted: 0
+                  page: 1
+                  page_size: 20
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UsuarioDetailResponse'
+                  - $ref: '#/components/schemas/UsuarioListResponse'
+        '400':
+          description: Request invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_i_usuario.php:
+    post:
+      tags: [Personas]
+      summary: Crear usuario
+      description: |
+        Crea un usuario nuevo.
+        Requiere `nombre`, `email` y `password`.
+        El backend acepta `rol_id` o `rol_codigo`; si no se manda `estatus_id`, usa `4`.
+      operationId: crearUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUsuarioRequest'
+            examples:
+              basico:
+                value:
+                  username: CoordZona12
+                  rol_codigo: COORD_ZONA
+                  nombre: Coordinacion Zona 12
+                  email: coordzona12@ixtla.local
+                  password: temporal123
+                  requiere_cambio_password: 1
+                  created_by: 1
+      responses:
+        '201':
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUsuarioResponse'
+        '400':
+          description: Datos invalidos, password corto o FK invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por campo unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_u_usuario.php:
+    post:
+      tags: [Personas]
+      summary: Actualizar usuario
+      description: |
+        Actualiza un usuario existente.
+        Si se envia `password`, el backend recalcula `password_hash` e incrementa `token_version`.
+      operationId: actualizarUsuarioPost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUsuarioRequest'
+            examples:
+              datos_generales:
+                value:
+                  usuario_id: 1
+                  nombre: Coordinador General 01
+                  email: corgral01@ixtla.local
+                  telefono: '3312345678'
+                  updated_by: 1
+              cambio_password:
+                value:
+                  usuario_id: 1
+                  password: nuevaClave123
+                  requiere_cambio_password: 0
+                  updated_by: 1
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateUsuarioResponse'
+        '400':
+          description: Datos invalidos, request vacio o FK invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por campo unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      tags: [Personas]
+      summary: Actualizar usuario
+      description: |
+        Misma operacion que `POST` para este endpoint.
+        El backend acepta `PUT` ademas de `POST` y `PATCH`.
+      operationId: actualizarUsuarioPut
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUsuarioRequest'
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateUsuarioResponse'
+        '400':
+          description: Datos invalidos, request vacio o FK invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por campo unico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    patch:
+      tags: [Personas]
+      summary: Actualizar parcialmente usuario
+      description: |
+        Misma operacion que `POST` para este endpoint.
+        El backend acepta `PATCH` ademas de `POST` y `PUT`.
+      operationId: actualizarUsuarioPatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUsuarioRequest'
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateUsuarioResponse'
+        '400':
+          description: Datos invalidos, request vacio o FK invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Duplicado por campo unico
           content:
             application/json:
               schema:
@@ -1785,6 +2180,437 @@ components:
           type: string
           nullable: true
 
+    UsuarioPersonaResumen:
+      type: object
+      properties:
+        persona_id:
+          type: integer
+          nullable: true
+        uuid:
+          type: string
+          nullable: true
+        nombres:
+          type: string
+          nullable: true
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        nombre_completo:
+          type: string
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        whatsapp:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        estatus_id:
+          type: integer
+          nullable: true
+
+    EstatusDetalle:
+      type: object
+      properties:
+        estatus_id:
+          type: integer
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+
+    Usuario:
+      type: object
+      description: |
+        Representa el payload de usuario devuelto por consulta.
+        Incluye rol, estatus, datos de persona asociada y campos operativos del acceso.
+      properties:
+        usuario_id:
+          type: integer
+        uuid:
+          type: string
+        username:
+          type: string
+        persona_id:
+          type: integer
+          nullable: true
+        rol_id:
+          type: integer
+        rol:
+          $ref: '#/components/schemas/Rol'
+        nombre:
+          type: string
+          nullable: true
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        nombre_completo:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        estatus_id:
+          type: integer
+        estatus:
+          $ref: '#/components/schemas/EstatusDetalle'
+        ultimo_login_at:
+          type: string
+          nullable: true
+        ultimo_login_ip:
+          type: string
+          nullable: true
+        requiere_cambio_password:
+          type: integer
+        intentos_fallidos:
+          type: integer
+        bloqueado_hasta:
+          type: string
+          nullable: true
+        token_version:
+          type: integer
+        persona:
+          $ref: '#/components/schemas/UsuarioPersonaResumen'
+        created_at:
+          type: string
+          nullable: true
+        created_by:
+          type: integer
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+        deleted_at:
+          type: string
+          nullable: true
+        deleted_by:
+          type: integer
+          nullable: true
+
+    UsuarioQueryRequest:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+        id:
+          type: integer
+        persona_id:
+          type: integer
+        rol_id:
+          type: integer
+        rol_codigo:
+          type: string
+        estatus_id:
+          type: integer
+        estatus_codigo:
+          type: string
+        created_by:
+          type: integer
+        updated_by:
+          type: integer
+        include_deleted:
+          type: integer
+          enum: [0, 1]
+        q:
+          type: string
+        search:
+          type: string
+        page:
+          type: integer
+        page_size:
+          type: integer
+        limit:
+          type: integer
+
+    CreateUsuarioRequest:
+      type: object
+      required: [nombre, email, password]
+      anyOf:
+        - required: [rol_id]
+        - required: [rol_codigo]
+      properties:
+        uuid:
+          type: string
+          description: Opcional. Si no se manda, el backend genera uno.
+        username:
+          type: string
+          nullable: true
+        persona_id:
+          type: integer
+          nullable: true
+        rol_id:
+          type: integer
+          description: Puede enviarse en lugar de `rol_codigo`.
+        rol_codigo:
+          type: string
+          description: Puede enviarse en lugar de `rol_id`.
+        nombre:
+          type: string
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+        telefono:
+          type: string
+          nullable: true
+        password:
+          type: string
+          format: password
+          minLength: 8
+        estatus_id:
+          type: integer
+          description: Si no se manda, usa `4`.
+        requiere_cambio_password:
+          type: integer
+          enum: [0, 1]
+        ultimo_login_at:
+          type: string
+          nullable: true
+        ultimo_login_ip:
+          type: string
+          nullable: true
+        intentos_fallidos:
+          type: integer
+          nullable: true
+        bloqueado_hasta:
+          type: string
+          nullable: true
+        token_version:
+          type: integer
+          nullable: true
+        created_by:
+          type: integer
+          nullable: true
+
+    CreateUsuarioResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Usuario creado correctamente
+        data:
+          $ref: '#/components/schemas/Usuario'
+
+    UpdateUsuarioRequest:
+      type: object
+      anyOf:
+        - required: [usuario_id]
+        - required: [id]
+      properties:
+        usuario_id:
+          type: integer
+        id:
+          type: integer
+          description: Alias aceptado por backend para `usuario_id`.
+        username:
+          type: string
+          nullable: true
+        persona_id:
+          type: integer
+          nullable: true
+        rol_id:
+          type: integer
+        rol_codigo:
+          type: string
+          description: Si se manda, el backend lo resuelve a `rol_id`.
+        nombre:
+          type: string
+          nullable: true
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        estatus_id:
+          type: integer
+          nullable: true
+        password:
+          type: string
+          format: password
+          minLength: 8
+          nullable: true
+        ultimo_login_at:
+          type: string
+          nullable: true
+        ultimo_login_ip:
+          type: string
+          nullable: true
+        requiere_cambio_password:
+          type: integer
+          enum: [0, 1]
+        intentos_fallidos:
+          type: integer
+          nullable: true
+        bloqueado_hasta:
+          type: string
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+        deleted_at:
+          type: string
+          nullable: true
+        deleted_by:
+          type: integer
+          nullable: true
+          description: Si se manda sin `deleted_at`, el backend asigna `NOW()`.
+
+    UpdateUsuarioResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Usuario actualizado correctamente
+        data:
+          $ref: '#/components/schemas/Usuario'
+
+    UsuarioDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Usuario'
+          example:
+            usuario_id: 1
+            uuid: 04d5cda6-4fe5-11f1-a0f3-7c1e52303b3f
+            username: CorGral01
+            persona_id: null
+            rol_id: 2
+            rol:
+              rol_id: 2
+              codigo: COORD_GENERAL
+              nombre: Coordinador General
+              nivel_jerarquico: 2
+            nombre: Coordinador General 01
+            apellido_paterno: null
+            apellido_materno: null
+            nombre_completo: Coordinador General 01
+            email: corgral01@ixtla.local
+            telefono: null
+            estatus_id: 4
+            estatus:
+              estatus_id: 4
+              codigo: ACTIVO
+              nombre: Activo
+            ultimo_login_at: '2026-07-03 16:11:23'
+            ultimo_login_ip: 187.205.242.27:61386
+            requiere_cambio_password: 0
+            intentos_fallidos: 0
+            bloqueado_hasta: null
+            token_version: 1
+            persona:
+              persona_id: null
+              uuid: null
+              nombres: null
+              apellido_paterno: null
+              apellido_materno: null
+              nombre_completo: null
+              telefono: null
+              whatsapp: null
+              email: null
+              estatus_id: null
+            created_at: '2026-05-14 16:34:07'
+            created_by: null
+            updated_at: '2026-07-03 16:11:23'
+            updated_by: null
+            deleted_at: null
+            deleted_by: null
+
+    UsuarioListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Usuario'
+          example:
+            - usuario_id: 1
+              uuid: 04d5cda6-4fe5-11f1-a0f3-7c1e52303b3f
+              username: CorGral01
+              persona_id: null
+              rol_id: 2
+              rol:
+                rol_id: 2
+                codigo: COORD_GENERAL
+                nombre: Coordinador General
+                nivel_jerarquico: 2
+              nombre: Coordinador General 01
+              apellido_paterno: null
+              apellido_materno: null
+              nombre_completo: Coordinador General 01
+              email: corgral01@ixtla.local
+              telefono: null
+              estatus_id: 4
+              estatus:
+                estatus_id: 4
+                codigo: ACTIVO
+                nombre: Activo
+              ultimo_login_at: '2026-07-03 16:11:23'
+              ultimo_login_ip: 187.205.242.27:61386
+              requiere_cambio_password: 0
+              intentos_fallidos: 0
+              bloqueado_hasta: null
+              token_version: 1
+              persona:
+                persona_id: null
+                uuid: null
+                nombres: null
+                apellido_paterno: null
+                apellido_materno: null
+                nombre_completo: null
+                telefono: null
+                whatsapp: null
+                email: null
+                estatus_id: null
+              created_at: '2026-05-14 16:34:07'
+              created_by: null
+              updated_at: '2026-07-03 16:11:23'
+              updated_by: null
+              deleted_at: null
+              deleted_by: null
     ParticipacionPersonaResumen:
       type: object
       properties:
@@ -2105,6 +2931,95 @@ components:
               created_by: 11
               updated_at: '2026-06-30 19:58:54'
               updated_by: 1
+    UpdateParticipacionRequest:
+      type: object
+      required: [participacion_id]
+      properties:
+        participacion_id:
+          type: integer
+        id:
+          type: integer
+        folio:
+          type: string
+        persona_id:
+          type: integer
+        tipo_participacion:
+          type: string
+          enum: [SIMPATIZANTE, AFILIADO]
+        participacion_origen_id:
+          type: integer
+        estatus_id:
+          type: integer
+        territorio_id:
+          type: integer
+        usuario_responsable_id:
+          type: integer
+        fuente_captura:
+          type: string
+          enum: [PORTAL, BRIGADA, IMPORTACION, FORMULARIO_WEB, OTRO]
+        fecha_registro:
+          type: string
+        fecha_afiliacion:
+          type: string
+        numero_afiliacion:
+          type: string
+        observaciones:
+          type: string
+        activo:
+          type: integer
+          enum: [0, 1]
+        updated_by:
+          type: integer
+
+    UpdateParticipacionResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Participacion'
+          example:
+            participacion_id: 29
+            folio: RED-AFI-8328-20260625165711-FD5A
+            persona_id: 8328
+            persona:
+              nombres: DULCE MARIA
+              apellido_paterno: RODRIGUEZ
+              apellido_materno: BALLEZA
+              telefono: '3321224567'
+              whatsapp: null
+              email: null
+            tipo_participacion: AFILIADO
+            participacion_origen_id: null
+            estatus_id: 4
+            estatus:
+              codigo: ACTIVO
+              nombre: Activo
+            territorio_id: 79
+            territorio:
+              codigo: '1594'
+              nombre: Seccion 1594 - Atequiza / Centro
+              tipo: SECCION
+              municipio: Ixtlahuacan de los Membrillos
+              estado: Jalisco
+            usuario_responsable_id: 1
+            usuario_responsable:
+              username: CorGral01
+              nombre: Coordinador General 01
+              apellido_paterno: null
+              apellido_materno: null
+            fuente_captura: PORTAL
+            fecha_registro: '2026-06-25 16:57:11'
+            fecha_afiliacion: null
+            numero_afiliacion: null
+            observaciones: null
+            activo: 1
+            created_at: '2026-06-25 16:57:11'
+            created_by: 1
+            updated_at: '2026-06-30 19:58:54'
+            updated_by: 1
     UpdatePersonaRequest:
       type: object
       required: [persona_id]
@@ -2532,6 +3447,10 @@ components:
           allOf:
             - $ref: '#/components/schemas/ExistingPersonaBrief'
           nullable: true
+
+
+
+
 
 
 
