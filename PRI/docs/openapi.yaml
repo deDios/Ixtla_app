@@ -1,14 +1,15 @@
 ﻿openapi: 3.0.3
 info:
   title: Ixtla App API
-  version: 0.1.0
+  version: 0.3.0
   description: |
     Primer contrato OpenAPI para los endpoints PHP usados por el modulo RED.
 
     Notas de esta version:
     - La API actual usa mayormente `POST`, incluso para consultas.
     - El spec describe el comportamiento real del proyecto hoy en dia.
-    - Algunos endpoints aceptan Authorization desde frontend, pero la validacion backend no esta aplicada de forma uniforme; las reglas de negocio tambien dependen de campos de contexto enviados en el body.
+    - Se documentan los endpoints mas usados por el frontend RED y por el portal de administracion.
+    - Muchos endoints no tienen validaciones como reglas de negocio, entonces reciben la informacion tal cual como viene.
 servers:
   - url: /
     description: Mismo host donde corre la app
@@ -19,6 +20,8 @@ tags:
     description: Dashboard principal de RED
   - name: Personas
     description: Consulta y alta de personas
+  - name: IA
+    description: Servicios auxiliares de extraccion y analisis asistido por IA
 paths:
   /PRI/db/WEB/ixtla_login.php:
     post:
@@ -977,6 +980,112 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '500':
           description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_c_territorio.php:
+    post:
+      tags: [Personas]
+      summary: Consultar territorios
+      description: |
+        Consulta un territorio por `territorio_id` o `codigo`, o devuelve un listado paginado.
+        En el frontend actual se usa principalmente para cargar el catalogo de secciones activas.
+      operationId: consultarTerritorios
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerritorioQueryRequest'
+            examples:
+              por_id:
+                value:
+                  territorio_id: 79
+              por_codigo:
+                value:
+                  codigo: '1594'
+              listado_secciones:
+                value:
+                  activo: 1
+                  tipo: SECCION
+                  page: 1
+                  page_size: 500
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TerritorioDetailResponse'
+                  - $ref: '#/components/schemas/TerritorioListResponse'
+        '400':
+          description: JSON invalido o request incorrecto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Territorio no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/extract_identificacion_openai.php:
+    post:
+      tags: [IA]
+      summary: Extraer datos de identificacion con OpenAI
+      description: |
+        Servicio auxiliar de extraccion de datos desde una imagen de identificacion.
+        El frontend lo usa para poblar el modal de revision antes de guardar la persona.
+
+        Notas de uso actual:
+        - `image_data_url` es obligatorio.
+        - `raw_text` se envia como apoyo OCR, pero la imagen sigue siendo la fuente principal.
+        - `image_size_mb` e `images_count` son metadatos informativos enviados por frontend.
+        - La respuesta util para frontend vive principalmente en `result.fields`.
+      operationId: extraerIdentificacionOpenAI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtractIdentificationOpenAIRequest'
+            examples:
+              ine_compuesta:
+                value:
+                  image_data_url: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...
+                  raw_text: NOMBRE RODRIGUEZ BALLEZA DULCE MARIA CURP ROBD...
+                  image_size_mb: 1.842
+                  images_count: 2
+      responses:
+        '200':
+          description: Extraccion completada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractIdentificationOpenAIResponse'
+        '400':
+          description: JSON invalido, request vacio o imagen no valida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '405':
+          description: Metodo no permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno o fallo al consumir OpenAI
           content:
             application/json:
               schema:
@@ -2611,6 +2720,293 @@ components:
               updated_by: null
               deleted_at: null
               deleted_by: null
+    ExtractedField:
+      type: object
+      properties:
+        field_name:
+          type: string
+          example: nombres
+        label_detected:
+          type: string
+          example: NOMBRE - linea 3
+        value:
+          nullable: true
+          oneOf:
+            - type: string
+            - type: number
+            - type: integer
+            - type: boolean
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.96
+        provider:
+          type: string
+          example: openai
+
+    OpenAIExtractionResult:
+      type: object
+      properties:
+        document_type:
+          type: string
+          example: INE
+        country:
+          type: string
+          example: Mexico
+        provider:
+          type: string
+          example: openai
+        raw_text_quality:
+          type: string
+          example: media
+        notes:
+          type: array
+          items:
+            type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedField'
+          example:
+            - field_name: apellido_paterno
+              label_detected: NOMBRE - linea 1
+              value: RODRIGUEZ
+              confidence: 0.98
+              provider: openai
+            - field_name: apellido_materno
+              label_detected: NOMBRE - linea 2
+              value: BALLEZA
+              confidence: 0.97
+              provider: openai
+            - field_name: nombres
+              label_detected: NOMBRE - linea 3
+              value: DULCE MARIA
+              confidence: 0.99
+              provider: openai
+            - field_name: curp
+              label_detected: CURP
+              value: ROBD000000MJCRLL00
+              confidence: 0.91
+              provider: openai
+            - field_name: clave_elector
+              label_detected: CLAVE DE ELECTOR
+              value: RDBLDC00000000M000
+              confidence: 0.88
+              provider: openai
+            - field_name: seccion_id
+              label_detected: SECCION
+              value: '1594'
+              confidence: 0.94
+              provider: openai
+            - field_name: domicilio_texto
+              label_detected: DOMICILIO
+              value: ATEQUIZA CENTRO IXTLAHUACAN DE LOS MEMBRILLOS JALISCO
+              confidence: 0.82
+              provider: openai
+            - field_name: vigencia_inicio
+              label_detected: VIGENCIA
+              value: '2020'
+              confidence: 0.86
+              provider: openai
+            - field_name: vigencia_fin
+              label_detected: VIGENCIA
+              value: '2030'
+              confidence: 0.86
+              provider: openai
+
+    ExtractIdentificationOpenAIRequest:
+      type: object
+      required: [image_data_url]
+      properties:
+        image_data_url:
+          type: string
+          description: Data URL base64 de tipo jpeg, jpg, png o webp.
+        raw_text:
+          type: string
+          description: Texto OCR auxiliar enviado por frontend como apoyo.
+        image_size_mb:
+          type: number
+          format: float
+          description: Metadato informativo; hoy no altera la logica backend.
+        images_count:
+          type: integer
+          description: Metadato informativo; hoy no altera la logica backend.
+
+    ExtractIdentificationOpenAIResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        result:
+          allOf:
+            - $ref: '#/components/schemas/OpenAIExtractionResult'
+    TerritorioPadreResumen:
+      type: object
+      properties:
+        territorio_id:
+          type: integer
+          nullable: true
+        tipo:
+          type: string
+          nullable: true
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+
+    Territorio:
+      type: object
+      properties:
+        territorio_id:
+          type: integer
+        territorio_padre_id:
+          type: integer
+          nullable: true
+        tipo:
+          type: string
+          example: SECCION
+        codigo:
+          type: string
+        nombre:
+          type: string
+        municipio:
+          type: string
+          nullable: true
+        estado:
+          type: string
+          nullable: true
+        distrito_local:
+          type: string
+          nullable: true
+        distrito_federal:
+          type: string
+          nullable: true
+        activo:
+          type: integer
+          enum: [0, 1]
+        padre:
+          $ref: '#/components/schemas/TerritorioPadreResumen'
+        secciones:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/Territorio'
+        created_at:
+          type: string
+          nullable: true
+        created_by:
+          type: integer
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+
+    TerritorioQueryRequest:
+      type: object
+      properties:
+        territorio_id:
+          type: integer
+        id:
+          type: integer
+          description: Alias aceptado por backend para `territorio_id`.
+        codigo:
+          type: string
+        tipo:
+          type: string
+        territorio_padre_id:
+          type: integer
+        activo:
+          type: integer
+          enum: [0, 1]
+        include_secciones:
+          type: integer
+          enum: [0, 1]
+          description: Si es truthy y el territorio consultado es `ZONA`, incluye `secciones`.
+        activo_secciones:
+          type: integer
+          enum: [0, 1]
+        q:
+          type: string
+        search:
+          type: string
+        page:
+          type: integer
+        page_size:
+          type: integer
+        limit:
+          type: integer
+
+    TerritorioDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Territorio'
+          example:
+            territorio_id: 79
+            territorio_padre_id: 12
+            tipo: SECCION
+            codigo: '1594'
+            nombre: Seccion 1594 - Atequiza / Centro
+            municipio: Ixtlahuacan de los Membrillos
+            estado: Jalisco
+            distrito_local: null
+            distrito_federal: null
+            activo: 1
+            padre:
+              territorio_id: 12
+              tipo: ZONA
+              codigo: Z12
+              nombre: Zona 12
+            created_at: '2026-05-14 16:34:07'
+            created_by: 1
+            updated_at: '2026-06-30 19:58:54'
+            updated_by: 1
+
+    TerritorioListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Territorio'
+          example:
+            - territorio_id: 79
+              territorio_padre_id: 12
+              tipo: SECCION
+              codigo: '1594'
+              nombre: Seccion 1594 - Atequiza / Centro
+              municipio: Ixtlahuacan de los Membrillos
+              estado: Jalisco
+              distrito_local: null
+              distrito_federal: null
+              activo: 1
+              padre:
+                territorio_id: 12
+                tipo: ZONA
+                codigo: Z12
+                nombre: Zona 12
+              created_at: '2026-05-14 16:34:07'
+              created_by: 1
+              updated_at: '2026-06-30 19:58:54'
+              updated_by: 1
+
     ParticipacionPersonaResumen:
       type: object
       properties:
@@ -3447,6 +3843,11 @@ components:
           allOf:
             - $ref: '#/components/schemas/ExistingPersonaBrief'
           nullable: true
+
+
+
+
+
 
 
 
