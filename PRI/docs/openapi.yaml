@@ -20,6 +20,8 @@ tags:
     description: Dashboard principal de RED
   - name: Personas
     description: Consulta y alta de personas
+  - name: Catalogos
+    description: Catalogos y relaciones auxiliares del modulo RED
   - name: IA
     description: Servicios auxiliares de extraccion y analisis asistido por IA
 paths:
@@ -1086,6 +1088,221 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '500':
           description: Error interno o fallo al consumir OpenAI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_c_cat_estatus.php:
+    post:
+      tags: [Catalogos]
+      summary: Consultar catalogo de estatus
+      description: |
+        Consulta un estatus por `estatus_id` o `codigo`, o devuelve un listado paginado.
+      operationId: consultarCatalogoEstatus
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatEstatusQueryRequest'
+            examples:
+              por_id:
+                value:
+                  estatus_id: 4
+              por_codigo:
+                value:
+                  codigo: ACTIVO
+              listado:
+                value:
+                  activo: 1
+                  page: 1
+                  page_size: 20
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CatEstatusDetailResponse'
+                  - $ref: '#/components/schemas/CatEstatusListResponse'
+        '400':
+          description: JSON invalido o request incorrecto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Estatus no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_c_cat_rol.php:
+    post:
+      tags: [Catalogos]
+      summary: Consultar catalogo de roles
+      description: |
+        Consulta un rol por `rol_id` o `codigo`, o devuelve un listado paginado.
+      operationId: consultarCatalogoRol
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatRolQueryRequest'
+            examples:
+              por_id:
+                value:
+                  rol_id: 2
+              por_codigo:
+                value:
+                  codigo: COORD_GENERAL
+              listado:
+                value:
+                  activo: 1
+                  page: 1
+                  page_size: 10
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CatRolDetailResponse'
+                  - $ref: '#/components/schemas/CatRolListResponse'
+        '400':
+          description: JSON invalido o request incorrecto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Rol no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_c_usuario_territorio.php:
+    post:
+      tags: [Personas]
+      summary: Consultar relaciones usuario-territorio
+      description: |
+        Consulta una relacion por `usuario_territorio_id` o devuelve un listado paginado.
+        Permite filtrar por usuario, territorio, tipo de territorio, estado activo y vigencia.
+      operationId: consultarUsuarioTerritorio
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioTerritorioQueryRequest'
+            examples:
+              por_id:
+                value:
+                  usuario_territorio_id: 13104
+              por_usuario:
+                value:
+                  usuario_id: 4336
+                  solo_vigentes: 1
+                  page: 1
+                  page_size: 20
+              por_tipo:
+                value:
+                  tipo_territorio: SECCION
+                  activo: 1
+                  page: 1
+                  page_size: 20
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UsuarioTerritorioDetailResponse'
+                  - $ref: '#/components/schemas/UsuarioTerritorioListResponse'
+        '400':
+          description: JSON invalido o tipo de territorio incorrecto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Relacion usuario-territorio no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /PRI/db/WEB/ixtla_c_usuario_jerarquia.php:
+    post:
+      tags: [Personas]
+      summary: Consultar relaciones de jerarquia de usuarios
+      description: |
+        Consulta una relacion por `usuario_jerarquia_id` o devuelve un listado paginado.
+        Permite filtrar por usuario padre, usuario hijo, estado activo y auditoria basica.
+      operationId: consultarUsuarioJerarquia
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioJerarquiaQueryRequest'
+            examples:
+              por_id:
+                value:
+                  usuario_jerarquia_id: 13076
+              por_padre:
+                value:
+                  usuario_padre_id: 12
+                  activo: 1
+                  page: 1
+                  page_size: 20
+              por_hijo:
+                value:
+                  usuario_hijo_id: 4336
+      responses:
+        '200':
+          description: Consulta exitosa
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UsuarioJerarquiaDetailResponse'
+                  - $ref: '#/components/schemas/UsuarioJerarquiaListResponse'
+        '400':
+          description: JSON invalido o request incorrecto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Relacion de jerarquia no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Error interno
           content:
             application/json:
               schema:
@@ -2720,6 +2937,641 @@ components:
               updated_by: null
               deleted_at: null
               deleted_by: null
+    CatEstatus:
+      type: object
+      properties:
+        estatus_id:
+          type: integer
+        codigo:
+          type: string
+        nombre:
+          type: string
+        descripcion:
+          type: string
+          nullable: true
+        activo:
+          type: integer
+          enum: [0, 1]
+        created_at:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+
+    CatEstatusQueryRequest:
+      type: object
+      properties:
+        estatus_id:
+          type: integer
+        id:
+          type: integer
+          description: Alias aceptado por backend para `estatus_id`.
+        codigo:
+          type: string
+        activo:
+          type: integer
+          enum: [0, 1]
+        q:
+          type: string
+        search:
+          type: string
+        page:
+          type: integer
+        page_size:
+          type: integer
+        limit:
+          type: integer
+
+    CatEstatusDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/CatEstatus'
+          example:
+            estatus_id: 4
+            codigo: ACTIVO
+            nombre: Activo
+            descripcion: Registro activo
+            activo: 1
+            created_at: '2026-05-14 16:32:23'
+            updated_at: null
+
+    CatEstatusListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatEstatus'
+          example:
+            - estatus_id: 1
+              codigo: CAPTURADO
+              nombre: Capturado
+              descripcion: Registro recién capturado
+              activo: 1
+              created_at: '2026-05-14 16:32:23'
+              updated_at: null
+            - estatus_id: 4
+              codigo: ACTIVO
+              nombre: Activo
+              descripcion: Registro activo
+              activo: 1
+              created_at: '2026-05-14 16:32:23'
+              updated_at: null
+
+    CatRol:
+      type: object
+      properties:
+        rol_id:
+          type: integer
+        codigo:
+          type: string
+        nombre:
+          type: string
+        descripcion:
+          type: string
+          nullable: true
+        nivel_jerarquico:
+          type: integer
+        activo:
+          type: integer
+          enum: [0, 1]
+        created_at:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+
+    CatRolQueryRequest:
+      type: object
+      properties:
+        rol_id:
+          type: integer
+        id:
+          type: integer
+          description: Alias aceptado por backend para `rol_id`.
+        codigo:
+          type: string
+        nivel_jerarquico:
+          type: integer
+        activo:
+          type: integer
+          enum: [0, 1]
+        q:
+          type: string
+        search:
+          type: string
+        page:
+          type: integer
+        page_size:
+          type: integer
+        limit:
+          type: integer
+
+    CatRolDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/CatRol'
+          example:
+            rol_id: 2
+            codigo: COORD_GENERAL
+            nombre: Coordinador General
+            descripcion: Coordina toda la estructura
+            nivel_jerarquico: 2
+            activo: 1
+            created_at: '2026-05-14 16:32:23'
+            updated_at: null
+
+    CatRolListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatRol'
+          example:
+            - rol_id: 1
+              codigo: ADMIN
+              nombre: Administrador
+              descripcion: Acceso total al sistema
+              nivel_jerarquico: 1
+              activo: 1
+              created_at: '2026-05-14 16:32:23'
+              updated_at: null
+            - rol_id: 5
+              codigo: PROMOTOR
+              nombre: Promotor
+              descripcion: Captura y da seguimiento a simpatizantes y afiliados
+              nivel_jerarquico: 5
+              activo: 1
+              created_at: '2026-05-14 16:32:23'
+              updated_at: null
+
+    UsuarioTerritorioRolResumen:
+      type: object
+      properties:
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+
+    UsuarioTerritorioUsuarioResumen:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+        username:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        nombre_completo:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        rol:
+          $ref: '#/components/schemas/UsuarioTerritorioRolResumen'
+
+    TerritorioZonaResumen:
+      type: object
+      properties:
+        territorio_id:
+          type: integer
+          nullable: true
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+
+    UsuarioTerritorioTerritorioResumen:
+      type: object
+      properties:
+        territorio_id:
+          type: integer
+        territorio_padre_id:
+          type: integer
+          nullable: true
+        tipo:
+          type: string
+          nullable: true
+        codigo:
+          type: string
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+        municipio:
+          type: string
+          nullable: true
+        estado:
+          type: string
+          nullable: true
+        distrito_local:
+          type: string
+          nullable: true
+        distrito_federal:
+          type: string
+          nullable: true
+        zona:
+          $ref: '#/components/schemas/TerritorioZonaResumen'
+
+    UsuarioTerritorio:
+      type: object
+      properties:
+        usuario_territorio_id:
+          type: integer
+        usuario_id:
+          type: integer
+        territorio_id:
+          type: integer
+        usuario:
+          $ref: '#/components/schemas/UsuarioTerritorioUsuarioResumen'
+        territorio:
+          $ref: '#/components/schemas/UsuarioTerritorioTerritorioResumen'
+        fecha_inicio:
+          type: string
+          nullable: true
+        fecha_fin:
+          type: string
+          nullable: true
+        activo:
+          type: integer
+          enum: [0, 1]
+        created_at:
+          type: string
+          nullable: true
+        created_by:
+          type: integer
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+
+    UsuarioTerritorioQueryRequest:
+      type: object
+      properties:
+        usuario_territorio_id:
+          type: integer
+        id:
+          type: integer
+          description: Alias aceptado por backend para `usuario_territorio_id`.
+        usuario_id:
+          type: integer
+        territorio_id:
+          type: integer
+        tipo_territorio:
+          type: string
+          enum: [ZONA, SECCION]
+        activo:
+          type: integer
+          enum: [0, 1]
+        solo_vigentes:
+          type: integer
+          enum: [0, 1]
+        q:
+          type: string
+        search:
+          type: string
+        page:
+          type: integer
+        page_size:
+          type: integer
+        limit:
+          type: integer
+
+    UsuarioTerritorioDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/UsuarioTerritorio'
+          example:
+            usuario_territorio_id: 13104
+            usuario_id: 4336
+            territorio_id: 86
+            usuario:
+              usuario_id: 4336
+              username: Promotor4800
+              nombre: Promotor 4800
+              apellido_paterno: null
+              apellido_materno: null
+              nombre_completo: Promotor 4800
+              email: promotor4800@ixtla.local
+              rol:
+                codigo: PROMOTOR
+                nombre: Promotor
+            territorio:
+              territorio_id: 86
+              territorio_padre_id: 75
+              tipo: SECCION
+              codigo: '1601'
+              nombre: Sección 1601 - Los Cedros / La Manzanilla
+              municipio: Ixtlahuacán de los Membrillos
+              estado: Jalisco
+              distrito_local: '17'
+              distrito_federal: '17'
+              zona:
+                territorio_id: 75
+                codigo: ZONA-05
+                nombre: Zona 05 - Los Cedros / La Manzanilla
+            fecha_inicio: '2026-05-14'
+            fecha_fin: null
+            activo: 1
+            created_at: '2026-05-14 16:52:03'
+            created_by: null
+            updated_at: null
+            updated_by: null
+
+    UsuarioTerritorioListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsuarioTerritorio'
+          example:
+            - usuario_territorio_id: 13104
+              usuario_id: 4336
+              territorio_id: 86
+              usuario:
+                usuario_id: 4336
+                username: Promotor4800
+                nombre: Promotor 4800
+                apellido_paterno: null
+                apellido_materno: null
+                nombre_completo: Promotor 4800
+                email: promotor4800@ixtla.local
+                rol:
+                  codigo: PROMOTOR
+                  nombre: Promotor
+              territorio:
+                territorio_id: 86
+                territorio_padre_id: 75
+                tipo: SECCION
+                codigo: '1601'
+                nombre: Sección 1601 - Los Cedros / La Manzanilla
+                municipio: Ixtlahuacán de los Membrillos
+                estado: Jalisco
+                distrito_local: '17'
+                distrito_federal: '17'
+                zona:
+                  territorio_id: 75
+                  codigo: ZONA-05
+                  nombre: Zona 05 - Los Cedros / La Manzanilla
+              fecha_inicio: '2026-05-14'
+              fecha_fin: null
+              activo: 1
+              created_at: '2026-05-14 16:52:03'
+              created_by: null
+              updated_at: null
+              updated_by: null
+
+    UsuarioJerarquiaUsuarioResumen:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+          nullable: true
+        uuid:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        persona_id:
+          type: integer
+          nullable: true
+        rol_id:
+          type: integer
+          nullable: true
+        nombre:
+          type: string
+          nullable: true
+        apellido_paterno:
+          type: string
+          nullable: true
+        apellido_materno:
+          type: string
+          nullable: true
+        nombre_completo:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        telefono:
+          type: string
+          nullable: true
+        estatus_id:
+          type: integer
+          nullable: true
+
+    UsuarioJerarquia:
+      type: object
+      properties:
+        usuario_jerarquia_id:
+          type: integer
+        usuario_padre_id:
+          type: integer
+        usuario_hijo_id:
+          type: integer
+        fecha_inicio:
+          type: string
+          nullable: true
+        fecha_fin:
+          type: string
+          nullable: true
+        activo:
+          type: integer
+          enum: [0, 1]
+        padre:
+          $ref: '#/components/schemas/UsuarioJerarquiaUsuarioResumen'
+        hijo:
+          $ref: '#/components/schemas/UsuarioJerarquiaUsuarioResumen'
+        created_at:
+          type: string
+          nullable: true
+        created_by:
+          type: integer
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+
+    UsuarioJerarquiaQueryRequest:
+      type: object
+      properties:
+        usuario_jerarquia_id:
+          type: integer
+        id:
+          type: integer
+          description: Alias aceptado por backend para `usuario_jerarquia_id`.
+        usuario_padre_id:
+          type: integer
+        usuario_hijo_id:
+          type: integer
+        created_by:
+          type: integer
+        updated_by:
+          type: integer
+        activo:
+          type: integer
+          enum: [0, 1]
+        q:
+          type: string
+        search:
+          type: string
+        page:
+          type: integer
+        page_size:
+          type: integer
+        limit:
+          type: integer
+
+    UsuarioJerarquiaDetailResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/UsuarioJerarquia'
+          example:
+            usuario_jerarquia_id: 13076
+            usuario_padre_id: 12
+            usuario_hijo_id: 4336
+            fecha_inicio: '2026-05-14'
+            fecha_fin: null
+            activo: 1
+            padre:
+              usuario_id: 12
+              uuid: 04d5f2af-4fe5-11f1-a0f3-7c1e52303b3f
+              username: CorSecc11
+              persona_id: null
+              rol_id: 4
+              nombre: Coordinador de Sección 11
+              apellido_paterno: null
+              apellido_materno: null
+              nombre_completo: Coordinador de Sección 11
+              email: corsecc11@ixtla.local
+              telefono: null
+              estatus_id: 4
+            hijo:
+              usuario_id: 4336
+              uuid: 053db34f-4fe5-11f1-a0f3-7c1e52303b3f
+              username: Promotor4800
+              persona_id: null
+              rol_id: 5
+              nombre: Promotor 4800
+              apellido_paterno: null
+              apellido_materno: null
+              nombre_completo: Promotor 4800
+              email: promotor4800@ixtla.local
+              telefono: null
+              estatus_id: 4
+            created_at: '2026-05-14 16:52:03'
+            created_by: null
+            updated_at: null
+            updated_by: null
+
+    UsuarioJerarquiaListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsuarioJerarquia'
+          example:
+            - usuario_jerarquia_id: 13076
+              usuario_padre_id: 12
+              usuario_hijo_id: 4336
+              fecha_inicio: '2026-05-14'
+              fecha_fin: null
+              activo: 1
+              padre:
+                usuario_id: 12
+                uuid: 04d5f2af-4fe5-11f1-a0f3-7c1e52303b3f
+                username: CorSecc11
+                persona_id: null
+                rol_id: 4
+                nombre: Coordinador de Sección 11
+                apellido_paterno: null
+                apellido_materno: null
+                nombre_completo: Coordinador de Sección 11
+                email: corsecc11@ixtla.local
+                telefono: null
+                estatus_id: 4
+              hijo:
+                usuario_id: 4336
+                uuid: 053db34f-4fe5-11f1-a0f3-7c1e52303b3f
+                username: Promotor4800
+                persona_id: null
+                rol_id: 5
+                nombre: Promotor 4800
+                apellido_paterno: null
+                apellido_materno: null
+                nombre_completo: Promotor 4800
+                email: promotor4800@ixtla.local
+                telefono: null
+                estatus_id: 4
+              created_at: '2026-05-14 16:52:03'
+              created_by: null
+              updated_at: null
+              updated_by: null
     ExtractedField:
       type: object
       properties:
@@ -3843,6 +4695,8 @@ components:
           allOf:
             - $ref: '#/components/schemas/ExistingPersonaBrief'
           nullable: true
+
+
 
 
 

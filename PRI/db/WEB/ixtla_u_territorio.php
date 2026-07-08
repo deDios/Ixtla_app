@@ -1,52 +1,192 @@
 <?php
-// db\WEB\ixtla_u_territorio.php
+// db/WEB/ixtla_u_territorio.php
+
+declare(strict_types=1);
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+date_default_timezone_set('America/Mexico_City');
+
+/* ============================================================
+   CORS
+   ============================================================ */
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin === 'https://ixtla-app.com' || $origin === 'https://www.ixtla-app.com') {
+
+$allowed_origins = [
+  'https://ixtla-app.com',
+  'https://www.ixtla-app.com'
+];
+
+if (in_array($origin, $allowed_origins, true)) {
   header("Access-Control-Allow-Origin: $origin");
   header("Vary: Origin");
 }
 
-header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: POST, PUT, PATCH, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: no-referrer");
+header("Content-Type: application/json; charset=utf-8");
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
   exit;
 }
 
-header('Content-Type: application/json; charset=utf-8');
-date_default_timezone_set('America/Mexico_City');
+/* ============================================================
+   HELPERS
+   ============================================================ */
 
-$path = realpath("/home/site/wwwroot/db/conn/conn_db.php");
-if ($path && file_exists($path)) {
-  include $path;
-} else {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se encontró conn_db.php en $path"], JSON_UNESCAPED_UNICODE));
+function json_response(array $data, int $status = 200): void
+{
+  http_response_code($status);
+  echo json_encode($data, JSON_UNESCAPED_UNICODE);
+  exit;
 }
 
-$in = json_decode(file_get_contents("php://input"), true) ?? [];
+function internal_error(string $message): void
+{
+  error_log('[IXTLA_U_TERRITORIO] ' . $message);
 
-function value_or_null(array $arr, string $key) {
-  if (!array_key_exists($key, $arr)) return null;
-  if ($arr[$key] === '') return null;
+  json_response([
+    'ok' => false,
+    'error' => 'Error interno del servidor'
+  ], 500);
+}
+
+function read_json_body(): array
+{
+  $raw = file_get_contents('php://input');
+
+  if (!$raw || trim($raw) === '') {
+    json_response([
+      'ok' => false,
+      'error' => 'Body JSON requerido'
+    ], 400);
+  }
+
+  $in = json_decode($raw, true);
+
+  if (!is_array($in)) {
+    json_response([
+      'ok' => false,
+      'error' => 'JSON inválido'
+    ], 400);
+  }
+
+  return $in;
+}
+
+function db(): mysqli
+{
+  $path = realpath('/home/site/wwwroot/db/conn/conn_db_2.php');
+
+  if (!$path || !file_exists($path)) {
+    internal_error('No se encontró conn_db_2.php en /home/site/wwwroot/db/conn/conn_db_2.php');
+  }
+
+  include_once $path;
+
+  if (!function_exists('conectar')) {
+    internal_error('No existe la función conectar() en conn_db_2.php');
+  }
+
+  $con = conectar();
+
+  if (!$con instanceof mysqli) {
+    internal_error('conectar() no regresó una conexión mysqli válida');
+  }
+
+  $con->set_charset('utf8mb4');
+  $con->query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+  $con->query("SET time_zone='-06:00'");
+
+  return $con;
+}
+
+function value_or_null(array $arr, string $key): mixed
+{
+  if (!array_key_exists($key, $arr)) {
+    return null;
+  }
+
+  if ($arr[$key] === '') {
+    return null;
+  }
+
   return $arr[$key];
 }
 
-function bind_dynamic(mysqli_stmt $st, string $types, array &$params): void {
+function str_clean(array $in, string $key): string
+{
+  return isset($in[$key]) ? trim((string)$in[$key]) : '';
+}
+
+function nullable_int_from_row(array $row, string $key): ?int
+{
+  return isset($row[$key]) && $row[$key] !== null ? (int)$row[$key] : null;
+}
+
+function normalize_bool_int(mixed $value): int
+{
+  if (is_bool($value)) {
+    return $value ? 1 : 0;
+  }
+
+  return ((int)$value) === 1 ? 1 : 0;
+}
+
+function bind_dynamic(mysqli_stmt $stmt, string $types, array &$params): void
+{
+  if ($types === '' || empty($params)) {
+    return;
+  }
+
   $refs = [];
   $refs[] = $types;
 
-  foreach ($params as $k => &$v) {
-    $refs[] = &$v;
+  foreach ($params as $key => &$value) {
+    $refs[] = &$value;
   }
 
-  call_user_func_array([$st, 'bind_param'], $refs);
+  call_user_func_array([$stmt, 'bind_param'], $refs);
 }
 
-function territorio_response(mysqli $con, int $territorio_id): array {
+/* ============================================================
+   FORMATTER
+   ============================================================ */
+
+function territorio_row(array $row): array
+{
+  return [
+    'territorio_id' => (int)$row['territorio_id'],
+    'territorio_padre_id' => nullable_int_from_row($row, 'territorio_padre_id'),
+    'tipo' => $row['tipo'],
+    'codigo' => $row['codigo'],
+    'nombre' => $row['nombre'],
+    'municipio' => $row['municipio'],
+    'estado' => $row['estado'],
+    'distrito_local' => $row['distrito_local'],
+    'distrito_federal' => $row['distrito_federal'],
+    'activo' => (int)$row['activo'],
+    'padre' => [
+      'territorio_id' => nullable_int_from_row($row, 'padre_id'),
+      'tipo' => $row['padre_tipo'],
+      'codigo' => $row['padre_codigo'],
+      'nombre' => $row['padre_nombre']
+    ],
+    'created_at' => $row['created_at'],
+    'created_by' => nullable_int_from_row($row, 'created_by'),
+    'updated_at' => $row['updated_at'],
+    'updated_by' => nullable_int_from_row($row, 'updated_by'),
+    'deleted_at' => $row['deleted_at'],
+    'deleted_by' => nullable_int_from_row($row, 'deleted_by')
+  ];
+}
+
+function obtener_territorio(mysqli $con, int $territorio_id): array
+{
   $sql = "
     SELECT
       t.*,
@@ -57,110 +197,37 @@ function territorio_response(mysqli $con, int $territorio_id): array {
     FROM territorio t
     LEFT JOIN territorio p
       ON p.territorio_id = t.territorio_padre_id
+     AND p.deleted_at IS NULL
     WHERE t.territorio_id = ?
+      AND t.deleted_at IS NULL
     LIMIT 1
   ";
 
   $st = $con->prepare($sql);
-  $st->bind_param("i", $territorio_id);
+  $st->bind_param('i', $territorio_id);
   $st->execute();
+
   $row = $st->get_result()->fetch_assoc();
   $st->close();
 
-  if (!$row) return [];
-
-  return [
-    "territorio_id" => (int)$row['territorio_id'],
-    "territorio_padre_id" => isset($row['territorio_padre_id']) ? (int)$row['territorio_padre_id'] : null,
-    "tipo" => $row['tipo'],
-    "codigo" => $row['codigo'],
-    "nombre" => $row['nombre'],
-    "municipio" => $row['municipio'],
-    "estado" => $row['estado'],
-    "distrito_local" => $row['distrito_local'],
-    "distrito_federal" => $row['distrito_federal'],
-    "activo" => (int)$row['activo'],
-    "padre" => [
-      "territorio_id" => isset($row['padre_id']) ? (int)$row['padre_id'] : null,
-      "tipo" => $row['padre_tipo'],
-      "codigo" => $row['padre_codigo'],
-      "nombre" => $row['padre_nombre']
-    ],
-    "created_at" => $row['created_at'],
-    "created_by" => isset($row['created_by']) ? (int)$row['created_by'] : null,
-    "updated_at" => $row['updated_at'],
-    "updated_by" => isset($row['updated_by']) ? (int)$row['updated_by'] : null,
-    "deleted_at" => $row['deleted_at'],
-    "deleted_by" => isset($row['deleted_by']) ? (int)$row['deleted_by'] : null
-  ];
-}
-
-$territorio_id = isset($in['territorio_id']) ? (int)$in['territorio_id'] : (isset($in['id']) ? (int)$in['id'] : 0);
-
-if ($territorio_id <= 0) {
-  http_response_code(400);
-  die(json_encode(["ok" => false, "error" => "Falta parámetro obligatorio: territorio_id"], JSON_UNESCAPED_UNICODE));
-}
-
-if (array_key_exists('tipo', $in)) {
-  $tipoValidar = strtoupper(trim((string)$in['tipo']));
-  if (!in_array($tipoValidar, ['ZONA', 'SECCION'], true)) {
-    http_response_code(400);
-    die(json_encode(["ok" => false, "error" => "tipo inválido. Usa ZONA o SECCION"], JSON_UNESCAPED_UNICODE));
-  }
-}
-
-$con = conectar();
-if (!$con) {
-  http_response_code(500);
-  die(json_encode(["ok" => false, "error" => "No se pudo conectar a la base de datos"], JSON_UNESCAPED_UNICODE));
-}
-
-$con->set_charset('utf8mb4');
-$con->query("SET time_zone='-06:00'");
-
-$st = $con->prepare("
-  SELECT *
-  FROM territorio
-  WHERE territorio_id = ?
-    AND deleted_at IS NULL
-  LIMIT 1
-");
-
-$st->bind_param("i", $territorio_id);
-$st->execute();
-$current = $st->get_result()->fetch_assoc();
-$st->close();
-
-if (!$current) {
-  $con->close();
-  http_response_code(404);
-  die(json_encode(["ok" => false, "error" => "Territorio no encontrado"], JSON_UNESCAPED_UNICODE));
-}
-
-$nuevoTipo = array_key_exists('tipo', $in)
-  ? strtoupper(trim((string)$in['tipo']))
-  : $current['tipo'];
-
-$nuevoPadre = array_key_exists('territorio_padre_id', $in)
-  ? ($in['territorio_padre_id'] === null ? null : (int)$in['territorio_padre_id'])
-  : (isset($current['territorio_padre_id']) ? (int)$current['territorio_padre_id'] : null);
-
-if ($nuevoTipo === 'ZONA') {
-  $nuevoPadre = null;
-}
-
-if ($nuevoTipo === 'SECCION') {
-  if (!$nuevoPadre || $nuevoPadre <= 0) {
-    $con->close();
-    http_response_code(400);
-    die(json_encode(["ok" => false, "error" => "Las secciones requieren territorio_padre_id"], JSON_UNESCAPED_UNICODE));
+  if (!$row) {
+    internal_error("Territorio actualizado pero no encontrado. territorio_id=$territorio_id");
   }
 
-  if ($nuevoPadre === $territorio_id) {
-    $con->close();
-    http_response_code(400);
-    die(json_encode(["ok" => false, "error" => "Un territorio no puede ser padre de sí mismo"], JSON_UNESCAPED_UNICODE));
+  return territorio_row($row);
+}
+
+/* ============================================================
+   UPDATE
+   ============================================================ */
+
+function validar_padre_seccion(mysqli $con, int $territorio_id, int $territorio_padre_id): void
+{
+  if ($territorio_padre_id === $territorio_id) {
+    json_response([
+      'ok' => false,
+      'error' => 'Un territorio no puede ser padre de sí mismo'
+    ], 400);
   }
 
   $st = $con->prepare("
@@ -172,124 +239,241 @@ if ($nuevoTipo === 'SECCION') {
     LIMIT 1
   ");
 
-  $st->bind_param("i", $nuevoPadre);
+  $st->bind_param('i', $territorio_padre_id);
   $st->execute();
-  $padre = $st->get_result()->fetch_assoc();
+
+  $row = $st->get_result()->fetch_assoc();
   $st->close();
 
-  if (!$padre) {
-    $con->close();
-    http_response_code(400);
-    die(json_encode(["ok" => false, "error" => "territorio_padre_id inválido. La sección debe pertenecer a una ZONA existente"], JSON_UNESCAPED_UNICODE));
+  if (!$row) {
+    json_response([
+      'ok' => false,
+      'error' => 'territorio_padre_id inválido. La sección debe pertenecer a una ZONA existente'
+    ], 400);
   }
 }
 
-$map = [
-  "territorio_padre_id" => "i",
-  "tipo" => "s",
-  "codigo" => "s",
-  "nombre" => "s",
-  "municipio" => "s",
-  "estado" => "s",
-  "distrito_local" => "s",
-  "distrito_federal" => "s",
-  "activo" => "i",
-  "updated_by" => "i",
-  "deleted_at" => "s",
-  "deleted_by" => "i"
-];
+function actualizar_territorio(mysqli $con, array $in): array
+{
+  $territorio_id = isset($in['territorio_id'])
+    ? (int)$in['territorio_id']
+    : (isset($in['id']) ? (int)$in['id'] : 0);
 
-$set = [];
-$params = [];
-$types = "";
+  if ($territorio_id <= 0) {
+    json_response([
+      'ok' => false,
+      'error' => 'Falta parámetro obligatorio: territorio_id'
+    ], 400);
+  }
 
-foreach ($map as $field => $type) {
-  if (array_key_exists($field, $in)) {
+  $check = $con->prepare("
+    SELECT *
+    FROM territorio
+    WHERE territorio_id = ?
+      AND deleted_at IS NULL
+    LIMIT 1
+  ");
+
+  $check->bind_param('i', $territorio_id);
+  $check->execute();
+
+  $current = $check->get_result()->fetch_assoc();
+  $check->close();
+
+  if (!$current) {
+    json_response([
+      'ok' => false,
+      'error' => 'Territorio no encontrado'
+    ], 404);
+  }
+
+  if (array_key_exists('tipo', $in)) {
+    $tipoValidar = strtoupper(trim((string)$in['tipo']));
+
+    if (!in_array($tipoValidar, ['ZONA', 'SECCION'], true)) {
+      json_response([
+        'ok' => false,
+        'error' => 'tipo inválido. Usa ZONA o SECCION'
+      ], 400);
+    }
+
+    $in['tipo'] = $tipoValidar;
+  }
+
+  if (array_key_exists('nombre', $in) && trim((string)$in['nombre']) === '') {
+    json_response([
+      'ok' => false,
+      'error' => 'nombre inválido'
+    ], 400);
+  }
+
+  $nuevoTipo = array_key_exists('tipo', $in)
+    ? strtoupper(trim((string)$in['tipo']))
+    : (string)$current['tipo'];
+
+  $nuevoPadre = array_key_exists('territorio_padre_id', $in)
+    ? ($in['territorio_padre_id'] === null || $in['territorio_padre_id'] === '' ? null : (int)$in['territorio_padre_id'])
+    : nullable_int_from_row($current, 'territorio_padre_id');
+
+  if ($nuevoTipo === 'ZONA') {
+    $nuevoPadre = null;
+  }
+
+  if ($nuevoTipo === 'SECCION') {
+    if ($nuevoPadre === null || $nuevoPadre <= 0) {
+      json_response([
+        'ok' => false,
+        'error' => 'Las secciones requieren territorio_padre_id'
+      ], 400);
+    }
+
+    validar_padre_seccion($con, $territorio_id, $nuevoPadre);
+  }
+
+  $map = [
+    'territorio_padre_id' => 'i',
+    'tipo' => 's',
+    'codigo' => 's',
+    'nombre' => 's',
+    'municipio' => 's',
+    'estado' => 's',
+    'distrito_local' => 's',
+    'distrito_federal' => 's',
+    'activo' => 'i',
+    'updated_by' => 'i',
+    'deleted_at' => 's',
+    'deleted_by' => 'i'
+  ];
+
+  $set = [];
+  $params = [];
+  $types = '';
+
+  foreach ($map as $field => $type) {
+    if (!array_key_exists($field, $in)) {
+      continue;
+    }
+
     $set[] = "$field = ?";
 
     if ($field === 'tipo') {
-      $params[] = strtoupper(trim((string)$in[$field]));
+      $params[] = $nuevoTipo;
     } elseif ($field === 'territorio_padre_id') {
       $params[] = $nuevoPadre;
+    } elseif ($field === 'activo') {
+      $params[] = normalize_bool_int($in[$field]);
     } else {
       $params[] = value_or_null($in, $field);
     }
 
     $types .= $type;
   }
-}
 
-/* Si cambió a ZONA, forzamos padre NULL aunque no venga territorio_padre_id */
-if (array_key_exists('tipo', $in) && $nuevoTipo === 'ZONA' && !array_key_exists('territorio_padre_id', $in)) {
-  $set[] = "territorio_padre_id = ?";
-  $params[] = null;
-  $types .= "i";
-}
+  if (array_key_exists('tipo', $in) && $nuevoTipo === 'ZONA' && !array_key_exists('territorio_padre_id', $in)) {
+    $set[] = 'territorio_padre_id = ?';
+    $params[] = null;
+    $types .= 'i';
+  }
 
-if (!$set) {
-  $con->close();
-  http_response_code(400);
-  die(json_encode(["ok" => false, "error" => "No hay campos para actualizar"], JSON_UNESCAPED_UNICODE));
-}
+  if (empty($set)) {
+    json_response([
+      'ok' => false,
+      'error' => 'No hay campos para actualizar'
+    ], 400);
+  }
 
-$params[] = $territorio_id;
-$types .= "i";
+  $params[] = $territorio_id;
+  $types .= 'i';
 
-$con->begin_transaction();
-
-try {
   $sql = "
     UPDATE territorio
-    SET " . implode(", ", $set) . "
+    SET " . implode(', ', $set) . "
     WHERE territorio_id = ?
   ";
 
   $st = $con->prepare($sql);
   bind_dynamic($st, $types, $params);
-
-  if (!$st->execute()) {
-    $code = $st->errno;
-    $err = $st->error;
-    $st->close();
-    throw new Exception($err, $code);
-  }
-
+  $st->execute();
   $st->close();
 
-  $data = territorio_response($con, $territorio_id);
+  return obtener_territorio($con, $territorio_id);
+}
 
-  $con->commit();
+/* ============================================================
+   MAIN
+   ============================================================ */
 
-} catch (Exception $e) {
-  $con->rollback();
+try {
+  if (!in_array(($_SERVER['REQUEST_METHOD'] ?? ''), ['POST', 'PUT', 'PATCH'], true)) {
+    json_response([
+      'ok' => false,
+      'error' => 'Método no permitido. Usa POST, PUT o PATCH.'
+    ], 405);
+  }
 
-  $code = $e->getCode();
-  $msg = $e->getMessage();
+  $in = read_json_body();
+  $con = db();
+
+  $con->begin_transaction();
+
+  try {
+    $data = actualizar_territorio($con, $in);
+    $con->commit();
+  } catch (Throwable $e) {
+    $con->rollback();
+    throw $e;
+  }
 
   $con->close();
 
-  if ($code == 1452) {
-    http_response_code(400);
-    die(json_encode([
-      "ok" => false,
-      "error" => "FK inválida. Revisa territorio_padre_id",
-      "detail" => $msg,
-      "code" => $code
-    ], JSON_UNESCAPED_UNICODE));
+  json_response([
+    'ok' => true,
+    'message' => 'Territorio actualizado correctamente',
+    'data' => $data
+  ]);
+} catch (mysqli_sql_exception $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
   }
 
-  http_response_code(500);
-  die(json_encode([
-    "ok" => false,
-    "error" => "No se pudo actualizar el territorio",
-    "detail" => $msg,
-    "code" => $code
-  ], JSON_UNESCAPED_UNICODE));
+  $code = (int)$e->getCode();
+  $msg = $e->getMessage();
+
+  error_log('[IXTLA_U_TERRITORIO][SQL] ' . $msg);
+
+  if ($code === 1452) {
+    json_response([
+      'ok' => false,
+      'error' => 'FK inválida. Revisa territorio_padre_id'
+    ], 400);
+  }
+
+  if ($code === 1062) {
+    json_response([
+      'ok' => false,
+      'error' => 'Duplicado en campo único'
+    ], 409);
+  }
+
+  json_response([
+    'ok' => false,
+    'error' => 'Error de base de datos'
+  ], 500);
+} catch (Throwable $e) {
+  if (isset($con) && $con instanceof mysqli) {
+    try {
+      $con->close();
+    } catch (Throwable $ignored) {
+    }
+  }
+
+  error_log('[IXTLA_U_TERRITORIO][ERR] ' . $e->getMessage());
+
+  json_response([
+    'ok' => false,
+    'error' => 'Error interno del servidor'
+  ], 500);
 }
-
-$con->close();
-
-echo json_encode([
-  "ok" => true,
-  "data" => $data
-], JSON_UNESCAPED_UNICODE);
