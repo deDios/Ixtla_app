@@ -2584,6 +2584,210 @@ body.ine-modal-open {
     background: #2563eb;
 }
 
+
+/* -------------------------------------------------------------------------- */
+/* MODAL AVISO POR EMISION MAS RECIENTE                                       */
+/* -------------------------------------------------------------------------- */
+
+#red-emission-update-modal {
+    --red-emission-update-z: 1155;
+    --red-emission-update-bg: #ffffff;
+    --red-emission-update-ink: #111827;
+    --red-emission-update-muted: #6b7280;
+    --red-emission-update-line: #e5e7eb;
+    --red-emission-update-primary: #2f8f6b;
+    --red-emission-update-primary-dark: #247455;
+    --red-emission-update-close-bg: #3b82f6;
+    --red-emission-update-radius: 22px;
+    --red-emission-update-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
+}
+
+#red-emission-update-modal,
+#red-emission-update-modal * {
+    box-sizing: border-box;
+}
+
+#red-emission-update-modal[hidden] {
+    display: none !important;
+}
+
+.red-emission-update-modal {
+    position: fixed;
+    inset: 0;
+    z-index: var(--red-emission-update-z);
+}
+
+.red-emission-update-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.66);
+    backdrop-filter: blur(3px);
+}
+
+.red-emission-update-dialog {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: calc(var(--red-emission-update-z) + 1);
+    width: min(94vw, 420px);
+    max-height: calc(100dvh - 48px);
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--red-emission-update-bg);
+    color: var(--red-emission-update-ink);
+    border: 1px solid var(--red-emission-update-line);
+    border-radius: var(--red-emission-update-radius);
+    box-shadow: var(--red-emission-update-shadow);
+}
+
+.red-emission-update-header {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 48px;
+    padding: 10px 12px 0;
+    background: #fff;
+}
+
+.red-emission-update-close {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #111827;
+    font-size: 1.45rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.red-emission-update-close:hover {
+    background: #e5e7eb;
+}
+
+.red-emission-update-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 28px 30px;
+    text-align: center;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.red-emission-update-icon {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 10px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #fff7e8;
+    color: #c77700;
+    font-size: 1.5rem;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.red-emission-update-kicker {
+    margin: 0 0 6px;
+    color: #c77700;
+    font-size: 0.78rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.red-emission-update-body h2 {
+    margin: 0 auto 8px;
+    color: var(--red-emission-update-ink);
+    font-size: clamp(1.22rem, 4vw, 1.55rem);
+    line-height: 1.15;
+    font-weight: 950;
+}
+
+.red-emission-update-message,
+.red-emission-update-detail {
+    margin: 6px auto 0;
+    max-width: 320px;
+    color: var(--red-emission-update-ink);
+    font-size: 0.92rem;
+    line-height: 1.42;
+    font-weight: 750;
+}
+
+.red-emission-update-detail {
+    color: var(--red-emission-update-muted);
+}
+
+.red-emission-update-actions {
+    margin-top: 18px;
+    display: grid;
+    gap: 10px;
+    justify-items: center;
+}
+
+.red-emission-update-btn {
+    width: min(220px, 100%);
+    min-height: 42px;
+    border: 0;
+    border-radius: 12px;
+    padding: 0 18px;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 950;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.18s ease, opacity 0.18s ease;
+}
+
+.red-emission-update-btn:active {
+    transform: translateY(1px);
+}
+
+.red-emission-update-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.red-emission-update-btn--confirm {
+    background: var(--red-emission-update-primary);
+    box-shadow: 0 10px 20px rgba(47, 143, 107, 0.24);
+}
+
+.red-emission-update-btn--confirm:hover {
+    background: var(--red-emission-update-primary-dark);
+}
+
+.red-emission-update-btn--close {
+    background: var(--red-emission-update-close-bg);
+    box-shadow: 0 10px 20px rgba(59, 130, 246, 0.22);
+}
+
+.red-emission-update-btn--close:hover {
+    background: #2563eb;
+}
+
+@media (max-width: 720px) {
+    .red-emission-update-dialog {
+        width: min(94vw, 420px);
+        max-height: calc(100dvh - 72px);
+    }
+
+    .red-emission-update-body {
+        padding: 4px 18px 24px;
+    }
+
+    .red-emission-update-message,
+    .red-emission-update-detail {
+        font-size: 0.9rem;
+    }
+}
 /* -------------------------------------------------------------------------- */
 /* MODAL VALIDACION CURP / CLAVE ELECTOR                                      */
 /* -------------------------------------------------------------------------- */

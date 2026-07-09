@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../JS/auth/ix_guard.php';
 
 ix_require_session([
@@ -968,6 +968,54 @@ ix_require_session([
 
                     <button type="button" class="red-duplicate-btn red-duplicate-btn--close" data-red-duplicate-close>
                         &larr; Cerrar
+                    </button>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <!-- Modal aviso: actualizacion por emision mas reciente -->
+
+    <section id="red-emission-update-modal" class="red-emission-update-modal" hidden aria-hidden="true">
+        <div class="red-emission-update-overlay" data-red-emission-update-close></div>
+
+        <article class="red-emission-update-dialog" role="dialog" aria-modal="true"
+            aria-labelledby="red-emission-update-title">
+            <header class="red-emission-update-header">
+                <button type="button" class="red-emission-update-close" data-red-emission-update-close
+                    aria-label="Cerrar">
+                    &times;
+                </button>
+            </header>
+
+            <div class="red-emission-update-body">
+                <div class="red-emission-update-icon" aria-hidden="true">
+                    <span>&#9888;</span>
+                </div>
+
+                <p class="red-emission-update-kicker">Aviso</p>
+
+                <h2 id="red-emission-update-title">
+                    Se detecto una emision mas reciente
+                </h2>
+
+                <p id="red-emission-update-message" class="red-emission-update-message">
+                    La emision capturada es mayor que la registrada actualmente.
+                </p>
+
+                <p id="red-emission-update-detail" class="red-emission-update-detail">
+                    Si continuas, se actualizaran la informacion y las imagenes de la INE de esta persona.
+                </p>
+
+                <div class="red-emission-update-actions">
+                    <button type="button" id="red-emission-update-confirm"
+                        class="red-emission-update-btn red-emission-update-btn--confirm">
+                        Continuar actualizacion
+                    </button>
+
+                    <button type="button" class="red-emission-update-btn red-emission-update-btn--close"
+                        data-red-emission-update-close>
+                        Volver
                     </button>
                 </div>
             </div>

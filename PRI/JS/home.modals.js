@@ -76,6 +76,7 @@ const State = {
     usuariosById: new Map(),
     pendingReviewSubmit: null,
     pendingDuplicateUpdate: null,
+    pendingEmissionUpdate: null,
     residenceContext: null,
     requiresPendingValidation: false,
 
@@ -177,6 +178,13 @@ const SEL = {
     duplicatePerson: "#red-duplicate-person",
     duplicateOwner: "#red-duplicate-owner",
 
+    emissionUpdateModal: "#red-emission-update-modal",
+    emissionUpdateClose: "[data-red-emission-update-close]",
+    emissionUpdateConfirm: "#red-emission-update-confirm",
+    emissionUpdateTitle: "#red-emission-update-title",
+    emissionUpdateMessage: "#red-emission-update-message",
+    emissionUpdateDetail: "#red-emission-update-detail",
+
     validationModal: "#red-validation-modal",
     validationClose: "[data-red-validation-close]",
     validationTitle: "#red-validation-title",
@@ -263,6 +271,7 @@ function syncBodyModalState() {
     const reviewModal = $(SEL.reviewModal);
     const residenceModal = $(SEL.residenceModal);
     const duplicateModal = $(SEL.duplicateModal);
+    const emissionUpdateModal = $(SEL.emissionUpdateModal);
     const validationModal = $(SEL.validationModal);
     const affiliateModal = $(SEL.affiliateModal);
     const affiliateReplaceModal = $(SEL.affiliateReplaceModal);
@@ -271,16 +280,16 @@ function syncBodyModalState() {
     const reviewOpen = Boolean(reviewModal && !reviewModal.hidden);
     const residenceOpen = Boolean(residenceModal && !residenceModal.hidden);
     const duplicateOpen = Boolean(duplicateModal && !duplicateModal.hidden);
+    const emissionUpdateOpen = Boolean(emissionUpdateModal && !emissionUpdateModal.hidden);
     const validationOpen = Boolean(validationModal && !validationModal.hidden);
     const affiliateOpen = Boolean(affiliateModal && !affiliateModal.hidden);
     const affiliateReplaceOpen = Boolean(affiliateReplaceModal && !affiliateReplaceModal.hidden);
 
     document.body.classList.toggle(
         "ine-modal-open",
-        captureOpen || reviewOpen || residenceOpen || duplicateOpen || validationOpen || affiliateOpen || affiliateReplaceOpen
+        captureOpen || reviewOpen || residenceOpen || duplicateOpen || emissionUpdateOpen || validationOpen || affiliateOpen || affiliateReplaceOpen
     );
 }
-
 function showScreen(name) {
     $$(SEL.screen).forEach((screen) => {
         screen.classList.toggle("is-active", screen.dataset.ineScreen === name);
@@ -1375,18 +1384,8 @@ async function haundleDuplicateUpdateRequest(duplicateData, btn = null) {
 
     if (!validateReviewPayload(payload)) return;
 
-    const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(payload);
-
-    if (needsResidenceModal) {
-        State.pendingDuplicateUpdate = duplicateData;
-        closeDuplicateModal();
-        await openResidenceModal(payload, "duplicate");
-        return;
-    }
-
-    await runDuplicateUpdate(duplicateData, btn);
+    await continueDuplicateUpdateFlow(duplicateData, payload, btn);
 }
-
 function ensureDuplicateModal() {
     const modal = $(SEL.duplicateModal);
 
@@ -1509,6 +1508,126 @@ function closeDuplicateModal({ closeReview = false, warnLocked = false } = {}) {
             "warning",
             7000
         );
+    }
+}
+
+function setEmissionUpdateModalOpen(isOpen) {
+    const modal = $(SEL.emissionUpdateModal);
+    if (!modal) return;
+
+    modal.hidden = !isOpen;
+    modal.setAttribute("aria-hidden", isOpen ? "false" : "true");
+    syncBodyModalState();
+}
+
+function ensureEmissionUpdateModal() {
+    const modal = $(SEL.emissionUpdateModal);
+
+    if (!modal) {
+        warn("No existe #red-emission-update-modal en el HTML.");
+        return null;
+    }
+
+    if (modal.dataset.bound === "1") {
+        return modal;
+    }
+
+    modal.querySelectorAll(SEL.emissionUpdateClose).forEach((btn) => {
+        btn.addEventListener("click", () => {
+            closeEmissionUpdateModal({ reopenDuplicate: true });
+        });
+    });
+
+    modal.querySelector(SEL.emissionUpdateConfirm)?.addEventListener("click", async () => {
+        const pending = modal.__pendingEmissionUpdate || null;
+        const btn = modal.querySelector(SEL.emissionUpdateConfirm);
+
+        if (!pending?.duplicateData) {
+            closeEmissionUpdateModal();
+            return;
+        }
+
+        const originalText = btn?.textContent || "Continuar actualizacion";
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = "Continuando...";
+        }
+
+        try {
+            const payload = pending.payload || collectReviewPayload();
+            const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(payload);
+
+            closeEmissionUpdateModal();
+
+            if (needsResidenceModal) {
+                State.pendingDuplicateUpdate = { duplicateData: pending.duplicateData };
+                await openResidenceModal(payload, "duplicate");
+                return;
+            }
+
+            await runDuplicateUpdate(pending.duplicateData, btn);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+    });
+
+    modal.dataset.bound = "1";
+    return modal;
+}
+
+function openEmissionUpdateModal({ duplicateData, payload }) {
+    const modal = ensureEmissionUpdateModal();
+
+    if (!modal) {
+        return;
+    }
+
+    const existingPersona = duplicateData?.existingPersona || null;
+    const currentEmission = String(existingPersona?.emision || "").trim();
+    const nextEmission = String(payload?.emision || "").trim();
+    const title = modal.querySelector(SEL.emissionUpdateTitle);
+    const message = modal.querySelector(SEL.emissionUpdateMessage);
+    const detail = modal.querySelector(SEL.emissionUpdateDetail);
+
+    modal.__pendingEmissionUpdate = {
+        duplicateData,
+        payload,
+    };
+    State.pendingEmissionUpdate = modal.__pendingEmissionUpdate;
+
+    if (title) {
+        title.textContent = "Se detecto una emision mas reciente";
+    }
+
+    if (message) {
+        message.textContent = currentEmission && nextEmission
+            ? `La emision capturada (${nextEmission}) es mayor que la registrada actualmente (${currentEmission}).`
+            : "La emision capturada es mayor que la registrada actualmente.";
+    }
+
+    if (detail) {
+        detail.textContent = "Si continuas, se actualizaran la informacion y las imagenes de la INE de esta persona.";
+    }
+
+    setEmissionUpdateModalOpen(true);
+}
+
+function closeEmissionUpdateModal({ reopenDuplicate = false } = {}) {
+    const modal = $(SEL.emissionUpdateModal);
+    if (!modal) return;
+
+    const pending = modal.__pendingEmissionUpdate || null;
+
+    modal.__pendingEmissionUpdate = null;
+    State.pendingEmissionUpdate = null;
+    setEmissionUpdateModalOpen(false);
+
+    if (reopenDuplicate && pending?.duplicateData) {
+        openDuplicateModal(pending.duplicateData);
     }
 }
 
@@ -2392,6 +2511,47 @@ function normalizeEmision(value) {
     if (!cleaun) return "";
 
     return cleaun.slice(0, 2).padStart(2, "0");
+}
+
+function toNullableInt(value) {
+    const normalized = String(value ?? "").trim();
+    if (normalized === "") return null;
+
+    const parsed = Number.parseInt(normalized, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function shouldWarnEmissionUpdate(duplicateData, payload) {
+    const existingPersona = duplicateData?.existingPersona || null;
+    const currentEmission = toNullableInt(existingPersona?.emision);
+    const nextEmission = toNullableInt(payload?.emision);
+
+    if (currentEmission === null || nextEmission === null) {
+        return false;
+    }
+
+    return nextEmission > currentEmission;
+}
+
+async function continueDuplicateUpdateFlow(duplicateData, payload, btn = null) {
+    const reviewPayload = payload || collectReviewPayload();
+
+    if (shouldWarnEmissionUpdate(duplicateData, reviewPayload)) {
+        closeDuplicateModal();
+        openEmissionUpdateModal({ duplicateData, payload: reviewPayload });
+        return;
+    }
+
+    const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(reviewPayload);
+
+    if (needsResidenceModal) {
+        State.pendingDuplicateUpdate = { duplicateData };
+        closeDuplicateModal();
+        await openResidenceModal(reviewPayload, "duplicate");
+        return;
+    }
+
+    await runDuplicateUpdate(duplicateData, btn);
 }
 
 function normalizeFieldName(value) {
@@ -3666,8 +3826,9 @@ function bindResidenceModalEvents() {
 
         const pendingDuplicate = State.pendingDuplicateUpdate;
 
-        if (pendingDuplicate) {
+        if (pendingDuplicate?.duplicateData) {
             State.pendingDuplicateUpdate = null;
+            await runDuplicateUpdate(pendingDuplicate.duplicateData);
             return;
         }
 
@@ -4584,6 +4745,12 @@ function haundleEscape(event) {
         return;
     }
 
+    const emissionUpdateModal = $(SEL.emissionUpdateModal);
+    if (emissionUpdateModal && !emissionUpdateModal.hidden) {
+        closeEmissionUpdateModal({ reopenDuplicate: true });
+        return;
+    }
+
     const residenceModal = $(SEL.residenceModal);
     if (residenceModal && !residenceModal.hidden) {
         closeResidenceModal();
@@ -4601,7 +4768,6 @@ function haundleEscape(event) {
         closeCaptureModal();
     }
 }
-
 /* -------------------------------------------------------------------------- */
 /* BIND                                                                        */
 /* -------------------------------------------------------------------------- */
@@ -4662,6 +4828,7 @@ function bindCaptureModalEvents() {
     document.addEventListener("keydown", haundleEscape);
 
     bindReviewModalEvents();
+    ensureEmissionUpdateModal();
     bindResidenceModalEvents();
     bindAffiliateMediaEvents();
     bindAffiliateReplaceEvents();
