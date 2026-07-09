@@ -1,4 +1,4 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: Ixtla App API
   version: 0.3.0
@@ -131,9 +131,10 @@ paths:
       tags: [Personas]
       summary: Consultar personas
       description: |
-        Consulta una persona por `persona_id` o devuelve un listado paginado con filtros.
-        Si se envia `persona_id` o `id`, la respuesta `data` es un objeto.
-        Si no se envia id, la respuesta `data` es un arreglo con `meta`.
+        Consulta una persona exacta por `persona_id` o `id`, donde ese valor corresponde
+        a la clave primaria de la tabla `persona`.
+        Si no se envia ese id de persona, devuelve un listado paginado con filtros y la respuesta
+        `data` es un arreglo junto con `meta`.
       operationId: consultarPersonas
       requestBody:
         required: false
@@ -545,7 +546,9 @@ paths:
       tags: [Personas]
       summary: Consultar participaciones
       description: |
-        Consulta una participacion por `participacion_id` o devuelve un listado paginado.
+        Consulta una participacion exacta por `participacion_id` o `id`, donde ese valor corresponde
+        a la clave primaria de la tabla `persona_participacion`.
+        Si no se envia ese id de participacion, devuelve un listado paginado con filtros.
         En la practica, este endpoint se usa junto con reglas de frontend y campos de contexto;
         no se documenta Bearer como obligatorio mientras la validacion backend no sea uniforme.
       operationId: consultarParticipaciones
@@ -742,7 +745,9 @@ paths:
       tags: [Personas]
       summary: Consultar usuarios
       description: |
-        Consulta un usuario por `usuario_id` o devuelve un listado paginado.
+        Consulta un usuario exacto por `usuario_id` o `id`, donde ese valor corresponde
+        a la clave primaria de la tabla `usuario`.
+        Si no se envia ese id de usuario, devuelve un listado paginado con filtros.
         El frontend lo usa sobre todo para cargar detalle de responsable/capturador y para filtros administrativos.
       operationId: consultarUsuarios
       requestBody:
@@ -991,7 +996,10 @@ paths:
       tags: [Personas]
       summary: Consultar territorios
       description: |
-        Consulta un territorio por `territorio_id` o `codigo`, o devuelve un listado paginado.
+        Consulta un territorio exacto por `territorio_id`, `id` o `codigo`.
+        Si se envia `territorio_id` o `id`, ese valor corresponde a la clave primaria de la tabla
+        `territorio`; si se envia `codigo`, la consulta exacta se hace por ese campo.
+        Si no se envia ninguno de esos identificadores exactos, devuelve un listado paginado.
         En el frontend actual se usa principalmente para cargar el catalogo de secciones activas.
       operationId: consultarTerritorios
       requestBody:
@@ -1201,8 +1209,10 @@ paths:
       tags: [Personas]
       summary: Consultar relaciones usuario-territorio
       description: |
-        Consulta una relacion por `usuario_territorio_id` o devuelve un listado paginado.
-        Permite filtrar por usuario, territorio, tipo de territorio, estado activo y vigencia.
+        Consulta una relacion exacta por `usuario_territorio_id` o `id`, donde ese valor corresponde
+        a la clave primaria de la tabla `usuario_territorio`.
+        Si no se envia ese id de relacion, devuelve un listado paginado y permite filtrar por
+        `usuario_id`, `territorio_id`, `tipo_territorio`, `activo` y vigencia.
       operationId: consultarUsuarioTerritorio
       requestBody:
         required: false
@@ -1258,8 +1268,10 @@ paths:
       tags: [Personas]
       summary: Consultar relaciones de jerarquia de usuarios
       description: |
-        Consulta una relacion por `usuario_jerarquia_id` o devuelve un listado paginado.
-        Permite filtrar por usuario padre, usuario hijo, estado activo y auditoria basica.
+        Consulta una relacion exacta por usuario_jerarquia_id o id, donde ese valor corresponde
+        a la clave primaria de la tabla usuario_jerarquia.
+        Si no se envia ese id de relacion, devuelve un listado paginado y permite filtrar por
+        usuario_padre_id, usuario_hijo_id, activo y auditoria basica.
       operationId: consultarUsuarioJerarquia
       requestBody:
         required: false
@@ -2100,8 +2112,10 @@ components:
       properties:
         persona_id:
           type: integer
+          description: Clave primaria de la persona en `persona`. Si se envia, el backend responde un solo objeto.
         id:
           type: integer
+          description: Alias aceptado por backend para `persona_id`.
         q:
           type: string
         search:
@@ -2634,8 +2648,10 @@ components:
       properties:
         usuario_id:
           type: integer
+          description: Clave primaria del usuario en usuario. Si se envia, el backend responde un solo objeto.
         id:
           type: integer
+          description: Alias aceptado por backend para usuario_id.
         persona_id:
           type: integer
         rol_id:
@@ -2749,69 +2765,48 @@ components:
       properties:
         usuario_id:
           type: integer
+          description: Clave primaria del usuario que se desea actualizar.
         id:
           type: integer
           description: Alias aceptado por backend para `usuario_id`.
-        username:
-          type: string
-          nullable: true
         persona_id:
           type: integer
-          nullable: true
         rol_id:
           type: integer
         rol_codigo:
           type: string
           description: Si se manda, el backend lo resuelve a `rol_id`.
+        username:
+          type: string
         nombre:
           type: string
-          nullable: true
         apellido_paterno:
           type: string
-          nullable: true
         apellido_materno:
           type: string
-          nullable: true
         email:
           type: string
-          format: email
-          nullable: true
         telefono:
           type: string
-          nullable: true
-        estatus_id:
-          type: integer
-          nullable: true
         password:
           type: string
-          format: password
-          minLength: 8
-          nullable: true
+        estatus_id:
+          type: integer
         ultimo_login_at:
           type: string
-          nullable: true
         ultimo_login_ip:
           type: string
-          nullable: true
         requiere_cambio_password:
           type: integer
           enum: [0, 1]
         intentos_fallidos:
           type: integer
-          nullable: true
         bloqueado_hasta:
           type: string
-          nullable: true
+        token_version:
+          type: integer
         updated_by:
           type: integer
-          nullable: true
-        deleted_at:
-          type: string
-          nullable: true
-        deleted_by:
-          type: integer
-          nullable: true
-          description: Si se manda sin `deleted_at`, el backend asigna `NOW()`.
 
     UpdateUsuarioResponse:
       type: object
@@ -3017,7 +3012,7 @@ components:
             - estatus_id: 1
               codigo: CAPTURADO
               nombre: Capturado
-              descripcion: Registro recién capturado
+              descripcion: Registro recien capturado
               activo: 1
               created_at: '2026-05-14 16:32:23'
               updated_at: null
@@ -3249,13 +3244,16 @@ components:
       properties:
         usuario_territorio_id:
           type: integer
+          description: Clave primaria de la relacion en `usuario_territorio`. Si se envia, el backend responde un solo objeto.
         id:
           type: integer
           description: Alias aceptado por backend para `usuario_territorio_id`.
         usuario_id:
           type: integer
+          description: Filtro para listar relaciones asignadas a este `usuario_id`.
         territorio_id:
           type: integer
+          description: Filtro para listar relaciones asignadas a este `territorio_id`.
         tipo_territorio:
           type: string
           enum: [ZONA, SECCION]
@@ -3305,8 +3303,8 @@ components:
               territorio_padre_id: 75
               tipo: SECCION
               codigo: '1601'
-              nombre: Sección 1601 - Los Cedros / La Manzanilla
-              municipio: Ixtlahuacán de los Membrillos
+              nombre: Seccion 1601 - Los Cedros / La Manzanilla
+              municipio: Ixtlahuacan de los Membrillos
               estado: Jalisco
               distrito_local: '17'
               distrito_federal: '17'
@@ -3354,8 +3352,8 @@ components:
                 territorio_padre_id: 75
                 tipo: SECCION
                 codigo: '1601'
-                nombre: Sección 1601 - Los Cedros / La Manzanilla
-                municipio: Ixtlahuacán de los Membrillos
+                nombre: Seccion 1601 - Los Cedros / La Manzanilla
+                municipio: Ixtlahuacan de los Membrillos
                 estado: Jalisco
                 distrito_local: '17'
                 distrito_federal: '17'
@@ -3451,13 +3449,16 @@ components:
       properties:
         usuario_jerarquia_id:
           type: integer
+          description: Clave primaria de la relacion en usuario_jerarquia. Si se envia, el backend responde un solo objeto.
         id:
           type: integer
-          description: Alias aceptado por backend para `usuario_jerarquia_id`.
+          description: Alias aceptado por backend para usuario_jerarquia_id.
         usuario_padre_id:
           type: integer
+          description: Filtro para listar relaciones donde este usuario_id actua como padre.
         usuario_hijo_id:
           type: integer
+          description: Filtro para listar relaciones donde este usuario_id actua como hijo.
         created_by:
           type: integer
         updated_by:
@@ -3498,10 +3499,10 @@ components:
               username: CorSecc11
               persona_id: null
               rol_id: 4
-              nombre: Coordinador de Sección 11
+              nombre: Coordinador de Seccion 11
               apellido_paterno: null
               apellido_materno: null
-              nombre_completo: Coordinador de Sección 11
+              nombre_completo: Coordinador de Seccion 11
               email: corsecc11@ixtla.local
               telefono: null
               estatus_id: 4
@@ -3548,10 +3549,10 @@ components:
                 username: CorSecc11
                 persona_id: null
                 rol_id: 4
-                nombre: Coordinador de Sección 11
+                nombre: Coordinador de Seccion 11
                 apellido_paterno: null
                 apellido_materno: null
-                nombre_completo: Coordinador de Sección 11
+                nombre_completo: Coordinador de Seccion 11
                 email: corsecc11@ixtla.local
                 telefono: null
                 estatus_id: 4
@@ -3766,6 +3767,7 @@ components:
       properties:
         territorio_id:
           type: integer
+          description: Clave primaria del territorio en `territorio`. Si se envia, el backend responde un solo objeto.
         id:
           type: integer
           description: Alias aceptado por backend para `territorio_id`.
@@ -3990,8 +3992,10 @@ components:
       properties:
         participacion_id:
           type: integer
+          description: Clave primaria de la participacion en `persona_participacion`. Si se envia, el backend responde un solo objeto.
         id:
           type: integer
+          description: Alias aceptado por backend para `participacion_id`.
         persona_id:
           type: integer
         estatus_id:
@@ -4185,8 +4189,10 @@ components:
       properties:
         participacion_id:
           type: integer
+          description: Clave primaria de la participacion que se desea actualizar.
         id:
           type: integer
+          description: Alias aceptado por backend para `participacion_id`.
         folio:
           type: string
         persona_id:
@@ -4274,8 +4280,10 @@ components:
       properties:
         persona_id:
           type: integer
+          description: Clave primaria de la persona que se desea actualizar.
         id:
           type: integer
+          description: Alias aceptado por backend para `persona_id`.
         nombres:
           type: string
         apellido_paterno:
