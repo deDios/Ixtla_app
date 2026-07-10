@@ -3698,6 +3698,8 @@ async function shouldOpenResidenceModalBeforeSave(payload) {
     }
 
     return false;
+}
+
 async function updateDuplicatePersonaAndFiles(duplicateData, { saveFiles = true } = {}) {
     const reviewModal = $(SEL.reviewModal);
     const originalPayload = reviewModal?.__inePayload || null;
@@ -3761,8 +3763,6 @@ async function updateDuplicatePersonaAndFiles(duplicateData, { saveFiles = true 
         })
     );
 
-    return saved;
-}
     return saved;
 }
 
