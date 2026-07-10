@@ -1404,6 +1404,108 @@ async function haundleDuplicateUpdateRequest(duplicateData, btn = null) {
 
     await continueDuplicateUpdateFlow(duplicateData, payload, btn);
 }
+
+async function openDuplicateReviewEditor(duplicateData) {
+    const existingPersona = duplicateData?.existingPersona || null;
+    const reviewModal = $(SEL.reviewModal);
+
+    if (!caunCurrentUserUpdateDuplicate(existingPersona)) {
+        closeDuplicateModal({ closeReview: true, warnLocked: true });
+        toast(
+            "Solo el usuario que capturo originalmente este registro puede actualizarlo.",
+            "warning",
+            7000
+        );
+        return;
+    }
+
+    if (!reviewModal) {
+        toast("No se encontro el formulario para actualizar la persona.", "error", 7000);
+        return;
+    }
+
+    const fillIfEmpty = (selector, value) => {
+        if (getFieldValue(selector) !== "") return;
+        if (value === null || value === undefined || String(value).trim() === "") return;
+        setFieldValue(selector, value);
+    };
+
+    [
+        ["#ine-review-nombres", existingPersona?.nombres],
+        ["#ine-review-apellido-paterno", existingPersona?.apellido_paterno],
+        ["#ine-review-apellido-materno", existingPersona?.apellido_materno],
+        ["#ine-review-fecha-nacimiento", existingPersona?.fecha_nacimiento],
+        ["#ine-review-sexo", existingPersona?.sexo],
+        ["#ine-review-curp", existingPersona?.curp],
+        ["#ine-review-clave-elector", existingPersona?.clave_elector],
+        ["#ine-review-anio-registro", existingPersona?.anio_registro],
+        ["#ine-review-emision", existingPersona?.emision],
+        ["#ine-review-vigencia-inicio", existingPersona?.vigencia_inicio],
+        ["#ine-review-vigencia-fin", existingPersona?.vigencia_fin],
+        ["#ine-review-domicilio", existingPersona?.domicilio_texto],
+        ["#ine-review-telefono", existingPersona?.telefono],
+        ["#ine-review-whatsapp", existingPersona?.whatsapp],
+        ["#ine-review-email", existingPersona?.email],
+        [
+            "#ine-review-observaciones",
+            existingPersona?.observaciones || existingPersona?.persona_observaciones,
+        ],
+    ].forEach(([selector, value]) => fillIfEmpty(selector, value));
+
+    const currentSeccion = getFieldValue("#ine-review-seccion");
+    const existingSeccion = existingPersona?.seccion_id || "";
+    if (!currentSeccion && existingSeccion) {
+        await syncReviewSeccionField(existingSeccion);
+    }
+
+    setFieldValue(
+        "#ine-review-acepta-tratamiento",
+        existingPersona?.acepta_tratamiento_datos ?? 0
+    );
+    setFieldValue(
+        "#ine-review-acepta-whatsapp",
+        existingPersona?.acepta_contacto_whatsapp ?? 0
+    );
+
+    const tipoParticipacion = String(
+        existingPersona?.participacion?.tipo_actual ||
+        existingPersona?.participacion?.actual?.tipo_participacion ||
+        existingPersona?.tipo_participacion ||
+        ""
+    ).toUpperCase();
+    setFieldValue("#ine-review-es-afiliado", tipoParticipacion === "AFILIADO" ? 1 : 0);
+
+    syncReviewPrimaryAction(duplicateData);
+
+    const kicker = $(".ine-review-kicker");
+    const title = $("#ine-review-title");
+    const warning = $(".ine-review-warning");
+
+    if (kicker) kicker.textContent = "Actualizar registro existente";
+    if (title) title.textContent = "Revision de informacion INE";
+    if (warning) {
+        warning.innerHTML = `
+            <strong>Revise los datos antes de actualizar.</strong>
+            Puede completar telefono, WhatsApp, correo, domicilio, comentarios y los demas campos disponibles.
+        `;
+    }
+
+    closeDuplicateModal({ closeReview: false });
+    setReviewModalOpen(true);
+
+    window.setTimeout(() => {
+        const preferredField = [
+            "#ine-review-telefono",
+            "#ine-review-whatsapp",
+            "#ine-review-observaciones",
+        ]
+            .map((selector) => $(selector))
+            .find((field) => field && !field.disabled && !field.readOnly && !String(field.value || "").trim());
+
+        (preferredField || $("#ine-review-telefono"))?.focus();
+    }, 0);
+}
+
 function ensureDuplicateModal() {
     const modal = $(SEL.duplicateModal);
 
@@ -1428,9 +1530,8 @@ function ensureDuplicateModal() {
 
     modal.querySelector(SEL.duplicateUpdate)?.addEventListener("click", async () => {
         const duplicateData = modal.__duplicateData || null;
-        const btn = modal.querySelector(SEL.duplicateUpdate);
 
-        await haundleDuplicateUpdateRequest(duplicateData, btn);
+        await openDuplicateReviewEditor(duplicateData);
     });
 
     modal.dataset.bound = "1";
