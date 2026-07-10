@@ -4317,7 +4317,7 @@ function restoreAffiliateMediaUI() {
     if (summaryScreen) summaryScreen.hidden = false;
     if (uploadTitle) uploadTitle.textContent = "Sube la evidencia del afiliado";
     if (uploadText) {
-        uploadText.textContent = "Selecciona primero el documento de afiliaciÃ³n y despuÃ©s una foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
+        uploadText.textContent = "Selecciona primero el documento de afiliación y después una foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
     }
     function showUploadContainer(label) {
         if (!label) return;
