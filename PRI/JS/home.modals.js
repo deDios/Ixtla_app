@@ -1057,6 +1057,22 @@ function closeResidenceModal({ clearPending = true } = {}) {
     }
 }
 
+function cancelResidenceFlow() {
+    State.pendingDuplicateUpdate = null;
+    State.pendingReviewSubmit = null;
+    State.residenceContext = null;
+
+    closeResidenceModal();
+    closeReviewModal();
+    closeDuplicateModal();
+
+    toast(
+        "Solo se pueden dar de alta ciudadaunos de Ixtlahuacaun de los Membrillos.",
+        "warning",
+        6000
+    );
+}
+
 function getDuplicateDataFromError(err) {
     const response = err?.response || null;
 
@@ -1536,7 +1552,13 @@ function ensureEmissionUpdateModal() {
 
     modal.querySelectorAll(SEL.emissionUpdateClose).forEach((btn) => {
         btn.addEventListener("click", () => {
-            closeEmissionUpdateModal({ reopenDuplicate: true });
+            const pending = modal.__pendingEmissionUpdate || null;
+            const shouldCloseAll = pending?.updateMode === "blocked";
+
+            closeEmissionUpdateModal({
+                reopenDuplicate: !shouldCloseAll,
+                closeReview: shouldCloseAll,
+            });
         });
     });
 
@@ -1550,7 +1572,7 @@ function ensureEmissionUpdateModal() {
         }
 
         if (pending.updateMode === "blocked") {
-            closeEmissionUpdateModal({ reopenDuplicate: true });
+            closeEmissionUpdateModal({ closeReview: true });
             return;
         }
 
@@ -1666,7 +1688,7 @@ function openEmissionUpdateModal({ duplicateData, payload, emissionComparison = 
     setEmissionUpdateModalOpen(true);
 }
 
-function closeEmissionUpdateModal({ reopenDuplicate = false } = {}) {
+function closeEmissionUpdateModal({ reopenDuplicate = false, closeReview = false } = {}) {
     const modal = $(SEL.emissionUpdateModal);
     if (!modal) return;
 
@@ -1689,6 +1711,10 @@ function closeEmissionUpdateModal({ reopenDuplicate = false } = {}) {
     }
 
     setEmissionUpdateModalOpen(false);
+
+    if (closeReview) {
+        closeReviewModal();
+    }
 
     if (reopenDuplicate && pending?.duplicateData) {
         openDuplicateModal(pending.duplicateData);
@@ -2604,11 +2630,7 @@ function getDuplicateUpdateMode(duplicateData, payload) {
         return "blocked";
     }
 
-    if (comparison === "newer") {
-        return "data_and_images";
-    }
-
-    return "data_only";
+    return "data_and_images";
 }
 
 async function continueDuplicateUpdateFlow(duplicateData, payload, btn = null) {
@@ -2627,30 +2649,19 @@ async function continueDuplicateUpdateFlow(duplicateData, payload, btn = null) {
         return;
     }
 
-    if (updateMode === "data_and_images") {
-        closeDuplicateModal();
-        openEmissionUpdateModal({
-            duplicateData,
-            payload: reviewPayload,
-            emissionComparison,
-            updateMode,
-        });
-        return;
-    }
-
     const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(reviewPayload);
 
     if (needsResidenceModal) {
         State.pendingDuplicateUpdate = {
             duplicateData,
-            saveFiles: false,
+            saveFiles: true,
         };
         closeDuplicateModal();
         await openResidenceModal(reviewPayload, "duplicate");
         return;
     }
 
-    await runDuplicateUpdate(duplicateData, btn, { saveFiles: false });
+    await runDuplicateUpdate(duplicateData, btn, { saveFiles: true });
 }
 
 function normalizeFieldName(value) {
@@ -3852,28 +3863,14 @@ async function haundleReviewSubmit(event) {
 
 function bindResidenceModalEvents() {
     $$(SEL.residenceClose).forEach((btn) => {
-        btn.addEventListener("click", closeResidenceModal);
+        btn.addEventListener("click", cancelResidenceFlow);
     });
 
     $(SEL.residenceYes)?.addEventListener("click", () => {
         enableResidenceFields();
     });
 
-    $(SEL.residenceNo)?.addEventListener("click", () => {
-        State.pendingDuplicateUpdate = null;
-        State.pendingReviewSubmit = null;
-        State.residenceContext = null;
-
-        closeResidenceModal();
-        closeReviewModal();
-        closeDuplicateModal();
-
-        toast(
-            "Solo se pueden dar de alta ciudadaunos de Ixtlahuacaun de los Membrillos.",
-            "warning",
-            6000
-        );
-    });
+    $(SEL.residenceNo)?.addEventListener("click", cancelResidenceFlow);
 
     $(SEL.residenceSeccionToggle)?.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -4856,13 +4853,19 @@ function haundleEscape(event) {
 
     const emissionUpdateModal = $(SEL.emissionUpdateModal);
     if (emissionUpdateModal && !emissionUpdateModal.hidden) {
-        closeEmissionUpdateModal({ reopenDuplicate: true });
+        const pendingEmissionUpdate = emissionUpdateModal.__pendingEmissionUpdate || null;
+        const shouldCloseAll = pendingEmissionUpdate?.updateMode === "blocked";
+
+        closeEmissionUpdateModal({
+            reopenDuplicate: !shouldCloseAll,
+            closeReview: shouldCloseAll,
+        });
         return;
     }
 
     const residenceModal = $(SEL.residenceModal);
     if (residenceModal && !residenceModal.hidden) {
-        closeResidenceModal();
+        cancelResidenceFlow();
         return;
     }
 
