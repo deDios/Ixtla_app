@@ -31,7 +31,7 @@
         <div class="top-bar" id="top-bar">
             <div id="logo-btn" class="logo" title="Ir al inicio" aria-label="Ir al inicio">
                 <!-- logo del header -->
-                <img class="logo-marca" src="/ASSETS/main_logo.png"
+                <img class="logo-marca" src="/PRI/Assets/Logo_PRI%20(2).png"
                     alt="Ixtlahuacán de los Membrillos - Ayuntamiento" />
             </div>
 
@@ -115,25 +115,19 @@
     <!-- Pie de pagina -->
     <footer id="site-footer">
         <div class="limite">
-            <div class="footer-brand">
-                <img class="brand-lockup" src="/ASSETS/main_logo_al_frente.png"
-                    alt="Ixtlahuacán de los Membrillos - Ayuntamiento">
-            </div>
-
             <div class="footer-cols">
                 <div class="col left">
                     <div class="left-inner">
-                        <img class="footer-crest" src="/ASSETS/main_logo_shield.png" alt="Escudo municipal">
                         <p class="copyright">
-                            © Presidente José Heriberto García Murillo Gobierno de Ixtlahuacán de los Membrillos 2021 |
-                            Todos los derechos reservados.
+                            RED PRI Ixtlahuacán de los Membrillos | Organización, seguimiento y vinculación territorial
+                            del partido.
                         </p>
                     </div>
                 </div>
                 <div class="col right">
                     <p class="location">
-                        Ubicación: Jardín, Ixtlahuacán de Los Membrillos Centro, 2 Jardín,
-                        45850 Ixtlahuacán de los Membrillos, Jal.
+                        (c) Copyright 2026, Todos los derechos reservados | GodCode Software | Francisco, C. Madero 1C,
+                        Ixtlahuacán de Los Membrillos Centro, La Arena, 45850 Ixtlahuacán de los Membrillos, Jal.
                     </p>
                 </div>
             </div>
