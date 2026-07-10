@@ -88,7 +88,8 @@ paths:
       summary: Consultar dashboard RED
       description: |
         Resuelve el universo visible por jerarquia, aplica filtros y devuelve
-        metricas y listado paginado de personas y participaciones.
+        un listado paginado de personas y participaciones. Las metricas pueden
+        omitirse en paginacion, busqueda y exportacion con `include_metrics: false`.
       operationId: consultarRedHome
       requestBody:
         required: false
@@ -106,6 +107,9 @@ paths:
                   search: garcia
                   sort_key: default
                   sort_dir: desc
+                  response_mode: compact
+                  include_metrics: false
+                  include_total: true
       responses:
         '200':
           description: Consulta exitosa
@@ -2010,6 +2014,20 @@ components:
         total_pages:
           type: integer
 
+    RedHomePaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+          nullable: true
+        total_pages:
+          type: integer
+          nullable: true
+
     RedCounts:
       type: object
       properties:
@@ -2089,6 +2107,18 @@ components:
         sort_dir:
           type: string
           enum: [asc, desc]
+        response_mode:
+          type: string
+          enum: [compact]
+          description: El modo `compact` devuelve solo los campos requeridos por el listado del dashboard. Si se omite, conserva la respuesta completa historica.
+        include_metrics:
+          type: boolean
+          default: true
+          description: Permite omitir el calculo de metricas al buscar, ordenar, paginar o exportar.
+        include_total:
+          type: boolean
+          default: true
+          description: Permite omitir el COUNT y total_pages en paginas posteriores de una exportacion. Cuando es false, ambos campos se devuelven como null.
 
     RedHomeResponse:
       type: object
@@ -2097,9 +2127,11 @@ components:
           type: boolean
           example: true
         meta:
-          $ref: '#/components/schemas/PaginationMeta'
-        counts:
-          $ref: '#/components/schemas/RedCounts'
+          $ref: '#/components/schemas/RedHomePaginationMeta'
+        metrics:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/RedCounts'
         scope:
           $ref: '#/components/schemas/RedScope'
         data:

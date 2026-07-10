@@ -304,7 +304,7 @@ function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
 
   $visitedAll = [];
   $visitedActive = [];
-  $queue = [$usuario_id];
+  $frontier = [$usuario_id];
 
   $selfStatusSql = "
     SELECT estatus_id
@@ -329,8 +329,15 @@ function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
     }
   }
 
-  while (!empty($queue)) {
-    $current = array_shift($queue);
+  while (!empty($frontier)) {
+    $types = '';
+    $params = [];
+    $parentWhere = make_in_clause(
+      'uj.usuario_padre_id',
+      $frontier,
+      $types,
+      $params
+    );
 
     $sql = "
       SELECT
@@ -340,16 +347,17 @@ function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
       INNER JOIN usuario uh
         ON uh.usuario_id = uj.usuario_hijo_id
        AND uh.deleted_at IS NULL
-      WHERE uj.usuario_padre_id = ?
+      WHERE $parentWhere
         AND uj.activo = 1
         AND (uj.fecha_fin IS NULL OR uj.fecha_fin >= CURDATE())
     ";
 
     $st = $con->prepare($sql);
-    $st->bind_param('i', $current);
+    bind_dynamic($st, $types, $params);
     $st->execute();
 
     $rs = $st->get_result();
+    $nextFrontier = [];
 
     while ($row = $rs->fetch_assoc()) {
       $childId = (int)$row['usuario_hijo_id'];
@@ -367,11 +375,12 @@ function get_self_and_descendant_user_ids(mysqli $con, int $usuario_id): array
       }
 
       if ($isNew) {
-        $queue[] = $childId;
+        $nextFrontier[] = $childId;
       }
     }
 
     $st->close();
+    $frontier = array_values(array_unique($nextFrontier));
   }
 
   return [
@@ -707,6 +716,41 @@ function red_home_select(): string
   ";
 }
 
+function red_home_compact_select(): string
+{
+  return "
+    SELECT
+      p.persona_id,
+      p.nombres,
+      p.apellido_paterno,
+      p.apellido_materno,
+      p.domicilio_texto,
+      p.telefono,
+      p.whatsapp,
+
+      pp.participacion_id,
+      COALESCE(pp.tipo_participacion, 'SIMPATIZANTE') AS tipo_participacion,
+      COALESCE(pp.estatus_id, p.estatus_id) AS participacion_estatus_id,
+      COALESCE(pp.usuario_responsable_id, p.capturado_por) AS usuario_responsable_id,
+
+      e.codigo AS participacion_estatus_codigo,
+      e.nombre AS participacion_estatus_nombre,
+
+      s.territorio_id AS seccion_territorio_id,
+      s.codigo AS seccion_codigo,
+      s.nombre AS seccion_nombre,
+
+      z.territorio_id AS zona_id,
+      z.codigo AS zona_codigo,
+      z.nombre AS zona_nombre,
+
+      ur.username AS responsable_username,
+      ur.nombre AS responsable_nombre,
+      ur.apellido_paterno AS responsable_apellido_paterno,
+      ur.apellido_materno AS responsable_apellido_materno
+  ";
+}
+
 /* ============================================================
    FORMATTER
    ============================================================ */
@@ -842,6 +886,88 @@ function red_home_row(array $row, array $in = []): array
   ];
 }
 
+function red_home_compact_row(array $row, array $in = []): array
+{
+  $nombreCompleto = trim(
+    (string)$row['nombres'] . ' ' .
+      (string)$row['apellido_paterno'] . ' ' .
+      (string)$row['apellido_materno']
+  );
+
+  $responsableNombre = trim(
+    (string)($row['responsable_nombre'] ?? '') . ' ' .
+      (string)($row['responsable_apellido_paterno'] ?? '') . ' ' .
+      (string)($row['responsable_apellido_materno'] ?? '')
+  );
+
+  return [
+    'persona_id' => (int)$row['persona_id'],
+    'nombre_completo' => $nombreCompleto,
+    'domicilio_texto' => $row['domicilio_texto'],
+    'telefono' => $row['telefono'],
+    'whatsapp' => $row['whatsapp'],
+    'participacion' => [
+      'participacion_id' => nullable_int_from_row($row, 'participacion_id'),
+      'tipo_participacion' => $row['tipo_participacion'] ?: 'SIMPATIZANTE',
+      'tipo_actual' => $row['tipo_participacion'] ?: 'SIMPATIZANTE',
+      'estatus_id' => (int)$row['participacion_estatus_id'],
+      'estatus' => [
+        'codigo' => $row['participacion_estatus_codigo'],
+        'nombre' => $row['participacion_estatus_nombre'],
+      ],
+    ],
+    'territorio' => [
+      'seccion' => [
+        'territorio_id' => nullable_int_from_row($row, 'seccion_territorio_id'),
+        'codigo' => $row['seccion_codigo'],
+        'nombre' => $row['seccion_nombre'],
+      ],
+      'zona' => [
+        'territorio_id' => nullable_int_from_row($row, 'zona_id'),
+        'codigo' => $row['zona_codigo'],
+        'nombre' => $row['zona_nombre'],
+      ],
+    ],
+    'responsable' => [
+      'usuario_id' => nullable_int_from_row($row, 'usuario_responsable_id'),
+      'username' => $row['responsable_username'],
+      'nombre_completo' => $responsableNombre,
+    ],
+    'tipo_participacion' => $row['tipo_participacion'],
+    'estatus_id' => (int)$row['participacion_estatus_id'],
+    'estatus_codigo' => $row['participacion_estatus_codigo'],
+    'estatus_nombre' => $row['participacion_estatus_nombre'],
+    'seccion_codigo' => $row['seccion_codigo'],
+    'seccion_nombre' => $row['seccion_nombre'],
+    'permissions' => [
+      'edit' => can_edit_persona_record($in, $row),
+    ],
+  ];
+}
+
+function should_include_metrics(array $in): bool
+{
+  if (!array_key_exists('include_metrics', $in)) {
+    return true;
+  }
+
+  return filter_var($in['include_metrics'], FILTER_VALIDATE_BOOLEAN);
+}
+
+function should_include_total(array $in): bool
+{
+  if (!array_key_exists('include_total', $in)) {
+    return true;
+  }
+
+  return filter_var($in['include_total'], FILTER_VALIDATE_BOOLEAN);
+}
+
+function use_compact_response(array $in): bool
+{
+  return strtolower(str_clean($in, 'response_mode')) === 'compact';
+}
+
 function red_home_sort_dir(array $in): string
 {
   $dir = strtolower(str_clean($in, 'sort_dir'));
@@ -955,25 +1081,30 @@ function consultar_red_home(mysqli $con, array $in, array $scope): array
   $types = '';
   $whereSql = build_red_home_where($in, $scope, $types, $params);
 
-  $countSql = "
-    SELECT COUNT(*) AS total
-    " . red_home_from() . "
-    WHERE $whereSql
-  ";
+  $total = null;
 
-  $stCount = $con->prepare($countSql);
-  $countParams = $params;
-  $countTypes = $types;
-  bind_dynamic($stCount, $countTypes, $countParams);
-  $stCount->execute();
-  $totalRow = $stCount->get_result()->fetch_assoc();
-  $stCount->close();
+  if (should_include_total($in)) {
+    $countSql = "
+      SELECT COUNT(*) AS total
+      " . red_home_from() . "
+      WHERE $whereSql
+    ";
 
-  $total = (int)($totalRow['total'] ?? 0);
+    $stCount = $con->prepare($countSql);
+    $countParams = $params;
+    $countTypes = $types;
+    bind_dynamic($stCount, $countTypes, $countParams);
+    $stCount->execute();
+    $totalRow = $stCount->get_result()->fetch_assoc();
+    $stCount->close();
+
+    $total = (int)($totalRow['total'] ?? 0);
+  }
 
   $orderSql = red_home_order_by($in);
 
-  $sql = red_home_select() . red_home_from() . "
+  $selectSql = use_compact_response($in) ? red_home_compact_select() : red_home_select();
+  $sql = $selectSql . red_home_from() . "
   WHERE $whereSql
   $orderSql
   LIMIT ? OFFSET ?
@@ -992,7 +1123,9 @@ function consultar_red_home(mysqli $con, array $in, array $scope): array
   $data = [];
 
   while ($row = $rs->fetch_assoc()) {
-    $data[] = red_home_row($row, $in);
+    $data[] = use_compact_response($in)
+      ? red_home_compact_row($row, $in)
+      : red_home_row($row, $in);
   }
 
   $st->close();
@@ -1002,7 +1135,9 @@ function consultar_red_home(mysqli $con, array $in, array $scope): array
       'page' => $page,
       'page_size' => $pageSize,
       'total' => $total,
-      'total_pages' => $pageSize > 0 ? (int)ceil($total / $pageSize) : 0,
+      'total_pages' => $total !== null && $pageSize > 0
+        ? (int)ceil($total / $pageSize)
+        : null,
     ],
     'data' => $data,
   ];
@@ -1025,51 +1160,51 @@ function consultar_metricas(mysqli $con, array $scope): array
   $paramsScope = [];
   $scopeWhere = build_metric_scope_where($scope, $typesScope, $paramsScope);
 
-  $afiliadosSql = "
-    SELECT COUNT(DISTINCT p.persona_id) AS total
+  /*
+    Selecciona una sola participacion efectiva por persona usando la prioridad
+    AFILIADO > SIMPATIZANTE. La clave unica (persona_id, tipo_participacion)
+    limita cada tipo a una fila y permite resolver ambos conteos en un recorrido.
+  */
+  $participacionesSql = "
+    SELECT
+      COALESCE(SUM(
+        CASE
+          WHEN pp.tipo_participacion = 'AFILIADO' THEN 1
+          ELSE 0
+        END
+      ), 0) AS afiliados,
+      COALESCE(SUM(
+        CASE
+          WHEN pp.tipo_participacion = 'AFILIADO' THEN 0
+          ELSE 1
+        END
+      ), 0) AS simpatizantes
     FROM persona p
     LEFT JOIN persona_participacion pp
       ON pp.persona_id = p.persona_id
      AND pp.deleted_at IS NULL
      AND pp.activo = 1
-     AND pp.tipo_participacion = 'AFILIADO'
+     AND NOT EXISTS (
+       SELECT 1
+       FROM persona_participacion pp2
+       WHERE pp2.persona_id = p.persona_id
+         AND pp2.deleted_at IS NULL
+         AND pp2.activo = 1
+         AND pp2.tipo_participacion = 'AFILIADO'
+         AND pp.tipo_participacion <> 'AFILIADO'
+     )
     WHERE p.deleted_at IS NULL
-      AND pp.participacion_id IS NOT NULL
       AND $scopeWhere
   ";
 
-  $afiliados = count_metric($con, $afiliadosSql, $typesScope, $paramsScope);
+  $st = $con->prepare($participacionesSql);
+  bind_dynamic($st, $typesScope, $paramsScope);
+  $st->execute();
+  $participaciones = $st->get_result()->fetch_assoc() ?: [];
+  $st->close();
 
-  $typesScope2 = '';
-  $paramsScope2 = [];
-  $scopeWhere2 = build_metric_scope_where($scope, $typesScope2, $paramsScope2);
-
-  /*
-    Simpatizantes:
-    - Personas sin AFILIADO activo.
-    - Incluye personas sin participacion todavia.
-  */
-  $simpatizantesSql = "
-    SELECT COUNT(DISTINCT p.persona_id) AS total
-    FROM persona p
-    LEFT JOIN persona_participacion pp
-      ON pp.persona_id = p.persona_id
-     AND pp.deleted_at IS NULL
-     AND pp.activo = 1
-     AND pp.tipo_participacion = 'SIMPATIZANTE'
-    WHERE p.deleted_at IS NULL
-      AND $scopeWhere2
-      AND NOT EXISTS (
-        SELECT 1
-        FROM persona_participacion pp_af
-        WHERE pp_af.persona_id = p.persona_id
-          AND pp_af.deleted_at IS NULL
-          AND pp_af.activo = 1
-          AND pp_af.tipo_participacion = 'AFILIADO'
-      ) 
-  ";
-
-  $simpatizantes = count_metric($con, $simpatizantesSql, $typesScope2, $paramsScope2);
+  $afiliados = (int)($participaciones['afiliados'] ?? 0);
+  $simpatizantes = (int)($participaciones['simpatizantes'] ?? 0);
 
   $promotores = contar_promotores_visibles($con, $scope);
 
@@ -1149,7 +1284,9 @@ try {
 
   $scope = build_scope($con, $in);
   $result = consultar_red_home($con, $in, $scope);
-  $metrics = consultar_metricas($con, $scope);
+  $metrics = should_include_metrics($in)
+    ? consultar_metricas($con, $scope)
+    : null;
 
   $con->close();
 

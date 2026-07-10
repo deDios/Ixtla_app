@@ -63,6 +63,9 @@ const State = {
   readonlyVisualImages: {},
 };
 
+let dashboardRequestController = null;
+let dashboardRequestSequence = 0;
+
 const SEL = {
   userName: "#red-user-name",
   search: "#red-search",
@@ -669,7 +672,7 @@ async function updateReadonlyAffiliate(isAfiliado, { silent = false } = {}) {
       );
     }
 
-    await loadDashboard({ keepPage: true });
+    await loadDashboard({ keepPage: true, refreshMetrics: true });
     return true;
   } catch (err) {
     error("No se pudo actualizar afiliacion:", err);
@@ -932,12 +935,13 @@ function getAuthHeaders() {
   return headers;
 }
 
-async function postJSON(url, body = {}) {
+async function postJSON(url, body = {}, options = {}) {
   const resp = await fetch(url, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
     cache: "no-store",
+    signal: options.signal,
   });
 
   const status = resp.status;
@@ -994,11 +998,12 @@ function buildDashboardPayload(overrides = {}) {
     search: State.search,
     sort_key: State.sort.key,
     sort_dir: State.sort.dir,
+    response_mode: "compact",
     ...overrides,
   };
 }
 
-async function loadDashboard({ keepPage = true } = {}) {
+async function loadDashboard({ keepPage = true, refreshMetrics = false } = {}) {
   const usuarioId = getUsuarioId();
 
   if (!usuarioId && getRolCodigo() !== "ADMIN" && getRolCodigo() !== "COORD_GENERAL") {
@@ -1016,11 +1021,22 @@ async function loadDashboard({ keepPage = true } = {}) {
 
   if (!keepPage) State.page = 1;
 
+  dashboardRequestController?.abort();
+  dashboardRequestController = new AbortController();
+  const controller = dashboardRequestController;
+  const requestSequence = ++dashboardRequestSequence;
+
   State.loading = true;
   renderLoading();
 
   try {
-    const out = await postJSON(CONFIG.ENDPOINT_RED_HOME, buildDashboardPayload());
+    const out = await postJSON(
+      CONFIG.ENDPOINT_RED_HOME,
+      buildDashboardPayload({ include_metrics: refreshMetrics }),
+      { signal: controller.signal },
+    );
+
+    if (requestSequence !== dashboardRequestSequence) return;
 
     State.rows = Array.isArray(out.data) ? out.data.map(mapRedHomeToRow) : [];
     State.scope = out.scope || null;
@@ -1029,7 +1045,7 @@ async function loadDashboard({ keepPage = true } = {}) {
     State.total = Number(out.meta?.total || 0);
     State.totalPages = Math.max(1, Number(out.meta?.total_pages || 1));
 
-    setCounts(out.metrics || {});
+    if (out.metrics) setCounts(out.metrics);
 
     log("Dashboard RED cargado:", {
       page: State.page,
@@ -1042,6 +1058,9 @@ async function loadDashboard({ keepPage = true } = {}) {
 
     render();
   } catch (err) {
+    if (err?.name === "AbortError") return;
+    if (requestSequence !== dashboardRequestSequence) return;
+
     error("No se pudo cargar dashboard RED:", err);
 
     State.rows = [];
@@ -1052,7 +1071,12 @@ async function loadDashboard({ keepPage = true } = {}) {
 
     toast("No se pudieron cargar los registros RED.", "error");
   } finally {
-    State.loading = false;
+    if (requestSequence === dashboardRequestSequence) {
+      State.loading = false;
+      if (dashboardRequestController === controller) {
+        dashboardRequestController = null;
+      }
+    }
   }
 }
 
@@ -1070,6 +1094,8 @@ async function fetchRowsForExport() {
     buildDashboardPayload({
       page: 1,
       page_size: pageSize,
+      include_metrics: false,
+      include_total: true,
     }),
   );
 
@@ -1084,6 +1110,8 @@ async function fetchRowsForExport() {
       buildDashboardPayload({
         page,
         page_size: pageSize,
+        include_metrics: false,
+        include_total: false,
       }),
     );
 
@@ -2229,9 +2257,21 @@ function bindEvents() {
   bindSortHeaders();
   const search = $(SEL.search);
   const handleSearch = debounce(async () => {
-    State.search = search?.value || "";
+    const nextSearch = String(search?.value || "").trim();
+
+    if (nextSearch !== "" && nextSearch.length < 3) {
+      if (State.search !== "") {
+        State.search = "";
+        await loadDashboard({ keepPage: false });
+      }
+      return;
+    }
+
+    if (nextSearch === State.search) return;
+
+    State.search = nextSearch;
     await loadDashboard({ keepPage: false });
-  }, 350);
+  }, 500);
 
   search?.addEventListener("input", handleSearch);
 
@@ -2381,7 +2421,7 @@ function bindEvents() {
   window.redIsReadonlyPersonEditing = () => Boolean(State.readonlyEditing);
 
   document.addEventListener("red:persona-saved", async () => {
-    await loadDashboard({ keepPage: false });
+    await loadDashboard({ keepPage: false, refreshMetrics: true });
   });
 }
 
@@ -2399,7 +2439,7 @@ async function init() {
     toast,
   });
 
-  await loadDashboard({ keepPage: true });
+  await loadDashboard({ keepPage: true, refreshMetrics: true });
 
   log("Home RED inicializado con endpoint server-side");
 }
