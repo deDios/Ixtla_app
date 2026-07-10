@@ -1317,7 +1317,7 @@ function syncReviewPrimaryAction(duplicateData = null) {
     hydrateDuplicateAuditFields(duplicateData.existingPersona || null);
 }
 
-async function runDuplicateUpdate(duplicateData, btn = null) {
+async function runDuplicateUpdate(duplicateData, btn = null, { saveFiles = true } = {}) {
     const originalText = btn?.textContent || "Actualizar datos";
 
     if (!duplicateData?.existingPersona?.persona_id) {
@@ -1328,14 +1328,16 @@ async function runDuplicateUpdate(duplicateData, btn = null) {
     try {
         if (btn) {
             btn.disabled = true;
-            btn.textContent = "Actualizaundo...";
+            btn.textContent = "Actualizando...";
         }
 
-        const saved = await updateDuplicatePersonaAndFiles(duplicateData);
+        const saved = await updateDuplicatePersonaAndFiles(duplicateData, { saveFiles });
 
         console.log("[RED duplicate updated]", saved);
 
-        if (saved.afiliacionRevertida) {
+        if (!saveFiles) {
+            toast("Datos actualizados correctamente. Las imagenes actuales de la INE se conservaron.", "exito", 7000);
+        } else if (saved.afiliacionRevertida) {
             toast(
                 "Datos actualizados, pero la afiliacion no se confirmo porque faltaron fotos. La persona quedo como simpatizante.",
                 "warning",
@@ -1547,6 +1549,11 @@ function ensureEmissionUpdateModal() {
             return;
         }
 
+        if (pending.updateMode === "blocked") {
+            closeEmissionUpdateModal({ reopenDuplicate: true });
+            return;
+        }
+
         const originalText = btn?.textContent || "Continuar actualizacion";
 
         if (btn) {
@@ -1556,17 +1563,21 @@ function ensureEmissionUpdateModal() {
 
         try {
             const payload = pending.payload || collectReviewPayload();
+            const saveFiles = pending.updateMode === "data_and_images";
             const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(payload);
 
             closeEmissionUpdateModal();
 
             if (needsResidenceModal) {
-                State.pendingDuplicateUpdate = { duplicateData: pending.duplicateData };
+                State.pendingDuplicateUpdate = {
+                    duplicateData: pending.duplicateData,
+                    saveFiles,
+                };
                 await openResidenceModal(payload, "duplicate");
                 return;
             }
 
-            await runDuplicateUpdate(pending.duplicateData, btn);
+            await runDuplicateUpdate(pending.duplicateData, btn, { saveFiles });
         } finally {
             if (btn) {
                 btn.disabled = false;
@@ -1579,7 +1590,7 @@ function ensureEmissionUpdateModal() {
     return modal;
 }
 
-function openEmissionUpdateModal({ duplicateData, payload }) {
+function openEmissionUpdateModal({ duplicateData, payload, emissionComparison = null, updateMode = "data_and_images" }) {
     const modal = ensureEmissionUpdateModal();
 
     if (!modal) {
@@ -1589,6 +1600,9 @@ function openEmissionUpdateModal({ duplicateData, payload }) {
     const existingPersona = duplicateData?.existingPersona || null;
     const currentEmission = String(existingPersona?.emision || "").trim();
     const nextEmission = String(payload?.emision || "").trim();
+    const comparison = emissionComparison || getEmissionComparison(duplicateData, payload);
+    const confirmBtn = modal.querySelector(SEL.emissionUpdateConfirm);
+    const actionCloseBtn = modal.querySelector('.red-emission-update-btn--close');
     const title = modal.querySelector(SEL.emissionUpdateTitle);
     const message = modal.querySelector(SEL.emissionUpdateMessage);
     const detail = modal.querySelector(SEL.emissionUpdateDetail);
@@ -1596,21 +1610,57 @@ function openEmissionUpdateModal({ duplicateData, payload }) {
     modal.__pendingEmissionUpdate = {
         duplicateData,
         payload,
+        emissionComparison: comparison,
+        updateMode,
     };
     State.pendingEmissionUpdate = modal.__pendingEmissionUpdate;
+    modal.dataset.emissionCompare = comparison || "";
 
-    if (title) {
-        title.textContent = "Se detecto una emision mas reciente";
-    }
+    if (comparison === "older") {
+        if (title) {
+            title.textContent = "La INE capturada esta desactualizada";
+        }
 
-    if (message) {
-        message.textContent = currentEmission && nextEmission
-            ? `La emision capturada (${nextEmission}) es mayor que la registrada actualmente (${currentEmission}).`
-            : "La emision capturada es mayor que la registrada actualmente.";
-    }
+        if (message) {
+            message.textContent = currentEmission && nextEmission
+                ? `La emision capturada (${nextEmission}) es menor que la registrada actualmente (${currentEmission}).`
+                : "La emision capturada es menor que la registrada actualmente.";
+        }
 
-    if (detail) {
-        detail.textContent = "Si continuas, se actualizaran la informacion y las imagenes de la INE de esta persona.";
+        if (detail) {
+            detail.textContent = "No se permite actualizar este registro porque la INE capturada esta desactualizada frente a la que ya tenemos registrada.";
+        }
+
+        if (confirmBtn) {
+            confirmBtn.hidden = true;
+        }
+
+        if (actionCloseBtn) {
+            actionCloseBtn.textContent = "Entendido";
+        }
+    } else {
+        if (title) {
+            title.textContent = "Se detecto una emision mas reciente";
+        }
+
+        if (message) {
+            message.textContent = currentEmission && nextEmission
+                ? `La emision capturada (${nextEmission}) es mayor que la registrada actualmente (${currentEmission}).`
+                : "La emision capturada es mayor que la registrada actualmente.";
+        }
+
+        if (detail) {
+            detail.textContent = "Si continuas, se actualizaran la informacion y las imagenes de la INE de esta persona.";
+        }
+
+        if (confirmBtn) {
+            confirmBtn.hidden = false;
+            confirmBtn.disabled = false;
+        }
+
+        if (actionCloseBtn) {
+            actionCloseBtn.textContent = "Volver";
+        }
     }
 
     setEmissionUpdateModalOpen(true);
@@ -1621,9 +1671,23 @@ function closeEmissionUpdateModal({ reopenDuplicate = false } = {}) {
     if (!modal) return;
 
     const pending = modal.__pendingEmissionUpdate || null;
+    const confirmBtn = modal.querySelector(SEL.emissionUpdateConfirm);
+    const actionCloseBtn = modal.querySelector('.red-emission-update-btn--close');
 
     modal.__pendingEmissionUpdate = null;
     State.pendingEmissionUpdate = null;
+    delete modal.dataset.emissionCompare;
+
+    if (confirmBtn) {
+        confirmBtn.hidden = false;
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = "Continuar actualizacion";
+    }
+
+    if (actionCloseBtn) {
+        actionCloseBtn.textContent = "Volver";
+    }
+
     setEmissionUpdateModalOpen(false);
 
     if (reopenDuplicate && pending?.duplicateData) {
@@ -2521,37 +2585,72 @@ function toNullableInt(value) {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-function shouldWarnEmissionUpdate(duplicateData, payload) {
+function getEmissionComparison(duplicateData, payload) {
     const existingPersona = duplicateData?.existingPersona || null;
     const currentEmission = toNullableInt(existingPersona?.emision);
     const nextEmission = toNullableInt(payload?.emision);
 
-    if (currentEmission === null || nextEmission === null) {
-        return false;
+    if (currentEmission === null || nextEmission === null || currentEmission === nextEmission) {
+        return null;
     }
 
-    return nextEmission > currentEmission;
+    return nextEmission > currentEmission ? "newer" : "older";
+}
+
+function getDuplicateUpdateMode(duplicateData, payload) {
+    const comparison = getEmissionComparison(duplicateData, payload);
+
+    if (comparison === "older") {
+        return "blocked";
+    }
+
+    if (comparison === "newer") {
+        return "data_and_images";
+    }
+
+    return "data_only";
 }
 
 async function continueDuplicateUpdateFlow(duplicateData, payload, btn = null) {
     const reviewPayload = payload || collectReviewPayload();
+    const emissionComparison = getEmissionComparison(duplicateData, reviewPayload);
+    const updateMode = getDuplicateUpdateMode(duplicateData, reviewPayload);
 
-    if (shouldWarnEmissionUpdate(duplicateData, reviewPayload)) {
+    if (updateMode === "blocked") {
         closeDuplicateModal();
-        openEmissionUpdateModal({ duplicateData, payload: reviewPayload });
+        openEmissionUpdateModal({
+            duplicateData,
+            payload: reviewPayload,
+            emissionComparison,
+            updateMode,
+        });
+        return;
+    }
+
+    if (updateMode === "data_and_images") {
+        closeDuplicateModal();
+        openEmissionUpdateModal({
+            duplicateData,
+            payload: reviewPayload,
+            emissionComparison,
+            updateMode,
+        });
         return;
     }
 
     const needsResidenceModal = await shouldOpenResidenceModalBeforeSave(reviewPayload);
 
     if (needsResidenceModal) {
-        State.pendingDuplicateUpdate = { duplicateData };
+        State.pendingDuplicateUpdate = {
+            duplicateData,
+            saveFiles: false,
+        };
         closeDuplicateModal();
         await openResidenceModal(reviewPayload, "duplicate");
         return;
     }
 
-    await runDuplicateUpdate(duplicateData, btn);
+    await runDuplicateUpdate(duplicateData, btn, { saveFiles: false });
 }
 
 function normalizeFieldName(value) {
@@ -3599,9 +3698,7 @@ async function shouldOpenResidenceModalBeforeSave(payload) {
     }
 
     return false;
-}
-
-async function updateDuplicatePersonaAndFiles(duplicateData) {
+async function updateDuplicatePersonaAndFiles(duplicateData, { saveFiles = true } = {}) {
     const reviewModal = $(SEL.reviewModal);
     const originalPayload = reviewModal?.__inePayload || null;
     const usuarioId = getUsuarioId();
@@ -3628,18 +3725,23 @@ async function updateDuplicatePersonaAndFiles(duplicateData) {
     const persona = personaResponse.data || null;
 
     const includeAffiliate = Number(payload.es_afiliado) === 1;
-    const fileResult = await saveFilesForPersona({
-        personaId,
-        usuarioId,
-        originalPayload,
-        includeAffiliate,
-    });
-    const afiliacionRevertida = await rollbackAffiliateIfFilesIncomplete({
-        personaId,
-        usuarioId,
-        includeAffiliate,
-        fileResult,
-    });
+    let fileResult = { archivos: [], erroresArchivo: [] };
+    let afiliacionRevertida = false;
+
+    if (saveFiles) {
+        fileResult = await saveFilesForPersona({
+            personaId,
+            usuarioId,
+            originalPayload,
+            includeAffiliate,
+        });
+        afiliacionRevertida = await rollbackAffiliateIfFilesIncomplete({
+            personaId,
+            usuarioId,
+            includeAffiliate,
+            fileResult,
+        });
+    }
 
     const saved = {
         persona,
@@ -3647,6 +3749,7 @@ async function updateDuplicatePersonaAndFiles(duplicateData) {
         erroresArchivo: fileResult.erroresArchivo,
         afiliacionRevertida,
         duplicateUpdated: true,
+        duplicateSavedFiles: saveFiles,
         duplicateData,
         extraction: originalPayload?.extraction || null,
         fields: originalPayload?.fields || [],
@@ -3658,6 +3761,8 @@ async function updateDuplicatePersonaAndFiles(duplicateData) {
         })
     );
 
+    return saved;
+}
     return saved;
 }
 
@@ -3828,7 +3933,11 @@ function bindResidenceModalEvents() {
 
         if (pendingDuplicate?.duplicateData) {
             State.pendingDuplicateUpdate = null;
-            await runDuplicateUpdate(pendingDuplicate.duplicateData);
+            await runDuplicateUpdate(
+                pendingDuplicate.duplicateData,
+                null,
+                { saveFiles: pendingDuplicate.saveFiles !== false }
+            );
             return;
         }
 
@@ -3937,14 +4046,14 @@ function getAffiliateReplaceConfig(targetKind = "") {
     if (targetKind === "affiliate_back") {
         return {
             title: "Reemplazar foto del afiliado",
-            copy: "Selecciona únicamente la foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.",
+            copy: "Selecciona Ãºnicamente la foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.",
             buttonLabel: "Seleccionar foto",
         };
     }
 
     return {
         title: "Reemplazar documento de afiliacion",
-        copy: "Selecciona únicamente el documento de afiliacion a reemplazar. Formatos permitidos: JPG, PNG o WEBP.",
+        copy: "Selecciona Ãºnicamente el documento de afiliacion a reemplazar. Formatos permitidos: JPG, PNG o WEBP.",
         buttonLabel: "Seleccionar documento",
     };
 }
@@ -4159,8 +4268,8 @@ function configureAffiliateSingleUploadUI() {
     }
     if (uploadText) {
         uploadText.textContent = targetSide === "front"
-            ? "Selecciona únicamente el documento de afiliación a reemplazar. Formatos permitidos: JPG, PNG o WEBP."
-            : "Selecciona únicamente la foto del afiliado a reemplazar (fondo blanco). Formatos permitidos: JPG, PNG o WEBP.";
+            ? "Selecciona Ãºnicamente el documento de afiliaciÃ³n a reemplazar. Formatos permitidos: JPG, PNG o WEBP."
+            : "Selecciona Ãºnicamente la foto del afiliado a reemplazar (fondo blanco). Formatos permitidos: JPG, PNG o WEBP.";
     }
     function hideUploadContainer(label, show) {
         if (!label) return;
@@ -4211,7 +4320,7 @@ function restoreAffiliateMediaUI() {
     if (summaryScreen) summaryScreen.hidden = false;
     if (uploadTitle) uploadTitle.textContent = "Sube la evidencia del afiliado";
     if (uploadText) {
-        uploadText.textContent = "Selecciona primero el documento de afiliación y después una foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
+        uploadText.textContent = "Selecciona primero el documento de afiliaciÃ³n y despuÃ©s una foto del afiliado con fondo blanco. Formatos permitidos: JPG, PNG o WEBP.";
     }
     function showUploadContainer(label) {
         if (!label) return;

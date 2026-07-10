@@ -996,11 +996,11 @@ ix_require_session([
                 <p class="red-emission-update-kicker">Aviso</p>
 
                 <h2 id="red-emission-update-title">
-                    Se detecto una emision mas reciente
+                    Se detecto una diferencia en la emision
                 </h2>
 
                 <p id="red-emission-update-message" class="red-emission-update-message">
-                    La emision capturada es mayor que la registrada actualmente.
+                    La emision capturada es distinta a la registrada actualmente.
                 </p>
 
                 <p id="red-emission-update-detail" class="red-emission-update-detail">

@@ -2600,6 +2600,8 @@ body.ine-modal-open {
     --red-emission-update-close-bg: #3b82f6;
     --red-emission-update-radius: 22px;
     --red-emission-update-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
+    --red-emission-update-accent-bg: #e8f5ef;
+    --red-emission-update-accent-ink: #2f8f6b;
 }
 
 #red-emission-update-modal,
@@ -2629,7 +2631,7 @@ body.ine-modal-open {
     left: 50%;
     top: 50%;
     z-index: calc(var(--red-emission-update-z) + 1);
-    width: min(94vw, 420px);
+    width: min(94vw, 380px);
     max-height: calc(100dvh - 48px);
     transform: translate(-50%, -50%);
     display: flex;
@@ -2688,16 +2690,16 @@ body.ine-modal-open {
     display: grid;
     place-items: center;
     border-radius: 999px;
-    background: #fff7e8;
-    color: #c77700;
-    font-size: 1.5rem;
+    background: var(--red-emission-update-accent-bg);
+    color: var(--red-emission-update-accent-ink);
+    font-size: 1.45rem;
     font-weight: 950;
     line-height: 1;
 }
 
 .red-emission-update-kicker {
     margin: 0 0 6px;
-    color: #c77700;
+    color: var(--red-emission-update-primary);
     font-size: 0.78rem;
     font-weight: 950;
     letter-spacing: 0.12em;
@@ -2715,10 +2717,10 @@ body.ine-modal-open {
 .red-emission-update-message,
 .red-emission-update-detail {
     margin: 6px auto 0;
-    max-width: 320px;
+    max-width: 300px;
     color: var(--red-emission-update-ink);
     font-size: 0.92rem;
-    line-height: 1.42;
+    line-height: 1.38;
     font-weight: 750;
 }
 
@@ -2734,7 +2736,7 @@ body.ine-modal-open {
 }
 
 .red-emission-update-btn {
-    width: min(220px, 100%);
+    width: min(190px, 100%);
     min-height: 42px;
     border: 0;
     border-radius: 12px;
@@ -2773,19 +2775,22 @@ body.ine-modal-open {
     background: #2563eb;
 }
 
+#red-emission-update-modal[data-emission-compare="older"] {
+    --red-emission-update-accent-bg: #fff7ed;
+    --red-emission-update-accent-ink: #ea580c;
+}
+
 @media (max-width: 720px) {
     .red-emission-update-dialog {
-        width: min(94vw, 420px);
-        max-height: calc(100dvh - 72px);
+        width: min(94vw, 380px);
     }
 
     .red-emission-update-body {
-        padding: 4px 18px 24px;
+        padding: 4px 28px 28px;
     }
 
-    .red-emission-update-message,
-    .red-emission-update-detail {
-        font-size: 0.9rem;
+    .red-emission-update-btn {
+        width: min(190px, 100%);
     }
 }
 /* -------------------------------------------------------------------------- */
