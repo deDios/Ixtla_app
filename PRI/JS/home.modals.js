@@ -4434,7 +4434,10 @@ function restoreAffiliateMediaUI() {
 
         const previewId = inputId === 'affiliate-upload-front' ? 'affiliate-upload-preview-front' : 'affiliate-upload-preview-back';
         const previewEl = modalRoot.querySelector(`#${previewId}`);
-        if (previewEl) previewEl.hidden = false;
+        if (previewEl) {
+            const hasPreview = Boolean(previewEl.getAttribute("src"));
+            previewEl.hidden = !hasPreview;
+        }
     }
 
     showUploadContainer(frontLabel);
