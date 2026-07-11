@@ -322,6 +322,33 @@
     return wrap;
   }
 
+  function buildDesktopGuestIcon() {
+    const wrap = document.createElement("div");
+    wrap.className = "user-icon user-icon-guest";
+    wrap.setAttribute("role", "button");
+    wrap.setAttribute("tabindex", "0");
+    wrap.setAttribute("aria-label", "Iniciar sesion");
+    wrap.innerHTML = `
+      <img alt="Usuario" title="Iniciar sesion" class="img-perfil" />
+    `;
+
+    const img = wrap.querySelector(".img-perfil");
+    if (img) setAvatarSrc(img, null);
+
+    const goToLogin = () => {
+      window.location.href = ROUTES.login;
+    };
+
+    wrap.addEventListener("click", goToLogin);
+    wrap.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      goToLogin();
+    });
+
+    return wrap;
+  }
+
   function buildMobileUserMenu(session) {
     const mobileWrap = document.querySelector(".user-icon-mobile");
     const mobileImg = mobileWrap?.querySelector("img");
@@ -427,7 +454,8 @@
           }
         } catch { }
       } else {
-        actions.classList.remove("mostrar");
+        actions.appendChild(buildDesktopGuestIcon());
+        actions.classList.add("mostrar");
       }
     }
 
