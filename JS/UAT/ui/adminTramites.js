@@ -38,6 +38,14 @@
     isLoading: false,
     searchTimer: null,
     mediaVersion: {},
+
+    // State for the department filter bar para los departamentos
+    deptbar: {
+      chunkSize: 14,
+      visibleCount: 14,
+      isLoadingMore: false,
+    },
+
     drawer: {
       isOpen: false,
       mode: "view", // view | edit | create
@@ -48,7 +56,7 @@
       confirmDelete: false,
       isSaving: false,
 
-      // media del drawer
+      // Media state for the drawer
       media: {
         isLoading: false,
         isUploading: false,
@@ -58,8 +66,12 @@
     },
   };
 
+  // Initialization
   async function init() {
     state.isLoading = true;
+
+    // REINICIAR DEPTBAR AL ENTRAR AL MÓDULO
+    state.deptbar.visibleCount = state.deptbar.chunkSize;
 
     try {
       await loadDepartamentos();
@@ -70,6 +82,103 @@
     } finally {
       state.isLoading = false;
     }
+  }
+
+  // Helpers
+
+  function bindDeptbarScroll(root) {
+    const deptbar = root.querySelector("#admin-tramites-deptbar");
+    const btnPrev = root.querySelector("#admin-tramites-dept-prev");
+    const btnNext = root.querySelector("#admin-tramites-dept-next");
+
+    if (!deptbar) return;
+
+    const STEP = 560;
+    const LOAD_THRESHOLD = 140;
+
+    function updateNavState() {
+      const maxScrollLeft = deptbar.scrollWidth - deptbar.clientWidth;
+      const atStart = deptbar.scrollLeft <= 4;
+      const atEnd = deptbar.scrollLeft >= maxScrollLeft - 4;
+
+      if (btnPrev) btnPrev.disabled = atStart;
+      if (btnNext) btnNext.disabled = atEnd && !canLoadMoreDeptChips();
+    }
+
+    function maybeLoadMore() {
+      const remaining =
+        deptbar.scrollWidth - deptbar.clientWidth - deptbar.scrollLeft;
+
+      if (remaining <= LOAD_THRESHOLD) {
+        loadMoreDeptChips();
+      }
+    }
+
+    if (btnPrev) {
+      btnPrev.addEventListener("click", () => {
+        deptbar.scrollBy({
+          left: -STEP,
+          behavior: "smooth",
+        });
+      });
+    }
+
+    if (btnNext) {
+      btnNext.addEventListener("click", () => {
+        deptbar.scrollBy({
+          left: STEP,
+          behavior: "smooth",
+        });
+
+        setTimeout(() => {
+          maybeLoadMore();
+          updateNavState();
+        }, 220);
+      });
+    }
+
+    deptbar.addEventListener(
+      "wheel",
+      (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          e.preventDefault();
+          deptbar.scrollLeft += e.deltaY;
+          maybeLoadMore();
+          updateNavState();
+        }
+      },
+      { passive: false }
+    );
+
+    deptbar.addEventListener(
+      "scroll",
+      () => {
+        maybeLoadMore();
+        updateNavState();
+      },
+      { passive: true }
+    );
+
+    updateNavState();
+  }
+
+  function canLoadMoreDeptChips() {
+    return state.deptbar.visibleCount < state.departamentos.length;
+  }
+
+  function loadMoreDeptChips() {
+    if (state.deptbar.isLoadingMore) return;
+    if (!canLoadMoreDeptChips()) return;
+
+    state.deptbar.isLoadingMore = true;
+
+    state.deptbar.visibleCount = Math.min(
+      state.deptbar.visibleCount + state.deptbar.chunkSize,
+      state.departamentos.length
+    );
+
+    refreshView(false);
+    state.deptbar.isLoadingMore = false;
   }
 
   async function sendJSON(url, body, method = "POST") {
@@ -138,8 +247,10 @@
     }
 
     return [
+      `${DEPT_ASSETS_DIR}dep_img${safeId}.webp`,
       `${DEPT_ASSETS_DIR}dep_img${safeId}.png`,
       `${DEPT_ASSETS_DIR}dep_img${safeId}.jpg`,
+      `${DEPT_ASSETS_DIR}dep_img${safeId}.jpeg`,
       DEPT_PLACEHOLDER,
     ];
   }
@@ -186,7 +297,7 @@
   async function loadDepartamentos() {
     const json = await sendJSON(API.DEPARTAMENTOS, {
       all: true,
-      status: 1,
+      //status: 1,
     });
 
     state.departamentos = Array.isArray(json?.data)
@@ -198,6 +309,8 @@
         }))
         .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
       : [];
+
+    state.deptbar.visibleCount = state.deptbar.chunkSize;
   }
 
   async function refreshRemoteList() {
@@ -324,18 +437,36 @@
 
   function renderDeptFilters() {
     const allClass = state.activeDepartamentoId === 0 ? "is-active" : "";
+    const total = state.departamentos.length;
+    const visible = state.departamentos.slice(0, state.deptbar.visibleCount);
 
     return `
-      <div class="admin-tramites__deptbar">
-        <button
-          type="button"
-          class="admin-tramites__deptchip ${allClass}"
-          data-dept-id="0"
-        >
-          <span class="admin-tramites__deptchip-label">Todos</span>
-        </button>
+    <div class="admin-tramites__deptnav">
+      <button
+        type="button"
+        class="admin-tramites__deptnav-btn is-left"
+        id="admin-tramites-dept-prev"
+        aria-label="Desplazar departamentos a la izquierda"
+      >
+        ‹
+      </button>
 
-        ${state.departamentos
+      <div class="admin-tramites__deptbar-shell">
+        <div
+          class="admin-tramites__deptbar"
+          id="admin-tramites-deptbar"
+          aria-label="Filtros por departamento"
+          data-total="${total}"
+        >
+          <button
+            type="button"
+            class="admin-tramites__deptchip admin-tramites__deptchip--all ${allClass}"
+            data-dept-id="0"
+          >
+            <span class="admin-tramites__deptchip-label">Todos</span>
+          </button>
+
+          ${visible
         .map((dept) => {
           const activeClass =
             Number(state.activeDepartamentoId) === Number(dept.id)
@@ -343,28 +474,39 @@
               : "";
 
           return `
-              <button
-                type="button"
-                class="admin-tramites__deptchip ${activeClass}"
-                data-dept-id="${dept.id}"
-                title="${escapeHtml(dept.nombre)}"
-              >
-                <span class="admin-tramites__deptchip-img">
-                  ${renderDepartamentoImage(
+                <button
+                  type="button"
+                  class="admin-tramites__deptchip ${activeClass}"
+                  data-dept-id="${dept.id}"
+                  title="${escapeHtml(dept.nombre)}"
+                >
+                  <span class="admin-tramites__deptchip-img">
+                    ${renderDepartamentoImage(
             dept.id,
             dept.nombre,
             "admin-tramites__deptchip-image"
           )}
-                </span>
-                <span class="admin-tramites__deptchip-label">${escapeHtml(
-            dept.nombre
-          )}</span>
-              </button>
-            `;
+                  </span>
+                  <span class="admin-tramites__deptchip-label">
+                    ${escapeHtml(dept.nombre)}
+                  </span>
+                </button>
+              `;
         })
         .join("")}
+        </div>
       </div>
-    `;
+
+      <button
+        type="button"
+        class="admin-tramites__deptnav-btn is-right"
+        id="admin-tramites-dept-next"
+        aria-label="Desplazar departamentos a la derecha"
+      >
+        ›
+      </button>
+    </div>
+  `;
   }
 
   function renderRows() {
@@ -434,7 +576,7 @@
 
   const TRAMITE_MEDIA_BUCKET = "departamentos_modulos";
   const TRAMITE_MEDIA_DIR_PREFIX = "dep-";
-  const TRAMITE_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "heic", "heif"];
+  const TRAMITE_MEDIA_EXTENSIONS = ["webp", "png", "jpg", "jpeg"];
 
   function getTramiteIdForMedia() {
     return Number(state.drawer.selectedId || state.drawer.draft?.id || 0);
@@ -523,26 +665,6 @@
     };
   }
 
-  function normalizeMediaRows(rows = []) {
-    return Array.isArray(rows) ? rows : [];
-  }
-
-  function pickMediaByVariant(rows, variant) {
-    const safeVariant = String(variant || "").toLowerCase();
-
-    const exact = rows.find((row) => {
-      const name = String(row?.name || "").toLowerCase();
-      return name === `${safeVariant}.png`
-        || name === `${safeVariant}.jpg`
-        || name === `${safeVariant}.jpeg`
-        || name === `${safeVariant}.webp`
-        || name === `${safeVariant}.heic`
-        || name === `${safeVariant}.heif`;
-    });
-
-    return exact || null;
-  }
-
   async function loadDrawerMedia() {
     const tramiteId = getTramiteIdForMedia();
     const departamentoId = getDepartamentoIdForMedia();
@@ -593,6 +715,20 @@
     }
 
     if (!file) return;
+    if (state.drawer.media.isUploading || state.drawer.isSaving) return;
+
+    if (!window.MediaUpload || typeof window.MediaUpload.compressImageForUpload !== "function") {
+      toast("No se encontró el módulo de compresión de imágenes.", "error");
+      return;
+    }
+
+    const validation = window.MediaUpload.validateImageBeforeUpload?.(file, {
+      showFeedback: true,
+    });
+
+    if (validation && !validation.ok) {
+      return;
+    }
 
     state.drawer.media.isUploading = true;
     refreshView(false);
@@ -603,7 +739,13 @@
       fd.append("target_dir", getTramiteMediaTargetDir(departamentoId));
       fd.append("file_name", getTramiteMediaFileBase(variant, tramiteId));
       fd.append("replace", "1");
-      fd.append("file", file);
+
+      const optimizedFile = await window.MediaUpload.compressImageForUpload(file, {
+        profile: variant === "icon" ? "icon" : "card",
+        fileNameBase: getTramiteMediaFileBase(variant, tramiteId),
+      });
+
+      fd.append("file", optimizedFile);
 
       const res = await fetch(API.MEDIA_UPLOAD, {
         method: "POST",
@@ -621,6 +763,7 @@
       if (!res.ok || json?.ok === false) {
         throw new Error(json?.error || json?.message || json?.raw || `HTTP ${res.status}`);
       }
+
       setTramiteMediaVersion(variant, tramiteId);
 
       toast(
@@ -644,7 +787,7 @@
 
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif";
+    input.accept = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 
     input.addEventListener("change", async (e) => {
       const file = e.target.files?.[0];
@@ -864,7 +1007,7 @@
         ? `
                 <div class="admin-drawer__confirm">
                   <p class="admin-drawer__confirm-text">
-                    ¿Seguro que deseas eliminar este tipo de trámite? Se ocultará del listado y se marcará con estatus 0.
+                    ¿Seguro que deseas eliminar este tipo de trámite?.
                   </p>
 
                   <div class="admin-drawer__confirm-actions">
@@ -1003,7 +1146,7 @@
                 <tr>
                   <th>Tipo de trámite</th>
                   <th>Descripción</th>
-                  <th>imagen</th>
+                  <th>Departamento</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -1035,11 +1178,14 @@
         state.query = e.target.value || "";
         state.page = 1;
 
+        // REINICIAR CHIPS VISIBLES DEL DEPTBAR
+        state.deptbar.visibleCount = state.deptbar.chunkSize;
+
         clearTimeout(state.searchTimer);
         state.searchTimer = setTimeout(async () => {
           try {
             await refreshRemoteList();
-            refreshView(false);
+            refreshView(true);
           } catch (error) {
             err("Error buscando trámites:", error);
             toast(getErrorMessage(error, "No se pudo buscar."), "error");
@@ -1095,6 +1241,7 @@
 
     bindDrawer(root);
     wireDepartmentImageFallbacks(root);
+    bindDeptbarScroll(root);
   }
 
   function syncDrawerUi(root) {

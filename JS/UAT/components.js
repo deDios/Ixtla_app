@@ -36,8 +36,8 @@
   const ENDPOINT =
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/DB/WEB/ixtla01_c_departamentos.php";
   const REQUEST_BODY = { 
-    //status: "active"
-    all: true
+    status: 1
+    //all: true
    };
 
   // --- assets
@@ -68,7 +68,7 @@
     // anchor principal
     const a = document.createElement("a");
     a.className = "ix-tile";
-    a.href = `/VIEWS/tramiteDepartamento.php?depId=${encodeURIComponent(id)}`;
+    a.href = `/VIEWS/UAT/tramiteDepartamento.php?depId=${encodeURIComponent(id)}`;
     a.setAttribute("aria-label", `${nombre} – ${h3Text}`);
     a.dataset.id = String(id);
 
@@ -210,5 +210,3 @@
     run();
   }
 })();
-
-// componente para levantamiento de requerimientois a partir del canal 2

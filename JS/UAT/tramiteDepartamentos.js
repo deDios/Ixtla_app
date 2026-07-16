@@ -238,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       </div>
       <ul class="ix-dep-list" id="ix-dep-list" aria-live="polite"></ul>
-      <a class="ix-dep-back" href="/VIEWS/tramiteDepartamento.php">← Ver todos los departamentos</a>
+      <a class="ix-dep-back" href="/VIEWS/UAT/tramiteDepartamento.php">← Ver todos los departamentos</a>
     `;
     wrap.appendChild(panel);
   }

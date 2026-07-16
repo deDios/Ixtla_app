@@ -1,7 +1,7 @@
 // /JS/ui/sidebar.js
 "use strict";
 
-import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
+import { getEmpleadoById, updateEmpleado } from "/JS/UAT/api/usuarios.js";
 
 /* ======================================
  * Helpers + logs

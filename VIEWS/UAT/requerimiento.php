@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../JS/auth/ix_guard.php';
+require_once __DIR__ . '/../../JS/UAT/auth/ix_guard.php';
 ix_require_session();
 ?>
 <!DOCTYPE html>
@@ -9,12 +9,12 @@ ix_require_session();
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
-    <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/home.css">
-    <link rel="stylesheet" href="/CSS/stepper.css">
-    <link rel="stylesheet" href="/CSS/requerimiento copy.css">
-    <link rel="stylesheet" href="/CSS/components.css">
-    <link rel="stylesheet" href="/CSS/requerimientoCoemntariosSection copy.css">
+    <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
+    <link rel="stylesheet" href="/CSS/UAT/home.css">
+    <link rel="stylesheet" href="/CSS/UAT/stepper.css">
+    <link rel="stylesheet" href="/CSS/UAT/requerimiento copy.css">
+    <link rel="stylesheet" href="/CSS/UAT/components.css">
+    <link rel="stylesheet" href="/CSS/UAT/requerimientoCoemntariosSection copy.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -29,7 +29,7 @@ ix_require_session();
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
                 <!-- El JSglobal reemplaza este avatar cuando hay sesion -->
-                <div class="user-icon-mobile" onclick="window.location.href='/VIEWS/login.php'">
+                <div class="user-icon-mobile" onclick="window.location.href='/VIEWS/UAT/login.php'">
                     <img src="/ASSETS/user/img_user1.png" alt="Usuario" />
                 </div>
             </div>
@@ -43,7 +43,7 @@ ix_require_session();
             </div>
 
             <div class="actions">
-                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
+                <button href="/VIEWS/UAT/contacto.php" class="btn btn-contacto" type="button"
                     onclick="window.location.href=this.getAttribute('href')">
                     Contacto
                 </button>
@@ -59,7 +59,7 @@ ix_require_session();
         <nav id="mobile-menu" class="subnav" aria-label="Navegación secundaria">
             <div class="nav-left">
                 <a href="/index.php">Inicio</a>
-                <a href="/VIEWS/tramiteDepartamento.php">Trámites y Seguimiento</a>
+                <a href="/VIEWS/UAT/tramiteDepartamento.php">Trámites y Seguimiento</a>
             </div>
 
             <div class="social-icons">
@@ -861,23 +861,23 @@ ix_require_session();
         </svg>
     </button>
 
-    <script src="/JS/JSglobal.js"></script>
-    <script src="/JS/components.js"></script>
+    <script src="/JS/UAT/jsGlobal.js"></script>
+    <script src="/JS/UAT/components.js"></script>
 
-    <script type="module" src="/JS/auth/session.js"></script>
-    <script type="module" src="/JS/auth/requerimientoGuard.js"></script>
+    <script type="module" src="/JS/UAT/auth/session.js"></script>
+    <script type="module" src="/JS/UAT/auth/requerimientoGuard.js"></script>
 
     <script src="/JS/UAT/requerimientoView.js"></script>
     <script src="/JS/UAT/ui/requerimientoDetalle.js"></script>
     <script src="/JS/UAT/ui/requerimientoPlaneacion.js"></script>
     <script src="/JS/UAT/ui/requerimientoExpediente.js"></script>
 
-    <script type="module" src="/JS/api/media.js"></script>
-    <script type="module" src="/JS/api/mediaRequerimientos.js"></script>
+    <script type="module" src="/JS/UAT/api/media.js"></script>
+    <script type="module" src="/JS/UAT/api/mediaRequerimientos.js"></script>
 
     <!-- bundle para que cargue bien el sidebar -->
-    <script type="module" src="/JS/ui/sidebar.js"></script>
-    <script type="module" src="/JS/ui/avatar-edit.js"></script>
+    <script type="module" src="/JS/UAT/ui/sidebar.js"></script>
+    <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
 
 </body>
 

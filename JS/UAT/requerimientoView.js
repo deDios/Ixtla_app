@@ -205,7 +205,7 @@
    *  Retro crear el link
    * ======================================*/
   function buildRetroLinkFromFolio(folio) {
-    const base = "https://ixtla-app.com/VIEWS/retroCiudadana.php";
+    const base = "/VIEWS/UAT/retroCiudadana.php";
     const f = String(folio || "").trim();
     return f ? `${base}?folio=${encodeURIComponent(f)}` : base;
   }

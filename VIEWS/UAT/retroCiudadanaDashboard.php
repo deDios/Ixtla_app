@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../JS/auth/ix_guard.php';
+require_once __DIR__ . '/../../JS/UAT/auth/ix_guard.php';
 ix_require_session();
 ?>
 <!DOCTYPE html>
@@ -9,10 +9,10 @@ ix_require_session();
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ixtla App</title>
-    <link rel="stylesheet" href="/CSS/plantilla.css">
-    <link rel="stylesheet" href="/CSS/components.css">
+    <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
+    <link rel="stylesheet" href="/CSS/UAT/components.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/CSS/retroCiudadanaDashboardUAT.css">
+    <link rel="stylesheet" href="/CSS/UAT/retroCiudadanaDashboardUAT.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="icon" href="/favicon.ico">
 </head>
@@ -27,7 +27,7 @@ ix_require_session();
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Instagram_logo.png" alt="Instagram" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/Youtube_logo.png" alt="YouTube" /></div>
                 <div class="icon-mobile"><img src="/ASSETS/social_icons/X_logo.png" alt="X" /></div>
-                <div class="user-icon-mobile" onclick="window.location.href='/VIEWS/login.php'">
+                <div class="user-icon-mobile" onclick="window.location.href='/VIEWS/UAT/login.php'">
                     <img src="/ASSETS/user/img_user1.png" alt="Usuario" />
                 </div>
             </div>
@@ -39,7 +39,7 @@ ix_require_session();
                     alt="Ixtlahuacán de los Membrillos - Ayuntamiento" />
             </div>
             <div class="actions">
-                <button href="/VIEWS/contacto.php" class="btn btn-contacto" type="button"
+                <button href="/VIEWS/UAT/contacto.php" class="btn btn-contacto" type="button"
                     onclick="window.location.href=this.getAttribute('href')">Contacto</button>
                 <button class="hamburger" aria-controls="mobile-menu" aria-expanded="false" aria-label="Abrir menú"
                     onclick="toggleMenu()">
@@ -51,7 +51,7 @@ ix_require_session();
         <nav id="mobile-menu" class="subnav" aria-label="Navegación secundaria">
             <div class="nav-left">
                 <a href="/index.php">Inicio</a>
-                <a href="/VIEWS/tramiteDepartamento.php">Trámites y Seguimiento</a>
+                <a href="/VIEWS/UAT/tramiteDepartamento.php">Trámites y Seguimiento</a>
             </div>
             <div class="social-icons">
                 <div class="circle-icon"><img src="/ASSETS/social_icons/Facebook_logo.png" alt="Facebook" /></div>
@@ -855,10 +855,10 @@ ix_require_session();
     <script type="module">
     import {
         guardPage
-    } from "/JS/auth/guard.js";
+    } from "/JS/UAT/auth/guard.js";
     guardPage({
         stealth: false,
-        redirectTo: "/VIEWS/login.php"
+        redirectTo: "/VIEWS/UAT/login.php"
     });
     </script>
 
@@ -866,8 +866,7 @@ ix_require_session();
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 
     <script src="/JS/UAT/components.js"></script>
-
-    <script src="/JS/UAT/JSglobal.js"></script>
+    <script src="/JS/UAT/jsGlobal.js"></script>
 
     <script type="module" src="/JS/UAT/retroCiudadanaDashboard.js"></script>
 

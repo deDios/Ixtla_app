@@ -8,12 +8,12 @@
   const GC_DEFAULT_CONFIG = {
     PATHS: {
       ASSETS: "/ASSETS",
-      VIEWS: "/VIEWS",
+      VIEWS: "/VIEWS/UAT",
     },
     ROUTES: {
       publicHome: "/index.php",
-      appHome: "/VIEWS/home.php",
-      login: "/VIEWS/login.php",
+      appHome: "/VIEWS/UAT/home.php",
+      login: "/VIEWS/UAT/login.php",
     },
     ASSETS: {
       DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",
@@ -356,7 +356,7 @@
               `Bienvenido, ${session.nombre || "usuario"}`,
               "exito",
             );
-          } catch {}
+          } catch { }
           sessionStorage.setItem("bienvenidaMostrada", "true");
         }
       } else {
@@ -592,7 +592,7 @@
         {
           home: {
             label: "Home",
-            href: "/VIEWS/home.php",
+            href: "/VIEWS/UAT/home.php",
             matchers: [
               "home.php",
               "requerimiento.php",
@@ -601,7 +601,7 @@
           },
           tareas: {
             label: "Tareas",
-            href: "/VIEWS/Tareas.php",
+            href: "/VIEWS/UAT/tareas.php",
             matchers: ["tareas.php"],
           },
         },
@@ -609,18 +609,22 @@
       ),
       CHAT: {
         enabled: true,
-        url: "/VIEWS/whats_asesores.php",
-        allowedEmpIds: Array.isArray(window.NAV_CHAT_ALLOWED)
-          ? window.NAV_CHAT_ALLOWED.slice()
-          : [6, 5, 4, 2, 1, 15],
+        url: "/VIEWS/UAT/whats_asesores.php",
+        allowedEmpIds: [6, 5, 4, 2, 1, 15],
         cookieName: "ix_emp",
       },
       RETRO: {
         enabled: true,
-        url: "/VIEWS/retroCiudadanaDashboard.php",
+        url: "/VIEWS/UAT/retroCiudadanaDashboard.php",
         label: "Retro",
         cookieName: "ix_emp",
         rbacUrl: "https://ixtla-app.com/db/web/ixtla01_rbac.php",
+      },
+      ADMIN: {
+        enabled: true,
+        url: "/VIEWS/UAT/admin.php",
+        allowedEmpIds: [6, 2, 1, 15],
+        cookieName: "ix_emp",
       },
     };
 
@@ -784,6 +788,57 @@
       });
     }
 
+    function maybeAddAdminLink() {
+      if (!CFG_OPS.ADMIN.enabled || !CFG_OPS.ADMIN.url) return;
+
+      const sess = readIxSession(CFG_OPS.ADMIN.cookieName);
+      const empIdRaw = sess?.empleado_id ?? sess?.id_empleado;
+      const empId = Number(empIdRaw ?? NaN);
+      if (!Number.isFinite(empId)) return;
+
+      const isAllowed = CFG_OPS.ADMIN.allowedEmpIds.includes(empId);
+
+      ensureNavLeftHosts();
+      const navs = document.querySelectorAll(
+        "#mobile-menu .nav-left, .subnav .nav-left",
+      );
+
+      navs.forEach((navLeft) => {
+        if (!navLeft) return;
+
+        const existing = navLeft.querySelector("#link-admin");
+
+        if (!isAllowed) {
+          existing?.remove();
+          return;
+        }
+
+        const isActive = normPath(CFG_OPS.ADMIN.url) === curPath();
+
+        if (existing) {
+          existing.classList.toggle("active", isActive);
+          return;
+        }
+
+        const a = document.createElement("a");
+        a.id = "link-admin";
+        a.href = CFG_OPS.ADMIN.url;
+        a.textContent = "Admin";
+        a.classList.toggle("active", isActive);
+
+        const retro = navLeft.querySelector("#link-retro");
+        const chat = navLeft.querySelector("#link-chat");
+
+        if (retro) {
+          retro.insertAdjacentElement("afterend", a);
+        } else if (chat) {
+          chat.insertAdjacentElement("afterend", a);
+        } else {
+          navLeft.appendChild(a);
+        }
+      });
+    }
+
     async function maybeAddRetroLink() {
       if (!CFG_OPS.RETRO.enabled || !CFG_OPS.RETRO.url) return;
 
@@ -870,6 +925,7 @@
       ensureLogoNavigates();
       maybeAddChatLink();
       await maybeAddRetroLink();
+      maybeAddAdminLink();
       mirrorActiveToMobile();
     }
 
@@ -897,7 +953,8 @@
       return (
         !!resolveActiveSectionKey() ||
         /home\.php/i.test(curLast()) ||
-        /retrociudadanadashboard\.php/i.test(curLast())
+        /retrociudadanadashboard\.php/i.test(curLast()) ||
+        /admin\.php/i.test(curLast())
       );
     }
 
@@ -914,12 +971,12 @@
       document.addEventListener(
         "DOMContentLoaded",
         () => {
-          mount().catch(() => {});
+          mount().catch(() => { });
         },
         { once: true },
       );
     } else {
-      mount().catch(() => {});
+      mount().catch(() => { });
     }
 
     if ("MutationObserver" in window) {
@@ -927,13 +984,14 @@
         if (isOperativeLike()) {
           try {
             maybeAddChatLink();
-            maybeAddRetroLink().catch(() => {});
+            maybeAddRetroLink().catch(() => { });
+            maybeAddAdminLink();
             mirrorActiveToMobile();
             subnavs.forEach((nav) => {
               fixOperativeSocialHitbox(nav);
               attachSocialClicks(nav);
             });
-          } catch {}
+          } catch { }
         }
       });
       obs.observe(header, { childList: true, subtree: true });

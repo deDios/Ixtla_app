@@ -1,5 +1,5 @@
 // /JS/login.js
-import { setSession } from "/JS/auth/session.js";
+import { setSession } from "/JS/UAT/auth/session.js";
 
 (() => {
   "use strict";
@@ -7,7 +7,7 @@ import { setSession } from "/JS/auth/session.js";
   /* -------------- CONFIG -------------- */
   const ENDPOINT    = "/DB/WEB/ixtla01_auth_login.php";
   //VIEWS\home.php
-  const REDIRECT_OK = "/VIEWS/home.php";
+  const REDIRECT_OK = "/VIEWS/UAT/home.php";
 
   const RECAPTCHA = {
     enabled: false,

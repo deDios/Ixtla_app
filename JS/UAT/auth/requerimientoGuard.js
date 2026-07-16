@@ -9,7 +9,7 @@
      ======================================================================== */
   const CONFIG = {
     DEBUG_LOGS: true,
-    HOME_URL: "/VIEWS/home copy.php",            
+    HOME_URL: "/VIEWS/UAT/home.php",
     ADMIN_ROLES: ["ADMIN"],
     PRESIDENCIA_DEPT_IDS: [6],   
     DEFAULT_AVATAR: "/ASSETS/user/img_user1.png",

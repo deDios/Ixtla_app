@@ -1,8 +1,8 @@
 // /JS/retroCiudadanaDashboard.js
 "use strict";
 
-import { DonutChart } from "/JS/charts/donut-chart.js";
-import { planScope, fetchScope } from "/JS/api/requerimientos.js";
+import { DonutChart } from "/JS/UAT/charts/donut-chart.js";
+import { planScope, fetchScope } from "/JS/UAT/api/requerimientos.js";
 import { initExportXLSXRetro } from "/JS/UAT/ui/exportXLSXRetro.js";
 
 /* ============================================================================
@@ -1447,7 +1447,7 @@ function initRetroReadonlyModal() {
     const reqId = Number(goBtn.dataset.reqId || 0);
     if (!reqId) return;
 
-    window.location.href = `/VIEWS/requerimiento.php?id=${reqId}`;
+    window.location.href = `/VIEWS/UAT/requerimiento.php?id=${reqId}`;
   });
 
   resendBtn?.addEventListener("click", async () => {

@@ -4,7 +4,7 @@ import {
   uploadMedia,
   uploadMediaLink,
   setupMedia,
-} from "/JS/api/media.js";
+} from "/JS/UAT/api/media.js";
 
 (() => {
   "use strict";

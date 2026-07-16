@@ -63,23 +63,23 @@ function isElementRenderable(el) {
 /* ============================================================================
    IMPORTS
    ========================================================================== */
-import { Session } from "/JS/auth/session.js";
+import { Session } from "/JS/UAT/auth/session.js";
 import {
   planScope,
   listByAsignado,
   parseReq,
   hydrateAsignadoFields, // importante
-} from "/JS/api/requerimientos.js";
-import { createTable } from "/JS/ui/table.js";
-import { LineChart } from "/JS/charts/line-chart.js";
-import { DonutChart } from "/JS/charts/donut-chart.js";
+} from "/JS/UAT/api/requerimientos.js";
+import { createTable } from "/JS/UAT/ui/table.js";
+import { LineChart } from "/JS/UAT/charts/line-chart.js";
+import { DonutChart } from "/JS/UAT/charts/donut-chart.js";
 
 /* === API de usuarios (empleados) === */
-import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
+import { getEmpleadoById, updateEmpleado } from "/JS/UAT/api/usuarios.js";
 
 /*-------- export para excel -------*/
 //import { initExportCSVHome } from "/JS/ui/exportCSVHome.js";
-import { initExportXLSXHome } from "/JS/ui/exportXLSXHome.js";
+import { initExportXLSXHome } from "/JS/UAT/ui/exportXLSXHome.js";
 
 /* ============================================================================
    SELECTORES
@@ -1212,7 +1212,7 @@ function setupRowClickDelegation() {
     if (openBtn) {
       const id = openBtn.getAttribute("data-open-req");
       if (id) {
-        window.location.href = `/VIEWS/requerimiento.php?id=${encodeURIComponent(
+        window.location.href = `/VIEWS/UAT/requerimiento.php?id=${encodeURIComponent(
           id,
         )}`;
       }
@@ -1298,7 +1298,7 @@ function setupRowClickDelegation() {
     const raw = pageRows[idx];
     const id = raw?.id || raw?.__raw?.id;
     if (id) {
-      window.location.href = `/VIEWS/requerimiento.php?id=${encodeURIComponent(
+      window.location.href = `/VIEWS/UAT/requerimiento.php?id=${encodeURIComponent(
         id,
       )}`;
     }

@@ -1,7 +1,7 @@
 // /JS/ui/tareasDetalle.js – Lógica del drawer de detalle de tarea
 "use strict";
 
-import { listMedia, uploadMedia, setupMedia } from "/JS/api/media.js";
+import { listMedia, uploadMedia, setupMedia } from "/JS/UAT/api/media.js";
 
 export function createTaskDetailsModule({
   State,

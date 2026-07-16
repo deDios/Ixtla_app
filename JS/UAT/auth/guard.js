@@ -1,5 +1,5 @@
 // /JS/auth/guard.js
-import { getSession, clearSession } from "/JS/auth/session.js";
+import { getSession, clearSession } from "/JS/UAT/auth/session.js";
 
 /**
  * Guardia de acceso por cookie de sesión (ix_emp)
@@ -41,7 +41,7 @@ export function guardPage(options = {}) {
     stealthServer: "nginx",
     stealthVersion: "1.24.0",
     stealthTheme: "nginx",
-    redirectTo: "/VIEWS/Login.php",
+    redirectTo: "/VIEWS/UAT/login.php",
     redirectMode: "replace",
     devLog: false,
     onlyIn: null,      // "home" => ejecutar solo en home.php

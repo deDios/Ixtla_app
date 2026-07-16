@@ -67,6 +67,58 @@
     return safeId ? `dep_img${safeId}` : "";
   }
 
+  function refreshView(keepFocus = true) {
+    const root = document.querySelector("#admin-view-root");
+    if (!root) return;
+
+    const active = keepFocus ? document.activeElement : null;
+    const focusMeta =
+      active
+        ? {
+          field: active.dataset?.field || null,
+          id: active.id || null,
+          selectionStart:
+            typeof active.selectionStart === "number"
+              ? active.selectionStart
+              : null,
+          selectionEnd:
+            typeof active.selectionEnd === "number"
+              ? active.selectionEnd
+              : null,
+        }
+        : null;
+
+    root.innerHTML = render();
+    bind();
+
+    if (!keepFocus || !focusMeta) return;
+
+    let next = null;
+
+    if (focusMeta.field) {
+      next = root.querySelector(
+        `.js-drawer-input[data-field="${focusMeta.field}"]`
+      );
+    } else if (focusMeta.id) {
+      next = root.querySelector(`#${focusMeta.id}`);
+    }
+
+    if (next) {
+      next.focus({ preventScroll: true });
+
+      if (
+        typeof next.setSelectionRange === "function" &&
+        focusMeta.selectionStart !== null &&
+        focusMeta.selectionEnd !== null
+      ) {
+        next.setSelectionRange(
+          focusMeta.selectionStart,
+          focusMeta.selectionEnd
+        );
+      }
+    }
+  }
+
   // apartado para agregar timestamps a las urls de las imagenes
   // de departamentos para forzar el refresh de las iamgenes cuando se suba 
   // una nueva imagen.
@@ -120,7 +172,6 @@
       return;
     }
 
-    // validación previa a la compresión
     const validation = window.MediaUpload.validateImageBeforeUpload?.(file, {
       showFeedback: true,
     });
@@ -131,7 +182,7 @@
 
     try {
       state.drawer.isSaving = true;
-      refreshView();
+      refreshView(false);
 
       const fd = new FormData();
       fd.append("bucket", DEPT_MEDIA_BUCKET);
@@ -139,7 +190,6 @@
       fd.append("file_name", getDepartamentoMediaFileBase(id));
       fd.append("replace", "1");
 
-      // intento de subir la imagen.
       const optimizedFile = await window.MediaUpload.compressImageForUpload(file, {
         profile: "logo",
         fileNameBase: getDepartamentoMediaFileBase(id),
@@ -169,11 +219,11 @@
       toast("Imagen del departamento actualizada correctamente.", "success");
 
       state.drawer.isSaving = false;
-      refreshView();
+      refreshView(false);
     } catch (error) {
       err("Error subiendo imagen del departamento:", error);
       state.drawer.isSaving = false;
-      refreshView();
+      refreshView(false);
       toast(getErrorMessage(error, "No se pudo subir la imagen."), "error");
     }
   }
@@ -506,7 +556,7 @@
             <input
               type="file"
               id="admin-departamento-image-input"
-              accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif"
+              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
               hidden
               ${!item.id || state.drawer.isSaving ? "disabled" : ""}
             />
@@ -609,7 +659,7 @@
         ? `
               <div class="admin-drawer__confirm">
                 <p class="admin-drawer__confirm-text">
-                  ¿Seguro que deseas desactivar este departamento? Se marcará como inactivo.
+                  ¿Seguro que deseas desactivar este departamento?.
                 </p>
 
                 <div class="admin-drawer__confirm-actions">
@@ -820,13 +870,10 @@
 
     // aqui va el apartado para el bind de los  botones para subida de media de 
     // departamentos.
-    const changeImageBtn =
-      document.querySelector(".js-change-departamento-image");
-    const imageInput =
-      document.querySelector("#admin-departamento-image-input");
+    const changeImageBtn = document.querySelector(".js-change-departamento-image");
+    const imageInput = document.querySelector("#admin-departamento-image-input");
 
     if (changeImageBtn && imageInput) {
-
       changeImageBtn.addEventListener("click", () => {
         if (state.drawer.isSaving) return;
         imageInput.click();
@@ -834,11 +881,12 @@
 
       imageInput.addEventListener("change", async (event) => {
         const file = event.target?.files?.[0];
-        if (!file) return;
-        await uploadDepartamentoImage(file);
         event.target.value = "";
-      });
 
+        if (!file) return;
+
+        await uploadDepartamentoImage(file);
+      });
     }
 
 
@@ -1146,14 +1194,6 @@
     };
 
     if (!silent) refreshView();
-  }
-
-  function refreshView() {
-    const root = document.querySelector("#admin-view-root");
-    if (!root) return;
-
-    root.innerHTML = render();
-    bind();
   }
 
   function syncDrawerUi(root) {

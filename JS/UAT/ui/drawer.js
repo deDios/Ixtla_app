@@ -1,6 +1,6 @@
 // /JS/ui/drawer.js
-import { setupMedia, listMedia, uploadMedia } from "/JS/api/media.js";
-import { updateRequerimiento } from "/JS/api/requerimientos.js";
+import { setupMedia, listMedia, uploadMedia } from "/JS/UAT/api/media.js";
+import { updateRequerimiento } from "/JS/UAT/api/requerimientos.js";
 
 /* ========================= Constantes ========================= */
 const FOLIO_RX = /^REQ-\d{10}$/;
