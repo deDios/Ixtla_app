@@ -62,7 +62,7 @@ export function mountIxtlaInsights(options = {}) {
     <button class="ixtla-insights-fab" type="button" aria-label="Abrir ${config.title}"><span class="ixtla-insights-fab__icon" aria-hidden="true">✦</span><span class="ixtla-insights-fab__label">${config.title}</span></button>
     <div class="ixtla-insights-overlay" aria-hidden="true"></div>
     <aside class="ixtla-insights-drawer" aria-label="${config.subtitle}" aria-hidden="true">
-      <header class="ixtla-insights-head"><span class="ixtla-insights-head__mark" aria-hidden="true">✦</span><div><h2>${config.title}</h2><p>${config.subtitle}</p></div><button class="ixtla-insights-close" type="button" aria-label="Cerrar">×</button></header>
+      <header class="ixtla-insights-head"><span class="ixtla-insights-head__mark" aria-hidden="true">✦</span><div><h2>${config.title}</h2><p>${config.subtitle}</p></div><button class="ixtla-insights-clear" type="button">Limpiar chat</button><button class="ixtla-insights-close" type="button" aria-label="Cerrar">×</button></header>
       <div class="ixtla-insights-messages" aria-live="polite"></div>
       <div class="ixtla-insights-footer"><div class="ixtla-insights-chips"></div><form class="ixtla-insights-form"><textarea class="ixtla-insights-input" rows="1" placeholder="Pregunta sobre los requerimientos…"></textarea><button class="ixtla-insights-send" type="submit" aria-label="Enviar">↑</button></form></div>
     </aside>`;
@@ -72,6 +72,7 @@ export function mountIxtlaInsights(options = {}) {
   const overlay = root.querySelector(".ixtla-insights-overlay");
   const drawer = root.querySelector(".ixtla-insights-drawer");
   const close = root.querySelector(".ixtla-insights-close");
+  const clear = root.querySelector(".ixtla-insights-clear");
   const messages = root.querySelector(".ixtla-insights-messages");
   const chips = root.querySelector(".ixtla-insights-chips");
   const form = root.querySelector(".ixtla-insights-form");
@@ -121,6 +122,7 @@ export function mountIxtlaInsights(options = {}) {
 
   fab.addEventListener("click", open);
   close.addEventListener("click", closeDrawer);
+  clear.addEventListener("click", () => { messages.replaceChildren(); });
   overlay.addEventListener("click", closeDrawer);
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDrawer(); });
   document.addEventListener(CONTEXT_EVENT, (event) => setContext(event.detail));
