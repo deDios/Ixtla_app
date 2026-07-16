@@ -147,6 +147,22 @@ function safeTxt(v, fallback = "—") {
   return s ? s : fallback;
 }
 
+function publishInsightsContext(rows = []) {
+  const scopeLabel = State?.filterKey && State.filterKey !== "todos"
+    ? `el filtro “${State.filterKey}” de tu vista`
+    : "la vista actual autorizada";
+
+  const detail = {
+    domain: "requerimientos",
+    scopeLabel,
+    rows: Array.isArray(rows) ? rows : [],
+  };
+  window.__ixtlaInsightsContext = detail;
+  document.dispatchEvent(new CustomEvent("ixtla-insights:context", {
+    detail,
+  }));
+}
+
 function formatFolio(folio, id) {
   if (folio && /^REQ-\d+$/i.test(String(folio).trim()))
     return String(folio).trim();
@@ -1440,6 +1456,7 @@ function applyPipelineAndRender() {
 
   updateExportButtonState(filtered.length);
   renderPagerClassic(filtered.length);
+  publishInsightsContext(filtered);
 
   log("pipeline", {
     filtroStatus: State.filterKey,

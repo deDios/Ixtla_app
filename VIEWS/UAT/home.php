@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
     <link rel="stylesheet" href="/CSS/UAT/components.css">
+    <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -748,6 +749,10 @@
     <script type="module" src="/JS/UAT/home.js"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
     <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js"></script>
+    <script type="module">
+        import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js";
+        mountIxtlaInsights();
+    </script>
 
 
 </body>
