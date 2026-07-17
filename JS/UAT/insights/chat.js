@@ -1,4 +1,5 @@
 import { Session } from "/JS/UAT/auth/session.js";
+import { buildVisualizationSpec, saveTemporaryDashboard } from "/JS/UAT/insights/dashboard-store.js";
 
 const CONTEXT_EVENT = "ixtla-insights:context";
 const QUICK_QUESTIONS = [
@@ -44,6 +45,10 @@ function answerFromContext(question, context) {
   return `En ${scope} hay ${rows.length} requerimiento(s): ${abiertos} abierto(s), ${finalizados} finalizado(s), ${pausados} pausado(s) y ${cancelados} cancelado(s).`;
 }
 
+function isVisualizationQuestion(question) {
+  return /\b(gr[aá]fica|grafico|chart|dona|pastel|barras?|l[ií]neas?|tabla|kpi|indicador|dashboard)\b/i.test(question);
+}
+
 export function mountIxtlaInsights(options = {}) {
   if (window.__ixtlaInsightsInstance) return window.__ixtlaInsightsInstance;
 
@@ -51,6 +56,7 @@ export function mountIxtlaInsights(options = {}) {
     title: "Ixtla Insights",
     subtitle: "Asistente de requerimientos",
     quickQuestions: QUICK_QUESTIONS,
+    dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
     answer: null,
     ...options,
   };
@@ -98,6 +104,13 @@ export function mountIxtlaInsights(options = {}) {
     input.value = "";
     send.disabled = true;
     try {
+      if (isVisualizationQuestion(prompt) && Array.isArray(context?.rows) && context.rows.length) {
+        const spec = buildVisualizationSpec(prompt, context);
+        saveTemporaryDashboard({ question: prompt, context, spec });
+        addMessage("Preparé un dashboard temporal con la visualización solicitada. Abriendo la vista personalizada…");
+        window.setTimeout(() => { window.location.assign(config.dashboardUrl); }, 450);
+        return;
+      }
       const response = config.answer
         ? await config.answer({ question: prompt, context, session: Session.get() })
         : answerFromContext(prompt, context);
