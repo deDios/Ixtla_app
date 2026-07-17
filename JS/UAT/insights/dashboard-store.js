@@ -1,4 +1,4 @@
-const STORAGE_KEY = "ixtla-insights:temporary-dashboard";
+const STORAGE_PREFIX = "ixtla-insights:temporary-dashboard:";
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -38,7 +38,9 @@ export function buildVisualizationSpec(question, context = {}) {
 }
 
 export function saveTemporaryDashboard({ question, context, spec }) {
+  const id = globalThis.crypto?.randomUUID?.() || `dashboard-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const dashboard = {
+    id,
     version: 1,
     createdAt: new Date().toISOString(),
     question: clean(question),
@@ -47,19 +49,20 @@ export function saveTemporaryDashboard({ question, context, spec }) {
     rows: compactRows(context?.rows),
   };
 
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dashboard));
+  localStorage.setItem(`${STORAGE_PREFIX}${id}`, JSON.stringify(dashboard));
   return dashboard;
 }
 
-export function loadTemporaryDashboard() {
+export function loadTemporaryDashboard(id) {
+  if (!clean(id)) return null;
   try {
-    const parsed = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "null");
+    const parsed = JSON.parse(localStorage.getItem(`${STORAGE_PREFIX}${id}`) || "null");
     return parsed && parsed.version === 1 ? parsed : null;
   } catch {
     return null;
   }
 }
 
-export function clearTemporaryDashboard() {
-  sessionStorage.removeItem(STORAGE_KEY);
+export function clearTemporaryDashboard(id) {
+  if (clean(id)) localStorage.removeItem(`${STORAGE_PREFIX}${id}`);
 }

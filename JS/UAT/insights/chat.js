@@ -106,9 +106,11 @@ export function mountIxtlaInsights(options = {}) {
     try {
       if (isVisualizationQuestion(prompt) && Array.isArray(context?.rows) && context.rows.length) {
         const spec = buildVisualizationSpec(prompt, context);
-        saveTemporaryDashboard({ question: prompt, context, spec });
-        addMessage("Preparé un dashboard temporal con la visualización solicitada. Abriendo la vista personalizada…");
-        window.setTimeout(() => { window.location.assign(config.dashboardUrl); }, 450);
+        const dashboard = saveTemporaryDashboard({ question: prompt, context, spec });
+        const dashboardUrl = new URL(config.dashboardUrl, window.location.origin);
+        dashboardUrl.searchParams.set("dashboard", dashboard.id);
+        addMessage("Preparé un dashboard temporal con la visualización solicitada. Lo abrí en una nueva ventana para que conserves esta conversación.");
+        window.open(dashboardUrl.toString(), "_blank", "noopener");
         return;
       }
       const response = config.answer

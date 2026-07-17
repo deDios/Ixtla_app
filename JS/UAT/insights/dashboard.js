@@ -56,7 +56,8 @@ function renderDashboard(dashboard) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const dashboard = loadTemporaryDashboard();
+  const dashboardId = new URLSearchParams(window.location.search).get("dashboard");
+  const dashboard = loadTemporaryDashboard(dashboardId);
   if (!dashboard) {
     document.getElementById("ixtla-dashboard-empty").hidden = false;
     return;
@@ -64,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderDashboard(dashboard);
   document.getElementById("ixtla-dashboard-clear").addEventListener("click", () => {
-    clearTemporaryDashboard();
-    window.location.href = "/VIEWS/UAT/home.php";
+    clearTemporaryDashboard(dashboard.id);
+    window.close();
   });
 });
