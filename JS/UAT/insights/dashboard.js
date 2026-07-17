@@ -1,48 +1,107 @@
-import { clearTemporaryDashboard, loadTemporaryDashboard } from "/JS/UAT/insights/dashboard-store.js";
+import {
+  addTemporaryWidget,
+  clearTemporaryDashboard,
+  getWidgetCatalog,
+  loadTemporaryDashboard,
+  moveTemporaryWidget,
+  removeTemporaryWidget,
+} from "/JS/UAT/insights/dashboard-store.js";
 
 const STATUS_LABELS = {
   solicitud: "Solicitud",
-  revision: "Revisión",
-  asignacion: "Asignación",
+  revision: "Revision",
+  asignacion: "Asignacion",
   proceso: "En proceso",
   pausado: "Pausado",
   cancelado: "Cancelado",
   finalizado: "Finalizado",
 };
+const COLORS = ["#0f4c81", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b", "#22c55e"];
+const clean = (value) => String(value ?? "").trim();
+const escapeHtml = (value) => clean(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+
+function dayOf(value) {
+  const raw = clean(value);
+  if (!raw) return "Sin fecha";
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? raw.slice(0, 10) : date.toISOString().slice(0, 10);
+}
+
+function sourceRows(rows, widget) {
+  return widget.metric === "finalizados" ? rows.filter((row) => row.estatus === "finalizado") : rows;
+}
 
 function groupRows(rows, widget) {
-  const source = widget.metric === "finalizados"
-    ? rows.filter((row) => row.estatus === "finalizado")
-    : rows;
-  return source.reduce((groups, row) => {
-    const raw = widget.dimension === "tramite" ? row.tramite : row.estatus;
-    const key = widget.dimension === "estatus" ? (STATUS_LABELS[raw] || raw || "Sin estatus") : (raw || "Sin trámite");
+  return sourceRows(rows, widget).reduce((groups, row) => {
+    const raw = widget.dimension === "tramite" ? row.tramite : widget.dimension === "fecha" ? dayOf(row.creado) : row.estatus;
+    const key = widget.dimension === "estatus" ? (STATUS_LABELS[raw] || raw || "Sin estatus") : (raw || "Sin tramite");
     groups[key] = (groups[key] || 0) + 1;
     return groups;
   }, {});
 }
 
-function renderBar(target, groups) {
-  const entries = Object.entries(groups).sort((left, right) => right[1] - left[1]);
-  const max = Math.max(...entries.map(([, value]) => value), 1);
-  target.innerHTML = entries.length
-    ? entries.map(([label, value]) => `<div class="ixtla-dashboard-bar"><span>${label}</span><div><i style="width:${Math.round((value / max) * 100)}%"></i></div><strong>${value}</strong></div>`).join("")
-    : '<p class="ixtla-dashboard-empty">No hay datos para esta visualización.</p>';
+function entriesFor(rows, widget) {
+  const entries = Object.entries(groupRows(rows, widget));
+  return widget.dimension === "fecha"
+    ? entries.sort(([left], [right]) => left.localeCompare(right))
+    : entries.sort((left, right) => right[1] - left[1]);
 }
 
-function renderDonut(target, groups) {
-  const entries = Object.entries(groups).sort((left, right) => right[1] - left[1]);
+function renderBar(target, entries) {
+  const max = Math.max(...entries.map(([, value]) => value), 1);
+  target.innerHTML = entries.length
+    ? entries.map(([label, value]) => `<div class="ixtla-dashboard-bar"><span title="${escapeHtml(label)}">${escapeHtml(label)}</span><div><i style="width:${Math.round((value / max) * 100)}%"></i></div><strong>${value}</strong></div>`).join("")
+    : '<p class="ixtla-dashboard-empty-message">No hay datos para esta visualizacion.</p>';
+}
+
+function renderDonut(target, entries) {
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
-  const colors = ["#0f4c81", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b", "#22c55e"];
   let cursor = 0;
   const segments = entries.map(([, value], index) => {
     const start = cursor;
     cursor += (value / total) * 100;
-    return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+    return `${COLORS[index % COLORS.length]} ${start}% ${cursor}%`;
   });
   target.innerHTML = total
-    ? `<div class="ixtla-dashboard-donut" style="background:conic-gradient(${segments.join(",")})"><strong>${total}</strong><span>Total</span></div><ul>${entries.map(([label, value], index) => `<li><span><i style="background:${colors[index % colors.length]}"></i>${label}</span><strong>${value}</strong></li>`).join("")}</ul>`
-    : '<p class="ixtla-dashboard-empty">No hay datos para esta visualización.</p>';
+    ? `<div class="ixtla-dashboard-donut-wrap"><div class="ixtla-dashboard-donut" style="background:conic-gradient(${segments.join(",")})"><strong>${total}</strong><span>Total</span></div><ul class="ixtla-dashboard-legend">${entries.map(([label, value], index) => `<li><span><i style="background:${COLORS[index % COLORS.length]}"></i>${escapeHtml(label)}</span><strong>${value}</strong></li>`).join("")}</ul></div>`
+    : '<p class="ixtla-dashboard-empty-message">No hay datos para esta visualizacion.</p>';
+}
+
+function renderKpi(target, rows, widget) {
+  const total = sourceRows(rows, widget).length;
+  target.innerHTML = `<div class="ixtla-dashboard-kpi"><strong>${total}</strong><span>${widget.metric === "finalizados" ? "Requerimientos finalizados" : "Requerimientos visibles"}</span></div>`;
+}
+
+function renderLine(target, entries) {
+  const values = entries.slice(-7);
+  if (!values.length) {
+    target.innerHTML = '<p class="ixtla-dashboard-empty-message">No hay datos para esta visualizacion.</p>';
+    return;
+  }
+  const max = Math.max(...values.map(([, value]) => value), 1);
+  const width = 460;
+  const height = 150;
+  const step = values.length === 1 ? 0 : width / (values.length - 1);
+  const points = values.map(([, value], index) => [index * step, height - ((value / max) * 112) - 12]);
+  const line = points.map(([x, y]) => `${x},${y}`).join(" ");
+  const area = `0,${height} ${line} ${width},${height}`;
+  target.innerHTML = `<svg class="ixtla-dashboard-line" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="Tendencia"><polygon class="area" points="${area}"></polygon><polyline points="${line}"></polyline>${points.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4"></circle>`).join("")}</svg><div class="ixtla-dashboard-line-labels">${values.map(([label]) => `<span title="${escapeHtml(label)}">${escapeHtml(label)}</span>`).join("")}</div>`;
+}
+
+function renderTable(target, entries) {
+  target.innerHTML = entries.length
+    ? `<table class="ixtla-dashboard-table"><thead><tr><th>${entries.length > 1 ? "Categoria" : "Resultado"}</th><th>Total</th></tr></thead><tbody>${entries.slice(0, 8).map(([label, value]) => `<tr><td title="${escapeHtml(label)}">${escapeHtml(label)}</td><td><strong>${value}</strong></td></tr>`).join("")}</tbody></table>`
+    : '<p class="ixtla-dashboard-empty-message">No hay datos para esta visualizacion.</p>';
+}
+
+function cardSize(chart) {
+  if (chart === "kpi") return "ixtla-dashboard-card--small";
+  if (chart === "line" || chart === "table") return "ixtla-dashboard-card--wide";
+  return "";
+}
+
+function metricLabel(widget) {
+  return widget.metric === "finalizados" ? "Metrica: finalizados" : "Metrica: total";
 }
 
 function renderDashboard(dashboard) {
@@ -50,29 +109,106 @@ function renderDashboard(dashboard) {
   document.getElementById("ixtla-dashboard-question").textContent = dashboard.question || "Dashboard temporal";
   const grid = document.getElementById("ixtla-dashboard-grid");
   grid.replaceChildren();
-
   dashboard.widgets.forEach((widget) => {
     const card = document.createElement("article");
-    card.className = "ixtla-dashboard-card";
-    card.innerHTML = `<header><p>${widget.metric === "finalizados" ? "Métrica: finalizados" : "Métrica: total"}</p><h2>${widget.title}</h2></header><div class="ixtla-dashboard-widget"></div>`;
-    const groups = groupRows(dashboard.rows || [], widget);
+    card.className = `ixtla-dashboard-card ${cardSize(widget.chart)}`;
+    card.draggable = true;
+    card.dataset.widgetId = widget.id;
+    card.innerHTML = `<header class="ixtla-dashboard-card__header"><div><p>${metricLabel(widget)}</p><h2>${escapeHtml(widget.title)}</h2></div><div class="ixtla-dashboard-card__tools"><button class="ixtla-dashboard-drag" type="button" aria-label="Arrastrar widget" title="Arrastrar widget">&#8281;</button><button class="ixtla-dashboard-remove" type="button" aria-label="Eliminar widget" title="Eliminar widget">&times;</button></div></header><div class="ixtla-dashboard-widget"></div>`;
     const target = card.querySelector(".ixtla-dashboard-widget");
-    widget.chart === "donut" ? renderDonut(target, groups) : renderBar(target, groups);
+    const entries = entriesFor(dashboard.rows || [], widget);
+    if (widget.chart === "donut") renderDonut(target, entries);
+    else if (widget.chart === "line") renderLine(target, entries);
+    else if (widget.chart === "table") renderTable(target, entries);
+    else if (widget.chart === "kpi") renderKpi(target, dashboard.rows || [], widget);
+    else renderBar(target, entries);
     grid.appendChild(card);
   });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   const dashboardId = new URLSearchParams(window.location.search).get("dashboard");
-  const dashboard = loadTemporaryDashboard(dashboardId);
+  let dashboard = loadTemporaryDashboard(dashboardId);
+  const empty = document.getElementById("ixtla-dashboard-empty");
+  const grid = document.getElementById("ixtla-dashboard-grid");
+  const modal = document.getElementById("ixtla-dashboard-modal");
+
   if (!dashboard) {
-    document.getElementById("ixtla-dashboard-empty").hidden = false;
+    empty.hidden = false;
+    document.getElementById("ixtla-dashboard-add").hidden = true;
+    document.getElementById("ixtla-dashboard-clear").hidden = true;
     return;
   }
 
-  renderDashboard(dashboard);
-  document.getElementById("ixtla-dashboard-clear").addEventListener("click", () => {
-    clearTemporaryDashboard(dashboard.id);
-    window.close();
+  function refresh(nextDashboard = loadTemporaryDashboard(dashboard.id)) {
+    dashboard = nextDashboard;
+    if (!dashboard) {
+      grid.replaceChildren();
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = dashboard.widgets.length > 0;
+    renderDashboard(dashboard);
+  }
+
+  function openModal() {
+    const catalog = document.getElementById("ixtla-dashboard-catalog");
+    catalog.replaceChildren();
+    getWidgetCatalog().forEach((widget) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.innerHTML = `<strong>${escapeHtml(widget.title)}</strong><span>${escapeHtml(widget.chart)} · ${escapeHtml(widget.metric)}</span>`;
+      button.addEventListener("click", () => {
+        refresh(addTemporaryWidget(dashboard.id, widget));
+        modal.hidden = true;
+      });
+      catalog.appendChild(button);
+    });
+    modal.hidden = false;
+  }
+
+  let draggedId = null;
+  grid.addEventListener("dragstart", (event) => {
+    const card = event.target.closest(".ixtla-dashboard-card");
+    if (!card) return;
+    draggedId = card.dataset.widgetId;
+    card.classList.add("is-dragging");
+    event.dataTransfer.effectAllowed = "move";
   });
+  grid.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    const card = event.target.closest(".ixtla-dashboard-card");
+    grid.querySelectorAll(".is-drag-over").forEach((item) => item.classList.remove("is-drag-over"));
+    if (card && card.dataset.widgetId !== draggedId) card.classList.add("is-drag-over");
+  });
+  grid.addEventListener("drop", (event) => {
+    event.preventDefault();
+    const target = event.target.closest(".ixtla-dashboard-card");
+    if (draggedId && target) refresh(moveTemporaryWidget(dashboard.id, draggedId, target.dataset.widgetId));
+  });
+  grid.addEventListener("dragend", () => {
+    draggedId = null;
+    grid.querySelectorAll(".is-dragging, .is-drag-over").forEach((item) => item.classList.remove("is-dragging", "is-drag-over"));
+  });
+  grid.addEventListener("click", (event) => {
+    const remove = event.target.closest(".ixtla-dashboard-remove");
+    if (!remove) return;
+    const card = remove.closest(".ixtla-dashboard-card");
+    refresh(removeTemporaryWidget(dashboard.id, card.dataset.widgetId));
+  });
+
+  document.getElementById("ixtla-dashboard-add").addEventListener("click", openModal);
+  modal.addEventListener("click", (event) => {
+    if (event.target.closest("[data-ixtla-close-modal]")) modal.hidden = true;
+  });
+  document.getElementById("ixtla-dashboard-clear").addEventListener("click", () => {
+    if (!window.confirm("Se eliminaran los widgets temporales de este dashboard. Deseas continuar?")) return;
+    clearTemporaryDashboard(dashboard.id);
+    grid.replaceChildren();
+    empty.hidden = false;
+    document.getElementById("ixtla-dashboard-add").hidden = true;
+    document.getElementById("ixtla-dashboard-clear").hidden = true;
+  });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") modal.hidden = true; });
+  refresh(dashboard);
 });

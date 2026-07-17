@@ -1,34 +1,68 @@
 const STORAGE_PREFIX = "ixtla-insights:temporary-dashboard:";
+const ACTIVE_DASHBOARD_KEY = "ixtla-insights:active-dashboard";
+const MAX_ROWS = 500;
 
-function clean(value) {
-  return String(value ?? "").trim();
-}
+const clean = (value) => String(value ?? "").trim();
 
 function statusOf(row) {
   return clean(row?.estatus?.key ?? row?.estatus_key ?? row?.estatus ?? row?.status).toLowerCase();
 }
 
+function createId(prefix) {
+  return globalThis.crypto?.randomUUID?.() || `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function compactRows(rows) {
-  return (Array.isArray(rows) ? rows : []).slice(0, 500).map((row) => ({
+  return (Array.isArray(rows) ? rows : []).slice(0, MAX_ROWS).map((row) => ({
     id: row?.id ?? null,
-    tramite: clean(row?.tramite ?? row?.tipo_tramite ?? row?.categoria) || "Sin trámite",
+    tramite: clean(row?.tramite ?? row?.tipo_tramite ?? row?.categoria) || "Sin tramite",
     estatus: statusOf(row),
     departamento: clean(row?.departamento ?? row?.depto ?? row?.departamento_nombre) || "Sin departamento",
     creado: row?.creado ?? row?.created_at ?? row?.fecha_creacion ?? null,
   }));
 }
 
+function normalizeDashboard(raw, id) {
+  if (!raw || !Array.isArray(raw.widgets)) return null;
+  return {
+    id: clean(raw.id) || id,
+    version: 2,
+    createdAt: raw.createdAt || new Date().toISOString(),
+    updatedAt: raw.updatedAt || raw.createdAt || new Date().toISOString(),
+    question: clean(raw.question),
+    scopeLabel: clean(raw.scopeLabel) || "Vista autorizada actual",
+    widgets: raw.widgets.map((widget) => ({ ...widget, id: clean(widget?.id) || createId("widget") })),
+    rows: compactRows(raw.rows),
+  };
+}
+
+function persistDashboard(dashboard) {
+  dashboard.updatedAt = new Date().toISOString();
+  localStorage.setItem(`${STORAGE_PREFIX}${dashboard.id}`, JSON.stringify(dashboard));
+  localStorage.setItem(ACTIVE_DASHBOARD_KEY, dashboard.id);
+  return dashboard;
+}
+
 export function buildVisualizationSpec(question, context = {}) {
   const prompt = clean(question).toLocaleLowerCase("es-MX");
-  const dimension = /tr[aá]mite|categor[ií]a/.test(prompt) ? "tramite" : "estatus";
-  const chart = /dona|pastel/.test(prompt) ? "donut" : "bar";
+  let dimension = /tramite|categor/.test(prompt) ? "tramite" : "estatus";
+  let chart = "bar";
+  if (/dona|pastel/.test(prompt)) chart = "donut";
+  if (/linea|tendencia|evolucion/.test(prompt)) {
+    chart = "line";
+    dimension = "fecha";
+  }
+  if (/tabla|listado/.test(prompt)) chart = "table";
+  if (/\bkpi\b|indicador|total de requerimientos/.test(prompt)) chart = "kpi";
   const metric = /finaliz/.test(prompt) ? "finalizados" : "total";
 
   return {
-    id: `visual-${Date.now()}`,
-    title: metric === "finalizados"
-      ? `Finalizados por ${dimension}`
-      : `Requerimientos por ${dimension}`,
+    id: createId("widget"),
+    title: chart === "line"
+      ? "Tendencia diaria de requerimientos"
+      : metric === "finalizados"
+        ? `Finalizados por ${dimension}`
+        : `Requerimientos por ${dimension}`,
     chart,
     metric,
     dimension,
@@ -37,32 +71,75 @@ export function buildVisualizationSpec(question, context = {}) {
   };
 }
 
-export function saveTemporaryDashboard({ question, context, spec }) {
-  const id = globalThis.crypto?.randomUUID?.() || `dashboard-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const dashboard = {
-    id,
-    version: 1,
-    createdAt: new Date().toISOString(),
-    question: clean(question),
-    scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
-    widgets: [spec],
-    rows: compactRows(context?.rows),
-  };
-
-  localStorage.setItem(`${STORAGE_PREFIX}${id}`, JSON.stringify(dashboard));
-  return dashboard;
+export function getWidgetCatalog() {
+  return [
+    { chart: "kpi", metric: "total", dimension: "estatus", title: "Total de requerimientos" },
+    { chart: "bar", metric: "total", dimension: "estatus", title: "Requerimientos por estatus" },
+    { chart: "donut", metric: "total", dimension: "estatus", title: "Distribucion por estatus" },
+    { chart: "line", metric: "total", dimension: "fecha", title: "Tendencia diaria de requerimientos" },
+    { chart: "table", metric: "total", dimension: "tramite", title: "Requerimientos por tramite" },
+  ].map((widget) => ({ ...widget, id: createId("widget"), domain: "requerimientos" }));
 }
 
 export function loadTemporaryDashboard(id) {
-  if (!clean(id)) return null;
+  const dashboardId = clean(id);
+  if (!dashboardId) return null;
   try {
-    const parsed = JSON.parse(localStorage.getItem(`${STORAGE_PREFIX}${id}`) || "null");
-    return parsed && parsed.version === 1 ? parsed : null;
+    const parsed = JSON.parse(localStorage.getItem(`${STORAGE_PREFIX}${dashboardId}`) || "null");
+    return normalizeDashboard(parsed, dashboardId);
   } catch {
     return null;
   }
 }
 
+export function saveTemporaryDashboard({ question, context, spec }) {
+  const activeId = clean(localStorage.getItem(ACTIVE_DASHBOARD_KEY));
+  const existing = loadTemporaryDashboard(activeId);
+  const dashboard = existing || {
+    id: createId("dashboard"),
+    version: 2,
+    createdAt: new Date().toISOString(),
+    question: "",
+    scopeLabel: "Vista autorizada actual",
+    widgets: [],
+    rows: [],
+  };
+
+  dashboard.question = clean(question) || dashboard.question;
+  dashboard.scopeLabel = clean(context?.scopeLabel) || dashboard.scopeLabel;
+  dashboard.rows = compactRows(context?.rows);
+  dashboard.widgets.push({ ...spec, id: clean(spec?.id) || createId("widget") });
+  return persistDashboard(dashboard);
+}
+
+export function addTemporaryWidget(id, widget) {
+  const dashboard = loadTemporaryDashboard(id);
+  if (!dashboard) return null;
+  dashboard.widgets.push({ ...widget, id: createId("widget") });
+  return persistDashboard(dashboard);
+}
+
+export function removeTemporaryWidget(id, widgetId) {
+  const dashboard = loadTemporaryDashboard(id);
+  if (!dashboard) return null;
+  dashboard.widgets = dashboard.widgets.filter((widget) => widget.id !== widgetId);
+  return persistDashboard(dashboard);
+}
+
+export function moveTemporaryWidget(id, sourceId, targetId) {
+  const dashboard = loadTemporaryDashboard(id);
+  if (!dashboard || sourceId === targetId) return dashboard;
+  const sourceIndex = dashboard.widgets.findIndex((widget) => widget.id === sourceId);
+  const targetIndex = dashboard.widgets.findIndex((widget) => widget.id === targetId);
+  if (sourceIndex < 0 || targetIndex < 0) return dashboard;
+  const [source] = dashboard.widgets.splice(sourceIndex, 1);
+  dashboard.widgets.splice(targetIndex, 0, source);
+  return persistDashboard(dashboard);
+}
+
 export function clearTemporaryDashboard(id) {
-  if (clean(id)) localStorage.removeItem(`${STORAGE_PREFIX}${id}`);
+  const dashboardId = clean(id);
+  if (!dashboardId) return;
+  localStorage.removeItem(`${STORAGE_PREFIX}${dashboardId}`);
+  if (localStorage.getItem(ACTIVE_DASHBOARD_KEY) === dashboardId) localStorage.removeItem(ACTIVE_DASHBOARD_KEY);
 }

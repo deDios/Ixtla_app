@@ -110,7 +110,7 @@ export function mountIxtlaInsights(options = {}) {
         const dashboardUrl = new URL(config.dashboardUrl, window.location.origin);
         dashboardUrl.searchParams.set("dashboard", dashboard.id);
         addMessage("Preparé un dashboard temporal con la visualización solicitada. Lo abrí en una nueva ventana para que conserves esta conversación.");
-        window.open(dashboardUrl.toString(), "_blank", "noopener");
+        window.open(dashboardUrl.toString(), "ixtla-insights-dashboard", "noopener");
         return;
       }
       const response = config.answer
