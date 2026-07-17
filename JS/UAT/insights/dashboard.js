@@ -33,8 +33,15 @@ function renderBar(target, groups) {
 function renderDonut(target, groups) {
   const entries = Object.entries(groups).sort((left, right) => right[1] - left[1]);
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
+  const colors = ["#0f4c81", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b", "#22c55e"];
+  let cursor = 0;
+  const segments = entries.map(([, value], index) => {
+    const start = cursor;
+    cursor += (value / total) * 100;
+    return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+  });
   target.innerHTML = total
-    ? `<div class="ixtla-dashboard-donut" style="position:relative;--percent:${Math.min(100, Math.round(((entries[0]?.[1] || 0) / total) * 100))}%"><strong>${total}</strong><span>Total</span></div><ul>${entries.map(([label, value]) => `<li><span>${label}</span><strong>${value}</strong></li>`).join("")}</ul>`
+    ? `<div class="ixtla-dashboard-donut" style="background:conic-gradient(${segments.join(",")})"><strong>${total}</strong><span>Total</span></div><ul>${entries.map(([label, value], index) => `<li><span><i style="background:${colors[index % colors.length]}"></i>${label}</span><strong>${value}</strong></li>`).join("")}</ul>`
     : '<p class="ixtla-dashboard-empty">No hay datos para esta visualización.</p>';
 }
 
