@@ -9,6 +9,7 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ixtla Insights - Dashboard temporal</title>
   <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-dashboard.css">
+  <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css">
 </head>
 <body class="ixtla-dashboard-page">
   <header class="ixtla-dashboard-top">
@@ -42,5 +43,21 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
     </section>
   </div>
   <script type="module" src="/JS/UAT/insights/dashboard.js"></script>
+  <script type="module">
+    import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js";
+
+    function mountDashboardAssistant() {
+      const dashboard = window.IxtlaInsightsDashboard;
+      if (!dashboard) return;
+      mountIxtlaInsights({
+        subtitle: "Asistente del dashboard",
+        context: dashboard.getContext(),
+        visualizationHandler: ({ question, context, spec }) => dashboard.addVisualization({ question, context, spec }),
+      });
+    }
+
+    if (window.IxtlaInsightsDashboard) mountDashboardAssistant();
+    else document.addEventListener("ixtla-insights:dashboard-ready", mountDashboardAssistant, { once: true });
+  </script>
 </body>
 </html>

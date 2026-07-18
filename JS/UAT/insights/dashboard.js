@@ -1,4 +1,5 @@
 import {
+  addVisualizationToTemporaryDashboard,
   addTemporaryWidget,
   clearTemporaryDashboard,
   getWidgetCatalog,
@@ -149,7 +150,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     empty.hidden = dashboard.widgets.length > 0;
     renderDashboard(dashboard);
+    document.dispatchEvent(new CustomEvent("ixtla-insights:context", { detail: getInsightsContext() }));
   }
+
+  function getInsightsContext() {
+    return {
+      domain: "requerimientos",
+      scopeLabel: dashboard.scopeLabel,
+      rows: dashboard.rows || [],
+    };
+  }
+
+  window.IxtlaInsightsDashboard = {
+    getContext: getInsightsContext,
+    addVisualization({ question, context, spec }) {
+      const next = addVisualizationToTemporaryDashboard(dashboard.id, { question, context, spec });
+      refresh(next);
+      return next;
+    },
+  };
+  document.dispatchEvent(new CustomEvent("ixtla-insights:dashboard-ready", { detail: window.IxtlaInsightsDashboard }));
 
   function openModal() {
     const catalog = document.getElementById("ixtla-dashboard-catalog");

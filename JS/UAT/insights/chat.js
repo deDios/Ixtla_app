@@ -57,10 +57,13 @@ export function mountIxtlaInsights(options = {}) {
     subtitle: "Asistente de requerimientos",
     quickQuestions: QUICK_QUESTIONS,
     dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
+    apiUrl: "/db/ixtla_insights/chat.php",
+    visualizationHandler: null,
     answer: null,
     ...options,
   };
-  let context = window.__ixtlaInsightsContext || null;
+  let context = config.context || window.__ixtlaInsightsContext || null;
+  const history = [];
 
   const root = document.createElement("div");
   root.className = "ixtla-insights";
@@ -93,6 +96,57 @@ export function mountIxtlaInsights(options = {}) {
     messages.scrollTop = messages.scrollHeight;
   }
 
+  function renderQuickQuestions(questions) {
+    chips.replaceChildren();
+    (Array.isArray(questions) ? questions : []).slice(0, 6).forEach((question) => {
+      const text = clean(question);
+      if (!text) return;
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "ixtla-insights-chip";
+      chip.textContent = text;
+      chip.addEventListener("click", () => ask(text));
+      chips.appendChild(chip);
+    });
+  }
+
+  function remoteWidgetSpec(widget) {
+    const chart = clean(widget?.kind || widget?.chart);
+    const allowedCharts = new Set(["kpi", "bar", "donut", "line", "table"]);
+    if (!allowedCharts.has(chart)) return null;
+    const metric = clean(widget?.metric) === "finalizados" ? "finalizados" : "total";
+    const dimension = ["estatus", "tramite", "fecha"].includes(clean(widget?.dimension))
+      ? clean(widget.dimension)
+      : "estatus";
+    return {
+      id: `remote-widget-${Date.now()}`,
+      title: clean(widget?.title) || "Visualizacion de requerimientos",
+      chart,
+      metric,
+      dimension,
+      domain: "requerimientos",
+      scopeLabel: clean(widget?.scope_label) || clean(context?.scopeLabel) || "Vista autorizada actual",
+    };
+  }
+
+  async function requestRemoteAnswer(prompt) {
+    const response = await fetch(config.apiUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({
+        question: prompt,
+        history: history.slice(-12),
+        dashboard_id: clean(config.dashboardId),
+      }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      throw new Error(clean(payload?.error) || "El servicio Insights no respondio correctamente.");
+    }
+    return payload;
+  }
+
   function setContext(next) { context = next && typeof next === "object" ? next : null; }
   function open() { drawer.classList.add("is-open"); overlay.classList.add("is-open"); drawer.setAttribute("aria-hidden", "false"); input.focus(); }
   function closeDrawer() { drawer.classList.remove("is-open"); overlay.classList.remove("is-open"); drawer.setAttribute("aria-hidden", "true"); }
@@ -104,8 +158,43 @@ export function mountIxtlaInsights(options = {}) {
     input.value = "";
     send.disabled = true;
     try {
+      if (config.apiUrl) {
+        const payload = await requestRemoteAnswer(prompt);
+        const answer = clean(payload.answer) || "No pude generar una respuesta para esa consulta.";
+        addMessage(answer);
+        history.push({ role: "user", content: prompt }, { role: "assistant", content: answer });
+        renderQuickQuestions(payload.suggestions || config.quickQuestions);
+
+        const action = Array.isArray(payload.actions)
+          ? payload.actions.find((item) => item?.type === "widget_preview")
+          : null;
+        const spec = remoteWidgetSpec(action?.widget);
+        if (!spec) return;
+        if (!Array.isArray(context?.rows) || !context.rows.length) {
+          addMessage("La vista previa esta lista, pero no hay requerimientos visibles para representarla.");
+          return;
+        }
+        if (typeof config.visualizationHandler === "function") {
+          const result = await config.visualizationHandler({ question: prompt, context, spec });
+          if (!result) throw new Error("No fue posible agregar el widget al dashboard.");
+          addMessage("Listo. Agregue la visualizacion al dashboard actual.");
+          return;
+        }
+        const dashboard = saveTemporaryDashboard({ question: prompt, context, spec });
+        const dashboardUrl = new URL(config.dashboardUrl, window.location.origin);
+        dashboardUrl.searchParams.set("dashboard", dashboard.id);
+        addMessage("Prepare un dashboard temporal con la visualizacion solicitada.");
+        window.open(dashboardUrl.toString(), "ixtla-insights-dashboard", "noopener");
+        return;
+      }
       if (isVisualizationQuestion(prompt) && Array.isArray(context?.rows) && context.rows.length) {
         const spec = buildVisualizationSpec(prompt, context);
+        if (typeof config.visualizationHandler === "function") {
+          const result = await config.visualizationHandler({ question: prompt, context, spec });
+          if (!result) throw new Error("No fue posible agregar el widget al dashboard.");
+          addMessage("Listo. Agregue la visualizacion al dashboard actual.");
+          return;
+        }
         const dashboard = saveTemporaryDashboard({ question: prompt, context, spec });
         const dashboardUrl = new URL(config.dashboardUrl, window.location.origin);
         dashboardUrl.searchParams.set("dashboard", dashboard.id);
@@ -126,18 +215,11 @@ export function mountIxtlaInsights(options = {}) {
     }
   }
 
-  config.quickQuestions.forEach((question) => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "ixtla-insights-chip";
-    chip.textContent = question;
-    chip.addEventListener("click", () => ask(question));
-    chips.appendChild(chip);
-  });
+  renderQuickQuestions(config.quickQuestions);
 
   fab.addEventListener("click", open);
   close.addEventListener("click", closeDrawer);
-  clear.addEventListener("click", () => { messages.replaceChildren(); });
+  clear.addEventListener("click", () => { messages.replaceChildren(); history.length = 0; renderQuickQuestions(config.quickQuestions); });
   overlay.addEventListener("click", closeDrawer);
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDrawer(); });
   document.addEventListener(CONTEXT_EVENT, (event) => setContext(event.detail));

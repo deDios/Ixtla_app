@@ -105,11 +105,21 @@ export function saveTemporaryDashboard({ question, context, spec }) {
     rows: [],
   };
 
+  return appendVisualization(dashboard, { question, context, spec });
+}
+
+function appendVisualization(dashboard, { question, context, spec }) {
   dashboard.question = clean(question) || dashboard.question;
   dashboard.scopeLabel = clean(context?.scopeLabel) || dashboard.scopeLabel;
   dashboard.rows = compactRows(context?.rows);
   dashboard.widgets.push({ ...spec, id: clean(spec?.id) || createId("widget") });
   return persistDashboard(dashboard);
+}
+
+export function addVisualizationToTemporaryDashboard(id, { question, context, spec }) {
+  const dashboard = loadTemporaryDashboard(id);
+  if (!dashboard) return null;
+  return appendVisualization(dashboard, { question, context, spec });
 }
 
 export function addTemporaryWidget(id, widget) {

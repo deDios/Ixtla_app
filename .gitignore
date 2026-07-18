@@ -1,0 +1,5 @@
+# Ixtla Insights local Python runtime and credentials
+ixtla_insights_api/.env
+ixtla_insights_api/.venv/
+ixtla_insights_api/**/__pycache__/
+*.py[cod]
