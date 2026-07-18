@@ -47,6 +47,9 @@ function ixtla_insights_config(): array
         'request_timeout_seconds' => 90,
         'max_question_characters' => 800,
         'max_history_messages' => 12,
+        'max_history_characters' => 400,
+        'max_output_tokens' => 500,
+        'reasoning_effort' => 'low',
 
         // El asistente inicia únicamente sobre el dominio operativo actual.
         'allowed_domains' => ['requerimientos'],

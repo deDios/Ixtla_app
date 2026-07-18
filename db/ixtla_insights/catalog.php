@@ -10,6 +10,6 @@ ixtla_insights_json([
         'domain' => 'requerimientos',
         'widget_kinds' => ['kpi', 'bar', 'donut', 'line', 'table'],
         'metrics' => ['total', 'finalizados'],
-        'dimensions' => ['estatus', 'tramite', 'fecha'],
+        'dimensions' => ['estatus', 'tramite', 'departamento', 'fecha'],
     ],
 ]);

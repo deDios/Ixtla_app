@@ -45,7 +45,11 @@ function persistDashboard(dashboard) {
 
 export function buildVisualizationSpec(question, context = {}) {
   const prompt = clean(question).toLocaleLowerCase("es-MX");
-  let dimension = /tramite|categor/.test(prompt) ? "tramite" : "estatus";
+  let dimension = /departamento|depto/.test(prompt)
+    ? "departamento"
+    : /tramite|categor/.test(prompt)
+      ? "tramite"
+      : "estatus";
   let chart = "bar";
   if (/dona|pastel/.test(prompt)) chart = "donut";
   if (/linea|tendencia|evolucion/.test(prompt)) {
@@ -76,6 +80,8 @@ export function getWidgetCatalog() {
     { chart: "kpi", metric: "total", dimension: "estatus", title: "Total de requerimientos" },
     { chart: "bar", metric: "total", dimension: "estatus", title: "Requerimientos por estatus" },
     { chart: "donut", metric: "total", dimension: "estatus", title: "Distribucion por estatus" },
+    { chart: "donut", metric: "total", dimension: "departamento", title: "Requerimientos por departamento" },
+    { chart: "bar", metric: "total", dimension: "departamento", title: "Carga por departamento" },
     { chart: "line", metric: "total", dimension: "fecha", title: "Tendencia diaria de requerimientos" },
     { chart: "table", metric: "total", dimension: "tramite", title: "Requerimientos por tramite" },
   ].map((widget) => ({ ...widget, id: createId("widget"), domain: "requerimientos" }));

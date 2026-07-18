@@ -55,7 +55,7 @@ function ixtla_insights_scope(): array
     ];
 }
 
-function ixtla_insights_clean_history(array $history, int $limit): array
+function ixtla_insights_clean_history(array $history, int $limit, int $characters = 400): array
 {
     $clean = [];
     foreach (array_slice($history, -$limit) as $message) {
@@ -69,7 +69,7 @@ function ixtla_insights_clean_history(array $history, int $limit): array
             continue;
         }
 
-        $clean[] = ['role' => $role, 'content' => ixtla_insights_truncate($content, 800)];
+        $clean[] = ['role' => $role, 'content' => ixtla_insights_truncate($content, max(1, $characters))];
     }
 
     return $clean;
@@ -105,10 +105,10 @@ function ixtla_insights_response_schema(): array
         'required' => ['kind', 'title', 'metric', 'dimension', 'scope_label'],
         'properties' => [
             'kind' => ['type' => 'string', 'enum' => ['kpi', 'bar', 'donut', 'line', 'table']],
-            'title' => ['type' => 'string'],
+            'title' => ['type' => 'string', 'maxLength' => 100],
             'metric' => ['type' => 'string', 'enum' => ['total', 'finalizados']],
-            'dimension' => ['type' => 'string', 'enum' => ['estatus', 'tramite', 'fecha']],
-            'scope_label' => ['type' => 'string'],
+            'dimension' => ['type' => 'string', 'enum' => ['estatus', 'tramite', 'departamento', 'fecha']],
+            'scope_label' => ['type' => 'string', 'maxLength' => 160],
         ],
     ];
 
@@ -117,10 +117,15 @@ function ixtla_insights_response_schema(): array
         'additionalProperties' => false,
         'required' => ['answer', 'suggestions', 'actions'],
         'properties' => [
-            'answer' => ['type' => 'string'],
-            'suggestions' => ['type' => 'array', 'items' => ['type' => 'string']],
+            'answer' => ['type' => 'string', 'maxLength' => 350],
+            'suggestions' => [
+                'type' => 'array',
+                'maxItems' => 5,
+                'items' => ['type' => 'string', 'maxLength' => 100],
+            ],
             'actions' => [
                 'type' => 'array',
+                'maxItems' => 1,
                 'items' => [
                     'type' => 'object',
                     'additionalProperties' => false,
@@ -163,7 +168,7 @@ function ixtla_insights_normalize_chat_response(array $data): array
         if (!in_array($widget['metric'] ?? '', ['total', 'finalizados'], true)) {
             continue;
         }
-        if (!in_array($widget['dimension'] ?? '', ['estatus', 'tramite', 'fecha'], true)) {
+        if (!in_array($widget['dimension'] ?? '', ['estatus', 'tramite', 'departamento', 'fecha'], true)) {
             continue;
         }
 
@@ -182,7 +187,7 @@ function ixtla_insights_normalize_chat_response(array $data): array
     return [
         'ok' => true,
         'mode' => 'openai',
-        'answer' => ixtla_insights_truncate($answer, 1200),
+        'answer' => ixtla_insights_truncate($answer, 350),
         'suggestions' => array_slice(array_values(array_unique($suggestions)), 0, 5),
         'actions' => array_slice($actions, 0, 1),
     ];
@@ -202,7 +207,8 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
     $systemPrompt = 'Eres Ixtla Insights para requerimientos. Responde solo con el JSON definido. '
         . 'No inventes cifras, no afirmes haber consultado una base de datos y no generes SQL. '
         . 'Solo puedes proponer widgets kpi, bar, donut, line o table; metricas total o finalizados; '
-        . 'dimensiones estatus, tramite o fecha. Si no solicitan una visualizacion, actions debe ser [].';
+        . 'dimensiones estatus, tramite, departamento o fecha. Si no solicitan una visualizacion, actions debe ser []. '
+        . 'La respuesta debe ser breve, sin explicar razonamientos.';
 
     $input = [[
         'role' => 'developer',
@@ -233,8 +239,13 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
                 'schema' => ixtla_insights_response_schema(),
             ],
         ],
-        'max_output_tokens' => 1000,
+        'max_output_tokens' => (int) ($config['max_output_tokens'] ?? 500),
     ];
+
+    $reasoningEffort = (string) ($config['reasoning_effort'] ?? '');
+    if (in_array($reasoningEffort, ['none', 'low', 'medium', 'high', 'xhigh'], true)) {
+        $payload['reasoning'] = ['effort' => $reasoningEffort];
+    }
 
     $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($jsonPayload === false) {
@@ -253,6 +264,7 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
             'Accept: application/json',
         ],
     ]);
+    $startedAt = microtime(true);
     $raw = curl_exec($curl);
     $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
     curl_close($curl);
@@ -262,12 +274,32 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no pudo procesar la consulta Insights.'], 502);
     }
 
+    ixtla_insights_log_usage($response, [
+        'model' => $config['model'] ?? null,
+        'latency_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+    ]);
+
     $structured = json_decode(ixtla_insights_openai_text($response), true);
     if (!is_array($structured)) {
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI devolvio una respuesta no estructurada.'], 502);
     }
 
     return ixtla_insights_normalize_chat_response($structured);
+}
+
+function ixtla_insights_log_usage(array $response, array $context = []): void
+{
+    $usage = is_array($response['usage'] ?? null) ? $response['usage'] : [];
+    $outputDetails = is_array($usage['output_tokens_details'] ?? null) ? $usage['output_tokens_details'] : [];
+    $record = [
+        'event' => 'ixtla_insights_usage',
+        'model' => $context['model'] ?? null,
+        'latency_ms' => $context['latency_ms'] ?? null,
+        'input_tokens' => $usage['input_tokens'] ?? null,
+        'output_tokens' => $usage['output_tokens'] ?? null,
+        'reasoning_tokens' => $outputDetails['reasoning_tokens'] ?? $usage['reasoning_tokens'] ?? null,
+    ];
+    error_log((string) json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
 
 function ixtla_insights_forward(array $config, string $path, array $payload = [], string $method = 'POST'): array

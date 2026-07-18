@@ -34,8 +34,15 @@ function sourceRows(rows, widget) {
 
 function groupRows(rows, widget) {
   return sourceRows(rows, widget).reduce((groups, row) => {
-    const raw = widget.dimension === "tramite" ? row.tramite : widget.dimension === "fecha" ? dayOf(row.creado) : row.estatus;
-    const key = widget.dimension === "estatus" ? (STATUS_LABELS[raw] || raw || "Sin estatus") : (raw || "Sin tramite");
+    const raw = widget.dimension === "departamento"
+      ? row.departamento
+      : widget.dimension === "tramite"
+        ? row.tramite
+        : widget.dimension === "fecha"
+          ? dayOf(row.creado)
+          : row.estatus;
+    const fallback = widget.dimension === "departamento" ? "Sin departamento" : "Sin tramite";
+    const key = widget.dimension === "estatus" ? (STATUS_LABELS[raw] || raw || "Sin estatus") : (raw || fallback);
     groups[key] = (groups[key] || 0) + 1;
     return groups;
   }, {});

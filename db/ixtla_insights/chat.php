@@ -20,7 +20,11 @@ if ($question === '' || mb_strlen($question) > $maxCharacters) {
 }
 
 $history = is_array($body['history'] ?? null)
-    ? ixtla_insights_clean_history($body['history'], (int) ($config['max_history_messages'] ?? 12))
+    ? ixtla_insights_clean_history(
+        $body['history'],
+        (int) ($config['max_history_messages'] ?? 6),
+        (int) ($config['max_history_characters'] ?? 400)
+    )
     : [];
 
 $response = ixtla_insights_call_openai($config, $question, $history);
