@@ -15,6 +15,20 @@ const DIMENSION_LABELS = {
   departamento: "departamento",
   fecha: "fecha",
 };
+const CHART_LABELS = {
+  bar: "Barras",
+  donut: "Pastel",
+  line: "Línea",
+  area: "Área",
+  table: "Tabla",
+  kpi: "Indicador",
+  funnel: "Embudo",
+};
+const METRIC_LABELS = {
+  total: "Total",
+  finalizados: "Finalizados",
+  abiertos: "Abiertos",
+};
 
 const clean = (value) => String(value ?? "").trim();
 
@@ -64,6 +78,8 @@ function answerFromContext(question, context) {
 function chartFromQuestion(question) {
   const text = clean(question).toLocaleLowerCase("es-MX");
   if (/dona|pastel/.test(text)) return "donut";
+  if (/embudo/.test(text)) return "funnel";
+  if (/área|area/.test(text)) return "area";
   if (/barras?/.test(text)) return "bar";
   if (/línea|linea|tendencia|evolución|evolucion/.test(text)) return "line";
   if (/tabla|listado/.test(text)) return "table";
@@ -80,14 +96,29 @@ function dimensionFromQuestion(question) {
   return "";
 }
 
+function metricFromQuestion(question) {
+  const text = clean(question).toLocaleLowerCase("es-MX");
+  if (/finaliz/.test(text)) return "finalizados";
+  if (/abiert|pendient/.test(text)) return "abiertos";
+  if (/total/.test(text)) return "total";
+  return "";
+}
+
 function isContextQuestion(question) {
   return /finaliz|cancel|paus|trámite|tramite|pendient|mayor|más carga|mas carga|resume|carga actual|cuántos|cuantos/i.test(question);
+}
+
+function isVisualizationRequest(question) {
+  return /graf|visualiz|ranking|\btop\b|compar|listado|tabla|indicador|\bkpi\b|embudo/i.test(question);
 }
 
 function widgetTitle(chart, metric, dimension) {
   const group = DIMENSION_LABELS[dimension] || "estatus";
   if (chart === "line") return "Tendencia de requerimientos por fecha";
+  if (chart === "area") return "Tendencia acumulada de requerimientos";
   if (chart === "kpi") return metric === "finalizados" ? "Requerimientos finalizados" : "Total de requerimientos";
+  if (chart === "table") return metric === "finalizados" ? `Ranking de finalizados por ${group}` : `Ranking de requerimientos por ${group}`;
+  if (chart === "funnel") return "Embudo de requerimientos por estatus";
   return metric === "finalizados" ? `Finalizados por ${group}` : `Requerimientos por ${group}`;
 }
 
@@ -150,20 +181,40 @@ export function mountIxtlaInsights(options = {}) {
       chip.className = "ixtla-insights-chip";
       chip.textContent = text;
       chip.addEventListener("click", () => {
-        if (item && typeof item === "object" && item.action?.type === "visualization_dimension") {
-          chooseVisualizationDimension(item.action.dimension);
-          return;
-        }
+        const action = item && typeof item === "object" ? item.action || {} : {};
+        if (action.type === "visualization_chart") return chooseVisualizationChart(action.chart);
+        if (action.type === "visualization_dimension") return chooseVisualizationDimension(action.dimension);
+        if (action.type === "visualization_metric") return chooseVisualizationMetric(action.metric);
         ask(clean(item?.prompt || text));
       });
       chips.appendChild(chip);
     });
   }
 
+  function chartChoices() {
+    return ["bar", "donut", "line", "area", "table", "kpi"].map((chart) => ({
+      label: CHART_LABELS[chart],
+      action: { type: "visualization_chart", chart },
+    }));
+  }
+
   function dimensionChoices(chart) {
-    return ["estatus", "tramite", "departamento", "fecha"].map((dimension) => ({
-      label: `${chart === "donut" ? "Pastel" : "Gráfica"} por ${DIMENSION_LABELS[dimension]}`,
+    const dimensions = chart === "line" || chart === "area"
+      ? ["fecha"]
+      : chart === "funnel"
+        ? ["estatus"]
+        : ["estatus", "tramite", "departamento", "fecha"];
+    const prefix = CHART_LABELS[chart] || "Gráfica";
+    return dimensions.map((dimension) => ({
+      label: `${prefix} por ${DIMENSION_LABELS[dimension]}`,
       action: { type: "visualization_dimension", dimension },
+    }));
+  }
+
+  function metricChoices() {
+    return Object.keys(METRIC_LABELS).map((metric) => ({
+      label: METRIC_LABELS[metric],
+      action: { type: "visualization_metric", metric },
     }));
   }
 
@@ -211,12 +262,40 @@ export function mountIxtlaInsights(options = {}) {
     return true;
   }
 
-  async function chooseVisualizationDimension(dimension) {
-    if (!pendingVisualization || !DIMENSION_LABELS[dimension]) return;
+  function requiresDimension(chart) {
+    return chart !== "kpi";
+  }
+
+  function continueGuidedVisualization() {
+    const request = pendingVisualization;
+    if (!request) return;
+    if (!request.chart) {
+      addMessage("Entiendo que deseas una visualización. ¿Qué tipo de gráfica prefieres?");
+      renderQuickQuestions(chartChoices());
+      return;
+    }
+    if (!requiresDimension(request.chart)) request.dimension = "estatus";
+    if (request.chart === "line" || request.chart === "area") request.dimension = "fecha";
+    if (request.chart === "funnel") request.dimension = "estatus";
+    if (requiresDimension(request.chart) && !request.dimension) {
+      addMessage("¿Cómo deseas agrupar los requerimientos?");
+      renderQuickQuestions(dimensionChoices(request.chart));
+      return;
+    }
+    if (!request.metric) {
+      addMessage("¿Qué métrica deseas visualizar?");
+      renderQuickQuestions(metricChoices());
+      return;
+    }
+    finalizeVisualization();
+  }
+
+  async function finalizeVisualization() {
+    if (!pendingVisualization?.chart || !pendingVisualization?.metric) return;
     const request = pendingVisualization;
     pendingVisualization = null;
-    addMessage(`${request.chart === "donut" ? "Pastel" : "Gráfica"} por ${DIMENSION_LABELS[dimension]}`, "user");
     renderQuickQuestions([]);
+    const dimension = request.dimension || "estatus";
     const spec = {
       id: `guided-widget-${Date.now()}`,
       title: widgetTitle(request.chart, request.metric, dimension),
@@ -225,45 +304,50 @@ export function mountIxtlaInsights(options = {}) {
       dimension,
       filters: [],
       sort: dimension === "fecha" ? "chronological" : "desc",
-      limit: 10,
+      limit: request.chart === "kpi" ? 1 : 10,
       domain: "requerimientos",
       scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
     };
     try {
       await addVisualization(request.question, spec);
+      renderQuickQuestions(config.quickQuestions);
     } catch (error) {
       console.error("[IxtlaInsights]", error);
       addMessage("No fue posible agregar la visualización al dashboard. Intenta de nuevo.");
     }
   }
 
+  function chooseVisualizationChart(chart) {
+    if (!pendingVisualization || !CHART_LABELS[chart]) return;
+    pendingVisualization.chart = chart;
+    addMessage(`Tipo de visualización: ${CHART_LABELS[chart]}`, "user");
+    continueGuidedVisualization();
+  }
+
+  function chooseVisualizationDimension(dimension) {
+    if (!pendingVisualization || !DIMENSION_LABELS[dimension]) return;
+    pendingVisualization.dimension = dimension;
+    addMessage(`Agrupar por ${DIMENSION_LABELS[dimension]}`, "user");
+    continueGuidedVisualization();
+  }
+
+  function chooseVisualizationMetric(metric) {
+    if (!pendingVisualization || !METRIC_LABELS[metric]) return;
+    pendingVisualization.metric = metric;
+    addMessage(`Métrica: ${METRIC_LABELS[metric]}`, "user");
+    continueGuidedVisualization();
+  }
+
   function beginVisualization(question) {
     const chart = chartFromQuestion(question);
-    if (!chart) return false;
-    const dimension = dimensionFromQuestion(question);
-    const metric = /finaliz/i.test(question) ? "finalizados" : "total";
-    if (dimension) {
-      const spec = {
-        id: `guided-widget-${Date.now()}`,
-        title: widgetTitle(chart, metric, dimension),
-        chart,
-        metric,
-        dimension,
-        filters: [],
-        sort: dimension === "fecha" ? "chronological" : "desc",
-        limit: chart === "kpi" ? 1 : 10,
-        domain: "requerimientos",
-        scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
-      };
-      addVisualization(question, spec).catch((error) => {
-        console.error("[IxtlaInsights]", error);
-        addMessage("No fue posible agregar la visualización al dashboard. Intenta de nuevo.");
-      });
-      return true;
-    }
-    pendingVisualization = { chart, metric, question };
-    addMessage(`Puedo mostrar una visualización de tipo ${chart === "donut" ? "pastel" : "gráfica"}. ¿Cómo deseas agrupar los requerimientos?`);
-    renderQuickQuestions(dimensionChoices(chart));
+    if (!chart && !isVisualizationRequest(question)) return false;
+    pendingVisualization = {
+      chart,
+      dimension: dimensionFromQuestion(question),
+      metric: metricFromQuestion(question),
+      question,
+    };
+    continueGuidedVisualization();
     return true;
   }
 
