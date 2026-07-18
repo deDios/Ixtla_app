@@ -54,7 +54,8 @@ function ixtla_insights_config(): array
         // El asistente inicia únicamente sobre el dominio operativo actual.
         'allowed_domains' => ['requerimientos'],
         'allow_visualizations' => true,
-        'allow_database_queries' => false,
+        // Sólo permite agregaciones predefinidas y autorizadas; nunca SQL del modelo.
+        'allow_database_queries' => true,
 
         'reference_service' => 'PRI/extract_identificacion_openai.php',
     ];

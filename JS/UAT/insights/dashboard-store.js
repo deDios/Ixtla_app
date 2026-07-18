@@ -1,6 +1,5 @@
 const STORAGE_PREFIX = "ixtla-insights:temporary-dashboard:";
 const ACTIVE_DASHBOARD_KEY = "ixtla-insights:active-dashboard";
-const MAX_ROWS = 500;
 
 const clean = (value) => String(value ?? "").trim();
 
@@ -13,7 +12,7 @@ function createId(prefix) {
 }
 
 function compactRows(rows) {
-  return (Array.isArray(rows) ? rows : []).slice(0, MAX_ROWS).map((row) => ({
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
     id: row?.id ?? null,
     tramite: clean(row?.tramite ?? row?.tipo_tramite ?? row?.categoria) || "Sin tramite",
     estatus: statusOf(row),
@@ -70,6 +69,9 @@ export function buildVisualizationSpec(question, context = {}) {
     chart,
     metric,
     dimension,
+    filters: [],
+    sort: dimension === "fecha" ? "chronological" : "desc",
+    limit: chart === "kpi" ? 1 : 10,
     domain: "requerimientos",
     scopeLabel: clean(context.scopeLabel) || "Vista autorizada actual",
   };
@@ -77,13 +79,13 @@ export function buildVisualizationSpec(question, context = {}) {
 
 export function getWidgetCatalog() {
   return [
-    { chart: "kpi", metric: "total", dimension: "estatus", title: "Total de requerimientos" },
-    { chart: "bar", metric: "total", dimension: "estatus", title: "Requerimientos por estatus" },
-    { chart: "donut", metric: "total", dimension: "estatus", title: "Distribucion por estatus" },
-    { chart: "donut", metric: "total", dimension: "departamento", title: "Requerimientos por departamento" },
-    { chart: "bar", metric: "total", dimension: "departamento", title: "Carga por departamento" },
-    { chart: "line", metric: "total", dimension: "fecha", title: "Tendencia diaria de requerimientos" },
-    { chart: "table", metric: "total", dimension: "tramite", title: "Requerimientos por tramite" },
+    { chart: "kpi", metric: "total", dimension: "estatus", title: "Total de requerimientos", filters: [], sort: "desc", limit: 1 },
+    { chart: "bar", metric: "total", dimension: "estatus", title: "Requerimientos por estatus", filters: [], sort: "desc", limit: 10 },
+    { chart: "donut", metric: "total", dimension: "estatus", title: "Distribucion por estatus", filters: [], sort: "desc", limit: 10 },
+    { chart: "donut", metric: "total", dimension: "departamento", title: "Requerimientos por departamento", filters: [], sort: "desc", limit: 10 },
+    { chart: "bar", metric: "total", dimension: "departamento", title: "Carga por departamento", filters: [], sort: "desc", limit: 10 },
+    { chart: "line", metric: "total", dimension: "fecha", title: "Tendencia diaria de requerimientos", filters: [], sort: "chronological", limit: 50 },
+    { chart: "table", metric: "total", dimension: "tramite", title: "Requerimientos por tramite", filters: [], sort: "desc", limit: 50 },
   ].map((widget) => ({ ...widget, id: createId("widget"), domain: "requerimientos" }));
 }
 

@@ -34,11 +34,20 @@ def build_widget(question: str) -> WidgetSpec:
         kind = "table"
     elif "kpi" in normalized or "indicador" in normalized:
         kind = "kpi"
-    metric = "finalizados" if "finaliz" in normalized else "total"
+    metric = "finalizados" if "finaliz" in normalized else "abiertos" if "abiert" in normalized else "total"
     title = "Tendencia diaria de requerimientos" if kind == "line" else f"Requerimientos por {dimension}"
     if metric == "finalizados" and kind != "line":
         title = f"Finalizados por {dimension}"
-    return WidgetSpec(kind=kind, title=title, metric=metric, dimension=dimension, scope_label="Vista autorizada actual")
+    return WidgetSpec(
+        kind=kind,
+        title=title,
+        metric=metric,
+        dimension=dimension,
+        filters=[],
+        sort="chronological" if dimension == "fecha" else "desc",
+        limit=10,
+        scope_label="Vista autorizada actual",
+    )
 
 
 def heuristic_response(request: ChatRequest) -> ChatResponse:

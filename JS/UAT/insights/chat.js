@@ -100,6 +100,7 @@ export function mountIxtlaInsights(options = {}) {
     quickQuestions: QUICK_QUESTIONS,
     dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
     apiUrl: "/db/ixtla_insights/chat.php",
+    analyticsUrl: "/db/ixtla_insights/analytics.php",
     visualizationHandler: null,
     answer: null,
     ...options,
@@ -168,8 +169,10 @@ export function mountIxtlaInsights(options = {}) {
 
   function remoteWidgetSpec(widget) {
     const chart = clean(widget?.kind || widget?.chart);
-    if (!new Set(["kpi", "bar", "donut", "line", "table"]).has(chart)) return null;
-    const metric = clean(widget?.metric) === "finalizados" ? "finalizados" : "total";
+    if (!new Set(["kpi", "bar", "donut", "line", "area", "table", "funnel"]).has(chart)) return null;
+    const metric = ["total", "finalizados", "abiertos"].includes(clean(widget?.metric))
+      ? clean(widget.metric)
+      : "total";
     const dimension = ["estatus", "tramite", "departamento", "fecha"].includes(clean(widget?.dimension))
       ? clean(widget.dimension)
       : "estatus";
@@ -179,13 +182,18 @@ export function mountIxtlaInsights(options = {}) {
       chart,
       metric,
       dimension,
+      filters: Array.isArray(widget?.filters)
+        ? widget.filters.filter((filter) => ["departamento", "tramite", "estatus"].includes(clean(filter?.field)) && clean(filter?.value)).slice(0, 3)
+        : [],
+      sort: ["desc", "asc", "chronological"].includes(clean(widget?.sort)) ? clean(widget.sort) : (dimension === "fecha" ? "chronological" : "desc"),
+      limit: Math.min(50, Math.max(1, Number(widget?.limit) || 10)),
       domain: "requerimientos",
       scopeLabel: clean(widget?.scope_label) || clean(context?.scopeLabel) || "Vista autorizada actual",
     };
   }
 
   async function addVisualization(question, spec) {
-    if (!Array.isArray(context?.rows) || !context.rows.length) {
+    if ((!Array.isArray(context?.rows) || !context.rows.length) && !config.analyticsUrl) {
       addMessage("La visualización está lista, pero no hay requerimientos visibles para representarla.");
       return false;
     }
@@ -215,6 +223,9 @@ export function mountIxtlaInsights(options = {}) {
       chart: request.chart,
       metric: request.metric,
       dimension,
+      filters: [],
+      sort: dimension === "fecha" ? "chronological" : "desc",
+      limit: 10,
       domain: "requerimientos",
       scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
     };
@@ -238,6 +249,9 @@ export function mountIxtlaInsights(options = {}) {
         chart,
         metric,
         dimension,
+        filters: [],
+        sort: dimension === "fecha" ? "chronological" : "desc",
+        limit: chart === "kpi" ? 1 : 10,
         domain: "requerimientos",
         scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
       };

@@ -18,6 +18,9 @@ const STATUS_LABELS = {
   finalizado: "Finalizado",
 };
 const COLORS = ["#0f4c81", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b", "#22c55e"];
+const ANALYTICS_URL = "/db/ixtla_insights/analytics.php";
+const INTERNAL_SCROLL_LIMITS = { bar: 6, table: 8, funnel: 6 };
+const analyticsCache = new Map();
 const clean = (value) => String(value ?? "").trim();
 const escapeHtml = (value) => clean(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 
@@ -29,7 +32,9 @@ function dayOf(value) {
 }
 
 function sourceRows(rows, widget) {
-  return widget.metric === "finalizados" ? rows.filter((row) => row.estatus === "finalizado") : rows;
+  if (widget.metric === "finalizados") return rows.filter((row) => row.estatus === "finalizado");
+  if (widget.metric === "abiertos") return rows.filter((row) => !["finalizado", "cancelado"].includes(row.estatus));
+  return rows;
 }
 
 function groupRows(rows, widget) {
@@ -75,8 +80,7 @@ function renderDonut(target, entries) {
     : '<p class="ixtla-dashboard-empty-message">No hay datos para esta visualizacion.</p>';
 }
 
-function renderKpi(target, rows, widget) {
-  const total = sourceRows(rows, widget).length;
+function renderKpi(target, total, widget) {
   target.innerHTML = `<div class="ixtla-dashboard-kpi"><strong>${total}</strong><span>${widget.metric === "finalizados" ? "Requerimientos finalizados" : "Requerimientos visibles"}</span></div>`;
 }
 
@@ -98,40 +102,117 @@ function renderLine(target, entries) {
 
 function renderTable(target, entries) {
   target.innerHTML = entries.length
-    ? `<table class="ixtla-dashboard-table"><thead><tr><th>${entries.length > 1 ? "Categoria" : "Resultado"}</th><th>Total</th></tr></thead><tbody>${entries.slice(0, 8).map(([label, value]) => `<tr><td title="${escapeHtml(label)}">${escapeHtml(label)}</td><td><strong>${value}</strong></td></tr>`).join("")}</tbody></table>`
+    ? `<table class="ixtla-dashboard-table"><thead><tr><th>${entries.length > 1 ? "Categoria" : "Resultado"}</th><th>Total</th></tr></thead><tbody>${entries.map(([label, value]) => `<tr><td title="${escapeHtml(label)}">${escapeHtml(label)}</td><td><strong>${value}</strong></td></tr>`).join("")}</tbody></table>`
     : '<p class="ixtla-dashboard-empty-message">No hay datos para esta visualizacion.</p>';
+}
+
+function renderFunnel(target, entries) {
+  const max = Math.max(...entries.map(([, value]) => value), 1);
+  target.innerHTML = entries.length
+    ? `<div class="ixtla-dashboard-funnel">${entries.map(([label, value]) => `<div class="ixtla-dashboard-funnel__step" style="width:${Math.max(24, Math.round((value / max) * 100))}%"><span title="${escapeHtml(label)}">${escapeHtml(label)}</span><strong>${value}</strong></div>`).join("")}</div>`
+    : '<p class="ixtla-dashboard-empty-message">No hay datos para esta visualizacion.</p>';
+}
+
+function scrollStrategy(chart, entryCount) {
+  if (chart === "donut") return "legend";
+  const limit = INTERNAL_SCROLL_LIMITS[chart];
+  return Number.isInteger(limit) && entryCount > limit ? "content" : "none";
 }
 
 function cardSize(chart) {
   if (chart === "kpi") return "ixtla-dashboard-card--small";
-  if (chart === "line" || chart === "table") return "ixtla-dashboard-card--wide";
+  if (chart === "line" || chart === "area" || chart === "table") return "ixtla-dashboard-card--wide";
   return "";
 }
 
 function metricLabel(widget) {
-  return widget.metric === "finalizados" ? "Metrica: finalizados" : "Metrica: total";
+  if (widget.metric === "finalizados") return "Metrica: finalizados";
+  if (widget.metric === "abiertos") return "Metrica: abiertos";
+  return "Metrica: total";
 }
 
-function renderDashboard(dashboard) {
+function analyticsPlan(widget) {
+  return {
+    kind: widget.chart,
+    metric: widget.metric,
+    dimension: widget.dimension,
+    filters: Array.isArray(widget.filters) ? widget.filters : [],
+    sort: widget.sort,
+    limit: widget.limit,
+  };
+}
+
+async function fetchAnalytics(widget) {
+  const plan = analyticsPlan(widget);
+  const key = JSON.stringify(plan);
+  if (analyticsCache.has(key)) return analyticsCache.get(key);
+  const request = fetch(ANALYTICS_URL, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ plan }),
+  }).then(async (response) => {
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) throw new Error(payload?.error || "No fue posible cargar la agregación.");
+    return {
+      total: Number(payload.total) || 0,
+      entries: Array.isArray(payload.items) ? payload.items.map((item) => [clean(item?.label), Number(item?.value) || 0]) : [],
+    };
+  });
+  analyticsCache.set(key, request);
+  try {
+    return await request;
+  } catch (error) {
+    analyticsCache.delete(key);
+    throw error;
+  }
+}
+
+function markScrollable(card, target, chart, entries) {
+  if (scrollStrategy(chart, entries.length) !== "content") return;
+  card.classList.add("ixtla-dashboard-card--scrollable");
+  target.classList.add("ixtla-dashboard-widget--scrollable");
+  target.tabIndex = 0;
+  target.setAttribute("aria-label", "Lista de resultados desplazable");
+}
+
+function renderWidget(target, widget, entries, total) {
+  if (widget.chart === "donut") renderDonut(target, entries);
+  else if (widget.chart === "line" || widget.chart === "area") renderLine(target, entries);
+  else if (widget.chart === "table") renderTable(target, entries);
+  else if (widget.chart === "kpi") renderKpi(target, total, widget);
+  else if (widget.chart === "funnel") renderFunnel(target, entries);
+  else renderBar(target, entries);
+}
+
+async function renderDashboard(dashboard) {
   document.getElementById("ixtla-dashboard-scope").textContent = dashboard.scopeLabel;
-  document.getElementById("ixtla-dashboard-question").textContent = dashboard.question || "Dashboard temporal";
   const grid = document.getElementById("ixtla-dashboard-grid");
   grid.replaceChildren();
-  dashboard.widgets.forEach((widget) => {
+  const tasks = dashboard.widgets.map(async (widget) => {
     const card = document.createElement("article");
     card.className = `ixtla-dashboard-card ${cardSize(widget.chart)}`;
     card.draggable = true;
     card.dataset.widgetId = widget.id;
     card.innerHTML = `<header class="ixtla-dashboard-card__header"><div><p>${metricLabel(widget)}</p><h2>${escapeHtml(widget.title)}</h2></div><div class="ixtla-dashboard-card__tools"><button class="ixtla-dashboard-drag" type="button" aria-label="Arrastrar widget" title="Arrastrar widget">&#8281;</button><button class="ixtla-dashboard-remove" type="button" aria-label="Eliminar widget" title="Eliminar widget">&times;</button></div></header><div class="ixtla-dashboard-widget"></div>`;
     const target = card.querySelector(".ixtla-dashboard-widget");
-    const entries = entriesFor(dashboard.rows || [], widget);
-    if (widget.chart === "donut") renderDonut(target, entries);
-    else if (widget.chart === "line") renderLine(target, entries);
-    else if (widget.chart === "table") renderTable(target, entries);
-    else if (widget.chart === "kpi") renderKpi(target, dashboard.rows || [], widget);
-    else renderBar(target, entries);
+    target.setAttribute("aria-busy", "true");
+    target.innerHTML = '<p class="ixtla-dashboard-empty-message">Cargando datos autorizados…</p>';
     grid.appendChild(card);
+    try {
+      const result = await fetchAnalytics(widget);
+      markScrollable(card, target, widget.chart, result.entries);
+      renderWidget(target, widget, result.entries, result.total);
+    } catch (error) {
+      console.error("[IxtlaInsightsDashboard]", error);
+      const entries = entriesFor(dashboard.rows || [], widget);
+      const total = widget.metric === "finalizados" ? sourceRows(dashboard.rows || [], widget).length : (dashboard.rows || []).length;
+      markScrollable(card, target, widget.chart, entries);
+      renderWidget(target, widget, entries, total);
+    }
+    target.removeAttribute("aria-busy");
   });
+  await Promise.all(tasks);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

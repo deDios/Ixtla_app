@@ -15,21 +15,24 @@ class Scope(StrictSchema):
 
 class HistoryMessage(StrictSchema):
     role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=800)
+    content: str = Field(min_length=1, max_length=400)
 
 
 class ChatRequest(StrictSchema):
     question: str = Field(min_length=1, max_length=800)
-    history: list[HistoryMessage] = Field(default_factory=list, max_length=12)
+    history: list[HistoryMessage] = Field(default_factory=list, max_length=6)
     scope: Scope
     dashboard_id: str = Field(default="", max_length=120)
 
 
 class WidgetSpec(StrictSchema):
-    kind: Literal["kpi", "bar", "donut", "line", "table"]
+    kind: Literal["kpi", "bar", "donut", "line", "area", "table", "funnel"]
     title: str = Field(min_length=3, max_length=100)
-    metric: Literal["total", "finalizados"]
-    dimension: Literal["estatus", "tramite", "fecha"]
+    metric: Literal["total", "finalizados", "abiertos"]
+    dimension: Literal["estatus", "tramite", "departamento", "fecha"]
+    filters: list[dict[str, str]] = Field(default_factory=list, max_length=3)
+    sort: Literal["desc", "asc", "chronological"] = "desc"
+    limit: int = Field(default=10, ge=1, le=50)
     scope_label: str = Field(min_length=3, max_length=160)
 
 

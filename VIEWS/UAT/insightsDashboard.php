@@ -15,8 +15,7 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
   <header class="ixtla-dashboard-top">
     <div class="ixtla-dashboard-brand">
       <p class="ixtla-dashboard-kicker">Ixtla Insights</p>
-      <h1>Dashboard personalizado</h1>
-      <p id="ixtla-dashboard-question">Cargando consulta...</p>
+      <h1>Dashboard</h1>
       <p id="ixtla-dashboard-scope" class="ixtla-dashboard-scope"></p>
     </div>
     <div class="ixtla-dashboard-actions">

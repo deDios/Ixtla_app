@@ -8,8 +8,8 @@ ixtla_insights_json([
     'ok' => true,
     'catalog' => [
         'domain' => 'requerimientos',
-        'widget_kinds' => ['kpi', 'bar', 'donut', 'line', 'table'],
-        'metrics' => ['total', 'finalizados'],
+        'widget_kinds' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'],
+        'metrics' => ['total', 'finalizados', 'abiertos'],
         'dimensions' => ['estatus', 'tramite', 'departamento', 'fecha'],
     ],
 ]);

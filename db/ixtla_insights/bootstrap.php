@@ -99,15 +99,27 @@ function ixtla_insights_openai_text(array $response): string
 
 function ixtla_insights_response_schema(): array
 {
+    $filter = [
+        'type' => 'object',
+        'additionalProperties' => false,
+        'required' => ['field', 'value'],
+        'properties' => [
+            'field' => ['type' => 'string', 'enum' => ['departamento', 'tramite', 'estatus']],
+            'value' => ['type' => 'string', 'maxLength' => 120],
+        ],
+    ];
     $widget = [
         'type' => 'object',
         'additionalProperties' => false,
-        'required' => ['kind', 'title', 'metric', 'dimension', 'scope_label'],
+        'required' => ['kind', 'title', 'metric', 'dimension', 'filters', 'sort', 'limit', 'scope_label'],
         'properties' => [
-            'kind' => ['type' => 'string', 'enum' => ['kpi', 'bar', 'donut', 'line', 'table']],
+            'kind' => ['type' => 'string', 'enum' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel']],
             'title' => ['type' => 'string', 'maxLength' => 100],
-            'metric' => ['type' => 'string', 'enum' => ['total', 'finalizados']],
+            'metric' => ['type' => 'string', 'enum' => ['total', 'finalizados', 'abiertos']],
             'dimension' => ['type' => 'string', 'enum' => ['estatus', 'tramite', 'departamento', 'fecha']],
+            'filters' => ['type' => 'array', 'maxItems' => 3, 'items' => $filter],
+            'sort' => ['type' => 'string', 'enum' => ['desc', 'asc', 'chronological']],
+            'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
             'scope_label' => ['type' => 'string', 'maxLength' => 160],
         ],
     ];
@@ -162,15 +174,30 @@ function ixtla_insights_normalize_chat_response(array $data): array
             continue;
         }
 
-        if (!in_array($widget['kind'] ?? '', ['kpi', 'bar', 'donut', 'line', 'table'], true)) {
+        if (!in_array($widget['kind'] ?? '', ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'], true)) {
             continue;
         }
-        if (!in_array($widget['metric'] ?? '', ['total', 'finalizados'], true)) {
+        if (!in_array($widget['metric'] ?? '', ['total', 'finalizados', 'abiertos'], true)) {
             continue;
         }
         if (!in_array($widget['dimension'] ?? '', ['estatus', 'tramite', 'departamento', 'fecha'], true)) {
             continue;
         }
+
+        $filters = [];
+        foreach (($widget['filters'] ?? []) as $filter) {
+            if (!is_array($filter)) {
+                continue;
+            }
+            $field = $filter['field'] ?? '';
+            $value = trim((string) ($filter['value'] ?? ''));
+            if (!in_array($field, ['departamento', 'tramite', 'estatus'], true) || $value === '') {
+                continue;
+            }
+            $filters[] = ['field' => $field, 'value' => ixtla_insights_truncate($value, 120)];
+        }
+        $sort = in_array($widget['sort'] ?? '', ['desc', 'asc', 'chronological'], true) ? $widget['sort'] : 'desc';
+        $limit = min(50, max(1, (int) ($widget['limit'] ?? 10)));
 
         $actions[] = [
             'type' => 'widget_preview',
@@ -179,6 +206,9 @@ function ixtla_insights_normalize_chat_response(array $data): array
                 'title' => ixtla_insights_truncate(trim((string) ($widget['title'] ?? 'Visualizacion de requerimientos')), 100),
                 'metric' => $widget['metric'],
                 'dimension' => $widget['dimension'],
+                'filters' => array_slice($filters, 0, 3),
+                'sort' => $sort,
+                'limit' => $limit,
                 'scope_label' => ixtla_insights_truncate(trim((string) ($widget['scope_label'] ?? 'Vista autorizada actual')), 160),
             ],
         ];
@@ -206,8 +236,10 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
 
     $systemPrompt = 'Eres Ixtla Insights para requerimientos. Responde solo con el JSON definido. '
         . 'No inventes cifras, no afirmes haber consultado una base de datos y no generes SQL. '
-        . 'Solo puedes proponer widgets kpi, bar, donut, line o table; metricas total o finalizados; '
-        . 'dimensiones estatus, tramite, departamento o fecha. Si no solicitan una visualizacion, actions debe ser []. '
+        . 'Solo puedes proponer widgets kpi, bar, donut, line, area, table o funnel; metricas total, finalizados o abiertos; '
+        . 'dimensiones estatus, tramite, departamento o fecha. Para rankings usa limit y sort; cuando el usuario indique un departamento, trámite o estatus, inclúyelo en filters. '
+        . 'Una solicitud de métrica, ranking, top, comparación o dashboard también requiere una acción widget_preview; para un top sin tipo de gráfica usa bar y dimension tramite. '
+        . 'Si no solicitan una visualizacion, actions debe ser []. '
         . 'La respuesta debe ser breve, sin explicar razonamientos.';
 
     $input = [[
