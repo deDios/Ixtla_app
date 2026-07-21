@@ -17,10 +17,12 @@ const STATUS_LABELS = {
   cancelado: "Cancelado",
   finalizado: "Finalizado",
 };
+const STATUS_COLORS = { solicitud: "#64748b", revision: "#0f4c81", "revisión": "#0f4c81", asignacion: "#7c3aed", "asignación": "#7c3aed", proceso: "#0ea5a4", "en proceso": "#0ea5a4", pausado: "#f59e0b", cancelado: "#dc2626", finalizado: "#16a34a" };
 const COLORS = ["#0f4c81", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b", "#22c55e"];
 const ANALYTICS_URL = "/db/ixtla_insights/analytics.php";
 const INTERNAL_SCROLL_LIMITS = { bar: 6, table: 8, funnel: 6 };
 const analyticsCache = new Map();
+const PERIOD_LABELS = { all: "Todo el historial", last_7: "Últimos 7 días", last_30: "Últimos 30 días", this_month: "Este mes" };
 const clean = (value) => String(value ?? "").trim();
 const escapeHtml = (value) => clean(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 
@@ -32,6 +34,7 @@ function departmentColor(name) {
 }
 
 function entryColor(label, index, widget) {
+  if (widget?.dimension === "estatus") return STATUS_COLORS[clean(label).toLocaleLowerCase("es-MX")] || COLORS[index % COLORS.length];
   return widget?.dimension === "departamento" ? departmentColor(label) : COLORS[index % COLORS.length];
 }
 
@@ -42,6 +45,21 @@ function dayOf(value) {
   return Number.isNaN(date.getTime()) ? raw.slice(0, 10) : date.toISOString().slice(0, 10);
 }
 
+function rowsForPeriod(rows, period) {
+  if (!period || period === "all") return rows;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  if (period === "last_7") start.setDate(start.getDate() - 6);
+  else if (period === "last_30") start.setDate(start.getDate() - 29);
+  else if (period === "this_month") start.setDate(1);
+  else return rows;
+  return rows.filter((row) => {
+    const created = new Date(row?.creado);
+    return !Number.isNaN(created.getTime()) && created >= start;
+  });
+}
+
 function sourceRows(rows, widget) {
   const selectedDepartments = (Array.isArray(widget.filters) ? widget.filters : [])
     .filter((filter) => filter?.field === "departamento" && clean(filter?.value))
@@ -49,13 +67,15 @@ function sourceRows(rows, widget) {
   const scopedRows = selectedDepartments.length
     ? rows.filter((row) => selectedDepartments.includes(clean(row?.departamento).toLocaleLowerCase("es-MX")))
     : rows;
-  if (widget.metric === "finalizados") return scopedRows.filter((row) => row.estatus === "finalizado");
-  if (widget.metric === "abiertos") return scopedRows.filter((row) => !["finalizado", "cancelado"].includes(row.estatus));
-  if (widget.metric === "pausados") return scopedRows.filter((row) => row.estatus === "pausado");
-  if (widget.metric === "cancelados") return scopedRows.filter((row) => row.estatus === "cancelado");
-  if (widget.metric === "cerrados") return scopedRows.filter((row) => ["finalizado", "cancelado"].includes(row.estatus));
+  const periodRows = rowsForPeriod(scopedRows, widget.period);
+  if (widget.metric === "finalizados") return periodRows.filter((row) => row.estatus === "finalizado");
+  if (widget.metric === "abiertos") return periodRows.filter((row) => !["finalizado", "cancelado"].includes(row.estatus));
+  if (widget.metric === "pausados") return periodRows.filter((row) => row.estatus === "pausado");
+  if (widget.metric === "cancelados") return periodRows.filter((row) => row.estatus === "cancelado");
+  if (widget.metric === "pausados_cancelados") return periodRows.filter((row) => ["pausado", "cancelado"].includes(row.estatus));
+  if (widget.metric === "cerrados") return periodRows.filter((row) => ["finalizado", "cancelado"].includes(row.estatus));
   if (["promedio_semanal", "tiempo_resolucion"].includes(widget.metric)) return [];
-  return scopedRows;
+  return periodRows;
 }
 
 function groupRows(rows, widget) {
@@ -106,6 +126,7 @@ function renderKpi(target, total, widget) {
     total: "Requerimientos visibles",
     abiertos: "Requerimientos abiertos",
     finalizados: "Requerimientos finalizados",
+    pausados_cancelados: "Requerimientos pausados/cancelados",
     pausados: "Requerimientos pausados",
     cancelados: "Requerimientos cancelados",
     cerrados: "Requerimientos cerrados",
@@ -158,6 +179,7 @@ function cardSize(chart) {
 }
 
 function metricLabel(widget) {
+  if (widget.metric === "pausados_cancelados") return "Metrica: pausados/cancelados";
   const labels = {
     total: "Métrica: total",
     abiertos: "Métrica: abiertos",
@@ -171,7 +193,16 @@ function metricLabel(widget) {
   return labels[widget.metric] || "Métrica de requerimientos";
 }
 
+function widgetDepartments(widget) {
+  return (Array.isArray(widget.filters) ? widget.filters : [])
+    .filter((filter) => filter?.field === "departamento" && clean(filter?.value))
+    .map((filter) => clean(filter.value));
+}
+
 function widgetScopeLabel(widget, dashboardScope) {
+  const selectedDepartments = widgetDepartments(widget);
+  if (selectedDepartments.length === 1) return `Alcance: ${selectedDepartments[0]}`;
+  if (selectedDepartments.length > 1) return `Alcance: ${selectedDepartments.length} departamentos seleccionados`;
   const departments = (Array.isArray(widget.filters) ? widget.filters : [])
     .filter((filter) => filter?.field === "departamento" && clean(filter?.value))
     .map((filter) => clean(filter.value));
@@ -179,11 +210,32 @@ function widgetScopeLabel(widget, dashboardScope) {
   return clean(dashboardScope) ? `Alcance: ${dashboardScope}` : "Alcance: Todos los departamentos autorizados";
 }
 
+function widgetScopeMarkup(widget, dashboardScope) {
+  const label = widgetScopeLabel(widget, dashboardScope);
+  const departments = widgetDepartments(widget);
+  if (departments.length < 2) {
+    return `<span class="ixtla-dashboard-card__scope" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
+  }
+  const items = departments.map((department) => `<li>${escapeHtml(department)}</li>`).join("");
+  return `<details class="ixtla-dashboard-card__scope-details"><summary class="ixtla-dashboard-card__scope"><span>${escapeHtml(label)}</span><b>Ver lista</b></summary><ul>${items}</ul></details>`;
+}
+
+function widgetPeriodLabel(widget) {
+  return PERIOD_LABELS[clean(widget?.period)] || PERIOD_LABELS.all;
+}
+
+function widgetUpdatedLabel(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Datos locales";
+  return `Actualizado: ${date.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}`;
+}
+
 function analyticsPlan(widget) {
   return {
     kind: widget.chart,
     metric: widget.metric,
     dimension: widget.dimension,
+    period: widget.period || "all",
     filters: Array.isArray(widget.filters) ? widget.filters : [],
     sort: widget.sort,
     limit: widget.limit,
@@ -205,6 +257,7 @@ async function fetchAnalytics(widget) {
     return {
       total: Number(payload.total) || 0,
       entries: Array.isArray(payload.items) ? payload.items.map((item) => [clean(item?.label), Number(item?.value) || 0]) : [],
+      aggregatedAt: clean(payload.aggregated_at),
     };
   });
   analyticsCache.set(key, request);
@@ -225,6 +278,10 @@ function markScrollable(card, target, chart, entries) {
 }
 
 function renderWidget(target, widget, entries, total) {
+  if (widget.chart !== "kpi" && total === 0) {
+    target.innerHTML = `<div class="ixtla-dashboard-state"><strong>No hay requerimientos para este alcance y periodo.</strong><span>Prueba con otro periodo o modifica los departamentos seleccionados.</span></div>`;
+    return;
+  }
   if (widget.chart === "donut") renderDonut(target, entries, widget);
   else if (widget.chart === "line" || widget.chart === "area") renderLine(target, entries);
   else if (widget.chart === "table") renderTable(target, entries);
@@ -243,20 +300,33 @@ async function renderDashboard(dashboard) {
     card.draggable = true;
     card.dataset.widgetId = widget.id;
     card.innerHTML = `<header class="ixtla-dashboard-card__header"><div><p>${metricLabel(widget)}</p><h2>${escapeHtml(widget.title)}</h2><span class="ixtla-dashboard-card__scope">${escapeHtml(widgetScopeLabel(widget, dashboard.scopeLabel))}</span></div><div class="ixtla-dashboard-card__tools"><button class="ixtla-dashboard-drag" type="button" aria-label="Arrastrar widget" title="Arrastrar widget">&#8281;</button><button class="ixtla-dashboard-remove" type="button" aria-label="Eliminar widget" title="Eliminar widget">&times;</button></div></header><div class="ixtla-dashboard-widget"></div>`;
+    card.querySelector(".ixtla-dashboard-card__scope").outerHTML = widgetScopeMarkup(widget, dashboard.scopeLabel);
+    const meta = document.createElement("p");
+    meta.className = "ixtla-dashboard-card__meta";
+    meta.textContent = `Periodo: ${widgetPeriodLabel(widget)} · Cargando datos…`;
+    card.querySelector(".ixtla-dashboard-card__header > div").appendChild(meta);
     const target = card.querySelector(".ixtla-dashboard-widget");
     target.setAttribute("aria-busy", "true");
     target.innerHTML = '<p class="ixtla-dashboard-empty-message">Cargando datos autorizados…</p>';
     grid.appendChild(card);
     try {
       const result = await fetchAnalytics(widget);
+      meta.textContent = `Periodo: ${widgetPeriodLabel(widget)} · ${widgetUpdatedLabel(result.aggregatedAt)}`;
       markScrollable(card, target, widget.chart, result.entries);
       renderWidget(target, widget, result.entries, result.total);
     } catch (error) {
       console.error("[IxtlaInsightsDashboard]", error);
+      if (!Array.isArray(dashboard.rows) || !dashboard.rows.length) {
+        meta.textContent = `Periodo: ${widgetPeriodLabel(widget)} · No se pudo actualizar`;
+        target.innerHTML = '<div class="ixtla-dashboard-state ixtla-dashboard-state--error"><strong>No fue posible cargar este widget.</strong><span>Intenta actualizar el dashboard o revisa tu conexión.</span></div>';
+        target.removeAttribute("aria-busy");
+        return;
+      }
       const entries = entriesFor(dashboard.rows || [], widget);
       const total = ["promedio_semanal", "tiempo_resolucion"].includes(widget.metric)
         ? 0
         : sourceRows(dashboard.rows || [], widget).length;
+      meta.textContent = `Periodo: ${widgetPeriodLabel(widget)} · Datos locales`;
       markScrollable(card, target, widget.chart, entries);
       renderWidget(target, widget, entries, total);
     }

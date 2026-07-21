@@ -26,9 +26,9 @@ const MEASUREMENT_CHOICES = [
     action: { type: "visualization_measurement", metric: "finalizados" },
   },
   {
-    label: "Requerimientos pausados",
-    description: "Revisa casos que requieren seguimiento.",
-    action: { type: "visualization_measurement", metric: "pausados" },
+    label: "Requerimientos pausados/cancelados",
+    description: "Revisa casos detenidos o cancelados que requieren seguimiento.",
+    action: { type: "visualization_measurement", metric: "pausados_cancelados" },
   },
   {
     label: "Tiempos de resolución",
@@ -52,8 +52,7 @@ const KPI_CHOICES = [
   { label: "Total de requerimientos", description: "Todos los requerimientos del alcance autorizado.", action: { type: "visualization_kpi", metric: "total" } },
   { label: "Requerimientos abiertos", description: "En solicitud, revisión, asignación, proceso o pausa.", action: { type: "visualization_kpi", metric: "abiertos" } },
   { label: "Requerimientos finalizados", description: "Con estatus finalizado.", action: { type: "visualization_kpi", metric: "finalizados" } },
-  { label: "Requerimientos pausados", description: "Con estatus pausado.", action: { type: "visualization_kpi", metric: "pausados" } },
-  { label: "Requerimientos cancelados", description: "Con estatus cancelado.", action: { type: "visualization_kpi", metric: "cancelados" } },
+  { label: "Requerimientos pausados/cancelados", description: "Con estatus pausado o cancelado.", action: { type: "visualization_kpi", metric: "pausados_cancelados" } },
   { label: "Promedio semanal", description: "Promedio de requerimientos creados por semana.", action: { type: "visualization_kpi", metric: "promedio_semanal" } },
   { label: "Tiempo de resolución", description: "Promedio de días entre creación y cierre finalizado.", action: { type: "visualization_kpi", metric: "tiempo_resolucion" } },
 ];
@@ -69,6 +68,18 @@ const DEPARTMENT_SCOPE_CHOICES = [
     action: { type: "department_scope", scope: "selected" },
   },
 ];
+const PERIOD_CHOICES = [
+  { label: "Últimos 7 días", description: "Incluye hoy y los seis días anteriores.", action: { type: "visualization_period", period: "last_7" } },
+  { label: "Últimos 30 días", description: "Incluye hoy y los 29 días anteriores.", action: { type: "visualization_period", period: "last_30" } },
+  { label: "Este mes", description: "Desde el primer día del mes actual.", action: { type: "visualization_period", period: "this_month" } },
+  { label: "Todo el historial", description: "No limita los requerimientos por fecha.", action: { type: "visualization_period", period: "all" } },
+];
+const PERIOD_LABELS = {
+  last_7: "Últimos 7 días",
+  last_30: "Últimos 30 días",
+  this_month: "Este mes",
+  all: "Todo el historial",
+};
 const DIMENSION_LABELS = {
   estatus: "estatus",
   tramite: "trámite",
@@ -88,12 +99,24 @@ const METRIC_LABELS = {
   total: "Total",
   abiertos: "Abiertos",
   finalizados: "Finalizados",
+  pausados_cancelados: "Pausados/cancelados",
   pausados: "Pausados",
   cancelados: "Cancelados",
   cerrados: "Cerrados",
   promedio_semanal: "Promedio semanal",
   tiempo_resolucion: "Tiempo de resolución",
 };
+
+function hasFixedStatusMetric(metric) {
+  return ["finalizados", "pausados", "cancelados", "pausados_cancelados"].includes(clean(metric));
+}
+
+function separationChoices(metric) {
+  return SEPARATION_CHOICES.filter((choice) => {
+    const action = choice.action || {};
+    return !hasFixedStatusMetric(metric) || action.chart === "kpi" || action.dimension !== "estatus";
+  });
+}
 
 const clean = (value) => String(value ?? "").trim();
 
@@ -166,8 +189,7 @@ function metricFromQuestion(question) {
   const text = clean(question).toLocaleLowerCase("es-MX");
   if (/(tiempo.*resol|resol.*tiempo)/.test(text)) return "tiempo_resolucion";
   if (/promedio semanal/.test(text)) return "promedio_semanal";
-  if (/cancel/.test(text)) return "cancelados";
-  if (/paus/.test(text)) return "pausados";
+  if (/paus|cancel/.test(text)) return "pausados_cancelados";
   if (/cerrad/.test(text)) return "cerrados";
   if (/finaliz/.test(text)) return "finalizados";
   if (/abiert|pendient/.test(text)) return "abiertos";
@@ -250,7 +272,7 @@ export function mountIxtlaInsights(options = {}) {
       if (!text) return;
       const chip = document.createElement("button");
       chip.type = "button";
-      const isChoice = ["visualization_measurement", "visualization_separation", "department_scope", "visualization_kpi", "visualization_kpi_kit"].includes(item?.action?.type);
+      const isChoice = ["visualization_measurement", "visualization_separation", "department_scope", "visualization_period", "visualization_kpi", "visualization_kpi_kit", "visualization_confirm", "visualization_edit_period", "visualization_edit_scope", "visualization_cancel"].includes(item?.action?.type);
       chip.className = `ixtla-insights-chip${item?.primary ? " ixtla-insights-chip--primary" : ""}${isChoice ? " ixtla-insights-chip--choice" : ""}`;
       const label = document.createElement("span");
       label.className = "ixtla-insights-chip__label";
@@ -271,21 +293,36 @@ export function mountIxtlaInsights(options = {}) {
         if (action.type === "visualization_kpi_kit") return startKpiKit();
         if (action.type === "visualization_kpi") return startKpi(action.metric);
         if (action.type === "department_scope") return chooseDepartmentScope(action.scope);
+        if (action.type === "visualization_period") return chooseVisualizationPeriod(action.period);
         if (action.type === "visualization_chart") return chooseVisualizationChart(action.chart);
         if (action.type === "visualization_dimension") return chooseVisualizationDimension(action.dimension);
         if (action.type === "visualization_metric") return chooseVisualizationMetric(action.metric);
+        if (action.type === "visualization_confirm") return confirmVisualization();
+        if (action.type === "visualization_edit_period") return editVisualizationPeriod();
+        if (action.type === "visualization_edit_scope") return editVisualizationScope();
+        if (action.type === "visualization_cancel") return cancelVisualization();
         ask(clean(item?.prompt || text));
       });
       chips.appendChild(chip);
     });
   }
 
+  function recommendedChart(request = pendingVisualization) {
+    if (request?.chart === "kpi" || ["promedio_semanal", "tiempo_resolucion"].includes(request?.metric)) return "kpi";
+    if (request?.dimension === "fecha" || request?.goal === "request_trend") return "line";
+    if (["departamento", "tramite"].includes(request?.dimension)) return "bar";
+    return "bar";
+  }
+
   function chartChoices(goal = "") {
     const charts = pendingVisualization?.dimension === "fecha" || goal === "request_trend"
       ? ["line", "area", "table"]
       : ["bar", "donut", "line", "area", "table", "kpi"];
-    return charts.map((chart) => ({
+    const recommended = recommendedChart(pendingVisualization);
+    return charts.sort((left, right) => Number(right === recommended) - Number(left === recommended)).map((chart) => ({
       label: CHART_LABELS[chart],
+      description: chart === recommended ? "Recomendado para esta medición." : "",
+      primary: chart === recommended,
       action: { type: "visualization_chart", chart },
     }));
   }
@@ -297,16 +334,18 @@ export function mountIxtlaInsights(options = {}) {
         ? ["estatus"]
         : ["estatus", "tramite", "departamento", "fecha"];
     const prefix = CHART_LABELS[chart] || "Gráfica";
-    return dimensions.map((dimension) => ({
+    return dimensions
+      .filter((dimension) => !hasFixedStatusMetric(pendingVisualization?.metric) || dimension !== "estatus")
+      .map((dimension) => ({
       label: `${prefix} por ${DIMENSION_LABELS[dimension]}`,
       action: { type: "visualization_dimension", dimension },
-    }));
+      }));
   }
 
   function metricChoices() {
     const metrics = pendingVisualization?.chart === "kpi"
       ? Object.keys(METRIC_LABELS)
-      : ["total", "abiertos", "finalizados", "pausados", "cancelados", "cerrados"];
+      : ["total", "abiertos", "finalizados", "pausados_cancelados", "cerrados"];
     return metrics.map((metric) => ({
       label: METRIC_LABELS[metric],
       action: { type: "visualization_metric", metric },
@@ -316,7 +355,7 @@ export function mountIxtlaInsights(options = {}) {
   function remoteWidgetSpec(widget) {
     const chart = clean(widget?.kind || widget?.chart);
     if (!new Set(["kpi", "bar", "donut", "line", "area", "table", "funnel"]).has(chart)) return null;
-    const metric = ["total", "abiertos", "finalizados", "pausados", "cancelados", "cerrados", "promedio_semanal", "tiempo_resolucion"].includes(clean(widget?.metric))
+    const metric = ["total", "abiertos", "finalizados", "pausados_cancelados", "pausados", "cancelados", "cerrados", "promedio_semanal", "tiempo_resolucion"].includes(clean(widget?.metric))
       ? clean(widget.metric)
       : "total";
     const dimension = ["estatus", "tramite", "departamento", "fecha"].includes(clean(widget?.dimension))
@@ -388,21 +427,26 @@ export function mountIxtlaInsights(options = {}) {
   async function finalizeVisualization() {
     if (!pendingVisualization?.chart || !pendingVisualization?.metric) return;
     const request = pendingVisualization;
-    pendingVisualization = null;
+    if (request.reviewSpec) return;
     renderQuickQuestions([]);
     const dimension = request.dimension || "estatus";
     const spec = {
       id: `guided-widget-${Date.now()}`,
-      title: widgetTitle(request.chart, request.metric, dimension),
+      title: clean(request.title) || widgetTitle(request.chart, request.metric, dimension),
       chart: request.chart,
       metric: request.metric,
       dimension,
       filters: Array.isArray(request.filters) ? request.filters : [],
+      period: PERIOD_LABELS[request.period] ? request.period : "all",
       sort: dimension === "fecha" ? "chronological" : "desc",
       limit: request.chart === "kpi" ? 1 : 10,
       domain: "requerimientos",
       scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
     };
+    request.reviewSpec = spec;
+    showVisualizationReview(request, spec);
+    return;
+
     try {
       await addVisualization(request.question, spec);
       renderQuickQuestions(config.quickQuestions);
@@ -410,6 +454,60 @@ export function mountIxtlaInsights(options = {}) {
       console.error("[IxtlaInsights]", error);
       addMessage("No fue posible agregar la visualización al dashboard. Intenta de nuevo.");
     }
+  }
+
+  function visualizationScopeSummary(filters) {
+    const departments = (Array.isArray(filters) ? filters : []).filter((filter) => filter?.field === "departamento" && clean(filter?.value));
+    if (!departments.length) return "Todos los departamentos autorizados";
+    return departments.length === 1 ? clean(departments[0].value) : `${departments.length} departamentos seleccionados`;
+  }
+
+  function showVisualizationReview(request, spec) {
+    const chart = CHART_LABELS[spec.chart] || spec.chart;
+    const metric = METRIC_LABELS[spec.metric] || spec.metric;
+    const dimension = DIMENSION_LABELS[spec.dimension] || spec.dimension;
+    const period = PERIOD_LABELS[spec.period] || PERIOD_LABELS.all;
+    addMessage(`Revisa antes de crear: ${metric} · ${visualizationScopeSummary(spec.filters)} · ${period} · ${chart} por ${dimension}.`);
+    renderQuickQuestions([
+      { label: "Crear visualización", description: "Agrega el widget al dashboard actual.", primary: true, action: { type: "visualization_confirm" } },
+      { label: "Editar periodo", description: period, action: { type: "visualization_edit_period" } },
+      { label: "Editar departamentos", description: visualizationScopeSummary(spec.filters), action: { type: "visualization_edit_scope" } },
+      { label: "Cancelar", description: "Descarta esta visualización.", action: { type: "visualization_cancel" } },
+    ]);
+  }
+
+  async function confirmVisualization() {
+    const request = pendingVisualization;
+    const spec = request?.reviewSpec;
+    if (!request || !spec) return;
+    pendingVisualization = null;
+    renderQuickQuestions([]);
+    try {
+      await addVisualization(request.question, spec);
+      renderQuickQuestions(config.quickQuestions);
+    } catch (error) {
+      console.error("[IxtlaInsights]", error);
+      addMessage("No fue posible agregar la visualización al dashboard. Intenta de nuevo.");
+      renderQuickQuestions(START_ACTIONS);
+    }
+  }
+
+  function editVisualizationPeriod() {
+    if (!pendingVisualization?.reviewSpec) return;
+    addMessage("¿Qué periodo deseas analizar?");
+    renderQuickQuestions(PERIOD_CHOICES);
+  }
+
+  function editVisualizationScope() {
+    if (!pendingVisualization?.reviewSpec) return;
+    addMessage("¿Qué departamentos deseas usar?");
+    renderQuickQuestions(DEPARTMENT_SCOPE_CHOICES);
+  }
+
+  function cancelVisualization() {
+    pendingVisualization = null;
+    addMessage("Visualización cancelada.");
+    renderQuickQuestions(START_ACTIONS);
   }
 
   function chooseVisualizationChart(chart) {
@@ -421,6 +519,7 @@ export function mountIxtlaInsights(options = {}) {
 
   function chooseVisualizationDimension(dimension) {
     if (!pendingVisualization || !DIMENSION_LABELS[dimension]) return;
+    if (dimension === "estatus" && hasFixedStatusMetric(pendingVisualization.metric)) return;
     pendingVisualization.dimension = dimension;
     addMessage(`Agrupar por ${DIMENSION_LABELS[dimension]}`, "user");
     continueGuidedVisualization();
@@ -439,6 +538,7 @@ export function mountIxtlaInsights(options = {}) {
       mode,
       metric: metric ?? state.metric ?? "",
       filters: Array.isArray(state.filters) ? state.filters : [],
+      period: clean(state.period),
     };
     addMessage("¿Para qué departamento o departamentos deseas calcularlo?");
     renderQuickQuestions(DEPARTMENT_SCOPE_CHOICES);
@@ -453,16 +553,17 @@ export function mountIxtlaInsights(options = {}) {
     if (!METRIC_LABELS[metric]) return;
     if (pendingVisualization?.mode === "kpi_kit") {
       const filters = Array.isArray(pendingVisualization.filters) ? pendingVisualization.filters : [];
+      const period = clean(pendingVisualization.period) || "all";
       pendingVisualization = null;
       addMessage(METRIC_LABELS[metric], "user");
-      addKpi(metric, filters);
+      addKpi(metric, filters, period);
       return;
     }
     addMessage(METRIC_LABELS[metric], "user");
     beginDepartmentScope("single_kpi", metric);
   }
 
-  async function addKpi(metric, filters = []) {
+  async function addKpi(metric, filters = [], period = "all") {
     if (!METRIC_LABELS[metric]) return;
     const spec = {
       id: `kpi-widget-${Date.now()}`,
@@ -471,11 +572,25 @@ export function mountIxtlaInsights(options = {}) {
       metric,
       dimension: "estatus",
       filters,
+      period: PERIOD_LABELS[period] ? period : "all",
       sort: "desc",
       limit: 1,
       domain: "requerimientos",
       scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
     };
+    pendingVisualization = {
+      mode: "single_kpi",
+      question: `Agregar KPI: ${METRIC_LABELS[metric]}`,
+      chart: "kpi",
+      metric,
+      dimension: "estatus",
+      filters,
+      period: spec.period,
+      title: spec.title,
+      reviewSpec: spec,
+    };
+    showVisualizationReview(pendingVisualization, spec);
+    return;
     renderQuickQuestions([]);
     try {
       await addVisualization(`Agregar KPI: ${METRIC_LABELS[metric]}`, spec);
@@ -504,13 +619,14 @@ export function mountIxtlaInsights(options = {}) {
       return;
     }
     addMessage("¿Cómo deseas separar la información?");
-    renderQuickQuestions(SEPARATION_CHOICES);
+    renderQuickQuestions(separationChoices(metric));
   }
 
   function chooseVisualizationSeparation(action) {
     if (!pendingVisualization) return;
     const dimension = clean(action?.dimension);
     if (!DIMENSION_LABELS[dimension]) return;
+    if (dimension === "estatus" && clean(action?.chart) !== "kpi" && hasFixedStatusMetric(pendingVisualization.metric)) return;
     pendingVisualization.dimension = dimension;
     if (clean(action?.chart) === "kpi") pendingVisualization.chart = "kpi";
     addMessage(clean(action?.label) || `Separar por ${DIMENSION_LABELS[dimension]}`, "user");
@@ -530,15 +646,42 @@ export function mountIxtlaInsights(options = {}) {
 
   function continueAfterDepartmentScope() {
     if (!pendingVisualization) return;
+    if (pendingVisualization.reviewSpec) {
+      delete pendingVisualization.reviewSpec;
+      finalizeVisualization();
+      return;
+    }
+    if (!pendingVisualization.period) {
+      addMessage("¿Qué periodo deseas analizar?");
+      renderQuickQuestions(PERIOD_CHOICES);
+      return;
+    }
+    continueAfterPeriod();
+  }
+
+  function chooseVisualizationPeriod(period) {
+    if (!pendingVisualization || !PERIOD_LABELS[period]) return;
+    pendingVisualization.period = period;
+    addMessage(`Periodo: ${PERIOD_LABELS[period]}`, "user");
+    if (pendingVisualization.reviewSpec) {
+      delete pendingVisualization.reviewSpec;
+      finalizeVisualization();
+      return;
+    }
+    continueAfterPeriod();
+  }
+
+  function continueAfterPeriod() {
+    if (!pendingVisualization) return;
     if (pendingVisualization.mode === "kpi_kit") {
       addMessage("Elige el indicador que deseas agregar al dashboard.");
       renderQuickQuestions(KPI_CHOICES);
       return;
     }
     if (pendingVisualization.mode === "single_kpi") {
-      const { metric, filters } = pendingVisualization;
+      const { metric, filters, period } = pendingVisualization;
       pendingVisualization = null;
-      addKpi(metric, filters);
+      addKpi(metric, filters, period);
       return;
     }
     if (pendingVisualization.mode === "free_visualization") {
@@ -546,9 +689,19 @@ export function mountIxtlaInsights(options = {}) {
       return;
     }
     if (pendingVisualization.mode === "remote_visualization") {
-      const { question, remoteSpec, filters } = pendingVisualization;
-      pendingVisualization = null;
-      addRemoteVisualization(question, { ...remoteSpec, filters });
+      const { question, remoteSpec, filters, period } = pendingVisualization;
+      pendingVisualization = {
+        ...pendingVisualization,
+        mode: "guided",
+        question,
+        title: remoteSpec.title,
+        chart: remoteSpec.chart,
+        metric: remoteSpec.metric,
+        dimension: remoteSpec.dimension,
+        filters,
+        period,
+      };
+      finalizeVisualization();
       return;
     }
     addMessage("¿Qué deseas medir?");
@@ -576,6 +729,9 @@ export function mountIxtlaInsights(options = {}) {
 
   function renderDepartmentChecklist(departments) {
     chips.replaceChildren();
+    const selectedNames = new Set((Array.isArray(pendingVisualization?.filters) ? pendingVisualization.filters : [])
+      .filter((filter) => filter?.field === "departamento")
+      .map((filter) => clean(filter?.value)));
     const form = document.createElement("fieldset");
     form.className = "ixtla-insights-department-checklist";
     const legend = document.createElement("legend");
@@ -589,6 +745,7 @@ export function mountIxtlaInsights(options = {}) {
       input.type = "checkbox";
       input.name = "ixtla-insights-department";
       input.value = name;
+      input.checked = selectedNames.has(name);
       label.append(input, document.createTextNode(name));
       form.appendChild(label);
     });

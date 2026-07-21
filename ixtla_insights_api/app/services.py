@@ -41,16 +41,16 @@ def build_widget(question: str) -> WidgetSpec:
     elif "promedio semanal" in normalized:
         kind = "kpi"
         metric = "promedio_semanal"
-    elif "cancel" in normalized:
-        metric = "cancelados"
-    elif "paus" in normalized:
-        metric = "pausados"
+    elif "cancel" in normalized or "paus" in normalized:
+        metric = "pausados_cancelados"
     elif "cerrad" in normalized:
         metric = "cerrados"
     elif "finaliz" in normalized:
         metric = "finalizados"
     elif "abiert" in normalized:
         metric = "abiertos"
+    if metric == "pausados_cancelados" and kind != "kpi" and dimension == "estatus":
+        dimension = "tramite"
     title = "Tendencia diaria de requerimientos" if kind == "line" else f"Requerimientos por {dimension}"
     if metric == "tiempo_resolucion":
         title = "Tiempo promedio de resolución"
@@ -63,6 +63,7 @@ def build_widget(question: str) -> WidgetSpec:
         title=title,
         metric=metric,
         dimension=dimension,
+        period="all",
         filters=[],
         sort="chronological" if dimension == "fecha" else "desc",
         limit=10,

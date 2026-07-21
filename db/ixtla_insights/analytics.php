@@ -53,6 +53,7 @@ function ixtla_insights_aggregate_requerimientos(mysqli $con, array $rawPlan): a
     ixtla_insights_apply_visibility($rbac, $where);
     ixtla_insights_apply_metric($plan['metric'], $where);
     ixtla_insights_apply_filters($plan['filters'], $where, $params, $types);
+    ixtla_insights_apply_period($plan['period'], $where);
 
     $joins = ' FROM requerimiento r JOIN departamento d ON d.id = r.departamento_id JOIN tramite t ON t.id = r.tramite_id';
     $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
@@ -94,13 +95,14 @@ function ixtla_insights_normalize_plan(array $raw): array
     $kind = strtolower(trim((string) ($raw['kind'] ?? $raw['chart'] ?? 'bar')));
     $metric = strtolower(trim((string) ($raw['metric'] ?? 'total')));
     $dimension = strtolower(trim((string) ($raw['dimension'] ?? 'estatus')));
+    $period = strtolower(trim((string) ($raw['period'] ?? 'all')));
     $sort = strtolower(trim((string) ($raw['sort'] ?? 'desc')));
     $limit = (int) ($raw['limit'] ?? 10);
 
     if (!in_array($kind, ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'], true)) {
         throw new InvalidArgumentException('El tipo de visualización no está permitido.');
     }
-    if (!in_array($metric, ['total', 'abiertos', 'finalizados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'], true)) {
+    if (!in_array($metric, ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'], true)) {
         throw new InvalidArgumentException('La métrica solicitada no está permitida.');
     }
     if ($kind !== 'kpi' && in_array($metric, ['promedio_semanal', 'tiempo_resolucion'], true)) {
@@ -108,6 +110,12 @@ function ixtla_insights_normalize_plan(array $raw): array
     }
     if (!in_array($dimension, ['estatus', 'tramite', 'departamento', 'fecha'], true)) {
         throw new InvalidArgumentException('La dimensión solicitada no está permitida.');
+    }
+    if ($kind !== 'kpi' && $dimension === 'estatus' && in_array($metric, ['finalizados', 'pausados', 'cancelados', 'pausados_cancelados'], true)) {
+        throw new InvalidArgumentException('El estatus ya esta definido por la metrica solicitada.');
+    }
+    if (!in_array($period, ['all', 'last_7', 'last_30', 'this_month'], true)) {
+        $period = 'all';
     }
     if (!in_array($sort, ['desc', 'asc', 'chronological'], true)) {
         $sort = 'desc';
@@ -130,6 +138,7 @@ function ixtla_insights_normalize_plan(array $raw): array
         'kind' => $kind,
         'metric' => $metric,
         'dimension' => $dimension,
+        'period' => $period,
         'filters' => array_slice($filters, 0, 50),
         'sort' => $dimension === 'fecha' ? 'chronological' : $sort,
         'limit' => $kind === 'kpi' ? 1 : min(50, max(1, $limit)),
@@ -224,11 +233,24 @@ function ixtla_insights_apply_metric(string $metric, array &$where): void
         $where[] = 'r.estatus = 4';
     } elseif ($metric === 'cancelados') {
         $where[] = 'r.estatus = 5';
+    } elseif ($metric === 'pausados_cancelados') {
+        $where[] = 'r.estatus IN (4, 5)';
     } elseif ($metric === 'cerrados') {
         $where[] = 'r.estatus IN (5, 6)';
     } elseif ($metric === 'tiempo_resolucion') {
         $where[] = 'r.estatus = 6';
         $where[] = 'r.cerrado_en IS NOT NULL';
+    }
+}
+
+function ixtla_insights_apply_period(string $period, array &$where): void
+{
+    if ($period === 'last_7') {
+        $where[] = 'r.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)';
+    } elseif ($period === 'last_30') {
+        $where[] = 'r.created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)';
+    } elseif ($period === 'this_month') {
+        $where[] = "r.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
     }
 }
 
@@ -251,6 +273,7 @@ function ixtla_insights_metric_label(string $metric): string
     return match ($metric) {
         'abiertos' => 'Requerimientos abiertos',
         'finalizados' => 'Requerimientos finalizados',
+        'pausados_cancelados' => 'Requerimientos pausados/cancelados',
         'pausados' => 'Requerimientos pausados',
         'cancelados' => 'Requerimientos cancelados',
         'cerrados' => 'Requerimientos cerrados',

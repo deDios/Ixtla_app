@@ -28,8 +28,9 @@ class ChatRequest(StrictSchema):
 class WidgetSpec(StrictSchema):
     kind: Literal["kpi", "bar", "donut", "line", "area", "table", "funnel"]
     title: str = Field(min_length=3, max_length=100)
-    metric: Literal["total", "abiertos", "finalizados", "pausados", "cancelados", "cerrados", "promedio_semanal", "tiempo_resolucion"]
+    metric: Literal["total", "abiertos", "finalizados", "pausados_cancelados", "pausados", "cancelados", "cerrados", "promedio_semanal", "tiempo_resolucion"]
     dimension: Literal["estatus", "tramite", "departamento", "fecha"]
+    period: Literal["all", "last_7", "last_30", "this_month"] = "all"
     filters: list[dict[str, str]] = Field(default_factory=list, max_length=3)
     sort: Literal["desc", "asc", "chronological"] = "desc"
     limit: int = Field(default=10, ge=1, le=50)

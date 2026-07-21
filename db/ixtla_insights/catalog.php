@@ -9,7 +9,8 @@ ixtla_insights_json([
     'catalog' => [
         'domain' => 'requerimientos',
         'widget_kinds' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'],
-        'metrics' => ['total', 'abiertos', 'finalizados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'],
+        'metrics' => ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'],
         'dimensions' => ['estatus', 'tramite', 'departamento', 'fecha'],
+        'periods' => ['all', 'last_7', 'last_30', 'this_month'],
     ],
 ]);

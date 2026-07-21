@@ -30,7 +30,7 @@ function normalizeDashboard(raw, id) {
     updatedAt: raw.updatedAt || raw.createdAt || new Date().toISOString(),
     question: clean(raw.question),
     scopeLabel: clean(raw.scopeLabel) || "Vista autorizada actual",
-    widgets: raw.widgets.map((widget) => ({ ...widget, id: clean(widget?.id) || createId("widget") })),
+    widgets: raw.widgets.map((widget) => ({ ...widget, id: clean(widget?.id) || createId("widget"), period: ["all", "last_7", "last_30", "this_month"].includes(clean(widget?.period)) ? clean(widget.period) : "all" })),
     rows: compactRows(raw.rows),
   };
 }
@@ -70,6 +70,7 @@ export function buildVisualizationSpec(question, context = {}) {
     metric,
     dimension,
     filters: [],
+    period: "all",
     sort: dimension === "fecha" ? "chronological" : "desc",
     limit: chart === "kpi" ? 1 : 10,
     domain: "requerimientos",
@@ -82,8 +83,7 @@ export function getWidgetCatalog() {
     { section: "Indicadores clave", chart: "kpi", metric: "total", dimension: "estatus", title: "Total de requerimientos", filters: [], sort: "desc", limit: 1 },
     { section: "Indicadores clave", chart: "kpi", metric: "abiertos", dimension: "estatus", title: "Requerimientos abiertos", filters: [], sort: "desc", limit: 1 },
     { section: "Indicadores clave", chart: "kpi", metric: "finalizados", dimension: "estatus", title: "Requerimientos finalizados", filters: [], sort: "desc", limit: 1 },
-    { section: "Indicadores clave", chart: "kpi", metric: "pausados", dimension: "estatus", title: "Requerimientos pausados", filters: [], sort: "desc", limit: 1 },
-    { section: "Indicadores clave", chart: "kpi", metric: "cancelados", dimension: "estatus", title: "Requerimientos cancelados", filters: [], sort: "desc", limit: 1 },
+    { section: "Indicadores clave", chart: "kpi", metric: "pausados_cancelados", dimension: "estatus", title: "Requerimientos pausados/cancelados", filters: [], sort: "desc", limit: 1 },
     { section: "Indicadores clave", chart: "kpi", metric: "promedio_semanal", dimension: "fecha", title: "Promedio semanal de requerimientos", filters: [], sort: "chronological", limit: 1 },
     { section: "Indicadores clave", chart: "kpi", metric: "tiempo_resolucion", dimension: "fecha", title: "Tiempo promedio de resolución", filters: [], sort: "chronological", limit: 1 },
     { section: "Visualizaciones", chart: "bar", metric: "total", dimension: "estatus", title: "Requerimientos por estatus", filters: [], sort: "desc", limit: 10 },
@@ -92,7 +92,7 @@ export function getWidgetCatalog() {
     { section: "Visualizaciones", chart: "bar", metric: "total", dimension: "departamento", title: "Carga por departamento", filters: [], sort: "desc", limit: 10 },
     { section: "Visualizaciones", chart: "line", metric: "total", dimension: "fecha", title: "Tendencia diaria de requerimientos", filters: [], sort: "chronological", limit: 50 },
     { section: "Visualizaciones", chart: "table", metric: "total", dimension: "tramite", title: "Requerimientos por trámite", filters: [], sort: "desc", limit: 50 },
-  ].map((widget) => ({ ...widget, id: createId("widget"), domain: "requerimientos" }));
+  ].map((widget) => ({ ...widget, id: createId("widget"), domain: "requerimientos", period: "all" }));
 }
 
 export function loadTemporaryDashboard(id) {

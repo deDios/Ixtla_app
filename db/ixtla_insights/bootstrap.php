@@ -115,8 +115,9 @@ function ixtla_insights_response_schema(): array
         'properties' => [
             'kind' => ['type' => 'string', 'enum' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel']],
             'title' => ['type' => 'string', 'maxLength' => 100],
-            'metric' => ['type' => 'string', 'enum' => ['total', 'abiertos', 'finalizados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion']],
+            'metric' => ['type' => 'string', 'enum' => ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion']],
             'dimension' => ['type' => 'string', 'enum' => ['estatus', 'tramite', 'departamento', 'fecha']],
+            'period' => ['type' => 'string', 'enum' => ['all', 'last_7', 'last_30', 'this_month']],
             'filters' => ['type' => 'array', 'maxItems' => 3, 'items' => $filter],
             'sort' => ['type' => 'string', 'enum' => ['desc', 'asc', 'chronological']],
             'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
@@ -178,13 +179,17 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
         if (!in_array($widget['kind'] ?? '', ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'], true)) {
             continue;
         }
-        if (!in_array($widget['metric'] ?? '', ['total', 'abiertos', 'finalizados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'], true)) {
+        if (!in_array($widget['metric'] ?? '', ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'], true)) {
             continue;
         }
         if (($widget['kind'] ?? '') !== 'kpi' && in_array($widget['metric'], ['promedio_semanal', 'tiempo_resolucion'], true)) {
             continue;
         }
         if (!in_array($widget['dimension'] ?? '', ['estatus', 'tramite', 'departamento', 'fecha'], true)) {
+            continue;
+        }
+
+        if (($widget['kind'] ?? '') !== 'kpi' && ($widget['dimension'] ?? '') === 'estatus' && in_array($widget['metric'] ?? '', ['finalizados', 'pausados', 'cancelados', 'pausados_cancelados'], true)) {
             continue;
         }
 
@@ -221,6 +226,7 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
                 'title' => ixtla_insights_truncate(trim((string) ($widget['title'] ?? 'Visualizacion de requerimientos')), 100),
                 'metric' => $widget['metric'],
                 'dimension' => $widget['dimension'],
+                'period' => in_array($widget['period'] ?? '', ['all', 'last_7', 'last_30', 'this_month'], true) ? $widget['period'] : 'all',
                 'filters' => array_slice($filters, 0, 3),
                 'sort' => $sort,
                 'limit' => $limit,
@@ -343,6 +349,8 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         . 'Una solicitud de métrica, ranking, top, comparación o dashboard también requiere una acción widget_preview; para un top sin tipo de gráfica usa bar y dimension tramite. '
         . 'Si no solicitan una visualizacion, actions debe ser []. '
         . 'La respuesta debe ser breve, sin explicar razonamientos.';
+
+    $systemPrompt .= ' Para la metrica pausados_cancelados no uses dimension estatus, porque el estatus ya esta definido por la metrica.';
 
     $input = [[
         'role' => 'developer',
