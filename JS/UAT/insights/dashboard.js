@@ -24,6 +24,17 @@ const analyticsCache = new Map();
 const clean = (value) => String(value ?? "").trim();
 const escapeHtml = (value) => clean(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 
+function departmentColor(name) {
+  const normalized = clean(name).toLocaleLowerCase("es-MX");
+  let hash = 0;
+  for (let index = 0; index < normalized.length; index += 1) hash = ((hash << 5) - hash) + normalized.charCodeAt(index);
+  return COLORS[Math.abs(hash) % COLORS.length];
+}
+
+function entryColor(label, index, widget) {
+  return widget?.dimension === "departamento" ? departmentColor(label) : COLORS[index % COLORS.length];
+}
+
 function dayOf(value) {
   const raw = clean(value);
   if (!raw) return "Sin fecha";
@@ -70,23 +81,23 @@ function entriesFor(rows, widget) {
     : entries.sort((left, right) => right[1] - left[1]);
 }
 
-function renderBar(target, entries) {
+function renderBar(target, entries, widget) {
   const max = Math.max(...entries.map(([, value]) => value), 1);
   target.innerHTML = entries.length
-    ? entries.map(([label, value]) => `<div class="ixtla-dashboard-bar"><span title="${escapeHtml(label)}">${escapeHtml(label)}</span><div><i style="width:${Math.round((value / max) * 100)}%"></i></div><strong>${value}</strong></div>`).join("")
+    ? entries.map(([label, value], index) => `<div class="ixtla-dashboard-bar"><span title="${escapeHtml(label)}">${escapeHtml(label)}</span><div><i style="width:${Math.round((value / max) * 100)}%;background:${entryColor(label, index, widget)}"></i></div><strong>${value}</strong></div>`).join("")
     : '<p class="ixtla-dashboard-empty-message">No hay datos para esta visualizacion.</p>';
 }
 
-function renderDonut(target, entries) {
+function renderDonut(target, entries, widget) {
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
   let cursor = 0;
   const segments = entries.map(([, value], index) => {
     const start = cursor;
     cursor += (value / total) * 100;
-    return `${COLORS[index % COLORS.length]} ${start}% ${cursor}%`;
+    return `${entryColor(entries[index][0], index, widget)} ${start}% ${cursor}%`;
   });
   target.innerHTML = total
-    ? `<div class="ixtla-dashboard-donut-wrap"><div class="ixtla-dashboard-donut" style="background:conic-gradient(${segments.join(",")})"><strong>${total}</strong><span>Total</span></div><ul class="ixtla-dashboard-legend">${entries.map(([label, value], index) => `<li><span><i style="background:${COLORS[index % COLORS.length]}"></i>${escapeHtml(label)}</span><strong>${value}</strong></li>`).join("")}</ul></div>`
+    ? `<div class="ixtla-dashboard-donut-wrap"><div class="ixtla-dashboard-donut" style="background:conic-gradient(${segments.join(",")})"><strong>${total}</strong><span>Total</span></div><ul class="ixtla-dashboard-legend">${entries.map(([label, value], index) => `<li><span><i style="background:${entryColor(label, index, widget)}"></i>${escapeHtml(label)}</span><strong>${value}</strong></li>`).join("")}</ul></div>`
     : '<p class="ixtla-dashboard-empty-message">No hay datos para esta visualizacion.</p>';
 }
 
@@ -160,6 +171,14 @@ function metricLabel(widget) {
   return labels[widget.metric] || "Métrica de requerimientos";
 }
 
+function widgetScopeLabel(widget, dashboardScope) {
+  const departments = (Array.isArray(widget.filters) ? widget.filters : [])
+    .filter((filter) => filter?.field === "departamento" && clean(filter?.value))
+    .map((filter) => clean(filter.value));
+  if (departments.length) return `Alcance: ${departments.join(" · ")}`;
+  return clean(dashboardScope) ? `Alcance: ${dashboardScope}` : "Alcance: Todos los departamentos autorizados";
+}
+
 function analyticsPlan(widget) {
   return {
     kind: widget.chart,
@@ -206,12 +225,12 @@ function markScrollable(card, target, chart, entries) {
 }
 
 function renderWidget(target, widget, entries, total) {
-  if (widget.chart === "donut") renderDonut(target, entries);
+  if (widget.chart === "donut") renderDonut(target, entries, widget);
   else if (widget.chart === "line" || widget.chart === "area") renderLine(target, entries);
   else if (widget.chart === "table") renderTable(target, entries);
   else if (widget.chart === "kpi") renderKpi(target, total, widget);
   else if (widget.chart === "funnel") renderFunnel(target, entries);
-  else renderBar(target, entries);
+  else renderBar(target, entries, widget);
 }
 
 async function renderDashboard(dashboard) {
@@ -223,7 +242,7 @@ async function renderDashboard(dashboard) {
     card.className = `ixtla-dashboard-card ${cardSize(widget.chart)}`;
     card.draggable = true;
     card.dataset.widgetId = widget.id;
-    card.innerHTML = `<header class="ixtla-dashboard-card__header"><div><p>${metricLabel(widget)}</p><h2>${escapeHtml(widget.title)}</h2></div><div class="ixtla-dashboard-card__tools"><button class="ixtla-dashboard-drag" type="button" aria-label="Arrastrar widget" title="Arrastrar widget">&#8281;</button><button class="ixtla-dashboard-remove" type="button" aria-label="Eliminar widget" title="Eliminar widget">&times;</button></div></header><div class="ixtla-dashboard-widget"></div>`;
+    card.innerHTML = `<header class="ixtla-dashboard-card__header"><div><p>${metricLabel(widget)}</p><h2>${escapeHtml(widget.title)}</h2><span class="ixtla-dashboard-card__scope">${escapeHtml(widgetScopeLabel(widget, dashboard.scopeLabel))}</span></div><div class="ixtla-dashboard-card__tools"><button class="ixtla-dashboard-drag" type="button" aria-label="Arrastrar widget" title="Arrastrar widget">&#8281;</button><button class="ixtla-dashboard-remove" type="button" aria-label="Eliminar widget" title="Eliminar widget">&times;</button></div></header><div class="ixtla-dashboard-widget"></div>`;
     const target = card.querySelector(".ixtla-dashboard-widget");
     target.setAttribute("aria-busy", "true");
     target.innerHTML = '<p class="ixtla-dashboard-empty-message">Cargando datos autorizados…</p>';

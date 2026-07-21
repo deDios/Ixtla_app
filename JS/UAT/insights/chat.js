@@ -9,26 +9,26 @@ const START_ACTIONS = [{
   primary: true,
   action: { type: "visualization_start" },
 }];
-const ANALYSIS_CHOICES = [
+const MEASUREMENT_CHOICES = [
   {
-    label: "Requerimientos por departamento",
-    description: "Compara la carga entre departamentos autorizados.",
-    action: { type: "visualization_goal", goal: "department_requests", dimension: "departamento", label: "Requerimientos por departamento" },
+    label: "Total de requerimientos",
+    description: "Mide toda la carga dentro del alcance seleccionado.",
+    action: { type: "visualization_measurement", metric: "total" },
   },
   {
-    label: "Estado de requerimientos",
-    description: "Consulta abiertos, finalizados y otros estatus.",
-    action: { type: "visualization_goal", goal: "status_requests", dimension: "estatus", label: "Estado de requerimientos" },
+    label: "Requerimientos abiertos",
+    description: "Mide los requerimientos que aún necesitan atención.",
+    action: { type: "visualization_measurement", metric: "abiertos" },
   },
   {
-    label: "Requerimientos por trámite",
-    description: "Identifica los trámites con mayor carga.",
-    action: { type: "visualization_goal", goal: "procedure_requests", dimension: "tramite", label: "Requerimientos por trámite" },
+    label: "Requerimientos finalizados",
+    description: "Mide los requerimientos concluidos.",
+    action: { type: "visualization_measurement", metric: "finalizados" },
   },
   {
-    label: "Tendencia de requerimientos",
-    description: "Visualiza la evolución por fecha.",
-    action: { type: "visualization_goal", goal: "request_trend", dimension: "fecha", label: "Tendencia de requerimientos" },
+    label: "Requerimientos pausados",
+    description: "Revisa casos que requieren seguimiento.",
+    action: { type: "visualization_measurement", metric: "pausados" },
   },
   {
     label: "Tiempos de resolución",
@@ -40,6 +40,13 @@ const ANALYSIS_CHOICES = [
     description: "Agrega KPIs operativos al dashboard.",
     action: { type: "visualization_kpi_kit" },
   },
+];
+const SEPARATION_CHOICES = [
+  { label: "Resumen en un indicador", description: "Un solo valor para el alcance elegido.", action: { type: "visualization_separation", label: "Resumen en un indicador", chart: "kpi", dimension: "estatus" } },
+  { label: "Separar por departamento", description: "Compara la carga entre departamentos.", action: { type: "visualization_separation", label: "Separar por departamento", dimension: "departamento" } },
+  { label: "Separar por trámite", description: "Identifica los trámites con mayor volumen.", action: { type: "visualization_separation", label: "Separar por trámite", dimension: "tramite" } },
+  { label: "Separar por estatus", description: "Muestra solicitud, proceso, pausa y finalización.", action: { type: "visualization_separation", label: "Separar por estatus", dimension: "estatus" } },
+  { label: "Separar por fecha", description: "Muestra la evolución y tendencia en el tiempo.", action: { type: "visualization_separation", label: "Separar por fecha", dimension: "fecha" } },
 ];
 const KPI_CHOICES = [
   { label: "Total de requerimientos", description: "Todos los requerimientos del alcance autorizado.", action: { type: "visualization_kpi", metric: "total" } },
@@ -243,7 +250,7 @@ export function mountIxtlaInsights(options = {}) {
       if (!text) return;
       const chip = document.createElement("button");
       chip.type = "button";
-      const isChoice = ["visualization_goal", "department_scope", "visualization_kpi", "visualization_kpi_kit"].includes(item?.action?.type);
+      const isChoice = ["visualization_measurement", "visualization_separation", "department_scope", "visualization_kpi", "visualization_kpi_kit"].includes(item?.action?.type);
       chip.className = `ixtla-insights-chip${item?.primary ? " ixtla-insights-chip--primary" : ""}${isChoice ? " ixtla-insights-chip--choice" : ""}`;
       const label = document.createElement("span");
       label.className = "ixtla-insights-chip__label";
@@ -259,7 +266,8 @@ export function mountIxtlaInsights(options = {}) {
       chip.addEventListener("click", () => {
         const action = item && typeof item === "object" ? item.action || {} : {};
         if (action.type === "visualization_start") return startGuidedVisualization();
-        if (action.type === "visualization_goal") return chooseVisualizationGoal(action);
+        if (action.type === "visualization_measurement") return chooseVisualizationMeasurement(action.metric);
+        if (action.type === "visualization_separation") return chooseVisualizationSeparation(action);
         if (action.type === "visualization_kpi_kit") return startKpiKit();
         if (action.type === "visualization_kpi") return startKpi(action.metric);
         if (action.type === "department_scope") return chooseDepartmentScope(action.scope);
@@ -273,7 +281,7 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function chartChoices(goal = "") {
-    const charts = goal === "request_trend"
+    const charts = pendingVisualization?.dimension === "fecha" || goal === "request_trend"
       ? ["line", "area", "table"]
       : ["bar", "donut", "line", "area", "table", "kpi"];
     return charts.map((chart) => ({
@@ -484,18 +492,28 @@ export function mountIxtlaInsights(options = {}) {
     beginDepartmentScope("guided");
   }
 
-  function chooseVisualizationGoal(action) {
+  function chooseVisualizationMeasurement(metric) {
+    if (!pendingVisualization || !METRIC_LABELS[metric]) return;
+    pendingVisualization.metric = metric;
+    pendingVisualization.question = `Crear una visualización de ${METRIC_LABELS[metric].toLocaleLowerCase("es-MX")}`;
+    addMessage(`Medición: ${METRIC_LABELS[metric]}`, "user");
+    if (["promedio_semanal", "tiempo_resolucion"].includes(metric)) {
+      pendingVisualization.chart = "kpi";
+      pendingVisualization.dimension = "fecha";
+      finalizeVisualization();
+      return;
+    }
+    addMessage("¿Cómo deseas separar la información?");
+    renderQuickQuestions(SEPARATION_CHOICES);
+  }
+
+  function chooseVisualizationSeparation(action) {
+    if (!pendingVisualization) return;
     const dimension = clean(action?.dimension);
     if (!DIMENSION_LABELS[dimension]) return;
-    pendingVisualization = {
-      ...pendingVisualization,
-      chart: "",
-      dimension,
-      metric: "",
-      goal: clean(action.goal),
-      question: `Crear una visualización de ${clean(action?.label) || DIMENSION_LABELS[dimension]}`,
-    };
-    addMessage(clean(action?.label) || `Requerimientos por ${DIMENSION_LABELS[dimension]}`, "user");
+    pendingVisualization.dimension = dimension;
+    if (clean(action?.chart) === "kpi") pendingVisualization.chart = "kpi";
+    addMessage(clean(action?.label) || `Separar por ${DIMENSION_LABELS[dimension]}`, "user");
     continueGuidedVisualization();
   }
 
@@ -533,8 +551,8 @@ export function mountIxtlaInsights(options = {}) {
       addRemoteVisualization(question, { ...remoteSpec, filters });
       return;
     }
-    addMessage("¿Qué deseas analizar?");
-    renderQuickQuestions(ANALYSIS_CHOICES);
+    addMessage("¿Qué deseas medir?");
+    renderQuickQuestions(MEASUREMENT_CHOICES);
   }
 
   async function showDepartmentChecklist() {
