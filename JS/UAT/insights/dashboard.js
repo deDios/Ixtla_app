@@ -32,13 +32,19 @@ function dayOf(value) {
 }
 
 function sourceRows(rows, widget) {
-  if (widget.metric === "finalizados") return rows.filter((row) => row.estatus === "finalizado");
-  if (widget.metric === "abiertos") return rows.filter((row) => !["finalizado", "cancelado"].includes(row.estatus));
-  if (widget.metric === "pausados") return rows.filter((row) => row.estatus === "pausado");
-  if (widget.metric === "cancelados") return rows.filter((row) => row.estatus === "cancelado");
-  if (widget.metric === "cerrados") return rows.filter((row) => ["finalizado", "cancelado"].includes(row.estatus));
+  const selectedDepartments = (Array.isArray(widget.filters) ? widget.filters : [])
+    .filter((filter) => filter?.field === "departamento" && clean(filter?.value))
+    .map((filter) => clean(filter.value).toLocaleLowerCase("es-MX"));
+  const scopedRows = selectedDepartments.length
+    ? rows.filter((row) => selectedDepartments.includes(clean(row?.departamento).toLocaleLowerCase("es-MX")))
+    : rows;
+  if (widget.metric === "finalizados") return scopedRows.filter((row) => row.estatus === "finalizado");
+  if (widget.metric === "abiertos") return scopedRows.filter((row) => !["finalizado", "cancelado"].includes(row.estatus));
+  if (widget.metric === "pausados") return scopedRows.filter((row) => row.estatus === "pausado");
+  if (widget.metric === "cancelados") return scopedRows.filter((row) => row.estatus === "cancelado");
+  if (widget.metric === "cerrados") return scopedRows.filter((row) => ["finalizado", "cancelado"].includes(row.estatus));
   if (["promedio_semanal", "tiempo_resolucion"].includes(widget.metric)) return [];
-  return rows;
+  return scopedRows;
 }
 
 function groupRows(rows, widget) {

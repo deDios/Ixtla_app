@@ -38,6 +38,14 @@
 .ixtla-insights-chip--primary:hover { background: #176b87; }
 .ixtla-insights-chip--primary .ixtla-insights-chip__detail { color: rgba(255, 255, 255, .82); }
 .ixtla-insights-chip--choice { flex: 1 1 180px; min-height: 48px; border-radius: 11px; text-align: left; white-space: normal; }
+.ixtla-insights-department-loading { width: 100%; margin: 4px 0; color: #53717a; font-size: 12px; }
+.ixtla-insights-department-checklist { display: grid; width: 100%; max-height: 180px; gap: 7px; padding: 10px; margin: 0; overflow-y: auto; border: 1px solid #bfd8dc; border-radius: 11px; background: #f8fcfc; }
+.ixtla-insights-department-checklist legend { padding: 0 4px; color: #155e75; font-size: 12px; font-weight: 800; }
+.ixtla-insights-department-checklist label { display: flex; align-items: center; gap: 8px; color: #284955; font-size: 12px; cursor: pointer; }
+.ixtla-insights-department-checklist input { accent-color: #0f4c81; }
+.ixtla-insights-department-actions { display: flex; width: 100%; gap: 8px; }
+.ixtla-insights-department-actions button { padding: 8px 10px; border: 1px solid #bfd8dc; border-radius: 8px; color: #155e75; background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+.ixtla-insights-department-actions button:last-child { margin-left: auto; border-color: #0f4c81; color: #fff; background: #0f4c81; }
 .ixtla-insights-form { display: flex; align-items: end; gap: 8px; }
 .ixtla-insights-input { width: 100%; height: 72px; min-height: 72px; max-height: 72px; resize: none; overflow-y: auto; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 11px; color: #172033; font: 14px/1.35 system-ui, sans-serif; }
 .ixtla-insights-input:focus { border-color: #176b87; outline: 0; box-shadow: 0 0 0 3px rgba(23, 107, 135, .14); }

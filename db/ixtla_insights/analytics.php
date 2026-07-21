@@ -130,7 +130,7 @@ function ixtla_insights_normalize_plan(array $raw): array
         'kind' => $kind,
         'metric' => $metric,
         'dimension' => $dimension,
-        'filters' => array_slice($filters, 0, 3),
+        'filters' => array_slice($filters, 0, 50),
         'sort' => $dimension === 'fecha' ? 'chronological' : $sort,
         'limit' => $kind === 'kpi' ? 1 : min(50, max(1, $limit)),
     ];

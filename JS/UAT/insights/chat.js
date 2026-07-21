@@ -50,6 +50,18 @@ const KPI_CHOICES = [
   { label: "Promedio semanal", description: "Promedio de requerimientos creados por semana.", action: { type: "visualization_kpi", metric: "promedio_semanal" } },
   { label: "Tiempo de resolución", description: "Promedio de días entre creación y cierre finalizado.", action: { type: "visualization_kpi", metric: "tiempo_resolucion" } },
 ];
+const DEPARTMENT_SCOPE_CHOICES = [
+  {
+    label: "Todos los departamentos",
+    description: "Calcula el resultado con todos los departamentos permitidos por tu alcance.",
+    action: { type: "department_scope", scope: "all" },
+  },
+  {
+    label: "Elegir departamentos",
+    description: "Selecciona uno o varios departamentos activos de una lista.",
+    action: { type: "department_scope", scope: "selected" },
+  },
+];
 const DIMENSION_LABELS = {
   estatus: "estatus",
   tramite: "trámite",
@@ -184,6 +196,7 @@ export function mountIxtlaInsights(options = {}) {
     dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
     apiUrl: "/db/ixtla_insights/chat.php",
     analyticsUrl: "/db/ixtla_insights/analytics.php",
+    departmentsUrl: "/db/ixtla_insights/departments.php",
     visualizationHandler: null,
     answer: null,
     ...options,
@@ -225,12 +238,13 @@ export function mountIxtlaInsights(options = {}) {
 
   function renderQuickQuestions(questions) {
     chips.replaceChildren();
-    (Array.isArray(questions) ? questions : []).slice(0, 6).forEach((item) => {
+    (Array.isArray(questions) ? questions : []).slice(0, 10).forEach((item) => {
       const text = clean(typeof item === "string" ? item : item?.label);
       if (!text) return;
       const chip = document.createElement("button");
       chip.type = "button";
-      chip.className = `ixtla-insights-chip${item?.primary ? " ixtla-insights-chip--primary" : ""}${item?.action?.type === "visualization_goal" ? " ixtla-insights-chip--choice" : ""}`;
+      const isChoice = ["visualization_goal", "department_scope", "visualization_kpi", "visualization_kpi_kit"].includes(item?.action?.type);
+      chip.className = `ixtla-insights-chip${item?.primary ? " ixtla-insights-chip--primary" : ""}${isChoice ? " ixtla-insights-chip--choice" : ""}`;
       const label = document.createElement("span");
       label.className = "ixtla-insights-chip__label";
       label.textContent = text;
@@ -247,7 +261,8 @@ export function mountIxtlaInsights(options = {}) {
         if (action.type === "visualization_start") return startGuidedVisualization();
         if (action.type === "visualization_goal") return chooseVisualizationGoal(action);
         if (action.type === "visualization_kpi_kit") return startKpiKit();
-        if (action.type === "visualization_kpi") return addKpi(action.metric);
+        if (action.type === "visualization_kpi") return startKpi(action.metric);
+        if (action.type === "department_scope") return chooseDepartmentScope(action.scope);
         if (action.type === "visualization_chart") return chooseVisualizationChart(action.chart);
         if (action.type === "visualization_dimension") return chooseVisualizationDimension(action.dimension);
         if (action.type === "visualization_metric") return chooseVisualizationMetric(action.metric);
@@ -374,7 +389,7 @@ export function mountIxtlaInsights(options = {}) {
       chart: request.chart,
       metric: request.metric,
       dimension,
-      filters: [],
+      filters: Array.isArray(request.filters) ? request.filters : [],
       sort: dimension === "fecha" ? "chronological" : "desc",
       limit: request.chart === "kpi" ? 1 : 10,
       domain: "requerimientos",
@@ -410,14 +425,36 @@ export function mountIxtlaInsights(options = {}) {
     continueGuidedVisualization();
   }
 
-  function startKpiKit() {
-    pendingVisualization = null;
-    addMessage("Indicadores clave", "user");
-    addMessage("Elige el indicador que deseas agregar al dashboard.");
-    renderQuickQuestions(KPI_CHOICES);
+  function beginDepartmentScope(mode, metric = null, state = {}) {
+    pendingVisualization = {
+      ...state,
+      mode,
+      metric: metric ?? state.metric ?? "",
+      filters: Array.isArray(state.filters) ? state.filters : [],
+    };
+    addMessage("¿Para qué departamento o departamentos deseas calcularlo?");
+    renderQuickQuestions(DEPARTMENT_SCOPE_CHOICES);
   }
 
-  async function addKpi(metric) {
+  function startKpiKit() {
+    addMessage("Indicadores clave", "user");
+    beginDepartmentScope("kpi_kit");
+  }
+
+  function startKpi(metric) {
+    if (!METRIC_LABELS[metric]) return;
+    if (pendingVisualization?.mode === "kpi_kit") {
+      const filters = Array.isArray(pendingVisualization.filters) ? pendingVisualization.filters : [];
+      pendingVisualization = null;
+      addMessage(METRIC_LABELS[metric], "user");
+      addKpi(metric, filters);
+      return;
+    }
+    addMessage(METRIC_LABELS[metric], "user");
+    beginDepartmentScope("single_kpi", metric);
+  }
+
+  async function addKpi(metric, filters = []) {
     if (!METRIC_LABELS[metric]) return;
     const spec = {
       id: `kpi-widget-${Date.now()}`,
@@ -425,13 +462,12 @@ export function mountIxtlaInsights(options = {}) {
       chart: "kpi",
       metric,
       dimension: "estatus",
-      filters: [],
+      filters,
       sort: "desc",
       limit: 1,
       domain: "requerimientos",
       scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
     };
-    addMessage(METRIC_LABELS[metric], "user");
     renderQuickQuestions([]);
     try {
       await addVisualization(`Agregar KPI: ${METRIC_LABELS[metric]}`, spec);
@@ -444,16 +480,15 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function startGuidedVisualization() {
-    pendingVisualization = null;
     addMessage("Crear un gráfico", "user");
-    addMessage("¿Qué deseas analizar?");
-    renderQuickQuestions(ANALYSIS_CHOICES);
+    beginDepartmentScope("guided");
   }
 
   function chooseVisualizationGoal(action) {
     const dimension = clean(action?.dimension);
     if (!DIMENSION_LABELS[dimension]) return;
     pendingVisualization = {
+      ...pendingVisualization,
       chart: "",
       dimension,
       metric: "",
@@ -464,17 +499,131 @@ export function mountIxtlaInsights(options = {}) {
     continueGuidedVisualization();
   }
 
+  function chooseDepartmentScope(scope) {
+    if (!pendingVisualization) return;
+    if (scope === "all") {
+      pendingVisualization.filters = [];
+      addMessage("Todos los departamentos autorizados", "user");
+      continueAfterDepartmentScope();
+      return;
+    }
+    if (scope === "selected") showDepartmentChecklist();
+  }
+
+  function continueAfterDepartmentScope() {
+    if (!pendingVisualization) return;
+    if (pendingVisualization.mode === "kpi_kit") {
+      addMessage("Elige el indicador que deseas agregar al dashboard.");
+      renderQuickQuestions(KPI_CHOICES);
+      return;
+    }
+    if (pendingVisualization.mode === "single_kpi") {
+      const { metric, filters } = pendingVisualization;
+      pendingVisualization = null;
+      addKpi(metric, filters);
+      return;
+    }
+    if (pendingVisualization.mode === "free_visualization") {
+      continueGuidedVisualization();
+      return;
+    }
+    if (pendingVisualization.mode === "remote_visualization") {
+      const { question, remoteSpec, filters } = pendingVisualization;
+      pendingVisualization = null;
+      addRemoteVisualization(question, { ...remoteSpec, filters });
+      return;
+    }
+    addMessage("¿Qué deseas analizar?");
+    renderQuickQuestions(ANALYSIS_CHOICES);
+  }
+
+  async function showDepartmentChecklist() {
+    if (!config.departmentsUrl) return;
+    chips.replaceChildren();
+    const loading = document.createElement("p");
+    loading.className = "ixtla-insights-department-loading";
+    loading.textContent = "Cargando departamentos activos…";
+    chips.appendChild(loading);
+    try {
+      const response = await fetch(config.departmentsUrl, { credentials: "same-origin", headers: { Accept: "application/json" } });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok || !Array.isArray(payload.departments)) throw new Error("No fue posible cargar los departamentos.");
+      renderDepartmentChecklist(payload.departments);
+    } catch (error) {
+      console.error("[IxtlaInsights]", error);
+      addMessage("No pude cargar los departamentos activos. Intenta de nuevo o selecciona todos los departamentos.");
+      renderQuickQuestions(DEPARTMENT_SCOPE_CHOICES);
+    }
+  }
+
+  function renderDepartmentChecklist(departments) {
+    chips.replaceChildren();
+    const form = document.createElement("fieldset");
+    form.className = "ixtla-insights-department-checklist";
+    const legend = document.createElement("legend");
+    legend.textContent = "Selecciona uno o más departamentos";
+    form.appendChild(legend);
+    departments.forEach((department) => {
+      const name = clean(department?.nombre);
+      if (!name) return;
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = "ixtla-insights-department";
+      input.value = name;
+      label.append(input, document.createTextNode(name));
+      form.appendChild(label);
+    });
+    const actions = document.createElement("div");
+    actions.className = "ixtla-insights-department-actions";
+    const back = document.createElement("button");
+    back.type = "button";
+    back.textContent = "Volver";
+    back.addEventListener("click", () => renderQuickQuestions(DEPARTMENT_SCOPE_CHOICES));
+    const apply = document.createElement("button");
+    apply.type = "button";
+    apply.textContent = "Usar departamentos seleccionados";
+    apply.addEventListener("click", () => {
+      const selected = [...form.querySelectorAll('input[name="ixtla-insights-department"]:checked')].map((input) => clean(input.value)).filter(Boolean);
+      if (!selected.length) {
+        addMessage("Selecciona al menos un departamento o elige todos los departamentos.");
+        return;
+      }
+      pendingVisualization.filters = selected.slice(0, 50).map((value) => ({ field: "departamento", value }));
+      addMessage(`Departamentos: ${selected.join(", ")}`, "user");
+      continueAfterDepartmentScope();
+    });
+    actions.append(back, apply);
+    chips.append(form, actions);
+  }
+
   function beginVisualization(question) {
     const chart = chartFromQuestion(question);
     if (!chart && !isVisualizationRequest(question)) return false;
-    pendingVisualization = {
+    beginDepartmentScope("free_visualization", null, {
       chart,
       dimension: dimensionFromQuestion(question),
       metric: metricFromQuestion(question),
       question,
-    };
-    continueGuidedVisualization();
+    });
     return true;
+  }
+
+  async function addRemoteVisualization(question, spec) {
+    renderQuickQuestions([]);
+    try {
+      await addVisualization(question, spec);
+      renderQuickQuestions(START_ACTIONS);
+    } catch (error) {
+      console.error("[IxtlaInsights]", error);
+      addMessage("No fue posible agregar la visualización al dashboard. Intenta de nuevo.");
+      renderQuickQuestions(START_ACTIONS);
+    }
+  }
+
+  function startRemoteVisualizationScope(question, spec) {
+    addMessage("Antes de crear la visualización, define su alcance por departamento.");
+    beginDepartmentScope("remote_visualization", null, { question, remoteSpec: spec });
   }
 
   async function requestRemoteAnswer(prompt) {
@@ -516,7 +665,7 @@ export function mountIxtlaInsights(options = {}) {
         renderQuickQuestions(config.quickQuestions);
         const action = Array.isArray(payload.actions) ? payload.actions.find((item) => item?.type === "widget_preview") : null;
         const spec = remoteWidgetSpec(action?.widget);
-        if (spec) await addVisualization(prompt, spec);
+        if (spec) startRemoteVisualizationScope(prompt, spec);
         return;
       }
       const response = config.answer
