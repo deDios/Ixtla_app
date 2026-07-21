@@ -115,7 +115,7 @@ function ixtla_insights_response_schema(): array
         'properties' => [
             'kind' => ['type' => 'string', 'enum' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel']],
             'title' => ['type' => 'string', 'maxLength' => 100],
-            'metric' => ['type' => 'string', 'enum' => ['total', 'finalizados', 'abiertos']],
+            'metric' => ['type' => 'string', 'enum' => ['total', 'abiertos', 'finalizados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion']],
             'dimension' => ['type' => 'string', 'enum' => ['estatus', 'tramite', 'departamento', 'fecha']],
             'filters' => ['type' => 'array', 'maxItems' => 3, 'items' => $filter],
             'sort' => ['type' => 'string', 'enum' => ['desc', 'asc', 'chronological']],
@@ -152,7 +152,7 @@ function ixtla_insights_response_schema(): array
     ];
 }
 
-function ixtla_insights_normalize_chat_response(array $data): array
+function ixtla_insights_normalize_chat_response(array $data, array $departments = []): array
 {
     $answer = trim((string) ($data['answer'] ?? ''));
     if ($answer === '') {
@@ -168,6 +168,7 @@ function ixtla_insights_normalize_chat_response(array $data): array
     }
 
     $actions = [];
+    $unresolvedDepartments = [];
     foreach (($data['actions'] ?? []) as $action) {
         $widget = is_array($action['widget'] ?? null) ? $action['widget'] : null;
         if (($action['type'] ?? '') !== 'widget_preview' || $widget === null) {
@@ -177,7 +178,10 @@ function ixtla_insights_normalize_chat_response(array $data): array
         if (!in_array($widget['kind'] ?? '', ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'], true)) {
             continue;
         }
-        if (!in_array($widget['metric'] ?? '', ['total', 'finalizados', 'abiertos'], true)) {
+        if (!in_array($widget['metric'] ?? '', ['total', 'abiertos', 'finalizados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'], true)) {
+            continue;
+        }
+        if (($widget['kind'] ?? '') !== 'kpi' && in_array($widget['metric'], ['promedio_semanal', 'tiempo_resolucion'], true)) {
             continue;
         }
         if (!in_array($widget['dimension'] ?? '', ['estatus', 'tramite', 'departamento', 'fecha'], true)) {
@@ -194,7 +198,18 @@ function ixtla_insights_normalize_chat_response(array $data): array
             if (!in_array($field, ['departamento', 'tramite', 'estatus'], true) || $value === '') {
                 continue;
             }
+            if ($field === 'departamento') {
+                $department = ixtla_insights_resolve_department($value, $departments);
+                if ($department === null) {
+                    $unresolvedDepartments[] = $value;
+                    continue;
+                }
+                $value = $department['nombre'];
+            }
             $filters[] = ['field' => $field, 'value' => ixtla_insights_truncate($value, 120)];
+        }
+        if ($unresolvedDepartments) {
+            continue;
         }
         $sort = in_array($widget['sort'] ?? '', ['desc', 'asc', 'chronological'], true) ? $widget['sort'] : 'desc';
         $limit = min(50, max(1, (int) ($widget['limit'] ?? 10)));
@@ -214,6 +229,13 @@ function ixtla_insights_normalize_chat_response(array $data): array
         ];
     }
 
+    $unresolvedDepartments = array_values(array_unique($unresolvedDepartments));
+    if ($unresolvedDepartments) {
+        $answer = 'No generé una tabla general porque no encontré una coincidencia única para: '
+            . implode(', ', array_slice($unresolvedDepartments, 0, 3))
+            . '. Indica el nombre del departamento como aparece en el catálogo.';
+    }
+
     return [
         'ok' => true,
         'mode' => 'openai',
@@ -223,7 +245,84 @@ function ixtla_insights_normalize_chat_response(array $data): array
     ];
 }
 
-function ixtla_insights_call_openai(array $config, string $question, array $history): array
+function ixtla_insights_department_catalog(mysqli $con): array
+{
+    $result = $con->query('SELECT id, nombre FROM departamento WHERE status = 1 AND nombre IS NOT NULL AND TRIM(nombre) <> \'\' ORDER BY nombre ASC');
+    if (!$result) {
+        throw new RuntimeException('No fue posible leer el catálogo de departamentos.');
+    }
+
+    $departments = [];
+    while ($row = $result->fetch_assoc()) {
+        $name = trim((string) ($row['nombre'] ?? ''));
+        if ($name !== '') {
+            $departments[] = ['id' => (int) ($row['id'] ?? 0), 'nombre' => $name];
+        }
+    }
+    $result->free();
+    return $departments;
+}
+
+function ixtla_insights_resolve_department(string $value, array $departments): ?array
+{
+    $needle = ixtla_insights_normalize_match_text($value);
+    if ($needle === '') {
+        return null;
+    }
+
+    $exact = [];
+    $similar = [];
+    $closest = [];
+    $closestDistance = null;
+    foreach ($departments as $department) {
+        $name = trim((string) ($department['nombre'] ?? ''));
+        $candidate = ixtla_insights_normalize_match_text($name);
+        if ($candidate === '') {
+            continue;
+        }
+        if ($candidate === $needle) {
+            $exact[] = $department;
+            continue;
+        }
+        if (str_contains($candidate, $needle) || str_contains($needle, $candidate)) {
+            $similar[] = $department;
+            continue;
+        }
+
+        $distance = levenshtein($needle, $candidate);
+        if ($closestDistance === null || $distance < $closestDistance) {
+            $closestDistance = $distance;
+            $closest = [$department];
+        } elseif ($distance === $closestDistance) {
+            $closest[] = $department;
+        }
+    }
+
+    if (count($exact) === 1) {
+        return $exact[0];
+    }
+    if (count($similar) === 1) {
+        return $similar[0];
+    }
+
+    $maximumDistance = max(2, min(6, (int) floor(strlen($needle) * 0.25)));
+    return $closestDistance !== null && $closestDistance <= $maximumDistance && count($closest) === 1
+        ? $closest[0]
+        : null;
+}
+
+function ixtla_insights_normalize_match_text(string $value): string
+{
+    $value = mb_strtolower(trim($value), 'UTF-8');
+    $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+    if ($transliterated !== false) {
+        $value = $transliterated;
+    }
+    $value = preg_replace('/[^a-z0-9]+/', ' ', $value) ?? '';
+    return trim(preg_replace('/\s+/', ' ', $value) ?? '');
+}
+
+function ixtla_insights_call_openai(array $config, string $question, array $history, array $departments = []): array
 {
     if (!function_exists('curl_init')) {
         ixtla_insights_json(['ok' => false, 'error' => 'La extension cURL no esta disponible.'], 500);
@@ -236,8 +335,11 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
 
     $systemPrompt = 'Eres Ixtla Insights para requerimientos. Responde solo con el JSON definido. '
         . 'No inventes cifras, no afirmes haber consultado una base de datos y no generes SQL. '
-        . 'Solo puedes proponer widgets kpi, bar, donut, line, area, table o funnel; metricas total, finalizados o abiertos; '
-        . 'dimensiones estatus, tramite, departamento o fecha. Para rankings usa limit y sort; cuando el usuario indique un departamento, trámite o estatus, inclúyelo en filters. '
+        . 'Solo puedes proponer widgets kpi, bar, donut, line, area, table o funnel; métricas total, abiertos, finalizados, pausados, cancelados o cerrados. '
+        . 'Los indicadores kpi también pueden usar promedio_semanal o tiempo_resolucion; esas dos métricas no se usan en gráficas. '
+        . 'dimensiones estatus, tramite, departamento o fecha. Para rankings usa limit y sort. '
+        . 'Cuando el usuario pida uno o varios departamentos, debes usar un filtro departamento por cada nombre y únicamente los nombres exactos del catálogo autorizado. '
+        . 'Si no hay una coincidencia exacta o claramente única, no generes widget y pide que especifique el departamento; nunca sustituyas esa solicitud por una tabla general. '
         . 'Una solicitud de métrica, ranking, top, comparación o dashboard también requiere una acción widget_preview; para un top sin tipo de gráfica usa bar y dimension tramite. '
         . 'Si no solicitan una visualizacion, actions debe ser []. '
         . 'La respuesta debe ser breve, sin explicar razonamientos.';
@@ -252,11 +354,14 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
             'content' => [['type' => 'input_text', 'text' => $message['content']]],
         ];
     }
+    $catalogText = $departments
+        ? json_encode($departments, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        : '[]';
     $input[] = [
         'role' => 'user',
         'content' => [[
             'type' => 'input_text',
-            'text' => "Pregunta actual: {$question}\nContexto autorizado: requerimientos visibles en la vista actual.",
+            'text' => "Pregunta actual: {$question}\nContexto autorizado: requerimientos visibles en la vista actual.\nCatálogo autorizado de departamentos: {$catalogText}",
         ]],
     ];
 
@@ -316,7 +421,7 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI devolvio una respuesta no estructurada.'], 502);
     }
 
-    return ixtla_insights_normalize_chat_response($structured);
+    return ixtla_insights_normalize_chat_response($structured, $departments);
 }
 
 function ixtla_insights_log_usage(array $response, array $context = []): void

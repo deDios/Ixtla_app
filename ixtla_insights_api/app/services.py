@@ -17,7 +17,7 @@ Si no pide una visualizacion, actions debe ser una lista vacia."""
 
 def is_visual_request(question: str) -> bool:
     normalized = question.lower()
-    terms = ("grafica", "gráfica", "pastel", "dona", "barras", "linea", "línea", "tendencia", "tabla", "kpi", "indicador")
+    terms = ("grafica", "gráfica", "pastel", "dona", "barras", "linea", "línea", "tendencia", "tabla", "kpi", "indicador", "promedio semanal", "tiempo de resolución", "tiempo de resolucion")
     return any(term in normalized for term in terms)
 
 
@@ -34,8 +34,28 @@ def build_widget(question: str) -> WidgetSpec:
         kind = "table"
     elif "kpi" in normalized or "indicador" in normalized:
         kind = "kpi"
-    metric = "finalizados" if "finaliz" in normalized else "abiertos" if "abiert" in normalized else "total"
+    metric = "total"
+    if "tiempo" in normalized and ("resol" in normalized or "cierre" in normalized):
+        kind = "kpi"
+        metric = "tiempo_resolucion"
+    elif "promedio semanal" in normalized:
+        kind = "kpi"
+        metric = "promedio_semanal"
+    elif "cancel" in normalized:
+        metric = "cancelados"
+    elif "paus" in normalized:
+        metric = "pausados"
+    elif "cerrad" in normalized:
+        metric = "cerrados"
+    elif "finaliz" in normalized:
+        metric = "finalizados"
+    elif "abiert" in normalized:
+        metric = "abiertos"
     title = "Tendencia diaria de requerimientos" if kind == "line" else f"Requerimientos por {dimension}"
+    if metric == "tiempo_resolucion":
+        title = "Tiempo promedio de resolución"
+    elif metric == "promedio_semanal":
+        title = "Promedio semanal de requerimientos"
     if metric == "finalizados" and kind != "line":
         title = f"Finalizados por {dimension}"
     return WidgetSpec(

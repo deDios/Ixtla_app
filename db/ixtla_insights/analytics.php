@@ -59,11 +59,12 @@ function ixtla_insights_aggregate_requerimientos(mysqli $con, array $rawPlan): a
     $total = ixtla_insights_scalar($con, 'SELECT COUNT(*) AS total' . $joins . $whereSql, $types, $params);
 
     if ($plan['kind'] === 'kpi') {
+        $value = ixtla_insights_kpi_value($con, $plan['metric'], $joins, $whereSql, $types, $params, $total);
         return [
             'plan' => $plan,
             'scope' => $scope,
-            'total' => $total,
-            'items' => [['label' => $plan['metric'] === 'finalizados' ? 'Finalizados' : 'Total', 'value' => $total]],
+            'total' => $value,
+            'items' => [['label' => ixtla_insights_metric_label($plan['metric']), 'value' => $value]],
             'aggregated_at' => gmdate('c'),
         ];
     }
@@ -99,8 +100,11 @@ function ixtla_insights_normalize_plan(array $raw): array
     if (!in_array($kind, ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'], true)) {
         throw new InvalidArgumentException('El tipo de visualización no está permitido.');
     }
-    if (!in_array($metric, ['total', 'finalizados', 'abiertos'], true)) {
+    if (!in_array($metric, ['total', 'abiertos', 'finalizados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'], true)) {
         throw new InvalidArgumentException('La métrica solicitada no está permitida.');
+    }
+    if ($kind !== 'kpi' && in_array($metric, ['promedio_semanal', 'tiempo_resolucion'], true)) {
+        throw new InvalidArgumentException('La métrica solicitada solo está disponible como indicador.');
     }
     if (!in_array($dimension, ['estatus', 'tramite', 'departamento', 'fecha'], true)) {
         throw new InvalidArgumentException('La dimensión solicitada no está permitida.');
@@ -216,7 +220,44 @@ function ixtla_insights_apply_metric(string $metric, array &$where): void
         $where[] = 'r.estatus = 6';
     } elseif ($metric === 'abiertos') {
         $where[] = 'r.estatus NOT IN (5, 6)';
+    } elseif ($metric === 'pausados') {
+        $where[] = 'r.estatus = 4';
+    } elseif ($metric === 'cancelados') {
+        $where[] = 'r.estatus = 5';
+    } elseif ($metric === 'cerrados') {
+        $where[] = 'r.estatus IN (5, 6)';
+    } elseif ($metric === 'tiempo_resolucion') {
+        $where[] = 'r.estatus = 6';
+        $where[] = 'r.cerrado_en IS NOT NULL';
     }
+}
+
+function ixtla_insights_kpi_value(mysqli $con, string $metric, string $joins, string $whereSql, string $types, array $params, int $total): float|int
+{
+    if ($metric === 'promedio_semanal') {
+        $sql = 'SELECT AVG(weekly_total) AS value FROM (SELECT COUNT(*) AS weekly_total' . $joins . $whereSql
+            . ' GROUP BY YEARWEEK(r.created_at, 1)) AS weekly_values';
+        return round(ixtla_insights_float_scalar($con, $sql, $types, $params), 1);
+    }
+    if ($metric === 'tiempo_resolucion') {
+        $sql = 'SELECT AVG(TIMESTAMPDIFF(HOUR, r.created_at, r.cerrado_en) / 24) AS value' . $joins . $whereSql;
+        return round(ixtla_insights_float_scalar($con, $sql, $types, $params), 1);
+    }
+    return $total;
+}
+
+function ixtla_insights_metric_label(string $metric): string
+{
+    return match ($metric) {
+        'abiertos' => 'Requerimientos abiertos',
+        'finalizados' => 'Requerimientos finalizados',
+        'pausados' => 'Requerimientos pausados',
+        'cancelados' => 'Requerimientos cancelados',
+        'cerrados' => 'Requerimientos cerrados',
+        'promedio_semanal' => 'Promedio semanal',
+        'tiempo_resolucion' => 'Tiempo promedio de resolución (días)',
+        default => 'Total de requerimientos',
+    };
 }
 
 function ixtla_insights_apply_filters(array $filters, array &$where, array &$params, string &$types): void
@@ -233,11 +274,10 @@ function ixtla_insights_apply_filters(array $filters, array &$where, array &$par
         'cancelado' => 5,
         'finalizado' => 6,
     ];
+    $departments = [];
     foreach ($filters as $filter) {
         if ($filter['field'] === 'departamento') {
-            $where[] = 'd.nombre LIKE CONCAT(\'%\', ?, \'%\')';
-            $params[] = $filter['value'];
-            $types .= 's';
+            $departments[] = $filter['value'];
         } elseif ($filter['field'] === 'tramite') {
             $where[] = 't.nombre LIKE CONCAT(\'%\', ?, \'%\')';
             $params[] = $filter['value'];
@@ -250,6 +290,15 @@ function ixtla_insights_apply_filters(array $filters, array &$where, array &$par
             $where[] = 'r.estatus = ?';
             $params[] = $statusMap[$key];
             $types .= 'i';
+        }
+    }
+
+    $departments = array_values(array_unique($departments));
+    if ($departments) {
+        $where[] = 'd.nombre IN (' . implode(',', array_fill(0, count($departments), '?')) . ')';
+        foreach ($departments as $department) {
+            $params[] = $department;
+            $types .= 's';
         }
     }
 }
@@ -280,6 +329,12 @@ function ixtla_insights_scalar(mysqli $con, string $sql, string $types, array $p
 {
     $rows = ixtla_insights_rows($con, $sql, $types, $params);
     return (int) ($rows[0]['total'] ?? 0);
+}
+
+function ixtla_insights_float_scalar(mysqli $con, string $sql, string $types, array $params): float
+{
+    $rows = ixtla_insights_rows($con, $sql, $types, $params);
+    return (float) ($rows[0]['value'] ?? 0);
 }
 
 function ixtla_insights_rows(mysqli $con, string $sql, string $types, array $params): array

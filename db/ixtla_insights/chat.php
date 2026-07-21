@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/../conn/conn_db.php';
 
 $config = ixtla_insights_bootstrap(['POST']);
 if (($config['enabled'] ?? false) !== true) {
@@ -27,5 +28,20 @@ $history = is_array($body['history'] ?? null)
     )
     : [];
 
-$response = ixtla_insights_call_openai($config, $question, $history);
+$con = conectar();
+if (!$con instanceof mysqli) {
+    ixtla_insights_json(['ok' => false, 'error' => 'No fue posible consultar el catálogo de departamentos.'], 503);
+}
+$con->set_charset('utf8mb4');
+
+try {
+    $departments = ixtla_insights_department_catalog($con);
+    $con->close();
+} catch (Throwable $error) {
+    error_log('[IxtlaInsights chat] ' . $error->getMessage());
+    $con->close();
+    ixtla_insights_json(['ok' => false, 'error' => 'No fue posible consultar el catálogo de departamentos.'], 503);
+}
+
+$response = ixtla_insights_call_openai($config, $question, $history, $departments);
 ixtla_insights_json($response);

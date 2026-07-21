@@ -34,6 +34,10 @@ function dayOf(value) {
 function sourceRows(rows, widget) {
   if (widget.metric === "finalizados") return rows.filter((row) => row.estatus === "finalizado");
   if (widget.metric === "abiertos") return rows.filter((row) => !["finalizado", "cancelado"].includes(row.estatus));
+  if (widget.metric === "pausados") return rows.filter((row) => row.estatus === "pausado");
+  if (widget.metric === "cancelados") return rows.filter((row) => row.estatus === "cancelado");
+  if (widget.metric === "cerrados") return rows.filter((row) => ["finalizado", "cancelado"].includes(row.estatus));
+  if (["promedio_semanal", "tiempo_resolucion"].includes(widget.metric)) return [];
   return rows;
 }
 
@@ -81,7 +85,18 @@ function renderDonut(target, entries) {
 }
 
 function renderKpi(target, total, widget) {
-  target.innerHTML = `<div class="ixtla-dashboard-kpi"><strong>${total}</strong><span>${widget.metric === "finalizados" ? "Requerimientos finalizados" : "Requerimientos visibles"}</span></div>`;
+  const labels = {
+    total: "Requerimientos visibles",
+    abiertos: "Requerimientos abiertos",
+    finalizados: "Requerimientos finalizados",
+    pausados: "Requerimientos pausados",
+    cancelados: "Requerimientos cancelados",
+    cerrados: "Requerimientos cerrados",
+    promedio_semanal: "Promedio de requerimientos por semana",
+    tiempo_resolucion: "Días promedio para resolver",
+  };
+  const value = Number.isFinite(total) && !Number.isInteger(total) ? total.toFixed(1) : total;
+  target.innerHTML = `<div class="ixtla-dashboard-kpi"><strong>${value}</strong><span>${labels[widget.metric] || "Requerimientos visibles"}</span></div>`;
 }
 
 function renderLine(target, entries) {
@@ -126,9 +141,17 @@ function cardSize(chart) {
 }
 
 function metricLabel(widget) {
-  if (widget.metric === "finalizados") return "Metrica: finalizados";
-  if (widget.metric === "abiertos") return "Metrica: abiertos";
-  return "Metrica: total";
+  const labels = {
+    total: "Métrica: total",
+    abiertos: "Métrica: abiertos",
+    finalizados: "Métrica: finalizados",
+    pausados: "Métrica: pausados",
+    cancelados: "Métrica: cancelados",
+    cerrados: "Métrica: cerrados",
+    promedio_semanal: "Indicador: promedio semanal",
+    tiempo_resolucion: "Indicador: tiempo de resolución",
+  };
+  return labels[widget.metric] || "Métrica de requerimientos";
 }
 
 function analyticsPlan(widget) {
@@ -206,7 +229,9 @@ async function renderDashboard(dashboard) {
     } catch (error) {
       console.error("[IxtlaInsightsDashboard]", error);
       const entries = entriesFor(dashboard.rows || [], widget);
-      const total = widget.metric === "finalizados" ? sourceRows(dashboard.rows || [], widget).length : (dashboard.rows || []).length;
+      const total = ["promedio_semanal", "tiempo_resolucion"].includes(widget.metric)
+        ? 0
+        : sourceRows(dashboard.rows || [], widget).length;
       markScrollable(card, target, widget.chart, entries);
       renderWidget(target, widget, entries, total);
     }
@@ -262,7 +287,15 @@ document.addEventListener("DOMContentLoaded", () => {
   function openModal() {
     const catalog = document.getElementById("ixtla-dashboard-catalog");
     catalog.replaceChildren();
+    let currentSection = "";
     getWidgetCatalog().forEach((widget) => {
+      if (widget.section && widget.section !== currentSection) {
+        currentSection = widget.section;
+        const heading = document.createElement("h3");
+        heading.className = "ixtla-dashboard-catalog__section";
+        heading.textContent = currentSection;
+        catalog.appendChild(heading);
+      }
       const button = document.createElement("button");
       button.type = "button";
       button.innerHTML = `<strong>${escapeHtml(widget.title)}</strong><span>${escapeHtml(widget.chart)} · ${escapeHtml(widget.metric)}</span>`;
