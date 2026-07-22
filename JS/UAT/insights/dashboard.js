@@ -224,12 +224,6 @@ function widgetPeriodLabel(widget) {
   return PERIOD_LABELS[clean(widget?.period)] || PERIOD_LABELS.all;
 }
 
-function widgetUpdatedLabel(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Datos locales";
-  return `Actualizado: ${date.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}`;
-}
-
 function analyticsPlan(widget) {
   return {
     kind: widget.chart,
@@ -257,7 +251,6 @@ async function fetchAnalytics(widget) {
     return {
       total: Number(payload.total) || 0,
       entries: Array.isArray(payload.items) ? payload.items.map((item) => [clean(item?.label), Number(item?.value) || 0]) : [],
-      aggregatedAt: clean(payload.aggregated_at),
     };
   });
   analyticsCache.set(key, request);
@@ -301,23 +294,21 @@ async function renderDashboard(dashboard) {
     card.dataset.widgetId = widget.id;
     card.innerHTML = `<header class="ixtla-dashboard-card__header"><div><p>${metricLabel(widget)}</p><h2>${escapeHtml(widget.title)}</h2><span class="ixtla-dashboard-card__scope">${escapeHtml(widgetScopeLabel(widget, dashboard.scopeLabel))}</span></div><div class="ixtla-dashboard-card__tools"><button class="ixtla-dashboard-drag" type="button" aria-label="Arrastrar widget" title="Arrastrar widget">&#8281;</button><button class="ixtla-dashboard-remove" type="button" aria-label="Eliminar widget" title="Eliminar widget">&times;</button></div></header><div class="ixtla-dashboard-widget"></div>`;
     card.querySelector(".ixtla-dashboard-card__scope").outerHTML = widgetScopeMarkup(widget, dashboard.scopeLabel);
-    const meta = document.createElement("p");
-    meta.className = "ixtla-dashboard-card__meta";
-    meta.textContent = `Periodo: ${widgetPeriodLabel(widget)} · Cargando datos…`;
-    card.querySelector(".ixtla-dashboard-card__header > div").appendChild(meta);
+    const period = document.createElement("p");
+    period.className = "ixtla-dashboard-card__period";
+    period.textContent = `Periodo: ${widgetPeriodLabel(widget)}`;
+    card.querySelector(".ixtla-dashboard-card__header > div").appendChild(period);
     const target = card.querySelector(".ixtla-dashboard-widget");
     target.setAttribute("aria-busy", "true");
     target.innerHTML = '<p class="ixtla-dashboard-empty-message">Cargando datos autorizados…</p>';
     grid.appendChild(card);
     try {
       const result = await fetchAnalytics(widget);
-      meta.textContent = `Periodo: ${widgetPeriodLabel(widget)} · ${widgetUpdatedLabel(result.aggregatedAt)}`;
       markScrollable(card, target, widget.chart, result.entries);
       renderWidget(target, widget, result.entries, result.total);
     } catch (error) {
       console.error("[IxtlaInsightsDashboard]", error);
       if (!Array.isArray(dashboard.rows) || !dashboard.rows.length) {
-        meta.textContent = `Periodo: ${widgetPeriodLabel(widget)} · No se pudo actualizar`;
         target.innerHTML = '<div class="ixtla-dashboard-state ixtla-dashboard-state--error"><strong>No fue posible cargar este widget.</strong><span>Intenta actualizar el dashboard o revisa tu conexión.</span></div>';
         target.removeAttribute("aria-busy");
         return;
@@ -326,7 +317,6 @@ async function renderDashboard(dashboard) {
       const total = ["promedio_semanal", "tiempo_resolucion"].includes(widget.metric)
         ? 0
         : sourceRows(dashboard.rows || [], widget).length;
-      meta.textContent = `Periodo: ${widgetPeriodLabel(widget)} · Datos locales`;
       markScrollable(card, target, widget.chart, entries);
       renderWidget(target, widget, entries, total);
     }
@@ -359,6 +349,21 @@ document.addEventListener("DOMContentLoaded", () => {
     empty.hidden = dashboard.widgets.length > 0;
     renderDashboard(dashboard);
     document.dispatchEvent(new CustomEvent("ixtla-insights:context", { detail: getInsightsContext() }));
+  }
+
+  function refreshAnalytics() {
+    analyticsCache.clear();
+    refresh(dashboard);
+  }
+
+  function scheduleDailyRefresh() {
+    const nextDay = new Date();
+    nextDay.setHours(24, 0, 5, 0);
+    const delay = Math.max(1000, nextDay.getTime() - Date.now());
+    window.setTimeout(() => {
+      refreshAnalytics();
+      scheduleDailyRefresh();
+    }, delay);
   }
 
   function getInsightsContext() {
@@ -445,6 +450,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("ixtla-dashboard-add").hidden = true;
     document.getElementById("ixtla-dashboard-clear").hidden = true;
   });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshAnalytics();
+  });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") modal.hidden = true; });
   refresh(dashboard);
+  scheduleDailyRefresh();
 });

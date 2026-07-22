@@ -111,13 +111,14 @@ function ixtla_insights_response_schema(): array
     $widget = [
         'type' => 'object',
         'additionalProperties' => false,
-        'required' => ['kind', 'title', 'metric', 'dimension', 'filters', 'sort', 'limit', 'scope_label'],
+        'required' => ['kind', 'title', 'metric', 'dimension', 'period', 'scope', 'filters', 'sort', 'limit', 'scope_label'],
         'properties' => [
             'kind' => ['type' => 'string', 'enum' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel']],
             'title' => ['type' => 'string', 'maxLength' => 100],
             'metric' => ['type' => 'string', 'enum' => ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion']],
             'dimension' => ['type' => 'string', 'enum' => ['estatus', 'tramite', 'departamento', 'fecha']],
             'period' => ['type' => 'string', 'enum' => ['all', 'last_7', 'last_30', 'this_month']],
+            'scope' => ['type' => 'string', 'enum' => ['all', 'selected']],
             'filters' => ['type' => 'array', 'maxItems' => 3, 'items' => $filter],
             'sort' => ['type' => 'string', 'enum' => ['desc', 'asc', 'chronological']],
             'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
@@ -216,6 +217,11 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
         if ($unresolvedDepartments) {
             continue;
         }
+        $scope = ($widget['scope'] ?? '') === 'selected' ? 'selected' : (($widget['scope'] ?? '') === 'all' ? 'all' : '');
+        $hasDepartmentFilter = (bool) array_filter($filters, static fn (array $filter): bool => $filter['field'] === 'departamento');
+        if ($scope === '' || ($scope === 'selected' && !$hasDepartmentFilter) || ($scope === 'all' && $hasDepartmentFilter)) {
+            continue;
+        }
         $sort = in_array($widget['sort'] ?? '', ['desc', 'asc', 'chronological'], true) ? $widget['sort'] : 'desc';
         $limit = min(50, max(1, (int) ($widget['limit'] ?? 10)));
 
@@ -227,6 +233,7 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
                 'metric' => $widget['metric'],
                 'dimension' => $widget['dimension'],
                 'period' => in_array($widget['period'] ?? '', ['all', 'last_7', 'last_30', 'this_month'], true) ? $widget['period'] : 'all',
+                'scope' => $scope,
                 'filters' => array_slice($filters, 0, 3),
                 'sort' => $sort,
                 'limit' => $limit,
@@ -351,6 +358,14 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         . 'La respuesta debe ser breve, sin explicar razonamientos.';
 
     $systemPrompt .= ' Para la metrica pausados_cancelados no uses dimension estatus, porque el estatus ya esta definido por la metrica.';
+    $systemPrompt .= ' Para una solicitud de visualizacion debes validar antes de crear widget: tipo de grafica (kind), metrica, dimension, periodo y alcance. '
+        . 'El periodo debe ser all, last_7, last_30 o this_month; el alcance debe ser all o selected. '
+        . 'Si falta cualquiera de esos datos, actions debe ser [] y answer debe hacer una sola pregunta breve por el siguiente dato faltante. '
+        . 'Cuando hagas una pregunta de seguimiento, usa suggestions para ofrecer de dos a cuatro respuestas breves y relevantes. '
+        . 'No asumas todos los departamentos: pregunta si el alcance es todos o departamentos especificos. '
+        . 'Si el usuario indico departamentos, valida cada uno contra el catalogo y usa scope selected con filtros exactos. '
+        . 'Solo devuelve widget_preview cuando todos los datos requeridos esten definidos; incluye period y scope.';
+    $systemPrompt .= ' Las reglas de completitud para widget_preview prevalecen sobre cualquier instruccion anterior de crear un widget.';
 
     $input = [[
         'role' => 'developer',

@@ -361,12 +361,18 @@ export function mountIxtlaInsights(options = {}) {
     const dimension = ["estatus", "tramite", "departamento", "fecha"].includes(clean(widget?.dimension))
       ? clean(widget.dimension)
       : "estatus";
+    const period = ["all", "last_7", "last_30", "this_month"].includes(clean(widget?.period))
+      ? clean(widget.period)
+      : "";
+    const scope = clean(widget?.scope) === "selected" ? "selected" : clean(widget?.scope) === "all" ? "all" : "";
     return {
       id: `remote-widget-${Date.now()}`,
       title: clean(widget?.title) || widgetTitle(chart, metric, dimension),
       chart,
       metric,
       dimension,
+      period,
+      scope,
       filters: Array.isArray(widget?.filters)
         ? widget.filters.filter((filter) => ["departamento", "tramite", "estatus"].includes(clean(filter?.field)) && clean(filter?.value)).slice(0, 3)
         : [],
@@ -797,6 +803,19 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function startRemoteVisualizationScope(question, spec) {
+    const departments = (Array.isArray(spec.filters) ? spec.filters : []).filter((filter) => filter?.field === "departamento" && clean(filter?.value));
+    if (spec.scope === "selected" && departments.length) {
+      addMessage(`Departamentos: ${departments.map((filter) => clean(filter.value)).join(", ")}`, "user");
+      beginDepartmentScope("remote_visualization", null, { question, remoteSpec: spec, filters: spec.filters, period: spec.period });
+      continueAfterDepartmentScope();
+      return;
+    }
+    if (spec.scope === "all") {
+      addMessage("Todos los departamentos autorizados", "user");
+      beginDepartmentScope("remote_visualization", null, { question, remoteSpec: spec, filters: [], period: spec.period });
+      continueAfterDepartmentScope();
+      return;
+    }
     addMessage("Antes de crear la visualización, define su alcance por departamento.");
     beginDepartmentScope("remote_visualization", null, { question, remoteSpec: spec });
   }
@@ -826,7 +845,7 @@ export function mountIxtlaInsights(options = {}) {
     input.value = "";
     send.disabled = true;
     try {
-      if (beginVisualization(prompt)) return;
+      if (!config.apiUrl && beginVisualization(prompt)) return;
       if (isContextQuestion(prompt)) {
         addMessage(answerFromContext(prompt, context));
         renderQuickQuestions(config.quickQuestions);
@@ -837,7 +856,10 @@ export function mountIxtlaInsights(options = {}) {
         const answer = clean(payload.answer) || "No pude generar una respuesta para esa consulta.";
         addMessage(answer);
         history.push({ role: "user", content: prompt }, { role: "assistant", content: answer });
-        renderQuickQuestions(config.quickQuestions);
+        const suggestions = Array.isArray(payload.suggestions)
+          ? payload.suggestions.map((suggestion) => clean(suggestion)).filter(Boolean).slice(0, 5)
+          : [];
+        renderQuickQuestions(suggestions.length ? suggestions : config.quickQuestions);
         const action = Array.isArray(payload.actions) ? payload.actions.find((item) => item?.type === "widget_preview") : null;
         const spec = remoteWidgetSpec(action?.widget);
         if (spec) startRemoteVisualizationScope(prompt, spec);

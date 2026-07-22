@@ -21,6 +21,19 @@ function compactRows(rows) {
   }));
 }
 
+function normalizedWidgetTitle(widget) {
+  const title = clean(widget?.title);
+  if (clean(widget?.chart) !== "line" || !/tendencia acumulada/i.test(title)) return title;
+  const labels = {
+    total: "requerimientos",
+    abiertos: "requerimientos abiertos",
+    finalizados: "requerimientos finalizados",
+    pausados_cancelados: "requerimientos pausados/cancelados",
+    cerrados: "requerimientos cerrados",
+  };
+  return `Tendencia de ${labels[clean(widget?.metric)] || "requerimientos"}`;
+}
+
 function normalizeDashboard(raw, id) {
   if (!raw || !Array.isArray(raw.widgets)) return null;
   return {
@@ -30,7 +43,7 @@ function normalizeDashboard(raw, id) {
     updatedAt: raw.updatedAt || raw.createdAt || new Date().toISOString(),
     question: clean(raw.question),
     scopeLabel: clean(raw.scopeLabel) || "Vista autorizada actual",
-    widgets: raw.widgets.map((widget) => ({ ...widget, id: clean(widget?.id) || createId("widget"), period: ["all", "last_7", "last_30", "this_month"].includes(clean(widget?.period)) ? clean(widget.period) : "all" })),
+    widgets: raw.widgets.map((widget) => ({ ...widget, id: clean(widget?.id) || createId("widget"), title: normalizedWidgetTitle(widget) || "Visualización de requerimientos", period: ["all", "last_7", "last_30", "this_month"].includes(clean(widget?.period)) ? clean(widget.period) : "all" })),
     rows: compactRows(raw.rows),
   };
 }

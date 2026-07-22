@@ -64,6 +64,7 @@ def build_widget(question: str) -> WidgetSpec:
         metric=metric,
         dimension=dimension,
         period="all",
+        scope="all",
         filters=[],
         sort="chronological" if dimension == "fecha" else "desc",
         limit=10,
