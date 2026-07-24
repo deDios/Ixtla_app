@@ -16,6 +16,10 @@ $byDepartment = ixtla_insights_operational_question_plan('¿Cuántos requerimien
 expect_plan(($byDepartment['metric'] ?? null) === 'total', 'La consulta por departamento debe usar la métrica total.');
 expect_plan(($byDepartment['dimension'] ?? null) === 'departamento', 'La consulta por departamento debe agrupar por departamento.');
 
+$showByDepartment = ixtla_insights_operational_question_plan('Mostrar requerimientos por departamento');
+expect_plan(($showByDepartment['metric'] ?? null) === 'total', 'La solicitud para mostrar por departamento debe usar la métrica total.');
+expect_plan(($showByDepartment['dimension'] ?? null) === 'departamento', 'La solicitud para mostrar por departamento debe agrupar por departamento.');
+
 $byStatus = ixtla_insights_operational_question_plan('Cuántos requerimientos hay por estatus');
 expect_plan(($byStatus['dimension'] ?? null) === 'estatus', 'La consulta por estatus debe agrupar por estatus.');
 

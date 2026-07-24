@@ -39,8 +39,9 @@ function ixtla_insights_operational_question_plan(string $question): ?array
     $mentionsRequirements = preg_match('/\b(requerimiento|requerimientos|reporte|reportes)\b/', $text) === 1;
     $mentionsDepartment = preg_match('/\b(departamento|departamentos|depto)\b/', $text) === 1;
     $mentionsEach = preg_match('/\b(cada|por)\b/', $text) === 1;
+    $mentionsDisplay = preg_match('/\b(muestra|mostrar|dame|ver|lista|listado|ensena)\b/', $text) === 1;
 
-    if ($mentionsCount && $mentionsRequirements && $mentionsDepartment && $mentionsEach) {
+    if ($mentionsRequirements && $mentionsDepartment && ($mentionsEach || $mentionsCount || $mentionsDisplay)) {
         return ixtla_insights_operational_plan('total', 'departamento');
     }
     if ($mentionsCount && $mentionsRequirements && preg_match('/\b(estatus|estado)\b/', $text) === 1) {
@@ -110,4 +111,121 @@ function ixtla_insights_operational_suggestions(array $plan): array
         'Mostrar requerimientos por departamento',
         'Crear un gráfico',
     ];
+}
+
+/**
+ * Ejecuta un ReportPlan ya normalizado mediante la misma capa analítica que
+ * usan los widgets. El modelo nunca obtiene acceso a SQL ni a resultados sin
+ * pasar por el alcance RBAC de ixtla_insights_aggregate_requerimientos().
+ */
+function ixtla_insights_execute_report_plan(mysqli $con, array $response): array
+{
+    $reportPlan = is_array($response['report_plan'] ?? null) ? $response['report_plan'] : null;
+    if ($reportPlan === null) {
+        return $response;
+    }
+
+    $analyticsPlan = ixtla_insights_report_analytics_plan($reportPlan);
+    $result = ixtla_insights_aggregate_requerimientos($con, $analyticsPlan);
+    $response['mode'] = 'report';
+    $response['answer'] = ixtla_insights_report_answer($reportPlan, $result);
+    $response['report'] = [
+        'title' => $reportPlan['title'],
+        'intent' => $reportPlan['intent'],
+        'metric' => $reportPlan['metric'],
+        'dimension' => $reportPlan['dimension'],
+        'period' => $reportPlan['period'],
+        'scope' => $result['scope'] ?? [],
+        'total' => $result['total'] ?? 0,
+        'items' => $result['items'] ?? [],
+    ];
+    unset($response['report_plan']);
+    return $response;
+}
+
+function ixtla_insights_report_analytics_plan(array $reportPlan): array
+{
+    $intent = (string) ($reportPlan['intent'] ?? '');
+    $kind = match ($intent) {
+        'metric_query' => 'kpi',
+        'trend' => 'line',
+        default => 'table',
+    };
+
+    return [
+        'kind' => $kind,
+        'metric' => $reportPlan['metric'] ?? 'total',
+        'dimension' => $reportPlan['dimension'] ?? 'estatus',
+        'period' => $reportPlan['period'] ?? 'all',
+        'filters' => $reportPlan['filters'] ?? [],
+        'sort' => $reportPlan['sort'] ?? 'desc',
+        'limit' => $intent === 'metric_query' ? 1 : ($reportPlan['limit'] ?? 10),
+    ];
+}
+
+function ixtla_insights_report_answer(array $reportPlan, array $result): string
+{
+    $scope = trim((string) ($result['scope']['label'] ?? 'vista autorizada actual'));
+    $metric = mb_strtolower(ixtla_insights_metric_label((string) ($reportPlan['metric'] ?? 'total')));
+    $period = ixtla_insights_report_period_label((string) ($reportPlan['period'] ?? 'all'));
+    $intent = (string) ($reportPlan['intent'] ?? '');
+    $items = is_array($result['items'] ?? null) ? $result['items'] : [];
+
+    if ($intent === 'metric_query') {
+        return sprintf('En la %s hay %s %s%s.', $scope, ixtla_insights_report_value($result['total'] ?? 0), $metric, $period);
+    }
+    if (!$items) {
+        return sprintf('No encontré datos de %s%s en la %s.', $metric, $period, $scope);
+    }
+
+    $summary = [];
+    foreach (array_slice($items, 0, 12) as $item) {
+        $label = trim((string) ($item['label'] ?? 'Sin especificar'));
+        $summary[] = sprintf('%s: %s', $label, ixtla_insights_report_value($item['value'] ?? 0));
+    }
+    $dimension = ixtla_insights_report_dimension_label((string) ($reportPlan['dimension'] ?? 'estatus'));
+    $heading = match ($intent) {
+        'comparison' => sprintf('Comparación de %s por %s', $metric, $dimension),
+        'ranking' => sprintf('Ranking de %s por %s', $metric, $dimension),
+        'trend' => sprintf('Tendencia de %s', $metric),
+        default => sprintf('Desglose de %s por %s', $metric, $dimension),
+    };
+    if (empty($reportPlan['include_summary'])) {
+        return sprintf('%s%s en la %s. Consulta el desglose para ver los resultados.', $heading, $period, $scope);
+    }
+    $answer = sprintf('%s%s en la %s: %s.', $heading, $period, $scope, implode('; ', $summary));
+    if ($intent === 'comparison' || $intent === 'ranking') {
+        $leader = $items[0] ?? [];
+        $answer .= sprintf(' El valor más alto es %s (%s).', trim((string) ($leader['label'] ?? 'Sin especificar')), ixtla_insights_report_value($leader['value'] ?? 0));
+    }
+    return $answer;
+}
+
+function ixtla_insights_report_period_label(string $period): string
+{
+    return match ($period) {
+        'last_7' => ' durante los últimos 7 días',
+        'last_30' => ' durante los últimos 30 días',
+        'this_month' => ' este mes',
+        default => '',
+    };
+}
+
+function ixtla_insights_report_dimension_label(string $dimension): string
+{
+    return match ($dimension) {
+        'departamento' => 'departamento',
+        'tramite' => 'trámite',
+        'fecha' => 'fecha',
+        default => 'estatus',
+    };
+}
+
+function ixtla_insights_report_value(mixed $value): string
+{
+    $number = (float) $value;
+    if (floor($number) === $number) {
+        return number_format((int) $number, 0, '.', ',');
+    }
+    return number_format($number, 1, '.', ',');
 }

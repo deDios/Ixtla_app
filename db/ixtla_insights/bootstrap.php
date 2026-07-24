@@ -127,11 +127,28 @@ function ixtla_insights_response_schema(): array
             'scope_label' => ['type' => 'string', 'maxLength' => 160],
         ],
     ];
+    $reportPlan = [
+        'type' => 'object',
+        'additionalProperties' => false,
+        'required' => ['intent', 'title', 'metric', 'dimension', 'period', 'scope', 'filters', 'sort', 'limit', 'include_summary'],
+        'properties' => [
+            'intent' => ['type' => 'string', 'enum' => $catalog['report_intents']],
+            'title' => ['type' => 'string', 'maxLength' => 100],
+            'metric' => ['type' => 'string', 'enum' => $catalog['metrics']],
+            'dimension' => ['type' => 'string', 'enum' => $catalog['dimensions']],
+            'period' => ['type' => 'string', 'enum' => $catalog['periods']],
+            'scope' => ['type' => 'string', 'enum' => $catalog['scopes']],
+            'filters' => ['type' => 'array', 'maxItems' => 3, 'items' => $filter],
+            'sort' => ['type' => 'string', 'enum' => $catalog['sorts']],
+            'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
+            'include_summary' => ['type' => 'boolean'],
+        ],
+    ];
 
     return [
         'type' => 'object',
         'additionalProperties' => false,
-        'required' => ['answer', 'suggestions', 'actions'],
+        'required' => ['answer', 'suggestions', 'actions', 'report_plan'],
         'properties' => [
             'answer' => ['type' => 'string', 'maxLength' => 350],
             'suggestions' => [
@@ -152,6 +169,7 @@ function ixtla_insights_response_schema(): array
                     ],
                 ],
             ],
+            'report_plan' => ['anyOf' => [['type' => 'null'], $reportPlan]],
         ],
     ];
 }
@@ -251,12 +269,94 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
             . '. Indica el nombre del departamento como aparece en el catálogo.';
     }
 
+    $reportPlan = ixtla_insights_normalize_report_plan($data['report_plan'] ?? null, $departments);
+
     return [
         'ok' => true,
         'mode' => 'openai',
         'answer' => ixtla_insights_truncate($answer, 350),
         'suggestions' => array_slice(array_values(array_unique($suggestions)), 0, 5),
         'actions' => array_slice($actions, 0, 1),
+        'report_plan' => $reportPlan,
+    ];
+}
+
+/**
+ * Normaliza la intención analítica que el modelo propone. El plan conserva
+ * únicamente valores del contrato y nombres de departamentos autorizados.
+ */
+function ixtla_insights_normalize_report_plan(mixed $raw, array $departments): ?array
+{
+    if (!is_array($raw)) {
+        return null;
+    }
+
+    $intent = trim((string) ($raw['intent'] ?? ''));
+    $metric = trim((string) ($raw['metric'] ?? ''));
+    $dimension = trim((string) ($raw['dimension'] ?? ''));
+    if (!ixtla_insights_catalog_contains('report_intents', $intent)
+        || !ixtla_insights_catalog_contains('metrics', $metric)
+        || !ixtla_insights_catalog_contains('dimensions', $dimension)) {
+        return null;
+    }
+    if ($intent === 'trend' && $dimension !== 'fecha') {
+        return null;
+    }
+    if ($intent !== 'metric_query' && ixtla_insights_is_kpi_only_metric($metric)) {
+        return null;
+    }
+    if ($intent !== 'metric_query' && $dimension === 'estatus' && ixtla_insights_is_fixed_status_metric($metric)) {
+        return null;
+    }
+
+    $filters = [];
+    foreach (is_array($raw['filters'] ?? null) ? $raw['filters'] : [] as $filter) {
+        if (!is_array($filter)) {
+            continue;
+        }
+        $field = trim((string) ($filter['field'] ?? ''));
+        $value = trim((string) ($filter['value'] ?? ''));
+        if ($value === '' || !ixtla_insights_catalog_contains('filter_fields', $field)) {
+            continue;
+        }
+        if ($field === 'departamento') {
+            $department = ixtla_insights_resolve_department($value, $departments);
+            if ($department === null) {
+                return null;
+            }
+            $value = (string) $department['nombre'];
+        }
+        $filters[] = ['field' => $field, 'value' => ixtla_insights_truncate($value, 120)];
+    }
+
+    $scope = trim((string) ($raw['scope'] ?? ''));
+    $hasDepartmentFilter = (bool) array_filter($filters, static fn (array $filter): bool => $filter['field'] === 'departamento');
+    if (!ixtla_insights_catalog_contains('scopes', $scope)
+        || ($scope === 'selected' && !$hasDepartmentFilter)
+        || ($scope === 'all' && $hasDepartmentFilter)) {
+        return null;
+    }
+    $selectedDepartments = array_values(array_unique(array_map(
+        static fn (array $filter): string => (string) $filter['value'],
+        array_filter($filters, static fn (array $filter): bool => $filter['field'] === 'departamento')
+    )));
+    if ($intent === 'comparison' && count($selectedDepartments) < 2) {
+        return null;
+    }
+
+    $period = trim((string) ($raw['period'] ?? ''));
+    $sort = trim((string) ($raw['sort'] ?? ''));
+    return [
+        'intent' => $intent,
+        'title' => ixtla_insights_truncate(trim((string) ($raw['title'] ?? 'Reporte de requerimientos')), 100),
+        'metric' => $metric,
+        'dimension' => $dimension,
+        'period' => ixtla_insights_catalog_contains('periods', $period) ? $period : 'all',
+        'scope' => $scope,
+        'filters' => array_slice($filters, 0, 3),
+        'sort' => ixtla_insights_catalog_contains('sorts', $sort) ? $sort : 'desc',
+        'limit' => min(50, max(1, (int) ($raw['limit'] ?? 10))),
+        'include_summary' => (bool) ($raw['include_summary'] ?? true),
     ];
 }
 
@@ -376,6 +476,12 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         . 'No asumas todos los departamentos: pregunta si el alcance es todos o departamentos especificos. '
         . 'Si el usuario indico departamentos, valida cada uno contra el catalogo y usa scope selected con filtros exactos. '
         . 'Solo devuelve widget_preview cuando todos los datos requeridos esten definidos; incluye period y scope.';
+    $systemPrompt .= ' Para preguntas que soliciten cifras, desgloses, comparaciones, rankings o tendencias, devuelve report_plan con la intención más adecuada: metric_query, breakdown, comparison, ranking o trend. '
+        . 'report_plan debe ser null para dudas generales o cuando falte un dato indispensable. '
+        . 'metric_query usa una sola cifra; trend siempre usa dimension fecha; comparison requiere al menos dos filtros de departamentos seleccionados. '
+        . 'No asumas scope all para un reporte: pregunta si debe usar todos los departamentos autorizados o una selección, salvo que el usuario ya lo haya indicado. '
+        . 'No inventes resultados ni cifras: el servidor ejecutará report_plan y redactará la respuesta con datos reales. '
+        . 'Solo incluye widget_preview si el usuario pidió explícitamente una gráfica, tabla o widget; un reporte textual no requiere widget.';
     $systemPrompt .= ' Las reglas de completitud para widget_preview prevalecen sobre cualquier instruccion anterior de crear un widget.';
 
     $input = [[

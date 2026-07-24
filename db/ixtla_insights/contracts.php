@@ -11,7 +11,7 @@ declare(strict_types=1);
 function ixtla_insights_catalog(): array
 {
     return [
-        'version' => 1,
+        'version' => 2,
         'domain' => 'requerimientos',
         'widget_kinds' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'],
         'metrics' => ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'],
@@ -20,6 +20,7 @@ function ixtla_insights_catalog(): array
         'scopes' => ['all', 'selected'],
         'sorts' => ['desc', 'asc', 'chronological'],
         'filter_fields' => ['departamento', 'tramite', 'estatus'],
+        'report_intents' => ['metric_query', 'breakdown', 'comparison', 'ranking', 'trend'],
         'metric_rules' => [
             'kpi_only' => ['promedio_semanal', 'tiempo_resolucion'],
             'fixed_status' => ['finalizados', 'pausados', 'cancelados', 'pausados_cancelados'],

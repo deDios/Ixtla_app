@@ -52,4 +52,23 @@ try {
 }
 
 $response = ixtla_insights_call_openai($config, $question, $history, $departments);
+if (is_array($response['report_plan'] ?? null)) {
+    $reportConnection = conectar();
+    if (!$reportConnection instanceof mysqli) {
+        ixtla_insights_json(['ok' => false, 'error' => 'No fue posible calcular el reporte solicitado.'], 503);
+    }
+    $reportConnection->set_charset('utf8mb4');
+    $reportConnection->query("SET time_zone='-06:00'");
+    try {
+        $response = ixtla_insights_execute_report_plan($reportConnection, $response);
+        $reportConnection->close();
+    } catch (InvalidArgumentException $error) {
+        $reportConnection->close();
+        ixtla_insights_json(['ok' => false, 'error' => $error->getMessage()], 422);
+    } catch (Throwable $error) {
+        error_log('[IxtlaInsights report] ' . $error->getMessage());
+        $reportConnection->close();
+        ixtla_insights_json(['ok' => false, 'error' => 'No fue posible calcular el reporte solicitado.'], 503);
+    }
+}
 ixtla_insights_json($response);

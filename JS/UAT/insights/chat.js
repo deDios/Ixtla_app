@@ -219,6 +219,31 @@ export function mountIxtlaInsights(options = {}) {
     messages.scrollTop = messages.scrollHeight;
   }
 
+  function renderReport(report) {
+    const items = Array.isArray(report?.items) ? report.items : [];
+    if (!items.length) return;
+    const card = document.createElement("section");
+    card.className = "ixtla-insights-report";
+    const title = document.createElement("h3");
+    title.textContent = clean(report?.title) || "Reporte de requerimientos";
+    const meta = document.createElement("p");
+    const period = PERIOD_LABELS[clean(report?.period)] || PERIOD_LABELS.all;
+    meta.textContent = `${items.length} resultado(s) · ${period}`;
+    const list = document.createElement("dl");
+    items.slice(0, 12).forEach((item) => {
+      const label = clean(item?.label) || "Sin especificar";
+      const value = Number(item?.value ?? 0);
+      const term = document.createElement("dt");
+      term.textContent = label;
+      const detail = document.createElement("dd");
+      detail.textContent = Number.isFinite(value) ? value.toLocaleString("es-MX", { maximumFractionDigits: 1 }) : "0";
+      list.append(term, detail);
+    });
+    card.append(title, meta, list);
+    messages.appendChild(card);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
   function renderQuickQuestions(questions) {
     chips.replaceChildren();
     (Array.isArray(questions) ? questions : []).slice(0, 10).forEach((item) => {
@@ -794,6 +819,7 @@ export function mountIxtlaInsights(options = {}) {
       const payload = await requestRemoteAnswer(prompt);
       const answer = clean(payload.answer) || "No pude generar una respuesta para esa consulta.";
       addMessage(answer);
+      renderReport(payload.report);
       history.push({ role: "user", content: prompt }, { role: "assistant", content: answer });
       const suggestions = Array.isArray(payload.suggestions)
         ? payload.suggestions.map((suggestion) => clean(suggestion)).filter(Boolean).slice(0, 5)
@@ -806,7 +832,7 @@ export function mountIxtlaInsights(options = {}) {
       console.error("[IxtlaInsights]", error);
       if (error instanceof InsightsRequestError) {
         if (error.status === 404) {
-          addMessage("No pude encontrar la ruta protegida de Insights. No usaré datos guardados localmente como sustituto; revisa la publicación de /db/ixtla_insights/chat.php.", "assistant");
+          addMessage("La ruta de Insights no está publicada en este servidor. Verifica que /db/ixtla_insights/chat.php esté desplegada y que esta vista apunte al mismo host.", "assistant");
         } else {
           const code = error.status ? `Error ${error.status}` : "Error de servicio";
           addMessage(`${code}: ${clean(error.message)}.`, "assistant");
