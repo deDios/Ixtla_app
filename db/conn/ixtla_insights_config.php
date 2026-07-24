@@ -58,7 +58,7 @@ function ixtla_insights_config(): array
         'max_question_characters' => 800,
         'max_history_messages' => 200,
         'max_history_characters' => 4000,
-        'max_output_tokens' => 1600,
+        'max_output_tokens' => 5000,
         'reasoning_effort' => 'medium',
 
         // Observabilidad temporal. Mantenerlo apagado en producción salvo
