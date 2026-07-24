@@ -1,7 +1,7 @@
 import { saveTemporaryDashboard } from "/JS/UAT/insights/dashboard-store.js";
 
 const CONTEXT_EVENT = "ixtla-insights:context";
-const HISTORY_LIMIT = 6;
+const HISTORY_LIMIT = 200;
 const isInsightsDebugEnabled = () => {
   try {
     return new URLSearchParams(window.location.search).get("insights_debug") === "1"
