@@ -25,6 +25,9 @@ const analyticsCache = new Map();
 const PERIOD_LABELS = { all: "Todo el historial", last_7: "Últimos 7 días", last_30: "Últimos 30 días", this_month: "Este mes" };
 const clean = (value) => String(value ?? "").trim();
 const escapeHtml = (value) => clean(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+const createAnalyticsRequestId = () => typeof globalThis.crypto?.randomUUID === "function"
+  ? `ix-dashboard-${globalThis.crypto.randomUUID()}`
+  : `ix-dashboard-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 
 function departmentColor(name) {
   const normalized = clean(name).toLocaleLowerCase("es-MX");
@@ -177,18 +180,31 @@ async function fetchAnalytics(widget) {
   const plan = analyticsPlan(widget);
   const key = JSON.stringify(plan);
   if (analyticsCache.has(key)) return analyticsCache.get(key);
+  const clientRequestId = createAnalyticsRequestId();
   const request = fetch(ANALYTICS_URL, {
     method: "POST",
     credentials: "same-origin",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: { "Content-Type": "application/json", Accept: "application/json", "X-Ixtla-Insights-Request-Id": clientRequestId },
     body: JSON.stringify({ plan }),
   }).then(async (response) => {
-    const payload = await response.json().catch(() => null);
-    if (!response.ok || !payload?.ok) throw new Error(payload?.error || "No fue posible cargar la agregación.");
+    const raw = await response.text();
+    const payload = (() => { try { return JSON.parse(raw); } catch { return null; } })();
+    if (!response.ok || !payload?.ok) {
+      const error = new Error(payload?.error || "No fue posible cargar la agregación.");
+      error.status = response.status || 0;
+      error.requestId = clean(payload?.request_id) || clean(response.headers.get("X-Ixtla-Insights-Request-Id")) || clientRequestId;
+      error.errorCode = clean(payload?.error_code);
+      error.endpointHandled = Boolean(response.headers.get("X-Ixtla-Insights-Request-Id"));
+      error.endpointVersion = clean(response.headers.get("X-Ixtla-Insights-Version"));
+      throw error;
+    }
     return {
       total: Number(payload.total) || 0,
       entries: Array.isArray(payload.items) ? payload.items.map((item) => [clean(item?.label), Number(item?.value) || 0]) : [],
     };
+  }).catch((error) => {
+    if (!clean(error?.requestId)) error.requestId = clientRequestId;
+    throw error;
   });
   analyticsCache.set(key, request);
   try {
@@ -244,8 +260,17 @@ async function renderDashboard(dashboard) {
       markScrollable(card, target, widget.chart, result.entries);
       renderWidget(target, widget, result.entries, result.total);
     } catch (error) {
-      console.error("[IxtlaInsightsDashboard]", error);
-      target.innerHTML = '<div class="ixtla-dashboard-state ixtla-dashboard-state--error"><strong>No fue posible cargar este widget.</strong><span>Los resultados se muestran únicamente cuando el servidor puede recalcularlos con tu alcance autorizado.</span></div>';
+      console.error("[IxtlaInsightsDashboard]", {
+        status: error?.status,
+        errorCode: error?.errorCode,
+        requestId: error?.requestId,
+        endpointVersion: error?.endpointVersion,
+        endpointHandled: error?.endpointHandled,
+        detail: error?.message,
+      });
+      const trace = clean(error?.requestId);
+      const diagnostic = trace ? `<span>Código de diagnóstico: ${escapeHtml(trace)}</span>` : "";
+      target.innerHTML = `<div class="ixtla-dashboard-state ixtla-dashboard-state--error"><strong>No fue posible cargar este widget.</strong><span>Los resultados se muestran únicamente cuando el servidor puede recalcularlos con tu alcance autorizado.</span>${diagnostic}</div>`;
     }
     target.removeAttribute("aria-busy");
   });

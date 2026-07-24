@@ -151,11 +151,17 @@ async function ensureCatalog(url) {
 }
 
 class InsightsRequestError extends Error {
-  constructor(status, detail) {
+  constructor(status, detail, diagnostic = {}) {
     super(detail);
     this.name = "InsightsRequestError";
     this.status = status;
+    Object.assign(this, diagnostic);
   }
+}
+
+function createInsightsRequestId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") return `ix-web-${globalThis.crypto.randomUUID()}`;
+  return `ix-web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
 function widgetTitle(chart, metric, dimension) {
@@ -791,17 +797,60 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   async function requestRemoteAnswer(prompt) {
-    const response = await fetch(config.apiUrl, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ question: prompt, history: history.slice(-HISTORY_LIMIT), dashboard_id: clean(config.dashboardId) }),
-    });
-    const payload = await response.json().catch(() => null);
+    const clientRequestId = createInsightsRequestId();
+    let response;
+    try {
+      response = await fetch(config.apiUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-Ixtla-Insights-Request-Id": clientRequestId,
+        },
+        body: JSON.stringify({ question: prompt, history: history.slice(-HISTORY_LIMIT), dashboard_id: clean(config.dashboardId) }),
+      });
+    } catch {
+      throw new InsightsRequestError(0, "No fue posible contactar el servicio Insights.", {
+        requestId: clientRequestId,
+        url: config.apiUrl,
+        endpointHandled: false,
+      });
+    }
+    const raw = await response.text();
+    const payload = (() => { try { return JSON.parse(raw); } catch { return null; } })();
     if (!response.ok || !payload?.ok) {
-      throw new InsightsRequestError(response.status || 0, clean(payload?.error) || "El servicio Insights no respondió correctamente.");
+      throw new InsightsRequestError(response.status || 0, clean(payload?.error) || "El servicio Insights no respondió correctamente.", {
+        requestId: clean(payload?.request_id) || clean(response.headers.get("X-Ixtla-Insights-Request-Id")) || clientRequestId,
+        errorCode: clean(payload?.error_code),
+        endpointVersion: clean(response.headers.get("X-Ixtla-Insights-Version")),
+        url: clean(response.url) || config.apiUrl,
+        contentType: clean(response.headers.get("content-type")),
+        endpointHandled: Boolean(response.headers.get("X-Ixtla-Insights-Request-Id")),
+      });
     }
     return payload;
+  }
+
+  function diagnosticMessage(error) {
+    const trace = clean(error?.requestId);
+    const suffix = trace ? ` Código de diagnóstico: ${trace}.` : "";
+    const status = Number(error?.status || 0);
+    if (status === 200 && !clean(error?.contentType).includes("application/json")) {
+      return `La solicitud fue redirigida fuera de Insights, normalmente por sesión expirada. Actualiza la página e inicia sesión nuevamente.${suffix}`;
+    }
+    if (status === 401 || status === 403) return `Tu sesión o permisos cambiaron. Actualiza la página e inicia sesión nuevamente si es necesario.${suffix}`;
+    if (status === 404) {
+      return error?.endpointHandled
+        ? `Insights respondió 404 desde la aplicación. Revisa los logs con el código de diagnóstico.${suffix}`
+        : `La solicitud no llegó al endpoint actual de Insights; puede existir un proxy, caché o despliegue mezclado.${suffix}`;
+    }
+    if (status === 422) return `No se pudo validar la consulta solicitada. Ajusta los datos indicados y vuelve a intentarlo.${suffix}`;
+    if (status === 429) return `Insights está recibiendo demasiadas solicitudes. Espera un momento y vuelve a intentarlo.${suffix}`;
+    if (status === 502) return `El proveedor de IA no pudo procesar esta consulta. Puedes reintentar sin perder tu contexto.${suffix}`;
+    if (status === 503) return `Insights no está disponible temporalmente; puede ser la base de datos, configuración o un servicio dependiente.${suffix}`;
+    if (status === 0) return `No fue posible contactar Insights. Revisa conectividad, proxy o disponibilidad del servidor.${suffix}`;
+    return `No se pudo completar la consulta (${status || "sin estado"}).${suffix}`;
   }
 
   function setContext(next) { context = next && typeof next === "object" ? next : null; }
@@ -829,14 +878,18 @@ export function mountIxtlaInsights(options = {}) {
       const spec = remoteWidgetSpec(action?.widget);
       if (spec) startRemoteVisualizationScope(prompt, spec);
     } catch (error) {
-      console.error("[IxtlaInsights]", error);
+      console.error("[IxtlaInsights]", error instanceof InsightsRequestError ? {
+        status: error.status,
+        errorCode: error.errorCode,
+        requestId: error.requestId,
+        endpointVersion: error.endpointVersion,
+        endpointHandled: error.endpointHandled,
+        url: error.url,
+        contentType: error.contentType,
+        detail: error.message,
+      } : error);
       if (error instanceof InsightsRequestError) {
-        if (error.status === 404) {
-          addMessage("La ruta de Insights no está publicada en este servidor. Verifica que /db/ixtla_insights/chat.php esté desplegada y que esta vista apunte al mismo host.", "assistant");
-        } else {
-          const code = error.status ? `Error ${error.status}` : "Error de servicio";
-          addMessage(`${code}: ${clean(error.message)}.`, "assistant");
-        }
+        addMessage(diagnosticMessage(error), "assistant");
       } else {
         addMessage("No fue posible analizar los requerimientos. Intenta de nuevo.");
       }

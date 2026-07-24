@@ -28,7 +28,7 @@ if (!defined('IXTLA_INSIGHTS_ANALYTICS_LIBRARY')) {
         $con->close();
         ixtla_insights_json(['ok' => false, 'error' => $error->getMessage()], 422);
     } catch (Throwable $error) {
-        error_log('[IxtlaInsights analytics] ' . $error->getMessage());
+        ixtla_insights_log_error('analytics', $error);
         $con->close();
         ixtla_insights_json(['ok' => false, 'error' => 'No fue posible calcular la visualización solicitada.'], 500);
     }

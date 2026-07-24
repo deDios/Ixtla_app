@@ -12,6 +12,8 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
         exit;
     }
 
+    header('X-Ixtla-Insights-Request-Id: ' . ixtla_insights_request_id());
+    header('X-Ixtla-Insights-Version: ' . (string) (ixtla_insights_catalog()['version'] ?? 'unknown'));
     ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
     header('Content-Type: application/json; charset=utf-8');
 
@@ -25,9 +27,58 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
 
 function ixtla_insights_json(array $payload, int $status = 200): void
 {
+    $payload += ['request_id' => ixtla_insights_request_id()];
+    if (($payload['ok'] ?? true) === false && !isset($payload['error_code'])) {
+        $payload['error_code'] = ixtla_insights_default_error_code($status);
+    }
     http_response_code($status);
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
+}
+
+function ixtla_insights_request_id(): string
+{
+    static $requestId = null;
+    if (is_string($requestId)) {
+        return $requestId;
+    }
+
+    $candidate = trim((string) ($_SERVER['HTTP_X_IXTLA_INSIGHTS_REQUEST_ID'] ?? ''));
+    if (preg_match('/^[A-Za-z0-9_-]{12,80}$/', $candidate) === 1) {
+        return $requestId = $candidate;
+    }
+    try {
+        return $requestId = 'ix-' . bin2hex(random_bytes(12));
+    } catch (Throwable) {
+        return $requestId = 'ix-' . str_replace('.', '', uniqid('', true));
+    }
+}
+
+function ixtla_insights_default_error_code(int $status): string
+{
+    return match ($status) {
+        400 => 'invalid_request',
+        401 => 'session_required',
+        403 => 'forbidden',
+        405 => 'method_not_allowed',
+        422 => 'validation_failed',
+        429 => 'rate_limited',
+        502 => 'provider_unavailable',
+        503 => 'service_unavailable',
+        default => 'internal_error',
+    };
+}
+
+function ixtla_insights_log_error(string $component, Throwable $error, array $context = []): void
+{
+    $parts = [];
+    foreach ($context as $key => $value) {
+        if (is_scalar($value) && $value !== '') {
+            $parts[] = $key . '=' . ixtla_insights_truncate((string) $value, 120);
+        }
+    }
+    $suffix = $parts ? ' ' . implode(' ', $parts) : '';
+    error_log(sprintf('[IxtlaInsights %s][%s]%s %s', $component, ixtla_insights_request_id(), $suffix, $error->getMessage()));
 }
 
 function ixtla_insights_request_body(): array
@@ -544,10 +595,19 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
     $startedAt = microtime(true);
     $raw = curl_exec($curl);
     $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    $curlError = curl_error($curl);
     curl_close($curl);
 
     $response = is_string($raw) ? json_decode($raw, true) : null;
     if ($status < 200 || $status >= 300 || !is_array($response)) {
+        $providerError = is_array($response['error'] ?? null) ? $response['error'] : [];
+        error_log(sprintf(
+            '[IxtlaInsights provider][%s] http_status=%d provider_code=%s curl_error=%s',
+            ixtla_insights_request_id(),
+            $status,
+            ixtla_insights_truncate((string) ($providerError['code'] ?? $providerError['type'] ?? ''), 80),
+            ixtla_insights_truncate($curlError, 120)
+        ));
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no pudo procesar la consulta Insights.'], 502);
     }
 

@@ -46,7 +46,7 @@ try {
     }
     $con->close();
 } catch (Throwable $error) {
-    error_log('[IxtlaInsights chat] ' . $error->getMessage());
+    ixtla_insights_log_error('chat_catalog', $error);
     $con->close();
     ixtla_insights_json(['ok' => false, 'error' => 'No fue posible consultar el catálogo de departamentos.'], 503);
 }
@@ -66,7 +66,7 @@ if (is_array($response['report_plan'] ?? null)) {
         $reportConnection->close();
         ixtla_insights_json(['ok' => false, 'error' => $error->getMessage()], 422);
     } catch (Throwable $error) {
-        error_log('[IxtlaInsights report] ' . $error->getMessage());
+        ixtla_insights_log_error('report', $error);
         $reportConnection->close();
         ixtla_insights_json(['ok' => false, 'error' => 'No fue posible calcular el reporte solicitado.'], 503);
     }

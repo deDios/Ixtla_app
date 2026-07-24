@@ -22,7 +22,7 @@ try {
     $con->close();
     ixtla_insights_json(['ok' => true, 'departments' => $departments]);
 } catch (Throwable $error) {
-    error_log('[IxtlaInsights departments] ' . $error->getMessage());
+    ixtla_insights_log_error('departments', $error);
     $con->close();
     ixtla_insights_json(['ok' => false, 'error' => 'No fue posible consultar los departamentos.'], 503);
 }
