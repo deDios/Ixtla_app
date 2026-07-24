@@ -25,6 +25,17 @@ const analyticsCache = new Map();
 const PERIOD_LABELS = { all: "Todo el historial", last_7: "Últimos 7 días", last_30: "Últimos 30 días", this_month: "Este mes" };
 const clean = (value) => String(value ?? "").trim();
 const escapeHtml = (value) => clean(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+const isInsightsDebugEnabled = () => {
+  try {
+    return new URLSearchParams(window.location.search).get("insights_debug") === "1"
+      || window.localStorage.getItem("ixtla_insights_debug") === "1";
+  } catch {
+    return false;
+  }
+};
+const insightsDebug = (event, detail = {}) => {
+  if (isInsightsDebugEnabled()) console.info("[IxtlaInsights debug]", event, detail);
+};
 const createAnalyticsRequestId = () => typeof globalThis.crypto?.randomUUID === "function"
   ? `ix-dashboard-${globalThis.crypto.randomUUID()}`
   : `ix-dashboard-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
@@ -181,6 +192,7 @@ async function fetchAnalytics(widget) {
   const key = JSON.stringify(plan);
   if (analyticsCache.has(key)) return analyticsCache.get(key);
   const clientRequestId = createAnalyticsRequestId();
+  insightsDebug("analytics.request.started", { requestId: clientRequestId, url: ANALYTICS_URL, kind: plan.kind, metric: plan.metric, dimension: plan.dimension });
   const request = fetch(ANALYTICS_URL, {
     method: "POST",
     credentials: "same-origin",
@@ -189,6 +201,16 @@ async function fetchAnalytics(widget) {
   }).then(async (response) => {
     const raw = await response.text();
     const payload = (() => { try { return JSON.parse(raw); } catch { return null; } })();
+    const responseDebug = {
+      requestId: clean(payload?.request_id) || clean(response.headers.get("X-Ixtla-Insights-Request-Id")) || clientRequestId,
+      status: response.status,
+      responseUrl: clean(response.url),
+      contentType: clean(response.headers.get("content-type")),
+      endpointHandled: Boolean(response.headers.get("X-Ixtla-Insights-Request-Id")),
+      buildId: clean(response.headers.get("X-Ixtla-Insights-Build")),
+      serverStage: clean(response.headers.get("X-Ixtla-Insights-Debug-Stage")),
+    };
+    insightsDebug("analytics.request.completed", responseDebug);
     if (!response.ok || !payload?.ok) {
       const error = new Error(payload?.error || "No fue posible cargar la agregación.");
       error.status = response.status || 0;
@@ -196,6 +218,8 @@ async function fetchAnalytics(widget) {
       error.errorCode = clean(payload?.error_code);
       error.endpointHandled = Boolean(response.headers.get("X-Ixtla-Insights-Request-Id"));
       error.endpointVersion = clean(response.headers.get("X-Ixtla-Insights-Version"));
+      error.buildId = responseDebug.buildId;
+      error.serverStage = responseDebug.serverStage;
       throw error;
     }
     return {

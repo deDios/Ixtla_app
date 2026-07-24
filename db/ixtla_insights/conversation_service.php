@@ -12,9 +12,15 @@ function ixtla_insights_answer_operational_question(mysqli $con, string $questio
 {
     $plan = ixtla_insights_operational_question_plan($question);
     if ($plan === null) {
+        consola_debug('conversation.operational_plan_not_matched');
         return null;
     }
 
+    consola_debug('conversation.operational_plan_matched', [
+        'metric' => (string) $plan['metric'],
+        'dimension' => (string) $plan['dimension'],
+        'kind' => (string) $plan['kind'],
+    ]);
     $result = ixtla_insights_aggregate_requerimientos($con, $plan);
     $items = is_array($result['items'] ?? null) ? $result['items'] : [];
     $scope = trim((string) ($result['scope']['label'] ?? 'vista autorizada actual'));
@@ -126,6 +132,12 @@ function ixtla_insights_execute_report_plan(mysqli $con, array $response): array
     }
 
     $analyticsPlan = ixtla_insights_report_analytics_plan($reportPlan);
+    consola_debug('conversation.report_plan_translated', [
+        'intent' => (string) $reportPlan['intent'],
+        'metric' => (string) $analyticsPlan['metric'],
+        'dimension' => (string) $analyticsPlan['dimension'],
+        'period' => (string) $analyticsPlan['period'],
+    ]);
     $result = ixtla_insights_aggregate_requerimientos($con, $analyticsPlan);
     $response['mode'] = 'report';
     $response['answer'] = ixtla_insights_report_answer($reportPlan, $result);

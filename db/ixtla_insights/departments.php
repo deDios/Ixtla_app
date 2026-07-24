@@ -16,9 +16,11 @@ if (!$con instanceof mysqli) {
     ixtla_insights_json(['ok' => false, 'error' => 'No fue posible consultar los departamentos.'], 503);
 }
 $con->set_charset('utf8mb4');
+consola_debug('departments.connection_ready');
 
 try {
     $departments = ixtla_insights_authorized_department_catalog($con);
+    consola_debug('departments.authorized_catalog_ready', ['count' => count($departments)]);
     $con->close();
     ixtla_insights_json(['ok' => true, 'departments' => $departments]);
 } catch (Throwable $error) {

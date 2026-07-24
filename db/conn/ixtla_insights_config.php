@@ -47,6 +47,13 @@ function ixtla_insights_config(): array
         'max_output_tokens' => 500,
         'reasoning_effort' => 'low',
 
+        // Observabilidad temporal. Mantenerlo apagado en producción salvo
+        // durante una investigación: los eventos se escriben en error_log.
+        'debug' => ixtla_insights_env_bool($openai['IXTLA_INSIGHTS_DEBUG'] ?? false),
+        // Identifica la publicación que respondió. Debe cambiar en cada
+        // despliegue (por ejemplo, el SHA corto del commit), nunca contiene secretos.
+        'build_id' => trim((string) ($openai['IXTLA_INSIGHTS_BUILD_ID'] ?? '')),
+
         // El asistente inicia únicamente sobre el dominio operativo actual.
         'allowed_domains' => ['requerimientos'],
         'allow_visualizations' => true,

@@ -12,9 +12,19 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
         exit;
     }
 
+    $config = ixtla_insights_config();
     header('X-Ixtla-Insights-Request-Id: ' . ixtla_insights_request_id());
     header('X-Ixtla-Insights-Version: ' . (string) (ixtla_insights_catalog()['version'] ?? 'unknown'));
+    if (($config['build_id'] ?? '') !== '') {
+        header('X-Ixtla-Insights-Build: ' . (string) $config['build_id']);
+    }
+    consola_debug('bootstrap.received', [
+        'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
+        'path' => parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '',
+        'has_auth_cookie' => isset($_COOKIE['ix_emp']) && $_COOKIE['ix_emp'] !== '',
+    ]);
     ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
+    consola_debug('bootstrap.session_accepted');
     header('Content-Type: application/json; charset=utf-8');
 
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -22,7 +32,8 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
         ixtla_insights_json(['ok' => false, 'error' => 'Metodo no permitido.'], 405);
     }
 
-    return ixtla_insights_config();
+    consola_debug('bootstrap.method_accepted', ['allowed_methods' => implode(',', $methods)]);
+    return $config;
 }
 
 function ixtla_insights_json(array $payload, int $status = 200): void
@@ -31,9 +42,56 @@ function ixtla_insights_json(array $payload, int $status = 200): void
     if (($payload['ok'] ?? true) === false && !isset($payload['error_code'])) {
         $payload['error_code'] = ixtla_insights_default_error_code($status);
     }
+    consola_debug('response.sent', [
+        'status' => $status,
+        'ok' => ($payload['ok'] ?? true) === true,
+        'error_code' => $payload['error_code'] ?? '',
+    ]);
     http_response_code($status);
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
+}
+
+/**
+ * Registra etapas de ejecución sin guardar preguntas, cookies, cabeceras de
+ * autorización ni el contenido de las respuestas del proveedor.
+ */
+function consola_debug(string $stage, array $context = []): void
+{
+    if (!consola_debug_enabled()) {
+        return;
+    }
+
+    static $startedAt = null;
+    $startedAt ??= microtime(true);
+    $safeContext = [];
+    foreach ($context as $key => $value) {
+        if (is_bool($value) || is_int($value) || is_float($value)) {
+            $safeContext[$key] = $value;
+        } elseif (is_string($value) && $value !== '') {
+            $safeContext[$key] = ixtla_insights_truncate($value, 120);
+        }
+    }
+
+    if (!headers_sent()) {
+        header('X-Ixtla-Insights-Debug-Stage: ' . ixtla_insights_truncate($stage, 80));
+    }
+    error_log((string) json_encode([
+        'event' => 'consola_debug',
+        'request_id' => ixtla_insights_request_id(),
+        'stage' => $stage,
+        'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        'context' => $safeContext,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+function consola_debug_enabled(): bool
+{
+    static $enabled = null;
+    if (is_bool($enabled)) {
+        return $enabled;
+    }
+    return $enabled = (ixtla_insights_config()['debug'] ?? false) === true;
 }
 
 function ixtla_insights_request_id(): string
@@ -581,6 +639,12 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
     }
 
     $curl = curl_init((string) $config['provider_url']);
+    consola_debug('openai.request_started', [
+        'model' => (string) ($config['model'] ?? ''),
+        'question_length' => mb_strlen($question),
+        'history_messages' => count($history),
+        'authorized_departments' => count($departments),
+    ]);
     curl_setopt_array($curl, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
@@ -597,6 +661,11 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
     $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
     $curlError = curl_error($curl);
     curl_close($curl);
+    consola_debug('openai.response_received', [
+        'http_status' => $status,
+        'latency_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        'has_transport_error' => $curlError !== '',
+    ]);
 
     $response = is_string($raw) ? json_decode($raw, true) : null;
     if ($status < 200 || $status >= 300 || !is_array($response)) {
@@ -621,7 +690,12 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI devolvio una respuesta no estructurada.'], 502);
     }
 
-    return ixtla_insights_normalize_chat_response($structured, $departments);
+    $normalized = ixtla_insights_normalize_chat_response($structured, $departments);
+    consola_debug('openai.response_validated', [
+        'actions' => count(is_array($normalized['actions'] ?? null) ? $normalized['actions'] : []),
+        'has_report_plan' => is_array($normalized['report_plan'] ?? null),
+    ]);
+    return $normalized;
 }
 
 function ixtla_insights_log_usage(array $response, array $context = []): void

@@ -2,6 +2,17 @@ import { saveTemporaryDashboard } from "/JS/UAT/insights/dashboard-store.js";
 
 const CONTEXT_EVENT = "ixtla-insights:context";
 const HISTORY_LIMIT = 6;
+const isInsightsDebugEnabled = () => {
+  try {
+    return new URLSearchParams(window.location.search).get("insights_debug") === "1"
+      || window.localStorage.getItem("ixtla_insights_debug") === "1";
+  } catch {
+    return false;
+  }
+};
+const insightsDebug = (event, detail = {}) => {
+  if (isInsightsDebugEnabled()) console.info("[IxtlaInsights debug]", event, detail);
+};
 const START_ACTIONS = [{
   label: "Crear un gráfico",
   description: "Elige paso a paso qué deseas visualizar.",
@@ -272,7 +283,8 @@ export function mountIxtlaInsights(options = {}) {
       }
       chip.addEventListener("click", async () => {
         const action = item && typeof item === "object" ? item.action || {} : {};
-        const visualizationAction = ["visualization_start", "visualization_measurement", "visualization_separation", "visualization_kpi_kit", "visualization_kpi", "department_scope", "visualization_period", "visualization_chart", "visualization_dimension", "visualization_metric", "visualization_confirm", "visualization_edit_period", "visualization_edit_scope", "visualization_cancel"].includes(action.type);
+        if (action.type === "visualization_cancel") return cancelVisualization();
+        const visualizationAction = ["visualization_start", "visualization_measurement", "visualization_separation", "visualization_kpi_kit", "visualization_kpi", "department_scope", "visualization_period", "visualization_chart", "visualization_dimension", "visualization_metric", "visualization_confirm", "visualization_edit_period", "visualization_edit_scope"].includes(action.type);
         if (visualizationAction) {
           try {
             await ensureCatalog(config.catalogUrl);
@@ -295,11 +307,29 @@ export function mountIxtlaInsights(options = {}) {
         if (action.type === "visualization_confirm") return confirmVisualization();
         if (action.type === "visualization_edit_period") return editVisualizationPeriod();
         if (action.type === "visualization_edit_scope") return editVisualizationScope();
-        if (action.type === "visualization_cancel") return cancelVisualization();
         ask(clean(item?.prompt || text));
       });
       chips.appendChild(chip);
     });
+  }
+
+  function renderWorkflowQuestions(questions) {
+    const cancel = {
+      label: "Cancelar creación",
+      description: "Descarta este gráfico y vuelve a las consultas.",
+      action: { type: "visualization_cancel" },
+    };
+    renderQuickQuestions([...(Array.isArray(questions) ? questions : []), cancel]);
+  }
+
+  function isVisualizationCancellationIntent(value) {
+    if (!pendingVisualization) return false;
+    const text = clean(value).toLocaleLowerCase("es-MX").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (/\b(olvida|olvidar|descarta|descartar)\b/.test(text)) return true;
+    const cancellation = /\b(cancela|cancelar|deten|detener|abandona|abandonar)\b/.test(text);
+    const visualization = /\b(grafico|grafica|visualizacion|widget|creacion|proceso)\b/.test(text);
+    const stop = /\b(no quiero|ya no|no continuar)\b/.test(text);
+    return (cancellation && visualization) || (stop && visualization);
   }
 
   function recommendedChart(request = pendingVisualization) {
@@ -408,7 +438,7 @@ export function mountIxtlaInsights(options = {}) {
     if (!request) return;
     if (!request.chart) {
       addMessage("¿Qué formato prefieres para este análisis?");
-      renderQuickQuestions(chartChoices(request.goal));
+      renderWorkflowQuestions(chartChoices(request.goal));
       return;
     }
     if (!requiresDimension(request.chart)) request.dimension = "estatus";
@@ -416,12 +446,12 @@ export function mountIxtlaInsights(options = {}) {
     if (request.chart === "funnel") request.dimension = "estatus";
     if (requiresDimension(request.chart) && !request.dimension) {
       addMessage("¿Cómo deseas agrupar los requerimientos?");
-      renderQuickQuestions(dimensionChoices(request.chart));
+      renderWorkflowQuestions(dimensionChoices(request.chart));
       return;
     }
     if (!request.metric) {
       addMessage("¿Qué métrica deseas visualizar?");
-      renderQuickQuestions(metricChoices());
+      renderWorkflowQuestions(metricChoices());
       return;
     }
     finalizeVisualization();
@@ -500,19 +530,19 @@ export function mountIxtlaInsights(options = {}) {
   function editVisualizationPeriod() {
     if (!pendingVisualization?.reviewSpec) return;
     addMessage("¿Qué periodo deseas analizar?");
-    renderQuickQuestions(periodChoices());
+    renderWorkflowQuestions(periodChoices());
   }
 
   function editVisualizationScope() {
     if (!pendingVisualization?.reviewSpec) return;
     addMessage("¿Qué departamentos deseas usar?");
-    renderQuickQuestions(DEPARTMENT_SCOPE_CHOICES);
+    renderWorkflowQuestions(DEPARTMENT_SCOPE_CHOICES);
   }
 
-  function cancelVisualization() {
+  function cancelVisualization(message = "Visualización cancelada.") {
     pendingVisualization = null;
     discardDraft();
-    addMessage("Visualización cancelada.");
+    addMessage(message);
     renderQuickQuestions(START_ACTIONS);
   }
 
@@ -551,7 +581,7 @@ export function mountIxtlaInsights(options = {}) {
     };
     queueDraftPersist();
     addMessage("¿Para qué departamento o departamentos deseas calcularlo?");
-    renderQuickQuestions(DEPARTMENT_SCOPE_CHOICES);
+    renderWorkflowQuestions(DEPARTMENT_SCOPE_CHOICES);
   }
 
   function startKpiKit() {
@@ -621,7 +651,7 @@ export function mountIxtlaInsights(options = {}) {
       return;
     }
     addMessage("¿Cómo deseas separar la información?");
-    renderQuickQuestions(separationChoices(metric));
+    renderWorkflowQuestions(separationChoices(metric));
   }
 
   function chooseVisualizationSeparation(action) {
@@ -657,7 +687,7 @@ export function mountIxtlaInsights(options = {}) {
     }
     if (!pendingVisualization.period) {
       addMessage("¿Qué periodo deseas analizar?");
-      renderQuickQuestions(periodChoices());
+      renderWorkflowQuestions(periodChoices());
       return;
     }
     continueAfterPeriod();
@@ -680,7 +710,7 @@ export function mountIxtlaInsights(options = {}) {
     if (!pendingVisualization) return;
     if (pendingVisualization.mode === "kpi_kit") {
       addMessage("Elige el indicador que deseas agregar al dashboard.");
-      renderQuickQuestions(kpiChoices());
+      renderWorkflowQuestions(kpiChoices());
       return;
     }
     if (pendingVisualization.mode === "single_kpi") {
@@ -710,7 +740,7 @@ export function mountIxtlaInsights(options = {}) {
       return;
     }
     addMessage("¿Qué deseas medir?");
-    renderQuickQuestions(MEASUREMENT_CHOICES);
+    renderWorkflowQuestions(MEASUREMENT_CHOICES);
   }
 
   async function showDepartmentChecklist() {
@@ -728,7 +758,7 @@ export function mountIxtlaInsights(options = {}) {
     } catch (error) {
       console.error("[IxtlaInsights]", error);
       addMessage("No pude cargar los departamentos activos. Intenta de nuevo o selecciona todos los departamentos.");
-      renderQuickQuestions(DEPARTMENT_SCOPE_CHOICES);
+      renderWorkflowQuestions(DEPARTMENT_SCOPE_CHOICES);
     }
   }
 
@@ -759,7 +789,7 @@ export function mountIxtlaInsights(options = {}) {
     const back = document.createElement("button");
     back.type = "button";
     back.textContent = "Volver";
-    back.addEventListener("click", () => renderQuickQuestions(DEPARTMENT_SCOPE_CHOICES));
+    back.addEventListener("click", () => renderWorkflowQuestions(DEPARTMENT_SCOPE_CHOICES));
     const apply = document.createElement("button");
     apply.type = "button";
     apply.textContent = "Usar departamentos seleccionados";
@@ -774,7 +804,11 @@ export function mountIxtlaInsights(options = {}) {
       addMessage(`Departamentos: ${selected.join(", ")}`, "user");
       continueAfterDepartmentScope();
     });
-    actions.append(back, apply);
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancelar creación";
+    cancel.addEventListener("click", () => cancelVisualization());
+    actions.append(back, cancel, apply);
     chips.append(form, actions);
   }
 
@@ -798,6 +832,7 @@ export function mountIxtlaInsights(options = {}) {
 
   async function requestRemoteAnswer(prompt) {
     const clientRequestId = createInsightsRequestId();
+    insightsDebug("chat.request.started", { requestId: clientRequestId, url: config.apiUrl, questionLength: prompt.length });
     let response;
     try {
       response = await fetch(config.apiUrl, {
@@ -811,6 +846,7 @@ export function mountIxtlaInsights(options = {}) {
         body: JSON.stringify({ question: prompt, history: history.slice(-HISTORY_LIMIT), dashboard_id: clean(config.dashboardId) }),
       });
     } catch {
+      insightsDebug("chat.request.network_error", { requestId: clientRequestId, url: config.apiUrl });
       throw new InsightsRequestError(0, "No fue posible contactar el servicio Insights.", {
         requestId: clientRequestId,
         url: config.apiUrl,
@@ -819,11 +855,23 @@ export function mountIxtlaInsights(options = {}) {
     }
     const raw = await response.text();
     const payload = (() => { try { return JSON.parse(raw); } catch { return null; } })();
+    const responseDebug = {
+      requestId: clean(payload?.request_id) || clean(response.headers.get("X-Ixtla-Insights-Request-Id")) || clientRequestId,
+      status: response.status,
+      responseUrl: clean(response.url),
+      contentType: clean(response.headers.get("content-type")),
+      endpointHandled: Boolean(response.headers.get("X-Ixtla-Insights-Request-Id")),
+      buildId: clean(response.headers.get("X-Ixtla-Insights-Build")),
+      serverStage: clean(response.headers.get("X-Ixtla-Insights-Debug-Stage")),
+    };
+    insightsDebug("chat.request.completed", responseDebug);
     if (!response.ok || !payload?.ok) {
       throw new InsightsRequestError(response.status || 0, clean(payload?.error) || "El servicio Insights no respondió correctamente.", {
         requestId: clean(payload?.request_id) || clean(response.headers.get("X-Ixtla-Insights-Request-Id")) || clientRequestId,
         errorCode: clean(payload?.error_code),
         endpointVersion: clean(response.headers.get("X-Ixtla-Insights-Version")),
+        buildId: responseDebug.buildId,
+        serverStage: responseDebug.serverStage,
         url: clean(response.url) || config.apiUrl,
         contentType: clean(response.headers.get("content-type")),
         endpointHandled: Boolean(response.headers.get("X-Ixtla-Insights-Request-Id")),
@@ -862,6 +910,10 @@ export function mountIxtlaInsights(options = {}) {
     if (!prompt) return;
     addMessage(prompt, "user");
     input.value = "";
+    if (isVisualizationCancellationIntent(prompt)) {
+      cancelVisualization("De acuerdo. Cancelé la creación del gráfico. ¿Qué dato o reporte quieres consultar?");
+      return;
+    }
     send.disabled = true;
     try {
       await ensureCatalog(config.catalogUrl);
@@ -883,6 +935,8 @@ export function mountIxtlaInsights(options = {}) {
         errorCode: error.errorCode,
         requestId: error.requestId,
         endpointVersion: error.endpointVersion,
+        buildId: error.buildId,
+        serverStage: error.serverStage,
         endpointHandled: error.endpointHandled,
         url: error.url,
         contentType: error.contentType,

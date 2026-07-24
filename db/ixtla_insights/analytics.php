@@ -13,15 +13,21 @@ if (!defined('IXTLA_INSIGHTS_ANALYTICS_LIBRARY')) {
 
     $body = ixtla_insights_request_body();
     $plan = is_array($body['plan'] ?? null) ? $body['plan'] : [];
+    consola_debug('analytics.request_received', ['plan_keys' => count($plan)]);
     $con = conectar();
     if (!$con instanceof mysqli) {
         ixtla_insights_json(['ok' => false, 'error' => 'No fue posible conectar con la fuente analítica.'], 503);
     }
     $con->set_charset('utf8mb4');
     $con->query("SET time_zone='-06:00'");
+    consola_debug('analytics.connection_ready');
 
     try {
         $response = ixtla_insights_aggregate_requerimientos($con, $plan);
+        consola_debug('analytics.response_ready', [
+            'total' => (int) ($response['total'] ?? 0),
+            'items' => count(is_array($response['items'] ?? null) ? $response['items'] : []),
+        ]);
         $con->close();
         ixtla_insights_json(['ok' => true] + $response);
     } catch (InvalidArgumentException $error) {
@@ -37,6 +43,13 @@ if (!defined('IXTLA_INSIGHTS_ANALYTICS_LIBRARY')) {
 function ixtla_insights_aggregate_requerimientos(mysqli $con, array $rawPlan): array
 {
     $plan = ixtla_insights_normalize_plan($rawPlan);
+    consola_debug('analytics.plan_normalized', [
+        'kind' => (string) $plan['kind'],
+        'metric' => (string) $plan['metric'],
+        'dimension' => (string) $plan['dimension'],
+        'period' => (string) $plan['period'],
+        'filters' => count($plan['filters']),
+    ]);
     $session = $GLOBALS['ix_session'] ?? [];
     $empleadoId = (int) ($session['empleado_id'] ?? $session['id_empleado'] ?? 0);
     if ($empleadoId <= 0) {
@@ -52,6 +65,10 @@ function ixtla_insights_aggregate_requerimientos(mysqli $con, array $rawPlan): a
     $params = [];
     $types = '';
     $scope = ixtla_insights_apply_scope($con, $rbac, $where, $params, $types);
+    consola_debug('analytics.rbac_scope_applied', [
+        'scope_type' => (string) ($scope['type'] ?? ''),
+        'scope_departments' => count(is_array($scope['departments'] ?? null) ? $scope['departments'] : []),
+    ]);
     ixtla_insights_apply_visibility($rbac, $where);
     ixtla_insights_apply_metric($plan['metric'], $where);
     ixtla_insights_apply_filters($plan['filters'], $where, $params, $types);
