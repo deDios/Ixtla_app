@@ -43,13 +43,19 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
   </div>
   <script type="module" src="/JS/UAT/insights/dashboard.js"></script>
   <script type="module">
-    import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js";
+    import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=gpt-probe-1";
 
     function mountDashboardAssistant() {
       const dashboard = window.IxtlaInsightsDashboard;
       if (!dashboard) return;
       mountIxtlaInsights({
         subtitle: "Asistente del dashboard",
+        apiUrl: "/db/ixtla_insights/gpt_probe.php",
+        simpleMode: true,
+        quickQuestions: [
+          { label: "¿Qué puedes hacer?", primary: true },
+          { label: "Explica qué es un requerimiento" }
+        ],
         context: dashboard.getContext(),
         visualizationHandler: ({ question, context, spec }) => dashboard.addVisualization({ question, context, spec }),
       });

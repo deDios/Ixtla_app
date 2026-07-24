@@ -197,6 +197,7 @@ export function mountIxtlaInsights(options = {}) {
     catalogUrl: "/db/ixtla_insights/catalog.php",
     draftUrl: "/db/ixtla_insights/draft.php",
     departmentsUrl: "/db/ixtla_insights/departments.php",
+    simpleMode: false,
     visualizationHandler: null,
     ...options,
   };
@@ -916,19 +917,21 @@ export function mountIxtlaInsights(options = {}) {
     }
     send.disabled = true;
     try {
-      await ensureCatalog(config.catalogUrl);
+      if (!config.simpleMode) await ensureCatalog(config.catalogUrl);
       const payload = await requestRemoteAnswer(prompt);
       const answer = clean(payload.answer) || "No pude generar una respuesta para esa consulta.";
       addMessage(answer);
-      renderReport(payload.report);
+      if (!config.simpleMode) renderReport(payload.report);
       history.push({ role: "user", content: prompt }, { role: "assistant", content: answer });
       const suggestions = Array.isArray(payload.suggestions)
         ? payload.suggestions.map((suggestion) => clean(suggestion)).filter(Boolean).slice(0, 5)
         : [];
       renderQuickQuestions(suggestions.length ? suggestions : config.quickQuestions);
-      const action = Array.isArray(payload.actions) ? payload.actions.find((item) => item?.type === "widget_preview") : null;
-      const spec = remoteWidgetSpec(action?.widget);
-      if (spec) startRemoteVisualizationScope(prompt, spec);
+      if (!config.simpleMode) {
+        const action = Array.isArray(payload.actions) ? payload.actions.find((item) => item?.type === "widget_preview") : null;
+        const spec = remoteWidgetSpec(action?.widget);
+        if (spec) startRemoteVisualizationScope(prompt, spec);
+      }
     } catch (error) {
       console.error("[IxtlaInsights]", error instanceof InsightsRequestError ? {
         status: error.status,
@@ -984,21 +987,32 @@ export function mountIxtlaInsights(options = {}) {
   renderQuickQuestions(config.quickQuestions);
   fab.addEventListener("click", open);
   close.addEventListener("click", closeDrawer);
-  clear.addEventListener("click", () => { messages.replaceChildren(); history.length = 0; pendingVisualization = null; discardDraft(); renderQuickQuestions(config.quickQuestions); });
+  clear.addEventListener("click", () => {
+    messages.replaceChildren();
+    history.length = 0;
+    pendingVisualization = null;
+    if (!config.simpleMode) discardDraft();
+    renderQuickQuestions(config.quickQuestions);
+  });
   overlay.addEventListener("click", closeDrawer);
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDrawer(); });
   document.addEventListener(CONTEXT_EVENT, (event) => setContext(event.detail));
   form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
 
   addMessage("Hola. Usa “Crear un gráfico” para armar una visualización paso a paso, o escribe una consulta específica.");
-  fetch(config.draftUrl, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ action: "get" }) })
+  if (!config.simpleMode) fetch(config.draftUrl, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ action: "get" }) })
     .then((response) => response.json())
     .then((payload) => {
+      if (config.simpleMode) return;
       if (!payload?.ok || !payload.draft?.mode) return;
       pendingVisualization = payload.draft;
       addMessage("Recuperé tu borrador de visualización.");
       continueAfterDepartmentScope();
     }).catch(() => {});
+  if (config.simpleMode) {
+    messages.replaceChildren();
+    addMessage("Hola. Estoy en modo de prueba: puedo responder preguntas generales, sin consultar métricas ni crear gráficos todavía.");
+  }
   const api = { open, close: closeDrawer, ask, setContext };
   window.__ixtlaInsightsInstance = api;
   window.IxtlaInsights = api;
