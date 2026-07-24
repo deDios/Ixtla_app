@@ -17,7 +17,7 @@ if (($config['enabled'] ?? false) !== true) {
 
 $body = ixtla_insights_request_body();
 $question = trim((string) ($body['question'] ?? ''));
-$maxCharacters = (int) ($config['max_question_characters'] ?? 800);
+$maxCharacters = (int) ($config['max_question_characters']);
 
 if ($question === '' || mb_strlen($question) > $maxCharacters) {
     ixtla_insights_json(['ok' => false, 'error' => 'La pregunta no es valida.'], 422);
@@ -30,8 +30,8 @@ consola_debug('chat.question_validated', [
 $history = is_array($body['history'] ?? null)
     ? ixtla_insights_clean_history(
         $body['history'],
-        (int) ($config['max_history_messages'] ?? 6),
-        (int) ($config['max_history_characters'] ?? 400)
+        (int) ($config['max_history_messages']),
+        (int) ($config['max_history_characters'])
     )
     : [];
 consola_debug('chat.history_normalized', ['messages' => count($history)]);

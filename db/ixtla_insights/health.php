@@ -8,6 +8,6 @@ ixtla_insights_json([
     'ok' => true,
     'service' => 'ixtla-insights-php-gateway',
     'enabled' => (bool) ($config['enabled'] ?? false),
-    'provider_configured' => !empty($config['api_key']),
+    'provider_configured' => (bool) $config['configured'],
     'model' => $config['model'],
 ]);
