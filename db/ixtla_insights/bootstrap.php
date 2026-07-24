@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../JS/UAT/auth/ix_guard.php';
 require_once __DIR__ . '/../conn/ixtla_insights_config.php';
+require_once __DIR__ . '/contracts.php';
 
 function ixtla_insights_bootstrap(array $methods = ['POST']): array
 {
@@ -99,12 +100,13 @@ function ixtla_insights_openai_text(array $response): string
 
 function ixtla_insights_response_schema(): array
 {
+    $catalog = ixtla_insights_catalog();
     $filter = [
         'type' => 'object',
         'additionalProperties' => false,
         'required' => ['field', 'value'],
         'properties' => [
-            'field' => ['type' => 'string', 'enum' => ['departamento', 'tramite', 'estatus']],
+            'field' => ['type' => 'string', 'enum' => $catalog['filter_fields']],
             'value' => ['type' => 'string', 'maxLength' => 120],
         ],
     ];
@@ -113,14 +115,14 @@ function ixtla_insights_response_schema(): array
         'additionalProperties' => false,
         'required' => ['kind', 'title', 'metric', 'dimension', 'period', 'scope', 'filters', 'sort', 'limit', 'scope_label'],
         'properties' => [
-            'kind' => ['type' => 'string', 'enum' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel']],
+            'kind' => ['type' => 'string', 'enum' => $catalog['widget_kinds']],
             'title' => ['type' => 'string', 'maxLength' => 100],
-            'metric' => ['type' => 'string', 'enum' => ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion']],
-            'dimension' => ['type' => 'string', 'enum' => ['estatus', 'tramite', 'departamento', 'fecha']],
-            'period' => ['type' => 'string', 'enum' => ['all', 'last_7', 'last_30', 'this_month']],
-            'scope' => ['type' => 'string', 'enum' => ['all', 'selected']],
+            'metric' => ['type' => 'string', 'enum' => $catalog['metrics']],
+            'dimension' => ['type' => 'string', 'enum' => $catalog['dimensions']],
+            'period' => ['type' => 'string', 'enum' => $catalog['periods']],
+            'scope' => ['type' => 'string', 'enum' => $catalog['scopes']],
             'filters' => ['type' => 'array', 'maxItems' => 3, 'items' => $filter],
-            'sort' => ['type' => 'string', 'enum' => ['desc', 'asc', 'chronological']],
+            'sort' => ['type' => 'string', 'enum' => $catalog['sorts']],
             'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
             'scope_label' => ['type' => 'string', 'maxLength' => 160],
         ],
@@ -177,20 +179,20 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
             continue;
         }
 
-        if (!in_array($widget['kind'] ?? '', ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'], true)) {
+        if (!ixtla_insights_catalog_contains('widget_kinds', (string) ($widget['kind'] ?? ''))) {
             continue;
         }
-        if (!in_array($widget['metric'] ?? '', ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'], true)) {
+        if (!ixtla_insights_catalog_contains('metrics', (string) ($widget['metric'] ?? ''))) {
             continue;
         }
-        if (($widget['kind'] ?? '') !== 'kpi' && in_array($widget['metric'], ['promedio_semanal', 'tiempo_resolucion'], true)) {
+        if (($widget['kind'] ?? '') !== 'kpi' && ixtla_insights_is_kpi_only_metric((string) $widget['metric'])) {
             continue;
         }
-        if (!in_array($widget['dimension'] ?? '', ['estatus', 'tramite', 'departamento', 'fecha'], true)) {
+        if (!ixtla_insights_catalog_contains('dimensions', (string) ($widget['dimension'] ?? ''))) {
             continue;
         }
 
-        if (($widget['kind'] ?? '') !== 'kpi' && ($widget['dimension'] ?? '') === 'estatus' && in_array($widget['metric'] ?? '', ['finalizados', 'pausados', 'cancelados', 'pausados_cancelados'], true)) {
+        if (($widget['kind'] ?? '') !== 'kpi' && ($widget['dimension'] ?? '') === 'estatus' && ixtla_insights_is_fixed_status_metric((string) ($widget['metric'] ?? ''))) {
             continue;
         }
 
@@ -201,7 +203,7 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
             }
             $field = $filter['field'] ?? '';
             $value = trim((string) ($filter['value'] ?? ''));
-            if (!in_array($field, ['departamento', 'tramite', 'estatus'], true) || $value === '') {
+            if (!ixtla_insights_catalog_contains('filter_fields', (string) $field) || $value === '') {
                 continue;
             }
             if ($field === 'departamento') {
@@ -222,7 +224,7 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
         if ($scope === '' || ($scope === 'selected' && !$hasDepartmentFilter) || ($scope === 'all' && $hasDepartmentFilter)) {
             continue;
         }
-        $sort = in_array($widget['sort'] ?? '', ['desc', 'asc', 'chronological'], true) ? $widget['sort'] : 'desc';
+        $sort = ixtla_insights_catalog_contains('sorts', (string) ($widget['sort'] ?? '')) ? $widget['sort'] : 'desc';
         $limit = min(50, max(1, (int) ($widget['limit'] ?? 10)));
 
         $actions[] = [
@@ -232,7 +234,7 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
                 'title' => ixtla_insights_truncate(trim((string) ($widget['title'] ?? 'Visualizacion de requerimientos')), 100),
                 'metric' => $widget['metric'],
                 'dimension' => $widget['dimension'],
-                'period' => in_array($widget['period'] ?? '', ['all', 'last_7', 'last_30', 'this_month'], true) ? $widget['period'] : 'all',
+                'period' => ixtla_insights_catalog_contains('periods', (string) ($widget['period'] ?? '')) ? $widget['period'] : 'all',
                 'scope' => $scope,
                 'filters' => array_slice($filters, 0, 3),
                 'sort' => $sort,
@@ -327,6 +329,13 @@ function ixtla_insights_resolve_department(string $value, array $departments): ?
 function ixtla_insights_normalize_match_text(string $value): string
 {
     $value = mb_strtolower(trim($value), 'UTF-8');
+    // iconv puede no transliterar acentos de forma consistente según el host.
+    // Conservamos una tabla explícita para que los nombres y preguntas tengan
+    // el mismo comportamiento en desarrollo y producción.
+    $value = strtr($value, [
+        'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+        'ü' => 'u', 'ñ' => 'n',
+    ]);
     $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
     if ($transliterated !== false) {
         $value = $transliterated;
@@ -346,11 +355,13 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         ixtla_insights_json(['ok' => false, 'error' => 'No hay configuracion de OpenAI disponible para Insights.'], 503);
     }
 
+    $catalog = ixtla_insights_catalog();
     $systemPrompt = 'Eres Ixtla Insights para requerimientos. Responde solo con el JSON definido. '
         . 'No inventes cifras, no afirmes haber consultado una base de datos y no generes SQL. '
-        . 'Solo puedes proponer widgets kpi, bar, donut, line, area, table o funnel; métricas total, abiertos, finalizados, pausados, cancelados o cerrados. '
+        . 'Resuelve dudas sobre las capacidades del asistente y pide una aclaración breve cuando una pregunta sea ambigua. '
+        . 'Solo puedes proponer widgets ' . implode(', ', $catalog['widget_kinds']) . '; métricas ' . implode(', ', $catalog['metrics']) . '. '
         . 'Los indicadores kpi también pueden usar promedio_semanal o tiempo_resolucion; esas dos métricas no se usan en gráficas. '
-        . 'dimensiones estatus, tramite, departamento o fecha. Para rankings usa limit y sort. '
+        . 'Dimensiones permitidas: ' . implode(', ', $catalog['dimensions']) . '. Para rankings usa limit y sort. '
         . 'Cuando el usuario pida uno o varios departamentos, debes usar un filtro departamento por cada nombre y únicamente los nombres exactos del catálogo autorizado. '
         . 'Si no hay una coincidencia exacta o claramente única, no generes widget y pide que especifique el departamento; nunca sustituyas esa solicitud por una tabla general. '
         . 'Una solicitud de métrica, ranking, top, comparación o dashboard también requiere una acción widget_preview; para un top sin tipo de gráfica usa bar y dimension tramite. '
@@ -460,50 +471,4 @@ function ixtla_insights_log_usage(array $response, array $context = []): void
         'reasoning_tokens' => $outputDetails['reasoning_tokens'] ?? $usage['reasoning_tokens'] ?? null,
     ];
     error_log((string) json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-}
-
-function ixtla_insights_forward(array $config, string $path, array $payload = [], string $method = 'POST'): array
-{
-    if (!function_exists('curl_init')) {
-        ixtla_insights_json(['ok' => false, 'error' => 'La extension cURL no esta disponible.'], 500);
-    }
-
-    $baseUrl = rtrim((string) ($config['service_url'] ?? ''), '/');
-    if ($baseUrl === '' || filter_var($baseUrl, FILTER_VALIDATE_URL) === false) {
-        ixtla_insights_json(['ok' => false, 'error' => 'La URL del servicio Insights no es valida.'], 500);
-    }
-
-    $headers = ['Accept: application/json'];
-    $token = trim((string) ($config['service_token'] ?? ''));
-    if ($token !== '') {
-        $headers[] = 'X-Ixtla-Insights-Key: ' . $token;
-    }
-
-    $curl = curl_init($baseUrl . '/' . ltrim($path, '/'));
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_TIMEOUT, (int) ($config['request_timeout_seconds'] ?? 20));
-    curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
-
-    if ($method === 'POST') {
-        $headers[] = 'Content-Type: application/json';
-        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($curl, CURLOPT_POST, true);
-        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-    }
-
-    $raw = curl_exec($curl);
-    $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-    $error = curl_error($curl);
-    curl_close($curl);
-
-    if ($raw === false) {
-        ixtla_insights_json(['ok' => false, 'error' => 'No fue posible contactar el servicio Insights.', 'detail' => $error], 502);
-    }
-
-    $response = json_decode($raw, true);
-    if (!is_array($response)) {
-        ixtla_insights_json(['ok' => false, 'error' => 'El servicio Insights devolvio una respuesta invalida.'], 502);
-    }
-
-    return ['status' => $status > 0 ? $status : 502, 'body' => $response];
 }

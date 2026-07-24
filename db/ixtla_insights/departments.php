@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../conn/conn_db.php';
+define('IXTLA_INSIGHTS_ANALYTICS_LIBRARY', true);
+require_once __DIR__ . '/analytics.php';
 
 $config = ixtla_insights_bootstrap(['GET']);
 if (($config['enabled'] ?? false) !== true) {
@@ -16,7 +18,7 @@ if (!$con instanceof mysqli) {
 $con->set_charset('utf8mb4');
 
 try {
-    $departments = ixtla_insights_department_catalog($con);
+    $departments = ixtla_insights_authorized_department_catalog($con);
     $con->close();
     ixtla_insights_json(['ok' => true, 'departments' => $departments]);
 } catch (Throwable $error) {

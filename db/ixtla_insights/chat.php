@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../conn/conn_db.php';
+define('IXTLA_INSIGHTS_ANALYTICS_LIBRARY', true);
+require_once __DIR__ . '/analytics.php';
+require_once __DIR__ . '/conversation_service.php';
 
 $config = ixtla_insights_bootstrap(['POST']);
 if (($config['enabled'] ?? false) !== true) {
@@ -35,7 +38,12 @@ if (!$con instanceof mysqli) {
 $con->set_charset('utf8mb4');
 
 try {
-    $departments = ixtla_insights_department_catalog($con);
+    $departments = ixtla_insights_authorized_department_catalog($con);
+    $operationalResponse = ixtla_insights_answer_operational_question($con, $question);
+    if ($operationalResponse !== null) {
+        $con->close();
+        ixtla_insights_json($operationalResponse);
+    }
     $con->close();
 } catch (Throwable $error) {
     error_log('[IxtlaInsights chat] ' . $error->getMessage());

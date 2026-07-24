@@ -3,22 +3,8 @@ const ACTIVE_DASHBOARD_KEY = "ixtla-insights:active-dashboard";
 
 const clean = (value) => String(value ?? "").trim();
 
-function statusOf(row) {
-  return clean(row?.estatus?.key ?? row?.estatus_key ?? row?.estatus ?? row?.status).toLowerCase();
-}
-
 function createId(prefix) {
   return globalThis.crypto?.randomUUID?.() || `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function compactRows(rows) {
-  return (Array.isArray(rows) ? rows : []).map((row) => ({
-    id: row?.id ?? null,
-    tramite: clean(row?.tramite ?? row?.tipo_tramite ?? row?.categoria) || "Sin tramite",
-    estatus: statusOf(row),
-    departamento: clean(row?.departamento ?? row?.depto ?? row?.departamento_nombre) || "Sin departamento",
-    creado: row?.creado ?? row?.created_at ?? row?.fecha_creacion ?? null,
-  }));
 }
 
 function normalizedWidgetTitle(widget) {
@@ -38,13 +24,12 @@ function normalizeDashboard(raw, id) {
   if (!raw || !Array.isArray(raw.widgets)) return null;
   return {
     id: clean(raw.id) || id,
-    version: 2,
+    version: 3,
     createdAt: raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updatedAt || raw.createdAt || new Date().toISOString(),
     question: clean(raw.question),
     scopeLabel: clean(raw.scopeLabel) || "Vista autorizada actual",
     widgets: raw.widgets.map((widget) => ({ ...widget, id: clean(widget?.id) || createId("widget"), title: normalizedWidgetTitle(widget) || "Visualización de requerimientos", period: ["all", "last_7", "last_30", "this_month"].includes(clean(widget?.period)) ? clean(widget.period) : "all" })),
-    rows: compactRows(raw.rows),
   };
 }
 
@@ -53,42 +38,6 @@ function persistDashboard(dashboard) {
   localStorage.setItem(`${STORAGE_PREFIX}${dashboard.id}`, JSON.stringify(dashboard));
   localStorage.setItem(ACTIVE_DASHBOARD_KEY, dashboard.id);
   return dashboard;
-}
-
-export function buildVisualizationSpec(question, context = {}) {
-  const prompt = clean(question).toLocaleLowerCase("es-MX");
-  let dimension = /departamento|depto/.test(prompt)
-    ? "departamento"
-    : /tramite|categor/.test(prompt)
-      ? "tramite"
-      : "estatus";
-  let chart = "bar";
-  if (/dona|pastel/.test(prompt)) chart = "donut";
-  if (/linea|tendencia|evolucion/.test(prompt)) {
-    chart = "line";
-    dimension = "fecha";
-  }
-  if (/tabla|listado/.test(prompt)) chart = "table";
-  if (/\bkpi\b|indicador|total de requerimientos/.test(prompt)) chart = "kpi";
-  const metric = /finaliz/.test(prompt) ? "finalizados" : "total";
-
-  return {
-    id: createId("widget"),
-    title: chart === "line"
-      ? "Tendencia diaria de requerimientos"
-      : metric === "finalizados"
-        ? `Finalizados por ${dimension}`
-        : `Requerimientos por ${dimension}`,
-    chart,
-    metric,
-    dimension,
-    filters: [],
-    period: "all",
-    sort: dimension === "fecha" ? "chronological" : "desc",
-    limit: chart === "kpi" ? 1 : 10,
-    domain: "requerimientos",
-    scopeLabel: clean(context.scopeLabel) || "Vista autorizada actual",
-  };
 }
 
 export function getWidgetCatalog() {
@@ -124,12 +73,11 @@ export function saveTemporaryDashboard({ question, context, spec }) {
   const existing = loadTemporaryDashboard(activeId);
   const dashboard = existing || {
     id: createId("dashboard"),
-    version: 2,
+    version: 3,
     createdAt: new Date().toISOString(),
     question: "",
     scopeLabel: "Vista autorizada actual",
     widgets: [],
-    rows: [],
   };
 
   return appendVisualization(dashboard, { question, context, spec });
@@ -138,7 +86,6 @@ export function saveTemporaryDashboard({ question, context, spec }) {
 function appendVisualization(dashboard, { question, context, spec }) {
   dashboard.question = clean(question) || dashboard.question;
   dashboard.scopeLabel = clean(context?.scopeLabel) || dashboard.scopeLabel;
-  dashboard.rows = compactRows(context?.rows);
   dashboard.widgets.push({ ...spec, id: clean(spec?.id) || createId("widget") });
   return persistDashboard(dashboard);
 }

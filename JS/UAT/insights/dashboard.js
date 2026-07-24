@@ -38,69 +38,6 @@ function entryColor(label, index, widget) {
   return widget?.dimension === "departamento" ? departmentColor(label) : COLORS[index % COLORS.length];
 }
 
-function dayOf(value) {
-  const raw = clean(value);
-  if (!raw) return "Sin fecha";
-  const date = new Date(raw);
-  return Number.isNaN(date.getTime()) ? raw.slice(0, 10) : date.toISOString().slice(0, 10);
-}
-
-function rowsForPeriod(rows, period) {
-  if (!period || period === "all") return rows;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(today);
-  if (period === "last_7") start.setDate(start.getDate() - 6);
-  else if (period === "last_30") start.setDate(start.getDate() - 29);
-  else if (period === "this_month") start.setDate(1);
-  else return rows;
-  return rows.filter((row) => {
-    const created = new Date(row?.creado);
-    return !Number.isNaN(created.getTime()) && created >= start;
-  });
-}
-
-function sourceRows(rows, widget) {
-  const selectedDepartments = (Array.isArray(widget.filters) ? widget.filters : [])
-    .filter((filter) => filter?.field === "departamento" && clean(filter?.value))
-    .map((filter) => clean(filter.value).toLocaleLowerCase("es-MX"));
-  const scopedRows = selectedDepartments.length
-    ? rows.filter((row) => selectedDepartments.includes(clean(row?.departamento).toLocaleLowerCase("es-MX")))
-    : rows;
-  const periodRows = rowsForPeriod(scopedRows, widget.period);
-  if (widget.metric === "finalizados") return periodRows.filter((row) => row.estatus === "finalizado");
-  if (widget.metric === "abiertos") return periodRows.filter((row) => !["finalizado", "cancelado"].includes(row.estatus));
-  if (widget.metric === "pausados") return periodRows.filter((row) => row.estatus === "pausado");
-  if (widget.metric === "cancelados") return periodRows.filter((row) => row.estatus === "cancelado");
-  if (widget.metric === "pausados_cancelados") return periodRows.filter((row) => ["pausado", "cancelado"].includes(row.estatus));
-  if (widget.metric === "cerrados") return periodRows.filter((row) => ["finalizado", "cancelado"].includes(row.estatus));
-  if (["promedio_semanal", "tiempo_resolucion"].includes(widget.metric)) return [];
-  return periodRows;
-}
-
-function groupRows(rows, widget) {
-  return sourceRows(rows, widget).reduce((groups, row) => {
-    const raw = widget.dimension === "departamento"
-      ? row.departamento
-      : widget.dimension === "tramite"
-        ? row.tramite
-        : widget.dimension === "fecha"
-          ? dayOf(row.creado)
-          : row.estatus;
-    const fallback = widget.dimension === "departamento" ? "Sin departamento" : "Sin tramite";
-    const key = widget.dimension === "estatus" ? (STATUS_LABELS[raw] || raw || "Sin estatus") : (raw || fallback);
-    groups[key] = (groups[key] || 0) + 1;
-    return groups;
-  }, {});
-}
-
-function entriesFor(rows, widget) {
-  const entries = Object.entries(groupRows(rows, widget));
-  return widget.dimension === "fecha"
-    ? entries.sort(([left], [right]) => left.localeCompare(right))
-    : entries.sort((left, right) => right[1] - left[1]);
-}
-
 function renderBar(target, entries, widget) {
   const max = Math.max(...entries.map(([, value]) => value), 1);
   target.innerHTML = entries.length
@@ -308,17 +245,7 @@ async function renderDashboard(dashboard) {
       renderWidget(target, widget, result.entries, result.total);
     } catch (error) {
       console.error("[IxtlaInsightsDashboard]", error);
-      if (!Array.isArray(dashboard.rows) || !dashboard.rows.length) {
-        target.innerHTML = '<div class="ixtla-dashboard-state ixtla-dashboard-state--error"><strong>No fue posible cargar este widget.</strong><span>Intenta actualizar el dashboard o revisa tu conexión.</span></div>';
-        target.removeAttribute("aria-busy");
-        return;
-      }
-      const entries = entriesFor(dashboard.rows || [], widget);
-      const total = ["promedio_semanal", "tiempo_resolucion"].includes(widget.metric)
-        ? 0
-        : sourceRows(dashboard.rows || [], widget).length;
-      markScrollable(card, target, widget.chart, entries);
-      renderWidget(target, widget, entries, total);
+      target.innerHTML = '<div class="ixtla-dashboard-state ixtla-dashboard-state--error"><strong>No fue posible cargar este widget.</strong><span>Los resultados se muestran únicamente cuando el servidor puede recalcularlos con tu alcance autorizado.</span></div>';
     }
     target.removeAttribute("aria-busy");
   });
@@ -370,7 +297,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return {
       domain: "requerimientos",
       scopeLabel: dashboard.scopeLabel,
-      rows: dashboard.rows || [],
     };
   }
 

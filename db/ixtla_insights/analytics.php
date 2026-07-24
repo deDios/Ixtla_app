@@ -5,31 +5,33 @@ require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../conn/conn_db.php';
 require_once __DIR__ . '/../WEB/tools_105277.php';
 
-$config = ixtla_insights_bootstrap(['POST']);
-if (($config['allow_database_queries'] ?? false) !== true) {
-    ixtla_insights_json(['ok' => false, 'error' => 'Las agregaciones de Insights están deshabilitadas.'], 503);
-}
+if (!defined('IXTLA_INSIGHTS_ANALYTICS_LIBRARY')) {
+    $config = ixtla_insights_bootstrap(['POST']);
+    if (($config['allow_database_queries'] ?? false) !== true) {
+        ixtla_insights_json(['ok' => false, 'error' => 'Las agregaciones de Insights están deshabilitadas.'], 503);
+    }
 
-$body = ixtla_insights_request_body();
-$plan = is_array($body['plan'] ?? null) ? $body['plan'] : [];
-$con = conectar();
-if (!$con instanceof mysqli) {
-    ixtla_insights_json(['ok' => false, 'error' => 'No fue posible conectar con la fuente analítica.'], 503);
-}
-$con->set_charset('utf8mb4');
-$con->query("SET time_zone='-06:00'");
+    $body = ixtla_insights_request_body();
+    $plan = is_array($body['plan'] ?? null) ? $body['plan'] : [];
+    $con = conectar();
+    if (!$con instanceof mysqli) {
+        ixtla_insights_json(['ok' => false, 'error' => 'No fue posible conectar con la fuente analítica.'], 503);
+    }
+    $con->set_charset('utf8mb4');
+    $con->query("SET time_zone='-06:00'");
 
-try {
-    $response = ixtla_insights_aggregate_requerimientos($con, $plan);
-    $con->close();
-    ixtla_insights_json(['ok' => true] + $response);
-} catch (InvalidArgumentException $error) {
-    $con->close();
-    ixtla_insights_json(['ok' => false, 'error' => $error->getMessage()], 422);
-} catch (Throwable $error) {
-    error_log('[IxtlaInsights analytics] ' . $error->getMessage());
-    $con->close();
-    ixtla_insights_json(['ok' => false, 'error' => 'No fue posible calcular la visualización solicitada.'], 500);
+    try {
+        $response = ixtla_insights_aggregate_requerimientos($con, $plan);
+        $con->close();
+        ixtla_insights_json(['ok' => true] + $response);
+    } catch (InvalidArgumentException $error) {
+        $con->close();
+        ixtla_insights_json(['ok' => false, 'error' => $error->getMessage()], 422);
+    } catch (Throwable $error) {
+        error_log('[IxtlaInsights analytics] ' . $error->getMessage());
+        $con->close();
+        ixtla_insights_json(['ok' => false, 'error' => 'No fue posible calcular la visualización solicitada.'], 500);
+    }
 }
 
 function ixtla_insights_aggregate_requerimientos(mysqli $con, array $rawPlan): array
@@ -90,6 +92,33 @@ function ixtla_insights_aggregate_requerimientos(mysqli $con, array $rawPlan): a
     ];
 }
 
+function ixtla_insights_authorized_department_catalog(mysqli $con): array
+{
+    $session = $GLOBALS['ix_session'] ?? [];
+    $empleadoId = (int) ($session['empleado_id'] ?? $session['id_empleado'] ?? 0);
+    if ($empleadoId <= 0) {
+        throw new InvalidArgumentException('No fue posible identificar al usuario de Insights.');
+    }
+
+    $rbac = rbac_compute_by_empleado_id($con, $empleadoId, ['presidencia_dept_ids' => [6]]);
+    if (!is_array($rbac)) {
+        throw new InvalidArgumentException('No fue posible resolver el alcance autorizado.');
+    }
+
+    if (!empty(($rbac['scope'] ?? [])['global'])) {
+        return ixtla_insights_department_catalog($con);
+    }
+
+    $where = ['d.status = 1'];
+    $params = [];
+    $types = '';
+    ixtla_insights_apply_scope($con, $rbac, $where, $params, $types);
+    ixtla_insights_apply_visibility($rbac, $where);
+    $sql = 'SELECT DISTINCT d.id, d.nombre FROM requerimiento r JOIN departamento d ON d.id = r.departamento_id'
+        . ' WHERE ' . implode(' AND ', $where) . ' ORDER BY d.nombre ASC';
+    return ixtla_insights_rows($con, $sql, $types, $params);
+}
+
 function ixtla_insights_normalize_plan(array $raw): array
 {
     $kind = strtolower(trim((string) ($raw['kind'] ?? $raw['chart'] ?? 'bar')));
@@ -99,25 +128,25 @@ function ixtla_insights_normalize_plan(array $raw): array
     $sort = strtolower(trim((string) ($raw['sort'] ?? 'desc')));
     $limit = (int) ($raw['limit'] ?? 10);
 
-    if (!in_array($kind, ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'], true)) {
+    if (!ixtla_insights_catalog_contains('widget_kinds', $kind)) {
         throw new InvalidArgumentException('El tipo de visualización no está permitido.');
     }
-    if (!in_array($metric, ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'], true)) {
+    if (!ixtla_insights_catalog_contains('metrics', $metric)) {
         throw new InvalidArgumentException('La métrica solicitada no está permitida.');
     }
-    if ($kind !== 'kpi' && in_array($metric, ['promedio_semanal', 'tiempo_resolucion'], true)) {
+    if ($kind !== 'kpi' && ixtla_insights_is_kpi_only_metric($metric)) {
         throw new InvalidArgumentException('La métrica solicitada solo está disponible como indicador.');
     }
-    if (!in_array($dimension, ['estatus', 'tramite', 'departamento', 'fecha'], true)) {
+    if (!ixtla_insights_catalog_contains('dimensions', $dimension)) {
         throw new InvalidArgumentException('La dimensión solicitada no está permitida.');
     }
-    if ($kind !== 'kpi' && $dimension === 'estatus' && in_array($metric, ['finalizados', 'pausados', 'cancelados', 'pausados_cancelados'], true)) {
+    if ($kind !== 'kpi' && $dimension === 'estatus' && ixtla_insights_is_fixed_status_metric($metric)) {
         throw new InvalidArgumentException('El estatus ya esta definido por la metrica solicitada.');
     }
-    if (!in_array($period, ['all', 'last_7', 'last_30', 'this_month'], true)) {
+    if (!ixtla_insights_catalog_contains('periods', $period)) {
         $period = 'all';
     }
-    if (!in_array($sort, ['desc', 'asc', 'chronological'], true)) {
+    if (!ixtla_insights_catalog_contains('sorts', $sort)) {
         $sort = 'desc';
     }
 
@@ -128,7 +157,7 @@ function ixtla_insights_normalize_plan(array $raw): array
         }
         $field = strtolower(trim((string) ($filter['field'] ?? '')));
         $value = trim((string) ($filter['value'] ?? ''));
-        if ($value === '' || !in_array($field, ['departamento', 'tramite', 'estatus'], true)) {
+        if ($value === '' || !ixtla_insights_catalog_contains('filter_fields', $field)) {
             continue;
         }
         $filters[] = ['field' => $field, 'value' => ixtla_insights_truncate($value, 120)];

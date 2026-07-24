@@ -39,11 +39,7 @@ function ixtla_insights_config(): array
         'model' => $openai['IXTLA_INSIGHTS_MODEL'] ?? 'gpt-5.4',
         'api_key' => $openai['OPENAI_API_KEY'] ?? null,
 
-        // Servicio local de Python. PHP es la unica capa a la que llama el navegador.
-        'service_url' => $openai['IXTLA_INSIGHTS_API_URL'] ?? 'http://127.0.0.1:8011/v1/insights',
-        'service_token' => $openai['IXTLA_INSIGHTS_SERVICE_TOKEN'] ?? null,
-
-        // Límites para el futuro endpoint de preguntas.
+        // Límites del endpoint protegido de preguntas.
         'request_timeout_seconds' => 90,
         'max_question_characters' => 800,
         'max_history_messages' => 12,
