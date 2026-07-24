@@ -43,6 +43,7 @@ if (!$con instanceof mysqli) {
 $con->set_charset('utf8mb4');
 consola_debug('chat.catalog_connection_ready');
 
+$departments = [];
 try {
     $departments = ixtla_insights_authorized_department_catalog($con);
     consola_debug('chat.departments_authorized', ['count' => count($departments)]);
