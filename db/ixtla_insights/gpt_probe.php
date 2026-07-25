@@ -9,6 +9,7 @@ declare(strict_types=1);
  */
 ob_start();
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/tools/tool_registry.php';
 
 $config = ixtla_insights_bootstrap(['POST']);
 if (($config['enabled'] ?? false) !== true) {
@@ -68,11 +69,13 @@ function ixtla_insights_probe_openai_text(array $config, string $question): stri
             'role' => 'user',
             'content' => [[
                 'type' => 'input_text',
-                'text' => 'Responde en español, de forma breve y útil. No afirmes haber consultado una base de datos ni inventes cifras. Pregunta: ' . $question,
+            'text' => 'Responde en español, de forma breve y útil. Para datos actuales de requerimientos usa exclusivamente las herramientas disponibles. No inventes cifras, departamentos ni resultados. Pregunta: ' . $question,
             ]],
         ]],
         'temperature' => 0,
         'max_output_tokens' => 500,
+        'tools' => ixtla_insights_tool_definitions(),
+        'tool_choice' => 'auto',
     ];
     $encodedPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($encodedPayload === false) {
@@ -127,6 +130,29 @@ function ixtla_insights_probe_openai_text(array $config, string $question): stri
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no pudo procesar la prueba.'], 502);
     }
 
+    $toolCalls = ixtla_insights_probe_tool_calls($response);
+    if ($toolCalls !== []) {
+        consola_debug('gpt_probe.tools_requested', ['count' => count($toolCalls)]);
+        $outputs = [];
+        foreach ($toolCalls as $toolCall) {
+            $arguments = json_decode((string) $toolCall['arguments'], true);
+            try {
+                $result = ixtla_insights_execute_tool((string) $toolCall['name'], is_array($arguments) ? $arguments : []);
+                consola_debug('gpt_probe.tool_completed', ['tool' => (string) $toolCall['name']]);
+                $output = ['ok' => true, 'data' => $result];
+            } catch (Throwable $error) {
+                ixtla_insights_log_error('gpt_probe_tool', $error, ['tool' => (string) $toolCall['name']]);
+                $output = ['ok' => false, 'error' => 'No fue posible obtener ese dato autorizado.'];
+            }
+            $outputs[] = [
+                'type' => 'function_call_output',
+                'call_id' => (string) $toolCall['call_id'],
+                'output' => json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ];
+        }
+        $response = ixtla_insights_probe_continue_after_tools($config, $response, $outputs);
+    }
+
     ixtla_insights_log_usage($response, [
         'model' => $model,
         'latency_ms' => $latencyMs,
@@ -138,4 +164,59 @@ function ixtla_insights_probe_openai_text(array $config, string $question): stri
     }
 
     return $answer;
+}
+
+function ixtla_insights_probe_tool_calls(array $response): array
+{
+    $calls = [];
+    foreach (is_array($response['output'] ?? null) ? $response['output'] : [] as $item) {
+        if (($item['type'] ?? '') !== 'function_call') {
+            continue;
+        }
+        $name = trim((string) ($item['name'] ?? ''));
+        $callId = trim((string) ($item['call_id'] ?? ''));
+        if ($name !== '' && $callId !== '') {
+            $calls[] = ['name' => $name, 'call_id' => $callId, 'arguments' => (string) ($item['arguments'] ?? '{}')];
+        }
+    }
+    return array_slice($calls, 0, 2);
+}
+
+function ixtla_insights_probe_continue_after_tools(array $config, array $previousResponse, array $outputs): array
+{
+    $responseId = trim((string) ($previousResponse['id'] ?? ''));
+    if ($responseId === '') {
+        ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no devolvió un identificador de respuesta.'], 502);
+    }
+    $payload = [
+        'model' => (string) $config['model'],
+        'previous_response_id' => $responseId,
+        'input' => $outputs,
+        'tools' => ixtla_insights_tool_definitions(),
+        'tool_choice' => 'none',
+        'max_output_tokens' => 500,
+    ];
+    $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($body === false) {
+        ixtla_insights_json(['ok' => false, 'error' => 'No fue posible continuar la consulta de datos.'], 500);
+    }
+    $curl = curl_init();
+    if ($curl === false) {
+        ixtla_insights_json(['ok' => false, 'error' => 'No fue posible inicializar cURL.'], 500);
+    }
+    curl_setopt_array($curl, [
+        CURLOPT_URL => (string) $config['provider_url'], CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $body, CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . (string) $config['api_key'], 'Content-Type: application/json', 'Accept: application/json'],
+    ]);
+    $raw = curl_exec($curl);
+    $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($curl);
+    curl_close($curl);
+    $response = is_string($raw) ? json_decode($raw, true) : null;
+    if ($status < 200 || $status >= 300 || !is_array($response)) {
+        error_log(sprintf('[IxtlaInsights gpt_probe_tools][%s] http_status=%d curl_error=%s', ixtla_insights_request_id(), $status, ixtla_insights_truncate($curlError, 120)));
+        ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no pudo redactar la respuesta con los datos obtenidos.'], 502);
+    }
+    return $response;
 }

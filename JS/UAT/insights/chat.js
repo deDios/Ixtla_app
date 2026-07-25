@@ -191,13 +191,16 @@ export function mountIxtlaInsights(options = {}) {
   const config = {
     title: "Ixtla Insights",
     subtitle: "Asistente de requerimientos",
-    quickQuestions: START_ACTIONS,
+    quickQuestions: [
+      { label: "¿Qué puedes hacer?", primary: true },
+      { label: "Explica qué es un requerimiento" },
+    ],
     dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
-    apiUrl: "/db/ixtla_insights/chat.php",
+    apiUrl: "/db/ixtla_insights/gpt_probe.php",
     catalogUrl: "/db/ixtla_insights/catalog.php",
     draftUrl: "/db/ixtla_insights/draft.php",
     departmentsUrl: "/db/ixtla_insights/departments.php",
-    simpleMode: false,
+    simpleMode: true,
     visualizationHandler: null,
     ...options,
   };
