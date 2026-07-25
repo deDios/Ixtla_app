@@ -163,6 +163,65 @@ function ixtla_insights_dataset_analytics_query(array $arguments): array
     }
 }
 
+function ixtla_insights_dataset_latest_requirement(): array
+{
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $sql = 'SELECT r.id, r.created_at, d.nombre AS department, t.nombre AS tramite '
+            . 'FROM requerimiento r JOIN departamento d ON d.id = r.departamento_id '
+            . 'JOIN tramite t ON t.id = r.tramite_id '
+            . ($scope['where'] ? 'WHERE ' . implode(' AND ', $scope['where']) . ' ' : '')
+            . 'ORDER BY r.created_at DESC, r.id DESC LIMIT 1';
+        $rows = ixtla_insights_dataset_rows($connection, $sql, $scope['types'], $scope['params']);
+        $row = $rows[0] ?? null;
+        return [
+            'dataset' => 'latest_requirement',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'requirement' => $row === null ? null : [
+                'id' => (int) $row['id'],
+                'department' => (string) $row['department'],
+                'tramite' => (string) $row['tramite'],
+                'created_at' => (string) $row['created_at'],
+            ],
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
+function ixtla_insights_dataset_resolution_time_by_department(array $arguments): array
+{
+    $period = ixtla_insights_dataset_period($arguments['period'] ?? 'all');
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        $where[] = 'r.estatus = 6';
+        $where[] = 'r.cerrado_en IS NOT NULL';
+        $where[] = 'r.cerrado_en >= r.created_at';
+        ixtla_insights_dataset_period_clause_for_field($period, 'closed_at', $where);
+        $sql = 'SELECT d.id, d.nombre, AVG(TIMESTAMPDIFF(HOUR, r.created_at, r.cerrado_en) / 24) AS value '
+            . 'FROM requerimiento r JOIN departamento d ON d.id = r.departamento_id '
+            . 'WHERE ' . implode(' AND ', $where)
+            . ' GROUP BY d.id, d.nombre ORDER BY value ASC, d.nombre ASC LIMIT 50';
+        $rows = ixtla_insights_dataset_rows($connection, $sql, $scope['types'], $scope['params']);
+        $departments = array_map(static fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'nombre' => (string) $row['nombre'],
+            'average_days' => round((float) $row['value'], 1),
+        ], $rows);
+        return [
+            'dataset' => 'resolution_time_by_department',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'period' => ['field' => 'closed_at', 'preset' => $period],
+            'departments' => $departments,
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
 function ixtla_insights_dataset_analytics_spec(array $arguments): array
 {
     $metric = strtolower(trim((string) ($arguments['metric'] ?? '')));

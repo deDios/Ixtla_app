@@ -31,7 +31,12 @@ consola_debug('gpt_probe.question_validated', [
     'question_fingerprint' => substr(hash('sha256', $question), 0, 12),
 ]);
 
-$answer = ixtla_insights_probe_openai_text($config, $question);
+$history = is_array($body['history'] ?? null)
+    ? ixtla_insights_clean_history($body['history'], 12, 600)
+    : [];
+consola_debug('gpt_probe.history_normalized', ['messages' => count($history)]);
+
+$answer = ixtla_insights_probe_openai_text($config, $question, $history);
 consola_debug('gpt_probe.answer_ready', [
     'answer_length' => mb_strlen($answer),
 ]);
@@ -50,7 +55,7 @@ ixtla_insights_json([
  * API y texto de salida. No comparte el contrato estructurado de chat.php
  * porque ese contrato es precisamente una de las capas que esta sonda aísla.
  */
-function ixtla_insights_probe_openai_text(array $config, string $question): string
+function ixtla_insights_probe_openai_text(array $config, string $question, array $history = []): string
 {
     if (!function_exists('curl_init')) {
         ixtla_insights_json(['ok' => false, 'error' => 'La extension cURL no esta disponible.'], 500);
@@ -63,9 +68,22 @@ function ixtla_insights_probe_openai_text(array $config, string $question): stri
         ixtla_insights_json(['ok' => false, 'error' => 'No hay configuracion de OpenAI disponible para Insights.'], 503);
     }
 
+    $historyInput = [];
+    foreach ($history as $message) {
+        $role = (string) ($message['role'] ?? '');
+        $content = trim((string) ($message['content'] ?? ''));
+        if (!in_array($role, ['user', 'assistant'], true) || $content === '') {
+            continue;
+        }
+        $historyInput[] = [
+            'role' => $role,
+            'content' => [['type' => 'input_text', 'text' => $content]],
+        ];
+    }
+
     $payload = [
         'model' => $model,
-        'input' => [
+        'input' => array_merge([
             [
             'role' => 'developer',
             'content' => [[
@@ -75,14 +93,17 @@ function ixtla_insights_probe_openai_text(array $config, string $question): stri
                     . 'Usa query_requirements_analytics como herramienta principal para totales, abiertos, finalizados, pausados/cancelados, rankings por departamento y rankings por trámite. '
                     . 'Para requerimientos finalizados usa metric closed_count y field closed_at; para los demás conteos usa created_at. '
                     . 'Para preguntas de cantidad o desglose simple por departamento también puedes usar get_requirements_by_department. Para totales o estatus usa get_scope_summary. '
-                    . 'Para saber qué departamentos puede consultar la persona usa list_authorized_departments.',
+                    . 'Para saber qué departamentos puede consultar la persona usa list_authorized_departments. '
+                    . 'Para el último requerimiento usa get_latest_requirement. Para tiempo promedio de resolución por departamento usa get_resolution_time_by_department. '
+                    . 'Si no existe una herramienta compatible, explica la limitación sin dar cifras ni identificar departamentos o requerimientos.',
             ]],
             ],
+        ], $historyInput, [
             [
                 'role' => 'user',
                 'content' => [['type' => 'input_text', 'text' => $question]],
             ],
-        ],
+        ]),
         'temperature' => 0,
         'max_output_tokens' => 500,
         'tools' => ixtla_insights_tool_definitions(),
@@ -142,6 +163,9 @@ function ixtla_insights_probe_openai_text(array $config, string $question): stri
     }
 
     $toolCalls = ixtla_insights_probe_tool_calls($response);
+    if ($toolCalls === [] && ixtla_insights_probe_requires_data($question)) {
+        return 'No tengo una herramienta compatible para obtener ese dato con seguridad. Puedo ayudarte con totales, estatus, departamentos, trámites, el último requerimiento y tiempos promedio de resolución por departamento.';
+    }
     if ($toolCalls !== []) {
         consola_debug('gpt_probe.tools_requested', ['count' => count($toolCalls)]);
         $outputs = [];
@@ -175,6 +199,12 @@ function ixtla_insights_probe_openai_text(array $config, string $question): stri
     }
 
     return $answer;
+}
+
+function ixtla_insights_probe_requires_data(string $question): bool
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    return preg_match('/\b(cuanto|cuantos|cuanta|cuantas|numero|ultimo|ultima|top|ranking|promedio|tiempo|cierre|cerrado|cerrados|finalizado|finalizados|departamento|tramite|estatus)\b/', $normalized) === 1;
 }
 
 function ixtla_insights_probe_tool_calls(array $response): array

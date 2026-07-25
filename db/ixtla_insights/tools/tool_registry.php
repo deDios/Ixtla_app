@@ -75,6 +75,23 @@ function ixtla_insights_tool_definitions(): array
                 ],
             ],
         ],
+        [
+            'type' => 'function',
+            'name' => 'get_latest_requirement',
+            'description' => 'Obtiene el requerimiento más reciente dentro del alcance autorizado, incluyendo su número, departamento, trámite y fecha de creación.',
+            'strict' => true,
+            'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => [], 'properties' => new stdClass()],
+        ],
+        [
+            'type' => 'function',
+            'name' => 'get_resolution_time_by_department',
+            'description' => 'Obtiene el promedio real de días de resolución de requerimientos finalizados por departamento, filtrado por fecha de cierre.',
+            'strict' => true,
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false, 'required' => ['period'],
+                'properties' => ['period' => ['type' => 'string', 'enum' => ['all', 'last_7', 'last_30', 'this_month']]],
+            ],
+        ],
     ];
 }
 
@@ -86,6 +103,8 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'get_scope_summary' => ixtla_insights_dataset_scope_summary($args),
         'list_authorized_departments' => ixtla_insights_dataset_authorized_departments(),
         'get_requirements_by_department' => ixtla_insights_dataset_requirements_by_department($args),
+        'get_latest_requirement' => ixtla_insights_dataset_latest_requirement(),
+        'get_resolution_time_by_department' => ixtla_insights_dataset_resolution_time_by_department($args),
         default => throw new InvalidArgumentException('La herramienta solicitada no está disponible.'),
     };
 }
