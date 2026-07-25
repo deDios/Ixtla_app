@@ -1,7 +1,6 @@
 import { saveTemporaryDashboard } from "/JS/UAT/insights/dashboard-store.js";
 
 const CONTEXT_EVENT = "ixtla-insights:context";
-const HISTORY_LIMIT = 200;
 const isInsightsDebugEnabled = () => {
   try {
     return new URLSearchParams(window.location.search).get("insights_debug") === "1"
@@ -836,7 +835,14 @@ export function mountIxtlaInsights(options = {}) {
 
   async function requestRemoteAnswer(prompt) {
     const clientRequestId = createInsightsRequestId();
-    insightsDebug("chat.request.started", { requestId: clientRequestId, url: config.apiUrl, questionLength: prompt.length });
+    const requestBody = JSON.stringify({ question: prompt, dashboard_id: clean(config.dashboardId) });
+    insightsDebug("chat.request.started", {
+      requestId: clientRequestId,
+      url: config.apiUrl,
+      questionLength: prompt.length,
+      localHistoryMessages: history.length,
+      requestBytes: new TextEncoder().encode(requestBody).byteLength,
+    });
     let response;
     try {
       response = await fetch(config.apiUrl, {
@@ -847,7 +853,7 @@ export function mountIxtlaInsights(options = {}) {
           Accept: "application/json",
           "X-Ixtla-Insights-Request-Id": clientRequestId,
         },
-        body: JSON.stringify({ question: prompt, history: history.slice(-HISTORY_LIMIT), dashboard_id: clean(config.dashboardId) }),
+        body: requestBody,
       });
     } catch {
       insightsDebug("chat.request.network_error", { requestId: clientRequestId, url: config.apiUrl });
@@ -987,6 +993,20 @@ export function mountIxtlaInsights(options = {}) {
       .catch(() => {});
   }
 
+  function clearServerConversation() {
+    return fetch(config.apiUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ action: "clear_conversation" }),
+    }).catch(() => {
+      // La limpieza visual no debe quedar bloqueada si el servidor no responde.
+    });
+  }
+
   renderQuickQuestions(config.quickQuestions);
   fab.addEventListener("click", open);
   close.addEventListener("click", closeDrawer);
@@ -994,6 +1014,7 @@ export function mountIxtlaInsights(options = {}) {
     messages.replaceChildren();
     history.length = 0;
     pendingVisualization = null;
+    void clearServerConversation();
     if (!config.simpleMode) discardDraft();
     renderQuickQuestions(config.quickQuestions);
   });

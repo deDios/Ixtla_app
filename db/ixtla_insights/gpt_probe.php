@@ -2,14 +2,13 @@
 declare(strict_types=1);
 
 /**
- * Sonda mínima de OpenAI para aislar la integración del asistente.
- *
- * No carga conexión a BD, catálogo de departamentos, RBAC de métricas,
- * solo debe responder a cosas sencillas.
+ * Endpoint del asistente: coordina estado conversacional, modelo y herramientas.
+ * Las consultas de datos pasan exclusivamente por el registro autorizado de tools.
  */
 ob_start();
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/tools/tool_registry.php';
+require_once __DIR__ . '/conversation_state.php';
 
 $config = ixtla_insights_bootstrap(['POST']);
 if (($config['enabled'] ?? false) !== true) {
@@ -20,6 +19,10 @@ if (($config['enabled'] ?? false) !== true) {
 }
 
 $body = ixtla_insights_request_body();
+if (($body['action'] ?? '') === 'clear_conversation') {
+    ixtla_insights_conversation_clear();
+    ixtla_insights_json(['ok' => true, 'mode' => 'gpt_probe', 'cleared' => true]);
+}
 $question = trim((string) ($body['question'] ?? ''));
 $maxCharacters = (int) $config['max_question_characters'];
 if ($question === '' || mb_strlen($question) > $maxCharacters) {
@@ -31,12 +34,15 @@ consola_debug('gpt_probe.question_validated', [
     'question_fingerprint' => substr(hash('sha256', $question), 0, 12),
 ]);
 
-$history = is_array($body['history'] ?? null)
-    ? ixtla_insights_clean_history($body['history'], (int) $config['max_history_messages'], (int) $config['max_history_characters'])
-    : [];
+$conversation = ixtla_insights_conversation_load($config);
+$history = ixtla_insights_clean_history($conversation['history'], (int) $config['max_history_messages'], (int) $config['max_history_characters']);
 consola_debug('gpt_probe.history_normalized', ['messages' => count($history)]);
+consola_debug('gpt_probe.history_size', [
+    'characters' => array_sum(array_map(static fn (array $message): int => mb_strlen((string) ($message['content'] ?? '')), $history)),
+]);
 
-$answer = ixtla_insights_probe_openai_text($config, $question, $history);
+$answer = ixtla_insights_probe_openai_text($config, $question, $history, ixtla_insights_conversation_context_text($conversation));
+ixtla_insights_conversation_append($conversation, $config, $question, $answer);
 consola_debug('gpt_probe.answer_ready', [
     'answer_length' => mb_strlen($answer),
 ]);
@@ -49,13 +55,10 @@ ixtla_insights_json([
 ]);
 
 /**
- * Adaptador deliberadamente mínimo para comprobar PHP -> OpenAI.
- *
- * Su payload replica el patrón estable de PRI: texto de entrada, Responses
- * API y texto de salida. No comparte el contrato estructurado de chat.php
- * porque ese contrato es precisamente una de las capas que esta sonda aísla.
+ * Adaptador HTTP para Responses API. No acepta instrucciones ni historial del
+ * navegador como fuente de autoridad; ambos se normalizan en el servidor.
  */
-function ixtla_insights_probe_openai_text(array $config, string $question, array $history = []): string
+function ixtla_insights_probe_openai_text(array $config, string $question, array $history = [], string $conversationContext = ''): string
 {
     if (!function_exists('curl_init')) {
         ixtla_insights_json(['ok' => false, 'error' => 'La extension cURL no esta disponible.'], 500);
@@ -98,7 +101,10 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                     . 'Si no existe una herramienta compatible, explica la limitación sin dar cifras ni identificar departamentos o requerimientos.',
             ]],
             ],
-        ], $historyInput, [
+        ], $conversationContext !== '' ? [[
+            'role' => 'developer',
+            'content' => [['type' => 'input_text', 'text' => 'Contexto estructurado de la conversación: ' . $conversationContext]],
+        ]] : [], $historyInput, [
             [
                 'role' => 'user',
                 'content' => [['type' => 'input_text', 'text' => $question]],
@@ -173,6 +179,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
             $arguments = json_decode((string) $toolCall['arguments'], true);
             try {
                 $result = ixtla_insights_execute_tool((string) $toolCall['name'], is_array($arguments) ? $arguments : []);
+                ixtla_insights_conversation_apply_tool((string) $toolCall['name'], is_array($arguments) ? $arguments : []);
                 consola_debug('gpt_probe.tool_completed', ['tool' => (string) $toolCall['name']]);
                 $output = ['ok' => true, 'data' => $result];
             } catch (Throwable $error) {

@@ -171,7 +171,8 @@ function ixtla_insights_scope(): array
 function ixtla_insights_clean_history(array $history, int $limit, int $characters = 400): array
 {
     $clean = [];
-    foreach (array_slice($history, -$limit) as $message) {
+    $messages = $limit > 0 ? array_slice($history, -$limit) : $history;
+    foreach ($messages as $message) {
         if (!is_array($message)) {
             continue;
         }
@@ -182,7 +183,10 @@ function ixtla_insights_clean_history(array $history, int $limit, int $character
             continue;
         }
 
-        $clean[] = ['role' => $role, 'content' => ixtla_insights_truncate($content, max(1, $characters))];
+        $clean[] = [
+            'role' => $role,
+            'content' => $characters > 0 ? ixtla_insights_truncate($content, $characters) : $content,
+        ];
     }
 
     return $clean;
@@ -707,6 +711,7 @@ function ixtla_insights_log_usage(array $response, array $context = []): void
     $outputDetails = is_array($usage['output_tokens_details'] ?? null) ? $usage['output_tokens_details'] : [];
     $record = [
         'event' => 'ixtla_insights_usage',
+        'request_id' => ixtla_insights_request_id(),
         'model' => $context['model'] ?? null,
         'latency_ms' => $context['latency_ms'] ?? null,
         'input_tokens' => $usage['input_tokens'] ?? null,
