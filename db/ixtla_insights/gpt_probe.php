@@ -5,8 +5,7 @@ declare(strict_types=1);
  * Sonda mínima de OpenAI para aislar la integración del asistente.
  *
  * No carga conexión a BD, catálogo de departamentos, RBAC de métricas,
- * historial, reportes ni widgets. Conserva autenticación y configuración
- * compartidas para que la prueba represente el entorno real.
+ * solo debe responder a cosas sencillas.
  */
 require_once __DIR__ . '/bootstrap.php';
 
