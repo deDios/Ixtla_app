@@ -65,13 +65,24 @@ function ixtla_insights_probe_openai_text(array $config, string $question): stri
 
     $payload = [
         'model' => $model,
-        'input' => [[
-            'role' => 'user',
+        'input' => [
+            [
+            'role' => 'developer',
             'content' => [[
                 'type' => 'input_text',
-            'text' => 'Responde en español, de forma breve y útil. Para datos actuales de requerimientos usa exclusivamente las herramientas disponibles. No inventes cifras, departamentos ni resultados. Pregunta: ' . $question,
+                'text' => 'Responde en español, de forma breve y útil. Para datos actuales de requerimientos usa exclusivamente las herramientas disponibles. '
+                    . 'No inventes cifras, departamentos ni resultados y no prometas consultar datos después: si la pregunta requiere datos, llama la herramienta correspondiente antes de responder. '
+                    . 'Usa query_requirements_analytics como herramienta principal para totales, abiertos, finalizados, pausados/cancelados, rankings por departamento y rankings por trámite. '
+                    . 'Para requerimientos finalizados usa metric closed_count y field closed_at; para los demás conteos usa created_at. '
+                    . 'Para preguntas de cantidad o desglose simple por departamento también puedes usar get_requirements_by_department. Para totales o estatus usa get_scope_summary. '
+                    . 'Para saber qué departamentos puede consultar la persona usa list_authorized_departments.',
             ]],
-        ]],
+            ],
+            [
+                'role' => 'user',
+                'content' => [['type' => 'input_text', 'text' => $question]],
+            ],
+        ],
         'temperature' => 0,
         'max_output_tokens' => 500,
         'tools' => ixtla_insights_tool_definitions(),
