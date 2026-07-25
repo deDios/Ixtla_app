@@ -35,7 +35,12 @@ consola_debug('gpt_probe.question_validated', [
 ]);
 
 $conversation = ixtla_insights_conversation_load($config);
-$history = ixtla_insights_clean_history($conversation['history'], (int) $config['max_history_messages'], (int) $config['max_history_characters']);
+$history = ixtla_insights_clean_history(
+    $conversation['history'],
+    (int) $config['max_history_messages'],
+    (int) $config['max_history_message_characters'],
+    (int) $config['max_history_total_characters']
+);
 consola_debug('gpt_probe.history_normalized', ['messages' => count($history)]);
 consola_debug('gpt_probe.history_size', [
     'characters' => array_sum(array_map(static fn (array $message): int => mb_strlen((string) ($message['content'] ?? '')), $history)),

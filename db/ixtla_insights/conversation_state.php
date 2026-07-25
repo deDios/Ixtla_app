@@ -50,7 +50,12 @@ function ixtla_insights_conversation_append(array $state, array $config, string 
     $history = is_array($state['history'] ?? null) ? $state['history'] : [];
     $history[] = ['role' => 'user', 'content' => $question];
     $history[] = ['role' => 'assistant', 'content' => $answer];
-    $state['history'] = ixtla_insights_clean_history($history, (int) $config['max_history_messages'], (int) $config['max_history_characters']);
+    $state['history'] = ixtla_insights_clean_history(
+        $history,
+        (int) $config['max_history_messages'],
+        (int) $config['max_history_message_characters'],
+        (int) $config['max_history_total_characters']
+    );
     $state['summary'] = ixtla_insights_truncate(
         'Ultima pregunta: ' . ixtla_insights_truncate($question, 300) . ' | Ultima respuesta: ' . ixtla_insights_truncate($answer, 500),
         (int) $config['conversation_summary_characters']

@@ -168,11 +168,12 @@ function ixtla_insights_scope(): array
     ];
 }
 
-function ixtla_insights_clean_history(array $history, int $limit, int $characters = 400): array
+function ixtla_insights_clean_history(array $history, int $limit, int $messageCharacters = 400, int $totalCharacters = 0): array
 {
     $clean = [];
+    $usedCharacters = 0;
     $messages = $limit > 0 ? array_slice($history, -$limit) : $history;
-    foreach ($messages as $message) {
+    foreach (array_reverse($messages) as $message) {
         if (!is_array($message)) {
             continue;
         }
@@ -183,13 +184,23 @@ function ixtla_insights_clean_history(array $history, int $limit, int $character
             continue;
         }
 
+        $content = $messageCharacters > 0 ? ixtla_insights_truncate($content, $messageCharacters) : $content;
+        if ($totalCharacters > 0) {
+            $remainingCharacters = $totalCharacters - $usedCharacters;
+            if ($remainingCharacters <= 0) {
+                break;
+            }
+            $content = ixtla_insights_truncate($content, $remainingCharacters);
+            $usedCharacters += mb_strlen($content);
+        }
+
         $clean[] = [
             'role' => $role,
-            'content' => $characters > 0 ? ixtla_insights_truncate($content, $characters) : $content,
+            'content' => $content,
         ];
     }
 
-    return $clean;
+    return array_reverse($clean);
 }
 
 function ixtla_insights_truncate(string $value, int $limit): string
