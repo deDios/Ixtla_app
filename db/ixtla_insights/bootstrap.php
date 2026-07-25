@@ -38,6 +38,9 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
 
 function ixtla_insights_json(array $payload, int $status = 200): void
 {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
     $payload += ['request_id' => ixtla_insights_request_id()];
     if (($payload['ok'] ?? true) === false && !isset($payload['error_code'])) {
         $payload['error_code'] = ixtla_insights_default_error_code($status);
