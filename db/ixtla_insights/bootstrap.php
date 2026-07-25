@@ -628,7 +628,7 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
                 'schema' => ixtla_insights_response_schema(),
             ],
         ],
-        'max_output_tokens' => (int) ($config['max_output_tokens'] ?? 500),
+        'max_output_tokens' => (int) $config['max_output_tokens'],
     ];
 
     $reasoningEffort = (string) ($config['reasoning_effort'] ?? '');
@@ -652,7 +652,7 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $jsonPayload,
-        CURLOPT_TIMEOUT => (int) ($config['request_timeout_seconds'] ?? 90),
+        CURLOPT_TIMEOUT => (int) $config['request_timeout_seconds'],
         CURLOPT_HTTPHEADER => [
             'Authorization: Bearer ' . $apiKey,
             'Content-Type: application/json',

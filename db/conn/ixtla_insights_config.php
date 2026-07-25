@@ -55,10 +55,13 @@ function ixtla_insights_config(): array
 
         // Límites del endpoint protegido de preguntas.
         'request_timeout_seconds' => 180,
+        'connect_timeout_seconds' => 15,
         'max_question_characters' => 900,
-        'max_history_messages' => 200,
-        'max_history_characters' => 6000,
+        'max_history_messages' => 12,
+        'max_history_characters' => 600,
         'max_output_tokens' => 8000,
+        'temperature' => 0,
+        'max_tool_calls_per_turn' => 2,
         'reasoning_effort' => 'medium',
 
         // Observabilidad temporal. Mantenerlo apagado en producción salvo

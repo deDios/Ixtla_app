@@ -21,7 +21,7 @@ if (($config['enabled'] ?? false) !== true) {
 
 $body = ixtla_insights_request_body();
 $question = trim((string) ($body['question'] ?? ''));
-$maxCharacters = (int) ($config['max_question_characters'] ?? 800);
+$maxCharacters = (int) $config['max_question_characters'];
 if ($question === '' || mb_strlen($question) > $maxCharacters) {
     ixtla_insights_json(['ok' => false, 'error' => 'La pregunta no es valida.'], 422);
 }
@@ -32,7 +32,7 @@ consola_debug('gpt_probe.question_validated', [
 ]);
 
 $history = is_array($body['history'] ?? null)
-    ? ixtla_insights_clean_history($body['history'], 12, 600)
+    ? ixtla_insights_clean_history($body['history'], (int) $config['max_history_messages'], (int) $config['max_history_characters'])
     : [];
 consola_debug('gpt_probe.history_normalized', ['messages' => count($history)]);
 
@@ -104,8 +104,8 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                 'content' => [['type' => 'input_text', 'text' => $question]],
             ],
         ]),
-        'temperature' => 0,
-        'max_output_tokens' => 500,
+        'temperature' => (float) $config['temperature'],
+        'max_output_tokens' => (int) $config['max_output_tokens'],
         'tools' => ixtla_insights_tool_definitions(),
         'tool_choice' => 'auto',
     ];
@@ -128,8 +128,8 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => 'POST',
         CURLOPT_POSTFIELDS => $encodedPayload,
-        CURLOPT_TIMEOUT => 60,
-        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_TIMEOUT => (int) $config['request_timeout_seconds'],
+        CURLOPT_CONNECTTIMEOUT => (int) $config['connect_timeout_seconds'],
         CURLOPT_HTTPHEADER => [
             'Authorization: Bearer ' . $apiKey,
             'Content-Type: application/json',
@@ -220,7 +220,8 @@ function ixtla_insights_probe_tool_calls(array $response): array
             $calls[] = ['name' => $name, 'call_id' => $callId, 'arguments' => (string) ($item['arguments'] ?? '{}')];
         }
     }
-    return array_slice($calls, 0, 2);
+    $config = ixtla_insights_config();
+    return array_slice($calls, 0, (int) $config['max_tool_calls_per_turn']);
 }
 
 function ixtla_insights_probe_continue_after_tools(array $config, array $previousResponse, array $outputs): array
@@ -235,7 +236,7 @@ function ixtla_insights_probe_continue_after_tools(array $config, array $previou
         'input' => $outputs,
         'tools' => ixtla_insights_tool_definitions(),
         'tool_choice' => 'none',
-        'max_output_tokens' => 500,
+        'max_output_tokens' => (int) $config['max_output_tokens'],
     ];
     $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($body === false) {
@@ -247,7 +248,7 @@ function ixtla_insights_probe_continue_after_tools(array $config, array $previou
     }
     curl_setopt_array($curl, [
         CURLOPT_URL => (string) $config['provider_url'], CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_POSTFIELDS => $body, CURLOPT_TIMEOUT => 60, CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_POSTFIELDS => $body, CURLOPT_TIMEOUT => (int) $config['request_timeout_seconds'], CURLOPT_CONNECTTIMEOUT => (int) $config['connect_timeout_seconds'],
         CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . (string) $config['api_key'], 'Content-Type: application/json', 'Accept: application/json'],
     ]);
     $raw = curl_exec($curl);
