@@ -27,4 +27,14 @@ expect_diagnostic(count($boundedHistory) === 2, 'El limite total de historial de
 expect_diagnostic(($boundedHistory[0]['content'] ?? '') === '2222', 'El historial debe ajustar el mensaje previo al espacio disponible.');
 expect_diagnostic(($boundedHistory[1]['content'] ?? '') === '333333', 'El historial debe conservar completo el mensaje mas reciente.');
 
+$responsesHistory = ixtla_insights_responses_history_input([
+    ['role' => 'user', 'content' => 'Primera pregunta'],
+    ['role' => 'assistant', 'content' => 'Primera respuesta'],
+    ['role' => 'system', 'content' => 'No debe reenviarse'],
+]);
+expect_diagnostic($responsesHistory === [
+    ['role' => 'user', 'content' => 'Primera pregunta'],
+    ['role' => 'assistant', 'content' => 'Primera respuesta'],
+], 'El historial de Responses API debe conservar mensajes textuales user/assistant sin usar input_text para assistant.');
+
 echo "OK diagnostics\n";

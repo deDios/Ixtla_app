@@ -203,6 +203,34 @@ function ixtla_insights_clean_history(array $history, int $limit, int $messageCh
     return array_reverse($clean);
 }
 
+/**
+ * Convierte el historial textual interno al formato manual de Responses API.
+ *
+ * No se usan bloques `input_text` para mensajes del asistente: ese tipo es
+ * para entradas y una respuesta previa debe conservarse como salida o como
+ * contenido textual simple. Como el estado persistido sÃ³lo conserva texto,
+ * esta Ãºltima forma es la representaciÃ³n compatible y segura.
+ */
+function ixtla_insights_responses_history_input(array $history): array
+{
+    $input = [];
+    foreach ($history as $message) {
+        if (!is_array($message)) {
+            continue;
+        }
+
+        $role = (string) ($message['role'] ?? '');
+        $content = trim((string) ($message['content'] ?? ''));
+        if (!in_array($role, ['user', 'assistant'], true) || $content === '') {
+            continue;
+        }
+
+        $input[] = ['role' => $role, 'content' => $content];
+    }
+
+    return $input;
+}
+
 function ixtla_insights_truncate(string $value, int $limit): string
 {
     return function_exists('mb_substr') ? mb_substr($value, 0, $limit) : substr($value, 0, $limit);
@@ -615,12 +643,7 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         'role' => 'developer',
         'content' => [['type' => 'input_text', 'text' => $systemPrompt]],
     ]];
-    foreach ($history as $message) {
-        $input[] = [
-            'role' => $message['role'],
-            'content' => [['type' => 'input_text', 'text' => $message['content']]],
-        ];
-    }
+    $input = array_merge($input, ixtla_insights_responses_history_input($history));
     $catalogText = $departments
         ? json_encode($departments, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         : '[]';

@@ -71,7 +71,7 @@ function ixtla_insights_config(): array
 
         // Observabilidad temporal. Mantenerlo apagado en producción salvo
         // durante una investigación: los eventos se escriben en error_log.
-        'debug' => ixtla_insights_env_bool(ixtla_insights_env_value($openai, 'IXTLA_INSIGHTS_DEBUG')),
+        'debug' => true,
         // Identifica la publicación que respondió. Debe cambiar en cada
         // despliegue (por ejemplo, el SHA corto del commit), nunca contiene secretos.
         'build_id' => ixtla_insights_env_value($openai, 'IXTLA_INSIGHTS_BUILD_ID'),

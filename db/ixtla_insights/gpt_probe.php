@@ -76,18 +76,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         ixtla_insights_json(['ok' => false, 'error' => 'No hay configuracion de OpenAI disponible para Insights.'], 503);
     }
 
-    $historyInput = [];
-    foreach ($history as $message) {
-        $role = (string) ($message['role'] ?? '');
-        $content = trim((string) ($message['content'] ?? ''));
-        if (!in_array($role, ['user', 'assistant'], true) || $content === '') {
-            continue;
-        }
-        $historyInput[] = [
-            'role' => $role,
-            'content' => [['type' => 'input_text', 'text' => $content]],
-        ];
-    }
+    $historyInput = ixtla_insights_responses_history_input($history);
 
     $payload = [
         'model' => $model,
