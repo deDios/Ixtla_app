@@ -206,10 +206,6 @@ function ixtla_insights_clean_history(array $history, int $limit, int $messageCh
 /**
  * Convierte el historial textual interno al formato manual de Responses API.
  *
- * No se usan bloques `input_text` para mensajes del asistente: ese tipo es
- * para entradas y una respuesta previa debe conservarse como salida o como
- * contenido textual simple. Como el estado persistido sÃ³lo conserva texto,
- * esta Ãºltima forma es la representaciÃ³n compatible y segura.
  */
 function ixtla_insights_responses_history_input(array $history): array
 {

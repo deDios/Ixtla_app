@@ -78,9 +78,16 @@ function ixtla_insights_tool_definitions(): array
         [
             'type' => 'function',
             'name' => 'get_latest_requirement',
-            'description' => 'Obtiene el requerimiento más reciente dentro del alcance autorizado, incluyendo su número, departamento, trámite y fecha de creación.',
+            'description' => 'Obtiene el requerimiento más reciente dentro del alcance autorizado, incluyendo su número, departamento, trámite y fecha de creación. Si se solicita un departamento concreto, envía su nombre exacto en department; usa null para el alcance completo autorizado.',
             'strict' => true,
-            'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => [], 'properties' => new stdClass()],
+            'parameters' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['department'],
+                'properties' => [
+                    'department' => ['type' => ['string', 'null'], 'minLength' => 1, 'maxLength' => 160],
+                ],
+            ],
         ],
         [
             'type' => 'function',
@@ -103,7 +110,7 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'get_scope_summary' => ixtla_insights_dataset_scope_summary($args),
         'list_authorized_departments' => ixtla_insights_dataset_authorized_departments(),
         'get_requirements_by_department' => ixtla_insights_dataset_requirements_by_department($args),
-        'get_latest_requirement' => ixtla_insights_dataset_latest_requirement(),
+        'get_latest_requirement' => ixtla_insights_dataset_latest_requirement($args),
         'get_resolution_time_by_department' => ixtla_insights_dataset_resolution_time_by_department($args),
         default => throw new InvalidArgumentException('La herramienta solicitada no está disponible.'),
     };

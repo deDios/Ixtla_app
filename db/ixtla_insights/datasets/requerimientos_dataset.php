@@ -163,21 +163,32 @@ function ixtla_insights_dataset_analytics_query(array $arguments): array
     }
 }
 
-function ixtla_insights_dataset_latest_requirement(): array
+function ixtla_insights_dataset_latest_requirement(array $arguments = []): array
 {
+    $department = ixtla_insights_dataset_department_name($arguments['department'] ?? null);
     $connection = ixtla_insights_dataset_connection();
     try {
         $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        $types = $scope['types'];
+        $params = $scope['params'];
+        if ($department !== null) {
+            // El valor se enlaza y siempre se combina con el alcance RBAC.
+            $where[] = 'd.nombre = ?';
+            $types .= 's';
+            $params[] = $department;
+        }
         $sql = 'SELECT r.id, r.created_at, d.nombre AS department, t.nombre AS tramite '
             . 'FROM requerimiento r JOIN departamento d ON d.id = r.departamento_id '
             . 'JOIN tramite t ON t.id = r.tramite_id '
-            . ($scope['where'] ? 'WHERE ' . implode(' AND ', $scope['where']) . ' ' : '')
+            . ($where ? 'WHERE ' . implode(' AND ', $where) . ' ' : '')
             . 'ORDER BY r.created_at DESC, r.id DESC LIMIT 1';
-        $rows = ixtla_insights_dataset_rows($connection, $sql, $scope['types'], $scope['params']);
+        $rows = ixtla_insights_dataset_rows($connection, $sql, $types, $params);
         $row = $rows[0] ?? null;
         return [
             'dataset' => 'latest_requirement',
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'department_filter' => $department,
             'requirement' => $row === null ? null : [
                 'id' => (int) $row['id'],
                 'department' => (string) $row['department'],
@@ -188,6 +199,20 @@ function ixtla_insights_dataset_latest_requirement(): array
     } finally {
         $connection->close();
     }
+}
+
+function ixtla_insights_dataset_department_name(mixed $value): ?string
+{
+    if ($value === null) {
+        return null;
+    }
+
+    $department = trim((string) $value);
+    if ($department === '' || mb_strlen($department) > 160) {
+        throw new InvalidArgumentException('El filtro de departamento no es válido.');
+    }
+
+    return $department;
 }
 
 function ixtla_insights_dataset_resolution_time_by_department(array $arguments): array
