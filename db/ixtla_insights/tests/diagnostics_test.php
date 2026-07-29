@@ -46,6 +46,18 @@ $latestTool = array_values(array_filter(ixtla_insights_tool_definitions(), stati
 expect_diagnostic(($latestTool['parameters']['required'] ?? []) === ['department'], 'La herramienta del último requerimiento debe requerir el campo department, incluso si es null.');
 expect_diagnostic(($latestTool['parameters']['properties']['department']['type'] ?? []) === ['string', 'null'], 'La herramienta debe aceptar un departamento o null para el alcance completo.');
 
+$snapshotTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_operational_snapshot'))[0] ?? [];
+expect_diagnostic(($snapshotTool['parameters']['required'] ?? []) === ['period', 'top_tramites_limit'], 'El snapshot operativo debe exigir periodo y límite de trámites.');
+expect_diagnostic(($snapshotTool['parameters']['properties']['top_tramites_limit']['maximum'] ?? null) === 10, 'El snapshot operativo debe limitar el ranking para evitar respuestas desproporcionadas.');
+
+$comparisonTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_period_comparison'))[0] ?? [];
+expect_diagnostic(($comparisonTool['parameters']['required'] ?? []) === ['metric', 'period'], 'La comparación de periodos debe exigir métrica y periodo.');
+expect_diagnostic(($comparisonTool['parameters']['properties']['period']['enum'] ?? []) === ['last_7', 'last_30', 'this_month'], 'La comparación sólo debe aceptar periodos con intervalo previo definido.');
+
+$trendTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_trend'))[0] ?? [];
+expect_diagnostic(($trendTool['parameters']['required'] ?? []) === ['period'], 'La tendencia debe exigir un periodo acotado.');
+expect_diagnostic(($trendTool['parameters']['properties']['period']['enum'] ?? []) === ['last_7', 'last_30', 'this_month'], 'La tendencia no debe permitir un historial ilimitado.');
+
 $globalAccess = ixtla_insights_access_scope_from_rbac(['empleado' => ['id' => 1, 'departamento_id' => 6], 'scope' => ['global' => true]]);
 expect_diagnostic($globalAccess['mode'] === 'global' && $globalAccess['allowed_department_ids'] === null, 'Un perfil global debe conservar acceso global dentro de Insights.');
 

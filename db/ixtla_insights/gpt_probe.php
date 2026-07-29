@@ -90,6 +90,9 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                     . 'Usa query_requirements_analytics como herramienta principal para totales, abiertos, finalizados, pausados/cancelados, rankings por departamento y rankings por trámite. '
                     . 'Para requerimientos finalizados usa metric closed_count y field closed_at; para los demás conteos usa created_at. '
                     . 'Para preguntas de cantidad o desglose simple por departamento también puedes usar get_requirements_by_department. Para totales o estatus usa get_scope_summary. '
+                    . 'Para un diagnóstico operativo, informe ejecutivo o resumen directivo que combine total, estatus y trámites principales, usa get_operational_snapshot en una sola llamada antes de redactar. '
+                    . 'Para pendientes con antigüedad usa get_backlog_aging. Para comparar este mes, últimos 7 o últimos 30 días contra el periodo anterior usa get_period_comparison. '
+                    . 'Para evolución o tendencia de carga por día usa get_requirements_trend. '
                     . 'Para saber qué departamentos puede consultar la persona usa list_authorized_departments. '
                     . 'Para el último requerimiento usa get_latest_requirement; si se pide de un departamento concreto, pasa ese nombre en department y usa null para el alcance completo autorizado. Para tiempo promedio de resolución por departamento usa get_resolution_time_by_department. '
                     . 'Si no existe una herramienta compatible, explica la limitación sin dar cifras ni identificar departamentos o requerimientos.',

@@ -40,6 +40,188 @@ function ixtla_insights_dataset_scope_summary(array $arguments): array
     }
 }
 
+/**
+ * Paquete ejecutivo para un director. Reúne en una sola llamada los datos que
+ * normalmente requerirían varias herramientas, siempre sobre el scope RBAC.
+ */
+function ixtla_insights_dataset_operational_snapshot(array $arguments): array
+{
+    $period = ixtla_insights_dataset_period($arguments['period'] ?? 'all');
+    $topLimit = min(10, max(1, (int) ($arguments['top_tramites_limit'] ?? 5)));
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        ixtla_insights_dataset_period_clause($period, $where);
+        $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+        $total = ixtla_insights_dataset_scalar(
+            $connection,
+            'SELECT COUNT(*) FROM requerimiento r' . $whereSql,
+            $scope['types'],
+            $scope['params']
+        );
+        $statusRows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT r.estatus AS status_id, COUNT(*) AS value FROM requerimiento r' . $whereSql . ' GROUP BY r.estatus ORDER BY r.estatus ASC',
+            $scope['types'],
+            $scope['params']
+        );
+        $statusLabels = [0 => 'Solicitud', 1 => 'Revisión', 2 => 'Asignación', 3 => 'En proceso', 4 => 'Pausado', 5 => 'Cancelado', 6 => 'Finalizado'];
+        $byStatus = array_map(static fn (array $row): array => [
+            'status' => $statusLabels[(int) ($row['status_id'] ?? -1)] ?? 'Sin estatus',
+            'value' => (int) ($row['value'] ?? 0),
+        ], $statusRows);
+
+        $topRows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT t.nombre AS name, COUNT(*) AS value FROM requerimiento r '
+            . 'JOIN tramite t ON t.id = r.tramite_id'
+            . $whereSql
+            . ' GROUP BY t.id, t.nombre ORDER BY value DESC, name ASC LIMIT ?',
+            $scope['types'] . 'i',
+            [...$scope['params'], $topLimit]
+        );
+        $topTramites = array_map(static fn (array $row): array => [
+            'name' => (string) $row['name'],
+            'value' => (int) $row['value'],
+        ], $topRows);
+
+        return [
+            'dataset' => 'operational_snapshot',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'period' => ['field' => 'created_at', 'preset' => $period],
+            'total' => $total,
+            'by_status' => $byStatus,
+            'top_tramites' => $topTramites,
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
+/** Distribución de pendientes activos por antigüedad, dentro del scope RBAC. */
+function ixtla_insights_dataset_backlog_aging(): array
+{
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        $where[] = 'r.estatus IN (0, 1, 2, 3)';
+        $whereSql = ' WHERE ' . implode(' AND ', $where);
+        $rows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT CASE '
+            . 'WHEN TIMESTAMPDIFF(DAY, r.created_at, NOW()) <= 7 THEN "0_7" '
+            . 'WHEN TIMESTAMPDIFF(DAY, r.created_at, NOW()) <= 15 THEN "8_15" '
+            . 'WHEN TIMESTAMPDIFF(DAY, r.created_at, NOW()) <= 30 THEN "16_30" '
+            . 'ELSE "31_plus" END AS bucket, COUNT(*) AS value '
+            . 'FROM requerimiento r' . $whereSql . ' GROUP BY bucket',
+            $scope['types'],
+            $scope['params']
+        );
+        $values = ['0_7' => 0, '8_15' => 0, '16_30' => 0, '31_plus' => 0];
+        foreach ($rows as $row) {
+            $bucket = (string) ($row['bucket'] ?? '');
+            if (array_key_exists($bucket, $values)) {
+                $values[$bucket] = (int) ($row['value'] ?? 0);
+            }
+        }
+        return [
+            'dataset' => 'backlog_aging',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'as_of' => date('Y-m-d'),
+            'open_statuses' => ['Solicitud', 'Revisión', 'Asignación', 'En proceso'],
+            'buckets' => [
+                ['label' => '0 a 7 días', 'value' => $values['0_7']],
+                ['label' => '8 a 15 días', 'value' => $values['8_15']],
+                ['label' => '16 a 30 días', 'value' => $values['16_30']],
+                ['label' => 'Más de 30 días', 'value' => $values['31_plus']],
+            ],
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
+/** Compara una métrica del periodo actual contra su periodo inmediato previo. */
+function ixtla_insights_dataset_period_comparison(array $arguments): array
+{
+    $metric = strtolower(trim((string) ($arguments['metric'] ?? '')));
+    $period = strtolower(trim((string) ($arguments['period'] ?? '')));
+    if (!in_array($metric, ['total', 'open_count', 'closed_count'], true)) {
+        throw new InvalidArgumentException('La métrica de comparación no está disponible.');
+    }
+    if (!in_array($period, ['last_7', 'last_30', 'this_month'], true)) {
+        throw new InvalidArgumentException('El periodo de comparación no está disponible.');
+    }
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $currentWhere = $scope['where'];
+        $previousWhere = $scope['where'];
+        $field = $metric === 'closed_count' ? 'r.cerrado_en' : 'r.created_at';
+        if ($metric === 'open_count') {
+            $currentWhere[] = 'r.estatus NOT IN (5, 6)';
+            $previousWhere[] = 'r.estatus NOT IN (5, 6)';
+        } elseif ($metric === 'closed_count') {
+            $currentWhere[] = 'r.estatus = 6';
+            $previousWhere[] = 'r.estatus = 6';
+        }
+        ixtla_insights_dataset_period_clause_for_field($period, $metric === 'closed_count' ? 'closed_at' : 'created_at', $currentWhere);
+        ixtla_insights_dataset_previous_period_clause($period, $field, $previousWhere);
+        $current = ixtla_insights_dataset_scalar($connection, 'SELECT COUNT(*) FROM requerimiento r WHERE ' . implode(' AND ', $currentWhere), $scope['types'], $scope['params']);
+        $previous = ixtla_insights_dataset_scalar($connection, 'SELECT COUNT(*) FROM requerimiento r WHERE ' . implode(' AND ', $previousWhere), $scope['types'], $scope['params']);
+        $difference = $current - $previous;
+        return [
+            'dataset' => 'period_comparison',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'metric' => $metric,
+            'period' => $period,
+            'current_value' => $current,
+            'previous_value' => $previous,
+            'difference' => $difference,
+            'percentage_change' => $previous === 0 ? null : round(($difference / $previous) * 100, 1),
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
+/** Serie diaria de requerimientos creados para identificar tendencia de carga. */
+function ixtla_insights_dataset_requirements_trend(array $arguments): array
+{
+    $period = strtolower(trim((string) ($arguments['period'] ?? '')));
+    if (!in_array($period, ['last_7', 'last_30', 'this_month'], true)) {
+        throw new InvalidArgumentException('El periodo de tendencia no está disponible.');
+    }
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        ixtla_insights_dataset_period_clause_for_field($period, 'created_at', $where);
+        $rows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT DATE(r.created_at) AS date, COUNT(*) AS value FROM requerimiento r WHERE '
+            . implode(' AND ', $where)
+            . ' GROUP BY DATE(r.created_at) ORDER BY date ASC',
+            $scope['types'],
+            $scope['params']
+        );
+        return [
+            'dataset' => 'requirements_trend',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'period' => ['field' => 'created_at', 'preset' => $period],
+            'granularity' => 'day',
+            'items' => array_map(static fn (array $row): array => [
+                'date' => (string) $row['date'],
+                'value' => (int) $row['value'],
+            ], $rows),
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
 function ixtla_insights_dataset_authorized_departments(): array
 {
     $connection = ixtla_insights_dataset_connection();
@@ -286,6 +468,16 @@ function ixtla_insights_dataset_period_clause_for_field(string $preset, string $
         'last_30' => $where[] = $column . ' >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)',
         'this_month' => $where[] = $column . " >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
         default => null,
+    };
+}
+
+function ixtla_insights_dataset_previous_period_clause(string $period, string $field, array &$where): void
+{
+    match ($period) {
+        'last_7' => $where[] = $field . ' >= DATE_SUB(CURDATE(), INTERVAL 13 DAY) AND ' . $field . ' < DATE_SUB(CURDATE(), INTERVAL 6 DAY)',
+        'last_30' => $where[] = $field . ' >= DATE_SUB(CURDATE(), INTERVAL 59 DAY) AND ' . $field . ' < DATE_SUB(CURDATE(), INTERVAL 29 DAY)',
+        'this_month' => $where[] = $field . " >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01') AND " . $field . " < DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+        default => throw new InvalidArgumentException('El periodo previo no es válido.'),
     };
 }
 

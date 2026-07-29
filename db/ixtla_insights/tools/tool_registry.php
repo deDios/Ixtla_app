@@ -51,6 +51,57 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function',
+            'name' => 'get_operational_snapshot',
+            'description' => 'Obtiene un reporte ejecutivo real para el alcance autorizado: total de requerimientos, desglose por estatus y trámites con mayor volumen. Úsala para diagnósticos operativos y resúmenes directivos.',
+            'strict' => true,
+            'parameters' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['period', 'top_tramites_limit'],
+                'properties' => [
+                    'period' => ['type' => 'string', 'enum' => ['all', 'last_7', 'last_30', 'this_month']],
+                    'top_tramites_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 10],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'name' => 'get_backlog_aging',
+            'description' => 'Obtiene la antigüedad real de los requerimientos pendientes activos del alcance autorizado, agrupada en 0-7, 8-15, 16-30 y más de 30 días.',
+            'strict' => true,
+            'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => [], 'properties' => new stdClass()],
+        ],
+        [
+            'type' => 'function',
+            'name' => 'get_period_comparison',
+            'description' => 'Compara el periodo actual contra el periodo inmediato anterior para total, requerimientos abiertos o finalizados dentro del alcance autorizado.',
+            'strict' => true,
+            'parameters' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['metric', 'period'],
+                'properties' => [
+                    'metric' => ['type' => 'string', 'enum' => ['total', 'open_count', 'closed_count']],
+                    'period' => ['type' => 'string', 'enum' => ['last_7', 'last_30', 'this_month']],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'name' => 'get_requirements_trend',
+            'description' => 'Obtiene una serie diaria real de requerimientos creados para analizar la tendencia de carga dentro del alcance autorizado.',
+            'strict' => true,
+            'parameters' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['period'],
+                'properties' => [
+                    'period' => ['type' => 'string', 'enum' => ['last_7', 'last_30', 'this_month']],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
             'name' => 'list_authorized_departments',
             'description' => 'Lista los departamentos activos disponibles dentro del alcance autorizado del usuario.',
             'strict' => true,
@@ -108,6 +159,10 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
     return match ($name) {
         'query_requirements_analytics' => ixtla_insights_dataset_analytics_query($args),
         'get_scope_summary' => ixtla_insights_dataset_scope_summary($args),
+        'get_operational_snapshot' => ixtla_insights_dataset_operational_snapshot($args),
+        'get_backlog_aging' => ixtla_insights_dataset_backlog_aging(),
+        'get_period_comparison' => ixtla_insights_dataset_period_comparison($args),
+        'get_requirements_trend' => ixtla_insights_dataset_requirements_trend($args),
         'list_authorized_departments' => ixtla_insights_dataset_authorized_departments(),
         'get_requirements_by_department' => ixtla_insights_dataset_requirements_by_department($args),
         'get_latest_requirement' => ixtla_insights_dataset_latest_requirement($args),
