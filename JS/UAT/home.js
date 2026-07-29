@@ -73,9 +73,39 @@ import {
 import { createTable } from "/JS/UAT/ui/table.js";
 import { LineChart } from "/JS/UAT/charts/line-chart.js";
 import { DonutChart } from "/JS/UAT/charts/donut-chart.js";
+import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=gpt-probe-1";
 
 /* === API de usuarios (empleados) === */
 import { getEmpleadoById, updateEmpleado } from "/JS/UAT/api/usuarios.js";
+
+const INSIGHTS_CONFIG = {
+  apiUrl: "/db/ixtla_insights/gpt_probe.php",
+  simpleMode: true,
+  quickQuestions: [
+    {
+      label: "Diagnóstico del mes",
+      description: "Estatus y trámites con mayor carga.",
+      prompt: "Elabora un diagnóstico operativo de este mes: total de requerimientos, desglose por estatus y los cinco trámites con mayor volumen. Usa sólo datos reales de mi alcance autorizado.",
+      primary: true,
+    },
+    {
+      label: "Pendientes +30 días",
+      prompt: "Muéstrame los 10 requerimientos activos con más de 30 días, incluyendo ID, trámite, antigüedad, prioridad y responsable, dentro de mi alcance autorizado.",
+    },
+    {
+      label: "Tendencia 30 días",
+      prompt: "Analiza la tendencia diaria de requerimientos creados durante los últimos 30 días dentro de mi alcance autorizado e indica si la carga aumentó, disminuyó o se mantuvo estable.",
+    },
+    {
+      label: "Trámites con más carga",
+      prompt: "¿Cuáles son los cinco trámites con mayor volumen de requerimientos este mes dentro de mi alcance autorizado? No inventes cifras.",
+    },
+    {
+      label: "¿Qué puedo consultar?",
+      prompt: "¿Qué tipos de reportes y datos puedo consultar dentro de mi alcance autorizado? Dame ejemplos breves.",
+    },
+  ],
+};
 
 /*-------- export para excel -------*/
 //import { initExportCSVHome } from "/JS/ui/exportCSVHome.js";
@@ -1898,6 +1928,7 @@ async function refreshHomeRequerimientos() {
 
 window.addEventListener("DOMContentLoaded", async () => {
   try {
+    mountIxtlaInsights(INSIGHTS_CONFIG);
     readSession();
     await hydrateProfileFromSession();
     ensureEditProfileButton();

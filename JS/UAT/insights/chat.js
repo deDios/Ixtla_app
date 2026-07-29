@@ -191,8 +191,28 @@ export function mountIxtlaInsights(options = {}) {
     title: "Ixtla Insights",
     subtitle: "Asistente de requerimientos",
     quickQuestions: [
-      { label: "¿Qué puedes hacer?", primary: true },
-      { label: "Explica qué es un requerimiento" },
+      {
+        label: "Diagnóstico del mes",
+        description: "Estatus y trámites con mayor carga.",
+        prompt: "Elabora un diagnóstico operativo de este mes: total de requerimientos, desglose por estatus y los cinco trámites con mayor volumen. Usa sólo datos reales de mi alcance autorizado.",
+        primary: true,
+      },
+      {
+        label: "Pendientes +30 días",
+        prompt: "Muéstrame los 10 requerimientos activos con más de 30 días, incluyendo ID, trámite, antigüedad, prioridad y responsable, dentro de mi alcance autorizado.",
+      },
+      {
+        label: "Tendencia 30 días",
+        prompt: "Analiza la tendencia diaria de requerimientos creados durante los últimos 30 días dentro de mi alcance autorizado e indica si la carga aumentó, disminuyó o se mantuvo estable.",
+      },
+      {
+        label: "Trámites con más carga",
+        prompt: "¿Cuáles son los cinco trámites con mayor volumen de requerimientos este mes dentro de mi alcance autorizado? No inventes cifras.",
+      },
+      {
+        label: "¿Qué puedo consultar?",
+        prompt: "¿Qué tipos de reportes y datos puedo consultar dentro de mi alcance autorizado? Dame ejemplos breves.",
+      },
     ],
     dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
     apiUrl: "/db/ixtla_insights/gpt_probe.php",

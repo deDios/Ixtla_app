@@ -749,17 +749,6 @@
     <script type="module" src="/JS/UAT/home.js"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
     <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js"></script>
-    <script type="module">
-        import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=gpt-probe-1";
-        mountIxtlaInsights({
-            apiUrl: "/db/ixtla_insights/gpt_probe.php",
-            simpleMode: true,
-            quickQuestions: [
-                { label: "¿Qué puedes hacer?", primary: true },
-                { label: "Explica qué es un requerimiento" }
-            ]
-        });
-    </script>
 
 
 </body>
