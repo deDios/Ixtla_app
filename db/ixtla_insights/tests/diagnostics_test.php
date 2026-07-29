@@ -58,6 +58,15 @@ $trendTool = array_values(array_filter(ixtla_insights_tool_definitions(), static
 expect_diagnostic(($trendTool['parameters']['required'] ?? []) === ['period'], 'La tendencia debe exigir un periodo acotado.');
 expect_diagnostic(($trendTool['parameters']['properties']['period']['enum'] ?? []) === ['last_7', 'last_30', 'this_month'], 'La tendencia no debe permitir un historial ilimitado.');
 
+$breakdownTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_workload_breakdown'))[0] ?? [];
+expect_diagnostic(($breakdownTool['parameters']['properties']['dimension']['enum'] ?? []) === ['tramite', 'priority', 'channel', 'colonia', 'assignee'], 'El desglose operativo sólo debe exponer dimensiones aprobadas.');
+expect_diagnostic(($breakdownTool['parameters']['properties']['limit']['maximum'] ?? null) === 20, 'El desglose operativo debe limitar la cantidad de resultados.');
+
+$overdueTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_overdue_requirements'))[0] ?? [];
+expect_diagnostic(($overdueTool['parameters']['required'] ?? []) === ['minimum_days', 'limit'], 'La lista de pendientes envejecidos debe exigir límites explícitos.');
+
+expect_diagnostic((int) ixtla_insights_config()['max_tool_calls_per_turn'] === 2, 'El asistente debe conservar un límite total de dos llamadas de herramienta por turno.');
+
 $globalAccess = ixtla_insights_access_scope_from_rbac(['empleado' => ['id' => 1, 'departamento_id' => 6], 'scope' => ['global' => true]]);
 expect_diagnostic($globalAccess['mode'] === 'global' && $globalAccess['allowed_department_ids'] === null, 'Un perfil global debe conservar acceso global dentro de Insights.');
 

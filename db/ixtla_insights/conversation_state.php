@@ -71,6 +71,10 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments):
     $state = ixtla_insights_conversation_load($config);
     $context = is_array($state['analytics_context'] ?? null) ? $state['analytics_context'] : [];
     $context['last_tool'] = $name;
+    // Sólo se persisten parámetros de herramientas autorizadas; nunca datos
+    // de salida ni información de ciudadanos. Sirve para resolver seguimientos
+    // como “haz lo mismo” o “ahora para …” en un solo turno.
+    $context['last_tool_arguments'] = $arguments;
     if (isset($arguments['period'])) {
         $context['period'] = $arguments['period'];
     }

@@ -93,6 +93,9 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                     . 'Para un diagnóstico operativo, informe ejecutivo o resumen directivo que combine total, estatus y trámites principales, usa get_operational_snapshot en una sola llamada antes de redactar. '
                     . 'Para pendientes con antigüedad usa get_backlog_aging. Para comparar este mes, últimos 7 o últimos 30 días contra el periodo anterior usa get_period_comparison. '
                     . 'Para evolución o tendencia de carga por día usa get_requirements_trend. '
+                    . 'Para rankings de carga por trámite, prioridad, canal, colonia o responsable usa get_workload_breakdown. Para listar pendientes activos con antigüedad mínima usa get_overdue_requirements. '
+                    . 'Cuando el usuario diga "hazlo", "lo mismo", "ahora" o pida repetir un análisis para otro departamento, usa el contexto estructurado para completar la operación previa en esta misma respuesta. '
+                    . 'No pidas un mensaje adicional ni sugieras una consulta posterior si existe una herramienta compatible; solicita todas las herramientas necesarias, dentro del límite disponible, antes de redactar. '
                     . 'Para saber qué departamentos puede consultar la persona usa list_authorized_departments. '
                     . 'Para el último requerimiento usa get_latest_requirement; si se pide de un departamento concreto, pasa ese nombre en department y usa null para el alcance completo autorizado. Para tiempo promedio de resolución por departamento usa get_resolution_time_by_department. '
                     . 'Si no existe una herramienta compatible, explica la limitación sin dar cifras ni identificar departamentos o requerimientos.',
@@ -169,8 +172,11 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
     if ($toolCalls === [] && ixtla_insights_probe_requires_data($question)) {
         return 'No tengo una herramienta compatible para obtener ese dato con seguridad. Puedo ayudarte con totales, estatus, departamentos, trámites, el último requerimiento y tiempos promedio de resolución por departamento.';
     }
-    if ($toolCalls !== []) {
-        consola_debug('gpt_probe.tools_requested', ['count' => count($toolCalls)]);
+    $remainingToolCalls = max(0, (int) $config['max_tool_calls_per_turn']);
+    $toolRound = 0;
+    while ($toolCalls !== [] && $remainingToolCalls > 0) {
+        $toolCalls = array_slice($toolCalls, 0, $remainingToolCalls);
+        consola_debug('gpt_probe.tools_requested', ['count' => count($toolCalls), 'round' => $toolRound + 1]);
         $outputs = [];
         foreach ($toolCalls as $toolCall) {
             $arguments = json_decode((string) $toolCall['arguments'], true);
@@ -189,7 +195,12 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                 'output' => json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             ];
         }
-        $response = ixtla_insights_probe_continue_after_tools($config, $response, $outputs);
+        $remainingToolCalls -= count($toolCalls);
+        $toolRound++;
+        $response = ixtla_insights_probe_continue_after_tools($config, $response, $outputs, $remainingToolCalls > 0);
+        $toolCalls = $remainingToolCalls > 0
+            ? ixtla_insights_probe_tool_calls($response, $remainingToolCalls)
+            : [];
     }
 
     ixtla_insights_log_usage($response, [
@@ -211,7 +222,7 @@ function ixtla_insights_probe_requires_data(string $question): bool
     return preg_match('/\b(cuanto|cuantos|cuanta|cuantas|numero|ultimo|ultima|top|ranking|promedio|tiempo|cierre|cerrado|cerrados|finalizado|finalizados|departamento|tramite|estatus)\b/', $normalized) === 1;
 }
 
-function ixtla_insights_probe_tool_calls(array $response): array
+function ixtla_insights_probe_tool_calls(array $response, ?int $limit = null): array
 {
     $calls = [];
     foreach (is_array($response['output'] ?? null) ? $response['output'] : [] as $item) {
@@ -224,11 +235,14 @@ function ixtla_insights_probe_tool_calls(array $response): array
             $calls[] = ['name' => $name, 'call_id' => $callId, 'arguments' => (string) ($item['arguments'] ?? '{}')];
         }
     }
-    $config = ixtla_insights_config();
-    return array_slice($calls, 0, (int) $config['max_tool_calls_per_turn']);
+    if ($limit === null) {
+        $config = ixtla_insights_config();
+        $limit = (int) $config['max_tool_calls_per_turn'];
+    }
+    return array_slice($calls, 0, max(0, $limit));
 }
 
-function ixtla_insights_probe_continue_after_tools(array $config, array $previousResponse, array $outputs): array
+function ixtla_insights_probe_continue_after_tools(array $config, array $previousResponse, array $outputs, bool $allowMoreTools = false): array
 {
     $responseId = trim((string) ($previousResponse['id'] ?? ''));
     if ($responseId === '') {
@@ -239,7 +253,10 @@ function ixtla_insights_probe_continue_after_tools(array $config, array $previou
         'previous_response_id' => $responseId,
         'input' => $outputs,
         'tools' => ixtla_insights_tool_definitions(),
-        'tool_choice' => 'none',
+        // Permitimos una ronda adicional cuando todavía quedan llamadas dentro
+        // del límite total. Así el modelo puede completar un reporte compuesto
+        // sin obligar al usuario a enviar otro mensaje.
+        'tool_choice' => $allowMoreTools ? 'auto' : 'none',
         'max_output_tokens' => (int) $config['max_output_tokens'],
     ];
     $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

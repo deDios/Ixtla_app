@@ -222,6 +222,117 @@ function ixtla_insights_dataset_requirements_trend(array $arguments): array
     }
 }
 
+/** Ranking seguro por una dimensión operativa aprobada. */
+function ixtla_insights_dataset_workload_breakdown(array $arguments): array
+{
+    $dimension = strtolower(trim((string) ($arguments['dimension'] ?? '')));
+    $period = ixtla_insights_dataset_period($arguments['period'] ?? 'all');
+    $limit = min(20, max(1, (int) ($arguments['limit'] ?? 10)));
+    $dimensions = [
+        'tramite' => [
+            'label' => 't.nombre',
+            'from' => ' JOIN tramite t ON t.id = r.tramite_id',
+            'group' => 't.id, t.nombre',
+        ],
+        'priority' => [
+            'label' => "CASE r.prioridad WHEN 1 THEN 'Baja' WHEN 2 THEN 'Media' WHEN 3 THEN 'Alta' ELSE 'Sin prioridad' END",
+            'from' => '',
+            'group' => 'r.prioridad',
+        ],
+        'channel' => [
+            'label' => "CASE WHEN r.canal IS NULL THEN 'Sin canal' ELSE CONCAT('Canal ', r.canal) END",
+            'from' => '',
+            'group' => 'r.canal',
+        ],
+        'colonia' => [
+            'label' => "COALESCE(NULLIF(TRIM(r.contacto_colonia), ''), 'Sin colonia')",
+            'from' => '',
+            'group' => "COALESCE(NULLIF(TRIM(r.contacto_colonia), ''), 'Sin colonia')",
+        ],
+        'assignee' => [
+            'label' => "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar')",
+            'from' => ' LEFT JOIN empleado e ON e.id = r.asignado_a',
+            'group' => "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar')",
+        ],
+    ];
+    if (!isset($dimensions[$dimension])) {
+        throw new InvalidArgumentException('La dimensión solicitada no está disponible.');
+    }
+    $spec = $dimensions[$dimension];
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        ixtla_insights_dataset_period_clause($period, $where);
+        $rows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT ' . $spec['label'] . ' AS label, COUNT(*) AS value FROM requerimiento r'
+            . $spec['from']
+            . ' WHERE ' . implode(' AND ', $where)
+            . ' GROUP BY ' . $spec['group']
+            . ' ORDER BY value DESC, label ASC LIMIT ?',
+            $scope['types'] . 'i',
+            [...$scope['params'], $limit]
+        );
+        return [
+            'dataset' => 'workload_breakdown',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'dimension' => $dimension,
+            'period' => ['field' => 'created_at', 'preset' => $period],
+            'items' => array_map(static fn (array $row): array => [
+                'label' => (string) $row['label'],
+                'value' => (int) $row['value'],
+            ], $rows),
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
+/** Lista operativa acotada de pendientes activos con antigüedad mínima. */
+function ixtla_insights_dataset_overdue_requirements(array $arguments): array
+{
+    $minimumDays = min(365, max(1, (int) ($arguments['minimum_days'] ?? 15)));
+    $limit = min(20, max(1, (int) ($arguments['limit'] ?? 10)));
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        $where[] = 'r.estatus IN (0, 1, 2, 3)';
+        $where[] = 'TIMESTAMPDIFF(DAY, r.created_at, NOW()) >= ?';
+        $params = [...$scope['params'], $minimumDays, $limit];
+        $types = $scope['types'] . 'ii';
+        $rows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT r.id, r.created_at, TIMESTAMPDIFF(DAY, r.created_at, NOW()) AS age_days, '
+            . "CASE r.prioridad WHEN 1 THEN 'Baja' WHEN 2 THEN 'Media' WHEN 3 THEN 'Alta' ELSE 'Sin prioridad' END AS priority, "
+            . 't.nombre AS tramite, '
+            . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar') AS assignee "
+            . 'FROM requerimiento r JOIN tramite t ON t.id = r.tramite_id '
+            . 'LEFT JOIN empleado e ON e.id = r.asignado_a '
+            . 'WHERE ' . implode(' AND ', $where)
+            . ' ORDER BY age_days DESC, r.id ASC LIMIT ?',
+            $types,
+            $params
+        );
+        return [
+            'dataset' => 'overdue_requirements',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'minimum_days' => $minimumDays,
+            'items' => array_map(static fn (array $row): array => [
+                'id' => (int) $row['id'],
+                'created_at' => (string) $row['created_at'],
+                'age_days' => (int) $row['age_days'],
+                'priority' => (string) $row['priority'],
+                'tramite' => (string) $row['tramite'],
+                'assignee' => (string) $row['assignee'],
+            ], $rows),
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
 function ixtla_insights_dataset_authorized_departments(): array
 {
     $connection = ixtla_insights_dataset_connection();

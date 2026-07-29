@@ -102,6 +102,37 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function',
+            'name' => 'get_workload_breakdown',
+            'description' => 'Obtiene un ranking real de carga dentro del alcance autorizado por trámite, prioridad, canal, colonia o responsable asignado. No devuelve información de contacto de ciudadanos.',
+            'strict' => true,
+            'parameters' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['dimension', 'period', 'limit'],
+                'properties' => [
+                    'dimension' => ['type' => 'string', 'enum' => ['tramite', 'priority', 'channel', 'colonia', 'assignee']],
+                    'period' => ['type' => 'string', 'enum' => ['all', 'last_7', 'last_30', 'this_month']],
+                    'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 20],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'name' => 'get_overdue_requirements',
+            'description' => 'Obtiene una lista acotada de requerimientos activos con antigüedad mínima dentro del alcance autorizado. Devuelve ID, trámite, antigüedad, prioridad y responsable, sin datos de contacto ciudadanos.',
+            'strict' => true,
+            'parameters' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['minimum_days', 'limit'],
+                'properties' => [
+                    'minimum_days' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 365],
+                    'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 20],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
             'name' => 'list_authorized_departments',
             'description' => 'Lista los departamentos activos disponibles dentro del alcance autorizado del usuario.',
             'strict' => true,
@@ -163,6 +194,8 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'get_backlog_aging' => ixtla_insights_dataset_backlog_aging(),
         'get_period_comparison' => ixtla_insights_dataset_period_comparison($args),
         'get_requirements_trend' => ixtla_insights_dataset_requirements_trend($args),
+        'get_workload_breakdown' => ixtla_insights_dataset_workload_breakdown($args),
+        'get_overdue_requirements' => ixtla_insights_dataset_overdue_requirements($args),
         'list_authorized_departments' => ixtla_insights_dataset_authorized_departments(),
         'get_requirements_by_department' => ixtla_insights_dataset_requirements_by_department($args),
         'get_latest_requirement' => ixtla_insights_dataset_latest_requirement($args),
