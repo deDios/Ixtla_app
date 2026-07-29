@@ -20,6 +20,19 @@ expect_diagnostic(ixtla_insights_default_error_code(502) === 'provider_unavailab
 expect_diagnostic(ixtla_insights_default_error_code(503) === 'service_unavailable', '503 debe clasificarse como servicio no disponible.');
 expect_diagnostic(ixtla_insights_default_error_code(422) === 'validation_failed', '422 debe clasificarse como validación.');
 
+$domainProfile = ixtla_insights_domain_profile();
+expect_diagnostic(($domainProfile['domain'] ?? null) === 'requerimientos', 'El perfil de dominio debe describir requerimientos.');
+expect_diagnostic(($domainProfile['version'] ?? null) === 1, 'El perfil de dominio debe estar versionado.');
+$domainPrompt = ixtla_insights_domain_developer_prompt();
+expect_diagnostic(str_contains($domainPrompt, 'get_operational_snapshot'), 'El perfil debe incluir la guía para diagnósticos operativos.');
+expect_diagnostic(str_contains($domainPrompt, 'alcance autorizado se resuelve en el servidor'), 'El perfil debe preservar el límite de autorización del servidor.');
+expect_diagnostic(ixtla_insights_domain_metric_label('closed_count') === 'Requerimientos finalizados', 'El perfil debe centralizar las etiquetas de métricas.');
+expect_diagnostic(ixtla_insights_domain_period_label('last_30') === 'Últimos 30 días', 'El perfil debe centralizar las etiquetas de periodos.');
+expect_diagnostic(ixtla_insights_domain_status_label(6) === 'Finalizado', 'El perfil debe centralizar las etiquetas de estados.');
+expect_diagnostic(ixtla_insights_domain_status_ids('active') === [0, 1, 2, 3], 'El perfil debe definir los estados activos.');
+expect_diagnostic(ixtla_insights_domain_priority_label(3) === 'Alta', 'El perfil debe centralizar las etiquetas de prioridades.');
+expect_diagnostic(ixtla_insights_dataset_active_status_condition() === 'r.estatus IN (0, 1, 2, 3)', 'Los datasets deben construir el filtro activo desde el perfil.');
+
 $boundedHistory = ixtla_insights_clean_history([
     ['role' => 'user', 'content' => '111111'],
     ['role' => 'assistant', 'content' => '222222'],

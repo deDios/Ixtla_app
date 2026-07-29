@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/scope_service.php';
+require_once __DIR__ . '/../domain_profile.php';
 
 function ixtla_insights_dataset_scope_summary(array $arguments): array
 {
@@ -18,12 +19,11 @@ function ixtla_insights_dataset_scope_summary(array $arguments): array
         $sql = "SELECT r.estatus AS status_id, COUNT(*) AS value" . $from . $whereSql
             . ' GROUP BY r.estatus ORDER BY r.estatus ASC';
         $rows = ixtla_insights_dataset_rows($connection, $sql, $scope['types'], $scope['params']);
-        $statusLabels = [0 => 'Solicitud', 1 => 'Revisión', 2 => 'Asignación', 3 => 'En proceso', 4 => 'Pausado', 5 => 'Cancelado', 6 => 'Finalizado'];
         $byStatus = [];
         foreach ($rows as $row) {
             $statusId = (int) ($row['status_id'] ?? -1);
             $byStatus[] = [
-                'status' => $statusLabels[$statusId] ?? 'Sin estatus',
+                'status' => ixtla_insights_domain_status_label($statusId),
                 'value' => (int) ($row['value'] ?? 0),
             ];
         }
@@ -32,6 +32,7 @@ function ixtla_insights_dataset_scope_summary(array $arguments): array
             'dataset' => 'scope_summary',
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
             'period' => $period,
+            'period_label' => ixtla_insights_domain_period_label($period),
             'total' => $total,
             'by_status' => $byStatus,
         ];
@@ -66,9 +67,8 @@ function ixtla_insights_dataset_operational_snapshot(array $arguments): array
             $scope['types'],
             $scope['params']
         );
-        $statusLabels = [0 => 'Solicitud', 1 => 'Revisión', 2 => 'Asignación', 3 => 'En proceso', 4 => 'Pausado', 5 => 'Cancelado', 6 => 'Finalizado'];
         $byStatus = array_map(static fn (array $row): array => [
-            'status' => $statusLabels[(int) ($row['status_id'] ?? -1)] ?? 'Sin estatus',
+            'status' => ixtla_insights_domain_status_label((int) ($row['status_id'] ?? -1)),
             'value' => (int) ($row['value'] ?? 0),
         ], $statusRows);
 
@@ -90,6 +90,7 @@ function ixtla_insights_dataset_operational_snapshot(array $arguments): array
             'dataset' => 'operational_snapshot',
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
             'period' => ['field' => 'created_at', 'preset' => $period],
+            'period_label' => ixtla_insights_domain_period_label($period),
             'total' => $total,
             'by_status' => $byStatus,
             'top_tramites' => $topTramites,
@@ -106,7 +107,7 @@ function ixtla_insights_dataset_backlog_aging(): array
     try {
         $scope = ixtla_insights_dataset_scope($connection);
         $where = $scope['where'];
-        $where[] = 'r.estatus IN (0, 1, 2, 3)';
+        $where[] = ixtla_insights_dataset_active_status_condition();
         $whereSql = ' WHERE ' . implode(' AND ', $where);
         $rows = ixtla_insights_dataset_rows(
             $connection,
@@ -130,7 +131,10 @@ function ixtla_insights_dataset_backlog_aging(): array
             'dataset' => 'backlog_aging',
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
             'as_of' => date('Y-m-d'),
-            'open_statuses' => ['Solicitud', 'Revisión', 'Asignación', 'En proceso'],
+            'open_statuses' => array_map(
+                static fn (int $statusId): string => ixtla_insights_domain_status_label($statusId),
+                ixtla_insights_domain_status_ids('active')
+            ),
             'buckets' => [
                 ['label' => '0 a 7 días', 'value' => $values['0_7']],
                 ['label' => '8 a 15 días', 'value' => $values['8_15']],
@@ -176,7 +180,9 @@ function ixtla_insights_dataset_period_comparison(array $arguments): array
             'dataset' => 'period_comparison',
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
             'metric' => $metric,
+            'metric_label' => ixtla_insights_domain_metric_label($metric),
             'period' => $period,
+            'period_label' => ixtla_insights_domain_period_label($period),
             'current_value' => $current,
             'previous_value' => $previous,
             'difference' => $difference,
@@ -211,6 +217,7 @@ function ixtla_insights_dataset_requirements_trend(array $arguments): array
             'dataset' => 'requirements_trend',
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
             'period' => ['field' => 'created_at', 'preset' => $period],
+            'period_label' => ixtla_insights_domain_period_label($period),
             'granularity' => 'day',
             'items' => array_map(static fn (array $row): array => [
                 'date' => (string) $row['date'],
@@ -235,7 +242,7 @@ function ixtla_insights_dataset_workload_breakdown(array $arguments): array
             'group' => 't.id, t.nombre',
         ],
         'priority' => [
-            'label' => "CASE r.prioridad WHEN 1 THEN 'Baja' WHEN 2 THEN 'Media' WHEN 3 THEN 'Alta' ELSE 'Sin prioridad' END",
+            'label' => 'r.prioridad',
             'from' => '',
             'group' => 'r.prioridad',
         ],
@@ -279,8 +286,11 @@ function ixtla_insights_dataset_workload_breakdown(array $arguments): array
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
             'dimension' => $dimension,
             'period' => ['field' => 'created_at', 'preset' => $period],
-            'items' => array_map(static fn (array $row): array => [
-                'label' => (string) $row['label'],
+            'period_label' => ixtla_insights_domain_period_label($period),
+            'items' => array_map(static fn (array $row) => [
+                'label' => $dimension === 'priority'
+                    ? ixtla_insights_domain_priority_label((int) $row['label'])
+                    : (string) $row['label'],
                 'value' => (int) $row['value'],
             ], $rows),
         ];
@@ -298,14 +308,14 @@ function ixtla_insights_dataset_overdue_requirements(array $arguments): array
     try {
         $scope = ixtla_insights_dataset_scope($connection);
         $where = $scope['where'];
-        $where[] = 'r.estatus IN (0, 1, 2, 3)';
+        $where[] = ixtla_insights_dataset_active_status_condition();
         $where[] = 'TIMESTAMPDIFF(DAY, r.created_at, NOW()) >= ?';
         $params = [...$scope['params'], $minimumDays, $limit];
         $types = $scope['types'] . 'ii';
         $rows = ixtla_insights_dataset_rows(
             $connection,
             'SELECT r.id, r.created_at, TIMESTAMPDIFF(DAY, r.created_at, NOW()) AS age_days, '
-            . "CASE r.prioridad WHEN 1 THEN 'Baja' WHEN 2 THEN 'Media' WHEN 3 THEN 'Alta' ELSE 'Sin prioridad' END AS priority, "
+            . 'r.prioridad AS priority_id, '
             . 't.nombre AS tramite, '
             . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar') AS assignee "
             . 'FROM requerimiento r JOIN tramite t ON t.id = r.tramite_id '
@@ -323,7 +333,7 @@ function ixtla_insights_dataset_overdue_requirements(array $arguments): array
                 'id' => (int) $row['id'],
                 'created_at' => (string) $row['created_at'],
                 'age_days' => (int) $row['age_days'],
-                'priority' => (string) $row['priority'],
+                'priority' => ixtla_insights_domain_priority_label((int) $row['priority_id']),
                 'tramite' => (string) $row['tramite'],
                 'assignee' => (string) $row['assignee'],
             ], $rows),
@@ -383,6 +393,7 @@ function ixtla_insights_dataset_requirements_by_department(array $arguments): ar
             'dataset' => 'requirements_by_department',
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
             'period' => $period,
+            'period_label' => ixtla_insights_domain_period_label($period),
             'total' => array_sum(array_column($departments, 'value')),
             'departments' => $departments,
         ];
@@ -446,6 +457,7 @@ function ixtla_insights_dataset_analytics_query(array $arguments): array
             'metric_label' => ixtla_insights_dataset_metric_label($metric),
             'group_by' => $group,
             'period' => $spec['period'],
+            'period_label' => ixtla_insights_domain_period_label($spec['period']['preset']),
             'ranking' => $spec['ranking'],
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
             'total' => $total,
@@ -533,6 +545,7 @@ function ixtla_insights_dataset_resolution_time_by_department(array $arguments):
             'dataset' => 'resolution_time_by_department',
             'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
             'period' => ['field' => 'closed_at', 'preset' => $period],
+            'period_label' => ixtla_insights_domain_period_label($period),
             'departments' => $departments,
         ];
     } finally {
@@ -594,12 +607,21 @@ function ixtla_insights_dataset_previous_period_clause(string $period, string $f
 
 function ixtla_insights_dataset_metric_label(string $metric): string
 {
-    return match ($metric) {
-        'open_count' => 'Requerimientos abiertos',
-        'closed_count' => 'Requerimientos finalizados',
-        'paused_cancelled_count' => 'Requerimientos pausados/cancelados',
-        default => 'Total de requerimientos',
-    };
+    return ixtla_insights_domain_metric_label($metric);
+}
+
+/**
+ * Construye una condición SQL únicamente desde el grupo estático del perfil.
+ * Los IDs se validan como enteros antes de interpolarlos; el modelo nunca
+ * participa en esta construcción.
+ */
+function ixtla_insights_dataset_active_status_condition(): string
+{
+    $statusIds = ixtla_insights_domain_status_ids('active');
+    if ($statusIds === []) {
+        throw new LogicException('El perfil de dominio no define estados activos.');
+    }
+    return 'r.estatus IN (' . implode(', ', $statusIds) . ')';
 }
 
 function ixtla_insights_dataset_period(mixed $period): string
