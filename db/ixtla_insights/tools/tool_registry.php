@@ -66,6 +66,51 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function',
+            'name' => 'get_operational_risk_snapshot',
+            'description' => 'Returns a single authorized operational risk diagnosis: statuses, active and paused requirements, unassigned work, overdue and upcoming due dates, and top procedures. Use it when the request combines multiple operational metrics or asks for priorities and recommendations.',
+            'strict' => true,
+            'parameters' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['period', 'top_tramites_limit', 'due_window_days'],
+                'properties' => [
+                    'period' => ['type' => 'string', 'enum' => ['last_7', 'last_30', 'this_month']],
+                    'top_tramites_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 10],
+                    'due_window_days' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 30],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'name' => 'get_workload_trend_snapshot',
+            'description' => 'Returns a single authorized workload analysis: current versus previous period, peak days, and the procedures contributing most to demand. Use for increases, decreases, trends, variability, or peak-day questions.',
+            'strict' => true,
+            'parameters' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['period', 'top_tramites_limit'],
+                'properties' => [
+                    'period' => ['type' => 'string', 'enum' => ['last_7', 'last_30', 'this_month']],
+                    'top_tramites_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 10],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'name' => 'get_backlog_risk_snapshot',
+            'description' => 'Returns a single authorized backlog diagnosis: active requirements by age and priority, unassigned work, and assignees and procedures with the largest backlog. Use for blocked cases, backlog, or pending-work distribution questions.',
+            'strict' => true,
+            'parameters' => [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['top_limit'],
+                'properties' => [
+                    'top_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 10],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
             'name' => 'get_backlog_aging',
             'description' => 'Obtiene la antigüedad real de los requerimientos pendientes activos del alcance autorizado, agrupada en 0-7, 8-15, 16-30 y más de 30 días.',
             'strict' => true,
@@ -191,6 +236,9 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'query_requirements_analytics' => ixtla_insights_dataset_analytics_query($args),
         'get_scope_summary' => ixtla_insights_dataset_scope_summary($args),
         'get_operational_snapshot' => ixtla_insights_dataset_operational_snapshot($args),
+        'get_operational_risk_snapshot' => ixtla_insights_dataset_operational_risk_snapshot($args),
+        'get_workload_trend_snapshot' => ixtla_insights_dataset_workload_trend_snapshot($args),
+        'get_backlog_risk_snapshot' => ixtla_insights_dataset_backlog_risk_snapshot($args),
         'get_backlog_aging' => ixtla_insights_dataset_backlog_aging(),
         'get_period_comparison' => ixtla_insights_dataset_period_comparison($args),
         'get_requirements_trend' => ixtla_insights_dataset_requirements_trend($args),

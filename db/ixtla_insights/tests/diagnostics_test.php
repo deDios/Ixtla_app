@@ -20,11 +20,20 @@ expect_diagnostic(ixtla_insights_default_error_code(502) === 'provider_unavailab
 expect_diagnostic(ixtla_insights_default_error_code(503) === 'service_unavailable', '503 debe clasificarse como servicio no disponible.');
 expect_diagnostic(ixtla_insights_default_error_code(422) === 'validation_failed', '422 debe clasificarse como validación.');
 
+$usageSummary = ixtla_insights_usage_summary([
+    ['usage' => ['input_tokens' => 120, 'output_tokens' => 30, 'total_tokens' => 150, 'input_tokens_details' => ['cached_tokens' => 20], 'output_tokens_details' => ['reasoning_tokens' => 8]]],
+    ['usage' => ['input_tokens' => 80, 'output_tokens' => 40, 'total_tokens' => 120, 'output_tokens_details' => ['reasoning_tokens' => 6]]],
+]);
+expect_diagnostic($usageSummary === ['provider_requests' => 2, 'input_tokens' => 200, 'output_tokens' => 70, 'reasoning_tokens' => 14, 'cached_input_tokens' => 20, 'total_tokens' => 270], 'El resumen de uso debe acumular todas las respuestas del proveedor.');
+
 $domainProfile = ixtla_insights_domain_profile();
 expect_diagnostic(($domainProfile['domain'] ?? null) === 'requerimientos', 'El perfil de dominio debe describir requerimientos.');
 expect_diagnostic(($domainProfile['version'] ?? null) === 1, 'El perfil de dominio debe estar versionado.');
 $domainPrompt = ixtla_insights_domain_developer_prompt();
 expect_diagnostic(str_contains($domainPrompt, 'get_operational_snapshot'), 'El perfil debe incluir la guía para diagnósticos operativos.');
+expect_diagnostic(str_contains($domainPrompt, 'get_operational_risk_snapshot'), 'El perfil debe priorizar el diagnóstico compuesto de riesgo.');
+expect_diagnostic(str_contains($domainPrompt, 'get_workload_trend_snapshot'), 'El perfil debe incluir el análisis compuesto de tendencia.');
+expect_diagnostic(str_contains($domainPrompt, 'get_backlog_risk_snapshot'), 'El perfil debe incluir el análisis compuesto de rezago.');
 expect_diagnostic(str_contains($domainPrompt, 'alcance autorizado se resuelve en el servidor'), 'El perfil debe preservar el límite de autorización del servidor.');
 expect_diagnostic(ixtla_insights_domain_metric_label('closed_count') === 'Requerimientos finalizados', 'El perfil debe centralizar las etiquetas de métricas.');
 expect_diagnostic(ixtla_insights_domain_period_label('last_30') === 'Últimos 30 días', 'El perfil debe centralizar las etiquetas de periodos.');
@@ -32,6 +41,13 @@ expect_diagnostic(ixtla_insights_domain_status_label(6) === 'Finalizado', 'El pe
 expect_diagnostic(ixtla_insights_domain_status_ids('active') === [0, 1, 2, 3], 'El perfil debe definir los estados activos.');
 expect_diagnostic(ixtla_insights_domain_priority_label(3) === 'Alta', 'El perfil debe centralizar las etiquetas de prioridades.');
 expect_diagnostic(ixtla_insights_dataset_active_status_condition() === 'r.estatus IN (0, 1, 2, 3)', 'Los datasets deben construir el filtro activo desde el perfil.');
+expect_diagnostic(ixtla_insights_dataset_risk_period('last_30') === 'last_30', 'Los paquetes compuestos deben admitir periodos comparables.');
+try {
+    ixtla_insights_dataset_risk_period('all');
+    expect_diagnostic(false, 'Los paquetes compuestos no deben aceptar historial ilimitado.');
+} catch (InvalidArgumentException) {
+    // Expected: a comparison without a bounded period is ambiguous.
+}
 
 $boundedHistory = ixtla_insights_clean_history([
     ['role' => 'user', 'content' => '111111'],
@@ -62,6 +78,17 @@ expect_diagnostic(($latestTool['parameters']['properties']['department']['type']
 $snapshotTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_operational_snapshot'))[0] ?? [];
 expect_diagnostic(($snapshotTool['parameters']['required'] ?? []) === ['period', 'top_tramites_limit'], 'El snapshot operativo debe exigir periodo y límite de trámites.');
 expect_diagnostic(($snapshotTool['parameters']['properties']['top_tramites_limit']['maximum'] ?? null) === 10, 'El snapshot operativo debe limitar el ranking para evitar respuestas desproporcionadas.');
+
+$riskTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_operational_risk_snapshot'))[0] ?? [];
+expect_diagnostic(($riskTool['parameters']['required'] ?? []) === ['period', 'top_tramites_limit', 'due_window_days'], 'El diagnóstico de riesgo debe recibir sólo sus límites explícitos.');
+expect_diagnostic(($riskTool['parameters']['properties']['period']['enum'] ?? []) === ['last_7', 'last_30', 'this_month'], 'El diagnóstico de riesgo no debe aceptar historial ilimitado.');
+expect_diagnostic(($riskTool['parameters']['properties']['due_window_days']['maximum'] ?? null) === 30, 'El vencimiento próximo debe tener una ventana limitada.');
+
+$workloadSnapshotTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_workload_trend_snapshot'))[0] ?? [];
+expect_diagnostic(($workloadSnapshotTool['parameters']['required'] ?? []) === ['period', 'top_tramites_limit'], 'El análisis de carga debe exigir periodo y límite de trámites.');
+
+$backlogSnapshotTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_backlog_risk_snapshot'))[0] ?? [];
+expect_diagnostic(($backlogSnapshotTool['parameters']['required'] ?? []) === ['top_limit'], 'El análisis de rezago debe limitar explícitamente sus rankings.');
 
 $comparisonTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_period_comparison'))[0] ?? [];
 expect_diagnostic(($comparisonTool['parameters']['required'] ?? []) === ['metric', 'period'], 'La comparación de periodos debe exigir métrica y periodo.');

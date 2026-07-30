@@ -100,6 +100,160 @@ function ixtla_insights_dataset_operational_snapshot(array $arguments): array
     }
 }
 
+/**
+ * Compound diagnosis for operational decisions. Deadline metrics include only
+ * active requirements with a registered due date. Scope and soft-delete rules
+ * are inherited from ixtla_insights_dataset_scope().
+ */
+function ixtla_insights_dataset_operational_risk_snapshot(array $arguments): array
+{
+    $period = ixtla_insights_dataset_risk_period($arguments['period'] ?? 'this_month');
+    $topLimit = min(10, max(1, (int) ($arguments['top_tramites_limit'] ?? 5)));
+    $dueWindowDays = min(30, max(1, (int) ($arguments['due_window_days'] ?? 7)));
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        ixtla_insights_dataset_period_clause($period, $where);
+        $whereSql = ' WHERE ' . implode(' AND ', $where);
+        $activeCondition = ixtla_insights_dataset_active_status_condition();
+        $summary = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT COUNT(*) AS total, '
+            . 'SUM(CASE WHEN ' . $activeCondition . ' THEN 1 ELSE 0 END) AS active, '
+            . 'SUM(CASE WHEN r.estatus = 4 THEN 1 ELSE 0 END) AS paused, '
+            . 'SUM(CASE WHEN r.estatus = 5 THEN 1 ELSE 0 END) AS cancelled, '
+            . 'SUM(CASE WHEN r.estatus = 6 THEN 1 ELSE 0 END) AS finalized, '
+            . 'SUM(CASE WHEN ' . $activeCondition . ' AND r.asignado_a IS NULL THEN 1 ELSE 0 END) AS unassigned, '
+            . 'SUM(CASE WHEN ' . $activeCondition . ' AND r.fecha_limite IS NOT NULL AND DATE(r.fecha_limite) < CURDATE() THEN 1 ELSE 0 END) AS overdue, '
+            . 'SUM(CASE WHEN ' . $activeCondition . ' AND r.fecha_limite IS NOT NULL AND DATE(r.fecha_limite) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY) THEN 1 ELSE 0 END) AS due_soon, '
+            . 'SUM(CASE WHEN ' . $activeCondition . ' AND r.fecha_limite IS NULL THEN 1 ELSE 0 END) AS without_due_date '
+            . 'FROM requerimiento r' . $whereSql,
+            'i' . $scope['types'],
+            [$dueWindowDays, ...$scope['params']]
+        )[0] ?? [];
+
+        return [
+            'dataset' => 'operational_risk_snapshot',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'period' => ['field' => 'created_at', 'preset' => $period],
+            'period_label' => ixtla_insights_domain_period_label($period),
+            'counts' => ixtla_insights_dataset_counts($summary, ['total', 'active', 'paused', 'cancelled', 'finalized', 'unassigned']),
+            'deadline_risk' => [
+                'overdue' => (int) ($summary['overdue'] ?? 0),
+                'due_within_days' => $dueWindowDays,
+                'due_soon' => (int) ($summary['due_soon'] ?? 0),
+                'without_due_date' => (int) ($summary['without_due_date'] ?? 0),
+                'definition' => 'Only active requirements with a registered due date are included.',
+            ],
+            'top_tramites' => ixtla_insights_dataset_top_tramites($connection, $scope, $where, $topLimit),
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
+/** Compound workload analysis for comparisons, peak days and contributors. */
+function ixtla_insights_dataset_workload_trend_snapshot(array $arguments): array
+{
+    $period = ixtla_insights_dataset_risk_period($arguments['period'] ?? 'last_30');
+    $topLimit = min(10, max(1, (int) ($arguments['top_tramites_limit'] ?? 5)));
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $currentWhere = $scope['where'];
+        $previousWhere = $scope['where'];
+        ixtla_insights_dataset_period_clause_for_field($period, 'created_at', $currentWhere);
+        ixtla_insights_dataset_previous_period_clause($period, 'r.created_at', $previousWhere);
+        $current = ixtla_insights_dataset_scalar($connection, 'SELECT COUNT(*) FROM requerimiento r WHERE ' . implode(' AND ', $currentWhere), $scope['types'], $scope['params']);
+        $previous = ixtla_insights_dataset_scalar($connection, 'SELECT COUNT(*) FROM requerimiento r WHERE ' . implode(' AND ', $previousWhere), $scope['types'], $scope['params']);
+        $dailyRows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT DATE(r.created_at) AS date, COUNT(*) AS value FROM requerimiento r WHERE ' . implode(' AND ', $currentWhere)
+            . ' GROUP BY DATE(r.created_at) ORDER BY value DESC, date ASC LIMIT 5',
+            $scope['types'],
+            $scope['params']
+        );
+
+        return [
+            'dataset' => 'workload_trend_snapshot',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'period' => ['field' => 'created_at', 'preset' => $period],
+            'period_label' => ixtla_insights_domain_period_label($period),
+            'comparison' => [
+                'current_total' => $current,
+                'previous_total' => $previous,
+                'difference' => $current - $previous,
+                'percentage_change' => $previous === 0 ? null : round((($current - $previous) / $previous) * 100, 1),
+            ],
+            'peak_days' => array_map(static fn (array $row): array => ['date' => (string) $row['date'], 'value' => (int) $row['value']], $dailyRows),
+            'top_tramites' => ixtla_insights_dataset_top_tramites($connection, $scope, $currentWhere, $topLimit),
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
+/** Compound backlog analysis for active-work concentration and aging. */
+function ixtla_insights_dataset_backlog_risk_snapshot(array $arguments): array
+{
+    $topLimit = min(10, max(1, (int) ($arguments['top_limit'] ?? 5)));
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        $where[] = ixtla_insights_dataset_active_status_condition();
+        $whereSql = ' WHERE ' . implode(' AND ', $where);
+        $summary = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT COUNT(*) AS active, SUM(CASE WHEN r.asignado_a IS NULL THEN 1 ELSE 0 END) AS unassigned, '
+            . 'SUM(CASE WHEN TIMESTAMPDIFF(DAY, r.created_at, NOW()) <= 7 THEN 1 ELSE 0 END) AS age_0_7, '
+            . 'SUM(CASE WHEN TIMESTAMPDIFF(DAY, r.created_at, NOW()) BETWEEN 8 AND 15 THEN 1 ELSE 0 END) AS age_8_15, '
+            . 'SUM(CASE WHEN TIMESTAMPDIFF(DAY, r.created_at, NOW()) BETWEEN 16 AND 30 THEN 1 ELSE 0 END) AS age_16_30, '
+            . 'SUM(CASE WHEN TIMESTAMPDIFF(DAY, r.created_at, NOW()) > 30 THEN 1 ELSE 0 END) AS age_31_plus '
+            . 'FROM requerimiento r' . $whereSql,
+            $scope['types'],
+            $scope['params']
+        )[0] ?? [];
+        $priorityRows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT r.prioridad AS priority_id, COUNT(*) AS value FROM requerimiento r' . $whereSql
+            . ' GROUP BY r.prioridad ORDER BY r.prioridad DESC',
+            $scope['types'],
+            $scope['params']
+        );
+        $assigneeRows = ixtla_insights_dataset_rows(
+            $connection,
+            "SELECT COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar') AS name, COUNT(*) AS value "
+            . 'FROM requerimiento r LEFT JOIN empleado e ON e.id = r.asignado_a' . $whereSql
+            . ' GROUP BY name ORDER BY value DESC, name ASC LIMIT ?',
+            $scope['types'] . 'i',
+            [...$scope['params'], $topLimit]
+        );
+
+        return [
+            'dataset' => 'backlog_risk_snapshot',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'as_of' => date('Y-m-d'),
+            'counts' => ixtla_insights_dataset_counts($summary, ['active', 'unassigned']),
+            'aging' => [
+                ['label' => '0 a 7 dias', 'value' => (int) ($summary['age_0_7'] ?? 0)],
+                ['label' => '8 a 15 dias', 'value' => (int) ($summary['age_8_15'] ?? 0)],
+                ['label' => '16 a 30 dias', 'value' => (int) ($summary['age_16_30'] ?? 0)],
+                ['label' => 'Mas de 30 dias', 'value' => (int) ($summary['age_31_plus'] ?? 0)],
+            ],
+            'by_priority' => array_map(static fn (array $row): array => [
+                'priority' => ixtla_insights_domain_priority_label((int) $row['priority_id']),
+                'value' => (int) $row['value'],
+            ], $priorityRows),
+            'top_assignees' => array_map(static fn (array $row): array => ['name' => (string) $row['name'], 'value' => (int) $row['value']], $assigneeRows),
+            'top_tramites' => ixtla_insights_dataset_top_tramites($connection, $scope, $where, $topLimit),
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
 /** Distribución de pendientes activos por antigüedad, dentro del scope RBAC. */
 function ixtla_insights_dataset_backlog_aging(): array
 {
@@ -622,6 +776,46 @@ function ixtla_insights_dataset_active_status_condition(): string
         throw new LogicException('El perfil de dominio no define estados activos.');
     }
     return 'r.estatus IN (' . implode(', ', $statusIds) . ')';
+}
+
+/** @return array<string, int> */
+function ixtla_insights_dataset_counts(array $source, array $keys): array
+{
+    $counts = [];
+    foreach ($keys as $key) {
+        $counts[(string) $key] = (int) ($source[$key] ?? 0);
+    }
+    return $counts;
+}
+
+/**
+ * Returns the highest-volume procedures for a prevalidated where clause.
+ * The caller supplies a scope obtained on the same connection, preserving RBAC.
+ */
+function ixtla_insights_dataset_top_tramites(mysqli $connection, array $scope, array $where, int $limit): array
+{
+    $rows = ixtla_insights_dataset_rows(
+        $connection,
+        'SELECT t.nombre AS name, COUNT(*) AS value FROM requerimiento r '
+        . 'JOIN tramite t ON t.id = r.tramite_id WHERE ' . implode(' AND ', $where)
+        . ' GROUP BY t.id, t.nombre ORDER BY value DESC, name ASC LIMIT ?',
+        (string) $scope['types'] . 'i',
+        [...$scope['params'], $limit]
+    );
+    return array_map(static fn (array $row): array => [
+        'name' => (string) $row['name'],
+        'value' => (int) $row['value'],
+    ], $rows);
+}
+
+/** Limits compound snapshots to periods that have an unambiguous comparison. */
+function ixtla_insights_dataset_risk_period(mixed $period): string
+{
+    $value = strtolower(trim((string) $period));
+    if (!in_array($value, ['last_7', 'last_30', 'this_month'], true)) {
+        throw new InvalidArgumentException('El periodo del diagnóstico no está disponible.');
+    }
+    return $value;
 }
 
 function ixtla_insights_dataset_period(mixed $period): string

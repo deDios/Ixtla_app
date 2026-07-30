@@ -53,7 +53,7 @@ function ixtla_insights_config(): array
         'model' => $model,
         'api_key' => $apiKey,
 
-        // Límites del endpoint protegido de preguntas.
+        // limites del endpoint protegido de preguntas.
         'request_timeout_seconds' => 180,
         'connect_timeout_seconds' => 15,
         'max_question_characters' => 1800,
@@ -76,7 +76,7 @@ function ixtla_insights_config(): array
         // despliegue (por ejemplo, el SHA corto del commit), nunca contiene secretos.
         'build_id' => ixtla_insights_env_value($openai, 'IXTLA_INSIGHTS_BUILD_ID'),
 
-        // El asistente inicia únicamente sobre el dominio operativo actual.
+        // El asistente inicia unicamente sobre el dominio operativo actual.
         'allowed_domains' => ['requerimientos'],
         'allow_visualizations' => true,
         // Sólo permite agregaciones predefinidas y autorizadas; nunca SQL del modelo.

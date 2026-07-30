@@ -83,18 +83,18 @@ const INSIGHTS_CONFIG = {
   simpleMode: true,
   quickQuestions: [
     {
-      label: "Diagnóstico del mes",
-      description: "Estatus y trámites con mayor carga.",
-      prompt: "Elabora un diagnóstico operativo de este mes: total de requerimientos, desglose por estatus y los cinco trámites con mayor volumen. Usa sólo datos reales de mi alcance autorizado.",
+      label: "Riesgo operativo",
+      description: "Estatus, pendientes, vencimientos y prioridades.",
+      prompt: "Analiza el riesgo operativo de este mes dentro de mi alcance autorizado: indica requerimientos activos, pausados, finalizados y sin responsable; identifica los cinco trámites con mayor carga, los vencidos o próximos a vencer en 7 días, y dame una recomendación priorizada. Usa sólo datos reales y señala cualquier dato no disponible.",
       primary: true,
     },
     {
-      label: "Pendientes +30 días",
-      prompt: "Muéstrame los 10 requerimientos activos con más de 30 días, incluyendo ID, trámite, antigüedad, prioridad y responsable, dentro de mi alcance autorizado.",
+      label: "Cartera y rezago",
+      prompt: "Elabora un diagnóstico de cartera dentro de mi alcance autorizado: pendientes activos por antigüedad y prioridad, cuántos no tienen responsable, responsables con mayor carga y los cinco trámites con más pendientes. Cierra con una recomendación accionable y no inventes cifras.",
     },
     {
       label: "Tendencia 30 días",
-      prompt: "Analiza la tendencia diaria de requerimientos creados durante los últimos 30 días dentro de mi alcance autorizado e indica si la carga aumentó, disminuyó o se mantuvo estable.",
+      prompt: "Compara los últimos 30 días contra los 30 anteriores dentro de mi alcance autorizado. Indica la variación de la demanda, los días pico, los cinco trámites que más contribuyeron y una conclusión breve. No inventes cifras.",
     },
     {
       label: "Trámites con más carga",

@@ -763,3 +763,62 @@ function ixtla_insights_log_usage(array $response, array $context = []): void
     ];
     error_log((string) json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
+
+/**
+ * Suma el consumo de una o varias respuestas de Responses API.
+ *
+ * Una consulta que usa tools puede generar una respuesta inicial y una o más
+ * continuaciones. El resumen representa el turno completo, no sólo la última
+ * continuación que redactó el texto final.
+ */
+function ixtla_insights_usage_summary(array $responses): array
+{
+    $summary = [
+        'provider_requests' => 0,
+        'input_tokens' => 0,
+        'output_tokens' => 0,
+        'reasoning_tokens' => 0,
+        'cached_input_tokens' => 0,
+        'total_tokens' => 0,
+    ];
+
+    foreach ($responses as $response) {
+        $usage = is_array($response['usage'] ?? null) ? $response['usage'] : null;
+        if ($usage === null) {
+            continue;
+        }
+
+        $inputDetails = is_array($usage['input_tokens_details'] ?? null) ? $usage['input_tokens_details'] : [];
+        $outputDetails = is_array($usage['output_tokens_details'] ?? null) ? $usage['output_tokens_details'] : [];
+        $inputTokens = max(0, (int) ($usage['input_tokens'] ?? 0));
+        $outputTokens = max(0, (int) ($usage['output_tokens'] ?? 0));
+
+        $summary['provider_requests']++;
+        $summary['input_tokens'] += $inputTokens;
+        $summary['output_tokens'] += $outputTokens;
+        $summary['reasoning_tokens'] += max(0, (int) ($outputDetails['reasoning_tokens'] ?? $usage['reasoning_tokens'] ?? 0));
+        $summary['cached_input_tokens'] += max(0, (int) ($inputDetails['cached_tokens'] ?? 0));
+        $summary['total_tokens'] += max(0, (int) ($usage['total_tokens'] ?? ($inputTokens + $outputTokens)));
+    }
+
+    return $summary;
+}
+
+/** Registra un resumen de uso ya agregado para una consulta completa. */
+function ixtla_insights_log_usage_summary(array $usage, array $context = []): void
+{
+    $record = [
+        'event' => 'ixtla_insights_usage',
+        'request_id' => ixtla_insights_request_id(),
+        'model' => $context['model'] ?? null,
+        'mode' => $context['mode'] ?? null,
+        'latency_ms' => $context['latency_ms'] ?? null,
+        'provider_requests' => (int) ($usage['provider_requests'] ?? 0),
+        'input_tokens' => (int) ($usage['input_tokens'] ?? 0),
+        'output_tokens' => (int) ($usage['output_tokens'] ?? 0),
+        'reasoning_tokens' => (int) ($usage['reasoning_tokens'] ?? 0),
+        'cached_input_tokens' => (int) ($usage['cached_input_tokens'] ?? 0),
+        'total_tokens' => (int) ($usage['total_tokens'] ?? 0),
+    ];
+    error_log((string) json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}

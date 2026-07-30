@@ -46,16 +46,19 @@ consola_debug('gpt_probe.history_size', [
     'characters' => array_sum(array_map(static fn (array $message): int => mb_strlen((string) ($message['content'] ?? '')), $history)),
 ]);
 
-$answer = ixtla_insights_probe_openai_text($config, $question, $history, ixtla_insights_conversation_context_text($conversation));
+$probeResult = ixtla_insights_probe_openai_text($config, $question, $history, ixtla_insights_conversation_context_text($conversation));
+$answer = $probeResult['answer'];
 ixtla_insights_conversation_append($conversation, $config, $question, $answer);
 consola_debug('gpt_probe.answer_ready', [
     'answer_length' => mb_strlen($answer),
+    'total_tokens' => (int) ($probeResult['usage']['total_tokens'] ?? 0),
 ]);
 
 ixtla_insights_json([
     'ok' => true,
     'mode' => 'gpt_probe',
     'answer' => $answer,
+    'usage' => $probeResult['usage'],
     'suggestions' => [],
 ]);
 
@@ -63,7 +66,7 @@ ixtla_insights_json([
  * Adaptador HTTP para Responses API. No acepta instrucciones ni historial del
  * navegador como fuente de autoridad; ambos se normalizan en el servidor.
  */
-function ixtla_insights_probe_openai_text(array $config, string $question, array $history = [], string $conversationContext = ''): string
+function ixtla_insights_probe_openai_text(array $config, string $question, array $history = [], string $conversationContext = ''): array
 {
     if (!function_exists('curl_init')) {
         ixtla_insights_json(['ok' => false, 'error' => 'La extension cURL no esta disponible.'], 500);
@@ -155,9 +158,20 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no pudo procesar la prueba.'], 502);
     }
 
+    $providerResponses = [$response];
+    $totalLatencyMs = $latencyMs;
     $toolCalls = ixtla_insights_probe_tool_calls($response);
     if ($toolCalls === [] && ixtla_insights_probe_requires_data($question)) {
-        return 'No tengo una herramienta compatible para obtener ese dato con seguridad. Puedo ayudarte con totales, estatus, departamentos, trámites, el último requerimiento y tiempos promedio de resolución por departamento.';
+        $usage = ixtla_insights_usage_summary($providerResponses);
+        ixtla_insights_log_usage_summary($usage, [
+            'model' => $model,
+            'latency_ms' => $totalLatencyMs,
+            'mode' => 'gpt_probe',
+        ]);
+        return [
+            'answer' => 'No tengo una herramienta compatible para obtener ese dato con seguridad. Puedo ayudarte con totales, estatus, departamentos, trámites, el último requerimiento y tiempos promedio de resolución por departamento.',
+            'usage' => $usage,
+        ];
     }
     $remainingToolCalls = max(0, (int) $config['max_tool_calls_per_turn']);
     $toolRound = 0;
@@ -184,15 +198,19 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         }
         $remainingToolCalls -= count($toolCalls);
         $toolRound++;
+        $continuationStartedAt = microtime(true);
         $response = ixtla_insights_probe_continue_after_tools($config, $response, $outputs, $remainingToolCalls > 0);
+        $totalLatencyMs += (int) round((microtime(true) - $continuationStartedAt) * 1000);
+        $providerResponses[] = $response;
         $toolCalls = $remainingToolCalls > 0
             ? ixtla_insights_probe_tool_calls($response, $remainingToolCalls)
             : [];
     }
 
-    ixtla_insights_log_usage($response, [
+    $usage = ixtla_insights_usage_summary($providerResponses);
+    ixtla_insights_log_usage_summary($usage, [
         'model' => $model,
-        'latency_ms' => $latencyMs,
+        'latency_ms' => $totalLatencyMs,
         'mode' => 'gpt_probe',
     ]);
     $answer = trim(ixtla_insights_openai_text($response));
@@ -200,13 +218,13 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no devolvio texto para la prueba.'], 502);
     }
 
-    return $answer;
+    return ['answer' => $answer, 'usage' => $usage];
 }
 
 function ixtla_insights_probe_requires_data(string $question): bool
 {
     $normalized = ixtla_insights_normalize_match_text($question);
-    return preg_match('/\b(cuanto|cuantos|cuanta|cuantas|numero|ultimo|ultima|top|ranking|promedio|tiempo|cierre|cerrado|cerrados|finalizado|finalizados|departamento|tramite|estatus)\b/', $normalized) === 1;
+    return preg_match('/\b(cuanto|cuantos|cuanta|cuantas|numero|ultimo|ultima|top|ranking|promedio|tiempo|cierre|cerrado|cerrados|finalizado|finalizados|departamento|tramite|estatus|riesgo|prioridad|pendiente|pendientes|rezago|atorado|atorados|vencido|vencidos|vencer|vencimiento|asignado|asignar|tendencia|variacion|carga)\b/', $normalized) === 1;
 }
 
 function ixtla_insights_probe_tool_calls(array $response, ?int $limit = null): array
