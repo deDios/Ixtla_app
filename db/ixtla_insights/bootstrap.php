@@ -6,6 +6,12 @@ require_once __DIR__ . '/../conn/ixtla_insights_config.php';
 require_once __DIR__ . '/contracts.php';
 require_once __DIR__ . '/domain_profile.php';
 
+/**
+ * Inicializa el entorno de ejecución del asistente Ixtla Insights.
+ *
+ * @param array $methods Métodos HTTP permitidos para la solicitud actual.
+ * @return array Configuración de Ixtla Insights.
+ */
 function ixtla_insights_bootstrap(array $methods = ['POST']): array
 {
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
@@ -37,6 +43,12 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
     return $config;
 }
 
+/**
+ * Envía una respuesta JSON y termina la ejecución.
+ *
+ * @param array $payload Cuerpo de la respuesta.
+ * @param int $status Código HTTP de la respuesta.
+ */
 function ixtla_insights_json(array $payload, int $status = 200): void
 {
     while (ob_get_level() > 0) {

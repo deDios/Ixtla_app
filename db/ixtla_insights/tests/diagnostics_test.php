@@ -82,10 +82,12 @@ expect_diagnostic((int) ixtla_insights_config()['max_tool_calls_per_turn'] === 2
 
 $globalAccess = ixtla_insights_access_scope_from_rbac(['empleado' => ['id' => 1, 'departamento_id' => 6], 'scope' => ['global' => true]]);
 expect_diagnostic($globalAccess['mode'] === 'global' && $globalAccess['allowed_department_ids'] === null, 'Un perfil global debe conservar acceso global dentro de Insights.');
+expect_diagnostic(ixtla_insights_dataset_scope_query($globalAccess)['where'] === ['r.status = 1'], 'El alcance global debe excluir bajas lógicas de requerimientos.');
 
 $departmentAccess = ixtla_insights_access_scope_from_rbac(['empleado' => ['id' => 2, 'departamento_id' => 8], 'scope' => ['department' => true]]);
 expect_diagnostic($departmentAccess['mode'] === 'department' && $departmentAccess['allowed_department_ids'] === [8], 'Un perfil de departamento debe quedar limitado a su departamento.');
 expect_diagnostic(ixtla_insights_dataset_scope_query($departmentAccess)['params'] === [8], 'La consulta de departamento debe enlazar exclusivamente el departamento autorizado.');
+expect_diagnostic(ixtla_insights_dataset_scope_query($departmentAccess)['where'] === ['r.status = 1', 'r.departamento_id = ?'], 'La baja lógica debe aplicarse antes del alcance por departamento.');
 
 $teamAccess = ixtla_insights_access_scope_from_rbac(['empleado' => ['id' => 3, 'departamento_id' => 9], 'scope' => ['team' => true]], [10, 11]);
 expect_diagnostic($teamAccess['mode'] === 'team' && $teamAccess['team_employee_ids'] === [3, 10, 11], 'Un perfil de equipo debe incluirse a si mismo y solo a su equipo.');

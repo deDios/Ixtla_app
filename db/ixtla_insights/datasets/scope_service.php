@@ -96,14 +96,29 @@ function ixtla_insights_access_scope_from_rbac(array $rbac, array $teamEmployeeI
     return array_replace($base, ['mode' => 'self', 'label' => 'Requerimientos asignados al usuario']);
 }
 
+/**
+ * Condición base de visibilidad para requerimientos.
+ *
+ * El endpoint operativo canónico sólo expone registros con status=1. Esta
+ * regla no forma parte del RBAC: evita incluir bajas lógicas en cualquier
+ * consulta analítica, sin importar el alcance autorizado del usuario.
+ *
+ * @return list<string>
+ */
+function ixtla_insights_dataset_requirement_visibility_where(): array
+{
+    return ['r.status = 1'];
+}
+
 /** Convierte el contrato de acceso en condiciones SQL preparadas. */
 function ixtla_insights_dataset_scope_query(array $access): array
 {
     $mode = (string) ($access['mode'] ?? '');
+    $visibilityWhere = ixtla_insights_dataset_requirement_visibility_where();
     return match ($mode) {
-        'global' => ['where' => [], 'types' => '', 'params' => [], 'mode' => $mode, 'label' => (string) $access['label'], 'access' => $access],
+        'global' => ['where' => $visibilityWhere, 'types' => '', 'params' => [], 'mode' => $mode, 'label' => (string) $access['label'], 'access' => $access],
         'department' => [
-            'where' => ['r.departamento_id = ?'],
+            'where' => [...$visibilityWhere, 'r.departamento_id = ?'],
             'types' => 'i',
             'params' => [(int) $access['department_id']],
             'mode' => $mode,
@@ -111,7 +126,7 @@ function ixtla_insights_dataset_scope_query(array $access): array
             'access' => $access,
         ],
         'team' => [
-            'where' => ['r.asignado_a IN (' . implode(',', array_fill(0, count($access['team_employee_ids']), '?')) . ')'],
+            'where' => [...$visibilityWhere, 'r.asignado_a IN (' . implode(',', array_fill(0, count($access['team_employee_ids']), '?')) . ')'],
             'types' => str_repeat('i', count($access['team_employee_ids'])),
             'params' => $access['team_employee_ids'],
             'mode' => $mode,
@@ -119,7 +134,7 @@ function ixtla_insights_dataset_scope_query(array $access): array
             'access' => $access,
         ],
         'self' => [
-            'where' => ['r.asignado_a = ?'],
+            'where' => [...$visibilityWhere, 'r.asignado_a = ?'],
             'types' => 'i',
             'params' => [(int) $access['employee_id']],
             'mode' => $mode,
