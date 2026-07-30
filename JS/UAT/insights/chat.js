@@ -259,6 +259,46 @@ export function mountIxtlaInsights(options = {}) {
     messages.scrollTop = messages.scrollHeight;
   }
 
+  /**
+   * Muestra una señal efímera mientras el endpoint consulta el modelo y sus
+   * herramientas. No forma parte del historial ni se conserva como respuesta.
+   */
+  function showThinkingIndicator() {
+    const item = document.createElement("div");
+    item.className = "ixtla-insights-message ixtla-insights-message--thinking";
+    item.setAttribute("role", "status");
+    item.setAttribute("aria-live", "polite");
+
+    const label = document.createElement("span");
+    label.className = "ixtla-insights-thinking__label";
+    const dots = document.createElement("span");
+    dots.className = "ixtla-insights-thinking__dots";
+    dots.setAttribute("aria-hidden", "true");
+    dots.append(document.createElement("i"), document.createElement("i"), document.createElement("i"));
+    item.append(label, dots);
+    messages.appendChild(item);
+
+    const stages = [
+      "Analizando tu consulta…",
+      "Consultando datos autorizados…",
+      "Preparando una respuesta clara…",
+    ];
+    const update = (text) => {
+      label.textContent = text;
+      messages.scrollTop = messages.scrollHeight;
+    };
+    update(stages[0]);
+    const timers = [
+      window.setTimeout(() => update(stages[1]), 1200),
+      window.setTimeout(() => update(stages[2]), 4200),
+    ];
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      item.remove();
+    };
+  }
+
   function renderReport(report) {
     const items = Array.isArray(report?.items) ? report.items : [];
     if (!items.length) return;
@@ -945,6 +985,7 @@ export function mountIxtlaInsights(options = {}) {
       return;
     }
     send.disabled = true;
+    const hideThinkingIndicator = showThinkingIndicator();
     try {
       if (!config.simpleMode) await ensureCatalog(config.catalogUrl);
       const payload = await requestRemoteAnswer(prompt);
@@ -980,6 +1021,7 @@ export function mountIxtlaInsights(options = {}) {
         addMessage("No fue posible analizar los requerimientos. Intenta de nuevo.");
       }
     } finally {
+      hideThinkingIndicator();
       send.disabled = false;
       input.focus();
     }
