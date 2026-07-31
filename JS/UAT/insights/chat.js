@@ -216,6 +216,7 @@ export function mountIxtlaInsights(options = {}) {
     ],
     dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
     apiUrl: "/db/ixtla_insights/gpt_probe.php",
+    welcomeUrl: "/db/ixtla_insights/welcome_report.php",
     catalogUrl: "/db/ixtla_insights/catalog.php",
     draftUrl: "/db/ixtla_insights/draft.php",
     departmentsUrl: "/db/ixtla_insights/departments.php",
@@ -1069,6 +1070,63 @@ export function mountIxtlaInsights(options = {}) {
     });
   }
 
+  function formatWelcomeReport(report) {
+    const number = (value) => Number(value || 0).toLocaleString("es-MX");
+    const counts = report?.counts || {};
+    const risk = report?.deadline_risk || {};
+    const trend = report?.trend || {};
+    const top = Array.isArray(report?.top_tramites) ? report.top_tramites : [];
+    const topText = top.length
+      ? top.map((item, index) => `${index + 1}. ${clean(item?.name) || "Sin nombre"} (${number(item?.value)})`).join("\n")
+      : "Sin datos suficientes para identificar trámites con mayor carga.";
+    const change = trend?.percentage_change;
+    const trendText = change === null || change === undefined
+      ? "Sin periodo previo comparable."
+      : `${Number(change) > 0 ? "+" : ""}${Number(change).toLocaleString("es-MX", { maximumFractionDigits: 1 })}% frente a los 30 días previos.`;
+
+    return [
+      clean(report?.title) || "Dataset de: Usuario actual",
+      `Alcance: ${clean(report?.scope?.label) || "Vista autorizada"}.`,
+      `Informe operativo · ${clean(report?.period_label) || "Mes en curso"}.`,
+      "",
+      "KPIs",
+      `• Total: ${number(counts.total)}`,
+      `• Activos: ${number(counts.active)}`,
+      `• Promedio semanal (últimos 30 días): ${Number(report?.average_weekly || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 })}`,
+      `• Finalizados: ${number(counts.finalized)}`,
+      `• Pausados: ${number(counts.paused)} · Cancelados: ${number(counts.cancelled)}`,
+      `• Sin asignar: ${number(counts.unassigned)}`,
+      "",
+      "Riesgo y seguimiento",
+      `• Vencidos: ${number(risk.overdue)}`,
+      `• Por vencer en ${number(risk.due_within_days || 7)} días: ${number(risk.due_soon)}`,
+      `• Sin fecha límite: ${number(risk.without_due_date)}`,
+      "",
+      "Mayor incidencia por trámite",
+      topText,
+      "",
+      `Tendencia de carga (últimos 30 días): ${trendText}`,
+      "Puedes pedirme folios recientes, detalles de un requerimiento, filtros por estatus, prioridad, departamento o un reporte más amplio.",
+    ].join("\n");
+  }
+
+  async function showWelcomeReport() {
+    try {
+      const response = await fetch(config.welcomeUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: "{}",
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok || !payload?.report) throw new Error("No se recibió el informe inicial.");
+      addMessage(formatWelcomeReport(payload.report));
+    } catch (error) {
+      console.warn("[IxtlaInsights] welcome report", error);
+      addMessage("No fue posible cargar el informe inicial. Puedes consultar requerimientos específicos desde el chat.");
+    }
+  }
+
   renderQuickQuestions(config.quickQuestions);
   fab.addEventListener("click", open);
   close.addEventListener("click", closeDrawer);
@@ -1079,6 +1137,7 @@ export function mountIxtlaInsights(options = {}) {
     void clearServerConversation();
     if (!config.simpleMode) discardDraft();
     renderQuickQuestions(config.quickQuestions);
+    if (config.simpleMode) void showWelcomeReport();
   });
   overlay.addEventListener("click", closeDrawer);
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDrawer(); });
@@ -1097,7 +1156,7 @@ export function mountIxtlaInsights(options = {}) {
     }).catch(() => {});
   if (config.simpleMode) {
     messages.replaceChildren();
-    addMessage("Hola. Estoy en modo de prueba: puedo responder preguntas generales, sin consultar métricas ni crear gráficos todavía.");
+    void showWelcomeReport();
   }
   const api = { open, close: closeDrawer, ask, setContext };
   window.__ixtlaInsightsInstance = api;

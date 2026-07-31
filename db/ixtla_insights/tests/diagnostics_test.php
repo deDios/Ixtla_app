@@ -105,6 +105,24 @@ expect_diagnostic(($breakdownTool['parameters']['properties']['limit']['maximum'
 $overdueTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_overdue_requirements'))[0] ?? [];
 expect_diagnostic(($overdueTool['parameters']['required'] ?? []) === ['minimum_days', 'limit'], 'La lista de pendientes envejecidos debe exigir límites explícitos.');
 
+$safeRecordsTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'search_safe_requirement_records'))[0] ?? [];
+expect_diagnostic(($safeRecordsTool['parameters']['properties']['limit']['maximum'] ?? null) === 25, 'El dataset de respaldo debe acotar la lista de registros.');
+expect_diagnostic(($safeRecordsTool['parameters']['properties']['department']['type'] ?? []) === ['string', 'null'], 'El dataset de respaldo debe permitir no filtrar por departamento.');
+expect_diagnostic(str_contains($domainPrompt, 'search_safe_requirement_records'), 'El perfil debe indicar cómo usar el dataset de respaldo.');
+expect_diagnostic(ixtla_insights_dataset_safe_records_spec([
+    'period' => 'last_30', 'department' => null, 'status_ids' => [3], 'priority_ids' => [3],
+    'assignee_state' => 'unassigned', 'deadline_state' => 'overdue', 'sort' => 'oldest', 'limit' => 100,
+])['limit'] === 25, 'El dataset de respaldo debe limitar registros aunque reciba un valor mayor.');
+
+$snapshotSearchTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'search_requirements_dataset'))[0] ?? [];
+expect_diagnostic(($snapshotSearchTool['parameters']['properties']['limit']['maximum'] ?? null) === 50, 'Las consultas al snapshot deben limitar las filas enviadas al modelo.');
+$snapshotDetailTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_dataset_detail'))[0] ?? [];
+expect_diagnostic(($snapshotDetailTool['parameters']['required'] ?? []) === ['id', 'folio'], 'El detalle del snapshot debe aceptar una llave explicita.');
+$snapshotAggregateTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'aggregate_requirements_dataset'))[0] ?? [];
+expect_diagnostic(($snapshotAggregateTool['parameters']['properties']['group_by']['enum'] ?? []) === ['status', 'department', 'tramite', 'assignee'], 'El snapshot solo debe agrupar por dimensiones disponibles en la fuente.');
+expect_diagnostic(str_contains($domainPrompt, 'snapshot analitico'), 'El perfil debe priorizar el dataset cacheado.');
+expect_diagnostic(str_contains($domainPrompt, 'dataset_analytic_fallback') === false && str_contains($domainPrompt, 'descompón la petición'), 'El perfil debe usar el dataset como respaldo analítico genérico.');
+
 expect_diagnostic((int) ixtla_insights_config()['max_tool_calls_per_turn'] === 2, 'El asistente debe conservar un límite total de dos llamadas de herramienta por turno.');
 
 $globalAccess = ixtla_insights_access_scope_from_rbac(['empleado' => ['id' => 1, 'departamento_id' => 6], 'scope' => ['global' => true]]);

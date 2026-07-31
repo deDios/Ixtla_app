@@ -497,6 +497,109 @@ function ixtla_insights_dataset_overdue_requirements(array $arguments): array
     }
 }
 
+/**
+ * Dataset de respaldo para preguntas operativas que no encajan en un reporte
+ * agregado. El modelo nunca define SQL ni recibe campos de ciudadanos: sólo
+ * puede combinar filtros enumerados y obtener una lista pequeña de fichas.
+ */
+function ixtla_insights_dataset_safe_records(array $arguments): array
+{
+    $spec = ixtla_insights_dataset_safe_records_spec($arguments);
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $scope = ixtla_insights_dataset_scope($connection);
+        $where = $scope['where'];
+        $types = $scope['types'];
+        $params = $scope['params'];
+        $where[] = 'd.status = 1';
+        ixtla_insights_dataset_period_clause($spec['period'], $where);
+        if ($spec['department'] !== null) {
+            $where[] = 'd.nombre = ?';
+            $types .= 's';
+            $params[] = $spec['department'];
+        }
+        if ($spec['status_ids'] !== []) {
+            $where[] = 'r.estatus IN (' . implode(',', array_fill(0, count($spec['status_ids']), '?')) . ')';
+            $types .= str_repeat('i', count($spec['status_ids']));
+            $params = [...$params, ...$spec['status_ids']];
+        }
+        if ($spec['priority_ids'] !== []) {
+            $where[] = 'r.prioridad IN (' . implode(',', array_fill(0, count($spec['priority_ids']), '?')) . ')';
+            $types .= str_repeat('i', count($spec['priority_ids']));
+            $params = [...$params, ...$spec['priority_ids']];
+        }
+        if ($spec['assignee_state'] === 'assigned') {
+            $where[] = 'r.asignado_a IS NOT NULL';
+        } elseif ($spec['assignee_state'] === 'unassigned') {
+            $where[] = 'r.asignado_a IS NULL';
+        }
+        if ($spec['deadline_state'] !== 'any') {
+            $where[] = ixtla_insights_dataset_active_status_condition();
+            $where[] = match ($spec['deadline_state']) {
+                'overdue' => 'r.fecha_limite IS NOT NULL AND DATE(r.fecha_limite) < CURDATE()',
+                'due_soon' => 'r.fecha_limite IS NOT NULL AND DATE(r.fecha_limite) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)',
+                'without_due_date' => 'r.fecha_limite IS NULL',
+            };
+        }
+        $orderBy = $spec['sort'] === 'oldest' ? 'r.created_at ASC, r.id ASC' : 'r.created_at DESC, r.id DESC';
+        $rows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT r.id, r.folio, r.created_at, r.fecha_limite, r.estatus AS status_id, r.prioridad AS priority_id, '
+            . 'd.nombre AS department, t.nombre AS tramite, '
+            . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar') AS assignee "
+            . 'FROM requerimiento r JOIN departamento d ON d.id = r.departamento_id '
+            . 'JOIN tramite t ON t.id = r.tramite_id LEFT JOIN empleado e ON e.id = r.asignado_a '
+            . 'WHERE ' . implode(' AND ', $where) . ' ORDER BY ' . $orderBy . ' LIMIT ?',
+            $types . 'i',
+            [...$params, $spec['limit']]
+        );
+        return [
+            'dataset' => 'safe_requirement_records_v1',
+            'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
+            'filters' => $spec,
+            'items' => array_map(static fn (array $row): array => [
+                'id' => (int) $row['id'],
+                'folio' => (string) ($row['folio'] ?? ''),
+                'department' => (string) $row['department'],
+                'tramite' => (string) $row['tramite'],
+                'status' => ixtla_insights_domain_status_label((int) $row['status_id']),
+                'priority' => ixtla_insights_domain_priority_label((int) $row['priority_id']),
+                'assignee' => (string) $row['assignee'],
+                'created_at' => (string) $row['created_at'],
+                'due_at' => $row['fecha_limite'] === null ? null : (string) $row['fecha_limite'],
+            ], $rows),
+            'privacy' => 'No incluye asunto, descripcion ni datos de contacto ciudadanos.',
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
+/** @return array<string, mixed> */
+function ixtla_insights_dataset_safe_records_spec(array $arguments): array
+{
+    $period = ixtla_insights_dataset_period($arguments['period'] ?? 'all');
+    $department = ixtla_insights_dataset_department_name($arguments['department'] ?? null);
+    $statusIds = array_values(array_unique(array_map('intval', is_array($arguments['status_ids'] ?? null) ? $arguments['status_ids'] : [])));
+    $priorityIds = array_values(array_unique(array_map('intval', is_array($arguments['priority_ids'] ?? null) ? $arguments['priority_ids'] : [])));
+    if (array_diff($statusIds, [0, 1, 2, 3, 4, 5, 6]) !== [] || array_diff($priorityIds, [1, 2, 3]) !== []) {
+        throw new InvalidArgumentException('Los filtros de estatus o prioridad no son validos.');
+    }
+    $assigneeState = strtolower(trim((string) ($arguments['assignee_state'] ?? 'any')));
+    $deadlineState = strtolower(trim((string) ($arguments['deadline_state'] ?? 'any')));
+    $sort = strtolower(trim((string) ($arguments['sort'] ?? 'newest')));
+    $limit = min(25, max(1, (int) ($arguments['limit'] ?? 10)));
+    if (!in_array($assigneeState, ['any', 'assigned', 'unassigned'], true)
+        || !in_array($deadlineState, ['any', 'overdue', 'due_soon', 'without_due_date'], true)
+        || !in_array($sort, ['newest', 'oldest'], true)) {
+        throw new InvalidArgumentException('Los filtros de registros no son validos.');
+    }
+    return [
+        'period' => $period, 'department' => $department, 'status_ids' => $statusIds, 'priority_ids' => $priorityIds,
+        'assignee_state' => $assigneeState, 'deadline_state' => $deadlineState, 'sort' => $sort, 'limit' => $limit,
+    ];
+}
+
 function ixtla_insights_dataset_authorized_departments(): array
 {
     $connection = ixtla_insights_dataset_connection();
@@ -808,7 +911,9 @@ function ixtla_insights_dataset_top_tramites(mysqli $connection, array $scope, a
     ], $rows);
 }
 
-/** Limits compound snapshots to periods that have an unambiguous comparison. */
+/** 
+ * Validates and returns the risk period for diagnostic queries.
+ */
 function ixtla_insights_dataset_risk_period(mixed $period): string
 {
     $value = strtolower(trim((string) $period));

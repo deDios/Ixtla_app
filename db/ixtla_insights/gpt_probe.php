@@ -103,7 +103,10 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         'temperature' => (float) $config['temperature'],
         'max_output_tokens' => (int) $config['max_output_tokens'],
         'tools' => ixtla_insights_tool_definitions(),
-        'tool_choice' => 'auto',
+        // Las preguntas de datos deben pasar por una herramienta. El modelo
+        // puede elegir una especializada o las herramientas genéricas del
+        // snapshot; nunca debe responder usando memoria o cifras inventadas.
+        'tool_choice' => ixtla_insights_probe_requires_data($question) ? 'required' : 'auto',
     ];
     $encodedPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($encodedPayload === false) {
@@ -224,7 +227,8 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
 function ixtla_insights_probe_requires_data(string $question): bool
 {
     $normalized = ixtla_insights_normalize_match_text($question);
-    return preg_match('/\b(cuanto|cuantos|cuanta|cuantas|numero|ultimo|ultima|top|ranking|promedio|tiempo|cierre|cerrado|cerrados|finalizado|finalizados|departamento|tramite|estatus|riesgo|prioridad|pendiente|pendientes|rezago|atorado|atorados|vencido|vencidos|vencer|vencimiento|asignado|asignar|tendencia|variacion|carga)\b/', $normalized) === 1;
+    return preg_match('/\b(cuanto|cuantos|cuanta|cuantas|numero|ultimo|ultima|top|ranking|promedio|tiempo|cierre|cerrado|cerrados|finalizado|finalizados|departamento|tramite|estatus|riesgo|pendiente|pendientes|rezago|atorado|atorados|vencido|vencidos|vencer|vencimiento|asignado|asignar|solicito|solicitante|folio|requerimiento|requerimientos|tendencia|variacion|carga|muestra|lista)\b/', $normalized) === 1
+        || preg_match('/\breq[-\s]?\d+\b/i', $question) === 1;
 }
 
 function ixtla_insights_probe_tool_calls(array $response, ?int $limit = null): array

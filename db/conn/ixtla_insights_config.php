@@ -69,6 +69,12 @@ function ixtla_insights_config(): array
         'max_tool_calls_per_turn' => 2,
         'reasoning_effort' => 'medium',
 
+        // Snapshot analitico por alcance RBAC. El cache reside en servidor;
+        // nunca se entrega completo al navegador ni al modelo.
+        'dataset_cache_ttl_seconds' => max(60, (int) (ixtla_insights_env_value($openai, 'IXTLA_INSIGHTS_DATASET_CACHE_TTL') ?: 900)),
+        'dataset_cache_dir' => ixtla_insights_env_value($openai, 'IXTLA_INSIGHTS_DATASET_CACHE_DIR') ?: (sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ixtla_insights_datasets'),
+        'dataset_page_size' => min(1000, max(100, (int) (ixtla_insights_env_value($openai, 'IXTLA_INSIGHTS_DATASET_PAGE_SIZE') ?: 500))),
+
         // Observabilidad temporal. Mantenerlo apagado en producción salvo
         // durante una investigación: los eventos se escriben en error_log.
         'debug' => true,
