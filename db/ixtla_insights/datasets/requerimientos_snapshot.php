@@ -9,6 +9,9 @@ declare(strict_types=1);
  * alcance RBAC. El navegador nunca recibe el snapshot completo.
  */
 require_once __DIR__ . '/scope_service.php';
+// El snapshot usa los helpers preparados de lectura (rows/scalar). No debe
+// depender de que el registro de tools haya cargado antes el dataset legado.
+require_once __DIR__ . '/requerimientos_dataset.php';
 require_once __DIR__ . '/../domain_profile.php';
 require_once __DIR__ . '/../bootstrap.php';
 
@@ -214,7 +217,13 @@ function ixtla_insights_snapshot_public_record(array $record, bool $includeReque
 function ixtla_insights_snapshot_overview(array $arguments = []): array
 {
     $snapshot = ixtla_insights_snapshot_build((bool) ($arguments['refresh'] ?? false));
-    $records = $snapshot['records'];
+    $period = (string) ($arguments['period'] ?? 'all');
+    if (!in_array($period, ['all', 'last_7', 'last_30', 'this_month'], true)) {
+        throw new InvalidArgumentException('El periodo del resumen no es valido.');
+    }
+    // Aplica el mismo periodo que las listas y agregados, para que un KPI de
+    // riesgo y los folios que lo sustentan pertenezcan al mismo universo.
+    $records = ixtla_insights_snapshot_filter($snapshot, ['period' => $period]);
     $counts = ['total' => count($records), 'active' => 0, 'finalized' => 0, 'paused' => 0, 'cancelled' => 0, 'unassigned' => 0, 'overdue' => 0, 'due_soon' => 0, 'without_due_date' => 0];
     $byStatus = [];
     $byTramite = [];
@@ -242,7 +251,8 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
         'generated_at' => $snapshot['generated_at'],
         'expires_at_unix' => $snapshot['expires_at_unix'],
         'scope' => $snapshot['scope'],
-        'total_records' => $snapshot['total_records'],
+        'period' => $period,
+        'total_records' => count($records),
         'counts' => $counts,
         'trend' => [
             'current_total' => $currentThirtyDays,

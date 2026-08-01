@@ -6,15 +6,18 @@ require_once __DIR__ . '/../datasets/requerimientos_snapshot.php';
 
 function ixtla_insights_tool_definitions(): array
 {
-    return [
+    $tools = [
         [
             'type' => 'function',
             'name' => 'get_requirements_dataset_overview',
-            'description' => 'Obtiene KPIs, estatus y tramites principales desde el snapshot analitico cacheado del alcance autorizado. Usa refresh=true solo si el usuario pide actualizar los datos.',
+            'description' => 'Obtiene KPIs, estatus, vencimientos y tramites principales desde el snapshot analitico cacheado del alcance autorizado. Usala para informes de riesgo. Si despues se piden folios que respalden una cifra, usa search_requirements_dataset con el mismo period, status_ids y deadline_state. Usa refresh=true solo si el usuario pide actualizar los datos.',
             'strict' => true,
             'parameters' => [
-                'type' => 'object', 'additionalProperties' => false, 'required' => ['refresh'],
-                'properties' => ['refresh' => ['type' => 'boolean']],
+                'type' => 'object', 'additionalProperties' => false, 'required' => ['refresh', 'period'],
+                'properties' => [
+                    'refresh' => ['type' => 'boolean'],
+                    'period' => ['type' => 'string', 'enum' => ['all', 'last_7', 'last_30', 'this_month']],
+                ],
             ],
         ],
         [
@@ -311,6 +314,20 @@ function ixtla_insights_tool_definitions(): array
             ],
         ],
     ];
+
+    // El chat normal sólo puede invocar el motor del dataset. Las funciones
+    // históricas que consultan la API/base operacional permanecen disponibles
+    // para flujos explícitos de reportes extensos, pero no se anuncian al LLM.
+    $datasetTools = [
+        'get_requirements_dataset_overview',
+        'search_requirements_dataset',
+        'aggregate_requirements_dataset',
+        'get_requirement_dataset_detail',
+    ];
+    return array_values(array_filter(
+        $tools,
+        static fn (array $tool): bool => in_array((string) ($tool['name'] ?? ''), $datasetTools, true)
+    ));
 }
 
 function ixtla_insights_execute_tool(string $name, mixed $arguments): array

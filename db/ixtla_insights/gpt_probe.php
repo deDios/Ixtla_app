@@ -172,7 +172,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
             'mode' => 'gpt_probe',
         ]);
         return [
-            'answer' => 'No tengo una herramienta compatible para obtener ese dato con seguridad. Puedo ayudarte con totales, estatus, departamentos, trámites, el último requerimiento y tiempos promedio de resolución por departamento.',
+            'answer' => 'No se ejecutó la consulta necesaria sobre el dataset autorizado. Reformula la pregunta indicando el dato, periodo o filtro requerido; el asistente puede buscar filas, agruparlas, consultar un folio y generar un resumen desde la muestra.',
             'usage' => $usage,
         ];
     }
@@ -227,7 +227,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
 function ixtla_insights_probe_requires_data(string $question): bool
 {
     $normalized = ixtla_insights_normalize_match_text($question);
-    return preg_match('/\b(cuanto|cuantos|cuanta|cuantas|numero|ultimo|ultima|top|ranking|promedio|tiempo|cierre|cerrado|cerrados|finalizado|finalizados|departamento|tramite|estatus|riesgo|pendiente|pendientes|rezago|atorado|atorados|vencido|vencidos|vencer|vencimiento|asignado|asignar|solicito|solicitante|folio|requerimiento|requerimientos|tendencia|variacion|carga|muestra|lista)\b/', $normalized) === 1
+    return preg_match('/\b(cuanto|cuantos|cuanta|cuantas|numero|ultimo|ultima|top|ranking|promedio|tiempo|cierre|cerrado|cerrados|finalizado|finalizados|departamento|tramite|estatus|estado|riesgo|pendiente|pendientes|rezago|atorado|atorados|vencido|vencidos|vencer|vencimiento|asignado|asignar|responsable|solicito|solicitante|folio|requerimiento|requerimientos|tendencia|variacion|carga|muestra|lista|quien|cual|cuales|dame|muestrame|atender)\b/', $normalized) === 1
         || preg_match('/\breq[-\s]?\d+\b/i', $question) === 1;
 }
 

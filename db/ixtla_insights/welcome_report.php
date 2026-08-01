@@ -20,7 +20,7 @@ try {
 
     // Consulta el snapshot cacheado. Solo se construye desde la fuente cuando
     // falta o expira, nunca por cada pregunta del chat.
-    $snapshot = ixtla_insights_snapshot_overview(['refresh' => false]);
+    $snapshot = ixtla_insights_snapshot_overview(['refresh' => false, 'period' => 'this_month']);
     $currentThirtyDayTotal = (int) ($snapshot['trend']['current_total'] ?? 0);
 
     ixtla_insights_json([

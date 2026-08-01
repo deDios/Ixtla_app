@@ -30,10 +30,7 @@ $domainProfile = ixtla_insights_domain_profile();
 expect_diagnostic(($domainProfile['domain'] ?? null) === 'requerimientos', 'El perfil de dominio debe describir requerimientos.');
 expect_diagnostic(($domainProfile['version'] ?? null) === 1, 'El perfil de dominio debe estar versionado.');
 $domainPrompt = ixtla_insights_domain_developer_prompt();
-expect_diagnostic(str_contains($domainPrompt, 'get_operational_snapshot'), 'El perfil debe incluir la guía para diagnósticos operativos.');
-expect_diagnostic(str_contains($domainPrompt, 'get_operational_risk_snapshot'), 'El perfil debe priorizar el diagnóstico compuesto de riesgo.');
-expect_diagnostic(str_contains($domainPrompt, 'get_workload_trend_snapshot'), 'El perfil debe incluir el análisis compuesto de tendencia.');
-expect_diagnostic(str_contains($domainPrompt, 'get_backlog_risk_snapshot'), 'El perfil debe incluir el análisis compuesto de rezago.');
+expect_diagnostic(str_contains($domainPrompt, 'cualquier pregunta sobre requerimientos'), 'El perfil debe exigir el snapshot para el chat normal.');
 expect_diagnostic(str_contains($domainPrompt, 'alcance autorizado se resuelve en el servidor'), 'El perfil debe preservar el límite de autorización del servidor.');
 expect_diagnostic(ixtla_insights_domain_metric_label('closed_count') === 'Requerimientos finalizados', 'El perfil debe centralizar las etiquetas de métricas.');
 expect_diagnostic(ixtla_insights_domain_period_label('last_30') === 'Últimos 30 días', 'El perfil debe centralizar las etiquetas de periodos.');
@@ -71,48 +68,10 @@ expect_diagnostic($responsesHistory === [
 expect_diagnostic(ixtla_insights_dataset_department_name('Alumbrado Publico') === 'Alumbrado Publico', 'El filtro de departamento debe conservar el nombre solicitado.');
 expect_diagnostic(ixtla_insights_dataset_department_name(null) === null, 'La consulta global no debe requerir filtro de departamento.');
 
-$latestTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_latest_requirement'))[0] ?? [];
-expect_diagnostic(($latestTool['parameters']['required'] ?? []) === ['department'], 'La herramienta del último requerimiento debe requerir el campo department, incluso si es null.');
-expect_diagnostic(($latestTool['parameters']['properties']['department']['type'] ?? []) === ['string', 'null'], 'La herramienta debe aceptar un departamento o null para el alcance completo.');
-
-$snapshotTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_operational_snapshot'))[0] ?? [];
-expect_diagnostic(($snapshotTool['parameters']['required'] ?? []) === ['period', 'top_tramites_limit'], 'El snapshot operativo debe exigir periodo y límite de trámites.');
-expect_diagnostic(($snapshotTool['parameters']['properties']['top_tramites_limit']['maximum'] ?? null) === 10, 'El snapshot operativo debe limitar el ranking para evitar respuestas desproporcionadas.');
-
-$riskTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_operational_risk_snapshot'))[0] ?? [];
-expect_diagnostic(($riskTool['parameters']['required'] ?? []) === ['period', 'top_tramites_limit', 'due_window_days'], 'El diagnóstico de riesgo debe recibir sólo sus límites explícitos.');
-expect_diagnostic(($riskTool['parameters']['properties']['period']['enum'] ?? []) === ['last_7', 'last_30', 'this_month'], 'El diagnóstico de riesgo no debe aceptar historial ilimitado.');
-expect_diagnostic(($riskTool['parameters']['properties']['due_window_days']['maximum'] ?? null) === 30, 'El vencimiento próximo debe tener una ventana limitada.');
-
-$workloadSnapshotTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_workload_trend_snapshot'))[0] ?? [];
-expect_diagnostic(($workloadSnapshotTool['parameters']['required'] ?? []) === ['period', 'top_tramites_limit'], 'El análisis de carga debe exigir periodo y límite de trámites.');
-
-$backlogSnapshotTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_backlog_risk_snapshot'))[0] ?? [];
-expect_diagnostic(($backlogSnapshotTool['parameters']['required'] ?? []) === ['top_limit'], 'El análisis de rezago debe limitar explícitamente sus rankings.');
-
-$comparisonTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_period_comparison'))[0] ?? [];
-expect_diagnostic(($comparisonTool['parameters']['required'] ?? []) === ['metric', 'period'], 'La comparación de periodos debe exigir métrica y periodo.');
-expect_diagnostic(($comparisonTool['parameters']['properties']['period']['enum'] ?? []) === ['last_7', 'last_30', 'this_month'], 'La comparación sólo debe aceptar periodos con intervalo previo definido.');
-
-$trendTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_trend'))[0] ?? [];
-expect_diagnostic(($trendTool['parameters']['required'] ?? []) === ['period'], 'La tendencia debe exigir un periodo acotado.');
-expect_diagnostic(($trendTool['parameters']['properties']['period']['enum'] ?? []) === ['last_7', 'last_30', 'this_month'], 'La tendencia no debe permitir un historial ilimitado.');
-
-$breakdownTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_workload_breakdown'))[0] ?? [];
-expect_diagnostic(($breakdownTool['parameters']['properties']['dimension']['enum'] ?? []) === ['tramite', 'priority', 'channel', 'colonia', 'assignee'], 'El desglose operativo sólo debe exponer dimensiones aprobadas.');
-expect_diagnostic(($breakdownTool['parameters']['properties']['limit']['maximum'] ?? null) === 20, 'El desglose operativo debe limitar la cantidad de resultados.');
-
-$overdueTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_overdue_requirements'))[0] ?? [];
-expect_diagnostic(($overdueTool['parameters']['required'] ?? []) === ['minimum_days', 'limit'], 'La lista de pendientes envejecidos debe exigir límites explícitos.');
-
-$safeRecordsTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'search_safe_requirement_records'))[0] ?? [];
-expect_diagnostic(($safeRecordsTool['parameters']['properties']['limit']['maximum'] ?? null) === 25, 'El dataset de respaldo debe acotar la lista de registros.');
-expect_diagnostic(($safeRecordsTool['parameters']['properties']['department']['type'] ?? []) === ['string', 'null'], 'El dataset de respaldo debe permitir no filtrar por departamento.');
-expect_diagnostic(str_contains($domainPrompt, 'search_safe_requirement_records'), 'El perfil debe indicar cómo usar el dataset de respaldo.');
-expect_diagnostic(ixtla_insights_dataset_safe_records_spec([
-    'period' => 'last_30', 'department' => null, 'status_ids' => [3], 'priority_ids' => [3],
-    'assignee_state' => 'unassigned', 'deadline_state' => 'overdue', 'sort' => 'oldest', 'limit' => 100,
-])['limit'] === 25, 'El dataset de respaldo debe limitar registros aunque reciba un valor mayor.');
+$chatToolNames = array_column(ixtla_insights_tool_definitions(), 'name');
+expect_diagnostic($chatToolNames === ['get_requirements_dataset_overview', 'search_requirements_dataset', 'aggregate_requirements_dataset', 'get_requirement_dataset_detail'], 'El chat debe exponer exclusivamente herramientas del snapshot.');
+$snapshotOverviewTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_dataset_overview'))[0] ?? [];
+expect_diagnostic(($snapshotOverviewTool['parameters']['required'] ?? []) === ['refresh', 'period'], 'El resumen del snapshot debe exigir refresh y periodo.');
 
 $snapshotSearchTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'search_requirements_dataset'))[0] ?? [];
 expect_diagnostic(($snapshotSearchTool['parameters']['properties']['limit']['maximum'] ?? null) === 50, 'Las consultas al snapshot deben limitar las filas enviadas al modelo.');
@@ -121,7 +80,7 @@ expect_diagnostic(($snapshotDetailTool['parameters']['required'] ?? []) === ['id
 $snapshotAggregateTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'aggregate_requirements_dataset'))[0] ?? [];
 expect_diagnostic(($snapshotAggregateTool['parameters']['properties']['group_by']['enum'] ?? []) === ['status', 'department', 'tramite', 'assignee'], 'El snapshot solo debe agrupar por dimensiones disponibles en la fuente.');
 expect_diagnostic(str_contains($domainPrompt, 'snapshot analitico'), 'El perfil debe priorizar el dataset cacheado.');
-expect_diagnostic(str_contains($domainPrompt, 'dataset_analytic_fallback') === false && str_contains($domainPrompt, 'descompón la petición'), 'El perfil debe usar el dataset como respaldo analítico genérico.');
+expect_diagnostic(str_contains($domainPrompt, 'dataset_analytic_fallback') === false && str_contains($domainPrompt, 'Construye el análisis desde la muestra'), 'El perfil debe usar el dataset como respaldo analítico genérico.');
 
 expect_diagnostic((int) ixtla_insights_config()['max_tool_calls_per_turn'] === 2, 'El asistente debe conservar un límite total de dos llamadas de herramienta por turno.');
 
