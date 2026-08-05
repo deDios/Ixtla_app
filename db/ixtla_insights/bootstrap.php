@@ -610,6 +610,10 @@ function ixtla_insights_normalize_match_text(string $value): string
 
 function ixtla_insights_call_openai(array $config, string $question, array $history, array $departments = []): array
 {
+    // Ruta monolitica retirada. El chat vigente pasa exclusivamente por
+    // gpt_probe.php, el router y el registro central de herramientas.
+    throw new LogicException('La ruta OpenAI heredada de Insights esta deshabilitada.');
+
     if (!function_exists('curl_init')) {
         ixtla_insights_json(['ok' => false, 'error' => 'La extension cURL no esta disponible.'], 500);
     }
@@ -675,13 +679,8 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
                 'schema' => ixtla_insights_response_schema(),
             ],
         ],
-        'max_output_tokens' => (int) $config['max_output_tokens'],
     ];
-
-    $reasoningEffort = (string) ($config['reasoning_effort'] ?? '');
-    if (in_array($reasoningEffort, ['none', 'low', 'medium', 'high', 'xhigh'], true)) {
-        $payload['reasoning'] = ['effort' => $reasoningEffort];
-    }
+    $payload = array_replace($payload, ixtla_insights_generation_controls($config));
 
     $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($jsonPayload === false) {

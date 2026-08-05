@@ -199,7 +199,7 @@ export function mountIxtlaInsights(options = {}) {
       },
       {
         label: "Pendientes +30 días",
-        prompt: "Muéstrame los 10 requerimientos activos con más de 30 días, incluyendo ID, trámite, antigüedad, prioridad y responsable, dentro de mi alcance autorizado.",
+        prompt: "Muéstrame los 10 requerimientos activos con más de 30 días, incluyendo ID, trámite, antigüedad, estatus y responsable, dentro de mi alcance autorizado.",
       },
       {
         label: "Tendencia 30 días",
@@ -1106,7 +1106,7 @@ export function mountIxtlaInsights(options = {}) {
       topText,
       "",
       `Tendencia de carga (últimos 30 días): ${trendText}`,
-      "Puedes pedirme folios recientes, detalles de un requerimiento, filtros por estatus, prioridad, departamento o un reporte más amplio.",
+      "Puedes pedirme folios recientes, detalles de un requerimiento, filtros por estatus, departamento o responsable, o un reporte más amplio.",
     ].join("\n");
   }
 

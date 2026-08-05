@@ -93,6 +93,17 @@ expect_diagnostic(str_contains($domainPrompt, 'combina como máximo dos herramie
 expect_diagnostic(!str_contains(mb_strtolower($domainPrompt), 'prioridad alta'), 'El perfil no debe reintroducir niveles de prioridad.');
 
 expect_diagnostic((int) ixtla_insights_config()['max_tool_calls_per_turn'] === 2, 'El asistente debe conservar un límite total de dos llamadas de herramienta por turno.');
+$runtimeConfig = ixtla_insights_config();
+expect_diagnostic((int) $runtimeConfig['max_history_messages'] === 20, 'El historial debe conservar un máximo acotado de mensajes.');
+expect_diagnostic((int) $runtimeConfig['max_history_total_characters'] === 16000, 'El historial total debe permanecer acotado.');
+expect_diagnostic((int) $runtimeConfig['max_output_tokens'] === 4000, 'La salida del asistente debe usar el limite acordado.');
+expect_diagnostic((float) $runtimeConfig['temperature'] === 0.2, 'La temperatura factual debe permanecer estable.');
+$reasoningControls = ixtla_insights_generation_controls(array_replace($runtimeConfig, ['model' => 'gpt-5-test', 'reasoning_effort' => 'medium']));
+expect_diagnostic(($reasoningControls['reasoning']['effort'] ?? null) === 'medium' && !isset($reasoningControls['temperature']), 'Los modelos de razonamiento deben recibir effort sin temperature.');
+$standardControls = ixtla_insights_generation_controls(array_replace($runtimeConfig, ['model' => 'gpt-4.1', 'reasoning_effort' => 'medium']));
+expect_diagnostic(($standardControls['temperature'] ?? null) === 0.2 && !isset($standardControls['reasoning']), 'Los modelos sin razonamiento deben conservar temperature.');
+$toolContract = json_encode(ixtla_insights_tool_definitions(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+expect_diagnostic(is_string($toolContract) && !str_contains(mb_strtolower($toolContract), 'prioridad'), 'El contrato publico de herramientas no debe exponer prioridad.');
 
 $directQuestions = [
     'Cuanto es 25% de 480?',

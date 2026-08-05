@@ -103,9 +103,8 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                 'content' => [['type' => 'input_text', 'text' => $question]],
             ],
         ]),
-        'temperature' => (float) $config['temperature'],
-        'max_output_tokens' => (int) $config['max_output_tokens'],
     ];
+    $payload = array_replace($payload, ixtla_insights_generation_controls($config));
     // Las preguntas generales y los cálculos no reciben definiciones de
     // funciones. Para datos internos, las herramientas quedan disponibles en
     // modo auto y el servidor sigue impidiendo respuestas sin evidencia.
@@ -264,8 +263,8 @@ function ixtla_insights_probe_continue_after_tools(array $config, array $previou
         // del límite total. Así el modelo puede completar un reporte compuesto
         // sin obligar al usuario a enviar otro mensaje.
         'tool_choice' => $allowMoreTools ? 'auto' : 'none',
-        'max_output_tokens' => (int) $config['max_output_tokens'],
     ];
+    $payload = array_replace($payload, ixtla_insights_generation_controls($config));
     $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($body === false) {
         ixtla_insights_json(['ok' => false, 'error' => 'No fue posible continuar la consulta de datos.'], 500);
