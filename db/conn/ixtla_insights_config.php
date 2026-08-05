@@ -64,9 +64,9 @@ function ixtla_insights_config(): array
         'max_history_total_characters' => 30000,
         'conversation_ttl_seconds' => 21600,
         'conversation_summary_characters' => 3000,
-        'max_output_tokens' => 5000,
-        'temperature' => 0,
-        'max_tool_calls_per_turn' => 2,
+        'max_output_tokens' => 8000,
+        'temperature' => 0.3,
+        'max_tool_calls_per_turn' => 3,
         'reasoning_effort' => 'medium',
 
         // Snapshot analitico por alcance RBAC. El cache reside en servidor;

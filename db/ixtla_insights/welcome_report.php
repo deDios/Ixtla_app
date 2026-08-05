@@ -17,6 +17,23 @@ try {
     if ($fullName === '') {
         $fullName = trim((string) ($session['username'] ?? 'Usuario actual'));
     }
+    $roleLabels = [
+        'ADMIN' => 'Administrador',
+        'ADMIN_GLOBAL' => 'Administrador',
+        'DIRECTOR' => 'Director',
+        'ANALISTA' => 'Analista',
+        'JEFE' => 'Jefe',
+        'EMPLEADO' => 'Empleado',
+    ];
+    $sessionRoles = is_array($session['roles'] ?? null) ? $session['roles'] : [];
+    $roles = [];
+    foreach ($sessionRoles as $role) {
+        $code = strtoupper(trim((string) (is_array($role) ? ($role['codigo'] ?? $role['nombre'] ?? '') : $role)));
+        if ($code !== '') {
+            $roles[] = $roleLabels[$code] ?? mb_convert_case(str_replace('_', ' ', $code), MB_CASE_TITLE, 'UTF-8');
+        }
+    }
+    $roleLabel = implode(', ', array_values(array_unique($roles))) ?: 'Empleado';
 
     // Consulta el snapshot cacheado. Solo se construye desde la fuente cuando
     // falta o expira, nunca por cada pregunta del chat.
@@ -28,6 +45,7 @@ try {
         'report' => [
             'title' => 'Dataset de: ' . $fullName,
             'user_name' => $fullName,
+            'role_label' => $roleLabel,
             'scope' => $snapshot['scope'] ?? [],
             'period_label' => 'Toda la muestra autorizada',
             'counts' => $snapshot['counts'] ?? [],

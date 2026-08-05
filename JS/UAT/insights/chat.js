@@ -1086,13 +1086,13 @@ export function mountIxtlaInsights(options = {}) {
 
     return [
       clean(report?.title) || "Dataset de: Usuario actual",
-      `Alcance: ${clean(report?.scope?.label) || "Vista autorizada"}.`,
+      `Rol: ${clean(report?.role_label) || "Empleado"} · Alcance: ${clean(report?.scope?.label) || "Vista autorizada"}.`,
       `Informe operativo · ${clean(report?.period_label) || "Mes en curso"}.`,
       "",
       "KPIs",
       `• Total: ${number(counts.total)}`,
       `• Activos: ${number(counts.active)}`,
-      `• Promedio semanal (últimos 30 días): ${Number(report?.average_weekly || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 })}`,
+      `• Promedio semanal de requerimientos creados (últimos 30 días): ${Number(report?.average_weekly || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 })}`,
       `• Finalizados: ${number(counts.finalized)}`,
       `• Pausados: ${number(counts.paused)} · Cancelados: ${number(counts.cancelled)}`,
       `• Sin asignar: ${number(counts.unassigned)}`,
