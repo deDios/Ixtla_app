@@ -46,7 +46,7 @@ function ixtla_insights_snapshot_is_fresh(?array $snapshot): bool
 {
     return is_array($snapshot)
         && (int) ($snapshot['expires_at_unix'] ?? 0) >= time()
-        && (int) ($snapshot['schema_version'] ?? 0) === 2
+        && (int) ($snapshot['schema_version'] ?? 0) === 3
         && is_array($snapshot['records'] ?? null);
 }
 
@@ -76,10 +76,22 @@ function ixtla_insights_snapshot_source_page(mysqli $connection, array $scope, i
         $connection,
         'SELECT r.id, r.folio, r.departamento_id, r.tramite_id, r.asignado_a, r.estatus, r.canal, '
         . 'r.contacto_nombre AS requester_name, r.created_at, r.fecha_limite, r.cerrado_en, '
-        . 'd.nombre AS department, t.nombre AS tramite, '
+        . 'd.nombre AS department, t.nombre AS tramite, ed.nombre AS assignee_department, e.puesto AS assignee_position, '
+        . 'COALESCE(cm.comment_count, 0) AS comment_count, cm.last_comment_at, '
+        . 'COALESCE(pm.process_count, 0) AS process_count, pm.last_process_at, '
+        . 'COALESCE(tm.task_count, 0) AS task_count, COALESCE(tm.open_task_count, 0) AS open_task_count, '
         . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar') AS assignee "
         . 'FROM requerimiento r JOIN departamento d ON d.id = r.departamento_id '
         . 'JOIN tramite t ON t.id = r.tramite_id LEFT JOIN empleado e ON e.id = r.asignado_a '
+        . 'LEFT JOIN departamento ed ON ed.id = e.departamento_id '
+        . 'LEFT JOIN (SELECT requerimiento_id, COUNT(*) AS comment_count, MAX(created_at) AS last_comment_at '
+        . 'FROM comentario_requerimiento WHERE status = 1 GROUP BY requerimiento_id) cm ON cm.requerimiento_id = r.id '
+        . 'LEFT JOIN (SELECT requerimiento_id, COUNT(*) AS process_count, MAX(created_at) AS last_process_at '
+        . 'FROM proceso_requerimiento WHERE status = 1 GROUP BY requerimiento_id) pm ON pm.requerimiento_id = r.id '
+        . 'LEFT JOIN (SELECT p.requerimiento_id, COUNT(tp.id) AS task_count, '
+        . 'SUM(CASE WHEN tp.status <> 5 THEN 1 ELSE 0 END) AS open_task_count '
+        . 'FROM proceso_requerimiento p JOIN tarea_proceso tp ON tp.proceso_id = p.id '
+        . 'WHERE p.status = 1 GROUP BY p.requerimiento_id) tm ON tm.requerimiento_id = r.id '
         . 'WHERE ' . implode(' AND ', $scope['where'])
         . ' ORDER BY r.id ASC LIMIT ? OFFSET ?',
         $scope['types'] . 'ii',
@@ -110,6 +122,14 @@ function ixtla_insights_snapshot_normalize_record(array $row): array
         'channel_id' => (int) ($row['canal'] ?? 0),
         'assignee_id' => $row['asignado_a'] === null ? null : (int) $row['asignado_a'],
         'assignee' => (string) ($row['assignee'] ?? 'Sin asignar'),
+        'assignee_department' => ($row['assignee_department'] ?? null) === null ? null : (string) $row['assignee_department'],
+        'assignee_position' => ($row['assignee_position'] ?? null) === null ? null : (string) $row['assignee_position'],
+        'comment_count' => (int) ($row['comment_count'] ?? 0),
+        'last_comment_at' => ($row['last_comment_at'] ?? null) === null ? null : (string) $row['last_comment_at'],
+        'process_count' => (int) ($row['process_count'] ?? 0),
+        'last_process_at' => ($row['last_process_at'] ?? null) === null ? null : (string) $row['last_process_at'],
+        'task_count' => (int) ($row['task_count'] ?? 0),
+        'open_task_count' => (int) ($row['open_task_count'] ?? 0),
         // Campo protegido: solo se entrega en la consulta de detalle por folio/ID.
         'requester_name' => trim((string) ($row['requester_name'] ?? '')),
         'created_at' => $createdAt,
@@ -155,6 +175,9 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
 {
     $indexes = ['by_folio' => [], 'by_id' => [], 'by_department' => [], 'by_tramite' => [], 'by_status' => [], 'by_assignee' => []];
     $catalogs = ['departments' => [], 'tramites' => [], 'assignees' => [], 'statuses' => []];
+    foreach (range(0, 6) as $statusId) {
+        $catalogs['statuses'][(string) $statusId] = ['id' => $statusId, 'name' => ixtla_insights_domain_status_label($statusId)];
+    }
     foreach ($records as $position => $record) {
         $indexes['by_id'][(string) $record['id']] = $position;
         if ($record['folio'] !== '') $indexes['by_folio'][$record['folio']] = $position;
@@ -164,13 +187,16 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
         }
         $catalogs['departments'][(string) $record['department_id']] = ['id' => $record['department_id'], 'name' => $record['department']];
         $catalogs['tramites'][(string) $record['tramite_id']] = ['id' => $record['tramite_id'], 'name' => $record['tramite']];
-        $catalogs['assignees'][(string) ($record['assignee_id'] ?? 'unassigned')] = ['id' => $record['assignee_id'], 'name' => $record['assignee']];
+        $catalogs['assignees'][(string) ($record['assignee_id'] ?? 'unassigned')] = [
+            'id' => $record['assignee_id'], 'name' => $record['assignee'],
+            'department' => $record['assignee_department'], 'position' => $record['assignee_position'],
+        ];
         $catalogs['statuses'][(string) $record['status_id']] = ['id' => $record['status_id'], 'name' => $record['status']];
     }
     $ttl = (int) ixtla_insights_config()['dataset_cache_ttl_seconds'];
     return [
-        'dataset' => 'requerimientos_scope_v2',
-        'schema_version' => 2,
+        'dataset' => 'requerimientos_scope_v3',
+        'schema_version' => 3,
         'scope_key' => $scopeKey,
         'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
         'generated_at' => date(DATE_ATOM),
@@ -186,15 +212,17 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
 {
     $statusIds = array_values(array_unique(array_map('intval', is_array($arguments['status_ids'] ?? null) ? $arguments['status_ids'] : [])));
     $departmentId = isset($arguments['department_id']) ? (int) $arguments['department_id'] : 0;
+    $assigneeId = isset($arguments['assignee_id']) ? (int) $arguments['assignee_id'] : 0;
     $assigneeState = (string) ($arguments['assignee_state'] ?? 'any');
     $deadlineState = (string) ($arguments['deadline_state'] ?? 'any');
     $period = (string) ($arguments['period'] ?? 'all');
     $limit = array_key_exists('limit', $arguments) ? min(50, max(1, (int) $arguments['limit'])) : 0;
     $sort = (string) ($arguments['sort'] ?? 'newest');
     $cutoff = match ($period) { 'last_7' => strtotime('-6 days midnight'), 'last_30' => strtotime('-29 days midnight'), 'this_month' => strtotime('first day of this month midnight'), default => 0 };
-    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentId, $assigneeState, $deadlineState, $cutoff): bool {
+    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentId, $assigneeId, $assigneeState, $deadlineState, $cutoff): bool {
         if ($statusIds !== [] && !in_array($record['status_id'], $statusIds, true)) return false;
         if ($departmentId > 0 && $record['department_id'] !== $departmentId) return false;
+        if ($assigneeId > 0 && $record['assignee_id'] !== $assigneeId) return false;
         if ($assigneeState === 'assigned' && $record['assignee_id'] === null) return false;
         if ($assigneeState === 'unassigned' && $record['assignee_id'] !== null) return false;
         if ($deadlineState === 'overdue' && !$record['is_overdue']) return false;
@@ -202,13 +230,21 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
         if ($deadlineState === 'without_due_date' && $record['due_at'] !== null) return false;
         return $cutoff === 0 || $record['created_at_unix'] >= $cutoff;
     });
-    usort($items, static fn (array $a, array $b): int => $sort === 'oldest' ? $a['created_at_unix'] <=> $b['created_at_unix'] : $b['created_at_unix'] <=> $a['created_at_unix']);
+    usort($items, static fn (array $a, array $b): int => match ($sort) {
+        'oldest' => $a['created_at_unix'] <=> $b['created_at_unix'],
+        'most_comments' => $b['comment_count'] <=> $a['comment_count'],
+        default => $b['created_at_unix'] <=> $a['created_at_unix'],
+    });
     return array_values($limit > 0 ? array_slice($items, 0, $limit) : $items);
 }
 
 function ixtla_insights_snapshot_public_record(array $record, bool $includeRequester = false): array
 {
-    $result = array_intersect_key($record, array_flip(['id', 'folio', 'department', 'tramite', 'status', 'assignee', 'created_at', 'due_at', 'closed_at', 'age_days', 'is_overdue', 'is_due_soon']));
+    $result = array_intersect_key($record, array_flip([
+        'id', 'folio', 'department', 'tramite', 'status', 'assignee', 'assignee_department', 'assignee_position',
+        'comment_count', 'last_comment_at', 'process_count', 'last_process_at', 'task_count', 'open_task_count',
+        'created_at', 'due_at', 'closed_at', 'age_days', 'is_overdue', 'is_due_soon',
+    ]));
     if ($includeRequester) $result['requester_name'] = $record['requester_name'];
     return $result;
 }
@@ -270,7 +306,7 @@ function ixtla_insights_snapshot_search(array $arguments): array
     $allowedPeriods = ['all', 'last_7', 'last_30', 'this_month'];
     $allowedAssigneeStates = ['any', 'assigned', 'unassigned'];
     $allowedDeadlineStates = ['any', 'overdue', 'due_soon', 'without_due_date'];
-    $allowedSorts = ['newest', 'oldest'];
+    $allowedSorts = ['newest', 'oldest', 'most_comments'];
     if (!in_array((string) ($arguments['period'] ?? 'all'), $allowedPeriods, true)
         || !in_array((string) ($arguments['assignee_state'] ?? 'any'), $allowedAssigneeStates, true)
         || !in_array((string) ($arguments['deadline_state'] ?? 'any'), $allowedDeadlineStates, true)
@@ -305,6 +341,44 @@ function ixtla_insights_snapshot_requirement_detail(array $arguments): array
         'generated_at' => $snapshot['generated_at'],
         'scope' => $snapshot['scope'],
         'requirement' => is_array($record) ? ixtla_insights_snapshot_public_record($record, true) : null,
+    ];
+}
+
+/** Devuelve un catalogo acotado derivado exclusivamente del alcance RBAC. */
+function ixtla_insights_snapshot_catalog(array $arguments): array
+{
+    $catalog = (string) ($arguments['catalog'] ?? 'statuses');
+    $query = ixtla_insights_normalize_match_text((string) ($arguments['query'] ?? ''));
+    $limit = min(100, max(1, (int) ($arguments['limit'] ?? 50)));
+    $catalogMap = [
+        'statuses' => 'statuses',
+        'departments' => 'departments',
+        'tramites' => 'tramites',
+        'assignees' => 'assignees',
+    ];
+    if (!isset($catalogMap[$catalog])) {
+        throw new InvalidArgumentException('El catalogo solicitado no es valido.');
+    }
+    $snapshot = ixtla_insights_snapshot_build(false);
+    $items = is_array($snapshot['catalogs'][$catalogMap[$catalog]] ?? null)
+        ? $snapshot['catalogs'][$catalogMap[$catalog]]
+        : [];
+    if ($query !== '') {
+        $items = array_values(array_filter($items, static function (array $item) use ($query): bool {
+            $searchable = implode(' ', array_filter([
+                (string) ($item['name'] ?? ''),
+                (string) ($item['department'] ?? ''),
+                (string) ($item['position'] ?? ''),
+            ]));
+            return str_contains(ixtla_insights_normalize_match_text($searchable), $query);
+        }));
+    }
+    return [
+        'dataset' => $snapshot['dataset'],
+        'generated_at' => $snapshot['generated_at'],
+        'scope' => $snapshot['scope'],
+        'catalog' => $catalog,
+        'items' => array_slice($items, 0, $limit),
     ];
 }
 

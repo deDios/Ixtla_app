@@ -20,24 +20,7 @@ if (!is_array($arguments)) {
     ixtla_insights_json(['ok' => false, 'error' => 'arguments debe ser un objeto JSON.'], 422);
 }
 
-$allowedTools = [
-    'query_requirements_analytics',
-    'get_scope_summary',
-    'get_operational_snapshot',
-    'get_operational_risk_snapshot',
-    'get_workload_trend_snapshot',
-    'get_backlog_risk_snapshot',
-    'get_backlog_aging',
-    'get_period_comparison',
-    'get_requirements_trend',
-    'get_workload_breakdown',
-    'get_overdue_requirements',
-    'search_safe_requirement_records',
-    'list_authorized_departments',
-    'get_requirements_by_department',
-    'get_latest_requirement',
-    'get_resolution_time_by_department',
-];
+$allowedTools = array_column(ixtla_insights_tool_definitions(), 'name');
 
 if (!in_array($tool, $allowedTools, true)) {
     ixtla_insights_json([

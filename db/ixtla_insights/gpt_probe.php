@@ -9,6 +9,7 @@ ob_start();
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/tools/tool_registry.php';
 require_once __DIR__ . '/conversation_state.php';
+require_once __DIR__ . '/question_router.php';
 
 $config = ixtla_insights_bootstrap(['POST']);
 if (($config['enabled'] ?? false) !== true) {
@@ -80,6 +81,8 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
     }
 
     $historyInput = ixtla_insights_responses_history_input($history);
+    $hasDatasetContext = ixtla_insights_history_has_dataset_context($history);
+    $requiresData = ixtla_insights_probe_requires_data($question, $hasDatasetContext);
 
     $payload = [
         'model' => $model,
@@ -102,12 +105,14 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         ]),
         'temperature' => (float) $config['temperature'],
         'max_output_tokens' => (int) $config['max_output_tokens'],
-        'tools' => ixtla_insights_tool_definitions(),
-        // Las preguntas de datos deben pasar por una herramienta. El modelo
-        // puede elegir una especializada o las herramientas genéricas del
-        // snapshot; nunca debe responder usando memoria o cifras inventadas.
-        'tool_choice' => ixtla_insights_probe_requires_data($question) ? 'required' : 'auto',
     ];
+    // Las preguntas generales y los cálculos no reciben definiciones de
+    // funciones. Para datos internos, las herramientas quedan disponibles en
+    // modo auto y el servidor sigue impidiendo respuestas sin evidencia.
+    if ($requiresData) {
+        $payload['tools'] = ixtla_insights_tool_definitions();
+        $payload['tool_choice'] = ixtla_insights_question_tool_choice($question, $hasDatasetContext);
+    }
     $encodedPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($encodedPayload === false) {
         ixtla_insights_json(['ok' => false, 'error' => 'No fue posible preparar la solicitud de prueba.'], 500);
@@ -164,7 +169,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
     $providerResponses = [$response];
     $totalLatencyMs = $latencyMs;
     $toolCalls = ixtla_insights_probe_tool_calls($response);
-    if ($toolCalls === [] && ixtla_insights_probe_requires_data($question)) {
+    if ($toolCalls === [] && $requiresData) {
         $usage = ixtla_insights_usage_summary($providerResponses);
         ixtla_insights_log_usage_summary($usage, [
             'model' => $model,
@@ -222,13 +227,6 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
     }
 
     return ['answer' => $answer, 'usage' => $usage];
-}
-
-function ixtla_insights_probe_requires_data(string $question): bool
-{
-    $normalized = ixtla_insights_normalize_match_text($question);
-    return preg_match('/\b(cuanto|cuantos|cuanta|cuantas|numero|ultimo|ultima|top|ranking|promedio|tiempo|cierre|cerrado|cerrados|finalizado|finalizados|departamento|tramite|estatus|estado|riesgo|pendiente|pendientes|rezago|atorado|atorados|vencido|vencidos|vencer|vencimiento|asignado|asignar|responsable|solicito|solicitante|folio|requerimiento|requerimientos|tendencia|variacion|carga|muestra|lista|quien|cual|cuales|dame|muestrame|atender)\b/', $normalized) === 1
-        || preg_match('/\breq[-\s]?\d+\b/i', $question) === 1;
 }
 
 function ixtla_insights_probe_tool_calls(array $response, ?int $limit = null): array

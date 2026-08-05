@@ -26,6 +26,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   exit;
 }
 
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
 
 // Conexión DB
 $path = realpath("/home/site/wwwroot/db/conn/conn_db.php");

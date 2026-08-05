@@ -78,10 +78,14 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments):
     if (isset($arguments['period'])) {
         $context['period'] = $arguments['period'];
     }
-    if ($name === 'query_requirements_analytics') {
-        $context['metric'] = $arguments['metric'] ?? null;
-        $context['group_by'] = $arguments['group_by'] ?? null;
-        $context['period'] = $arguments['period'] ?? null;
+    if (isset($arguments['id']) || isset($arguments['folio'])) {
+        $context['requirement'] = [
+            'id' => isset($arguments['id']) ? (int) $arguments['id'] : null,
+            'folio' => trim((string) ($arguments['folio'] ?? '')) ?: null,
+        ];
+    }
+    if (isset($arguments['group_by'])) {
+        $context['group_by'] = $arguments['group_by'];
     }
     $state['analytics_context'] = $context;
     $state['updated_at'] = time();

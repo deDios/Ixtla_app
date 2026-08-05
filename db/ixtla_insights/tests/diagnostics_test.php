@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once dirname(__DIR__) . '/datasets/requerimientos_dataset.php';
 require_once dirname(__DIR__) . '/tools/tool_registry.php';
+require_once dirname(__DIR__) . '/question_router.php';
 
 function expect_diagnostic(bool $condition, string $message): void
 {
@@ -28,15 +29,14 @@ expect_diagnostic($usageSummary === ['provider_requests' => 2, 'input_tokens' =>
 
 $domainProfile = ixtla_insights_domain_profile();
 expect_diagnostic(($domainProfile['domain'] ?? null) === 'requerimientos', 'El perfil de dominio debe describir requerimientos.');
-expect_diagnostic(($domainProfile['version'] ?? null) === 1, 'El perfil de dominio debe estar versionado.');
+expect_diagnostic(($domainProfile['version'] ?? null) === 2, 'El perfil de dominio debe estar versionado.');
 $domainPrompt = ixtla_insights_domain_developer_prompt();
-expect_diagnostic(str_contains($domainPrompt, 'cualquier pregunta sobre requerimientos'), 'El perfil debe exigir el snapshot para el chat normal.');
+expect_diagnostic(str_contains($domainPrompt, 'get_requirement_comments'), 'El perfil debe orientar consultas de actividad bajo demanda.');
 expect_diagnostic(str_contains($domainPrompt, 'alcance autorizado se resuelve en el servidor'), 'El perfil debe preservar el límite de autorización del servidor.');
 expect_diagnostic(ixtla_insights_domain_metric_label('closed_count') === 'Requerimientos finalizados', 'El perfil debe centralizar las etiquetas de métricas.');
 expect_diagnostic(ixtla_insights_domain_period_label('last_30') === 'Últimos 30 días', 'El perfil debe centralizar las etiquetas de periodos.');
 expect_diagnostic(ixtla_insights_domain_status_label(6) === 'Finalizado', 'El perfil debe centralizar las etiquetas de estados.');
 expect_diagnostic(ixtla_insights_domain_status_ids('active') === [0, 1, 2, 3], 'El perfil debe definir los estados activos.');
-expect_diagnostic(ixtla_insights_domain_priority_label(3) === 'Alta', 'El perfil debe centralizar las etiquetas de prioridades.');
 expect_diagnostic(ixtla_insights_dataset_active_status_condition() === 'r.estatus IN (0, 1, 2, 3)', 'Los datasets deben construir el filtro activo desde el perfil.');
 expect_diagnostic(ixtla_insights_dataset_risk_period('last_30') === 'last_30', 'Los paquetes compuestos deben admitir periodos comparables.');
 try {
@@ -69,20 +69,74 @@ expect_diagnostic(ixtla_insights_dataset_department_name('Alumbrado Publico') ==
 expect_diagnostic(ixtla_insights_dataset_department_name(null) === null, 'La consulta global no debe requerir filtro de departamento.');
 
 $chatToolNames = array_column(ixtla_insights_tool_definitions(), 'name');
-expect_diagnostic($chatToolNames === ['get_requirements_dataset_overview', 'search_requirements_dataset', 'aggregate_requirements_dataset', 'get_requirement_dataset_detail'], 'El chat debe exponer exclusivamente herramientas del snapshot.');
-$snapshotOverviewTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_dataset_overview'))[0] ?? [];
+expect_diagnostic($chatToolNames === ['get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
+$snapshotOverviewTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_overview'))[0] ?? [];
 expect_diagnostic(($snapshotOverviewTool['parameters']['required'] ?? []) === ['refresh', 'period'], 'El resumen del snapshot debe exigir refresh y periodo.');
 
-$snapshotSearchTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'search_requirements_dataset'))[0] ?? [];
+$snapshotSearchTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'search_requirements'))[0] ?? [];
 expect_diagnostic(($snapshotSearchTool['parameters']['properties']['limit']['maximum'] ?? null) === 50, 'Las consultas al snapshot deben limitar las filas enviadas al modelo.');
-$snapshotDetailTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_dataset_detail'))[0] ?? [];
+expect_diagnostic(in_array('assignee_id', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe permitir filtrar por empleado asignado.');
+expect_diagnostic(in_array('most_comments', $snapshotSearchTool['parameters']['properties']['sort']['enum'] ?? [], true), 'La busqueda debe permitir ordenar por actividad de comentarios.');
+$snapshotDetailTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_detail'))[0] ?? [];
 expect_diagnostic(($snapshotDetailTool['parameters']['required'] ?? []) === ['id', 'folio'], 'El detalle del snapshot debe aceptar una llave explicita.');
-$snapshotAggregateTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'aggregate_requirements_dataset'))[0] ?? [];
+$snapshotAggregateTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'aggregate_requirements'))[0] ?? [];
 expect_diagnostic(($snapshotAggregateTool['parameters']['properties']['group_by']['enum'] ?? []) === ['status', 'department', 'tramite', 'assignee'], 'El snapshot solo debe agrupar por dimensiones disponibles en la fuente.');
+expect_diagnostic(in_array('assignee_id', $snapshotAggregateTool['parameters']['required'] ?? [], true), 'Los agregados deben aceptar un empleado asignado concreto.');
+$emptySnapshot = ixtla_insights_snapshot_assemble('test-scope', ['mode' => 'self', 'label' => 'Prueba'], []);
+expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 3, 'El snapshot enriquecido debe invalidar caches de esquemas anteriores.');
+expect_diagnostic(count($emptySnapshot['catalogs']['statuses'] ?? []) === 7, 'El catalogo debe listar todos los estatus aunque no existan filas en alguno.');
+$commentsTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_comments'))[0] ?? [];
+expect_diagnostic(($commentsTool['parameters']['properties']['limit']['maximum'] ?? null) === 30, 'Los comentarios deben tener un limite estricto por llamada.');
+expect_diagnostic(ixtla_insights_activity_safe_text('Escribe a persona@example.com o 3312345678') === 'Escribe a [correo oculto] o [telefono oculto]', 'Los textos operativos deben ocultar correo y telefono.');
 expect_diagnostic(str_contains($domainPrompt, 'snapshot analitico'), 'El perfil debe priorizar el dataset cacheado.');
-expect_diagnostic(str_contains($domainPrompt, 'dataset_analytic_fallback') === false && str_contains($domainPrompt, 'Construye el análisis desde la muestra'), 'El perfil debe usar el dataset como respaldo analítico genérico.');
+expect_diagnostic(str_contains($domainPrompt, 'combina como máximo dos herramientas'), 'El perfil debe permitir composicion acotada de herramientas.');
+expect_diagnostic(!str_contains(mb_strtolower($domainPrompt), 'prioridad alta'), 'El perfil no debe reintroducir niveles de prioridad.');
 
 expect_diagnostic((int) ixtla_insights_config()['max_tool_calls_per_turn'] === 2, 'El asistente debe conservar un límite total de dos llamadas de herramienta por turno.');
+
+$directQuestions = [
+    'Cuanto es 25% de 480?',
+    'Cual es la capital de Mexico?',
+    'Quien escribio Don Quijote?',
+    'Dame una explicacion de que es una API.',
+    'Cual es el promedio de 10, 20 y 30?',
+    'Cuanto tiempo tiene un dia?',
+];
+foreach ($directQuestions as $directQuestion) {
+    expect_diagnostic(ixtla_insights_question_intent($directQuestion) === 'direct', 'Una pregunta general o matematica debe responderse sin herramientas: ' . $directQuestion);
+    expect_diagnostic(ixtla_insights_question_tool_choice($directQuestion) === 'none', 'Las herramientas deben deshabilitarse para respuestas directas: ' . $directQuestion);
+}
+
+$datasetQuestions = [
+    'Cuantos requerimientos estan pendientes?',
+    'Dame los folios vencidos.',
+    'Cual es el estatus del REQ-204?',
+    'Promedio de tiempo de cierre por departamento.',
+];
+foreach ($datasetQuestions as $datasetQuestion) {
+    expect_diagnostic(ixtla_insights_question_intent($datasetQuestion) === 'dataset', 'Una pregunta sobre Ixtla debe habilitar el dataset: ' . $datasetQuestion);
+    expect_diagnostic(ixtla_insights_question_tool_choice($datasetQuestion) === 'auto', 'Las herramientas deben ser opcionales para preguntas del dominio: ' . $datasetQuestion);
+}
+expect_diagnostic(
+    ixtla_insights_history_has_dataset_context([['role' => 'user', 'content' => 'Cuantos requerimientos hay?']]),
+    'El historial debe reconocer contexto previo del dataset.'
+);
+expect_diagnostic(
+    ixtla_insights_question_intent('Y cuantos estan pendientes?', true) === 'dataset',
+    'Un seguimiento operacional debe conservar el contexto del dataset.'
+);
+expect_diagnostic(
+    ixtla_insights_question_intent('Que significa estar pendiente?', false) === 'direct',
+    'Una palabra operacional aislada no debe bloquear una pregunta general.'
+);
+expect_diagnostic(
+    ixtla_insights_question_intent('Que comentaron en ese requerimiento?', true) === 'dataset',
+    'Los comentarios deben resolverse como seguimiento del requerimiento previo.'
+);
+expect_diagnostic(
+    ixtla_insights_question_intent('Ayudame con una tarea de matematicas', false) === 'direct',
+    'Una tarea general no debe activar herramientas municipales.'
+);
 
 $globalAccess = ixtla_insights_access_scope_from_rbac(['empleado' => ['id' => 1, 'departamento_id' => 6], 'scope' => ['global' => true]]);
 expect_diagnostic($globalAccess['mode'] === 'global' && $globalAccess['allowed_department_ids'] === null, 'Un perfil global debe conservar acceso global dentro de Insights.');

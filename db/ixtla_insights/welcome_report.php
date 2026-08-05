@@ -20,7 +20,7 @@ try {
 
     // Consulta el snapshot cacheado. Solo se construye desde la fuente cuando
     // falta o expira, nunca por cada pregunta del chat.
-    $snapshot = ixtla_insights_snapshot_overview(['refresh' => false, 'period' => 'this_month']);
+    $snapshot = ixtla_insights_snapshot_overview(['refresh' => false, 'period' => 'all']);
     $currentThirtyDayTotal = (int) ($snapshot['trend']['current_total'] ?? 0);
 
     ixtla_insights_json([
@@ -29,7 +29,7 @@ try {
             'title' => 'Dataset de: ' . $fullName,
             'user_name' => $fullName,
             'scope' => $snapshot['scope'] ?? [],
-            'period_label' => 'Mes en curso',
+            'period_label' => 'Toda la muestra autorizada',
             'counts' => $snapshot['counts'] ?? [],
             'deadline_risk' => [
                 'overdue' => $snapshot['counts']['overdue'] ?? 0,

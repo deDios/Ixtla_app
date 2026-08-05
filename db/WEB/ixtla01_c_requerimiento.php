@@ -68,11 +68,46 @@ $base = "
 SELECT r.*,
        d.nombre AS departamento_nombre,
        t.nombre AS tramite_nombre,
-       CONCAT(e.nombre,' ',e.apellidos) AS asignado_nombre_completo
+       CONCAT(e.nombre,' ',e.apellidos) AS asignado_nombre_completo,
+       e.puesto AS asignado_puesto,
+       ed.nombre AS asignado_departamento_nombre,
+       CASE r.estatus
+         WHEN 0 THEN 'Solicitud'
+         WHEN 1 THEN 'Revisión'
+         WHEN 2 THEN 'Asignación'
+         WHEN 3 THEN 'En proceso'
+         WHEN 4 THEN 'Pausado'
+         WHEN 5 THEN 'Cancelado'
+         WHEN 6 THEN 'Finalizado'
+         ELSE 'Sin estatus'
+       END AS estatus_nombre,
+       COALESCE(cm.comentarios_total, 0) AS comentarios_total,
+       cm.ultimo_comentario_at,
+       COALESCE(pm.procesos_total, 0) AS procesos_total,
+       pm.ultimo_proceso_at,
+       COALESCE(tm.tareas_total, 0) AS tareas_total,
+       COALESCE(tm.tareas_abiertas, 0) AS tareas_abiertas
 FROM requerimiento r
 JOIN departamento d ON d.id = r.departamento_id
 JOIN tramite t      ON t.id = r.tramite_id
 LEFT JOIN empleado e ON e.id = r.asignado_a
+LEFT JOIN departamento ed ON ed.id = e.departamento_id
+LEFT JOIN (
+  SELECT requerimiento_id, COUNT(*) AS comentarios_total, MAX(created_at) AS ultimo_comentario_at
+  FROM comentario_requerimiento WHERE status = 1 GROUP BY requerimiento_id
+) cm ON cm.requerimiento_id = r.id
+LEFT JOIN (
+  SELECT requerimiento_id, COUNT(*) AS procesos_total, MAX(created_at) AS ultimo_proceso_at
+  FROM proceso_requerimiento WHERE status = 1 GROUP BY requerimiento_id
+) pm ON pm.requerimiento_id = r.id
+LEFT JOIN (
+  SELECT p.requerimiento_id, COUNT(tp.id) AS tareas_total,
+         SUM(CASE WHEN tp.status <> 5 THEN 1 ELSE 0 END) AS tareas_abiertas
+  FROM proceso_requerimiento p
+  JOIN tarea_proceso tp ON tp.proceso_id = p.id
+  WHERE p.status = 1
+  GROUP BY p.requerimiento_id
+) tm ON tm.requerimiento_id = r.id
 ";
 
 if ($id || $folio) {
@@ -98,6 +133,10 @@ if ($id || $folio) {
   $row['estatus'] = (int)$row['estatus'];
   $row['canal'] = (int)$row['canal'];
   $row['status'] = (int)$row['status'];
+  $row['comentarios_total'] = (int)$row['comentarios_total'];
+  $row['procesos_total'] = (int)$row['procesos_total'];
+  $row['tareas_total'] = (int)$row['tareas_total'];
+  $row['tareas_abiertas'] = (int)$row['tareas_abiertas'];
   echo json_encode(["ok"=>true,"data"=>$row]); exit;
 }
 
@@ -144,6 +183,10 @@ while ($row = $rs->fetch_assoc()) {
   $row['estatus'] = (int)$row['estatus'];
   $row['canal'] = (int)$row['canal'];
   $row['status'] = (int)$row['status'];
+  $row['comentarios_total'] = (int)$row['comentarios_total'];
+  $row['procesos_total'] = (int)$row['procesos_total'];
+  $row['tareas_total'] = (int)$row['tareas_total'];
+  $row['tareas_abiertas'] = (int)$row['tareas_abiertas'];
   $data[] = $row;
 }
 $st->close(); $con->close();
