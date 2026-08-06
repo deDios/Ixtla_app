@@ -188,9 +188,14 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         $outputs = [];
         foreach ($toolCalls as $toolCall) {
             $arguments = json_decode((string) $toolCall['arguments'], true);
+            $arguments = ixtla_insights_apply_default_period(
+                (string) $toolCall['name'],
+                is_array($arguments) ? $arguments : [],
+                $question
+            );
             try {
-                $result = ixtla_insights_execute_tool((string) $toolCall['name'], is_array($arguments) ? $arguments : []);
-                ixtla_insights_conversation_apply_tool((string) $toolCall['name'], is_array($arguments) ? $arguments : []);
+                $result = ixtla_insights_execute_tool((string) $toolCall['name'], $arguments);
+                ixtla_insights_conversation_apply_tool((string) $toolCall['name'], $arguments);
                 consola_debug('gpt_probe.tool_completed', ['tool' => (string) $toolCall['name']]);
                 $output = ['ok' => true, 'data' => $result];
             } catch (Throwable $error) {

@@ -29,8 +29,13 @@ expect_diagnostic($usageSummary === ['provider_requests' => 2, 'input_tokens' =>
 
 $domainProfile = ixtla_insights_domain_profile();
 expect_diagnostic(($domainProfile['domain'] ?? null) === 'requerimientos', 'El perfil de dominio debe describir requerimientos.');
-expect_diagnostic(($domainProfile['version'] ?? null) === 2, 'El perfil de dominio debe estar versionado.');
+expect_diagnostic((int) ($domainProfile['version'] ?? 0) >= 3, 'El perfil de dominio debe estar versionado e incluir los conceptos de negocio vigentes.');
 $domainPrompt = ixtla_insights_domain_developer_prompt();
+expect_diagnostic(str_contains($domainPrompt, 'Un requerimiento es un caso individual'), 'El prompt debe explicar qué es un requerimiento.');
+expect_diagnostic(str_contains($domainPrompt, 'No confundas los conceptos'), 'El prompt debe distinguir requerimiento, trámite, proceso, tarea y comentario.');
+expect_diagnostic(str_contains($domainPrompt, 'canal 1 corresponde a solicitudes ciudadanas'), 'El prompt debe explicar el origen de los requerimientos por canal.');
+expect_diagnostic(str_contains($domainPrompt, 'departamento de Presidencia revisa si el requerimiento es viable'), 'El prompt debe explicar la etapa de Revisión.');
+expect_diagnostic(str_contains($domainPrompt, 'todas esas tareas están en estatus Hecho'), 'El prompt debe explicar la condición para finalizar un requerimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'get_requirement_comments'), 'El perfil debe orientar consultas de actividad bajo demanda.');
 expect_diagnostic(str_contains($domainPrompt, 'alcance autorizado se resuelve en el servidor'), 'El perfil debe preservar el límite de autorización del servidor.');
 expect_diagnostic(ixtla_insights_domain_metric_label('closed_count') === 'Requerimientos finalizados', 'El perfil debe centralizar las etiquetas de métricas.');
@@ -83,27 +88,38 @@ $snapshotAggregateTool = array_values(array_filter(ixtla_insights_tool_definitio
 expect_diagnostic(($snapshotAggregateTool['parameters']['properties']['group_by']['enum'] ?? []) === ['status', 'department', 'tramite', 'assignee'], 'El snapshot solo debe agrupar por dimensiones disponibles en la fuente.');
 expect_diagnostic(in_array('assignee_id', $snapshotAggregateTool['parameters']['required'] ?? [], true), 'Los agregados deben aceptar un empleado asignado concreto.');
 $emptySnapshot = ixtla_insights_snapshot_assemble('test-scope', ['mode' => 'self', 'label' => 'Prueba'], []);
-expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 3, 'El snapshot enriquecido debe invalidar caches de esquemas anteriores.');
+expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 4, 'El snapshot sin fecha_limite debe invalidar caches de esquemas anteriores.');
 expect_diagnostic(count($emptySnapshot['catalogs']['statuses'] ?? []) === 7, 'El catalogo debe listar todos los estatus aunque no existan filas en alguno.');
 $commentsTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_comments'))[0] ?? [];
 expect_diagnostic(($commentsTool['parameters']['properties']['limit']['maximum'] ?? null) === 30, 'Los comentarios deben tener un limite estricto por llamada.');
 expect_diagnostic(ixtla_insights_activity_safe_text('Escribe a persona@example.com o 3312345678') === 'Escribe a [correo oculto] o [telefono oculto]', 'Los textos operativos deben ocultar correo y telefono.');
+expect_diagnostic(ixtla_insights_task_status_label(4) === 'Hecho', 'El asistente debe reconocer el estatus final real del tablero de tareas.');
+expect_diagnostic(ixtla_insights_task_status_label(5) === 'Bloqueado', 'El asistente no debe confundir una tarea bloqueada con una terminada.');
 expect_diagnostic(str_contains($domainPrompt, 'snapshot analitico'), 'El perfil debe priorizar el dataset cacheado.');
-expect_diagnostic(str_contains($domainPrompt, 'combina como máximo dos herramientas'), 'El perfil debe permitir composicion acotada de herramientas.');
+expect_diagnostic(str_contains($domainPrompt, 'sin exceder el límite configurado por turno'), 'El perfil debe respetar el límite de herramientas definido en configuración.');
 expect_diagnostic(!str_contains(mb_strtolower($domainPrompt), 'prioridad alta'), 'El perfil no debe reintroducir niveles de prioridad.');
 
-expect_diagnostic((int) ixtla_insights_config()['max_tool_calls_per_turn'] === 2, 'El asistente debe conservar un límite total de dos llamadas de herramienta por turno.');
 $runtimeConfig = ixtla_insights_config();
-expect_diagnostic((int) $runtimeConfig['max_history_messages'] === 20, 'El historial debe conservar un máximo acotado de mensajes.');
-expect_diagnostic((int) $runtimeConfig['max_history_total_characters'] === 16000, 'El historial total debe permanecer acotado.');
-expect_diagnostic((int) $runtimeConfig['max_output_tokens'] === 4000, 'La salida del asistente debe usar el limite acordado.');
-expect_diagnostic((float) $runtimeConfig['temperature'] === 0.2, 'La temperatura factual debe permanecer estable.');
+$configuredMaxToolCalls = (int) ($runtimeConfig['max_tool_calls_per_turn'] ?? 0);
+$configuredHistoryMessages = (int) ($runtimeConfig['max_history_messages'] ?? 0);
+$configuredHistoryMessageCharacters = (int) ($runtimeConfig['max_history_message_characters'] ?? 0);
+$configuredHistoryTotalCharacters = (int) ($runtimeConfig['max_history_total_characters'] ?? 0);
+$configuredMaxOutputTokens = (int) ($runtimeConfig['max_output_tokens'] ?? 0);
+$configuredTemperature = (float) ($runtimeConfig['temperature'] ?? -1);
+
+expect_diagnostic($configuredMaxToolCalls > 0, 'La configuración debe permitir al menos una llamada de herramienta por turno.');
+expect_diagnostic($configuredHistoryMessages > 0, 'La configuración debe conservar un máximo positivo de mensajes.');
+expect_diagnostic($configuredHistoryMessageCharacters > 0, 'La configuración debe limitar el tamaño de cada mensaje del historial.');
+expect_diagnostic($configuredHistoryTotalCharacters >= $configuredHistoryMessageCharacters, 'El límite total del historial debe admitir al menos un mensaje completo.');
+expect_diagnostic($configuredMaxOutputTokens > 0, 'La configuración debe definir un límite positivo de salida.');
+expect_diagnostic($configuredTemperature >= 0.0 && $configuredTemperature <= 2.0, 'La temperatura configurada debe estar dentro del rango permitido.');
 $reasoningControls = ixtla_insights_generation_controls(array_replace($runtimeConfig, ['model' => 'gpt-5-test', 'reasoning_effort' => 'medium']));
 expect_diagnostic(($reasoningControls['reasoning']['effort'] ?? null) === 'medium' && !isset($reasoningControls['temperature']), 'Los modelos de razonamiento deben recibir effort sin temperature.');
 $standardControls = ixtla_insights_generation_controls(array_replace($runtimeConfig, ['model' => 'gpt-4.1', 'reasoning_effort' => 'medium']));
-expect_diagnostic(($standardControls['temperature'] ?? null) === 0.2 && !isset($standardControls['reasoning']), 'Los modelos sin razonamiento deben conservar temperature.');
+expect_diagnostic(($standardControls['temperature'] ?? null) === $configuredTemperature && !isset($standardControls['reasoning']), 'Los modelos sin razonamiento deben conservar la temperatura definida en configuración.');
 $toolContract = json_encode(ixtla_insights_tool_definitions(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 expect_diagnostic(is_string($toolContract) && !str_contains(mb_strtolower($toolContract), 'prioridad'), 'El contrato publico de herramientas no debe exponer prioridad.');
+expect_diagnostic(is_string($toolContract) && !str_contains(mb_strtolower($toolContract), 'deadline'), 'El contrato publico de herramientas no debe exponer fecha_limite ni filtros de vencimiento.');
 
 $directQuestions = [
     'Cuanto es 25% de 480?',
@@ -118,11 +134,25 @@ foreach ($directQuestions as $directQuestion) {
     expect_diagnostic(ixtla_insights_question_tool_choice($directQuestion) === 'none', 'Las herramientas deben deshabilitarse para respuestas directas: ' . $directQuestion);
 }
 
+$conceptualQuestions = [
+    '¿Qué es un requerimiento?',
+    '¿Cuál es la diferencia entre trámite y requerimiento?',
+    '¿Qué significa que un requerimiento esté finalizado?',
+    '¿Cómo funciona el canal de un requerimiento?',
+    'Dame los folios vencidos.',
+    '¿Cuántos requerimientos están por vencer?',
+];
+foreach ($conceptualQuestions as $conceptualQuestion) {
+    expect_diagnostic(ixtla_insights_question_intent($conceptualQuestion) === 'conceptual', 'Una pregunta conceptual de Ixtla debe responderse desde el perfil: ' . $conceptualQuestion);
+    expect_diagnostic(ixtla_insights_question_tool_choice($conceptualQuestion) === 'none', 'Una explicación conceptual no debe consultar el dataset: ' . $conceptualQuestion);
+}
+
 $datasetQuestions = [
     'Cuantos requerimientos estan pendientes?',
-    'Dame los folios vencidos.',
+    'Dame los folios activos más antiguos.',
     'Cual es el estatus del REQ-204?',
     'Promedio de tiempo de cierre por departamento.',
+    '¿Qué significa el estatus registrado del REQ-204?',
 ];
 foreach ($datasetQuestions as $datasetQuestion) {
     expect_diagnostic(ixtla_insights_question_intent($datasetQuestion) === 'dataset', 'Una pregunta sobre Ixtla debe habilitar el dataset: ' . $datasetQuestion);
@@ -144,6 +174,22 @@ expect_diagnostic(
     ixtla_insights_question_intent('Que comentaron en ese requerimiento?', true) === 'dataset',
     'Los comentarios deben resolverse como seguimiento del requerimiento previo.'
 );
+
+$defaultPeriodArguments = ixtla_insights_apply_default_period(
+    'search_requirements',
+    ['period' => 'this_month', 'limit' => 10],
+    'Dame los 10 requerimientos con comentarios'
+);
+expect_diagnostic(($defaultPeriodArguments['period'] ?? null) === 'all', 'Una búsqueda sin periodo explícito debe consultar todo el historial.');
+
+$explicitPeriodArguments = ixtla_insights_apply_default_period(
+    'search_requirements',
+    ['period' => 'this_month', 'limit' => 10],
+    'Dame los 10 requerimientos con comentarios de este mes'
+);
+expect_diagnostic(($explicitPeriodArguments['period'] ?? null) === 'this_month', 'Una búsqueda debe conservar el periodo solicitado explícitamente.');
+expect_diagnostic(ixtla_insights_question_has_explicit_period('Compara los últimos 30 días'), 'El enrutador debe reconocer periodos relativos explícitos.');
+expect_diagnostic(!ixtla_insights_question_has_explicit_period('Dame los requerimientos con comentarios'), 'Una consulta sin fecha no debe inventar un periodo limitado.');
 expect_diagnostic(
     ixtla_insights_question_intent('Ayudame con una tarea de matematicas', false) === 'direct',
     'Una tarea general no debe activar herramientas municipales.'

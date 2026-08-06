@@ -49,12 +49,6 @@ try {
             'scope' => $snapshot['scope'] ?? [],
             'period_label' => 'Toda la muestra autorizada',
             'counts' => $snapshot['counts'] ?? [],
-            'deadline_risk' => [
-                'overdue' => $snapshot['counts']['overdue'] ?? 0,
-                'due_within_days' => 7,
-                'due_soon' => $snapshot['counts']['due_soon'] ?? 0,
-                'without_due_date' => $snapshot['counts']['without_due_date'] ?? 0,
-            ],
             'top_tramites' => $snapshot['top_tramites'] ?? [],
             'trend' => $snapshot['trend'] ?? [],
             'average_weekly' => round($currentThirtyDayTotal / (30 / 7), 1),

@@ -17,14 +17,13 @@ function ixtla_insights_tool_definitions(): array
         'assignee_id' => ['type' => 'integer', 'minimum' => 0],
         'status_ids' => ['type' => 'array', 'items' => ['type' => 'integer', 'enum' => [0, 1, 2, 3, 4, 5, 6]]],
         'assignee_state' => ['type' => 'string', 'enum' => ['any', 'assigned', 'unassigned']],
-        'deadline_state' => ['type' => 'string', 'enum' => ['any', 'overdue', 'due_soon', 'without_due_date']],
     ];
-    $filterRequired = ['period', 'department_id', 'assignee_id', 'status_ids', 'assignee_state', 'deadline_state'];
+    $filterRequired = ['period', 'department_id', 'assignee_id', 'status_ids', 'assignee_state'];
 
     return [
         [
             'type' => 'function', 'name' => 'get_requirements_overview', 'strict' => true,
-            'description' => 'Obtiene KPIs y distribuciones del alcance autorizado. Usala para totales, riesgo, vencimientos y resumen ejecutivo; no para localizar un folio.',
+            'description' => 'Obtiene KPIs y distribuciones del alcance autorizado. Si el usuario no indica un periodo, usa all. Usala para totales, carga operativa y resumen ejecutivo; no para localizar un folio.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false, 'required' => ['refresh', 'period'],
                 'properties' => [
@@ -35,7 +34,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'search_requirements', 'strict' => true,
-            'description' => 'Busca hasta 50 requerimientos autorizados con filtros cerrados. Devuelve catalogos resueltos, asignacion, fechas y conteos de comentarios, procesos y tareas; nunca contactos ni texto de comentarios.',
+            'description' => 'Busca hasta 50 requerimientos autorizados con filtros cerrados. Si el usuario no indica un periodo, usa all. Devuelve catalogos resueltos, asignacion, fechas vigentes y conteos de comentarios, procesos y tareas; nunca contactos ni texto de comentarios ni fecha_limite.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'sort', 'limit'],
@@ -47,7 +46,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'aggregate_requirements', 'strict' => true,
-            'description' => 'Agrupa requerimientos autorizados por estatus, departamento, tramite o empleado asignado. Usala para conteos, comparaciones y rankings.',
+            'description' => 'Agrupa requerimientos autorizados por estatus, departamento, tramite o empleado asignado. Si el usuario no indica un periodo, usa all. Usala para conteos, comparaciones y rankings.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'group_by', 'sort', 'limit'],

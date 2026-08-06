@@ -85,7 +85,7 @@ const INSIGHTS_CONFIG = {
     {
       label: "Riesgo operativo",
       description: "Estatus, pendientes, vencimientos y prioridades.",
-      prompt: "Analiza el riesgo operativo de este mes dentro de mi alcance autorizado: indica requerimientos activos, pausados, finalizados y sin responsable; identifica los cinco trámites con mayor carga, los vencidos o próximos a vencer en 7 días, y dame una recomendación priorizada. Usa sólo datos reales y señala cualquier dato no disponible.",
+      prompt: "Analiza la carga operativa de este mes dentro de mi alcance autorizado: indica requerimientos activos, pausados, finalizados y sin responsable; identifica los cinco trámites con mayor carga y los folios activos más antiguos, y dame una recomendación basada en los datos disponibles. Usa sólo datos reales y señala cualquier dato no disponible.",
       primary: true,
     },
     {

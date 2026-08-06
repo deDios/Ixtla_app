@@ -1073,7 +1073,6 @@ export function mountIxtlaInsights(options = {}) {
   function formatWelcomeReport(report) {
     const number = (value) => Number(value || 0).toLocaleString("es-MX");
     const counts = report?.counts || {};
-    const risk = report?.deadline_risk || {};
     const trend = report?.trend || {};
     const top = Array.isArray(report?.top_tramites) ? report.top_tramites : [];
     const topText = top.length
@@ -1096,11 +1095,6 @@ export function mountIxtlaInsights(options = {}) {
       `• Finalizados: ${number(counts.finalized)}`,
       `• Pausados: ${number(counts.paused)} · Cancelados: ${number(counts.cancelled)}`,
       `• Sin asignar: ${number(counts.unassigned)}`,
-      "",
-      "Riesgo y seguimiento",
-      `• Vencidos: ${number(risk.overdue)}`,
-      `• Por vencer en ${number(risk.due_within_days || 7)} días: ${number(risk.due_soon)}`,
-      `• Sin fecha límite: ${number(risk.without_due_date)}`,
       "",
       "Mayor incidencia por trámite",
       topText,

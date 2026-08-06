@@ -46,7 +46,7 @@ function ixtla_insights_snapshot_is_fresh(?array $snapshot): bool
 {
     return is_array($snapshot)
         && (int) ($snapshot['expires_at_unix'] ?? 0) >= time()
-        && (int) ($snapshot['schema_version'] ?? 0) === 3
+        && (int) ($snapshot['schema_version'] ?? 0) === 4
         && is_array($snapshot['records'] ?? null);
 }
 
@@ -75,7 +75,7 @@ function ixtla_insights_snapshot_source_page(mysqli $connection, array $scope, i
     $rows = ixtla_insights_dataset_rows(
         $connection,
         'SELECT r.id, r.folio, r.departamento_id, r.tramite_id, r.asignado_a, r.estatus, r.canal, '
-        . 'r.contacto_nombre AS requester_name, r.created_at, r.fecha_limite, r.cerrado_en, '
+        . 'r.contacto_nombre AS requester_name, r.created_at, r.cerrado_en, '
         . 'd.nombre AS department, t.nombre AS tramite, ed.nombre AS assignee_department, e.puesto AS assignee_position, '
         . 'COALESCE(cm.comment_count, 0) AS comment_count, cm.last_comment_at, '
         . 'COALESCE(pm.process_count, 0) AS process_count, pm.last_process_at, '
@@ -89,7 +89,7 @@ function ixtla_insights_snapshot_source_page(mysqli $connection, array $scope, i
         . 'LEFT JOIN (SELECT requerimiento_id, COUNT(*) AS process_count, MAX(created_at) AS last_process_at '
         . 'FROM proceso_requerimiento WHERE status = 1 GROUP BY requerimiento_id) pm ON pm.requerimiento_id = r.id '
         . 'LEFT JOIN (SELECT p.requerimiento_id, COUNT(tp.id) AS task_count, '
-        . 'SUM(CASE WHEN tp.status <> 5 THEN 1 ELSE 0 END) AS open_task_count '
+        . 'SUM(CASE WHEN tp.status <> 4 THEN 1 ELSE 0 END) AS open_task_count '
         . 'FROM proceso_requerimiento p JOIN tarea_proceso tp ON tp.proceso_id = p.id '
         . 'WHERE p.status = 1 GROUP BY p.requerimiento_id) tm ON tm.requerimiento_id = r.id '
         . 'WHERE ' . implode(' AND ', $scope['where'])
@@ -103,9 +103,7 @@ function ixtla_insights_snapshot_source_page(mysqli $connection, array $scope, i
 function ixtla_insights_snapshot_normalize_record(array $row): array
 {
     $createdAt = (string) ($row['created_at'] ?? '');
-    $dueAt = $row['fecha_limite'] === null ? null : (string) $row['fecha_limite'];
     $createdTimestamp = strtotime($createdAt) ?: 0;
-    $dueTimestamp = $dueAt === null ? null : (strtotime($dueAt) ?: null);
     $now = time();
     $statusId = (int) ($row['estatus'] ?? -1);
     $active = in_array($statusId, ixtla_insights_domain_status_ids('active'), true);
@@ -134,13 +132,9 @@ function ixtla_insights_snapshot_normalize_record(array $row): array
         'requester_name' => trim((string) ($row['requester_name'] ?? '')),
         'created_at' => $createdAt,
         'created_at_unix' => $createdTimestamp,
-        'due_at' => $dueAt,
-        'due_at_unix' => $dueTimestamp,
         'closed_at' => $row['cerrado_en'] === null ? null : (string) $row['cerrado_en'],
         'age_days' => $createdTimestamp > 0 ? max(0, (int) floor(($now - $createdTimestamp) / 86400)) : null,
         'is_active' => $active,
-        'is_overdue' => $active && $dueTimestamp !== null && $dueTimestamp < strtotime('today'),
-        'is_due_soon' => $active && $dueTimestamp !== null && $dueTimestamp >= strtotime('today') && $dueTimestamp <= strtotime('+7 days'),
     ];
 }
 
@@ -195,8 +189,8 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
     }
     $ttl = (int) ixtla_insights_config()['dataset_cache_ttl_seconds'];
     return [
-        'dataset' => 'requerimientos_scope_v3',
-        'schema_version' => 3,
+        'dataset' => 'requerimientos_scope_v4',
+        'schema_version' => 4,
         'scope_key' => $scopeKey,
         'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
         'generated_at' => date(DATE_ATOM),
@@ -214,20 +208,16 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
     $departmentId = isset($arguments['department_id']) ? (int) $arguments['department_id'] : 0;
     $assigneeId = isset($arguments['assignee_id']) ? (int) $arguments['assignee_id'] : 0;
     $assigneeState = (string) ($arguments['assignee_state'] ?? 'any');
-    $deadlineState = (string) ($arguments['deadline_state'] ?? 'any');
     $period = (string) ($arguments['period'] ?? 'all');
     $limit = array_key_exists('limit', $arguments) ? min(50, max(1, (int) $arguments['limit'])) : 0;
     $sort = (string) ($arguments['sort'] ?? 'newest');
     $cutoff = match ($period) { 'last_7' => strtotime('-6 days midnight'), 'last_30' => strtotime('-29 days midnight'), 'this_month' => strtotime('first day of this month midnight'), default => 0 };
-    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentId, $assigneeId, $assigneeState, $deadlineState, $cutoff): bool {
+    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentId, $assigneeId, $assigneeState, $cutoff): bool {
         if ($statusIds !== [] && !in_array($record['status_id'], $statusIds, true)) return false;
         if ($departmentId > 0 && $record['department_id'] !== $departmentId) return false;
         if ($assigneeId > 0 && $record['assignee_id'] !== $assigneeId) return false;
         if ($assigneeState === 'assigned' && $record['assignee_id'] === null) return false;
         if ($assigneeState === 'unassigned' && $record['assignee_id'] !== null) return false;
-        if ($deadlineState === 'overdue' && !$record['is_overdue']) return false;
-        if ($deadlineState === 'due_soon' && !$record['is_due_soon']) return false;
-        if ($deadlineState === 'without_due_date' && $record['due_at'] !== null) return false;
         return $cutoff === 0 || $record['created_at_unix'] >= $cutoff;
     });
     usort($items, static fn (array $a, array $b): int => match ($sort) {
@@ -243,7 +233,7 @@ function ixtla_insights_snapshot_public_record(array $record, bool $includeReque
     $result = array_intersect_key($record, array_flip([
         'id', 'folio', 'department', 'tramite', 'status', 'assignee', 'assignee_department', 'assignee_position',
         'comment_count', 'last_comment_at', 'process_count', 'last_process_at', 'task_count', 'open_task_count',
-        'created_at', 'due_at', 'closed_at', 'age_days', 'is_overdue', 'is_due_soon',
+        'created_at', 'closed_at', 'age_days',
     ]));
     if ($includeRequester) $result['requester_name'] = $record['requester_name'];
     return $result;
@@ -258,9 +248,9 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
         throw new InvalidArgumentException('El periodo del resumen no es valido.');
     }
     // Aplica el mismo periodo que las listas y agregados, para que un KPI de
-    // riesgo y los folios que lo sustentan pertenezcan al mismo universo.
+    // carga y los folios que la sustentan pertenezcan al mismo universo.
     $records = ixtla_insights_snapshot_filter($snapshot, ['period' => $period]);
-    $counts = ['total' => count($records), 'active' => 0, 'finalized' => 0, 'paused' => 0, 'cancelled' => 0, 'unassigned' => 0, 'overdue' => 0, 'due_soon' => 0, 'without_due_date' => 0];
+    $counts = ['total' => count($records), 'active' => 0, 'finalized' => 0, 'paused' => 0, 'cancelled' => 0, 'unassigned' => 0];
     $byStatus = [];
     $byTramite = [];
     $currentThirtyDays = 0;
@@ -273,9 +263,6 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
         if ($record['status_id'] === 4) $counts['paused']++;
         if ($record['status_id'] === 5) $counts['cancelled']++;
         if ($record['assignee_id'] === null && $record['is_active']) $counts['unassigned']++;
-        if ($record['is_overdue']) $counts['overdue']++;
-        if ($record['is_due_soon']) $counts['due_soon']++;
-        if ($record['is_active'] && $record['due_at'] === null) $counts['without_due_date']++;
         $byStatus[$record['status']] = ($byStatus[$record['status']] ?? 0) + 1;
         $byTramite[$record['tramite']] = ($byTramite[$record['tramite']] ?? 0) + 1;
         if ($record['created_at_unix'] >= $currentCutoff) $currentThirtyDays++;
@@ -305,11 +292,9 @@ function ixtla_insights_snapshot_search(array $arguments): array
 {
     $allowedPeriods = ['all', 'last_7', 'last_30', 'this_month'];
     $allowedAssigneeStates = ['any', 'assigned', 'unassigned'];
-    $allowedDeadlineStates = ['any', 'overdue', 'due_soon', 'without_due_date'];
     $allowedSorts = ['newest', 'oldest', 'most_comments'];
     if (!in_array((string) ($arguments['period'] ?? 'all'), $allowedPeriods, true)
         || !in_array((string) ($arguments['assignee_state'] ?? 'any'), $allowedAssigneeStates, true)
-        || !in_array((string) ($arguments['deadline_state'] ?? 'any'), $allowedDeadlineStates, true)
         || !in_array((string) ($arguments['sort'] ?? 'newest'), $allowedSorts, true)) {
         throw new InvalidArgumentException('Los filtros solicitados no son validos.');
     }

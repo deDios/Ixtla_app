@@ -48,7 +48,7 @@ function ixtla_insights_activity_safe_text(?string $text, int $maximum = 500): s
 
 function ixtla_insights_task_status_label(int $status): string
 {
-    return [1 => 'Por hacer', 2 => 'En proceso', 3 => 'En revision', 4 => 'Bloqueada', 5 => 'Terminada'][$status]
+    return [1 => 'Por hacer', 2 => 'En proceso', 3 => 'Por revisar', 4 => 'Hecho', 5 => 'Bloqueado'][$status]
         ?? 'Sin estado';
 }
 
@@ -94,8 +94,8 @@ function ixtla_insights_requirement_tasks(array $arguments): array
     try {
         $requirement = ixtla_insights_activity_requirement($connection, $arguments);
         $where = ['p.requerimiento_id = ?', 'p.status = 1'];
-        if ($state === 'open') $where[] = 't.status <> 5';
-        if ($state === 'completed') $where[] = 't.status = 5';
+        if ($state === 'open') $where[] = 't.status <> 4';
+        if ($state === 'completed') $where[] = 't.status = 4';
         $rows = ixtla_insights_dataset_rows(
             $connection,
             "SELECT t.id, t.titulo, t.descripcion, t.status, t.fecha_inicio, t.fecha_fin, t.created_at, t.asignado_a, "
