@@ -12,7 +12,7 @@ function ixtla_insights_tool_definitions(): array
         'folio' => ['type' => ['string', 'null'], 'minLength' => 1, 'maxLength' => 80],
     ];
     $datasetFilters = [
-        'period' => ['type' => 'string', 'enum' => ['all', 'last_7', 'last_30', 'this_month']],
+        'period' => ['type' => 'string', 'enum' => ['all', 'this_week', 'last_7', 'last_30', 'this_month']],
         'department_id' => ['type' => 'integer', 'minimum' => 0],
         'assignee_id' => ['type' => 'integer', 'minimum' => 0],
         'status_ids' => ['type' => 'array', 'items' => ['type' => 'integer', 'enum' => [0, 1, 2, 3, 4, 5, 6]]],

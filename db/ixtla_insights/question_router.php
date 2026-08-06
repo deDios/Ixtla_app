@@ -29,6 +29,10 @@ function ixtla_insights_question_intent(string $question, bool $hasDatasetContex
         '/\b(estatus|rezago|vencimiento|vencimientos|carga de trabajo|tiempo de cierre|tiempo de resolucion)\b/',
         $normalized
     ) === 1;
+    $hasReportRequest = preg_match(
+        '/\b(reporte|informe|resumen|diagnostico|analisis|analiza|reporta)\b/',
+        $normalized
+    ) === 1;
     $isDatasetFollowUp = $hasDatasetContext && preg_match(
         '/\b(hazlo|lo mismo|pendiente|pendientes|vencido|vencidos|vencida|vencidas|finalizado|finalizados|riesgo|activos|activas|comentario|comentarios|proceso|procesos|tarea|tareas)\b/',
         $normalized
@@ -41,7 +45,13 @@ function ixtla_insights_question_intent(string $question, bool $hasDatasetContex
         return 'conceptual';
     }
 
-    return ($hasRequirementReference || $hasExplicitFolio || $hasOperationalPhrase || $isDatasetFollowUp) ? 'dataset' : 'direct';
+    return ($hasRequirementReference
+        || $hasExplicitFolio
+        || $hasOperationalPhrase
+        || $isDatasetFollowUp
+        || ($hasReportRequest && (ixtla_insights_question_has_explicit_period($question) || $hasDatasetContext)))
+        ? 'dataset'
+        : 'direct';
 }
 
 function ixtla_insights_probe_requires_data(string $question, bool $hasDatasetContext = false): bool
@@ -59,23 +69,39 @@ function ixtla_insights_question_has_explicit_period(string $question): bool
     ) === 1;
 }
 
+/** Traduce expresiones temporales soportadas al periodo cerrado del dataset. */
+function ixtla_insights_question_requested_period(string $question): ?string
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    if (preg_match('/\b(todo el historial|toda la historia)\b/', $normalized) === 1) return 'all';
+    if (preg_match('/\b(esta semana|semana actual)\b/', $normalized) === 1) return 'this_week';
+    if (preg_match('/\b(ultimos? 7 dias|ultima semana)\b/', $normalized) === 1) return 'last_7';
+    if (preg_match('/\b(ultimos? 30 dias|ultimo mes|mes pasado)\b/', $normalized) === 1) return 'last_30';
+    if (preg_match('/\b(este mes|mes actual|mes en curso)\b/', $normalized) === 1) return 'this_month';
+    return null;
+}
+
 /**
  * Impone el periodo general para consultas sin referencia temporal. La regla
  * vive en servidor para no depender de que el modelo elija correctamente all.
  */
 function ixtla_insights_apply_default_period(string $toolName, array $arguments, string $question): array
 {
-    if (in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)
-        && !ixtla_insights_question_has_explicit_period($question)) {
-        $arguments['period'] = 'all';
+    if (in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)) {
+        $requestedPeriod = ixtla_insights_question_requested_period($question);
+        if ($requestedPeriod !== null) {
+            $arguments['period'] = $requestedPeriod;
+        } elseif (!ixtla_insights_question_has_explicit_period($question)) {
+            $arguments['period'] = 'all';
+        }
     }
     return $arguments;
 }
 
-/** Las herramientas apoyan al asistente solo en preguntas del dominio. */
+/** Las consultas del dominio deben ejecutar al menos una herramienta autorizada. */
 function ixtla_insights_question_tool_choice(string $question, bool $hasDatasetContext = false): string
 {
-    return ixtla_insights_probe_requires_data($question, $hasDatasetContext) ? 'auto' : 'none';
+    return ixtla_insights_probe_requires_data($question, $hasDatasetContext) ? 'required' : 'none';
 }
 
 /** @param list<array{role?: string, content?: string}> $history */

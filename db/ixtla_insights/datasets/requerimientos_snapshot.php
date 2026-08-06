@@ -211,7 +211,7 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
     $period = (string) ($arguments['period'] ?? 'all');
     $limit = array_key_exists('limit', $arguments) ? min(50, max(1, (int) $arguments['limit'])) : 0;
     $sort = (string) ($arguments['sort'] ?? 'newest');
-    $cutoff = match ($period) { 'last_7' => strtotime('-6 days midnight'), 'last_30' => strtotime('-29 days midnight'), 'this_month' => strtotime('first day of this month midnight'), default => 0 };
+    $cutoff = match ($period) { 'this_week' => strtotime('monday this week midnight'), 'last_7' => strtotime('-6 days midnight'), 'last_30' => strtotime('-29 days midnight'), 'this_month' => strtotime('first day of this month midnight'), default => 0 };
     $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentId, $assigneeId, $assigneeState, $cutoff): bool {
         if ($statusIds !== [] && !in_array($record['status_id'], $statusIds, true)) return false;
         if ($departmentId > 0 && $record['department_id'] !== $departmentId) return false;
@@ -244,7 +244,7 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
 {
     $snapshot = ixtla_insights_snapshot_build((bool) ($arguments['refresh'] ?? false));
     $period = (string) ($arguments['period'] ?? 'all');
-    if (!in_array($period, ['all', 'last_7', 'last_30', 'this_month'], true)) {
+    if (!in_array($period, ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true)) {
         throw new InvalidArgumentException('El periodo del resumen no es valido.');
     }
     // Aplica el mismo periodo que las listas y agregados, para que un KPI de
@@ -290,7 +290,7 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
 
 function ixtla_insights_snapshot_search(array $arguments): array
 {
-    $allowedPeriods = ['all', 'last_7', 'last_30', 'this_month'];
+    $allowedPeriods = ['all', 'this_week', 'last_7', 'last_30', 'this_month'];
     $allowedAssigneeStates = ['any', 'assigned', 'unassigned'];
     $allowedSorts = ['newest', 'oldest', 'most_comments'];
     if (!in_array((string) ($arguments['period'] ?? 'all'), $allowedPeriods, true)

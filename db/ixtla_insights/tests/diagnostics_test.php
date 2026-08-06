@@ -40,6 +40,7 @@ expect_diagnostic(str_contains($domainPrompt, 'get_requirement_comments'), 'El p
 expect_diagnostic(str_contains($domainPrompt, 'alcance autorizado se resuelve en el servidor'), 'El perfil debe preservar el límite de autorización del servidor.');
 expect_diagnostic(ixtla_insights_domain_metric_label('closed_count') === 'Requerimientos finalizados', 'El perfil debe centralizar las etiquetas de métricas.');
 expect_diagnostic(ixtla_insights_domain_period_label('last_30') === 'Últimos 30 días', 'El perfil debe centralizar las etiquetas de periodos.');
+expect_diagnostic(ixtla_insights_domain_period_label('this_week') === 'Semana en curso', 'El perfil debe describir la semana calendario actual.');
 expect_diagnostic(ixtla_insights_domain_status_label(6) === 'Finalizado', 'El perfil debe centralizar las etiquetas de estados.');
 expect_diagnostic(ixtla_insights_domain_status_ids('active') === [0, 1, 2, 3], 'El perfil debe definir los estados activos.');
 expect_diagnostic(ixtla_insights_dataset_active_status_condition() === 'r.estatus IN (0, 1, 2, 3)', 'Los datasets deben construir el filtro activo desde el perfil.');
@@ -153,10 +154,11 @@ $datasetQuestions = [
     'Cual es el estatus del REQ-204?',
     'Promedio de tiempo de cierre por departamento.',
     '¿Qué significa el estatus registrado del REQ-204?',
+    '¿De esta semana me puedes dar un reporte?',
 ];
 foreach ($datasetQuestions as $datasetQuestion) {
     expect_diagnostic(ixtla_insights_question_intent($datasetQuestion) === 'dataset', 'Una pregunta sobre Ixtla debe habilitar el dataset: ' . $datasetQuestion);
-    expect_diagnostic(ixtla_insights_question_tool_choice($datasetQuestion) === 'auto', 'Las herramientas deben ser opcionales para preguntas del dominio: ' . $datasetQuestion);
+    expect_diagnostic(ixtla_insights_question_tool_choice($datasetQuestion) === 'required', 'Las preguntas del dominio deben ejecutar una herramienta autorizada: ' . $datasetQuestion);
 }
 expect_diagnostic(
     ixtla_insights_history_has_dataset_context([['role' => 'user', 'content' => 'Cuantos requerimientos hay?']]),
@@ -190,6 +192,13 @@ $explicitPeriodArguments = ixtla_insights_apply_default_period(
 expect_diagnostic(($explicitPeriodArguments['period'] ?? null) === 'this_month', 'Una búsqueda debe conservar el periodo solicitado explícitamente.');
 expect_diagnostic(ixtla_insights_question_has_explicit_period('Compara los últimos 30 días'), 'El enrutador debe reconocer periodos relativos explícitos.');
 expect_diagnostic(!ixtla_insights_question_has_explicit_period('Dame los requerimientos con comentarios'), 'Una consulta sin fecha no debe inventar un periodo limitado.');
+
+$thisWeekArguments = ixtla_insights_apply_default_period(
+    'get_requirements_overview',
+    ['period' => 'all', 'refresh' => false],
+    '¿De esta semana me puedes dar un reporte?'
+);
+expect_diagnostic(($thisWeekArguments['period'] ?? null) === 'this_week', 'La semana actual debe imponerse como periodo cuando el usuario la solicita.');
 expect_diagnostic(
     ixtla_insights_question_intent('Ayudame con una tarea de matematicas', false) === 'direct',
     'Una tarea general no debe activar herramientas municipales.'

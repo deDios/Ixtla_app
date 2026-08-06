@@ -56,18 +56,18 @@ function ixtla_insights_config(): array
 
         // limites del endpoint protegido de preguntas.
         'request_timeout_seconds' => 180,
-        'connect_timeout_seconds' => 15,
-        'max_question_characters' => 1800,
+        'connect_timeout_seconds' => 25,
+        'max_question_characters' => 3800,
         // Contexto conversacional: los dos limites evitan que una charla larga
         // convierta cada solicitud posterior en un payload desproporcionado.
-        'max_history_messages' => 20,
+        'max_history_messages' => 30,
         'max_history_message_characters' => 8500,
         'max_history_total_characters' => 36000,
         'conversation_ttl_seconds' => 21600,
-        'conversation_summary_characters' => 4000,
-        'max_output_tokens' => 8000,
-        'temperature' => 0.3,
-        'max_tool_calls_per_turn' => 3,
+        'conversation_summary_characters' => 8000,
+        'max_output_tokens' => 18000,
+        'temperature' => 0.5,
+        'max_tool_calls_per_turn' => 5,
         'reasoning_effort' => 'medium',
 
         // Snapshot analitico por alcance RBAC. El cache reside en servidor;
