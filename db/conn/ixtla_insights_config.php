@@ -55,8 +55,8 @@ function ixtla_insights_config(): array
         'api_key' => $apiKey,
 
         // limites del endpoint protegido de preguntas.
-        'request_timeout_seconds' => 180,
-        'connect_timeout_seconds' => 25,
+        'request_timeout_seconds' => 280,
+        'connect_timeout_seconds' => 45,
         'max_question_characters' => 3800,
         // Contexto conversacional: los dos limites evitan que una charla larga
         // convierta cada solicitud posterior en un payload desproporcionado.
