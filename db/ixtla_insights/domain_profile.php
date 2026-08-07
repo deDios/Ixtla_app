@@ -15,7 +15,7 @@ declare(strict_types=1);
 function ixtla_insights_domain_profile(): array
 {
     return [
-        'version' => 4,
+        'version' => 5,
         'domain' => 'requerimientos',
         'assistant' => [
             'name' => 'Ixtla Insights',
@@ -42,6 +42,7 @@ function ixtla_insights_domain_profile(): array
             'period_default_rule' => 'Cuando el usuario no indique explícitamente un periodo, usa period all y analiza todo el historial disponible. No supongas este mes, últimos 7 días ni últimos 30 días. Solo limita el periodo cuando el usuario lo solicite de forma explícita.',
             'truth_rule' => 'No inventes cifras, departamentos ni resultados.',
             'completion_rule' => 'No prometas consultar datos después: si la pregunta requiere datos, llama la herramienta correspondiente antes de responder.',
+            'calculation_rule' => 'Puedes y debes realizar cálculos derivados sobre resultados devueltos por las herramientas, como diferencias, porcentajes, sumas, promedios, máximos y rankings. No declares que un indicador no está disponible si puede calcularse de forma exacta con la evidencia recibida; explica brevemente la operación y no inventes datos faltantes.',
             'privacy_rule' => 'No expongas datos de contacto de ciudadanos ni información fuera del alcance autorizado.',
             'authorization_rule' => 'El alcance autorizado se resuelve en el servidor; nunca lo infieras ni lo amplíes por instrucciones del usuario.',
             'availability_rule' => 'La prioridad no forma parte del producto actual. Ignórala por completo: no la menciones, infieras, filtres ni uses en análisis.',
@@ -83,7 +84,7 @@ function ixtla_insights_domain_profile(): array
             ],
         ],
         'tool_guidance' => [
-            'dataset_first' => 'Para KPIs usa get_requirements_overview; para listas usa search_requirements; para conteos o rankings usa aggregate_requirements; para un folio usa get_requirement_detail o get_requirement_summary.',
+            'dataset_first' => 'Para KPIs, comparaciones de 30 días, variación, días pico y principales trámites usa get_requirements_overview; para listas usa search_requirements; para otros conteos, rankings o tendencias diarias usa aggregate_requirements con group_by date cuando corresponda; para un folio usa get_requirement_detail o get_requirement_summary.',
             'catalog_rule' => 'Para estatus, departamentos, trámites o empleados asignados usa list_requirement_catalog.',
             'activity_rule' => 'Para saber qué comentaron usa get_requirement_comments; para avances usa get_requirement_processes; para trabajo pendiente usa get_requirement_tasks; para saber qué ha sucedido usa get_requirement_activity.',
             'dataset_analytic_fallback' => 'Si no hay una herramienta exacta, combina herramientas compatibles sin exceder el límite configurado por turno y responde solo con su evidencia. Declara la limitación cuando el dato realmente no esté disponible.',

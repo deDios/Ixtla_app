@@ -46,7 +46,7 @@ function ixtla_insights_snapshot_is_fresh(?array $snapshot): bool
 {
     return is_array($snapshot)
         && (int) ($snapshot['expires_at_unix'] ?? 0) >= time()
-        && (int) ($snapshot['schema_version'] ?? 0) === 4
+        && (int) ($snapshot['schema_version'] ?? 0) === 5
         && is_array($snapshot['records'] ?? null);
 }
 
@@ -131,6 +131,7 @@ function ixtla_insights_snapshot_normalize_record(array $row): array
         // Campo protegido: solo se entrega en la consulta de detalle por folio/ID.
         'requester_name' => trim((string) ($row['requester_name'] ?? '')),
         'created_at' => $createdAt,
+        'created_date' => substr($createdAt, 0, 10),
         'created_at_unix' => $createdTimestamp,
         'closed_at' => $row['cerrado_en'] === null ? null : (string) $row['cerrado_en'],
         'age_days' => $createdTimestamp > 0 ? max(0, (int) floor(($now - $createdTimestamp) / 86400)) : null,
@@ -189,8 +190,8 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
     }
     $ttl = (int) ixtla_insights_config()['dataset_cache_ttl_seconds'];
     return [
-        'dataset' => 'requerimientos_scope_v4',
-        'schema_version' => 4,
+        'dataset' => 'requerimientos_scope_v5',
+        'schema_version' => 5,
         'scope_key' => $scopeKey,
         'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
         'generated_at' => date(DATE_ATOM),
@@ -253,8 +254,10 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
     $counts = ['total' => count($records), 'active' => 0, 'finalized' => 0, 'paused' => 0, 'cancelled' => 0, 'unassigned' => 0];
     $byStatus = [];
     $byTramite = [];
+    $allRecords = is_array($snapshot['records'] ?? null) ? $snapshot['records'] : [];
     $currentThirtyDays = 0;
     $previousThirtyDays = 0;
+    $dailyCurrentThirtyDays = [];
     $currentCutoff = strtotime('-29 days midnight');
     $previousCutoff = strtotime('-59 days midnight');
     foreach ($records as $record) {
@@ -264,11 +267,29 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
         if ($record['status_id'] === 5) $counts['cancelled']++;
         if ($record['assignee_id'] === null && $record['is_active']) $counts['unassigned']++;
         $byStatus[$record['status']] = ($byStatus[$record['status']] ?? 0) + 1;
-        $byTramite[$record['tramite']] = ($byTramite[$record['tramite']] ?? 0) + 1;
-        if ($record['created_at_unix'] >= $currentCutoff) $currentThirtyDays++;
-        elseif ($record['created_at_unix'] >= $previousCutoff) $previousThirtyDays++;
+        $tramiteKey = (string) $record['tramite_id'];
+        if (!isset($byTramite[$tramiteKey])) {
+            $byTramite[$tramiteKey] = ['name' => (string) $record['tramite'], 'value' => 0];
+        }
+        $byTramite[$tramiteKey]['value']++;
     }
-    arsort($byTramite);
+    foreach ($allRecords as $record) {
+        $createdAtUnix = (int) ($record['created_at_unix'] ?? 0);
+        if ($createdAtUnix >= $currentCutoff) {
+            $currentThirtyDays++;
+            $createdDate = (string) ($record['created_date'] ?? '');
+            if ($createdDate !== '') $dailyCurrentThirtyDays[$createdDate] = ($dailyCurrentThirtyDays[$createdDate] ?? 0) + 1;
+        } elseif ($createdAtUnix >= $previousCutoff && $createdAtUnix < $currentCutoff) {
+            $previousThirtyDays++;
+        }
+    }
+    uasort($byTramite, static fn (array $a, array $b): int => $b['value'] <=> $a['value']);
+    ksort($dailyCurrentThirtyDays);
+    $peakValue = $dailyCurrentThirtyDays === [] ? 0 : max($dailyCurrentThirtyDays);
+    $peakDays = [];
+    foreach ($dailyCurrentThirtyDays as $date => $value) {
+        if ($value === $peakValue) $peakDays[] = ['date' => $date, 'value' => $value];
+    }
     return [
         'dataset' => $snapshot['dataset'],
         'generated_at' => $snapshot['generated_at'],
@@ -278,13 +299,17 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
         'total_records' => count($records),
         'counts' => $counts,
         'trend' => [
+            'current_period' => 'last_30',
+            'comparison_period' => 'previous_30',
             'current_total' => $currentThirtyDays,
             'previous_total' => $previousThirtyDays,
             'difference' => $currentThirtyDays - $previousThirtyDays,
             'percentage_change' => $previousThirtyDays === 0 ? null : round((($currentThirtyDays - $previousThirtyDays) / $previousThirtyDays) * 100, 1),
+            'daily_current' => array_map(static fn (string $date, int $value): array => ['date' => $date, 'value' => $value], array_keys($dailyCurrentThirtyDays), array_values($dailyCurrentThirtyDays)),
+            'peak_days' => $peakDays,
         ],
         'by_status' => array_map(static fn (string $label, int $value): array => ['label' => $label, 'value' => $value], array_keys($byStatus), array_values($byStatus)),
-        'top_tramites' => array_map(static fn (string $name, int $value): array => ['name' => $name, 'value' => $value], array_slice(array_keys($byTramite), 0, 5), array_slice(array_values($byTramite), 0, 5)),
+        'top_tramites' => array_values(array_slice($byTramite, 0, 5)),
     ];
 }
 
@@ -377,6 +402,7 @@ function ixtla_insights_snapshot_aggregate(array $arguments): array
         'department' => ['id' => 'department_id', 'label' => 'department'],
         'tramite' => ['id' => 'tramite_id', 'label' => 'tramite'],
         'assignee' => ['id' => 'assignee_id', 'label' => 'assignee'],
+        'date' => ['id' => 'created_date', 'label' => 'created_date'],
     ];
     if (!isset($fieldMap[$groupBy]) || !in_array($sort, ['asc', 'desc'], true)) {
         throw new InvalidArgumentException('La agrupacion solicitada no es valida.');

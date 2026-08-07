@@ -23,7 +23,7 @@ function ixtla_insights_tool_definitions(): array
     return [
         [
             'type' => 'function', 'name' => 'get_requirements_overview', 'strict' => true,
-            'description' => 'Obtiene KPIs y distribuciones del alcance autorizado. Si el usuario no indica un periodo, usa all. Usala para totales, carga operativa y resumen ejecutivo; no para localizar un folio.',
+            'description' => 'Obtiene KPIs y distribuciones del alcance autorizado. Incluye comparación exacta de los últimos 30 días contra los 30 anteriores, distribución diaria, días pico y los cinco trámites principales del periodo solicitado. Si el usuario no indica un periodo, usa all; no la uses para localizar un folio.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false, 'required' => ['refresh', 'period'],
                 'properties' => [
@@ -46,12 +46,12 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'aggregate_requirements', 'strict' => true,
-            'description' => 'Agrupa requerimientos autorizados por estatus, departamento, tramite o empleado asignado. Si el usuario no indica un periodo, usa all. Usala para conteos, comparaciones y rankings.',
+            'description' => 'Agrupa requerimientos autorizados por estatus, departamento, tramite, empleado asignado o fecha de creación. Si el usuario no indica un periodo, usa all. Usala para conteos, comparaciones, rankings y tendencias diarias.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'group_by', 'sort', 'limit'],
                 'properties' => array_merge($datasetFilters, [
-                    'group_by' => ['type' => 'string', 'enum' => ['status', 'department', 'tramite', 'assignee']],
+                    'group_by' => ['type' => 'string', 'enum' => ['status', 'department', 'tramite', 'assignee', 'date']],
                     'sort' => ['type' => 'string', 'enum' => ['asc', 'desc']],
                     'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
                 ]),
