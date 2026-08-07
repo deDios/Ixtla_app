@@ -65,7 +65,7 @@ function ixtla_insights_config(): array
         'max_history_total_characters' => 36000,
         'conversation_ttl_seconds' => 21600,
         'conversation_summary_characters' => 8000,
-        'max_output_tokens' => 18000,
+        'max_output_tokens' => 38000,
         'temperature' => 0.5,
         'max_tool_calls_per_turn' => 5,
         'reasoning_effort' => 'medium',
