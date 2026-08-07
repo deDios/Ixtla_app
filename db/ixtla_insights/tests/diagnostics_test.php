@@ -37,6 +37,7 @@ expect_diagnostic(str_contains($domainPrompt, 'canal 1 corresponde a solicitudes
 expect_diagnostic(str_contains($domainPrompt, 'departamento de Presidencia revisa si el requerimiento es viable'), 'El prompt debe explicar la etapa de Revisión.');
 expect_diagnostic(str_contains($domainPrompt, 'todas esas tareas están en estatus Hecho'), 'El prompt debe explicar la condición para finalizar un requerimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'realizar cálculos derivados'), 'El asistente debe calcular indicadores derivados desde resultados autorizados.');
+expect_diagnostic(str_contains($domainPrompt, 'no afirmes que fecha y estatus están separados'), 'El asistente debe cruzar fecha y estatus en una misma consulta.');
 expect_diagnostic(str_contains($domainPrompt, 'get_requirement_comments'), 'El perfil debe orientar consultas de actividad bajo demanda.');
 expect_diagnostic(str_contains($domainPrompt, 'alcance autorizado se resuelve en el servidor'), 'El perfil debe preservar el límite de autorización del servidor.');
 expect_diagnostic(ixtla_insights_domain_metric_label('closed_count') === 'Requerimientos finalizados', 'El perfil debe centralizar las etiquetas de métricas.');
@@ -78,12 +79,13 @@ expect_diagnostic(ixtla_insights_dataset_department_name(null) === null, 'La con
 $chatToolNames = array_column(ixtla_insights_tool_definitions(), 'name');
 expect_diagnostic($chatToolNames === ['get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
 $snapshotOverviewTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_overview'))[0] ?? [];
-expect_diagnostic(($snapshotOverviewTool['parameters']['required'] ?? []) === ['refresh', 'period'], 'El resumen del snapshot debe exigir refresh y periodo.');
+expect_diagnostic(($snapshotOverviewTool['parameters']['required'] ?? []) === ['refresh', 'period', 'date_field', 'date_from', 'date_to'], 'El resumen debe aceptar periodos y rangos personalizados explícitos.');
 expect_diagnostic(str_contains((string) ($snapshotOverviewTool['description'] ?? ''), 'días pico'), 'El resumen debe anunciar la comparación y los picos diarios que puede calcular.');
 
 $snapshotSearchTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'search_requirements'))[0] ?? [];
 expect_diagnostic(($snapshotSearchTool['parameters']['properties']['limit']['maximum'] ?? null) === 50, 'Las consultas al snapshot deben limitar las filas enviadas al modelo.');
 expect_diagnostic(in_array('assignee_id', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe permitir filtrar por empleado asignado.');
+expect_diagnostic(in_array('date_from', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La búsqueda debe aceptar un inicio de rango nullable.');
 expect_diagnostic(in_array('most_comments', $snapshotSearchTool['parameters']['properties']['sort']['enum'] ?? [], true), 'La busqueda debe permitir ordenar por actividad de comentarios.');
 $snapshotDetailTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_detail'))[0] ?? [];
 expect_diagnostic(($snapshotDetailTool['parameters']['required'] ?? []) === ['id', 'folio'], 'El detalle del snapshot debe aceptar una llave explicita.');
@@ -201,6 +203,13 @@ $thisWeekArguments = ixtla_insights_apply_default_period(
     '¿De esta semana me puedes dar un reporte?'
 );
 expect_diagnostic(($thisWeekArguments['period'] ?? null) === 'this_week', 'La semana actual debe imponerse como periodo cuando el usuario la solicita.');
+
+$julyRange = ixtla_insights_question_requested_date_range('¿Qué porcentaje de los creados en julio de 2026 está finalizado?');
+expect_diagnostic($julyRange === ['date_field' => 'created_at', 'date_from' => '2026-07-01', 'date_to' => '2026-07-31'], 'Un mes explícito debe convertirse en un rango completo sobre fecha de creación.');
+$closedJulyRange = ixtla_insights_question_requested_date_range('¿Cuántos fueron cerrados durante julio de 2026?');
+expect_diagnostic(($closedJulyRange['date_field'] ?? null) === 'closed_at', 'Las preguntas de cierres deben filtrar por fecha de cierre.');
+expect_diagnostic(ixtla_insights_snapshot_valid_date('2026-07-31'), 'El filtro debe aceptar fechas de calendario válidas.');
+expect_diagnostic(!ixtla_insights_snapshot_valid_date('2026-02-30'), 'El filtro debe rechazar fechas inexistentes.');
 expect_diagnostic(
     ixtla_insights_question_intent('Ayudame con una tarea de matematicas', false) === 'direct',
     'Una tarea general no debe activar herramientas municipales.'

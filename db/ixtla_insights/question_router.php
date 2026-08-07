@@ -81,6 +81,30 @@ function ixtla_insights_question_requested_period(string $question): ?string
     return null;
 }
 
+/** Resuelve un mes mencionado a un rango ISO; sin año usa su ocurrencia más reciente. */
+function ixtla_insights_question_requested_date_range(string $question): ?array
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    $months = [
+        'enero' => 1, 'febrero' => 2, 'marzo' => 3, 'abril' => 4,
+        'mayo' => 5, 'junio' => 6, 'julio' => 7, 'agosto' => 8,
+        'septiembre' => 9, 'octubre' => 10, 'noviembre' => 11, 'diciembre' => 12,
+    ];
+    if (preg_match('/\b(' . implode('|', array_keys($months)) . ')(?:\s+de)?(?:\s+(20\d{2}))?\b/', $normalized, $matches) !== 1) {
+        return null;
+    }
+    $month = $months[$matches[1]];
+    $currentYear = (int) date('Y');
+    $year = isset($matches[2]) && $matches[2] !== '' ? (int) $matches[2] : $currentYear;
+    if ((!isset($matches[2]) || $matches[2] === '') && $month > (int) date('n')) $year--;
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = date('Y-m-t', strtotime($from));
+    $dateField = preg_match('/\b(cerrado|cerrados|cerrada|cerradas|cerraron|cierre|finalizados durante|finalizadas durante)\b/', $normalized) === 1
+        ? 'closed_at'
+        : 'created_at';
+    return ['date_field' => $dateField, 'date_from' => $from, 'date_to' => $to];
+}
+
 /**
  * Impone el periodo general para consultas sin referencia temporal. La regla
  * vive en servidor para no depender de que el modelo elija correctamente all.
@@ -88,6 +112,17 @@ function ixtla_insights_question_requested_period(string $question): ?string
 function ixtla_insights_apply_default_period(string $toolName, array $arguments, string $question): array
 {
     if (in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)) {
+        $arguments['date_field'] = in_array((string) ($arguments['date_field'] ?? ''), ['created_at', 'closed_at'], true)
+            ? (string) $arguments['date_field']
+            : 'created_at';
+        $arguments['date_from'] = isset($arguments['date_from']) && is_string($arguments['date_from']) ? $arguments['date_from'] : null;
+        $arguments['date_to'] = isset($arguments['date_to']) && is_string($arguments['date_to']) ? $arguments['date_to'] : null;
+        $requestedRange = ixtla_insights_question_requested_date_range($question);
+        if ($requestedRange !== null) {
+            $arguments = array_replace($arguments, $requestedRange);
+            $arguments['period'] = 'all';
+            return $arguments;
+        }
         $requestedPeriod = ixtla_insights_question_requested_period($question);
         if ($requestedPeriod !== null) {
             $arguments['period'] = $requestedPeriod;

@@ -17,24 +17,30 @@ function ixtla_insights_tool_definitions(): array
         'assignee_id' => ['type' => 'integer', 'minimum' => 0],
         'status_ids' => ['type' => 'array', 'items' => ['type' => 'integer', 'enum' => [0, 1, 2, 3, 4, 5, 6]]],
         'assignee_state' => ['type' => 'string', 'enum' => ['any', 'assigned', 'unassigned']],
+        'date_field' => ['type' => 'string', 'enum' => ['created_at', 'closed_at']],
+        'date_from' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
+        'date_to' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
     ];
-    $filterRequired = ['period', 'department_id', 'assignee_id', 'status_ids', 'assignee_state'];
+    $filterRequired = ['period', 'department_id', 'assignee_id', 'status_ids', 'assignee_state', 'date_field', 'date_from', 'date_to'];
 
     return [
         [
             'type' => 'function', 'name' => 'get_requirements_overview', 'strict' => true,
-            'description' => 'Obtiene KPIs y distribuciones del alcance autorizado. Incluye comparación exacta de los últimos 30 días contra los 30 anteriores, distribución diaria, días pico y los cinco trámites principales del periodo solicitado. Si el usuario no indica un periodo, usa all; no la uses para localizar un folio.',
+            'description' => 'Obtiene KPIs y distribuciones del alcance autorizado. Incluye comparación de 30 días, distribución diaria, días pico y trámites principales. Admite date_field, date_from y date_to para un mes o rango personalizado. Si no hay rango ni periodo explícito, usa all; no la uses para localizar un folio.',
             'parameters' => [
-                'type' => 'object', 'additionalProperties' => false, 'required' => ['refresh', 'period'],
+                'type' => 'object', 'additionalProperties' => false, 'required' => ['refresh', 'period', 'date_field', 'date_from', 'date_to'],
                 'properties' => [
                     'refresh' => ['type' => 'boolean'],
                     'period' => $datasetFilters['period'],
+                    'date_field' => $datasetFilters['date_field'],
+                    'date_from' => $datasetFilters['date_from'],
+                    'date_to' => $datasetFilters['date_to'],
                 ],
             ],
         ],
         [
             'type' => 'function', 'name' => 'search_requirements', 'strict' => true,
-            'description' => 'Busca hasta 50 requerimientos autorizados con filtros cerrados. Si el usuario no indica un periodo, usa all. Devuelve catalogos resueltos, asignacion, fechas vigentes y conteos de comentarios, procesos y tareas; nunca contactos ni texto de comentarios ni fecha_limite.',
+            'description' => 'Busca hasta 50 requerimientos autorizados con filtros cerrados. Para rangos personalizados usa date_field, date_from y date_to; created_at filtra cuándo se creó y closed_at cuándo se cerró. Si no hay rango ni periodo explícito, usa all. Nunca devuelve contactos, texto de comentarios ni fecha_limite.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'sort', 'limit'],
@@ -46,7 +52,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'aggregate_requirements', 'strict' => true,
-            'description' => 'Agrupa requerimientos autorizados por estatus, departamento, tramite, empleado asignado o fecha de creación. Si el usuario no indica un periodo, usa all. Usala para conteos, comparaciones, rankings y tendencias diarias.',
+            'description' => 'Agrupa requerimientos autorizados por estatus, departamento, tramite, empleado asignado o fecha. Admite rangos personalizados mediante date_field, date_from y date_to para cruzar fechas con estatus y otros filtros. Si no hay rango ni periodo explícito, usa all.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'group_by', 'sort', 'limit'],

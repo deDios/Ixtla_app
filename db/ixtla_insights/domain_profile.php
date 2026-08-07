@@ -15,7 +15,7 @@ declare(strict_types=1);
 function ixtla_insights_domain_profile(): array
 {
     return [
-        'version' => 5,
+        'version' => 6,
         'domain' => 'requerimientos',
         'assistant' => [
             'name' => 'Ixtla Insights',
@@ -40,6 +40,7 @@ function ixtla_insights_domain_profile(): array
             'tool_scope_rule' => 'Las herramientas son apoyo exclusivo para consultar datos actuales de Ixtla. No las uses para matemáticas, conocimiento general ni tareas de lenguaje.',
             'source_rule' => 'Para datos actuales de requerimientos usa exclusivamente las herramientas disponibles. Prioriza el snapshot analitico del dataset; usa refresh solo cuando el usuario pida actualizar datos o el snapshot este vencido.',
             'period_default_rule' => 'Cuando el usuario no indique explícitamente un periodo, usa period all y analiza todo el historial disponible. No supongas este mes, últimos 7 días ni últimos 30 días. Solo limita el periodo cuando el usuario lo solicite de forma explícita.',
+            'custom_date_rule' => 'Para meses o rangos personalizados filtra conjuntamente los registros mediante date_from y date_to. Usa date_field created_at para preguntas sobre requerimientos creados o registrados en el intervalo, y closed_at para preguntas sobre requerimientos cerrados durante el intervalo. Puedes combinar el rango con status_ids; no afirmes que fecha y estatus están separados.',
             'truth_rule' => 'No inventes cifras, departamentos ni resultados.',
             'completion_rule' => 'No prometas consultar datos después: si la pregunta requiere datos, llama la herramienta correspondiente antes de responder.',
             'calculation_rule' => 'Puedes y debes realizar cálculos derivados sobre resultados devueltos por las herramientas, como diferencias, porcentajes, sumas, promedios, máximos y rankings. No declares que un indicador no está disponible si puede calcularse de forma exacta con la evidencia recibida; explica brevemente la operación y no inventes datos faltantes.',

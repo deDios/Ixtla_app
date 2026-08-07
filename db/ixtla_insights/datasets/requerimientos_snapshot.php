@@ -210,15 +210,35 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
     $assigneeId = isset($arguments['assignee_id']) ? (int) $arguments['assignee_id'] : 0;
     $assigneeState = (string) ($arguments['assignee_state'] ?? 'any');
     $period = (string) ($arguments['period'] ?? 'all');
+    $dateField = (string) ($arguments['date_field'] ?? 'created_at');
+    $dateFrom = trim((string) ($arguments['date_from'] ?? ''));
+    $dateTo = trim((string) ($arguments['date_to'] ?? ''));
+    if (!in_array($dateField, ['created_at', 'closed_at'], true)
+        || ($dateFrom !== '' && !ixtla_insights_snapshot_valid_date($dateFrom))
+        || ($dateTo !== '' && !ixtla_insights_snapshot_valid_date($dateTo))
+        || ($dateFrom !== '' && $dateTo !== '' && $dateFrom > $dateTo)) {
+        throw new InvalidArgumentException('El rango personalizado de fechas no es valido.');
+    }
     $limit = array_key_exists('limit', $arguments) ? min(50, max(1, (int) $arguments['limit'])) : 0;
     $sort = (string) ($arguments['sort'] ?? 'newest');
-    $cutoff = match ($period) { 'this_week' => strtotime('monday this week midnight'), 'last_7' => strtotime('-6 days midnight'), 'last_30' => strtotime('-29 days midnight'), 'this_month' => strtotime('first day of this month midnight'), default => 0 };
-    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentId, $assigneeId, $assigneeState, $cutoff): bool {
+    $hasCustomRange = $dateFrom !== '' || $dateTo !== '';
+    $cutoff = $hasCustomRange ? 0 : match ($period) { 'this_week' => strtotime('monday this week midnight'), 'last_7' => strtotime('-6 days midnight'), 'last_30' => strtotime('-29 days midnight'), 'this_month' => strtotime('first day of this month midnight'), default => 0 };
+    $fromTimestamp = $dateFrom === '' ? null : strtotime($dateFrom . ' 00:00:00');
+    $toTimestamp = $dateTo === '' ? null : strtotime($dateTo . ' 23:59:59');
+    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentId, $assigneeId, $assigneeState, $cutoff, $hasCustomRange, $dateField, $fromTimestamp, $toTimestamp): bool {
         if ($statusIds !== [] && !in_array($record['status_id'], $statusIds, true)) return false;
         if ($departmentId > 0 && $record['department_id'] !== $departmentId) return false;
         if ($assigneeId > 0 && $record['assignee_id'] !== $assigneeId) return false;
         if ($assigneeState === 'assigned' && $record['assignee_id'] === null) return false;
         if ($assigneeState === 'unassigned' && $record['assignee_id'] !== null) return false;
+        if ($hasCustomRange) {
+            $recordTimestamp = $dateField === 'closed_at'
+                ? (strtotime((string) ($record['closed_at'] ?? '')) ?: null)
+                : (int) ($record['created_at_unix'] ?? 0);
+            if ($recordTimestamp === null || $recordTimestamp <= 0) return false;
+            if ($fromTimestamp !== null && $recordTimestamp < $fromTimestamp) return false;
+            if ($toTimestamp !== null && $recordTimestamp > $toTimestamp) return false;
+        }
         return $cutoff === 0 || $record['created_at_unix'] >= $cutoff;
     });
     usort($items, static fn (array $a, array $b): int => match ($sort) {
@@ -227,6 +247,12 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
         default => $b['created_at_unix'] <=> $a['created_at_unix'],
     });
     return array_values($limit > 0 ? array_slice($items, 0, $limit) : $items);
+}
+
+function ixtla_insights_snapshot_valid_date(string $value): bool
+{
+    if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $matches) !== 1) return false;
+    return checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1]);
 }
 
 function ixtla_insights_snapshot_public_record(array $record, bool $includeRequester = false): array
@@ -250,7 +276,12 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
     }
     // Aplica el mismo periodo que las listas y agregados, para que un KPI de
     // carga y los folios que la sustentan pertenezcan al mismo universo.
-    $records = ixtla_insights_snapshot_filter($snapshot, ['period' => $period]);
+    $records = ixtla_insights_snapshot_filter($snapshot, [
+        'period' => $period,
+        'date_field' => $arguments['date_field'] ?? 'created_at',
+        'date_from' => $arguments['date_from'] ?? null,
+        'date_to' => $arguments['date_to'] ?? null,
+    ]);
     $counts = ['total' => count($records), 'active' => 0, 'finalized' => 0, 'paused' => 0, 'cancelled' => 0, 'unassigned' => 0];
     $byStatus = [];
     $byTramite = [];
