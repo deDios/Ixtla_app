@@ -253,6 +253,8 @@ export function mountIxtlaInsights(options = {}) {
   const form = root.querySelector(".ixtla-insights-form");
   const input = root.querySelector(".ixtla-insights-input");
   const send = root.querySelector(".ixtla-insights-send");
+  input.setAttribute("aria-label", "Mensaje para Ixtla Insights");
+  input.title = "Enter para enviar; Ctrl+Enter o Shift+Enter para agregar una línea";
 
   function appendInlineMarkdown(target, value) {
     const text = String(value ?? "");
@@ -1307,6 +1309,12 @@ export function mountIxtlaInsights(options = {}) {
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDrawer(); });
   document.addEventListener(CONTEXT_EVENT, (event) => setContext(event.detail));
   form.addEventListener("submit", (event) => { event.preventDefault(); ask(input.value); });
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.isComposing || event.keyCode === 229) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    if (!send.disabled && clean(input.value)) form.requestSubmit();
+  });
 
   addMessage("Hola. Usa “Crear un gráfico” para armar una visualización paso a paso, o escribe una consulta específica.");
   if (!config.simpleMode) fetch(config.draftUrl, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ action: "get" }) })

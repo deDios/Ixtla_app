@@ -328,11 +328,11 @@ $RL_BYPASS_SECRET = 'r0K2z-P6iG-9vP9wP'; // c
 $__skip_rl = isset($_SERVER[$RL_BYPASS_HEADER]) && hash_equals($RL_BYPASS_SECRET, $_SERVER[$RL_BYPASS_HEADER]);
 if (!$__skip_rl) {
   rate_limit_or_die(
-    bucket: 'requerimiento_api',
-    windowSec: 60,   // ventana de 60 seg
-    maxHits: 2,      // 2 req / 60s (≈10/min)
-    banSec: 2629746,    // ban de 1 mes
-    whitelist: $RL_WHITELIST
+      bucket: 'requerimiento_api',
+      windowSec: 60,
+      maxHits: 10,
+      banSec: 300,
+      whitelist: $RL_WHITELIST
   );
 }
 

@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
     <link rel="stylesheet" href="/CSS/UAT/components.css">
-    <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=dataset-query-6">
+    <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=dataset-query-7">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -746,7 +746,7 @@
 
     <script src="/JS/UAT/components.js"></script>
     <script src="/JS/UAT/jsGlobal.js"></script>
-    <script type="module" src="/JS/UAT/home.js?v=dataset-query-6"></script>
+    <script type="module" src="/JS/UAT/home.js?v=dataset-query-7"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
     <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js"></script>
 
