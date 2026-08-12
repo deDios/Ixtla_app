@@ -49,7 +49,7 @@ $headers = [
   'X-TS: '.$ts,
   'X-APP: '.$app,
   'X-SIG: '.$sig,
-  // 'X-RL-BSS: r0K2z-P6iG-9vP9wP', // opcional, si quieres bypassear tu rate limit
+  // 'X-RL-BSS: r0K2z-P6iG-9vP9wP', // opcional, si quieres bypassear tu rate limit BANDERA 1
 ];
 if (!empty($_SERVER['HTTP_IDEMPOTENCY_KEY'])) {
   $headers[] = 'Idempotency-Key: '.$_SERVER['HTTP_IDEMPOTENCY_KEY'];

@@ -112,6 +112,8 @@ expect_diagnostic(ixtla_insights_activity_safe_text('Escribe a persona@example.c
 expect_diagnostic(ixtla_insights_task_status_label(4) === 'Hecho', 'El asistente debe reconocer el estatus final real del tablero de tareas.');
 expect_diagnostic(ixtla_insights_task_status_label(5) === 'Bloqueado', 'El asistente no debe confundir una tarea bloqueada con una terminada.');
 expect_diagnostic(str_contains($domainPrompt, 'snapshot analitico'), 'El perfil debe priorizar el dataset cacheado.');
+expect_diagnostic(str_contains($domainPrompt, 'personal municipal no tecnico'), 'El perfil debe ocultar lenguaje interno en respuestas para usuario final.');
+expect_diagnostic(str_contains($domainPrompt, 'created_at significa fecha de creacion'), 'El perfil debe traducir campos internos a lenguaje natural.');
 expect_diagnostic(str_contains($domainPrompt, 'sin exceder el límite configurado por turno'), 'El perfil debe respetar el límite de herramientas definido en configuración.');
 expect_diagnostic(!str_contains(mb_strtolower($domainPrompt), 'prioridad alta'), 'El perfil no debe reintroducir niveles de prioridad.');
 

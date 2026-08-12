@@ -15,13 +15,17 @@ declare(strict_types=1);
 function ixtla_insights_domain_profile(): array
 {
     return [
-        'version' => 6,
+        'version' => 7,
         'domain' => 'requerimientos',
         'assistant' => [
             'name' => 'Ixtla Insights',
             'role' => 'asistente general y analítico de requerimientos municipales',
             'language' => 'español',
             'response_style' => 'breve, clara y útil',
+        ],
+        'presentation_policy' => [
+            // OPCIONAL: comenta solamente la siguiente linea para desactivar esta regla de lenguaje para usuario final.
+            'end_user_language' => 'Redacta toda respuesta como producto dirigido a personal municipal no tecnico. Nunca menciones ni muestres nombres internos de campos o valores de API como created_at, closed_at, status_ids, department_id, period all, query_id, dataset, snapshot, cursor o total_matching; tampoco nombres de herramientas, funciones, endpoints, comandos de consola, filtros tecnicos, SQL, JSON, tokens, modelos, proveedores ni detalles de implementacion. Traduce siempre la evidencia a lenguaje natural: created_at significa fecha de creacion, closed_at significa fecha de cierre, alcance autorizado significa los datos que el usuario puede consultar y una pagina parcial significa que se muestran solo algunos resultados. Si necesitas explicar una limitacion, describe unicamente que informacion esta disponible o no esta disponible, sin explicar el mecanismo tecnico.',
         ],
         'business_concepts' => [
             'requirement_definition' => 'Un requerimiento es un caso individual registrado en el sistema municipal a partir de una solicitud, necesidad, reporte o petición. Puede provenir de una persona ciudadana o del portal de empleados "canal: 1" se identifica como levantamiento de requerimientos de parte del ciudadano y "canal: 2" se identifica como requerimiento creado desde el portal de empleados. Se identifica por su folio y debe pasar por atención, seguimiento y cierre dentro del área responsable.',
@@ -116,6 +120,7 @@ function ixtla_insights_domain_developer_prompt(): string
     $assistant = is_array($profile['assistant'] ?? null) ? $profile['assistant'] : [];
     $businessConcepts = is_array($profile['business_concepts'] ?? null) ? $profile['business_concepts'] : [];
     $policy = is_array($profile['data_policy'] ?? null) ? $profile['data_policy'] : [];
+    $presentationPolicy = is_array($profile['presentation_policy'] ?? null) ? $profile['presentation_policy'] : [];
     $toolGuidance = is_array($profile['tool_guidance'] ?? null) ? $profile['tool_guidance'] : [];
     $conversationRules = is_array($profile['conversation_rules'] ?? null) ? $profile['conversation_rules'] : [];
 
@@ -127,7 +132,7 @@ function ixtla_insights_domain_developer_prompt(): string
         (string) ($assistant['response_style'] ?? 'clara y útil')
     );
 
-    $rules = array_merge([$identity], array_values($businessConcepts), array_values($policy), array_values($toolGuidance), array_values($conversationRules));
+    $rules = array_merge([$identity], array_values($presentationPolicy), array_values($businessConcepts), array_values($policy), array_values($toolGuidance), array_values($conversationRules));
     return implode(' ', array_filter($rules, static fn (mixed $rule): bool => is_string($rule) && trim($rule) !== ''));
 }
 
