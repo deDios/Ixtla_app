@@ -2,8 +2,6 @@
 declare(strict_types=1);
 
 /**
- * Consola del navegador: await IxtlaInsights.exportCSV();
- *
  * Perfil del dominio de Ixtla Insights.
  *
  * Centraliza el lenguaje de negocio y las reglas que recibe el modelo. No es
@@ -89,7 +87,7 @@ function ixtla_insights_domain_profile(): array
         'tool_guidance' => [
             'multi_filter_rule' => 'Cuando haya varios departamentos usa una sola llamada con department_ids o department_names. Antes de consultar, convierte la solicitud en filtros concretos de periodo, departamentos, tramites, responsables y estatus.',
             'pagination_rule' => 'Si search_requirements devuelve has_more, indica que la lista es parcial. Usa next_cursor solamente para continuar la misma consulta y no presentes returned como si fuera total_matching.',
-            'large_result_rule' => 'El summary de search_requirements se calcula sobre todas las coincidencias aunque items contenga solo una pagina. Basa los conteos y conclusiones generales en total_matching y summary. Cuando has_more sea true, indica que el resultado completo puede descargarse desde la consola del navegador con await IxtlaInsights.exportCSV().',
+            'large_result_rule' => 'El summary de search_requirements se calcula sobre todas las coincidencias aunque items contenga solo una pagina. Basa los conteos y conclusiones generales en total_matching y summary. Cuando has_more sea true, indica solamente que la lista mostrada es parcial y cuantos resultados totales existen. No menciones funciones internas, comandos de consola, endpoints ni mecanismos de exportacion.',
             'dataset_first' => 'Para KPIs, comparaciones de 30 días, variación, días pico y principales trámites usa get_requirements_overview; para listas usa search_requirements; para otros conteos, rankings o tendencias diarias usa aggregate_requirements con group_by date cuando corresponda; para un folio usa get_requirement_detail o get_requirement_summary.',
             'catalog_rule' => 'Para estatus, departamentos, trámites o empleados asignados usa list_requirement_catalog.',
             'activity_rule' => 'Para saber qué comentaron usa get_requirement_comments; para avances usa get_requirement_processes; para trabajo pendiente usa get_requirement_tasks; para saber qué ha sucedido usa get_requirement_activity.',

@@ -32,6 +32,9 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
         'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
         'path' => parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '',
         'has_auth_cookie' => isset($_COOKIE['ix_emp']) && $_COOKIE['ix_emp'] !== '',
+        'client_attempt' => in_array((string) ($_SERVER['HTTP_X_IXTLA_INSIGHTS_ATTEMPT'] ?? ''), ['1', '2'], true)
+            ? (string) $_SERVER['HTTP_X_IXTLA_INSIGHTS_ATTEMPT']
+            : '',
     ]);
     ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
     consola_debug('bootstrap.session_accepted');

@@ -907,28 +907,45 @@ export function mountIxtlaInsights(options = {}) {
       requestBytes: new TextEncoder().encode(requestBody).byteLength,
     });
     let response;
-    try {
-      response = await fetch(config.apiUrl, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "X-Ixtla-Insights-Request-Id": clientRequestId,
-          "X-Ixtla-Insights-Frontend-Build": clean(config.frontendBuild) || "unknown",
-        },
-        body: requestBody,
-      });
-    } catch {
-      insightsDebug("chat.request.network_error", { requestId: clientRequestId, url: config.apiUrl });
-      throw new InsightsRequestError(0, "No fue posible contactar el servicio Insights.", {
+    let payload = null;
+    let attempt = 1;
+    for (; attempt <= 2; attempt += 1) {
+      try {
+        response = await fetch(config.apiUrl, {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-Ixtla-Insights-Request-Id": clientRequestId,
+            "X-Ixtla-Insights-Frontend-Build": clean(config.frontendBuild) || "unknown",
+            "X-Ixtla-Insights-Attempt": String(attempt),
+          },
+          body: requestBody,
+        });
+      } catch {
+        insightsDebug("chat.request.network_error", { requestId: clientRequestId, url: config.apiUrl, attempt });
+        throw new InsightsRequestError(0, "No fue posible contactar el servicio Insights.", {
+          requestId: clientRequestId,
+          url: config.apiUrl,
+          endpointHandled: false,
+          attempt,
+        });
+      }
+      const raw = await response.text();
+      payload = (() => { try { return JSON.parse(raw); } catch { return null; } })();
+      const endpointHandled = Boolean(response.headers.get("X-Ixtla-Insights-Request-Id"));
+      if (response.status !== 404 || endpointHandled || attempt === 2) break;
+      insightsDebug("chat.request.retry_scheduled", {
         requestId: clientRequestId,
-        url: config.apiUrl,
-        endpointHandled: false,
+        url: clean(response.url) || config.apiUrl,
+        status: response.status,
+        attempt,
+        nextAttempt: attempt + 1,
       });
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
-    const raw = await response.text();
-    const payload = (() => { try { return JSON.parse(raw); } catch { return null; } })();
     const responseDebug = {
       requestId: clean(payload?.request_id) || clean(response.headers.get("X-Ixtla-Insights-Request-Id")) || clientRequestId,
       status: response.status,
@@ -938,6 +955,7 @@ export function mountIxtlaInsights(options = {}) {
       buildId: clean(response.headers.get("X-Ixtla-Insights-Build")),
       instanceId: clean(response.headers.get("X-Ixtla-Insights-Instance")),
       serverStage: clean(response.headers.get("X-Ixtla-Insights-Debug-Stage")),
+      attempt,
     };
     insightsDebug("chat.request.completed", responseDebug);
     if (!response.ok || !payload?.ok) {
@@ -951,6 +969,7 @@ export function mountIxtlaInsights(options = {}) {
         url: clean(response.url) || config.apiUrl,
         contentType: clean(response.headers.get("content-type")),
         endpointHandled: Boolean(response.headers.get("X-Ixtla-Insights-Request-Id")),
+        attempt,
       });
     }
     return payload;
@@ -1023,6 +1042,7 @@ export function mountIxtlaInsights(options = {}) {
         endpointHandled: error.endpointHandled,
         url: error.url,
         contentType: error.contentType,
+        attempt: error.attempt,
         detail: error.message,
       } : error);
       if (error instanceof InsightsRequestError) {
