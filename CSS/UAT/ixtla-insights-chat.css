@@ -24,9 +24,28 @@
 .ixtla-insights-close { width: 34px; height: 34px; border: 0; border-radius: 9px; color: #fff; background: transparent; font-size: 23px; cursor: pointer; }
 
 .ixtla-insights-messages { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding: 20px; }
-.ixtla-insights-message { max-width: 88%; padding: 11px 13px; border-radius: 14px; font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; white-space: pre-line; }
-.ixtla-insights-message--assistant { align-self: flex-start; background: #e6f3f5; border-bottom-left-radius: 4px; }
-.ixtla-insights-message--user { align-self: flex-end; color: #fff; background: #155e75; border-bottom-right-radius: 4px; }
+.ixtla-insights-message { max-width: 88%; box-sizing: border-box; padding: 11px 13px; border-radius: 14px; font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.ixtla-insights-message--assistant { width: 100%; max-width: 100%; align-self: flex-start; background: #e6f3f5; border-bottom-left-radius: 4px; }
+.ixtla-insights-message--user { align-self: flex-end; color: #fff; background: #155e75; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.ixtla-insights-markdown { color: #172033; overflow-wrap: anywhere; }
+.ixtla-insights-markdown > :first-child { margin-top: 0; }
+.ixtla-insights-markdown > :last-child { margin-bottom: 0; }
+.ixtla-insights-markdown h3 { margin: 20px 0 8px; padding-bottom: 7px; border-bottom: 1px solid #bfd8dc; color: #0f4c81; font-size: 16px; line-height: 1.3; }
+.ixtla-insights-markdown h4 { margin: 17px 0 7px; color: #155e75; font-size: 14px; line-height: 1.35; }
+.ixtla-insights-markdown p { margin: 0 0 11px; }
+.ixtla-insights-markdown strong { color: #102f43; font-weight: 750; }
+.ixtla-insights-markdown code { padding: 2px 5px; border: 1px solid #c7dde1; border-radius: 5px; color: #0f4c81; background: rgba(255, 255, 255, .72); font: 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.ixtla-insights-markdown ul, .ixtla-insights-markdown ol { display: grid; gap: 6px; margin: 0 0 13px; padding-left: 22px; }
+.ixtla-insights-markdown li { padding-left: 2px; }
+.ixtla-insights-markdown li::marker { color: #176b87; font-weight: 700; }
+.ixtla-insights-markdown__notice { padding: 9px 11px; border-left: 4px solid #27849b; border-radius: 0 8px 8px 0; color: #284955; background: rgba(255, 255, 255, .65); }
+.ixtla-insights-markdown__recommendation { padding: 9px 11px !important; border: 0 !important; border-radius: 9px; color: #fff !important; background: linear-gradient(135deg, #0f4c81, #176b87); }
+.ixtla-insights-markdown__table-wrap { width: 100%; margin: 2px 0 14px; overflow-x: auto; border: 1px solid #bfd8dc; border-radius: 9px; background: #fff; }
+.ixtla-insights-markdown table { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.4; white-space: nowrap; }
+.ixtla-insights-markdown th, .ixtla-insights-markdown td { padding: 8px 9px; border-bottom: 1px solid #dbeaec; text-align: left; vertical-align: top; }
+.ixtla-insights-markdown th { position: sticky; top: 0; color: #fff; background: #155e75; font-weight: 700; }
+.ixtla-insights-markdown tbody tr:nth-child(even) { background: #f5fafb; }
+.ixtla-insights-markdown tbody tr:last-child td { border-bottom: 0; }
 .ixtla-insights-message--thinking { display: inline-flex; align-items: center; gap: 9px; align-self: flex-start; color: #315a67; background: #edf7f8; border-bottom-left-radius: 4px; font-style: italic; }
 .ixtla-insights-thinking__dots { display: inline-flex; align-items: center; gap: 3px; min-width: 20px; }
 .ixtla-insights-thinking__dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; animation: ixtla-insights-thinking-pulse 1s ease-in-out infinite; }

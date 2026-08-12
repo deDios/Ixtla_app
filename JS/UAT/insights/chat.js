@@ -254,10 +254,117 @@ export function mountIxtlaInsights(options = {}) {
   const input = root.querySelector(".ixtla-insights-input");
   const send = root.querySelector(".ixtla-insights-send");
 
+  function appendInlineMarkdown(target, value) {
+    const text = String(value ?? "");
+    const pattern = /(\*\*([^*]+)\*\*|`([^`]+)`)/g;
+    let cursor = 0;
+    for (const match of text.matchAll(pattern)) {
+      if (match.index > cursor) target.append(document.createTextNode(text.slice(cursor, match.index)));
+      const element = document.createElement(match[2] !== undefined ? "strong" : "code");
+      element.textContent = match[2] ?? match[3] ?? "";
+      target.append(element);
+      cursor = match.index + match[0].length;
+    }
+    if (cursor < text.length) target.append(document.createTextNode(text.slice(cursor)));
+  }
+
+  function markdownTableCells(line) {
+    return String(line).trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+  }
+
+  function renderAssistantMarkdown(target, value) {
+    const lines = String(value ?? "").replace(/\r\n?/g, "\n").split("\n");
+    const fragment = document.createDocumentFragment();
+    const isHeading = (line) => /^(#{1,4})\s+/.test(line.trim());
+    const isList = (line) => /^\s*(?:[-*•]|\d+\.)\s+/.test(line);
+    const isTable = (index) => index + 1 < lines.length
+      && lines[index].includes("|")
+      && /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[index + 1]);
+    let index = 0;
+    while (index < lines.length) {
+      const line = lines[index].trim();
+      if (!line) { index += 1; continue; }
+
+      const heading = line.match(/^(#{1,4})\s+(.+)$/);
+      if (heading) {
+        const level = heading[1].length <= 2 ? 3 : 4;
+        const element = document.createElement(`h${level}`);
+        if (/recomendaci[oó]n/i.test(heading[2])) element.classList.add("ixtla-insights-markdown__recommendation");
+        appendInlineMarkdown(element, heading[2]);
+        fragment.append(element);
+        index += 1;
+        continue;
+      }
+
+      if (isTable(index)) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "ixtla-insights-markdown__table-wrap";
+        const table = document.createElement("table");
+        const head = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        markdownTableCells(lines[index]).forEach((cell) => {
+          const th = document.createElement("th");
+          appendInlineMarkdown(th, cell);
+          headRow.append(th);
+        });
+        head.append(headRow);
+        table.append(head);
+        index += 2;
+        const body = document.createElement("tbody");
+        while (index < lines.length && lines[index].trim() && lines[index].includes("|")) {
+          const row = document.createElement("tr");
+          markdownTableCells(lines[index]).forEach((cell) => {
+            const td = document.createElement("td");
+            appendInlineMarkdown(td, cell);
+            row.append(td);
+          });
+          body.append(row);
+          index += 1;
+        }
+        table.append(body);
+        wrapper.append(table);
+        fragment.append(wrapper);
+        continue;
+      }
+
+      if (isList(lines[index])) {
+        const ordered = /^\s*\d+\.\s+/.test(lines[index]);
+        const list = document.createElement(ordered ? "ol" : "ul");
+        while (index < lines.length && isList(lines[index]) && /^\s*\d+\.\s+/.test(lines[index]) === ordered) {
+          const item = document.createElement("li");
+          appendInlineMarkdown(item, lines[index].replace(/^\s*(?:[-*•]|\d+\.)\s+/, ""));
+          list.append(item);
+          index += 1;
+        }
+        fragment.append(list);
+        continue;
+      }
+
+      const paragraphLines = [];
+      while (index < lines.length && lines[index].trim() && !isHeading(lines[index]) && !isList(lines[index]) && !isTable(index)) {
+        paragraphLines.push(lines[index].trim());
+        index += 1;
+      }
+      const paragraph = document.createElement("p");
+      const paragraphText = paragraphLines.join(" ");
+      if (/b[uú]squeda.+parcial|lista.+parcial|m[aá]s resultados/i.test(paragraphText)) {
+        paragraph.className = "ixtla-insights-markdown__notice";
+      }
+      appendInlineMarkdown(paragraph, paragraphText);
+      fragment.append(paragraph);
+    }
+    target.replaceChildren(fragment);
+  }
+
   function addMessage(text, role = "assistant") {
     const item = document.createElement("div");
     item.className = `ixtla-insights-message ixtla-insights-message--${role}`;
-    item.textContent = text;
+    if (role === "assistant") {
+      item.classList.add("ixtla-insights-markdown");
+      renderAssistantMarkdown(item, text);
+    } else {
+      item.textContent = text;
+    }
     messages.appendChild(item);
     messages.scrollTop = messages.scrollHeight;
   }

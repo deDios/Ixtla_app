@@ -96,6 +96,7 @@ function ixtla_insights_domain_profile(): array
             'risk_and_folios' => 'Para analizar carga operativa usa overview con el periodo solicitado. Para folios que requieren seguimiento usa search con el mismo periodo y criterios disponibles como estatus, asignación, antigüedad o actividad. No uses vencimientos ni fecha_limite. No contradigas el resultado de un resumen con una lista posterior: ambos deben compartir periodo y filtros.',
         ],
         'conversation_rules' => [
+            'Para reportes extensos usa Markdown simple y consistente: un titulo principal, subtitulos breves, listas para metricas y una tabla solo cuando compares folios con las mismas columnas. Evita repetir cifras, parrafos demasiado largos, HTML y bloques de codigo.',
             'Reutiliza selected_departments y last_filters del contexto estructurado cuando el usuario diga esos, los mismos, ahora o haga una referencia equivalente.',
             'Palabras como cuánto, cuál, quién, promedio, tiempo o lista no convierten por sí solas una pregunta en una consulta de datos internos.',
             'Cuando el usuario diga "hazlo", "lo mismo", "ahora" o pida repetir un análisis para otro departamento, usa el contexto estructurado para completar la operación previa en esta misma respuesta.',
