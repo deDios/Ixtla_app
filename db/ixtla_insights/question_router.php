@@ -117,6 +117,16 @@ function ixtla_insights_apply_default_period(string $toolName, array $arguments,
             : 'created_at';
         $arguments['date_from'] = isset($arguments['date_from']) && is_string($arguments['date_from']) ? $arguments['date_from'] : null;
         $arguments['date_to'] = isset($arguments['date_to']) && is_string($arguments['date_to']) ? $arguments['date_to'] : null;
+        if (in_array($toolName, ['search_requirements', 'aggregate_requirements'], true)) {
+            foreach (['department_ids', 'department_names', 'assignee_ids', 'tramite_ids', 'status_ids'] as $listKey) {
+                $arguments[$listKey] = is_array($arguments[$listKey] ?? null) ? $arguments[$listKey] : [];
+            }
+            $arguments['department_id'] = max(0, (int) ($arguments['department_id'] ?? 0));
+            $arguments['assignee_id'] = max(0, (int) ($arguments['assignee_id'] ?? 0));
+        }
+        if ($toolName === 'search_requirements') {
+            $arguments['cursor'] = isset($arguments['cursor']) && is_string($arguments['cursor']) ? $arguments['cursor'] : null;
+        }
         $requestedRange = ixtla_insights_question_requested_date_range($question);
         if ($requestedRange !== null) {
             $arguments = array_replace($arguments, $requestedRange);

@@ -84,6 +84,9 @@ expect_diagnostic(str_contains((string) ($snapshotOverviewTool['description'] ??
 
 $snapshotSearchTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'search_requirements'))[0] ?? [];
 expect_diagnostic(($snapshotSearchTool['parameters']['properties']['limit']['maximum'] ?? null) === 50, 'Las consultas al snapshot deben limitar las filas enviadas al modelo.');
+expect_diagnostic(in_array('department_ids', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe aceptar varios departamentos en una sola llamada.');
+expect_diagnostic(in_array('department_names', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe resolver nombres contra el catalogo autorizado.');
+expect_diagnostic(in_array('cursor', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe exponer paginacion por cursor.');
 expect_diagnostic(in_array('assignee_id', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe permitir filtrar por empleado asignado.');
 expect_diagnostic(in_array('date_from', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La búsqueda debe aceptar un inicio de rango nullable.');
 expect_diagnostic(in_array('most_comments', $snapshotSearchTool['parameters']['properties']['sort']['enum'] ?? [], true), 'La busqueda debe permitir ordenar por actividad de comentarios.');
@@ -95,6 +98,14 @@ expect_diagnostic(in_array('assignee_id', $snapshotAggregateTool['parameters']['
 $emptySnapshot = ixtla_insights_snapshot_assemble('test-scope', ['mode' => 'self', 'label' => 'Prueba'], []);
 expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 5, 'El snapshot con agregación diaria debe invalidar caches de esquemas anteriores.');
 expect_diagnostic(count($emptySnapshot['catalogs']['statuses'] ?? []) === 7, 'El catalogo debe listar todos los estatus aunque no existan filas en alguno.');
+$cursor = ixtla_insights_snapshot_cursor_encode(50);
+expect_diagnostic(ixtla_insights_snapshot_cursor_offset($cursor) === 50, 'El cursor debe conservar de forma segura el desplazamiento de la consulta.');
+$summary = ixtla_insights_snapshot_result_summary([
+    ['status_id' => 3, 'status' => 'En proceso', 'department_id' => 6, 'department' => 'A', 'tramite_id' => 1, 'tramite' => 'T', 'assignee_id' => null, 'assignee' => 'Sin asignar'],
+    ['status_id' => 3, 'status' => 'En proceso', 'department_id' => 8, 'department' => 'B', 'tramite_id' => 1, 'tramite' => 'T', 'assignee_id' => 9, 'assignee' => 'Empleado'],
+]);
+expect_diagnostic(($summary['unassigned'] ?? null) === 1, 'El resumen completo debe contar requerimientos sin responsable.');
+expect_diagnostic(($summary['by_status'][0]['value'] ?? null) === 2, 'El resumen completo debe agrupar todas las coincidencias, no solo una pagina.');
 $commentsTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_comments'))[0] ?? [];
 expect_diagnostic(($commentsTool['parameters']['properties']['limit']['maximum'] ?? null) === 30, 'Los comentarios deben tener un limite estricto por llamada.');
 expect_diagnostic(ixtla_insights_activity_safe_text('Escribe a persona@example.com o 3312345678') === 'Escribe a [correo oculto] o [telefono oculto]', 'Los textos operativos deben ocultar correo y telefono.');

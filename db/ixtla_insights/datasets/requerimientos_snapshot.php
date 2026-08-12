@@ -14,6 +14,7 @@ require_once __DIR__ . '/scope_service.php';
 require_once __DIR__ . '/requerimientos_dataset.php';
 require_once __DIR__ . '/../domain_profile.php';
 require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/../query_store.php';
 
 function ixtla_insights_snapshot_scope_key(array $scope): string
 {
@@ -207,7 +208,14 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
 {
     $statusIds = array_values(array_unique(array_map('intval', is_array($arguments['status_ids'] ?? null) ? $arguments['status_ids'] : [])));
     $departmentId = isset($arguments['department_id']) ? (int) $arguments['department_id'] : 0;
+    $departmentIds = array_values(array_unique(array_filter(array_map('intval', is_array($arguments['department_ids'] ?? null) ? $arguments['department_ids'] : []), static fn (int $id): bool => $id > 0)));
+    if ($departmentId > 0) $departmentIds[] = $departmentId;
+    $departmentIds = array_values(array_unique($departmentIds));
     $assigneeId = isset($arguments['assignee_id']) ? (int) $arguments['assignee_id'] : 0;
+    $assigneeIds = array_values(array_unique(array_filter(array_map('intval', is_array($arguments['assignee_ids'] ?? null) ? $arguments['assignee_ids'] : []), static fn (int $id): bool => $id > 0)));
+    if ($assigneeId > 0) $assigneeIds[] = $assigneeId;
+    $assigneeIds = array_values(array_unique($assigneeIds));
+    $tramiteIds = array_values(array_unique(array_filter(array_map('intval', is_array($arguments['tramite_ids'] ?? null) ? $arguments['tramite_ids'] : []), static fn (int $id): bool => $id > 0)));
     $assigneeState = (string) ($arguments['assignee_state'] ?? 'any');
     $period = (string) ($arguments['period'] ?? 'all');
     $dateField = (string) ($arguments['date_field'] ?? 'created_at');
@@ -225,10 +233,11 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
     $cutoff = $hasCustomRange ? 0 : match ($period) { 'this_week' => strtotime('monday this week midnight'), 'last_7' => strtotime('-6 days midnight'), 'last_30' => strtotime('-29 days midnight'), 'this_month' => strtotime('first day of this month midnight'), default => 0 };
     $fromTimestamp = $dateFrom === '' ? null : strtotime($dateFrom . ' 00:00:00');
     $toTimestamp = $dateTo === '' ? null : strtotime($dateTo . ' 23:59:59');
-    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentId, $assigneeId, $assigneeState, $cutoff, $hasCustomRange, $dateField, $fromTimestamp, $toTimestamp): bool {
+    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentIds, $assigneeIds, $tramiteIds, $assigneeState, $cutoff, $hasCustomRange, $dateField, $fromTimestamp, $toTimestamp): bool {
         if ($statusIds !== [] && !in_array($record['status_id'], $statusIds, true)) return false;
-        if ($departmentId > 0 && $record['department_id'] !== $departmentId) return false;
-        if ($assigneeId > 0 && $record['assignee_id'] !== $assigneeId) return false;
+        if ($departmentIds !== [] && !in_array($record['department_id'], $departmentIds, true)) return false;
+        if ($assigneeIds !== [] && !in_array($record['assignee_id'], $assigneeIds, true)) return false;
+        if ($tramiteIds !== [] && !in_array($record['tramite_id'], $tramiteIds, true)) return false;
         if ($assigneeState === 'assigned' && $record['assignee_id'] === null) return false;
         if ($assigneeState === 'unassigned' && $record['assignee_id'] !== null) return false;
         if ($hasCustomRange) {
@@ -249,6 +258,46 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
     return array_values($limit > 0 ? array_slice($items, 0, $limit) : $items);
 }
 
+/** Resuelve nombres exactos y normalizados solamente contra el catalogo visible. */
+function ixtla_insights_snapshot_resolve_department_names(array $snapshot, array $arguments): array
+{
+    $names = is_array($arguments['department_names'] ?? null) ? $arguments['department_names'] : [];
+    if ($names === []) return $arguments;
+    $visible = [];
+    foreach ($snapshot['catalogs']['departments'] ?? [] as $department) {
+        $visible[ixtla_insights_normalize_match_text((string) ($department['name'] ?? ''))][] = $department;
+    }
+    $resolved = [];
+    foreach ($names as $name) {
+        $normalized = ixtla_insights_normalize_match_text((string) $name);
+        $matches = $visible[$normalized] ?? [];
+        if (count($matches) !== 1) {
+            throw new InvalidArgumentException('No fue posible resolver de forma unica el departamento: ' . trim((string) $name));
+        }
+        $resolved[] = (int) $matches[0]['id'];
+    }
+    $existing = is_array($arguments['department_ids'] ?? null) ? array_map('intval', $arguments['department_ids']) : [];
+    $arguments['department_ids'] = array_values(array_unique([...$existing, ...$resolved]));
+    return $arguments;
+}
+
+function ixtla_insights_snapshot_cursor_encode(int $offset): string
+{
+    return rtrim(strtr(base64_encode(json_encode(['offset' => $offset], JSON_UNESCAPED_SLASHES)), '+/', '-_'), '=');
+}
+
+function ixtla_insights_snapshot_cursor_offset(mixed $cursor): int
+{
+    if ($cursor === null || trim((string) $cursor) === '') return 0;
+    $value = strtr(trim((string) $cursor), '-_', '+/');
+    $value .= str_repeat('=', (4 - strlen($value) % 4) % 4);
+    $decoded = base64_decode($value, true);
+    $payload = is_string($decoded) ? json_decode($decoded, true) : null;
+    $offset = is_array($payload) ? (int) ($payload['offset'] ?? -1) : -1;
+    if ($offset < 0) throw new InvalidArgumentException('El cursor de paginacion no es valido.');
+    return $offset;
+}
+
 function ixtla_insights_snapshot_valid_date(string $value): bool
 {
     if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $matches) !== 1) return false;
@@ -264,6 +313,34 @@ function ixtla_insights_snapshot_public_record(array $record, bool $includeReque
     ]));
     if ($includeRequester) $result['requester_name'] = $record['requester_name'];
     return $result;
+}
+
+/** Resumen compacto calculado sobre todas las coincidencias, no solo la pagina. */
+function ixtla_insights_snapshot_result_summary(array $records): array
+{
+    $dimensions = ['by_status' => [], 'by_department' => [], 'by_tramite' => [], 'by_assignee' => []];
+    $unassigned = 0;
+    foreach ($records as $record) {
+        if (($record['assignee_id'] ?? null) === null) $unassigned++;
+        foreach ([
+            'by_status' => ['status_id', 'status'],
+            'by_department' => ['department_id', 'department'],
+            'by_tramite' => ['tramite_id', 'tramite'],
+            'by_assignee' => ['assignee_id', 'assignee'],
+        ] as $dimension => [$idField, $labelField]) {
+            $key = (string) ($record[$idField] ?? 'unassigned');
+            if (!isset($dimensions[$dimension][$key])) {
+                $dimensions[$dimension][$key] = ['id' => $record[$idField] ?? null, 'label' => (string) ($record[$labelField] ?? ''), 'value' => 0];
+            }
+            $dimensions[$dimension][$key]['value']++;
+        }
+    }
+    foreach ($dimensions as $dimension => $groups) {
+        $items = array_values($groups);
+        usort($items, static fn (array $a, array $b): int => $b['value'] <=> $a['value']);
+        $dimensions[$dimension] = array_slice($items, 0, 20);
+    }
+    return ['unassigned' => $unassigned, ...$dimensions];
 }
 
 /** Resumen calculado desde el snapshot, sin consultar la fuente operacional. */
@@ -355,12 +432,29 @@ function ixtla_insights_snapshot_search(array $arguments): array
         throw new InvalidArgumentException('Los filtros solicitados no son validos.');
     }
     $snapshot = ixtla_insights_snapshot_build(false);
-    $items = ixtla_insights_snapshot_filter($snapshot, $arguments);
+    $arguments = ixtla_insights_snapshot_resolve_department_names($snapshot, $arguments);
+    $limit = min(50, max(1, (int) ($arguments['limit'] ?? 50)));
+    $offset = ixtla_insights_snapshot_cursor_offset($arguments['cursor'] ?? null);
+    $filterArguments = $arguments;
+    unset($filterArguments['limit'], $filterArguments['cursor']);
+    $matching = ixtla_insights_snapshot_filter($snapshot, $filterArguments);
+    $storedQuery = ixtla_insights_query_store_create($filterArguments, $snapshot);
+    $total = count($matching);
+    $items = array_slice($matching, $offset, $limit);
+    $nextOffset = $offset + count($items);
+    $hasMore = $nextOffset < $total;
     return [
         'dataset' => $snapshot['dataset'],
         'generated_at' => $snapshot['generated_at'],
         'scope' => $snapshot['scope'],
         'filters' => $arguments,
+        'query_id' => $storedQuery['query_id'],
+        'query_expires_at_unix' => $storedQuery['expires_at_unix'],
+        'total_matching' => $total,
+        'returned' => count($items),
+        'has_more' => $hasMore,
+        'next_cursor' => $hasMore ? ixtla_insights_snapshot_cursor_encode($nextOffset) : null,
+        'summary' => ixtla_insights_snapshot_result_summary($matching),
         'items' => array_map(static fn (array $record): array => ixtla_insights_snapshot_public_record($record), $items),
     ];
 }
@@ -439,6 +533,7 @@ function ixtla_insights_snapshot_aggregate(array $arguments): array
         throw new InvalidArgumentException('La agrupacion solicitada no es valida.');
     }
     $snapshot = ixtla_insights_snapshot_build(false);
+    $arguments = ixtla_insights_snapshot_resolve_department_names($snapshot, $arguments);
     $filterArguments = $arguments;
     unset($filterArguments['limit'], $filterArguments['group_by'], $filterArguments['sort']);
     $records = ixtla_insights_snapshot_filter($snapshot, $filterArguments);

@@ -87,6 +87,25 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments):
     if (isset($arguments['group_by'])) {
         $context['group_by'] = $arguments['group_by'];
     }
+    $filterKeys = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'assignee_state', 'date_field', 'date_from', 'date_to', 'sort'];
+    $filters = [];
+    foreach ($filterKeys as $filterKey) {
+        if (array_key_exists($filterKey, $arguments)) $filters[$filterKey] = $arguments[$filterKey];
+    }
+    if ($filters !== []) {
+        $context['last_filters'] = $filters;
+    }
+    $departmentIds = is_array($arguments['department_ids'] ?? null) ? array_map('intval', $arguments['department_ids']) : [];
+    if ((int) ($arguments['department_id'] ?? 0) > 0) $departmentIds[] = (int) $arguments['department_id'];
+    $departmentNames = is_array($arguments['department_names'] ?? null)
+        ? array_values(array_filter(array_map(static fn (mixed $name): string => trim((string) $name), $arguments['department_names'])))
+        : [];
+    if ($departmentIds !== [] || $departmentNames !== []) {
+        $context['selected_departments'] = [
+            'ids' => array_values(array_unique(array_filter($departmentIds, static fn (int $id): bool => $id > 0))),
+            'names' => array_values(array_unique($departmentNames)),
+        ];
+    }
     $state['analytics_context'] = $context;
     $state['updated_at'] = time();
     $_SESSION[(string) $state['key']] = $state;

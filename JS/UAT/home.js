@@ -73,13 +73,14 @@ import {
 import { createTable } from "/JS/UAT/ui/table.js";
 import { LineChart } from "/JS/UAT/charts/line-chart.js";
 import { DonutChart } from "/JS/UAT/charts/donut-chart.js";
-import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=dataset-snapshot-2";
+import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=dataset-query-4";
 
 /* === API de usuarios (empleados) === */
 import { getEmpleadoById, updateEmpleado } from "/JS/UAT/api/usuarios.js";
 
 const INSIGHTS_CONFIG = {
   apiUrl: "/db/ixtla_insights/gpt_probe.php",
+  frontendBuild: "dataset-query-4",
   simpleMode: true,
   quickQuestions: [
     {

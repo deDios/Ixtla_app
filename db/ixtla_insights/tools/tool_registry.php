@@ -14,14 +14,18 @@ function ixtla_insights_tool_definitions(): array
     $datasetFilters = [
         'period' => ['type' => 'string', 'enum' => ['all', 'this_week', 'last_7', 'last_30', 'this_month']],
         'department_id' => ['type' => 'integer', 'minimum' => 0],
+        'department_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
+        'department_names' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 160]],
         'assignee_id' => ['type' => 'integer', 'minimum' => 0],
+        'assignee_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
+        'tramite_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
         'status_ids' => ['type' => 'array', 'items' => ['type' => 'integer', 'enum' => [0, 1, 2, 3, 4, 5, 6]]],
         'assignee_state' => ['type' => 'string', 'enum' => ['any', 'assigned', 'unassigned']],
         'date_field' => ['type' => 'string', 'enum' => ['created_at', 'closed_at']],
         'date_from' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
         'date_to' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
     ];
-    $filterRequired = ['period', 'department_id', 'assignee_id', 'status_ids', 'assignee_state', 'date_field', 'date_from', 'date_to'];
+    $filterRequired = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'assignee_state', 'date_field', 'date_from', 'date_to'];
 
     return [
         [
@@ -40,13 +44,14 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'search_requirements', 'strict' => true,
-            'description' => 'Busca hasta 50 requerimientos autorizados con filtros cerrados. Para rangos personalizados usa date_field, date_from y date_to; created_at filtra cuándo se creó y closed_at cuándo se cerró. Si no hay rango ni periodo explícito, usa all. Nunca devuelve contactos, texto de comentarios ni fecha_limite.',
+            'description' => 'Busca requerimientos autorizados con filtros cerrados y paginacion por cursor. Admite varios departamentos, tramites o responsables y resuelve department_names solo contra el catalogo autorizado. Devuelve total_matching, returned, has_more y next_cursor. Nunca devuelve contactos, texto de comentarios ni fecha_limite.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
-                'required' => [...$filterRequired, 'sort', 'limit'],
+                'required' => [...$filterRequired, 'sort', 'limit', 'cursor'],
                 'properties' => array_merge($datasetFilters, [
                     'sort' => ['type' => 'string', 'enum' => ['newest', 'oldest', 'most_comments']],
                     'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
+                    'cursor' => ['type' => ['string', 'null'], 'maxLength' => 160],
                 ]),
             ],
         ],

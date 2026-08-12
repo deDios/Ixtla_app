@@ -25,6 +25,9 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
     if (($config['build_id'] ?? '') !== '') {
         header('X-Ixtla-Insights-Build: ' . (string) $config['build_id']);
     }
+    $serverIdentity = trim((string) ($_SERVER['SERVER_ADDR'] ?? ''));
+    if ($serverIdentity === '') $serverIdentity = (string) (gethostname() ?: 'unknown');
+    header('X-Ixtla-Insights-Instance: ' . substr(hash('sha256', $serverIdentity), 0, 12));
     consola_debug('bootstrap.received', [
         'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
         'path' => parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '',

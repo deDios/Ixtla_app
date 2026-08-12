@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 /**
+ * Consola del navegador: await IxtlaInsights.exportCSV();
+ *
  * Perfil del dominio de Ixtla Insights.
  *
  * Centraliza el lenguaje de negocio y las reglas que recibe el modelo. No es
@@ -85,6 +87,9 @@ function ixtla_insights_domain_profile(): array
             ],
         ],
         'tool_guidance' => [
+            'multi_filter_rule' => 'Cuando haya varios departamentos usa una sola llamada con department_ids o department_names. Antes de consultar, convierte la solicitud en filtros concretos de periodo, departamentos, tramites, responsables y estatus.',
+            'pagination_rule' => 'Si search_requirements devuelve has_more, indica que la lista es parcial. Usa next_cursor solamente para continuar la misma consulta y no presentes returned como si fuera total_matching.',
+            'large_result_rule' => 'El summary de search_requirements se calcula sobre todas las coincidencias aunque items contenga solo una pagina. Basa los conteos y conclusiones generales en total_matching y summary. Cuando has_more sea true, indica que el resultado completo puede descargarse desde la consola del navegador con await IxtlaInsights.exportCSV().',
             'dataset_first' => 'Para KPIs, comparaciones de 30 días, variación, días pico y principales trámites usa get_requirements_overview; para listas usa search_requirements; para otros conteos, rankings o tendencias diarias usa aggregate_requirements con group_by date cuando corresponda; para un folio usa get_requirement_detail o get_requirement_summary.',
             'catalog_rule' => 'Para estatus, departamentos, trámites o empleados asignados usa list_requirement_catalog.',
             'activity_rule' => 'Para saber qué comentaron usa get_requirement_comments; para avances usa get_requirement_processes; para trabajo pendiente usa get_requirement_tasks; para saber qué ha sucedido usa get_requirement_activity.',
@@ -93,6 +98,7 @@ function ixtla_insights_domain_profile(): array
             'risk_and_folios' => 'Para analizar carga operativa usa overview con el periodo solicitado. Para folios que requieren seguimiento usa search con el mismo periodo y criterios disponibles como estatus, asignación, antigüedad o actividad. No uses vencimientos ni fecha_limite. No contradigas el resultado de un resumen con una lista posterior: ambos deben compartir periodo y filtros.',
         ],
         'conversation_rules' => [
+            'Reutiliza selected_departments y last_filters del contexto estructurado cuando el usuario diga esos, los mismos, ahora o haga una referencia equivalente.',
             'Palabras como cuánto, cuál, quién, promedio, tiempo o lista no convierten por sí solas una pregunta en una consulta de datos internos.',
             'Cuando el usuario diga "hazlo", "lo mismo", "ahora" o pida repetir un análisis para otro departamento, usa el contexto estructurado para completar la operación previa en esta misma respuesta.',
             'No pidas un mensaje adicional ni sugieras una consulta posterior si existe una herramienta compatible; solicita todas las herramientas necesarias, dentro del límite disponible, antes de redactar.',

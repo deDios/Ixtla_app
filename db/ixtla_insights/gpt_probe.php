@@ -60,6 +60,7 @@ ixtla_insights_json([
     'mode' => 'gpt_probe',
     'answer' => $answer,
     'usage' => $probeResult['usage'],
+    'result_query' => $probeResult['result_query'] ?? null,
     'suggestions' => [],
 ]);
 
@@ -182,6 +183,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
     }
     $remainingToolCalls = max(0, (int) $config['max_tool_calls_per_turn']);
     $toolRound = 0;
+    $lastResultQuery = null;
     while ($toolCalls !== [] && $remainingToolCalls > 0) {
         $toolCalls = array_slice($toolCalls, 0, $remainingToolCalls);
         consola_debug('gpt_probe.tools_requested', ['count' => count($toolCalls), 'round' => $toolRound + 1]);
@@ -195,6 +197,16 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
             );
             try {
                 $result = ixtla_insights_execute_tool((string) $toolCall['name'], $arguments);
+                if (isset($result['query_id'])) {
+                    $lastResultQuery = [
+                        'query_id' => (string) $result['query_id'],
+                        'total_matching' => (int) ($result['total_matching'] ?? 0),
+                        'returned' => (int) ($result['returned'] ?? 0),
+                        'has_more' => (bool) ($result['has_more'] ?? false),
+                        'expires_at_unix' => (int) ($result['query_expires_at_unix'] ?? 0),
+                        'filters' => is_array($result['filters'] ?? null) ? $result['filters'] : [],
+                    ];
+                }
                 ixtla_insights_conversation_apply_tool((string) $toolCall['name'], $arguments);
                 consola_debug('gpt_probe.tool_completed', ['tool' => (string) $toolCall['name']]);
                 $output = ['ok' => true, 'data' => $result];
@@ -230,7 +242,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no devolvio texto para la prueba.'], 502);
     }
 
-    return ['answer' => $answer, 'usage' => $usage];
+    return ['answer' => $answer, 'usage' => $usage, 'result_query' => $lastResultQuery];
 }
 
 function ixtla_insights_probe_tool_calls(array $response, ?int $limit = null): array

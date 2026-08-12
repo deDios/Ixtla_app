@@ -220,6 +220,7 @@ export function mountIxtlaInsights(options = {}) {
     catalogUrl: "/db/ixtla_insights/catalog.php",
     draftUrl: "/db/ixtla_insights/draft.php",
     departmentsUrl: "/db/ixtla_insights/departments.php",
+    exportUrl: "/db/ixtla_insights/query_export.php",
     simpleMode: true,
     visualizationHandler: null,
     ...options,
@@ -228,6 +229,7 @@ export function mountIxtlaInsights(options = {}) {
   let pendingVisualization = null;
   let draftPersistQueue = Promise.resolve();
   const history = [];
+  let lastResultQuery = null;
 
   const root = document.createElement("div");
   root.className = "ixtla-insights";
@@ -913,6 +915,7 @@ export function mountIxtlaInsights(options = {}) {
           "Content-Type": "application/json",
           Accept: "application/json",
           "X-Ixtla-Insights-Request-Id": clientRequestId,
+          "X-Ixtla-Insights-Frontend-Build": clean(config.frontendBuild) || "unknown",
         },
         body: requestBody,
       });
@@ -933,6 +936,7 @@ export function mountIxtlaInsights(options = {}) {
       contentType: clean(response.headers.get("content-type")),
       endpointHandled: Boolean(response.headers.get("X-Ixtla-Insights-Request-Id")),
       buildId: clean(response.headers.get("X-Ixtla-Insights-Build")),
+      instanceId: clean(response.headers.get("X-Ixtla-Insights-Instance")),
       serverStage: clean(response.headers.get("X-Ixtla-Insights-Debug-Stage")),
     };
     insightsDebug("chat.request.completed", responseDebug);
@@ -942,6 +946,7 @@ export function mountIxtlaInsights(options = {}) {
         errorCode: clean(payload?.error_code),
         endpointVersion: clean(response.headers.get("X-Ixtla-Insights-Version")),
         buildId: responseDebug.buildId,
+        instanceId: responseDebug.instanceId,
         serverStage: responseDebug.serverStage,
         url: clean(response.url) || config.apiUrl,
         contentType: clean(response.headers.get("content-type")),
@@ -992,6 +997,9 @@ export function mountIxtlaInsights(options = {}) {
       const payload = await requestRemoteAnswer(prompt);
       const answer = clean(payload.answer) || "No pude generar una respuesta para esa consulta.";
       addMessage(answer);
+      if (clean(payload?.result_query?.query_id)) {
+        lastResultQuery = payload.result_query;
+      }
       if (!config.simpleMode) renderReport(payload.report);
       history.push({ role: "user", content: prompt }, { role: "assistant", content: answer });
       const suggestions = Array.isArray(payload.suggestions)
@@ -1010,6 +1018,7 @@ export function mountIxtlaInsights(options = {}) {
         requestId: error.requestId,
         endpointVersion: error.endpointVersion,
         buildId: error.buildId,
+        instanceId: error.instanceId,
         serverStage: error.serverStage,
         endpointHandled: error.endpointHandled,
         url: error.url,
@@ -1070,6 +1079,39 @@ export function mountIxtlaInsights(options = {}) {
     });
   }
 
+  function lastQuery() {
+    return lastResultQuery ? { ...lastResultQuery, filters: { ...(lastResultQuery.filters || {}) } } : null;
+  }
+
+  async function exportCSV(queryId = "") {
+    const selectedQueryId = clean(queryId) || clean(lastResultQuery?.query_id);
+    if (!selectedQueryId) throw new Error("No hay una consulta exportable. Realiza primero una búsqueda de requerimientos en el asistente.");
+    const response = await fetch(config.exportUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", Accept: "text/csv, application/json" },
+      body: JSON.stringify({ query_id: selectedQueryId }),
+    });
+    const contentType = clean(response.headers.get("content-type"));
+    if (!response.ok || !contentType.includes("text/csv")) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(clean(payload?.error) || `No fue posible exportar la consulta (${response.status || "respuesta no válida"}).`);
+    }
+    const blob = await response.blob();
+    const disposition = clean(response.headers.get("content-disposition"));
+    const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+    const filename = filenameMatch?.[1] || `ixtla-requerimientos-${selectedQueryId}.csv`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { queryId: selectedQueryId, filename, bytes: blob.size };
+  }
+
   function formatWelcomeReport(report) {
     const number = (value) => Number(value || 0).toLocaleString("es-MX");
     const counts = report?.counts || {};
@@ -1127,6 +1169,7 @@ export function mountIxtlaInsights(options = {}) {
   clear.addEventListener("click", () => {
     messages.replaceChildren();
     history.length = 0;
+    lastResultQuery = null;
     pendingVisualization = null;
     void clearServerConversation();
     if (!config.simpleMode) discardDraft();
@@ -1152,7 +1195,7 @@ export function mountIxtlaInsights(options = {}) {
     messages.replaceChildren();
     void showWelcomeReport();
   }
-  const api = { open, close: closeDrawer, ask, setContext };
+  const api = { open, close: closeDrawer, ask, setContext, lastQuery, exportCSV };
   window.__ixtlaInsightsInstance = api;
   window.IxtlaInsights = api;
   return api;
