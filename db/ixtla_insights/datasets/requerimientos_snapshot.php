@@ -311,6 +311,13 @@ function ixtla_insights_snapshot_public_record(array $record, bool $includeReque
         'comment_count', 'last_comment_at', 'process_count', 'last_process_at', 'task_count', 'open_task_count',
         'created_at', 'closed_at', 'age_days',
     ]));
+    // La fecha puede conservarse internamente para auditoria o filtros, pero
+    // no representa un cierre mientras el estado actual no sea Finalizado.
+    // Se elimina en la frontera publica para que ni el modelo ni las
+    // exportaciones puedan presentarla como una fecha valida de cierre.
+    if ((int) ($record['status_id'] ?? -1) !== 6) {
+        unset($result['closed_at']);
+    }
     if ($includeRequester) $result['requester_name'] = $record['requester_name'];
     return $result;
 }

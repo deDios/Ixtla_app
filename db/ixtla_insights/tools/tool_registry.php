@@ -44,7 +44,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'search_requirements', 'strict' => true,
-            'description' => 'Busca requerimientos autorizados con filtros cerrados y paginacion por cursor. Admite varios departamentos, tramites o responsables y resuelve department_names solo contra el catalogo autorizado. Devuelve total_matching, returned, has_more y next_cursor. Nunca devuelve contactos, texto de comentarios ni fecha_limite.',
+            'description' => 'Busca filas individuales de requerimientos autorizados. Usala para responder cuales son, mostrar folios, fechas o detalles de resultados previos. Cada fila puede incluir folio, estatus, tramite, departamento, responsable, fecha de creacion y conteos de actividad; la fecha de cierre solo aparece si el estatus actual es Finalizado. Devuelve total_matching, items, returned, has_more y next_cursor. Nunca devuelve contactos, texto de comentarios ni fecha_limite.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'sort', 'limit', 'cursor'],
@@ -57,7 +57,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'aggregate_requirements', 'strict' => true,
-            'description' => 'Agrupa requerimientos autorizados por estatus, departamento, tramite, empleado asignado o fecha. Admite rangos personalizados mediante date_field, date_from y date_to para cruzar fechas con estatus y otros filtros. Si no hay rango ni periodo explícito, usa all.',
+            'description' => 'Devuelve conteos agrupados por estatus, departamento, tramite, empleado asignado o fecha; no devuelve filas, folios ni fechas individuales. Usala para conteos, rankings y tendencias. Admite rangos personalizados mediante date_field, date_from y date_to.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'group_by', 'sort', 'limit'],
@@ -82,7 +82,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'get_requirement_detail', 'strict' => true,
-            'description' => 'Obtiene la ficha de un folio o id autorizado, con estatus, tramite, departamento, asignado, fechas y conteos de actividad.',
+            'description' => 'Obtiene la ficha de un folio o id autorizado, con estatus, tramite, departamento, asignado, fecha de creacion y conteos de actividad. La fecha de cierre solo aparece si el estatus actual es Finalizado.',
             'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['id', 'folio'], 'properties' => $requirementKey],
         ],
         [

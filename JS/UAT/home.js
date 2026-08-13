@@ -73,25 +73,25 @@ import {
 import { createTable } from "/JS/UAT/ui/table.js";
 import { LineChart } from "/JS/UAT/charts/line-chart.js";
 import { DonutChart } from "/JS/UAT/charts/donut-chart.js";
-import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=dataset-query-7";
+import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=dataset-query-8";
 
 /* === API de usuarios (empleados) === */
 import { getEmpleadoById, updateEmpleado } from "/JS/UAT/api/usuarios.js";
 
 const INSIGHTS_CONFIG = {
   apiUrl: "/db/ixtla_insights/gpt_probe.php",
-  frontendBuild: "dataset-query-7",
+  frontendBuild: "dataset-query-8",
   simpleMode: true,
   quickQuestions: [
     {
       label: "Riesgo operativo",
-      description: "Estatus, pendientes, vencimientos y prioridades.",
+      description: "Estatus, antigüedad, carga y responsables.",
       prompt: "Analiza la carga operativa de este mes dentro de mi alcance autorizado: indica requerimientos activos, pausados, finalizados y sin responsable; identifica los cinco trámites con mayor carga y los folios activos más antiguos, y dame una recomendación basada en los datos disponibles. Usa sólo datos reales y señala cualquier dato no disponible.",
       primary: true,
     },
     {
       label: "Cartera y rezago",
-      prompt: "Elabora un diagnóstico de cartera dentro de mi alcance autorizado: pendientes activos por antigüedad y prioridad, cuántos no tienen responsable, responsables con mayor carga y los cinco trámites con más pendientes. Cierra con una recomendación accionable y no inventes cifras.",
+      prompt: "Elabora un diagnóstico de cartera dentro de mi alcance autorizado: pendientes activos por antigüedad, cuántos no tienen responsable, responsables con mayor carga y los cinco trámites con más pendientes. Cierra con una recomendación accionable y no inventes cifras.",
     },
     {
       label: "Tendencia 30 días",

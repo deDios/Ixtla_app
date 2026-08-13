@@ -114,12 +114,13 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments):
 function ixtla_insights_conversation_context_text(array $state): string
 {
     $context = is_array($state['analytics_context'] ?? null) ? $state['analytics_context'] : [];
-    $summary = trim((string) ($state['summary'] ?? ''));
-    if ($context === [] && $summary === '') {
+    if ($context === []) {
         return '';
     }
+    // El historial textual ya se envia por separado. Repetir aqui la ultima
+    // pregunta y respuesta puede sobreponderarlas o contradecir una version
+    // truncada; este bloque contiene solamente estado analitico verificable.
     return json_encode([
-        'summary' => $summary,
         'analytics_context' => $context,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
 }

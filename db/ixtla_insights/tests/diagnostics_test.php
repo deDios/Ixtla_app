@@ -114,6 +114,8 @@ expect_diagnostic(ixtla_insights_task_status_label(5) === 'Bloqueado', 'El asist
 expect_diagnostic(str_contains($domainPrompt, 'snapshot analitico'), 'El perfil debe priorizar el dataset cacheado.');
 expect_diagnostic(str_contains($domainPrompt, 'personal municipal no tecnico'), 'El perfil debe ocultar lenguaje interno en respuestas para usuario final.');
 expect_diagnostic(str_contains($domainPrompt, 'created_at significa fecha de creacion'), 'El perfil debe traducir campos internos a lenguaje natural.');
+expect_diagnostic(str_contains($domainPrompt, 'estatus actual registrado es la fuente de verdad'), 'El perfil debe separar la regla operativa de la fuente de verdad para reportes.');
+expect_diagnostic(str_contains($domainPrompt, 'si la pregunta continua o hace referencia al resultado anterior'), 'El perfil debe dar precedencia temporal a los seguimientos.');
 expect_diagnostic(str_contains($domainPrompt, 'sin exceder el límite configurado por turno'), 'El perfil debe respetar el límite de herramientas definido en configuración.');
 expect_diagnostic(!str_contains(mb_strtolower($domainPrompt), 'prioridad alta'), 'El perfil no debe reintroducir niveles de prioridad.');
 
@@ -138,6 +140,15 @@ expect_diagnostic(($standardControls['temperature'] ?? null) === $configuredTemp
 $toolContract = json_encode(ixtla_insights_tool_definitions(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 expect_diagnostic(is_string($toolContract) && !str_contains(mb_strtolower($toolContract), 'prioridad'), 'El contrato publico de herramientas no debe exponer prioridad.');
 expect_diagnostic(is_string($toolContract) && !str_contains(mb_strtolower($toolContract), 'deadline'), 'El contrato publico de herramientas no debe exponer fecha_limite ni filtros de vencimiento.');
+expect_diagnostic(is_string($toolContract) && str_contains($toolContract, 'no devuelve filas, folios ni fechas individuales'), 'La herramienta de agregacion debe declarar que no entrega detalles individuales.');
+expect_diagnostic(is_string($toolContract) && str_contains($toolContract, 'fecha de cierre solo aparece si el estatus actual es Finalizado'), 'Las herramientas deben documentar la regla publica de fecha de cierre.');
+
+$contextWithoutDuplicateSummary = ixtla_insights_conversation_context_text([
+    'summary' => 'Ultima pregunta y respuesta duplicadas',
+    'analytics_context' => ['period' => 'this_week'],
+]);
+expect_diagnostic(!str_contains($contextWithoutDuplicateSummary, 'Ultima pregunta'), 'El contexto estructurado no debe duplicar el historial textual.');
+expect_diagnostic(str_contains($contextWithoutDuplicateSummary, 'this_week'), 'El contexto estructurado debe conservar los filtros analiticos.');
 
 $directQuestions = [
     'Cuanto es 25% de 480?',
@@ -217,10 +228,53 @@ $thisWeekArguments = ixtla_insights_apply_default_period(
 );
 expect_diagnostic(($thisWeekArguments['period'] ?? null) === 'this_week', 'La semana actual debe imponerse como periodo cuando el usuario la solicita.');
 
+$followUpArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    [
+        'period' => 'all', 'department_id' => 0, 'department_ids' => [], 'department_names' => [],
+        'assignee_id' => 0, 'assignee_ids' => [], 'tramite_ids' => [], 'status_ids' => [],
+        'assignee_state' => 'any', 'date_field' => 'created_at', 'date_from' => null, 'date_to' => null,
+    ],
+    'De que fecha son esos requerimientos?',
+    [
+        'period' => 'this_week',
+        'last_filters' => [
+            'period' => 'this_week', 'department_names' => ['Ecologia'], 'status_ids' => [2],
+            'date_field' => 'created_at', 'date_from' => null, 'date_to' => null,
+        ],
+    ]
+);
+expect_diagnostic(($followUpArguments['period'] ?? null) === 'this_week', 'Un seguimiento debe conservar el periodo de la consulta anterior.');
+expect_diagnostic(($followUpArguments['department_names'] ?? []) === ['Ecologia'], 'Un seguimiento debe conservar el departamento anterior.');
+expect_diagnostic(($followUpArguments['status_ids'] ?? []) === [2], 'Un seguimiento debe conservar los estatus anteriores.');
+expect_diagnostic(ixtla_insights_question_reuses_previous_result('De que fecha son esos requerimientos?'), 'El enrutador debe reconocer referencias al resultado anterior.');
+expect_diagnostic(ixtla_insights_question_requires_row_details('De que fecha son esos requerimientos?'), 'Una pregunta por fechas anteriores debe solicitar filas detalladas.');
+expect_diagnostic(!ixtla_insights_question_requires_row_details('Dame el estatus de Ecologia esta semana'), 'Una consulta independiente de estatus no debe forzar una lista detallada.');
+
 $julyRange = ixtla_insights_question_requested_date_range('¿Qué porcentaje de los creados en julio de 2026 está finalizado?');
 expect_diagnostic($julyRange === ['date_field' => 'created_at', 'date_from' => '2026-07-01', 'date_to' => '2026-07-31'], 'Un mes explícito debe convertirse en un rango completo sobre fecha de creación.');
 $closedJulyRange = ixtla_insights_question_requested_date_range('¿Cuántos fueron cerrados durante julio de 2026?');
 expect_diagnostic(($closedJulyRange['date_field'] ?? null) === 'closed_at', 'Las preguntas de cierres deben filtrar por fecha de cierre.');
+expect_diagnostic(ixtla_insights_question_requires_finalized_status('Dame los requerimientos cerrados en julio'), 'Una consulta de cerrados debe exigir el estatus Finalizado.');
+expect_diagnostic(ixtla_insights_question_requires_finalized_status('Cuantos requerimientos estan finalizados?'), 'Una consulta de finalizados debe exigir el estatus Finalizado.');
+expect_diagnostic(!ixtla_insights_question_requires_finalized_status('Dame los requerimientos no finalizados'), 'Una consulta negativa no debe convertirse en una busqueda de finalizados.');
+$finalizedArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    ['period' => 'all', 'status_ids' => [2, 6], 'date_field' => 'closed_at', 'date_from' => null, 'date_to' => null],
+    'Dame los requerimientos finalizados',
+    []
+);
+expect_diagnostic(($finalizedArguments['status_ids'] ?? []) === [6], 'El servidor debe excluir cualquier estatus distinto de Finalizado aunque exista fecha de cierre.');
+$nonFinalizedPublicRecord = ixtla_insights_snapshot_public_record([
+    'id' => 10, 'status_id' => 3, 'status' => 'En proceso',
+    'created_at' => '2026-08-01 10:00:00', 'closed_at' => '2026-08-02 12:00:00',
+]);
+expect_diagnostic(!array_key_exists('closed_at', $nonFinalizedPublicRecord), 'La salida publica debe ocultar la fecha de cierre si el requerimiento no esta Finalizado.');
+$finalizedPublicRecord = ixtla_insights_snapshot_public_record([
+    'id' => 11, 'status_id' => 6, 'status' => 'Finalizado',
+    'created_at' => '2026-08-01 10:00:00', 'closed_at' => '2026-08-02 12:00:00',
+]);
+expect_diagnostic(($finalizedPublicRecord['closed_at'] ?? null) === '2026-08-02 12:00:00', 'La salida publica debe conservar la fecha de cierre de un requerimiento Finalizado.');
 expect_diagnostic(ixtla_insights_snapshot_valid_date('2026-07-31'), 'El filtro debe aceptar fechas de calendario válidas.');
 expect_diagnostic(!ixtla_insights_snapshot_valid_date('2026-02-30'), 'El filtro debe rechazar fechas inexistentes.');
 expect_diagnostic(

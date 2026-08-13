@@ -106,6 +106,25 @@ function ixtla_insights_question_requested_date_range(string $question): ?array
 }
 
 /**
+ * Finalizado es un estado de negocio, no la mera presencia de una fecha de
+ * cierre. Devuelve el filtro obligatorio cuando la pregunta pide casos
+ * cerrados/finalizados de forma afirmativa.
+ */
+function ixtla_insights_question_requires_finalized_status(string $question): bool
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    $mentionsFinalized = preg_match(
+        '/\b(finalizado|finalizados|finalizada|finalizadas|cerrado|cerrados|cerrada|cerradas|cerraron|cierre|cierres)\b/',
+        $normalized
+    ) === 1;
+    $negatesFinalized = preg_match(
+        '/\b(no (?:esta|estan|fue|fueron|se encuentra|se encuentran)?\s*(?:finalizado|finalizados|finalizada|finalizadas|cerrado|cerrados|cerrada|cerradas)|sin finalizar|no finalizados|excepto finalizados)\b/',
+        $normalized
+    ) === 1;
+    return $mentionsFinalized && !$negatesFinalized;
+}
+
+/**
  * Impone el periodo general para consultas sin referencia temporal. La regla
  * vive en servidor para no depender de que el modelo elija correctamente all.
  */
@@ -140,6 +159,100 @@ function ixtla_insights_apply_default_period(string $toolName, array $arguments,
             $arguments['period'] = 'all';
         }
     }
+    return $arguments;
+}
+
+/** Detecta seguimientos que hacen referencia al resultado o alcance anterior. */
+function ixtla_insights_question_reuses_previous_result(string $question): bool
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    return preg_match(
+        '/\b(esos|esas|estos|estas|los anteriores|las anteriores|los mismos|las mismas|ese resultado|esa consulta|de que fecha|que fecha|cuales son|muestramelos|muestramelas|detallalos|detallalas|hazlo|lo mismo|ahora)\b/',
+        $normalized
+    ) === 1;
+}
+
+/** Un seguimiento de este tipo necesita filas, no solamente otro agregado. */
+function ixtla_insights_question_requires_row_details(string $question): bool
+{
+    if (!ixtla_insights_question_reuses_previous_result($question)) {
+        return false;
+    }
+    $normalized = ixtla_insights_normalize_match_text($question);
+    return preg_match(
+        '/\b(fecha|fechas|folio|folios|cuales son|muestramelos|muestramelas|detalle|detalles|detallalos|detallalas)\b/',
+        $normalized
+    ) === 1;
+}
+
+/**
+ * Completa una llamada de herramienta con el alcance analitico previo.
+ * Los valores explicitos de la pregunta actual siempre tienen precedencia.
+ */
+function ixtla_insights_prepare_tool_arguments(
+    string $toolName,
+    array $arguments,
+    string $question,
+    array $analyticsContext = []
+): array {
+    $reusesPrevious = ixtla_insights_question_reuses_previous_result($question);
+    $previousFilters = is_array($analyticsContext['last_filters'] ?? null)
+        ? $analyticsContext['last_filters']
+        : [];
+
+    if ($reusesPrevious && in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)) {
+        $listKeys = ['department_ids', 'department_names', 'assignee_ids', 'tramite_ids', 'status_ids'];
+        foreach ($listKeys as $key) {
+            $current = is_array($arguments[$key] ?? null) ? $arguments[$key] : [];
+            $previous = is_array($previousFilters[$key] ?? null) ? $previousFilters[$key] : [];
+            if ($current === [] && $previous !== []) {
+                $arguments[$key] = $previous;
+            }
+        }
+
+        foreach (['department_id', 'assignee_id'] as $key) {
+            if ((int) ($arguments[$key] ?? 0) <= 0 && (int) ($previousFilters[$key] ?? 0) > 0) {
+                $arguments[$key] = (int) $previousFilters[$key];
+            }
+        }
+
+        if (($arguments['assignee_state'] ?? 'any') === 'any'
+            && isset($previousFilters['assignee_state'])
+            && $previousFilters['assignee_state'] !== 'any') {
+            $arguments['assignee_state'] = $previousFilters['assignee_state'];
+        }
+
+        if (!ixtla_insights_question_has_explicit_period($question)) {
+            $previousPeriod = (string) ($previousFilters['period'] ?? $analyticsContext['period'] ?? '');
+            if (in_array($previousPeriod, ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true)) {
+                $arguments['period'] = $previousPeriod;
+            }
+            foreach (['date_field', 'date_from', 'date_to'] as $key) {
+                if (array_key_exists($key, $previousFilters)) {
+                    $arguments[$key] = $previousFilters[$key];
+                }
+            }
+        }
+    }
+
+    if (in_array($toolName, ['search_requirements', 'aggregate_requirements'], true)
+        && ixtla_insights_question_requires_finalized_status($question)) {
+        // La regla de negocio prevalece incluso si el modelo envio otros
+        // estatus junto con una fecha de cierre.
+        $arguments['status_ids'] = [6];
+    }
+
+    $arguments = ixtla_insights_apply_default_period($toolName, $arguments, $question);
+
+    // apply_default_period usa todo el historial para preguntas independientes;
+    // en un seguimiento debe conservarse el periodo heredado.
+    if ($reusesPrevious && !ixtla_insights_question_has_explicit_period($question)) {
+        $previousPeriod = (string) ($previousFilters['period'] ?? $analyticsContext['period'] ?? '');
+        if (in_array($previousPeriod, ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true)) {
+            $arguments['period'] = $previousPeriod;
+        }
+    }
+
     return $arguments;
 }
 

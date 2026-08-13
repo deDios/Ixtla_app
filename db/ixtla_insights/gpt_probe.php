@@ -47,7 +47,13 @@ consola_debug('gpt_probe.history_size', [
     'characters' => array_sum(array_map(static fn (array $message): int => mb_strlen((string) ($message['content'] ?? '')), $history)),
 ]);
 
-$probeResult = ixtla_insights_probe_openai_text($config, $question, $history, ixtla_insights_conversation_context_text($conversation));
+$probeResult = ixtla_insights_probe_openai_text(
+    $config,
+    $question,
+    $history,
+    ixtla_insights_conversation_context_text($conversation),
+    is_array($conversation['analytics_context'] ?? null) ? $conversation['analytics_context'] : []
+);
 $answer = $probeResult['answer'];
 ixtla_insights_conversation_append($conversation, $config, $question, $answer);
 consola_debug('gpt_probe.answer_ready', [
@@ -68,7 +74,7 @@ ixtla_insights_json([
  * Adaptador HTTP para Responses API. No acepta instrucciones ni historial del
  * navegador como fuente de autoridad; ambos se normalizan en el servidor.
  */
-function ixtla_insights_probe_openai_text(array $config, string $question, array $history = [], string $conversationContext = ''): array
+function ixtla_insights_probe_openai_text(array $config, string $question, array $history = [], string $conversationContext = '', array $analyticsContext = []): array
 {
     if (!function_exists('curl_init')) {
         ixtla_insights_json(['ok' => false, 'error' => 'La extension cURL no esta disponible.'], 500);
@@ -111,7 +117,9 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
     // modo auto y el servidor sigue impidiendo respuestas sin evidencia.
     if ($requiresData) {
         $payload['tools'] = ixtla_insights_tool_definitions();
-        $payload['tool_choice'] = ixtla_insights_question_tool_choice($question, $hasDatasetContext);
+        $payload['tool_choice'] = $analyticsContext !== [] && ixtla_insights_question_requires_row_details($question)
+            ? ['type' => 'function', 'name' => 'search_requirements']
+            : ixtla_insights_question_tool_choice($question, $hasDatasetContext);
     }
     $encodedPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($encodedPayload === false) {
@@ -190,10 +198,11 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         $outputs = [];
         foreach ($toolCalls as $toolCall) {
             $arguments = json_decode((string) $toolCall['arguments'], true);
-            $arguments = ixtla_insights_apply_default_period(
+            $arguments = ixtla_insights_prepare_tool_arguments(
                 (string) $toolCall['name'],
                 is_array($arguments) ? $arguments : [],
-                $question
+                $question,
+                $analyticsContext
             );
             try {
                 $result = ixtla_insights_execute_tool((string) $toolCall['name'], $arguments);
