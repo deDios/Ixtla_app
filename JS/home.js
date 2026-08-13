@@ -73,9 +73,40 @@ import {
 import { createTable } from "/JS/ui/table.js";
 import { LineChart } from "/JS/charts/line-chart.js";
 import { DonutChart } from "/JS/charts/donut-chart.js";
+import { mountIxtlaInsights } from "/JS/insights/chat.js?v=dataset-query-13";
 
 /* === API de usuarios (empleados) === */
 import { getEmpleadoById, updateEmpleado } from "/JS/api/usuarios.js";
+
+const INSIGHTS_CONFIG = {
+  apiUrl: "/db/ixtla_insights/gpt_probe.php",
+  frontendBuild: "dataset-query-13",
+  simpleMode: true,
+  quickQuestions: [
+    {
+      label: "Riesgo operativo",
+      description: "Estatus, antigüedad, carga y responsables.",
+      prompt: "Analiza la carga operativa de este mes dentro de mi alcance autorizado: indica requerimientos activos, pausados, finalizados y sin responsable; identifica los cinco trámites con mayor carga y los folios activos más antiguos, y dame una recomendación basada en los datos disponibles. Usa sólo datos reales y señala cualquier dato no disponible.",
+      primary: true,
+    },
+    {
+      label: "Cartera y rezago",
+      prompt: "Elabora un diagnóstico de cartera dentro de mi alcance autorizado: pendientes activos por antigüedad, cuántos no tienen responsable, responsables con mayor carga y los cinco trámites con más pendientes. Cierra con una recomendación accionable y no inventes cifras.",
+    },
+    {
+      label: "Tendencia 30 días",
+      prompt: "Compara los últimos 30 días contra los 30 anteriores dentro de mi alcance autorizado. Indica la variación de la demanda, los días pico, los cinco trámites que más contribuyeron y una conclusión breve. No inventes cifras.",
+    },
+    {
+      label: "Trámites con más carga",
+      prompt: "¿Cuáles son los cinco trámites con mayor volumen de requerimientos este mes dentro de mi alcance autorizado? No inventes cifras.",
+    },
+    {
+      label: "¿Qué puedo consultar?",
+      prompt: "¿Qué tipos de reportes y datos puedo consultar dentro de mi alcance autorizado? Dame ejemplos breves.",
+    },
+  ],
+};
 
 /*-------- export para excel -------*/
 //import { initExportCSVHome } from "/JS/ui/exportCSVHome.js";
@@ -145,6 +176,15 @@ function chevronSvg() {
 function safeTxt(v, fallback = "—") {
   const s = String(v ?? "").trim();
   return s ? s : fallback;
+}
+
+function publishInsightsContext(rows = []) {
+  const scopeLabel = State?.filterKey && State.filterKey !== "todos"
+    ? `el filtro “${State.filterKey}” de tu vista`
+    : "la vista actual autorizada";
+  const detail = { domain: "requerimientos", scopeLabel, rows: Array.isArray(rows) ? rows : [] };
+  window.__ixtlaInsightsContext = detail;
+  document.dispatchEvent(new CustomEvent("ixtla-insights:context", { detail }));
 }
 
 function formatFolio(folio, id) {
@@ -1440,6 +1480,7 @@ function applyPipelineAndRender() {
 
   updateExportButtonState(filtered.length);
   renderPagerClassic(filtered.length);
+  publishInsightsContext(filtered);
 
   log("pipeline", {
     filtroStatus: State.filterKey,
@@ -1881,6 +1922,7 @@ async function refreshHomeRequerimientos() {
 
 window.addEventListener("DOMContentLoaded", async () => {
   try {
+    mountIxtlaInsights(INSIGHTS_CONFIG);
     readSession();
     await hydrateProfileFromSession();
     ensureEditProfileButton();

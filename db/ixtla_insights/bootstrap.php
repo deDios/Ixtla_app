@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../JS/UAT/auth/ix_guard.php';
+require_once __DIR__ . '/../../JS/auth/ix_guard.php';
 require_once __DIR__ . '/../conn/ixtla_insights_config.php';
 require_once __DIR__ . '/contracts.php';
 require_once __DIR__ . '/domain_profile.php';
@@ -41,7 +41,7 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
             ? (string) $_SERVER['HTTP_X_IXTLA_INSIGHTS_ATTEMPT']
             : '',
     ]);
-    ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
+    ix_require_session(['login_url' => '/VIEWS/login.php']);
     consola_debug('bootstrap.session_accepted');
     header('Content-Type: application/json; charset=utf-8');
 
