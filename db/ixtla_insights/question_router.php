@@ -33,10 +33,10 @@ function ixtla_insights_question_intent(string $question, bool $hasDatasetContex
         '/\b(reporte|informe|resumen|diagnostico|analisis|analiza|reporta)\b/',
         $normalized
     ) === 1;
-    $isDatasetFollowUp = $hasDatasetContext && preg_match(
-        '/\b(hazlo|lo mismo|pendiente|pendientes|vencido|vencidos|vencida|vencidas|finalizado|finalizados|riesgo|activos|activas|comentario|comentarios|proceso|procesos|tarea|tareas)\b/',
+    $isDatasetFollowUp = $hasDatasetContext && (preg_match(
+        '/\b(hazlo|lo mismo|hay mas|siguientes|siguiente pagina|continua|continuar|fuera de|antes de|otras semanas|semanas anteriores|todo el historial|pendiente|pendientes|vencido|vencidos|vencida|vencidas|finalizado|finalizados|riesgo|activos|activas|comentario|comentarios|proceso|procesos|tarea|tareas)\b/',
         $normalized
-    ) === 1;
+    ) === 1 || ixtla_insights_question_is_temporal_followup($question));
 
     if (!$hasExplicitFolio && $hasUnusedDeadlineReference) {
         return 'conceptual';
@@ -62,47 +62,236 @@ function ixtla_insights_probe_requires_data(string $question, bool $hasDatasetCo
 /** Detecta si el usuario limitó explícitamente la consulta a un periodo. */
 function ixtla_insights_question_has_explicit_period(string $question): bool
 {
-    $normalized = ixtla_insights_normalize_match_text($question);
-    return preg_match(
-        '/\b(hoy|ayer|esta semana|semana actual|ultima semana|ultimas? \d+ semanas|ultimos? \d+ dias|este mes|ultimo mes|mes pasado|mes actual|mes en curso|ultimos? \d+ meses|este ano|ano pasado|ano actual|todo el historial|toda la historia|desde|hasta|entre|durante|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|20\d{2})\b/',
-        $normalized
-    ) === 1;
+    return ixtla_insights_question_requested_period($question) !== null
+        || ixtla_insights_question_requested_date_range($question) !== null;
 }
 
 /** Traduce expresiones temporales soportadas al periodo cerrado del dataset. */
 function ixtla_insights_question_requested_period(string $question): ?string
 {
     $normalized = ixtla_insights_normalize_match_text($question);
-    if (preg_match('/\b(todo el historial|toda la historia)\b/', $normalized) === 1) return 'all';
+    if (preg_match('/\b(todo el historial|toda la historia|todas las semanas|incluyendo otras semanas)\b/', $normalized) === 1) return 'all';
     if (preg_match('/\b(esta semana|semana actual)\b/', $normalized) === 1) return 'this_week';
     if (preg_match('/\b(ultimos? 7 dias|ultima semana)\b/', $normalized) === 1) return 'last_7';
-    if (preg_match('/\b(ultimos? 30 dias|ultimo mes|mes pasado)\b/', $normalized) === 1) return 'last_30';
+    if (preg_match('/\b(ultimos? 30 dias|ultimo mes)\b/', $normalized) === 1) return 'last_30';
     if (preg_match('/\b(este mes|mes actual|mes en curso)\b/', $normalized) === 1) return 'this_month';
     return null;
 }
 
 /** Resuelve un mes mencionado a un rango ISO; sin año usa su ocurrencia más reciente. */
-function ixtla_insights_question_requested_date_range(string $question): ?array
+function ixtla_insights_temporal_date_field(string $normalized): string
+{
+    if (preg_match('/\b(creado|creados|creada|creadas|registrado|registrados|registrada|registradas|ingresado|ingresados)\b/', $normalized) === 1) {
+        return 'created_at';
+    }
+    return preg_match('/\b(cerrado|cerrados|cerrada|cerradas|cerraron|cierre|cierres|finalizado|finalizados|finalizada|finalizadas)\b/', $normalized) === 1
+        ? 'closed_at'
+        : 'created_at';
+}
+
+function ixtla_insights_temporal_quantity(string $value): int
+{
+    if (ctype_digit($value)) return (int) $value;
+    return [
+        'un' => 1, 'uno' => 1, 'una' => 1, 'dos' => 2, 'tres' => 3, 'cuatro' => 4,
+        'cinco' => 5, 'seis' => 6, 'siete' => 7, 'ocho' => 8, 'nueve' => 9,
+        'diez' => 10, 'once' => 11, 'doce' => 12,
+    ][$value] ?? 1;
+}
+
+function ixtla_insights_temporal_iso_date(string $value, DateTimeZone $timezone): ?DateTimeImmutable
+{
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value, $timezone);
+    $errors = DateTimeImmutable::getLastErrors();
+    if (!$date instanceof DateTimeImmutable
+        || (is_array($errors) && ((int) $errors['warning_count'] > 0 || (int) $errors['error_count'] > 0))
+        || $date->format('Y-m-d') !== $value) {
+        return null;
+    }
+    return $date;
+}
+
+/** Devuelve un mensaje explicito cuando una fecha no debe autocorregirse. */
+function ixtla_insights_question_temporal_validation_error(string $question): ?string
 {
     $normalized = ixtla_insights_normalize_match_text($question);
+    $dateText = mb_strtolower(trim($question), 'UTF-8');
+    if (preg_match_all('/\b20\d{2}-\d{2}-\d{2}\b/', $dateText, $matches) > 0) {
+        $timezone = new DateTimeZone(date_default_timezone_get());
+        foreach ($matches[0] as $date) {
+            if (ixtla_insights_temporal_iso_date($date, $timezone) === null) {
+                return 'La fecha ' . $date . ' no existe. Indica una fecha valida en formato AAAA-MM-DD.';
+            }
+        }
+        if (count($matches[0]) >= 2 && $matches[0][0] > $matches[0][1]) {
+            return 'El inicio del rango no puede ser posterior a la fecha final.';
+        }
+    }
+
+    $quantity = '(\d+|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)';
+    if (preg_match('/\b(?:hace|ultimos?|ultimas?)\s+' . $quantity . '\s+(dias?|semanas?|meses?|anos?)\b/', $normalized, $match) === 1) {
+        $amount = ixtla_insights_temporal_quantity($match[1]);
+        if ($amount < 1) return 'El periodo debe ser mayor que cero.';
+        $maximum = str_starts_with($match[2], 'dia') ? 3660
+            : (str_starts_with($match[2], 'semana') ? 520
+            : (str_starts_with($match[2], 'mes') ? 120 : 10));
+        if ($amount > $maximum) {
+            return 'El periodo solicitado es demasiado amplio. Usa un rango de fechas explicito.';
+        }
+    }
+    return null;
+}
+
+/** Resuelve expresiones temporales a limites ISO inclusivos. */
+function ixtla_insights_question_requested_date_range(string $question, ?DateTimeImmutable $now = null): ?array
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    $dateText = mb_strtolower(trim($question), 'UTF-8');
+    $today = ($now ?? new DateTimeImmutable('now'))->setTime(0, 0);
+    $field = ixtla_insights_temporal_date_field($normalized);
+    $makeRange = static fn (?DateTimeImmutable $from, ?DateTimeImmutable $to): array => [
+        'date_field' => $field,
+        'date_from' => $from?->format('Y-m-d'),
+        'date_to' => $to?->format('Y-m-d'),
+    ];
+
+    if (preg_match('/\b(20\d{2}-\d{2}-\d{2})\s+(?:a|al|hasta|y)\s+(20\d{2}-\d{2}-\d{2})\b/', $dateText, $matches) === 1) {
+        $from = ixtla_insights_temporal_iso_date($matches[1], $today->getTimezone());
+        $to = ixtla_insights_temporal_iso_date($matches[2], $today->getTimezone());
+        if ($from instanceof DateTimeImmutable && $to instanceof DateTimeImmutable && $from <= $to) {
+            return $makeRange($from, $to);
+        }
+    }
+    if (preg_match('/\bdesde\s+(20\d{2}-\d{2}-\d{2})\b/', $dateText, $matches) === 1) {
+        $from = ixtla_insights_temporal_iso_date($matches[1], $today->getTimezone());
+        if ($from instanceof DateTimeImmutable) {
+            return $makeRange($from, $today);
+        }
+        return null;
+    }
+    if (preg_match('/\bhasta\s+(20\d{2}-\d{2}-\d{2})\b/', $dateText, $matches) === 1) {
+        $to = ixtla_insights_temporal_iso_date($matches[1], $today->getTimezone());
+        if ($to instanceof DateTimeImmutable) {
+            return $makeRange(null, $to);
+        }
+        return null;
+    }
+
+    if (preg_match('/\b(fuera de esta semana|antes de esta semana|semanas anteriores|semanas previas)\b/', $normalized) === 1) {
+        return $makeRange(null, $today->modify('monday this week')->modify('-1 day'));
+    }
+    if (preg_match('/\bhoy\b/', $normalized) === 1) return $makeRange($today, $today);
+    if (preg_match('/\bayer\b/', $normalized) === 1) {
+        $yesterday = $today->modify('-1 day');
+        return $makeRange($yesterday, $yesterday);
+    }
+    if (preg_match('/\b(semana pasada|semana anterior)\b/', $normalized) === 1) {
+        $from = $today->modify('monday this week')->modify('-1 week');
+        return $makeRange($from, $from->modify('+6 days'));
+    }
+
+    $quantity = '(\d+|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)';
+    if (preg_match('/\bhace\s+' . $quantity . '\s+dias?\b/', $normalized, $matches) === 1) {
+        $day = $today->modify('-' . ixtla_insights_temporal_quantity($matches[1]) . ' days');
+        return $makeRange($day, $day);
+    }
+    if (preg_match('/\bultimos?\s+' . $quantity . '\s+dias?\b/', $normalized, $matches) === 1) {
+        $days = ixtla_insights_temporal_quantity($matches[1]);
+        return $makeRange($today->modify('-' . ($days - 1) . ' days'), $today);
+    }
+    if (preg_match('/\bhace\s+' . $quantity . '\s+semanas?\b/', $normalized, $matches) === 1) {
+        $weeks = ixtla_insights_temporal_quantity($matches[1]);
+        $from = $today->modify('monday this week')->modify('-' . $weeks . ' weeks');
+        return $makeRange($from, $from->modify('+6 days'));
+    }
+    if (preg_match('/\bultimas?\s+' . $quantity . '\s+semanas?\b/', $normalized, $matches) === 1) {
+        $days = ixtla_insights_temporal_quantity($matches[1]) * 7;
+        return $makeRange($today->modify('-' . ($days - 1) . ' days'), $today);
+    }
+
     $months = [
         'enero' => 1, 'febrero' => 2, 'marzo' => 3, 'abril' => 4,
         'mayo' => 5, 'junio' => 6, 'julio' => 7, 'agosto' => 8,
         'septiembre' => 9, 'octubre' => 10, 'noviembre' => 11, 'diciembre' => 12,
     ];
-    if (preg_match('/\b(' . implode('|', array_keys($months)) . ')(?:\s+de)?(?:\s+(20\d{2}))?\b/', $normalized, $matches) !== 1) {
-        return null;
+    $hasCompoundMonthExpression = preg_match('/\b(quincena|de\s+(?:' . implode('|', array_keys($months)) . ')\s+a\s+(?:' . implode('|', array_keys($months)) . '))\b/', $normalized) === 1;
+    if (!$hasCompoundMonthExpression && preg_match('/\b(' . implode('|', array_keys($months)) . ')(?:\s+de)?(?:\s+(20\d{2}))?\b/', $normalized, $matches) === 1) {
+        $month = $months[$matches[1]];
+        $year = isset($matches[2]) && $matches[2] !== '' ? (int) $matches[2] : (int) $today->format('Y');
+        if ((!isset($matches[2]) || $matches[2] === '') && $month > (int) $today->format('n')) $year--;
+        $from = new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month), $today->getTimezone());
+        return $makeRange($from, $from->modify('last day of this month'));
     }
-    $month = $months[$matches[1]];
-    $currentYear = (int) date('Y');
-    $year = isset($matches[2]) && $matches[2] !== '' ? (int) $matches[2] : $currentYear;
-    if ((!isset($matches[2]) || $matches[2] === '') && $month > (int) date('n')) $year--;
-    $from = sprintf('%04d-%02d-01', $year, $month);
-    $to = date('Y-m-t', strtotime($from));
-    $dateField = preg_match('/\b(cerrado|cerrados|cerrada|cerradas|cerraron|cierre|finalizados durante|finalizadas durante)\b/', $normalized) === 1
-        ? 'closed_at'
-        : 'created_at';
-    return ['date_field' => $dateField, 'date_from' => $from, 'date_to' => $to];
+    if (preg_match('/\b(mes pasado|mes anterior|ultimo mes calendario)\b/', $normalized) === 1) {
+        $from = $today->modify('first day of this month')->modify('-1 month');
+        return $makeRange($from, $from->modify('last day of this month'));
+    }
+    if (preg_match('/\bhace\s+' . $quantity . '\s+meses?\b/', $normalized, $matches) === 1) {
+        $monthsAgo = ixtla_insights_temporal_quantity($matches[1]);
+        $from = $today->modify('first day of this month')->modify('-' . $monthsAgo . ' months');
+        return $makeRange($from, $from->modify('last day of this month'));
+    }
+    if (preg_match('/\bultimos?\s+' . $quantity . '\s+meses?\b/', $normalized, $matches) === 1) {
+        return $makeRange($today->modify('-' . ixtla_insights_temporal_quantity($matches[1]) . ' months'), $today);
+    }
+
+    if (preg_match('/\b(primer|primera|segundo|segunda)\s+quincena(?:\s+de\s+(' . implode('|', array_keys($months)) . ')(?:\s+de\s+(20\d{2}))?)?\b/', $normalized, $matches) === 1) {
+        $month = isset($matches[2]) && $matches[2] !== '' ? $months[$matches[2]] : (int) $today->format('n');
+        $year = isset($matches[3]) && $matches[3] !== '' ? (int) $matches[3] : (int) $today->format('Y');
+        $from = new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, str_starts_with($matches[1], 'primer') ? 1 : 16), $today->getTimezone());
+        $to = str_starts_with($matches[1], 'primer') ? $from->setDate($year, $month, 15) : $from->modify('last day of this month');
+        return $makeRange($from, $to);
+    }
+    if (preg_match('/\b(primer|primero|segundo|tercer|tercero|cuarto)\s+trimestre(?:\s+de\s+(20\d{2}))?\b/', $normalized, $matches) === 1) {
+        $quarter = ['primer' => 1, 'primero' => 1, 'segundo' => 2, 'tercer' => 3, 'tercero' => 3, 'cuarto' => 4][$matches[1]];
+        $year = isset($matches[2]) && $matches[2] !== '' ? (int) $matches[2] : (int) $today->format('Y');
+        $from = $today->setDate($year, (($quarter - 1) * 3) + 1, 1);
+        return $makeRange($from, $from->modify('+3 months')->modify('-1 day'));
+    }
+    if (preg_match('/\b(primer|primero|segundo)\s+semestre(?:\s+de\s+(20\d{2}))?\b/', $normalized, $matches) === 1) {
+        $first = $matches[1] !== 'segundo';
+        $year = isset($matches[2]) && $matches[2] !== '' ? (int) $matches[2] : (int) $today->format('Y');
+        $from = $today->setDate($year, $first ? 1 : 7, 1);
+        return $makeRange($from, $from->modify('+6 months')->modify('-1 day'));
+    }
+    if (preg_match('/\bde\s+(' . implode('|', array_keys($months)) . ')\s+a\s+(' . implode('|', array_keys($months)) . ')(?:\s+de\s+(20\d{2}))?\b/', $normalized, $matches) === 1) {
+        $year = isset($matches[3]) && $matches[3] !== '' ? (int) $matches[3] : (int) $today->format('Y');
+        $fromMonth = $months[$matches[1]];
+        $toMonth = $months[$matches[2]];
+        if ($fromMonth <= $toMonth) {
+            $from = $today->setDate($year, $fromMonth, 1);
+            $to = $today->setDate($year, $toMonth, 1)->modify('last day of this month');
+            return $makeRange($from, $to);
+        }
+    }
+
+    if (preg_match('/\b(20\d{2})\b/', $normalized, $matches) === 1) {
+        $year = (int) $matches[1];
+        return $makeRange($today->setDate($year, 1, 1), $today->setDate($year, 12, 31));
+    }
+    if (preg_match('/\b(este ano|ano actual|todo el ano)\b/', $normalized) === 1) {
+        return $makeRange($today->setDate((int) $today->format('Y'), 1, 1), $today);
+    }
+    if (preg_match('/\b(ano pasado|ano anterior)\b/', $normalized) === 1) {
+        $year = (int) $today->format('Y') - 1;
+        return $makeRange($today->setDate($year, 1, 1), $today->setDate($year, 12, 31));
+    }
+    if (preg_match('/\bhace\s+' . $quantity . '\s+anos?\b/', $normalized, $matches) === 1) {
+        $year = (int) $today->format('Y') - ixtla_insights_temporal_quantity($matches[1]);
+        return $makeRange($today->setDate($year, 1, 1), $today->setDate($year, 12, 31));
+    }
+    if (preg_match('/\bultimos?\s+' . $quantity . '\s+anos?\b/', $normalized, $matches) === 1) {
+        return $makeRange($today->modify('-' . ixtla_insights_temporal_quantity($matches[1]) . ' years'), $today);
+    }
+    return null;
+}
+
+/** Una frase temporal breve al inicio normalmente modifica la consulta previa. */
+function ixtla_insights_question_is_temporal_followup(string $question): bool
+{
+    if (!ixtla_insights_question_has_explicit_period($question)) return false;
+    $normalized = ixtla_insights_normalize_match_text($question);
+    return preg_match('/^(?:y\s+|ahora\s+|tambien\s+)?(?:de|del|en|para|durante|desde|fuera|antes|hace|ultim|este|esta|el|todo|toda|semana|mes|ano|20\d{2})\b/', $normalized) === 1;
 }
 
 /**
@@ -166,8 +355,8 @@ function ixtla_insights_apply_default_period(string $toolName, array $arguments,
 function ixtla_insights_question_reuses_previous_result(string $question): bool
 {
     $normalized = ixtla_insights_normalize_match_text($question);
-    return preg_match(
-        '/\b(esos|esas|estos|estas|los anteriores|las anteriores|los mismos|las mismas|ese resultado|esa consulta|de que fecha|que fecha|cuales son|muestramelos|muestramelas|detallalos|detallalas|hazlo|lo mismo|ahora)\b/',
+    return ixtla_insights_question_is_temporal_followup($question) || preg_match(
+        '/\b(esos|esas|estos|estas|ese departamento|esa area|del mismo departamento|los anteriores|las anteriores|los mismos|las mismas|ese resultado|esa consulta|hay mas|siguientes|siguiente pagina|continua|continuar|fuera de esta semana|antes de esta semana|semanas anteriores|de que fecha|que fecha|cuales son|muestramelos|muestramelas|detallalos|detallalas|hazlo|lo mismo|ahora)\b/',
         $normalized
     ) === 1;
 }
@@ -180,7 +369,7 @@ function ixtla_insights_question_requires_row_details(string $question): bool
     }
     $normalized = ixtla_insights_normalize_match_text($question);
     return preg_match(
-        '/\b(fecha|fechas|folio|folios|cuales son|muestramelos|muestramelas|detalle|detalles|detallalos|detallalas)\b/',
+        '/\b(fecha|fechas|folio|folios|hay mas|fuera de esta semana|antes de esta semana|semanas anteriores|cuales son|muestramelos|muestramelas|detalle|detalles|detallalos|detallalas)\b/',
         $normalized
     ) === 1;
 }
@@ -196,13 +385,28 @@ function ixtla_insights_prepare_tool_arguments(
     array $analyticsContext = []
 ): array {
     $reusesPrevious = ixtla_insights_question_reuses_previous_result($question);
+    $normalizedQuestion = ixtla_insights_normalize_match_text($question);
     $previousFilters = is_array($analyticsContext['last_filters'] ?? null)
         ? $analyticsContext['last_filters']
         : [];
 
+    if ($toolName === 'search_requirements'
+        && preg_match('/\b(siguientes|siguiente pagina|continua|continuar)\b/', $normalizedQuestion) === 1) {
+        $nextCursor = trim((string) ($analyticsContext['last_query']['next_cursor'] ?? ''));
+        if ($nextCursor !== '') $arguments['cursor'] = $nextCursor;
+    }
+
     if ($reusesPrevious && in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)) {
         $listKeys = ['department_ids', 'department_names', 'assignee_ids', 'tramite_ids', 'status_ids'];
         foreach ($listKeys as $key) {
+            $resetsDimension = match ($key) {
+                'department_ids', 'department_names' => preg_match('/\b(todos los departamentos|todas las areas|sin filtrar departamento)\b/', $normalizedQuestion) === 1,
+                'status_ids' => preg_match('/\b(todos los estatus|cualquier estatus|sin filtrar estatus)\b/', $normalizedQuestion) === 1,
+                'assignee_ids' => preg_match('/\b(todos los responsables|cualquier responsable|sin filtrar responsable)\b/', $normalizedQuestion) === 1,
+                'tramite_ids' => preg_match('/\b(todos los tramites|cualquier tramite|sin filtrar tramite)\b/', $normalizedQuestion) === 1,
+                default => false,
+            };
+            if ($resetsDimension) continue;
             $current = is_array($arguments[$key] ?? null) ? $arguments[$key] : [];
             $previous = is_array($previousFilters[$key] ?? null) ? $previousFilters[$key] : [];
             if ($current === [] && $previous !== []) {
@@ -211,6 +415,10 @@ function ixtla_insights_prepare_tool_arguments(
         }
 
         foreach (['department_id', 'assignee_id'] as $key) {
+            if (($key === 'department_id' && preg_match('/\b(todos los departamentos|todas las areas|sin filtrar departamento)\b/', $normalizedQuestion) === 1)
+                || ($key === 'assignee_id' && preg_match('/\b(todos los responsables|cualquier responsable|sin filtrar responsable)\b/', $normalizedQuestion) === 1)) {
+                continue;
+            }
             if ((int) ($arguments[$key] ?? 0) <= 0 && (int) ($previousFilters[$key] ?? 0) > 0) {
                 $arguments[$key] = (int) $previousFilters[$key];
             }

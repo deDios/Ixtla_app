@@ -15,7 +15,7 @@ declare(strict_types=1);
 function ixtla_insights_domain_profile(): array
 {
     return [
-        'version' => 10,
+        'version' => 13,
         'domain' => 'requerimientos',
         'assistant' => [
             'name' => 'Ixtla Insights',
@@ -102,6 +102,9 @@ function ixtla_insights_domain_profile(): array
         'conversation_rules' => [
             'Para reportes extensos usa Markdown simple y consistente: un titulo principal, subtitulos breves, listas para metricas y una tabla solo cuando compares folios con las mismas columnas. Evita repetir cifras, parrafos demasiado largos, HTML y bloques de codigo.',
             'En un seguimiento reutiliza selected_departments y last_filters del contexto estructurado. Los filtros expresos de la pregunta actual tienen precedencia sobre el contexto anterior.',
+            'Las expresiones temporales de la pregunta actual reemplazan el periodo anterior y conservan los demas filtros del seguimiento. Distingue periodos calendario de periodos moviles: mes pasado es el mes calendario anterior; hace dos semanas es la semana calendario de hace dos semanas; ultimas dos semanas son los ultimos catorce dias; hace dos meses es aquel mes calendario; ultimos dos meses es un rango movil hasta hoy; este ano va del primero de enero a hoy y ano pasado cubre el ano calendario anterior. Fuera de esta semana termina el domingo anterior. Todo el historial elimina los limites de fecha.',
+            'Admite tambien hoy, ayer, hace o ultimos dias, quincenas, trimestres, semestres, rangos entre meses, anos explicitos y fechas AAAA-MM-DD. No autocorrijas fechas inexistentes, cantidades iguales a cero, rangos invertidos ni periodos excesivos; pide un valor valido.',
+            'Cuando el usuario pida los siguientes resultados o continuar, conserva exactamente los filtros de la ultima busqueda y usa su siguiente pagina disponible. No reinicies la lista ni cambies el periodo.',
             'Si el usuario pide fechas, folios, nombres o detalles de los resultados anteriores, usa search_requirements con los mismos filtros y periodo; un agregado previo no contiene el detalle individual y no es motivo para declarar que la informacion no esta disponible.',
             'Palabras como cuánto, cuál, quién, promedio, tiempo o lista no convierten por sí solas una pregunta en una consulta de datos internos.',
             'Cuando el usuario diga "hazlo", "lo mismo", "ahora" o pida repetir un análisis para otro departamento, usa el contexto estructurado para completar la operación previa en esta misma respuesta.',

@@ -65,7 +65,7 @@ function ixtla_insights_conversation_append(array $state, array $config, string 
     return $state;
 }
 
-function ixtla_insights_conversation_apply_tool(string $name, array $arguments): void
+function ixtla_insights_conversation_apply_tool(string $name, array $arguments, array $resultMetadata = []): void
 {
     $config = ixtla_insights_config();
     $state = ixtla_insights_conversation_load($config);
@@ -75,6 +75,14 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments):
     // de salida ni información de ciudadanos. Sirve para resolver seguimientos
     // como “haz lo mismo” o “ahora para …” en un solo turno.
     $context['last_tool_arguments'] = $arguments;
+    $context['last_query'] = [
+        'tool' => $name,
+        'query_id' => trim((string) ($resultMetadata['query_id'] ?? '')) ?: null,
+        'total_matching' => isset($resultMetadata['total_matching']) ? (int) $resultMetadata['total_matching'] : null,
+        'returned' => isset($resultMetadata['returned']) ? (int) $resultMetadata['returned'] : null,
+        'has_more' => isset($resultMetadata['has_more']) ? (bool) $resultMetadata['has_more'] : false,
+        'next_cursor' => trim((string) ($resultMetadata['next_cursor'] ?? '')) ?: null,
+    ];
     if (isset($arguments['period'])) {
         $context['period'] = $arguments['period'];
     }

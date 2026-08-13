@@ -20,6 +20,11 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
     }
 
     $config = ixtla_insights_config();
+    $timezone = trim((string) ($config['timezone'] ?? 'America/Mexico_City'));
+    if (!in_array($timezone, timezone_identifiers_list(), true)) {
+        $timezone = 'America/Mexico_City';
+    }
+    date_default_timezone_set($timezone);
     header('X-Ixtla-Insights-Request-Id: ' . ixtla_insights_request_id());
     header('X-Ixtla-Insights-Version: ' . (string) (ixtla_insights_catalog()['version'] ?? 'unknown'));
     if (($config['build_id'] ?? '') !== '') {

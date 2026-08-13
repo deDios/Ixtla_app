@@ -53,6 +53,7 @@ function ixtla_insights_config(): array
         'provider_url' => $providerUrl,
         'model' => $model,
         'api_key' => $apiKey,
+        'timezone' => ixtla_insights_env_value($openai, 'IXTLA_INSIGHTS_TIMEZONE') ?: 'America/Mexico_City',
 
         // limites del endpoint protegido de preguntas.
         'request_timeout_seconds' => 380,

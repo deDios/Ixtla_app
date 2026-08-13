@@ -133,6 +133,7 @@ expect_diagnostic($configuredHistoryMessageCharacters > 0, 'La configuración de
 expect_diagnostic($configuredHistoryTotalCharacters >= $configuredHistoryMessageCharacters, 'El límite total del historial debe admitir al menos un mensaje completo.');
 expect_diagnostic($configuredMaxOutputTokens > 0, 'La configuración debe definir un límite positivo de salida.');
 expect_diagnostic($configuredTemperature >= 0.0 && $configuredTemperature <= 2.0, 'La temperatura configurada debe estar dentro del rango permitido.');
+expect_diagnostic(($runtimeConfig['timezone'] ?? null) === 'America/Mexico_City', 'El asistente debe usar una zona horaria explicita para periodos relativos.');
 $reasoningControls = ixtla_insights_generation_controls(array_replace($runtimeConfig, ['model' => 'gpt-5-test', 'reasoning_effort' => 'medium']));
 expect_diagnostic(($reasoningControls['reasoning']['effort'] ?? null) === 'medium' && !isset($reasoningControls['temperature']), 'Los modelos de razonamiento deben recibir effort sin temperature.');
 $standardControls = ixtla_insights_generation_controls(array_replace($runtimeConfig, ['model' => 'gpt-4.1', 'reasoning_effort' => 'medium']));
@@ -250,6 +251,123 @@ expect_diagnostic(($followUpArguments['status_ids'] ?? []) === [2], 'Un seguimie
 expect_diagnostic(ixtla_insights_question_reuses_previous_result('De que fecha son esos requerimientos?'), 'El enrutador debe reconocer referencias al resultado anterior.');
 expect_diagnostic(ixtla_insights_question_requires_row_details('De que fecha son esos requerimientos?'), 'Una pregunta por fechas anteriores debe solicitar filas detalladas.');
 expect_diagnostic(!ixtla_insights_question_requires_row_details('Dame el estatus de Ecologia esta semana'), 'Una consulta independiente de estatus no debe forzar una lista detallada.');
+
+$outsideWeekRange = ixtla_insights_question_requested_date_range('Y fuera de esta semana?');
+$expectedPreviousSunday = date('Y-m-d', strtotime('monday this week') - 86400);
+expect_diagnostic(
+    $outsideWeekRange === ['date_field' => 'created_at', 'date_from' => null, 'date_to' => $expectedPreviousSunday],
+    'Fuera de esta semana debe convertirse en un rango anterior a la semana actual.'
+);
+expect_diagnostic(
+    ixtla_insights_question_intent('Y fuera de esta semana?', true) === 'dataset',
+    'Una exclusion temporal debe conservar la intencion de datos del turno anterior.'
+);
+expect_diagnostic(ixtla_insights_question_reuses_previous_result('Hay mas requerimientos de ese departamento?'), 'Ese departamento debe reutilizar el alcance anterior.');
+expect_diagnostic(ixtla_insights_question_requires_row_details('Y fuera de esta semana?'), 'Una ampliacion temporal encadenada debe buscar filas individuales.');
+$outsideWeekArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    [
+        'period' => 'this_week', 'department_id' => 0, 'department_ids' => [], 'department_names' => [],
+        'assignee_id' => 0, 'assignee_ids' => [], 'tramite_ids' => [], 'status_ids' => [],
+        'assignee_state' => 'any', 'date_field' => 'created_at', 'date_from' => null, 'date_to' => null,
+    ],
+    'Y fuera de esta semana?',
+    [
+        'period' => 'this_week',
+        'last_filters' => ['period' => 'this_week', 'department_names' => ['Desarrollo Urbano']],
+    ]
+);
+expect_diagnostic(($outsideWeekArguments['period'] ?? null) === 'all', 'El rango fuera de esta semana no debe conservar this_week.');
+expect_diagnostic(($outsideWeekArguments['department_names'] ?? []) === ['Desarrollo Urbano'], 'El rango ampliado debe conservar el departamento anterior.');
+expect_diagnostic(($outsideWeekArguments['date_from'] ?? 'missing') === null, 'El rango anterior no debe imponer fecha inicial.');
+expect_diagnostic(($outsideWeekArguments['date_to'] ?? null) === $expectedPreviousSunday, 'El rango anterior debe terminar el domingo previo.');
+
+$temporalReference = new DateTimeImmutable('2026-08-13 12:00:00');
+$temporalCases = [
+    'hace 2 dias' => ['date_field' => 'created_at', 'date_from' => '2026-08-11', 'date_to' => '2026-08-11'],
+    'ultimos 10 dias' => ['date_field' => 'created_at', 'date_from' => '2026-08-04', 'date_to' => '2026-08-13'],
+    'del mes anterior' => ['date_field' => 'created_at', 'date_from' => '2026-07-01', 'date_to' => '2026-07-31'],
+    'hace 2 semanas' => ['date_field' => 'created_at', 'date_from' => '2026-07-27', 'date_to' => '2026-08-02'],
+    'hace dos semanas' => ['date_field' => 'created_at', 'date_from' => '2026-07-27', 'date_to' => '2026-08-02'],
+    'ultimas 2 semanas' => ['date_field' => 'created_at', 'date_from' => '2026-07-31', 'date_to' => '2026-08-13'],
+    'hace 2 meses' => ['date_field' => 'created_at', 'date_from' => '2026-06-01', 'date_to' => '2026-06-30'],
+    'ultimos dos meses' => ['date_field' => 'created_at', 'date_from' => '2026-06-13', 'date_to' => '2026-08-13'],
+    'todo el ano' => ['date_field' => 'created_at', 'date_from' => '2026-01-01', 'date_to' => '2026-08-13'],
+    'ano pasado' => ['date_field' => 'created_at', 'date_from' => '2025-01-01', 'date_to' => '2025-12-31'],
+    'durante 2024' => ['date_field' => 'created_at', 'date_from' => '2024-01-01', 'date_to' => '2024-12-31'],
+    'todo el ano 2025' => ['date_field' => 'created_at', 'date_from' => '2025-01-01', 'date_to' => '2025-12-31'],
+    'del 2026-02-01 al 2026-02-28' => ['date_field' => 'created_at', 'date_from' => '2026-02-01', 'date_to' => '2026-02-28'],
+    'desde 2026-07-01' => ['date_field' => 'created_at', 'date_from' => '2026-07-01', 'date_to' => '2026-08-13'],
+    'hasta 2026-07-31' => ['date_field' => 'created_at', 'date_from' => null, 'date_to' => '2026-07-31'],
+    'primera quincena de julio de 2026' => ['date_field' => 'created_at', 'date_from' => '2026-07-01', 'date_to' => '2026-07-15'],
+    'segunda quincena de julio de 2026' => ['date_field' => 'created_at', 'date_from' => '2026-07-16', 'date_to' => '2026-07-31'],
+    'tercer trimestre de 2025' => ['date_field' => 'created_at', 'date_from' => '2025-07-01', 'date_to' => '2025-09-30'],
+    'segundo semestre de 2025' => ['date_field' => 'created_at', 'date_from' => '2025-07-01', 'date_to' => '2025-12-31'],
+    'de enero a marzo de 2026' => ['date_field' => 'created_at', 'date_from' => '2026-01-01', 'date_to' => '2026-03-31'],
+];
+foreach ($temporalCases as $temporalQuestion => $expectedRange) {
+    expect_diagnostic(
+        ixtla_insights_question_requested_date_range($temporalQuestion, $temporalReference) === $expectedRange,
+        'El resolvedor temporal debe interpretar correctamente: ' . $temporalQuestion
+    );
+}
+expect_diagnostic(
+    (ixtla_insights_question_requested_date_range('finalizados el mes anterior', $temporalReference)['date_field'] ?? null) === 'closed_at',
+    'Un periodo de finalizados debe aplicarse sobre la fecha de cierre.'
+);
+expect_diagnostic(
+    (ixtla_insights_question_requested_date_range('creados el mes anterior que siguen finalizados', $temporalReference)['date_field'] ?? null) === 'created_at',
+    'Una pregunta explicita de creacion debe conservar la fecha de creacion aunque filtre finalizados.'
+);
+expect_diagnostic(ixtla_insights_question_is_temporal_followup('Y del mes anterior?'), 'Un mes distinto debe reconocerse como cambio temporal del seguimiento.');
+expect_diagnostic(ixtla_insights_question_is_temporal_followup('Y hace 2 meses?'), 'Una cantidad temporal debe reconocerse como cambio del seguimiento.');
+expect_diagnostic(ixtla_insights_question_intent('Y de todo el ano?', true) === 'dataset', 'Un cambio de ano debe ejecutar una nueva consulta de datos.');
+expect_diagnostic(ixtla_insights_question_temporal_validation_error('desde 2026-02-30') !== null, 'Una fecha inexistente debe rechazarse sin convertirse en todo el ano.');
+expect_diagnostic(ixtla_insights_question_temporal_validation_error('ultimos 0 dias') !== null, 'Una cantidad temporal igual a cero debe rechazarse.');
+expect_diagnostic(ixtla_insights_question_temporal_validation_error('hace 999 meses') !== null, 'Un periodo excesivo debe pedir un rango explicito.');
+expect_diagnostic(ixtla_insights_question_temporal_validation_error('2026-08-10 al 2026-08-01') !== null, 'Un rango invertido debe rechazarse.');
+expect_diagnostic(ixtla_insights_question_temporal_validation_error('ultimos 90 dias') === null, 'Un periodo razonable debe aceptarse.');
+
+$previousMonthArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    [
+        'period' => 'this_week', 'department_id' => 0, 'department_ids' => [], 'department_names' => [],
+        'assignee_id' => 0, 'assignee_ids' => [], 'tramite_ids' => [], 'status_ids' => [],
+        'assignee_state' => 'any', 'date_field' => 'created_at', 'date_from' => null, 'date_to' => null,
+    ],
+    'Y del mes anterior?',
+    ['last_filters' => ['period' => 'this_week', 'department_names' => ['Desarrollo Urbano']]]
+);
+expect_diagnostic(($previousMonthArguments['period'] ?? null) === 'all', 'Un mes calendario debe reemplazar el periodo anterior por un rango personalizado.');
+expect_diagnostic(($previousMonthArguments['department_names'] ?? []) === ['Desarrollo Urbano'], 'El cambio de mes debe conservar el departamento anterior.');
+$resetScopeArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    [
+        'period' => 'all', 'department_id' => 0, 'department_ids' => [], 'department_names' => [],
+        'assignee_id' => 0, 'assignee_ids' => [], 'tramite_ids' => [], 'status_ids' => [],
+        'assignee_state' => 'any', 'date_field' => 'created_at', 'date_from' => null, 'date_to' => null,
+    ],
+    'Y del mes anterior para todos los departamentos y todos los estatus?',
+    ['last_filters' => ['period' => 'this_week', 'department_names' => ['Desarrollo Urbano'], 'status_ids' => [2]]]
+);
+expect_diagnostic(($resetScopeArguments['department_names'] ?? []) === [], 'Un cambio explicito a todos los departamentos debe eliminar el departamento heredado.');
+expect_diagnostic(($resetScopeArguments['status_ids'] ?? []) === [], 'Un cambio explicito a todos los estatus debe eliminar el estatus heredado.');
+$nextPageArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    [
+        'period' => 'all', 'department_id' => 0, 'department_ids' => [], 'department_names' => [],
+        'assignee_id' => 0, 'assignee_ids' => [], 'tramite_ids' => [], 'status_ids' => [],
+        'assignee_state' => 'any', 'date_field' => 'created_at', 'date_from' => null, 'date_to' => null, 'cursor' => null,
+    ],
+    'Muestrame los siguientes',
+    [
+        'last_filters' => ['period' => 'this_month', 'department_names' => ['Ecologia']],
+        'last_query' => ['next_cursor' => 'cursor-seguro', 'has_more' => true],
+    ]
+);
+expect_diagnostic(($nextPageArguments['cursor'] ?? null) === 'cursor-seguro', 'Continuar debe usar el cursor seguro de la ultima busqueda.');
+expect_diagnostic(($nextPageArguments['period'] ?? null) === 'this_month', 'Continuar debe conservar el periodo de la ultima busqueda.');
+expect_diagnostic(($nextPageArguments['department_names'] ?? []) === ['Ecologia'], 'Continuar debe conservar los filtros de la ultima busqueda.');
 
 $julyRange = ixtla_insights_question_requested_date_range('¿Qué porcentaje de los creados en julio de 2026 está finalizado?');
 expect_diagnostic($julyRange === ['date_field' => 'created_at', 'date_from' => '2026-07-01', 'date_to' => '2026-07-31'], 'Un mes explícito debe convertirse en un rango completo sobre fecha de creación.');

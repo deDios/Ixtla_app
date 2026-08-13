@@ -29,6 +29,10 @@ $maxCharacters = (int) $config['max_question_characters'];
 if ($question === '' || mb_strlen($question) > $maxCharacters) {
     ixtla_insights_json(['ok' => false, 'error' => 'La pregunta no es valida.'], 422);
 }
+$temporalValidationError = ixtla_insights_question_temporal_validation_error($question);
+if ($temporalValidationError !== null) {
+    ixtla_insights_json(['ok' => false, 'error' => $temporalValidationError], 422);
+}
 
 consola_debug('gpt_probe.question_validated', [
     'question_length' => mb_strlen($question),
@@ -117,7 +121,10 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
     // modo auto y el servidor sigue impidiendo respuestas sin evidencia.
     if ($requiresData) {
         $payload['tools'] = ixtla_insights_tool_definitions();
-        $payload['tool_choice'] = $analyticsContext !== [] && ixtla_insights_question_requires_row_details($question)
+        $continuesPreviousSearch = ($analyticsContext['last_tool'] ?? '') === 'search_requirements'
+            && ixtla_insights_question_is_temporal_followup($question);
+        $payload['tool_choice'] = $analyticsContext !== []
+            && (ixtla_insights_question_requires_row_details($question) || $continuesPreviousSearch)
             ? ['type' => 'function', 'name' => 'search_requirements']
             : ixtla_insights_question_tool_choice($question, $hasDatasetContext);
     }
@@ -216,7 +223,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                         'filters' => is_array($result['filters'] ?? null) ? $result['filters'] : [],
                     ];
                 }
-                ixtla_insights_conversation_apply_tool((string) $toolCall['name'], $arguments);
+                ixtla_insights_conversation_apply_tool((string) $toolCall['name'], $arguments, $result);
                 consola_debug('gpt_probe.tool_completed', ['tool' => (string) $toolCall['name']]);
                 $output = ['ok' => true, 'data' => $result];
             } catch (Throwable $error) {
