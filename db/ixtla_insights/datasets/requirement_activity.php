@@ -90,6 +90,37 @@ function ixtla_insights_requirement_contact(array $arguments): array
     }
 }
 
+/** Añade asunto y descripción operativa a la ficha de un folio autorizado. */
+function ixtla_insights_requirement_detail(array $arguments): array
+{
+    $detail = ixtla_insights_snapshot_requirement_detail($arguments);
+    if (($detail['requirement'] ?? null) === null) {
+        return $detail;
+    }
+
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $requirement = ixtla_insights_activity_requirement($connection, $arguments);
+        $rows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT asunto, descripcion FROM requerimiento WHERE id = ? LIMIT 1',
+            'i',
+            [$requirement['id']]
+        );
+        if ($rows === []) {
+            return $detail;
+        }
+
+        $subject = trim((string) ($rows[0]['asunto'] ?? ''));
+        $description = trim((string) ($rows[0]['descripcion'] ?? ''));
+        $detail['requirement']['subject'] = $subject === '' ? null : ixtla_insights_activity_safe_text($subject, 300);
+        $detail['requirement']['description'] = $description === '' ? null : ixtla_insights_activity_safe_text($description, 1500);
+        return $detail;
+    } finally {
+        $connection->close();
+    }
+}
+
 function ixtla_insights_task_status_label(int $status): string
 {
     return [1 => 'Por hacer', 2 => 'En proceso', 3 => 'Por revisar', 4 => 'Hecho', 5 => 'Bloqueado'][$status]
@@ -227,7 +258,7 @@ function ixtla_insights_requirement_activity(array $arguments): array
 
 function ixtla_insights_requirement_summary(array $arguments): array
 {
-    $detail = ixtla_insights_snapshot_requirement_detail($arguments);
+    $detail = ixtla_insights_requirement_detail($arguments);
     if (($detail['requirement'] ?? null) === null) return $detail;
     $detail['recent_activity'] = ixtla_insights_requirement_activity(array_replace($arguments, ['limit' => 10]))['items'];
     return $detail;

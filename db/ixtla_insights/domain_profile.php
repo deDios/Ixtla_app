@@ -15,7 +15,7 @@ declare(strict_types=1);
 function ixtla_insights_domain_profile(): array
 {
     return [
-        'version' => 14,
+        'version' => 15,
         'domain' => 'requerimientos',
         'assistant' => [
             'name' => 'Ixtla Insights',
@@ -92,7 +92,7 @@ function ixtla_insights_domain_profile(): array
             'multi_filter_rule' => 'Cuando haya varios departamentos usa una sola llamada con department_ids o department_names. Antes de consultar, convierte la solicitud en filtros concretos de periodo, departamentos, tramites, responsables y estatus.',
             'pagination_rule' => 'Si search_requirements devuelve has_more, indica que la lista es parcial. Usa next_cursor solamente para continuar la misma consulta y no presentes returned como si fuera total_matching.',
             'large_result_rule' => 'El summary de search_requirements se calcula sobre todas las coincidencias aunque items contenga solo una pagina. Basa los conteos y conclusiones generales en total_matching y summary. Cuando has_more sea true, indica solamente que la lista mostrada es parcial y cuantos resultados totales existen. No menciones funciones internas, comandos de consola, endpoints ni mecanismos de exportacion.',
-            'dataset_first' => 'Para KPIs, comparaciones de 30 días, variación, días pico y principales trámites usa get_requirements_overview; para listas usa search_requirements; para otros conteos, rankings o tendencias diarias usa aggregate_requirements con group_by date cuando corresponda; para un folio usa get_requirement_detail o get_requirement_summary.',
+            'dataset_first' => 'Para KPIs, comparaciones de 30 días, variación, días pico y principales trámites usa get_requirements_overview; para listas usa search_requirements; para otros conteos, rankings o tendencias diarias usa aggregate_requirements con group_by date cuando corresponda; para un folio usa get_requirement_detail o get_requirement_summary. Si necesitas buscar primero cuál folio coincide, después llama get_requirement_detail con ese folio antes de redactar su información; no declares que la descripción no está disponible basándote solamente en search_requirements.',
             'catalog_rule' => 'Para estatus, departamentos, trámites o empleados asignados usa list_requirement_catalog.',
             'activity_rule' => 'Para saber qué comentaron usa get_requirement_comments; para avances usa get_requirement_processes; para trabajo pendiente usa get_requirement_tasks; para saber qué ha sucedido usa get_requirement_activity. Para datos del ciudadano, solicitante o contacto de un folio concreto usa get_requirement_contact y presenta solamente los campos disponibles.',
             'dataset_analytic_fallback' => 'Si no hay una herramienta exacta, combina herramientas compatibles sin exceder el límite configurado por turno y responde solo con su evidencia. Declara la limitación cuando el dato realmente no esté disponible.',

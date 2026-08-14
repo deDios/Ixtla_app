@@ -94,6 +94,7 @@ expect_diagnostic(in_array('date_from', $snapshotSearchTool['parameters']['requi
 expect_diagnostic(in_array('most_comments', $snapshotSearchTool['parameters']['properties']['sort']['enum'] ?? [], true), 'La busqueda debe permitir ordenar por actividad de comentarios.');
 $snapshotDetailTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_detail'))[0] ?? [];
 expect_diagnostic(($snapshotDetailTool['parameters']['required'] ?? []) === ['id', 'folio'], 'El detalle del snapshot debe aceptar una llave explicita.');
+expect_diagnostic(str_contains((string) ($snapshotDetailTool['description'] ?? ''), 'descripcion'), 'El detalle debe anunciar que entrega la descripcion del requerimiento.');
 $contactTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_contact'))[0] ?? [];
 expect_diagnostic(($contactTool['parameters']['required'] ?? []) === ['id', 'folio'], 'El contacto debe exigir una llave explicita y no admitir consultas masivas.');
 $snapshotAggregateTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'aggregate_requirements'))[0] ?? [];

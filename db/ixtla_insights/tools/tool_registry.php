@@ -82,7 +82,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'get_requirement_detail', 'strict' => true,
-            'description' => 'Obtiene la ficha de un folio o id autorizado, con estatus, tramite, departamento, asignado, fecha de creacion y conteos de actividad. La fecha de cierre solo aparece si el estatus actual es Finalizado.',
+            'description' => 'Obtiene la ficha de un folio o id autorizado, con asunto, descripcion, estatus, tramite, departamento, asignado, fecha de creacion y conteos de actividad. La fecha de cierre solo aparece si el estatus actual es Finalizado. Si primero localizaste un requerimiento mediante una busqueda y el usuario pide su informacion o detalle, llama tambien esta herramienta antes de responder.',
             'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['id', 'folio'], 'properties' => $requirementKey],
         ],
         [
@@ -141,7 +141,7 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'search_requirements' => ixtla_insights_snapshot_search($args),
         'aggregate_requirements' => ixtla_insights_snapshot_aggregate($args),
         'list_requirement_catalog' => ixtla_insights_snapshot_catalog($args),
-        'get_requirement_detail' => ixtla_insights_snapshot_requirement_detail($args),
+        'get_requirement_detail' => ixtla_insights_requirement_detail($args),
         'get_requirement_summary' => ixtla_insights_requirement_summary($args),
         'get_requirement_contact' => ixtla_insights_requirement_contact($args),
         'get_requirement_comments' => ixtla_insights_requirement_comments($args),
