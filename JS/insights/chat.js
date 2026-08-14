@@ -1090,9 +1090,10 @@ export function mountIxtlaInsights(options = {}) {
     const suffix = trace ? ` Código de diagnóstico: ${trace}.` : "";
     const status = Number(error?.status || 0);
     if (status === 200 && !clean(error?.contentType).includes("application/json")) {
-      return `La solicitud fue redirigida fuera de Insights, normalmente por sesión expirada. Actualiza la página e inicia sesión nuevamente.${suffix}`;
+      return `Tu sesión terminó. Recarga esta página para continuar.${suffix}`;
     }
-    if (status === 401 || status === 403) return `Tu sesión o permisos cambiaron. Actualiza la página e inicia sesión nuevamente si es necesario.${suffix}`;
+    if (status === 401) return `Tu sesión terminó. Recarga esta página para continuar.${suffix}`;
+    if (status === 403) return `No tienes permiso para realizar esta consulta. Si tus permisos cambiaron recientemente, recarga la página.${suffix}`;
     if (status === 404) {
       return error?.endpointHandled
         ? `Insights respondió 404 desde la aplicación. Revisa los logs con el código de diagnóstico.${suffix}`
