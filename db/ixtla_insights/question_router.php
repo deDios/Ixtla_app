@@ -9,7 +9,7 @@ function ixtla_insights_question_intent(string $question, bool $hasDatasetContex
 {
     $normalized = ixtla_insights_normalize_match_text($question);
     $hasRequirementReference = preg_match(
-        '/\b(requerimiento|requerimientos|folio|folios|tramite|tramites|departamento|departamentos|solicitante|solicitantes|responsable|responsables|asignado|asignados|asignada|asignadas)\b/',
+        '/\b(requerimiento|requerimientos|folio|folios|tramite|tramites|departamento|departamentos|solicitante|solicitantes|ciudadano|ciudadana|ciudadanos|ciudadanas|contacto|contactos|responsable|responsables|asignado|asignados|asignada|asignadas)\b/',
         $normalized
     ) === 1;
     $hasExplicitFolio = preg_match('/\breq[-\s]?\d+\b/i', $question) === 1;
@@ -34,7 +34,7 @@ function ixtla_insights_question_intent(string $question, bool $hasDatasetContex
         $normalized
     ) === 1;
     $isDatasetFollowUp = $hasDatasetContext && (preg_match(
-        '/\b(hazlo|lo mismo|hay mas|siguientes|siguiente pagina|continua|continuar|fuera de|antes de|otras semanas|semanas anteriores|todo el historial|pendiente|pendientes|vencido|vencidos|vencida|vencidas|finalizado|finalizados|riesgo|activos|activas|comentario|comentarios|proceso|procesos|tarea|tareas)\b/',
+        '/\b(hazlo|lo mismo|hay mas|siguientes|siguiente pagina|continua|continuar|fuera de|antes de|otras semanas|semanas anteriores|todo el historial|pendiente|pendientes|vencido|vencidos|vencida|vencidas|finalizado|finalizados|riesgo|activos|activas|comentario|comentarios|proceso|procesos|tarea|tareas|ciudadano|ciudadana|contacto|telefono|correo|email|domicilio|direccion|colonia|codigo postal)\b/',
         $normalized
     ) === 1 || ixtla_insights_question_is_temporal_followup($question));
 

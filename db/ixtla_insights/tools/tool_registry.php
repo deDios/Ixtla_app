@@ -91,6 +91,11 @@ function ixtla_insights_tool_definitions(): array
             'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['id', 'folio'], 'properties' => $requirementKey],
         ],
         [
+            'type' => 'function', 'name' => 'get_requirement_contact', 'strict' => true,
+            'description' => 'Obtiene nombre, telefono, correo, domicilio, codigo postal y colonia del contacto o ciudadano de un unico requerimiento autorizado. Usala cuando se pidan datos del ciudadano, solicitante o contacto de un folio concreto. Nunca la uses para listados ni consultas masivas.',
+            'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['id', 'folio'], 'properties' => $requirementKey],
+        ],
+        [
             'type' => 'function', 'name' => 'get_requirement_comments', 'strict' => true,
             'description' => 'Consulta comentarios activos de un requerimiento autorizado, con autor, fecha y texto sanitizado. Usala para responder que comentaron.',
             'parameters' => [
@@ -138,6 +143,7 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'list_requirement_catalog' => ixtla_insights_snapshot_catalog($args),
         'get_requirement_detail' => ixtla_insights_snapshot_requirement_detail($args),
         'get_requirement_summary' => ixtla_insights_requirement_summary($args),
+        'get_requirement_contact' => ixtla_insights_requirement_contact($args),
         'get_requirement_comments' => ixtla_insights_requirement_comments($args),
         'get_requirement_tasks' => ixtla_insights_requirement_tasks($args),
         'get_requirement_processes' => ixtla_insights_requirement_processes($args),

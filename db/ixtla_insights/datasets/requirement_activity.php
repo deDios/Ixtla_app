@@ -46,6 +46,50 @@ function ixtla_insights_activity_safe_text(?string $text, int $maximum = 500): s
     return ixtla_insights_truncate($value, $maximum);
 }
 
+/**
+ * Devuelve los mismos datos de contacto visibles en la ficha operativa.
+ * La llave primero se resuelve contra el RBAC; los contactos nunca forman
+ * parte de búsquedas, agregados, catálogos ni del snapshot analítico.
+ */
+function ixtla_insights_requirement_contact(array $arguments): array
+{
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $requirement = ixtla_insights_activity_requirement($connection, $arguments);
+        $rows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT contacto_nombre, contacto_telefono, contacto_email, contacto_calle, contacto_cp, contacto_colonia '
+            . 'FROM requerimiento WHERE id = ? LIMIT 1',
+            'i',
+            [$requirement['id']]
+        );
+        if ($rows === []) {
+            throw new RuntimeException('No fue posible consultar el contacto del requerimiento.');
+        }
+
+        $row = $rows[0];
+        $nullable = static function (mixed $value): ?string {
+            $value = trim((string) $value);
+            return $value === '' ? null : $value;
+        };
+
+        return [
+            'requirement' => $requirement,
+            'contact' => [
+                'name' => $nullable($row['contacto_nombre'] ?? null),
+                'phone' => $nullable($row['contacto_telefono'] ?? null),
+                'email' => $nullable($row['contacto_email'] ?? null),
+                'street' => $nullable($row['contacto_calle'] ?? null),
+                'postal_code' => $nullable($row['contacto_cp'] ?? null),
+                'neighborhood' => $nullable($row['contacto_colonia'] ?? null),
+            ],
+            'usage' => 'Datos de contacto del folio solicitado dentro del alcance autorizado.',
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
 function ixtla_insights_task_status_label(int $status): string
 {
     return [1 => 'Por hacer', 2 => 'En proceso', 3 => 'Por revisar', 4 => 'Hecho', 5 => 'Bloqueado'][$status]
