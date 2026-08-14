@@ -40,6 +40,9 @@ expect_diagnostic(str_contains($domainPrompt, 'realizar cálculos derivados'), '
 expect_diagnostic(str_contains($domainPrompt, 'no afirmes que fecha y estatus están separados'), 'El asistente debe cruzar fecha y estatus en una misma consulta.');
 expect_diagnostic(str_contains($domainPrompt, 'get_requirement_comments'), 'El perfil debe orientar consultas de actividad bajo demanda.');
 expect_diagnostic(str_contains($domainPrompt, 'alcance autorizado se resuelve en el servidor'), 'El perfil debe preservar el límite de autorización del servidor.');
+expect_diagnostic(str_contains($domainPrompt, 'cero coincidencias significa que no se encontraron registros'), 'El perfil debe distinguir una consulta vacia de una capacidad faltante.');
+expect_diagnostic(str_contains($domainPrompt, 'un fallo de ejecución significa que la consulta no pudo completarse'), 'El perfil debe distinguir fallos de consulta de datos no soportados.');
+expect_diagnostic(!str_contains($domainPrompt, 'Nunca respondas que el dato no esta disponible sin intentar'), 'El perfil no debe conservar una prohibicion absoluta que oculte capacidades faltantes.');
 expect_diagnostic(ixtla_insights_domain_metric_label('closed_count') === 'Requerimientos finalizados', 'El perfil debe centralizar las etiquetas de métricas.');
 expect_diagnostic(ixtla_insights_domain_period_label('last_30') === 'Últimos 30 días', 'El perfil debe centralizar las etiquetas de periodos.');
 expect_diagnostic(ixtla_insights_domain_period_label('this_week') === 'Semana en curso', 'El perfil debe describir la semana calendario actual.');
@@ -129,6 +132,36 @@ $employeeChannelArguments = ixtla_insights_prepare_tool_arguments(
     []
 );
 expect_diagnostic(($employeeChannelArguments['channel_ids'] ?? []) === [2], 'El servidor debe reconocer el Portal de empleados como canal 2.');
+$colloquialEmployeeArguments = ixtla_insights_prepare_tool_arguments(
+    'aggregate_requirements',
+    ['period' => 'all', 'channel_ids' => []],
+    'Y cuantos los dieron de alta empleados?',
+    ['last_filters' => ['period' => 'this_week', 'channel_ids' => [1]]]
+);
+expect_diagnostic(($colloquialEmployeeArguments['channel_ids'] ?? []) === [2], 'Una pregunta coloquial debe sustituir el canal ciudadano por el de empleados.');
+expect_diagnostic(($colloquialEmployeeArguments['period'] ?? null) === 'this_week', 'El cambio de canal debe conservar el periodo anterior.');
+$oppositeChannelArguments = ixtla_insights_prepare_tool_arguments(
+    'aggregate_requirements',
+    ['period' => 'all', 'channel_ids' => []],
+    'Y cuantos hay del otro canal?',
+    ['last_filters' => ['period' => 'last_30', 'channel_ids' => [2]]]
+);
+expect_diagnostic(($oppositeChannelArguments['channel_ids'] ?? []) === [1], 'El otro canal debe resolverse a partir del filtro anterior.');
+$statusFollowUpArguments = ixtla_insights_prepare_tool_arguments(
+    'aggregate_requirements',
+    ['period' => 'all', 'status_ids' => [], 'channel_ids' => []],
+    'Y cuantos estan cancelados?',
+    ['last_filters' => ['period' => 'this_month', 'status_ids' => [3], 'channel_ids' => [2]]]
+);
+expect_diagnostic(($statusFollowUpArguments['status_ids'] ?? []) === [5], 'Un estatus explicito debe sustituir el estatus anterior.');
+expect_diagnostic(($statusFollowUpArguments['channel_ids'] ?? []) === [2], 'Cambiar el estatus debe conservar el canal anterior.');
+$unassignedFollowUpArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    ['period' => 'all', 'assignee_state' => 'any'],
+    'Ahora muestrame los que no tienen responsable',
+    ['last_filters' => ['period' => 'last_7', 'assignee_state' => 'assigned']]
+);
+expect_diagnostic(($unassignedFollowUpArguments['assignee_state'] ?? null) === 'unassigned', 'La ausencia de responsable debe sustituir el filtro de asignacion anterior.');
 
 $channelRecords = [
     ['channel_id' => 1, 'channel' => 'Portal ciudadano', 'status_id' => 0, 'department_id' => 1, 'assignee_id' => null, 'tramite_id' => 1, 'created_at_unix' => 1],

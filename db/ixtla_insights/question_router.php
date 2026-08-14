@@ -34,7 +34,7 @@ function ixtla_insights_question_intent(string $question, bool $hasDatasetContex
         $normalized
     ) === 1;
     $isDatasetFollowUp = $hasDatasetContext && (preg_match(
-        '/\b(hazlo|lo mismo|hay mas|siguientes|siguiente pagina|continua|continuar|fuera de|antes de|otras semanas|semanas anteriores|todo el historial|pendiente|pendientes|vencido|vencidos|vencida|vencidas|finalizado|finalizados|riesgo|activos|activas|comentario|comentarios|proceso|procesos|tarea|tareas|ciudadano|ciudadana|contacto|telefono|correo|email|domicilio|direccion|colonia|codigo postal)\b/',
+        '/\b(hazlo|lo mismo|hay mas|siguientes|siguiente pagina|continua|continuar|fuera de|antes de|otras semanas|semanas anteriores|todo el historial|pendiente|pendientes|vencido|vencidos|vencida|vencidas|finalizado|finalizados|riesgo|activos|activas|comentario|comentarios|proceso|procesos|tarea|tareas|ciudadano|ciudadana|empleado|empleados|portal|canal|otro canal|canal contrario|dieron de alta|dados de alta|capturados|registrados|sin asignar|sin responsable|con responsable|contacto|telefono|correo|email|domicilio|direccion|colonia|codigo postal)\b/',
         $normalized
     ) === 1 || ixtla_insights_question_is_temporal_followup($question));
 
@@ -355,10 +355,78 @@ function ixtla_insights_apply_default_period(string $toolName, array $arguments,
 function ixtla_insights_question_reuses_previous_result(string $question): bool
 {
     $normalized = ixtla_insights_normalize_match_text($question);
-    return ixtla_insights_question_is_temporal_followup($question) || preg_match(
+    return ixtla_insights_question_is_temporal_followup($question)
+        || preg_match('/^(y|ahora|tambien|en cambio|por el contrario|por otro lado)\b/', $normalized) === 1
+        || preg_match(
         '/\b(esos|esas|estos|estas|ese departamento|esa area|del mismo departamento|los anteriores|las anteriores|los mismos|las mismas|ese resultado|esa consulta|hay mas|siguientes|siguiente pagina|continua|continuar|fuera de esta semana|antes de esta semana|semanas anteriores|de que fecha|que fecha|cuales son|muestramelos|muestramelas|detallalos|detallalas|hazlo|lo mismo|ahora)\b/',
         $normalized
     ) === 1;
+}
+
+/** Detecta un canal expresado de forma directa, coloquial o relativa. */
+function ixtla_insights_question_requested_channels(string $question, array $previousFilters = []): ?array
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    if (preg_match('/\b(todos los canales|ambos canales|cualquier canal|sin filtrar canal)\b/', $normalized) === 1) {
+        return [];
+    }
+
+    $channels = [];
+    $citizen = preg_match('/\b(canal\s*1|portal(?:\s+del)?\s+ciudadan[oa]|canal(?:\s+del)?\s+ciudadan[oa]|solicitudes? ciudadanas?)\b/', $normalized) === 1
+        || preg_match('/\b(?:alta|registrad[oa]s?|capturad[oa]s?)\b.{0,35}\b(?:ciudadan[oa]s?)\b/', $normalized) === 1;
+    $employee = preg_match('/\b(canal\s*2|portal(?:\s+de\s+los)?\s+empleados?|canal(?:\s+de\s+los)?\s+empleados?)\b/', $normalized) === 1
+        || preg_match('/\b(?:alta|registrad[oa]s?|capturad[oa]s?)\b.{0,35}\b(?:por\s+)?empleados?\b/', $normalized) === 1
+        || preg_match('/\bempleados?\b.{0,35}\b(?:dieron|dadas?|dados?|registraron|capturaron)\b.{0,18}\balta\b/', $normalized) === 1;
+    if (is_array($previousFilters['channel_ids'] ?? null)) {
+        $citizen = $citizen || preg_match('/^(?:y\s+|ahora\s+|tambien\s+)?(?:cuantos?\s+|cuantas?\s+|los\s+|las\s+)?ciudadan[oa]s?\??$/', $normalized) === 1;
+        $employee = $employee || preg_match('/^(?:y\s+|ahora\s+|tambien\s+)?(?:cuantos?\s+|cuantas?\s+|los\s+|las\s+)?empleados?\??$/', $normalized) === 1;
+    }
+    if ($citizen) $channels[] = 1;
+    if ($employee) $channels[] = 2;
+    if ($channels !== []) return array_values(array_unique($channels));
+
+    if (preg_match('/\b(otro canal|canal contrario|canal opuesto|los otros)\b/', $normalized) === 1) {
+        $previous = array_values(array_unique(array_map('intval', is_array($previousFilters['channel_ids'] ?? null) ? $previousFilters['channel_ids'] : [])));
+        if ($previous === [1]) return [2];
+        if ($previous === [2]) return [1];
+    }
+    return null;
+}
+
+/** Traduce menciones inequívocas del estado actual a sus identificadores. */
+function ixtla_insights_question_requested_statuses(string $question): ?array
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    if (preg_match('/\b(todos los estatus|cualquier estatus|sin filtrar estatus)\b/', $normalized) === 1) return [];
+    $excluded = [];
+    foreach ([4 => 'pausad[oa]s?', 5 => 'cancelad[oa]s?', 6 => '(?:finalizad[oa]s?|cerrad[oa]s?)'] as $id => $term) {
+        if (preg_match('/\b(?:no|excepto|sin)\s+(?:los\s+|las\s+)?' . $term . '\b/', $normalized) === 1) $excluded[] = $id;
+    }
+    if ($excluded !== []) return array_values(array_diff(range(0, 6), $excluded));
+    $patterns = [
+        0 => '/\b(estatus solicitud|en solicitud|ingreso inicial|recien ingresad[oa]s?)\b/',
+        1 => '/\b(revision|en revision)\b/',
+        2 => '/\b(asignacion|en asignacion)\b/',
+        3 => '/\b(en proceso|procesandose|atencion activa)\b/',
+        4 => '/\b(pausad[oa]s?)\b/',
+        5 => '/\b(cancelad[oa]s?)\b/',
+        6 => '/\b(finalizad[oa]s?|cerrad[oa]s?)\b/',
+    ];
+    $statuses = [];
+    foreach ($patterns as $id => $pattern) {
+        if (preg_match($pattern, $normalized) === 1) $statuses[] = $id;
+    }
+    return $statuses === [] ? null : $statuses;
+}
+
+/** Resuelve preguntas sobre presencia o ausencia de responsable. */
+function ixtla_insights_question_requested_assignee_state(string $question): ?string
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    if (preg_match('/\b(sin asignar|no asignad[oa]s?|sin responsable|sin empleado asignado|no (?:tiene|tienen|cuenta|cuentan) con responsable)\b/', $normalized) === 1) return 'unassigned';
+    if (preg_match('/\b(con responsable|con empleado asignado|ya asignad[oa]s?)\b/', $normalized) === 1) return 'assigned';
+    if (preg_match('/\b(todos los responsables|cualquier responsable|sin filtrar responsable)\b/', $normalized) === 1) return 'any';
+    return null;
 }
 
 /** Un seguimiento de este tipo necesita filas, no solamente otro agregado. */
@@ -452,16 +520,14 @@ function ixtla_insights_prepare_tool_arguments(
     }
 
     if (in_array($toolName, ['search_requirements', 'aggregate_requirements'], true)) {
-        $requestedChannels = [];
-        if (preg_match('/\b(canal\s*1|portal(?:\s+del)?\s+ciudadan[oa]|canal(?:\s+del)?\s+ciudadan[oa])\b/', $normalizedQuestion) === 1) {
-            $requestedChannels[] = 1;
-        }
-        if (preg_match('/\b(canal\s*2|portal(?:\s+de\s+los)?\s+empleados?|canal(?:\s+de\s+los)?\s+empleados?)\b/', $normalizedQuestion) === 1) {
-            $requestedChannels[] = 2;
-        }
-        if ($requestedChannels !== []) {
-            $arguments['channel_ids'] = array_values(array_unique($requestedChannels));
-        }
+        $requestedChannels = ixtla_insights_question_requested_channels($question, $previousFilters);
+        if ($requestedChannels !== null) $arguments['channel_ids'] = $requestedChannels;
+
+        $requestedStatuses = ixtla_insights_question_requested_statuses($question);
+        if ($requestedStatuses !== null) $arguments['status_ids'] = $requestedStatuses;
+
+        $requestedAssigneeState = ixtla_insights_question_requested_assignee_state($question);
+        if ($requestedAssigneeState !== null) $arguments['assignee_state'] = $requestedAssigneeState;
     }
 
     $arguments = ixtla_insights_apply_default_period($toolName, $arguments, $question);

@@ -225,10 +225,19 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                 }
                 ixtla_insights_conversation_apply_tool((string) $toolCall['name'], $arguments, $result);
                 consola_debug('gpt_probe.tool_completed', ['tool' => (string) $toolCall['name']]);
-                $output = ['ok' => true, 'data' => $result];
+                $outcome = 'success';
+                if ((array_key_exists('total_matching', $result) && (int) $result['total_matching'] === 0)
+                    || (array_key_exists('requirement', $result) && $result['requirement'] === null)) {
+                    $outcome = 'no_matches';
+                }
+                $output = ['ok' => true, 'outcome' => $outcome, 'data' => $result];
             } catch (Throwable $error) {
                 ixtla_insights_log_error('gpt_probe_tool', $error, ['tool' => (string) $toolCall['name']]);
-                $output = ['ok' => false, 'error' => 'No fue posible obtener ese dato autorizado.'];
+                $output = [
+                    'ok' => false,
+                    'outcome' => 'query_failed',
+                    'error' => 'La consulta autorizada no pudo completarse.',
+                ];
             }
             $outputs[] = [
                 'type' => 'function_call_output',
