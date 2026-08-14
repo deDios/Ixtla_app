@@ -33,7 +33,7 @@ expect_diagnostic((int) ($domainProfile['version'] ?? 0) >= 3, 'El perfil de dom
 $domainPrompt = ixtla_insights_domain_developer_prompt();
 expect_diagnostic(str_contains($domainPrompt, 'Un requerimiento es un caso individual'), 'El prompt debe explicar qué es un requerimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'No confundas los conceptos'), 'El prompt debe distinguir requerimiento, trámite, proceso, tarea y comentario.');
-expect_diagnostic(str_contains($domainPrompt, 'canal 1 corresponde a solicitudes ciudadanas'), 'El prompt debe explicar el origen de los requerimientos por canal.');
+expect_diagnostic(str_contains($domainPrompt, 'canal 1 significa Portal ciudadano'), 'El prompt debe explicar el origen de los requerimientos por canal.');
 expect_diagnostic(str_contains($domainPrompt, 'departamento de Presidencia revisa si el requerimiento es viable'), 'El prompt debe explicar la etapa de Revisión.');
 expect_diagnostic(str_contains($domainPrompt, 'todas esas tareas están en estatus Hecho'), 'El prompt debe explicar la condición para finalizar un requerimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'realizar cálculos derivados'), 'El asistente debe calcular indicadores derivados desde resultados autorizados.');
@@ -44,6 +44,8 @@ expect_diagnostic(ixtla_insights_domain_metric_label('closed_count') === 'Requer
 expect_diagnostic(ixtla_insights_domain_period_label('last_30') === 'Últimos 30 días', 'El perfil debe centralizar las etiquetas de periodos.');
 expect_diagnostic(ixtla_insights_domain_period_label('this_week') === 'Semana en curso', 'El perfil debe describir la semana calendario actual.');
 expect_diagnostic(ixtla_insights_domain_status_label(6) === 'Finalizado', 'El perfil debe centralizar las etiquetas de estados.');
+expect_diagnostic(ixtla_insights_domain_channel_label(1) === 'Portal ciudadano', 'El perfil debe traducir el canal ciudadano.');
+expect_diagnostic(ixtla_insights_domain_channel_label(2) === 'Portal de empleados', 'El perfil debe traducir el canal capturado por empleados.');
 expect_diagnostic(ixtla_insights_domain_status_ids('active') === [0, 1, 2, 3], 'El perfil debe definir los estados activos.');
 expect_diagnostic(ixtla_insights_dataset_active_status_condition() === 'r.estatus IN (0, 1, 2, 3)', 'Los datasets deben construir el filtro activo desde el perfil.');
 expect_diagnostic(ixtla_insights_dataset_risk_period('last_30') === 'last_30', 'Los paquetes compuestos deben admitir periodos comparables.');
@@ -90,6 +92,7 @@ expect_diagnostic(in_array('department_ids', $snapshotSearchTool['parameters']['
 expect_diagnostic(in_array('department_names', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe resolver nombres contra el catalogo autorizado.');
 expect_diagnostic(in_array('cursor', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe exponer paginacion por cursor.');
 expect_diagnostic(in_array('assignee_id', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe permitir filtrar por empleado asignado.');
+expect_diagnostic(in_array('channel_ids', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La busqueda debe permitir filtrar por canal de origen.');
 expect_diagnostic(in_array('date_from', $snapshotSearchTool['parameters']['required'] ?? [], true), 'La búsqueda debe aceptar un inicio de rango nullable.');
 expect_diagnostic(in_array('most_comments', $snapshotSearchTool['parameters']['properties']['sort']['enum'] ?? [], true), 'La busqueda debe permitir ordenar por actividad de comentarios.');
 $snapshotDetailTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_detail'))[0] ?? [];
@@ -98,10 +101,10 @@ expect_diagnostic(str_contains((string) ($snapshotDetailTool['description'] ?? '
 $contactTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_contact'))[0] ?? [];
 expect_diagnostic(($contactTool['parameters']['required'] ?? []) === ['id', 'folio'], 'El contacto debe exigir una llave explicita y no admitir consultas masivas.');
 $snapshotAggregateTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'aggregate_requirements'))[0] ?? [];
-expect_diagnostic(($snapshotAggregateTool['parameters']['properties']['group_by']['enum'] ?? []) === ['status', 'department', 'tramite', 'assignee', 'date'], 'El snapshot debe permitir agregaciones por catalogos y fecha de creación.');
+expect_diagnostic(($snapshotAggregateTool['parameters']['properties']['group_by']['enum'] ?? []) === ['status', 'department', 'tramite', 'assignee', 'channel', 'date'], 'El snapshot debe permitir agregaciones por canal, catalogos y fecha de creación.');
 expect_diagnostic(in_array('assignee_id', $snapshotAggregateTool['parameters']['required'] ?? [], true), 'Los agregados deben aceptar un empleado asignado concreto.');
 $emptySnapshot = ixtla_insights_snapshot_assemble('test-scope', ['mode' => 'self', 'label' => 'Prueba'], []);
-expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 5, 'El snapshot con agregación diaria debe invalidar caches de esquemas anteriores.');
+expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 6, 'El snapshot con canal debe invalidar caches de esquemas anteriores.');
 expect_diagnostic(count($emptySnapshot['catalogs']['statuses'] ?? []) === 7, 'El catalogo debe listar todos los estatus aunque no existan filas en alguno.');
 $cursor = ixtla_insights_snapshot_cursor_encode(50);
 expect_diagnostic(ixtla_insights_snapshot_cursor_offset($cursor) === 50, 'El cursor debe conservar de forma segura el desplazamiento de la consulta.');
@@ -111,6 +114,28 @@ $summary = ixtla_insights_snapshot_result_summary([
 ]);
 expect_diagnostic(($summary['unassigned'] ?? null) === 1, 'El resumen completo debe contar requerimientos sin responsable.');
 expect_diagnostic(($summary['by_status'][0]['value'] ?? null) === 2, 'El resumen completo debe agrupar todas las coincidencias, no solo una pagina.');
+
+$channelArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    ['period' => 'all', 'channel_ids' => []],
+    'Que requerimientos se dieron de alta mediante el portal del ciudadano?',
+    []
+);
+expect_diagnostic(($channelArguments['channel_ids'] ?? []) === [1], 'El servidor debe reconocer el Portal ciudadano como canal 1.');
+$employeeChannelArguments = ixtla_insights_prepare_tool_arguments(
+    'aggregate_requirements',
+    ['period' => 'all', 'channel_ids' => []],
+    'Cuantos fueron capturados por el portal de los empleados?',
+    []
+);
+expect_diagnostic(($employeeChannelArguments['channel_ids'] ?? []) === [2], 'El servidor debe reconocer el Portal de empleados como canal 2.');
+
+$channelRecords = [
+    ['channel_id' => 1, 'channel' => 'Portal ciudadano', 'status_id' => 0, 'department_id' => 1, 'assignee_id' => null, 'tramite_id' => 1, 'created_at_unix' => 1],
+    ['channel_id' => 2, 'channel' => 'Portal de empleados', 'status_id' => 0, 'department_id' => 1, 'assignee_id' => null, 'tramite_id' => 1, 'created_at_unix' => 2],
+];
+$citizenRecords = ixtla_insights_snapshot_filter(['records' => $channelRecords], ['period' => 'all', 'channel_ids' => [1]]);
+expect_diagnostic(count($citizenRecords) === 1 && ($citizenRecords[0]['channel_id'] ?? null) === 1, 'El snapshot debe filtrar exclusivamente el canal solicitado.');
 $commentsTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirement_comments'))[0] ?? [];
 expect_diagnostic(($commentsTool['parameters']['properties']['limit']['maximum'] ?? null) === 30, 'Los comentarios deben tener un limite estricto por llamada.');
 expect_diagnostic(ixtla_insights_activity_safe_text('Escribe a persona@example.com o 3312345678') === 'Escribe a [correo oculto] o [telefono oculto]', 'Los textos operativos deben ocultar correo y telefono.');

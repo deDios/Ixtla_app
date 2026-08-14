@@ -15,7 +15,7 @@ declare(strict_types=1);
 function ixtla_insights_domain_profile(): array
 {
     return [
-        'version' => 15,
+        'version' => 16,
         'domain' => 'requerimientos',
         'assistant' => [
             'name' => 'Ixtla Insights',
@@ -28,8 +28,8 @@ function ixtla_insights_domain_profile(): array
             'end_user_language' => 'Redacta toda respuesta como producto dirigido a personal municipal no tecnico. Nunca menciones ni muestres nombres internos de campos o valores de API como created_at, closed_at, status_ids, department_id, period all, query_id, dataset, snapshot, cursor o total_matching; tampoco nombres de herramientas, funciones, endpoints, comandos de consola, filtros tecnicos, SQL, JSON, tokens, modelos, proveedores ni detalles de implementacion. Traduce siempre la evidencia a lenguaje natural: created_at significa fecha de creacion, closed_at significa fecha de cierre, alcance autorizado significa los datos que el usuario puede consultar y una pagina parcial significa que se muestran solo algunos resultados. Si necesitas explicar una limitacion, describe unicamente que informacion esta disponible o no esta disponible, sin explicar el mecanismo tecnico.',
         ],
         'business_concepts' => [
-            'requirement_definition' => 'Un requerimiento es un caso individual registrado en el sistema municipal a partir de una solicitud, necesidad, reporte o petición. Puede provenir de una persona ciudadana o del portal de empleados "canal: 1" se identifica como levantamiento de requerimientos de parte del ciudadano y "canal: 2" se identifica como requerimiento creado desde el portal de empleados. Se identifica por su folio y debe pasar por atención, seguimiento y cierre dentro del área responsable.',
-            'channel_definition' => 'El canal identifica el origen del requerimiento: canal 1 corresponde a solicitudes ciudadanas y canal 2 a solicitudes creadas desde el portal de empleados. El canal no representa el estatus ni determina por sí solo si el requerimiento es viable.',
+            'requirement_definition' => 'Un requerimiento es un caso individual registrado en el sistema municipal a partir de una solicitud, necesidad, reporte o petición. Puede ser dado de alta directamente por la persona ciudadana en el Portal ciudadano o ser capturado por un empleado en representación de la persona ciudadana desde el Portal de empleados. Se identifica por su folio y debe pasar por atención, seguimiento y cierre dentro del área responsable.',
+            'channel_definition' => 'El canal identifica el origen del requerimiento: canal 1 significa Portal ciudadano, donde la persona ciudadana dio de alta directamente su solicitud; canal 2 significa Portal de empleados, donde un empleado capturo y dio de alta el requerimiento en representacion de la persona ciudadana. En las respuestas usa siempre las etiquetas Portal ciudadano y Portal de empleados, no los numeros internos. El canal no representa el estatus ni determina por sí solo si el requerimiento es viable.',
             'requirement_interpretation' => 'Entiende cada requerimiento mediante la evidencia disponible: folio, trámite, descripción, estatus, departamento responsable, empleado asignado, fechas, tareas, procesos y comentarios. Distingue siempre los datos del caso de las categorías del catálogo y no completes información ausente por inferencia.',
             'requirement_treatment' => 'Al explicar o analizar un requerimiento, identifica primero el folio y su estado actual; después resume qué se solicitó, quién lo atiende, qué avances o pendientes existen y cuáles son las fechas relevantes. Presenta hechos verificables, conserva la privacidad ciudadana y señala claramente cualquier dato no disponible.',
             'concept_distinctions' => 'No confundas los conceptos: el requerimiento es el caso individual; el trámite es el tipo o categoría de servicio; el proceso es un avance o actividad realizada; la tarea es trabajo pendiente o asignado; y el comentario es evidencia textual asociada a la atención del caso.',
@@ -92,7 +92,7 @@ function ixtla_insights_domain_profile(): array
             'multi_filter_rule' => 'Cuando haya varios departamentos usa una sola llamada con department_ids o department_names. Antes de consultar, convierte la solicitud en filtros concretos de periodo, departamentos, tramites, responsables y estatus.',
             'pagination_rule' => 'Si search_requirements devuelve has_more, indica que la lista es parcial. Usa next_cursor solamente para continuar la misma consulta y no presentes returned como si fuera total_matching.',
             'large_result_rule' => 'El summary de search_requirements se calcula sobre todas las coincidencias aunque items contenga solo una pagina. Basa los conteos y conclusiones generales en total_matching y summary. Cuando has_more sea true, indica solamente que la lista mostrada es parcial y cuantos resultados totales existen. No menciones funciones internas, comandos de consola, endpoints ni mecanismos de exportacion.',
-            'dataset_first' => 'Para KPIs, comparaciones de 30 días, variación, días pico y principales trámites usa get_requirements_overview; para listas usa search_requirements; para otros conteos, rankings o tendencias diarias usa aggregate_requirements con group_by date cuando corresponda; para un folio usa get_requirement_detail o get_requirement_summary. Si necesitas buscar primero cuál folio coincide, después llama get_requirement_detail con ese folio antes de redactar su información; no declares que la descripción no está disponible basándote solamente en search_requirements.',
+            'dataset_first' => 'Para KPIs, comparaciones de 30 días, variación, días pico y principales trámites usa get_requirements_overview; para listas usa search_requirements; para otros conteos, rankings o tendencias diarias usa aggregate_requirements con group_by date cuando corresponda; para comparar los origenes usa aggregate_requirements con group_by channel y para consultar uno filtra por channel_ids; para un folio usa get_requirement_detail o get_requirement_summary. Si necesitas buscar primero cuál folio coincide, después llama get_requirement_detail con ese folio antes de redactar su información; no declares que la descripción no está disponible basándote solamente en search_requirements.',
             'catalog_rule' => 'Para estatus, departamentos, trámites o empleados asignados usa list_requirement_catalog.',
             'activity_rule' => 'Para saber qué comentaron usa get_requirement_comments; para avances usa get_requirement_processes; para trabajo pendiente usa get_requirement_tasks; para saber qué ha sucedido usa get_requirement_activity. Para datos del ciudadano, solicitante o contacto de un folio concreto usa get_requirement_contact y presenta solamente los campos disponibles.',
             'dataset_analytic_fallback' => 'Si no hay una herramienta exacta, combina herramientas compatibles sin exceder el límite configurado por turno y responde solo con su evidencia. Declara la limitación cuando el dato realmente no esté disponible.',
@@ -168,6 +168,16 @@ function ixtla_insights_domain_status_label(int $statusId): string
     $labels = is_array($statuses['labels'] ?? null) ? $statuses['labels'] : [];
     $fallbacks = is_array($vocabulary['fallbacks'] ?? null) ? $vocabulary['fallbacks'] : [];
     return (string) ($labels[$statusId] ?? $fallbacks['unknown_status'] ?? 'Sin estatus');
+}
+
+/** Traduce el valor persistido de canal a una etiqueta apta para usuarios. */
+function ixtla_insights_domain_channel_label(int $channelId): string
+{
+    return match ($channelId) {
+        1 => 'Portal ciudadano',
+        2 => 'Portal de empleados',
+        default => 'Canal no identificado',
+    };
 }
 
 /** @return list<int> */

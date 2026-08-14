@@ -47,7 +47,7 @@ function ixtla_insights_snapshot_is_fresh(?array $snapshot): bool
 {
     return is_array($snapshot)
         && (int) ($snapshot['expires_at_unix'] ?? 0) >= time()
-        && (int) ($snapshot['schema_version'] ?? 0) === 5
+        && (int) ($snapshot['schema_version'] ?? 0) === 6
         && is_array($snapshot['records'] ?? null);
 }
 
@@ -119,6 +119,7 @@ function ixtla_insights_snapshot_normalize_record(array $row): array
         'status_id' => $statusId,
         'status' => ixtla_insights_domain_status_label($statusId),
         'channel_id' => (int) ($row['canal'] ?? 0),
+        'channel' => ixtla_insights_domain_channel_label((int) ($row['canal'] ?? 0)),
         'assignee_id' => $row['asignado_a'] === null ? null : (int) $row['asignado_a'],
         'assignee' => (string) ($row['assignee'] ?? 'Sin asignar'),
         'assignee_department' => ($row['assignee_department'] ?? null) === null ? null : (string) $row['assignee_department'],
@@ -191,8 +192,8 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
     }
     $ttl = (int) ixtla_insights_config()['dataset_cache_ttl_seconds'];
     return [
-        'dataset' => 'requerimientos_scope_v5',
-        'schema_version' => 5,
+        'dataset' => 'requerimientos_scope_v6',
+        'schema_version' => 6,
         'scope_key' => $scopeKey,
         'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
         'generated_at' => date(DATE_ATOM),
@@ -207,6 +208,10 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
 function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): array
 {
     $statusIds = array_values(array_unique(array_map('intval', is_array($arguments['status_ids'] ?? null) ? $arguments['status_ids'] : [])));
+    $channelIds = array_values(array_unique(array_filter(
+        array_map('intval', is_array($arguments['channel_ids'] ?? null) ? $arguments['channel_ids'] : []),
+        static fn (int $id): bool => in_array($id, [1, 2], true)
+    )));
     $departmentId = isset($arguments['department_id']) ? (int) $arguments['department_id'] : 0;
     $departmentIds = array_values(array_unique(array_filter(array_map('intval', is_array($arguments['department_ids'] ?? null) ? $arguments['department_ids'] : []), static fn (int $id): bool => $id > 0)));
     if ($departmentId > 0) $departmentIds[] = $departmentId;
@@ -233,8 +238,9 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
     $cutoff = $hasCustomRange ? 0 : match ($period) { 'this_week' => strtotime('monday this week midnight'), 'last_7' => strtotime('-6 days midnight'), 'last_30' => strtotime('-29 days midnight'), 'this_month' => strtotime('first day of this month midnight'), default => 0 };
     $fromTimestamp = $dateFrom === '' ? null : strtotime($dateFrom . ' 00:00:00');
     $toTimestamp = $dateTo === '' ? null : strtotime($dateTo . ' 23:59:59');
-    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $departmentIds, $assigneeIds, $tramiteIds, $assigneeState, $cutoff, $hasCustomRange, $dateField, $fromTimestamp, $toTimestamp): bool {
+    $items = array_filter($snapshot['records'] ?? [], static function (array $record) use ($statusIds, $channelIds, $departmentIds, $assigneeIds, $tramiteIds, $assigneeState, $cutoff, $hasCustomRange, $dateField, $fromTimestamp, $toTimestamp): bool {
         if ($statusIds !== [] && !in_array($record['status_id'], $statusIds, true)) return false;
+        if ($channelIds !== [] && !in_array($record['channel_id'], $channelIds, true)) return false;
         if ($departmentIds !== [] && !in_array($record['department_id'], $departmentIds, true)) return false;
         if ($assigneeIds !== [] && !in_array($record['assignee_id'], $assigneeIds, true)) return false;
         if ($tramiteIds !== [] && !in_array($record['tramite_id'], $tramiteIds, true)) return false;
@@ -307,7 +313,7 @@ function ixtla_insights_snapshot_valid_date(string $value): bool
 function ixtla_insights_snapshot_public_record(array $record, bool $includeRequester = false): array
 {
     $result = array_intersect_key($record, array_flip([
-        'id', 'folio', 'department', 'tramite', 'status', 'assignee', 'assignee_department', 'assignee_position',
+        'id', 'folio', 'department', 'tramite', 'status', 'channel', 'assignee', 'assignee_department', 'assignee_position',
         'comment_count', 'last_comment_at', 'process_count', 'last_process_at', 'task_count', 'open_task_count',
         'created_at', 'closed_at', 'age_days',
     ]));
@@ -325,7 +331,7 @@ function ixtla_insights_snapshot_public_record(array $record, bool $includeReque
 /** Resumen compacto calculado sobre todas las coincidencias, no solo la pagina. */
 function ixtla_insights_snapshot_result_summary(array $records): array
 {
-    $dimensions = ['by_status' => [], 'by_department' => [], 'by_tramite' => [], 'by_assignee' => []];
+    $dimensions = ['by_status' => [], 'by_department' => [], 'by_tramite' => [], 'by_assignee' => [], 'by_channel' => []];
     $unassigned = 0;
     foreach ($records as $record) {
         if (($record['assignee_id'] ?? null) === null) $unassigned++;
@@ -334,6 +340,7 @@ function ixtla_insights_snapshot_result_summary(array $records): array
             'by_department' => ['department_id', 'department'],
             'by_tramite' => ['tramite_id', 'tramite'],
             'by_assignee' => ['assignee_id', 'assignee'],
+            'by_channel' => ['channel_id', 'channel'],
         ] as $dimension => [$idField, $labelField]) {
             $key = (string) ($record[$idField] ?? 'unassigned');
             if (!isset($dimensions[$dimension][$key])) {
@@ -534,6 +541,7 @@ function ixtla_insights_snapshot_aggregate(array $arguments): array
         'department' => ['id' => 'department_id', 'label' => 'department'],
         'tramite' => ['id' => 'tramite_id', 'label' => 'tramite'],
         'assignee' => ['id' => 'assignee_id', 'label' => 'assignee'],
+        'channel' => ['id' => 'channel_id', 'label' => 'channel'],
         'date' => ['id' => 'created_date', 'label' => 'created_date'],
     ];
     if (!isset($fieldMap[$groupBy]) || !in_array($sort, ['asc', 'desc'], true)) {

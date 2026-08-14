@@ -33,12 +33,12 @@ try {
     $output = fopen('php://output', 'wb');
     if ($output === false) throw new RuntimeException('No fue posible preparar la descarga.');
     fwrite($output, "\xEF\xBB\xBF");
-    fputcsv($output, ['ID', 'Folio', 'Departamento', 'Tramite', 'Estatus', 'Responsable', 'Departamento responsable', 'Puesto', 'Comentarios', 'Procesos', 'Tareas', 'Tareas abiertas', 'Creado', 'Cerrado', 'Antiguedad dias']);
+    fputcsv($output, ['ID', 'Folio', 'Departamento', 'Tramite', 'Estatus', 'Canal de origen', 'Responsable', 'Departamento responsable', 'Puesto', 'Comentarios', 'Procesos', 'Tareas', 'Tareas abiertas', 'Creado', 'Cerrado', 'Antiguedad dias']);
     foreach ($records as $record) {
         $public = ixtla_insights_snapshot_public_record($record);
         $row = [
             $public['id'] ?? '', $public['folio'] ?? '', $public['department'] ?? '', $public['tramite'] ?? '',
-            $public['status'] ?? '', $public['assignee'] ?? '', $public['assignee_department'] ?? '', $public['assignee_position'] ?? '',
+            $public['status'] ?? '', $public['channel'] ?? '', $public['assignee'] ?? '', $public['assignee_department'] ?? '', $public['assignee_position'] ?? '',
             $public['comment_count'] ?? 0, $public['process_count'] ?? 0, $public['task_count'] ?? 0, $public['open_task_count'] ?? 0,
             $public['created_at'] ?? '', $public['closed_at'] ?? '', $public['age_days'] ?? '',
         ];

@@ -20,12 +20,13 @@ function ixtla_insights_tool_definitions(): array
         'assignee_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
         'tramite_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
         'status_ids' => ['type' => 'array', 'items' => ['type' => 'integer', 'enum' => [0, 1, 2, 3, 4, 5, 6]]],
+        'channel_ids' => ['type' => 'array', 'maxItems' => 2, 'items' => ['type' => 'integer', 'enum' => [1, 2]]],
         'assignee_state' => ['type' => 'string', 'enum' => ['any', 'assigned', 'unassigned']],
         'date_field' => ['type' => 'string', 'enum' => ['created_at', 'closed_at']],
         'date_from' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
         'date_to' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
     ];
-    $filterRequired = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'assignee_state', 'date_field', 'date_from', 'date_to'];
+    $filterRequired = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'channel_ids', 'assignee_state', 'date_field', 'date_from', 'date_to'];
 
     return [
         [
@@ -44,7 +45,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'search_requirements', 'strict' => true,
-            'description' => 'Busca filas individuales de requerimientos autorizados. Usala para responder cuales son, mostrar folios, fechas o detalles de resultados previos. Cada fila puede incluir folio, estatus, tramite, departamento, responsable, fecha de creacion y conteos de actividad; la fecha de cierre solo aparece si el estatus actual es Finalizado. Devuelve total_matching, items, returned, has_more y next_cursor. Nunca devuelve contactos, texto de comentarios ni fecha_limite.',
+            'description' => 'Busca filas individuales de requerimientos autorizados. Usala para responder cuales son, mostrar folios, fechas, canal de origen o detalles de resultados previos. channel_ids [1] filtra Portal ciudadano y [2] Portal de empleados. Cada fila incluye una etiqueta legible channel. La fecha de cierre solo aparece si el estatus actual es Finalizado. Devuelve total_matching, items, returned, has_more y next_cursor. Nunca devuelve contactos, texto de comentarios ni fecha_limite.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'sort', 'limit', 'cursor'],
@@ -57,12 +58,12 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'aggregate_requirements', 'strict' => true,
-            'description' => 'Devuelve conteos agrupados por estatus, departamento, tramite, empleado asignado o fecha; no devuelve filas, folios ni fechas individuales. Usala para conteos, rankings y tendencias. Admite rangos personalizados mediante date_field, date_from y date_to.',
+            'description' => 'Devuelve conteos agrupados por estatus, departamento, tramite, empleado asignado, canal de origen o fecha; no devuelve filas, folios ni fechas individuales. Usa group_by channel para comparar Portal ciudadano contra Portal de empleados. channel_ids [1] filtra Portal ciudadano y [2] Portal de empleados. Usala para conteos, rankings y tendencias. Admite rangos personalizados mediante date_field, date_from y date_to.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'group_by', 'sort', 'limit'],
                 'properties' => array_merge($datasetFilters, [
-                    'group_by' => ['type' => 'string', 'enum' => ['status', 'department', 'tramite', 'assignee', 'date']],
+                    'group_by' => ['type' => 'string', 'enum' => ['status', 'department', 'tramite', 'assignee', 'channel', 'date']],
                     'sort' => ['type' => 'string', 'enum' => ['asc', 'desc']],
                     'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
                 ]),
@@ -82,7 +83,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'get_requirement_detail', 'strict' => true,
-            'description' => 'Obtiene la ficha de un folio o id autorizado, con asunto, descripcion, estatus, tramite, departamento, asignado, fecha de creacion y conteos de actividad. La fecha de cierre solo aparece si el estatus actual es Finalizado. Si primero localizaste un requerimiento mediante una busqueda y el usuario pide su informacion o detalle, llama tambien esta herramienta antes de responder.',
+            'description' => 'Obtiene la ficha de un folio o id autorizado, con asunto, descripcion, estatus, tramite, departamento, canal de origen, asignado, fecha de creacion y conteos de actividad. La fecha de cierre solo aparece si el estatus actual es Finalizado. Si primero localizaste un requerimiento mediante una busqueda y el usuario pide su informacion o detalle, llama tambien esta herramienta antes de responder.',
             'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['id', 'folio'], 'properties' => $requirementKey],
         ],
         [

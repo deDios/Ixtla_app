@@ -326,7 +326,7 @@ function ixtla_insights_apply_default_period(string $toolName, array $arguments,
         $arguments['date_from'] = isset($arguments['date_from']) && is_string($arguments['date_from']) ? $arguments['date_from'] : null;
         $arguments['date_to'] = isset($arguments['date_to']) && is_string($arguments['date_to']) ? $arguments['date_to'] : null;
         if (in_array($toolName, ['search_requirements', 'aggregate_requirements'], true)) {
-            foreach (['department_ids', 'department_names', 'assignee_ids', 'tramite_ids', 'status_ids'] as $listKey) {
+            foreach (['department_ids', 'department_names', 'assignee_ids', 'tramite_ids', 'status_ids', 'channel_ids'] as $listKey) {
                 $arguments[$listKey] = is_array($arguments[$listKey] ?? null) ? $arguments[$listKey] : [];
             }
             $arguments['department_id'] = max(0, (int) ($arguments['department_id'] ?? 0));
@@ -397,11 +397,12 @@ function ixtla_insights_prepare_tool_arguments(
     }
 
     if ($reusesPrevious && in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)) {
-        $listKeys = ['department_ids', 'department_names', 'assignee_ids', 'tramite_ids', 'status_ids'];
+        $listKeys = ['department_ids', 'department_names', 'assignee_ids', 'tramite_ids', 'status_ids', 'channel_ids'];
         foreach ($listKeys as $key) {
             $resetsDimension = match ($key) {
                 'department_ids', 'department_names' => preg_match('/\b(todos los departamentos|todas las areas|sin filtrar departamento)\b/', $normalizedQuestion) === 1,
                 'status_ids' => preg_match('/\b(todos los estatus|cualquier estatus|sin filtrar estatus)\b/', $normalizedQuestion) === 1,
+                'channel_ids' => preg_match('/\b(todos los canales|cualquier canal|sin filtrar canal)\b/', $normalizedQuestion) === 1,
                 'assignee_ids' => preg_match('/\b(todos los responsables|cualquier responsable|sin filtrar responsable)\b/', $normalizedQuestion) === 1,
                 'tramite_ids' => preg_match('/\b(todos los tramites|cualquier tramite|sin filtrar tramite)\b/', $normalizedQuestion) === 1,
                 default => false,
@@ -448,6 +449,19 @@ function ixtla_insights_prepare_tool_arguments(
         // La regla de negocio prevalece incluso si el modelo envio otros
         // estatus junto con una fecha de cierre.
         $arguments['status_ids'] = [6];
+    }
+
+    if (in_array($toolName, ['search_requirements', 'aggregate_requirements'], true)) {
+        $requestedChannels = [];
+        if (preg_match('/\b(canal\s*1|portal(?:\s+del)?\s+ciudadan[oa]|canal(?:\s+del)?\s+ciudadan[oa])\b/', $normalizedQuestion) === 1) {
+            $requestedChannels[] = 1;
+        }
+        if (preg_match('/\b(canal\s*2|portal(?:\s+de\s+los)?\s+empleados?|canal(?:\s+de\s+los)?\s+empleados?)\b/', $normalizedQuestion) === 1) {
+            $requestedChannels[] = 2;
+        }
+        if ($requestedChannels !== []) {
+            $arguments['channel_ids'] = array_values(array_unique($requestedChannels));
+        }
     }
 
     $arguments = ixtla_insights_apply_default_period($toolName, $arguments, $question);

@@ -95,7 +95,7 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments, 
     if (isset($arguments['group_by'])) {
         $context['group_by'] = $arguments['group_by'];
     }
-    $filterKeys = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'assignee_state', 'date_field', 'date_from', 'date_to', 'sort'];
+    $filterKeys = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'channel_ids', 'assignee_state', 'date_field', 'date_from', 'date_to', 'sort'];
     $filters = [];
     foreach ($filterKeys as $filterKey) {
         if (array_key_exists($filterKey, $arguments)) $filters[$filterKey] = $arguments[$filterKey];
