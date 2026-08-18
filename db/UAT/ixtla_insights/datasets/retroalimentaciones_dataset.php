@@ -35,6 +35,20 @@ function ixtla_insights_retro_query(array $arguments, mysqli $connection): array
     if ($assigneeState === 'assigned') $where[] = 'r.asignado_a IS NOT NULL';
     if ($assigneeState === 'unassigned') $where[] = 'r.asignado_a IS NULL';
 
+    $period = (string) ($arguments['period'] ?? 'all');
+    match ($period) {
+        'this_week' => $where[] = 'rc.created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)',
+        'last_7' => $where[] = 'rc.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)',
+        'last_30' => $where[] = 'rc.created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)',
+        'this_month' => $where[] = "rc.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+        'all' => null,
+        default => throw new InvalidArgumentException('El periodo de retroalimentaciones no es valido.'),
+    };
+    $dateFrom = trim((string) ($arguments['date_from'] ?? ''));
+    $dateTo = trim((string) ($arguments['date_to'] ?? ''));
+    if ($dateFrom !== '') { $where[] = 'rc.created_at >= ?'; $types .= 's'; $params[] = $dateFrom . ' 00:00:00'; }
+    if ($dateTo !== '') { $where[] = 'rc.created_at < DATE_ADD(?, INTERVAL 1 DAY)'; $types .= 's'; $params[] = $dateTo; }
+
     return ['where' => $where, 'types' => $types, 'params' => $params, 'scope' => $scope];
 }
 
@@ -63,6 +77,8 @@ function ixtla_insights_retro_overview(array $arguments): array
         $rated = (int) ($row['rated'] ?? 0);
         return [
             'scope' => (string) $query['scope']['label'],
+            'period' => (string) ($arguments['period'] ?? 'all'),
+            'date_basis' => 'Fecha de creacion de la retroalimentacion',
             'total' => $total,
             'unique_requirements' => (int) ($row['unique_requirements'] ?? 0),
             'status_counts' => [
@@ -97,6 +113,7 @@ function ixtla_insights_retro_aggregate(array $arguments): array
         'assignee' => ['expr' => 'r.asignado_a', 'label' => "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin responsable')"],
         'channel' => ['expr' => 'r.canal', 'label' => 'r.canal'],
         'requirement_status' => ['expr' => 'r.estatus', 'label' => 'r.estatus'],
+        'date' => ['expr' => 'DATE(rc.created_at)', 'label' => 'DATE(rc.created_at)'],
     ];
     if (!isset($groups[$groupBy])) throw new InvalidArgumentException('La agrupacion de retroalimentaciones no es valida.');
     $limit = min(50, max(1, (int) ($arguments['limit'] ?? 20)));
@@ -115,8 +132,9 @@ function ixtla_insights_retro_aggregate(array $arguments): array
         return [
             'scope' => (string) $query['scope']['label'],
             'group_by' => $groupBy,
+            'date_basis' => 'Fecha de creacion de la retroalimentacion',
             'items' => array_map(static function (array $row) use ($groupBy): array {
-                $id = $row['group_id'] === null ? null : (int) $row['group_id'];
+                $id = $row['group_id'] === null ? null : ($groupBy === 'date' ? (string) $row['group_id'] : (int) $row['group_id']);
                 $label = match ($groupBy) {
                     'status' => ixtla_insights_retro_status_label((int) $id),
                     'rating' => ixtla_insights_retro_rating_label($id),
@@ -152,6 +170,7 @@ function ixtla_insights_retro_search(array $arguments): array
         $rows = ixtla_insights_dataset_rows($connection, $sql, $query['types'] . 'ii', [...$query['params'], $limit, $offset]);
         return [
             'scope' => (string) $query['scope']['label'],
+            'date_basis' => 'Fecha de creacion de la retroalimentacion',
             'returned' => count($rows),
             'total_matching' => $total,
             'page' => $page,
@@ -186,12 +205,12 @@ function ixtla_insights_retro_detail(array $arguments): array
     }
     $connection = ixtla_insights_dataset_connection();
     try {
-        $query = ixtla_insights_retro_query([], $connection);
+        $query = ixtla_insights_retro_query(['period' => 'all'], $connection);
         if ($retroId > 0) { $query['where'][] = 'rc.id = ?'; $query['types'] .= 'i'; $query['params'][] = $retroId; }
         if ($requirementId > 0) { $query['where'][] = 'r.id = ?'; $query['types'] .= 'i'; $query['params'][] = $requirementId; }
         if ($folio !== '') { $query['where'][] = 'r.folio = ?'; $query['types'] .= 's'; $query['params'][] = $folio; }
         $rows = ixtla_insights_dataset_rows($connection,
-            'SELECT rc.id, r.id requirement_id, r.folio, rc.status, rc.calificacion, rc.comentario, '
+            'SELECT rc.id, r.id requirement_id, r.folio, rc.status, rc.calificacion, rc.comentario, rc.created_at, rc.updated_at, '
             . 'r.estatus requirement_status, r.canal channel_id, d.nombre department, t.nombre tramite, '
             . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin responsable') assignee "
             . 'FROM retro_ciudadana rc JOIN requerimiento r ON r.id = rc.requerimiento_id '
@@ -206,6 +225,8 @@ function ixtla_insights_retro_detail(array $arguments): array
             'rating' => $row['calificacion'] === null ? null : (int) $row['calificacion'],
             'rating_label' => ixtla_insights_retro_rating_label($row['calificacion'] === null ? null : (int) $row['calificacion']),
             'comment' => ixtla_insights_activity_safe_text((string) ($row['comentario'] ?? ''), 1000),
+            'created_at' => (string) $row['created_at'],
+            'updated_at' => (string) $row['updated_at'],
             'requirement_status' => ixtla_insights_domain_status_label((int) $row['requirement_status']),
             'channel' => ixtla_insights_domain_channel_label((int) $row['channel_id']),
             'department' => (string) $row['department'], 'tramite' => (string) $row['tramite'], 'assignee' => (string) $row['assignee'],

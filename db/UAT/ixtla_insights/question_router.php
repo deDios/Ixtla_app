@@ -319,6 +319,24 @@ function ixtla_insights_question_requires_finalized_status(string $question): bo
  */
 function ixtla_insights_apply_default_period(string $toolName, array $arguments, string $question): array
 {
+    if (in_array($toolName, ['get_feedback_overview', 'aggregate_feedback', 'search_feedback'], true)) {
+        foreach (['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids'] as $listKey) {
+            $arguments[$listKey] = is_array($arguments[$listKey] ?? null) ? $arguments[$listKey] : [];
+        }
+        $arguments['assignee_state'] = in_array((string) ($arguments['assignee_state'] ?? ''), ['any', 'assigned', 'unassigned'], true)
+            ? (string) $arguments['assignee_state'] : 'any';
+        $arguments['date_from'] = isset($arguments['date_from']) && is_string($arguments['date_from']) ? $arguments['date_from'] : null;
+        $arguments['date_to'] = isset($arguments['date_to']) && is_string($arguments['date_to']) ? $arguments['date_to'] : null;
+        $requestedRange = ixtla_insights_question_requested_date_range($question);
+        if ($requestedRange !== null) {
+            $arguments['date_from'] = $requestedRange['date_from'];
+            $arguments['date_to'] = $requestedRange['date_to'];
+            $arguments['period'] = 'all';
+            return $arguments;
+        }
+        $arguments['period'] = ixtla_insights_question_requested_period($question)
+            ?? (in_array((string) ($arguments['period'] ?? ''), ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true) ? (string) $arguments['period'] : 'all');
+    }
     if (in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)) {
         $arguments['date_field'] = in_array((string) ($arguments['date_field'] ?? ''), ['created_at', 'closed_at'], true)
             ? (string) $arguments['date_field']
@@ -462,6 +480,27 @@ function ixtla_insights_prepare_tool_arguments(
         && preg_match('/\b(siguientes|siguiente pagina|continua|continuar)\b/', $normalizedQuestion) === 1) {
         $nextCursor = trim((string) ($analyticsContext['last_query']['next_cursor'] ?? ''));
         if ($nextCursor !== '') $arguments['cursor'] = $nextCursor;
+    }
+
+    if ($toolName === 'search_feedback'
+        && preg_match('/\b(siguientes|siguiente pagina|continua|continuar)\b/', $normalizedQuestion) === 1) {
+        $arguments['page'] = max(1, (int) ($previousFilters['page'] ?? 1) + 1);
+    }
+
+    if ($reusesPrevious && in_array($toolName, ['get_feedback_overview', 'aggregate_feedback', 'search_feedback'], true)) {
+        foreach (['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids'] as $key) {
+            if ((is_array($arguments[$key] ?? null) ? $arguments[$key] : []) === [] && is_array($previousFilters[$key] ?? null)) {
+                $arguments[$key] = $previousFilters[$key];
+            }
+        }
+        if (($arguments['assignee_state'] ?? 'any') === 'any' && isset($previousFilters['assignee_state'])) {
+            $arguments['assignee_state'] = $previousFilters['assignee_state'];
+        }
+        if (!ixtla_insights_question_has_explicit_period($question)) {
+            foreach (['period', 'date_from', 'date_to'] as $key) {
+                if (array_key_exists($key, $previousFilters)) $arguments[$key] = $previousFilters[$key];
+            }
+        }
     }
 
     if ($reusesPrevious && in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)) {

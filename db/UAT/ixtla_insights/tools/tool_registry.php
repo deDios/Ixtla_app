@@ -37,13 +37,16 @@ function ixtla_insights_tool_definitions(): array
         'channel_ids' => ['type' => 'array', 'maxItems' => 2, 'items' => ['type' => 'integer', 'enum' => [1, 2]]],
         'assignee_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
         'assignee_state' => ['type' => 'string', 'enum' => ['any', 'assigned', 'unassigned']],
+        'period' => ['type' => 'string', 'enum' => ['all', 'this_week', 'last_7', 'last_30', 'this_month']],
+        'date_from' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
+        'date_to' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
     ];
-    $retroRequired = ['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids', 'assignee_state'];
+    $retroRequired = ['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids', 'assignee_state', 'period', 'date_from', 'date_to'];
 
     return [
         [
             'type' => 'function', 'name' => 'get_feedback_overview', 'strict' => true,
-            'description' => 'Obtiene total de registros, requerimientos unicos, conteos por estado, tasas de respuesta general y elegible, promedio, respuestas favorables y desfavorables dentro del alcance autorizado. Estados: 0 Caducada, 1 No contestada, 2 Contestada y 3 Inhabilitada. Calificaciones: 1 Malo, 2 Regular, 3 Bueno y 4 Excelente.',
+            'description' => 'Obtiene total de registros, requerimientos unicos, conteos por estado, tasas de respuesta general y elegible, promedio, respuestas favorables y desfavorables. period y rangos se aplican a la fecha de creacion de la retroalimentacion.',
             'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => $retroRequired, 'properties' => $retroFilters],
         ],
         [
@@ -52,7 +55,7 @@ function ixtla_insights_tool_definitions(): array
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false, 'required' => [...$retroRequired, 'group_by', 'limit'],
                 'properties' => array_merge($retroFilters, [
-                    'group_by' => ['type' => 'string', 'enum' => ['status', 'rating', 'department', 'tramite', 'assignee', 'channel', 'requirement_status']],
+                    'group_by' => ['type' => 'string', 'enum' => ['status', 'rating', 'department', 'tramite', 'assignee', 'channel', 'requirement_status', 'date']],
                     'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
                 ]),
             ],

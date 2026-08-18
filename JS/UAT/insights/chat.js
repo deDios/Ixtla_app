@@ -190,7 +190,7 @@ export function mountIxtlaInsights(options = {}) {
 
   const config = {
     title: "Ixtla Insights",
-    subtitle: "Asistente de requerimientos",
+    subtitle: "Asistente de requerimientos y retros",
     quickQuestions: [
       {
         label: "Diagnóstico del mes",
@@ -263,12 +263,12 @@ export function mountIxtlaInsights(options = {}) {
 
   function appendInlineMarkdown(target, value) {
     const text = String(value ?? "");
-    const pattern = /(\*\*([^*]+)\*\*|`([^`]+)`)/g;
+    const pattern = /(\*\*([^*]+)\*\*|\*([^*\n]+)\*|`([^`]+)`)/g;
     let cursor = 0;
     for (const match of text.matchAll(pattern)) {
       if (match.index > cursor) target.append(document.createTextNode(text.slice(cursor, match.index)));
-      const element = document.createElement(match[2] !== undefined ? "strong" : "code");
-      element.textContent = match[2] ?? match[3] ?? "";
+      const element = document.createElement(match[2] !== undefined ? "strong" : match[3] !== undefined ? "em" : "code");
+      element.textContent = match[2] ?? match[3] ?? match[4] ?? "";
       target.append(element);
       cursor = match.index + match[0].length;
     }
