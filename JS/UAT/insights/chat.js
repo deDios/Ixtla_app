@@ -1,4 +1,5 @@
-import { saveTemporaryDashboard } from "/JS/UAT/insights/dashboard-store.js";
+// El dashboard visual permanece fuera del alcance productivo del chat simple.
+const saveTemporaryDashboard = () => null;
 
 const CONTEXT_EVENT = "ixtla-insights:context";
 const isInsightsDebugEnabled = () => {
@@ -210,17 +211,21 @@ export function mountIxtlaInsights(options = {}) {
         prompt: "¿Cuáles son los cinco trámites con mayor volumen de requerimientos este mes dentro de mi alcance autorizado? No inventes cifras.",
       },
       {
+        label: "Resumen de retros",
+        prompt: "Dame un resumen de las retroalimentaciones dentro de mi alcance autorizado: total, contestadas, no contestadas, caducadas, inhabilitadas, tasa de respuesta y promedio de calificación.",
+      },
+      {
         label: "¿Qué puedo consultar?",
         prompt: "¿Qué tipos de reportes y datos puedo consultar dentro de mi alcance autorizado? Dame ejemplos breves.",
       },
     ],
     dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
-    apiUrl: "/db/ixtla_insights/gpt_probe.php",
-    welcomeUrl: "/db/ixtla_insights/welcome_report.php",
-    catalogUrl: "/db/ixtla_insights/catalog.php",
-    draftUrl: "/db/ixtla_insights/draft.php",
-    departmentsUrl: "/db/ixtla_insights/departments.php",
-    exportUrl: "/db/ixtla_insights/query_export.php",
+    apiUrl: "/db/UAT/ixtla_insights/gpt_probe.php",
+    welcomeUrl: "/db/UAT/ixtla_insights/welcome_report.php",
+    catalogUrl: "/db/UAT/ixtla_insights/catalog.php",
+    draftUrl: "/db/UAT/ixtla_insights/draft.php",
+    departmentsUrl: "/db/UAT/ixtla_insights/departments.php",
+    exportUrl: "/db/UAT/ixtla_insights/query_export.php",
     simpleMode: true,
     visualizationHandler: null,
     ...options,

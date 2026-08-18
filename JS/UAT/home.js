@@ -79,7 +79,7 @@ import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=dataset-query-9";
 import { getEmpleadoById, updateEmpleado } from "/JS/UAT/api/usuarios.js";
 
 const INSIGHTS_CONFIG = {
-  apiUrl: "/db/ixtla_insights/gpt_probe.php",
+  apiUrl: "/db/UAT/ixtla_insights/gpt_probe.php",
   frontendBuild: "dataset-query-9",
   simpleMode: true,
   quickQuestions: [
@@ -100,6 +100,14 @@ const INSIGHTS_CONFIG = {
     {
       label: "Trámites con más carga",
       prompt: "¿Cuáles son los cinco trámites con mayor volumen de requerimientos este mes dentro de mi alcance autorizado? No inventes cifras.",
+    },
+    {
+      label: "Resumen de retros",
+      prompt: "Dame un resumen de las retroalimentaciones dentro de mi alcance autorizado: total, contestadas, no contestadas, caducadas, inhabilitadas, tasa de respuesta y promedio de calificación.",
+    },
+    {
+      label: "Reporte de satisfacción",
+      prompt: "Genera un reporte de retroalimentaciones contestadas por calificación y muestra los cinco trámites con más respuestas. Distingue tasa de respuesta de nivel de satisfacción y no inventes tendencias por fecha.",
     },
     {
       label: "¿Qué puedo consultar?",

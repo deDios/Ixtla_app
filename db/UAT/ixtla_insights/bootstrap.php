@@ -1,0 +1,834 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/../../../JS/UAT/auth/ix_guard.php';
+require_once __DIR__ . '/../../conn/UAT/ixtla_insights_config.php';
+require_once __DIR__ . '/contracts.php';
+require_once __DIR__ . '/domain_profile.php';
+
+/**
+ * Inicializa el entorno de ejecución del asistente Ixtla Insights.
+ *
+ * @param array $methods Métodos HTTP permitidos para la solicitud actual.
+ * @return array Configuración de Ixtla Insights.
+ */
+function ixtla_insights_bootstrap(array $methods = ['POST']): array
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
+
+    $config = ixtla_insights_config();
+    $timezone = trim((string) ($config['timezone'] ?? 'America/Mexico_City'));
+    if (!in_array($timezone, timezone_identifiers_list(), true)) {
+        $timezone = 'America/Mexico_City';
+    }
+    date_default_timezone_set($timezone);
+    header('X-Ixtla-Insights-Request-Id: ' . ixtla_insights_request_id());
+    header('X-Ixtla-Insights-Version: ' . (string) (ixtla_insights_catalog()['version'] ?? 'unknown'));
+    if (($config['build_id'] ?? '') !== '') {
+        header('X-Ixtla-Insights-Build: ' . (string) $config['build_id']);
+    }
+    $serverIdentity = trim((string) ($_SERVER['SERVER_ADDR'] ?? ''));
+    if ($serverIdentity === '') $serverIdentity = (string) (gethostname() ?: 'unknown');
+    header('X-Ixtla-Insights-Instance: ' . substr(hash('sha256', $serverIdentity), 0, 12));
+    consola_debug('bootstrap.received', [
+        'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
+        'path' => parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '',
+        'has_auth_cookie' => isset($_COOKIE['ix_emp']) && $_COOKIE['ix_emp'] !== '',
+        'client_attempt' => in_array((string) ($_SERVER['HTTP_X_IXTLA_INSIGHTS_ATTEMPT'] ?? ''), ['1', '2'], true)
+            ? (string) $_SERVER['HTTP_X_IXTLA_INSIGHTS_ATTEMPT']
+            : '',
+    ]);
+    ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
+    consola_debug('bootstrap.session_accepted');
+    header('Content-Type: application/json; charset=utf-8');
+
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    if (!in_array($method, $methods, true)) {
+        ixtla_insights_json(['ok' => false, 'error' => 'Metodo no permitido.'], 405);
+    }
+
+    consola_debug('bootstrap.method_accepted', ['allowed_methods' => implode(',', $methods)]);
+    return $config;
+}
+
+/**
+ * Envía una respuesta JSON y termina la ejecución.
+ *
+ * @param array $payload Cuerpo de la respuesta.
+ * @param int $status Código HTTP de la respuesta.
+ */
+function ixtla_insights_json(array $payload, int $status = 200): void
+{
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    $payload += ['request_id' => ixtla_insights_request_id()];
+    if (($payload['ok'] ?? true) === false && !isset($payload['error_code'])) {
+        $payload['error_code'] = ixtla_insights_default_error_code($status);
+    }
+    consola_debug('response.sent', [
+        'status' => $status,
+        'ok' => ($payload['ok'] ?? true) === true,
+        'error_code' => $payload['error_code'] ?? '',
+    ]);
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+/**
+ * Registra etapas de ejecución sin guardar preguntas, cookies, cabeceras de
+ * autorización ni el contenido de las respuestas del proveedor.
+ */
+function consola_debug(string $stage, array $context = []): void
+{
+    if (!consola_debug_enabled()) {
+        return;
+    }
+
+    static $startedAt = null;
+    $startedAt ??= microtime(true);
+    $safeContext = [];
+    foreach ($context as $key => $value) {
+        if (is_bool($value) || is_int($value) || is_float($value)) {
+            $safeContext[$key] = $value;
+        } elseif (is_string($value) && $value !== '') {
+            $safeContext[$key] = ixtla_insights_truncate($value, 120);
+        }
+    }
+
+    if (!headers_sent()) {
+        header('X-Ixtla-Insights-Debug-Stage: ' . ixtla_insights_truncate($stage, 80));
+    }
+    error_log((string) json_encode([
+        'event' => 'consola_debug',
+        'request_id' => ixtla_insights_request_id(),
+        'stage' => $stage,
+        'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        'context' => $safeContext,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+function consola_debug_enabled(): bool
+{
+    static $enabled = null;
+    if (is_bool($enabled)) {
+        return $enabled;
+    }
+    return $enabled = (ixtla_insights_config()['debug'] ?? false) === true;
+}
+
+function ixtla_insights_request_id(): string
+{
+    static $requestId = null;
+    if (is_string($requestId)) {
+        return $requestId;
+    }
+
+    $candidate = trim((string) ($_SERVER['HTTP_X_IXTLA_INSIGHTS_REQUEST_ID'] ?? ''));
+    if (preg_match('/^[A-Za-z0-9_-]{12,80}$/', $candidate) === 1) {
+        return $requestId = $candidate;
+    }
+    try {
+        return $requestId = 'ix-' . bin2hex(random_bytes(12));
+    } catch (Throwable) {
+        return $requestId = 'ix-' . str_replace('.', '', uniqid('', true));
+    }
+}
+
+function ixtla_insights_default_error_code(int $status): string
+{
+    return match ($status) {
+        400 => 'invalid_request',
+        401 => 'session_required',
+        403 => 'forbidden',
+        405 => 'method_not_allowed',
+        422 => 'validation_failed',
+        429 => 'rate_limited',
+        502 => 'provider_unavailable',
+        503 => 'service_unavailable',
+        default => 'internal_error',
+    };
+}
+
+function ixtla_insights_log_error(string $component, Throwable $error, array $context = []): void
+{
+    $parts = [];
+    foreach ($context as $key => $value) {
+        if (is_scalar($value) && $value !== '') {
+            $parts[] = $key . '=' . ixtla_insights_truncate((string) $value, 120);
+        }
+    }
+    $suffix = $parts ? ' ' . implode(' ', $parts) : '';
+    error_log(sprintf('[IxtlaInsights %s][%s]%s %s', $component, ixtla_insights_request_id(), $suffix, $error->getMessage()));
+}
+
+function ixtla_insights_request_body(): array
+{
+    $raw = file_get_contents('php://input');
+    if ($raw === false || trim($raw) === '') {
+        return [];
+    }
+
+    $body = json_decode($raw, true);
+    if (!is_array($body)) {
+        ixtla_insights_json(['ok' => false, 'error' => 'El cuerpo debe ser JSON valido.'], 400);
+    }
+
+    return $body;
+}
+
+function ixtla_insights_scope(): array
+{
+    $session = $GLOBALS['ix_session'] ?? [];
+
+    return [
+        'domain' => 'requerimientos_y_retroalimentaciones',
+        'empleado_id' => $session['empleado_id'] ?? $session['id_empleado'] ?? null,
+        'cuenta_id' => $session['cuenta_id'] ?? $session['id_cuenta'] ?? $session['id_usuario'] ?? null,
+    ];
+}
+
+function ixtla_insights_clean_history(array $history, int $limit, int $messageCharacters = 400, int $totalCharacters = 0): array
+{
+    $clean = [];
+    $usedCharacters = 0;
+    $messages = $limit > 0 ? array_slice($history, -$limit) : $history;
+    foreach (array_reverse($messages) as $message) {
+        if (!is_array($message)) {
+            continue;
+        }
+
+        $role = $message['role'] ?? '';
+        $content = trim((string) ($message['content'] ?? ''));
+        if (!in_array($role, ['user', 'assistant'], true) || $content === '') {
+            continue;
+        }
+
+        $content = $messageCharacters > 0 ? ixtla_insights_truncate($content, $messageCharacters) : $content;
+        if ($totalCharacters > 0) {
+            $remainingCharacters = $totalCharacters - $usedCharacters;
+            if ($remainingCharacters <= 0) {
+                break;
+            }
+            $content = ixtla_insights_truncate($content, $remainingCharacters);
+            $usedCharacters += mb_strlen($content);
+        }
+
+        $clean[] = [
+            'role' => $role,
+            'content' => $content,
+        ];
+    }
+
+    return array_reverse($clean);
+}
+
+/**
+ * Convierte el historial textual interno al formato manual de Responses API.
+ *
+ */
+function ixtla_insights_responses_history_input(array $history): array
+{
+    $input = [];
+    foreach ($history as $message) {
+        if (!is_array($message)) {
+            continue;
+        }
+
+        $role = (string) ($message['role'] ?? '');
+        $content = trim((string) ($message['content'] ?? ''));
+        if (!in_array($role, ['user', 'assistant'], true) || $content === '') {
+            continue;
+        }
+
+        $input[] = ['role' => $role, 'content' => $content];
+    }
+
+    return $input;
+}
+
+function ixtla_insights_truncate(string $value, int $limit): string
+{
+    return function_exists('mb_substr') ? mb_substr($value, 0, $limit) : substr($value, 0, $limit);
+}
+
+function ixtla_insights_openai_text(array $response): string
+{
+    if (is_string($response['output_text'] ?? null)) {
+        return trim($response['output_text']);
+    }
+
+    foreach (($response['output'] ?? []) as $item) {
+        foreach (($item['content'] ?? []) as $content) {
+            if (($content['type'] ?? '') === 'output_text' && is_string($content['text'] ?? null)) {
+                return trim($content['text']);
+            }
+        }
+    }
+
+    return '';
+}
+
+function ixtla_insights_response_schema(): array
+{
+    $catalog = ixtla_insights_catalog();
+    $filter = [
+        'type' => 'object',
+        'additionalProperties' => false,
+        'required' => ['field', 'value'],
+        'properties' => [
+            'field' => ['type' => 'string', 'enum' => $catalog['filter_fields']],
+            'value' => ['type' => 'string', 'maxLength' => 120],
+        ],
+    ];
+    $widget = [
+        'type' => 'object',
+        'additionalProperties' => false,
+        'required' => ['kind', 'title', 'metric', 'dimension', 'period', 'scope', 'filters', 'sort', 'limit', 'scope_label'],
+        'properties' => [
+            'kind' => ['type' => 'string', 'enum' => $catalog['widget_kinds']],
+            'title' => ['type' => 'string', 'maxLength' => 100],
+            'metric' => ['type' => 'string', 'enum' => $catalog['metrics']],
+            'dimension' => ['type' => 'string', 'enum' => $catalog['dimensions']],
+            'period' => ['type' => 'string', 'enum' => $catalog['periods']],
+            'scope' => ['type' => 'string', 'enum' => $catalog['scopes']],
+            'filters' => ['type' => 'array', 'maxItems' => 3, 'items' => $filter],
+            'sort' => ['type' => 'string', 'enum' => $catalog['sorts']],
+            'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
+            'scope_label' => ['type' => 'string', 'maxLength' => 160],
+        ],
+    ];
+    $reportPlan = [
+        'type' => 'object',
+        'additionalProperties' => false,
+        'required' => ['intent', 'title', 'metric', 'dimension', 'period', 'scope', 'filters', 'sort', 'limit', 'include_summary'],
+        'properties' => [
+            'intent' => ['type' => 'string', 'enum' => $catalog['report_intents']],
+            'title' => ['type' => 'string', 'maxLength' => 100],
+            'metric' => ['type' => 'string', 'enum' => $catalog['metrics']],
+            'dimension' => ['type' => 'string', 'enum' => $catalog['dimensions']],
+            'period' => ['type' => 'string', 'enum' => $catalog['periods']],
+            'scope' => ['type' => 'string', 'enum' => $catalog['scopes']],
+            'filters' => ['type' => 'array', 'maxItems' => 3, 'items' => $filter],
+            'sort' => ['type' => 'string', 'enum' => $catalog['sorts']],
+            'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
+            'include_summary' => ['type' => 'boolean'],
+        ],
+    ];
+
+    return [
+        'type' => 'object',
+        'additionalProperties' => false,
+        'required' => ['answer', 'suggestions', 'actions', 'report_plan'],
+        'properties' => [
+            'answer' => ['type' => 'string', 'maxLength' => 350],
+            'suggestions' => [
+                'type' => 'array',
+                'maxItems' => 5,
+                'items' => ['type' => 'string', 'maxLength' => 100],
+            ],
+            'actions' => [
+                'type' => 'array',
+                'maxItems' => 1,
+                'items' => [
+                    'type' => 'object',
+                    'additionalProperties' => false,
+                    'required' => ['type', 'widget'],
+                    'properties' => [
+                        'type' => ['type' => 'string', 'enum' => ['widget_preview']],
+                        'widget' => $widget,
+                    ],
+                ],
+            ],
+            'report_plan' => ['anyOf' => [['type' => 'null'], $reportPlan]],
+        ],
+    ];
+}
+
+function ixtla_insights_normalize_chat_response(array $data, array $departments = []): array
+{
+    $answer = trim((string) ($data['answer'] ?? ''));
+    if ($answer === '') {
+        $answer = 'No pude generar una respuesta para esta consulta.';
+    }
+
+    $suggestions = [];
+    foreach (($data['suggestions'] ?? []) as $suggestion) {
+        $text = trim((string) $suggestion);
+        if ($text !== '') {
+            $suggestions[] = ixtla_insights_truncate($text, 160);
+        }
+    }
+
+    $actions = [];
+    $unresolvedDepartments = [];
+    foreach (($data['actions'] ?? []) as $action) {
+        $widget = is_array($action['widget'] ?? null) ? $action['widget'] : null;
+        if (($action['type'] ?? '') !== 'widget_preview' || $widget === null) {
+            continue;
+        }
+
+        if (!ixtla_insights_catalog_contains('widget_kinds', (string) ($widget['kind'] ?? ''))) {
+            continue;
+        }
+        if (!ixtla_insights_catalog_contains('metrics', (string) ($widget['metric'] ?? ''))) {
+            continue;
+        }
+        if (($widget['kind'] ?? '') !== 'kpi' && ixtla_insights_is_kpi_only_metric((string) $widget['metric'])) {
+            continue;
+        }
+        if (!ixtla_insights_catalog_contains('dimensions', (string) ($widget['dimension'] ?? ''))) {
+            continue;
+        }
+
+        if (($widget['kind'] ?? '') !== 'kpi' && ($widget['dimension'] ?? '') === 'estatus' && ixtla_insights_is_fixed_status_metric((string) ($widget['metric'] ?? ''))) {
+            continue;
+        }
+
+        $filters = [];
+        foreach (($widget['filters'] ?? []) as $filter) {
+            if (!is_array($filter)) {
+                continue;
+            }
+            $field = $filter['field'] ?? '';
+            $value = trim((string) ($filter['value'] ?? ''));
+            if (!ixtla_insights_catalog_contains('filter_fields', (string) $field) || $value === '') {
+                continue;
+            }
+            if ($field === 'departamento') {
+                $department = ixtla_insights_resolve_department($value, $departments);
+                if ($department === null) {
+                    $unresolvedDepartments[] = $value;
+                    continue;
+                }
+                $value = $department['nombre'];
+            }
+            $filters[] = ['field' => $field, 'value' => ixtla_insights_truncate($value, 120)];
+        }
+        if ($unresolvedDepartments) {
+            continue;
+        }
+        $scope = ($widget['scope'] ?? '') === 'selected' ? 'selected' : (($widget['scope'] ?? '') === 'all' ? 'all' : '');
+        $hasDepartmentFilter = (bool) array_filter($filters, static fn (array $filter): bool => $filter['field'] === 'departamento');
+        if ($scope === '' || ($scope === 'selected' && !$hasDepartmentFilter) || ($scope === 'all' && $hasDepartmentFilter)) {
+            continue;
+        }
+        $sort = ixtla_insights_catalog_contains('sorts', (string) ($widget['sort'] ?? '')) ? $widget['sort'] : 'desc';
+        $limit = min(50, max(1, (int) ($widget['limit'] ?? 10)));
+
+        $actions[] = [
+            'type' => 'widget_preview',
+            'widget' => [
+                'kind' => $widget['kind'],
+                'title' => ixtla_insights_truncate(trim((string) ($widget['title'] ?? 'Visualizacion de requerimientos')), 100),
+                'metric' => $widget['metric'],
+                'dimension' => $widget['dimension'],
+                'period' => ixtla_insights_catalog_contains('periods', (string) ($widget['period'] ?? '')) ? $widget['period'] : 'all',
+                'scope' => $scope,
+                'filters' => array_slice($filters, 0, 3),
+                'sort' => $sort,
+                'limit' => $limit,
+                'scope_label' => ixtla_insights_truncate(trim((string) ($widget['scope_label'] ?? 'Vista autorizada actual')), 160),
+            ],
+        ];
+    }
+
+    $unresolvedDepartments = array_values(array_unique($unresolvedDepartments));
+    if ($unresolvedDepartments) {
+        $answer = 'No generé una tabla general porque no encontré una coincidencia única para: '
+            . implode(', ', array_slice($unresolvedDepartments, 0, 3))
+            . '. Indica el nombre del departamento como aparece en el catálogo.';
+    }
+
+    $reportPlan = ixtla_insights_normalize_report_plan($data['report_plan'] ?? null, $departments);
+
+    return [
+        'ok' => true,
+        'mode' => 'openai',
+        'answer' => ixtla_insights_truncate($answer, 350),
+        'suggestions' => array_slice(array_values(array_unique($suggestions)), 0, 5),
+        'actions' => array_slice($actions, 0, 1),
+        'report_plan' => $reportPlan,
+    ];
+}
+
+/**
+ * Normaliza la intención analítica que el modelo propone. El plan conserva
+ * únicamente valores del contrato y nombres de departamentos autorizados.
+ */
+function ixtla_insights_normalize_report_plan(mixed $raw, array $departments): ?array
+{
+    if (!is_array($raw)) {
+        return null;
+    }
+
+    $intent = trim((string) ($raw['intent'] ?? ''));
+    $metric = trim((string) ($raw['metric'] ?? ''));
+    $dimension = trim((string) ($raw['dimension'] ?? ''));
+    if (!ixtla_insights_catalog_contains('report_intents', $intent)
+        || !ixtla_insights_catalog_contains('metrics', $metric)
+        || !ixtla_insights_catalog_contains('dimensions', $dimension)) {
+        return null;
+    }
+    if ($intent === 'trend' && $dimension !== 'fecha') {
+        return null;
+    }
+    if ($intent !== 'metric_query' && ixtla_insights_is_kpi_only_metric($metric)) {
+        return null;
+    }
+    if ($intent !== 'metric_query' && $dimension === 'estatus' && ixtla_insights_is_fixed_status_metric($metric)) {
+        return null;
+    }
+
+    $filters = [];
+    foreach (is_array($raw['filters'] ?? null) ? $raw['filters'] : [] as $filter) {
+        if (!is_array($filter)) {
+            continue;
+        }
+        $field = trim((string) ($filter['field'] ?? ''));
+        $value = trim((string) ($filter['value'] ?? ''));
+        if ($value === '' || !ixtla_insights_catalog_contains('filter_fields', $field)) {
+            continue;
+        }
+        if ($field === 'departamento') {
+            $department = ixtla_insights_resolve_department($value, $departments);
+            if ($department === null) {
+                return null;
+            }
+            $value = (string) $department['nombre'];
+        }
+        $filters[] = ['field' => $field, 'value' => ixtla_insights_truncate($value, 120)];
+    }
+
+    $scope = trim((string) ($raw['scope'] ?? ''));
+    $hasDepartmentFilter = (bool) array_filter($filters, static fn (array $filter): bool => $filter['field'] === 'departamento');
+    if (!ixtla_insights_catalog_contains('scopes', $scope)
+        || ($scope === 'selected' && !$hasDepartmentFilter)
+        || ($scope === 'all' && $hasDepartmentFilter)) {
+        return null;
+    }
+    $selectedDepartments = array_values(array_unique(array_map(
+        static fn (array $filter): string => (string) $filter['value'],
+        array_filter($filters, static fn (array $filter): bool => $filter['field'] === 'departamento')
+    )));
+    if ($intent === 'comparison' && count($selectedDepartments) < 2) {
+        return null;
+    }
+
+    $period = trim((string) ($raw['period'] ?? ''));
+    $sort = trim((string) ($raw['sort'] ?? ''));
+    return [
+        'intent' => $intent,
+        'title' => ixtla_insights_truncate(trim((string) ($raw['title'] ?? 'Reporte de requerimientos')), 100),
+        'metric' => $metric,
+        'dimension' => $dimension,
+        'period' => ixtla_insights_catalog_contains('periods', $period) ? $period : 'all',
+        'scope' => $scope,
+        'filters' => array_slice($filters, 0, 3),
+        'sort' => ixtla_insights_catalog_contains('sorts', $sort) ? $sort : 'desc',
+        'limit' => min(50, max(1, (int) ($raw['limit'] ?? 10))),
+        'include_summary' => (bool) ($raw['include_summary'] ?? true),
+    ];
+}
+
+function ixtla_insights_department_catalog(mysqli $con): array
+{
+    $result = $con->query('SELECT id, nombre FROM departamento WHERE status = 1 AND nombre IS NOT NULL AND TRIM(nombre) <> \'\' ORDER BY nombre ASC');
+    if (!$result) {
+        throw new RuntimeException('No fue posible leer el catálogo de departamentos.');
+    }
+
+    $departments = [];
+    while ($row = $result->fetch_assoc()) {
+        $name = trim((string) ($row['nombre'] ?? ''));
+        if ($name !== '') {
+            $departments[] = ['id' => (int) ($row['id'] ?? 0), 'nombre' => $name];
+        }
+    }
+    $result->free();
+    return $departments;
+}
+
+function ixtla_insights_resolve_department(string $value, array $departments): ?array
+{
+    $needle = ixtla_insights_normalize_match_text($value);
+    if ($needle === '') {
+        return null;
+    }
+
+    $exact = [];
+    $similar = [];
+    $closest = [];
+    $closestDistance = null;
+    foreach ($departments as $department) {
+        $name = trim((string) ($department['nombre'] ?? ''));
+        $candidate = ixtla_insights_normalize_match_text($name);
+        if ($candidate === '') {
+            continue;
+        }
+        if ($candidate === $needle) {
+            $exact[] = $department;
+            continue;
+        }
+        if (str_contains($candidate, $needle) || str_contains($needle, $candidate)) {
+            $similar[] = $department;
+            continue;
+        }
+
+        $distance = levenshtein($needle, $candidate);
+        if ($closestDistance === null || $distance < $closestDistance) {
+            $closestDistance = $distance;
+            $closest = [$department];
+        } elseif ($distance === $closestDistance) {
+            $closest[] = $department;
+        }
+    }
+
+    if (count($exact) === 1) {
+        return $exact[0];
+    }
+    if (count($similar) === 1) {
+        return $similar[0];
+    }
+
+    $maximumDistance = max(2, min(6, (int) floor(strlen($needle) * 0.25)));
+    return $closestDistance !== null && $closestDistance <= $maximumDistance && count($closest) === 1
+        ? $closest[0]
+        : null;
+}
+
+function ixtla_insights_normalize_match_text(string $value): string
+{
+    $value = mb_strtolower(trim($value), 'UTF-8');
+    // iconv puede no transliterar acentos de forma consistente según el host.
+    // Conservamos una tabla explícita para que los nombres y preguntas tengan
+    // el mismo comportamiento en desarrollo y producción.
+    $value = strtr($value, [
+        'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+        'ü' => 'u', 'ñ' => 'n',
+    ]);
+    $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+    if ($transliterated !== false) {
+        $value = $transliterated;
+    }
+    $value = preg_replace('/[^a-z0-9]+/', ' ', $value) ?? '';
+    return trim(preg_replace('/\s+/', ' ', $value) ?? '');
+}
+
+function ixtla_insights_call_openai(array $config, string $question, array $history, array $departments = []): array
+{
+    // Ruta monolitica retirada. El chat vigente pasa exclusivamente por
+    // gpt_probe.php, el router y el registro central de herramientas.
+    throw new LogicException('La ruta OpenAI heredada de Insights esta deshabilitada.');
+
+    if (!function_exists('curl_init')) {
+        ixtla_insights_json(['ok' => false, 'error' => 'La extension cURL no esta disponible.'], 500);
+    }
+
+    $apiKey = trim((string) ($config['api_key'] ?? ''));
+    if ($apiKey === '') {
+        ixtla_insights_json(['ok' => false, 'error' => 'No hay configuracion de OpenAI disponible para Insights.'], 503);
+    }
+
+    $catalog = ixtla_insights_catalog();
+    $systemPrompt = 'Eres Ixtla Insights para requerimientos. Responde solo con el JSON definido. '
+        . 'No inventes cifras, no afirmes haber consultado una base de datos y no generes SQL. '
+        . 'Resuelve dudas sobre las capacidades del asistente y pide una aclaración breve cuando una pregunta sea ambigua. '
+        . 'Solo puedes proponer widgets ' . implode(', ', $catalog['widget_kinds']) . '; métricas ' . implode(', ', $catalog['metrics']) . '. '
+        . 'Los indicadores kpi también pueden usar promedio_semanal o tiempo_resolucion; esas dos métricas no se usan en gráficas. '
+        . 'Dimensiones permitidas: ' . implode(', ', $catalog['dimensions']) . '. Para rankings usa limit y sort. '
+        . 'Cuando el usuario pida uno o varios departamentos, debes usar un filtro departamento por cada nombre y únicamente los nombres exactos del catálogo autorizado. '
+        . 'Si no hay una coincidencia exacta o claramente única, no generes widget y pide que especifique el departamento; nunca sustituyas esa solicitud por una tabla general. '
+        . 'Una solicitud de métrica, ranking, top, comparación o dashboard también requiere una acción widget_preview; para un top sin tipo de gráfica usa bar y dimension tramite. '
+        . 'Si no solicitan una visualizacion, actions debe ser []. '
+        . 'La respuesta debe ser breve, sin explicar razonamientos.';
+
+    $systemPrompt .= ' Para la metrica pausados_cancelados no uses dimension estatus, porque el estatus ya esta definido por la metrica.';
+    $systemPrompt .= ' Para una solicitud de visualizacion debes validar antes de crear widget: tipo de grafica (kind), metrica, dimension, periodo y alcance. '
+        . 'El periodo debe ser all, last_7, last_30 o this_month; el alcance debe ser all o selected. '
+        . 'Si falta cualquiera de esos datos, actions debe ser [] y answer debe hacer una sola pregunta breve por el siguiente dato faltante. '
+        . 'Cuando hagas una pregunta de seguimiento, usa suggestions para ofrecer de dos a cuatro respuestas breves y relevantes. '
+        . 'No asumas todos los departamentos: pregunta si el alcance es todos o departamentos especificos. '
+        . 'Si el usuario indico departamentos, valida cada uno contra el catalogo y usa scope selected con filtros exactos. '
+        . 'Solo devuelve widget_preview cuando todos los datos requeridos esten definidos; incluye period y scope.';
+    $systemPrompt .= ' Para preguntas que soliciten cifras, desgloses, comparaciones, rankings o tendencias, devuelve report_plan con la intención más adecuada: metric_query, breakdown, comparison, ranking o trend. '
+        . 'report_plan debe ser null para dudas generales o cuando falte un dato indispensable. '
+        . 'metric_query usa una sola cifra; trend siempre usa dimension fecha; comparison requiere al menos dos filtros de departamentos seleccionados. '
+        . 'No asumas scope all para un reporte: pregunta si debe usar todos los departamentos autorizados o una selección, salvo que el usuario ya lo haya indicado. '
+        . 'No inventes resultados ni cifras: el servidor ejecutará report_plan y redactará la respuesta con datos reales. '
+        . 'Solo incluye widget_preview si el usuario pidió explícitamente una gráfica, tabla o widget; un reporte textual no requiere widget.';
+    $systemPrompt .= ' Las reglas de completitud para widget_preview prevalecen sobre cualquier instruccion anterior de crear un widget.';
+
+    $input = [[
+        'role' => 'developer',
+        'content' => [['type' => 'input_text', 'text' => $systemPrompt]],
+    ]];
+    $input = array_merge($input, ixtla_insights_responses_history_input($history));
+    $catalogText = $departments
+        ? json_encode($departments, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        : '[]';
+    $input[] = [
+        'role' => 'user',
+        'content' => [[
+            'type' => 'input_text',
+            'text' => "Pregunta actual: {$question}\nContexto autorizado: requerimientos visibles en la vista actual.\nCatálogo autorizado de departamentos: {$catalogText}",
+        ]],
+    ];
+
+    $payload = [
+        'model' => $config['model'],
+        'input' => $input,
+        'text' => [
+            'format' => [
+                'type' => 'json_schema',
+                'name' => 'ixtla_insights_chat_response',
+                'strict' => true,
+                'schema' => ixtla_insights_response_schema(),
+            ],
+        ],
+    ];
+    $payload = array_replace($payload, ixtla_insights_generation_controls($config));
+
+    $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($jsonPayload === false) {
+        ixtla_insights_json(['ok' => false, 'error' => 'No fue posible preparar la solicitud Insights.'], 500);
+    }
+
+    $curl = curl_init((string) $config['provider_url']);
+    consola_debug('openai.request_started', [
+        'model' => (string) ($config['model'] ?? ''),
+        'question_length' => mb_strlen($question),
+        'history_messages' => count($history),
+        'authorized_departments' => count($departments),
+    ]);
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $jsonPayload,
+        CURLOPT_TIMEOUT => (int) $config['request_timeout_seconds'],
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $apiKey,
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ],
+    ]);
+    $startedAt = microtime(true);
+    $raw = curl_exec($curl);
+    $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    $curlError = curl_error($curl);
+    curl_close($curl);
+    consola_debug('openai.response_received', [
+        'http_status' => $status,
+        'latency_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        'has_transport_error' => $curlError !== '',
+    ]);
+
+    $response = is_string($raw) ? json_decode($raw, true) : null;
+    if ($status < 200 || $status >= 300 || !is_array($response)) {
+        $providerError = is_array($response['error'] ?? null) ? $response['error'] : [];
+        error_log(sprintf(
+            '[IxtlaInsights provider][%s] http_status=%d provider_code=%s curl_error=%s',
+            ixtla_insights_request_id(),
+            $status,
+            ixtla_insights_truncate((string) ($providerError['code'] ?? $providerError['type'] ?? ''), 80),
+            ixtla_insights_truncate($curlError, 120)
+        ));
+        ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no pudo procesar la consulta Insights.'], 502);
+    }
+
+    ixtla_insights_log_usage($response, [
+        'model' => $config['model'] ?? null,
+        'latency_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+    ]);
+
+    $structured = json_decode(ixtla_insights_openai_text($response), true);
+    if (!is_array($structured)) {
+        ixtla_insights_json(['ok' => false, 'error' => 'OpenAI devolvio una respuesta no estructurada.'], 502);
+    }
+
+    $normalized = ixtla_insights_normalize_chat_response($structured, $departments);
+    consola_debug('openai.response_validated', [
+        'actions' => count(is_array($normalized['actions'] ?? null) ? $normalized['actions'] : []),
+        'has_report_plan' => is_array($normalized['report_plan'] ?? null),
+    ]);
+    return $normalized;
+}
+
+function ixtla_insights_log_usage(array $response, array $context = []): void
+{
+    $usage = is_array($response['usage'] ?? null) ? $response['usage'] : [];
+    $outputDetails = is_array($usage['output_tokens_details'] ?? null) ? $usage['output_tokens_details'] : [];
+    $record = [
+        'event' => 'ixtla_insights_usage',
+        'request_id' => ixtla_insights_request_id(),
+        'model' => $context['model'] ?? null,
+        'latency_ms' => $context['latency_ms'] ?? null,
+        'input_tokens' => $usage['input_tokens'] ?? null,
+        'output_tokens' => $usage['output_tokens'] ?? null,
+        'reasoning_tokens' => $outputDetails['reasoning_tokens'] ?? $usage['reasoning_tokens'] ?? null,
+    ];
+    error_log((string) json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+/**
+ * Suma el consumo de una o varias respuestas de Responses API.
+ *
+ * Una consulta que usa tools puede generar una respuesta inicial y una o más
+ * continuaciones. El resumen representa el turno completo, no sólo la última
+ * continuación que redactó el texto final.
+ */
+function ixtla_insights_usage_summary(array $responses): array
+{
+    $summary = [
+        'provider_requests' => 0,
+        'input_tokens' => 0,
+        'output_tokens' => 0,
+        'reasoning_tokens' => 0,
+        'cached_input_tokens' => 0,
+        'total_tokens' => 0,
+    ];
+
+    foreach ($responses as $response) {
+        $usage = is_array($response['usage'] ?? null) ? $response['usage'] : null;
+        if ($usage === null) {
+            continue;
+        }
+
+        $inputDetails = is_array($usage['input_tokens_details'] ?? null) ? $usage['input_tokens_details'] : [];
+        $outputDetails = is_array($usage['output_tokens_details'] ?? null) ? $usage['output_tokens_details'] : [];
+        $inputTokens = max(0, (int) ($usage['input_tokens'] ?? 0));
+        $outputTokens = max(0, (int) ($usage['output_tokens'] ?? 0));
+
+        $summary['provider_requests']++;
+        $summary['input_tokens'] += $inputTokens;
+        $summary['output_tokens'] += $outputTokens;
+        $summary['reasoning_tokens'] += max(0, (int) ($outputDetails['reasoning_tokens'] ?? $usage['reasoning_tokens'] ?? 0));
+        $summary['cached_input_tokens'] += max(0, (int) ($inputDetails['cached_tokens'] ?? 0));
+        $summary['total_tokens'] += max(0, (int) ($usage['total_tokens'] ?? ($inputTokens + $outputTokens)));
+    }
+
+    return $summary;
+}
+
+/** Registra un resumen de uso ya agregado para una consulta completa. */
+function ixtla_insights_log_usage_summary(array $usage, array $context = []): void
+{
+    $record = [
+        'event' => 'ixtla_insights_usage',
+        'request_id' => ixtla_insights_request_id(),
+        'model' => $context['model'] ?? null,
+        'mode' => $context['mode'] ?? null,
+        'latency_ms' => $context['latency_ms'] ?? null,
+        'provider_requests' => (int) ($usage['provider_requests'] ?? 0),
+        'input_tokens' => (int) ($usage['input_tokens'] ?? 0),
+        'output_tokens' => (int) ($usage['output_tokens'] ?? 0),
+        'reasoning_tokens' => (int) ($usage['reasoning_tokens'] ?? 0),
+        'cached_input_tokens' => (int) ($usage['cached_input_tokens'] ?? 0),
+        'total_tokens' => (int) ($usage['total_tokens'] ?? 0),
+    ];
+    error_log((string) json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
