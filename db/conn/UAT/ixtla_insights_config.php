@@ -1,8 +1,7 @@
 <?php
 /**
- * Configuración central del asistente Ixtla Insights.
+ * Configuración central del asistente Ixtla Insights pero en uat.
  *
- * Lee db/conn/UAT/.env. No realiza llamadas al proveedor.
  */
 
 declare(strict_types=1);
@@ -23,7 +22,7 @@ function ixtla_insights_env_value(array $environment, string $key): string
 
 function ixtla_insights_openai_env(): array
 {
-    $envPath = __DIR__ . '/.env';
+    $envPath = dirname(__DIR__) . '/.env';
     if (!is_file($envPath)) {
         return [];
     }
@@ -90,7 +89,7 @@ function ixtla_insights_config(): array
         // Sólo permite agregaciones predefinidas y autorizadas; nunca SQL del modelo.
         'allow_database_queries' => true,
 
-        'environment_file' => 'db/conn/UAT/.env',
+        'environment_file' => 'db/conn/.env',
     ];
 }
 
