@@ -319,7 +319,7 @@ function ixtla_insights_question_requires_finalized_status(string $question): bo
  */
 function ixtla_insights_apply_default_period(string $toolName, array $arguments, string $question): array
 {
-    if (in_array($toolName, ['get_feedback_overview', 'aggregate_feedback', 'search_feedback'], true)) {
+    if (in_array($toolName, ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'analyze_feedback_comments'], true)) {
         foreach (['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids'] as $listKey) {
             $arguments[$listKey] = is_array($arguments[$listKey] ?? null) ? $arguments[$listKey] : [];
         }
@@ -487,7 +487,7 @@ function ixtla_insights_prepare_tool_arguments(
         $arguments['page'] = max(1, (int) ($previousFilters['page'] ?? 1) + 1);
     }
 
-    if ($reusesPrevious && in_array($toolName, ['get_feedback_overview', 'aggregate_feedback', 'search_feedback'], true)) {
+    if ($reusesPrevious && in_array($toolName, ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'analyze_feedback_comments'], true)) {
         foreach (['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids'] as $key) {
             if ((is_array($arguments[$key] ?? null) ? $arguments[$key] : []) === [] && is_array($previousFilters[$key] ?? null)) {
                 $arguments[$key] = $previousFilters[$key];

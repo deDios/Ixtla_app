@@ -195,6 +195,59 @@ function ixtla_insights_retro_search(array $arguments): array
     }
 }
 
+/**
+ * Entrega una muestra acotada de comentarios para análisis cualitativo.
+ * El RBAC se aplica antes de leer el texto y nunca se incluyen contactos.
+ */
+function ixtla_insights_retro_comment_sample(array $arguments): array
+{
+    $limit = min(30, max(1, (int) ($arguments['limit'] ?? 15)));
+    $connection = ixtla_insights_dataset_connection();
+    try {
+        $query = ixtla_insights_retro_query($arguments, $connection);
+        $query['where'][] = "rc.status = 2 AND NULLIF(TRIM(rc.comentario), '') IS NOT NULL";
+        $where = ' WHERE ' . implode(' AND ', $query['where']);
+        $total = ixtla_insights_dataset_scalar(
+            $connection,
+            'SELECT COUNT(*) FROM retro_ciudadana rc JOIN requerimiento r ON r.id = rc.requerimiento_id' . $where,
+            $query['types'],
+            $query['params']
+        );
+        $rows = ixtla_insights_dataset_rows(
+            $connection,
+            'SELECT rc.id, r.id requirement_id, r.folio, rc.calificacion, rc.comentario, rc.created_at, '
+            . 'd.nombre department, t.nombre tramite '
+            . 'FROM retro_ciudadana rc JOIN requerimiento r ON r.id = rc.requerimiento_id '
+            . 'JOIN departamento d ON d.id = r.departamento_id JOIN tramite t ON t.id = r.tramite_id'
+            . $where . ' ORDER BY rc.created_at DESC, rc.id DESC LIMIT ?',
+            $query['types'] . 'i',
+            [...$query['params'], $limit]
+        );
+        return [
+            'scope' => (string) $query['scope']['label'],
+            'period' => (string) ($arguments['period'] ?? 'all'),
+            'date_basis' => 'Fecha de creacion de la retroalimentacion',
+            'total_comments_matching' => $total,
+            'sample_size' => count($rows),
+            'is_sample' => count($rows) < $total,
+            'comments' => array_map(static fn (array $row): array => [
+                'retro_id' => (int) $row['id'],
+                'requirement_id' => (int) $row['requirement_id'],
+                'folio' => (string) $row['folio'],
+                'rating' => (int) $row['calificacion'],
+                'rating_label' => ixtla_insights_retro_rating_label((int) $row['calificacion']),
+                'comment' => ixtla_insights_activity_safe_text((string) $row['comentario'], 1000),
+                'created_at' => (string) $row['created_at'],
+                'department' => (string) $row['department'],
+                'tramite' => (string) $row['tramite'],
+            ], $rows),
+            'privacy' => 'Los comentarios estan sanitizados y no incluyen nombre, contacto ni enlace ciudadano.',
+        ];
+    } finally {
+        $connection->close();
+    }
+}
+
 function ixtla_insights_retro_detail(array $arguments): array
 {
     $retroId = (int) ($arguments['retro_id'] ?? 0);
@@ -211,7 +264,9 @@ function ixtla_insights_retro_detail(array $arguments): array
         if ($folio !== '') { $query['where'][] = 'r.folio = ?'; $query['types'] .= 's'; $query['params'][] = $folio; }
         $rows = ixtla_insights_dataset_rows($connection,
             'SELECT rc.id, r.id requirement_id, r.folio, rc.status, rc.calificacion, rc.comentario, rc.created_at, rc.updated_at, '
-            . 'r.estatus requirement_status, r.canal channel_id, d.nombre department, t.nombre tramite, '
+            . 'r.estatus requirement_status, r.canal channel_id, '
+            . 'r.contacto_nombre, r.contacto_telefono, r.contacto_email, r.contacto_calle, r.contacto_cp, r.contacto_colonia, '
+            . 'd.nombre department, t.nombre tramite, '
             . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin responsable') assignee "
             . 'FROM retro_ciudadana rc JOIN requerimiento r ON r.id = rc.requerimiento_id '
             . 'JOIN departamento d ON d.id = r.departamento_id JOIN tramite t ON t.id = r.tramite_id LEFT JOIN empleado e ON e.id = r.asignado_a '
@@ -219,6 +274,10 @@ function ixtla_insights_retro_detail(array $arguments): array
             $query['types'], $query['params']);
         if ($rows === []) throw new RuntimeException('La retroalimentacion no existe o esta fuera del alcance autorizado.');
         $row = $rows[0];
+        $nullable = static function (mixed $value): ?string {
+            $value = trim((string) $value);
+            return $value === '' ? null : $value;
+        };
         return ['scope' => (string) $query['scope']['label'], 'feedback' => [
             'retro_id' => (int) $row['id'], 'requirement_id' => (int) $row['requirement_id'], 'folio' => (string) $row['folio'],
             'status' => ixtla_insights_retro_status_label((int) $row['status']),
@@ -230,7 +289,15 @@ function ixtla_insights_retro_detail(array $arguments): array
             'requirement_status' => ixtla_insights_domain_status_label((int) $row['requirement_status']),
             'channel' => ixtla_insights_domain_channel_label((int) $row['channel_id']),
             'department' => (string) $row['department'], 'tramite' => (string) $row['tramite'], 'assignee' => (string) $row['assignee'],
-        ], 'privacy' => 'El comentario se sanitiza; no se incluyen datos de contacto ni el enlace ciudadano.'];
+            'citizen' => [
+                'name' => $nullable($row['contacto_nombre'] ?? null),
+                'phone' => $nullable($row['contacto_telefono'] ?? null),
+                'email' => $nullable($row['contacto_email'] ?? null),
+                'street' => $nullable($row['contacto_calle'] ?? null),
+                'postal_code' => $nullable($row['contacto_cp'] ?? null),
+                'neighborhood' => $nullable($row['contacto_colonia'] ?? null),
+            ],
+        ], 'privacy' => 'El comentario se sanitiza y el contacto se entrega solo para esta retroalimentacion autorizada; no se incluye el enlace ciudadano.'];
     } finally {
         $connection->close();
     }

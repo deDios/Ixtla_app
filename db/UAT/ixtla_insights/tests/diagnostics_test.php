@@ -59,6 +59,9 @@ expect_diagnostic(in_array('get_feedback_overview', $feedbackTools, true), 'Debe
 expect_diagnostic(in_array('aggregate_feedback', $feedbackTools, true), 'Debe existir la agregacion de retroalimentaciones.');
 expect_diagnostic(in_array('search_feedback', $feedbackTools, true), 'Debe existir el listado seguro de retroalimentaciones.');
 expect_diagnostic(in_array('get_feedback_detail', $feedbackTools, true), 'Debe existir el detalle seguro de una retroalimentacion.');
+expect_diagnostic(in_array('analyze_feedback_comments', $feedbackTools, true), 'Debe existir el analisis cualitativo de comentarios de retroalimentacion.');
+expect_diagnostic(str_contains($domainPrompt, 'motivos de retros malas o buenas'), 'El perfil debe orientar preguntas cualitativas de retroalimentacion.');
+expect_diagnostic(str_contains($domainPrompt, 'todos los datos ciudadanos que entregue get_feedback_detail'), 'El detalle individual de retro debe permitir datos ciudadanos autorizados.');
 expect_diagnostic(ixtla_insights_retro_status_label(2) === 'Contestada', 'El modulo debe traducir el estado de retroalimentacion.');
 expect_diagnostic(ixtla_insights_retro_rating_label(4) === 'Excelente', 'El modulo debe traducir la escala de calificacion.');
 expect_diagnostic(ixtla_insights_question_intent('Cuantas retroalimentaciones estan contestadas?') === 'dataset', 'Las preguntas de retroalimentacion deben consultar datos.');

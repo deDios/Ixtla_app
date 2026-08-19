@@ -73,7 +73,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'get_feedback_detail', 'strict' => true,
-            'description' => 'Obtiene la retroalimentacion mas reciente por folio o requerimiento, o una retro por su id, siempre dentro del alcance autorizado. Incluye comentario ciudadano sanitizado, estado, calificacion y contexto operativo; no incluye contacto ni enlace.',
+            'description' => 'Obtiene la retroalimentacion mas reciente por folio o requerimiento, o una retro por su id, siempre dentro del alcance autorizado. Incluye comentario ciudadano sanitizado, estado, calificacion, contexto operativo y los datos disponibles del ciudadano: nombre, telefono, correo, calle, codigo postal y colonia. No incluye el enlace de acceso.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false, 'required' => ['retro_id', 'requirement_id', 'folio'],
                 'properties' => [
@@ -81,6 +81,16 @@ function ixtla_insights_tool_definitions(): array
                     'requirement_id' => ['type' => ['integer', 'null'], 'minimum' => 1],
                     'folio' => ['type' => ['string', 'null'], 'minLength' => 1, 'maxLength' => 80],
                 ],
+            ],
+        ],
+        [
+            'type' => 'function', 'name' => 'analyze_feedback_comments', 'strict' => true,
+            'description' => 'Obtiene una muestra reciente y sanitizada de comentarios de retroalimentaciones autorizadas para responder que dicen los ciudadanos, resumir motivos, detectar temas recurrentes y mostrar ejemplos. Permite filtrar por calificacion, periodo, departamento, tramite, estatus del requerimiento, canal y responsable. No devuelve datos personales; para el contacto de un folio concreto usa get_feedback_detail.',
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false, 'required' => [...$retroRequired, 'limit'],
+                'properties' => array_merge($retroFilters, [
+                    'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 30],
+                ]),
             ],
         ],
         [
@@ -196,6 +206,7 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'aggregate_feedback' => ixtla_insights_retro_aggregate($args),
         'search_feedback' => ixtla_insights_retro_search($args),
         'get_feedback_detail' => ixtla_insights_retro_detail($args),
+        'analyze_feedback_comments' => ixtla_insights_retro_comment_sample($args),
         'get_requirements_overview' => ixtla_insights_snapshot_overview($args),
         'search_requirements' => ixtla_insights_snapshot_search($args),
         'aggregate_requirements' => ixtla_insights_snapshot_aggregate($args),
