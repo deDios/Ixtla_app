@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
     <link rel="stylesheet" href="/CSS/UAT/components.css">
-    <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=dataset-query-9">
+    <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=chips-scroll-1">
     <link rel="icon" href="/favicon.ico">
 </head>
 

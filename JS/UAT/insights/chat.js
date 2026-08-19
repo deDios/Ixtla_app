@@ -255,6 +255,12 @@ export function mountIxtlaInsights(options = {}) {
   const clear = root.querySelector(".ixtla-insights-clear");
   const messages = root.querySelector(".ixtla-insights-messages");
   const chips = root.querySelector(".ixtla-insights-chips");
+  chips.setAttribute("aria-label", "Preguntas y acciones rápidas");
+  chips.addEventListener("wheel", (event) => {
+    if (chips.scrollWidth <= chips.clientWidth || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    chips.scrollLeft += event.deltaY;
+  }, { passive: false });
   const form = root.querySelector(".ixtla-insights-form");
   const input = root.querySelector(".ixtla-insights-input");
   const send = root.querySelector(".ixtla-insights-send");
@@ -443,6 +449,7 @@ export function mountIxtlaInsights(options = {}) {
 
   function renderQuickQuestions(questions) {
     chips.replaceChildren();
+    chips.scrollLeft = 0;
     (Array.isArray(questions) ? questions : []).slice(0, 10).forEach((item) => {
       const text = clean(typeof item === "string" ? item : item?.label);
       if (!text) return;
