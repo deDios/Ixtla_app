@@ -660,6 +660,10 @@
         ).addTo(geoMap);
       }
 
+      // Leaflet necesita una vista inicial antes de proyectar el radio del
+      // círculo y calcular sus límites, especialmente si el mapa nace oculto.
+      geoMap.setView(latLng, 16, { animate: false });
+
       if (!geoMarker) {
         geoMarker = window.L.marker(latLng).addTo(geoMap);
         geoMarker.bindPopup("Ubicación aproximada del reporte");
