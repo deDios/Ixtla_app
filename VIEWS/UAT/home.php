@@ -11,7 +11,7 @@
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
-    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-map-2">
+    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-pin-3">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=chips-scroll-3">
@@ -644,8 +644,14 @@
                                 <strong>Ubicación obtenida</strong>
                                 <span id="ix-geo-accuracy"></span>
                                 <span class="ix-geo__address" id="ix-geo-address"></span>
-                                <div class="ix-geo__map" id="ix-geo-map" role="application" tabindex="0"
-                                    aria-label="Mapa de la ubicación aproximada del reporte"></div>
+                                <p class="ix-geo__map-help">Arrastra el mapa para colocar la aguja en el punto exacto.</p>
+                                <div class="ix-geo__map-wrap">
+                                    <div class="ix-geo__map" id="ix-geo-map" role="application" tabindex="0"
+                                        aria-label="Mapa para ajustar la ubicación del reporte"></div>
+                                    <div class="ix-geo__pin" aria-hidden="true"><span></span></div>
+                                </div>
+                                <button type="button" class="ix-btn ix-btn--primary ix-geo__confirm"
+                                    id="ix-geo-confirm" hidden>Confirmar este punto</button>
                                 <button type="button" id="ix-geo-remove">Eliminar ubicación</button>
                             </div>
 
@@ -791,7 +797,7 @@
     <script src="/JS/UAT/jsGlobal.js"></script>
     <script type="module" src="/JS/UAT/home.js?v=dataset-query-9"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
-    <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-map-2"></script>
+    <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-pin-3"></script>
 
 
 </body>

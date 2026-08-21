@@ -561,8 +561,8 @@
     let geolocationCapture = null;
     let lastReverseGeocodeAt = 0;
     let geoMap = null;
-    let geoMarker = null;
     let geoAccuracyCircle = null;
+    let geoPendingLatLng = null;
 
     // DOM del formulario
     const form = modal.querySelector("#ix-report-form");
@@ -583,6 +583,7 @@
     const geoAccuracy = modal.querySelector("#ix-geo-accuracy");
     const geoAddress = modal.querySelector("#ix-geo-address");
     const geoMapElement = modal.querySelector("#ix-geo-map");
+    const geoConfirm = modal.querySelector("#ix-geo-confirm");
     const geoRemove = modal.querySelector("#ix-geo-remove");
 
     // Uploader
@@ -658,18 +659,29 @@
             attribution: "&copy; OpenStreetMap contributors",
           },
         ).addTo(geoMap);
+
+        geoMap.on("dragstart", () => {
+          geoPendingLatLng = null;
+          if (geoConfirm) geoConfirm.hidden = true;
+        });
+        geoMap.on("dragend", () => {
+          const center = geoMap.getCenter();
+          geoPendingLatLng = {
+            latitud: Number(center.lat),
+            longitud: Number(center.lng),
+          };
+          if (geoConfirm) geoConfirm.hidden = false;
+          if (geoStatus) {
+            geoStatus.textContent =
+              "Punto ajustado en el mapa. Confírmalo para actualizar la dirección.";
+            geoStatus.dataset.state = "loading";
+          }
+        });
       }
 
       // Leaflet necesita una vista inicial antes de proyectar el radio del
       // círculo y calcular sus límites, especialmente si el mapa nace oculto.
       geoMap.setView(latLng, 16, { animate: false });
-
-      if (!geoMarker) {
-        geoMarker = window.L.marker(latLng).addTo(geoMap);
-        geoMarker.bindPopup("Ubicación aproximada del reporte");
-      } else {
-        geoMarker.setLatLng(latLng);
-      }
 
       if (!geoAccuracyCircle) {
         geoAccuracyCircle = window.L.circle(latLng, {
@@ -714,7 +726,9 @@
 
     function clearGeolocation(message = "No se compartirá la ubicación en este reporte.") {
       geolocationCapture = null;
+      geoPendingLatLng = null;
       paintGeoState(message, "idle");
+      if (geoConfirm) geoConfirm.hidden = true;
       if (geoRequest) {
         geoRequest.disabled = false;
         geoRequest.textContent = "Usar mi ubicación actual";
@@ -863,6 +877,42 @@
     geoRequest?.addEventListener("click", requestGeolocation);
     geoSkip?.addEventListener("click", () => clearGeolocation());
     geoRemove?.addEventListener("click", () => clearGeolocation("Ubicación eliminada. Puedes continuar sin compartirla."));
+    geoConfirm?.addEventListener("click", async () => {
+      if (!geolocationCapture || !geoPendingLatLng) return;
+
+      geoConfirm.disabled = true;
+      geolocationCapture.latitud = geoPendingLatLng.latitud;
+      geolocationCapture.longitud = geoPendingLatLng.longitud;
+      geolocationCapture.direccion = null;
+      geolocationCapture.cp_colonia_geo = null;
+      geolocationCapture.captured_at = new Date().toISOString();
+      paintGeoState("Actualizando la dirección del punto seleccionado…", "loading");
+
+      try {
+        const address = await reverseGeocode(
+          geolocationCapture.latitud,
+          geolocationCapture.longitud,
+        );
+        geolocationCapture.direccion = address.direccion;
+        geolocationCapture.cp_colonia_geo = address.cp_colonia_geo;
+        paintGeoState(
+          address.direccion
+            ? "Punto corregido y dirección actualizada."
+            : "Punto corregido; no se encontró una dirección aproximada.",
+          "success",
+        );
+      } catch (geocodeError) {
+        warn("No se pudo actualizar la dirección aproximada:", geocodeError);
+        paintGeoState(
+          "Punto corregido. El servicio de direcciones no respondió, pero se conservarán las coordenadas.",
+          "success",
+        );
+      } finally {
+        geoPendingLatLng = null;
+        geoConfirm.disabled = false;
+        geoConfirm.hidden = true;
+      }
+    });
 
     function refreshPreviews() {
       if (!previews) return;
