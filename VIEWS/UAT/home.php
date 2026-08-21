@@ -11,7 +11,7 @@
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
-    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-lock-5">
+    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-pastel-6">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=chips-scroll-3">
