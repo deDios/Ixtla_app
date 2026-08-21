@@ -563,6 +563,7 @@
     let geoMap = null;
     let geoAccuracyCircle = null;
     let geoPendingLatLng = null;
+    let isUserMapGesture = false;
 
     // DOM del formulario
     const form = modal.querySelector("#ix-report-form");
@@ -650,7 +651,16 @@
         geoMap = window.L.map(geoMapElement, {
           attributionControl: true,
           zoomControl: true,
-          scrollWheelZoom: false,
+          dragging: true,
+          touchZoom: true,
+          scrollWheelZoom: true,
+          doubleClickZoom: true,
+          boxZoom: true,
+          keyboard: true,
+          zoomSnap: 0.5,
+          zoomDelta: 0.5,
+          wheelPxPerZoomLevel: 90,
+          bounceAtZoomLimits: false,
         });
         window.L.tileLayer(
           "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -660,11 +670,24 @@
           },
         ).addTo(geoMap);
 
-        geoMap.on("dragstart", () => {
+        ["mousedown", "touchstart", "wheel"].forEach((eventName) => {
+          geoMapElement.addEventListener(
+            eventName,
+            () => {
+              isUserMapGesture = true;
+            },
+            { passive: true },
+          );
+        });
+
+        geoMap.on("movestart", () => {
+          if (!isUserMapGesture) return;
           geoPendingLatLng = null;
           if (geoConfirm) geoConfirm.hidden = true;
         });
-        geoMap.on("dragend", () => {
+        geoMap.on("moveend", () => {
+          if (!isUserMapGesture) return;
+          isUserMapGesture = false;
           const center = geoMap.getCenter();
           geoPendingLatLng = {
             latitud: Number(center.lat),
