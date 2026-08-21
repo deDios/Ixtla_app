@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
     <link rel="stylesheet" href="/CSS/UAT/components.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=chips-scroll-3">
     <link rel="icon" href="/favicon.ico">
 </head>
@@ -642,6 +644,8 @@
                                 <strong>Ubicación obtenida</strong>
                                 <span id="ix-geo-accuracy"></span>
                                 <span class="ix-geo__address" id="ix-geo-address"></span>
+                                <div class="ix-geo__map" id="ix-geo-map" role="application" tabindex="0"
+                                    aria-label="Mapa de la ubicación aproximada del reporte"></div>
                                 <button type="button" id="ix-geo-remove">Eliminar ubicación</button>
                             </div>
 

@@ -803,6 +803,25 @@
   line-height: 1.45;
 }
 
+#ix-report-modal .ix-geo__map {
+  flex-basis: 100%;
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  border: 1px solid #cbd9e7;
+  border-radius: 10px;
+  background: #e8eef4;
+}
+
+#ix-report-modal .ix-geo__map:focus-visible {
+  outline: 3px solid rgba(49, 87, 164, .28);
+  outline-offset: 2px;
+}
+
+#ix-report-modal .ix-geo__map .leaflet-control-attribution {
+  font-size: 9px;
+}
+
 #ix-report-modal .ix-geo__attribution {
   display: block;
   margin-top: 10px;
@@ -812,6 +831,12 @@
 
 #ix-report-modal .ix-geo__attribution a {
   color: #3157a4;
+}
+
+@media (max-width: 640px) {
+  #ix-report-modal .ix-geo__map {
+    height: 180px;
+  }
 }
 
 #ix-report-modal .ix-field {

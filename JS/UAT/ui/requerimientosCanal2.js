@@ -560,6 +560,9 @@
     let hasAttemptedSubmit = false;
     let geolocationCapture = null;
     let lastReverseGeocodeAt = 0;
+    let geoMap = null;
+    let geoMarker = null;
+    let geoAccuracyCircle = null;
 
     // DOM del formulario
     const form = modal.querySelector("#ix-report-form");
@@ -579,6 +582,7 @@
     const geoResult = modal.querySelector("#ix-geo-result");
     const geoAccuracy = modal.querySelector("#ix-geo-accuracy");
     const geoAddress = modal.querySelector("#ix-geo-address");
+    const geoMapElement = modal.querySelector("#ix-geo-map");
     const geoRemove = modal.querySelector("#ix-geo-remove");
 
     // Uploader
@@ -629,6 +633,61 @@
       cntDesc.textContent = `${n}/${max}`;
     }
 
+    function renderGeolocationMap() {
+      if (!geoMapElement || !geolocationCapture || !window.L) return;
+
+      const latLng = [
+        geolocationCapture.latitud,
+        geolocationCapture.longitud,
+      ];
+      const accuracy = Math.max(
+        1,
+        Number(geolocationCapture.presicion_metros) || 1,
+      );
+
+      if (!geoMap) {
+        geoMap = window.L.map(geoMapElement, {
+          attributionControl: true,
+          zoomControl: true,
+          scrollWheelZoom: false,
+        });
+        window.L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors",
+          },
+        ).addTo(geoMap);
+      }
+
+      if (!geoMarker) {
+        geoMarker = window.L.marker(latLng).addTo(geoMap);
+        geoMarker.bindPopup("Ubicación aproximada del reporte");
+      } else {
+        geoMarker.setLatLng(latLng);
+      }
+
+      if (!geoAccuracyCircle) {
+        geoAccuracyCircle = window.L.circle(latLng, {
+          radius: accuracy,
+          color: "#3157a4",
+          weight: 1,
+          fillColor: "#5b8def",
+          fillOpacity: 0.14,
+        }).addTo(geoMap);
+      } else {
+        geoAccuracyCircle.setLatLng(latLng).setRadius(accuracy);
+      }
+
+      requestAnimationFrame(() => {
+        geoMap.invalidateSize();
+        geoMap.fitBounds(geoAccuracyCircle.getBounds(), {
+          padding: [18, 18],
+          maxZoom: 17,
+        });
+      });
+    }
+
     function paintGeoState(message, state = "idle") {
       if (geoStatus) {
         geoStatus.textContent = message;
@@ -646,6 +705,7 @@
           ? `${geolocationCapture.direccion}${cp}`
           : "No se encontró una dirección aproximada para estas coordenadas.";
       }
+      if (geolocationCapture) renderGeolocationMap();
     }
 
     function clearGeolocation(message = "No se compartirá la ubicación en este reporte.") {
