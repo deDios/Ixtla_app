@@ -11,7 +11,7 @@
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
-    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-ux-4">
+    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-lock-5">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=chips-scroll-3">
@@ -644,18 +644,26 @@
                                 <strong>Ubicación obtenida</strong>
                                 <span id="ix-geo-accuracy"></span>
                                 <span class="ix-geo__address" id="ix-geo-address"></span>
-                                <p class="ix-geo__map-help">
+                                <div class="ix-geo__result-actions">
+                                    <button type="button" class="ix-btn ix-btn--ghost" id="ix-geo-edit">
+                                        Corregir ubicación
+                                    </button>
+                                    <button type="button" class="ix-geo__remove" id="ix-geo-remove">
+                                        Eliminar ubicación
+                                    </button>
+                                </div>
+                                <p class="ix-geo__map-help" id="ix-geo-map-help" hidden>
                                     Arrastra el mapa para colocar la aguja. Acerca o aleja con dos dedos, el trackpad o
                                     los controles + y −.
                                 </p>
-                                <div class="ix-geo__map-wrap">
+                                <div class="ix-geo__map-wrap" id="ix-geo-map-wrap">
                                     <div class="ix-geo__map" id="ix-geo-map" role="application" tabindex="0"
                                         aria-label="Mapa para ajustar la ubicación del reporte"></div>
                                     <div class="ix-geo__pin" aria-hidden="true"><span></span></div>
+                                    <span class="ix-geo__map-lock" id="ix-geo-map-lock">Ubicación fijada</span>
                                 </div>
                                 <button type="button" class="ix-btn ix-btn--primary ix-geo__confirm"
                                     id="ix-geo-confirm" hidden>Confirmar este punto</button>
-                                <button type="button" id="ix-geo-remove">Eliminar ubicación</button>
                             </div>
 
                             <small class="ix-geo__attribution">
@@ -800,7 +808,7 @@
     <script src="/JS/UAT/jsGlobal.js"></script>
     <script type="module" src="/JS/UAT/home.js?v=dataset-query-9"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
-    <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-ux-4"></script>
+    <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-lock-5"></script>
 
 
 </body>

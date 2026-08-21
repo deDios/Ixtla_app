@@ -564,6 +564,7 @@
     let geoAccuracyCircle = null;
     let geoPendingLatLng = null;
     let isUserMapGesture = false;
+    let geoEditing = false;
 
     // DOM del formulario
     const form = modal.querySelector("#ix-report-form");
@@ -584,6 +585,10 @@
     const geoAccuracy = modal.querySelector("#ix-geo-accuracy");
     const geoAddress = modal.querySelector("#ix-geo-address");
     const geoMapElement = modal.querySelector("#ix-geo-map");
+    const geoMapWrap = modal.querySelector("#ix-geo-map-wrap");
+    const geoMapHelp = modal.querySelector("#ix-geo-map-help");
+    const geoMapLock = modal.querySelector("#ix-geo-map-lock");
+    const geoEdit = modal.querySelector("#ix-geo-edit");
     const geoConfirm = modal.querySelector("#ix-geo-confirm");
     const geoRemove = modal.querySelector("#ix-geo-remove");
 
@@ -651,9 +656,9 @@
         geoMap = window.L.map(geoMapElement, {
           attributionControl: true,
           zoomControl: true,
-          dragging: true,
-          touchZoom: true,
-          scrollWheelZoom: true,
+          dragging: false,
+          touchZoom: "center",
+          scrollWheelZoom: "center",
           doubleClickZoom: true,
           boxZoom: true,
           keyboard: true,
@@ -681,12 +686,15 @@
         });
 
         geoMap.on("movestart", () => {
-          if (!isUserMapGesture) return;
+          if (!geoEditing || !isUserMapGesture) return;
           geoPendingLatLng = null;
           if (geoConfirm) geoConfirm.hidden = true;
         });
         geoMap.on("moveend", () => {
-          if (!isUserMapGesture) return;
+          if (!geoEditing || !isUserMapGesture) {
+            isUserMapGesture = false;
+            return;
+          }
           isUserMapGesture = false;
           const center = geoMap.getCenter();
           geoPendingLatLng = {
@@ -727,6 +735,35 @@
       });
     }
 
+    function setMapEditing(enabled, { restore = false } = {}) {
+      geoEditing = !!enabled;
+      geoPendingLatLng = null;
+      isUserMapGesture = false;
+
+      geoMapWrap?.classList.toggle("is-editing", geoEditing);
+      if (geoMapHelp) geoMapHelp.hidden = !geoEditing;
+      if (geoMapLock) geoMapLock.hidden = geoEditing;
+      if (geoConfirm) geoConfirm.hidden = true;
+      if (geoEdit) {
+        geoEdit.textContent = geoEditing
+          ? "Cancelar corrección"
+          : "Corregir ubicación";
+        geoEdit.setAttribute("aria-pressed", String(geoEditing));
+      }
+
+      if (!geoMap) return;
+      if (geoEditing) {
+        geoMap.dragging.enable();
+        geoMap.options.touchZoom = true;
+        geoMap.options.scrollWheelZoom = true;
+      } else {
+        geoMap.dragging.disable();
+        geoMap.options.touchZoom = "center";
+        geoMap.options.scrollWheelZoom = "center";
+        if (restore && geolocationCapture) renderGeolocationMap();
+      }
+    }
+
     function paintGeoState(message, state = "idle") {
       if (geoStatus) {
         geoStatus.textContent = message;
@@ -751,6 +788,7 @@
       geolocationCapture = null;
       geoPendingLatLng = null;
       paintGeoState(message, "idle");
+      setMapEditing(false);
       if (geoConfirm) geoConfirm.hidden = true;
       if (geoRequest) {
         geoRequest.disabled = false;
@@ -900,6 +938,20 @@
     geoRequest?.addEventListener("click", requestGeolocation);
     geoSkip?.addEventListener("click", () => clearGeolocation());
     geoRemove?.addEventListener("click", () => clearGeolocation("Ubicación eliminada. Puedes continuar sin compartirla."));
+    geoEdit?.addEventListener("click", () => {
+      if (!geolocationCapture) return;
+      if (geoEditing) {
+        setMapEditing(false, { restore: true });
+        paintGeoState("La ubicación original se mantiene sin cambios.", "success");
+        return;
+      }
+      setMapEditing(true);
+      if (geoStatus) {
+        geoStatus.textContent =
+          "Corrección habilitada. Mueve el mapa y confirma el nuevo punto.";
+        geoStatus.dataset.state = "loading";
+      }
+    });
     geoConfirm?.addEventListener("click", async () => {
       if (!geolocationCapture || !geoPendingLatLng) return;
 
@@ -934,6 +986,7 @@
         geoPendingLatLng = null;
         geoConfirm.disabled = false;
         geoConfirm.hidden = true;
+        setMapEditing(false);
       }
     });
 
