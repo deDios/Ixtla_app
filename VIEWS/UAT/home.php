@@ -614,6 +614,45 @@
                         </div>
                     </div>
 
+                    <div class="ix-form__row ix-form__row--geo">
+                        <section class="ix-geo" id="ix-geo-section" aria-labelledby="ix-geo-title">
+                            <div class="ix-geo__copy">
+                                <h3 id="ix-geo-title">Ubicación del reporte <span>(opcional)</span></h3>
+                                <p>
+                                    ¿Nos permites obtener tu ubicación actual? La usaremos para ayudar al personal a
+                                    localizar este reporte y consultaremos OpenStreetMap para obtener una dirección
+                                    aproximada. Puedes continuar sin compartirla.
+                                </p>
+                            </div>
+
+                            <div class="ix-geo__actions">
+                                <button type="button" class="ix-btn ix-btn--secondary" id="ix-geo-request">
+                                    Usar mi ubicación actual
+                                </button>
+                                <button type="button" class="ix-geo__skip" id="ix-geo-skip">
+                                    Ahora no
+                                </button>
+                            </div>
+
+                            <div class="ix-geo__status" id="ix-geo-status" role="status" aria-live="polite">
+                                No se ha solicitado tu ubicación.
+                            </div>
+
+                            <div class="ix-geo__result" id="ix-geo-result" hidden>
+                                <strong>Ubicación obtenida</strong>
+                                <span id="ix-geo-accuracy"></span>
+                                <span class="ix-geo__address" id="ix-geo-address"></span>
+                                <button type="button" id="ix-geo-remove">Eliminar ubicación</button>
+                            </div>
+
+                            <small class="ix-geo__attribution">
+                                Dirección aproximada por
+                                <a href="https://www.openstreetmap.org/copyright" target="_blank"
+                                    rel="noopener noreferrer">OpenStreetMap</a>.
+                            </small>
+                        </section>
+                    </div>
+
                     <div class="ix-form__row">
                         <div class="ix-field ix-field--full">
                             <label class="ix-field__label" for="ix-evidencia">Evidencia</label>

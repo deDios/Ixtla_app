@@ -558,6 +558,8 @@
     let files = [];
     let isSubmitting = false;
     let hasAttemptedSubmit = false;
+    let geolocationCapture = null;
+    let lastReverseGeocodeAt = 0;
 
     // DOM del formulario
     const form = modal.querySelector("#ix-report-form");
@@ -571,6 +573,13 @@
     const cntDesc = modal.querySelector("#ix-desc-count");
     const chkCons = modal.querySelector("#ix-consent");
     const btnSend = modal.querySelector("#ix-submit");
+    const geoRequest = modal.querySelector("#ix-geo-request");
+    const geoSkip = modal.querySelector("#ix-geo-skip");
+    const geoStatus = modal.querySelector("#ix-geo-status");
+    const geoResult = modal.querySelector("#ix-geo-result");
+    const geoAccuracy = modal.querySelector("#ix-geo-accuracy");
+    const geoAddress = modal.querySelector("#ix-geo-address");
+    const geoRemove = modal.querySelector("#ix-geo-remove");
 
     // Uploader
     const upWrap = modal.querySelector(".ix-upload");
@@ -619,6 +628,177 @@
       const n = (inpDesc.value || "").length;
       cntDesc.textContent = `${n}/${max}`;
     }
+
+    function paintGeoState(message, state = "idle") {
+      if (geoStatus) {
+        geoStatus.textContent = message;
+        geoStatus.dataset.state = state;
+      }
+      if (geoResult) geoResult.hidden = !geolocationCapture;
+      if (geoAccuracy && geolocationCapture) {
+        geoAccuracy.textContent = `Precisión aproximada: ${Math.round(geolocationCapture.presicion_metros)} metros.`;
+      }
+      if (geoAddress && geolocationCapture) {
+        const cp = geolocationCapture.cp_colonia_geo
+          ? ` C.P. ${geolocationCapture.cp_colonia_geo}`
+          : "";
+        geoAddress.textContent = geolocationCapture.direccion
+          ? `${geolocationCapture.direccion}${cp}`
+          : "No se encontró una dirección aproximada para estas coordenadas.";
+      }
+    }
+
+    function clearGeolocation(message = "No se compartirá la ubicación en este reporte.") {
+      geolocationCapture = null;
+      paintGeoState(message, "idle");
+      if (geoRequest) {
+        geoRequest.disabled = false;
+        geoRequest.textContent = "Usar mi ubicación actual";
+      }
+    }
+
+    async function reverseGeocode(latitud, longitud) {
+      // La instancia pública de Nominatim limita el uso a una petición por
+      // segundo. Esta espera también protege contra clics repetidos en UAT.
+      const elapsed = Date.now() - lastReverseGeocodeAt;
+      if (elapsed < 1100) {
+        await new Promise((resolve) => setTimeout(resolve, 1100 - elapsed));
+      }
+      lastReverseGeocodeAt = Date.now();
+
+      const params = new URLSearchParams({
+        format: "jsonv2",
+        lat: String(latitud),
+        lon: String(longitud),
+        addressdetails: "1",
+        zoom: "18",
+        layer: "address",
+        "accept-language": "es",
+      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?${params.toString()}`,
+          {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            signal: controller.signal,
+          },
+        );
+        if (!response.ok) throw new Error(`Nominatim HTTP ${response.status}`);
+        const result = await response.json();
+        return {
+          direccion: String(result?.display_name || "").trim() || null,
+          cp_colonia_geo:
+            String(result?.address?.postcode || "").trim() || null,
+        };
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    function requestGeolocation() {
+      if (!window.isSecureContext) {
+        paintGeoState("La ubicación requiere una conexión segura (HTTPS).", "error");
+        return;
+      }
+      if (!navigator.geolocation) {
+        paintGeoState("Este dispositivo no permite obtener la ubicación.", "error");
+        return;
+      }
+
+      if (geoRequest) {
+        geoRequest.disabled = true;
+        geoRequest.textContent = "Obteniendo ubicación…";
+      }
+      paintGeoState("Esperando la autorización del dispositivo…", "loading");
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          geolocationCapture = {
+            latitud: Number(position.coords.latitude),
+            longitud: Number(position.coords.longitude),
+            presicion_metros: Number(position.coords.accuracy),
+            direccion: null,
+            cp_colonia_geo: null,
+            captured_at: new Date(position.timestamp || Date.now()).toISOString(),
+          };
+
+          paintGeoState("Coordenadas obtenidas. Buscando la dirección aproximada…", "loading");
+          try {
+            const address = await reverseGeocode(
+              geolocationCapture.latitud,
+              geolocationCapture.longitud,
+            );
+            geolocationCapture.direccion = address.direccion;
+            geolocationCapture.cp_colonia_geo = address.cp_colonia_geo;
+            paintGeoState(
+              address.direccion
+                ? "Ubicación y dirección listas para adjuntarse al reporte."
+                : "Ubicación lista; no se encontró una dirección aproximada.",
+              "success",
+            );
+          } catch (geocodeError) {
+            warn("No se pudo obtener la dirección aproximada:", geocodeError);
+            paintGeoState(
+              "Ubicación lista. El servicio de direcciones no respondió; se conservarán las coordenadas.",
+              "success",
+            );
+          } finally {
+            if (geoRequest) {
+              geoRequest.disabled = false;
+              geoRequest.textContent = "Actualizar ubicación";
+            }
+          }
+        },
+        (error) => {
+          const messages = {
+            1: "No autorizaste el acceso. Puedes continuar sin compartir tu ubicación.",
+            2: "El dispositivo no pudo determinar la ubicación.",
+            3: "La solicitud tardó demasiado. Puedes intentarlo nuevamente.",
+          };
+          clearGeolocation(messages[error?.code] || "No fue posible obtener la ubicación.");
+          if (geoStatus) geoStatus.dataset.state = "error";
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+      );
+    }
+
+    function persistGeolocationLocally(requerimientoId, folio) {
+      if (!geolocationCapture || !requerimientoId) return;
+      const storageKey = "ixtla_uat_geolocalizaciones_pendientes";
+      try {
+        const current = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        const rows = Array.isArray(current) ? current : [];
+        const now = new Date().toISOString();
+        rows.push({
+          id: null,
+          requerimiento_id: Number(requerimientoId),
+          folio,
+          latitud: geolocationCapture.latitud,
+          longitud: geolocationCapture.longitud,
+          presicion_metros: geolocationCapture.presicion_metros,
+          direccion: geolocationCapture.direccion,
+          cp_colonia_geo: geolocationCapture.cp_colonia_geo,
+          validada: 0,
+          status: 1,
+          created_at: now,
+          updated_by: null,
+          updated_at: null,
+          captured_at: geolocationCapture.captured_at,
+        });
+        localStorage.setItem(storageKey, JSON.stringify(rows));
+      } catch (storageError) {
+        warn("No se pudo guardar temporalmente la geolocalización:", storageError);
+        toast("El reporte se creó, pero no se pudo conservar su ubicación localmente.", "warn", 4500);
+      }
+    }
+
+    geoRequest?.addEventListener("click", requestGeolocation);
+    geoSkip?.addEventListener("click", () => clearGeolocation());
+    geoRemove?.addEventListener("click", () => clearGeolocation("Ubicación eliminada. Puedes continuar sin compartirla."));
 
     function refreshPreviews() {
       if (!previews) return;
@@ -931,6 +1111,9 @@
           // fallback: si backend no manda folio (raro), seguimos usando el formato anterior
           `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
 
+        // UAT: persistencia temporal hasta contar con el endpoint de geolocalización.
+        persistGeolocationLocally(newId, folio);
+
         // 2) UPDATE (canal 2 / estatus 3) — workaround
         if (newId) {
           try {
@@ -1015,6 +1198,7 @@
           }
         });
         files = [];
+        clearGeolocation("No se ha solicitado tu ubicación.");
         refreshPreviews();
         updateDescCount();
 
@@ -1201,6 +1385,9 @@
     // =========================
     btn.addEventListener("click", async (e) => {
       e.preventDefault();
+      // Cada apertura inicia sin una ubicación previa: el permiso debe ser
+      // una decisión consciente para el requerimiento que se está capturando.
+      clearGeolocation("No se ha solicitado tu ubicación.");
       await hydrateOnOpen();
       openModal(modal);
       setToday();

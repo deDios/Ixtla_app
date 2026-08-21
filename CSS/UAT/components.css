@@ -709,6 +709,111 @@
   grid-template-columns: 1fr;
 }
 
+#ix-report-modal .ix-form__row--geo {
+  grid-template-columns: 1fr;
+}
+
+#ix-report-modal .ix-geo {
+  grid-column: 1 / -1;
+  padding: 16px;
+  border: 1px solid #dbe5ef;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+#ix-report-modal .ix-geo__copy h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+#ix-report-modal .ix-geo__copy h3 span {
+  color: #64748b;
+  font-size: .86rem;
+  font-weight: 600;
+}
+
+#ix-report-modal .ix-geo__copy p {
+  margin: 7px 0 0;
+  color: #526174;
+  font-size: .92rem;
+  line-height: 1.45;
+}
+
+#ix-report-modal .ix-geo__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+#ix-report-modal .ix-geo__skip,
+#ix-report-modal .ix-geo__result button {
+  padding: 5px 2px;
+  border: 0;
+  color: #475569;
+  background: transparent;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+#ix-report-modal .ix-geo__status {
+  margin-top: 12px;
+  color: #64748b;
+  font-size: .88rem;
+}
+
+#ix-report-modal .ix-geo__status[data-state="loading"] {
+  color: #1d4ed8;
+}
+
+#ix-report-modal .ix-geo__status[data-state="success"] {
+  color: #166534;
+}
+
+#ix-report-modal .ix-geo__status[data-state="error"] {
+  color: #b42318;
+}
+
+#ix-report-modal .ix-geo__result {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  color: #166534;
+  background: #ecfdf3;
+  font-size: .88rem;
+}
+
+#ix-report-modal .ix-geo__result:not([hidden]) {
+  display: flex;
+}
+
+#ix-report-modal .ix-geo__result button {
+  margin-left: auto;
+  color: #9f1239;
+}
+
+#ix-report-modal .ix-geo__address {
+  flex-basis: 100%;
+  color: #334155;
+  line-height: 1.45;
+}
+
+#ix-report-modal .ix-geo__attribution {
+  display: block;
+  margin-top: 10px;
+  color: #64748b;
+  font-size: .76rem;
+}
+
+#ix-report-modal .ix-geo__attribution a {
+  color: #3157a4;
+}
+
 #ix-report-modal .ix-field {
   display: flex;
   flex-direction: column;
