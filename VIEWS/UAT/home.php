@@ -11,7 +11,7 @@
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
-    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-brand-7">
+    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-house-8">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=chips-scroll-3">
@@ -644,6 +644,12 @@
                                 <strong>Ubicación obtenida</strong>
                                 <span id="ix-geo-accuracy"></span>
                                 <span class="ix-geo__address" id="ix-geo-address"></span>
+                                <label class="ix-geo__house" for="ix-geo-house-number">
+                                    <span>Número exterior</span>
+                                    <input type="text" id="ix-geo-house-number" inputmode="text" maxlength="20"
+                                        autocomplete="address-line2" placeholder="Escríbelo si no se detectó">
+                                    <small>Confirma o corrige el número sugerido.</small>
+                                </label>
                                 <div class="ix-geo__result-actions">
                                     <button type="button" class="ix-btn ix-btn--ghost" id="ix-geo-edit">
                                         Corregir ubicación
@@ -803,7 +809,7 @@
     <script src="/JS/UAT/jsGlobal.js"></script>
     <script type="module" src="/JS/UAT/home.js?v=dataset-query-9"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
-    <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-brand-7"></script>
+    <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-house-8"></script>
 
 
 </body>

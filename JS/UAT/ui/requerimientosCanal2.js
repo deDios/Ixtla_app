@@ -584,6 +584,7 @@
     const geoResult = modal.querySelector("#ix-geo-result");
     const geoAccuracy = modal.querySelector("#ix-geo-accuracy");
     const geoAddress = modal.querySelector("#ix-geo-address");
+    const geoHouseNumber = modal.querySelector("#ix-geo-house-number");
     const geoMapElement = modal.querySelector("#ix-geo-map");
     const geoMapWrap = modal.querySelector("#ix-geo-map-wrap");
     const geoMapHelp = modal.querySelector("#ix-geo-map-help");
@@ -781,6 +782,9 @@
           ? `${geolocationCapture.direccion}${cp}`
           : "No se encontró una dirección aproximada para estas coordenadas.";
       }
+      if (geoHouseNumber && geolocationCapture) {
+        geoHouseNumber.value = geolocationCapture.numero_exterior_geo || "";
+      }
       if (geolocationCapture) renderGeolocationMap();
     }
 
@@ -832,6 +836,8 @@
           direccion: String(result?.display_name || "").trim() || null,
           cp_colonia_geo:
             String(result?.address?.postcode || "").trim() || null,
+          numero_exterior_geo:
+            String(result?.address?.house_number || "").trim() || null,
         };
       } finally {
         clearTimeout(timeoutId);
@@ -862,6 +868,7 @@
             presicion_metros: Number(position.coords.accuracy),
             direccion: null,
             cp_colonia_geo: null,
+            numero_exterior_geo: null,
             captured_at: new Date(position.timestamp || Date.now()).toISOString(),
           };
 
@@ -873,6 +880,7 @@
             );
             geolocationCapture.direccion = address.direccion;
             geolocationCapture.cp_colonia_geo = address.cp_colonia_geo;
+            geolocationCapture.numero_exterior_geo = address.numero_exterior_geo;
             paintGeoState(
               address.direccion
                 ? "Ubicación y dirección listas para adjuntarse al reporte."
@@ -921,6 +929,7 @@
           presicion_metros: geolocationCapture.presicion_metros,
           direccion: geolocationCapture.direccion,
           cp_colonia_geo: geolocationCapture.cp_colonia_geo,
+          numero_exterior_geo: geolocationCapture.numero_exterior_geo,
           validada: 0,
           status: 1,
           created_at: now,
@@ -938,6 +947,11 @@
     geoRequest?.addEventListener("click", requestGeolocation);
     geoSkip?.addEventListener("click", () => clearGeolocation());
     geoRemove?.addEventListener("click", () => clearGeolocation("Ubicación eliminada. Puedes continuar sin compartirla."));
+    geoHouseNumber?.addEventListener("input", () => {
+      if (!geolocationCapture) return;
+      geolocationCapture.numero_exterior_geo =
+        String(geoHouseNumber.value || "").trim() || null;
+    });
     geoEdit?.addEventListener("click", () => {
       if (!geolocationCapture) return;
       if (geoEditing) {
@@ -960,6 +974,7 @@
       geolocationCapture.longitud = geoPendingLatLng.longitud;
       geolocationCapture.direccion = null;
       geolocationCapture.cp_colonia_geo = null;
+      geolocationCapture.numero_exterior_geo = null;
       geolocationCapture.captured_at = new Date().toISOString();
       paintGeoState("Actualizando la dirección del punto seleccionado…", "loading");
 
@@ -970,6 +985,7 @@
         );
         geolocationCapture.direccion = address.direccion;
         geolocationCapture.cp_colonia_geo = address.cp_colonia_geo;
+        geolocationCapture.numero_exterior_geo = address.numero_exterior_geo;
         paintGeoState(
           address.direccion
             ? "Punto corregido y dirección actualizada."
