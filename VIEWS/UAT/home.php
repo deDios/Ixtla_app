@@ -11,7 +11,7 @@
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
-    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-pastel-6">
+    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-brand-7">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=chips-scroll-3">
@@ -622,8 +622,8 @@
                                 <h3 id="ix-geo-title">Ubicación del reporte <span>(opcional)</span></h3>
                                 <p>
                                     ¿Nos permites obtener tu ubicación actual? La usaremos para ayudar al personal a
-                                    localizar este reporte y consultaremos OpenStreetMap para obtener una dirección
-                                    aproximada. Puedes continuar sin compartirla.
+                                    localizar este reporte y obtener una dirección aproximada. Puedes continuar sin
+                                    compartirla.
                                 </p>
                             </div>
 
@@ -666,11 +666,6 @@
                                     id="ix-geo-confirm" hidden>Confirmar este punto</button>
                             </div>
 
-                            <small class="ix-geo__attribution">
-                                Dirección aproximada por
-                                <a href="https://www.openstreetmap.org/copyright" target="_blank"
-                                    rel="noopener noreferrer">OpenStreetMap</a>.
-                            </small>
                         </section>
                     </div>
 
@@ -808,7 +803,7 @@
     <script src="/JS/UAT/jsGlobal.js"></script>
     <script type="module" src="/JS/UAT/home.js?v=dataset-query-9"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
-    <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-lock-5"></script>
+    <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-brand-7"></script>
 
 
 </body>

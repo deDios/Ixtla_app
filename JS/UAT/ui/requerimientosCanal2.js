@@ -717,10 +717,10 @@
       if (!geoAccuracyCircle) {
         geoAccuracyCircle = window.L.circle(latLng, {
           radius: accuracy,
-          color: "#3157a4",
+          color: "#82978A",
           weight: 1,
-          fillColor: "#5b8def",
-          fillOpacity: 0.14,
+          fillColor: "#a9b9ae",
+          fillOpacity: 0.18,
         }).addTo(geoMap);
       } else {
         geoAccuracyCircle.setLatLng(latLng).setRadius(accuracy);
