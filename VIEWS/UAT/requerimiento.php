@@ -484,7 +484,8 @@ ix_require_session();
                             <div class="exp-geo-map-wrap">
                                 <div class="exp-geo-map" data-geo-map role="region"
                                     aria-label="Mapa de la ubicación registrada"></div>
-                                <span class="exp-geo-map-badge">Ubicación registrada</span>
+                                <div class="exp-geo-map-pin" aria-hidden="true"><span></span></div>
+                                <span class="exp-geo-map-badge">Ubicación fijada</span>
                             </div>
 
                             <a class="exp-geo-map-link" data-geo-map-link href="#" target="_blank" rel="noopener noreferrer" hidden>

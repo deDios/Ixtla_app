@@ -169,38 +169,106 @@
 .exp-view .exp-geo-map-wrap {
   position: relative;
   width: 100%;
-  min-height: 260px;
   margin-top: 18px;
   overflow: hidden;
-  border: 1px solid #cbd5e1;
-  border-radius: 14px;
-  background: #eef2f6;
+  border: 1px solid #bccce0;
+  border-radius: 12px;
+  background: #dfe8f1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
 }
 
 .exp-view .exp-geo-map {
   width: 100%;
-  height: 260px;
+  height: 220px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: #e8eef4;
+  overscroll-behavior: contain;
+  touch-action: none;
+  cursor: default;
   z-index: 0;
 }
 
 .exp-view .exp-geo-map-badge {
   position: absolute;
-  z-index: 500;
-  top: 14px;
-  right: 14px;
-  padding: 7px 11px;
-  border: 1px solid rgba(148, 163, 184, .35);
+  z-index: 520;
+  top: 10px;
+  right: 10px;
+  padding: 5px 9px;
+  border: 1px solid rgba(203, 213, 225, .9);
   border-radius: 999px;
-  color: #334155;
-  background: rgba(255, 255, 255, .94);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, .12);
-  font-size: .82rem;
+  color: #475569;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, .08);
+  font-size: .74rem;
   font-weight: 700;
   pointer-events: none;
 }
 
+.exp-view .exp-geo-map-pin {
+  position: absolute;
+  z-index: 500;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 46px;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  filter: drop-shadow(0 3px 3px rgba(15, 23, 42, .28));
+}
+
+.exp-view .exp-geo-map-pin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  background: #82978a;
+  transform: translateX(-50%) rotate(-45deg);
+}
+
+.exp-view .exp-geo-map-pin span {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 15px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translateX(-50%);
+}
+
 .exp-view .exp-geo-map .leaflet-control-attribution {
-  font-size: 10px;
+  padding: 2px 5px;
+  color: #526174;
+  background: rgba(255, 255, 255, .88);
+  font-size: 9px;
+}
+
+.exp-view .exp-geo-map .leaflet-control-zoom {
+  overflow: hidden;
+  border: 0;
+  border-radius: 9px;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, .2);
+}
+
+.exp-view .exp-geo-map .leaflet-control-zoom a {
+  width: 34px;
+  height: 34px;
+  border-color: #e2e8f0;
+  color: #173b7a;
+  background: rgba(255, 255, 255, .96);
+  font: 700 20px/34px system-ui, sans-serif;
+}
+
+.exp-view .exp-geo-map .leaflet-control-zoom a:hover {
+  color: #fff;
+  background: var(--exp-accent);
 }
 
 .exp-view .exp-geo-map-link {
@@ -219,10 +287,8 @@
 }
 
 @media (max-width: 640px) {
-  .exp-view .exp-geo-map-wrap,
   .exp-view .exp-geo-map {
-    min-height: 220px;
-    height: 220px;
+    height: 210px;
   }
 }
 

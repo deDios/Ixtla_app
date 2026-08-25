@@ -8,7 +8,6 @@
   const STORAGE_KEY = "ixtla_uat_geolocalizaciones_pendientes";
   const $ = (selector, root = document) => root.querySelector(selector);
   let map = null;
-  let marker = null;
   let accuracyCircle = null;
 
   function readRecords() {
@@ -145,12 +144,16 @@
       map = window.L.map(element, {
         attributionControl: true,
         zoomControl: true,
-        dragging: true,
-        touchZoom: true,
-        scrollWheelZoom: false,
+        dragging: false,
+        touchZoom: "center",
+        scrollWheelZoom: "center",
         doubleClickZoom: true,
-        boxZoom: false,
+        boxZoom: true,
         keyboard: true,
+        zoomSnap: 0.5,
+        zoomDelta: 0.5,
+        wheelPxPerZoomLevel: 90,
+        bounceAtZoomLimits: false,
       });
       window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
@@ -158,16 +161,13 @@
       }).addTo(map);
     }
 
-    if (!marker) marker = window.L.marker(latLng).addTo(map);
-    else marker.setLatLng(latLng);
-
     if (!accuracyCircle) {
       accuracyCircle = window.L.circle(latLng, {
         radius: accuracy,
-        color: "#82978a",
+        color: "#82978A",
         weight: 1,
         fillColor: "#a9b9ae",
-        fillOpacity: 0.2,
+        fillOpacity: 0.18,
       }).addTo(map);
     } else {
       accuracyCircle.setLatLng(latLng).setRadius(accuracy);
@@ -177,9 +177,8 @@
     requestAnimationFrame(() => {
       map.invalidateSize();
       map.fitBounds(accuracyCircle.getBounds(), {
-        padding: [28, 28],
+        padding: [18, 18],
         maxZoom: 17,
-        animate: false,
       });
     });
   }
