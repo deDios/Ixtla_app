@@ -178,7 +178,10 @@
       map.invalidateSize();
       map.fitBounds(accuracyCircle.getBounds(), {
         padding: [18, 18],
-        maxZoom: 17,
+        // Con precisiones pequeñas (p. ej. 13 m), a zoom 17 el círculo
+        // queda completamente oculto por la aguja central. Acercamos el
+        // mapa sin alterar el radio geográfico real.
+        maxZoom: accuracy <= 25 ? 19 : 17,
       });
     });
   }
