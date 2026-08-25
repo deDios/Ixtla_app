@@ -65,6 +65,7 @@
 /* ================= Tabs ================= */
 .exp-view .exp-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   border-bottom: 1px solid var(--exp-border);
   margin-top: 10px;
@@ -129,6 +130,55 @@
 .exp-view .exp-val a {
   color: var(--exp-accent);
   text-decoration: none;
+}
+
+/* ================= Geolocalización ================= */
+.exp-view .exp-geo-empty {
+  padding: 24px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: var(--exp-muted);
+  background: #f8fafc;
+}
+
+.exp-view .exp-geo-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin: 2px 0 18px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+.exp-view .exp-geo-status.is-validated {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.exp-view .exp-geo-status.is-pending {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.exp-view .exp-geo-field-wide {
+  grid-column: 1 / -1;
+}
+
+.exp-view .exp-geo-map-link {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--exp-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.exp-view .exp-geo-map-link:hover {
+  background: #3f5a83;
 }
 
 /* ================= Acordeón base ================= */

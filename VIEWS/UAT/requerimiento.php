@@ -192,6 +192,7 @@ ix_require_session();
                         <button class="exp-tab is-active" role="tab" aria-selected="true">Contacto</button>
                         <button class="exp-tab" role="tab" aria-selected="false">Detalles</button>
                         <button class="exp-tab" role="tab" aria-selected="false">Planeación</button>
+                        <button class="exp-tab" role="tab" aria-selected="false">Geolocalización</button>
                     </nav>
 
                     <button type="button" class="exp-expediente-btn" id="btn-expediente">
@@ -453,6 +454,44 @@ ix_require_session();
 
                         </div>
 
+                    </section>
+
+                    <!-- Panel: Geolocalización -->
+                    <section class="exp-pane exp-geo-pane" role="tabpanel" data-tab="geolocalizacion">
+                        <div class="exp-geo-empty" data-geo-empty>
+                            No hay una geolocalización registrada para este requerimiento.
+                        </div>
+
+                        <div class="exp-geo-content" data-geo-content hidden>
+                            <div class="exp-geo-status" data-geo-status aria-live="polite"></div>
+
+                            <div class="exp-grid">
+                                <div class="exp-field">
+                                    <label>Latitud:</label>
+                                    <div class="exp-val" data-geo-latitud>—</div>
+                                </div>
+                                <div class="exp-field">
+                                    <label>Longitud:</label>
+                                    <div class="exp-val" data-geo-longitud>—</div>
+                                </div>
+                                <div class="exp-field exp-geo-field-wide">
+                                    <label>Dirección aproximada:</label>
+                                    <div class="exp-val" data-geo-direccion>—</div>
+                                </div>
+                                <div class="exp-field">
+                                    <label>Precisión:</label>
+                                    <div class="exp-val" data-geo-precision>—</div>
+                                </div>
+                                <div class="exp-field">
+                                    <label>Capturada el:</label>
+                                    <div class="exp-val" data-geo-captured-at>—</div>
+                                </div>
+                            </div>
+
+                            <a class="exp-geo-map-link" data-geo-map-link href="#" target="_blank" rel="noopener noreferrer" hidden>
+                                Ver ubicación en el mapa
+                            </a>
+                        </div>
                     </section>
                 </div>
                 <!-- /exp-panes -->
@@ -868,6 +907,7 @@ ix_require_session();
     <script type="module" src="/JS/UAT/auth/requerimientoGuard.js"></script>
 
     <script src="/JS/UAT/requerimientoView.js"></script>
+    <script src="/JS/UAT/ui/requerimientoGeolocalizacion.js"></script>
     <script src="/JS/UAT/ui/requerimientoDetalle.js"></script>
     <script src="/JS/UAT/ui/requerimientoPlaneacion.js"></script>
     <script src="/JS/UAT/ui/requerimientoExpediente.js"></script>
