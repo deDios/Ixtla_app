@@ -7,6 +7,13 @@ export const API = {
     GET:    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento.php",
   },
 
+  // === Geolocalización de requerimiento ===
+  GEOLOCALIZACION: {
+    CREATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento_geolocalizacion.php",
+    GET:    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_requerimiento_geolocalizacion.php",
+    UPDATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_geolocalizacion.php",
+  },
+
   // === Comentarios ===
   COMENTARIOS: {
     CREATE: "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_comentario_requerimiento.php",

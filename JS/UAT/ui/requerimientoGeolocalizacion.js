@@ -1,7 +1,10 @@
-// Muestra la captura local de UAT hasta que exista el endpoint de geolocalización.
+// Consulta y muestra la geolocalización persistida del requerimiento.
 (function () {
   "use strict";
 
+  const HOST =
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
+  const ENDPOINT = `${HOST}/db/WEB/ixtla01_c_requerimiento_geolocalizacion.php`;
   const STORAGE_KEY = "ixtla_uat_geolocalizaciones_pendientes";
   const $ = (selector, root = document) => root.querySelector(selector);
 
@@ -81,7 +84,7 @@
     saveRecords([...existing, ...samples]);
   }
 
-  function findRecord(req) {
+  function findLocalRecord(req) {
     const id = Number(req?.id);
     const folio = String(req?.folio || "").trim();
 
@@ -91,6 +94,25 @@
         (folio && String(row?.folio || "").trim() === folio),
       )
       .sort((a, b) => Date.parse(b?.created_at || 0) - Date.parse(a?.created_at || 0))[0];
+  }
+
+  async function fetchRecord(req) {
+    const id = Number(req?.id);
+    if (!Number.isFinite(id) || id < 1) return findLocalRecord(req);
+    try {
+      const response = await fetch(
+        `${ENDPOINT}?requerimiento_id=${encodeURIComponent(id)}`,
+        { method: "GET", headers: { Accept: "application/json" }, credentials: "omit" },
+      );
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.ok === false) {
+        throw new Error(json?.error || `HTTP ${response.status}`);
+      }
+      return Array.isArray(json?.data) ? json.data[0] || null : json?.data || null;
+    } catch (error) {
+      console.warn("[ReqGeolocalizacion] No se pudo consultar el endpoint:", error);
+      return findLocalRecord(req);
+    }
   }
 
   function formatDate(value) {
@@ -107,14 +129,14 @@
     if (element) element.textContent = value || "—";
   }
 
-  function render(req) {
+  async function render(req) {
     const pane = $('.exp-geo-pane[data-tab="geolocalizacion"]');
     if (!pane) return;
 
     const empty = $("[data-geo-empty]", pane);
     const content = $("[data-geo-content]", pane);
     seedDemoRecords(req);
-    const record = findRecord(req);
+    const record = await fetchRecord(req);
     const lat = Number(record?.latitud);
     const lng = Number(record?.longitud);
     const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
@@ -141,8 +163,8 @@
     setText(
       pane,
       "[data-geo-precision]",
-      Number.isFinite(Number(record.presicion_metros))
-        ? `${Math.round(Number(record.presicion_metros))} m`
+      Number.isFinite(Number(record.precision_metros ?? record.presicion_metros))
+        ? `${Math.round(Number(record.precision_metros ?? record.presicion_metros))} m`
         : "No disponible",
     );
     setText(pane, "[data-geo-captured-at]", formatDate(record.captured_at || record.created_at));

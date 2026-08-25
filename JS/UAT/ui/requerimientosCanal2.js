@@ -24,6 +24,7 @@
     // 2) Enseguida hacemos UPDATE para forzar canal:2 y estatus:2 (si esta jalando)
     createReq: `/webpublic_proxy.php`,
     updateReq: `${HOST}/db/WEB/ixtla01_upd_requerimiento.php`,
+    createGeolocation: `${HOST}/db/WEB/ixtla01_i_requerimiento_geolocalizacion.php`,
 
     // Media
     uploadImg: `${HOST}/db/WEB/ixtla01_in_requerimiento_img.php`,
@@ -913,34 +914,38 @@
       );
     }
 
-    function persistGeolocationLocally(requerimientoId, folio) {
-      if (!geolocationCapture || !requerimientoId) return;
-      const storageKey = "ixtla_uat_geolocalizaciones_pendientes";
+    async function persistGeolocation(requerimientoId, folio) {
+      if (!geolocationCapture || !requerimientoId) return null;
+      const payload = {
+        requerimiento_id: Number(requerimientoId),
+        latitud: geolocationCapture.latitud,
+        longitud: geolocationCapture.longitud,
+        precision_metros: geolocationCapture.presicion_metros,
+        direccion: geolocationCapture.direccion,
+        cp_colonia_geo: geolocationCapture.cp_colonia_geo,
+      };
       try {
-        const current = JSON.parse(localStorage.getItem(storageKey) || "[]");
-        const rows = Array.isArray(current) ? current : [];
-        const now = new Date().toISOString();
-        rows.push({
-          id: null,
-          requerimiento_id: Number(requerimientoId),
-          folio,
-          latitud: geolocationCapture.latitud,
-          longitud: geolocationCapture.longitud,
-          presicion_metros: geolocationCapture.presicion_metros,
-          direccion: geolocationCapture.direccion,
-          cp_colonia_geo: geolocationCapture.cp_colonia_geo,
-          numero_exterior_geo: geolocationCapture.numero_exterior_geo,
-          validada: 0,
-          status: 1,
-          created_at: now,
-          updated_by: null,
-          updated_at: null,
-          captured_at: geolocationCapture.captured_at,
-        });
-        localStorage.setItem(storageKey, JSON.stringify(rows));
-      } catch (storageError) {
-        warn("No se pudo guardar temporalmente la geolocalización:", storageError);
-        toast("El reporte se creó, pero no se pudo conservar su ubicación localmente.", "warn", 4500);
+        const response = await postNoCreds(EP.createGeolocation, payload);
+        log("geolocalización registrada:", response?.data);
+        return response?.data || null;
+      } catch (apiError) {
+        const storageKey = "ixtla_uat_geolocalizaciones_pendientes";
+        warn("Geolocalización pendiente de sincronizar:", apiError);
+        try {
+          const current = JSON.parse(localStorage.getItem(storageKey) || "[]");
+          const rows = Array.isArray(current) ? current : [];
+          rows.push({
+            ...payload,
+            folio,
+            queued_at: new Date().toISOString(),
+          });
+          localStorage.setItem(storageKey, JSON.stringify(rows));
+          toast("Reporte creado; la ubicación quedó pendiente de sincronización.", "warn", 5000);
+        } catch (storageError) {
+          warn("No se pudo conservar la ubicación en la cola local:", storageError);
+          toast("Reporte creado, pero no se pudo registrar su ubicación.", "warn", 5000);
+        }
+        return null;
       }
     }
 
@@ -1317,8 +1322,9 @@
           // fallback: si backend no manda folio (raro), seguimos usando el formato anterior
           `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
 
-        // UAT: persistencia temporal hasta contar con el endpoint de geolocalización.
-        persistGeolocationLocally(newId, folio);
+        if (geolocationCapture && newId) {
+          await persistGeolocation(newId, folio);
+        }
 
         // 2) UPDATE (canal 2 / estatus 3) — workaround
         if (newId) {
