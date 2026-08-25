@@ -166,6 +166,43 @@
   grid-column: 1 / -1;
 }
 
+.exp-view .exp-geo-map-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 260px;
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #eef2f6;
+}
+
+.exp-view .exp-geo-map {
+  width: 100%;
+  height: 260px;
+  z-index: 0;
+}
+
+.exp-view .exp-geo-map-badge {
+  position: absolute;
+  z-index: 500;
+  top: 14px;
+  right: 14px;
+  padding: 7px 11px;
+  border: 1px solid rgba(148, 163, 184, .35);
+  border-radius: 999px;
+  color: #334155;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .12);
+  font-size: .82rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.exp-view .exp-geo-map .leaflet-control-attribution {
+  font-size: 10px;
+}
+
 .exp-view .exp-geo-map-link {
   display: inline-flex;
   margin-top: 8px;
@@ -179,6 +216,14 @@
 
 .exp-view .exp-geo-map-link:hover {
   background: #3f5a83;
+}
+
+@media (max-width: 640px) {
+  .exp-view .exp-geo-map-wrap,
+  .exp-view .exp-geo-map {
+    min-height: 220px;
+    height: 220px;
+  }
 }
 
 /* ================= Acordeón base ================= */

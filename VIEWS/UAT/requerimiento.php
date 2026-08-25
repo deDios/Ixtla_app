@@ -15,6 +15,7 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/UAT/requerimiento copy.css">
     <link rel="stylesheet" href="/CSS/UAT/components.css">
     <link rel="stylesheet" href="/CSS/UAT/requerimientoCoemntariosSection copy.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -466,14 +467,6 @@ ix_require_session();
                             <div class="exp-geo-status" data-geo-status aria-live="polite"></div>
 
                             <div class="exp-grid">
-                                <div class="exp-field">
-                                    <label>Latitud:</label>
-                                    <div class="exp-val" data-geo-latitud>—</div>
-                                </div>
-                                <div class="exp-field">
-                                    <label>Longitud:</label>
-                                    <div class="exp-val" data-geo-longitud>—</div>
-                                </div>
                                 <div class="exp-field exp-geo-field-wide">
                                     <label>Dirección aproximada:</label>
                                     <div class="exp-val" data-geo-direccion>—</div>
@@ -488,8 +481,14 @@ ix_require_session();
                                 </div>
                             </div>
 
+                            <div class="exp-geo-map-wrap">
+                                <div class="exp-geo-map" data-geo-map role="region"
+                                    aria-label="Mapa de la ubicación registrada"></div>
+                                <span class="exp-geo-map-badge">Ubicación registrada</span>
+                            </div>
+
                             <a class="exp-geo-map-link" data-geo-map-link href="#" target="_blank" rel="noopener noreferrer" hidden>
-                                Ver ubicación en el mapa
+                                Abrir mapa completo
                             </a>
                         </div>
                     </section>
@@ -907,6 +906,7 @@ ix_require_session();
     <script type="module" src="/JS/UAT/auth/requerimientoGuard.js"></script>
 
     <script src="/JS/UAT/requerimientoView.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/JS/UAT/ui/requerimientoGeolocalizacion.js"></script>
     <script src="/JS/UAT/ui/requerimientoDetalle.js"></script>
     <script src="/JS/UAT/ui/requerimientoPlaneacion.js"></script>

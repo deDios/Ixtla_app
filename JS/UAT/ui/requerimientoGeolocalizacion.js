@@ -7,6 +7,9 @@
   const ENDPOINT = `${HOST}/db/WEB/ixtla01_c_requerimiento_geolocalizacion.php`;
   const STORAGE_KEY = "ixtla_uat_geolocalizaciones_pendientes";
   const $ = (selector, root = document) => root.querySelector(selector);
+  let map = null;
+  let marker = null;
+  let accuracyCircle = null;
 
   function readRecords() {
     try {
@@ -129,6 +132,58 @@
     if (element) element.textContent = value || "—";
   }
 
+  function renderMap(pane, lat, lng, precision) {
+    const element = $("[data-geo-map]", pane);
+    if (!element || !window.L) return;
+
+    const latLng = [lat, lng];
+    const accuracy = Number.isFinite(Number(precision))
+      ? Math.max(1, Number(precision))
+      : 1;
+
+    if (!map) {
+      map = window.L.map(element, {
+        attributionControl: true,
+        zoomControl: true,
+        dragging: true,
+        touchZoom: true,
+        scrollWheelZoom: false,
+        doubleClickZoom: true,
+        boxZoom: false,
+        keyboard: true,
+      });
+      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+    }
+
+    if (!marker) marker = window.L.marker(latLng).addTo(map);
+    else marker.setLatLng(latLng);
+
+    if (!accuracyCircle) {
+      accuracyCircle = window.L.circle(latLng, {
+        radius: accuracy,
+        color: "#82978a",
+        weight: 1,
+        fillColor: "#a9b9ae",
+        fillOpacity: 0.2,
+      }).addTo(map);
+    } else {
+      accuracyCircle.setLatLng(latLng).setRadius(accuracy);
+    }
+
+    map.setView(latLng, 16, { animate: false });
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+      map.fitBounds(accuracyCircle.getBounds(), {
+        padding: [28, 28],
+        maxZoom: 17,
+        animate: false,
+      });
+    });
+  }
+
   async function render(req) {
     const pane = $('.exp-geo-pane[data-tab="geolocalizacion"]');
     if (!pane) return;
@@ -157,8 +212,6 @@
       status.className = `exp-geo-status ${validated ? "is-validated" : "is-pending"}`;
     }
 
-    setText(pane, "[data-geo-latitud]", lat.toFixed(6));
-    setText(pane, "[data-geo-longitud]", lng.toFixed(6));
     setText(pane, "[data-geo-direccion]", record.direccion);
     setText(
       pane,
@@ -168,6 +221,7 @@
         : "No disponible",
     );
     setText(pane, "[data-geo-captured-at]", formatDate(record.captured_at || record.created_at));
+    renderMap(pane, lat, lng, record.precision_metros ?? record.presicion_metros);
 
     const mapLink = $("[data-geo-map-link]", pane);
     if (mapLink) {
@@ -177,6 +231,14 @@
   }
 
   document.addEventListener("req:loaded", (event) => render(event.detail));
+
+  document.addEventListener("click", (event) => {
+    const tab = event.target.closest(".exp-tab");
+    if (!tab || !/geolocalización/i.test(tab.textContent || "")) return;
+    setTimeout(() => map?.invalidateSize(), 50);
+  });
+
+  window.addEventListener("resize", () => map?.invalidateSize());
 
   if (window.__REQ__) render(window.__REQ__);
 })();
