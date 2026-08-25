@@ -14,6 +14,73 @@
     }
   }
 
+  function saveRecords(records) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    } catch {
+      // El panel seguirá mostrando el estado vacío si el navegador bloquea storage.
+    }
+  }
+
+  function seedDemoRecords(req) {
+    if (new URLSearchParams(window.location.search).get("geoDemo") !== "1") {
+      return;
+    }
+
+    const id = Number(req?.id);
+    if (!Number.isFinite(id)) return;
+
+    const folio = String(req?.folio || "").trim();
+    const existing = readRecords().filter(
+      (row) => !row?.demo || Number(row?.requerimiento_id) !== id,
+    );
+    const now = Date.now();
+    const samples = [
+      {
+        latitud: 20.548972,
+        longitud: -103.191643,
+        direccion: "Centro, Ixtlahuacán de los Membrillos, Jalisco",
+        presicion_metros: 18,
+        validada: 0,
+        minutesAgo: 45,
+      },
+      {
+        latitud: 20.550105,
+        longitud: -103.19411,
+        direccion: "Calle Juárez, Ixtlahuacán de los Membrillos, Jalisco",
+        presicion_metros: 12,
+        validada: 1,
+        minutesAgo: 20,
+      },
+      {
+        latitud: 20.551327,
+        longitud: -103.196295,
+        direccion: "Av. Santiago, Ixtlahuacán de los Membrillos, Jalisco",
+        presicion_metros: 8,
+        validada: 1,
+        minutesAgo: 5,
+      },
+    ].map((sample) => {
+      const capturedAt = new Date(now - sample.minutesAgo * 60 * 1000).toISOString();
+      return {
+        id: null,
+        requerimiento_id: id,
+        folio,
+        latitud: sample.latitud,
+        longitud: sample.longitud,
+        presicion_metros: sample.presicion_metros,
+        direccion: sample.direccion,
+        validada: sample.validada,
+        status: 1,
+        created_at: capturedAt,
+        captured_at: capturedAt,
+        demo: true,
+      };
+    });
+
+    saveRecords([...existing, ...samples]);
+  }
+
   function findRecord(req) {
     const id = Number(req?.id);
     const folio = String(req?.folio || "").trim();
@@ -46,6 +113,7 @@
 
     const empty = $("[data-geo-empty]", pane);
     const content = $("[data-geo-content]", pane);
+    seedDemoRecords(req);
     const record = findRecord(req);
     const lat = Number(record?.latitud);
     const lng = Number(record?.longitud);
