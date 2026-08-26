@@ -5,10 +5,94 @@
   const HOST =
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
   const ENDPOINT = `${HOST}/db/WEB/ixtla01_c_requerimiento_geolocalizacion.php`;
+  const UPDATE_ENDPOINT = "/db/WEB/ixtla01_u_requerimiento_geolocalizacion.php";
+  const DEPARTMENTS_ENDPOINT = `${HOST}/db/WEB/ixtla01_c_departamento.php`;
   const STORAGE_KEY = "ixtla_uat_geolocalizaciones_pendientes";
   const $ = (selector, root = document) => root.querySelector(selector);
   let map = null;
   let accuracyCircle = null;
+  let currentRecord = null;
+  let currentRequirement = null;
+  let departmentsPromise = null;
+
+  function readSession() {
+    try {
+      const fromApi = window.Session?.get?.();
+      if (fromApi) return fromApi;
+    } catch {}
+    try {
+      const pair = document.cookie.split("; ").find((item) => item.startsWith("ix_emp="));
+      if (!pair) return null;
+      const raw = decodeURIComponent(pair.slice("ix_emp=".length));
+      return JSON.parse(decodeURIComponent(escape(atob(raw))));
+    } catch {
+      return null;
+    }
+  }
+
+  function fetchDepartments() {
+    if (departmentsPromise) return departmentsPromise;
+    departmentsPromise = fetch(DEPARTMENTS_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      credentials: "omit",
+      body: JSON.stringify({ all: true, status: 1 }),
+    })
+      .then(async (response) => {
+        const json = await response.json().catch(() => null);
+        if (!response.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${response.status}`);
+        return Array.isArray(json?.data) ? json.data : [];
+      })
+      .catch((error) => {
+        departmentsPromise = null;
+        throw error;
+      });
+    return departmentsPromise;
+  }
+
+  async function canValidateGeolocation(req) {
+    const session = readSession();
+    const employeeId = Number(session?.empleado_id ?? session?.id_empleado ?? 0);
+    const departmentId = Number(session?.departamento_id ?? 0);
+    const requirementDepartmentId = Number(req?.departamento_id ?? req?.raw?.departamento_id ?? 0);
+    const roles = Array.isArray(session?.roles)
+      ? session.roles.map((role) => String(role).toUpperCase())
+      : [];
+
+    if (!employeeId) return false;
+    if (roles.includes("ADMIN") || departmentId === 6) return true;
+
+    const sameDepartment = departmentId > 0 && departmentId === requirementDepartmentId;
+    if (sameDepartment && roles.includes("DIRECTOR")) return true;
+    if (
+      sameDepartment &&
+      roles.some((role) => ["PRIMERA_LINEA", "PRIMERA LINEA", "PL"].includes(role))
+    ) return true;
+
+    try {
+      const departments = await fetchDepartments();
+      const requirementDepartment = departments.find(
+        (department) => Number(department?.id) === requirementDepartmentId,
+      );
+      return Boolean(
+        requirementDepartment &&
+        (Number(requirementDepartment.director) === employeeId ||
+          Number(requirementDepartment.primera_linea) === employeeId),
+      );
+    } catch (error) {
+      console.warn("[ReqGeolocalizacion] No se pudo resolver el RBAC:", error);
+      return false;
+    }
+  }
+
+  async function updateValidationControl(pane, req, record, validated) {
+    const button = $("[data-geo-validate]", pane);
+    if (!button) return;
+    button.hidden = true;
+    button.disabled = false;
+    if (validated || Number(record?.id) < 1) return;
+    button.hidden = !(await canValidateGeolocation(req));
+  }
 
   function readRecords() {
     try {
@@ -168,6 +252,7 @@
         weight: 1,
         fillColor: "#a9b9ae",
         fillOpacity: 0.18,
+        interactive: false,
       }).addTo(map);
     } else {
       accuracyCircle.setLatLng(latLng).setRadius(accuracy);
@@ -194,6 +279,8 @@
     const content = $("[data-geo-content]", pane);
     seedDemoRecords(req);
     const record = await fetchRecord(req);
+    currentRecord = record;
+    currentRequirement = req;
     const lat = Number(record?.latitud);
     const lng = Number(record?.longitud);
     const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
@@ -224,6 +311,7 @@
     );
     setText(pane, "[data-geo-captured-at]", formatDate(record.captured_at || record.created_at));
     renderMap(pane, lat, lng, record.precision_metros ?? record.presicion_metros);
+    void updateValidationControl(pane, req, record, validated);
 
     const mapLink = $("[data-geo-map-link]", pane);
     if (mapLink) {
@@ -233,6 +321,44 @@
   }
 
   document.addEventListener("req:loaded", (event) => render(event.detail));
+
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-geo-validate]");
+    if (!button || !currentRecord || !currentRequirement) return;
+    if (!(await canValidateGeolocation(currentRequirement))) {
+      button.hidden = true;
+      window.gcToast?.("No tienes permiso para validar esta ubicación.", "warning");
+      return;
+    }
+    if (!window.confirm("¿Confirmas que la ubicación corresponde al reporte?")) return;
+
+    button.disabled = true;
+    button.textContent = "Validando…";
+    try {
+      const response = await fetch(UPDATE_ENDPOINT, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: Number(currentRecord.id), validada: 1 }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${response.status}`);
+      currentRecord = json?.data || { ...currentRecord, validada: 1 };
+      const pane = $('.exp-geo-pane[data-tab="geolocalizacion"]');
+      const status = pane && $("[data-geo-status]", pane);
+      if (status) {
+        status.textContent = "Geolocalización validada";
+        status.className = "exp-geo-status is-validated";
+      }
+      button.hidden = true;
+      window.gcToast?.("Geolocalización validada correctamente.", "success");
+    } catch (error) {
+      console.error("[ReqGeolocalizacion] Error validando:", error);
+      window.gcToast?.(error.message || "No se pudo validar la ubicación.", "danger");
+      button.disabled = false;
+      button.textContent = "Validar ubicación";
+    }
+  });
 
   document.addEventListener("click", (event) => {
     const tab = event.target.closest(".exp-tab");

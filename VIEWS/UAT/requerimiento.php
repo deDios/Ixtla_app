@@ -464,7 +464,12 @@ ix_require_session();
                         </div>
 
                         <div class="exp-geo-content" data-geo-content hidden>
-                            <div class="exp-geo-status" data-geo-status aria-live="polite"></div>
+                            <div class="exp-geo-toolbar">
+                                <div class="exp-geo-status" data-geo-status aria-live="polite"></div>
+                                <button class="exp-geo-validate" type="button" data-geo-validate hidden>
+                                    Validar ubicación
+                                </button>
+                            </div>
 
                             <div class="exp-grid">
                                 <div class="exp-field exp-geo-field-wide">

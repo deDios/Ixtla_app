@@ -17,8 +17,9 @@ if ($longitud === false || $longitud < -180 || $longitud > 180) geo_json(422, ['
 if ($precision === false || ($precision !== null && ($precision < 0 || $precision > 100000))) geo_json(422, ['ok' => false, 'error' => 'precision_metros no es válida']);
 
 $check = $con->prepare('SELECT id FROM requerimiento WHERE id=? LIMIT 1');
+if (!$check) geo_json(500, ['ok' => false, 'error' => 'No se pudo validar el requerimiento']);
 $check->bind_param('i', $requerimientoId);
-$check->execute();
+if (!$check->execute()) geo_json(500, ['ok' => false, 'error' => 'No se pudo validar el requerimiento']);
 if (!$check->get_result()->fetch_assoc()) geo_json(404, ['ok' => false, 'error' => 'Requerimiento no encontrado']);
 $check->close();
 

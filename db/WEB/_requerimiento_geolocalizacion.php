@@ -89,3 +89,69 @@ function geo_select_by_id(mysqli $con, int $id): ?array {
   $stmt->close();
   return $row ? geo_cast_row($row) : null;
 }
+
+function geo_session_identity(mysqli $con): array {
+  $raw = $_COOKIE['ix_emp'] ?? '';
+  $payload = $raw !== '' ? json_decode((string)base64_decode($raw, true), true) : null;
+  if (!is_array($payload)) geo_json(401, ['ok' => false, 'error' => 'Sesión requerida']);
+
+  if (isset($payload['exp']) && is_numeric($payload['exp'])) {
+    $nowMs = (int)round(microtime(true) * 1000);
+    if ($nowMs > (int)$payload['exp']) geo_json(401, ['ok' => false, 'error' => 'La sesión expiró']);
+  }
+
+  $empleadoId = (int)($payload['empleado_id'] ?? $payload['id_empleado'] ?? 0);
+  $cuentaId = (int)($payload['cuenta_id'] ?? $payload['id_cuenta'] ?? $payload['id_usuario'] ?? 0);
+  if ($empleadoId < 1 || $cuentaId < 1) geo_json(401, ['ok' => false, 'error' => 'Sesión inválida']);
+
+  $stmt = $con->prepare('SELECT e.id AS empleado_id, e.departamento_id, c.id AS cuenta_id FROM empleado_cuenta c JOIN empleado e ON e.id=c.empleado_id WHERE c.id=? AND c.empleado_id=? AND c.status=1 AND e.status=1 LIMIT 1');
+  if (!$stmt) geo_json(500, ['ok' => false, 'error' => 'No se pudo comprobar la sesión']);
+  $stmt->bind_param('ii', $cuentaId, $empleadoId);
+  if (!$stmt->execute()) geo_json(500, ['ok' => false, 'error' => 'No se pudo comprobar la sesión']);
+  $identity = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  if (!$identity) geo_json(401, ['ok' => false, 'error' => 'Sesión no válida']);
+
+  return [
+    'empleado_id' => (int)$identity['empleado_id'],
+    'cuenta_id' => (int)$identity['cuenta_id'],
+    'departamento_id' => $identity['departamento_id'] === null ? null : (int)$identity['departamento_id'],
+  ];
+}
+
+function geo_require_validation_permission(mysqli $con, int $geoId): array {
+  $identity = geo_session_identity($con);
+  $empleadoId = $identity['empleado_id'];
+  $cuentaId = $identity['cuenta_id'];
+
+  $roles = [];
+  $stmt = $con->prepare('SELECT UPPER(r.codigo) AS codigo FROM empleado_rol er JOIN rol r ON r.id=er.rol_id WHERE er.empleado_cuenta_id=?');
+  if (!$stmt) geo_json(500, ['ok' => false, 'error' => 'No se pudieron comprobar los permisos']);
+  $stmt->bind_param('i', $cuentaId);
+  if (!$stmt->execute()) geo_json(500, ['ok' => false, 'error' => 'No se pudieron comprobar los permisos']);
+  $result = $stmt->get_result();
+  while ($row = $result->fetch_assoc()) $roles[] = (string)$row['codigo'];
+  $stmt->close();
+
+  $stmt = $con->prepare('SELECT rg.requerimiento_id, r.departamento_id, d.director, d.primera_linea FROM requerimiento_geolocalizacion rg JOIN requerimiento r ON r.id=rg.requerimiento_id LEFT JOIN departamento d ON d.id=r.departamento_id WHERE rg.id=? LIMIT 1');
+  if (!$stmt) geo_json(500, ['ok' => false, 'error' => 'No se pudo comprobar el requerimiento']);
+  $stmt->bind_param('i', $geoId);
+  if (!$stmt->execute()) geo_json(500, ['ok' => false, 'error' => 'No se pudo comprobar el requerimiento']);
+  $scope = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  if (!$scope) geo_json(404, ['ok' => false, 'error' => 'Geolocalización no encontrada']);
+
+  $isAdmin = in_array('ADMIN', $roles, true);
+  $isPresidencia = (int)$identity['departamento_id'] === 6;
+  $isDirector = (int)($scope['director'] ?? 0) === $empleadoId;
+  $isPrimeraLinea = (int)($scope['primera_linea'] ?? 0) === $empleadoId;
+  $sameDept = (int)$identity['departamento_id'] === (int)$scope['departamento_id'];
+  $directorRole = in_array('DIRECTOR', $roles, true) && $sameDept;
+  $primeraRole = count(array_intersect(['PRIMERA_LINEA', 'PRIMERA LINEA', 'PL'], $roles)) > 0 && $sameDept;
+
+  if (!$isAdmin && !$isPresidencia && !$isDirector && !$isPrimeraLinea && !$directorRole && !$primeraRole) {
+    geo_json(403, ['ok' => false, 'error' => 'No tienes permiso para validar esta geolocalización']);
+  }
+
+  return $identity;
+}

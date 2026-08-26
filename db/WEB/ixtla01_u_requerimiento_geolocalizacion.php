@@ -4,8 +4,9 @@ require_once __DIR__.'/_requerimiento_geolocalizacion.php';
 date_default_timezone_set('America/Mexico_City');
 
 $id = isset($in['id']) ? (int)$in['id'] : 0;
-$updatedBy = isset($in['updated_by']) && $in['updated_by'] !== '' ? (int)$in['updated_by'] : null;
 if ($id < 1) geo_json(422, ['ok' => false, 'error' => 'id es obligatorio']);
+$identity = geo_require_validation_permission($con, $id);
+$updatedBy = $identity['empleado_id'];
 
 $allowed = ['latitud', 'longitud', 'precision_metros', 'presicion_metros', 'direccion', 'cp_colonia_geo', 'validada', 'status'];
 $hasChange = false;
@@ -38,7 +39,6 @@ if (array_key_exists('status', $in)) {
 }
 if (array_key_exists('validada', $in)) {
   $value = (int)(bool)$in['validada'];
-  if ($value === 1 && !$updatedBy) geo_json(422, ['ok' => false, 'error' => 'updated_by es obligatorio para validar']);
   $parts[] = 'validada=?'; $types .= 'i'; $params[] = $value;
 }
 $parts[] = 'updated_by=?'; $types .= 'i'; $params[] = $updatedBy;

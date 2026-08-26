@@ -723,6 +723,7 @@
           weight: 1,
           fillColor: "#a9b9ae",
           fillOpacity: 0.18,
+          interactive: false,
         }).addTo(geoMap);
       } else {
         geoAccuracyCircle.setLatLng(latLng).setRadius(accuracy);
@@ -766,6 +767,39 @@
       }
     }
 
+    function geolocationAddressWithHouseNumber() {
+      if (!geolocationCapture) return null;
+      const address = String(geolocationCapture.direccion || "").trim();
+      const houseNumber = String(
+        geolocationCapture.numero_exterior_geo || "",
+      ).trim();
+      if (!houseNumber) return address || null;
+
+      const escapedNumber = houseNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const numberPattern = new RegExp(
+        `(^|[\\s,])${escapedNumber}(?=$|[\\s,])`,
+        "i",
+      );
+      if (numberPattern.test(address)) return address;
+
+      if (!address) return `Número exterior ${houseNumber}`;
+      const segments = address.split(",");
+      const street = String(segments.shift() || "").trim();
+      const rest = segments.join(",").trim();
+      return `${street} ${houseNumber}${rest ? `, ${rest}` : ""}`.trim();
+    }
+
+    function renderGeolocationAddress() {
+      if (!geoAddress || !geolocationCapture) return;
+      const address = geolocationAddressWithHouseNumber();
+      const cp = geolocationCapture.cp_colonia_geo
+        ? ` C.P. ${geolocationCapture.cp_colonia_geo}`
+        : "";
+      geoAddress.textContent = address
+        ? `${address}${cp}`
+        : "No se encontró una dirección aproximada para estas coordenadas.";
+    }
+
     function paintGeoState(message, state = "idle") {
       if (geoStatus) {
         geoStatus.textContent = message;
@@ -776,12 +810,7 @@
         geoAccuracy.textContent = `Precisión aproximada: ${Math.round(geolocationCapture.presicion_metros)} metros.`;
       }
       if (geoAddress && geolocationCapture) {
-        const cp = geolocationCapture.cp_colonia_geo
-          ? ` C.P. ${geolocationCapture.cp_colonia_geo}`
-          : "";
-        geoAddress.textContent = geolocationCapture.direccion
-          ? `${geolocationCapture.direccion}${cp}`
-          : "No se encontró una dirección aproximada para estas coordenadas.";
+        renderGeolocationAddress();
       }
       if (geoHouseNumber && geolocationCapture) {
         geoHouseNumber.value = geolocationCapture.numero_exterior_geo || "";
@@ -921,7 +950,7 @@
         latitud: geolocationCapture.latitud,
         longitud: geolocationCapture.longitud,
         precision_metros: geolocationCapture.presicion_metros,
-        direccion: geolocationCapture.direccion,
+        direccion: geolocationAddressWithHouseNumber(),
         cp_colonia_geo: geolocationCapture.cp_colonia_geo,
       };
       try {
@@ -956,6 +985,7 @@
       if (!geolocationCapture) return;
       geolocationCapture.numero_exterior_geo =
         String(geoHouseNumber.value || "").trim() || null;
+      renderGeolocationAddress();
     });
     geoEdit?.addEventListener("click", () => {
       if (!geolocationCapture) return;
