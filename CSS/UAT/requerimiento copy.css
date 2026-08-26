@@ -225,7 +225,7 @@
 
 .exp-view .exp-geo-map {
   width: 100%;
-  height: 220px;
+  height: 420px;
   overflow: hidden;
   border: 0;
   border-radius: 12px;
@@ -339,7 +339,7 @@
   }
 
   .exp-view .exp-geo-map {
-    height: 210px;
+    height: 420px;
   }
 }
 
