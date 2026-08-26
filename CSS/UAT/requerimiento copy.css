@@ -196,6 +196,17 @@
   background: #6f8778;
 }
 
+.exp-view .exp-geo-validate.is-invalidate {
+  border-color: #b45309;
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.exp-view .exp-geo-validate.is-invalidate:hover {
+  color: #fff;
+  background: #b45309;
+}
+
 .exp-view .exp-geo-validate:disabled {
   opacity: .6;
   cursor: wait;
@@ -424,6 +435,14 @@
 
 #modal-validar-geolocalizacion .ix-confirm-accept:hover {
   background: #6f8778;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-accept.is-invalidate {
+  background: #b45309;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-accept.is-invalidate:hover {
+  background: #92400e;
 }
 
 #modal-validar-geolocalizacion .ix-confirm-note {

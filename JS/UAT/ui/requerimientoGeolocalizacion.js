@@ -15,6 +15,7 @@
   let currentRequirement = null;
   let departmentsPromise = null;
   let validationTrigger = null;
+  let validationTargetValue = 1;
 
   function readSession() {
     try {
@@ -91,8 +92,12 @@
     if (!button) return;
     button.hidden = true;
     button.disabled = false;
-    if (validated || Number(record?.id) < 1) return;
-    button.hidden = !(await canValidateGeolocation(req));
+    if (Number(record?.id) < 1) return;
+    if (!(await canValidateGeolocation(req))) return;
+    button.hidden = false;
+    button.dataset.validationTarget = validated ? "0" : "1";
+    button.textContent = validated ? "Invalidar ubicación" : "Validar ubicación";
+    button.classList.toggle("is-invalidate", validated);
   }
 
   function readRecords() {
@@ -323,10 +328,31 @@
 
   document.addEventListener("req:loaded", (event) => render(event.detail));
 
-  function openValidationModal(trigger) {
+  function openValidationModal(trigger, targetValue) {
     const modal = $("#modal-validar-geolocalizacion");
     if (!modal) return;
     validationTrigger = trigger || null;
+    validationTargetValue = Number(targetValue) === 0 ? 0 : 1;
+    const invalidating = validationTargetValue === 0;
+    const title = $("#validar-geo-title", modal);
+    const text = $("#validar-geo-text", modal);
+    const note = $(".ix-confirm-note", modal);
+    const confirm = $("[data-geo-modal-confirm]", modal);
+    if (title) title.textContent = invalidating ? "Invalidar ubicación" : "Validar ubicación";
+    if (text) {
+      text.textContent = invalidating
+        ? "¿Confirmas que deseas retirar la validación de esta ubicación?"
+        : "¿Confirmas que la ubicación corresponde al reporte?";
+    }
+    if (note) {
+      note.textContent = invalidating
+        ? "La ubicación volverá a quedar pendiente de validación."
+        : "La validación quedará registrada con tu usuario.";
+    }
+    if (confirm) {
+      confirm.textContent = "Confirmar";
+      confirm.classList.toggle("is-invalidate", invalidating);
+    }
     modal.classList.add("open", "active");
     modal.setAttribute("aria-hidden", "false");
     document.body.classList.add("me-modal-open");
@@ -356,27 +382,42 @@
         method: "PATCH",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         credentials: "include",
-        body: JSON.stringify({ id: Number(currentRecord.id), validada: 1 }),
+        body: JSON.stringify({
+          id: Number(currentRecord.id),
+          validada: validationTargetValue,
+        }),
       });
       const json = await response.json().catch(() => null);
       if (!response.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${response.status}`);
-      currentRecord = json?.data || { ...currentRecord, validada: 1 };
+      const validated = validationTargetValue === 1;
+      currentRecord = json?.data || { ...currentRecord, validada: validationTargetValue };
       const pane = $('.exp-geo-pane[data-tab="geolocalizacion"]');
       const status = pane && $("[data-geo-status]", pane);
       if (status) {
-        status.textContent = "Geolocalización validada";
-        status.className = "exp-geo-status is-validated";
+        status.textContent = validated ? "Geolocalización validada" : "Pendiente de validación";
+        status.className = `exp-geo-status ${validated ? "is-validated" : "is-pending"}`;
       }
-      if (toolbarButton) toolbarButton.hidden = true;
+      if (toolbarButton) {
+        toolbarButton.hidden = false;
+        toolbarButton.disabled = false;
+        toolbarButton.dataset.validationTarget = validated ? "0" : "1";
+        toolbarButton.textContent = validated ? "Invalidar ubicación" : "Validar ubicación";
+        toolbarButton.classList.toggle("is-invalidate", validated);
+      }
       closeValidationModal();
-      window.gcToast?.("Geolocalización validada correctamente.", "success");
+      window.gcToast?.(
+        validated
+          ? "Geolocalización validada correctamente."
+          : "La geolocalización volvió a quedar pendiente.",
+        validated ? "success" : "warning",
+      );
     } catch (error) {
       console.error("[ReqGeolocalizacion] Error validando:", error);
       window.gcToast?.(error.message || "No se pudo validar la ubicación.", "danger");
       if (toolbarButton) toolbarButton.disabled = false;
     } finally {
       confirmButton.disabled = false;
-      confirmButton.textContent = "Sí, validar ubicación";
+      confirmButton.textContent = "Confirmar";
     }
   }
 
@@ -389,7 +430,7 @@
         window.gcToast?.("No tienes permiso para validar esta ubicación.", "warning");
         return;
       }
-      openValidationModal(button);
+      openValidationModal(button, Number(button.dataset.validationTarget));
       return;
     }
 

@@ -681,7 +681,7 @@ ix_require_session();
             <div class="ix-confirm-actions">
                 <button type="button" class="btn ix-confirm-cancel" data-geo-modal-cancel>Cancelar</button>
                 <button type="button" class="btn ix-confirm-accept" data-geo-modal-confirm>
-                    Sí, validar ubicación
+                    Confirmar
                 </button>
             </div>
             <p class="modal-note ix-confirm-note">
