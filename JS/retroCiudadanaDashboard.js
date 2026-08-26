@@ -3,7 +3,7 @@
 
 import { DonutChart } from "/JS/charts/donut-chart.js";
 import { planScope, fetchScope } from "/JS/api/requerimientos.js";
-import { initExportXLSXRetro } from "/JS/UAT/ui/exportXLSXRetro.js";
+import { initExportXLSXRetro } from "/JS/ui/exportXLSXRetro.js";
 
 /* ============================================================================
    CONFIG
