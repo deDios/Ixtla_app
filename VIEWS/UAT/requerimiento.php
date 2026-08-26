@@ -669,6 +669,27 @@ ix_require_session();
         </div>
     </div>
 
+    <!-- Modal: Confirmar validación de geolocalización -->
+    <div id="modal-validar-geolocalizacion" class="modal-overlay ix-confirm-modal" aria-hidden="true">
+        <div class="modal-content ix-confirm-dialog" role="dialog" aria-modal="true"
+            aria-labelledby="validar-geo-title" aria-describedby="validar-geo-text">
+            <button class="modal-close" type="button" aria-label="Cerrar" data-geo-modal-close>×</button>
+            <h2 id="validar-geo-title" class="ix-confirm-title">Validar ubicación</h2>
+            <p id="validar-geo-text" class="ix-confirm-text">
+                ¿Confirmas que la ubicación corresponde al reporte?
+            </p>
+            <div class="ix-confirm-actions">
+                <button type="button" class="btn ix-confirm-cancel" data-geo-modal-cancel>Cancelar</button>
+                <button type="button" class="btn ix-confirm-accept" data-geo-modal-confirm>
+                    Sí, validar ubicación
+                </button>
+            </div>
+            <p class="modal-note ix-confirm-note">
+                La validación quedará registrada con tu usuario.
+            </p>
+        </div>
+    </div>
+
     <!-- Modal editor de Avatar -->
     <div class="eda-overlay" id="eda-overlay" aria-hidden="true">
         <div class="eda-modal" role="dialog" aria-modal="true" aria-labelledby="eda-title">

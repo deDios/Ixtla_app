@@ -14,6 +14,7 @@
   let currentRecord = null;
   let currentRequirement = null;
   let departmentsPromise = null;
+  let validationTrigger = null;
 
   function readSession() {
     try {
@@ -322,18 +323,34 @@
 
   document.addEventListener("req:loaded", (event) => render(event.detail));
 
-  document.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-geo-validate]");
-    if (!button || !currentRecord || !currentRequirement) return;
-    if (!(await canValidateGeolocation(currentRequirement))) {
-      button.hidden = true;
-      window.gcToast?.("No tienes permiso para validar esta ubicación.", "warning");
-      return;
-    }
-    if (!window.confirm("¿Confirmas que la ubicación corresponde al reporte?")) return;
+  function openValidationModal(trigger) {
+    const modal = $("#modal-validar-geolocalizacion");
+    if (!modal) return;
+    validationTrigger = trigger || null;
+    modal.classList.add("open", "active");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("me-modal-open");
+    setTimeout(() => $("[data-geo-modal-confirm]", modal)?.focus(), 30);
+  }
 
-    button.disabled = true;
-    button.textContent = "Validando…";
+  function closeValidationModal() {
+    const modal = $("#modal-validar-geolocalizacion");
+    if (!modal) return;
+    modal.classList.remove("open", "active");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("me-modal-open");
+    const trigger = validationTrigger;
+    validationTrigger = null;
+    if (trigger && !trigger.hidden) trigger.focus?.();
+  }
+
+  async function confirmValidation(confirmButton) {
+    if (!currentRecord || !currentRequirement) return;
+    const toolbarButton = validationTrigger;
+    confirmButton.disabled = true;
+    confirmButton.textContent = "Validando…";
+    if (toolbarButton) toolbarButton.disabled = true;
+
     try {
       const response = await fetch(UPDATE_ENDPOINT, {
         method: "PATCH",
@@ -350,14 +367,49 @@
         status.textContent = "Geolocalización validada";
         status.className = "exp-geo-status is-validated";
       }
-      button.hidden = true;
+      if (toolbarButton) toolbarButton.hidden = true;
+      closeValidationModal();
       window.gcToast?.("Geolocalización validada correctamente.", "success");
     } catch (error) {
       console.error("[ReqGeolocalizacion] Error validando:", error);
       window.gcToast?.(error.message || "No se pudo validar la ubicación.", "danger");
-      button.disabled = false;
-      button.textContent = "Validar ubicación";
+      if (toolbarButton) toolbarButton.disabled = false;
+    } finally {
+      confirmButton.disabled = false;
+      confirmButton.textContent = "Sí, validar ubicación";
     }
+  }
+
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-geo-validate]");
+    if (button) {
+      if (!currentRecord || !currentRequirement) return;
+      if (!(await canValidateGeolocation(currentRequirement))) {
+        button.hidden = true;
+        window.gcToast?.("No tienes permiso para validar esta ubicación.", "warning");
+        return;
+      }
+      openValidationModal(button);
+      return;
+    }
+
+    const modal = event.target.closest("#modal-validar-geolocalizacion");
+    if (!modal) return;
+    if (
+      event.target === modal ||
+      event.target.closest("[data-geo-modal-close], [data-geo-modal-cancel]")
+    ) {
+      closeValidationModal();
+      return;
+    }
+    const confirmButton = event.target.closest("[data-geo-modal-confirm]");
+    if (confirmButton) await confirmValidation(confirmButton);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const modal = $("#modal-validar-geolocalizacion");
+    if (modal?.classList.contains("open")) closeValidationModal();
   });
 
   document.addEventListener("click", (event) => {
