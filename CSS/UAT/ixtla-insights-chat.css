@@ -33,6 +33,43 @@
 .ixtla-insights-message { min-width: 0; max-width: 88%; padding: 11px 13px; border-radius: 14px; font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .ixtla-insights-message--assistant { width: 100%; max-width: 100%; align-self: flex-start; background: #e6f3f5; border-bottom-left-radius: 4px; }
 .ixtla-insights-message--user { align-self: flex-end; color: #fff; background: #155e75; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.ixtla-chart-preview { width: 100%; padding: 16px; border: 1px solid #bfd8dc; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(15, 76, 129, .1); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.ixtla-chart-preview__heading { margin-bottom: 14px; }
+.ixtla-chart-preview__heading h3 { margin: 0; color: #17324d; font-size: 16px; line-height: 1.3; }
+.ixtla-chart-preview__heading p { margin: 5px 0 0; color: #64748b; font-size: 12px; }
+.ixtla-chart-preview__body { min-height: 150px; overflow-x: auto; padding: 12px; border-radius: 12px; background: #f7fbfc; }
+.ixtla-chart-preview__body svg { display: block; width: 100%; min-width: 300px; height: 180px; }
+.ixtla-chart-preview__body table { width: 100%; border-collapse: collapse; color: #17324d; font-size: 12px; }
+.ixtla-chart-preview__body th, .ixtla-chart-preview__body td { padding: 7px; border-bottom: 1px solid #dbe9ec; text-align: left; }
+.ixtla-chart-preview__body th:last-child, .ixtla-chart-preview__body td:last-child { text-align: right; }
+.ixtla-chart-preview__body--kpi { display: grid; min-height: 140px; place-content: center; text-align: center; }
+.ixtla-chart-preview__body--empty { display: grid; min-height: 140px; place-items: center; text-align: center; }
+.ixtla-chart-preview__body--empty div { display: grid; gap: 5px; color: #64748b; }
+.ixtla-chart-preview__body--empty strong { color: #38566b; }
+.ixtla-chart-preview__kpi-value { display: block; color: #0f4c81; font-size: 42px; line-height: 1; }
+.ixtla-chart-preview__bars { display: grid; gap: 10px; }
+.ixtla-chart-preview__bar-row { display: grid; grid-template-columns: minmax(90px, 1.25fr) minmax(90px, 2fr) auto; align-items: center; gap: 8px; color: #17324d; font-size: 11px; }
+.ixtla-chart-preview__bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ixtla-chart-preview__bar-track { display: block; height: 12px; overflow: hidden; border-radius: 999px; background: #e2eef0; }
+.ixtla-chart-preview__bar-track i { display: block; height: 100%; border-radius: inherit; }
+.ixtla-chart-preview__donut { width: 132px; height: 132px; margin: 0 auto 14px; border-radius: 50%; box-shadow: inset 0 0 0 38px #fff; }
+.ixtla-chart-preview__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px 12px; color: #38566b; font-size: 11px; }
+.ixtla-chart-preview__legend span { display: inline-flex; align-items: center; gap: 5px; }
+.ixtla-chart-preview__legend i { width: 9px; height: 9px; border-radius: 50%; }
+.ixtla-chart-preview__insight { margin: 12px 0; color: #38566b; font-size: 12px; line-height: 1.45; }
+.ixtla-chart-preview__evidence { margin: 0 0 12px; border: 1px solid #d7e7ea; border-radius: 10px; color: #38566b; background: #f9fcfc; font-size: 11px; }
+.ixtla-chart-preview__evidence summary { padding: 8px 10px; color: #155e75; font-weight: 700; cursor: pointer; }
+.ixtla-chart-preview__evidence div { display: grid; gap: 5px; padding: 0 10px 9px; }
+.ixtla-chart-preview__evidence p { margin: 0; overflow-wrap: anywhere; }
+.ixtla-chart-preview__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ixtla-chart-preview__actions button { min-height: 38px; padding: 8px 12px; border-radius: 10px; font: 700 12px/1.2 system-ui, sans-serif; cursor: pointer; }
+.ixtla-chart-preview__add { flex: 1 1 190px; border: 1px solid #0f4c81; color: #fff; background: #0f4c81; }
+.ixtla-chart-preview__add:hover:not(:disabled) { background: #176b87; }
+.ixtla-chart-preview__add:disabled { border-color: #4f8b72; background: #4f8b72; cursor: default; }
+.ixtla-chart-preview__change { flex: 0 1 auto; border: 1px solid #9bc6cf; color: #155e75; background: #fff; }
+.ixtla-chart-preview__undo { flex: 0 1 auto; border: 1px solid #d8b4b4; color: #8b2f2f; background: #fff; }
+.ixtla-chart-preview__undo[hidden] { display: none; }
+.ixtla-chart-preview__actions button:focus-visible { outline: 3px solid rgba(23, 107, 135, .3); outline-offset: 2px; }
 .ixtla-insights-markdown { color: #172033; overflow-wrap: anywhere; }
 .ixtla-insights-markdown > :first-child { margin-top: 0; }
 .ixtla-insights-markdown > :last-child { margin-bottom: 0; }

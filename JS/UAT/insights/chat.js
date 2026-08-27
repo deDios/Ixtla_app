@@ -213,7 +213,7 @@ export function mountIxtlaInsights(options = {}) {
 
   const config = {
     title: "Ixtla Insights",
-    subtitle: "Asistente de requerimientos y retros",
+    subtitle: "Asistente de requerimientos",
     quickQuestions: [
       {
         label: "Diagnóstico del mes",
@@ -249,6 +249,7 @@ export function mountIxtlaInsights(options = {}) {
     draftUrl: "/db/UAT/ixtla_insights/draft.php",
     departmentsUrl: "/db/UAT/ixtla_insights/departments.php",
     exportUrl: "/db/UAT/ixtla_insights/query_export.php",
+    previewUrl: "/db/UAT/ixtla_insights/dataset_preview.php",
     simpleMode: true,
     visualizationHandler: null,
     ...options,
@@ -256,6 +257,7 @@ export function mountIxtlaInsights(options = {}) {
   let context = config.context || window.__ixtlaInsightsContext || null;
   let pendingVisualization = null;
   let lastVisualizationSpec = null;
+  const dashboardQueue = [];
   let draftPersistQueue = Promise.resolve();
   const history = [];
   let lastResultQuery = null;
@@ -534,6 +536,10 @@ export function mountIxtlaInsights(options = {}) {
     });
   }
 
+  function renderMainMenu() {
+    renderQuickQuestions([...START_ACTIONS, ...config.quickQuestions]);
+  }
+
   function renderWorkflowQuestions(questions) {
     const cancel = {
       label: "Cancelar creación",
@@ -562,13 +568,17 @@ export function mountIxtlaInsights(options = {}) {
     const explicit = /\b(grafica|grafico|visualiza|visualizar|visualizacion|chart|kpi|indicador(?:es)?|barras?|linea|dona|pastel)\b/.test(text);
     const natural = /\b(muestrame|quiero ver|necesito ver|comparar|comparame)\b/.test(text)
       && /\b(tendencia|evolucion|distribucion|por departamento|por tramite|por estatus|calificaciones?)\b/.test(text);
-    return explicit || natural;
+    const editsPrevious = Boolean(lastVisualizationSpec)
+      && /\b(cambiala|cambialo|hazla|hazlo|mejor|ahora|usa|ponla|ponlo)\b/.test(text)
+      && /\b(este mes|ultim[oa]s? 7 dias|ultim[oa]s? 30 dias|historial|departamento|tramite|estatus|calificacion)\b/.test(text);
+    return explicit || natural || editsPrevious;
   }
 
   function parseVisualizationRequest(value) {
     const text = normalizedVisualizationText(value);
     if (!visualizationIntent(text)) return null;
-    const refersToPrevious = /\b(esto|eso|lo anterior|los mismos datos|esta informacion|estos resultados)\b/.test(text);
+    const refersToPrevious = /\b(esto|eso|lo anterior|los mismos datos|esta informacion|estos resultados|cambiala|cambialo|hazla|hazlo|ponla|ponlo)\b/.test(text)
+      || (Boolean(lastVisualizationSpec) && /\b(ahora|mejor|usa)\b/.test(text));
     let domain = /\b(retro|retros|retroalimentacion|retroalimentaciones|encuesta|encuestas|calificacion|calificaciones|satisfaccion)\b/.test(text)
       ? "retroalimentaciones" : "";
     if (!domain && refersToPrevious && clean(lastResultQuery?.tool).includes("feedback")) domain = "retroalimentaciones";
@@ -610,17 +620,20 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function beginNaturalVisualization(prompt, parsed) {
-    const hasUsefulContext = parsed.refersToPrevious && lastResultQuery;
+    const previousSpec = parsed.refersToPrevious && lastVisualizationSpec ? lastVisualizationSpec : null;
+    const hasUsefulContext = parsed.refersToPrevious && (lastResultQuery || previousSpec);
     if (!parsed.domain && !hasUsefulContext && !parsed.chart && !parsed.dimension && !parsed.metric) {
       startGuidedVisualization(false);
       return;
     }
-    const domain = parsed.domain || (clean(lastResultQuery?.tool).includes("feedback") ? "retroalimentaciones" : "requerimientos");
-    const metric = parsed.metric || (domain === "retroalimentaciones" ? "retro_total" : "total");
+    const domain = parsed.domain || clean(previousSpec?.domain) || (clean(lastResultQuery?.tool).includes("feedback") ? "retroalimentaciones" : "requerimientos");
+    const metric = parsed.metric || clean(previousSpec?.metric) || (domain === "retroalimentaciones" ? "retro_total" : "total");
     const previousGroup = clean(lastResultQuery?.filters?.group_by);
     const previousDimension = DIMENSION_LABELS[previousGroup] ? previousGroup : previousGroup === "rating" ? "calificacion" : previousGroup === "status" ? (domain === "retroalimentaciones" ? "estado_retro" : "estatus") : "";
-    const dimension = parsed.dimension || previousDimension || (parsed.chart === "line" ? "fecha" : domain === "retroalimentaciones" ? "calificacion" : "tramite");
-    const chart = parsed.chart || (dimension === "fecha" ? "line" : metric === "tasa_respuesta" || metric === "promedio_calificacion" ? "kpi" : "bar");
+    let dimension = parsed.dimension || clean(previousSpec?.dimension) || previousDimension || (parsed.chart === "line" ? "fecha" : domain === "retroalimentaciones" ? "calificacion" : "tramite");
+    const chart = parsed.chart || clean(previousSpec?.chart) || (dimension === "fecha" ? "line" : metric === "tasa_respuesta" || metric === "promedio_calificacion" ? "kpi" : "bar");
+    if (chart === "line" || chart === "area") dimension = "fecha";
+    if (chart === "donut" && dimension === "fecha") dimension = domain === "retroalimentaciones" ? "calificacion" : "estatus";
     pendingVisualization = {
       mode: "natural_visualization",
       question: prompt,
@@ -628,8 +641,9 @@ export function mountIxtlaInsights(options = {}) {
       metric,
       dimension,
       chart,
-      filters: hasUsefulContext && Array.isArray(lastResultQuery?.filters?.filters) ? lastResultQuery.filters.filters : [],
-      period: parsed.period,
+      title: clean(previousSpec?.title) || widgetTitle(chart, metric, dimension, domain),
+      filters: Array.isArray(previousSpec?.filters) ? previousSpec.filters.map((filter) => ({ ...filter })) : (hasUsefulContext && Array.isArray(lastResultQuery?.filters?.filters) ? lastResultQuery.filters.filters : []),
+      period: parsed.period || clean(previousSpec?.period),
     };
     addMessage(`Entendí que quieres visualizar ${METRIC_LABELS[metric]?.toLocaleLowerCase("es-MX") || "los resultados"}. ${CHART_LABELS[chart]} es una buena opción para agrupar por ${DIMENSION_LABELS[dimension] || dimension}.`);
     if (!pendingVisualization.period) {
@@ -759,6 +773,231 @@ export function mountIxtlaInsights(options = {}) {
     };
   }
 
+  function previewToolRequest(spec) {
+    const period = PERIOD_LABELS[spec.period] ? spec.period : "all";
+    if (spec.domain === "retroalimentaciones") {
+      const common = {
+        status_ids: [], rating_ids: [], department_ids: [], tramite_ids: [], requirement_status_ids: [],
+        channel_ids: [], assignee_ids: [], assignee_state: "any", period, date_from: null, date_to: null,
+      };
+      if (spec.chart === "kpi" || ["tasa_respuesta", "promedio_calificacion"].includes(spec.metric)) {
+        return { tool: "get_feedback_overview", arguments: common };
+      }
+      const groupMap = { calificacion: "rating", estado_retro: "status", departamento: "department", tramite: "tramite", fecha: "date" };
+      return { tool: "aggregate_feedback", arguments: { ...common, group_by: groupMap[spec.dimension] || "rating", limit: spec.dimension === "fecha" ? 50 : (spec.limit || 10) } };
+    }
+    if (spec.chart === "kpi") {
+      return { tool: "get_requirements_overview", arguments: { refresh: false, period, date_field: "created_at", date_from: null, date_to: null } };
+    }
+    const groupMap = { estatus: "status", departamento: "department", tramite: "tramite", fecha: "date" };
+    const statusMap = { abiertos: [0, 1, 2, 3], finalizados: [6], cerrados: [6], pausados_cancelados: [4, 5], pausados: [4], cancelados: [5] };
+    return {
+      tool: "aggregate_requirements",
+      arguments: {
+        period, department_id: null, department_ids: [], department_names: [], assignee_id: null, assignee_ids: [],
+        tramite_ids: [], status_ids: statusMap[spec.metric] || [], channel_ids: [], assignee_state: "any",
+        date_field: "created_at", date_from: null, date_to: null,
+        group_by: groupMap[spec.dimension] || "tramite", sort: spec.dimension === "fecha" ? "asc" : (["asc", "desc"].includes(spec.sort) ? spec.sort : "desc"), limit: spec.dimension === "fecha" ? 50 : (spec.limit || 10),
+      },
+    };
+  }
+
+  function normalizePreviewData(spec, data, sourceTool = "") {
+    let items = Array.isArray(data?.items) ? data.items.map((item) => ({
+      label: clean(item?.label || item?.name || item?.date) || "Sin especificar",
+      value: Number(item?.value || 0),
+    })) : [];
+    let value = null;
+    let valueLabel = METRIC_LABELS[spec.metric] || "Total";
+    if (spec.domain === "retroalimentaciones" && !items.length) {
+      if (spec.metric === "tasa_respuesta") { value = Number(data?.response_rate_percent || 0); valueLabel = "Tasa de respuesta"; }
+      else if (spec.metric === "promedio_calificacion") { value = Number(data?.average_rating || 0); valueLabel = "Promedio de calificación"; }
+      else { value = Number(data?.total || 0); valueLabel = "Retroalimentaciones"; }
+    } else if (!items.length && data?.counts) {
+      const keyMap = { total: "total", abiertos: "active", finalizados: "finalized", cerrados: "finalized", pausados: "paused", cancelados: "cancelled" };
+      if (spec.metric === "pausados_cancelados") value = Number(data.counts.paused || 0) + Number(data.counts.cancelled || 0);
+      else value = Number(data.counts[keyMap[spec.metric] || "total"] || 0);
+    }
+    if (spec.chart === "kpi" && value === null && items.length) value = items.reduce((sum, item) => sum + item.value, 0);
+    if (spec.dimension === "fecha") items.sort((left, right) => left.label.localeCompare(right.label));
+    items = items.slice(0, spec.dimension === "fecha" ? 50 : Math.max(1, Number(spec.limit) || 10));
+    const top = [...items].sort((a, b) => b.value - a.value)[0];
+    return {
+      previewId: `preview-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title: spec.title,
+      chart: spec.chart,
+      items,
+      value,
+      valueLabel,
+      scopeLabel: clean(typeof data?.scope === "object" ? data.scope?.label : data?.scope) || spec.scopeLabel,
+      generatedAt: clean(data?.generated_at) || new Date().toISOString(),
+      sourceTool,
+      filters: Array.isArray(spec.filters) ? spec.filters.map((filter) => ({ ...filter })) : [],
+      insight: top ? `${top.label} presenta el valor más alto (${top.value.toLocaleString("es-MX")}).` : `${valueLabel}: ${Number(value || 0).toLocaleString("es-MX", { maximumFractionDigits: 2 })}.`,
+    };
+  }
+
+  async function requestVisualizationPreview(spec) {
+    const request = previewToolRequest(spec);
+    const response = await fetch(config.previewUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(request),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok || !payload?.data) throw new Error(clean(payload?.error) || "No fue posible obtener los datos de la gráfica.");
+    return normalizePreviewData(spec, payload.data, request.tool);
+  }
+
+  function previewSourceLabel(tool) {
+    return ({
+      aggregate_requirements: "Agregado autorizado de requerimientos",
+      get_requirements_overview: "Resumen autorizado de requerimientos",
+      aggregate_feedback: "Agregado autorizado de retroalimentaciones",
+      get_feedback_overview: "Resumen autorizado de retroalimentaciones",
+    })[clean(tool)] || "Datos autorizados de Ixtla Insights";
+  }
+
+  function previewFiltersLabel(preview, spec) {
+    const filters = Array.isArray(preview.filters) ? preview.filters : [];
+    const visible = filters.map((filter) => `${clean(filter?.field)}: ${clean(filter?.value)}`).filter((value) => !value.endsWith(":"));
+    return visible.length ? visible.join(" · ") : `${PERIOD_LABELS[spec.period] || PERIOD_LABELS.all} · Sin filtros adicionales`;
+  }
+
+  function formatPreviewDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "Actualización reciente" : `Actualizado ${date.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}`;
+  }
+
+  function chartColor(index) {
+    return ["#176b87", "#2d8ca6", "#5aaebd", "#86c6cf", "#0f4c81", "#73a5d1"][index % 6];
+  }
+
+  function renderChartBody(container, preview) {
+    if (preview.chart !== "kpi" && !preview.items.length) {
+      container.className += " ixtla-chart-preview__body--empty";
+      const empty = document.createElement("div");
+      empty.innerHTML = "<strong>Sin datos para visualizar</strong><span>Prueba otro periodo o ajusta los filtros.</span>";
+      container.append(empty);
+      return;
+    }
+    if (preview.chart === "kpi") {
+      container.className += " ixtla-chart-preview__body--kpi";
+      const value = document.createElement("strong");
+      value.className = "ixtla-chart-preview__kpi-value";
+      value.textContent = Number(preview.value || 0).toLocaleString("es-MX", { maximumFractionDigits: 2 });
+      const label = document.createElement("span");
+      label.textContent = preview.valueLabel;
+      container.append(value, label);
+      return;
+    }
+    if (preview.chart === "table") {
+      const table = document.createElement("table");
+      table.innerHTML = "<thead><tr><th>Categoría</th><th>Valor</th></tr></thead>";
+      const tbody = document.createElement("tbody");
+      preview.items.forEach((item) => {
+        const row = document.createElement("tr");
+        const label = document.createElement("td"); label.textContent = item.label;
+        const value = document.createElement("td"); value.textContent = item.value.toLocaleString("es-MX");
+        row.append(label, value); tbody.append(row);
+      });
+      table.append(tbody); container.append(table); return;
+    }
+    if (preview.chart === "donut") {
+      const total = preview.items.reduce((sum, item) => sum + item.value, 0) || 1;
+      let cursor = 0;
+      const stops = preview.items.map((item, index) => {
+        const start = cursor; cursor += (item.value / total) * 100;
+        return `${chartColor(index)} ${start}% ${cursor}%`;
+      });
+      const donut = document.createElement("div"); donut.className = "ixtla-chart-preview__donut";
+      donut.style.background = `conic-gradient(${stops.join(",")})`;
+      const legend = document.createElement("div"); legend.className = "ixtla-chart-preview__legend";
+      preview.items.forEach((item, index) => {
+        const entry = document.createElement("span"); entry.innerHTML = `<i style="background:${chartColor(index)}"></i>`;
+        entry.append(document.createTextNode(`${item.label}: ${item.value.toLocaleString("es-MX")}`)); legend.append(entry);
+      });
+      container.append(donut, legend); return;
+    }
+    if (preview.chart === "line" || preview.chart === "area") {
+      const width = 520, height = 190, pad = 22, max = Math.max(1, ...preview.items.map((item) => item.value));
+      const points = preview.items.map((item, index) => {
+        const x = pad + (preview.items.length <= 1 ? 0 : index * ((width - pad * 2) / (preview.items.length - 1)));
+        const y = height - pad - (item.value / max) * (height - pad * 2);
+        return `${x},${y}`;
+      }).join(" ");
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", preview.title);
+      if (preview.chart === "area" && points) {
+        const polygon = document.createElementNS(svg.namespaceURI, "polygon");
+        polygon.setAttribute("points", `${pad},${height - pad} ${points} ${width - pad},${height - pad}`); polygon.setAttribute("fill", "rgba(23,107,135,.18)"); svg.append(polygon);
+      }
+      const polyline = document.createElementNS(svg.namespaceURI, "polyline");
+      polyline.setAttribute("points", points); polyline.setAttribute("fill", "none"); polyline.setAttribute("stroke", "#176b87"); polyline.setAttribute("stroke-width", "4"); polyline.setAttribute("stroke-linecap", "round"); polyline.setAttribute("stroke-linejoin", "round"); svg.append(polyline);
+      container.append(svg); return;
+    }
+    const max = Math.max(1, ...preview.items.map((item) => item.value));
+    const bars = document.createElement("div"); bars.className = "ixtla-chart-preview__bars";
+    preview.items.forEach((item, index) => {
+      const row = document.createElement("div"); row.className = "ixtla-chart-preview__bar-row";
+      const label = document.createElement("span"); label.className = "ixtla-chart-preview__bar-label"; label.textContent = item.label;
+      const track = document.createElement("span"); track.className = "ixtla-chart-preview__bar-track";
+      const fill = document.createElement("i"); fill.style.width = `${Math.max(2, (item.value / max) * 100)}%`; fill.style.background = chartColor(index); track.append(fill);
+      const value = document.createElement("strong"); value.textContent = item.value.toLocaleString("es-MX");
+      row.append(label, track, value); bars.append(row);
+    });
+    container.append(bars);
+  }
+
+  function addVisualizationPreview(preview, spec) {
+    const card = document.createElement("article"); card.className = "ixtla-chart-preview"; card.dataset.previewId = preview.previewId;
+    card.setAttribute("aria-label", `Preview: ${preview.title}`);
+    const heading = document.createElement("div"); heading.className = "ixtla-chart-preview__heading";
+    const title = document.createElement("h3"); title.textContent = preview.title;
+    const meta = document.createElement("p"); meta.textContent = `${PERIOD_LABELS[spec.period] || PERIOD_LABELS.all} · ${preview.scopeLabel}`;
+    heading.append(title, meta);
+    const body = document.createElement("div"); body.className = "ixtla-chart-preview__body";
+    body.setAttribute("role", "group"); body.setAttribute("aria-label", `${CHART_LABELS[preview.chart] || "Visualización"}: ${preview.insight}`);
+    renderChartBody(body, preview);
+    const insight = document.createElement("p"); insight.className = "ixtla-chart-preview__insight"; insight.textContent = preview.insight;
+    const evidence = document.createElement("details"); evidence.className = "ixtla-chart-preview__evidence";
+    const evidenceSummary = document.createElement("summary"); evidenceSummary.textContent = "Cómo se obtuvo";
+    const evidenceBody = document.createElement("div");
+    const source = document.createElement("p"); source.innerHTML = "<strong>Fuente:</strong> "; source.append(document.createTextNode(previewSourceLabel(preview.sourceTool)));
+    const filters = document.createElement("p"); filters.innerHTML = "<strong>Filtros:</strong> "; filters.append(document.createTextNode(previewFiltersLabel(preview, spec)));
+    const updated = document.createElement("p"); updated.innerHTML = "<strong>Actualización:</strong> "; updated.append(document.createTextNode(formatPreviewDate(preview.generatedAt)));
+    evidenceBody.append(source, filters, updated); evidence.append(evidenceSummary, evidenceBody);
+    const actions = document.createElement("div"); actions.className = "ixtla-chart-preview__actions";
+    const add = document.createElement("button"); add.type = "button"; add.className = "ixtla-chart-preview__add";
+    add.textContent = "＋ Agregar al dashboard";
+    add.title = "Al hacer clic agregarás esta gráfica a tu dashboard";
+    add.setAttribute("aria-label", "Agregar esta gráfica a tu dashboard");
+    const change = document.createElement("button"); change.type = "button"; change.className = "ixtla-chart-preview__change"; change.textContent = "Cambiar tipo";
+    const undo = document.createElement("button"); undo.type = "button"; undo.className = "ixtla-chart-preview__undo"; undo.textContent = "Deshacer"; undo.hidden = true;
+    add.addEventListener("click", () => {
+      if (dashboardQueue.some((item) => item.previewId === preview.previewId)) return;
+      add.disabled = true; add.textContent = "Agregando…";
+      setTimeout(() => {
+        dashboardQueue.push({ previewId: preview.previewId, spec: { ...spec }, preview: { ...preview, items: preview.items.map((item) => ({ ...item })) } });
+        add.textContent = "✓ Agregado al dashboard";
+        undo.hidden = false;
+        addMessage("La gráfica quedó preparada para tu dashboard. Conservé su métrica, agrupación, periodo y alcance.");
+      }, 180);
+    });
+    undo.addEventListener("click", () => {
+      const index = dashboardQueue.findIndex((item) => item.previewId === preview.previewId);
+      if (index >= 0) dashboardQueue.splice(index, 1);
+      add.disabled = false; add.textContent = "＋ Agregar al dashboard"; undo.hidden = true;
+      addMessage("Listo. Quité esta gráfica de la preparación del dashboard.");
+    });
+    change.addEventListener("click", () => {
+      pendingVisualization = { ...spec, mode: "preview_edit", reviewSpec: { ...spec } };
+      changeVisualizationChart();
+    });
+    actions.append(add, change, undo); card.append(heading, body, insight, evidence, actions); messages.append(card); messages.scrollTop = messages.scrollHeight;
+  }
+
   async function addVisualization(question, spec) {
     if (typeof config.visualizationHandler === "function") {
       const result = await config.visualizationHandler({ question, context, spec });
@@ -828,7 +1067,7 @@ export function mountIxtlaInsights(options = {}) {
 
     try {
       await addVisualization(request.question, spec);
-      renderQuickQuestions(config.quickQuestions);
+      renderMainMenu();
     } catch (error) {
       console.error("[IxtlaInsights]", error);
       addMessage("No fue posible agregar la visualización al dashboard. Intenta de nuevo.");
@@ -864,18 +1103,27 @@ export function mountIxtlaInsights(options = {}) {
     if (!config.simpleMode) discardDraft();
     renderQuickQuestions([]);
     if (config.simpleMode) {
-      lastVisualizationSpec = { ...spec, filters: Array.isArray(spec.filters) ? spec.filters.map((filter) => ({ ...filter })) : [] };
-      addMessage(`Configuración lista: **${spec.title}**. Guardé la intención, métrica, agrupación y periodo dentro de esta conversación. El renderizado del componente gráfico se conectará en la siguiente etapa.`);
-      renderQuickQuestions(START_ACTIONS);
+      const hideThinkingIndicator = showThinkingIndicator();
+      try {
+        const preview = await requestVisualizationPreview(spec);
+        lastVisualizationSpec = { ...spec, filters: Array.isArray(spec.filters) ? spec.filters.map((filter) => ({ ...filter })) : [] };
+        addVisualizationPreview(preview, spec);
+      } catch (error) {
+        console.error("[IxtlaInsights preview]", error);
+        addMessage(`No pude generar la preview: ${clean(error?.message) || "la consulta no estuvo disponible"}. Puedes cambiar la configuración e intentarlo nuevamente.`);
+      } finally {
+        hideThinkingIndicator();
+        renderMainMenu();
+      }
       return;
     }
     try {
       await addVisualization(request.question, spec);
-      renderQuickQuestions(config.quickQuestions);
+      renderMainMenu();
     } catch (error) {
       console.error("[IxtlaInsights]", error);
       addMessage("No fue posible agregar la visualización al dashboard. Intenta de nuevo.");
-      renderQuickQuestions(START_ACTIONS);
+      renderMainMenu();
     }
   }
 
@@ -895,7 +1143,7 @@ export function mountIxtlaInsights(options = {}) {
     pendingVisualization = null;
     discardDraft();
     addMessage(message);
-    renderQuickQuestions(START_ACTIONS);
+    renderMainMenu();
   }
 
   function chooseVisualizationChart(chart) {
@@ -1511,7 +1759,7 @@ export function mountIxtlaInsights(options = {}) {
     }
   }
 
-  renderQuickQuestions([...START_ACTIONS, ...config.quickQuestions]);
+  renderMainMenu();
   fab.addEventListener("click", open);
   close.addEventListener("click", closeDrawer);
   clear.addEventListener("click", () => {
@@ -1519,10 +1767,11 @@ export function mountIxtlaInsights(options = {}) {
     history.length = 0;
     lastResultQuery = null;
     lastVisualizationSpec = null;
+    dashboardQueue.length = 0;
     pendingVisualization = null;
     void clearServerConversation();
     if (!config.simpleMode) discardDraft();
-    renderQuickQuestions([...START_ACTIONS, ...config.quickQuestions]);
+    renderMainMenu();
     if (config.simpleMode) void showWelcomeReport();
   });
   overlay.addEventListener("click", closeDrawer);
@@ -1551,7 +1800,8 @@ export function mountIxtlaInsights(options = {}) {
     void showWelcomeReport();
   }
   const lastVisualization = () => lastVisualizationSpec ? { ...lastVisualizationSpec, filters: lastVisualizationSpec.filters.map((filter) => ({ ...filter })) } : null;
-  const api = { open, close: closeDrawer, ask, setContext, lastQuery, lastVisualization, exportCSV };
+  const pendingDashboardWidgets = () => dashboardQueue.map((item) => ({ ...item, spec: { ...item.spec }, preview: { ...item.preview, items: item.preview.items.map((row) => ({ ...row })) } }));
+  const api = { open, close: closeDrawer, ask, setContext, lastQuery, lastVisualization, pendingDashboardWidgets, exportCSV };
   window.__ixtlaInsightsInstance = api;
   window.IxtlaInsights = api;
   return api;
