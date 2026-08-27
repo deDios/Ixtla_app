@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/components.css">
-    <link rel="stylesheet" href="/CSS/ixtla-insights-chat.css?v=dataset-query-14">
+    <link rel="stylesheet" href="/CSS/ixtla-insights-chat.css?v=chips-scroll-4">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -746,7 +746,7 @@
 
     <script src="/JS/components.js"></script>
     <script src="/JS/jsGlobal.js"></script>
-    <script type="module" src="/JS/home.js?v=dataset-query-14"></script>
+    <script type="module" src="/JS/home.js?v=chips-scroll-4"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
     <script type="module" src="/JS/ui/requerimientosCanal2.js"></script>
 

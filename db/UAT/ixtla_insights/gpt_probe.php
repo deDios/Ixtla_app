@@ -216,6 +216,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                 $result = ixtla_insights_execute_tool((string) $toolCall['name'], $arguments);
                 if (isset($result['query_id'])) {
                     $lastResultQuery = [
+                        'tool' => (string) $toolCall['name'],
                         'query_id' => (string) $result['query_id'],
                         'total_matching' => (int) ($result['total_matching'] ?? 0),
                         'returned' => (int) ($result['returned'] ?? 0),

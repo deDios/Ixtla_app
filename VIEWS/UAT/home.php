@@ -807,7 +807,7 @@
 
     <script src="/JS/UAT/components.js"></script>
     <script src="/JS/UAT/jsGlobal.js"></script>
-    <script type="module" src="/JS/UAT/home.js?v=dataset-query-9"></script>
+    <script type="module" src="/JS/UAT/home.js?v=visual-guide-1"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
     <script src="/JS/UAT/ui/geolocationMap.js"></script>
     <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-house-8"></script>
