@@ -1728,3 +1728,48 @@
 #ix-report-modal .ix-form__row[hidden] {
   display: none !important;
 }
+#ix-report-modal .ix-geo-map--explorable,
+.ix-geo-map--explorable {
+  cursor: grab;
+}
+
+#ix-report-modal .ix-geo-map--explorable:active,
+.ix-geo-map--explorable:active {
+  cursor: grabbing;
+}
+
+/* Marcador Leaflet anclado a la coordenada para mapas de sólo lectura. */
+.ix-geo-map-marker {
+  position: relative;
+  width: 34px !important;
+  height: 46px !important;
+  margin: 0 !important;
+  background: transparent;
+  border: 0;
+  filter: drop-shadow(0 3px 3px rgba(15, 23, 42, .28));
+}
+
+.ix-geo-map-marker::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  background: #82978a;
+  transform: translateX(-50%) rotate(-45deg);
+}
+
+.ix-geo-map-marker span {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 15px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translateX(-50%);
+}

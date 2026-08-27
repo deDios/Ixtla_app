@@ -190,7 +190,7 @@ export function mountIxtlaInsights(options = {}) {
 
   const config = {
     title: "Ixtla Insights",
-    subtitle: "Asistente de requerimientos",
+    subtitle: "Asistente de requerimientos y retros",
     quickQuestions: [
       {
         label: "Diagnóstico del mes",
@@ -209,6 +209,10 @@ export function mountIxtlaInsights(options = {}) {
       {
         label: "Trámites con más carga",
         prompt: "¿Cuáles son los cinco trámites con mayor volumen de requerimientos este mes dentro de mi alcance autorizado? No inventes cifras.",
+      },
+      {
+        label: "Resumen de retros",
+        prompt: "Dame un resumen de las retroalimentaciones dentro de mi alcance autorizado: total, contestadas, no contestadas, caducadas, inhabilitadas, tasa de respuesta y promedio de calificación.",
       },
       {
         label: "¿Qué puedo consultar?",
@@ -240,7 +244,7 @@ export function mountIxtlaInsights(options = {}) {
     <aside class="ixtla-insights-drawer" aria-label="${config.subtitle}" aria-hidden="true">
       <header class="ixtla-insights-head"><span class="ixtla-insights-head__mark" aria-hidden="true">✦</span><div><h2>${config.title}</h2><p>${config.subtitle}</p></div><button class="ixtla-insights-clear" type="button">Limpiar chat</button><button class="ixtla-insights-close" type="button" aria-label="Cerrar">×</button></header>
       <div class="ixtla-insights-messages" aria-live="polite"></div>
-      <div class="ixtla-insights-footer"><div class="ixtla-insights-chips"></div><form class="ixtla-insights-form"><textarea class="ixtla-insights-input" rows="1" placeholder="Pregunta sobre los requerimientos…"></textarea><button class="ixtla-insights-send" type="submit" aria-label="Enviar">↑</button></form></div>
+      <div class="ixtla-insights-footer"><div class="ixtla-insights-chips"><div class="ixtla-insights-chips__primary"></div><div class="ixtla-insights-chips__scroller" role="region" aria-label="Preguntas y acciones rápidas" tabindex="0"></div><div class="ixtla-insights-chips__custom"></div></div><form class="ixtla-insights-form"><textarea class="ixtla-insights-input" rows="1" placeholder="Pregunta sobre los requerimientos…"></textarea><button class="ixtla-insights-send" type="submit" aria-label="Enviar">↑</button></form></div>
     </aside>`;
   document.body.appendChild(root);
 
@@ -250,7 +254,19 @@ export function mountIxtlaInsights(options = {}) {
   const close = root.querySelector(".ixtla-insights-close");
   const clear = root.querySelector(".ixtla-insights-clear");
   const messages = root.querySelector(".ixtla-insights-messages");
-  const chips = root.querySelector(".ixtla-insights-chips");
+  const primaryChips = root.querySelector(".ixtla-insights-chips__primary");
+  const secondaryChips = root.querySelector(".ixtla-insights-chips__scroller");
+  const customChips = root.querySelector(".ixtla-insights-chips__custom");
+  secondaryChips.addEventListener("wheel", (event) => {
+    if (secondaryChips.scrollWidth <= secondaryChips.clientWidth || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    secondaryChips.scrollLeft += event.deltaY;
+  }, { passive: false });
+  secondaryChips.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    secondaryChips.scrollBy({ left: event.key === "ArrowLeft" ? -180 : 180, behavior: "smooth" });
+  });
   const form = root.querySelector(".ixtla-insights-form");
   const input = root.querySelector(".ixtla-insights-input");
   const send = root.querySelector(".ixtla-insights-send");
@@ -259,12 +275,12 @@ export function mountIxtlaInsights(options = {}) {
 
   function appendInlineMarkdown(target, value) {
     const text = String(value ?? "");
-    const pattern = /(\*\*([^*]+)\*\*|`([^`]+)`)/g;
+    const pattern = /(\*\*([^*]+)\*\*|\*([^*\n]+)\*|`([^`]+)`)/g;
     let cursor = 0;
     for (const match of text.matchAll(pattern)) {
       if (match.index > cursor) target.append(document.createTextNode(text.slice(cursor, match.index)));
-      const element = document.createElement(match[2] !== undefined ? "strong" : "code");
-      element.textContent = match[2] ?? match[3] ?? "";
+      const element = document.createElement(match[2] !== undefined ? "strong" : match[3] !== undefined ? "em" : "code");
+      element.textContent = match[2] ?? match[3] ?? match[4] ?? "";
       target.append(element);
       cursor = match.index + match[0].length;
     }
@@ -438,7 +454,10 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function renderQuickQuestions(questions) {
-    chips.replaceChildren();
+    primaryChips.replaceChildren();
+    secondaryChips.replaceChildren();
+    customChips.replaceChildren();
+    secondaryChips.scrollLeft = 0;
     (Array.isArray(questions) ? questions : []).slice(0, 10).forEach((item) => {
       const text = clean(typeof item === "string" ? item : item?.label);
       if (!text) return;
@@ -485,7 +504,7 @@ export function mountIxtlaInsights(options = {}) {
         if (action.type === "visualization_edit_scope") return editVisualizationScope();
         ask(clean(item?.prompt || text));
       });
-      chips.appendChild(chip);
+      (item?.primary ? primaryChips : secondaryChips).appendChild(chip);
     });
   }
 
@@ -921,11 +940,13 @@ export function mountIxtlaInsights(options = {}) {
 
   async function showDepartmentChecklist() {
     if (!config.departmentsUrl) return;
-    chips.replaceChildren();
+    primaryChips.replaceChildren();
+    secondaryChips.replaceChildren();
+    customChips.replaceChildren();
     const loading = document.createElement("p");
     loading.className = "ixtla-insights-department-loading";
     loading.textContent = "Cargando departamentos activos…";
-    chips.appendChild(loading);
+    customChips.appendChild(loading);
     try {
       const response = await fetch(config.departmentsUrl, { credentials: "same-origin", headers: { Accept: "application/json" } });
       const payload = await response.json().catch(() => null);
@@ -939,7 +960,9 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function renderDepartmentChecklist(departments) {
-    chips.replaceChildren();
+    primaryChips.replaceChildren();
+    secondaryChips.replaceChildren();
+    customChips.replaceChildren();
     const selectedNames = new Set((Array.isArray(pendingVisualization?.filters) ? pendingVisualization.filters : [])
       .filter((filter) => filter?.field === "departamento")
       .map((filter) => clean(filter?.value)));
@@ -985,7 +1008,7 @@ export function mountIxtlaInsights(options = {}) {
     cancel.textContent = "Cancelar creación";
     cancel.addEventListener("click", () => cancelVisualization());
     actions.append(back, cancel, apply);
-    chips.append(form, actions);
+    customChips.append(form, actions);
   }
 
   function startRemoteVisualizationScope(question, spec) {

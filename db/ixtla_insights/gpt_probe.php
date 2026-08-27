@@ -123,7 +123,8 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
         $payload['tools'] = ixtla_insights_tool_definitions();
         $continuesPreviousSearch = ($analyticsContext['last_tool'] ?? '') === 'search_requirements'
             && ixtla_insights_question_is_temporal_followup($question);
-        $payload['tool_choice'] = $analyticsContext !== []
+        $isFeedbackQuestion = preg_match('/\b(retroalimentacion|retroalimentaciones|retro|retros|encuesta|encuestas|calificacion|calificaciones|satisfaccion|favorable|favorables|desfavorable|desfavorables)\b/u', ixtla_insights_normalize_match_text($question)) === 1;
+        $payload['tool_choice'] = !$isFeedbackQuestion && $analyticsContext !== []
             && (ixtla_insights_question_requires_row_details($question) || $continuesPreviousSearch)
             ? ['type' => 'function', 'name' => 'search_requirements']
             : ixtla_insights_question_tool_choice($question, $hasDatasetContext);

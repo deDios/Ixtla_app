@@ -232,7 +232,7 @@
   background: #e8eef4;
   overscroll-behavior: contain;
   touch-action: none;
-  cursor: default;
+  cursor: grab;
   z-index: 0;
 }
 

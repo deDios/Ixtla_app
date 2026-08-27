@@ -561,8 +561,10 @@
     let hasAttemptedSubmit = false;
     let geolocationCapture = null;
     let lastReverseGeocodeAt = 0;
-    let geoMapController = null;
+    let geoMap = null;
+    let geoAccuracyCircle = null;
     let geoPendingLatLng = null;
+    let isUserMapGesture = false;
     let geoEditing = false;
 
     // DOM del formulario
@@ -641,43 +643,108 @@
     }
 
     function renderGeolocationMap() {
-      if (!geoMapElement || !geolocationCapture || !window.IxtlaGeolocationMap) return;
+      if (!geoMapElement || !geolocationCapture || !window.L) return;
 
-      if (!geoMapController) {
-        geoMapController = window.IxtlaGeolocationMap.create({
-          element: geoMapElement,
-          mode: "editable",
-          pinMode: "center",
-          onPendingChange: (point) => {
-            geoPendingLatLng = point;
-            if (geoConfirm) geoConfirm.hidden = !point;
-            if (!point) return;
-            if (geoStatus) {
-              geoStatus.textContent =
-                "Punto ajustado en el mapa. Confírmalo para actualizar la dirección.";
-              geoStatus.dataset.state = "loading";
-            }
+      const latLng = [
+        geolocationCapture.latitud,
+        geolocationCapture.longitud,
+      ];
+      const accuracy = Math.max(
+        1,
+        Number(geolocationCapture.presicion_metros) || 1,
+      );
+
+      if (!geoMap) {
+        geoMap = window.L.map(geoMapElement, {
+          attributionControl: true,
+          zoomControl: true,
+          dragging: false,
+          touchZoom: "center",
+          scrollWheelZoom: "center",
+          doubleClickZoom: true,
+          boxZoom: true,
+          keyboard: true,
+          zoomSnap: 0.5,
+          zoomDelta: 0.5,
+          wheelPxPerZoomLevel: 90,
+          bounceAtZoomLimits: false,
+        });
+        window.L.tileLayer(
+          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors",
           },
+        ).addTo(geoMap);
+
+        ["mousedown", "touchstart", "wheel"].forEach((eventName) => {
+          geoMapElement.addEventListener(
+            eventName,
+            () => {
+              isUserMapGesture = true;
+            },
+            { passive: true },
+          );
+        });
+
+        geoMap.on("movestart", () => {
+          if (!geoEditing || !isUserMapGesture) return;
+          geoPendingLatLng = null;
+          if (geoConfirm) geoConfirm.hidden = true;
+        });
+        geoMap.on("moveend", () => {
+          if (!geoEditing || !isUserMapGesture) {
+            isUserMapGesture = false;
+            return;
+          }
+          isUserMapGesture = false;
+          const center = geoMap.getCenter();
+          geoPendingLatLng = {
+            latitud: Number(center.lat),
+            longitud: Number(center.lng),
+          };
+          if (geoConfirm) geoConfirm.hidden = false;
+          if (geoStatus) {
+            geoStatus.textContent =
+              "Punto ajustado en el mapa. Confírmalo para actualizar la dirección.";
+            geoStatus.dataset.state = "loading";
+          }
         });
       }
 
-      geoMapController?.setLocation({
-        latitud: geolocationCapture.latitud,
-        longitud: geolocationCapture.longitud,
-        precisionMetros: geolocationCapture.presicion_metros,
+      // Leaflet necesita una vista inicial antes de proyectar el radio del
+      // círculo y calcular sus límites, especialmente si el mapa nace oculto.
+      geoMap.setView(latLng, 16, { animate: false });
+
+      if (!geoAccuracyCircle) {
+        geoAccuracyCircle = window.L.circle(latLng, {
+          radius: accuracy,
+          color: "#82978A",
+          weight: 1,
+          fillColor: "#a9b9ae",
+          fillOpacity: 0.18,
+          interactive: false,
+        }).addTo(geoMap);
+      } else {
+        geoAccuracyCircle.setLatLng(latLng).setRadius(accuracy);
+      }
+
+      requestAnimationFrame(() => {
+        geoMap.invalidateSize();
+        geoMap.fitBounds(geoAccuracyCircle.getBounds(), {
+          padding: [18, 18],
+          maxZoom: 17,
+        });
       });
     }
 
     function setMapEditing(enabled, { restore = false } = {}) {
       geoEditing = !!enabled;
       geoPendingLatLng = null;
+      isUserMapGesture = false;
 
       geoMapWrap?.classList.toggle("is-editing", geoEditing);
-      if (geoMapHelp) {
-        geoMapHelp.hidden = !geoEditing;
-        geoMapHelp.textContent =
-          "Haz clic o toca el mapa para colocar la aguja; también puedes arrastrarlo. Acerca o aleja con los controles de zoom.";
-      }
+      if (geoMapHelp) geoMapHelp.hidden = !geoEditing;
       if (geoMapLock) geoMapLock.hidden = geoEditing;
       if (geoConfirm) geoConfirm.hidden = true;
       if (geoEdit) {
@@ -687,8 +754,17 @@
         geoEdit.setAttribute("aria-pressed", String(geoEditing));
       }
 
-      geoMapController?.setEditing(geoEditing);
-      if (restore && geolocationCapture) renderGeolocationMap();
+      if (!geoMap) return;
+      if (geoEditing) {
+        geoMap.dragging.enable();
+        geoMap.options.touchZoom = true;
+        geoMap.options.scrollWheelZoom = true;
+      } else {
+        geoMap.dragging.disable();
+        geoMap.options.touchZoom = "center";
+        geoMap.options.scrollWheelZoom = "center";
+        if (restore && geolocationCapture) renderGeolocationMap();
+      }
     }
 
     function geolocationAddressWithHouseNumber() {

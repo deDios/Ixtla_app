@@ -10,7 +10,7 @@
   const STORAGE_KEY = "ixtla_uat_geolocalizaciones_pendientes";
   const $ = (selector, root = document) => root.querySelector(selector);
   let map = null;
-  let accuracyCircle = null;
+  let geoMapController = null;
   let currentRecord = null;
   let currentRequirement = null;
   let departmentsPromise = null;
@@ -223,58 +223,23 @@
 
   function renderMap(pane, lat, lng, precision) {
     const element = $("[data-geo-map]", pane);
-    if (!element || !window.L) return;
+    if (!element || !window.IxtlaGeolocationMap) return;
 
-    const latLng = [lat, lng];
-    const accuracy = Number.isFinite(Number(precision))
-      ? Math.max(1, Number(precision))
-      : 1;
-
-    if (!map) {
-      map = window.L.map(element, {
-        attributionControl: true,
-        zoomControl: true,
-        dragging: false,
-        touchZoom: "center",
-        scrollWheelZoom: "center",
-        doubleClickZoom: true,
-        boxZoom: true,
-        keyboard: true,
-        zoomSnap: 0.5,
-        zoomDelta: 0.5,
-        wheelPxPerZoomLevel: 90,
-        bounceAtZoomLimits: false,
+    if (!geoMapController) {
+      geoMapController = window.IxtlaGeolocationMap.create({
+        element,
+        mode: "readonly",
+        pinMode: "anchored",
+        staticPinElement: $(".exp-geo-map-pin", pane),
       });
-      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors",
-      }).addTo(map);
     }
 
-    if (!accuracyCircle) {
-      accuracyCircle = window.L.circle(latLng, {
-        radius: accuracy,
-        color: "#82978A",
-        weight: 1,
-        fillColor: "#a9b9ae",
-        fillOpacity: 0.18,
-        interactive: false,
-      }).addTo(map);
-    } else {
-      accuracyCircle.setLatLng(latLng).setRadius(accuracy);
-    }
-
-    map.setView(latLng, 16, { animate: false });
-    requestAnimationFrame(() => {
-      map.invalidateSize();
-      map.fitBounds(accuracyCircle.getBounds(), {
-        padding: [18, 18],
-        // Con precisiones pequeñas (p. ej. 13 m), a zoom 17 el círculo
-        // queda completamente oculto por la aguja central. Acercamos el
-        // mapa sin alterar el radio geográfico real.
-        maxZoom: accuracy <= 25 ? 19 : 17,
-      });
+    geoMapController?.setLocation({
+      latitud: lat,
+      longitud: lng,
+      precisionMetros: precision,
     });
+    map = geoMapController?.map || null;
   }
 
   async function render(req) {

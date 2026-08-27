@@ -28,14 +28,14 @@ $usageSummary = ixtla_insights_usage_summary([
 expect_diagnostic($usageSummary === ['provider_requests' => 2, 'input_tokens' => 200, 'output_tokens' => 70, 'reasoning_tokens' => 14, 'cached_input_tokens' => 20, 'total_tokens' => 270], 'El resumen de uso debe acumular todas las respuestas del proveedor.');
 
 $domainProfile = ixtla_insights_domain_profile();
-expect_diagnostic(($domainProfile['domain'] ?? null) === 'requerimientos', 'El perfil de dominio debe describir requerimientos.');
+expect_diagnostic(($domainProfile['domain'] ?? null) === 'requerimientos_y_retroalimentaciones', 'El perfil debe describir requerimientos y retroalimentaciones.');
 expect_diagnostic((int) ($domainProfile['version'] ?? 0) >= 3, 'El perfil de dominio debe estar versionado e incluir los conceptos de negocio vigentes.');
 $domainPrompt = ixtla_insights_domain_developer_prompt();
 expect_diagnostic(str_contains($domainPrompt, 'Un requerimiento es un caso individual'), 'El prompt debe explicar qué es un requerimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'No confundas los conceptos'), 'El prompt debe distinguir requerimiento, trámite, proceso, tarea y comentario.');
 expect_diagnostic(str_contains($domainPrompt, 'canal 1 significa Portal ciudadano'), 'El prompt debe explicar el origen de los requerimientos por canal.');
 expect_diagnostic(str_contains($domainPrompt, 'departamento de Presidencia revisa si el requerimiento es viable'), 'El prompt debe explicar la etapa de Revisión.');
-expect_diagnostic(str_contains($domainPrompt, 'todas esas tareas están en estatus Hecho'), 'El prompt debe explicar la condición para finalizar un requerimiento.');
+expect_diagnostic(str_contains($domainPrompt, 'todas esas tareas estan en estatus Hecho'), 'El prompt debe explicar la condición para finalizar un requerimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'realizar cálculos derivados'), 'El asistente debe calcular indicadores derivados desde resultados autorizados.');
 expect_diagnostic(str_contains($domainPrompt, 'no afirmes que fecha y estatus están separados'), 'El asistente debe cruzar fecha y estatus en una misma consulta.');
 expect_diagnostic(str_contains($domainPrompt, 'get_requirement_comments'), 'El perfil debe orientar consultas de actividad bajo demanda.');
@@ -50,6 +50,22 @@ expect_diagnostic(ixtla_insights_domain_status_label(6) === 'Finalizado', 'El pe
 expect_diagnostic(ixtla_insights_domain_channel_label(1) === 'Portal ciudadano', 'El perfil debe traducir el canal ciudadano.');
 expect_diagnostic(ixtla_insights_domain_channel_label(2) === 'Portal de empleados', 'El perfil debe traducir el canal capturado por empleados.');
 expect_diagnostic(ixtla_insights_domain_status_ids('active') === [0, 1, 2, 3], 'El perfil debe definir los estados activos.');
+expect_diagnostic(str_contains($domainPrompt, 'Solo Contestada significa que existe una respuesta ciudadana'), 'El perfil debe distinguir los estados de retroalimentacion.');
+expect_diagnostic(str_contains($domainPrompt, '1 Malo, 2 Regular, 3 Bueno y 4 Excelente'), 'El perfil debe definir la escala de retroalimentacion.');
+expect_diagnostic(str_contains($domainPrompt, 'created_at es la fecha de creacion de la retroalimentacion'), 'El perfil debe permitir periodos por fecha de creacion de la retro.');
+expect_diagnostic(str_contains($domainPrompt, 'updated_at no es una fecha confiable de respuesta'), 'El perfil no debe presentar actualizaciones como fechas de respuesta.');
+$feedbackTools = array_column(ixtla_insights_tool_definitions(), 'name');
+expect_diagnostic(in_array('get_feedback_overview', $feedbackTools, true), 'Debe existir el resumen de retroalimentaciones.');
+expect_diagnostic(in_array('aggregate_feedback', $feedbackTools, true), 'Debe existir la agregacion de retroalimentaciones.');
+expect_diagnostic(in_array('search_feedback', $feedbackTools, true), 'Debe existir el listado seguro de retroalimentaciones.');
+expect_diagnostic(in_array('get_feedback_detail', $feedbackTools, true), 'Debe existir el detalle seguro de una retroalimentacion.');
+expect_diagnostic(in_array('analyze_feedback_comments', $feedbackTools, true), 'Debe existir el analisis cualitativo de comentarios de retroalimentacion.');
+expect_diagnostic(str_contains($domainPrompt, 'motivos de retros malas o buenas'), 'El perfil debe orientar preguntas cualitativas de retroalimentacion.');
+expect_diagnostic(str_contains($domainPrompt, 'todos los datos ciudadanos que entregue get_feedback_detail'), 'El detalle individual de retro debe permitir datos ciudadanos autorizados.');
+expect_diagnostic(ixtla_insights_retro_status_label(2) === 'Contestada', 'El modulo debe traducir el estado de retroalimentacion.');
+expect_diagnostic(ixtla_insights_retro_rating_label(4) === 'Excelente', 'El modulo debe traducir la escala de calificacion.');
+expect_diagnostic(ixtla_insights_question_intent('Cuantas retroalimentaciones estan contestadas?') === 'dataset', 'Las preguntas de retroalimentacion deben consultar datos.');
+expect_diagnostic(ixtla_insights_question_requested_period('Cuantas retros tenemos este mes?') === 'this_month', 'Las retros deben reconocer el periodo del mes actual.');
 expect_diagnostic(ixtla_insights_dataset_active_status_condition() === 'r.estatus IN (0, 1, 2, 3)', 'Los datasets deben construir el filtro activo desde el perfil.');
 expect_diagnostic(ixtla_insights_dataset_risk_period('last_30') === 'last_30', 'Los paquetes compuestos deben admitir periodos comparables.');
 try {
@@ -84,7 +100,7 @@ expect_diagnostic(ixtla_insights_question_intent('dame la info del ciudadano', t
 expect_diagnostic(ixtla_insights_question_intent('cual es su telefono', true) === 'dataset', 'El telefono debe reutilizar el contexto del requerimiento anterior.');
 
 $chatToolNames = array_column(ixtla_insights_tool_definitions(), 'name');
-expect_diagnostic($chatToolNames === ['get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
+expect_diagnostic($chatToolNames === ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'get_feedback_detail', 'analyze_feedback_comments', 'get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
 $snapshotOverviewTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_overview'))[0] ?? [];
 expect_diagnostic(($snapshotOverviewTool['parameters']['required'] ?? []) === ['refresh', 'period', 'date_field', 'date_from', 'date_to'], 'El resumen debe aceptar periodos y rangos personalizados explícitos.');
 expect_diagnostic(str_contains((string) ($snapshotOverviewTool['description'] ?? ''), 'días pico'), 'El resumen debe anunciar la comparación y los picos diarios que puede calcular.');

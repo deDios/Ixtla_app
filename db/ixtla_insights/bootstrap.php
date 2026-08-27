@@ -186,7 +186,7 @@ function ixtla_insights_scope(): array
     $session = $GLOBALS['ix_session'] ?? [];
 
     return [
-        'domain' => 'requerimientos',
+        'domain' => 'requerimientos_y_retroalimentaciones',
         'empleado_id' => $session['empleado_id'] ?? $session['id_empleado'] ?? null,
         'cuenta_id' => $session['cuenta_id'] ?? $session['id_cuenta'] ?? $session['id_usuario'] ?? null,
     ];

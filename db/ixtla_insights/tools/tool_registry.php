@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../datasets/requerimientos_snapshot.php';
 require_once __DIR__ . '/../datasets/requirement_activity.php';
+require_once __DIR__ . '/../datasets/retroalimentaciones_dataset.php';
 
 /** Registro compacto: solo herramientas vigentes para el chat. */
 function ixtla_insights_tool_definitions(): array
@@ -27,8 +28,71 @@ function ixtla_insights_tool_definitions(): array
         'date_to' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
     ];
     $filterRequired = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'channel_ids', 'assignee_state', 'date_field', 'date_from', 'date_to'];
+    $retroFilters = [
+        'status_ids' => ['type' => 'array', 'maxItems' => 4, 'items' => ['type' => 'integer', 'enum' => [0, 1, 2, 3]]],
+        'rating_ids' => ['type' => 'array', 'maxItems' => 4, 'items' => ['type' => 'integer', 'enum' => [1, 2, 3, 4]]],
+        'department_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
+        'tramite_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
+        'requirement_status_ids' => ['type' => 'array', 'maxItems' => 7, 'items' => ['type' => 'integer', 'enum' => [0, 1, 2, 3, 4, 5, 6]]],
+        'channel_ids' => ['type' => 'array', 'maxItems' => 2, 'items' => ['type' => 'integer', 'enum' => [1, 2]]],
+        'assignee_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
+        'assignee_state' => ['type' => 'string', 'enum' => ['any', 'assigned', 'unassigned']],
+        'period' => ['type' => 'string', 'enum' => ['all', 'this_week', 'last_7', 'last_30', 'this_month']],
+        'date_from' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
+        'date_to' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
+    ];
+    $retroRequired = ['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids', 'assignee_state', 'period', 'date_from', 'date_to'];
 
     return [
+        [
+            'type' => 'function', 'name' => 'get_feedback_overview', 'strict' => true,
+            'description' => 'Obtiene total de registros, requerimientos unicos, conteos por estado, tasas de respuesta general y elegible, promedio, respuestas favorables y desfavorables. period y rangos se aplican a la fecha de creacion de la retroalimentacion.',
+            'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => $retroRequired, 'properties' => $retroFilters],
+        ],
+        [
+            'type' => 'function', 'name' => 'aggregate_feedback', 'strict' => true,
+            'description' => 'Agrupa retroalimentaciones por estado, calificacion, departamento o tramite. Usala para conteos, comparaciones, distribuciones y rankings; nunca infieras satisfaccion a partir del estatus Finalizado del requerimiento.',
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false, 'required' => [...$retroRequired, 'group_by', 'limit'],
+                'properties' => array_merge($retroFilters, [
+                    'group_by' => ['type' => 'string', 'enum' => ['status', 'rating', 'department', 'tramite', 'assignee', 'channel', 'requirement_status', 'date']],
+                    'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
+                ]),
+            ],
+        ],
+        [
+            'type' => 'function', 'name' => 'search_feedback', 'strict' => true,
+            'description' => 'Lista retroalimentaciones autorizadas con paginacion, total de coincidencias, folio, estado, calificacion, departamento, tramite, responsable, canal y estado del requerimiento. No devuelve telefono, ciudadano, enlace ni comentario libre.',
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false, 'required' => [...$retroRequired, 'limit', 'page'],
+                'properties' => array_merge($retroFilters, [
+                    'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
+                    'page' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 10000],
+                ]),
+            ],
+        ],
+        [
+            'type' => 'function', 'name' => 'get_feedback_detail', 'strict' => true,
+            'description' => 'Obtiene la retroalimentacion mas reciente por folio o requerimiento, o una retro por su id, siempre dentro del alcance autorizado. Incluye comentario ciudadano sanitizado, estado, calificacion, contexto operativo y los datos disponibles del ciudadano: nombre, telefono, correo, calle, codigo postal y colonia. No incluye el enlace de acceso.',
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false, 'required' => ['retro_id', 'requirement_id', 'folio'],
+                'properties' => [
+                    'retro_id' => ['type' => ['integer', 'null'], 'minimum' => 1],
+                    'requirement_id' => ['type' => ['integer', 'null'], 'minimum' => 1],
+                    'folio' => ['type' => ['string', 'null'], 'minLength' => 1, 'maxLength' => 80],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function', 'name' => 'analyze_feedback_comments', 'strict' => true,
+            'description' => 'Obtiene una muestra reciente y sanitizada de comentarios de retroalimentaciones autorizadas para responder que dicen los ciudadanos, resumir motivos, detectar temas recurrentes y mostrar ejemplos. Permite filtrar por calificacion, periodo, departamento, tramite, estatus del requerimiento, canal y responsable. No devuelve datos personales; para el contacto de un folio concreto usa get_feedback_detail.',
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false, 'required' => [...$retroRequired, 'limit'],
+                'properties' => array_merge($retroFilters, [
+                    'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 30],
+                ]),
+            ],
+        ],
         [
             'type' => 'function', 'name' => 'get_requirements_overview', 'strict' => true,
             'description' => 'Obtiene KPIs y distribuciones del alcance autorizado. Incluye comparación de 30 días, distribución diaria, días pico y trámites principales. Admite date_field, date_from y date_to para un mes o rango personalizado. Si no hay rango ni periodo explícito, usa all; no la uses para localizar un folio.',
@@ -138,6 +202,11 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
 {
     $args = is_array($arguments) ? $arguments : [];
     return match ($name) {
+        'get_feedback_overview' => ixtla_insights_retro_overview($args),
+        'aggregate_feedback' => ixtla_insights_retro_aggregate($args),
+        'search_feedback' => ixtla_insights_retro_search($args),
+        'get_feedback_detail' => ixtla_insights_retro_detail($args),
+        'analyze_feedback_comments' => ixtla_insights_retro_comment_sample($args),
         'get_requirements_overview' => ixtla_insights_snapshot_overview($args),
         'search_requirements' => ixtla_insights_snapshot_search($args),
         'aggregate_requirements' => ixtla_insights_snapshot_aggregate($args),

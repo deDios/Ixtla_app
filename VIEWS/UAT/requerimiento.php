@@ -488,7 +488,7 @@ ix_require_session();
 
                             <div class="exp-geo-map-wrap">
                                 <div class="exp-geo-map" data-geo-map role="region"
-                                    aria-label="Mapa de la ubicación registrada"></div>
+                                    aria-label="Mapa de consulta de la ubicación registrada. Puedes explorar el entorno sin modificarla."></div>
                                 <div class="exp-geo-map-pin" aria-hidden="true"><span></span></div>
                                 <span class="exp-geo-map-badge">Ubicación fijada</span>
                             </div>
@@ -934,6 +934,7 @@ ix_require_session();
 
     <script src="/JS/UAT/requerimientoView.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/JS/UAT/ui/geolocationMap.js"></script>
     <script src="/JS/UAT/ui/requerimientoGeolocalizacion.js"></script>
     <script src="/JS/UAT/ui/requerimientoDetalle.js"></script>
     <script src="/JS/UAT/ui/requerimientoPlaneacion.js"></script>

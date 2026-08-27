@@ -660,7 +660,7 @@
                                 </div>
                                 <p class="ix-geo__map-help" id="ix-geo-map-help" hidden>
                                     Arrastra el mapa para colocar la aguja. Acerca o aleja con dos dedos, el trackpad o
-                                    los controles + y −.
+                                    los controles + y -.
                                 </p>
                                 <div class="ix-geo__map-wrap" id="ix-geo-map-wrap">
                                     <div class="ix-geo__map" id="ix-geo-map" role="application" tabindex="0"
@@ -809,6 +809,7 @@
     <script src="/JS/UAT/jsGlobal.js"></script>
     <script type="module" src="/JS/UAT/home.js?v=dataset-query-9"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
+    <script src="/JS/UAT/ui/geolocationMap.js"></script>
     <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-house-8"></script>
 
 

@@ -85,7 +85,7 @@ function ixtla_insights_config(): array
         'build_id' => ixtla_insights_env_value($openai, 'IXTLA_INSIGHTS_BUILD_ID'),
 
         // El asistente inicia unicamente sobre el dominio operativo actual.
-        'allowed_domains' => ['requerimientos'],
+        'allowed_domains' => ['requerimientos', 'retroalimentaciones'],
         'allow_visualizations' => true,
         // Sólo permite agregaciones predefinidas y autorizadas; nunca SQL del modelo.
         'allow_database_queries' => true,
