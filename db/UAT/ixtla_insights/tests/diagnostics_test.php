@@ -5,6 +5,7 @@ require_once dirname(__DIR__) . '/bootstrap.php';
 require_once dirname(__DIR__) . '/datasets/requerimientos_dataset.php';
 require_once dirname(__DIR__) . '/tools/tool_registry.php';
 require_once dirname(__DIR__) . '/question_router.php';
+require_once dirname(__DIR__) . '/visualization_plan_contract.php';
 
 function expect_diagnostic(bool $condition, string $message): void
 {
@@ -20,6 +21,22 @@ expect_diagnostic(ixtla_insights_request_id() === $requestId, 'El request id deb
 expect_diagnostic(ixtla_insights_default_error_code(502) === 'provider_unavailable', '502 debe clasificarse como error de proveedor.');
 expect_diagnostic(ixtla_insights_default_error_code(503) === 'service_unavailable', '503 debe clasificarse como servicio no disponible.');
 expect_diagnostic(ixtla_insights_default_error_code(422) === 'validation_failed', '422 debe clasificarse como validación.');
+
+$visualPlan = ixtla_visual_plan_normalize([
+    'intent' => 'create', 'domain' => 'retroalimentaciones', 'chart' => 'line', 'metric' => 'total',
+    'dimension' => 'calificacion', 'period' => 'last_30', 'comparison' => 'previous_period',
+    'filters' => [['field' => 'calificacion', 'value' => 'Excelente']], 'limit' => 500,
+]);
+expect_diagnostic($visualPlan['metric'] === 'retro_total', 'El plan grafico debe impedir metricas incompatibles con retroalimentaciones.');
+expect_diagnostic($visualPlan['dimension'] === 'fecha', 'Una tendencia debe normalizar su agrupacion a fecha.');
+expect_diagnostic($visualPlan['limit'] === 50, 'El plan grafico debe limitar el numero de categorias.');
+$resolvedVisualPlan = ixtla_visual_plan_resolve_filters($visualPlan);
+expect_diagnostic(($resolvedVisualPlan['filters'][0]['id'] ?? null) === 4, 'La calificacion del plan debe resolverse a un identificador permitido.');
+$unboundedComparison = ixtla_visual_plan_normalize([
+    'intent' => 'create', 'domain' => 'requerimientos', 'chart' => 'bar', 'metric' => 'total',
+    'dimension' => 'tramite', 'period' => 'all', 'comparison' => 'previous_period', 'filters' => [],
+]);
+expect_diagnostic($unboundedComparison['needs_clarification'] === true, 'Una comparacion sin periodo acotado debe solicitar aclaracion.');
 
 $usageSummary = ixtla_insights_usage_summary([
     ['usage' => ['input_tokens' => 120, 'output_tokens' => 30, 'total_tokens' => 150, 'input_tokens_details' => ['cached_tokens' => 20], 'output_tokens_details' => ['reasoning_tokens' => 8]]],

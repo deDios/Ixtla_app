@@ -250,6 +250,7 @@ export function mountIxtlaInsights(options = {}) {
     departmentsUrl: "/db/UAT/ixtla_insights/departments.php",
     exportUrl: "/db/UAT/ixtla_insights/query_export.php",
     previewUrl: "/db/UAT/ixtla_insights/dataset_preview.php",
+    visualizationPlanUrl: "/db/UAT/ixtla_insights/plan_visualization.php",
     simpleMode: true,
     visualizationHandler: null,
     ...options,
@@ -418,7 +419,7 @@ export function mountIxtlaInsights(options = {}) {
    * Muestra una señal efímera mientras el endpoint consulta el modelo y sus
    * herramientas. No forma parte del historial ni se conserva como respuesta.
    */
-  function showThinkingIndicator() {
+  function showThinkingIndicator(initialLabel = "") {
     const item = document.createElement("div");
     item.className = "ixtla-insights-message ixtla-insights-message--thinking";
     item.setAttribute("role", "status");
@@ -433,7 +434,11 @@ export function mountIxtlaInsights(options = {}) {
     item.append(label, dots);
     messages.appendChild(item);
 
-    const stages = [
+    const stages = clean(initialLabel) ? [
+      clean(initialLabel),
+      "Validando métricas y dimensiones…",
+      "Organizando la propuesta…",
+    ] : [
       "Analizando tu consulta…",
       "Consultando datos autorizados…",
       "Preparando una respuesta clara…",
@@ -442,7 +447,7 @@ export function mountIxtlaInsights(options = {}) {
       label.textContent = text;
       messages.scrollTop = messages.scrollHeight;
     };
-    update(stages[0]);
+    update(clean(initialLabel) || stages[0]);
     const timers = [
       window.setTimeout(() => update(stages[1]), 1200),
       window.setTimeout(() => update(stages[2]), 4200),
@@ -569,15 +574,15 @@ export function mountIxtlaInsights(options = {}) {
     const natural = /\b(muestrame|quiero ver|necesito ver|comparar|comparame)\b/.test(text)
       && /\b(tendencia|evolucion|distribucion|por departamento|por tramite|por estatus|calificaciones?)\b/.test(text);
     const editsPrevious = Boolean(lastVisualizationSpec)
-      && /\b(cambiala|cambialo|hazla|hazlo|mejor|ahora|usa|ponla|ponlo)\b/.test(text)
-      && /\b(este mes|ultim[oa]s? 7 dias|ultim[oa]s? 30 dias|historial|departamento|tramite|estatus|calificacion)\b/.test(text);
+      && /\b(cambia|cambiar|cambiala|cambialo|ajusta|actualiza|compara|comparala|comparalo|hazla|hazlo|mejor|ahora|usa|ponla|ponlo)\b/.test(text)
+      && /\b(este mes|ultim[oa]s? 7 dias|ultim[oa]s? 30 dias|periodo anterior|historial|departamento|tramite|estatus|calificacion)\b/.test(text);
     return explicit || natural || editsPrevious;
   }
 
   function parseVisualizationRequest(value) {
     const text = normalizedVisualizationText(value);
     if (!visualizationIntent(text)) return null;
-    const refersToPrevious = /\b(esto|eso|lo anterior|los mismos datos|esta informacion|estos resultados|cambiala|cambialo|hazla|hazlo|ponla|ponlo)\b/.test(text)
+    const refersToPrevious = /\b(esto|eso|lo anterior|los mismos datos|esta informacion|estos resultados|cambia|cambiar|cambiala|cambialo|ajusta|actualiza|compara|comparala|comparalo|hazla|hazlo|ponla|ponlo)\b/.test(text)
       || (Boolean(lastVisualizationSpec) && /\b(ahora|mejor|usa)\b/.test(text));
     let domain = /\b(retro|retros|retroalimentacion|retroalimentaciones|encuesta|encuestas|calificacion|calificaciones|satisfaccion)\b/.test(text)
       ? "retroalimentaciones" : "";
@@ -615,8 +620,9 @@ export function mountIxtlaInsights(options = {}) {
     else if (/\bultim[oa]s? 30 dias\b/.test(text)) period = "last_30";
     else if (/\btodo el historial|historico|todos los datos\b/.test(text)) period = "all";
     if (!period && refersToPrevious) period = clean(lastResultQuery?.filters?.period);
+    const comparison = /\b(periodo anterior|contra (?:el )?periodo anterior)\b/.test(text) ? "previous_period" : "";
 
-    return { text, refersToPrevious, domain, chart, dimension, metric, period };
+    return { text, refersToPrevious, domain, chart, dimension, metric, period, comparison };
   }
 
   function beginNaturalVisualization(prompt, parsed) {
@@ -644,7 +650,9 @@ export function mountIxtlaInsights(options = {}) {
       title: clean(previousSpec?.title) || widgetTitle(chart, metric, dimension, domain),
       filters: Array.isArray(previousSpec?.filters) ? previousSpec.filters.map((filter) => ({ ...filter })) : (hasUsefulContext && Array.isArray(lastResultQuery?.filters?.filters) ? lastResultQuery.filters.filters : []),
       period: parsed.period || clean(previousSpec?.period),
+      comparison: parsed.comparison || clean(previousSpec?.comparison),
     };
+    if (pendingVisualization.comparison === "previous_period" && pendingVisualization.period === "all") pendingVisualization.period = "";
     addMessage(`Entendí que quieres visualizar ${METRIC_LABELS[metric]?.toLocaleLowerCase("es-MX") || "los resultados"}. ${CHART_LABELS[chart]} es una buena opción para agrupar por ${DIMENSION_LABELS[dimension] || dimension}.`);
     if (!pendingVisualization.period) {
       addMessage("¿Qué periodo deseas analizar?");
@@ -689,6 +697,59 @@ export function mountIxtlaInsights(options = {}) {
       return true;
     }
     return false;
+  }
+
+  async function requestStructuredVisualizationPlan(question) {
+    const response = await fetch(config.visualizationPlanUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ question, previous_spec: lastVisualizationSpec }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok || !payload?.plan) throw new Error(clean(payload?.error) || "No fue posible crear el plan gráfico.");
+    return payload.plan;
+  }
+
+  function applyStructuredVisualizationPlan(question, plan) {
+    if (!plan || plan.intent === "not_visualization") return false;
+    if (plan.needs_clarification || plan.intent === "clarify" || !clean(plan.domain)) {
+      const hasPartialPlan = Boolean(clean(plan.domain));
+      pendingVisualization = hasPartialPlan
+        ? { mode: "planner_clarification", question, ...plan }
+        : { mode: "topic_selection", filters: [], period: "" };
+      addMessage(clean(plan.clarification_question) || "¿Qué te gustaría visualizar?");
+      if (!hasPartialPlan) renderWorkflowQuestions(VISUALIZATION_TOPICS);
+      else renderQuickQuestions([{ label: "Cancelar", action: { type: "visualization_cancel" } }]);
+      return true;
+    }
+    const domain = clean(plan.domain);
+    const metric = clean(plan.metric) || (domain === "retroalimentaciones" ? "retro_total" : "total");
+    const dimension = clean(plan.dimension) || (domain === "retroalimentaciones" ? "calificacion" : "tramite");
+    const chart = clean(plan.chart) || (dimension === "fecha" ? "line" : "bar");
+    pendingVisualization = {
+      mode: "structured_visualization",
+      question,
+      domain,
+      metric,
+      dimension,
+      chart,
+      period: clean(plan.period),
+      comparison: clean(plan.comparison),
+      filters: Array.isArray(plan.filters) ? plan.filters.map((filter) => ({ ...filter })) : [],
+      limit: Math.min(50, Math.max(1, Number(plan.limit) || 10)),
+      title: clean(plan.title) || widgetTitle(chart, metric, dimension, domain),
+      plannerReason: clean(plan.reason),
+    };
+    const reason = clean(plan.reason) || `${CHART_LABELS[chart]} es compatible con esta métrica y agrupación.`;
+    addMessage(`Preparé un plan para **${pendingVisualization.title}**. ${reason}`);
+    if (!pendingVisualization.period) {
+      addMessage("¿Qué periodo deseas analizar?");
+      renderWorkflowQuestions(periodChoices());
+      return true;
+    }
+    finalizeVisualization();
+    return true;
   }
 
   function recommendedChart(request = pendingVisualization) {
@@ -773,12 +834,24 @@ export function mountIxtlaInsights(options = {}) {
     };
   }
 
-  function previewToolRequest(spec) {
-    const period = PERIOD_LABELS[spec.period] ? spec.period : "all";
+  function previewToolRequest(spec, dateRange = null) {
+    const period = dateRange ? "all" : (PERIOD_LABELS[spec.period] ? spec.period : "all");
+    const dateFrom = clean(dateRange?.date_from) || null;
+    const dateTo = clean(dateRange?.date_to) || null;
+    const filters = Array.isArray(spec.filters) ? spec.filters : [];
+    const idsFor = (field) => [...new Set(filters
+      .filter((filter) => clean(filter?.field) === field && Number.isInteger(Number(filter?.id)))
+      .map((filter) => Number(filter.id)))];
+    const departmentIds = idsFor("departamento");
+    const departmentNames = filters
+      .filter((filter) => clean(filter?.field) === "departamento" && !Number.isInteger(Number(filter?.id)))
+      .map((filter) => clean(filter?.value)).filter(Boolean);
+    const tramiteIds = idsFor("tramite");
+    const requirementStatusIds = idsFor("estatus");
     if (spec.domain === "retroalimentaciones") {
       const common = {
-        status_ids: [], rating_ids: [], department_ids: [], tramite_ids: [], requirement_status_ids: [],
-        channel_ids: [], assignee_ids: [], assignee_state: "any", period, date_from: null, date_to: null,
+        status_ids: idsFor("estado_retro"), rating_ids: idsFor("calificacion"), department_ids: departmentIds, tramite_ids: tramiteIds, requirement_status_ids: requirementStatusIds,
+        channel_ids: [], assignee_ids: [], assignee_state: "any", period, date_from: dateFrom, date_to: dateTo,
       };
       if (spec.chart === "kpi" || ["tasa_respuesta", "promedio_calificacion"].includes(spec.metric)) {
         return { tool: "get_feedback_overview", arguments: common };
@@ -786,17 +859,28 @@ export function mountIxtlaInsights(options = {}) {
       const groupMap = { calificacion: "rating", estado_retro: "status", departamento: "department", tramite: "tramite", fecha: "date" };
       return { tool: "aggregate_feedback", arguments: { ...common, group_by: groupMap[spec.dimension] || "rating", limit: spec.dimension === "fecha" ? 50 : (spec.limit || 10) } };
     }
-    if (spec.chart === "kpi") {
-      return { tool: "get_requirements_overview", arguments: { refresh: false, period, date_field: "created_at", date_from: null, date_to: null } };
-    }
     const groupMap = { estatus: "status", departamento: "department", tramite: "tramite", fecha: "date" };
     const statusMap = { abiertos: [0, 1, 2, 3], finalizados: [6], cerrados: [6], pausados_cancelados: [4, 5], pausados: [4], cancelados: [5] };
+    const metricStatusIds = statusMap[spec.metric] || [];
+    if (spec.chart === "kpi" && !filters.length && !metricStatusIds.length) {
+      return { tool: "get_requirements_overview", arguments: { refresh: false, period, date_field: "created_at", date_from: dateFrom, date_to: dateTo } };
+    }
+    if (spec.chart === "kpi") {
+      return {
+        tool: "search_requirements",
+        arguments: {
+          period, department_id: null, department_ids: departmentIds, department_names: departmentNames, assignee_id: null, assignee_ids: [],
+          tramite_ids: tramiteIds, status_ids: requirementStatusIds.length ? requirementStatusIds : metricStatusIds, channel_ids: [], assignee_state: "any",
+          date_field: "created_at", date_from: dateFrom, date_to: dateTo, sort: "newest", limit: 1, cursor: null,
+        },
+      };
+    }
     return {
       tool: "aggregate_requirements",
       arguments: {
-        period, department_id: null, department_ids: [], department_names: [], assignee_id: null, assignee_ids: [],
-        tramite_ids: [], status_ids: statusMap[spec.metric] || [], channel_ids: [], assignee_state: "any",
-        date_field: "created_at", date_from: null, date_to: null,
+        period, department_id: null, department_ids: departmentIds, department_names: departmentNames, assignee_id: null, assignee_ids: [],
+        tramite_ids: tramiteIds, status_ids: requirementStatusIds.length ? requirementStatusIds : metricStatusIds, channel_ids: [], assignee_state: "any",
+        date_field: "created_at", date_from: dateFrom, date_to: dateTo,
         group_by: groupMap[spec.dimension] || "tramite", sort: spec.dimension === "fecha" ? "asc" : (["asc", "desc"].includes(spec.sort) ? spec.sort : "desc"), limit: spec.dimension === "fecha" ? 50 : (spec.limit || 10),
       },
     };
@@ -809,7 +893,10 @@ export function mountIxtlaInsights(options = {}) {
     })) : [];
     let value = null;
     let valueLabel = METRIC_LABELS[spec.metric] || "Total";
-    if (spec.domain === "retroalimentaciones" && !items.length) {
+    if (sourceTool === "search_requirements") {
+      items = [];
+      value = Number(data?.total_matching || 0);
+    } else if (spec.domain === "retroalimentaciones" && !items.length) {
       if (spec.metric === "tasa_respuesta") { value = Number(data?.response_rate_percent || 0); valueLabel = "Tasa de respuesta"; }
       else if (spec.metric === "promedio_calificacion") { value = Number(data?.average_rating || 0); valueLabel = "Promedio de calificación"; }
       else { value = Number(data?.total || 0); valueLabel = "Retroalimentaciones"; }
@@ -832,13 +919,40 @@ export function mountIxtlaInsights(options = {}) {
       scopeLabel: clean(typeof data?.scope === "object" ? data.scope?.label : data?.scope) || spec.scopeLabel,
       generatedAt: clean(data?.generated_at) || new Date().toISOString(),
       sourceTool,
+      totalMatching: data?.total_matching === undefined ? null : Number(data.total_matching || 0),
       filters: Array.isArray(spec.filters) ? spec.filters.map((filter) => ({ ...filter })) : [],
       insight: top ? `${top.label} presenta el valor más alto (${top.value.toLocaleString("es-MX")}).` : `${valueLabel}: ${Number(value || 0).toLocaleString("es-MX", { maximumFractionDigits: 2 })}.`,
     };
   }
 
-  async function requestVisualizationPreview(spec) {
-    const request = previewToolRequest(spec);
+  function previousVisualizationPeriod(period) {
+    const end = new Date();
+    end.setHours(12, 0, 0, 0);
+    let start = new Date(end);
+    if (period === "last_7") {
+      end.setDate(end.getDate() - 7);
+      start = new Date(end); start.setDate(start.getDate() - 6);
+    } else if (period === "last_30") {
+      end.setDate(end.getDate() - 30);
+      start = new Date(end); start.setDate(start.getDate() - 29);
+    } else if (period === "this_month") {
+      const currentDay = end.getDate();
+      start = new Date(end.getFullYear(), end.getMonth() - 1, 1, 12);
+      const lastDayPreviousMonth = new Date(end.getFullYear(), end.getMonth(), 0, 12).getDate();
+      end.setFullYear(end.getFullYear(), end.getMonth() - 1, Math.min(currentDay, lastDayPreviousMonth));
+    } else return null;
+    const isoDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return { date_from: isoDate(start), date_to: isoDate(end), label: "Periodo anterior" };
+  }
+
+  function previewTotal(preview) {
+    if (["aggregate_requirements", "aggregate_feedback"].includes(preview.sourceTool) && typeof preview.totalMatching === "number" && Number.isFinite(preview.totalMatching)) return preview.totalMatching;
+    if (preview.value !== null && preview.value !== undefined) return Number(preview.value) || 0;
+    return preview.items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+  }
+
+  async function fetchVisualizationPreview(spec, dateRange = null) {
+    const request = previewToolRequest(spec, dateRange);
     const response = await fetch(config.previewUrl, {
       method: "POST",
       credentials: "same-origin",
@@ -850,10 +964,28 @@ export function mountIxtlaInsights(options = {}) {
     return normalizePreviewData(spec, payload.data, request.tool);
   }
 
+  async function requestVisualizationPreview(spec) {
+    const preview = await fetchVisualizationPreview(spec);
+    if (spec.comparison !== "previous_period") return preview;
+    const previousPeriod = previousVisualizationPeriod(spec.period);
+    if (!previousPeriod) return preview;
+    const previous = await fetchVisualizationPreview(spec, previousPeriod);
+    const currentValue = previewTotal(preview);
+    const previousValue = previewTotal(previous);
+    const difference = currentValue - previousValue;
+    const percentage = previousValue === 0 ? null : (difference / previousValue) * 100;
+    preview.comparison = { label: previousPeriod.label, value: previousValue, difference, percentage };
+    const sign = difference > 0 ? "+" : "";
+    const percentageLabel = percentage === null ? "sin base comparable" : `${sign}${percentage.toLocaleString("es-MX", { maximumFractionDigits: 1 })}%`;
+    preview.insight = `${preview.insight} Frente al periodo anterior: ${sign}${difference.toLocaleString("es-MX", { maximumFractionDigits: 2 })} (${percentageLabel}).`;
+    return preview;
+  }
+
   function previewSourceLabel(tool) {
     return ({
       aggregate_requirements: "Agregado autorizado de requerimientos",
       get_requirements_overview: "Resumen autorizado de requerimientos",
+      search_requirements: "Conteo autorizado de requerimientos filtrados",
       aggregate_feedback: "Agregado autorizado de retroalimentaciones",
       get_feedback_overview: "Resumen autorizado de retroalimentaciones",
     })[clean(tool)] || "Datos autorizados de Ixtla Insights";
@@ -1055,8 +1187,9 @@ export function mountIxtlaInsights(options = {}) {
       dimension,
       filters: Array.isArray(request.filters) ? request.filters : [],
       period: PERIOD_LABELS[request.period] ? request.period : "all",
+      comparison: request.comparison === "previous_period" ? "previous_period" : "",
       sort: dimension === "fecha" ? "chronological" : "desc",
-      limit: request.chart === "kpi" ? 1 : 10,
+      limit: request.chart === "kpi" ? 1 : Math.min(50, Math.max(1, Number(request.limit) || 10)),
       domain: request.domain === "retroalimentaciones" ? "retroalimentaciones" : "requerimientos",
       scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
     };
@@ -1333,7 +1466,7 @@ export function mountIxtlaInsights(options = {}) {
 
   function continueAfterPeriod() {
     if (!pendingVisualization) return;
-    if (["preset_visualization", "natural_visualization"].includes(pendingVisualization.mode)) {
+    if (["preset_visualization", "natural_visualization", "structured_visualization"].includes(pendingVisualization.mode)) {
       finalizeVisualization();
       return;
     }
@@ -1413,6 +1546,7 @@ export function mountIxtlaInsights(options = {}) {
       input.type = "checkbox";
       input.name = "ixtla-insights-department";
       input.value = name;
+      input.dataset.departmentId = String(Number(department?.id) || "");
       input.checked = selectedNames.has(name);
       label.append(input, document.createTextNode(name));
       form.appendChild(label);
@@ -1427,14 +1561,17 @@ export function mountIxtlaInsights(options = {}) {
     apply.type = "button";
     apply.textContent = "Usar departamentos seleccionados";
     apply.addEventListener("click", () => {
-      const selected = [...form.querySelectorAll('input[name="ixtla-insights-department"]:checked')].map((input) => clean(input.value)).filter(Boolean);
+      const selected = [...form.querySelectorAll('input[name="ixtla-insights-department"]:checked')].map((input) => ({
+        id: Number(input.dataset.departmentId) || null,
+        value: clean(input.value),
+      })).filter((item) => item.value);
       if (!selected.length) {
         addMessage("Selecciona al menos un departamento o elige todos los departamentos.");
         return;
       }
-      pendingVisualization.filters = selected.slice(0, 50).map((value) => ({ field: "departamento", value }));
+      pendingVisualization.filters = selected.slice(0, 50).map((item) => ({ field: "departamento", value: item.value, ...(item.id ? { id: item.id } : {}) }));
       queueDraftPersist();
-      addMessage(`Departamentos: ${selected.join(", ")}`, "user");
+      addMessage(`Departamentos: ${selected.map((item) => item.value).join(", ")}`, "user");
       continueAfterDepartmentScope();
     });
     const cancel = document.createElement("button");
@@ -1577,10 +1714,27 @@ export function mountIxtlaInsights(options = {}) {
       cancelVisualization("De acuerdo. Cancelé la creación del gráfico. ¿Qué dato o reporte quieres consultar?");
       return;
     }
-    if (handlePendingVisualizationText(prompt)) return;
-    const parsedVisualization = parseVisualizationRequest(prompt);
+    let visualizationPrompt = prompt;
+    const plannerClarification = pendingVisualization?.mode === "planner_clarification" ? pendingVisualization : null;
+    if (plannerClarification) {
+      visualizationPrompt = `${clean(plannerClarification.question)}. Aclaración del usuario: ${prompt}`;
+      pendingVisualization = null;
+    } else if (handlePendingVisualizationText(prompt)) return;
+    const parsedVisualization = parseVisualizationRequest(visualizationPrompt);
     if (parsedVisualization) {
-      beginNaturalVisualization(prompt, parsedVisualization);
+      send.disabled = true;
+      const hidePlanningIndicator = showThinkingIndicator("Preparando la mejor visualización…");
+      try {
+        const plan = await requestStructuredVisualizationPlan(visualizationPrompt);
+        if (!applyStructuredVisualizationPlan(visualizationPrompt, plan)) beginNaturalVisualization(visualizationPrompt, parsedVisualization);
+      } catch (error) {
+        console.warn("[IxtlaInsights planner] usando respaldo local", error);
+        beginNaturalVisualization(visualizationPrompt, parsedVisualization);
+      } finally {
+        hidePlanningIndicator();
+        send.disabled = false;
+        input.focus();
+      }
       return;
     }
     send.disabled = true;
