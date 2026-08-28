@@ -376,9 +376,15 @@ function ixtla_insights_question_reuses_previous_result(string $question): bool
     return ixtla_insights_question_is_temporal_followup($question)
         || preg_match('/^(y|ahora|tambien|en cambio|por el contrario|por otro lado)\b/', $normalized) === 1
         || preg_match(
-        '/\b(esos|esas|estos|estas|ese departamento|esa area|del mismo departamento|los anteriores|las anteriores|los mismos|las mismas|ese resultado|esa consulta|hay mas|siguientes|siguiente pagina|continua|continuar|fuera de esta semana|antes de esta semana|semanas anteriores|de que fecha|que fecha|cuales son|muestramelos|muestramelas|detallalos|detallalas|hazlo|lo mismo|ahora)\b/',
+        '/\b(esos|esas|estos|estas|ese departamento|esa area|del mismo departamento|los anteriores|las anteriores|los mismos|las mismas|ese resultado|resultado anterior|reporte anterior|esa consulta|mismo alcance|mismo periodo|mismos filtros|hay mas|siguientes|siguiente pagina|continua|continuar|fuera de esta semana|antes de esta semana|semanas anteriores|de que fecha|que fecha|cuales son|muestramelos|muestramelas|detallalos|detallalas|hazlo|lo mismo|ahora)\b/',
         $normalized
     ) === 1;
+}
+
+/** Detecta una solicitud de serie temporal, incluso como seguimiento breve. */
+function ixtla_insights_question_requests_time_trend(string $question): bool
+{
+    return preg_match('/\b(tendencia|evolucion|serie temporal|a lo largo del tiempo|por fecha|diaria|diario)\b/', ixtla_insights_normalize_match_text($question)) === 1;
 }
 
 /** Detecta un canal expresado de forma directa, coloquial o relativa. */
@@ -567,6 +573,13 @@ function ixtla_insights_prepare_tool_arguments(
 
         $requestedAssigneeState = ixtla_insights_question_requested_assignee_state($question);
         if ($requestedAssigneeState !== null) $arguments['assignee_state'] = $requestedAssigneeState;
+    }
+
+    // Una tendencia no es un ranking: la agrupacion y el orden deben ser
+    // temporales aunque el modelo haya heredado otra dimension de la consulta.
+    if ($toolName === 'aggregate_requirements' && ixtla_insights_question_requests_time_trend($question)) {
+        $arguments['group_by'] = 'date';
+        $arguments['sort'] = 'asc';
     }
 
     $arguments = ixtla_insights_apply_default_period($toolName, $arguments, $question);

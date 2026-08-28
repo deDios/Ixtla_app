@@ -165,6 +165,15 @@ $employeeChannelArguments = ixtla_insights_prepare_tool_arguments(
     []
 );
 expect_diagnostic(($employeeChannelArguments['channel_ids'] ?? []) === [2], 'El servidor debe reconocer el Portal de empleados como canal 2.');
+$trendFollowUpArguments = ixtla_insights_prepare_tool_arguments(
+    'aggregate_requirements',
+    ['period' => 'all', 'department_ids' => [], 'status_ids' => [], 'channel_ids' => [], 'assignee_state' => 'any', 'group_by' => 'status', 'sort' => 'desc'],
+    'Muestra la tendencia del resultado anterior por fecha. Conserva exactamente los mismos filtros, alcance y periodo.',
+    ['last_filters' => ['period' => 'this_month', 'status_ids' => [4, 6], 'channel_ids' => [1], 'assignee_state' => 'unassigned']]
+);
+expect_diagnostic(($trendFollowUpArguments['period'] ?? null) === 'this_month', 'La tendencia del resultado anterior debe conservar el periodo previo.');
+expect_diagnostic(($trendFollowUpArguments['status_ids'] ?? []) === [4, 6], 'La tendencia del resultado anterior debe conservar los estatus previos.');
+expect_diagnostic(($trendFollowUpArguments['group_by'] ?? null) === 'date' && ($trendFollowUpArguments['sort'] ?? null) === 'asc', 'Una tendencia debe agruparse y ordenarse cronologicamente.');
 $colloquialEmployeeArguments = ixtla_insights_prepare_tool_arguments(
     'aggregate_requirements',
     ['period' => 'all', 'channel_ids' => []],

@@ -565,7 +565,7 @@ export function mountIxtlaInsights(options = {}) {
       primary: true,
       prompt: `Crea una gráfica a partir del reporte anterior. Conserva el mismo periodo y filtros${isTrend ? "; muestra la tendencia en el tiempo" : ""}.`,
     });
-    if (!isTrend) followUps.push({ label: "Ver tendencia", prompt: "Muestra la tendencia del resultado anterior en el tiempo, conservando el mismo alcance y periodo cuando aplique." });
+    if (!isTrend) followUps.push({ label: "Ver tendencia", prompt: "Muestra la tendencia del resultado anterior por fecha. Conserva exactamente los mismos filtros, alcance y periodo." });
     if (!isRanking) followUps.push({ label: "Ver principales causas", prompt: "Desglosa el resultado anterior por trámite para identificar los principales contribuyentes." });
     if (!isDetail && resultQuery?.query_id) followUps.push({ label: "Ver casos relacionados", prompt: "Muéstrame los requerimientos relacionados con el resultado anterior, dentro del mismo alcance." });
     followUps.push({ label: "Comparar con periodo anterior", prompt: "Compara el resultado anterior con el periodo equivalente previo y explica solamente las diferencias respaldadas por los datos." });
