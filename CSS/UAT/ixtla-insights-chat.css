@@ -37,8 +37,15 @@
 .ixtla-chart-preview__heading { margin-bottom: 14px; }
 .ixtla-chart-preview__heading h3 { margin: 0; color: #17324d; font-size: 16px; line-height: 1.3; }
 .ixtla-chart-preview__heading p { margin: 5px 0 0; color: #64748b; font-size: 12px; }
+.ixtla-chart-preview__narrative { margin: 0 0 10px; padding: 10px 11px; border-left: 4px solid #176b87; border-radius: 0 9px 9px 0; color: #284955; background: #eff8f9; font-size: 12px; line-height: 1.45; }
+.ixtla-chart-preview__narrative strong { display: block; margin-bottom: 3px; color: #0f4c81; }
+.ixtla-chart-preview__narrative p { margin: 0; }
+.ixtla-chart-preview__metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 0 0 12px; }
+.ixtla-chart-preview__metrics div { min-width: 0; }
+.ixtla-chart-preview__metrics dt { overflow: hidden; color: #64748b; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.ixtla-chart-preview__metrics dd { margin: 2px 0 0; overflow: hidden; color: #17324d; font-size: 12px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .ixtla-chart-preview__body { min-height: 150px; overflow-x: auto; padding: 12px; border-radius: 12px; background: #f7fbfc; }
-.ixtla-chart-preview__body svg { display: block; width: 100%; min-width: 300px; height: 180px; }
+.ixtla-chart-preview__body svg { display: block; width: 100%; min-width: 300px; height: 210px; }
 .ixtla-chart-preview__body table { width: 100%; border-collapse: collapse; color: #17324d; font-size: 12px; }
 .ixtla-chart-preview__body th, .ixtla-chart-preview__body td { padding: 7px; border-bottom: 1px solid #dbe9ec; text-align: left; }
 .ixtla-chart-preview__body th:last-child, .ixtla-chart-preview__body td:last-child { text-align: right; }
@@ -52,11 +59,16 @@
 .ixtla-chart-preview__bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ixtla-chart-preview__bar-track { display: block; height: 12px; overflow: hidden; border-radius: 999px; background: #e2eef0; }
 .ixtla-chart-preview__bar-track i { display: block; height: 100%; border-radius: inherit; }
-.ixtla-chart-preview__donut { width: 132px; height: 132px; margin: 0 auto 14px; border-radius: 50%; box-shadow: inset 0 0 0 38px #fff; }
+.ixtla-chart-preview__donut { display: grid; width: 132px; height: 132px; margin: 0 auto 14px; place-items: center; border-radius: 50%; box-shadow: inset 0 0 0 38px #fff; }
+.ixtla-chart-preview__donut-value { color: #0f4c81; font-size: 19px; }
 .ixtla-chart-preview__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px 12px; color: #38566b; font-size: 11px; }
 .ixtla-chart-preview__legend span { display: inline-flex; align-items: center; gap: 5px; }
 .ixtla-chart-preview__legend i { width: 9px; height: 9px; border-radius: 50%; }
 .ixtla-chart-preview__insight { margin: 12px 0; color: #38566b; font-size: 12px; line-height: 1.45; }
+.ixtla-chart-preview__grid { stroke: #cfe2e5; stroke-width: 1; stroke-dasharray: 3 4; }
+.ixtla-chart-preview__axis-label { fill: #53717a; font: 10px system-ui, sans-serif; }
+.ixtla-chart-preview__point { fill: #fff; stroke: #176b87; stroke-width: 2; cursor: help; }
+.ixtla-chart-preview__point:last-child { fill: #176b87; }
 .ixtla-chart-preview__evidence { margin: 0 0 12px; border: 1px solid #d7e7ea; border-radius: 10px; color: #38566b; background: #f9fcfc; font-size: 11px; }
 .ixtla-chart-preview__evidence summary { padding: 8px 10px; color: #155e75; font-weight: 700; cursor: pointer; }
 .ixtla-chart-preview__evidence div { display: grid; gap: 5px; padding: 0 10px 9px; }
@@ -66,7 +78,7 @@
 .ixtla-chart-preview__add { flex: 1 1 190px; border: 1px solid #0f4c81; color: #fff; background: #0f4c81; }
 .ixtla-chart-preview__add:hover:not(:disabled) { background: #176b87; }
 .ixtla-chart-preview__add:disabled { border-color: #4f8b72; background: #4f8b72; cursor: default; }
-.ixtla-chart-preview__change { flex: 0 1 auto; border: 1px solid #9bc6cf; color: #155e75; background: #fff; }
+.ixtla-chart-preview__change, .ixtla-chart-preview__explore { flex: 0 1 auto; border: 1px solid #9bc6cf; color: #155e75; background: #fff; }
 .ixtla-chart-preview__undo { flex: 0 1 auto; border: 1px solid #d8b4b4; color: #8b2f2f; background: #fff; }
 .ixtla-chart-preview__undo[hidden] { display: none; }
 .ixtla-chart-preview__actions button:focus-visible { outline: 3px solid rgba(23, 107, 135, .3); outline-offset: 2px; }

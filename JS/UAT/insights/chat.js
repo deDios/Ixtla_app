@@ -1078,6 +1078,55 @@ export function mountIxtlaInsights(options = {}) {
     return ["#176b87", "#2d8ca6", "#5aaebd", "#86c6cf", "#0f4c81", "#73a5d1"][index % 6];
   }
 
+  function previewDisplayItems(preview) {
+    if (preview.chart !== "donut" || preview.items.length <= 5) return preview.items;
+    const leading = preview.items.slice(0, 4);
+    const other = preview.items.slice(4).reduce((sum, item) => sum + item.value, 0);
+    return [...leading, { label: "Otros", value: other }];
+  }
+
+  function previewNarrative(preview) {
+    const items = preview.items;
+    if (preview.chart === "kpi") return `${preview.valueLabel}: ${Number(preview.value || 0).toLocaleString("es-MX", { maximumFractionDigits: 2 })}.`;
+    if (!items.length) return "No hay datos suficientes para interpretar esta visualización.";
+    const total = previewTotal(preview);
+    const maximum = [...items].sort((left, right) => right.value - left.value)[0];
+    if (preview.chart === "line" || preview.chart === "area") {
+      const first = items[0];
+      const last = items[items.length - 1];
+      const difference = last.value - first.value;
+      const direction = difference > 0 ? "aumentó" : difference < 0 ? "disminuyó" : "se mantuvo";
+      return `La serie ${direction} de ${first.value.toLocaleString("es-MX")} a ${last.value.toLocaleString("es-MX")}; el pico fue ${maximum.value.toLocaleString("es-MX")} el ${maximum.label}.`;
+    }
+    const percentage = total > 0 ? (maximum.value / total) * 100 : 0;
+    return `${maximum.label} concentra ${maximum.value.toLocaleString("es-MX")} (${percentage.toLocaleString("es-MX", { maximumFractionDigits: 1 })}%) del total.`;
+  }
+
+  function renderPreviewMetrics(preview) {
+    const metrics = document.createElement("dl");
+    metrics.className = "ixtla-chart-preview__metrics";
+    const total = previewTotal(preview);
+    const items = preview.items;
+    const maximum = items.length ? [...items].sort((left, right) => right.value - left.value)[0] : null;
+    const entries = [{ label: "Total", value: total.toLocaleString("es-MX") }];
+    if (maximum) entries.push({ label: "Valor más alto", value: `${maximum.value.toLocaleString("es-MX")} · ${maximum.label}` });
+    if ((preview.chart === "line" || preview.chart === "area") && items.length > 1) {
+      entries.push({ label: "Último valor", value: items[items.length - 1].value.toLocaleString("es-MX") });
+    } else if (maximum && total > 0) {
+      entries.push({ label: "Participación principal", value: `${((maximum.value / total) * 100).toLocaleString("es-MX", { maximumFractionDigits: 1 })}%` });
+    }
+    if (preview.comparison) {
+      const sign = preview.comparison.difference > 0 ? "+" : "";
+      entries.push({ label: "Vs. periodo previo", value: `${sign}${preview.comparison.difference.toLocaleString("es-MX")}` });
+    }
+    entries.slice(0, 4).forEach((entry) => {
+      const term = document.createElement("dt"); term.textContent = entry.label;
+      const detail = document.createElement("dd"); detail.textContent = entry.value;
+      metrics.append(term, detail);
+    });
+    return metrics;
+  }
+
   function renderChartBody(container, preview) {
     if (preview.chart !== "kpi" && !preview.items.length) {
       container.className += " ixtla-chart-preview__body--empty";
@@ -1109,36 +1158,57 @@ export function mountIxtlaInsights(options = {}) {
       table.append(tbody); container.append(table); return;
     }
     if (preview.chart === "donut") {
-      const total = preview.items.reduce((sum, item) => sum + item.value, 0) || 1;
+      const displayItems = previewDisplayItems(preview);
+      const total = displayItems.reduce((sum, item) => sum + item.value, 0) || 1;
       let cursor = 0;
-      const stops = preview.items.map((item, index) => {
+      const stops = displayItems.map((item, index) => {
         const start = cursor; cursor += (item.value / total) * 100;
         return `${chartColor(index)} ${start}% ${cursor}%`;
       });
       const donut = document.createElement("div"); donut.className = "ixtla-chart-preview__donut";
       donut.style.background = `conic-gradient(${stops.join(",")})`;
+      const donutValue = document.createElement("strong"); donutValue.className = "ixtla-chart-preview__donut-value";
+      donutValue.textContent = total.toLocaleString("es-MX"); donut.append(donutValue);
       const legend = document.createElement("div"); legend.className = "ixtla-chart-preview__legend";
-      preview.items.forEach((item, index) => {
+      displayItems.forEach((item, index) => {
         const entry = document.createElement("span"); entry.innerHTML = `<i style="background:${chartColor(index)}"></i>`;
-        entry.append(document.createTextNode(`${item.label}: ${item.value.toLocaleString("es-MX")}`)); legend.append(entry);
+        const percent = (item.value / total) * 100;
+        entry.append(document.createTextNode(`${item.label}: ${item.value.toLocaleString("es-MX")} (${percent.toLocaleString("es-MX", { maximumFractionDigits: 1 })}%)`)); legend.append(entry);
       });
       container.append(donut, legend); return;
     }
     if (preview.chart === "line" || preview.chart === "area") {
-      const width = 520, height = 190, pad = 22, max = Math.max(1, ...preview.items.map((item) => item.value));
+      const width = 520, height = 220, pad = { top: 18, right: 20, bottom: 38, left: 42 };
+      const max = Math.max(1, ...preview.items.map((item) => item.value));
+      const plotWidth = width - pad.left - pad.right, plotHeight = height - pad.top - pad.bottom;
       const points = preview.items.map((item, index) => {
-        const x = pad + (preview.items.length <= 1 ? 0 : index * ((width - pad * 2) / (preview.items.length - 1)));
-        const y = height - pad - (item.value / max) * (height - pad * 2);
+        const x = pad.left + (preview.items.length <= 1 ? plotWidth / 2 : index * (plotWidth / (preview.items.length - 1)));
+        const y = height - pad.bottom - (item.value / max) * plotHeight;
         return `${x},${y}`;
       }).join(" ");
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", preview.title);
+      [0, .5, 1].forEach((ratio) => {
+        const y = height - pad.bottom - ratio * plotHeight;
+        const grid = document.createElementNS(svg.namespaceURI, "line");
+        grid.setAttribute("x1", String(pad.left)); grid.setAttribute("x2", String(width - pad.right)); grid.setAttribute("y1", String(y)); grid.setAttribute("y2", String(y)); grid.setAttribute("class", "ixtla-chart-preview__grid"); svg.append(grid);
+        const label = document.createElementNS(svg.namespaceURI, "text");
+        label.setAttribute("x", String(pad.left - 7)); label.setAttribute("y", String(y + 4)); label.setAttribute("text-anchor", "end"); label.setAttribute("class", "ixtla-chart-preview__axis-label"); label.textContent = Math.round(max * ratio).toLocaleString("es-MX"); svg.append(label);
+      });
       if (preview.chart === "area" && points) {
         const polygon = document.createElementNS(svg.namespaceURI, "polygon");
-        polygon.setAttribute("points", `${pad},${height - pad} ${points} ${width - pad},${height - pad}`); polygon.setAttribute("fill", "rgba(23,107,135,.18)"); svg.append(polygon);
+        polygon.setAttribute("points", `${pad.left},${height - pad.bottom} ${points} ${width - pad.right},${height - pad.bottom}`); polygon.setAttribute("fill", "rgba(23,107,135,.18)"); svg.append(polygon);
       }
       const polyline = document.createElementNS(svg.namespaceURI, "polyline");
       polyline.setAttribute("points", points); polyline.setAttribute("fill", "none"); polyline.setAttribute("stroke", "#176b87"); polyline.setAttribute("stroke-width", "4"); polyline.setAttribute("stroke-linecap", "round"); polyline.setAttribute("stroke-linejoin", "round"); svg.append(polyline);
+      const tickIndexes = [...new Set([0, Math.floor((preview.items.length - 1) / 2), preview.items.length - 1])];
+      preview.items.forEach((item, index) => {
+        const x = pad.left + (preview.items.length <= 1 ? plotWidth / 2 : index * (plotWidth / (preview.items.length - 1)));
+        const y = height - pad.bottom - (item.value / max) * plotHeight;
+        const point = document.createElementNS(svg.namespaceURI, "circle"); point.setAttribute("cx", String(x)); point.setAttribute("cy", String(y)); point.setAttribute("r", index === preview.items.length - 1 ? "4.5" : "3"); point.setAttribute("class", "ixtla-chart-preview__point");
+        const pointTitle = document.createElementNS(svg.namespaceURI, "title"); pointTitle.textContent = `${item.label}: ${item.value.toLocaleString("es-MX")}`; point.append(pointTitle); svg.append(point);
+        if (tickIndexes.includes(index)) { const label = document.createElementNS(svg.namespaceURI, "text"); label.setAttribute("x", String(x)); label.setAttribute("y", String(height - 12)); label.setAttribute("text-anchor", index === 0 ? "start" : index === preview.items.length - 1 ? "end" : "middle"); label.setAttribute("class", "ixtla-chart-preview__axis-label"); label.textContent = item.label; svg.append(label); }
+      });
       container.append(svg); return;
     }
     const max = Math.max(1, ...preview.items.map((item) => item.value));
@@ -1161,6 +1231,11 @@ export function mountIxtlaInsights(options = {}) {
     const title = document.createElement("h3"); title.textContent = preview.title;
     const meta = document.createElement("p"); meta.textContent = `${PERIOD_LABELS[spec.period] || PERIOD_LABELS.all} · ${preview.scopeLabel}`;
     heading.append(title, meta);
+    const narrative = document.createElement("section"); narrative.className = "ixtla-chart-preview__narrative";
+    const narrativeLabel = document.createElement("strong"); narrativeLabel.textContent = "Lo más importante";
+    const narrativeText = document.createElement("p"); narrativeText.textContent = previewNarrative(preview);
+    narrative.append(narrativeLabel, narrativeText);
+    const metrics = renderPreviewMetrics(preview);
     const body = document.createElement("div"); body.className = "ixtla-chart-preview__body";
     body.setAttribute("role", "group"); body.setAttribute("aria-label", `${CHART_LABELS[preview.chart] || "Visualización"}: ${preview.insight}`);
     renderChartBody(body, preview);
@@ -1178,6 +1253,8 @@ export function mountIxtlaInsights(options = {}) {
     add.title = "Al hacer clic agregarás esta gráfica a tu dashboard";
     add.setAttribute("aria-label", "Agregar esta gráfica a tu dashboard");
     const change = document.createElement("button"); change.type = "button"; change.className = "ixtla-chart-preview__change"; change.textContent = "Cambiar tipo";
+    const explore = document.createElement("button"); explore.type = "button"; explore.className = "ixtla-chart-preview__explore";
+    explore.textContent = preview.dimension === "fecha" ? "Explicar el pico" : "Ver datos en tabla";
     const undo = document.createElement("button"); undo.type = "button"; undo.className = "ixtla-chart-preview__undo"; undo.textContent = "Deshacer"; undo.hidden = true;
     add.addEventListener("click", () => {
       if (dashboardQueue.some((item) => item.previewId === preview.previewId)) return;
@@ -1199,7 +1276,13 @@ export function mountIxtlaInsights(options = {}) {
       pendingVisualization = { ...spec, mode: "preview_edit", reviewSpec: { ...spec } };
       changeVisualizationChart();
     });
-    actions.append(add, change, undo); card.append(heading, body, insight, evidence, actions); messages.append(card); messages.scrollTop = messages.scrollHeight;
+    explore.addEventListener("click", () => {
+      const prompt = preview.dimension === "fecha"
+        ? `Explica el valor más alto de la gráfica "${preview.title}" y muestra los requerimientos relacionados dentro del mismo periodo y alcance.`
+        : `Muéstrame los datos en tabla de la gráfica "${preview.title}", conservando el mismo periodo y filtros.`;
+      ask(prompt);
+    });
+    actions.append(add, change, explore, undo); card.append(heading, narrative, metrics, body, insight, evidence, actions); messages.append(card); messages.scrollTop = messages.scrollHeight;
   }
 
   async function addVisualization(question, spec) {
