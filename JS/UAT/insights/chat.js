@@ -1,5 +1,28 @@
-// El dashboard visual permanece fuera del alcance productivo del chat simple.
-const saveTemporaryDashboard = () => null;
+const DASHBOARD_STORAGE_KEY = "ixtla_insights_dashboard_session_v1";
+
+function readTemporaryDashboardWidgets() {
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(DASHBOARD_STORAGE_KEY) || "[]");
+    return Array.isArray(stored) ? stored.filter((item) => item?.spec && item?.preview).slice(0, 24) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeTemporaryDashboardWidgets(widgets) {
+  try {
+    window.sessionStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(widgets.slice(0, 24)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function saveTemporaryDashboard(widget) {
+  const widgets = readTemporaryDashboardWidgets();
+  widgets.push(widget);
+  return writeTemporaryDashboardWidgets(widgets) ? { id: "session" } : null;
+}
 
 const CONTEXT_EVENT = "ixtla-insights:context";
 const isInsightsDebugEnabled = () => {
@@ -240,16 +263,50 @@ async function fetchInsightsJson(url, options = {}) {
 
 function widgetTitle(chart, metric, dimension, domain = "requerimientos") {
   const group = DIMENSION_LABELS[dimension] || "estatus";
-  if (chart === "kpi" && METRIC_LABELS[metric]) return METRIC_LABELS[metric];
+  const requirementSubjects = {
+    total: "Requerimientos",
+    abiertos: "Requerimientos abiertos",
+    finalizados: "Requerimientos finalizados",
+    pausados_cancelados: "Requerimientos pausados o cancelados",
+    pausados: "Requerimientos pausados",
+    cancelados: "Requerimientos cancelados",
+    cerrados: "Requerimientos cerrados",
+  };
+  const subject = domain === "retroalimentaciones"
+    ? (METRIC_LABELS[metric] || "Retroalimentaciones")
+    : (requirementSubjects[metric] || "Requerimientos");
+  if (chart === "kpi") return subject;
   if (domain === "retroalimentaciones") {
-    if (chart === "line") return "Evolución de retroalimentaciones";
-    return `Retroalimentaciones por ${group}`;
+    if (dimension === "fecha") return `Tendencia de ${subject.toLocaleLowerCase("es-MX")}`;
+    return `${subject} por ${group}`;
   }
-  if (chart === "line") return "Tendencia de requerimientos por fecha";
-  if (chart === "area") return "Tendencia acumulada de requerimientos";
-  if (chart === "table") return metric === "finalizados" ? `Ranking de finalizados por ${group}` : `Ranking de requerimientos por ${group}`;
+  if (dimension === "fecha") return `Tendencia de ${subject.toLocaleLowerCase("es-MX")}`;
   if (chart === "funnel") return "Embudo de requerimientos por estatus";
-  return metric === "finalizados" ? `Finalizados por ${group}` : `Requerimientos por ${group}`;
+  return `${subject} por ${group}`;
+}
+
+function visualizationRecommendation(spec) {
+  const group = DIMENSION_LABELS[spec.dimension] || "categoría";
+  if (spec.chart === "kpi") return "Usé un indicador porque resume el valor principal de forma directa.";
+  if (spec.chart === "line") return "Usé una línea porque permite seguir con claridad los cambios a través del tiempo.";
+  if (spec.chart === "area") return "Usé un área porque permite ver la evolución y la magnitud a través del tiempo.";
+  if (spec.chart === "donut") return `Usé un gráfico de pastel para mostrar qué proporción representa cada ${group}.`;
+  if (spec.chart === "table") return `Usé una tabla para que puedas consultar los valores exactos por ${group}.`;
+  return `Usé barras porque facilita comparar los valores entre cada ${group}.`;
+}
+
+function normalizeVisualizationSpec(spec = {}) {
+  const normalized = { ...spec };
+  const originalChart = clean(normalized.chart);
+  normalized.domain = normalized.domain === "retroalimentaciones" ? "retroalimentaciones" : "requerimientos";
+  normalized.dimension = clean(normalized.dimension) || (normalized.domain === "retroalimentaciones" ? "calificacion" : "tramite");
+  normalized.chart = originalChart || (normalized.dimension === "fecha" ? "line" : "bar");
+  if (["tasa_respuesta", "promedio_calificacion"].includes(normalized.metric)) normalized.chart = "kpi";
+  if (normalized.dimension === "fecha" && normalized.chart === "donut") normalized.chart = "line";
+  if (normalized.dimension !== "fecha" && ["line", "area"].includes(normalized.chart)) normalized.chart = "bar";
+  normalized.title = widgetTitle(normalized.chart, normalized.metric, normalized.dimension, normalized.domain);
+  normalized.compatibilityAdjusted = Boolean(normalized.compatibilityAdjusted || (originalChart && originalChart !== normalized.chart));
+  return normalized;
 }
 
 export function mountIxtlaInsights(options = {}) {
@@ -302,7 +359,7 @@ export function mountIxtlaInsights(options = {}) {
   let context = config.context || window.__ixtlaInsightsContext || null;
   let pendingVisualization = null;
   let lastVisualizationSpec = null;
-  const dashboardQueue = [];
+  const dashboardQueue = readTemporaryDashboardWidgets();
   let draftPersistQueue = Promise.resolve();
   const history = [];
   let lastResultQuery = null;
@@ -313,7 +370,7 @@ export function mountIxtlaInsights(options = {}) {
     <button class="ixtla-insights-fab" type="button" aria-label="Abrir ${config.title}"><span class="ixtla-insights-fab__icon" aria-hidden="true">✦</span><span class="ixtla-insights-fab__label">${config.title}</span></button>
     <div class="ixtla-insights-overlay" aria-hidden="true"></div>
     <aside class="ixtla-insights-drawer" aria-label="${config.subtitle}" aria-hidden="true">
-      <header class="ixtla-insights-head"><span class="ixtla-insights-head__mark" aria-hidden="true">✦</span><div><h2>${config.title}</h2><p>${config.subtitle}</p></div><button class="ixtla-insights-clear" type="button">Limpiar chat</button><button class="ixtla-insights-close" type="button" aria-label="Cerrar">×</button></header>
+      <header class="ixtla-insights-head"><span class="ixtla-insights-head__mark" aria-hidden="true">✦</span><div><h2>${config.title}</h2><p>${config.subtitle}</p></div><a class="ixtla-insights-dashboard" href="${config.dashboardUrl}">Dashboard</a><button class="ixtla-insights-clear" type="button">Limpiar chat</button><button class="ixtla-insights-close" type="button" aria-label="Cerrar">×</button></header>
       <div class="ixtla-insights-messages" aria-live="polite"></div>
       <div class="ixtla-insights-footer"><div class="ixtla-insights-chips"><div class="ixtla-insights-chips__primary"></div><div class="ixtla-insights-chips__scroller" role="region" aria-label="Preguntas y acciones rápidas" tabindex="0"></div><div class="ixtla-insights-chips__custom"></div></div><form class="ixtla-insights-form"><textarea class="ixtla-insights-input" rows="1" placeholder="Pregunta por datos o pide una gráfica…"></textarea><button class="ixtla-insights-send" type="submit" aria-label="Enviar">↑</button></form></div>
     </aside>`;
@@ -724,24 +781,21 @@ export function mountIxtlaInsights(options = {}) {
     const metric = parsed.metric || clean(previousSpec?.metric) || (domain === "retroalimentaciones" ? "retro_total" : "total");
     const previousGroup = clean(lastResultQuery?.filters?.group_by);
     const previousDimension = DIMENSION_LABELS[previousGroup] ? previousGroup : previousGroup === "rating" ? "calificacion" : previousGroup === "status" ? (domain === "retroalimentaciones" ? "estado_retro" : "estatus") : "";
-    let dimension = parsed.dimension || clean(previousSpec?.dimension) || previousDimension || (parsed.chart === "line" ? "fecha" : domain === "retroalimentaciones" ? "calificacion" : "tramite");
+    const dimension = parsed.dimension || clean(previousSpec?.dimension) || previousDimension || (parsed.chart === "line" ? "fecha" : domain === "retroalimentaciones" ? "calificacion" : "tramite");
     const chart = parsed.chart || clean(previousSpec?.chart) || (dimension === "fecha" ? "line" : metric === "tasa_respuesta" || metric === "promedio_calificacion" ? "kpi" : "bar");
-    if (chart === "line" || chart === "area") dimension = "fecha";
-    if (chart === "donut" && dimension === "fecha") dimension = domain === "retroalimentaciones" ? "calificacion" : "estatus";
-    pendingVisualization = {
+    pendingVisualization = normalizeVisualizationSpec({
       mode: "natural_visualization",
       question: prompt,
       domain,
       metric,
       dimension,
       chart,
-      title: clean(previousSpec?.title) || widgetTitle(chart, metric, dimension, domain),
       filters: Array.isArray(previousSpec?.filters) ? previousSpec.filters.map((filter) => ({ ...filter })) : (hasUsefulContext && Array.isArray(lastResultQuery?.filters?.filters) ? lastResultQuery.filters.filters : []),
       period: parsed.period || clean(previousSpec?.period),
       comparison: parsed.comparison || clean(previousSpec?.comparison),
-    };
+    });
     if (pendingVisualization.comparison === "previous_period" && pendingVisualization.period === "all") pendingVisualization.period = "";
-    addMessage(`Entendí que quieres visualizar ${METRIC_LABELS[metric]?.toLocaleLowerCase("es-MX") || "los resultados"}. ${CHART_LABELS[chart]} es una buena opción para agrupar por ${DIMENSION_LABELS[dimension] || dimension}.`);
+    addMessage(`Entendí que quieres visualizar ${METRIC_LABELS[metric]?.toLocaleLowerCase("es-MX") || "los resultados"}. ${visualizationRecommendation(pendingVisualization)}`);
     if (!pendingVisualization.period) {
       addMessage("¿Qué periodo deseas analizar?");
       renderWorkflowQuestions(periodChoices());
@@ -779,7 +833,7 @@ export function mountIxtlaInsights(options = {}) {
             : /\bbarra|barras\b/.test(text) ? "bar" : "";
     if (chart) {
       pendingVisualization.chart = chart;
-      if (chart === "line") pendingVisualization.dimension = "fecha";
+      if (chart === "line" && !pendingVisualization.dimension) pendingVisualization.dimension = "fecha";
       if (pendingVisualization.reviewSpec) delete pendingVisualization.reviewSpec;
       continueGuidedVisualization();
       return true;
@@ -813,7 +867,7 @@ export function mountIxtlaInsights(options = {}) {
     const metric = clean(plan.metric) || (domain === "retroalimentaciones" ? "retro_total" : "total");
     const dimension = clean(plan.dimension) || (domain === "retroalimentaciones" ? "calificacion" : "tramite");
     const chart = clean(plan.chart) || (dimension === "fecha" ? "line" : "bar");
-    pendingVisualization = {
+    pendingVisualization = normalizeVisualizationSpec({
       mode: "structured_visualization",
       question,
       domain,
@@ -824,10 +878,9 @@ export function mountIxtlaInsights(options = {}) {
       comparison: clean(plan.comparison),
       filters: Array.isArray(plan.filters) ? plan.filters.map((filter) => ({ ...filter })) : [],
       limit: Math.min(50, Math.max(1, Number(plan.limit) || 10)),
-      title: clean(plan.title) || widgetTitle(chart, metric, dimension, domain),
       plannerReason: clean(plan.reason),
-    };
-    const reason = clean(plan.reason) || `${CHART_LABELS[chart]} es compatible con esta métrica y agrupación.`;
+    });
+    const reason = visualizationRecommendation(pendingVisualization);
     addMessage(`Preparé un plan para **${pendingVisualization.title}**. ${reason}`);
     if (!pendingVisualization.period) {
       addMessage("¿Qué periodo deseas analizar?");
@@ -848,7 +901,7 @@ export function mountIxtlaInsights(options = {}) {
   function chartChoices(goal = "") {
     const charts = pendingVisualization?.dimension === "fecha" || goal === "request_trend"
       ? ["line", "area", "table"]
-      : ["bar", "donut", "line", "area", "table", "kpi"];
+      : ["bar", "donut", "table", "kpi"];
     const recommended = recommendedChart(pendingVisualization);
     return charts
       .filter((chart) => catalogValues("widget_kinds", Object.keys(CHART_LABELS)).includes(chart))
@@ -902,9 +955,8 @@ export function mountIxtlaInsights(options = {}) {
       ? clean(widget.period)
       : "";
     const scope = clean(widget?.scope) === "selected" ? "selected" : clean(widget?.scope) === "all" ? "all" : "";
-    return {
+    return normalizeVisualizationSpec({
       id: `remote-widget-${Date.now()}`,
-      title: clean(widget?.title) || widgetTitle(chart, metric, dimension),
       chart,
       metric,
       dimension,
@@ -917,7 +969,7 @@ export function mountIxtlaInsights(options = {}) {
       limit: Math.min(50, Math.max(1, Number(widget?.limit) || 10)),
       domain: "requerimientos",
       scopeLabel: clean(widget?.scope_label) || clean(context?.scopeLabel) || "Vista autorizada actual",
-    };
+    });
   }
 
   function previewToolRequest(spec, dateRange = null) {
@@ -988,6 +1040,8 @@ export function mountIxtlaInsights(options = {}) {
       previewId: `preview-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       title: spec.title,
       chart: spec.chart,
+      metric: spec.metric,
+      dimension: spec.dimension,
       items,
       value,
       valueLabel,
@@ -1256,20 +1310,24 @@ export function mountIxtlaInsights(options = {}) {
     const explore = document.createElement("button"); explore.type = "button"; explore.className = "ixtla-chart-preview__explore";
     explore.textContent = preview.dimension === "fecha" ? "Explicar el pico" : "Ver datos en tabla";
     const undo = document.createElement("button"); undo.type = "button"; undo.className = "ixtla-chart-preview__undo"; undo.textContent = "Deshacer"; undo.hidden = true;
+    const openDashboard = document.createElement("a"); openDashboard.className = "ixtla-chart-preview__dashboard-link";
+    openDashboard.href = config.dashboardUrl; openDashboard.textContent = "Ver dashboard"; openDashboard.hidden = true;
     add.addEventListener("click", () => {
       if (dashboardQueue.some((item) => item.previewId === preview.previewId)) return;
       add.disabled = true; add.textContent = "Agregando…";
       setTimeout(() => {
         dashboardQueue.push({ previewId: preview.previewId, spec: { ...spec }, preview: { ...preview, items: preview.items.map((item) => ({ ...item })) } });
+        writeTemporaryDashboardWidgets(dashboardQueue);
         add.textContent = "✓ Agregado al dashboard";
-        undo.hidden = false;
+        undo.hidden = false; openDashboard.hidden = false;
         addMessage("La gráfica quedó preparada para tu dashboard. Conservé su métrica, agrupación, periodo y alcance.");
       }, 180);
     });
     undo.addEventListener("click", () => {
       const index = dashboardQueue.findIndex((item) => item.previewId === preview.previewId);
       if (index >= 0) dashboardQueue.splice(index, 1);
-      add.disabled = false; add.textContent = "＋ Agregar al dashboard"; undo.hidden = true;
+      writeTemporaryDashboardWidgets(dashboardQueue);
+      add.disabled = false; add.textContent = "＋ Agregar al dashboard"; undo.hidden = true; openDashboard.hidden = true;
       addMessage("Listo. Quité esta gráfica de la preparación del dashboard.");
     });
     change.addEventListener("click", () => {
@@ -1282,7 +1340,7 @@ export function mountIxtlaInsights(options = {}) {
         : `Muéstrame los datos en tabla de la gráfica "${preview.title}", conservando el mismo periodo y filtros.`;
       ask(prompt);
     });
-    actions.append(add, change, explore, undo); card.append(heading, narrative, metrics, body, insight, evidence, actions); messages.append(card); messages.scrollTop = messages.scrollHeight;
+    actions.append(add, change, explore, openDashboard, undo); card.append(heading, narrative, metrics, body, insight, evidence, actions); messages.append(card); messages.scrollTop = messages.scrollHeight;
   }
 
   async function addVisualization(question, spec) {
@@ -1313,7 +1371,7 @@ export function mountIxtlaInsights(options = {}) {
       return;
     }
     if (!requiresDimension(request.chart)) request.dimension = "estatus";
-    if (request.chart === "line" || request.chart === "area") request.dimension = "fecha";
+    if ((request.chart === "line" || request.chart === "area") && !request.dimension) request.dimension = "fecha";
     if (request.chart === "funnel") request.dimension = "estatus";
     if (requiresDimension(request.chart) && !request.dimension) {
       addMessage("¿Cómo deseas agrupar los requerimientos?");
@@ -1334,9 +1392,8 @@ export function mountIxtlaInsights(options = {}) {
     if (request.reviewSpec) return;
     renderQuickQuestions([]);
     const dimension = request.dimension || "estatus";
-    const spec = {
+    const spec = normalizeVisualizationSpec({
       id: `guided-widget-${Date.now()}`,
-      title: clean(request.title) || widgetTitle(request.chart, request.metric, dimension, request.domain),
       chart: request.chart,
       metric: request.metric,
       dimension,
@@ -1347,7 +1404,10 @@ export function mountIxtlaInsights(options = {}) {
       limit: request.chart === "kpi" ? 1 : Math.min(50, Math.max(1, Number(request.limit) || 10)),
       domain: request.domain === "retroalimentaciones" ? "retroalimentaciones" : "requerimientos",
       scopeLabel: clean(context?.scopeLabel) || "Vista autorizada actual",
-    };
+    });
+    request.chart = spec.chart;
+    request.dimension = spec.dimension;
+    request.title = spec.title;
     request.reviewSpec = spec;
     queueDraftPersist();
     showVisualizationReview(request, spec);
@@ -1373,7 +1433,10 @@ export function mountIxtlaInsights(options = {}) {
     const metric = METRIC_LABELS[spec.metric] || spec.metric;
     const dimension = DIMENSION_LABELS[spec.dimension] || spec.dimension;
     const period = PERIOD_LABELS[spec.period] || PERIOD_LABELS.all;
-    addMessage(`Configuración propuesta: **${spec.title}**\n\n${metric} · ${visualizationScopeSummary(spec.filters)} · ${period} · ${chart} por ${dimension}.`);
+    const adjustment = spec.compatibilityAdjusted
+      ? ` Ajusté el formato a ${chart.toLocaleLowerCase("es-MX")} para conservar el análisis por ${dimension}.`
+      : "";
+    addMessage(`Configuración propuesta: **${spec.title}**\n\n${metric} · ${visualizationScopeSummary(spec.filters)} · ${period} · ${chart} por ${dimension}.\n\n${visualizationRecommendation(spec)}${adjustment}`);
     renderQuickQuestions([
       { label: "Dejar configuración lista", description: "Confirma esta propuesta para la siguiente etapa.", primary: true, action: { type: "visualization_confirm" } },
       { label: "Cambiar tipo", description: `Recomendado: ${chart}.`, action: { type: "visualization_change_chart" } },
@@ -1438,6 +1501,7 @@ export function mountIxtlaInsights(options = {}) {
   function chooseVisualizationChart(chart) {
     if (!pendingVisualization || !CHART_LABELS[chart] || !catalogValues("widget_kinds", Object.keys(CHART_LABELS)).includes(chart)) return;
     pendingVisualization.chart = chart;
+    if (pendingVisualization.dimension) pendingVisualization = normalizeVisualizationSpec(pendingVisualization);
     queueDraftPersist();
     addMessage(`Tipo de visualización: ${CHART_LABELS[chart]}`, "user");
     continueGuidedVisualization();
@@ -2088,7 +2152,6 @@ export function mountIxtlaInsights(options = {}) {
     history.length = 0;
     lastResultQuery = null;
     lastVisualizationSpec = null;
-    dashboardQueue.length = 0;
     pendingVisualization = null;
     void clearServerConversation();
     if (!config.simpleMode) discardDraft();

@@ -72,3 +72,63 @@ body { margin: 0; }
 .ixtla-dashboard-catalog__section { grid-column: 1 / -1; padding: 10px 0 2px; margin: 4px 0 0; color: var(--insights-blue-dark); border-bottom: 1px solid #dce8ee; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
 @media (max-width: 900px) { .ixtla-dashboard-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }.ixtla-dashboard-card, .ixtla-dashboard-card--wide { grid-column: span 3; }.ixtla-dashboard-card--small { grid-column: span 2; } }
 @media (max-width: 640px) { .ixtla-dashboard-page { padding: 18px; }.ixtla-dashboard-top { flex-direction: column; }.ixtla-dashboard-actions { justify-content: flex-start; }.ixtla-dashboard-grid { grid-template-columns: 1fr; }.ixtla-dashboard-card, .ixtla-dashboard-card--wide, .ixtla-dashboard-card--small { grid-column: span 1; }.ixtla-dashboard-donut-wrap { align-items: flex-start; flex-direction: column; }.ixtla-dashboard-catalog { grid-template-columns: 1fr; } }
+
+/* Dashboard de sesión v1: conserva el lenguaje visual del asistente. */
+.ixtla-dashboard-page { padding: 0; }
+.ixtla-dashboard-appbar { min-height: 86px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px max(24px, calc((100vw - 1280px) / 2)); color: #fff; border: 0; background: linear-gradient(115deg, #14558b 0%, #156f82 100%); box-shadow: 0 5px 18px rgba(8, 49, 82, .16); }
+.ixtla-dashboard-brand { display: inline-flex; align-items: center; gap: 13px; color: #fff; text-decoration: none; }
+.ixtla-dashboard-brand__mark { display: grid; width: 48px; height: 48px; place-items: center; border: 1px solid rgba(255,255,255,.2); border-radius: 15px; background: rgba(255,255,255,.13); font-size: 25px; }
+.ixtla-dashboard-brand strong, .ixtla-dashboard-brand small { display: block; }
+.ixtla-dashboard-brand strong { font-size: 20px; letter-spacing: -.02em; }
+.ixtla-dashboard-brand small { margin-top: 2px; color: rgba(255,255,255,.88); font-size: 12px; }
+.ixtla-dashboard-appbar__back { padding: 9px 12px; color: #fff; border: 1px solid rgba(255,255,255,.44); border-radius: 9px; font-size: 13px; font-weight: 700; text-decoration: none; }
+.ixtla-dashboard-appbar__back:hover { background: rgba(255,255,255,.12); }
+.ixtla-dashboard-shell { padding: 30px 28px 38px; }
+.ixtla-dashboard-button--danger { color: #9b2c2c; border-color: #e3b5b5; background: #fff; }
+.ixtla-dashboard-button--danger:hover { color: #fff; border-color: #a33b3b; background: #a33b3b; }
+.ixtla-dashboard-summary { display: flex; max-width: 1280px; min-height: 68px; align-items: center; gap: 18px; padding: 13px 16px; margin: 0 auto 18px; border: 1px solid #dce8ee; border-radius: 14px; background: #fff; box-shadow: 0 5px 16px rgba(15,76,129,.05); }
+.ixtla-dashboard-summary > div { display: flex; align-items: baseline; gap: 7px; padding-right: 18px; border-right: 1px solid #e5edf2; }
+.ixtla-dashboard-summary strong { color: var(--insights-blue); font-size: 25px; }
+.ixtla-dashboard-summary span, .ixtla-dashboard-summary p { color: var(--insights-muted); font-size: 12px; }
+.ixtla-dashboard-summary p { flex: 1; margin: 0; }
+.ixtla-dashboard-summary__badge { padding: 6px 9px; border-radius: 999px; color: #256153 !important; background: #eaf7f2; font-weight: 700; white-space: nowrap; }
+.ixtla-dashboard-card { display: flex; min-width: 0; flex-direction: column; }
+.ixtla-dashboard-card--wide { min-height: 390px; }
+.ixtla-dashboard-card__visibility { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 999px; color: #31566f; background: #edf5fa; font-size: 10px; font-weight: 800; }
+.ixtla-dashboard-card__visibility::before { width: 6px; height: 6px; border-radius: 50%; background: #3b82a0; content: ""; }
+.ixtla-dashboard-card__narrative { padding: 10px 12px; margin: 0 0 14px; border-left: 3px solid #2e9fb0; border-radius: 0 9px 9px 0; color: #28475d; background: #f1f8fa; font-size: 12px; line-height: 1.45; }
+.ixtla-dashboard-card__narrative strong { display: block; margin-bottom: 2px; color: #123b59; }
+.ixtla-dashboard-card__content { min-height: 176px; flex: 1; }
+.ixtla-dashboard-card__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; margin-top: 14px; border-top: 1px solid #edf2f6; color: var(--insights-muted); font-size: 10px; }
+.ixtla-dashboard-card__footer button { padding: 5px 8px; color: #8b2f2f; border: 1px solid transparent; border-radius: 7px; background: transparent; font: 700 11px/1 system-ui, sans-serif; cursor: pointer; }
+.ixtla-dashboard-card__footer button:hover { border-color: #f0caca; background: #fff5f4; }
+.ixtla-dashboard-line-grid { stroke: #dce7ed; stroke-width: 1; }
+.ixtla-dashboard-line-axis { fill: #6b7f91; font-size: 10px; }
+.ixtla-dashboard-line-point { fill: #fff; stroke: #176b87; stroke-width: 2.5; }
+.ixtla-dashboard-table-wrap { max-height: 210px; overflow: auto; }
+.ixtla-dashboard-empty[hidden] { display: none; }
+.ixtla-dashboard-empty__mark { display: grid; width: 54px; height: 54px; margin: 0 auto 15px; place-items: center; border-radius: 17px; color: #fff; background: linear-gradient(135deg, #0f4c81, #2e9fb0); font-size: 25px; }
+.ixtla-dashboard-footnote { max-width: 1280px; margin: 20px auto 0; color: #6b7f91; font-size: 11px; line-height: 1.5; text-align: center; }
+.ixtla-dashboard-confirm { width: min(430px, calc(100% - 32px)); padding: 0; border: 0; border-radius: 17px; box-shadow: 0 24px 70px rgba(8,31,52,.28); }
+.ixtla-dashboard-confirm::backdrop { background: rgba(8,31,52,.46); backdrop-filter: blur(3px); }
+.ixtla-dashboard-confirm form { padding: 26px; text-align: center; }
+.ixtla-dashboard-confirm__icon { display: grid; width: 44px; height: 44px; margin: 0 auto 12px; place-items: center; border-radius: 50%; color: #9b2c2c; background: #fff0ef; font-size: 22px; font-weight: 900; }
+.ixtla-dashboard-confirm h2 { margin: 0 0 8px; font-size: 21px; }
+.ixtla-dashboard-confirm p { margin: 0 0 22px; color: var(--insights-muted); font-size: 13px; line-height: 1.5; }
+.ixtla-dashboard-confirm form > div { display: flex; justify-content: center; gap: 9px; }
+
+@media (max-width: 700px) {
+  .ixtla-dashboard-appbar { min-height: 74px; padding: 13px 16px; }
+  .ixtla-dashboard-brand__mark { width: 42px; height: 42px; border-radius: 13px; }
+  .ixtla-dashboard-brand strong { font-size: 17px; }
+  .ixtla-dashboard-brand small { display: none; }
+  .ixtla-dashboard-appbar__back { padding: 8px; font-size: 11px; }
+  .ixtla-dashboard-shell { padding: 22px 16px 30px; }
+  .ixtla-dashboard-top { gap: 18px; }
+  .ixtla-dashboard-actions { width: 100%; }
+  .ixtla-dashboard-actions .ixtla-dashboard-button { flex: 1 1 140px; text-align: center; }
+  .ixtla-dashboard-summary { align-items: flex-start; flex-wrap: wrap; }
+  .ixtla-dashboard-summary > div { border-right: 0; }
+  .ixtla-dashboard-summary p { flex-basis: 100%; order: 3; }
+  .ixtla-dashboard-summary__badge { white-space: normal; }
+}

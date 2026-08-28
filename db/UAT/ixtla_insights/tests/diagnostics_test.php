@@ -28,7 +28,8 @@ $visualPlan = ixtla_visual_plan_normalize([
     'filters' => [['field' => 'calificacion', 'value' => 'Excelente']], 'limit' => 500,
 ]);
 expect_diagnostic($visualPlan['metric'] === 'retro_total', 'El plan grafico debe impedir metricas incompatibles con retroalimentaciones.');
-expect_diagnostic($visualPlan['dimension'] === 'fecha', 'Una tendencia debe normalizar su agrupacion a fecha.');
+expect_diagnostic($visualPlan['dimension'] === 'calificacion', 'El plan grafico debe conservar la agrupacion solicitada.');
+expect_diagnostic($visualPlan['chart'] === 'bar', 'Una agrupacion categorica debe corregir una linea incompatible a barras.');
 expect_diagnostic($visualPlan['limit'] === 50, 'El plan grafico debe limitar el numero de categorias.');
 $resolvedVisualPlan = ixtla_visual_plan_resolve_filters($visualPlan);
 expect_diagnostic(($resolvedVisualPlan['filters'][0]['id'] ?? null) === 4, 'La calificacion del plan debe resolverse a un identificador permitido.');
