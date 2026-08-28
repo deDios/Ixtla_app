@@ -117,7 +117,7 @@ expect_diagnostic(ixtla_insights_question_intent('dame la info del ciudadano', t
 expect_diagnostic(ixtla_insights_question_intent('cual es su telefono', true) === 'dataset', 'El telefono debe reutilizar el contexto del requerimiento anterior.');
 
 $chatToolNames = array_column(ixtla_insights_tool_definitions(), 'name');
-expect_diagnostic($chatToolNames === ['get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
+expect_diagnostic($chatToolNames === ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'get_feedback_detail', 'analyze_feedback_comments', 'get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
 $snapshotOverviewTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_overview'))[0] ?? [];
 expect_diagnostic(($snapshotOverviewTool['parameters']['required'] ?? []) === ['refresh', 'period', 'date_field', 'date_from', 'date_to'], 'El resumen debe aceptar periodos y rangos personalizados explícitos.');
 expect_diagnostic(str_contains((string) ($snapshotOverviewTool['description'] ?? ''), 'días pico'), 'El resumen debe anunciar la comparación y los picos diarios que puede calcular.');
@@ -375,7 +375,7 @@ $outsideWeekArguments = ixtla_insights_prepare_tool_arguments(
 );
 expect_diagnostic(($outsideWeekArguments['period'] ?? null) === 'all', 'El rango fuera de esta semana no debe conservar this_week.');
 expect_diagnostic(($outsideWeekArguments['department_names'] ?? []) === ['Desarrollo Urbano'], 'El rango ampliado debe conservar el departamento anterior.');
-expect_diagnostic(($outsideWeekArguments['date_from'] ?? 'missing') === null, 'El rango anterior no debe imponer fecha inicial.');
+expect_diagnostic(array_key_exists('date_from', $outsideWeekArguments) && $outsideWeekArguments['date_from'] === null, 'El rango anterior no debe imponer fecha inicial.');
 expect_diagnostic(($outsideWeekArguments['date_to'] ?? null) === $expectedPreviousSunday, 'El rango anterior debe terminar el domingo previo.');
 
 $temporalReference = new DateTimeImmutable('2026-08-13 12:00:00');

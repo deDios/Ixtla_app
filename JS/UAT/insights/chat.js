@@ -168,10 +168,9 @@ function catalogValues(key, fallback = []) {
 async function ensureCatalog(url) {
   if (serverCatalog) return serverCatalog;
   if (!catalogRequest) {
-    catalogRequest = fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.ok || !payload?.catalog?.version) throw new Error("No fue posible cargar el contrato de Insights.");
+    catalogRequest = fetchInsightsJson(url)
+      .then((payload) => {
+        if (!payload?.catalog?.version) throw new Error("No fue posible cargar el contrato de Insights.");
         serverCatalog = payload.catalog;
         return serverCatalog;
       })
@@ -192,6 +191,51 @@ class InsightsRequestError extends Error {
 function createInsightsRequestId() {
   if (typeof globalThis.crypto?.randomUUID === "function") return `ix-web-${globalThis.crypto.randomUUID()}`;
   return `ix-web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function insightsResponseError(response, payload, url, clientRequestId) {
+  const contentType = clean(response.headers.get("content-type"));
+  const endpointHandled = Boolean(response.headers.get("X-Ixtla-Insights-Request-Id"));
+  const requestId = clean(payload?.request_id) || clean(response.headers.get("X-Ixtla-Insights-Request-Id")) || clientRequestId;
+  let detail = clean(payload?.error);
+  if (!detail && response.status === 404 && !endpointHandled) detail = "El endpoint no existe en la publicación actual de UAT.";
+  else if (!detail && (response.status === 401 || response.redirected || (response.status === 200 && !contentType.includes("application/json")))) detail = "Tu sesión terminó. Recarga la página para continuar.";
+  else if (!detail && !contentType.includes("application/json")) detail = `El endpoint devolvió una respuesta no JSON (${response.status || "sin estado"}).`;
+  else if (!detail) detail = `El endpoint respondió sin el contrato esperado (${response.status || "sin estado"}).`;
+  return new InsightsRequestError(response.status || 0, detail, {
+    requestId,
+    errorCode: clean(payload?.error_code),
+    endpointVersion: clean(response.headers.get("X-Ixtla-Insights-Version")),
+    buildId: clean(response.headers.get("X-Ixtla-Insights-Build")),
+    instanceId: clean(response.headers.get("X-Ixtla-Insights-Instance")),
+    serverStage: clean(response.headers.get("X-Ixtla-Insights-Debug-Stage")),
+    url: clean(response.url) || url,
+    contentType,
+    endpointHandled,
+    redirected: response.redirected,
+  });
+}
+
+async function fetchInsightsJson(url, options = {}) {
+  const clientRequestId = clean(options.requestId) || createInsightsRequestId();
+  const { requestId: _requestId, ...fetchOptions } = options;
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Accept")) headers.set("Accept", "application/json");
+  headers.set("X-Ixtla-Insights-Request-Id", clientRequestId);
+  let response;
+  try {
+    response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...fetchOptions, headers });
+  } catch {
+    throw new InsightsRequestError(0, "No fue posible contactar el endpoint de Insights.", {
+      requestId: clientRequestId, url, endpointHandled: false, contentType: "",
+    });
+  }
+  const raw = await response.text();
+  const payload = (() => { try { return JSON.parse(raw); } catch { return null; } })();
+  if (!response.ok || !payload || payload.ok !== true) {
+    throw insightsResponseError(response, payload, url, clientRequestId);
+  }
+  return payload;
 }
 
 function widgetTitle(chart, metric, dimension, domain = "requerimientos") {
@@ -700,14 +744,12 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   async function requestStructuredVisualizationPlan(question) {
-    const response = await fetch(config.visualizationPlanUrl, {
+    const payload = await fetchInsightsJson(config.visualizationPlanUrl, {
       method: "POST",
-      credentials: "same-origin",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ question, previous_spec: lastVisualizationSpec }),
     });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok || !payload?.ok || !payload?.plan) throw new Error(clean(payload?.error) || "No fue posible crear el plan gráfico.");
+    if (!payload?.plan) throw new Error("El planificador respondió sin un plan gráfico.");
     return payload.plan;
   }
 
@@ -865,23 +907,15 @@ export function mountIxtlaInsights(options = {}) {
     if (spec.chart === "kpi" && !filters.length && !metricStatusIds.length) {
       return { tool: "get_requirements_overview", arguments: { refresh: false, period, date_field: "created_at", date_from: dateFrom, date_to: dateTo } };
     }
-    if (spec.chart === "kpi") {
-      return {
-        tool: "search_requirements",
-        arguments: {
-          period, department_id: null, department_ids: departmentIds, department_names: departmentNames, assignee_id: null, assignee_ids: [],
-          tramite_ids: tramiteIds, status_ids: requirementStatusIds.length ? requirementStatusIds : metricStatusIds, channel_ids: [], assignee_state: "any",
-          date_field: "created_at", date_from: dateFrom, date_to: dateTo, sort: "newest", limit: 1, cursor: null,
-        },
-      };
-    }
     return {
       tool: "aggregate_requirements",
       arguments: {
-        period, department_id: null, department_ids: departmentIds, department_names: departmentNames, assignee_id: null, assignee_ids: [],
+        period, department_id: 0, department_ids: departmentIds, department_names: departmentNames, assignee_id: 0, assignee_ids: [],
         tramite_ids: tramiteIds, status_ids: requirementStatusIds.length ? requirementStatusIds : metricStatusIds, channel_ids: [], assignee_state: "any",
         date_field: "created_at", date_from: dateFrom, date_to: dateTo,
-        group_by: groupMap[spec.dimension] || "tramite", sort: spec.dimension === "fecha" ? "asc" : (["asc", "desc"].includes(spec.sort) ? spec.sort : "desc"), limit: spec.dimension === "fecha" ? 50 : (spec.limit || 10),
+        group_by: spec.chart === "kpi" ? "status" : (groupMap[spec.dimension] || "tramite"),
+        sort: spec.dimension === "fecha" ? "asc" : (["asc", "desc"].includes(spec.sort) ? spec.sort : "desc"),
+        limit: spec.chart === "kpi" ? 7 : (spec.dimension === "fecha" ? 50 : (spec.limit || 10)),
       },
     };
   }
@@ -893,10 +927,7 @@ export function mountIxtlaInsights(options = {}) {
     })) : [];
     let value = null;
     let valueLabel = METRIC_LABELS[spec.metric] || "Total";
-    if (sourceTool === "search_requirements") {
-      items = [];
-      value = Number(data?.total_matching || 0);
-    } else if (spec.domain === "retroalimentaciones" && !items.length) {
+    if (spec.domain === "retroalimentaciones" && !items.length) {
       if (spec.metric === "tasa_respuesta") { value = Number(data?.response_rate_percent || 0); valueLabel = "Tasa de respuesta"; }
       else if (spec.metric === "promedio_calificacion") { value = Number(data?.average_rating || 0); valueLabel = "Promedio de calificación"; }
       else { value = Number(data?.total || 0); valueLabel = "Retroalimentaciones"; }
@@ -953,14 +984,12 @@ export function mountIxtlaInsights(options = {}) {
 
   async function fetchVisualizationPreview(spec, dateRange = null) {
     const request = previewToolRequest(spec, dateRange);
-    const response = await fetch(config.previewUrl, {
+    const payload = await fetchInsightsJson(config.previewUrl, {
       method: "POST",
-      credentials: "same-origin",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(request),
     });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok || !payload?.ok || !payload?.data) throw new Error(clean(payload?.error) || "No fue posible obtener los datos de la gráfica.");
+    if (!payload?.data) throw new Error("El endpoint respondió sin datos para la gráfica.");
     return normalizePreviewData(spec, payload.data, request.tool);
   }
 
@@ -985,7 +1014,6 @@ export function mountIxtlaInsights(options = {}) {
     return ({
       aggregate_requirements: "Agregado autorizado de requerimientos",
       get_requirements_overview: "Resumen autorizado de requerimientos",
-      search_requirements: "Conteo autorizado de requerimientos filtrados",
       aggregate_feedback: "Agregado autorizado de retroalimentaciones",
       get_feedback_overview: "Resumen autorizado de retroalimentaciones",
     })[clean(tool)] || "Datos autorizados de Ixtla Insights";
@@ -1241,9 +1269,10 @@ export function mountIxtlaInsights(options = {}) {
         const preview = await requestVisualizationPreview(spec);
         lastVisualizationSpec = { ...spec, filters: Array.isArray(spec.filters) ? spec.filters.map((filter) => ({ ...filter })) : [] };
         addVisualizationPreview(preview, spec);
-      } catch (error) {
-        console.error("[IxtlaInsights preview]", error);
-        addMessage(`No pude generar la preview: ${clean(error?.message) || "la consulta no estuvo disponible"}. Puedes cambiar la configuración e intentarlo nuevamente.`);
+    } catch (error) {
+      console.error("[IxtlaInsights preview]", error);
+      const detail = endpointDiagnosticMessage(error);
+      addMessage(`No pude generar la preview. ${detail}`);
       } finally {
         hideThinkingIndicator();
         renderMainMenu();
@@ -1515,13 +1544,13 @@ export function mountIxtlaInsights(options = {}) {
     loading.textContent = "Cargando departamentos activos…";
     customChips.appendChild(loading);
     try {
-      const response = await fetch(config.departmentsUrl, { credentials: "same-origin", headers: { Accept: "application/json" } });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.ok || !Array.isArray(payload.departments)) throw new Error("No fue posible cargar los departamentos.");
+      const payload = await fetchInsightsJson(config.departmentsUrl);
+      if (!Array.isArray(payload.departments)) throw new Error("El endpoint respondió sin el catálogo de departamentos.");
       renderDepartmentChecklist(payload.departments);
     } catch (error) {
       console.error("[IxtlaInsights]", error);
-      addMessage("No pude cargar los departamentos activos. Intenta de nuevo o selecciona todos los departamentos.");
+      const detail = error instanceof InsightsRequestError ? endpointDiagnosticMessage(error) : "No pude cargar los departamentos activos.";
+      addMessage(`${detail} Puedes intentar nuevamente o seleccionar todos los departamentos.`);
       renderWorkflowQuestions(DEPARTMENT_SCOPE_CHOICES);
     }
   }
@@ -1701,6 +1730,15 @@ export function mountIxtlaInsights(options = {}) {
     return `No se pudo completar la consulta (${status || "sin estado"}).${suffix}`;
   }
 
+  function endpointDiagnosticMessage(error) {
+    if (!(error instanceof InsightsRequestError)) return clean(error?.message) || "La consulta no estuvo disponible.";
+    const trace = clean(error.requestId);
+    const suffix = trace ? ` Código de diagnóstico: ${trace}.` : "";
+    if (Number(error.status) === 422 && clean(error.message)) return `El endpoint rechazó la solicitud: ${clean(error.message)}${suffix}`;
+    if (Number(error.status) >= 500 && clean(error.message)) return `${clean(error.message)}${suffix}`;
+    return diagnosticMessage(error);
+  }
+
   function setContext(next) { context = next && typeof next === "object" ? next : null; }
   function open() { drawer.classList.add("is-open"); overlay.classList.add("is-open"); drawer.setAttribute("aria-hidden", "false"); input.focus(); }
   function closeDrawer() { drawer.classList.remove("is-open"); overlay.classList.remove("is-open"); drawer.setAttribute("aria-hidden", "true"); }
@@ -1787,13 +1825,11 @@ export function mountIxtlaInsights(options = {}) {
 
   async function persistDraft() {
     if (!pendingVisualization) return;
-    const response = await fetch(config.draftUrl, {
+    await fetchInsightsJson(config.draftUrl, {
       method: "POST",
-      credentials: "same-origin",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ action: "save", draft: pendingVisualization }),
     });
-    if (!response.ok) throw new Error("No fue posible guardar el borrador.");
   }
 
   function queueDraftPersist() {
@@ -1806,19 +1842,17 @@ export function mountIxtlaInsights(options = {}) {
   function discardDraft() {
     if (config.simpleMode) return;
     draftPersistQueue = draftPersistQueue
-      .then(() => fetch(config.draftUrl, {
+      .then(() => fetchInsightsJson(config.draftUrl, {
         method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ action: "delete" }),
       }))
       .catch(() => {});
   }
 
   function clearServerConversation() {
-    return fetch(config.apiUrl, {
+    return fetchInsightsJson(config.apiUrl, {
       method: "POST",
-      credentials: "same-origin",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -1836,16 +1870,19 @@ export function mountIxtlaInsights(options = {}) {
   async function exportCSV(queryId = "") {
     const selectedQueryId = clean(queryId) || clean(lastResultQuery?.query_id);
     if (!selectedQueryId) throw new Error("No hay una consulta exportable. Realiza primero una búsqueda de requerimientos en el asistente.");
+    const clientRequestId = createInsightsRequestId();
     const response = await fetch(config.exportUrl, {
       method: "POST",
       credentials: "same-origin",
-      headers: { "Content-Type": "application/json", Accept: "text/csv, application/json" },
+      cache: "no-store",
+      headers: { "Content-Type": "application/json", Accept: "text/csv, application/json", "X-Ixtla-Insights-Request-Id": clientRequestId },
       body: JSON.stringify({ query_id: selectedQueryId }),
     });
     const contentType = clean(response.headers.get("content-type"));
     if (!response.ok || !contentType.includes("text/csv")) {
-      const payload = await response.json().catch(() => null);
-      throw new Error(clean(payload?.error) || `No fue posible exportar la consulta (${response.status || "respuesta no válida"}).`);
+      const raw = await response.text();
+      const payload = (() => { try { return JSON.parse(raw); } catch { return null; } })();
+      throw insightsResponseError(response, payload, config.exportUrl, clientRequestId);
     }
     const blob = await response.blob();
     const disposition = clean(response.headers.get("content-disposition"));
@@ -1898,18 +1935,17 @@ export function mountIxtlaInsights(options = {}) {
 
   async function showWelcomeReport() {
     try {
-      const response = await fetch(config.welcomeUrl, {
+      const payload = await fetchInsightsJson(config.welcomeUrl, {
         method: "POST",
-        credentials: "same-origin",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: "{}",
       });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.ok || !payload?.report) throw new Error("No se recibió el informe inicial.");
+      if (!payload?.report) throw new Error("El endpoint respondió sin el informe inicial.");
       addMessage(formatWelcomeReport(payload.report));
     } catch (error) {
       console.warn("[IxtlaInsights] welcome report", error);
-      addMessage("No fue posible cargar el informe inicial. Puedes consultar requerimientos específicos desde el chat.");
+      const detail = error instanceof InsightsRequestError ? diagnosticMessage(error) : "No fue posible cargar el informe inicial.";
+      addMessage(`${detail} Puedes consultar requerimientos específicos desde el chat.`);
     }
   }
 
@@ -1940,8 +1976,7 @@ export function mountIxtlaInsights(options = {}) {
   });
 
   addMessage("Hola. Usa “Crear un gráfico” para armar una visualización paso a paso, o escribe una consulta específica.");
-  if (!config.simpleMode) fetch(config.draftUrl, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ action: "get" }) })
-    .then((response) => response.json())
+  if (!config.simpleMode) fetchInsightsJson(config.draftUrl, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ action: "get" }) })
     .then((payload) => {
       if (config.simpleMode) return;
       if (!payload?.ok || !payload.draft?.mode) return;

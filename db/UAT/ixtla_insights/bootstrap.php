@@ -41,7 +41,11 @@ function ixtla_insights_bootstrap(array $methods = ['POST']): array
             ? (string) $_SERVER['HTTP_X_IXTLA_INSIGHTS_ATTEMPT']
             : '',
     ]);
-    ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
+    ix_require_session([
+        'login_url' => '/VIEWS/UAT/login.php',
+        'response_mode' => 'json',
+        'request_id' => ixtla_insights_request_id(),
+    ]);
     consola_debug('bootstrap.session_accepted');
     header('Content-Type: application/json; charset=utf-8');
 

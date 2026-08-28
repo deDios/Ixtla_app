@@ -11,15 +11,16 @@ declare(strict_types=1);
 function ixtla_insights_catalog(): array
 {
     return [
-        'version' => 2,
-        'domain' => 'requerimientos',
+        'version' => 3,
+        'domain' => 'requerimientos_y_retroalimentaciones',
+        'domains' => ['requerimientos', 'retroalimentaciones'],
         'widget_kinds' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'],
-        'metrics' => ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion'],
-        'dimensions' => ['estatus', 'tramite', 'departamento', 'fecha'],
+        'metrics' => ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion', 'retro_total', 'tasa_respuesta', 'promedio_calificacion'],
+        'dimensions' => ['estatus', 'tramite', 'departamento', 'fecha', 'calificacion', 'estado_retro'],
         'periods' => ['all', 'last_7', 'last_30', 'this_month'],
         'scopes' => ['all', 'selected'],
         'sorts' => ['desc', 'asc', 'chronological'],
-        'filter_fields' => ['departamento', 'tramite', 'estatus'],
+        'filter_fields' => ['departamento', 'tramite', 'estatus', 'calificacion', 'estado_retro'],
         'report_intents' => ['metric_query', 'breakdown', 'comparison', 'ranking', 'trend'],
         'metric_rules' => [
             'kpi_only' => ['promedio_semanal', 'tiempo_resolucion'],

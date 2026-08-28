@@ -7,6 +7,8 @@ function ix_require_session(array $options = []): void
 {
     $loginUrl   = $options['login_url']   ?? '/VIEWS/Login.php';
     $cookieName = $options['cookie_name'] ?? 'ix_emp';
+    $responseMode = ($options['response_mode'] ?? 'redirect') === 'json' ? 'json' : 'redirect';
+    $requestId = trim((string) ($options['request_id'] ?? ''));
 
     // No hacemos nada en CLI
     if (PHP_SAPI === 'cli') {
@@ -16,19 +18,14 @@ function ix_require_session(array $options = []): void
     // IMPORTANTÍSIMO: este guard debe incluirse ANTES de cualquier salida HTML
     // para poder mandar headers de redirección.
     if (headers_sent()) {
-        // Fallback por si alguien lo incluyó tarde
-        echo '<script>window.location.href = ' . json_encode($loginUrl) . ';</script>';
-        exit;
+        ix_guard_reject($cookieName, $loginUrl, $responseMode, $requestId);
     }
 
     // 1) Leer cookie
     $rawCookie = $_COOKIE[$cookieName] ?? '';
 
     if ($rawCookie === '' || $rawCookie === null) {
-        // Sin cookie → redirigir directo
-        ix_guard_clear_cookie($cookieName);
-        header('Location: ' . $loginUrl, true, 302);
-        exit;
+        ix_guard_reject($cookieName, $loginUrl, $responseMode, $requestId);
     }
 
     // 2) Decodificar (mirror de JS: base64 de JSON)
@@ -37,26 +34,19 @@ function ix_require_session(array $options = []): void
 
     $jsonStr = base64_decode($b64, true);
     if ($jsonStr === false || $jsonStr === '') {
-        ix_guard_clear_cookie($cookieName);
-        header('Location: ' . $loginUrl, true, 302);
-        exit;
+        ix_guard_reject($cookieName, $loginUrl, $responseMode, $requestId);
     }
 
     $payload = json_decode($jsonStr, true);
     if (!is_array($payload)) {
-        ix_guard_clear_cookie($cookieName);
-        header('Location: ' . $loginUrl, true, 302);
-        exit;
+        ix_guard_reject($cookieName, $loginUrl, $responseMode, $requestId);
     }
 
     // Validar expiración (exp en milisegundos, como en Session.js) :contentReference[oaicite:1]{index=1}
     if (isset($payload['exp']) && is_numeric($payload['exp'])) {
         $nowMs = (int) round(microtime(true) * 1000);
         if ($nowMs > (int) $payload['exp']) {
-            // Expirada
-            ix_guard_clear_cookie($cookieName);
-            header('Location: ' . $loginUrl, true, 302);
-            exit;
+            ix_guard_reject($cookieName, $loginUrl, $responseMode, $requestId);
         }
     }
 
@@ -65,9 +55,7 @@ function ix_require_session(array $options = []): void
     $cuentaId   = $payload['cuenta_id']   ?? $payload['id_cuenta']   ?? $payload['id_usuario'] ?? null;
 
     if (empty($empleadoId) && empty($cuentaId)) {
-        ix_guard_clear_cookie($cookieName);
-        header('Location: ' . $loginUrl, true, 302);
-        exit;
+        ix_guard_reject($cookieName, $loginUrl, $responseMode, $requestId);
     }
 
     // Exponer sesión para PHP por si la necesitas en la vista
@@ -86,4 +74,30 @@ function ix_guard_clear_cookie(string $cookieName): void
         isset($_SERVER['HTTPS']),
         true
     );
+}
+
+function ix_guard_reject(string $cookieName, string $loginUrl, string $responseMode, string $requestId = ''): never
+{
+    ix_guard_clear_cookie($cookieName);
+    if ($responseMode === 'json') {
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-store');
+        }
+        http_response_code(401);
+        $payload = [
+            'ok' => false,
+            'error' => 'Tu sesion termino. Recarga la pagina para continuar.',
+            'error_code' => 'session_required',
+        ];
+        if ($requestId !== '') $payload['request_id'] = $requestId;
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+    if (!headers_sent()) {
+        header('Location: ' . $loginUrl, true, 302);
+    } else {
+        echo '<script>window.location.href = ' . json_encode($loginUrl) . ';</script>';
+    }
+    exit;
 }

@@ -201,6 +201,7 @@ function ixtla_insights_tool_definitions(): array
 function ixtla_insights_execute_tool(string $name, mixed $arguments): array
 {
     $args = is_array($arguments) ? $arguments : [];
+    ixtla_insights_validate_tool_arguments($name, $args);
     return match ($name) {
         'get_feedback_overview' => ixtla_insights_retro_overview($args),
         'aggregate_feedback' => ixtla_insights_retro_aggregate($args),
@@ -220,4 +221,70 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'get_requirement_activity' => ixtla_insights_requirement_activity($args),
         default => throw new InvalidArgumentException('La herramienta solicitada no esta disponible.'),
     };
+}
+
+/** Valida en servidor el mismo contrato JSON que se entrega al modelo. */
+function ixtla_insights_validate_tool_arguments(string $name, array $arguments): void
+{
+    $definition = null;
+    foreach (ixtla_insights_tool_definitions() as $candidate) {
+        if (($candidate['name'] ?? '') === $name) {
+            $definition = $candidate;
+            break;
+        }
+    }
+    if (!is_array($definition)) throw new InvalidArgumentException('La herramienta solicitada no esta disponible.');
+    ixtla_insights_validate_schema_value($arguments, (array) ($definition['parameters'] ?? []), 'arguments');
+}
+
+function ixtla_insights_validate_schema_value(mixed $value, array $schema, string $path): void
+{
+    $types = is_array($schema['type'] ?? null) ? $schema['type'] : [(string) ($schema['type'] ?? '')];
+    $matchesType = static function (string $type) use ($value): bool {
+        return match ($type) {
+            'null' => $value === null,
+            'object' => is_array($value) && !array_is_list($value),
+            'array' => is_array($value) && array_is_list($value),
+            'string' => is_string($value),
+            'integer' => is_int($value),
+            'number' => is_int($value) || is_float($value),
+            'boolean' => is_bool($value),
+            default => true,
+        };
+    };
+    if (!array_filter($types, $matchesType)) {
+        throw new InvalidArgumentException('El campo ' . $path . ' no tiene el tipo esperado.');
+    }
+    if ($value === null) return;
+    if (isset($schema['enum']) && !in_array($value, (array) $schema['enum'], true)) {
+        throw new InvalidArgumentException('El campo ' . $path . ' contiene un valor no permitido.');
+    }
+    if (is_string($value)) {
+        $length = mb_strlen($value);
+        if (isset($schema['minLength']) && $length < (int) $schema['minLength']) throw new InvalidArgumentException('El campo ' . $path . ' es demasiado corto.');
+        if (isset($schema['maxLength']) && $length > (int) $schema['maxLength']) throw new InvalidArgumentException('El campo ' . $path . ' excede la longitud permitida.');
+        if (isset($schema['pattern']) && preg_match('~' . $schema['pattern'] . '~', $value) !== 1) throw new InvalidArgumentException('El campo ' . $path . ' no tiene el formato esperado.');
+    }
+    if ((is_int($value) || is_float($value)) && isset($schema['minimum']) && $value < $schema['minimum']) {
+        throw new InvalidArgumentException('El campo ' . $path . ' es menor al minimo permitido.');
+    }
+    if (is_array($value) && array_is_list($value)) {
+        if (isset($schema['maxItems']) && count($value) > (int) $schema['maxItems']) throw new InvalidArgumentException('El campo ' . $path . ' contiene demasiados elementos.');
+        if (is_array($schema['items'] ?? null)) {
+            foreach ($value as $index => $item) ixtla_insights_validate_schema_value($item, $schema['items'], $path . '[' . $index . ']');
+        }
+        return;
+    }
+    if (is_array($value)) {
+        $properties = is_array($schema['properties'] ?? null) ? $schema['properties'] : [];
+        foreach ((array) ($schema['required'] ?? []) as $required) {
+            if (!array_key_exists((string) $required, $value)) throw new InvalidArgumentException('Falta el campo requerido ' . $path . '.' . $required . '.');
+        }
+        if (($schema['additionalProperties'] ?? true) === false) {
+            foreach (array_keys($value) as $key) if (!array_key_exists((string) $key, $properties)) throw new InvalidArgumentException('El campo ' . $path . '.' . $key . ' no esta permitido.');
+        }
+        foreach ($value as $key => $item) {
+            if (isset($properties[$key]) && is_array($properties[$key])) ixtla_insights_validate_schema_value($item, $properties[$key], $path . '.' . $key);
+        }
+    }
 }

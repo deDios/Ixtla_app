@@ -20,7 +20,12 @@ if (!is_array($arguments)) {
     ixtla_insights_json(['ok' => false, 'error' => 'arguments debe ser un objeto JSON.'], 422);
 }
 
-$allowedTools = array_column(ixtla_insights_tool_definitions(), 'name');
+$allowedTools = [
+    'get_requirements_overview',
+    'aggregate_requirements',
+    'get_feedback_overview',
+    'aggregate_feedback',
+];
 
 if (!in_array($tool, $allowedTools, true)) {
     ixtla_insights_json([

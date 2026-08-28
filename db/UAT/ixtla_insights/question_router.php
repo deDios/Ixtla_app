@@ -441,7 +441,7 @@ function ixtla_insights_question_requested_statuses(string $question): ?array
 function ixtla_insights_question_requested_assignee_state(string $question): ?string
 {
     $normalized = ixtla_insights_normalize_match_text($question);
-    if (preg_match('/\b(sin asignar|no asignad[oa]s?|sin responsable|sin empleado asignado|no (?:tiene|tienen|cuenta|cuentan) con responsable)\b/', $normalized) === 1) return 'unassigned';
+    if (preg_match('/\b(sin asignar|no asignad[oa]s?|sin responsable|sin empleado asignado|no (?:tiene|tienen)(?: con)? responsable|no (?:cuenta|cuentan) con responsable)\b/', $normalized) === 1) return 'unassigned';
     if (preg_match('/\b(con responsable|con empleado asignado|ya asignad[oa]s?)\b/', $normalized) === 1) return 'assigned';
     if (preg_match('/\b(todos los responsables|cualquier responsable|sin filtrar responsable)\b/', $normalized) === 1) return 'any';
     return null;
