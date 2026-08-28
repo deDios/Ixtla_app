@@ -11,7 +11,7 @@ declare(strict_types=1);
 function ixtla_insights_catalog(): array
 {
     return [
-        'version' => 3,
+        'version' => 4,
         'domain' => 'requerimientos_y_retroalimentaciones',
         'domains' => ['requerimientos', 'retroalimentaciones'],
         'widget_kinds' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'],
@@ -25,6 +25,13 @@ function ixtla_insights_catalog(): array
         'metric_rules' => [
             'kpi_only' => ['promedio_semanal', 'tiempo_resolucion'],
             'fixed_status' => ['finalizados', 'pausados', 'cancelados', 'pausados_cancelados'],
+        ],
+        'data_semantics' => [
+            'record_inclusion' => 'Solo registros operativos activos.',
+            'created_at' => 'Carga y entradas: fecha de registro.',
+            'closed_at' => 'Cierres: solo estatus Finalizado.',
+            'started_at' => 'Inicio de atención; no es vencimiento ni SLA.',
+            'priority' => 'Legado no analítico.',
         ],
     ];
 }

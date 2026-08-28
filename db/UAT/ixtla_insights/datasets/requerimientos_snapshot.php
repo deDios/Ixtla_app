@@ -47,7 +47,7 @@ function ixtla_insights_snapshot_is_fresh(?array $snapshot): bool
 {
     return is_array($snapshot)
         && (int) ($snapshot['expires_at_unix'] ?? 0) >= time()
-        && (int) ($snapshot['schema_version'] ?? 0) === 6
+        && (int) ($snapshot['schema_version'] ?? 0) === 7
         && is_array($snapshot['records'] ?? null);
 }
 
@@ -76,7 +76,7 @@ function ixtla_insights_snapshot_source_page(mysqli $connection, array $scope, i
     $rows = ixtla_insights_dataset_rows(
         $connection,
         'SELECT r.id, r.folio, r.departamento_id, r.tramite_id, r.asignado_a, r.estatus, r.canal, '
-        . 'r.contacto_nombre AS requester_name, r.created_at, r.cerrado_en, '
+        . 'r.contacto_nombre AS requester_name, r.created_at, r.fecha_limite, r.cerrado_en, '
         . 'd.nombre AS department, t.nombre AS tramite, ed.nombre AS assignee_department, e.puesto AS assignee_position, '
         . 'COALESCE(cm.comment_count, 0) AS comment_count, cm.last_comment_at, '
         . 'COALESCE(pm.process_count, 0) AS process_count, pm.last_process_at, '
@@ -105,9 +105,20 @@ function ixtla_insights_snapshot_normalize_record(array $row): array
 {
     $createdAt = (string) ($row['created_at'] ?? '');
     $createdTimestamp = strtotime($createdAt) ?: 0;
+    $startedAt = ($row['fecha_limite'] ?? null) === null ? null : (string) $row['fecha_limite'];
+    $closedAtRaw = ($row['cerrado_en'] ?? null) === null ? null : (string) $row['cerrado_en'];
+    $closedTimestamp = $closedAtRaw === null ? 0 : (strtotime($closedAtRaw) ?: 0);
     $now = time();
     $statusId = (int) ($row['estatus'] ?? -1);
     $active = in_array($statusId, ixtla_insights_domain_status_ids('active'), true);
+    $finalized = $statusId === 6;
+    $qualityFlags = [];
+    if ($createdTimestamp <= 0) $qualityFlags[] = 'missing_or_invalid_created_at';
+    if ($closedAtRaw !== null && $closedTimestamp <= 0) $qualityFlags[] = 'invalid_closed_at';
+    if ($closedAtRaw !== null && !$finalized) $qualityFlags[] = 'closed_at_without_finalized_status';
+    if ($closedTimestamp > 0 && $createdTimestamp > 0 && $closedTimestamp < $createdTimestamp) $qualityFlags[] = 'closed_before_created';
+    if ((int) ($row['departamento_id'] ?? 0) <= 0 || trim((string) ($row['department'] ?? '')) === '') $qualityFlags[] = 'missing_department';
+    if ((int) ($row['tramite_id'] ?? 0) <= 0 || trim((string) ($row['tramite'] ?? '')) === '') $qualityFlags[] = 'missing_tramite';
     return [
         'id' => (int) ($row['id'] ?? 0),
         'folio' => strtoupper(trim((string) ($row['folio'] ?? ''))),
@@ -135,9 +146,19 @@ function ixtla_insights_snapshot_normalize_record(array $row): array
         'created_at' => $createdAt,
         'created_date' => substr($createdAt, 0, 10),
         'created_at_unix' => $createdTimestamp,
-        'closed_at' => $row['cerrado_en'] === null ? null : (string) $row['cerrado_en'],
+        // fecha_limite se usa en produccion como inicio de atencion; nunca como vencimiento o SLA.
+        'started_at' => $startedAt,
+        // Una fecha de cierre solo es semantica y analiticamente valida al estar Finalizado.
+        'closed_at' => $finalized ? $closedAtRaw : null,
+        'closed_at_unix' => $finalized ? $closedTimestamp : 0,
+        'closed_date' => $finalized && $closedAtRaw !== null ? substr($closedAtRaw, 0, 10) : null,
         'age_days' => $createdTimestamp > 0 ? max(0, (int) floor(($now - $createdTimestamp) / 86400)) : null,
         'is_active' => $active,
+        'is_finalized' => $finalized,
+        'is_paused' => $statusId === 4,
+        'is_cancelled' => $statusId === 5,
+        'is_assigned' => $row['asignado_a'] !== null,
+        'quality_flags' => $qualityFlags,
     ];
 }
 
@@ -192,8 +213,8 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
     }
     $ttl = (int) ixtla_insights_config()['dataset_cache_ttl_seconds'];
     return [
-        'dataset' => 'requerimientos_scope_v6',
-        'schema_version' => 6,
+        'dataset' => 'requerimientos_scope_v7',
+        'schema_version' => 7,
         'scope_key' => $scopeKey,
         'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
         'generated_at' => date(DATE_ATOM),
@@ -202,6 +223,44 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
         'records' => $records,
         'indexes' => $indexes,
         'catalogs' => array_map('array_values', $catalogs),
+        'semantics' => ixtla_insights_snapshot_semantics(),
+        'data_quality' => ixtla_insights_snapshot_data_quality($records),
+    ];
+}
+
+/** Definiciones que comparten reportes, previews y futuras visualizaciones. */
+function ixtla_insights_snapshot_semantics(): array
+{
+    return [
+        'record_inclusion' => 'Solo registros operativos activos en el sistema.',
+        'created_at' => 'Fecha de registro del requerimiento; se usa para carga y entradas.',
+        'started_at' => 'Fecha de inicio de atencion cuando existe; no representa vencimiento ni SLA.',
+        'closed_at' => 'Fecha de cierre valida unicamente para requerimientos en estatus Finalizado.',
+        'priority' => 'Campo legado no analitico; no participa en filtros, KPIs ni visualizaciones.',
+        'status_groups' => ['active' => [0, 1, 2, 3], 'paused' => [4], 'cancelled' => [5], 'finalized' => [6]],
+    ];
+}
+
+/** @return array{total_records:int, records_with_issues:int, issues:array<string,int>, active_unassigned:int} */
+function ixtla_insights_snapshot_data_quality(array $records): array
+{
+    $issues = [];
+    $activeUnassigned = 0;
+    $recordsWithIssues = 0;
+    foreach ($records as $record) {
+        if (($record['is_active'] ?? false) && !($record['is_assigned'] ?? false)) $activeUnassigned++;
+        $flags = is_array($record['quality_flags'] ?? null) ? $record['quality_flags'] : [];
+        if ($flags !== []) $recordsWithIssues++;
+        foreach ($flags as $flag) {
+            $issues[$flag] = ($issues[$flag] ?? 0) + 1;
+        }
+    }
+    ksort($issues);
+    return [
+        'total_records' => count($records),
+        'records_with_issues' => $recordsWithIssues,
+        'issues' => $issues,
+        'active_unassigned' => $activeUnassigned,
     ];
 }
 
@@ -246,15 +305,19 @@ function ixtla_insights_snapshot_filter(array $snapshot, array $arguments): arra
         if ($tramiteIds !== [] && !in_array($record['tramite_id'], $tramiteIds, true)) return false;
         if ($assigneeState === 'assigned' && $record['assignee_id'] === null) return false;
         if ($assigneeState === 'unassigned' && $record['assignee_id'] !== null) return false;
+        if ($dateField === 'closed_at' && (int) ($record['closed_at_unix'] ?? 0) <= 0) return false;
         if ($hasCustomRange) {
             $recordTimestamp = $dateField === 'closed_at'
-                ? (strtotime((string) ($record['closed_at'] ?? '')) ?: null)
+                ? ((int) ($record['closed_at_unix'] ?? 0) ?: null)
                 : (int) ($record['created_at_unix'] ?? 0);
             if ($recordTimestamp === null || $recordTimestamp <= 0) return false;
             if ($fromTimestamp !== null && $recordTimestamp < $fromTimestamp) return false;
             if ($toTimestamp !== null && $recordTimestamp > $toTimestamp) return false;
         }
-        return $cutoff === 0 || $record['created_at_unix'] >= $cutoff;
+        $periodTimestamp = $dateField === 'closed_at'
+            ? (int) ($record['closed_at_unix'] ?? 0)
+            : (int) ($record['created_at_unix'] ?? 0);
+        return $cutoff === 0 || $periodTimestamp >= $cutoff;
     });
     usort($items, static fn (array $a, array $b): int => match ($sort) {
         'oldest' => $a['created_at_unix'] <=> $b['created_at_unix'],
@@ -315,7 +378,7 @@ function ixtla_insights_snapshot_public_record(array $record, bool $includeReque
     $result = array_intersect_key($record, array_flip([
         'id', 'folio', 'department', 'tramite', 'status', 'channel', 'assignee', 'assignee_department', 'assignee_position',
         'comment_count', 'last_comment_at', 'process_count', 'last_process_at', 'task_count', 'open_task_count',
-        'created_at', 'closed_at', 'age_days',
+        'created_at', 'started_at', 'closed_at', 'age_days',
     ]));
     // La fecha puede conservarse internamente para auditoria o filtros, pero
     // no representa un cierre mientras el estado actual no sea Finalizado.
@@ -419,6 +482,8 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
         'scope' => $snapshot['scope'],
         'period' => $period,
         'total_records' => count($records),
+        'semantics' => $snapshot['semantics'] ?? [],
+        'data_quality' => $snapshot['data_quality'] ?? [],
         'counts' => $counts,
         'trend' => [
             'current_period' => 'last_30',
@@ -459,8 +524,11 @@ function ixtla_insights_snapshot_search(array $arguments): array
     $hasMore = $nextOffset < $total;
     return [
         'dataset' => $snapshot['dataset'],
+        'schema_version' => $snapshot['schema_version'],
         'generated_at' => $snapshot['generated_at'],
         'scope' => $snapshot['scope'],
+        'semantics' => $snapshot['semantics'] ?? [],
+        'data_quality' => $snapshot['data_quality'] ?? [],
         'filters' => $arguments,
         'query_id' => $storedQuery['query_id'],
         'query_expires_at_unix' => $storedQuery['expires_at_unix'],
@@ -524,6 +592,7 @@ function ixtla_insights_snapshot_catalog(array $arguments): array
     }
     return [
         'dataset' => $snapshot['dataset'],
+        'schema_version' => $snapshot['schema_version'],
         'generated_at' => $snapshot['generated_at'],
         'scope' => $snapshot['scope'],
         'catalog' => $catalog,
@@ -552,6 +621,9 @@ function ixtla_insights_snapshot_aggregate(array $arguments): array
     $filterArguments = $arguments;
     unset($filterArguments['limit'], $filterArguments['group_by'], $filterArguments['sort']);
     $records = ixtla_insights_snapshot_filter($snapshot, $filterArguments);
+    if ($groupBy === 'date' && (string) ($filterArguments['date_field'] ?? 'created_at') === 'closed_at') {
+        $fieldMap['date'] = ['id' => 'closed_date', 'label' => 'closed_date'];
+    }
     $groups = [];
     foreach ($records as $record) {
         $id = (string) ($record[$fieldMap[$groupBy]['id']] ?? 'unassigned');
@@ -564,8 +636,11 @@ function ixtla_insights_snapshot_aggregate(array $arguments): array
     usort($items, static fn (array $a, array $b): int => $sort === 'asc' ? ($a['value'] <=> $b['value']) : ($b['value'] <=> $a['value']));
     return [
         'dataset' => $snapshot['dataset'],
+        'schema_version' => $snapshot['schema_version'],
         'generated_at' => $snapshot['generated_at'],
         'scope' => $snapshot['scope'],
+        'semantics' => $snapshot['semantics'] ?? [],
+        'data_quality' => $snapshot['data_quality'] ?? [],
         'group_by' => $groupBy,
         'total_matching' => count($records),
         'items' => array_slice($items, 0, $limit),

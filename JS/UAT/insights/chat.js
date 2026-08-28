@@ -528,6 +528,50 @@ export function mountIxtlaInsights(options = {}) {
     messages.scrollTop = messages.scrollHeight;
   }
 
+  function reportEvidenceLabel(resultQuery) {
+    const total = Number(resultQuery?.total_matching);
+    const returned = Number(resultQuery?.returned);
+    if (Number.isFinite(total) && total >= 0) {
+      if (Number.isFinite(returned) && returned >= 0 && returned < total) {
+        return `Datos consultados: ${total.toLocaleString("es-MX")} resultado(s); la lista mostrada puede ser parcial.`;
+      }
+      return `Datos consultados: ${total.toLocaleString("es-MX")} resultado(s) dentro de tu alcance autorizado.`;
+    }
+    return "Datos consultados dentro de tu alcance autorizado.";
+  }
+
+  function renderReportEvidence(resultQuery) {
+    if (!resultQuery || typeof resultQuery !== "object") return;
+    const details = document.createElement("details");
+    details.className = "ixtla-insights-evidence";
+    const summary = document.createElement("summary");
+    summary.textContent = "Ver datos y alcance de esta respuesta";
+    const body = document.createElement("p");
+    body.textContent = reportEvidenceLabel(resultQuery);
+    details.append(summary, body);
+    messages.appendChild(details);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function reportFollowUps(prompt, resultQuery) {
+    const text = normalizedVisualizationText(prompt);
+    const followUps = [];
+    const isTrend = /\b(tendencia|evolucion|dia|semana|mes)\b/.test(text);
+    const isRanking = /\b(mayor|mas|ranking|top|carga)\b/.test(text);
+    const isDetail = /\b(folio|detalle|listado|requerimiento)\b/.test(text);
+    followUps.push({
+      label: "Convertir este reporte en gráfica",
+      description: "Usa el mismo contexto; podrás elegir el formato.",
+      primary: true,
+      prompt: `Crea una gráfica a partir del reporte anterior. Conserva el mismo periodo y filtros${isTrend ? "; muestra la tendencia en el tiempo" : ""}.`,
+    });
+    if (!isTrend) followUps.push({ label: "Ver tendencia", prompt: "Muestra la tendencia del resultado anterior en el tiempo, conservando el mismo alcance y periodo cuando aplique." });
+    if (!isRanking) followUps.push({ label: "Ver principales causas", prompt: "Desglosa el resultado anterior por trámite para identificar los principales contribuyentes." });
+    if (!isDetail && resultQuery?.query_id) followUps.push({ label: "Ver casos relacionados", prompt: "Muéstrame los requerimientos relacionados con el resultado anterior, dentro del mismo alcance." });
+    followUps.push({ label: "Comparar con periodo anterior", prompt: "Compara el resultado anterior con el periodo equivalente previo y explica solamente las diferencias respaldadas por los datos." });
+    return followUps.slice(0, 4);
+  }
+
   function renderQuickQuestions(questions) {
     primaryChips.replaceChildren();
     secondaryChips.replaceChildren();
@@ -614,19 +658,19 @@ export function mountIxtlaInsights(options = {}) {
 
   function visualizationIntent(value) {
     const text = normalizedVisualizationText(value);
-    const explicit = /\b(grafica|grafico|visualiza|visualizar|visualizacion|chart|kpi|indicador(?:es)?|barras?|linea|dona|pastel)\b/.test(text);
-    const natural = /\b(muestrame|quiero ver|necesito ver|comparar|comparame)\b/.test(text)
-      && /\b(tendencia|evolucion|distribucion|por departamento|por tramite|por estatus|calificaciones?)\b/.test(text);
+    // El chat es primero un asistente de reportes. Solo activamos el flujo
+    // gráfico cuando la persona lo pide de forma explícita.
+    const explicit = /\b(grafica|grafico|visualizacion|chart)\b/.test(text);
     const editsPrevious = Boolean(lastVisualizationSpec)
-      && /\b(cambia|cambiar|cambiala|cambialo|ajusta|actualiza|compara|comparala|comparalo|hazla|hazlo|mejor|ahora|usa|ponla|ponlo)\b/.test(text)
+      && /\b(cambiala|cambialo|hazla|hazlo|ponla|ponlo)\b/.test(text)
       && /\b(este mes|ultim[oa]s? 7 dias|ultim[oa]s? 30 dias|periodo anterior|historial|departamento|tramite|estatus|calificacion)\b/.test(text);
-    return explicit || natural || editsPrevious;
+    return explicit || editsPrevious;
   }
 
   function parseVisualizationRequest(value) {
     const text = normalizedVisualizationText(value);
     if (!visualizationIntent(text)) return null;
-    const refersToPrevious = /\b(esto|eso|lo anterior|los mismos datos|esta informacion|estos resultados|cambia|cambiar|cambiala|cambialo|ajusta|actualiza|compara|comparala|comparalo|hazla|hazlo|ponla|ponlo)\b/.test(text)
+    const refersToPrevious = /\b(esto|eso|lo anterior|reporte anterior|los mismos datos|mismo periodo|mismos filtros|esta informacion|estos resultados|cambiala|cambialo|hazla|hazlo|ponla|ponlo)\b/.test(text)
       || (Boolean(lastVisualizationSpec) && /\b(ahora|mejor|usa)\b/.test(text));
     let domain = /\b(retro|retros|retroalimentacion|retroalimentaciones|encuesta|encuestas|calificacion|calificaciones|satisfaccion)\b/.test(text)
       ? "retroalimentaciones" : "";
@@ -1785,12 +1829,16 @@ export function mountIxtlaInsights(options = {}) {
       if (clean(payload?.result_query?.query_id)) {
         lastResultQuery = payload.result_query;
       }
+      renderReportEvidence(payload?.result_query);
       if (!config.simpleMode) renderReport(payload.report);
       history.push({ role: "user", content: prompt }, { role: "assistant", content: answer });
       const suggestions = Array.isArray(payload.suggestions)
         ? payload.suggestions.map((suggestion) => clean(suggestion)).filter(Boolean).slice(0, 5)
         : [];
-      renderQuickQuestions(suggestions.length ? suggestions : [...START_ACTIONS, ...config.quickQuestions]);
+      const defaultActions = payload?.result_query
+        ? reportFollowUps(prompt, payload.result_query)
+        : [...START_ACTIONS, ...config.quickQuestions];
+      renderQuickQuestions(suggestions.length ? suggestions : defaultActions);
       if (!config.simpleMode) {
         const action = Array.isArray(payload.actions) ? payload.actions.find((item) => item?.type === "widget_preview") : null;
         const spec = remoteWidgetSpec(action?.widget);

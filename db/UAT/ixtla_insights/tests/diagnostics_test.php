@@ -140,7 +140,7 @@ $snapshotAggregateTool = array_values(array_filter(ixtla_insights_tool_definitio
 expect_diagnostic(($snapshotAggregateTool['parameters']['properties']['group_by']['enum'] ?? []) === ['status', 'department', 'tramite', 'assignee', 'channel', 'date'], 'El snapshot debe permitir agregaciones por canal, catalogos y fecha de creación.');
 expect_diagnostic(in_array('assignee_id', $snapshotAggregateTool['parameters']['required'] ?? [], true), 'Los agregados deben aceptar un empleado asignado concreto.');
 $emptySnapshot = ixtla_insights_snapshot_assemble('test-scope', ['mode' => 'self', 'label' => 'Prueba'], []);
-expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 6, 'El snapshot con canal debe invalidar caches de esquemas anteriores.');
+expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 7, 'El snapshot semántico debe invalidar caches de esquemas anteriores.');
 expect_diagnostic(count($emptySnapshot['catalogs']['statuses'] ?? []) === 7, 'El catalogo debe listar todos los estatus aunque no existan filas en alguno.');
 $cursor = ixtla_insights_snapshot_cursor_encode(50);
 expect_diagnostic(ixtla_insights_snapshot_cursor_offset($cursor) === 50, 'El cursor debe conservar de forma segura el desplazamiento de la consulta.');
