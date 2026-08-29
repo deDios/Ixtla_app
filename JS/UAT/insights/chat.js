@@ -2356,10 +2356,14 @@ export function mountIxtlaInsights(options = {}) {
       const suggestions = Array.isArray(payload.suggestions)
         ? payload.suggestions.map((suggestion) => clean(suggestion)).filter(Boolean).slice(0, 5)
         : [];
-      const defaultActions = payload?.result_query
-        ? reportFollowUps(prompt, payload.result_query)
-        : [...START_ACTIONS, ...config.quickQuestions];
-      renderConversationQuestions(suggestions.length ? suggestions : defaultActions);
+      const followUps = payload?.result_query ? reportFollowUps(prompt, payload.result_query) : [];
+      // Las acciones generales viven en el pie; solo las sugerencias contextuales
+      // o los follow-ups del reporte se muestran como decisiones dentro del chat.
+      if (suggestions.length || followUps.length) {
+        renderConversationQuestions(suggestions.length ? suggestions : followUps);
+      } else {
+        renderMainMenu();
+      }
       if (!config.simpleMode) {
         const action = Array.isArray(payload.actions) ? payload.actions.find((item) => item?.type === "widget_preview") : null;
         const spec = remoteWidgetSpec(action?.widget);

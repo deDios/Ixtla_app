@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-house-8">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=chat-menu-2">
+    <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=chat-menu-3">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -807,7 +807,7 @@
 
     <script src="/JS/UAT/components.js"></script>
     <script src="/JS/UAT/jsGlobal.js"></script>
-    <script type="module" src="/JS/UAT/home.js?v=chat-menu-2"></script>
+    <script type="module" src="/JS/UAT/home.js?v=chat-menu-4"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
     <script src="/JS/UAT/ui/geolocationMap.js"></script>
     <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-house-8"></script>
