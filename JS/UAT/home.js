@@ -80,14 +80,13 @@ import { getEmpleadoById, updateEmpleado } from "/JS/UAT/api/usuarios.js";
 
 const INSIGHTS_CONFIG = {
   apiUrl: "/db/UAT/ixtla_insights/gpt_probe.php",
-  frontendBuild: "dynamic-recommendations-1",
+  frontendBuild: "chat-menu-2",
   simpleMode: true,
   quickQuestions: [
     {
       label: "Riesgo operativo",
       description: "Estatus, antigüedad, carga y responsables.",
       prompt: "Analiza la carga operativa de este mes dentro de mi alcance autorizado: indica requerimientos activos, pausados, finalizados y sin responsable; identifica los cinco trámites con mayor carga y los folios activos más antiguos, y dame una recomendación basada en los datos disponibles. Usa sólo datos reales y señala cualquier dato no disponible.",
-      primary: true,
     },
     {
       label: "Cartera y rezago",

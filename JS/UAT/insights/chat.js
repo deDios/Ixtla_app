@@ -39,6 +39,7 @@ const insightsDebug = (event, detail = {}) => {
 const START_ACTIONS = [{
   label: "Crear un gráfico",
   description: "Cuéntame qué necesitas o elige una opción.",
+  primary: true,
   action: { type: "visualization_start" },
 }];
 const VISUALIZATION_EXPLORER = [
@@ -1065,7 +1066,7 @@ export function mountIxtlaInsights(options = {}) {
   function chartChoices(goal = "") {
     const charts = pendingVisualization?.dimension === "fecha" || goal === "request_trend"
       ? ["line", "area", "table"]
-      : ["bar", "donut", "matrix", "table", "kpi"];
+      : ["bar", "line", "area", "donut", "matrix", "table", "kpi"];
     const recommended = recommendedChart(pendingVisualization);
     return charts
       .filter((chart) => catalogValues("widget_kinds", Object.keys(CHART_LABELS)).includes(chart))
@@ -1801,7 +1802,7 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function chooseLineSeries(seriesDimension) {
-    if (!pendingVisualization || pendingVisualization.chart !== "line") return;
+    if (!pendingVisualization || !["line", "area"].includes(pendingVisualization.chart)) return;
     if (seriesDimension && !["departamento", "estatus", "tramite"].includes(seriesDimension)) return;
     pendingVisualization.series_dimension = seriesDimension;
     pendingVisualization.series_limit = seriesDimension === "estatus" ? 7 : 5;
@@ -1827,6 +1828,12 @@ export function mountIxtlaInsights(options = {}) {
   function chooseVisualizationChart(chart) {
     if (!pendingVisualization || !CHART_LABELS[chart] || !catalogValues("widget_kinds", Object.keys(CHART_LABELS)).includes(chart)) return;
     pendingVisualization.chart = chart;
+    if ((chart === "line" || chart === "area") && pendingVisualization.dimension && pendingVisualization.dimension !== "fecha") {
+      pendingVisualization.dimension = "fecha";
+      addMessage("Las lÃ­neas siempre usan la fecha en el eje horizontal. Ahora elige si quieres una sola lÃ­nea o una serie por departamento, estatus o tipo de requerimiento.");
+      renderWorkflowQuestions(LINE_SERIES_CHOICES);
+      return;
+    }
     if (pendingVisualization.dimension) pendingVisualization = normalizeVisualizationSpec(pendingVisualization);
     queueDraftPersist();
     addMessage(`Tipo de visualización: ${CHART_LABELS[chart]}`, "user");
@@ -1965,11 +1972,13 @@ export function mountIxtlaInsights(options = {}) {
       mode: "preset_visualization",
       question: `Crear ${label.toLocaleLowerCase("es-MX")}`,
       ...option,
+      chart: "",
       filters: [],
       period: "",
     });
-    addMessage(`${visualizationRecommendation(pendingVisualization)} ¿Qué periodo deseas analizar?`);
-    renderWorkflowQuestions(periodChoices());
+    const suggested = CHART_LABELS[option.chart] || "Barras";
+    addMessage(`Puedo preparar ${suggested.toLocaleLowerCase("es-MX")}, líneas (una por categoría), una matriz de dos dimensiones, una tabla con valores exactos, un pastel o un indicador. La opción recomendada es ${suggested.toLocaleLowerCase("es-MX")}. Elige el formato y después te mostraré las dimensiones compatibles.`);
+    renderWorkflowQuestions(chartChoices());
   }
 
   function chooseVisualizationMeasurement(metric) {
