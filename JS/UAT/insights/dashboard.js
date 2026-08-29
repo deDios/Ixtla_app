@@ -175,7 +175,11 @@ function renderMultiLine(container, categories, series) {
   const width = 620, height = 250, pad = { top: 18, right: 20, bottom: 42, left: 48 };
   const maximum = Math.max(1, ...series.flatMap((item) => item.values));
   const plotWidth = width - pad.left - pad.right, plotHeight = height - pad.top - pad.bottom;
+  const wrap = document.createElement("div"); wrap.className = "ixtla-dashboard-line-wrap";
+  const tooltip = document.createElement("div"); tooltip.className = "ixtla-dashboard-chart-tooltip"; tooltip.setAttribute("role", "status"); tooltip.hidden = true;
   const svg = svgElement("svg", { viewBox: `0 0 ${width} ${height}`, class: "ixtla-dashboard-line", role: "img", "aria-label": "Gráfica temporal con varias series" });
+  const crosshair = svgElement("line", { x1: pad.left, x2: pad.left, y1: pad.top, y2: height - pad.bottom, class: "ixtla-dashboard-line-crosshair", visibility: "hidden" });
+  svg.append(crosshair);
   [0, .5, 1].forEach((ratio) => {
     const y = height - pad.bottom - ratio * plotHeight;
     svg.append(svgElement("line", { x1: pad.left, x2: width - pad.right, y1: y, y2: y, class: "ixtla-dashboard-line-grid" }));
@@ -197,6 +201,19 @@ function renderMultiLine(container, categories, series) {
       const circle = svgElement("circle", { cx: point.x, cy: point.y, r: 3, style: `stroke:${COLORS[seriesIndex % COLORS.length]}`, tabindex: "0", role: "graphics-symbol", "aria-label": tooltip });
       const title = svgElement("title"); title.textContent = tooltip;
       circle.append(title); svg.append(circle);
+      circle.addEventListener("mouseenter", () => {
+        const rows = series.map((entry) => `${entry.label}: ${number(entry.values[index] || 0)}`).join("<br>");
+        tooltip.innerHTML = `<strong>${categories[index].label}</strong><br>${rows}`;
+        tooltip.hidden = false;
+        crosshair.setAttribute("x1", String(point.x)); crosshair.setAttribute("x2", String(point.x)); crosshair.setAttribute("visibility", "visible");
+        svg.querySelectorAll(".ixtla-dashboard-line-point").forEach((node) => node.classList.toggle("is-muted", node !== circle));
+      });
+      circle.addEventListener("focus", () => circle.dispatchEvent(new Event("mouseenter")));
+      circle.addEventListener("mouseleave", () => {
+        tooltip.hidden = true; crosshair.setAttribute("visibility", "hidden");
+        svg.querySelectorAll(".ixtla-dashboard-line-point").forEach((node) => node.classList.remove("is-muted"));
+      });
+      circle.addEventListener("blur", () => circle.dispatchEvent(new Event("mouseleave")));
     });
   });
   const tickIndexes = new Set([0, Math.floor((categories.length - 1) / 2), categories.length - 1]);
@@ -211,7 +228,7 @@ function renderMultiLine(container, categories, series) {
     const entry = document.createElement("span"); const dot = document.createElement("i"); dot.style.background = COLORS[index % COLORS.length];
     entry.append(dot, document.createTextNode(`${item.label} (${number(item.total)})`)); legend.append(entry);
   });
-  container.append(svg, legend);
+  wrap.append(svg, tooltip); container.append(wrap, legend);
 }
 
 function renderMatrix(container, categories, series) {
@@ -297,11 +314,8 @@ function createCard(widget, index) {
   const content = document.createElement("div"); content.className = "ixtla-dashboard-card__content";
   renderVisualization(content, preview);
   const footer = document.createElement("footer"); footer.className = "ixtla-dashboard-card__footer";
-  const updated = document.createElement("span");
-  const date = new Date(preview.generatedAt || Date.now());
-  updated.textContent = Number.isNaN(date.getTime()) ? "Preparada en esta sesión" : `Actualizada ${date.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}`;
   const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "Quitar"; remove.dataset.remove = String(index); remove.setAttribute("aria-label", `Quitar ${title.textContent}`);
-  footer.append(updated, remove); card.append(header, narrative, content, footer);
+  footer.append(remove); card.append(header, narrative, content, footer);
   return card;
 }
 
@@ -350,7 +364,10 @@ grid.addEventListener("drop", (event) => {
 });
 grid.addEventListener("dragend", () => { draggedIndex = null; render(); });
 
-refreshButton.addEventListener("click", () => { widgets = readWidgets(); render(); });
+function refreshDashboardWidgets() { widgets = readWidgets(); render(); }
+refreshButton.addEventListener("click", refreshDashboardWidgets);
+window.addEventListener("pageshow", refreshDashboardWidgets);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshDashboardWidgets(); });
 clearButton.addEventListener("click", () => {
   if (typeof confirmDialog.showModal === "function") confirmDialog.showModal();
   else if (window.confirm("¿Quitar todas las visualizaciones de esta sesión?")) { widgets = []; persistWidgets(); render(); }

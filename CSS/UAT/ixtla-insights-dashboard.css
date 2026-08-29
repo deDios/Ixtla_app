@@ -106,6 +106,11 @@ body { margin: 0; }
 .ixtla-dashboard-line-axis { fill: #6b7f91; font-size: 10px; }
 .ixtla-dashboard-line-point { fill: #fff; stroke: #176b87; stroke-width: 2.5; cursor: help; transition: r .12s ease, stroke-width .12s ease; }
 .ixtla-dashboard-line-point:hover, .ixtla-dashboard-line-point:focus { stroke-width: 4; outline: none; }
+.ixtla-dashboard-line-point.is-muted { opacity: .2; }
+.ixtla-dashboard-line-wrap { position: relative; }
+.ixtla-dashboard-line-crosshair { stroke: #7893a5; stroke-width: 1; stroke-dasharray: 4 4; pointer-events: none; }
+.ixtla-dashboard-chart-tooltip { position: absolute; z-index: 2; top: 8px; left: 50%; max-width: min(280px, calc(100% - 20px)); padding: 8px 10px; border: 1px solid #29485e; border-radius: 7px; color: #fff; background: rgba(16, 35, 52, .94); box-shadow: 0 5px 14px rgba(8, 31, 52, .2); font-size: 11px; line-height: 1.45; pointer-events: none; transform: translateX(-50%); }
+.ixtla-dashboard-chart-tooltip strong { color: #bdebf0; }
 .ixtla-dashboard-table-wrap { max-height: 210px; overflow: auto; }
 .ixtla-dashboard-series-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px 12px; color: #38566b; font-size: 11px; }
 .ixtla-dashboard-series-legend span { display: inline-flex; align-items: center; gap: 5px; }
