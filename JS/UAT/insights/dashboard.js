@@ -141,6 +141,7 @@ function svgElement(name, attributes = {}) {
 function renderLine(container, items, area = false) {
   const width = 620, height = 230, pad = { top: 18, right: 20, bottom: 42, left: 48 };
   const maximum = Math.max(1, ...items.map((item) => item.value));
+  const total = items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
   const plotWidth = width - pad.left - pad.right, plotHeight = height - pad.top - pad.bottom;
   const coordinates = items.map((item, index) => ({
     x: pad.left + (items.length === 1 ? plotWidth / 2 : index * (plotWidth / (items.length - 1))),
@@ -158,8 +159,10 @@ function renderLine(container, items, area = false) {
   svg.append(svgElement("polyline", { points }));
   const tickIndexes = new Set([0, Math.floor((items.length - 1) / 2), items.length - 1]);
   items.forEach((item, index) => {
-    const point = svgElement("circle", { cx: coordinates[index].x, cy: coordinates[index].y, r: index === items.length - 1 ? 4.5 : 3.5, class: "ixtla-dashboard-line-point" });
-    const title = svgElement("title"); title.textContent = `${item.label}: ${number(item.value)}`; point.append(title); svg.append(point);
+    const share = total ? Math.round((Number(item.value) || 0) / total * 100) : 0;
+    const tooltip = `${item.label}: ${number(item.value)} requerimientos · ${share}% del periodo`;
+    const point = svgElement("circle", { cx: coordinates[index].x, cy: coordinates[index].y, r: index === items.length - 1 ? 4.5 : 3.5, class: "ixtla-dashboard-line-point", tabindex: "0", role: "graphics-symbol", "aria-label": tooltip });
+    const title = svgElement("title"); title.textContent = tooltip; point.append(title); svg.append(point);
     if (tickIndexes.has(index)) {
       const text = svgElement("text", { x: coordinates[index].x, y: height - 13, "text-anchor": index === 0 ? "start" : index === items.length - 1 ? "end" : "middle", class: "ixtla-dashboard-line-axis" });
       text.textContent = item.label; svg.append(text);
@@ -187,8 +190,12 @@ function renderMultiLine(container, categories, series) {
     const points = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
     svg.append(svgElement("polyline", { points, style: `stroke:${COLORS[seriesIndex % COLORS.length]}` }));
     coordinates.forEach((point, index) => {
-      const circle = svgElement("circle", { cx: point.x, cy: point.y, r: 3, style: `stroke:${COLORS[seriesIndex % COLORS.length]}` });
-      const title = svgElement("title"); title.textContent = `${categories[index].label} · ${item.label}: ${number(item.values[index])}`;
+      const seriesTotal = Number(item.total) || item.values.reduce((sum, value) => sum + (Number(value) || 0), 0);
+      const value = Number(item.values[index]) || 0;
+      const share = seriesTotal ? Math.round(value / seriesTotal * 100) : 0;
+      const tooltip = `${categories[index].label} · ${item.label}: ${number(value)} requerimientos · ${share}% de la serie`;
+      const circle = svgElement("circle", { cx: point.x, cy: point.y, r: 3, style: `stroke:${COLORS[seriesIndex % COLORS.length]}`, tabindex: "0", role: "graphics-symbol", "aria-label": tooltip });
+      const title = svgElement("title"); title.textContent = tooltip;
       circle.append(title); svg.append(circle);
     });
   });
