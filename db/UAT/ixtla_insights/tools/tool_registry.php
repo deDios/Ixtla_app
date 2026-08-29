@@ -134,6 +134,22 @@ function ixtla_insights_tool_definitions(): array
             ],
         ],
         [
+            'type' => 'function', 'name' => 'aggregate_requirement_dimensions', 'strict' => true,
+            'description' => 'Devuelve un agregado bidimensional autorizado para lineas multiserie y matrices. group_by define el eje o las filas; series_by define cada linea o columna. Para lineas usa group_by date. date_grain controla dia, semana o mes. Nunca devuelve folios ni filas individuales.',
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false,
+                'required' => [...$filterRequired, 'group_by', 'series_by', 'date_grain', 'category_limit', 'series_limit', 'include_other'],
+                'properties' => array_merge($datasetFilters, [
+                    'group_by' => ['type' => 'string', 'enum' => ['status', 'department', 'tramite', 'channel', 'date']],
+                    'series_by' => ['type' => 'string', 'enum' => ['status', 'department', 'tramite', 'channel']],
+                    'date_grain' => ['type' => 'string', 'enum' => ['day', 'week', 'month']],
+                    'category_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
+                    'series_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 7],
+                    'include_other' => ['type' => 'boolean'],
+                ]),
+            ],
+        ],
+        [
             'type' => 'function', 'name' => 'list_requirement_catalog', 'strict' => true,
             'description' => 'Lista estatus, departamentos, tramites o empleados asignados visibles en el alcance autorizado. Los empleados incluyen puesto y departamento, no datos de contacto.',
             'parameters' => [
@@ -211,6 +227,7 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'get_requirements_overview' => ixtla_insights_snapshot_overview($args),
         'search_requirements' => ixtla_insights_snapshot_search($args),
         'aggregate_requirements' => ixtla_insights_snapshot_aggregate($args),
+        'aggregate_requirement_dimensions' => ixtla_insights_snapshot_aggregate_dimensions($args),
         'list_requirement_catalog' => ixtla_insights_snapshot_catalog($args),
         'get_requirement_detail' => ixtla_insights_requirement_detail($args),
         'get_requirement_summary' => ixtla_insights_requirement_summary($args),

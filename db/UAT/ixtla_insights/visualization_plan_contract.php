@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/tools/tool_registry.php';
 
-function ixtla_visual_plan_title(string $domain, string $chart, string $metric, string $dimension): string
+function ixtla_visual_plan_title(string $domain, string $chart, string $metric, string $dimension, string $seriesDimension = ''): string
 {
     $metricLabels = [
         'total' => 'Requerimientos',
@@ -22,11 +22,15 @@ function ixtla_visual_plan_title(string $domain, string $chart, string $metric, 
     ];
     $subject = $metricLabels[$metric] ?? ($domain === 'retroalimentaciones' ? 'Retroalimentaciones' : 'Requerimientos');
     if ($chart === 'kpi') return $subject;
-    if ($dimension === 'fecha') return 'Tendencia de ' . mb_strtolower($subject, 'UTF-8');
+    if ($chart === 'matrix') return 'Matriz de ' . mb_strtolower($subject, 'UTF-8') . ' por ' . ($dimensionLabels[$dimension] ?? 'categoría') . ' y ' . ($dimensionLabels[$seriesDimension] ?? 'serie');
+    if ($dimension === 'fecha') {
+        $title = 'Tendencia de ' . mb_strtolower($subject, 'UTF-8');
+        return $seriesDimension === '' ? $title : $title . ' por ' . ($dimensionLabels[$seriesDimension] ?? 'serie');
+    }
     return $subject . ' por ' . ($dimensionLabels[$dimension] ?? 'categoría');
 }
 
-function ixtla_visual_plan_reason(string $chart, string $dimension): string
+function ixtla_visual_plan_reason(string $chart, string $dimension, string $seriesDimension = ''): string
 {
     $dimensionLabels = [
         'estatus' => 'estatus', 'tramite' => 'trámite', 'departamento' => 'departamento',
@@ -34,7 +38,10 @@ function ixtla_visual_plan_reason(string $chart, string $dimension): string
     ];
     $group = $dimensionLabels[$dimension] ?? 'categoría';
     if ($chart === 'kpi') return 'Usé un indicador porque resume el valor principal de forma directa.';
-    if ($chart === 'line') return 'Usé una línea porque permite seguir con claridad los cambios a través del tiempo.';
+    if ($chart === 'matrix') return 'Usé una matriz porque permite cruzar ' . $group . ' con ' . ($dimensionLabels[$seriesDimension] ?? 'otra dimensión') . ' y consultar valores exactos.';
+    if ($chart === 'line') return $seriesDimension === ''
+        ? 'Usé una línea porque permite seguir con claridad los cambios a través del tiempo.'
+        : 'Usé varias líneas para comparar cómo cambia cada ' . ($dimensionLabels[$seriesDimension] ?? 'serie') . ' a través del tiempo.';
     if ($chart === 'area') return 'Usé un área porque permite ver la evolución y la magnitud a través del tiempo.';
     if ($chart === 'donut') return 'Usé un gráfico de pastel para mostrar qué proporción representa cada ' . $group . '.';
     if ($chart === 'table') return 'Usé una tabla para que puedas consultar los valores exactos por ' . $group . '.';
@@ -45,14 +52,16 @@ function ixtla_visual_plan_normalize(array $plan): array
 {
     $allowed = [
         'domain' => ['', 'requerimientos', 'retroalimentaciones'],
-        'chart' => ['', 'bar', 'line', 'area', 'donut', 'table', 'kpi'],
+        'chart' => ['', 'bar', 'line', 'area', 'donut', 'table', 'matrix', 'kpi'],
         'period' => ['', 'all', 'last_7', 'last_30', 'this_month'],
         'comparison' => ['', 'previous_period'],
+        'date_grain' => ['', 'day', 'week', 'month'],
     ];
     foreach ($allowed as $key => $values) if (!in_array((string) ($plan[$key] ?? ''), $values, true)) $plan[$key] = '';
     $domain = (string) $plan['domain'];
     $metric = (string) ($plan['metric'] ?? '');
     $dimension = (string) ($plan['dimension'] ?? '');
+    $seriesDimension = (string) ($plan['series_dimension'] ?? '');
     $requirementMetrics = ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados'];
     $feedbackMetrics = ['retro_total', 'tasa_respuesta', 'promedio_calificacion'];
     if ($domain === 'retroalimentaciones' && !in_array($metric, $feedbackMetrics, true)) $metric = 'retro_total';
@@ -63,11 +72,28 @@ function ixtla_visual_plan_normalize(array $plan): array
         : ['estatus', 'tramite', 'departamento', 'fecha'];
     if ($domain !== '' && !in_array($dimension, $validDimensions, true)) $dimension = $domain === 'retroalimentaciones' ? 'calificacion' : 'tramite';
     $chart = (string) $plan['chart'];
+    if ($chart === 'matrix' && $domain === 'retroalimentaciones') $chart = 'bar';
+    $validSeriesDimensions = $domain === 'requerimientos' ? ['estatus', 'tramite', 'departamento'] : [];
+    if (!in_array($seriesDimension, $validSeriesDimensions, true)) $seriesDimension = '';
     if ($domain !== '' && $chart === '') $chart = $dimension === 'fecha' ? 'line' : 'bar';
     // La dimensión expresa la pregunta del usuario y tiene prioridad. Ajustamos
     // el formato en vez de cambiar silenciosamente el significado del análisis.
     if ($domain !== '' && $dimension === 'fecha' && $chart === 'donut') $chart = 'line';
-    if ($domain !== '' && $dimension !== 'fecha' && in_array($chart, ['line', 'area'], true)) $chart = 'bar';
+    if ($domain === 'requerimientos' && $dimension !== 'fecha' && in_array($chart, ['line', 'area'], true)) {
+        if ($seriesDimension === '') $seriesDimension = $dimension;
+        $dimension = 'fecha';
+    }
+    if ($domain === 'retroalimentaciones' && $dimension !== 'fecha' && in_array($chart, ['line', 'area'], true)) $chart = 'bar';
+    if ($chart === 'matrix') {
+        if ($dimension === 'fecha') $dimension = 'departamento';
+        if ($seriesDimension === '' || $seriesDimension === $dimension) $seriesDimension = $dimension === 'estatus' ? 'departamento' : 'estatus';
+    } elseif (!in_array($chart, ['line', 'area'], true)) {
+        $seriesDimension = '';
+    }
+    if ($seriesDimension === $dimension) $seriesDimension = '';
+    $dateGrain = (string) ($plan['date_grain'] ?? '');
+    if ($dateGrain === '') $dateGrain = ($plan['period'] ?? '') === 'all' ? 'month' : 'day';
+    $seriesLimit = min(7, max(1, (int) ($plan['series_limit'] ?? 5)));
     $filters = [];
     foreach (is_array($plan['filters'] ?? null) ? $plan['filters'] : [] as $filter) {
         if (!is_array($filter)) continue;
@@ -85,10 +111,11 @@ function ixtla_visual_plan_normalize(array $plan): array
     return [
         'intent' => in_array((string) ($plan['intent'] ?? ''), ['create', 'edit', 'clarify', 'not_visualization'], true) ? $plan['intent'] : 'clarify',
         'domain' => $domain, 'chart' => $chart, 'metric' => $metric, 'dimension' => $dimension,
+        'series_dimension' => $seriesDimension, 'date_grain' => $dateGrain, 'series_limit' => $seriesLimit,
         'period' => (string) $plan['period'], 'comparison' => (string) $plan['comparison'], 'filters' => array_slice($filters, 0, 5),
         'limit' => min(50, max(1, (int) ($plan['limit'] ?? 10))),
-        'title' => $domain === '' ? '' : ixtla_insights_truncate(ixtla_visual_plan_title($domain, $chart, $metric, $dimension), 100),
-        'reason' => $domain === '' ? '' : ixtla_insights_truncate(ixtla_visual_plan_reason($chart, $dimension), 220),
+        'title' => $domain === '' ? '' : ixtla_insights_truncate(ixtla_visual_plan_title($domain, $chart, $metric, $dimension, $seriesDimension), 100),
+        'reason' => $domain === '' ? '' : ixtla_insights_truncate(ixtla_visual_plan_reason($chart, $dimension, $seriesDimension), 220),
         'needs_clarification' => $needsClarification,
         'clarification_question' => $clarification,
     ];

@@ -58,6 +58,21 @@ function itemRows(preview) {
   }));
 }
 
+function dimensionRows(preview) {
+  const categories = (Array.isArray(preview?.categories) ? preview.categories : []).map((item) => ({
+    id: item?.id ?? null,
+    label: clean(item?.label) || "Sin especificar",
+    total: Number(item?.total) || 0,
+  }));
+  const series = (Array.isArray(preview?.series) ? preview.series : []).map((item) => ({
+    id: item?.id ?? null,
+    label: clean(item?.label) || "Sin especificar",
+    total: Number(item?.total) || 0,
+    values: Array.isArray(item?.values) ? item.values.map((value) => Number(value) || 0) : [],
+  }));
+  return { categories, series };
+}
+
 function totalFor(preview, items) {
   if (preview?.value !== null && preview?.value !== undefined) return Number(preview.value) || 0;
   return items.reduce((sum, item) => sum + item.value, 0);
@@ -153,6 +168,65 @@ function renderLine(container, items, area = false) {
   container.append(svg);
 }
 
+function renderMultiLine(container, categories, series) {
+  const width = 620, height = 250, pad = { top: 18, right: 20, bottom: 42, left: 48 };
+  const maximum = Math.max(1, ...series.flatMap((item) => item.values));
+  const plotWidth = width - pad.left - pad.right, plotHeight = height - pad.top - pad.bottom;
+  const svg = svgElement("svg", { viewBox: `0 0 ${width} ${height}`, class: "ixtla-dashboard-line", role: "img", "aria-label": "Gráfica temporal con varias series" });
+  [0, .5, 1].forEach((ratio) => {
+    const y = height - pad.bottom - ratio * plotHeight;
+    svg.append(svgElement("line", { x1: pad.left, x2: width - pad.right, y1: y, y2: y, class: "ixtla-dashboard-line-grid" }));
+    const label = svgElement("text", { x: pad.left - 8, y: y + 4, "text-anchor": "end", class: "ixtla-dashboard-line-axis" });
+    label.textContent = number(Math.round(maximum * ratio)); svg.append(label);
+  });
+  series.forEach((item, seriesIndex) => {
+    const coordinates = categories.map((category, index) => ({
+      x: pad.left + (categories.length === 1 ? plotWidth / 2 : index * (plotWidth / (categories.length - 1))),
+      y: height - pad.bottom - ((item.values[index] || 0) / maximum) * plotHeight,
+    }));
+    const points = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
+    svg.append(svgElement("polyline", { points, style: `stroke:${COLORS[seriesIndex % COLORS.length]}` }));
+    coordinates.forEach((point, index) => {
+      const circle = svgElement("circle", { cx: point.x, cy: point.y, r: 3, style: `stroke:${COLORS[seriesIndex % COLORS.length]}` });
+      const title = svgElement("title"); title.textContent = `${categories[index].label} · ${item.label}: ${number(item.values[index])}`;
+      circle.append(title); svg.append(circle);
+    });
+  });
+  const tickIndexes = new Set([0, Math.floor((categories.length - 1) / 2), categories.length - 1]);
+  categories.forEach((category, index) => {
+    if (!tickIndexes.has(index)) return;
+    const x = pad.left + (categories.length === 1 ? plotWidth / 2 : index * (plotWidth / (categories.length - 1)));
+    const label = svgElement("text", { x, y: height - 13, "text-anchor": index === 0 ? "start" : index === categories.length - 1 ? "end" : "middle", class: "ixtla-dashboard-line-axis" });
+    label.textContent = category.label; svg.append(label);
+  });
+  const legend = document.createElement("div"); legend.className = "ixtla-dashboard-series-legend";
+  series.forEach((item, index) => {
+    const entry = document.createElement("span"); const dot = document.createElement("i"); dot.style.background = COLORS[index % COLORS.length];
+    entry.append(dot, document.createTextNode(`${item.label} (${number(item.total)})`)); legend.append(entry);
+  });
+  container.append(svg, legend);
+}
+
+function renderMatrix(container, categories, series) {
+  const maximum = Math.max(1, ...series.flatMap((item) => item.values));
+  const wrap = document.createElement("div"); wrap.className = "ixtla-dashboard-matrix-wrap";
+  const table = document.createElement("table"); table.className = "ixtla-dashboard-matrix";
+  const head = document.createElement("thead"); const headRow = document.createElement("tr");
+  ["Categoría", ...series.map((item) => item.label), "Total"].forEach((text) => { const th = document.createElement("th"); th.textContent = text; headRow.append(th); });
+  head.append(headRow);
+  const body = document.createElement("tbody");
+  categories.forEach((category, categoryIndex) => {
+    const row = document.createElement("tr"); const label = document.createElement("th"); label.scope = "row"; label.textContent = category.label; row.append(label);
+    series.forEach((item) => {
+      const value = Number(item.values[categoryIndex]) || 0; const cell = document.createElement("td"); cell.textContent = number(value);
+      cell.style.backgroundColor = `rgba(45, 140, 166, ${(.08 + Math.max(.06, value / maximum) * .46).toFixed(3)})`;
+      cell.title = `${category.label} · ${item.label}: ${number(value)}`; row.append(cell);
+    });
+    const total = document.createElement("td"); total.className = "ixtla-dashboard-matrix__total"; total.textContent = number(category.total); row.append(total); body.append(row);
+  });
+  table.append(head, body); wrap.append(table); container.append(wrap);
+}
+
 function renderTable(container, items) {
   const wrap = document.createElement("div"); wrap.className = "ixtla-dashboard-table-wrap";
   const table = document.createElement("table"); table.className = "ixtla-dashboard-table";
@@ -172,12 +246,15 @@ function renderTable(container, items) {
 
 function renderVisualization(container, preview) {
   const items = itemRows(preview);
+  const { categories, series } = dimensionRows(preview);
   if (preview.chart !== "kpi" && !items.length) {
     appendState(container, "Sin datos disponibles", "Vuelve al asistente para ajustar el periodo o los filtros.");
     return;
   }
   if (preview.chart === "kpi") renderKpi(container, preview, items);
   else if (preview.chart === "donut") renderDonut(container, items);
+  else if (preview.chart === "matrix" && categories.length && series.length) renderMatrix(container, categories, series);
+  else if ((preview.chart === "line" || preview.chart === "area") && categories.length && series.length) renderMultiLine(container, categories, series);
   else if (preview.chart === "line" || preview.chart === "area") renderLine(container, items, preview.chart === "area");
   else if (preview.chart === "table") renderTable(container, items);
   else renderBars(container, items);
@@ -191,7 +268,7 @@ function visibilityFor(spec) {
 function createCard(widget, index) {
   const spec = widget.spec || {};
   const preview = widget.preview || {};
-  const wide = ["line", "area", "table"].includes(preview.chart);
+  const wide = ["line", "area", "table", "matrix"].includes(preview.chart);
   const card = document.createElement("article");
   card.className = `ixtla-dashboard-card${wide ? " ixtla-dashboard-card--wide" : ""}`;
   card.draggable = true; card.dataset.index = String(index);

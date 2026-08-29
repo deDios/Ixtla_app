@@ -337,13 +337,13 @@ function ixtla_insights_apply_default_period(string $toolName, array $arguments,
         $arguments['period'] = ixtla_insights_question_requested_period($question)
             ?? (in_array((string) ($arguments['period'] ?? ''), ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true) ? (string) $arguments['period'] : 'all');
     }
-    if (in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)) {
+    if (in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions'], true)) {
         $arguments['date_field'] = in_array((string) ($arguments['date_field'] ?? ''), ['created_at', 'closed_at'], true)
             ? (string) $arguments['date_field']
             : 'created_at';
         $arguments['date_from'] = isset($arguments['date_from']) && is_string($arguments['date_from']) ? $arguments['date_from'] : null;
         $arguments['date_to'] = isset($arguments['date_to']) && is_string($arguments['date_to']) ? $arguments['date_to'] : null;
-        if (in_array($toolName, ['search_requirements', 'aggregate_requirements'], true)) {
+        if (in_array($toolName, ['search_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions'], true)) {
             foreach (['department_ids', 'department_names', 'assignee_ids', 'tramite_ids', 'status_ids', 'channel_ids'] as $listKey) {
                 $arguments[$listKey] = is_array($arguments[$listKey] ?? null) ? $arguments[$listKey] : [];
             }
@@ -509,7 +509,7 @@ function ixtla_insights_prepare_tool_arguments(
         }
     }
 
-    if ($reusesPrevious && in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements'], true)) {
+    if ($reusesPrevious && in_array($toolName, ['get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions'], true)) {
         $listKeys = ['department_ids', 'department_names', 'assignee_ids', 'tramite_ids', 'status_ids', 'channel_ids'];
         foreach ($listKeys as $key) {
             $resetsDimension = match ($key) {
@@ -557,14 +557,14 @@ function ixtla_insights_prepare_tool_arguments(
         }
     }
 
-    if (in_array($toolName, ['search_requirements', 'aggregate_requirements'], true)
+    if (in_array($toolName, ['search_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions'], true)
         && ixtla_insights_question_requires_finalized_status($question)) {
         // La regla de negocio prevalece incluso si el modelo envio otros
         // estatus junto con una fecha de cierre.
         $arguments['status_ids'] = [6];
     }
 
-    if (in_array($toolName, ['search_requirements', 'aggregate_requirements'], true)) {
+    if (in_array($toolName, ['search_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions'], true)) {
         $requestedChannels = ixtla_insights_question_requested_channels($question, $previousFilters);
         if ($requestedChannels !== null) $arguments['channel_ids'] = $requestedChannels;
 
@@ -577,9 +577,10 @@ function ixtla_insights_prepare_tool_arguments(
 
     // Una tendencia no es un ranking: la agrupacion y el orden deben ser
     // temporales aunque el modelo haya heredado otra dimension de la consulta.
-    if ($toolName === 'aggregate_requirements' && ixtla_insights_question_requests_time_trend($question)) {
+    if (in_array($toolName, ['aggregate_requirements', 'aggregate_requirement_dimensions'], true)
+        && ixtla_insights_question_requests_time_trend($question)) {
         $arguments['group_by'] = 'date';
-        $arguments['sort'] = 'asc';
+        if ($toolName === 'aggregate_requirements') $arguments['sort'] = 'asc';
     }
 
     $arguments = ixtla_insights_apply_default_period($toolName, $arguments, $question);

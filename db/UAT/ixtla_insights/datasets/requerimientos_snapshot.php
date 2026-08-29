@@ -646,3 +646,121 @@ function ixtla_insights_snapshot_aggregate(array $arguments): array
         'items' => array_slice($items, 0, $limit),
     ];
 }
+
+/** Devuelve id, etiqueta y llave ordenable para una dimensión autorizada. */
+function ixtla_insights_snapshot_dimension_value(array $record, string $dimension, string $dateGrain, string $dateField): array
+{
+    if ($dimension === 'date') {
+        $date = (string) ($record[$dateField === 'closed_at' ? 'closed_date' : 'created_date'] ?? '');
+        if ($date === '') return ['id' => null, 'label' => 'Sin fecha', 'sort' => '9999-99-99'];
+        if ($dateGrain === 'month') {
+            $key = substr($date, 0, 7);
+            return ['id' => $key, 'label' => $key, 'sort' => $key];
+        }
+        if ($dateGrain === 'week') {
+            $value = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+            if (!$value) return ['id' => $date, 'label' => $date, 'sort' => $date];
+            $monday = $value->modify('monday this week')->format('Y-m-d');
+            return ['id' => $monday, 'label' => 'Semana del ' . $monday, 'sort' => $monday];
+        }
+        return ['id' => $date, 'label' => $date, 'sort' => $date];
+    }
+    $map = [
+        'status' => ['status_id', 'status'],
+        'department' => ['department_id', 'department'],
+        'tramite' => ['tramite_id', 'tramite'],
+        'channel' => ['channel_id', 'channel'],
+    ];
+    [$idField, $labelField] = $map[$dimension];
+    $id = $record[$idField] ?? null;
+    $label = trim((string) ($record[$labelField] ?? '')) ?: 'Sin especificar';
+    return ['id' => $id, 'label' => $label, 'sort' => $label];
+}
+
+/**
+ * Agregado bidimensional para visualizaciones multiserie y matrices.
+ * Trabaja sobre el snapshot ya limitado por RBAC; nunca recibe columnas SQL.
+ */
+function ixtla_insights_snapshot_aggregate_dimensions(array $arguments): array
+{
+    $groupBy = (string) ($arguments['group_by'] ?? 'date');
+    $seriesBy = (string) ($arguments['series_by'] ?? 'status');
+    $dateGrain = (string) ($arguments['date_grain'] ?? 'day');
+    $categoryLimit = min(50, max(1, (int) ($arguments['category_limit'] ?? 20)));
+    $seriesLimit = min(7, max(1, (int) ($arguments['series_limit'] ?? 5)));
+    $includeOther = (bool) ($arguments['include_other'] ?? true);
+    $dimensions = ['status', 'department', 'tramite', 'channel', 'date'];
+    $seriesDimensions = ['status', 'department', 'tramite', 'channel'];
+    if (!in_array($groupBy, $dimensions, true)
+        || !in_array($seriesBy, $seriesDimensions, true)
+        || !in_array($dateGrain, ['day', 'week', 'month'], true)
+        || $groupBy === $seriesBy) {
+        throw new InvalidArgumentException('Las dimensiones solicitadas para la visualizacion no son compatibles.');
+    }
+
+    $snapshot = ixtla_insights_snapshot_build(false);
+    $arguments = ixtla_insights_snapshot_resolve_department_names($snapshot, $arguments);
+    $filterArguments = $arguments;
+    foreach (['group_by', 'series_by', 'date_grain', 'category_limit', 'series_limit', 'include_other'] as $key) unset($filterArguments[$key]);
+    $records = ixtla_insights_snapshot_filter($snapshot, $filterArguments);
+    $dateField = (string) ($filterArguments['date_field'] ?? 'created_at');
+    $categories = [];
+    $series = [];
+    $cells = [];
+    foreach ($records as $record) {
+        $category = ixtla_insights_snapshot_dimension_value($record, $groupBy, $dateGrain, $dateField);
+        $serie = ixtla_insights_snapshot_dimension_value($record, $seriesBy, $dateGrain, $dateField);
+        $categoryKey = (string) ($category['id'] ?? 'unassigned');
+        $seriesKey = (string) ($serie['id'] ?? 'unassigned');
+        if (!isset($categories[$categoryKey])) $categories[$categoryKey] = [...$category, 'value' => 0];
+        if (!isset($series[$seriesKey])) $series[$seriesKey] = [...$serie, 'value' => 0];
+        $categories[$categoryKey]['value']++;
+        $series[$seriesKey]['value']++;
+        $cells[$categoryKey][$seriesKey] = (int) ($cells[$categoryKey][$seriesKey] ?? 0) + 1;
+    }
+    $categoryItems = array_values($categories);
+    usort($categoryItems, static fn (array $a, array $b): int => $groupBy === 'date'
+        ? strcmp((string) $a['sort'], (string) $b['sort'])
+        : (((int) $b['value'] <=> (int) $a['value']) ?: strcmp((string) $a['label'], (string) $b['label'])));
+    $categoryItems = $groupBy === 'date'
+        ? array_slice($categoryItems, -$categoryLimit)
+        : array_slice($categoryItems, 0, $categoryLimit);
+    $seriesItems = array_values($series);
+    usort($seriesItems, static fn (array $a, array $b): int => ((int) $b['value'] <=> (int) $a['value']) ?: strcmp((string) $a['label'], (string) $b['label']));
+    $groupRemaining = $includeOther && $seriesLimit > 1 && count($seriesItems) > $seriesLimit;
+    $selectedCount = $groupRemaining ? $seriesLimit - 1 : $seriesLimit;
+    $selectedSeries = array_slice($seriesItems, 0, $selectedCount);
+    $remainingSeries = array_slice($seriesItems, $selectedCount);
+    if ($groupRemaining && $remainingSeries !== []) {
+        $selectedSeries[] = ['id' => '__other__', 'label' => 'Otros', 'sort' => 'Otros', 'value' => array_sum(array_column($remainingSeries, 'value'))];
+    }
+    $remainingKeys = array_map(static fn (array $item): string => (string) ($item['id'] ?? 'unassigned'), $remainingSeries);
+    $categoryKeys = array_map(static fn (array $item): string => (string) ($item['id'] ?? 'unassigned'), $categoryItems);
+    $seriesOutput = array_map(static function (array $serie) use ($cells, $categoryKeys, $remainingKeys): array {
+        $key = (string) ($serie['id'] ?? 'unassigned');
+        $values = array_map(static function (string $categoryKey) use ($cells, $key, $remainingKeys): int {
+            if ($key === '__other__') {
+                $value = 0;
+                foreach ($remainingKeys as $remainingKey) $value += (int) ($cells[$categoryKey][$remainingKey] ?? 0);
+                return $value;
+            }
+            return (int) ($cells[$categoryKey][$key] ?? 0);
+        }, $categoryKeys);
+        return ['id' => $serie['id'], 'label' => (string) $serie['label'], 'total' => array_sum($values), 'values' => $values];
+    }, $selectedSeries);
+
+    return [
+        'dataset' => $snapshot['dataset'],
+        'schema_version' => $snapshot['schema_version'],
+        'generated_at' => $snapshot['generated_at'],
+        'scope' => $snapshot['scope'],
+        'semantics' => $snapshot['semantics'] ?? [],
+        'data_quality' => $snapshot['data_quality'] ?? [],
+        'group_by' => $groupBy,
+        'series_by' => $seriesBy,
+        'date_grain' => $dateGrain,
+        'total_matching' => count($records),
+        'categories' => array_map(static fn (array $item): array => ['id' => $item['id'], 'label' => (string) $item['label'], 'total' => (int) $item['value']], $categoryItems),
+        'series' => $seriesOutput,
+    ];
+}

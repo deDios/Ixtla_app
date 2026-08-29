@@ -141,6 +141,7 @@ const CHART_LABELS = {
   line: "Línea",
   area: "Área",
   table: "Tabla",
+  matrix: "Matriz",
   kpi: "Indicador",
   funnel: "Embudo",
 };
@@ -261,8 +262,9 @@ async function fetchInsightsJson(url, options = {}) {
   return payload;
 }
 
-function widgetTitle(chart, metric, dimension, domain = "requerimientos") {
+function widgetTitle(chart, metric, dimension, domain = "requerimientos", seriesDimension = "") {
   const group = DIMENSION_LABELS[dimension] || "estatus";
+  const seriesGroup = DIMENSION_LABELS[seriesDimension] || "serie";
   const requirementSubjects = {
     total: "Requerimientos",
     abiertos: "Requerimientos abiertos",
@@ -276,11 +278,12 @@ function widgetTitle(chart, metric, dimension, domain = "requerimientos") {
     ? (METRIC_LABELS[metric] || "Retroalimentaciones")
     : (requirementSubjects[metric] || "Requerimientos");
   if (chart === "kpi") return subject;
+  if (chart === "matrix") return `Matriz de ${subject.toLocaleLowerCase("es-MX")} por ${group} y ${seriesGroup}`;
   if (domain === "retroalimentaciones") {
     if (dimension === "fecha") return `Tendencia de ${subject.toLocaleLowerCase("es-MX")}`;
     return `${subject} por ${group}`;
   }
-  if (dimension === "fecha") return `Tendencia de ${subject.toLocaleLowerCase("es-MX")}`;
+  if (dimension === "fecha") return `Tendencia de ${subject.toLocaleLowerCase("es-MX")}${seriesDimension ? ` por ${seriesGroup}` : ""}`;
   if (chart === "funnel") return "Embudo de requerimientos por estatus";
   return `${subject} por ${group}`;
 }
@@ -288,7 +291,10 @@ function widgetTitle(chart, metric, dimension, domain = "requerimientos") {
 function visualizationRecommendation(spec) {
   const group = DIMENSION_LABELS[spec.dimension] || "categoría";
   if (spec.chart === "kpi") return "Usé un indicador porque resume el valor principal de forma directa.";
-  if (spec.chart === "line") return "Usé una línea porque permite seguir con claridad los cambios a través del tiempo.";
+  if (spec.chart === "matrix") return `Usé una matriz porque permite cruzar ${group} con ${DIMENSION_LABELS[spec.series_dimension] || "otra dimensión"} y consultar valores exactos.`;
+  if (spec.chart === "line") return spec.series_dimension
+    ? `Usé varias líneas para comparar cómo cambia cada ${DIMENSION_LABELS[spec.series_dimension] || "serie"} a través del tiempo.`
+    : "Usé una línea porque permite seguir con claridad los cambios a través del tiempo.";
   if (spec.chart === "area") return "Usé un área porque permite ver la evolución y la magnitud a través del tiempo.";
   if (spec.chart === "donut") return `Usé un gráfico de pastel para mostrar qué proporción representa cada ${group}.`;
   if (spec.chart === "table") return `Usé una tabla para que puedas consultar los valores exactos por ${group}.`;
@@ -298,14 +304,29 @@ function visualizationRecommendation(spec) {
 function normalizeVisualizationSpec(spec = {}) {
   const normalized = { ...spec };
   const originalChart = clean(normalized.chart);
+  const originalDimension = clean(normalized.dimension);
   normalized.domain = normalized.domain === "retroalimentaciones" ? "retroalimentaciones" : "requerimientos";
   normalized.dimension = clean(normalized.dimension) || (normalized.domain === "retroalimentaciones" ? "calificacion" : "tramite");
   normalized.chart = originalChart || (normalized.dimension === "fecha" ? "line" : "bar");
+  normalized.series_dimension = clean(normalized.series_dimension);
+  normalized.date_grain = ["day", "week", "month"].includes(clean(normalized.date_grain))
+    ? clean(normalized.date_grain)
+    : (normalized.period === "all" ? "month" : "day");
+  normalized.series_limit = Math.min(7, Math.max(1, Number(normalized.series_limit) || 5));
+  if (normalized.domain !== "requerimientos" && normalized.chart === "matrix") normalized.chart = "bar";
   if (["tasa_respuesta", "promedio_calificacion"].includes(normalized.metric)) normalized.chart = "kpi";
   if (normalized.dimension === "fecha" && normalized.chart === "donut") normalized.chart = "line";
-  if (normalized.dimension !== "fecha" && ["line", "area"].includes(normalized.chart)) normalized.chart = "bar";
-  normalized.title = widgetTitle(normalized.chart, normalized.metric, normalized.dimension, normalized.domain);
-  normalized.compatibilityAdjusted = Boolean(normalized.compatibilityAdjusted || (originalChart && originalChart !== normalized.chart));
+  if (normalized.domain === "requerimientos" && normalized.dimension !== "fecha" && ["line", "area"].includes(normalized.chart)) {
+    if (!normalized.series_dimension) normalized.series_dimension = normalized.dimension;
+    normalized.dimension = "fecha";
+  }
+  if (normalized.chart === "matrix") {
+    if (normalized.dimension === "fecha") normalized.dimension = "departamento";
+    if (!normalized.series_dimension || normalized.series_dimension === normalized.dimension) normalized.series_dimension = normalized.dimension === "estatus" ? "departamento" : "estatus";
+  } else if (!["line", "area"].includes(normalized.chart)) normalized.series_dimension = "";
+  if (normalized.domain !== "requerimientos") normalized.series_dimension = "";
+  normalized.title = widgetTitle(normalized.chart, normalized.metric, normalized.dimension, normalized.domain, normalized.series_dimension);
+  normalized.compatibilityAdjusted = Boolean(normalized.compatibilityAdjusted || (originalChart && originalChart !== normalized.chart) || (originalDimension && originalDimension !== normalized.dimension));
   return normalized;
 }
 
@@ -720,7 +741,7 @@ export function mountIxtlaInsights(options = {}) {
     const explicit = /\b(grafica|grafico|visualizacion|chart)\b/.test(text);
     const editsPrevious = Boolean(lastVisualizationSpec)
       && /\b(cambiala|cambialo|hazla|hazlo|ponla|ponlo)\b/.test(text)
-      && /\b(este mes|ultim[oa]s? 7 dias|ultim[oa]s? 30 dias|periodo anterior|historial|departamento|tramite|estatus|calificacion)\b/.test(text);
+      && /\b(este mes|ultim[oa]s? 7 dias|ultim[oa]s? 30 dias|periodo anterior|historial|departamento|tramite|tipo de requerimiento|estatus|status|calificacion)\b/.test(text);
     return explicit || editsPrevious;
   }
 
@@ -732,22 +753,31 @@ export function mountIxtlaInsights(options = {}) {
     let domain = /\b(retro|retros|retroalimentacion|retroalimentaciones|encuesta|encuestas|calificacion|calificaciones|satisfaccion)\b/.test(text)
       ? "retroalimentaciones" : "";
     if (!domain && refersToPrevious && clean(lastResultQuery?.tool).includes("feedback")) domain = "retroalimentaciones";
-    if (!domain && /\b(requerimiento|requerimientos|pendiente|pendientes|tramite|tramites|estatus|carga)\b/.test(text)) domain = "requerimientos";
+    if (!domain && /\b(requerimiento|requerimientos|pendiente|pendientes|tramite|tramites|estatus|status|carga)\b/.test(text)) domain = "requerimientos";
 
     let chart = "";
     if (/\b(kpi|indicador|indicadores|tarjeta|tarjetas)\b/.test(text)) chart = "kpi";
     else if (/\b(linea|tendencia|evolucion)\b/.test(text)) chart = "line";
     else if (/\b(dona|pastel)\b/.test(text)) chart = "donut";
+    else if (/\b(matriz|tabla dinamica|tabla pivot|mapa de calor)\b/.test(text)) chart = "matrix";
     else if (/\b(tabla|listado)\b/.test(text)) chart = "table";
     else if (/\b(barra|barras)\b/.test(text)) chart = "bar";
 
     let dimension = "";
     if (/\bpor (?:el )?departamento|departamentos\b/.test(text)) dimension = "departamento";
-    else if (/\bpor (?:el )?tramite|tramites\b/.test(text)) dimension = "tramite";
-    else if (/\bpor (?:el )?estatus|estados? de (?:los )?requerimientos\b/.test(text)) dimension = "estatus";
+    else if (/\bpor (?:el )?tramite|tramites|tipos? de requerimientos?\b/.test(text)) dimension = "tramite";
+    else if (/\bpor (?:el )?(?:estatus|status)|estados? de (?:los )?requerimientos\b/.test(text)) dimension = "estatus";
     else if (/\bcalificacion|calificaciones\b/.test(text)) dimension = "calificacion";
     else if (/\bcontestadas|no contestadas|caducadas|inhabilitadas|estado de respuesta\b/.test(text)) dimension = "estado_retro";
     else if (/\bfecha|dia|dias|semana|semanas|mes|meses|tendencia|evolucion\b/.test(text)) dimension = "fecha";
+    const mentionedDimensions = [
+      ["departamento", /\bdepartamentos?\b/], ["tramite", /\btramites?|tipos? de requerimientos?\b/], ["estatus", /\bestatus|status|estados? de (?:los )?requerimientos\b/],
+    ].map(([name, pattern]) => [name, text.search(pattern)]).filter(([, index]) => index >= 0).sort((left, right) => left[1] - right[1]).map(([name]) => name);
+    let seriesDimension = "";
+    if (chart === "matrix" && mentionedDimensions.length > 1) {
+      dimension = mentionedDimensions[0];
+      seriesDimension = mentionedDimensions.find((item) => item !== dimension) || "";
+    }
 
     let metric = "";
     if (domain === "retroalimentaciones") {
@@ -767,7 +797,7 @@ export function mountIxtlaInsights(options = {}) {
     if (!period && refersToPrevious) period = clean(lastResultQuery?.filters?.period);
     const comparison = /\b(periodo anterior|contra (?:el )?periodo anterior)\b/.test(text) ? "previous_period" : "";
 
-    return { text, refersToPrevious, domain, chart, dimension, metric, period, comparison };
+    return { text, refersToPrevious, domain, chart, dimension, seriesDimension, metric, period, comparison };
   }
 
   function beginNaturalVisualization(prompt, parsed) {
@@ -789,6 +819,9 @@ export function mountIxtlaInsights(options = {}) {
       domain,
       metric,
       dimension,
+      series_dimension: parsed.seriesDimension || clean(previousSpec?.series_dimension),
+      date_grain: clean(previousSpec?.date_grain),
+      series_limit: Number(previousSpec?.series_limit) || 5,
       chart,
       filters: Array.isArray(previousSpec?.filters) ? previousSpec.filters.map((filter) => ({ ...filter })) : (hasUsefulContext && Array.isArray(lastResultQuery?.filters?.filters) ? lastResultQuery.filters.filters : []),
       period: parsed.period || clean(previousSpec?.period),
@@ -828,6 +861,7 @@ export function mountIxtlaInsights(options = {}) {
     }
     const chart = /\blinea\b/.test(text) ? "line"
       : /\bdona|pastel\b/.test(text) ? "donut"
+        : /\bmatriz|tabla dinamica|tabla pivot|mapa de calor\b/.test(text) ? "matrix"
         : /\btabla\b/.test(text) ? "table"
           : /\bkpi|indicador\b/.test(text) ? "kpi"
             : /\bbarra|barras\b/.test(text) ? "bar" : "";
@@ -874,6 +908,9 @@ export function mountIxtlaInsights(options = {}) {
       metric,
       dimension,
       chart,
+      series_dimension: clean(plan.series_dimension),
+      date_grain: clean(plan.date_grain),
+      series_limit: Math.min(7, Math.max(1, Number(plan.series_limit) || 5)),
       period: clean(plan.period),
       comparison: clean(plan.comparison),
       filters: Array.isArray(plan.filters) ? plan.filters.map((filter) => ({ ...filter })) : [],
@@ -901,7 +938,7 @@ export function mountIxtlaInsights(options = {}) {
   function chartChoices(goal = "") {
     const charts = pendingVisualization?.dimension === "fecha" || goal === "request_trend"
       ? ["line", "area", "table"]
-      : ["bar", "donut", "table", "kpi"];
+      : ["bar", "donut", "matrix", "table", "kpi"];
     const recommended = recommendedChart(pendingVisualization);
     return charts
       .filter((chart) => catalogValues("widget_kinds", Object.keys(CHART_LABELS)).includes(chart))
@@ -916,6 +953,8 @@ export function mountIxtlaInsights(options = {}) {
   function dimensionChoices(chart) {
     const dimensions = chart === "line" || chart === "area"
       ? ["fecha"]
+      : chart === "matrix"
+        ? ["estatus", "tramite", "departamento"]
       : chart === "funnel"
         ? ["estatus"]
         : ["estatus", "tramite", "departamento", "fecha"];
@@ -960,6 +999,9 @@ export function mountIxtlaInsights(options = {}) {
       chart,
       metric,
       dimension,
+      series_dimension: clean(widget?.series_dimension),
+      date_grain: clean(widget?.date_grain),
+      series_limit: Math.min(7, Math.max(1, Number(widget?.series_limit) || 5)),
       period,
       scope,
       filters: Array.isArray(widget?.filters)
@@ -1000,15 +1042,32 @@ export function mountIxtlaInsights(options = {}) {
     const groupMap = { estatus: "status", departamento: "department", tramite: "tramite", fecha: "date" };
     const statusMap = { abiertos: [0, 1, 2, 3], finalizados: [6], cerrados: [6], pausados_cancelados: [4, 5], pausados: [4], cancelados: [5] };
     const metricStatusIds = statusMap[spec.metric] || [];
+    const requirementCommon = {
+      period, department_id: 0, department_ids: departmentIds, department_names: departmentNames, assignee_id: 0, assignee_ids: [],
+      tramite_ids: tramiteIds, status_ids: requirementStatusIds.length ? requirementStatusIds : metricStatusIds, channel_ids: [], assignee_state: "any",
+      date_field: "created_at", date_from: dateFrom, date_to: dateTo,
+    };
     if (spec.chart === "kpi" && !filters.length && !metricStatusIds.length) {
       return { tool: "get_requirements_overview", arguments: { refresh: false, period, date_field: "created_at", date_from: dateFrom, date_to: dateTo } };
+    }
+    if (spec.series_dimension && ["line", "area", "matrix"].includes(spec.chart)) {
+      return {
+        tool: "aggregate_requirement_dimensions",
+        arguments: {
+          ...requirementCommon,
+          group_by: groupMap[spec.dimension] || "department",
+          series_by: groupMap[spec.series_dimension] || "status",
+          date_grain: ["day", "week", "month"].includes(spec.date_grain) ? spec.date_grain : (period === "all" ? "month" : "day"),
+          category_limit: spec.dimension === "fecha" ? 50 : Math.min(50, Math.max(1, Number(spec.limit) || 10)),
+          series_limit: Math.min(7, Math.max(1, Number(spec.series_limit) || 5)),
+          include_other: true,
+        },
+      };
     }
     return {
       tool: "aggregate_requirements",
       arguments: {
-        period, department_id: 0, department_ids: departmentIds, department_names: departmentNames, assignee_id: 0, assignee_ids: [],
-        tramite_ids: tramiteIds, status_ids: requirementStatusIds.length ? requirementStatusIds : metricStatusIds, channel_ids: [], assignee_state: "any",
-        date_field: "created_at", date_from: dateFrom, date_to: dateTo,
+        ...requirementCommon,
         group_by: spec.chart === "kpi" ? "status" : (groupMap[spec.dimension] || "tramite"),
         sort: spec.dimension === "fecha" ? "asc" : (["asc", "desc"].includes(spec.sort) ? spec.sort : "desc"),
         limit: spec.chart === "kpi" ? 7 : (spec.dimension === "fecha" ? 50 : (spec.limit || 10)),
@@ -1023,6 +1082,23 @@ export function mountIxtlaInsights(options = {}) {
     })) : [];
     let value = null;
     let valueLabel = METRIC_LABELS[spec.metric] || "Total";
+    const readableDateBucket = (value) => {
+      const raw = clean(value); const match = raw.match(/(\d{4})-(\d{2})(?:-(\d{2}))?/);
+      if (!match || spec.dimension !== "fecha") return raw || "Sin especificar";
+      const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3] || 1)));
+      const formatted = date.toLocaleDateString("es-MX", spec.date_grain === "month"
+        ? { month: "short", year: "numeric", timeZone: "UTC" }
+        : { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+      return raw.startsWith("Semana del ") ? `Semana del ${formatted}` : formatted;
+    };
+    const categories = Array.isArray(data?.categories) ? data.categories.map((item) => ({
+      id: item?.id ?? null, label: readableDateBucket(item?.label), total: Number(item?.total || 0),
+    })) : [];
+    const series = Array.isArray(data?.series) ? data.series.map((serie) => ({
+      id: serie?.id ?? null, label: clean(serie?.label) || "Sin especificar", total: Number(serie?.total || 0),
+      values: Array.isArray(serie?.values) ? serie.values.map((item) => Number(item || 0)) : [],
+    })) : [];
+    if (categories.length) items = categories.map((item) => ({ label: item.label, value: item.total }));
     if (spec.domain === "retroalimentaciones" && !items.length) {
       if (spec.metric === "tasa_respuesta") { value = Number(data?.response_rate_percent || 0); valueLabel = "Tasa de respuesta"; }
       else if (spec.metric === "promedio_calificacion") { value = Number(data?.average_rating || 0); valueLabel = "Promedio de calificación"; }
@@ -1036,13 +1112,18 @@ export function mountIxtlaInsights(options = {}) {
     if (spec.dimension === "fecha") items.sort((left, right) => left.label.localeCompare(right.label));
     items = items.slice(0, spec.dimension === "fecha" ? 50 : Math.max(1, Number(spec.limit) || 10));
     const top = [...items].sort((a, b) => b.value - a.value)[0];
+    const topSeries = [...series].sort((a, b) => b.total - a.total)[0];
     return {
       previewId: `preview-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       title: spec.title,
       chart: spec.chart,
       metric: spec.metric,
       dimension: spec.dimension,
+      series_dimension: clean(spec.series_dimension),
+      date_grain: clean(spec.date_grain),
       items,
+      categories,
+      series,
       value,
       valueLabel,
       scopeLabel: clean(typeof data?.scope === "object" ? data.scope?.label : data?.scope) || spec.scopeLabel,
@@ -1050,7 +1131,9 @@ export function mountIxtlaInsights(options = {}) {
       sourceTool,
       totalMatching: data?.total_matching === undefined ? null : Number(data.total_matching || 0),
       filters: Array.isArray(spec.filters) ? spec.filters.map((filter) => ({ ...filter })) : [],
-      insight: top ? `${top.label} presenta el valor más alto (${top.value.toLocaleString("es-MX")}).` : `${valueLabel}: ${Number(value || 0).toLocaleString("es-MX", { maximumFractionDigits: 2 })}.`,
+      insight: topSeries
+        ? `${topSeries.label} acumula el mayor valor entre las series (${topSeries.total.toLocaleString("es-MX")}).`
+        : top ? `${top.label} presenta el valor más alto (${top.value.toLocaleString("es-MX")}).` : `${valueLabel}: ${Number(value || 0).toLocaleString("es-MX", { maximumFractionDigits: 2 })}.`,
     };
   }
 
@@ -1075,7 +1158,7 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function previewTotal(preview) {
-    if (["aggregate_requirements", "aggregate_feedback"].includes(preview.sourceTool) && typeof preview.totalMatching === "number" && Number.isFinite(preview.totalMatching)) return preview.totalMatching;
+    if (["aggregate_requirements", "aggregate_requirement_dimensions", "aggregate_feedback"].includes(preview.sourceTool) && typeof preview.totalMatching === "number" && Number.isFinite(preview.totalMatching)) return preview.totalMatching;
     if (preview.value !== null && preview.value !== undefined) return Number(preview.value) || 0;
     return preview.items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
   }
@@ -1111,6 +1194,7 @@ export function mountIxtlaInsights(options = {}) {
   function previewSourceLabel(tool) {
     return ({
       aggregate_requirements: "Agregado autorizado de requerimientos",
+      aggregate_requirement_dimensions: "Agregado multidimensional autorizado de requerimientos",
       get_requirements_overview: "Resumen autorizado de requerimientos",
       aggregate_feedback: "Agregado autorizado de retroalimentaciones",
       get_feedback_overview: "Resumen autorizado de retroalimentaciones",
@@ -1145,6 +1229,10 @@ export function mountIxtlaInsights(options = {}) {
     if (!items.length) return "No hay datos suficientes para interpretar esta visualización.";
     const total = previewTotal(preview);
     const maximum = [...items].sort((left, right) => right.value - left.value)[0];
+    if (preview.series?.length) {
+      const leading = [...preview.series].sort((left, right) => right.total - left.total)[0];
+      return `${leading.label} acumula el mayor volumen entre las series, con ${leading.total.toLocaleString("es-MX")} registros.`;
+    }
     if (preview.chart === "line" || preview.chart === "area") {
       const first = items[0];
       const last = items[items.length - 1];
@@ -1211,6 +1299,28 @@ export function mountIxtlaInsights(options = {}) {
       });
       table.append(tbody); container.append(table); return;
     }
+    if (preview.chart === "matrix" && preview.categories?.length && preview.series?.length) {
+      const wrap = document.createElement("div"); wrap.className = "ixtla-chart-preview__matrix-wrap";
+      const table = document.createElement("table"); table.className = "ixtla-chart-preview__matrix";
+      const thead = document.createElement("thead"); const head = document.createElement("tr");
+      const corner = document.createElement("th"); corner.textContent = DIMENSION_LABELS[preview.dimension] || "Categoría"; head.append(corner);
+      preview.series.forEach((serie) => { const th = document.createElement("th"); th.textContent = serie.label; head.append(th); });
+      const totalHead = document.createElement("th"); totalHead.textContent = "Total"; head.append(totalHead); thead.append(head);
+      const tbody = document.createElement("tbody");
+      const maximum = Math.max(1, ...preview.series.flatMap((serie) => serie.values));
+      preview.categories.forEach((category, categoryIndex) => {
+        const row = document.createElement("tr"); const label = document.createElement("th"); label.scope = "row"; label.textContent = category.label; row.append(label);
+        preview.series.forEach((serie) => {
+          const value = Number(serie.values[categoryIndex] || 0); const cell = document.createElement("td"); cell.textContent = value.toLocaleString("es-MX");
+          const intensity = Math.max(.06, value / maximum);
+          cell.style.backgroundColor = `rgba(45, 140, 166, ${(.08 + intensity * .46).toFixed(3)})`;
+          cell.title = `${category.label} · ${serie.label}: ${value.toLocaleString("es-MX")}`;
+          row.append(cell);
+        });
+        const total = document.createElement("td"); total.className = "ixtla-chart-preview__matrix-total"; total.textContent = category.total.toLocaleString("es-MX"); row.append(total); tbody.append(row);
+      });
+      table.append(thead, tbody); wrap.append(table); container.append(wrap); return;
+    }
     if (preview.chart === "donut") {
       const displayItems = previewDisplayItems(preview);
       const total = displayItems.reduce((sum, item) => sum + item.value, 0) || 1;
@@ -1230,6 +1340,32 @@ export function mountIxtlaInsights(options = {}) {
         entry.append(document.createTextNode(`${item.label}: ${item.value.toLocaleString("es-MX")} (${percent.toLocaleString("es-MX", { maximumFractionDigits: 1 })}%)`)); legend.append(entry);
       });
       container.append(donut, legend); return;
+    }
+    if ((preview.chart === "line" || preview.chart === "area") && preview.categories?.length && preview.series?.length) {
+      const width = 520, height = 240, pad = { top: 18, right: 20, bottom: 40, left: 42 };
+      const values = preview.series.flatMap((serie) => serie.values);
+      const max = Math.max(1, ...values); const plotWidth = width - pad.left - pad.right, plotHeight = height - pad.top - pad.bottom;
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", preview.title);
+      [0, .5, 1].forEach((ratio) => {
+        const y = height - pad.bottom - ratio * plotHeight;
+        const grid = document.createElementNS(svg.namespaceURI, "line"); grid.setAttribute("x1", String(pad.left)); grid.setAttribute("x2", String(width - pad.right)); grid.setAttribute("y1", String(y)); grid.setAttribute("y2", String(y)); grid.setAttribute("class", "ixtla-chart-preview__grid"); svg.append(grid);
+        const label = document.createElementNS(svg.namespaceURI, "text"); label.setAttribute("x", String(pad.left - 7)); label.setAttribute("y", String(y + 4)); label.setAttribute("text-anchor", "end"); label.setAttribute("class", "ixtla-chart-preview__axis-label"); label.textContent = Math.round(max * ratio).toLocaleString("es-MX"); svg.append(label);
+      });
+      preview.series.forEach((serie, seriesIndex) => {
+        const coordinates = preview.categories.map((category, index) => ({
+          x: pad.left + (preview.categories.length <= 1 ? plotWidth / 2 : index * (plotWidth / (preview.categories.length - 1))),
+          y: height - pad.bottom - (Number(serie.values[index] || 0) / max) * plotHeight,
+        }));
+        const points = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
+        const polyline = document.createElementNS(svg.namespaceURI, "polyline"); polyline.setAttribute("points", points); polyline.setAttribute("fill", "none"); polyline.setAttribute("stroke", chartColor(seriesIndex)); polyline.setAttribute("stroke-width", "3"); polyline.setAttribute("stroke-linecap", "round"); polyline.setAttribute("stroke-linejoin", "round"); svg.append(polyline);
+        coordinates.forEach((point, index) => { const circle = document.createElementNS(svg.namespaceURI, "circle"); circle.setAttribute("cx", String(point.x)); circle.setAttribute("cy", String(point.y)); circle.setAttribute("r", "3"); circle.setAttribute("fill", "#fff"); circle.setAttribute("stroke", chartColor(seriesIndex)); const title = document.createElementNS(svg.namespaceURI, "title"); title.textContent = `${preview.categories[index].label} · ${serie.label}: ${Number(serie.values[index] || 0).toLocaleString("es-MX")}`; circle.append(title); svg.append(circle); });
+      });
+      const tickIndexes = [...new Set([0, Math.floor((preview.categories.length - 1) / 2), preview.categories.length - 1])];
+      tickIndexes.forEach((index) => { const x = pad.left + (preview.categories.length <= 1 ? plotWidth / 2 : index * (plotWidth / (preview.categories.length - 1))); const label = document.createElementNS(svg.namespaceURI, "text"); label.setAttribute("x", String(x)); label.setAttribute("y", String(height - 12)); label.setAttribute("text-anchor", index === 0 ? "start" : index === preview.categories.length - 1 ? "end" : "middle"); label.setAttribute("class", "ixtla-chart-preview__axis-label"); label.textContent = preview.categories[index].label; svg.append(label); });
+      const legend = document.createElement("div"); legend.className = "ixtla-chart-preview__series-legend";
+      preview.series.forEach((serie, index) => { const item = document.createElement("span"); const dot = document.createElement("i"); dot.style.background = chartColor(index); item.append(dot, document.createTextNode(`${serie.label} (${serie.total.toLocaleString("es-MX")})`)); legend.append(item); });
+      container.append(svg, legend); return;
     }
     if (preview.chart === "line" || preview.chart === "area") {
       const width = 520, height = 220, pad = { top: 18, right: 20, bottom: 38, left: 42 };
@@ -1397,6 +1533,9 @@ export function mountIxtlaInsights(options = {}) {
       chart: request.chart,
       metric: request.metric,
       dimension,
+      series_dimension: clean(request.series_dimension),
+      date_grain: clean(request.date_grain),
+      series_limit: Math.min(7, Math.max(1, Number(request.series_limit) || 5)),
       filters: Array.isArray(request.filters) ? request.filters : [],
       period: PERIOD_LABELS[request.period] ? request.period : "all",
       comparison: request.comparison === "previous_period" ? "previous_period" : "",

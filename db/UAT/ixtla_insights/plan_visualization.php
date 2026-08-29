@@ -27,13 +27,16 @@ if ($apiKey === '' || $providerUrl === '' || $model === '') {
 $schema = [
     'type' => 'object',
     'additionalProperties' => false,
-    'required' => ['intent', 'domain', 'chart', 'metric', 'dimension', 'period', 'comparison', 'filters', 'limit', 'title', 'reason', 'needs_clarification', 'clarification_question'],
+    'required' => ['intent', 'domain', 'chart', 'metric', 'dimension', 'series_dimension', 'date_grain', 'series_limit', 'period', 'comparison', 'filters', 'limit', 'title', 'reason', 'needs_clarification', 'clarification_question'],
     'properties' => [
         'intent' => ['type' => 'string', 'enum' => ['create', 'edit', 'clarify', 'not_visualization']],
         'domain' => ['type' => 'string', 'enum' => ['', 'requerimientos', 'retroalimentaciones']],
-        'chart' => ['type' => 'string', 'enum' => ['', 'bar', 'line', 'area', 'donut', 'table', 'kpi']],
+        'chart' => ['type' => 'string', 'enum' => ['', 'bar', 'line', 'area', 'donut', 'table', 'matrix', 'kpi']],
         'metric' => ['type' => 'string', 'enum' => ['', 'total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'retro_total', 'tasa_respuesta', 'promedio_calificacion']],
         'dimension' => ['type' => 'string', 'enum' => ['', 'estatus', 'tramite', 'departamento', 'fecha', 'calificacion', 'estado_retro']],
+        'series_dimension' => ['type' => 'string', 'enum' => ['', 'estatus', 'tramite', 'departamento']],
+        'date_grain' => ['type' => 'string', 'enum' => ['', 'day', 'week', 'month']],
+        'series_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 7],
         'period' => ['type' => 'string', 'enum' => ['', 'all', 'last_7', 'last_30', 'this_month']],
         'comparison' => ['type' => 'string', 'enum' => ['', 'previous_period']],
         'filters' => [
@@ -59,10 +62,12 @@ $previous = ixtla_visual_plan_normalize($previous);
 $previousJson = json_encode($previous, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
 $developerPrompt = 'Eres el planificador de visualizaciones de Ixtla Insights. Convierte la solicitud en un plan JSON. '
     . 'Solo puedes usar los valores del esquema. Conserva del plan anterior todo lo que el usuario no cambie. '
-    . 'Para tendencias usa line y fecha. Para rankings o comparaciones entre categorias usa bar. Para un valor unico usa kpi. '
+    . 'Para tendencias usa line y fecha. Si el usuario pide una linea por estatus, tramite o departamento, usa fecha como dimension y esa categoria como series_dimension. '
+    . 'Para rankings o comparaciones entre categorias usa bar. Para un valor unico usa kpi. Para cruzar dos categorias con valores exactos usa matrix. '
     . 'Usa donut solo para pocas categorias que forman una distribucion y nunca para fechas. '
     . 'La dimension representa lo que el usuario desea analizar y debe coincidir con el titulo: estatus, tramite y departamento son categorias; fecha es temporal. '
-    . 'Nunca uses line o area para categorias. Si el usuario pide una linea por estatus, conserva estatus y recomienda bar. '
+    . 'Una linea siempre usa fecha en dimension; sus categorias se colocan en series_dimension. Una matrix usa una categoria en dimension y otra en series_dimension. '
+    . 'Usa como maximo 5 series normalmente y 7 solo para los siete estatus. Usa month para historiales largos, week para varios meses y day para periodos cortos. '
     . 'Explica reason con lenguaje sencillo: que podra entender el usuario gracias a ese formato, sin tecnicismos. '
     . 'Retroalimentaciones usa retro_total con calificacion o estado_retro; tasa_respuesta y promedio_calificacion son KPI. '
     . 'Si el usuario pide comparar contra el periodo anterior usa comparison previous_period. '

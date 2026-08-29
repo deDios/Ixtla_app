@@ -118,7 +118,7 @@ expect_diagnostic(ixtla_insights_question_intent('dame la info del ciudadano', t
 expect_diagnostic(ixtla_insights_question_intent('cual es su telefono', true) === 'dataset', 'El telefono debe reutilizar el contexto del requerimiento anterior.');
 
 $chatToolNames = array_column(ixtla_insights_tool_definitions(), 'name');
-expect_diagnostic($chatToolNames === ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'get_feedback_detail', 'analyze_feedback_comments', 'get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
+expect_diagnostic($chatToolNames === ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'get_feedback_detail', 'analyze_feedback_comments', 'get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
 $snapshotOverviewTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_overview'))[0] ?? [];
 expect_diagnostic(($snapshotOverviewTool['parameters']['required'] ?? []) === ['refresh', 'period', 'date_field', 'date_from', 'date_to'], 'El resumen debe aceptar periodos y rangos personalizados explícitos.');
 expect_diagnostic(str_contains((string) ($snapshotOverviewTool['description'] ?? ''), 'días pico'), 'El resumen debe anunciar la comparación y los picos diarios que puede calcular.');
@@ -140,6 +140,9 @@ expect_diagnostic(($contactTool['parameters']['required'] ?? []) === ['id', 'fol
 $snapshotAggregateTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'aggregate_requirements'))[0] ?? [];
 expect_diagnostic(($snapshotAggregateTool['parameters']['properties']['group_by']['enum'] ?? []) === ['status', 'department', 'tramite', 'assignee', 'channel', 'date'], 'El snapshot debe permitir agregaciones por canal, catalogos y fecha de creación.');
 expect_diagnostic(in_array('assignee_id', $snapshotAggregateTool['parameters']['required'] ?? [], true), 'Los agregados deben aceptar un empleado asignado concreto.');
+$dimensionAggregateTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'aggregate_requirement_dimensions'))[0] ?? [];
+expect_diagnostic(($dimensionAggregateTool['parameters']['properties']['series_limit']['maximum'] ?? null) === 7, 'Las visualizaciones multidimensionales deben limitar el numero de series.');
+expect_diagnostic(($dimensionAggregateTool['parameters']['properties']['date_grain']['enum'] ?? []) === ['day', 'week', 'month'], 'Las series temporales deben declarar su granularidad permitida.');
 $emptySnapshot = ixtla_insights_snapshot_assemble('test-scope', ['mode' => 'self', 'label' => 'Prueba'], []);
 expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 7, 'El snapshot semántico debe invalidar caches de esquemas anteriores.');
 expect_diagnostic(count($emptySnapshot['catalogs']['statuses'] ?? []) === 7, 'El catalogo debe listar todos los estatus aunque no existan filas en alguno.');

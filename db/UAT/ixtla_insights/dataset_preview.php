@@ -23,6 +23,7 @@ if (!is_array($arguments)) {
 $allowedTools = [
     'get_requirements_overview',
     'aggregate_requirements',
+    'aggregate_requirement_dimensions',
     'get_feedback_overview',
     'aggregate_feedback',
 ];

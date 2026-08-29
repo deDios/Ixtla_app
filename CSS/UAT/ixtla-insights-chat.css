@@ -70,6 +70,16 @@
 .ixtla-chart-preview__axis-label { fill: #53717a; font: 10px system-ui, sans-serif; }
 .ixtla-chart-preview__point { fill: #fff; stroke: #176b87; stroke-width: 2; cursor: help; }
 .ixtla-chart-preview__point:last-child { fill: #176b87; }
+.ixtla-chart-preview__series-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px 12px; padding-top: 8px; color: #38566b; font-size: 11px; }
+.ixtla-chart-preview__series-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.ixtla-chart-preview__series-legend i { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; }
+.ixtla-chart-preview__matrix-wrap { max-width: 100%; overflow: auto; border: 1px solid #d7e7ea; border-radius: 10px; background: #fff; }
+.ixtla-chart-preview__matrix { min-width: 430px; }
+.ixtla-chart-preview__matrix th { position: sticky; z-index: 1; color: #24526b; background: #edf7f9; font-weight: 750; }
+.ixtla-chart-preview__matrix thead th { top: 0; text-align: right; }
+.ixtla-chart-preview__matrix thead th:first-child, .ixtla-chart-preview__matrix tbody th { left: 0; text-align: left; }
+.ixtla-chart-preview__matrix td { min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+.ixtla-chart-preview__matrix-total { color: #0f4c81; background: #edf5fa !important; font-weight: 800; }
 .ixtla-chart-preview__evidence { margin: 0 0 12px; border: 1px solid #d7e7ea; border-radius: 10px; color: #38566b; background: #f9fcfc; font-size: 11px; }
 .ixtla-chart-preview__evidence summary { padding: 8px 10px; color: #155e75; font-weight: 700; cursor: pointer; }
 .ixtla-chart-preview__evidence div { display: grid; gap: 5px; padding: 0 10px 9px; }

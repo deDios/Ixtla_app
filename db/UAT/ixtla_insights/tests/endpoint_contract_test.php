@@ -38,6 +38,14 @@ $aggregateArguments = [
 ];
 ixtla_insights_validate_tool_arguments('aggregate_requirements', $aggregateArguments);
 
+$dimensionArguments = $aggregateArguments;
+unset($dimensionArguments['sort'], $dimensionArguments['limit']);
+$dimensionArguments += [
+    'series_by' => 'status', 'date_grain' => 'month', 'category_limit' => 24,
+    'series_limit' => 7, 'include_other' => true,
+];
+ixtla_insights_validate_tool_arguments('aggregate_requirement_dimensions', $dimensionArguments);
+
 $invalidArguments = $aggregateArguments;
 $invalidArguments['department_id'] = null;
 try {
@@ -55,8 +63,10 @@ $feedbackArguments = [
 ixtla_insights_validate_tool_arguments('aggregate_feedback', $feedbackArguments);
 
 $catalog = ixtla_insights_catalog();
-expect_endpoint_contract(($catalog['version'] ?? 0) >= 3, 'El catalogo debe reflejar el contrato grafico actual.');
+expect_endpoint_contract(($catalog['version'] ?? 0) >= 5, 'El catalogo debe reflejar el contrato multidimensional actual.');
 expect_endpoint_contract(in_array('retroalimentaciones', $catalog['domains'] ?? [], true), 'El catalogo debe declarar retroalimentaciones.');
 expect_endpoint_contract(in_array('promedio_calificacion', $catalog['metrics'] ?? [], true), 'El catalogo debe declarar las metricas de retroalimentacion.');
+expect_endpoint_contract(in_array('matrix', $catalog['widget_kinds'] ?? [], true), 'El catalogo debe declarar matrices.');
+expect_endpoint_contract(in_array('estatus', $catalog['series_dimensions'] ?? [], true), 'El catalogo debe declarar dimensiones de serie.');
 
 echo "OK endpoint contracts\n";

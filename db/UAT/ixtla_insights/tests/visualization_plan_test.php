@@ -29,10 +29,20 @@ $status = ixtla_visual_plan_normalize([
     'intent' => 'create', 'domain' => 'requerimientos', 'chart' => 'line', 'metric' => 'total',
     'dimension' => 'estatus', 'period' => 'all', 'comparison' => '', 'filters' => [],
 ]);
-expect_visual_plan($status['dimension'] === 'estatus', 'Un analisis por estatus debe conservar su significado.');
-expect_visual_plan($status['chart'] === 'bar', 'Un analisis por estatus debe usar barras en vez de una linea.');
-expect_visual_plan($status['title'] === 'Requerimientos por estatus', 'El titulo debe coincidir con estatus.');
-expect_visual_plan(str_contains($status['reason'], 'comparar'), 'Debe explicar la recomendacion en lenguaje sencillo.');
+expect_visual_plan($status['dimension'] === 'fecha', 'Una linea por estatus debe usar el tiempo como eje horizontal.');
+expect_visual_plan($status['series_dimension'] === 'estatus', 'El estatus debe convertirse en la dimension de series.');
+expect_visual_plan($status['chart'] === 'line', 'La solicitud explicita de lineas debe conservarse.');
+expect_visual_plan($status['title'] === 'Tendencia de requerimientos por estatus', 'El titulo debe explicar el tiempo y las series.');
+expect_visual_plan(str_contains($status['reason'], 'comparar'), 'Debe explicar la comparacion multiserie en lenguaje sencillo.');
+
+$matrix = ixtla_visual_plan_normalize([
+    'intent' => 'create', 'domain' => 'requerimientos', 'chart' => 'matrix', 'metric' => 'total',
+    'dimension' => 'departamento', 'series_dimension' => 'estatus', 'date_grain' => 'month',
+    'series_limit' => 20, 'period' => 'last_30', 'comparison' => '', 'filters' => [],
+]);
+expect_visual_plan($matrix['chart'] === 'matrix', 'Debe conservar una matriz compatible con requerimientos.');
+expect_visual_plan($matrix['dimension'] === 'departamento' && $matrix['series_dimension'] === 'estatus', 'La matriz debe conservar sus dos dimensiones.');
+expect_visual_plan($matrix['series_limit'] === 7, 'Debe acotar el numero de series legibles.');
 
 $donut = ixtla_visual_plan_normalize([
     'intent' => 'edit', 'domain' => 'requerimientos', 'chart' => 'donut', 'metric' => 'total',

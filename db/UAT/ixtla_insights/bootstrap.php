@@ -292,12 +292,15 @@ function ixtla_insights_response_schema(): array
     $widget = [
         'type' => 'object',
         'additionalProperties' => false,
-        'required' => ['kind', 'title', 'metric', 'dimension', 'period', 'scope', 'filters', 'sort', 'limit', 'scope_label'],
+        'required' => ['kind', 'title', 'metric', 'dimension', 'series_dimension', 'date_grain', 'series_limit', 'period', 'scope', 'filters', 'sort', 'limit', 'scope_label'],
         'properties' => [
             'kind' => ['type' => 'string', 'enum' => $catalog['widget_kinds']],
             'title' => ['type' => 'string', 'maxLength' => 100],
             'metric' => ['type' => 'string', 'enum' => $catalog['metrics']],
             'dimension' => ['type' => 'string', 'enum' => $catalog['dimensions']],
+            'series_dimension' => ['type' => 'string', 'enum' => $catalog['series_dimensions']],
+            'date_grain' => ['type' => 'string', 'enum' => $catalog['date_grains']],
+            'series_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 7],
             'period' => ['type' => 'string', 'enum' => $catalog['periods']],
             'scope' => ['type' => 'string', 'enum' => $catalog['scopes']],
             'filters' => ['type' => 'array', 'maxItems' => 3, 'items' => $filter],
@@ -388,6 +391,17 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
         if (!ixtla_insights_catalog_contains('dimensions', (string) ($widget['dimension'] ?? ''))) {
             continue;
         }
+        $seriesDimension = (string) ($widget['series_dimension'] ?? '');
+        $dateGrain = (string) ($widget['date_grain'] ?? 'day');
+        $seriesLimit = min(7, max(1, (int) ($widget['series_limit'] ?? 5)));
+        if (!ixtla_insights_catalog_contains('series_dimensions', $seriesDimension)
+            || !ixtla_insights_catalog_contains('date_grains', $dateGrain)) {
+            continue;
+        }
+        $kind = (string) ($widget['kind'] ?? '');
+        if (in_array($kind, ['line', 'area'], true) && $seriesDimension !== '' && ($widget['dimension'] ?? '') !== 'fecha') continue;
+        if ($kind === 'matrix' && ($seriesDimension === '' || $seriesDimension === ($widget['dimension'] ?? ''))) continue;
+        if (!in_array($kind, ['line', 'area', 'matrix'], true)) $seriesDimension = '';
 
         if (($widget['kind'] ?? '') !== 'kpi' && ($widget['dimension'] ?? '') === 'estatus' && ixtla_insights_is_fixed_status_metric((string) ($widget['metric'] ?? ''))) {
             continue;
@@ -431,6 +445,9 @@ function ixtla_insights_normalize_chat_response(array $data, array $departments 
                 'title' => ixtla_insights_truncate(trim((string) ($widget['title'] ?? 'Visualizacion de requerimientos')), 100),
                 'metric' => $widget['metric'],
                 'dimension' => $widget['dimension'],
+                'series_dimension' => $seriesDimension,
+                'date_grain' => $dateGrain,
+                'series_limit' => $seriesLimit,
                 'period' => ixtla_insights_catalog_contains('periods', (string) ($widget['period'] ?? '')) ? $widget['period'] : 'all',
                 'scope' => $scope,
                 'filters' => array_slice($filters, 0, 3),
@@ -645,6 +662,7 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         . 'Solo puedes proponer widgets ' . implode(', ', $catalog['widget_kinds']) . '; métricas ' . implode(', ', $catalog['metrics']) . '. '
         . 'Los indicadores kpi también pueden usar promedio_semanal o tiempo_resolucion; esas dos métricas no se usan en gráficas. '
         . 'Dimensiones permitidas: ' . implode(', ', $catalog['dimensions']) . '. Para rankings usa limit y sort. '
+        . 'Para lineas con varias categorias usa dimension fecha y coloca estatus, tramite o departamento en series_dimension. Para una matriz usa dos categorias distintas en dimension y series_dimension. '
         . 'Cuando el usuario pida uno o varios departamentos, debes usar un filtro departamento por cada nombre y únicamente los nombres exactos del catálogo autorizado. '
         . 'Si no hay una coincidencia exacta o claramente única, no generes widget y pide que especifique el departamento; nunca sustituyas esa solicitud por una tabla general. '
         . 'Una solicitud de métrica, ranking, top, comparación o dashboard también requiere una acción widget_preview; para un top sin tipo de gráfica usa bar y dimension tramite. '

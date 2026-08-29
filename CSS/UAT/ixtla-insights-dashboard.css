@@ -106,6 +106,16 @@ body { margin: 0; }
 .ixtla-dashboard-line-axis { fill: #6b7f91; font-size: 10px; }
 .ixtla-dashboard-line-point { fill: #fff; stroke: #176b87; stroke-width: 2.5; }
 .ixtla-dashboard-table-wrap { max-height: 210px; overflow: auto; }
+.ixtla-dashboard-series-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px 12px; color: #38566b; font-size: 11px; }
+.ixtla-dashboard-series-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.ixtla-dashboard-series-legend i { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; }
+.ixtla-dashboard-matrix-wrap { max-height: 245px; overflow: auto; border: 1px solid #d7e7ea; border-radius: 10px; }
+.ixtla-dashboard-matrix { min-width: 520px; width: 100%; border-collapse: collapse; color: #17324d; font-size: 12px; }
+.ixtla-dashboard-matrix th, .ixtla-dashboard-matrix td { padding: 8px; border-bottom: 1px solid #dbe9ec; text-align: right; font-variant-numeric: tabular-nums; }
+.ixtla-dashboard-matrix th { position: sticky; z-index: 1; color: #24526b; background: #edf7f9; font-weight: 750; }
+.ixtla-dashboard-matrix thead th { top: 0; }
+.ixtla-dashboard-matrix thead th:first-child, .ixtla-dashboard-matrix tbody th { left: 0; text-align: left; }
+.ixtla-dashboard-matrix__total { color: #0f4c81; background: #edf5fa !important; font-weight: 800; }
 .ixtla-dashboard-empty[hidden] { display: none; }
 .ixtla-dashboard-empty__mark { display: grid; width: 54px; height: 54px; margin: 0 auto 15px; place-items: center; border-radius: 17px; color: #fff; background: linear-gradient(135deg, #0f4c81, #2e9fb0); font-size: 25px; }
 .ixtla-dashboard-footnote { max-width: 1280px; margin: 20px auto 0; color: #6b7f91; font-size: 11px; line-height: 1.5; text-align: center; }

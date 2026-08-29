@@ -95,6 +95,12 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments, 
     if (isset($arguments['group_by'])) {
         $context['group_by'] = $arguments['group_by'];
     }
+    if (isset($arguments['series_by'])) {
+        $context['series_by'] = $arguments['series_by'];
+    }
+    if (isset($arguments['date_grain'])) {
+        $context['date_grain'] = $arguments['date_grain'];
+    }
     $filterKeys = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'channel_ids', 'assignee_state', 'date_field', 'date_from', 'date_to', 'sort'];
     $filters = [];
     foreach ($filterKeys as $filterKey) {

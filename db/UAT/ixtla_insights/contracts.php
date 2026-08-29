@@ -11,12 +11,14 @@ declare(strict_types=1);
 function ixtla_insights_catalog(): array
 {
     return [
-        'version' => 4,
+        'version' => 5,
         'domain' => 'requerimientos_y_retroalimentaciones',
         'domains' => ['requerimientos', 'retroalimentaciones'],
-        'widget_kinds' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'funnel'],
+        'widget_kinds' => ['kpi', 'bar', 'donut', 'line', 'area', 'table', 'matrix', 'funnel'],
         'metrics' => ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'cerrados', 'promedio_semanal', 'tiempo_resolucion', 'retro_total', 'tasa_respuesta', 'promedio_calificacion'],
         'dimensions' => ['estatus', 'tramite', 'departamento', 'fecha', 'calificacion', 'estado_retro'],
+        'series_dimensions' => ['', 'estatus', 'tramite', 'departamento'],
+        'date_grains' => ['day', 'week', 'month'],
         'periods' => ['all', 'last_7', 'last_30', 'this_month'],
         'scopes' => ['all', 'selected'],
         'sorts' => ['desc', 'asc', 'chronological'],
