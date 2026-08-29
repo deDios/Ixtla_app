@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-house-8">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=visual-explorer-1">
+    <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=subject-suggestions-1">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -74,7 +74,7 @@
                             <img id="hs-avatar" class="avatar" src="/ASSETS/user/img_user1.png" alt="Avatar">
                         </div>
 
-                        <!-- Botón editar avatar (igual que en GodCode) -->
+                        <!-- Botón editar avatar -->
                         <button type="button" class="icon-btn avatar-edit" aria-label="Cambiar foto"
                             title="Cambiar foto">
                             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -148,7 +148,7 @@
                     <section class="hs-card" aria-labelledby="y-desc">
                         <div class="hs-chart-wrap" style="position:relative;">
                             <canvas id="chart-year" width="600" height="240" aria-describedby="y-desc"></canvas>
-                            <!-- Tooltip (lo usa LineChart) -->
+                            <!-- Tooltip -->
                             <div class="chart-tip"
                                 style="position:absolute;pointer-events:none;padding:.35rem .5rem;border-radius:.5rem;background:#1f2937;color:#fff;font:12px/1.2 system-ui;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;">
                             </div>
@@ -807,7 +807,7 @@
 
     <script src="/JS/UAT/components.js"></script>
     <script src="/JS/UAT/jsGlobal.js"></script>
-    <script type="module" src="/JS/UAT/home.js?v=visual-explorer-1"></script>
+    <script type="module" src="/JS/UAT/home.js?v=subject-suggestions-1"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>
     <script src="/JS/UAT/ui/geolocationMap.js"></script>
     <script type="module" src="/JS/UAT/ui/requerimientosCanal2.js?v=geo-house-8"></script>

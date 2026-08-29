@@ -80,7 +80,7 @@ import { getEmpleadoById, updateEmpleado } from "/JS/UAT/api/usuarios.js";
 
 const INSIGHTS_CONFIG = {
   apiUrl: "/db/UAT/ixtla_insights/gpt_probe.php",
-  frontendBuild: "visual-explorer-1",
+  frontendBuild: "subject-suggestions-1",
   simpleMode: true,
   quickQuestions: [
     {

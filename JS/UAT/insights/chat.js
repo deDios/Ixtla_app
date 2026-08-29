@@ -79,6 +79,42 @@ const VISUALIZATION_PRESETS = {
   feedback: { domain: "retroalimentaciones", metric: "retro_total", dimension: "calificacion", chart: "bar", title: "Retroalimentaciones por calificación" },
   kpis: { domain: "requerimientos", metric: "total", dimension: "estatus", chart: "kpi", title: "Indicadores clave" },
 };
+const VISUALIZATION_TOPIC_OPTIONS = {
+  workload: [
+    { label: "Pendientes por trámite", description: "Identifica qué tipos de requerimiento concentran más trabajo.", action: { type: "visualization_topic_option", option: "pending_by_tramite" } },
+    { label: "Carga por departamento", description: "Compara los requerimientos abiertos entre departamentos.", action: { type: "visualization_topic_option", option: "workload_by_department" } },
+    { label: "Pausados o cancelados por departamento", description: "Ubica dónde se concentran casos detenidos.", action: { type: "visualization_topic_option", option: "stopped_by_department" } },
+  ],
+  trend: [
+    { label: "Altas de requerimientos", description: "Muestra cómo cambia el total registrado a través del tiempo.", action: { type: "visualization_topic_option", option: "created_trend" } },
+    { label: "Una línea por departamento", description: "Compara la evolución de los departamentos.", action: { type: "visualization_topic_option", option: "department_trend" } },
+    { label: "Una línea por estatus", description: "Compara la evolución de cada estado del requerimiento.", action: { type: "visualization_topic_option", option: "status_trend" } },
+  ],
+  status: [
+    { label: "Cantidad por estatus", description: "Compara solicitud, revisión, proceso, pausa y finalización.", action: { type: "visualization_topic_option", option: "status_breakdown" } },
+    { label: "Proporción por estatus", description: "Muestra qué parte del total representa cada estatus.", action: { type: "visualization_topic_option", option: "status_share" } },
+    { label: "Departamentos × estatus", description: "Cruza departamentos y estatus en una matriz.", action: { type: "visualization_topic_option", option: "department_status_matrix" } },
+  ],
+  feedback: [
+    { label: "Retroalimentaciones por calificación", description: "Compara respuestas malas, regulares, buenas y excelentes.", action: { type: "visualization_topic_option", option: "feedback_rating" } },
+    { label: "Estado de respuesta", description: "Compara contestadas, no contestadas, caducadas e inhabilitadas.", action: { type: "visualization_topic_option", option: "feedback_status" } },
+    { label: "Promedio de calificación", description: "Resume la valoración ciudadana en un indicador.", action: { type: "visualization_topic_option", option: "feedback_average" } },
+  ],
+};
+const VISUALIZATION_TOPIC_SPECS = {
+  pending_by_tramite: { domain: "requerimientos", metric: "abiertos", dimension: "tramite", chart: "bar" },
+  workload_by_department: { domain: "requerimientos", metric: "abiertos", dimension: "departamento", chart: "bar" },
+  stopped_by_department: { domain: "requerimientos", metric: "pausados_cancelados", dimension: "departamento", chart: "bar" },
+  created_trend: { domain: "requerimientos", metric: "total", dimension: "fecha", chart: "line" },
+  department_trend: { domain: "requerimientos", metric: "total", dimension: "fecha", series_dimension: "departamento", chart: "line", series_limit: 5 },
+  status_trend: { domain: "requerimientos", metric: "total", dimension: "fecha", series_dimension: "estatus", chart: "line", series_limit: 7 },
+  status_breakdown: { domain: "requerimientos", metric: "total", dimension: "estatus", chart: "bar" },
+  status_share: { domain: "requerimientos", metric: "total", dimension: "estatus", chart: "donut" },
+  department_status_matrix: { domain: "requerimientos", metric: "total", dimension: "departamento", series_dimension: "estatus", chart: "matrix", series_limit: 7 },
+  feedback_rating: { domain: "retroalimentaciones", metric: "retro_total", dimension: "calificacion", chart: "bar" },
+  feedback_status: { domain: "retroalimentaciones", metric: "retro_total", dimension: "estado_retro", chart: "donut" },
+  feedback_average: { domain: "retroalimentaciones", metric: "promedio_calificacion", dimension: "calificacion", chart: "kpi" },
+};
 const MEASUREMENT_CHOICES = [
   {
     label: "Total de requerimientos",
@@ -683,7 +719,7 @@ export function mountIxtlaInsights(options = {}) {
       if (!text) return;
       const chip = document.createElement("button");
       chip.type = "button";
-      const isChoice = ["visualization_preset", "visualization_measurement", "visualization_separation", "department_scope", "visualization_period", "visualization_kpi", "visualization_kpi_kit", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair", "visualization_cancel"].includes(item?.action?.type);
+      const isChoice = ["visualization_preset", "visualization_topic_option", "visualization_measurement", "visualization_separation", "department_scope", "visualization_period", "visualization_kpi", "visualization_kpi_kit", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair", "visualization_cancel"].includes(item?.action?.type);
       chip.className = `ixtla-insights-chip${item?.primary ? " ixtla-insights-chip--primary" : ""}${isChoice ? " ixtla-insights-chip--choice" : ""}`;
       const label = document.createElement("span");
       label.className = "ixtla-insights-chip__label";
@@ -699,7 +735,7 @@ export function mountIxtlaInsights(options = {}) {
       chip.addEventListener("click", async () => {
         const action = item && typeof item === "object" ? item.action || {} : {};
         if (action.type === "visualization_cancel") return cancelVisualization();
-        const visualizationAction = ["visualization_start", "visualization_preset", "visualization_measurement", "visualization_separation", "visualization_kpi_kit", "visualization_kpi", "department_scope", "visualization_period", "visualization_chart", "visualization_dimension", "visualization_metric", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair"].includes(action.type);
+        const visualizationAction = ["visualization_start", "visualization_preset", "visualization_topic_option", "visualization_measurement", "visualization_separation", "visualization_kpi_kit", "visualization_kpi", "department_scope", "visualization_period", "visualization_chart", "visualization_dimension", "visualization_metric", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair"].includes(action.type);
         if (visualizationAction) {
           try {
             if (!config.simpleMode) await ensureCatalog(config.catalogUrl);
@@ -715,6 +751,7 @@ export function mountIxtlaInsights(options = {}) {
         if (action.type === "visualization_line_series") return chooseLineSeries(action.series_dimension);
         if (action.type === "visualization_matrix_pair") return chooseMatrixPair(action.dimension, action.series_dimension);
         if (action.type === "visualization_preset") return chooseVisualizationPreset(action.preset);
+        if (action.type === "visualization_topic_option") return chooseVisualizationTopicOption(action.option);
         if (action.type === "visualization_measurement") return chooseVisualizationMeasurement(action.metric);
         if (action.type === "visualization_separation") return chooseVisualizationSeparation(action);
         if (action.type === "visualization_kpi_kit") return startKpiKit();
@@ -886,7 +923,7 @@ export function mountIxtlaInsights(options = {}) {
   function handlePendingVisualizationText(value) {
     if (!pendingVisualization) return false;
     const text = normalizedVisualizationText(value);
-    if (pendingVisualization.mode === "explorer_menu") {
+    if (["explorer_menu", "topic_option_selection"].includes(pendingVisualization.mode)) {
       pendingVisualization = null;
       return false;
     }
@@ -1637,7 +1674,7 @@ export function mountIxtlaInsights(options = {}) {
     const seriesSummary = series ? ` · una serie por ${series}` : "";
     addMessage(`Configuración propuesta: **${spec.title}**\n\n${metric} · ${visualizationScopeSummary(spec.filters)} · ${period} · ${chart} por ${dimension}${seriesSummary}.\n\n${visualizationRecommendation(spec)}${adjustment}`);
     renderConversationQuestions([
-      { label: "Dejar configuración lista", description: "Confirma esta propuesta para la siguiente etapa.", primary: true, action: { type: "visualization_confirm" } },
+      { label: "Confirmar diseño", description: "Termina la configuración y genera la vista previa.", primary: true, action: { type: "visualization_confirm" } },
       { label: "Cambiar tipo", description: `Recomendado: ${chart}.`, action: { type: "visualization_change_chart" } },
       { label: "Editar periodo", description: period, action: { type: "visualization_edit_period" } },
       { label: "Editar departamentos", description: visualizationScopeSummary(spec.filters), action: { type: "visualization_edit_scope" } },
@@ -1862,6 +1899,19 @@ export function mountIxtlaInsights(options = {}) {
     const preset = VISUALIZATION_PRESETS[clean(presetName)];
     if (!preset) return;
     if (echoUser) addMessage(VISUALIZATION_TOPICS.find((item) => item.action.preset === presetName)?.label || preset.title, "user");
+    if (presetName === "kpis") {
+      pendingVisualization = { mode: "topic_option_selection", topic: "kpis", filters: [], period: "" };
+      addMessage("¿Qué dato deseas destacar? Puedes crear indicadores de volumen, trabajo pendiente, cierres, casos detenidos, ritmo semanal o tiempo de resolución.");
+      renderWorkflowQuestions(kpiChoices());
+      return;
+    }
+    const topicOptions = VISUALIZATION_TOPIC_OPTIONS[presetName];
+    if (Array.isArray(topicOptions) && topicOptions.length) {
+      pendingVisualization = { mode: "topic_option_selection", topic: presetName, filters: [], period: "" };
+      addMessage("Estas son algunas ideas que puedo preparar con los datos autorizados. Elige una o escribe tu propia variante.");
+      renderWorkflowQuestions(topicOptions);
+      return;
+    }
     pendingVisualization = {
       mode: "preset_visualization",
       question: `Crear ${preset.title}`,
@@ -1871,6 +1921,23 @@ export function mountIxtlaInsights(options = {}) {
     };
     addMessage(`Te recomiendo ${CHART_LABELS[preset.chart].toLocaleLowerCase("es-MX")} porque ${preset.dimension === "fecha" ? "muestra claramente la evolución en el tiempo" : preset.chart === "kpi" ? "resume los valores principales de forma directa" : `permite comparar por ${DIMENSION_LABELS[preset.dimension]}`}.`);
     addMessage("¿Qué periodo deseas analizar?");
+    renderWorkflowQuestions(periodChoices());
+  }
+
+  function chooseVisualizationTopicOption(optionName) {
+    const option = VISUALIZATION_TOPIC_SPECS[clean(optionName)];
+    if (!option) return;
+    const choice = Object.values(VISUALIZATION_TOPIC_OPTIONS).flat().find((item) => item?.action?.option === optionName);
+    const label = clean(choice?.label) || "Visualización sugerida";
+    addMessage(label, "user");
+    pendingVisualization = normalizeVisualizationSpec({
+      mode: "preset_visualization",
+      question: `Crear ${label.toLocaleLowerCase("es-MX")}`,
+      ...option,
+      filters: [],
+      period: "",
+    });
+    addMessage(`${visualizationRecommendation(pendingVisualization)} ¿Qué periodo deseas analizar?`);
     renderWorkflowQuestions(periodChoices());
   }
 
