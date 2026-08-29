@@ -41,7 +41,30 @@ const START_ACTIONS = [{
   description: "Cuéntame qué necesitas o elige una opción.",
   primary: true,
   action: { type: "visualization_start" },
+}, {
+  label: "Explorar visualizaciones",
+  description: "Descubre qué formato te ayuda a responder cada pregunta.",
+  action: { type: "visualization_explore" },
 }];
+const VISUALIZATION_EXPLORER = [
+  { label: "Comparar categorías", description: "Barras para comparar departamentos, trámites o estatus.", prompt: "Crea una gráfica de barras para comparar el total de requerimientos por trámite." },
+  { label: "Ver evolución", description: "Una o varias líneas para entender cambios en el tiempo.", action: { type: "visualization_explorer_format", chart: "line" } },
+  { label: "Entender proporciones", description: "Pastel para pocas categorías que forman un total.", prompt: "Crea una gráfica de pastel con la proporción de requerimientos por estatus." },
+  { label: "Cruzar dos categorías", description: "Matriz para consultar cada combinación con valores exactos.", action: { type: "visualization_explorer_format", chart: "matrix" } },
+  { label: "Consultar valores exactos", description: "Tabla ordenada para revisar categorías y cantidades.", prompt: "Crea una tabla con el total de requerimientos por trámite." },
+  { label: "Resumir un dato", description: "Indicador para destacar una cifra principal.", prompt: "Crea un indicador con el total de requerimientos." },
+];
+const LINE_SERIES_CHOICES = [
+  { label: "Una línea con el total", description: "Muestra la evolución general sin separar categorías.", action: { type: "visualization_line_series", series_dimension: "" } },
+  { label: "Una línea por departamento", description: "Compara la evolución de cada departamento.", action: { type: "visualization_line_series", series_dimension: "departamento" } },
+  { label: "Una línea por estatus", description: "Compara cómo cambia cada estatus.", action: { type: "visualization_line_series", series_dimension: "estatus" } },
+  { label: "Una línea por tipo de requerimiento", description: "Compara la evolución de los principales trámites.", action: { type: "visualization_line_series", series_dimension: "tramite" } },
+];
+const MATRIX_PAIR_CHOICES = [
+  { label: "Departamentos × estatus", description: "Filas por departamento y columnas por estatus.", action: { type: "visualization_matrix_pair", dimension: "departamento", series_dimension: "estatus" } },
+  { label: "Departamentos × trámites", description: "Filas por departamento y columnas por tipo de requerimiento.", action: { type: "visualization_matrix_pair", dimension: "departamento", series_dimension: "tramite" } },
+  { label: "Trámites × estatus", description: "Filas por trámite y columnas por estatus.", action: { type: "visualization_matrix_pair", dimension: "tramite", series_dimension: "estatus" } },
+];
 const VISUALIZATION_TOPICS = [
   { label: "Carga y pendientes", description: "Compara trámites o departamentos por volumen.", action: { type: "visualization_preset", preset: "workload" } },
   { label: "Tendencia en el tiempo", description: "Muestra cómo cambia la demanda por fecha.", action: { type: "visualization_preset", preset: "trend" } },
@@ -660,7 +683,7 @@ export function mountIxtlaInsights(options = {}) {
       if (!text) return;
       const chip = document.createElement("button");
       chip.type = "button";
-      const isChoice = ["visualization_preset", "visualization_measurement", "visualization_separation", "department_scope", "visualization_period", "visualization_kpi", "visualization_kpi_kit", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_cancel"].includes(item?.action?.type);
+      const isChoice = ["visualization_preset", "visualization_measurement", "visualization_separation", "department_scope", "visualization_period", "visualization_kpi", "visualization_kpi_kit", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair", "visualization_cancel"].includes(item?.action?.type);
       chip.className = `ixtla-insights-chip${item?.primary ? " ixtla-insights-chip--primary" : ""}${isChoice ? " ixtla-insights-chip--choice" : ""}`;
       const label = document.createElement("span");
       label.className = "ixtla-insights-chip__label";
@@ -676,7 +699,7 @@ export function mountIxtlaInsights(options = {}) {
       chip.addEventListener("click", async () => {
         const action = item && typeof item === "object" ? item.action || {} : {};
         if (action.type === "visualization_cancel") return cancelVisualization();
-        const visualizationAction = ["visualization_start", "visualization_preset", "visualization_measurement", "visualization_separation", "visualization_kpi_kit", "visualization_kpi", "department_scope", "visualization_period", "visualization_chart", "visualization_dimension", "visualization_metric", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope"].includes(action.type);
+        const visualizationAction = ["visualization_start", "visualization_preset", "visualization_measurement", "visualization_separation", "visualization_kpi_kit", "visualization_kpi", "department_scope", "visualization_period", "visualization_chart", "visualization_dimension", "visualization_metric", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair"].includes(action.type);
         if (visualizationAction) {
           try {
             if (!config.simpleMode) await ensureCatalog(config.catalogUrl);
@@ -687,6 +710,10 @@ export function mountIxtlaInsights(options = {}) {
           }
         }
         if (action.type === "visualization_start") return startGuidedVisualization();
+        if (action.type === "visualization_explore") return exploreVisualizationTypes();
+        if (action.type === "visualization_explorer_format") return chooseExplorerFormat(action.chart);
+        if (action.type === "visualization_line_series") return chooseLineSeries(action.series_dimension);
+        if (action.type === "visualization_matrix_pair") return chooseMatrixPair(action.dimension, action.series_dimension);
         if (action.type === "visualization_preset") return chooseVisualizationPreset(action.preset);
         if (action.type === "visualization_measurement") return chooseVisualizationMeasurement(action.metric);
         if (action.type === "visualization_separation") return chooseVisualizationSeparation(action);
@@ -711,13 +738,32 @@ export function mountIxtlaInsights(options = {}) {
     renderQuickQuestions([...START_ACTIONS, ...config.quickQuestions]);
   }
 
+  // Las decisiones del recorrido pertenecen a la conversación. El menú del
+  // pie permanece estable y no pierde sus accesos originales.
+  function renderConversationQuestions(questions) {
+    renderQuickQuestions(Array.isArray(questions) ? questions : []);
+    const group = document.createElement("div");
+    group.className = "ixtla-insights-conversation-choices";
+    [...primaryChips.children, ...secondaryChips.children].forEach((button) => group.append(button));
+    if (group.childElementCount) {
+      group.addEventListener("click", (event) => {
+        if (!event.target.closest("button")) return;
+        group.classList.add("is-resolved");
+        window.setTimeout(() => group.querySelectorAll("button").forEach((button) => { button.disabled = true; }), 0);
+      });
+      messages.append(group);
+      messages.scrollTop = messages.scrollHeight;
+    }
+    renderMainMenu();
+  }
+
   function renderWorkflowQuestions(questions) {
     const cancel = {
       label: "Cancelar creación",
       description: "Descarta este gráfico y vuelve a las consultas.",
       action: { type: "visualization_cancel" },
     };
-    renderQuickQuestions([...(Array.isArray(questions) ? questions : []), cancel]);
+    renderConversationQuestions([...(Array.isArray(questions) ? questions : []), cancel]);
   }
 
   function isVisualizationCancellationIntent(value) {
@@ -840,6 +886,10 @@ export function mountIxtlaInsights(options = {}) {
   function handlePendingVisualizationText(value) {
     if (!pendingVisualization) return false;
     const text = normalizedVisualizationText(value);
+    if (pendingVisualization.mode === "explorer_menu") {
+      pendingVisualization = null;
+      return false;
+    }
     if (pendingVisualization.mode === "topic_selection") {
       if (/\bretro|retroalimentacion|calificacion|satisfaccion\b/.test(text)) chooseVisualizationPreset("feedback", false);
       else if (/\btendencia|tiempo|evolucion\b/.test(text)) chooseVisualizationPreset("trend", false);
@@ -887,6 +937,15 @@ export function mountIxtlaInsights(options = {}) {
 
   function applyStructuredVisualizationPlan(question, plan) {
     if (!plan || plan.intent === "not_visualization") return false;
+    const inferredDomain = clean(plan.domain);
+    const normalizedQuestion = normalizedVisualizationText(question);
+    const hasExplicitRequirementMetric = /\b(abiertos?|activos?|pendientes?|finalizados?|cerrados?|pausados?|cancelados?|tiempo de resolucion|promedio semanal)\b/.test(normalizedQuestion);
+    const canUseDefaultTotal = inferredDomain === "requerimientos" && clean(plan.chart) && clean(plan.dimension) && !hasExplicitRequirementMetric;
+    if ((inferredDomain && !clean(plan.metric)) || canUseDefaultTotal) {
+      plan.metric = inferredDomain === "retroalimentaciones" ? "retro_total" : "total";
+      plan.needs_clarification = false;
+      if (plan.intent === "clarify") plan.intent = "create";
+    }
     if (plan.needs_clarification || plan.intent === "clarify" || !clean(plan.domain)) {
       const hasPartialPlan = Boolean(clean(plan.domain));
       pendingVisualization = hasPartialPlan
@@ -894,7 +953,7 @@ export function mountIxtlaInsights(options = {}) {
         : { mode: "topic_selection", filters: [], period: "" };
       addMessage(clean(plan.clarification_question) || "¿Qué te gustaría visualizar?");
       if (!hasPartialPlan) renderWorkflowQuestions(VISUALIZATION_TOPICS);
-      else renderQuickQuestions([{ label: "Cancelar", action: { type: "visualization_cancel" } }]);
+      else renderConversationQuestions([{ label: "Cancelar", action: { type: "visualization_cancel" } }]);
       return true;
     }
     const domain = clean(plan.domain);
@@ -1526,7 +1585,6 @@ export function mountIxtlaInsights(options = {}) {
     if (!pendingVisualization?.chart || !pendingVisualization?.metric) return;
     const request = pendingVisualization;
     if (request.reviewSpec) return;
-    renderQuickQuestions([]);
     const dimension = request.dimension || "estatus";
     const spec = normalizeVisualizationSpec({
       id: `guided-widget-${Date.now()}`,
@@ -1571,12 +1629,14 @@ export function mountIxtlaInsights(options = {}) {
     const chart = CHART_LABELS[spec.chart] || spec.chart;
     const metric = METRIC_LABELS[spec.metric] || spec.metric;
     const dimension = DIMENSION_LABELS[spec.dimension] || spec.dimension;
+    const series = DIMENSION_LABELS[spec.series_dimension] || "";
     const period = PERIOD_LABELS[spec.period] || PERIOD_LABELS.all;
     const adjustment = spec.compatibilityAdjusted
       ? ` Ajusté el formato a ${chart.toLocaleLowerCase("es-MX")} para conservar el análisis por ${dimension}.`
       : "";
-    addMessage(`Configuración propuesta: **${spec.title}**\n\n${metric} · ${visualizationScopeSummary(spec.filters)} · ${period} · ${chart} por ${dimension}.\n\n${visualizationRecommendation(spec)}${adjustment}`);
-    renderQuickQuestions([
+    const seriesSummary = series ? ` · una serie por ${series}` : "";
+    addMessage(`Configuración propuesta: **${spec.title}**\n\n${metric} · ${visualizationScopeSummary(spec.filters)} · ${period} · ${chart} por ${dimension}${seriesSummary}.\n\n${visualizationRecommendation(spec)}${adjustment}`);
+    renderConversationQuestions([
       { label: "Dejar configuración lista", description: "Confirma esta propuesta para la siguiente etapa.", primary: true, action: { type: "visualization_confirm" } },
       { label: "Cambiar tipo", description: `Recomendado: ${chart}.`, action: { type: "visualization_change_chart" } },
       { label: "Editar periodo", description: period, action: { type: "visualization_edit_period" } },
@@ -1591,7 +1651,6 @@ export function mountIxtlaInsights(options = {}) {
     if (!request || !spec) return;
     pendingVisualization = null;
     if (!config.simpleMode) discardDraft();
-    renderQuickQuestions([]);
     if (config.simpleMode) {
       const hideThinkingIndicator = showThinkingIndicator();
       try {
@@ -1635,6 +1694,66 @@ export function mountIxtlaInsights(options = {}) {
     discardDraft();
     addMessage(message);
     renderMainMenu();
+  }
+
+  function exploreVisualizationTypes() {
+    addMessage("Explorar visualizaciones", "user");
+    pendingVisualization = { mode: "explorer_menu", filters: [], period: "" };
+    addMessage("No necesitas conocer los nombres técnicos. Elige qué quieres entender y te propondré el formato y un ejemplo que puedes ajustar.");
+    renderWorkflowQuestions(VISUALIZATION_EXPLORER);
+  }
+
+  function chooseExplorerFormat(chart) {
+    if (!catalogValues("widget_kinds", Object.keys(CHART_LABELS)).includes(chart)) return;
+    if (chart === "line") {
+      addMessage("Ver evolución", "user");
+      pendingVisualization = {
+        mode: "explorer_visualization", question: "Crear una tendencia de requerimientos", domain: "requerimientos",
+        chart: "line", metric: "total", dimension: "fecha", series_dimension: "", filters: [], period: "",
+      };
+      addMessage("Una línea muestra el total en el tiempo; varias líneas permiten comparar categorías. ¿Cómo deseas verla?");
+      renderWorkflowQuestions(LINE_SERIES_CHOICES);
+      return;
+    }
+    if (chart === "matrix") {
+      addMessage("Cruzar dos categorías", "user");
+      pendingVisualization = {
+        mode: "explorer_visualization", question: "Crear una matriz de requerimientos", domain: "requerimientos",
+        chart: "matrix", metric: "total", dimension: "departamento", series_dimension: "estatus", series_limit: 7, filters: [], period: "",
+      };
+      addMessage("Una matriz cruza dos categorías: una se muestra en filas y otra en columnas. Cada celda contiene la cantidad de requerimientos. ¿Qué deseas cruzar?");
+      renderWorkflowQuestions(MATRIX_PAIR_CHOICES);
+    }
+  }
+
+  function askExplorerPeriod() {
+    queueDraftPersist();
+    addMessage("Usaré el total de requerimientos como medición. ¿Qué periodo deseas analizar?");
+    renderWorkflowQuestions(periodChoices());
+  }
+
+  function chooseLineSeries(seriesDimension) {
+    if (!pendingVisualization || pendingVisualization.chart !== "line") return;
+    if (seriesDimension && !["departamento", "estatus", "tramite"].includes(seriesDimension)) return;
+    pendingVisualization.series_dimension = seriesDimension;
+    pendingVisualization.series_limit = seriesDimension === "estatus" ? 7 : 5;
+    const label = seriesDimension ? `Una línea por ${DIMENSION_LABELS[seriesDimension]}` : "Una línea con el total";
+    pendingVisualization.question = `Crear una tendencia con ${label.toLocaleLowerCase("es-MX")}`;
+    addMessage(label, "user");
+    askExplorerPeriod();
+  }
+
+  function chooseMatrixPair(dimension, seriesDimension) {
+    if (!pendingVisualization || pendingVisualization.chart !== "matrix") return;
+    if (!["departamento", "estatus", "tramite"].includes(dimension)
+        || !["departamento", "estatus", "tramite"].includes(seriesDimension)
+        || dimension === seriesDimension) return;
+    pendingVisualization.dimension = dimension;
+    pendingVisualization.series_dimension = seriesDimension;
+    pendingVisualization.series_limit = seriesDimension === "estatus" ? 7 : 5;
+    pendingVisualization.question = `Crear una matriz por ${DIMENSION_LABELS[dimension]} y ${DIMENSION_LABELS[seriesDimension]}`;
+    addMessage(`${DIMENSION_LABELS[dimension]} × ${DIMENSION_LABELS[seriesDimension]}`, "user");
+    askExplorerPeriod();
   }
 
   function chooseVisualizationChart(chart) {
@@ -1825,7 +1944,7 @@ export function mountIxtlaInsights(options = {}) {
 
   function continueAfterPeriod() {
     if (!pendingVisualization) return;
-    if (["preset_visualization", "natural_visualization", "structured_visualization"].includes(pendingVisualization.mode)) {
+    if (["preset_visualization", "natural_visualization", "structured_visualization", "explorer_visualization"].includes(pendingVisualization.mode)) {
       finalizeVisualization();
       return;
     }
@@ -1866,18 +1985,18 @@ export function mountIxtlaInsights(options = {}) {
 
   async function showDepartmentChecklist() {
     if (!config.departmentsUrl) return;
-    primaryChips.replaceChildren();
-    secondaryChips.replaceChildren();
-    customChips.replaceChildren();
     const loading = document.createElement("p");
     loading.className = "ixtla-insights-department-loading";
     loading.textContent = "Cargando departamentos activos…";
-    customChips.appendChild(loading);
+    messages.appendChild(loading);
+    messages.scrollTop = messages.scrollHeight;
     try {
       const payload = await fetchInsightsJson(config.departmentsUrl);
       if (!Array.isArray(payload.departments)) throw new Error("El endpoint respondió sin el catálogo de departamentos.");
+      loading.remove();
       renderDepartmentChecklist(payload.departments);
     } catch (error) {
+      loading.remove();
       console.error("[IxtlaInsights]", error);
       const detail = error instanceof InsightsRequestError ? endpointDiagnosticMessage(error) : "No pude cargar los departamentos activos.";
       addMessage(`${detail} Puedes intentar nuevamente o seleccionar todos los departamentos.`);
@@ -1886,9 +2005,8 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function renderDepartmentChecklist(departments) {
-    primaryChips.replaceChildren();
-    secondaryChips.replaceChildren();
-    customChips.replaceChildren();
+    const panel = document.createElement("div");
+    panel.className = "ixtla-insights-conversation-form";
     const selectedNames = new Set((Array.isArray(pendingVisualization?.filters) ? pendingVisualization.filters : [])
       .filter((filter) => filter?.field === "departamento")
       .map((filter) => clean(filter?.value)));
@@ -1915,7 +2033,10 @@ export function mountIxtlaInsights(options = {}) {
     const back = document.createElement("button");
     back.type = "button";
     back.textContent = "Volver";
-    back.addEventListener("click", () => renderWorkflowQuestions(DEPARTMENT_SCOPE_CHOICES));
+    back.addEventListener("click", () => {
+      panel.remove();
+      renderWorkflowQuestions(DEPARTMENT_SCOPE_CHOICES);
+    });
     const apply = document.createElement("button");
     apply.type = "button";
     apply.textContent = "Usar departamentos seleccionados";
@@ -1930,6 +2051,7 @@ export function mountIxtlaInsights(options = {}) {
       }
       pendingVisualization.filters = selected.slice(0, 50).map((item) => ({ field: "departamento", value: item.value, ...(item.id ? { id: item.id } : {}) }));
       queueDraftPersist();
+      panel.querySelectorAll("button, input").forEach((control) => { control.disabled = true; });
       addMessage(`Departamentos: ${selected.map((item) => item.value).join(", ")}`, "user");
       continueAfterDepartmentScope();
     });
@@ -1938,7 +2060,9 @@ export function mountIxtlaInsights(options = {}) {
     cancel.textContent = "Cancelar creación";
     cancel.addEventListener("click", () => cancelVisualization());
     actions.append(back, cancel, apply);
-    customChips.append(form, actions);
+    panel.append(form, actions);
+    messages.append(panel);
+    messages.scrollTop = messages.scrollHeight;
   }
 
   function startRemoteVisualizationScope(question, spec) {
@@ -2076,6 +2200,10 @@ export function mountIxtlaInsights(options = {}) {
   async function ask(question) {
     const prompt = clean(question);
     if (!prompt) return;
+    messages.querySelectorAll(".ixtla-insights-conversation-choices:not(.is-resolved)").forEach((group) => {
+      group.classList.add("is-resolved");
+      group.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+    });
     addMessage(prompt, "user");
     input.value = "";
     if (isVisualizationCancellationIntent(prompt)) {
@@ -2124,7 +2252,7 @@ export function mountIxtlaInsights(options = {}) {
       const defaultActions = payload?.result_query
         ? reportFollowUps(prompt, payload.result_query)
         : [...START_ACTIONS, ...config.quickQuestions];
-      renderQuickQuestions(suggestions.length ? suggestions : defaultActions);
+      renderConversationQuestions(suggestions.length ? suggestions : defaultActions);
       if (!config.simpleMode) {
         const action = Array.isArray(payload.actions) ? payload.actions.find((item) => item?.type === "widget_preview") : null;
         const spec = remoteWidgetSpec(action?.widget);

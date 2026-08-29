@@ -63,6 +63,8 @@ $previousJson = json_encode($previous, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_S
 $developerPrompt = 'Eres el planificador de visualizaciones de Ixtla Insights. Convierte la solicitud en un plan JSON. '
     . 'Solo puedes usar los valores del esquema. Conserva del plan anterior todo lo que el usuario no cambie. '
     . 'Para tendencias usa line y fecha. Si el usuario pide una linea por estatus, tramite o departamento, usa fecha como dimension y esa categoria como series_dimension. '
+    . 'En requerimientos, si no especifica una metrica usa total; no pidas aclaracion entre total, abiertos o finalizados. Solo usa otra metrica cuando el usuario la mencione expresamente. '
+    . 'Frases como "cada departamento sea una linea" o "linea con varias dimensiones por departamento" significan dimension fecha, series_dimension departamento y metric total. '
     . 'Para rankings o comparaciones entre categorias usa bar. Para un valor unico usa kpi. Para cruzar dos categorias con valores exactos usa matrix. '
     . 'Usa donut solo para pocas categorias que forman una distribucion y nunca para fechas. '
     . 'La dimension representa lo que el usuario desea analizar y debe coincidir con el titulo: estatus, tramite y departamento son categorias; fecha es temporal. '
@@ -71,7 +73,7 @@ $developerPrompt = 'Eres el planificador de visualizaciones de Ixtla Insights. C
     . 'Explica reason con lenguaje sencillo: que podra entender el usuario gracias a ese formato, sin tecnicismos. '
     . 'Retroalimentaciones usa retro_total con calificacion o estado_retro; tasa_respuesta y promedio_calificacion son KPI. '
     . 'Si el usuario pide comparar contra el periodo anterior usa comparison previous_period. '
-    . 'Si falta el tema o la metrica y no existe plan anterior, marca needs_clarification y formula una sola pregunta breve. '
+    . 'Solo si falta el tema o dominio y no existe plan anterior, marca needs_clarification y formula una sola pregunta breve. '
     . 'No inventes nombres de departamentos, tramites ni filtros. Plan anterior validado: ' . $previousJson;
 
 $payload = [
