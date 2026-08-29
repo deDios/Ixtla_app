@@ -27,7 +27,7 @@ if ($apiKey === '' || $providerUrl === '' || $model === '') {
 $schema = [
     'type' => 'object',
     'additionalProperties' => false,
-    'required' => ['intent', 'domain', 'chart', 'metric', 'dimension', 'series_dimension', 'date_grain', 'series_limit', 'period', 'comparison', 'filters', 'limit', 'title', 'reason', 'needs_clarification', 'clarification_question'],
+    'required' => ['intent', 'domain', 'chart', 'metric', 'dimension', 'series_dimension', 'date_grain', 'series_limit', 'period', 'comparison', 'filters', 'limit', 'title', 'reason', 'alternatives', 'needs_clarification', 'clarification_question'],
     'properties' => [
         'intent' => ['type' => 'string', 'enum' => ['create', 'edit', 'clarify', 'not_visualization']],
         'domain' => ['type' => 'string', 'enum' => ['', 'requerimientos', 'retroalimentaciones']],
@@ -53,6 +53,22 @@ $schema = [
         'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
         'title' => ['type' => 'string', 'maxLength' => 100],
         'reason' => ['type' => 'string', 'maxLength' => 220],
+        'alternatives' => [
+            'type' => 'array', 'maxItems' => 3,
+            'items' => [
+                'type' => 'object', 'additionalProperties' => false,
+                'required' => ['chart', 'dimension', 'series_dimension', 'date_grain', 'series_limit', 'title', 'reason'],
+                'properties' => [
+                    'chart' => ['type' => 'string', 'enum' => ['', 'bar', 'line', 'area', 'donut', 'table', 'matrix', 'kpi']],
+                    'dimension' => ['type' => 'string', 'enum' => ['', 'estatus', 'tramite', 'departamento', 'fecha', 'calificacion', 'estado_retro']],
+                    'series_dimension' => ['type' => 'string', 'enum' => ['', 'estatus', 'tramite', 'departamento']],
+                    'date_grain' => ['type' => 'string', 'enum' => ['', 'day', 'week', 'month']],
+                    'series_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 7],
+                    'title' => ['type' => 'string', 'maxLength' => 100],
+                    'reason' => ['type' => 'string', 'maxLength' => 220],
+                ],
+            ],
+        ],
         'needs_clarification' => ['type' => 'boolean'],
         'clarification_question' => ['type' => 'string', 'maxLength' => 180],
     ],
@@ -74,6 +90,7 @@ $developerPrompt = 'Eres el planificador de visualizaciones de Ixtla Insights. C
     . 'Retroalimentaciones usa retro_total con calificacion o estado_retro; tasa_respuesta y promedio_calificacion son KPI. '
     . 'Si el usuario pide comparar contra el periodo anterior usa comparison previous_period. '
     . 'Solo si falta el tema o dominio y no existe plan anterior, marca needs_clarification y formula una sola pregunta breve. '
+    . 'Cuando la solicitud tenga un tema claro, devuelve 2 o 3 alternatives distintas pero compatibles (por ejemplo barras, linea multiserie, tabla o matriz) y explica en reason cuando conviene cada una. No repitas el plan principal ni inventes dimensiones. '
     . 'No inventes nombres de departamentos, tramites ni filtros. Plan anterior validado: ' . $previousJson;
 
 $payload = [

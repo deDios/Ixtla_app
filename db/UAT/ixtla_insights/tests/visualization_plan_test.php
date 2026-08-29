@@ -44,6 +44,17 @@ expect_visual_plan($matrix['chart'] === 'matrix', 'Debe conservar una matriz com
 expect_visual_plan($matrix['dimension'] === 'departamento' && $matrix['series_dimension'] === 'estatus', 'La matriz debe conservar sus dos dimensiones.');
 expect_visual_plan($matrix['series_limit'] === 7, 'Debe acotar el numero de series legibles.');
 
+$withAlternatives = ixtla_visual_plan_normalize([
+    'intent' => 'create', 'domain' => 'requerimientos', 'chart' => 'bar', 'metric' => 'total',
+    'dimension' => 'departamento', 'period' => 'last_30', 'filters' => [],
+    'alternatives' => [
+        ['chart' => 'line', 'dimension' => 'fecha', 'series_dimension' => 'departamento', 'date_grain' => 'day', 'series_limit' => 5],
+        ['chart' => 'matrix', 'dimension' => 'departamento', 'series_dimension' => 'estatus', 'date_grain' => 'day', 'series_limit' => 7],
+    ],
+]);
+expect_visual_plan(count($withAlternatives['alternatives']) === 2, 'Debe conservar alternativas validas generadas por el asistente.');
+expect_visual_plan(($withAlternatives['alternatives'][0]['chart'] ?? null) === 'line', 'La alternativa debe conservar su formato sugerido.');
+
 $donut = ixtla_visual_plan_normalize([
     'intent' => 'edit', 'domain' => 'requerimientos', 'chart' => 'donut', 'metric' => 'total',
     'dimension' => 'fecha', 'period' => 'this_month', 'comparison' => '', 'filters' => [],

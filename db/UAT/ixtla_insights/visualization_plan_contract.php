@@ -108,14 +108,31 @@ function ixtla_visual_plan_normalize(array $plan): array
         $needsClarification = true;
         $clarification = '¿Qué periodo deseas comparar con su periodo anterior?';
     }
+    $alternatives = [];
+    foreach (is_array($plan['alternatives'] ?? null) ? $plan['alternatives'] : [] as $alternative) {
+        if (!is_array($alternative)) continue;
+        $candidate = ixtla_visual_plan_normalize(array_merge($plan, $alternative, [
+            'alternatives' => [], 'metric' => $metric, 'period' => $plan['period'] ?? '',
+            'comparison' => $plan['comparison'] ?? '', 'filters' => $plan['filters'] ?? [],
+        ]));
+        if ($candidate['chart'] === '' || $candidate['domain'] === ''
+            || ($candidate['chart'] === $chart && $candidate['dimension'] === $dimension && $candidate['series_dimension'] === $seriesDimension)) continue;
+        $alternatives[] = [
+            'chart' => $candidate['chart'], 'dimension' => $candidate['dimension'],
+            'series_dimension' => $candidate['series_dimension'], 'date_grain' => $candidate['date_grain'],
+            'series_limit' => $candidate['series_limit'], 'title' => $candidate['title'], 'reason' => $candidate['reason'],
+        ];
+        if (count($alternatives) >= 3) break;
+    }
     return [
         'intent' => in_array((string) ($plan['intent'] ?? ''), ['create', 'edit', 'clarify', 'not_visualization'], true) ? $plan['intent'] : 'clarify',
         'domain' => $domain, 'chart' => $chart, 'metric' => $metric, 'dimension' => $dimension,
         'series_dimension' => $seriesDimension, 'date_grain' => $dateGrain, 'series_limit' => $seriesLimit,
-        'period' => (string) $plan['period'], 'comparison' => (string) $plan['comparison'], 'filters' => array_slice($filters, 0, 5),
+        'period' => (string) ($plan['period'] ?? ''), 'comparison' => (string) ($plan['comparison'] ?? ''), 'filters' => array_slice($filters, 0, 5),
         'limit' => min(50, max(1, (int) ($plan['limit'] ?? 10))),
         'title' => $domain === '' ? '' : ixtla_insights_truncate(ixtla_visual_plan_title($domain, $chart, $metric, $dimension, $seriesDimension), 100),
         'reason' => $domain === '' ? '' : ixtla_insights_truncate(ixtla_visual_plan_reason($chart, $dimension, $seriesDimension), 220),
+        'alternatives' => $alternatives,
         'needs_clarification' => $needsClarification,
         'clarification_question' => $clarification,
     ];

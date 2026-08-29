@@ -39,12 +39,7 @@ const insightsDebug = (event, detail = {}) => {
 const START_ACTIONS = [{
   label: "Crear un gráfico",
   description: "Cuéntame qué necesitas o elige una opción.",
-  primary: true,
   action: { type: "visualization_start" },
-}, {
-  label: "Explorar visualizaciones",
-  description: "Descubre qué formato te ayuda a responder cada pregunta.",
-  action: { type: "visualization_explore" },
 }];
 const VISUALIZATION_EXPLORER = [
   { label: "Comparar categorías", description: "Barras para comparar departamentos, trámites o estatus.", prompt: "Crea una gráfica de barras para comparar el total de requerimientos por trámite." },
@@ -71,6 +66,7 @@ const VISUALIZATION_TOPICS = [
   { label: "Estatus de requerimientos", description: "Compara solicitud, proceso, pausa y finalización.", action: { type: "visualization_preset", preset: "status" } },
   { label: "Retroalimentaciones", description: "Visualiza calificaciones y respuesta ciudadana.", action: { type: "visualization_preset", preset: "feedback" } },
   { label: "Indicadores clave", description: "Prepara tarjetas KPI con los principales valores.", action: { type: "visualization_preset", preset: "kpis" } },
+  { label: "Explorar formatos", description: "Te explico cuándo conviene usar líneas, barras, matrices o indicadores.", action: { type: "visualization_explore" } },
 ];
 const VISUALIZATION_PRESETS = {
   workload: { domain: "requerimientos", metric: "abiertos", dimension: "tramite", chart: "bar", title: "Requerimientos pendientes por trámite" },
@@ -719,7 +715,7 @@ export function mountIxtlaInsights(options = {}) {
       if (!text) return;
       const chip = document.createElement("button");
       chip.type = "button";
-      const isChoice = ["visualization_preset", "visualization_topic_option", "visualization_measurement", "visualization_separation", "department_scope", "visualization_period", "visualization_kpi", "visualization_kpi_kit", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair", "visualization_cancel"].includes(item?.action?.type);
+      const isChoice = ["visualization_preset", "visualization_topic_option", "visualization_plan_choice", "visualization_measurement", "visualization_separation", "department_scope", "visualization_period", "visualization_kpi", "visualization_kpi_kit", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair", "visualization_cancel"].includes(item?.action?.type);
       chip.className = `ixtla-insights-chip${item?.primary ? " ixtla-insights-chip--primary" : ""}${isChoice ? " ixtla-insights-chip--choice" : ""}`;
       const label = document.createElement("span");
       label.className = "ixtla-insights-chip__label";
@@ -735,7 +731,7 @@ export function mountIxtlaInsights(options = {}) {
       chip.addEventListener("click", async () => {
         const action = item && typeof item === "object" ? item.action || {} : {};
         if (action.type === "visualization_cancel") return cancelVisualization();
-        const visualizationAction = ["visualization_start", "visualization_preset", "visualization_topic_option", "visualization_measurement", "visualization_separation", "visualization_kpi_kit", "visualization_kpi", "department_scope", "visualization_period", "visualization_chart", "visualization_dimension", "visualization_metric", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair"].includes(action.type);
+        const visualizationAction = ["visualization_start", "visualization_preset", "visualization_topic_option", "visualization_plan_choice", "visualization_measurement", "visualization_separation", "visualization_kpi_kit", "visualization_kpi", "department_scope", "visualization_period", "visualization_chart", "visualization_dimension", "visualization_metric", "visualization_confirm", "visualization_change_chart", "visualization_edit_period", "visualization_edit_scope", "visualization_explore", "visualization_explorer_format", "visualization_line_series", "visualization_matrix_pair"].includes(action.type);
         if (visualizationAction) {
           try {
             if (!config.simpleMode) await ensureCatalog(config.catalogUrl);
@@ -752,6 +748,7 @@ export function mountIxtlaInsights(options = {}) {
         if (action.type === "visualization_matrix_pair") return chooseMatrixPair(action.dimension, action.series_dimension);
         if (action.type === "visualization_preset") return chooseVisualizationPreset(action.preset);
         if (action.type === "visualization_topic_option") return chooseVisualizationTopicOption(action.option);
+        if (action.type === "visualization_plan_choice") return chooseVisualizationPlan(action.choice);
         if (action.type === "visualization_measurement") return chooseVisualizationMeasurement(action.metric);
         if (action.type === "visualization_separation") return chooseVisualizationSeparation(action);
         if (action.type === "visualization_kpi_kit") return startKpiKit();
@@ -1013,8 +1010,27 @@ export function mountIxtlaInsights(options = {}) {
       limit: Math.min(50, Math.max(1, Number(plan.limit) || 10)),
       plannerReason: clean(plan.reason),
     });
+    const alternatives = Array.isArray(plan.alternatives) ? plan.alternatives.map((alternative) => normalizeVisualizationSpec({
+      ...pendingVisualization,
+      ...alternative,
+      mode: "structured_visualization",
+      question,
+      metric,
+      domain,
+      period: clean(plan.period),
+      filters: pendingVisualization.filters,
+    })).filter((alternative) => alternative.chart && alternative.title).slice(0, 3) : [];
+    pendingVisualization.plannerAlternatives = alternatives;
     const reason = visualizationRecommendation(pendingVisualization);
     addMessage(`Preparé un plan para **${pendingVisualization.title}**. ${reason}`);
+    if (alternatives.length) {
+      addMessage("También encontré otras formas de responder la misma pregunta. Puedes elegir una antes de continuar:");
+      renderWorkflowQuestions([
+        { label: `Usar ${CHART_LABELS[pendingVisualization.chart] || "esta propuesta"}`, description: reason, primary: true, action: { type: "visualization_plan_choice", choice: "main" } },
+        ...alternatives.map((alternative, index) => ({ label: alternative.title, description: clean(plan.alternatives[index]?.reason) || visualizationRecommendation(alternative), action: { type: "visualization_plan_choice", choice: index } })),
+      ]);
+      return true;
+    }
     if (!pendingVisualization.period) {
       addMessage("¿Qué periodo deseas analizar?");
       renderWorkflowQuestions(periodChoices());
@@ -1022,6 +1038,21 @@ export function mountIxtlaInsights(options = {}) {
     }
     finalizeVisualization();
     return true;
+  }
+
+  function chooseVisualizationPlan(choice) {
+    if (!pendingVisualization) return;
+    const alternatives = Array.isArray(pendingVisualization.plannerAlternatives) ? pendingVisualization.plannerAlternatives : [];
+    const selected = choice === "main" ? pendingVisualization : alternatives[Number(choice)];
+    if (!selected) return;
+    pendingVisualization = { ...selected, plannerAlternatives: [], mode: "structured_visualization" };
+    addMessage(choice === "main" ? "Usar la recomendación principal" : selected.title, "user");
+    if (!pendingVisualization.period) {
+      addMessage("¿Qué periodo deseas analizar?");
+      renderWorkflowQuestions(periodChoices());
+      return;
+    }
+    finalizeVisualization();
   }
 
   function recommendedChart(request = pendingVisualization) {
