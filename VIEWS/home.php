@@ -11,7 +11,9 @@
     <title>Ixtla App</title>
     <link rel="stylesheet" href="/CSS/plantilla.css">
     <link rel="stylesheet" href="/CSS/home.css">
-    <link rel="stylesheet" href="/CSS/components.css">
+    <link rel="stylesheet" href="/CSS/components.css?v=geo-house-8">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="/CSS/ixtla-insights-chat.css?v=chips-scroll-4">
     <link rel="icon" href="/favicon.ico">
 </head>
@@ -614,6 +616,65 @@
                         </div>
                     </div>
 
+                    <div class="ix-form__row ix-form__row--geo">
+                        <section class="ix-geo" id="ix-geo-section" aria-labelledby="ix-geo-title">
+                            <div class="ix-geo__copy">
+                                <h3 id="ix-geo-title">Ubicación del reporte <span>(opcional)</span></h3>
+                                <p>
+                                    ¿Nos permites obtener tu ubicación actual? La usaremos para ayudar al personal a
+                                    localizar este reporte y obtener una dirección aproximada. Puedes continuar sin
+                                    compartirla.
+                                </p>
+                            </div>
+
+                            <div class="ix-geo__actions">
+                                <button type="button" class="ix-btn ix-btn--secondary" id="ix-geo-request">
+                                    Usar mi ubicación actual
+                                </button>
+                                <button type="button" class="ix-geo__skip" id="ix-geo-skip">
+                                    Ahora no
+                                </button>
+                            </div>
+
+                            <div class="ix-geo__status" id="ix-geo-status" role="status" aria-live="polite">
+                                No se ha solicitado tu ubicación.
+                            </div>
+
+                            <div class="ix-geo__result" id="ix-geo-result" hidden>
+                                <strong>Ubicación obtenida</strong>
+                                <span id="ix-geo-accuracy"></span>
+                                <span class="ix-geo__address" id="ix-geo-address"></span>
+                                <label class="ix-geo__house" for="ix-geo-house-number">
+                                    <span>Número exterior</span>
+                                    <input type="text" id="ix-geo-house-number" inputmode="text" maxlength="20"
+                                        autocomplete="address-line2" placeholder="Escríbelo si no se detectó">
+                                    <small>Confirma o corrige el número sugerido.</small>
+                                </label>
+                                <div class="ix-geo__result-actions">
+                                    <button type="button" class="ix-btn ix-btn--ghost" id="ix-geo-edit">
+                                        Corregir ubicación
+                                    </button>
+                                    <button type="button" class="ix-geo__remove" id="ix-geo-remove">
+                                        Eliminar ubicación
+                                    </button>
+                                </div>
+                                <p class="ix-geo__map-help" id="ix-geo-map-help" hidden>
+                                    Arrastra el mapa para colocar la aguja. Acerca o aleja con dos dedos, el trackpad o
+                                    los controles + y -.
+                                </p>
+                                <div class="ix-geo__map-wrap" id="ix-geo-map-wrap">
+                                    <div class="ix-geo__map" id="ix-geo-map" role="application" tabindex="0"
+                                        aria-label="Mapa para ajustar la ubicación del reporte"></div>
+                                    <div class="ix-geo__pin" aria-hidden="true"><span></span></div>
+                                    <span class="ix-geo__map-lock" id="ix-geo-map-lock">Ubicación fijada</span>
+                                </div>
+                                <button type="button" class="ix-btn ix-btn--primary ix-geo__confirm"
+                                    id="ix-geo-confirm" hidden>Confirmar este punto</button>
+                            </div>
+
+                        </section>
+                    </div>
+
                     <div class="ix-form__row">
                         <div class="ix-field ix-field--full">
                             <label class="ix-field__label" for="ix-evidencia">Evidencia</label>
@@ -748,7 +809,8 @@
     <script src="/JS/jsGlobal.js"></script>
     <script type="module" src="/JS/home.js?v=chips-scroll-4"></script>
     <script type="module" src="/JS/ui/avatar-edit.js"></script>
-    <script type="module" src="/JS/ui/requerimientosCanal2.js"></script>
+    <script src="/JS/ui/geolocationMap.js"></script>
+    <script type="module" src="/JS/ui/requerimientosCanal2.js?v=geo-house-8"></script>
 
 
 </body>

@@ -52,6 +52,9 @@
   // ordenado por id asc.
   const ORDER_IDS = [];
 
+  // departamentos que no deben mostrarse en las views
+  const EXCLUDED_IDS = [6,12,9,10];
+
   // se arma la card con un falback al id de lo que llego desde el fetch
   const buildCard = (row) => {
     const id = Number(row?.id) || 0;
@@ -193,8 +196,10 @@
       return;
     }
 
-    // ordenamos y pintamos
-    const ordered = sortRows(data);
+    // excluimos departamentos, ordenamos y pintamos
+    const excludedIds = new Set(EXCLUDED_IDS.map(Number));
+    const visibleRows = data.filter((row) => !excludedIds.has(Number(row?.id)));
+    const ordered = sortRows(visibleRows);
     ordered.forEach((row) => grid.appendChild(buildCard(row)));
 
     ixLog(

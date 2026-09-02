@@ -1,0 +1,430 @@
+// Consulta y muestra la geolocalización persistida del requerimiento.
+(function () {
+  "use strict";
+
+  const HOST =
+    "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
+  const ENDPOINT = `${HOST}/db/WEB/ixtla01_c_requerimiento_geolocalizacion.php`;
+  const UPDATE_ENDPOINT = "/db/WEB/ixtla01_u_requerimiento_geolocalizacion.php";
+  const DEPARTMENTS_ENDPOINT = `${HOST}/db/WEB/ixtla01_c_departamento.php`;
+  const STORAGE_KEY = "ixtla_geolocalizaciones_pendientes";
+  const $ = (selector, root = document) => root.querySelector(selector);
+  let map = null;
+  let geoMapController = null;
+  let currentRecord = null;
+  let currentRequirement = null;
+  let departmentsPromise = null;
+  let validationTrigger = null;
+  let validationTargetValue = 1;
+
+  function readSession() {
+    try {
+      const fromApi = window.Session?.get?.();
+      if (fromApi) return fromApi;
+    } catch {}
+    try {
+      const pair = document.cookie.split("; ").find((item) => item.startsWith("ix_emp="));
+      if (!pair) return null;
+      const raw = decodeURIComponent(pair.slice("ix_emp=".length));
+      return JSON.parse(decodeURIComponent(escape(atob(raw))));
+    } catch {
+      return null;
+    }
+  }
+
+  function fetchDepartments() {
+    if (departmentsPromise) return departmentsPromise;
+    departmentsPromise = fetch(DEPARTMENTS_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      credentials: "omit",
+      body: JSON.stringify({ all: true, status: 1 }),
+    })
+      .then(async (response) => {
+        const json = await response.json().catch(() => null);
+        if (!response.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${response.status}`);
+        return Array.isArray(json?.data) ? json.data : [];
+      })
+      .catch((error) => {
+        departmentsPromise = null;
+        throw error;
+      });
+    return departmentsPromise;
+  }
+
+  async function canValidateGeolocation(req) {
+    const session = readSession();
+    const employeeId = Number(session?.empleado_id ?? session?.id_empleado ?? 0);
+    const departmentId = Number(session?.departamento_id ?? 0);
+    const requirementDepartmentId = Number(req?.departamento_id ?? req?.raw?.departamento_id ?? 0);
+    const roles = Array.isArray(session?.roles)
+      ? session.roles.map((role) => String(role).toUpperCase())
+      : [];
+
+    if (!employeeId) return false;
+    if (roles.includes("ADMIN") || departmentId === 6) return true;
+
+    const sameDepartment = departmentId > 0 && departmentId === requirementDepartmentId;
+    if (sameDepartment && roles.includes("DIRECTOR")) return true;
+    if (
+      sameDepartment &&
+      roles.some((role) => ["PRIMERA_LINEA", "PRIMERA LINEA", "PL"].includes(role))
+    ) return true;
+
+    try {
+      const departments = await fetchDepartments();
+      const requirementDepartment = departments.find(
+        (department) => Number(department?.id) === requirementDepartmentId,
+      );
+      return Boolean(
+        requirementDepartment &&
+        (Number(requirementDepartment.director) === employeeId ||
+          Number(requirementDepartment.primera_linea) === employeeId),
+      );
+    } catch (error) {
+      console.warn("[ReqGeolocalizacion] No se pudo resolver el RBAC:", error);
+      return false;
+    }
+  }
+
+  async function updateValidationControl(pane, req, record, validated) {
+    const button = $("[data-geo-validate]", pane);
+    if (!button) return;
+    button.hidden = true;
+    button.disabled = false;
+    if (Number(record?.id) < 1) return;
+    if (!(await canValidateGeolocation(req))) return;
+    button.hidden = false;
+    button.dataset.validationTarget = validated ? "0" : "1";
+    button.textContent = validated ? "Invalidar ubicación" : "Validar ubicación";
+    button.classList.toggle("is-invalidate", validated);
+  }
+
+  function readRecords() {
+    try {
+      const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      return Array.isArray(value) ? value : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveRecords(records) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    } catch {
+      // El panel seguirá mostrando el estado vacío si el navegador bloquea storage.
+    }
+  }
+
+  function seedDemoRecords(req) {
+    if (new URLSearchParams(window.location.search).get("geoDemo") !== "1") {
+      return;
+    }
+
+    const id = Number(req?.id);
+    if (!Number.isFinite(id)) return;
+
+    const folio = String(req?.folio || "").trim();
+    const existing = readRecords().filter(
+      (row) => !row?.demo || Number(row?.requerimiento_id) !== id,
+    );
+    const now = Date.now();
+    const samples = [
+      {
+        latitud: 20.548972,
+        longitud: -103.191643,
+        direccion: "Centro, Ixtlahuacán de los Membrillos, Jalisco",
+        presicion_metros: 18,
+        validada: 0,
+        minutesAgo: 45,
+      },
+      {
+        latitud: 20.550105,
+        longitud: -103.19411,
+        direccion: "Calle Juárez, Ixtlahuacán de los Membrillos, Jalisco",
+        presicion_metros: 12,
+        validada: 1,
+        minutesAgo: 20,
+      },
+      {
+        latitud: 20.551327,
+        longitud: -103.196295,
+        direccion: "Av. Santiago, Ixtlahuacán de los Membrillos, Jalisco",
+        presicion_metros: 8,
+        validada: 1,
+        minutesAgo: 5,
+      },
+    ].map((sample) => {
+      const capturedAt = new Date(now - sample.minutesAgo * 60 * 1000).toISOString();
+      return {
+        id: null,
+        requerimiento_id: id,
+        folio,
+        latitud: sample.latitud,
+        longitud: sample.longitud,
+        presicion_metros: sample.presicion_metros,
+        direccion: sample.direccion,
+        validada: sample.validada,
+        status: 1,
+        created_at: capturedAt,
+        captured_at: capturedAt,
+        demo: true,
+      };
+    });
+
+    saveRecords([...existing, ...samples]);
+  }
+
+  function findLocalRecord(req) {
+    const id = Number(req?.id);
+    const folio = String(req?.folio || "").trim();
+
+    return readRecords()
+      .filter((row) =>
+        (Number.isFinite(id) && Number(row?.requerimiento_id) === id) ||
+        (folio && String(row?.folio || "").trim() === folio),
+      )
+      .sort((a, b) => Date.parse(b?.created_at || 0) - Date.parse(a?.created_at || 0))[0];
+  }
+
+  async function fetchRecord(req) {
+    const id = Number(req?.id);
+    if (!Number.isFinite(id) || id < 1) return findLocalRecord(req);
+    try {
+      const response = await fetch(
+        `${ENDPOINT}?requerimiento_id=${encodeURIComponent(id)}`,
+        { method: "GET", headers: { Accept: "application/json" }, credentials: "omit" },
+      );
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.ok === false) {
+        throw new Error(json?.error || `HTTP ${response.status}`);
+      }
+      return Array.isArray(json?.data) ? json.data[0] || null : json?.data || null;
+    } catch (error) {
+      console.warn("[ReqGeolocalizacion] No se pudo consultar el endpoint:", error);
+      return findLocalRecord(req);
+    }
+  }
+
+  function formatDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("es-MX", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(date);
+  }
+
+  function setText(pane, selector, value) {
+    const element = $(selector, pane);
+    if (element) element.textContent = value || "—";
+  }
+
+  function renderMap(pane, lat, lng, precision) {
+    const element = $("[data-geo-map]", pane);
+    if (!element || !window.IxtlaGeolocationMap) return;
+
+    if (!geoMapController) {
+      geoMapController = window.IxtlaGeolocationMap.create({
+        element,
+        mode: "readonly",
+        pinMode: "anchored",
+        staticPinElement: $(".exp-geo-map-pin", pane),
+      });
+    }
+
+    geoMapController?.setLocation({
+      latitud: lat,
+      longitud: lng,
+      precisionMetros: precision,
+    });
+    map = geoMapController?.map || null;
+  }
+
+  async function render(req) {
+    const pane = $('.exp-geo-pane[data-tab="geolocalizacion"]');
+    if (!pane) return;
+
+    const empty = $("[data-geo-empty]", pane);
+    const content = $("[data-geo-content]", pane);
+    seedDemoRecords(req);
+    const record = await fetchRecord(req);
+    currentRecord = record;
+    currentRequirement = req;
+    const lat = Number(record?.latitud);
+    const lng = Number(record?.longitud);
+    const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
+
+    if (!record || !hasCoordinates) {
+      if (empty) empty.hidden = false;
+      if (content) content.hidden = true;
+      return;
+    }
+
+    if (empty) empty.hidden = true;
+    if (content) content.hidden = false;
+
+    const validated = Number(record.validada) === 1 || record.validada === true;
+    const status = $("[data-geo-status]", pane);
+    if (status) {
+      status.textContent = validated ? "Geolocalización validada" : "Pendiente de validación";
+      status.className = `exp-geo-status ${validated ? "is-validated" : "is-pending"}`;
+    }
+
+    setText(pane, "[data-geo-direccion]", record.direccion);
+    setText(
+      pane,
+      "[data-geo-precision]",
+      Number.isFinite(Number(record.precision_metros ?? record.presicion_metros))
+        ? `${Math.round(Number(record.precision_metros ?? record.presicion_metros))} m`
+        : "No disponible",
+    );
+    setText(pane, "[data-geo-captured-at]", formatDate(record.captured_at || record.created_at));
+    renderMap(pane, lat, lng, record.precision_metros ?? record.presicion_metros);
+    void updateValidationControl(pane, req, record, validated);
+
+    const mapLink = $("[data-geo-map-link]", pane);
+    if (mapLink) {
+      mapLink.href = `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`;
+      mapLink.hidden = false;
+    }
+  }
+
+  document.addEventListener("req:loaded", (event) => render(event.detail));
+
+  function openValidationModal(trigger, targetValue) {
+    const modal = $("#modal-validar-geolocalizacion");
+    if (!modal) return;
+    validationTrigger = trigger || null;
+    validationTargetValue = Number(targetValue) === 0 ? 0 : 1;
+    const invalidating = validationTargetValue === 0;
+    const title = $("#validar-geo-title", modal);
+    const text = $("#validar-geo-text", modal);
+    const note = $(".ix-confirm-note", modal);
+    const confirm = $("[data-geo-modal-confirm]", modal);
+    if (title) title.textContent = invalidating ? "Invalidar ubicación" : "Validar ubicación";
+    if (text) {
+      text.textContent = invalidating
+        ? "¿Confirmas que deseas retirar la validación de esta ubicación?"
+        : "¿Confirmas que la ubicación corresponde al reporte?";
+    }
+    if (note) {
+      note.textContent = invalidating
+        ? "La ubicación volverá a quedar pendiente de validación."
+        : "La validación quedará registrada con tu usuario.";
+    }
+    if (confirm) {
+      confirm.textContent = "Confirmar";
+      confirm.classList.toggle("is-invalidate", invalidating);
+    }
+    modal.classList.add("open", "active");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("me-modal-open");
+    setTimeout(() => $("[data-geo-modal-confirm]", modal)?.focus(), 30);
+  }
+
+  function closeValidationModal() {
+    const modal = $("#modal-validar-geolocalizacion");
+    if (!modal) return;
+    modal.classList.remove("open", "active");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("me-modal-open");
+    const trigger = validationTrigger;
+    validationTrigger = null;
+    if (trigger && !trigger.hidden) trigger.focus?.();
+  }
+
+  async function confirmValidation(confirmButton) {
+    if (!currentRecord || !currentRequirement) return;
+    const toolbarButton = validationTrigger;
+    confirmButton.disabled = true;
+    confirmButton.textContent = "Validando…";
+    if (toolbarButton) toolbarButton.disabled = true;
+
+    try {
+      const response = await fetch(UPDATE_ENDPOINT, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          id: Number(currentRecord.id),
+          validada: validationTargetValue,
+        }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${response.status}`);
+      const validated = validationTargetValue === 1;
+      currentRecord = json?.data || { ...currentRecord, validada: validationTargetValue };
+      const pane = $('.exp-geo-pane[data-tab="geolocalizacion"]');
+      const status = pane && $("[data-geo-status]", pane);
+      if (status) {
+        status.textContent = validated ? "Geolocalización validada" : "Pendiente de validación";
+        status.className = `exp-geo-status ${validated ? "is-validated" : "is-pending"}`;
+      }
+      if (toolbarButton) {
+        toolbarButton.hidden = false;
+        toolbarButton.disabled = false;
+        toolbarButton.dataset.validationTarget = validated ? "0" : "1";
+        toolbarButton.textContent = validated ? "Invalidar ubicación" : "Validar ubicación";
+        toolbarButton.classList.toggle("is-invalidate", validated);
+      }
+      closeValidationModal();
+      window.gcToast?.(
+        validated
+          ? "Geolocalización validada correctamente."
+          : "La geolocalización volvió a quedar pendiente.",
+        validated ? "success" : "warning",
+      );
+    } catch (error) {
+      console.error("[ReqGeolocalizacion] Error validando:", error);
+      window.gcToast?.(error.message || "No se pudo validar la ubicación.", "danger");
+      if (toolbarButton) toolbarButton.disabled = false;
+    } finally {
+      confirmButton.disabled = false;
+      confirmButton.textContent = "Confirmar";
+    }
+  }
+
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-geo-validate]");
+    if (button) {
+      if (!currentRecord || !currentRequirement) return;
+      if (!(await canValidateGeolocation(currentRequirement))) {
+        button.hidden = true;
+        window.gcToast?.("No tienes permiso para validar esta ubicación.", "warning");
+        return;
+      }
+      openValidationModal(button, Number(button.dataset.validationTarget));
+      return;
+    }
+
+    const modal = event.target.closest("#modal-validar-geolocalizacion");
+    if (!modal) return;
+    if (
+      event.target === modal ||
+      event.target.closest("[data-geo-modal-close], [data-geo-modal-cancel]")
+    ) {
+      closeValidationModal();
+      return;
+    }
+    const confirmButton = event.target.closest("[data-geo-modal-confirm]");
+    if (confirmButton) await confirmValidation(confirmButton);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const modal = $("#modal-validar-geolocalizacion");
+    if (modal?.classList.contains("open")) closeValidationModal();
+  });
+
+  document.addEventListener("click", (event) => {
+    const tab = event.target.closest(".exp-tab");
+    if (!tab || !/geolocalización/i.test(tab.textContent || "")) return;
+    setTimeout(() => map?.invalidateSize(), 50);
+  });
+
+  window.addEventListener("resize", () => map?.invalidateSize());
+
+  if (window.__REQ__) render(window.__REQ__);
+})();

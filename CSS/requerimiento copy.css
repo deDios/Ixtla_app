@@ -65,6 +65,7 @@
 /* ================= Tabs ================= */
 .exp-view .exp-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   border-bottom: 1px solid var(--exp-border);
   margin-top: 10px;
@@ -129,6 +130,346 @@
 .exp-view .exp-val a {
   color: var(--exp-accent);
   text-decoration: none;
+}
+
+/* ================= Geolocalización ================= */
+.exp-view .exp-geo-empty {
+  padding: 24px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: var(--exp-muted);
+  background: #f8fafc;
+}
+
+.exp-view .exp-geo-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin: 2px 0 18px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+.exp-view .exp-geo-status.is-validated {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.exp-view .exp-geo-status.is-pending {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.exp-view .exp-geo-field-wide {
+  grid-column: 1 / -1;
+}
+
+.exp-view .exp-geo-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 0 18px;
+}
+
+.exp-view .exp-geo-toolbar .exp-geo-status {
+  margin: 0;
+}
+
+.exp-view .exp-geo-validate {
+  min-height: 38px;
+  padding: 8px 15px;
+  border: 1px solid #6f8778;
+  border-radius: 999px;
+  color: #fff;
+  background: #82978a;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, .12);
+  font: inherit;
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.exp-view .exp-geo-validate:hover {
+  background: #6f8778;
+}
+
+.exp-view .exp-geo-validate.is-invalidate {
+  border-color: #b45309;
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.exp-view .exp-geo-validate.is-invalidate:hover {
+  color: #fff;
+  background: #b45309;
+}
+
+.exp-view .exp-geo-validate:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.exp-view .exp-geo-map-wrap {
+  position: relative;
+  width: 100%;
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid #bccce0;
+  border-radius: 12px;
+  background: #dfe8f1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
+}
+
+.exp-view .exp-geo-map {
+  width: 100%;
+  height: 420px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: #e8eef4;
+  overscroll-behavior: contain;
+  touch-action: none;
+  cursor: grab;
+  z-index: 0;
+}
+
+.exp-view .exp-geo-map-badge {
+  position: absolute;
+  z-index: 520;
+  top: 10px;
+  right: 10px;
+  padding: 5px 9px;
+  border: 1px solid rgba(203, 213, 225, .9);
+  border-radius: 999px;
+  color: #475569;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, .08);
+  font-size: .74rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.exp-view .exp-geo-map-pin {
+  position: absolute;
+  z-index: 500;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 46px;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  filter: drop-shadow(0 3px 3px rgba(15, 23, 42, .28));
+}
+
+.exp-view .exp-geo-map-pin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  background: #82978a;
+  transform: translateX(-50%) rotate(-45deg);
+}
+
+.exp-view .exp-geo-map-pin span {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: 15px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translateX(-50%);
+}
+
+.exp-view .exp-geo-map .leaflet-control-attribution {
+  padding: 2px 5px;
+  color: #526174;
+  background: rgba(255, 255, 255, .88);
+  font-size: 9px;
+}
+
+.exp-view .exp-geo-map .leaflet-control-zoom {
+  overflow: hidden;
+  border: 0;
+  border-radius: 9px;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, .2);
+}
+
+.exp-view .exp-geo-map .leaflet-control-zoom a {
+  width: 34px;
+  height: 34px;
+  border-color: #e2e8f0;
+  color: #173b7a;
+  background: rgba(255, 255, 255, .96);
+  font: 700 20px/34px system-ui, sans-serif;
+}
+
+.exp-view .exp-geo-map .leaflet-control-zoom a:hover {
+  color: #fff;
+  background: var(--exp-accent);
+}
+
+.exp-view .exp-geo-map-link {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--exp-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.exp-view .exp-geo-map-link:hover {
+  background: #3f5a83;
+}
+
+@media (max-width: 640px) {
+  .exp-view .exp-geo-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .exp-view .exp-geo-map {
+    height: 420px;
+  }
+}
+
+/* Modal de confirmación de geolocalización: mismo lenguaje que eliminar tarea. */
+#modal-validar-geolocalizacion.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, .55);
+  backdrop-filter: blur(2px);
+  z-index: 10000;
+}
+
+#modal-validar-geolocalizacion.open,
+#modal-validar-geolocalizacion.active {
+  display: flex;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-dialog {
+  position: relative;
+  width: min(760px, 100%);
+  padding: 26px 26px 18px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .28);
+  text-align: center;
+}
+
+#modal-validar-geolocalizacion .modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 99px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  opacity: .8;
+}
+
+#modal-validar-geolocalizacion .modal-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, .04);
+}
+
+#modal-validar-geolocalizacion .ix-confirm-title {
+  margin: 0 44px 10px 0;
+  color: #111;
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-text {
+  margin: 0 0 14px;
+  color: rgba(0, 0, 0, .76);
+  font-size: 18px;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-actions .btn {
+  appearance: none;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-cancel {
+  color: rgba(0, 0, 0, .8);
+  background: rgba(0, 0, 0, .07);
+}
+
+#modal-validar-geolocalizacion .ix-confirm-accept {
+  color: #fff;
+  background: #82978a;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-accept:hover {
+  background: #6f8778;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-accept.is-invalidate {
+  background: #b45309;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-accept.is-invalidate:hover {
+  background: #92400e;
+}
+
+#modal-validar-geolocalizacion .ix-confirm-note {
+  margin: 14px 0 0;
+  color: rgba(0, 0, 0, .62);
+  font-size: 14px;
+}
+
+#modal-validar-geolocalizacion button:focus-visible {
+  outline: 3px solid rgba(130, 151, 138, .35);
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  #modal-validar-geolocalizacion .ix-confirm-dialog {
+    padding: 18px 16px 14px;
+    border-radius: 16px;
+  }
+
+  #modal-validar-geolocalizacion .ix-confirm-title {
+    font-size: 28px;
+  }
+
+  #modal-validar-geolocalizacion .ix-confirm-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 /* ================= Acordeón base ================= */

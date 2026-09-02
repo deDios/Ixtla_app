@@ -15,6 +15,7 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/requerimiento copy.css">
     <link rel="stylesheet" href="/CSS/components.css">
     <link rel="stylesheet" href="/CSS/requerimientoCoemntariosSection copy.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="icon" href="/favicon.ico">
 </head>
 
@@ -192,6 +193,7 @@ ix_require_session();
                         <button class="exp-tab is-active" role="tab" aria-selected="true">Contacto</button>
                         <button class="exp-tab" role="tab" aria-selected="false">Detalles</button>
                         <button class="exp-tab" role="tab" aria-selected="false">Planeación</button>
+                        <button class="exp-tab" role="tab" aria-selected="false">Geolocalización</button>
                     </nav>
 
                     <button type="button" class="exp-expediente-btn" id="btn-expediente">
@@ -454,6 +456,48 @@ ix_require_session();
                         </div>
 
                     </section>
+
+                    <!-- Panel: Geolocalización -->
+                    <section class="exp-pane exp-geo-pane" role="tabpanel" data-tab="geolocalizacion">
+                        <div class="exp-geo-empty" data-geo-empty>
+                            No hay una geolocalización registrada para este requerimiento.
+                        </div>
+
+                        <div class="exp-geo-content" data-geo-content hidden>
+                            <div class="exp-geo-toolbar">
+                                <div class="exp-geo-status" data-geo-status aria-live="polite"></div>
+                                <button class="exp-geo-validate" type="button" data-geo-validate hidden>
+                                    Validar ubicación
+                                </button>
+                            </div>
+
+                            <div class="exp-grid">
+                                <div class="exp-field exp-geo-field-wide">
+                                    <label>Dirección aproximada:</label>
+                                    <div class="exp-val" data-geo-direccion>—</div>
+                                </div>
+                                <div class="exp-field">
+                                    <label>Precisión:</label>
+                                    <div class="exp-val" data-geo-precision>—</div>
+                                </div>
+                                <div class="exp-field">
+                                    <label>Capturada el:</label>
+                                    <div class="exp-val" data-geo-captured-at>—</div>
+                                </div>
+                            </div>
+
+                            <div class="exp-geo-map-wrap">
+                                <div class="exp-geo-map" data-geo-map role="region"
+                                    aria-label="Mapa de consulta de la ubicación registrada. Puedes explorar el entorno sin modificarla."></div>
+                                <div class="exp-geo-map-pin" aria-hidden="true"><span></span></div>
+                                <span class="exp-geo-map-badge">Ubicación fijada</span>
+                            </div>
+
+                            <a class="exp-geo-map-link" data-geo-map-link href="#" target="_blank" rel="noopener noreferrer" hidden>
+                                Abrir mapa completo
+                            </a>
+                        </div>
+                    </section>
                 </div>
                 <!-- /exp-panes -->
 
@@ -621,6 +665,27 @@ ix_require_session();
 
             <p class="modal-note ix-del-note">
                 Esta acción no se puede deshacer.
+            </p>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar validación de geolocalización -->
+    <div id="modal-validar-geolocalizacion" class="modal-overlay ix-confirm-modal" aria-hidden="true">
+        <div class="modal-content ix-confirm-dialog" role="dialog" aria-modal="true"
+            aria-labelledby="validar-geo-title" aria-describedby="validar-geo-text">
+            <button class="modal-close" type="button" aria-label="Cerrar" data-geo-modal-close>×</button>
+            <h2 id="validar-geo-title" class="ix-confirm-title">Validar ubicación</h2>
+            <p id="validar-geo-text" class="ix-confirm-text">
+                ¿Confirmas que la ubicación corresponde al reporte?
+            </p>
+            <div class="ix-confirm-actions">
+                <button type="button" class="btn ix-confirm-cancel" data-geo-modal-cancel>Cancelar</button>
+                <button type="button" class="btn ix-confirm-accept" data-geo-modal-confirm>
+                    Confirmar
+                </button>
+            </div>
+            <p class="modal-note ix-confirm-note">
+                La validación quedará registrada con tu usuario.
             </p>
         </div>
     </div>
@@ -868,6 +933,9 @@ ix_require_session();
     <script type="module" src="/JS/auth/requerimientoGuard.js"></script>
 
     <script src="/JS/requerimientoView.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/JS/ui/geolocationMap.js"></script>
+    <script src="/JS/ui/requerimientoGeolocalizacion.js"></script>
     <script src="/JS/ui/requerimientoDetalle.js"></script>
     <script src="/JS/ui/requerimientoPlaneacion.js"></script>
     <script src="/JS/ui/requerimientoExpediente.js"></script>
