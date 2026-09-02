@@ -599,6 +599,8 @@ document.addEventListener("DOMContentLoaded", () => {
         cpcolonia:
           "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_c_cpcolonia.php",
         insertReq: "/webpublic_proxy.php",
+        createGeolocation:
+          "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_i_requerimiento_geolocalizacion.php",
         fsBootstrap:
           "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net/db/WEB/ixtla01_u_requerimiento_folders.php",
         uploadImg:
@@ -643,6 +645,11 @@ document.addEventListener("DOMContentLoaded", () => {
   let files = [];
   let isSubmitting = false;
   let hasAttemptedSubmit = false;
+  let geolocationCapture = null;
+  let geoMapController = null;
+  let geoPendingLatLng = null;
+  let geoEditing = false;
+  let lastReverseGeocodeAt = 0;
 
   let currentDepId = "1";
   let currentItemId = "";
@@ -677,6 +684,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const cntDesc = modal.querySelector("#ix-desc-count");
   const chkCons = modal.querySelector("#ix-consent");
   const btnSend = modal.querySelector("#ix-submit");
+  const geoRequest = modal.querySelector("#ix-geo-request");
+  const geoSkip = modal.querySelector("#ix-geo-skip");
+  const geoStatus = modal.querySelector("#ix-geo-status");
+  const geoResult = modal.querySelector("#ix-geo-result");
+  const geoAccuracy = modal.querySelector("#ix-geo-accuracy");
+  const geoAddress = modal.querySelector("#ix-geo-address");
+  const geoHouseNumber = modal.querySelector("#ix-geo-house-number");
+  const geoMapElement = modal.querySelector("#ix-geo-map");
+  const geoMapWrap = modal.querySelector("#ix-geo-map-wrap");
+  const geoMapHelp = modal.querySelector("#ix-geo-map-help");
+  const geoMapLock = modal.querySelector("#ix-geo-map-lock");
+  const geoEdit = modal.querySelector("#ix-geo-edit");
+  const geoConfirm = modal.querySelector("#ix-geo-confirm");
+  const geoRemove = modal.querySelector("#ix-geo-remove");
 
   const asuntoGroup = modal.querySelector("#ix-asunto-group");
   const inpAsunto = modal.querySelector("#ix-asunto");
@@ -739,6 +760,197 @@ document.addEventListener("DOMContentLoaded", () => {
       timeMeta.textContent = "";
     }
   }
+
+  function paintGeoState(message, state = "idle") {
+    if (!geoStatus) return;
+    geoStatus.textContent = message;
+    geoStatus.dataset.state = state;
+  }
+
+  function geolocationAddressWithHouseNumber() {
+    if (!geolocationCapture) return null;
+    const address = String(geolocationCapture.direccion || "").trim();
+    const number = String(geolocationCapture.numero_exterior_geo || "").trim();
+    if (!address) return number || null;
+    if (!number || address.toLowerCase().includes(number.toLowerCase())) return address;
+    return `${address}, número exterior ${number}`;
+  }
+
+  function renderGeolocationAddress() {
+    if (!geoAddress || !geolocationCapture) return;
+    const address = geolocationAddressWithHouseNumber();
+    const cp = geolocationCapture.cp_colonia_geo
+      ? ` C.P. ${geolocationCapture.cp_colonia_geo}`
+      : "";
+    geoAddress.textContent = address
+      ? `${address}${cp}`
+      : "No se encontró una dirección aproximada para estas coordenadas.";
+  }
+
+  function renderGeolocationMap() {
+    if (!geoMapElement || !geolocationCapture || !window.IxtlaGeolocationMap) return;
+    if (!geoMapController) {
+      geoMapController = window.IxtlaGeolocationMap.create({
+        element: geoMapElement,
+        mode: "editable",
+        pinMode: "center",
+        onPendingChange: (point) => {
+          geoPendingLatLng = point;
+          if (point) paintGeoState("Punto ajustado en el mapa. Confírmalo para actualizar la dirección.", "loading");
+        },
+      });
+    }
+    geoMapController?.setLocation({
+      latitud: geolocationCapture.latitud,
+      longitud: geolocationCapture.longitud,
+      precisionMetros: geolocationCapture.precision_metros,
+    });
+    requestAnimationFrame(() => geoMapController?.invalidateSize());
+  }
+
+  function renderGeolocation() {
+    if (geoResult) geoResult.hidden = !geolocationCapture;
+    if (!geolocationCapture) return;
+    if (geoAccuracy) geoAccuracy.textContent = `Precisión aproximada: ${Math.round(geolocationCapture.precision_metros)} metros.`;
+    if (geoHouseNumber) geoHouseNumber.value = geolocationCapture.numero_exterior_geo || "";
+    renderGeolocationAddress();
+    renderGeolocationMap();
+  }
+
+  function setGeoEditing(enabled) {
+    geoEditing = Boolean(enabled);
+    geoPendingLatLng = null;
+    geoMapController?.setEditing(geoEditing);
+    geoMapWrap?.classList.toggle("is-editing", geoEditing);
+    if (geoMapHelp) geoMapHelp.hidden = !geoEditing;
+    if (geoConfirm) geoConfirm.hidden = !geoEditing;
+    if (geoMapLock) geoMapLock.textContent = geoEditing ? "Mueve el mapa" : "Ubicación fijada";
+    if (geoEdit) geoEdit.textContent = geoEditing ? "Cancelar corrección" : "Corregir ubicación";
+  }
+
+  function clearGeolocation(message = "No se compartirá la ubicación en este reporte.") {
+    geolocationCapture = null;
+    setGeoEditing(false);
+    if (geoResult) geoResult.hidden = true;
+    if (geoHouseNumber) geoHouseNumber.value = "";
+    if (geoRequest) {
+      geoRequest.disabled = false;
+      geoRequest.textContent = "Usar mi ubicación actual";
+    }
+    paintGeoState(message);
+  }
+
+  async function reverseGeocode(latitud, longitud) {
+    const elapsed = Date.now() - lastReverseGeocodeAt;
+    if (elapsed < 1100) await new Promise((resolve) => setTimeout(resolve, 1100 - elapsed));
+    lastReverseGeocodeAt = Date.now();
+    const params = new URLSearchParams({
+      format: "jsonv2", lat: String(latitud), lon: String(longitud),
+      addressdetails: "1", zoom: "18", layer: "address", "accept-language": "es",
+    });
+    const response = await withTimeout((signal) =>
+      fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+        headers: { Accept: "application/json" }, signal,
+      }), 10000);
+    if (!response.ok) throw new Error(`Nominatim HTTP ${response.status}`);
+    const result = await response.json();
+    return {
+      direccion: String(result?.display_name || "").trim() || null,
+      cp_colonia_geo: String(result?.address?.postcode || "").trim() || null,
+      numero_exterior_geo: String(result?.address?.house_number || "").trim() || null,
+    };
+  }
+
+  async function updateGeolocationAddress() {
+    if (!geolocationCapture) return;
+    try {
+      const address = await reverseGeocode(geolocationCapture.latitud, geolocationCapture.longitud);
+      Object.assign(geolocationCapture, address);
+      paintGeoState(address.direccion ? "Ubicación y dirección listas para adjuntarse al reporte." : "Ubicación lista; no se encontró una dirección aproximada.", "success");
+    } catch (error) {
+      log("No se pudo obtener la dirección aproximada:", error);
+      paintGeoState("Ubicación lista. No se obtuvo la dirección; se conservarán las coordenadas.", "success");
+    }
+    renderGeolocation();
+  }
+
+  function requestGeolocation() {
+    if (!window.isSecureContext) return paintGeoState("La ubicación requiere una conexión segura (HTTPS).", "error");
+    if (!navigator.geolocation) return paintGeoState("Este dispositivo no permite obtener la ubicación.", "error");
+    geoRequest.disabled = true;
+    geoRequest.textContent = "Obteniendo ubicación…";
+    paintGeoState("Esperando la autorización del dispositivo…", "loading");
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      geolocationCapture = {
+        latitud: Number(position.coords.latitude),
+        longitud: Number(position.coords.longitude),
+        precision_metros: Number(position.coords.accuracy),
+        direccion: null, cp_colonia_geo: null, numero_exterior_geo: null,
+      };
+      geoRequest.disabled = false;
+      geoRequest.textContent = "Actualizar ubicación";
+      renderGeolocation();
+      await updateGeolocationAddress();
+    }, (error) => {
+      const messages = { 1: "No autorizaste el acceso. Puedes continuar sin compartir tu ubicación.", 2: "El dispositivo no pudo determinar la ubicación.", 3: "La solicitud tardó demasiado. Puedes intentarlo nuevamente." };
+      clearGeolocation(messages[error?.code] || "No fue posible obtener la ubicación.");
+      if (geoStatus) geoStatus.dataset.state = "error";
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+  }
+
+  async function persistGeolocation(requerimientoId, folio) {
+    if (!geolocationCapture || !requerimientoId) return;
+    const payload = {
+      requerimiento_id: Number(requerimientoId),
+      latitud: geolocationCapture.latitud,
+      longitud: geolocationCapture.longitud,
+      precision_metros: geolocationCapture.precision_metros,
+      direccion: geolocationAddressWithHouseNumber(),
+      cp_colonia_geo: geolocationCapture.cp_colonia_geo,
+    };
+    try {
+      const response = await withTimeout((signal) => fetch(CFG.ENDPOINTS.createGeolocation, {
+        method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload), signal,
+      }));
+      const json = await response.json();
+      if (!response.ok || !json?.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+    } catch (error) {
+      log("Geolocalización pendiente de sincronizar:", error);
+      try {
+        const key = "ixtla_uat_geolocalizaciones_pendientes";
+        const rows = JSON.parse(localStorage.getItem(key) || "[]");
+        rows.push({ ...payload, folio, queued_at: new Date().toISOString() });
+        localStorage.setItem(key, JSON.stringify(rows));
+        window.ixToast?.warn("Reporte creado; la ubicación quedó pendiente de sincronización.");
+      } catch {}
+    }
+  }
+
+  geoRequest?.addEventListener("click", requestGeolocation);
+  geoSkip?.addEventListener("click", () => clearGeolocation());
+  geoRemove?.addEventListener("click", () => clearGeolocation("Ubicación eliminada. Puedes continuar sin compartirla."));
+  geoHouseNumber?.addEventListener("input", () => {
+    if (!geolocationCapture) return;
+    geolocationCapture.numero_exterior_geo = geoHouseNumber.value.trim();
+    renderGeolocationAddress();
+  });
+  geoEdit?.addEventListener("click", () => {
+    if (!geolocationCapture) return;
+    setGeoEditing(!geoEditing);
+    paintGeoState(geoEditing ? "Corrección habilitada. Mueve el mapa y confirma el nuevo punto." : "La ubicación original se mantiene sin cambios.", geoEditing ? "loading" : "success");
+  });
+  geoConfirm?.addEventListener("click", async () => {
+    if (!geolocationCapture || !geoPendingLatLng) return;
+    geolocationCapture.latitud = geoPendingLatLng.latitud;
+    geolocationCapture.longitud = geoPendingLatLng.longitud;
+    geolocationCapture.direccion = null;
+    geolocationCapture.cp_colonia_geo = null;
+    geolocationCapture.numero_exterior_geo = null;
+    setGeoEditing(false);
+    renderGeolocation();
+    await updateGeolocationAddress();
+  });
 
   // Modal "done"
   (function () {
@@ -1200,6 +1412,7 @@ document.addEventListener("DOMContentLoaded", () => {
     hasAttemptedSubmit = false;
     isSubmitting = false;
     form?.reset();
+    clearGeolocation("No se ha solicitado tu ubicación.");
     files = [];
     refreshPreviews();
     updateDescCount();
@@ -1371,6 +1584,15 @@ document.addEventListener("DOMContentLoaded", () => {
         throw new Error("Respuesta inesperada del servidor.");
       const folio =
         json.data.folio || `REQ-${String(Date.now() % 1e10).padStart(10, "0")}`;
+      const requerimientoId =
+        Number(json.data.id ?? json.data.requerimiento_id ?? 0) || null;
+
+      if (geolocationCapture && requerimientoId) {
+        await persistGeolocation(requerimientoId, folio);
+      } else if (geolocationCapture && !requerimientoId) {
+        log("La respuesta de creación no incluyó el ID; no se pudo asociar la geolocalización.");
+        window.ixToast?.warn("Reporte creado, pero no se pudo asociar su ubicación.");
+      }
 
       // 2) preparar folders (best-effort; JSON)
       try {

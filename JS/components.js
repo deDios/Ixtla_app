@@ -52,7 +52,7 @@
   // ordenado por id asc.
   const ORDER_IDS = [];
 
-  // departamentos que no deben mostrarse en las views
+  // departamentos que no deben mostrarse.
   const EXCLUDED_IDS = [6,12,9,10];
 
   // se arma la card con un falback al id de lo que llego desde el fetch
