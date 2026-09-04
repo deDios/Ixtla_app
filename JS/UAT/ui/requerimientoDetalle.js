@@ -387,8 +387,14 @@
       : null;
   }
 
+  const DEPARTAMENTOS_SENSIBLES = new Set([9, 10, 12]);
+
   function isEditableDetalles(req) {
     const code = getReqStatusCode(req);
+    const deptId = Number(req?.departamento_id ?? req?.raw?.departamento_id);
+    if (DEPARTAMENTOS_SENSIBLES.has(deptId)) {
+      return ![4, 5, 6].includes(code);
+    }
     return code === 0 || code === 1; // Solicitud / Revisión
   }
 
@@ -475,8 +481,8 @@
         ? Number(req.raw.estatus)
         : null;
 
-    // Oculto en: 0 (Solicitud), 1 (Revisión), 6 (Finalizado)
-    if (est === 0 || est === 1 || est === 6 || est == null) {
+    // La asignación solo cambia durante Asignación o Proceso.
+    if (est !== 2 && est !== 3) {
       btn.style.display = "none";
     } else {
       btn.style.display = "";

@@ -118,7 +118,24 @@ expect_diagnostic(ixtla_insights_question_intent('dame la info del ciudadano', t
 expect_diagnostic(ixtla_insights_question_intent('cual es su telefono', true) === 'dataset', 'El telefono debe reutilizar el contexto del requerimiento anterior.');
 
 $chatToolNames = array_column(ixtla_insights_tool_definitions(), 'name');
-expect_diagnostic($chatToolNames === ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'get_feedback_detail', 'analyze_feedback_comments', 'get_requirements_overview', 'search_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
+expect_diagnostic($chatToolNames === ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'get_feedback_detail', 'analyze_feedback_comments', 'get_requirements_overview', 'search_requirements', 'get_priority_requirements', 'aggregate_requirements', 'compare_requirement_sets', 'aggregate_requirement_dimensions', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
+expect_diagnostic(ixtla_insights_question_intent('Cuáles son los requerimientos más importantes?') === 'dataset', 'La importancia operativa debe activar una consulta de datos.');
+expect_diagnostic(ixtla_insights_question_intent('Qué casos debo atender primero?') === 'dataset', 'La solicitud de atención prioritaria debe activar una consulta de datos.');
+$priorityTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_priority_requirements'))[0] ?? [];
+expect_diagnostic(($priorityTool['parameters']['properties']['limit']['maximum'] ?? null) === 30, 'El ranking operativo debe limitar los registros enviados al modelo.');
+expect_diagnostic(str_contains((string) ($priorityTool['description'] ?? ''), 'No representa una clasificacion administrativa oficial'), 'El ranking debe distinguir atención operativa de una clasificación oficial.');
+$attention = ixtla_insights_snapshot_operational_attention([
+    'age_days' => 90, 'assignee_id' => null, 'status_id' => 0, 'status' => 'Solicitud',
+    'created_at' => '2026-01-01 00:00:00', 'last_comment_at' => null, 'last_process_at' => null,
+    'open_task_count' => 2,
+], strtotime('2026-04-01 00:00:00'));
+expect_diagnostic(($attention['score'] ?? null) === 87, 'El puntaje operativo debe ser determinista y respetar sus ponderaciones.');
+expect_diagnostic(in_array('Sin responsable asignado', $attention['reasons'] ?? [], true), 'El ranking debe explicar la ausencia de responsable.');
+$comparisonTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'compare_requirement_sets'))[0] ?? [];
+expect_diagnostic(in_array('left', $comparisonTool['parameters']['required'] ?? [], true), 'La comparacion debe exigir un universo izquierdo completo.');
+expect_diagnostic(in_array('right', $comparisonTool['parameters']['required'] ?? [], true), 'La comparacion debe exigir un universo derecho completo.');
+expect_diagnostic(($comparisonTool['parameters']['properties']['left']['required'] ?? []) === ($comparisonTool['parameters']['properties']['right']['required'] ?? []), 'Ambos universos deben usar el mismo contrato de filtros autorizados.');
+expect_diagnostic(str_contains($domainPrompt, 'nunca una muestra o pagina previa'), 'El perfil debe prohibir comparaciones generales basadas en muestras.');
 $snapshotOverviewTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_overview'))[0] ?? [];
 expect_diagnostic(($snapshotOverviewTool['parameters']['required'] ?? []) === ['refresh', 'period', 'date_field', 'date_from', 'date_to'], 'El resumen debe aceptar periodos y rangos personalizados explícitos.');
 expect_diagnostic(str_contains((string) ($snapshotOverviewTool['description'] ?? ''), 'días pico'), 'El resumen debe anunciar la comparación y los picos diarios que puede calcular.');
@@ -259,6 +276,12 @@ $contextWithoutDuplicateSummary = ixtla_insights_conversation_context_text([
 ]);
 expect_diagnostic(!str_contains($contextWithoutDuplicateSummary, 'Ultima pregunta'), 'El contexto estructurado no debe duplicar el historial textual.');
 expect_diagnostic(str_contains($contextWithoutDuplicateSummary, 'this_week'), 'El contexto estructurado debe conservar los filtros analiticos.');
+
+$contextWithPrivateScope = ixtla_insights_conversation_context_text([
+    'analytics_context' => ['_scope_fingerprint' => 'private-value', 'active_sets' => [['set_id' => 'A', 'evidence_kind' => 'sample_or_page']]],
+]);
+expect_diagnostic(!str_contains($contextWithPrivateScope, 'private-value'), 'El contexto enviado al modelo no debe exponer la huella interna del alcance.');
+expect_diagnostic(str_contains($contextWithPrivateScope, 'sample_or_page'), 'El contexto debe identificar explicitamente una muestra o pagina parcial.');
 
 $directQuestions = [
     'Cuanto es 25% de 480?',

@@ -224,7 +224,7 @@
                                         <path fill="currentColor"
                                             d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm6 1.5V8h4.5L12 3.5zM11 11h2v3h3v2h-3v3h-2v-3H8v-2h3v-3z" />
                                     </svg>
-                                    <span>Nuevo requerimiento</span>
+                                    <span>Crear requerimiento</span>
                                 </button>
 
                                 <span>Requerimientos: <strong id="hs-legend-total">0</strong></span>

@@ -121,6 +121,18 @@ function ixtla_insights_tool_definitions(): array
             ],
         ],
         [
+            'type' => 'function', 'name' => 'get_priority_requirements', 'strict' => true,
+            'description' => 'Ordena los requerimientos activos que requieren mayor atencion operativa dentro del alcance autorizado. El ranking es determinista y explica sus motivos usando antiguedad, ausencia de responsable, estatus, falta de actividad reciente y tareas abiertas. No representa una clasificacion administrativa oficial y nunca usa fecha_limite.',
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false,
+                'required' => [...$filterRequired, 'ranking_mode', 'limit'],
+                'properties' => array_merge($datasetFilters, [
+                    'ranking_mode' => ['type' => 'string', 'enum' => ['operational_attention']],
+                    'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 30],
+                ]),
+            ],
+        ],
+        [
             'type' => 'function', 'name' => 'aggregate_requirements', 'strict' => true,
             'description' => 'Devuelve conteos agrupados por estatus, departamento, tramite, empleado asignado, canal de origen o fecha; no devuelve filas, folios ni fechas individuales. Usa group_by channel para comparar Portal ciudadano contra Portal de empleados. channel_ids [1] filtra Portal ciudadano y [2] Portal de empleados. Usala para conteos, rankings y tendencias. Admite rangos personalizados mediante date_field, date_from y date_to.',
             'parameters' => [
@@ -131,6 +143,23 @@ function ixtla_insights_tool_definitions(): array
                     'sort' => ['type' => 'string', 'enum' => ['asc', 'desc']],
                     'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
                 ]),
+            ],
+        ],
+        [
+            'type' => 'function', 'name' => 'compare_requirement_sets', 'strict' => true,
+            'description' => 'Compara dos universos completos de requerimientos dentro del mismo snapshot autorizado. Usala para comparar periodos o grupos y calcular diferencias absolutas y porcentuales. Nunca compara solamente las filas de una muestra o pagina previa.',
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false,
+                'required' => ['left_label', 'right_label', 'left', 'right', 'group_by', 'date_grain', 'limit'],
+                'properties' => [
+                    'left_label' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 80],
+                    'right_label' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 80],
+                    'left' => ['type' => 'object', 'additionalProperties' => false, 'required' => $filterRequired, 'properties' => $datasetFilters],
+                    'right' => ['type' => 'object', 'additionalProperties' => false, 'required' => $filterRequired, 'properties' => $datasetFilters],
+                    'group_by' => ['type' => 'string', 'enum' => ['status', 'department', 'tramite', 'assignee', 'channel', 'date']],
+                    'date_grain' => ['type' => 'string', 'enum' => ['day', 'week', 'month']],
+                    'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 50],
+                ],
             ],
         ],
         [
@@ -226,7 +255,9 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'analyze_feedback_comments' => ixtla_insights_retro_comment_sample($args),
         'get_requirements_overview' => ixtla_insights_snapshot_overview($args),
         'search_requirements' => ixtla_insights_snapshot_search($args),
+        'get_priority_requirements' => ixtla_insights_snapshot_priority_requirements($args),
         'aggregate_requirements' => ixtla_insights_snapshot_aggregate($args),
+        'compare_requirement_sets' => ixtla_insights_snapshot_compare_sets($args),
         'aggregate_requirement_dimensions' => ixtla_insights_snapshot_aggregate_dimensions($args),
         'list_requirement_catalog' => ixtla_insights_snapshot_catalog($args),
         'get_requirement_detail' => ixtla_insights_requirement_detail($args),

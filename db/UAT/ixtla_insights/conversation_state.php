@@ -70,6 +70,14 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments, 
     $config = ixtla_insights_config();
     $state = ixtla_insights_conversation_load($config);
     $context = is_array($state['analytics_context'] ?? null) ? $state['analytics_context'] : [];
+    $scope = ixtla_insights_scope();
+    $scopeFingerprint = hash('sha256', json_encode([
+        'empleado_id' => $scope['empleado_id'] ?? null,
+        'cuenta_id' => $scope['cuenta_id'] ?? null,
+        'domain' => $scope['domain'] ?? null,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
+    if (($context['_scope_fingerprint'] ?? $scopeFingerprint) !== $scopeFingerprint) $context = [];
+    $context['_scope_fingerprint'] = $scopeFingerprint;
     $context['last_tool'] = $name;
     // Sólo se persisten parámetros de herramientas autorizadas; nunca datos
     // de salida ni información de ciudadanos. Sirve para resolver seguimientos
@@ -109,6 +117,40 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments, 
     if ($filters !== []) {
         $context['last_filters'] = $filters;
     }
+    // Guarda especificaciones reproducibles, no filas ni datos ciudadanos.
+    $setCapableTools = ['search_requirements', 'get_priority_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions'];
+    $sets = is_array($context['active_sets'] ?? null) ? $context['active_sets'] : [];
+    $appendSet = static function (array &$sets, array $setFilters, string $tool, string $label, bool $sample, array $metadata): void {
+        $sets[] = [
+            'set_id' => chr(65 + (count($sets) % 26)),
+            'label' => $label,
+            'tool' => $tool,
+            'filters' => $setFilters,
+            'evidence_kind' => $sample ? 'sample_or_page' : 'complete_universe',
+            'total_matching' => isset($metadata['total_matching']) ? (int) $metadata['total_matching'] : null,
+            'returned' => isset($metadata['returned']) ? (int) $metadata['returned'] : null,
+        ];
+        $sets = array_values(array_slice($sets, -4));
+        foreach ($sets as $index => &$set) $set['set_id'] = chr(65 + $index);
+        unset($set);
+    };
+    if ($name === 'compare_requirement_sets') {
+        $sets = [];
+        $appendSet($sets, (array) ($arguments['left'] ?? []), $name, (string) ($arguments['left_label'] ?? 'Conjunto A'), false, []);
+        $appendSet($sets, (array) ($arguments['right'] ?? []), $name, (string) ($arguments['right_label'] ?? 'Conjunto B'), false, []);
+        $context['last_operation'] = 'compare';
+    } elseif (in_array($name, $setCapableTools, true) && $filters !== []) {
+        $isSample = $name === 'search_requirements'
+            && ((bool) ($resultMetadata['has_more'] ?? false)
+                || (int) ($resultMetadata['returned'] ?? 0) < (int) ($resultMetadata['total_matching'] ?? 0));
+        $appendSet($sets, $filters, $name, 'Conjunto consultado', $isSample, $resultMetadata);
+        $context['last_operation'] = 'query';
+    }
+    if ($sets !== []) {
+        $context['active_sets'] = $sets;
+        $context['current_set'] = (string) ($sets[array_key_last($sets)]['set_id'] ?? 'A');
+    }
+
     $departmentIds = is_array($arguments['department_ids'] ?? null) ? array_map('intval', $arguments['department_ids']) : [];
     if ((int) ($arguments['department_id'] ?? 0) > 0) $departmentIds[] = (int) $arguments['department_id'];
     $departmentNames = is_array($arguments['department_names'] ?? null)
@@ -134,6 +176,7 @@ function ixtla_insights_conversation_context_text(array $state): string
     // El historial textual ya se envia por separado. Repetir aqui la ultima
     // pregunta y respuesta puede sobreponderarlas o contradecir una version
     // truncada; este bloque contiene solamente estado analitico verificable.
+    unset($context['_scope_fingerprint']);
     return json_encode([
         'analytics_context' => $context,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';

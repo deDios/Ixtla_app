@@ -84,6 +84,7 @@ if (!$curr) {
 
 $prevEstatus   = (int)$curr["estatus"];
 $prevAsignadoA = isset($curr["asignado_a"]) ? (int)$curr["asignado_a"] : null;
+$departamentosSensibles = [9, 10, 12];
 
 $telefonoDestino = $curr["contacto_telefono"] ?? null;
 
@@ -129,6 +130,49 @@ if ($departamento_id !== null) {
     die(json_encode(["ok" => false, "error" => "departamento_id no existe"]));
   }
   $st->close();
+}
+
+/* Reglas de negocio por estado y departamento */
+$esDepartamentoSensibleActual = in_array((int)$curr['departamento_id'], $departamentosSensibles, true);
+$estatusPermiteEditar = $esDepartamentoSensibleActual
+  ? !in_array($prevEstatus, [4, 5, 6], true)
+  : in_array($prevEstatus, [0, 1], true);
+$camposInformacion = [
+  'departamento_id', 'tramite_id', 'asunto', 'descripcion', 'prioridad', 'canal',
+  'contacto_nombre', 'contacto_email', 'contacto_telefono', 'contacto_calle',
+  'contacto_colonia', 'contacto_cp'
+];
+$intentaEditarInformacion = false;
+foreach ($camposInformacion as $campo) {
+  if (array_key_exists($campo, $in)) {
+    $intentaEditarInformacion = true;
+    break;
+  }
+}
+if ($intentaEditarInformacion && !$estatusPermiteEditar) {
+  $con->close();
+  http_response_code(409);
+  die(json_encode(["ok" => false, "error" => "La informacion del requerimiento no es editable en el estatus actual"]));
+}
+
+/* Asignacion -> Proceso requiere planeacion, salvo departamentos sensibles. */
+if ($estatus === 3 && $prevEstatus === 2 && !in_array((int)$dep_final, $departamentosSensibles, true)) {
+  $st = $con->prepare("
+    SELECT 1
+    FROM proceso_requerimiento p
+    INNER JOIN tarea_proceso t ON t.proceso_id = p.id AND t.status <> 0
+    WHERE p.requerimiento_id = ? AND p.status = 1
+    LIMIT 1
+  ");
+  $st->bind_param("i", $id);
+  $st->execute();
+  $tienePlaneacion = (bool)$st->get_result()->fetch_row();
+  $st->close();
+  if (!$tienePlaneacion) {
+    $con->close();
+    http_response_code(409);
+    die(json_encode(["ok" => false, "error" => "Para iniciar proceso se requiere al menos un proceso y una tarea"]));
+  }
 }
 
 if ($asignado_a !== null) {

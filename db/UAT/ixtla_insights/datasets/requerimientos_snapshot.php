@@ -391,6 +391,105 @@ function ixtla_insights_snapshot_public_record(array $record, bool $includeReque
     return $result;
 }
 
+/**
+ * Calcula atencion operativa con evidencia disponible en el snapshot.
+ * No usa prioridad ni fecha_limite: ambos campos carecen de semantica vigente.
+ *
+ * @return array{score:int,reasons:array<int,string>,last_activity_at:?string,inactive_days:int}
+ */
+function ixtla_insights_snapshot_operational_attention(array $record, ?int $now = null): array
+{
+    $now ??= time();
+    $score = 0;
+    $reasons = [];
+    $ageDays = max(0, (int) ($record['age_days'] ?? 0));
+    $agePoints = min(40, (int) floor($ageDays / 3));
+    if ($agePoints > 0) {
+        $score += $agePoints;
+        $reasons[] = 'Antiguedad de ' . $ageDays . ' dias';
+    }
+    if (($record['assignee_id'] ?? null) === null) {
+        $score += 25;
+        $reasons[] = 'Sin responsable asignado';
+    }
+    $statusPoints = [0 => 15, 1 => 12, 2 => 10, 3 => 5][(int) ($record['status_id'] ?? -1)] ?? 0;
+    if ($statusPoints > 0) {
+        $score += $statusPoints;
+        $reasons[] = 'Estatus ' . (string) ($record['status'] ?? 'activo');
+    }
+    $activityCandidates = array_filter([
+        (string) ($record['created_at'] ?? ''),
+        (string) ($record['last_comment_at'] ?? ''),
+        (string) ($record['last_process_at'] ?? ''),
+    ], static fn (string $value): bool => $value !== '' && (strtotime($value) ?: 0) > 0);
+    $lastActivityTimestamp = $activityCandidates === []
+        ? 0
+        : max(array_map(static fn (string $value): int => strtotime($value) ?: 0, $activityCandidates));
+    $inactiveDays = $lastActivityTimestamp > 0 ? max(0, (int) floor(($now - $lastActivityTimestamp) / 86400)) : $ageDays;
+    $inactivityPoints = $inactiveDays >= 30 ? 15 : ($inactiveDays >= 14 ? 10 : ($inactiveDays >= 7 ? 5 : 0));
+    if ($inactivityPoints > 0) {
+        $score += $inactivityPoints;
+        $reasons[] = 'Sin actividad reciente (' . $inactiveDays . ' dias)';
+    }
+    $openTasks = max(0, (int) ($record['open_task_count'] ?? 0));
+    if ($openTasks > 0) {
+        $score += min(5, $openTasks);
+        $reasons[] = $openTasks . ($openTasks === 1 ? ' tarea abierta' : ' tareas abiertas');
+    }
+    return [
+        'score' => min(100, $score),
+        'reasons' => $reasons,
+        'last_activity_at' => $lastActivityTimestamp > 0 ? date('Y-m-d H:i:s', $lastActivityTimestamp) : null,
+        'inactive_days' => $inactiveDays,
+    ];
+}
+
+/** Lista explicable de casos activos que requieren mayor atencion operativa. */
+function ixtla_insights_snapshot_priority_requirements(array $arguments): array
+{
+    $explicitStatuses = array_values(array_unique(array_map(
+        'intval',
+        is_array($arguments['status_ids'] ?? null) ? $arguments['status_ids'] : []
+    )));
+    $requestedStatuses = array_values(array_intersect(
+        $explicitStatuses,
+        ixtla_insights_domain_status_ids('active')
+    ));
+    $requestedLimit = min(30, max(1, (int) ($arguments['limit'] ?? 10)));
+    if ($explicitStatuses !== [] && $requestedStatuses === []) {
+        return [
+            'ranking_mode' => 'operational_attention',
+            'definition' => 'Antiguedad, ausencia de responsable, estatus activo, falta de actividad reciente y tareas abiertas.',
+            'period' => (string) ($arguments['period'] ?? 'all'),
+            'total_candidates' => 0,
+            'returned' => 0,
+            'items' => [],
+        ];
+    }
+    $snapshot = ixtla_insights_snapshot_build(false);
+    $arguments['status_ids'] = $requestedStatuses !== [] ? $requestedStatuses : ixtla_insights_domain_status_ids('active');
+    $arguments['sort'] = 'oldest';
+    $arguments['limit'] = 0;
+    $records = ixtla_insights_snapshot_filter($snapshot, $arguments);
+    $ranked = array_map(static function (array $record): array {
+        return [...ixtla_insights_snapshot_public_record($record), ...ixtla_insights_snapshot_operational_attention($record)];
+    }, $records);
+    usort($ranked, static fn (array $a, array $b): int =>
+        ($b['score'] <=> $a['score'])
+        ?: ($b['inactive_days'] <=> $a['inactive_days'])
+        ?: strcmp((string) ($a['created_at'] ?? ''), (string) ($b['created_at'] ?? ''))
+        ?: ((int) ($a['id'] ?? 0) <=> (int) ($b['id'] ?? 0))
+    );
+    return [
+        'ranking_mode' => 'operational_attention',
+        'definition' => 'Antiguedad, ausencia de responsable, estatus activo, falta de actividad reciente y tareas abiertas.',
+        'period' => (string) ($arguments['period'] ?? 'all'),
+        'total_candidates' => count($ranked),
+        'returned' => min($requestedLimit, count($ranked)),
+        'items' => array_slice($ranked, 0, $requestedLimit),
+    ];
+}
+
 /** Resumen compacto calculado sobre todas las coincidencias, no solo la pagina. */
 function ixtla_insights_snapshot_result_summary(array $records): array
 {
@@ -644,6 +743,76 @@ function ixtla_insights_snapshot_aggregate(array $arguments): array
         'group_by' => $groupBy,
         'total_matching' => count($records),
         'items' => array_slice($items, 0, $limit),
+    ];
+}
+
+/** Compara dos universos completos del mismo snapshot autorizado por RBAC. */
+function ixtla_insights_snapshot_compare_sets(array $arguments): array
+{
+    $snapshot = ixtla_insights_snapshot_build(false);
+    $leftFilters = ixtla_insights_snapshot_resolve_department_names($snapshot, (array) ($arguments['left'] ?? []));
+    $rightFilters = ixtla_insights_snapshot_resolve_department_names($snapshot, (array) ($arguments['right'] ?? []));
+    $leftRecords = ixtla_insights_snapshot_filter($snapshot, $leftFilters);
+    $rightRecords = ixtla_insights_snapshot_filter($snapshot, $rightFilters);
+    $groupBy = (string) ($arguments['group_by'] ?? 'status');
+    $dateGrain = (string) ($arguments['date_grain'] ?? 'month');
+    if (!in_array($groupBy, ['status', 'department', 'tramite', 'assignee', 'channel', 'date'], true)
+        || !in_array($dateGrain, ['day', 'week', 'month'], true)) {
+        throw new InvalidArgumentException('La dimension de comparacion no es valida.');
+    }
+    $group = static function (array $records, array $filters) use ($groupBy, $dateGrain): array {
+        $items = [];
+        foreach ($records as $record) {
+            if ($groupBy === 'assignee') {
+                $dimension = [
+                    'id' => $record['assignee_id'] ?? null,
+                    'label' => (string) ($record['assignee'] ?? 'Sin asignar'),
+                ];
+            } else {
+                $dimension = ixtla_insights_snapshot_dimension_value(
+                    $record,
+                    $groupBy,
+                    $dateGrain,
+                    (string) ($filters['date_field'] ?? 'created_at')
+                );
+            }
+            $key = $dimension['id'] === null ? 'null:' . $dimension['label'] : 'id:' . (string) $dimension['id'];
+            if (!isset($items[$key])) {
+                $items[$key] = ['id' => $dimension['id'], 'label' => $dimension['label'], 'value' => 0];
+            }
+            $items[$key]['value']++;
+        }
+        return $items;
+    };
+    $leftGroups = $group($leftRecords, $leftFilters);
+    $rightGroups = $group($rightRecords, $rightFilters);
+    $keys = array_values(array_unique([...array_keys($leftGroups), ...array_keys($rightGroups)]));
+    $items = array_map(static function (string $key) use ($leftGroups, $rightGroups): array {
+        $base = $leftGroups[$key] ?? $rightGroups[$key];
+        $left = (int) ($leftGroups[$key]['value'] ?? 0);
+        $right = (int) ($rightGroups[$key]['value'] ?? 0);
+        return [
+            'id' => $base['id'], 'label' => $base['label'],
+            'left_value' => $left, 'right_value' => $right,
+            'absolute_change' => $right - $left,
+            'percent_change' => $left === 0 ? null : round((($right - $left) / $left) * 100, 1),
+        ];
+    }, $keys);
+    usort($items, static fn (array $a, array $b): int =>
+        abs($b['absolute_change']) <=> abs($a['absolute_change']) ?: strcmp((string) $a['label'], (string) $b['label'])
+    );
+    $leftTotal = count($leftRecords);
+    $rightTotal = count($rightRecords);
+    return [
+        'dataset' => $snapshot['dataset'],
+        'scope' => $snapshot['scope'],
+        'comparison_basis' => 'Universos completos filtrados sobre el mismo snapshot autorizado; no muestras.',
+        'group_by' => $groupBy,
+        'left' => ['label' => (string) ($arguments['left_label'] ?? 'Conjunto A'), 'filters' => $leftFilters, 'total' => $leftTotal],
+        'right' => ['label' => (string) ($arguments['right_label'] ?? 'Conjunto B'), 'filters' => $rightFilters, 'total' => $rightTotal],
+        'absolute_change' => $rightTotal - $leftTotal,
+        'percent_change' => $leftTotal === 0 ? null : round((($rightTotal - $leftTotal) / $leftTotal) * 100, 1),
+        'items' => array_slice($items, 0, min(50, max(1, (int) ($arguments['limit'] ?? 20)))),
     ];
 }
 

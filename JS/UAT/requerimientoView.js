@@ -15,6 +15,7 @@
     window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
   const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
+  const DEPARTAMENTOS_SENSIBLES = new Set([9, 10, 12]);
 
   const relShort = (when) => {
     if (!when) return "—";
@@ -49,6 +50,10 @@
 
   function isEditableContacto(req) {
     const code = getReqStatusCode(req);
+    const deptId = Number(req?.departamento_id ?? req?.raw?.departamento_id);
+    if (DEPARTAMENTOS_SENSIBLES.has(deptId)) {
+      return ![4, 5, 6].includes(code);
+    }
     return code === 0 || code === 1; // Solicitud / Revisión
   }
 
@@ -865,6 +870,53 @@
     });
   }
 
+  function askComentarioFinal() {
+    return new Promise((resolve, reject) => {
+      const overlay = $("#modal-comentario-final");
+      const form = $("#form-comentario-final");
+      const txt = $("#comentario-final-texto");
+      if (!overlay || !form || !txt) return reject("sin modal comentario final");
+
+      txt.value = "";
+      overlay.classList.add("open", "active");
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("me-modal-open");
+      setTimeout(() => txt.focus(), 30);
+
+      const closeBtn = overlay.querySelector(".modal-close");
+      const cleanup = () => {
+        form.removeEventListener("submit", onSubmit);
+        closeBtn?.removeEventListener("click", onClose);
+        overlay.removeEventListener("click", onOverlayClick);
+        document.removeEventListener("keydown", onKeyDown);
+        overlay.classList.remove("open", "active");
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("me-modal-open");
+      };
+      const onSubmit = (event) => {
+        event.preventDefault();
+        const comentario = String(txt.value || "").trim();
+        cleanup();
+        resolve(comentario);
+      };
+      const onClose = () => {
+        cleanup();
+        reject("cancel");
+      };
+      const onOverlayClick = (event) => {
+        if (event.target === overlay) onClose();
+      };
+      const onKeyDown = (event) => {
+        if (event.key === "Escape") onClose();
+      };
+
+      form.addEventListener("submit", onSubmit);
+      closeBtn?.addEventListener("click", onClose);
+      overlay.addEventListener("click", onOverlayClick);
+      document.addEventListener("keydown", onKeyDown);
+    });
+  }
+
   async function onAction(act) {
     let next = getCurrentStatusCode();
     const id = __CURRENT_REQ_ID__;
@@ -891,7 +943,13 @@
         updateStatusUI(next);
         toast("Asignado a departamento", "success");
       } else if (act === "start-process") {
-        const ok = await hasAtLeastOneProcesoAndTask(id);
+        const currentReq = window.__REQ__ || null;
+        const deptId = Number(
+          currentReq?.departamento_id ?? currentReq?.raw?.departamento_id,
+        );
+        const ok =
+          DEPARTAMENTOS_SENSIBLES.has(deptId) ||
+          (await hasAtLeastOneProcesoAndTask(id));
         if (!ok) {
           toast(
             "Para iniciar proceso necesitas al menos un proceso y una tarea.",
@@ -1008,6 +1066,9 @@
           return;
         }
 
+        // El modal es la confirmación final; el comentario puede quedar vacío.
+        const comentarioFinal = await askComentarioFinal();
+
         // 3) Consultar si ya existe retro activa
         let anyActiveRetro = false;
 
@@ -1079,7 +1140,28 @@
           );
         }
 
-        // 5) Finalizar requerimiento (estatus 6)
+        // 5) Solicitar y, si se capturó, guardar un comentario final normal.
+        if (comentarioFinal) {
+          const { usuario_id, empleado_id } = getUserAndEmpleadoFromSession();
+          if (!usuario_id) {
+            toast("No se encontró tu usuario en la sesión.", "danger");
+            return;
+          }
+
+          const comentarioResp = await createComentarioAPI({
+            requerimiento_id: id,
+            comentario: comentarioFinal,
+            status: 1,
+            created_by: usuario_id,
+            empleado_id,
+          });
+          if (!comentarioResp || comentarioResp.ok !== true) {
+            toast("No se pudo guardar el comentario final.", "danger");
+            return;
+          }
+        }
+
+        // 6) Finalizar requerimiento (estatus 6)
         next = 6;
         await updateReqStatus({ id, estatus: next });
 
