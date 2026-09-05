@@ -16,6 +16,33 @@
 
   const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
   const DEPARTAMENTOS_SENSIBLES = new Set([9, 10, 12]);
+  const sensitiveMismatchWarnings = new Set();
+
+  function getSensitiveDepartmentContext(req) {
+    const session = safeGetSession() || {};
+    const userDeptId = Number(
+      session?.departamento_id ?? session?.dept_id ?? session?.departamento,
+    );
+    const reqDeptId = Number(req?.departamento_id ?? req?.raw?.departamento_id);
+    const userIsSensitive = DEPARTAMENTOS_SENSIBLES.has(userDeptId);
+    const reqIsSensitive = DEPARTAMENTOS_SENSIBLES.has(reqDeptId);
+    const applies = userIsSensitive && reqIsSensitive && userDeptId === reqDeptId;
+
+    if ((userIsSensitive || reqIsSensitive) && userDeptId !== reqDeptId) {
+      const warningKey = `${userDeptId || "sin-depto"}:${reqDeptId || "sin-depto"}:${req?.id || "sin-id"}`;
+      if (!sensitiveMismatchWarnings.has(warningKey)) {
+        sensitiveMismatchWarnings.add(warningKey);
+        console.warn("[ReqView][Departamentos sensibles] Diferencia de IDs", {
+          usuario_departamento_id: userDeptId || null,
+          requerimiento_departamento_id: reqDeptId || null,
+          requerimiento_id: req?.id || null,
+          flujo_sensible_aplica: false,
+        });
+      }
+    }
+
+    return { applies, userDeptId, reqDeptId };
+  }
 
   const relShort = (when) => {
     if (!when) return "—";
@@ -50,8 +77,7 @@
 
   function isEditableContacto(req) {
     const code = getReqStatusCode(req);
-    const deptId = Number(req?.departamento_id ?? req?.raw?.departamento_id);
-    if (DEPARTAMENTOS_SENSIBLES.has(deptId)) {
+    if (getSensitiveDepartmentContext(req).applies) {
       return ![4, 5, 6].includes(code);
     }
     return code === 0 || code === 1; // Solicitud / Revisión
@@ -944,11 +970,8 @@
         toast("Asignado a departamento", "success");
       } else if (act === "start-process") {
         const currentReq = window.__REQ__ || null;
-        const deptId = Number(
-          currentReq?.departamento_id ?? currentReq?.raw?.departamento_id,
-        );
         const ok =
-          DEPARTAMENTOS_SENSIBLES.has(deptId) ||
+          getSensitiveDepartmentContext(currentReq).applies ||
           (await hasAtLeastOneProcesoAndTask(id));
         if (!ok) {
           toast(

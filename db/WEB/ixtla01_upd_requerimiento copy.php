@@ -85,6 +85,25 @@ if (!$curr) {
 $prevEstatus   = (int)$curr["estatus"];
 $prevAsignadoA = isset($curr["asignado_a"]) ? (int)$curr["asignado_a"] : null;
 $departamentosSensibles = [9, 10, 12];
+$actorDepartamentoId = null;
+if ($updated_by !== null && $updated_by > 0) {
+  $st = $con->prepare("SELECT departamento_id FROM empleado WHERE id=? LIMIT 1");
+  $st->bind_param("i", $updated_by);
+  $st->execute();
+  $actor = $st->get_result()->fetch_assoc();
+  $st->close();
+  $actorDepartamentoId = isset($actor['departamento_id']) ? (int)$actor['departamento_id'] : null;
+}
+
+$reqDepartamentoActual = (int)$curr['departamento_id'];
+$actorEsSensible = in_array((int)$actorDepartamentoId, $departamentosSensibles, true);
+$reqEsSensibleActual = in_array($reqDepartamentoActual, $departamentosSensibles, true);
+$aplicaFlujoSensibleActual = $actorEsSensible
+  && $reqEsSensibleActual
+  && $actorDepartamentoId === $reqDepartamentoActual;
+if (($actorEsSensible || $reqEsSensibleActual) && !$aplicaFlujoSensibleActual) {
+  error_log("[Departamentos sensibles] Diferencia de IDs: usuario_dept=" . ($actorDepartamentoId ?? 'null') . " req_dept={$reqDepartamentoActual} req={$id}");
+}
 
 $telefonoDestino = $curr["contacto_telefono"] ?? null;
 
@@ -133,8 +152,7 @@ if ($departamento_id !== null) {
 }
 
 /* Reglas de negocio por estado y departamento */
-$esDepartamentoSensibleActual = in_array((int)$curr['departamento_id'], $departamentosSensibles, true);
-$estatusPermiteEditar = $esDepartamentoSensibleActual
+$estatusPermiteEditar = $aplicaFlujoSensibleActual
   ? !in_array($prevEstatus, [4, 5, 6], true)
   : in_array($prevEstatus, [0, 1], true);
 $camposInformacion = [
@@ -156,7 +174,9 @@ if ($intentaEditarInformacion && !$estatusPermiteEditar) {
 }
 
 /* Asignacion -> Proceso requiere planeacion, salvo departamentos sensibles. */
-if ($estatus === 3 && $prevEstatus === 2 && !in_array((int)$dep_final, $departamentosSensibles, true)) {
+$aplicaFlujoSensibleFinal = in_array((int)$dep_final, $departamentosSensibles, true)
+  && $actorDepartamentoId === (int)$dep_final;
+if ($estatus === 3 && $prevEstatus === 2 && !$aplicaFlujoSensibleFinal) {
   $st = $con->prepare("
     SELECT 1
     FROM proceso_requerimiento p
@@ -315,7 +335,8 @@ $row['status'] = (int)$row['status'];
 
 $newEstatus   = (int)$row["estatus"];
 $newAsignadoA = $row["asignado_a"]; // int|null
-$esDepartamentoSensible = in_array((int)$row['departamento_id'], $departamentosSensibles, true);
+$esDepartamentoSensible = in_array((int)$row['departamento_id'], $departamentosSensibles, true)
+  && $actorDepartamentoId === (int)$row['departamento_id'];
 
 // Solo si el request traia estatus y hubo cambios
 $estatusChanged = ($estatus !== null) && ($newEstatus !== $prevEstatus);

@@ -392,7 +392,12 @@
   function isEditableDetalles(req) {
     const code = getReqStatusCode(req);
     const deptId = Number(req?.departamento_id ?? req?.raw?.departamento_id);
-    if (DEPARTAMENTOS_SENSIBLES.has(deptId)) {
+    const userDeptId = Number(getDeptId());
+    if (
+      DEPARTAMENTOS_SENSIBLES.has(deptId) &&
+      DEPARTAMENTOS_SENSIBLES.has(userDeptId) &&
+      deptId === userDeptId
+    ) {
       return ![4, 5, 6].includes(code);
     }
     return code === 0 || code === 1; // Solicitud / Revisión

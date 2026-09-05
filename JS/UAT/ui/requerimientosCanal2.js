@@ -1287,6 +1287,7 @@
               id: newId,
               estatus: ESTATUS_TARGET,
               canal: CANAL_TARGET,
+              updated_by: readSession()?.empleado_id ?? null,
             });
             log("update canal2 ok:", {
               id: newId,
