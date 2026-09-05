@@ -315,6 +315,7 @@ $row['status'] = (int)$row['status'];
 
 $newEstatus   = (int)$row["estatus"];
 $newAsignadoA = $row["asignado_a"]; // int|null
+$esDepartamentoSensible = in_array((int)$row['departamento_id'], $departamentosSensibles, true);
 
 // Solo si el request traia estatus y hubo cambios
 $estatusChanged = ($estatus !== null) && ($newEstatus !== $prevEstatus);
@@ -324,10 +325,13 @@ $asignadoChanged = ($asignado_a !== null) && ($newAsignadoA !== $prevAsignadoA);
 
 /**
  * EVENT_05
- * notificar cambios de estatus EXCEPTO Pausado(4), Cancelado(5) y Finalizado(6)
- * de este ultimo ya se encarga event_12 con la encuesta de retro.
+ * Flujo normal: notifica cambios salvo Pausado, Cancelado y Finalizado.
+ * Flujo sensible: solo notifica Asignacion al contacto y Finalizado al director.
  */
-$shouldSendEvent05 = $estatusChanged && !in_array($newEstatus, [4, 5, 6], true);
+$shouldSendEvent05 = $estatusChanged && (
+  ($esDepartamentoSensible && in_array($newEstatus, [2, 6], true))
+  || (!$esDepartamentoSensible && !in_array($newEstatus, [4, 5, 6], true))
+);
 
 function statusLabel(int $s): string
 {
@@ -353,8 +357,13 @@ if ($shouldSendEvent05) {
     statusLabel($newEstatus),
   ];
 
-  $telefonoActual = $row["contacto_telefono"] ?? null;
-  $to = $telefonoActual ?: $telefonoDestino;
+  if ($esDepartamentoSensible && $newEstatus === 6) {
+    $directorFinal = getDirectorByDepartamento($con, (int)$row['departamento_id']);
+    $to = $directorFinal['telefono'] ?? null;
+  } else {
+    $telefonoActual = $row["contacto_telefono"] ?? null;
+    $to = $telefonoActual ?: $telefonoDestino;
+  }
 
   if ($to) {
     $toDigits = preg_replace("/\\D+/", "", (string)$to);
@@ -390,7 +399,7 @@ if ($shouldSendEvent05) {
 /**
  * EVENT_08, solo se manda cuando el req entra en status 2 (asignacion)
  * - event_05 se manda al cliente
- * - y event_08 al PL del departamento
+ * - y event_08 al PL; para departamentos sensibles, al director
  */
 $shouldSendEvent08 = $estatusChanged && ($newEstatus === 2);
 
@@ -407,7 +416,11 @@ if ($shouldSendEvent08) {
 
   $deptId = (int)($row["departamento_id"] ?? 0);
   //$deptId = (int)(6); //departamento 6 = precidencia
-  $pl = ($deptId > 0) ? getPLByDepartamento($con, $deptId) : null;
+  $pl = ($deptId > 0)
+    ? ($esDepartamentoSensible
+      ? getDirectorByDepartamento($con, $deptId)
+      : getPLByDepartamento($con, $deptId))
+    : null;
 
   $toPl = $pl["telefono"] ?? "";
   if ($toPl) {
@@ -437,7 +450,7 @@ if ($shouldSendEvent08) {
       curl_close($ch);
 
       $plIdLog = (int)($pl["id"] ?? 0);
-      error_log("[WAPP event_08] dept={$deptId} pl={$plIdLog} to={$toDigits} resp=" . substr((string)$wresp, 0, 200));
+      error_log("[WAPP event_08] dept={$deptId} destinatario={$plIdLog} sensible=" . ($esDepartamentoSensible ? "1" : "0") . " to={$toDigits} resp=" . substr((string)$wresp, 0, 200));
     } else {
       error_log("[WAPP event_08] Teléfono PL inválido. dept={$deptId} tel=" . (string)$toPl);
     }
@@ -513,10 +526,10 @@ if ($shouldSendEvent09) {
 
 /**
  * EVENT_12
- * Se manda AL CIUDADANO cuando el requerimiento entra en status 6 (finalizado)
+ * Se manda al ciudadano cuando el requerimiento no pertenece a un departamento sensible.
  * params: [folio]
  */
-$shouldSendEvent12 = $estatusChanged && ($newEstatus === 6);
+$shouldSendEvent12 = $estatusChanged && ($newEstatus === 6) && !$esDepartamentoSensible;
 
 if ($shouldSendEvent12) {
   $folio = $row["folio"] ?? ("REQ-" . str_pad((string)$row["id"], 11, "0", STR_PAD_LEFT));

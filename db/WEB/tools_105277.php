@@ -351,3 +351,42 @@ function rbac_compute_by_empleado_id(mysqli $con, int $empleadoId, array $opts =
     ] : null,
   ];
 }
+
+/**
+ * Obtiene al director configurado en un departamento junto con su teléfono.
+ */
+function getDirectorByDepartamento(mysqli $con, int $departamentoId): ?array
+{
+  if ($departamentoId <= 0) return null;
+
+  $st = $con->prepare("
+    SELECT e.id, e.nombre, e.apellidos, e.telefono, e.email, e.puesto,
+           e.departamento_id, e.status
+    FROM departamento d
+    INNER JOIN empleado e ON e.id = d.director
+    WHERE d.id = ?
+    LIMIT 1
+  ");
+  if (!$st) return null;
+
+  $st->bind_param("i", $departamentoId);
+  if (!$st->execute()) {
+    $st->close();
+    return null;
+  }
+
+  $emp = $st->get_result()->fetch_assoc();
+  $st->close();
+  if (!$emp) return null;
+
+  return [
+    "id" => (int)$emp["id"],
+    "nombre" => (string)($emp["nombre"] ?? ""),
+    "apellidos" => (string)($emp["apellidos"] ?? ""),
+    "telefono" => phone_digits($emp["telefono"] ?? null),
+    "email" => isset($emp["email"]) ? (string)$emp["email"] : null,
+    "puesto" => isset($emp["puesto"]) ? (string)$emp["puesto"] : null,
+    "departamento_id" => isset($emp["departamento_id"]) ? (int)$emp["departamento_id"] : null,
+    "status" => isset($emp["status"]) ? (int)$emp["status"] : null,
+  ];
+}
