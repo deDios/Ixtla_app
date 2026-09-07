@@ -682,6 +682,9 @@
 
     const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
     log("updateReqStatus() → resp:", res);
+    if (res?.ok !== true) {
+      throw new Error(res?.error || "No se pudo actualizar el estado.");
+    }
     return res?.data ?? res;
   }
 
@@ -1076,9 +1079,12 @@
 
         // 2) Obtener folio (para link de retro)
         const req = window.__REQ__ || null;
+        const requiereRetro = !DEPARTAMENTOS_SENSIBLES.has(
+          Number(req?.departamento_id ?? req?.raw?.departamento_id),
+        );
         const folio = String(req?.folio || "").trim();
 
-        if (!folio) {
+        if (requiereRetro && !folio) {
           warn(
             "[RETRO] No se encontró folio en window.__REQ__. Se aborta finalizar.",
           );
@@ -1092,75 +1098,79 @@
         // El modal es la confirmación final; el comentario puede quedar vacío.
         const comentarioFinal = await askComentarioFinal();
 
-        // 3) Consultar si ya existe retro activa
-        let anyActiveRetro = false;
+        // La retro depende del departamento del requerimiento, no del actor.
+        if (requiereRetro) {
+          // 3) Consultar si ya existe retro activa
+          let anyActiveRetro = false;
 
-        try {
-          const retroCheck = await hasActiveRetro(id);
-          anyActiveRetro = retroCheck.anyActive;
-
-          log("[RETRO] check:", {
-            total: retroCheck.total,
-            anyActiveRetro,
-            meta: retroCheck.raw?.meta,
-          });
-        } catch (e) {
-          err("[RETRO] fallo consulta c_retro.php:", e);
-          toast(
-            "No se pudo validar si ya existe retro. Intenta de nuevo.",
-            "danger",
-          );
-          return;
-        }
-
-        // 4) Si NO hay retro activa, insertar una nueva (habilitar retro)
-        if (!anyActiveRetro) {
-          const retroPayload = {
-            requerimiento_id: Number(id),
-            status: 1,
-            comentario: "Requerimiento listo para retro.",
-            calificacion: 0,
-            link: buildRetroLinkFromFolio(folio), // https://.../retroCiudadana.php?folio=...
-          };
-
-          log("[RETRO] creando retro → payload:", retroPayload);
-
-          let retroCreateResp;
           try {
-            retroCreateResp = await postJSON(
-              ENDPOINTS.RETRO_CREATE,
-              retroPayload,
-            );
-            log("[RETRO] i_retro resp:", retroCreateResp);
-          } catch (e) {
-            err("[RETRO] fallo insertar i_retro:", e);
-            toast(
-              "No se pudo habilitar la retroalimentación. Intenta de nuevo.",
-              "danger",
-            );
-            return; // no finalizamos si no se pudo crear retro
-          }
+            const retroCheck = await hasActiveRetro(id);
+            anyActiveRetro = retroCheck.anyActive;
 
-          // Tu postJSON no valida ok===false, así que lo validamos aquí
-          if (!retroCreateResp || retroCreateResp.ok !== true) {
-            warn("[RETRO] respuesta no-ok al crear retro:", retroCreateResp);
+            log("[RETRO] check:", {
+              total: retroCheck.total,
+              anyActiveRetro,
+              meta: retroCheck.raw?.meta,
+            });
+          } catch (e) {
+            err("[RETRO] fallo consulta c_retro.php:", e);
             toast(
-              "No se pudo habilitar la retroalimentación (backend).",
+              "No se pudo validar si ya existe retro. Intenta de nuevo.",
               "danger",
             );
             return;
           }
 
-          toast(
-            "Retroalimentación habilitada. Finalizando requerimiento...",
-            "success",
-          );
-        } else {
-          // Ya existía retro activa → no insertamos otra
-          toast(
-            "Retroalimentación ya estaba habilitada. Finalizando...",
-            "info",
-          );
+          // 4) Si NO hay retro activa, insertar una nueva (habilitar retro)
+          if (!anyActiveRetro) {
+            const retroPayload = {
+              requerimiento_id: Number(id),
+              status: 1,
+              comentario: "Requerimiento listo para retro.",
+              calificacion: 0,
+              link: buildRetroLinkFromFolio(folio), // https://.../retroCiudadana.php?folio=...
+            };
+
+            log("[RETRO] creando retro → payload:", retroPayload);
+
+            let retroCreateResp;
+            try {
+              retroCreateResp = await postJSON(
+                ENDPOINTS.RETRO_CREATE,
+                retroPayload,
+              );
+              log("[RETRO] i_retro resp:", retroCreateResp);
+            } catch (e) {
+              err("[RETRO] fallo insertar i_retro:", e);
+              toast(
+                "No se pudo habilitar la retroalimentación. Intenta de nuevo.",
+                "danger",
+              );
+              return; // no finalizamos si no se pudo crear retro
+            }
+
+            // Tu postJSON no valida ok===false, así que lo validamos aquí
+            if (!retroCreateResp || retroCreateResp.ok !== true) {
+              warn("[RETRO] respuesta no-ok al crear retro:", retroCreateResp);
+              toast(
+                "No se pudo habilitar la retroalimentación (backend).",
+                "danger",
+              );
+              return;
+            }
+
+            toast(
+              "Retroalimentación habilitada. Finalizando requerimiento...",
+              "success",
+            );
+          } else {
+            // Ya existía retro activa → no insertamos otra
+            toast(
+              "Retroalimentación ya estaba habilitada. Finalizando...",
+              "info",
+            );
+          }
+
         }
 
         // 5) Solicitar y, si se capturó, guardar un comentario final normal.
@@ -1200,13 +1210,16 @@
         return;
       }
     } catch (e) {
-      if (e !== "cancel") {
-        err(e);
-        toast("No se pudo actualizar el estado.", "danger");
-      }
+      // Cancelar un modal no cambia el estado ni sus acciones disponibles.
+      // renderActions() omite el boton de finalizar, que se agrega por separado.
+      if (e === "cancel") return;
+      err(e);
+      toast("No se pudo actualizar el estado.", "danger");
     }
 
-    renderActions(next);
+    // Recuperar las acciones del estado vigente, no del cambio que fallo.
+    renderActions(getCurrentStatusCode());
+    await injectFinalizeButtonIfReady();
   }
 
   /* ======================================
