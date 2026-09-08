@@ -15,6 +15,34 @@
     window.gcToast ? gcToast(m, t) : log("[toast]", t, m);
 
   const DEFAULT_AVATAR = "/ASSETS/user/img_user1.png";
+  const DEPARTAMENTOS_SENSIBLES = new Set([9, 10, 12]);
+  const sensitiveMismatchWarnings = new Set();
+
+  function getSensitiveDepartmentContext(req) {
+    const session = safeGetSession() || {};
+    const userDeptId = Number(
+      session?.departamento_id ?? session?.dept_id ?? session?.departamento,
+    );
+    const reqDeptId = Number(req?.departamento_id ?? req?.raw?.departamento_id);
+    const userIsSensitive = DEPARTAMENTOS_SENSIBLES.has(userDeptId);
+    const reqIsSensitive = DEPARTAMENTOS_SENSIBLES.has(reqDeptId);
+    const applies = userIsSensitive && reqIsSensitive && userDeptId === reqDeptId;
+
+    if ((userIsSensitive || reqIsSensitive) && userDeptId !== reqDeptId) {
+      const warningKey = `${userDeptId || "sin-depto"}:${reqDeptId || "sin-depto"}:${req?.id || "sin-id"}`;
+      if (!sensitiveMismatchWarnings.has(warningKey)) {
+        sensitiveMismatchWarnings.add(warningKey);
+        console.warn("[ReqView][Departamentos sensibles] Diferencia de IDs", {
+          usuario_departamento_id: userDeptId || null,
+          requerimiento_departamento_id: reqDeptId || null,
+          requerimiento_id: req?.id || null,
+          flujo_sensible_aplica: false,
+        });
+      }
+    }
+
+    return { applies, userDeptId, reqDeptId };
+  }
 
   const relShort = (when) => {
     if (!when) return "—";
@@ -49,6 +77,9 @@
 
   function isEditableContacto(req) {
     const code = getReqStatusCode(req);
+    if (getSensitiveDepartmentContext(req).applies) {
+      return ![4, 5, 6].includes(code);
+    }
     return code === 0 || code === 1; // Solicitud / Revisión
   }
 
@@ -651,6 +682,9 @@
 
     const res = await postJSON(ENDPOINTS.REQUERIMIENTO_UPDATE, body);
     log("updateReqStatus() → resp:", res);
+    if (res?.ok !== true) {
+      throw new Error(res?.error || "No se pudo actualizar el estado.");
+    }
     return res?.data ?? res;
   }
 
@@ -865,6 +899,53 @@
     });
   }
 
+  function askComentarioFinal() {
+    return new Promise((resolve, reject) => {
+      const overlay = $("#modal-comentario-final");
+      const form = $("#form-comentario-final");
+      const txt = $("#comentario-final-texto");
+      if (!overlay || !form || !txt) return reject("sin modal comentario final");
+
+      txt.value = "";
+      overlay.classList.add("open", "active");
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("me-modal-open");
+      setTimeout(() => txt.focus(), 30);
+
+      const closeBtn = overlay.querySelector(".modal-close");
+      const cleanup = () => {
+        form.removeEventListener("submit", onSubmit);
+        closeBtn?.removeEventListener("click", onClose);
+        overlay.removeEventListener("click", onOverlayClick);
+        document.removeEventListener("keydown", onKeyDown);
+        overlay.classList.remove("open", "active");
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("me-modal-open");
+      };
+      const onSubmit = (event) => {
+        event.preventDefault();
+        const comentario = String(txt.value || "").trim();
+        cleanup();
+        resolve(comentario);
+      };
+      const onClose = () => {
+        cleanup();
+        reject("cancel");
+      };
+      const onOverlayClick = (event) => {
+        if (event.target === overlay) onClose();
+      };
+      const onKeyDown = (event) => {
+        if (event.key === "Escape") onClose();
+      };
+
+      form.addEventListener("submit", onSubmit);
+      closeBtn?.addEventListener("click", onClose);
+      overlay.addEventListener("click", onOverlayClick);
+      document.addEventListener("keydown", onKeyDown);
+    });
+  }
+
   async function onAction(act) {
     let next = getCurrentStatusCode();
     const id = __CURRENT_REQ_ID__;
@@ -891,7 +972,10 @@
         updateStatusUI(next);
         toast("Asignado a departamento", "success");
       } else if (act === "start-process") {
-        const ok = await hasAtLeastOneProcesoAndTask(id);
+        const currentReq = window.__REQ__ || null;
+        const ok =
+          getSensitiveDepartmentContext(currentReq).applies ||
+          (await hasAtLeastOneProcesoAndTask(id));
         if (!ok) {
           toast(
             "Para iniciar proceso necesitas al menos un proceso y una tarea.",
@@ -995,9 +1079,12 @@
 
         // 2) Obtener folio (para link de retro)
         const req = window.__REQ__ || null;
+        const requiereRetro = !DEPARTAMENTOS_SENSIBLES.has(
+          Number(req?.departamento_id ?? req?.raw?.departamento_id),
+        );
         const folio = String(req?.folio || "").trim();
 
-        if (!folio) {
+        if (requiereRetro && !folio) {
           warn(
             "[RETRO] No se encontró folio en window.__REQ__. Se aborta finalizar.",
           );
@@ -1008,78 +1095,106 @@
           return;
         }
 
-        // 3) Consultar si ya existe retro activa
-        let anyActiveRetro = false;
+        // El modal es la confirmación final; el comentario puede quedar vacío.
+        const comentarioFinal = await askComentarioFinal();
 
-        try {
-          const retroCheck = await hasActiveRetro(id);
-          anyActiveRetro = retroCheck.anyActive;
+        // La retro depende del departamento del requerimiento, no del actor.
+        if (requiereRetro) {
+          // 3) Consultar si ya existe retro activa
+          let anyActiveRetro = false;
 
-          log("[RETRO] check:", {
-            total: retroCheck.total,
-            anyActiveRetro,
-            meta: retroCheck.raw?.meta,
-          });
-        } catch (e) {
-          err("[RETRO] fallo consulta c_retro.php:", e);
-          toast(
-            "No se pudo validar si ya existe retro. Intenta de nuevo.",
-            "danger",
-          );
-          return;
-        }
-
-        // 4) Si NO hay retro activa, insertar una nueva (habilitar retro)
-        if (!anyActiveRetro) {
-          const retroPayload = {
-            requerimiento_id: Number(id),
-            status: 1,
-            comentario: "Requerimiento listo para retro.",
-            calificacion: 0,
-            link: buildRetroLinkFromFolio(folio), // https://.../retroCiudadana.php?folio=...
-          };
-
-          log("[RETRO] creando retro → payload:", retroPayload);
-
-          let retroCreateResp;
           try {
-            retroCreateResp = await postJSON(
-              ENDPOINTS.RETRO_CREATE,
-              retroPayload,
-            );
-            log("[RETRO] i_retro resp:", retroCreateResp);
-          } catch (e) {
-            err("[RETRO] fallo insertar i_retro:", e);
-            toast(
-              "No se pudo habilitar la retroalimentación. Intenta de nuevo.",
-              "danger",
-            );
-            return; // no finalizamos si no se pudo crear retro
-          }
+            const retroCheck = await hasActiveRetro(id);
+            anyActiveRetro = retroCheck.anyActive;
 
-          // Tu postJSON no valida ok===false, así que lo validamos aquí
-          if (!retroCreateResp || retroCreateResp.ok !== true) {
-            warn("[RETRO] respuesta no-ok al crear retro:", retroCreateResp);
+            log("[RETRO] check:", {
+              total: retroCheck.total,
+              anyActiveRetro,
+              meta: retroCheck.raw?.meta,
+            });
+          } catch (e) {
+            err("[RETRO] fallo consulta c_retro.php:", e);
             toast(
-              "No se pudo habilitar la retroalimentación (backend).",
+              "No se pudo validar si ya existe retro. Intenta de nuevo.",
               "danger",
             );
             return;
           }
 
-          toast(
-            "Retroalimentación habilitada. Finalizando requerimiento...",
-            "success",
-          );
-        } else {
-          // Ya existía retro activa → no insertamos otra
-          toast(
-            "Retroalimentación ya estaba habilitada. Finalizando...",
-            "info",
-          );
+          // 4) Si NO hay retro activa, insertar una nueva (habilitar retro)
+          if (!anyActiveRetro) {
+            const retroPayload = {
+              requerimiento_id: Number(id),
+              status: 1,
+              comentario: "Requerimiento listo para retro.",
+              calificacion: 0,
+              link: buildRetroLinkFromFolio(folio), // https://.../retroCiudadana.php?folio=...
+            };
+
+            log("[RETRO] creando retro → payload:", retroPayload);
+
+            let retroCreateResp;
+            try {
+              retroCreateResp = await postJSON(
+                ENDPOINTS.RETRO_CREATE,
+                retroPayload,
+              );
+              log("[RETRO] i_retro resp:", retroCreateResp);
+            } catch (e) {
+              err("[RETRO] fallo insertar i_retro:", e);
+              toast(
+                "No se pudo habilitar la retroalimentación. Intenta de nuevo.",
+                "danger",
+              );
+              return; // no finalizamos si no se pudo crear retro
+            }
+
+            // Tu postJSON no valida ok===false, así que lo validamos aquí
+            if (!retroCreateResp || retroCreateResp.ok !== true) {
+              warn("[RETRO] respuesta no-ok al crear retro:", retroCreateResp);
+              toast(
+                "No se pudo habilitar la retroalimentación (backend).",
+                "danger",
+              );
+              return;
+            }
+
+            toast(
+              "Retroalimentación habilitada. Finalizando requerimiento...",
+              "success",
+            );
+          } else {
+            // Ya existía retro activa → no insertamos otra
+            toast(
+              "Retroalimentación ya estaba habilitada. Finalizando...",
+              "info",
+            );
+          }
+
         }
 
-        // 5) Finalizar requerimiento (estatus 6)
+        // 5) Solicitar y, si se capturó, guardar un comentario final normal.
+        if (comentarioFinal) {
+          const { usuario_id, empleado_id } = getUserAndEmpleadoFromSession();
+          if (!usuario_id) {
+            toast("No se encontró tu usuario en la sesión.", "danger");
+            return;
+          }
+
+          const comentarioResp = await createComentarioAPI({
+            requerimiento_id: id,
+            comentario: comentarioFinal,
+            status: 1,
+            created_by: usuario_id,
+            empleado_id,
+          });
+          if (!comentarioResp || comentarioResp.ok !== true) {
+            toast("No se pudo guardar el comentario final.", "danger");
+            return;
+          }
+        }
+
+        // 6) Finalizar requerimiento (estatus 6)
         next = 6;
         await updateReqStatus({ id, estatus: next });
 
@@ -1095,13 +1210,16 @@
         return;
       }
     } catch (e) {
-      if (e !== "cancel") {
-        err(e);
-        toast("No se pudo actualizar el estado.", "danger");
-      }
+      // Cancelar un modal no cambia el estado ni sus acciones disponibles.
+      // renderActions() omite el boton de finalizar, que se agrega por separado.
+      if (e === "cancel") return;
+      err(e);
+      toast("No se pudo actualizar el estado.", "danger");
     }
 
-    renderActions(next);
+    // Recuperar las acciones del estado vigente, no del cambio que fallo.
+    renderActions(getCurrentStatusCode());
+    await injectFinalizeButtonIfReady();
   }
 
   /* ======================================

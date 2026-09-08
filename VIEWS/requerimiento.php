@@ -760,6 +760,25 @@ ix_require_session();
         </div>
     </div>
 
+    <!-- Modal: comentario opcional al finalizar -->
+    <div id="modal-comentario-final" class="modal-overlay" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="comentario-final-title">
+            <button class="modal-close" type="button" aria-label="Cerrar">×</button>
+            <h2 id="comentario-final-title">Comentario final</h2>
+            <form id="form-comentario-final">
+                <div class="form-row">
+                    <label for="comentario-final-texto">¿Deseas agregar un comentario antes de finalizar?</label>
+                    <textarea id="comentario-final-texto" name="comentario" rows="5"
+                        placeholder="Escribe un comentario opcional…"></textarea>
+                </div>
+                <div class="form-row">
+                    <button type="submit" class="btn-submit">Finalizar requerimiento</button>
+                </div>
+            </form>
+            <p class="modal-note">El comentario se guardará en el historial general del requerimiento.</p>
+        </div>
+    </div>
+
     <!-- Modal: Nueva tarea -->
     <div id="modal-tarea" class="modal-overlay" aria-hidden="true">
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="tarea-title">
