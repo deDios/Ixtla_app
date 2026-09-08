@@ -2623,10 +2623,18 @@ main.home-samapa .hs-table table.gc td.hs-cell-expander {
    ========================================= */
 @media (max-width: 820px) {
 
-  /* Ocultar botones en mobile */
-  #hs-btn-export-req,
-  #hs-btn-new-req {
+  /* En mobile solo se oculta la exportación. */
+  #hs-btn-export-req {
     display: none !important;
+  }
+
+  #hs-btn-new-req {
+    display: inline-flex !important;
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.65rem 1rem;
+    font-size: 0.8rem;
   }
 
   /* Wrapper del combo */
