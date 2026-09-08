@@ -1192,6 +1192,7 @@
             toast("No se pudo guardar el comentario final.", "danger");
             return;
           }
+          await loadComentarios(id);
         }
 
         // 6) Finalizar requerimiento (estatus 6)
