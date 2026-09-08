@@ -193,7 +193,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
             'mode' => 'gpt_probe',
         ]);
         return [
-            'answer' => 'No se ejecutó la consulta necesaria sobre el dataset autorizado. Reformula la pregunta indicando el dato, periodo o filtro requerido; el asistente puede buscar filas, agruparlas, consultar un folio y generar un resumen desde la muestra.',
+            'answer' => 'No se pudo ejecutar la consulta necesaria sobre la información autorizada. Reformula la pregunta indicando el dato, periodo o filtro requerido; el asistente puede buscar requerimientos, consultar folios, calcular agregados y generar resúmenes sobre todo el universo autorizado.',
             'usage' => $usage,
         ];
     }

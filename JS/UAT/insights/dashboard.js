@@ -12,6 +12,15 @@ const VISIBILITY_LABELS = {
   organization: "Organización",
 };
 const COLORS = ["#176b87", "#2d8ca6", "#5aaebd", "#86c6cf", "#0f4c81", "#73a5d1"];
+const CARD_SIZES = ["small", "medium", "large"];
+const CARD_LAYOUTS = {
+  kpi: { initial: "small", min: "small", max: "medium" },
+  line: { initial: "large", min: "medium", max: "large" },
+  area: { initial: "large", min: "medium", max: "large" },
+  table: { initial: "large", min: "medium", max: "large" },
+  matrix: { initial: "large", min: "medium", max: "large" },
+  default: { initial: "medium", min: "small", max: "large" },
+};
 
 const grid = document.querySelector("#dashboard-grid");
 const empty = document.querySelector("#dashboard-empty");
@@ -289,12 +298,40 @@ function visibilityFor(spec) {
   return VISIBILITY_LABELS[value] || VISIBILITY_LABELS.private;
 }
 
+function cardLayout(widget) {
+  const chart = clean(widget?.preview?.chart).toLowerCase();
+  const limits = CARD_LAYOUTS[chart] || CARD_LAYOUTS.default;
+  const stored = clean(widget?.layout?.size).toLowerCase();
+  const minIndex = CARD_SIZES.indexOf(limits.min);
+  const maxIndex = CARD_SIZES.indexOf(limits.max);
+  const storedIndex = CARD_SIZES.indexOf(stored);
+  const size = storedIndex >= minIndex && storedIndex <= maxIndex ? stored : limits.initial;
+  return { size, min: limits.min, max: limits.max };
+}
+
+function resizeButton(direction, index, layout) {
+  const increase = direction === "increase";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "ixtla-dashboard-resize";
+  button.dataset.resize = direction;
+  button.dataset.index = String(index);
+  button.textContent = increase ? "+" : "−";
+  button.title = increase ? "Ampliar gráfica" : "Reducir gráfica";
+  button.setAttribute("aria-label", button.title);
+  button.disabled = increase ? layout.size === layout.max : layout.size === layout.min;
+  return button;
+}
+
 function createCard(widget, index) {
   const spec = widget.spec || {};
   const preview = widget.preview || {};
-  const wide = ["line", "area", "table", "matrix"].includes(preview.chart);
+  const layout = cardLayout(widget);
   const card = document.createElement("article");
-  card.className = `ixtla-dashboard-card${wide ? " ixtla-dashboard-card--wide" : ""}`;
+  card.className = "ixtla-dashboard-card";
+  card.dataset.size = layout.size;
+  card.dataset.minSize = layout.min;
+  card.dataset.maxSize = layout.max;
   card.draggable = true; card.dataset.index = String(index);
   const header = document.createElement("header"); header.className = "ixtla-dashboard-card__header";
   const heading = document.createElement("div");
@@ -305,8 +342,10 @@ function createCard(widget, index) {
   heading.append(kind, title, period);
   const tools = document.createElement("div"); tools.className = "ixtla-dashboard-card__tools";
   const visibility = document.createElement("span"); visibility.className = "ixtla-dashboard-card__visibility"; visibility.textContent = visibilityFor(spec);
+  const decrease = resizeButton("decrease", index, layout);
+  const increase = resizeButton("increase", index, layout);
   const drag = document.createElement("button"); drag.type = "button"; drag.className = "ixtla-dashboard-drag"; drag.textContent = "⠿"; drag.title = "Arrastrar para ordenar"; drag.setAttribute("aria-label", "Arrastrar para ordenar");
-  tools.append(visibility, drag); header.append(heading, tools);
+  tools.append(visibility, decrease, increase, drag); header.append(heading, tools);
   const narrative = document.createElement("div"); narrative.className = "ixtla-dashboard-card__narrative";
   const narrativeTitle = document.createElement("strong"); narrativeTitle.textContent = "Lo más importante";
   const narrativeText = document.createElement("span"); narrativeText.textContent = clean(preview.insight) || "Visualización preparada por Ixtla Insights.";
@@ -327,11 +366,29 @@ function render() {
   grid.hidden = widgets.length === 0;
   clearButton.disabled = widgets.length === 0;
   status.textContent = widgets.length
-    ? "Arrastra las tarjetas para cambiar su orden. Los cambios se conservan durante esta sesión."
+    ? "Ordena y ajusta el tamaño de las tarjetas. Los cambios se conservan durante esta sesión."
     : "Las gráficas se conservan durante esta sesión del navegador.";
 }
 
 grid.addEventListener("click", (event) => {
+  const resize = event.target.closest("[data-resize]");
+  if (resize) {
+    const index = Number(resize.dataset.index);
+    const widget = widgets[index];
+    if (!Number.isInteger(index) || !widget || resize.disabled) return;
+    const layout = cardLayout(widget);
+    const currentIndex = CARD_SIZES.indexOf(layout.size);
+    const direction = resize.dataset.resize === "increase" ? 1 : -1;
+    const nextSize = CARD_SIZES[currentIndex + direction];
+    if (!nextSize) return;
+    const nextIndex = CARD_SIZES.indexOf(nextSize);
+    if (nextIndex < CARD_SIZES.indexOf(layout.min) || nextIndex > CARD_SIZES.indexOf(layout.max)) return;
+    widget.layout = { ...(widget.layout || {}), size: nextSize };
+    persistWidgets();
+    render();
+    return;
+  }
+
   const remove = event.target.closest("[data-remove]");
   if (!remove) return;
   const index = Number(remove.dataset.remove);
