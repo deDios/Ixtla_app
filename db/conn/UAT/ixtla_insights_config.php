@@ -38,7 +38,7 @@ function ixtla_insights_config(): array
     $apiKey = ixtla_insights_env_value($openai, 'OPENAI_API_KEY');
     $providerUrl = ixtla_insights_env_value($openai, 'OPENAI_API_URL');
     //$model = ixtla_insights_env_value($openai, 'IXTLA_INSIGHTS_MODEL');
-    $model = 'gpt-5.6-sol';
+    $model = 'gpt-5.6-luna';
     $configured = $apiKey !== '' && $providerUrl !== '' && $model !== '';
 
     return [
@@ -68,7 +68,7 @@ function ixtla_insights_config(): array
         'max_output_tokens' => 38000,
         'temperature' => 0.5,
         'max_tool_calls_per_turn' => 5,
-        'reasoning_effort' => 'high',
+        'reasoning_effort' => 'medium',
 
         // Snapshot analitico por alcance RBAC. El cache reside en servidor;
         // nunca se entrega completo al navegador ni al modelo.
