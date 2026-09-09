@@ -11,7 +11,7 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi dashboard — Ixtla Insights</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-dashboard.css?v=dashboard-resize-1">
+  <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-dashboard.css?v=dashboard-sharing-1">
 </head>
 <body class="ixtla-dashboard-page">
   <header class="ixtla-dashboard-appbar">
@@ -67,6 +67,53 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
     </form>
   </dialog>
 
-  <script type="module" src="/JS/UAT/insights/dashboard.js?v=dashboard-resize-1"></script>
+  <dialog class="ixtla-dashboard-settings" id="dashboard-settings">
+    <form method="dialog" id="dashboard-settings-form">
+      <header>
+        <div>
+          <span class="ixtla-dashboard-settings__eyebrow">Configuración de la gráfica</span>
+          <h2 id="dashboard-settings-title">Compartir visualización</h2>
+        </div>
+        <button class="ixtla-dashboard-icon-button" type="button" data-settings-close aria-label="Cerrar">×</button>
+      </header>
+
+      <p class="ixtla-dashboard-settings__notice">Esta configuración se guardará como borrador de la sesión. La publicación para otros usuarios requerirá validación y persistencia del servidor.</p>
+
+      <fieldset>
+        <legend>¿Quién podrá verla?</legend>
+        <label><input type="radio" name="visibility" value="private" checked> Solo yo</label>
+        <label><input type="radio" name="visibility" value="team"> Mi equipo</label>
+        <label><input type="radio" name="visibility" value="department"> Mi departamento</label>
+        <label><input type="radio" name="visibility" value="departments"> Departamentos seleccionados</label>
+        <label><input type="radio" name="visibility" value="organization"> Toda la organización</label>
+      </fieldset>
+
+      <section id="dashboard-settings-audience" hidden>
+        <div class="ixtla-dashboard-settings__section-title">
+          <strong>Seleccionar departamentos</strong>
+          <button type="button" data-departments-clear>Limpiar</button>
+        </div>
+        <input id="dashboard-settings-search" type="search" placeholder="Buscar departamento" autocomplete="off">
+        <div class="ixtla-dashboard-settings__departments" id="dashboard-settings-departments"></div>
+      </section>
+
+      <fieldset>
+        <legend>Comportamiento para los destinatarios</legend>
+        <label><input type="checkbox" name="featured"> Mostrar como destacada</label>
+        <label><input type="checkbox" name="mandatory"> Mantener como obligatoria</label>
+        <label><input type="checkbox" name="allow_hide" checked> Permitir ocultarla</label>
+        <label><input type="checkbox" name="allow_resize" checked> Permitir cambiar su tamaño</label>
+        <label><input type="checkbox" name="allow_reorder" checked> Permitir reorganizarla</label>
+      </fieldset>
+
+      <div class="ixtla-dashboard-settings__summary" id="dashboard-settings-summary"></div>
+      <footer>
+        <button class="ixtla-dashboard-button ixtla-dashboard-button--ghost" type="button" data-settings-close>Cancelar</button>
+        <button class="ixtla-dashboard-button" type="submit" value="save">Guardar borrador</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script type="module" src="/JS/UAT/insights/dashboard.js?v=dashboard-sharing-2"></script>
 </body>
 </html>

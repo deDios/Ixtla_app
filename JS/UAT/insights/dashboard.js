@@ -7,18 +7,19 @@ const PERIOD_LABELS = {
 };
 const VISIBILITY_LABELS = {
   private: "Privada",
+  team: "Equipo",
   departments: "Departamentos",
   department: "Departamento",
   organization: "Organización",
 };
 const COLORS = ["#176b87", "#2d8ca6", "#5aaebd", "#86c6cf", "#0f4c81", "#73a5d1"];
-const CARD_SIZES = ["small", "medium", "large"];
+const CARD_SIZES = ["small", "medium", "large", "full"];
 const CARD_LAYOUTS = {
   kpi: { initial: "small", min: "small", max: "medium" },
-  line: { initial: "large", min: "medium", max: "large" },
-  area: { initial: "large", min: "medium", max: "large" },
-  table: { initial: "large", min: "medium", max: "large" },
-  matrix: { initial: "large", min: "medium", max: "large" },
+  line: { initial: "large", min: "medium", max: "full" },
+  area: { initial: "large", min: "medium", max: "full" },
+  table: { initial: "large", min: "medium", max: "full" },
+  matrix: { initial: "large", min: "medium", max: "full" },
   default: { initial: "medium", min: "small", max: "large" },
 };
 
@@ -29,9 +30,21 @@ const status = document.querySelector("#dashboard-status");
 const clearButton = document.querySelector("#dashboard-clear");
 const refreshButton = document.querySelector("#dashboard-refresh");
 const confirmDialog = document.querySelector("#dashboard-confirm");
+const settingsDialog = document.querySelector("#dashboard-settings");
+const settingsForm = document.querySelector("#dashboard-settings-form");
+const settingsTitle = document.querySelector("#dashboard-settings-title");
+const settingsAudience = document.querySelector("#dashboard-settings-audience");
+const settingsDepartments = document.querySelector("#dashboard-settings-departments");
+const settingsSearch = document.querySelector("#dashboard-settings-search");
+const settingsSummary = document.querySelector("#dashboard-settings-summary");
+const settingsNotice = settingsDialog.querySelector(".ixtla-dashboard-settings__notice");
 
 let widgets = readWidgets();
 let draggedIndex = null;
+let settingsIndex = null;
+let departmentCatalog = [];
+let selectedDepartmentIds = new Set();
+let publicationPermissions = { profile: "Usuario", allowed_scopes: ["private"], can_feature: false, can_make_mandatory: false };
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -323,6 +336,93 @@ function resizeButton(direction, index, layout) {
   return button;
 }
 
+function publicationControl(widget) {
+  const stored = widget?.spec?.control || {};
+  const visibility = ["private", "team", "department", "departments", "organization"].includes(stored.visibility)
+    ? stored.visibility : "private";
+  return {
+    visibility,
+    department_ids: Array.isArray(stored.department_ids) ? stored.department_ids.map(Number).filter(Number.isInteger) : [],
+    featured: stored.featured === true,
+    mandatory: stored.mandatory === true,
+    allow_hide: stored.allow_hide !== false,
+    allow_resize: stored.allow_resize !== false,
+    allow_reorder: stored.allow_reorder !== false,
+    publication_state: "draft",
+  };
+}
+
+async function loadPublicationPermissions() {
+  settingsDepartments.textContent = "Consultando permisos de publicación…";
+  try {
+    const response = await fetch("/db/UAT/ixtla_insights/publication_permissions.php", { headers: { Accept: "application/json" } });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok || !payload?.permissions) throw new Error("permissions");
+    publicationPermissions = payload.permissions;
+    departmentCatalog = (Array.isArray(publicationPermissions.departments) ? publicationPermissions.departments : []).map((item) => ({ id: Number(item.id), name: clean(item.nombre) }))
+      .filter((item) => Number.isInteger(item.id) && item.id > 0 && item.name);
+    const allowed = new Set(publicationPermissions.allowed_scopes || ["private"]);
+    settingsForm.querySelectorAll('input[name="visibility"]').forEach((input) => {
+      const enabled = allowed.has(input.value);
+      input.disabled = !enabled;
+      input.closest("label").hidden = !enabled;
+    });
+    settingsForm.elements.featured.disabled = publicationPermissions.can_feature !== true;
+    settingsForm.elements.mandatory.disabled = publicationPermissions.can_make_mandatory !== true;
+    settingsNotice.textContent = `${clean(publicationPermissions.profile) || "Usuario"}: las opciones visibles fueron autorizadas por el servidor. Este cambio seguirá como borrador hasta habilitar la persistencia compartida.`;
+  } catch {
+    publicationPermissions = { profile: "Usuario", allowed_scopes: ["private"], can_feature: false, can_make_mandatory: false };
+    settingsForm.querySelectorAll('input[name="visibility"]').forEach((input) => { input.disabled = input.value !== "private"; input.closest("label").hidden = input.value !== "private"; });
+    settingsDepartments.textContent = "No fue posible consultar los permisos. Solamente puedes conservar la gráfica como privada.";
+  }
+}
+
+function renderDepartmentChoices(query = "") {
+  if (!departmentCatalog.length) return;
+  const normalizedQuery = clean(query).toLocaleLowerCase("es-MX");
+  settingsDepartments.replaceChildren();
+  departmentCatalog.filter((item) => !normalizedQuery || item.name.toLocaleLowerCase("es-MX").includes(normalizedQuery)).forEach((item) => {
+    const label = document.createElement("label");
+    const input = document.createElement("input"); input.type = "checkbox"; input.name = "department_ids"; input.value = String(item.id); input.checked = selectedDepartmentIds.has(item.id);
+    label.append(input, document.createTextNode(item.name)); settingsDepartments.append(label);
+  });
+  if (!settingsDepartments.children.length) settingsDepartments.textContent = "No hay coincidencias.";
+}
+
+function updateSettingsSummary() {
+  const visibility = settingsForm.elements.visibility.value;
+  settingsAudience.hidden = visibility !== "departments";
+  const mandatory = settingsForm.elements.mandatory.checked;
+  settingsForm.elements.allow_hide.disabled = mandatory;
+  if (mandatory) settingsForm.elements.allow_hide.checked = false;
+  const selectedCount = selectedDepartmentIds.size;
+  const audience = visibility === "private" ? "solamente para ti"
+    : visibility === "team" ? "para tu equipo autorizado"
+      : visibility === "department" ? "para tu departamento"
+      : visibility === "organization" ? "para toda la organización"
+        : selectedCount ? `para ${selectedCount} departamento${selectedCount === 1 ? "" : "s"}` : "sin departamentos seleccionados";
+  settingsSummary.textContent = `Borrador ${audience}. Los datos seguirán respetando el alcance RBAC de cada usuario.`;
+}
+
+async function openSettings(index) {
+  const widget = widgets[index];
+  if (!widget) return;
+  settingsIndex = index;
+  const control = publicationControl(widget);
+  settingsTitle.textContent = clean(widget.preview?.title || widget.spec?.title) || "Compartir visualización";
+  settingsForm.elements.visibility.value = control.visibility;
+  selectedDepartmentIds = new Set(control.department_ids);
+  ["featured", "mandatory", "allow_hide", "allow_resize", "allow_reorder"].forEach((name) => { settingsForm.elements[name].checked = control[name]; });
+  settingsSearch.value = "";
+  await loadPublicationPermissions();
+  if (!(publicationPermissions.allowed_scopes || []).includes(settingsForm.elements.visibility.value)) settingsForm.elements.visibility.value = "private";
+  if (publicationPermissions.can_feature !== true) settingsForm.elements.featured.checked = false;
+  if (publicationPermissions.can_make_mandatory !== true) settingsForm.elements.mandatory.checked = false;
+  if (departmentCatalog.length) renderDepartmentChoices();
+  updateSettingsSummary();
+  settingsDialog.showModal();
+}
+
 function createCard(widget, index) {
   const spec = widget.spec || {};
   const preview = widget.preview || {};
@@ -344,8 +444,9 @@ function createCard(widget, index) {
   const visibility = document.createElement("span"); visibility.className = "ixtla-dashboard-card__visibility"; visibility.textContent = visibilityFor(spec);
   const decrease = resizeButton("decrease", index, layout);
   const increase = resizeButton("increase", index, layout);
+  const settings = document.createElement("button"); settings.type = "button"; settings.className = "ixtla-dashboard-settings-button"; settings.dataset.settings = String(index); settings.textContent = "⚙"; settings.title = "Configurar gráfica"; settings.setAttribute("aria-label", settings.title);
   const drag = document.createElement("button"); drag.type = "button"; drag.className = "ixtla-dashboard-drag"; drag.textContent = "⠿"; drag.title = "Arrastrar para ordenar"; drag.setAttribute("aria-label", "Arrastrar para ordenar");
-  tools.append(visibility, decrease, increase, drag); header.append(heading, tools);
+  tools.append(visibility, decrease, increase, settings, drag); header.append(heading, tools);
   const narrative = document.createElement("div"); narrative.className = "ixtla-dashboard-card__narrative";
   const narrativeTitle = document.createElement("strong"); narrativeTitle.textContent = "Lo más importante";
   const narrativeText = document.createElement("span"); narrativeText.textContent = clean(preview.insight) || "Visualización preparada por Ixtla Insights.";
@@ -371,6 +472,12 @@ function render() {
 }
 
 grid.addEventListener("click", (event) => {
+  const settings = event.target.closest("[data-settings]");
+  if (settings) {
+    const index = Number(settings.dataset.settings);
+    if (Number.isInteger(index)) void openSettings(index);
+    return;
+  }
   const resize = event.target.closest("[data-resize]");
   if (resize) {
     const index = Number(resize.dataset.index);
@@ -394,6 +501,53 @@ grid.addEventListener("click", (event) => {
   const index = Number(remove.dataset.remove);
   if (!Number.isInteger(index) || !widgets[index]) return;
   widgets.splice(index, 1); persistWidgets(); render();
+});
+
+settingsForm.addEventListener("change", (event) => {
+  if (event.target?.name === "department_ids") {
+    const id = Number(event.target.value);
+    if (event.target.checked) selectedDepartmentIds.add(id); else selectedDepartmentIds.delete(id);
+  }
+  updateSettingsSummary();
+});
+settingsSearch.addEventListener("input", () => renderDepartmentChoices(settingsSearch.value));
+settingsForm.querySelector("[data-departments-clear]").addEventListener("click", () => {
+  selectedDepartmentIds.clear();
+  settingsForm.querySelectorAll('input[name="department_ids"]').forEach((input) => { input.checked = false; });
+  updateSettingsSummary();
+});
+settingsForm.querySelectorAll("[data-settings-close]").forEach((button) => button.addEventListener("click", () => settingsDialog.close()));
+settingsForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const widget = widgets[settingsIndex];
+  if (!widget) return settingsDialog.close();
+  const visibility = settingsForm.elements.visibility.value;
+  const departmentIds = Array.from(selectedDepartmentIds).filter(Number.isInteger);
+  if (!(publicationPermissions.allowed_scopes || ["private"]).includes(visibility)) {
+    settingsSummary.textContent = "Tu perfil no tiene permiso para utilizar este alcance.";
+    return;
+  }
+  if (visibility === "departments" && !departmentIds.length) {
+    settingsSummary.textContent = "Selecciona al menos un departamento antes de guardar este borrador.";
+    settingsSearch.focus();
+    return;
+  }
+  const allowedDepartmentIds = new Set((publicationPermissions.allowed_department_ids || []).map(Number));
+  if (visibility === "departments" && departmentIds.some((id) => !allowedDepartmentIds.has(id))) {
+    settingsSummary.textContent = "La selección contiene un departamento fuera de tu permiso de publicación.";
+    return;
+  }
+  widget.spec = { ...(widget.spec || {}), control: {
+    visibility,
+    department_ids: visibility === "departments" ? departmentIds : [],
+    featured: settingsForm.elements.featured.checked,
+    mandatory: settingsForm.elements.mandatory.checked,
+    allow_hide: settingsForm.elements.allow_hide.checked,
+    allow_resize: settingsForm.elements.allow_resize.checked,
+    allow_reorder: settingsForm.elements.allow_reorder.checked,
+    publication_state: "draft",
+  } };
+  persistWidgets(); settingsDialog.close(); render();
 });
 
 grid.addEventListener("dragstart", (event) => {
