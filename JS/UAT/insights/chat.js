@@ -12,6 +12,7 @@ function readTemporaryDashboardWidgets() {
 function writeTemporaryDashboardWidgets(widgets) {
   try {
     window.sessionStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(widgets.slice(0, 24)));
+    window.dispatchEvent(new CustomEvent("ixtla-insights:dashboard-updated"));
     return true;
   } catch {
     return false;
@@ -1605,9 +1606,17 @@ export function mountIxtlaInsights(options = {}) {
     const openDashboard = document.createElement("a"); openDashboard.className = "ixtla-chart-preview__dashboard-link";
     openDashboard.href = config.dashboardUrl; openDashboard.textContent = "Ver dashboard"; openDashboard.hidden = true;
     add.addEventListener("click", () => {
+      const currentWidgets = readTemporaryDashboardWidgets();
+      dashboardQueue.splice(0, dashboardQueue.length, ...currentWidgets);
       if (dashboardQueue.some((item) => item.previewId === preview.previewId)) return;
       add.disabled = true; add.textContent = "Agregando…";
       setTimeout(() => {
+        const latestWidgets = readTemporaryDashboardWidgets();
+        dashboardQueue.splice(0, dashboardQueue.length, ...latestWidgets);
+        if (dashboardQueue.some((item) => item.previewId === preview.previewId)) {
+          add.textContent = "✓ Agregado al dashboard"; undo.hidden = false; openDashboard.hidden = false;
+          return;
+        }
         dashboardQueue.push({ previewId: preview.previewId, spec: { ...spec }, preview: { ...preview, items: preview.items.map((item) => ({ ...item })) } });
         writeTemporaryDashboardWidgets(dashboardQueue);
         add.textContent = "✓ Agregado al dashboard";
@@ -1616,6 +1625,8 @@ export function mountIxtlaInsights(options = {}) {
       }, 180);
     });
     undo.addEventListener("click", () => {
+      const currentWidgets = readTemporaryDashboardWidgets();
+      dashboardQueue.splice(0, dashboardQueue.length, ...currentWidgets);
       const index = dashboardQueue.findIndex((item) => item.previewId === preview.previewId);
       if (index >= 0) dashboardQueue.splice(index, 1);
       writeTemporaryDashboardWidgets(dashboardQueue);

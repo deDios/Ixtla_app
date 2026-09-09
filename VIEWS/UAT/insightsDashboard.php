@@ -11,7 +11,8 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi dashboard — Ixtla Insights</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-dashboard.css?v=dashboard-header-1">
+  <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-dashboard.css?v=dashboard-close-1">
+  <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-chat.css?v=dashboard-assistant-1">
 </head>
 <body class="ixtla-dashboard-page">
   <header class="ixtla-dashboard-appbar">
@@ -77,7 +78,7 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
         <button class="ixtla-dashboard-icon-button" type="button" data-settings-close aria-label="Cerrar">×</button>
       </header>
 
-      <p class="ixtla-dashboard-settings__notice">Esta configuración se guardará como borrador de la sesión. La publicación para otros usuarios requerirá validación y persistencia del servidor.</p>
+      <p class="ixtla-dashboard-settings__notice">Las opciones disponibles dependen de tus permisos de publicación.</p>
 
       <fieldset>
         <legend>¿Quién podrá verla?</legend>
@@ -106,14 +107,14 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
         <label><input type="checkbox" name="allow_reorder" checked> Permitir reorganizarla</label>
       </fieldset>
 
-      <div class="ixtla-dashboard-settings__summary" id="dashboard-settings-summary"></div>
+      <div class="ixtla-dashboard-settings__summary" id="dashboard-settings-summary" role="alert" hidden></div>
       <footer>
         <button class="ixtla-dashboard-button ixtla-dashboard-button--ghost" type="button" data-settings-close>Cancelar</button>
-        <button class="ixtla-dashboard-button" type="submit" value="save">Guardar borrador</button>
+        <button class="ixtla-dashboard-button" type="submit" value="save">Guardar configuración</button>
       </footer>
     </form>
   </dialog>
 
-  <script type="module" src="/JS/UAT/insights/dashboard.js?v=dashboard-sharing-2"></script>
+  <script type="module" src="/JS/UAT/insights/dashboard.js?v=dashboard-assistant-1"></script>
 </body>
 </html>

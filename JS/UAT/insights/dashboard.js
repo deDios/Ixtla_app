@@ -1,3 +1,5 @@
+import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=dashboard-assistant-1";
+
 const STORAGE_KEY = "ixtla_insights_dashboard_session_v1";
 const PERIOD_LABELS = {
   all: "Todo el historial",
@@ -115,9 +117,11 @@ function renderKpi(container, preview, items) {
   kpi.append(value, label); container.append(kpi);
 }
 
-function renderBars(container, items) {
-  const maximum = Math.max(1, ...items.map((item) => item.value));
-  items.forEach((item) => {
+function renderBars(container, items, size = "medium") {
+  const limits = { small: 5, medium: 8, large: 14, full: items.length };
+  const visible = items.slice(0, limits[size] || limits.medium);
+  const maximum = Math.max(1, ...visible.map((item) => item.value));
+  visible.forEach((item) => {
     const row = document.createElement("div"); row.className = "ixtla-dashboard-bar";
     const label = document.createElement("span"); label.textContent = item.label; label.title = item.label;
     const track = document.createElement("div");
@@ -126,12 +130,18 @@ function renderBars(container, items) {
     const value = document.createElement("strong"); value.textContent = number(item.value);
     row.append(label, track, value); container.append(row);
   });
+  if (visible.length < items.length) {
+    const note = document.createElement("p"); note.className = "ixtla-dashboard-density-note";
+    note.textContent = `Mostrando ${visible.length} de ${items.length}. Amplía la gráfica para consultar más categorías.`;
+    container.append(note);
+  }
 }
 
-function renderDonut(container, items) {
+function renderDonut(container, items, size = "medium") {
   const total = items.reduce((sum, item) => sum + item.value, 0) || 1;
-  const visible = items.length > 5
-    ? [...items.slice(0, 4), { label: "Otros", value: items.slice(4).reduce((sum, item) => sum + item.value, 0) }]
+  const maximumSegments = { small: 4, medium: 5, large: 8, full: 12 }[size] || 5;
+  const visible = items.length > maximumSegments
+    ? [...items.slice(0, maximumSegments - 1), { label: "Otros", value: items.slice(maximumSegments - 1).reduce((sum, item) => sum + item.value, 0) }]
     : items;
   let cursor = 0;
   const stops = visible.map((item, index) => {
@@ -160,8 +170,26 @@ function svgElement(name, attributes = {}) {
   return element;
 }
 
-function renderLine(container, items, area = false) {
-  const width = 620, height = 230, pad = { top: 18, right: 20, bottom: 42, left: 48 };
+function lineChartProfile(size = "medium") {
+  return {
+    small: { width: 440, height: 220, ticks: 3, interactivePoints: 10 },
+    medium: { width: 620, height: 250, ticks: 4, interactivePoints: 18 },
+    large: { width: 840, height: 300, ticks: 6, interactivePoints: 30 },
+    full: { width: 1240, height: 360, ticks: 9, interactivePoints: 50 },
+  }[size] || { width: 620, height: 250, ticks: 4, interactivePoints: 18 };
+}
+
+function distributedIndexes(length, maximum) {
+  if (length <= 0) return new Set();
+  const amount = Math.max(1, Math.min(length, maximum));
+  if (amount === 1) return new Set([0]);
+  return new Set(Array.from({ length: amount }, (_, index) => Math.round(index * (length - 1) / (amount - 1))));
+}
+
+function renderLine(container, items, area = false, size = "medium") {
+  const profile = lineChartProfile(size);
+  const { width, height } = profile;
+  const pad = { top: 18, right: 20, bottom: 42, left: 48 };
   const maximum = Math.max(1, ...items.map((item) => item.value));
   const total = items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
   const plotWidth = width - pad.left - pad.right, plotHeight = height - pad.top - pad.bottom;
@@ -179,12 +207,15 @@ function renderLine(container, items, area = false) {
   });
   if (area && points) svg.append(svgElement("polygon", { points: `${pad.left},${height - pad.bottom} ${points} ${width - pad.right},${height - pad.bottom}`, class: "area" }));
   svg.append(svgElement("polyline", { points }));
-  const tickIndexes = new Set([0, Math.floor((items.length - 1) / 2), items.length - 1]);
+  const tickIndexes = distributedIndexes(items.length, profile.ticks);
+  const interactiveIndexes = distributedIndexes(items.length, profile.interactivePoints);
   items.forEach((item, index) => {
     const share = total ? Math.round((Number(item.value) || 0) / total * 100) : 0;
     const tooltip = `${item.label}: ${number(item.value)} requerimientos · ${share}% del periodo`;
-    const point = svgElement("circle", { cx: coordinates[index].x, cy: coordinates[index].y, r: index === items.length - 1 ? 4.5 : 3.5, class: "ixtla-dashboard-line-point", tabindex: "0", role: "graphics-symbol", "aria-label": tooltip });
-    const title = svgElement("title"); title.textContent = tooltip; point.append(title); svg.append(point);
+    if (interactiveIndexes.has(index)) {
+      const point = svgElement("circle", { cx: coordinates[index].x, cy: coordinates[index].y, r: index === items.length - 1 ? 4.5 : 3.5, class: "ixtla-dashboard-line-point", tabindex: "0", role: "graphics-symbol", "aria-label": tooltip });
+      const title = svgElement("title"); title.textContent = tooltip; point.append(title); svg.append(point);
+    }
     if (tickIndexes.has(index)) {
       const text = svgElement("text", { x: coordinates[index].x, y: height - 13, "text-anchor": index === 0 ? "start" : index === items.length - 1 ? "end" : "middle", class: "ixtla-dashboard-line-axis" });
       text.textContent = item.label; svg.append(text);
@@ -193,8 +224,10 @@ function renderLine(container, items, area = false) {
   container.append(svg);
 }
 
-function renderMultiLine(container, categories, series) {
-  const width = 620, height = 250, pad = { top: 18, right: 20, bottom: 42, left: 48 };
+function renderMultiLine(container, categories, series, size = "medium") {
+  const profile = lineChartProfile(size);
+  const { width, height } = profile;
+  const pad = { top: 18, right: 20, bottom: 42, left: 48 };
   const maximum = Math.max(1, ...series.flatMap((item) => item.values));
   const plotWidth = width - pad.left - pad.right, plotHeight = height - pad.top - pad.bottom;
   const wrap = document.createElement("div"); wrap.className = "ixtla-dashboard-line-wrap";
@@ -208,6 +241,7 @@ function renderMultiLine(container, categories, series) {
     const label = svgElement("text", { x: pad.left - 8, y: y + 4, "text-anchor": "end", class: "ixtla-dashboard-line-axis" });
     label.textContent = number(Math.round(maximum * ratio)); svg.append(label);
   });
+  const interactiveIndexes = distributedIndexes(categories.length, profile.interactivePoints);
   series.forEach((item, seriesIndex) => {
     const coordinates = categories.map((category, index) => ({
       x: pad.left + (categories.length === 1 ? plotWidth / 2 : index * (plotWidth / (categories.length - 1))),
@@ -216,6 +250,7 @@ function renderMultiLine(container, categories, series) {
     const points = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
     svg.append(svgElement("polyline", { points, style: `stroke:${COLORS[seriesIndex % COLORS.length]}` }));
     coordinates.forEach((point, index) => {
+      if (!interactiveIndexes.has(index)) return;
       const seriesTotal = Number(item.total) || item.values.reduce((sum, value) => sum + (Number(value) || 0), 0);
       const value = Number(item.values[index]) || 0;
       const share = seriesTotal ? Math.round(value / seriesTotal * 100) : 0;
@@ -238,7 +273,7 @@ function renderMultiLine(container, categories, series) {
       circle.addEventListener("blur", () => circle.dispatchEvent(new Event("mouseleave")));
     });
   });
-  const tickIndexes = new Set([0, Math.floor((categories.length - 1) / 2), categories.length - 1]);
+  const tickIndexes = distributedIndexes(categories.length, profile.ticks);
   categories.forEach((category, index) => {
     if (!tickIndexes.has(index)) return;
     const x = pad.left + (categories.length === 1 ? plotWidth / 2 : index * (plotWidth / (categories.length - 1)));
@@ -290,7 +325,7 @@ function renderTable(container, items) {
   table.append(head, body); wrap.append(table); container.append(wrap);
 }
 
-function renderVisualization(container, preview) {
+function renderVisualization(container, preview, size = "medium") {
   const items = itemRows(preview);
   const { categories, series } = dimensionRows(preview);
   if (preview.chart !== "kpi" && !items.length) {
@@ -298,12 +333,12 @@ function renderVisualization(container, preview) {
     return;
   }
   if (preview.chart === "kpi") renderKpi(container, preview, items);
-  else if (preview.chart === "donut") renderDonut(container, items);
+  else if (preview.chart === "donut") renderDonut(container, items, size);
   else if (preview.chart === "matrix" && categories.length && series.length) renderMatrix(container, categories, series);
-  else if ((preview.chart === "line" || preview.chart === "area") && categories.length && series.length) renderMultiLine(container, categories, series);
-  else if (preview.chart === "line" || preview.chart === "area") renderLine(container, items, preview.chart === "area");
+  else if ((preview.chart === "line" || preview.chart === "area") && categories.length && series.length) renderMultiLine(container, categories, series, size);
+  else if (preview.chart === "line" || preview.chart === "area") renderLine(container, items, preview.chart === "area", size);
   else if (preview.chart === "table") renderTable(container, items);
-  else renderBars(container, items);
+  else renderBars(container, items, size);
 }
 
 function visibilityFor(spec) {
@@ -352,6 +387,30 @@ function publicationControl(widget) {
   };
 }
 
+function disabledControlReason(input, reason = "") {
+  const label = input?.closest("label");
+  if (!label) return;
+  if (reason) {
+    label.dataset.disabledReason = reason;
+    label.title = reason;
+    label.tabIndex = 0;
+    input.setAttribute("aria-description", reason);
+  } else {
+    delete label.dataset.disabledReason;
+    label.removeAttribute("title");
+    label.removeAttribute("tabindex");
+    input.removeAttribute("aria-description");
+  }
+}
+
+function scopeDisabledReason(scope) {
+  if (scope === "team") return "Disponible para jefaturas con un equipo autorizado.";
+  if (scope === "department") return "Disponible para Dirección, Primera Línea o Presidencia.";
+  if (scope === "departments") return "La selección de varios departamentos está reservada para Presidencia o administración.";
+  if (scope === "organization") return "La publicación para toda la organización está reservada para Presidencia o administración.";
+  return "Tu perfil no tiene permiso para utilizar esta opción.";
+}
+
 async function loadPublicationPermissions() {
   settingsDepartments.textContent = "Consultando permisos de publicación…";
   try {
@@ -365,14 +424,25 @@ async function loadPublicationPermissions() {
     settingsForm.querySelectorAll('input[name="visibility"]').forEach((input) => {
       const enabled = allowed.has(input.value);
       input.disabled = !enabled;
-      input.closest("label").hidden = !enabled;
+      input.closest("label").hidden = false;
+      disabledControlReason(input, enabled ? "" : scopeDisabledReason(input.value));
     });
     settingsForm.elements.featured.disabled = publicationPermissions.can_feature !== true;
     settingsForm.elements.mandatory.disabled = publicationPermissions.can_make_mandatory !== true;
-    settingsNotice.textContent = `${clean(publicationPermissions.profile) || "Usuario"}: las opciones visibles fueron autorizadas por el servidor. Este cambio seguirá como borrador hasta habilitar la persistencia compartida.`;
+    disabledControlReason(settingsForm.elements.featured, settingsForm.elements.featured.disabled ? "Disponible para jefaturas, Dirección, Primera Línea o Presidencia." : "");
+    disabledControlReason(settingsForm.elements.mandatory, settingsForm.elements.mandatory.disabled ? "Solo Presidencia o administración puede hacer obligatoria una gráfica." : "");
+    settingsNotice.textContent = `${clean(publicationPermissions.profile) || "Usuario"}: las opciones disponibles fueron autorizadas por el servidor.`;
   } catch {
     publicationPermissions = { profile: "Usuario", allowed_scopes: ["private"], can_feature: false, can_make_mandatory: false };
-    settingsForm.querySelectorAll('input[name="visibility"]').forEach((input) => { input.disabled = input.value !== "private"; input.closest("label").hidden = input.value !== "private"; });
+    settingsForm.querySelectorAll('input[name="visibility"]').forEach((input) => {
+      input.disabled = input.value !== "private";
+      input.closest("label").hidden = false;
+      disabledControlReason(input, input.disabled ? "No se pudieron verificar tus permisos de publicación; por seguridad solo está disponible la opción privada." : "");
+    });
+    settingsForm.elements.featured.disabled = true;
+    settingsForm.elements.mandatory.disabled = true;
+    disabledControlReason(settingsForm.elements.featured, "No se pudieron verificar tus permisos para destacar gráficas.");
+    disabledControlReason(settingsForm.elements.mandatory, "No se pudieron verificar tus permisos para hacer obligatoria una gráfica.");
     settingsDepartments.textContent = "No fue posible consultar los permisos. Solamente puedes conservar la gráfica como privada.";
   }
 }
@@ -395,13 +465,14 @@ function updateSettingsSummary() {
   const mandatory = settingsForm.elements.mandatory.checked;
   settingsForm.elements.allow_hide.disabled = mandatory;
   if (mandatory) settingsForm.elements.allow_hide.checked = false;
-  const selectedCount = selectedDepartmentIds.size;
-  const audience = visibility === "private" ? "solamente para ti"
-    : visibility === "team" ? "para tu equipo autorizado"
-      : visibility === "department" ? "para tu departamento"
-      : visibility === "organization" ? "para toda la organización"
-        : selectedCount ? `para ${selectedCount} departamento${selectedCount === 1 ? "" : "s"}` : "sin departamentos seleccionados";
-  settingsSummary.textContent = `Borrador ${audience}. Los datos seguirán respetando el alcance RBAC de cada usuario.`;
+  disabledControlReason(settingsForm.elements.allow_hide, mandatory ? "Una gráfica obligatoria no puede ser ocultada por sus destinatarios." : "");
+  settingsSummary.hidden = true;
+  settingsSummary.textContent = "";
+}
+
+function showSettingsError(message) {
+  settingsSummary.textContent = message;
+  settingsSummary.hidden = false;
 }
 
 async function openSettings(index) {
@@ -452,7 +523,8 @@ function createCard(widget, index) {
   const narrativeText = document.createElement("span"); narrativeText.textContent = clean(preview.insight) || "Visualización preparada por Ixtla Insights.";
   narrative.append(narrativeTitle, narrativeText);
   const content = document.createElement("div"); content.className = "ixtla-dashboard-card__content";
-  renderVisualization(content, preview);
+  content.dataset.chartSize = layout.size;
+  renderVisualization(content, preview, layout.size);
   const footer = document.createElement("footer"); footer.className = "ixtla-dashboard-card__footer";
   const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "Quitar"; remove.dataset.remove = String(index); remove.setAttribute("aria-label", `Quitar ${title.textContent}`);
   footer.append(remove); card.append(header, narrative, content, footer);
@@ -524,17 +596,17 @@ settingsForm.addEventListener("submit", (event) => {
   const visibility = settingsForm.elements.visibility.value;
   const departmentIds = Array.from(selectedDepartmentIds).filter(Number.isInteger);
   if (!(publicationPermissions.allowed_scopes || ["private"]).includes(visibility)) {
-    settingsSummary.textContent = "Tu perfil no tiene permiso para utilizar este alcance.";
+    showSettingsError("Tu perfil no tiene permiso para utilizar este alcance.");
     return;
   }
   if (visibility === "departments" && !departmentIds.length) {
-    settingsSummary.textContent = "Selecciona al menos un departamento antes de guardar este borrador.";
+    showSettingsError("Selecciona al menos un departamento antes de guardar la configuración.");
     settingsSearch.focus();
     return;
   }
   const allowedDepartmentIds = new Set((publicationPermissions.allowed_department_ids || []).map(Number));
   if (visibility === "departments" && departmentIds.some((id) => !allowedDepartmentIds.has(id))) {
-    settingsSummary.textContent = "La selección contiene un departamento fuera de tu permiso de publicación.";
+    showSettingsError("La selección contiene un departamento fuera de tu permiso de publicación.");
     return;
   }
   widget.spec = { ...(widget.spec || {}), control: {
@@ -578,6 +650,7 @@ grid.addEventListener("dragend", () => { draggedIndex = null; render(); });
 function refreshDashboardWidgets() { widgets = readWidgets(); render(); }
 refreshButton.addEventListener("click", refreshDashboardWidgets);
 window.addEventListener("pageshow", refreshDashboardWidgets);
+window.addEventListener("ixtla-insights:dashboard-updated", refreshDashboardWidgets);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshDashboardWidgets(); });
 clearButton.addEventListener("click", () => {
   if (typeof confirmDialog.showModal === "function") confirmDialog.showModal();
@@ -589,3 +662,13 @@ confirmDialog.addEventListener("close", () => {
 });
 
 render();
+mountIxtlaInsights({
+  frontendBuild: "dashboard-assistant-1",
+  simpleMode: true,
+  dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
+  context: {
+    domain: "requerimientos",
+    scopeLabel: "Vista autorizada actual",
+    rows: [],
+  },
+});
