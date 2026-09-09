@@ -11,7 +11,7 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi dashboard — Ixtla Insights</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-dashboard.css?v=dashboard-sharing-1">
+  <link rel="stylesheet" href="/CSS/UAT/ixtla-insights-dashboard.css?v=dashboard-header-1">
 </head>
 <body class="ixtla-dashboard-page">
   <header class="ixtla-dashboard-appbar">

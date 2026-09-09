@@ -881,6 +881,17 @@ export function mountIxtlaInsights(options = {}) {
     return { text, refersToPrevious, domain, chart, dimension, seriesDimension, metric, period, comparison };
   }
 
+  function isDirectVisualizationRequest(question, proposal = {}) {
+    const text = normalizedVisualizationText(question);
+    const explicitChart = /\b(pastel|dona|barras?|linea|area|tabla|matriz|kpi|indicador)\b/.test(text);
+    const explicitGrouping = /\b(?:por|cada|de cada)\s+(?:el\s+|los\s+|las\s+)?(?:departamentos?|tramites?|tipos? de requerimientos?|estatus|status|calificaciones?|fechas?|dias?|semanas?|meses?)\b/.test(text);
+    const chart = clean(proposal.chart);
+    const dimension = clean(proposal.dimension);
+    const singleValue = chart === "kpi" && Boolean(clean(proposal.metric));
+    const temporal = ["line", "area"].includes(chart) && dimension === "fecha" && /\b(tendencia|evolucion|por (?:dia|semana|mes))\b/.test(text);
+    return explicitChart && Boolean(clean(proposal.domain) || dimension) && (explicitGrouping || singleValue || temporal);
+  }
+
   function beginNaturalVisualization(prompt, parsed) {
     const previousSpec = parsed.refersToPrevious && lastVisualizationSpec ? lastVisualizationSpec : null;
     const hasUsefulContext = parsed.refersToPrevious && (lastResultQuery || previousSpec);
@@ -894,6 +905,7 @@ export function mountIxtlaInsights(options = {}) {
     const previousDimension = DIMENSION_LABELS[previousGroup] ? previousGroup : previousGroup === "rating" ? "calificacion" : previousGroup === "status" ? (domain === "retroalimentaciones" ? "estado_retro" : "estatus") : "";
     const dimension = parsed.dimension || clean(previousSpec?.dimension) || previousDimension || (parsed.chart === "line" ? "fecha" : domain === "retroalimentaciones" ? "calificacion" : "tramite");
     const chart = parsed.chart || clean(previousSpec?.chart) || (dimension === "fecha" ? "line" : metric === "tasa_respuesta" || metric === "promedio_calificacion" ? "kpi" : "bar");
+    const direct = isDirectVisualizationRequest(prompt, { domain, metric, dimension, chart });
     pendingVisualization = normalizeVisualizationSpec({
       mode: "natural_visualization",
       question: prompt,
@@ -905,11 +917,15 @@ export function mountIxtlaInsights(options = {}) {
       series_limit: Number(previousSpec?.series_limit) || 5,
       chart,
       filters: Array.isArray(previousSpec?.filters) ? previousSpec.filters.map((filter) => ({ ...filter })) : (hasUsefulContext && Array.isArray(lastResultQuery?.filters?.filters) ? lastResultQuery.filters.filters : []),
-      period: parsed.period || clean(previousSpec?.period),
+      period: parsed.period || clean(previousSpec?.period) || (direct ? "all" : ""),
       comparison: parsed.comparison || clean(previousSpec?.comparison),
     });
     if (pendingVisualization.comparison === "previous_period" && pendingVisualization.period === "all") pendingVisualization.period = "";
     addMessage(`Entendí que quieres visualizar ${METRIC_LABELS[metric]?.toLocaleLowerCase("es-MX") || "los resultados"}. ${visualizationRecommendation(pendingVisualization)}`);
+    if (direct) {
+      finalizeVisualization({ previewImmediately: true });
+      return;
+    }
     if (!pendingVisualization.period) {
       addMessage("¿Qué periodo deseas analizar?");
       renderWorkflowQuestions(periodChoices());
@@ -972,8 +988,14 @@ export function mountIxtlaInsights(options = {}) {
 
   function applyStructuredVisualizationPlan(question, plan) {
     if (!plan || plan.intent === "not_visualization") return false;
-    const inferredDomain = clean(plan.domain);
+    let inferredDomain = clean(plan.domain);
     const normalizedQuestion = normalizedVisualizationText(question);
+    if (!inferredDomain && clean(plan.chart) && ["departamento", "tramite", "estatus", "fecha"].includes(clean(plan.dimension))) {
+      inferredDomain = "requerimientos";
+      plan.domain = inferredDomain;
+      plan.needs_clarification = false;
+      if (plan.intent === "clarify") plan.intent = "create";
+    }
     const hasExplicitRequirementMetric = /\b(abiertos?|activos?|pendientes?|finalizados?|cerrados?|pausados?|cancelados?|tiempo de resolucion|promedio semanal)\b/.test(normalizedQuestion);
     const canUseDefaultTotal = inferredDomain === "requerimientos" && clean(plan.chart) && clean(plan.dimension) && !hasExplicitRequirementMetric;
     if ((inferredDomain && !clean(plan.metric)) || canUseDefaultTotal) {
@@ -995,6 +1017,7 @@ export function mountIxtlaInsights(options = {}) {
     const metric = clean(plan.metric) || (domain === "retroalimentaciones" ? "retro_total" : "total");
     const dimension = clean(plan.dimension) || (domain === "retroalimentaciones" ? "calificacion" : "tramite");
     const chart = clean(plan.chart) || (dimension === "fecha" ? "line" : "bar");
+    const direct = isDirectVisualizationRequest(question, { domain, metric, dimension, chart });
     pendingVisualization = normalizeVisualizationSpec({
       mode: "structured_visualization",
       question,
@@ -1005,7 +1028,7 @@ export function mountIxtlaInsights(options = {}) {
       series_dimension: clean(plan.series_dimension),
       date_grain: clean(plan.date_grain),
       series_limit: Math.min(7, Math.max(1, Number(plan.series_limit) || 5)),
-      period: clean(plan.period),
+      period: clean(plan.period) || (direct ? "all" : ""),
       comparison: clean(plan.comparison),
       filters: Array.isArray(plan.filters) ? plan.filters.map((filter) => ({ ...filter })) : [],
       limit: Math.min(50, Math.max(1, Number(plan.limit) || 10)),
@@ -1023,6 +1046,11 @@ export function mountIxtlaInsights(options = {}) {
     })).filter((alternative) => alternative.chart && alternative.title).slice(0, 3) : [];
     pendingVisualization.plannerAlternatives = alternatives;
     const reason = visualizationRecommendation(pendingVisualization);
+    if (direct) {
+      addMessage(`Preparé **${pendingVisualization.title}** con tu indicación. ${reason}`);
+      finalizeVisualization({ previewImmediately: true });
+      return true;
+    }
     addMessage(`Preparé un plan para **${pendingVisualization.title}**. ${reason}`);
     if (alternatives.length) {
       addMessage("También encontré otras formas de responder la misma pregunta. Puedes elegir una antes de continuar:");
@@ -1650,7 +1678,7 @@ export function mountIxtlaInsights(options = {}) {
     finalizeVisualization();
   }
 
-  async function finalizeVisualization() {
+  async function finalizeVisualization(options = {}) {
     if (!pendingVisualization?.chart || !pendingVisualization?.metric) return;
     const request = pendingVisualization;
     if (request.reviewSpec) return;
@@ -1676,6 +1704,10 @@ export function mountIxtlaInsights(options = {}) {
     request.title = spec.title;
     request.reviewSpec = spec;
     queueDraftPersist();
+    if (options.previewImmediately === true) {
+      await confirmVisualization();
+      return;
+    }
     showVisualizationReview(request, spec);
     return;
 
