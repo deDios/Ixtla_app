@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Snapshot analitico de requerimientos.
  *
- * La fuente operacional se lee solo al refrescar. Las consultas cotidianas del
+ * La fuente operacional se lee solo al refrescar las consultas cotidianas del
  * asistente trabajan contra este archivo de cache del servidor, separado por
  * alcance RBAC. El navegador nunca recibe el snapshot completo.
  */
@@ -15,6 +15,9 @@ require_once __DIR__ . '/requerimientos_dataset.php';
 require_once __DIR__ . '/../domain_profile.php';
 require_once __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../query_store.php';
+
+// Guarda una copia temporal de los datos para las consultas del asistente.
+// Cada copia contiene solo los requerimientos que el usuario puede consultar.
 
 function ixtla_insights_snapshot_scope_key(array $scope): string
 {

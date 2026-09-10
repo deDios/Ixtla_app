@@ -4,6 +4,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/requerimientos_dataset.php';
 require_once __DIR__ . '/requerimientos_snapshot.php';
 
+//  Consulta el expediente de un requerimiento
+//  Se utiliza cuando la pregunta trata sobre un folio o ID específico.
+
 /** Resuelve un requerimiento sin permitir que la herramienta amplie el RBAC. */
 function ixtla_insights_activity_requirement(mysqli $connection, array $arguments): array
 {

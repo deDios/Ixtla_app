@@ -142,8 +142,14 @@
   function initMap() {
     const el = document.getElementById("map-colonias");
     if (!el || map) return;
-    map = L.map("map-colonias", { zoomControl: true }).setView([20.55, -103.2], 12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 18, attribution: '© OpenStreetMap, © CARTO' }).addTo(map);
+    map = L.map(el, {
+      zoomControl: true,
+      attributionControl: true
+    }).setView([20.55, -103.2], 12);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
     bubbleLayer = L.layerGroup().addTo(map);
   }
 

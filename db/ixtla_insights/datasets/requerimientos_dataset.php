@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/scope_service.php';
 require_once __DIR__ . '/../domain_profile.php';
 
+// contiene las consultas y calculos sobre los requerimientos
+
 function ixtla_insights_dataset_scope_summary(array $arguments): array
 {
     $period = ixtla_insights_dataset_period($arguments['period'] ?? 'all');
@@ -43,7 +45,7 @@ function ixtla_insights_dataset_scope_summary(array $arguments): array
 
 /**
  * Paquete ejecutivo para un director. Reúne en una sola llamada los datos que
- * normalmente requerirían varias herramientas, siempre sobre el scope RBAC.
+ * normalmente requerirían varias herramientas.
  */
 function ixtla_insights_dataset_operational_snapshot(array $arguments): array
 {
@@ -215,13 +217,6 @@ function ixtla_insights_dataset_backlog_risk_snapshot(array $arguments): array
             $scope['types'],
             $scope['params']
         )[0] ?? [];
-        $priorityRows = ixtla_insights_dataset_rows(
-            $connection,
-            'SELECT r.prioridad AS priority_id, COUNT(*) AS value FROM requerimiento r' . $whereSql
-            . ' GROUP BY r.prioridad ORDER BY r.prioridad DESC',
-            $scope['types'],
-            $scope['params']
-        );
         $assigneeRows = ixtla_insights_dataset_rows(
             $connection,
             "SELECT COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar') AS name, COUNT(*) AS value "
@@ -242,10 +237,6 @@ function ixtla_insights_dataset_backlog_risk_snapshot(array $arguments): array
                 ['label' => '16 a 30 dias', 'value' => (int) ($summary['age_16_30'] ?? 0)],
                 ['label' => 'Mas de 30 dias', 'value' => (int) ($summary['age_31_plus'] ?? 0)],
             ],
-            'by_priority' => array_map(static fn (array $row): array => [
-                'priority' => ixtla_insights_domain_priority_label((int) $row['priority_id']),
-                'value' => (int) $row['value'],
-            ], $priorityRows),
             'top_assignees' => array_map(static fn (array $row): array => ['name' => (string) $row['name'], 'value' => (int) $row['value']], $assigneeRows),
             'top_tramites' => ixtla_insights_dataset_top_tramites($connection, $scope, $where, $topLimit),
         ];
@@ -395,11 +386,6 @@ function ixtla_insights_dataset_workload_breakdown(array $arguments): array
             'from' => ' JOIN tramite t ON t.id = r.tramite_id',
             'group' => 't.id, t.nombre',
         ],
-        'priority' => [
-            'label' => 'r.prioridad',
-            'from' => '',
-            'group' => 'r.prioridad',
-        ],
         'channel' => [
             'label' => "CASE WHEN r.canal IS NULL THEN 'Sin canal' ELSE CONCAT('Canal ', r.canal) END",
             'from' => '',
@@ -442,9 +428,7 @@ function ixtla_insights_dataset_workload_breakdown(array $arguments): array
             'period' => ['field' => 'created_at', 'preset' => $period],
             'period_label' => ixtla_insights_domain_period_label($period),
             'items' => array_map(static fn (array $row) => [
-                'label' => $dimension === 'priority'
-                    ? ixtla_insights_domain_priority_label((int) $row['label'])
-                    : (string) $row['label'],
+                'label' => (string) $row['label'],
                 'value' => (int) $row['value'],
             ], $rows),
         ];
@@ -469,7 +453,6 @@ function ixtla_insights_dataset_overdue_requirements(array $arguments): array
         $rows = ixtla_insights_dataset_rows(
             $connection,
             'SELECT r.id, r.created_at, TIMESTAMPDIFF(DAY, r.created_at, NOW()) AS age_days, '
-            . 'r.prioridad AS priority_id, '
             . 't.nombre AS tramite, '
             . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar') AS assignee "
             . 'FROM requerimiento r JOIN tramite t ON t.id = r.tramite_id '
@@ -487,7 +470,6 @@ function ixtla_insights_dataset_overdue_requirements(array $arguments): array
                 'id' => (int) $row['id'],
                 'created_at' => (string) $row['created_at'],
                 'age_days' => (int) $row['age_days'],
-                'priority' => ixtla_insights_domain_priority_label((int) $row['priority_id']),
                 'tramite' => (string) $row['tramite'],
                 'assignee' => (string) $row['assignee'],
             ], $rows),
@@ -523,11 +505,6 @@ function ixtla_insights_dataset_safe_records(array $arguments): array
             $types .= str_repeat('i', count($spec['status_ids']));
             $params = [...$params, ...$spec['status_ids']];
         }
-        if ($spec['priority_ids'] !== []) {
-            $where[] = 'r.prioridad IN (' . implode(',', array_fill(0, count($spec['priority_ids']), '?')) . ')';
-            $types .= str_repeat('i', count($spec['priority_ids']));
-            $params = [...$params, ...$spec['priority_ids']];
-        }
         if ($spec['assignee_state'] === 'assigned') {
             $where[] = 'r.asignado_a IS NOT NULL';
         } elseif ($spec['assignee_state'] === 'unassigned') {
@@ -544,7 +521,7 @@ function ixtla_insights_dataset_safe_records(array $arguments): array
         $orderBy = $spec['sort'] === 'oldest' ? 'r.created_at ASC, r.id ASC' : 'r.created_at DESC, r.id DESC';
         $rows = ixtla_insights_dataset_rows(
             $connection,
-            'SELECT r.id, r.folio, r.created_at, r.fecha_limite, r.estatus AS status_id, r.prioridad AS priority_id, '
+            'SELECT r.id, r.folio, r.created_at, r.fecha_limite, r.estatus AS status_id, '
             . 'd.nombre AS department, t.nombre AS tramite, '
             . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar') AS assignee "
             . 'FROM requerimiento r JOIN departamento d ON d.id = r.departamento_id '
@@ -563,7 +540,6 @@ function ixtla_insights_dataset_safe_records(array $arguments): array
                 'department' => (string) $row['department'],
                 'tramite' => (string) $row['tramite'],
                 'status' => ixtla_insights_domain_status_label((int) $row['status_id']),
-                'priority' => ixtla_insights_domain_priority_label((int) $row['priority_id']),
                 'assignee' => (string) $row['assignee'],
                 'created_at' => (string) $row['created_at'],
                 'due_at' => $row['fecha_limite'] === null ? null : (string) $row['fecha_limite'],
@@ -581,9 +557,8 @@ function ixtla_insights_dataset_safe_records_spec(array $arguments): array
     $period = ixtla_insights_dataset_period($arguments['period'] ?? 'all');
     $department = ixtla_insights_dataset_department_name($arguments['department'] ?? null);
     $statusIds = array_values(array_unique(array_map('intval', is_array($arguments['status_ids'] ?? null) ? $arguments['status_ids'] : [])));
-    $priorityIds = array_values(array_unique(array_map('intval', is_array($arguments['priority_ids'] ?? null) ? $arguments['priority_ids'] : [])));
-    if (array_diff($statusIds, [0, 1, 2, 3, 4, 5, 6]) !== [] || array_diff($priorityIds, [1, 2, 3]) !== []) {
-        throw new InvalidArgumentException('Los filtros de estatus o prioridad no son validos.');
+    if (array_diff($statusIds, [0, 1, 2, 3, 4, 5, 6]) !== []) {
+        throw new InvalidArgumentException('Los filtros de estatus no son validos.');
     }
     $assigneeState = strtolower(trim((string) ($arguments['assignee_state'] ?? 'any')));
     $deadlineState = strtolower(trim((string) ($arguments['deadline_state'] ?? 'any')));
@@ -595,7 +570,7 @@ function ixtla_insights_dataset_safe_records_spec(array $arguments): array
         throw new InvalidArgumentException('Los filtros de registros no son validos.');
     }
     return [
-        'period' => $period, 'department' => $department, 'status_ids' => $statusIds, 'priority_ids' => $priorityIds,
+        'period' => $period, 'department' => $department, 'status_ids' => $statusIds,
         'assignee_state' => $assigneeState, 'deadline_state' => $deadlineState, 'sort' => $sort, 'limit' => $limit,
     ];
 }

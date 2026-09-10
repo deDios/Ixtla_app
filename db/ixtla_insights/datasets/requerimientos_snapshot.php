@@ -9,8 +9,7 @@ declare(strict_types=1);
  * alcance RBAC. El navegador nunca recibe el snapshot completo.
  */
 require_once __DIR__ . '/scope_service.php';
-// El snapshot usa los helpers preparados de lectura (rows/scalar). No debe
-// depender de que el registro de tools haya cargado antes el dataset legado.
+// El snapshot usa los helpers preparados de lectura (rows/scalar)
 require_once __DIR__ . '/requerimientos_dataset.php';
 require_once __DIR__ . '/../domain_profile.php';
 require_once __DIR__ . '/../bootstrap.php';
@@ -70,7 +69,7 @@ function ixtla_insights_snapshot_write(string $scopeKey, array $snapshot): void
     @chmod($path, 0600);
 }
 
-/** Carga una pagina desde la fuente operacional. No recibe SQL del modelo. */
+/** Carga una pagina desde la fuente operacional */
 function ixtla_insights_snapshot_source_page(mysqli $connection, array $scope, int $limit, int $offset): array
 {
     $rows = ixtla_insights_dataset_rows(

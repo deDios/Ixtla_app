@@ -5,8 +5,8 @@ require_once __DIR__ . '/../../conn/conn_db.php';
 require_once __DIR__ . '/../../WEB/tools_105277.php';
 
 /**
- * Resuelve el alcance de datos una vez por petición. Ningún dataset recibe un
- * empleado, departamento o condición SQL desde el modelo.
+ * Define qué datos puede consultar el usuario
+ *  Es la base de permisos de todos los datasets.
  */
 function ixtla_insights_dataset_connection(): mysqli
 {

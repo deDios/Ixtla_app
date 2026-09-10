@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/requerimientos_dataset.php';
 
+// Analiza la retroalimentación ciudadana
+// es otro por si acaso le muevo al primero no truenen ambos
+
 function ixtla_insights_retro_status_label(int $status): string
 {
     return [0 => 'Caducada', 1 => 'No contestada', 2 => 'Contestada', 3 => 'Inhabilitada'][$status]

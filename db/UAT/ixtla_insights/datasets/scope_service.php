@@ -4,6 +4,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../../conn/conn_db.php';
 require_once __DIR__ . '/../../../WEB/tools_105277.php';
 
+// Define qué datos puede consultar el usuario según sus permisos.
+// Es la base de acceso que comparten todos los datasets.
+
 /**
  * Resuelve el alcance de datos una vez por petición. Ningún dataset recibe un
  * empleado, departamento o condición SQL desde el modelo.
