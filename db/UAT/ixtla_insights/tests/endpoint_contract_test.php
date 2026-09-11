@@ -33,6 +33,10 @@ $requirementUpdateSource = file_get_contents(dirname(__DIR__, 3) . '/WEB/ixtla01
 expect_endpoint_contract(is_string($requirementUpdateSource) && str_contains($requirementUpdateSource, 'cerrado_en solo aplica al estatus Finalizado'), 'El endpoint operativo debe impedir fechas de cierre en estados no finalizados.');
 $retroUpdateSource = file_get_contents(dirname(__DIR__, 3) . '/WEB/ixtla01_u_retro.php');
 expect_endpoint_contract(is_string($retroUpdateSource) && str_contains($retroUpdateSource, 'status de retroalimentacion no valido'), 'El endpoint de retro debe validar su catalogo de estados.');
+$retroInsertSource = file_get_contents(dirname(__DIR__, 3) . '/WEB/ixtla01_i_retro.php');
+expect_endpoint_contract(is_string($retroInsertSource) && str_contains($retroInsertSource, 'if ($calificacion === 0)'), 'La invitacion inicial debe aceptar 0 como ausencia de calificacion.');
+$retroViewSource = file_get_contents(dirname(__DIR__, 4) . '/JS/UAT/requerimientoView.js');
+expect_endpoint_contract(is_string($retroViewSource) && str_contains($retroViewSource, 'calificacion: 0'), 'La vista de requerimiento debe conservar el valor inicial sin calificacion.');
 
 $aggregateArguments = [
     'period' => 'all', 'department_id' => 0, 'department_ids' => [], 'department_names' => [],

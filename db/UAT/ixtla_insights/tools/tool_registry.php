@@ -110,7 +110,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'search_requirements', 'strict' => true,
-            'description' => 'Busca filas individuales de requerimientos autorizados. Usala para responder cuales son, mostrar folios, fechas, canal de origen o detalles de resultados previos. channel_ids [1] filtra Portal ciudadano y [2] Portal de empleados. Cada fila incluye una etiqueta legible channel. La fecha de cierre solo aparece si el estatus actual es Finalizado. Devuelve total_matching, items, returned, has_more y next_cursor. Nunca devuelve contactos, texto de comentarios ni fecha_limite.',
+            'description' => 'Busca filas individuales de requerimientos autorizados. Usala para responder cuales son, mostrar folios, fechas, canal de origen o detalles de resultados previos. channel_ids [1] filtra Portal ciudadano y [2] Portal de empleados. Cada fila incluye una etiqueta legible channel. Puede mostrar la fecha de inicio de atencion cuando existe; nunca la interpreta como vencimiento o SLA. La fecha de cierre solo aparece si el estatus actual es Finalizado. Devuelve total_matching, items, returned, has_more y next_cursor. Nunca devuelve contactos, texto de comentarios ni el nombre tecnico fecha_limite.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'sort', 'limit', 'cursor'],

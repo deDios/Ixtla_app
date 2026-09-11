@@ -1889,7 +1889,7 @@ export function mountIxtlaInsights(options = {}) {
     pendingVisualization.chart = chart;
     if ((chart === "line" || chart === "area") && pendingVisualization.dimension && pendingVisualization.dimension !== "fecha") {
       pendingVisualization.dimension = "fecha";
-      addMessage("Las lÃ­neas siempre usan la fecha en el eje horizontal. Ahora elige si quieres una sola lÃ­nea o una serie por departamento, estatus o tipo de requerimiento.");
+      addMessage("Las líneas siempre usan la fecha en el eje horizontal. Ahora elige si quieres una sola línea o una serie por departamento, estatus o tipo de requerimiento.");
       renderWorkflowQuestions(LINE_SERIES_CHOICES);
       return;
     }

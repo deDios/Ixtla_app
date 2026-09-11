@@ -17,11 +17,32 @@ if ($path && file_exists($path)) { include $path; }
 
 $in = json_decode(file_get_contents("php://input"), true) ?? [];
 
-$requerimiento_id = isset($in['requerimiento_id']) ? (int)$in['requerimiento_id'] : null;
-$status           = isset($in['status']) ? (int)$in['status'] : 1;
+$parseIntField = static function (array $payload, string $key, ?int $default = null): ?int {
+    if (!array_key_exists($key, $payload) || $payload[$key] === null || $payload[$key] === '') return $default;
+    $value = $payload[$key];
+    if (is_int($value)) return $value;
+    if (is_string($value) && preg_match('/^-?\d+$/', trim($value)) === 1) return (int) trim($value);
+    throw new InvalidArgumentException("$key debe ser un entero");
+};
+$requerimiento_id = null;
+$status           = 1;
 $comentario       = isset($in['comentario']) ? trim($in['comentario']) : null;
-$calificacion     = isset($in['calificacion']) ? (int)$in['calificacion'] : null;
+$calificacion     = null;
 $link             = isset($in['link']) ? trim($in['link']) : null;
+try {
+    $requerimiento_id = $parseIntField($in, 'requerimiento_id');
+    $status = $parseIntField($in, 'status', 1) ?? 1;
+    $calificacion = $parseIntField($in, 'calificacion');
+} catch (InvalidArgumentException $e) {
+    http_response_code(400);
+    echo json_encode(["ok" => false, "error" => $e->getMessage()]);
+    exit;
+}
+
+// La vista crea la invitacion inicial con 0 para indicar que aun no hay calificacion.
+if ($calificacion === 0) {
+    $calificacion = null;
+}
 
 if (!$requerimiento_id) {
     echo json_encode(["ok" => false, "error" => "requerimiento_id es requerido"]);

@@ -396,7 +396,8 @@ function ixtla_insights_snapshot_public_record(array $record, bool $includeReque
 
 /**
  * Calcula atencion operativa con evidencia disponible en el snapshot.
- * No usa prioridad ni fecha_limite: ambos campos carecen de semantica vigente.
+ * No usa prioridad ni interpreta fecha_limite como vencimiento o SLA; cuando
+ * existe, ese valor se conserva como fecha de inicio de atencion.
  *
  * @return array{score:int,reasons:array<int,string>,last_activity_at:?string,inactive_days:int}
  */
