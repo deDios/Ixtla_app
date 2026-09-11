@@ -10,6 +10,7 @@ require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/tools/tool_registry.php';
 require_once __DIR__ . '/conversation_state.php';
 require_once __DIR__ . '/question_router.php';
+require_once __DIR__ . '/grounding.php';
 
 $config = ixtla_insights_bootstrap(['POST']);
 if (($config['enabled'] ?? false) !== true) {
@@ -184,7 +185,7 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
 
     $providerResponses = [$response];
     $totalLatencyMs = $latencyMs;
-    $toolCalls = ixtla_insights_probe_tool_calls($response);
+$toolCalls = ixtla_insights_probe_tool_calls($response);
     if ($toolCalls === [] && $requiresData) {
         $usage = ixtla_insights_usage_summary($providerResponses);
         ixtla_insights_log_usage_summary($usage, [
@@ -197,10 +198,11 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
             'usage' => $usage,
         ];
     }
-    $remainingToolCalls = max(0, (int) $config['max_tool_calls_per_turn']);
-    $toolRound = 0;
-    $lastResultQuery = null;
-    while ($toolCalls !== [] && $remainingToolCalls > 0) {
+$remainingToolCalls = max(0, (int) $config['max_tool_calls_per_turn']);
+$toolRound = 0;
+$lastResultQuery = null;
+$toolEvidence = [];
+while ($toolCalls !== [] && $remainingToolCalls > 0) {
         $toolCalls = array_slice($toolCalls, 0, $remainingToolCalls);
         consola_debug('gpt_probe.tools_requested', ['count' => count($toolCalls), 'round' => $toolRound + 1]);
         $outputs = [];
@@ -233,12 +235,23 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
                     $outcome = 'no_matches';
                 }
                 $output = ['ok' => true, 'outcome' => $outcome, 'data' => $result];
+                $toolEvidence[] = [
+                    'tool' => (string) $toolCall['name'],
+                    'ok' => true,
+                    'outcome' => $outcome,
+                    'data' => $result,
+                ];
             } catch (Throwable $error) {
                 ixtla_insights_log_error('gpt_probe_tool', $error, ['tool' => (string) $toolCall['name']]);
                 $output = [
                     'ok' => false,
                     'outcome' => 'query_failed',
                     'error' => 'La consulta autorizada no pudo completarse.',
+                ];
+                $toolEvidence[] = [
+                    'tool' => (string) $toolCall['name'],
+                    'ok' => false,
+                    'outcome' => 'query_failed',
                 ];
             }
             $outputs[] = [
@@ -267,6 +280,15 @@ function ixtla_insights_probe_openai_text(array $config, string $question, array
     $answer = trim(ixtla_insights_openai_text($response));
     if ($answer === '') {
         ixtla_insights_json(['ok' => false, 'error' => 'OpenAI no devolvio texto para la prueba.'], 502);
+    }
+
+    $grounding = ixtla_insights_validate_grounded_answer($answer, $toolEvidence);
+    if (!$grounding['ok']) {
+        consola_debug('gpt_probe.answer_rejected', [
+            'reason' => $grounding['reason'],
+            'tool_results' => count($toolEvidence),
+        ]);
+        $answer = 'No pude validar la respuesta contra los datos autorizados. Reformula la pregunta o solicita un resultado más específico.';
     }
 
     return ['answer' => $answer, 'usage' => $usage, 'result_query' => $lastResultQuery];

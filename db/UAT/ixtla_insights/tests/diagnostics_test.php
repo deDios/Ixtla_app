@@ -6,6 +6,7 @@ require_once dirname(__DIR__) . '/datasets/requerimientos_dataset.php';
 require_once dirname(__DIR__) . '/tools/tool_registry.php';
 require_once dirname(__DIR__) . '/question_router.php';
 require_once dirname(__DIR__) . '/visualization_plan_contract.php';
+require_once dirname(__DIR__) . '/grounding.php';
 
 function expect_diagnostic(bool $condition, string $message): void
 {
@@ -17,6 +18,15 @@ function expect_diagnostic(bool $condition, string $message): void
 
 $requestId = ixtla_insights_request_id();
 expect_diagnostic((bool) preg_match('/^ix-[a-f0-9]{24}$/', $requestId), 'El request id generado debe tener un formato seguro y correlacionable.');
+expect_diagnostic(ixtla_insights_validate_grounded_answer('Se encontraron 12 casos.', [
+    ['ok' => true, 'data' => ['total_matching' => 12]],
+])['ok'] === true, 'Una cifra presente en la evidencia debe ser aceptada.');
+expect_diagnostic(ixtla_insights_validate_grounded_answer('Se encontraron 99 casos.', [
+    ['ok' => true, 'data' => ['total_matching' => 12]],
+])['ok'] === false, 'Una cifra ausente de la evidencia debe rechazarse.');
+expect_diagnostic(ixtla_insights_validate_grounded_answer('No hay coincidencias.', [
+    ['ok' => true, 'data' => ['total_matching' => 4]],
+])['ok'] === false, 'Una conclusión de cero debe contradecir un resultado positivo.');
 expect_diagnostic(ixtla_insights_request_id() === $requestId, 'El request id debe ser estable durante la solicitud.');
 expect_diagnostic(ixtla_insights_default_error_code(502) === 'provider_unavailable', '502 debe clasificarse como error de proveedor.');
 expect_diagnostic(ixtla_insights_default_error_code(503) === 'service_unavailable', '503 debe clasificarse como servicio no disponible.');
