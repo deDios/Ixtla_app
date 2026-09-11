@@ -868,7 +868,7 @@ ix_require_session();
     <script src="/JS/UAT/components.js"></script>
     <script src="/JS/UAT/jsGlobal.js"></script>
 
-    <script type="module" src="/JS/UAT/retroCiudadanaDashboard.js"></script>
+    <script type="module" src="/JS/UAT/retroCiudadanaDashboard.js?v=openstreetmap-1"></script>
 
     <script type="module" src="/JS/UAT/ui/sidebar.js"></script>
     <script type="module" src="/JS/UAT/ui/avatar-edit.js"></script>

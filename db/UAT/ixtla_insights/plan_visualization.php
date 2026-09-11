@@ -37,7 +37,7 @@ $schema = [
         'series_dimension' => ['type' => 'string', 'enum' => ['', 'estatus', 'tramite', 'departamento']],
         'date_grain' => ['type' => 'string', 'enum' => ['', 'day', 'week', 'month']],
         'series_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 7],
-        'period' => ['type' => 'string', 'enum' => ['', 'all', 'this_week', 'last_7', 'last_30', 'this_month']],
+        'period' => ['type' => 'string', 'enum' => ['', ...array_keys(ixtla_insights_data_contract()['periods'])]],
         'date_field' => ['type' => 'string', 'enum' => ['', 'created_at', 'closed_at', 'updated_at']],
         'comparison' => ['type' => 'string', 'enum' => ['', 'previous_period']],
         'filters' => [

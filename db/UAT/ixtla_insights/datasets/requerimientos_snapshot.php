@@ -48,9 +48,10 @@ function ixtla_insights_snapshot_read(string $scopeKey): ?array
 
 function ixtla_insights_snapshot_is_fresh(?array $snapshot): bool
 {
+    $contract = ixtla_insights_data_contract();
     return is_array($snapshot)
         && (int) ($snapshot['expires_at_unix'] ?? 0) >= time()
-        && (int) ($snapshot['schema_version'] ?? 0) === 7
+        && (int) ($snapshot['schema_version'] ?? 0) === (int) $contract['snapshot']['schema_version']
         && is_array($snapshot['records'] ?? null);
 }
 
@@ -194,6 +195,7 @@ function ixtla_insights_snapshot_build(bool $force = false): array
 
 function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array $records): array
 {
+    $contract = ixtla_insights_data_contract();
     $indexes = ['by_folio' => [], 'by_id' => [], 'by_department' => [], 'by_tramite' => [], 'by_status' => [], 'by_assignee' => []];
     $catalogs = ['departments' => [], 'tramites' => [], 'assignees' => [], 'statuses' => []];
     foreach (range(0, 6) as $statusId) {
@@ -216,8 +218,9 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
     }
     $ttl = (int) ixtla_insights_config()['dataset_cache_ttl_seconds'];
     return [
-        'dataset' => 'requerimientos_scope_v7',
-        'schema_version' => 7,
+        'dataset' => $contract['snapshot']['dataset'],
+        'schema_version' => $contract['snapshot']['schema_version'],
+        'contract_version' => $contract['version'],
         'scope_key' => $scopeKey,
         'scope' => ['mode' => $scope['mode'], 'label' => $scope['label']],
         'generated_at' => date(DATE_ATOM),
@@ -234,13 +237,15 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
 /** Definiciones que comparten reportes, previews y futuras visualizaciones. */
 function ixtla_insights_snapshot_semantics(): array
 {
+    $contract = ixtla_insights_data_contract();
     return [
         'record_inclusion' => 'Registros operativos del alcance autorizado; las metricas de abiertos limitan el universo a Solicitud, Revision, Asignacion y En proceso.',
-        'created_at' => 'Fecha de registro del requerimiento; se usa para carga y entradas.',
-        'started_at' => 'Fecha de inicio de atencion cuando existe; no representa vencimiento ni SLA.',
-        'closed_at' => 'Fecha de cierre valida unicamente para requerimientos en estatus Finalizado.',
+        'created_at' => $contract['dates']['created_at']['purpose'],
+        'started_at' => $contract['dates']['started_at']['purpose'],
+        'closed_at' => $contract['dates']['closed_at']['purpose'],
         'priority' => 'Campo legado no analitico; no participa en filtros, KPIs ni visualizaciones.',
-        'status_groups' => ['active' => [0, 1, 2, 3], 'paused' => [4], 'cancelled' => [5], 'finalized' => [6]],
+        'status_groups' => $contract['status_groups'],
+        'operational_attention' => $contract['operational_attention'],
     ];
 }
 
@@ -525,17 +530,18 @@ function ixtla_insights_snapshot_result_summary(array $records): array
 
 function ixtla_insights_snapshot_date_basis(string $dateField): string
 {
-    return $dateField === 'closed_at'
-        ? 'Fecha de cierre valida de requerimientos en estatus Finalizado'
-        : 'Fecha de creacion del requerimiento';
+    $contract = ixtla_insights_data_contract();
+    $key = $dateField === 'closed_at' ? 'closed_at' : 'created_at';
+    return (string) $contract['dates'][$key]['label'];
 }
 
 /** Resumen calculado desde el snapshot, sin consultar la fuente operacional. */
 function ixtla_insights_snapshot_overview(array $arguments = []): array
 {
+    $contract = ixtla_insights_data_contract();
     $snapshot = ixtla_insights_snapshot_build((bool) ($arguments['refresh'] ?? false));
     $period = (string) ($arguments['period'] ?? 'all');
-    if (!in_array($period, ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true)) {
+    if (!array_key_exists($period, $contract['periods'])) {
         throw new InvalidArgumentException('El periodo del resumen no es valido.');
     }
     // Aplica el mismo periodo que las listas y agregados, para que un KPI de
@@ -603,8 +609,8 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
         'data_quality' => $snapshot['data_quality'] ?? [],
         'counts' => $counts,
         'trend' => [
-            'current_period' => 'last_30',
-            'comparison_period' => 'previous_30',
+            'current_period' => $contract['welcome']['trend_period'],
+            'comparison_period' => $contract['welcome']['comparison_period'],
             'current_total' => $currentThirtyDays,
             'previous_total' => $previousThirtyDays,
             'difference' => $currentThirtyDays - $previousThirtyDays,
@@ -619,7 +625,7 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
 
 function ixtla_insights_snapshot_search(array $arguments): array
 {
-    $allowedPeriods = ['all', 'this_week', 'last_7', 'last_30', 'this_month'];
+    $allowedPeriods = array_keys(ixtla_insights_data_contract()['periods']);
     $allowedAssigneeStates = ['any', 'assigned', 'unassigned'];
     $allowedSorts = ['newest', 'oldest', 'most_comments'];
     if (!in_array((string) ($arguments['period'] ?? 'all'), $allowedPeriods, true)

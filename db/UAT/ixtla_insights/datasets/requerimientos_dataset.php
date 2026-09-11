@@ -150,7 +150,7 @@ function ixtla_insights_dataset_risk_period(mixed $period): string
 function ixtla_insights_dataset_period(mixed $period): string
 {
     $value = strtolower(trim((string) $period));
-    return in_array($value, ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true) ? $value : 'all';
+    return in_array($value, array_keys(ixtla_insights_data_contract()['periods']), true) ? $value : 'all';
 }
 
 function ixtla_insights_dataset_scalar(mysqli $connection, string $sql, string $types, array $params): int

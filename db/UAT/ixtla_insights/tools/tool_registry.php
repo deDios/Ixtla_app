@@ -4,16 +4,18 @@ declare(strict_types=1);
 require_once __DIR__ . '/../datasets/requerimientos_snapshot.php';
 require_once __DIR__ . '/../datasets/requirement_activity.php';
 require_once __DIR__ . '/../datasets/retroalimentaciones_dataset.php';
+require_once __DIR__ . '/../analysis_plan.php';
 
 /** Registro compacto: solo herramientas vigentes para el chat. */
 function ixtla_insights_tool_definitions(): array
 {
+    $periods = array_keys(ixtla_insights_data_contract()['periods']);
     $requirementKey = [
         'id' => ['type' => ['integer', 'null'], 'minimum' => 1],
         'folio' => ['type' => ['string', 'null'], 'minLength' => 1, 'maxLength' => 80],
     ];
     $datasetFilters = [
-        'period' => ['type' => 'string', 'enum' => ['all', 'this_week', 'last_7', 'last_30', 'this_month']],
+        'period' => ['type' => 'string', 'enum' => $periods],
         'department_id' => ['type' => 'integer', 'minimum' => 0],
         'department_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
         'department_names' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 160]],
@@ -37,7 +39,7 @@ function ixtla_insights_tool_definitions(): array
         'channel_ids' => ['type' => 'array', 'maxItems' => 2, 'items' => ['type' => 'integer', 'enum' => [1, 2]]],
         'assignee_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
         'assignee_state' => ['type' => 'string', 'enum' => ['any', 'assigned', 'unassigned']],
-        'period' => ['type' => 'string', 'enum' => ['all', 'this_week', 'last_7', 'last_30', 'this_month']],
+        'period' => ['type' => 'string', 'enum' => $periods],
         'date_field' => ['type' => 'string', 'enum' => ['created_at', 'updated_at']],
         'date_from' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
         'date_to' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
@@ -45,6 +47,27 @@ function ixtla_insights_tool_definitions(): array
     $retroRequired = ['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids', 'assignee_state', 'period', 'date_field', 'date_from', 'date_to'];
 
     return [
+        [
+            'type' => 'function', 'name' => 'run_analysis_plan', 'strict' => false,
+            'description' => 'Ejecuta un plan analitico general de dos o mas pasos cuando una pregunta combina resumenes, conteos, rankings, comparaciones, tendencias, listas o retroalimentaciones. Cada paso usa una herramienta vigente con sus argumentos completos y todos deben conservar el mismo periodo y filtros salvo que la pregunta solicite una comparacion. No la uses para contactos ni para una consulta simple que cabe en una sola herramienta.',
+            'parameters' => [
+                'type' => 'object', 'additionalProperties' => false, 'required' => ['steps'],
+                'properties' => [
+                    'steps' => [
+                        'type' => 'array', 'minItems' => 2, 'maxItems' => 8,
+                        'items' => [
+                            'type' => 'object', 'additionalProperties' => false,
+                            'required' => ['id', 'tool', 'arguments'],
+                            'properties' => [
+                                'id' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 50],
+                                'tool' => ['type' => 'string', 'enum' => ixtla_insights_analysis_plan_tools()],
+                                'arguments' => ['type' => 'object', 'additionalProperties' => true],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
         [
             'type' => 'function', 'name' => 'get_feedback_overview', 'strict' => true,
             'description' => 'Obtiene total de registros, requerimientos unicos, conteos por estado, tasas de respuesta general y elegible, promedio, respuestas favorables y desfavorables. Usa date_field created_at para retros creadas o invitaciones y updated_at para respuestas recibidas; updated_at solo admite estado Contestada y las tasas dejan de ser comparables con la cohorte completa de invitaciones.',
@@ -268,6 +291,7 @@ function ixtla_insights_execute_tool(string $name, mixed $arguments): array
         'get_requirement_tasks' => ixtla_insights_requirement_tasks($args),
         'get_requirement_processes' => ixtla_insights_requirement_processes($args),
         'get_requirement_activity' => ixtla_insights_requirement_activity($args),
+        'run_analysis_plan' => ixtla_insights_execute_analysis_plan($args),
         default => throw new InvalidArgumentException('La herramienta solicitada no esta disponible.'),
     };
 }
@@ -292,7 +316,7 @@ function ixtla_insights_validate_schema_value(mixed $value, array $schema, strin
     $matchesType = static function (string $type) use ($value): bool {
         return match ($type) {
             'null' => $value === null,
-            'object' => is_array($value) && !array_is_list($value),
+            'object' => is_array($value) && ($value === [] || !array_is_list($value)),
             'array' => is_array($value) && array_is_list($value),
             'string' => is_string($value),
             'integer' => is_int($value),
@@ -318,6 +342,7 @@ function ixtla_insights_validate_schema_value(mixed $value, array $schema, strin
         throw new InvalidArgumentException('El campo ' . $path . ' es menor al minimo permitido.');
     }
     if (is_array($value) && array_is_list($value)) {
+        if (isset($schema['minItems']) && count($value) < (int) $schema['minItems']) throw new InvalidArgumentException('El campo ' . $path . ' contiene muy pocos elementos.');
         if (isset($schema['maxItems']) && count($value) > (int) $schema['maxItems']) throw new InvalidArgumentException('El campo ' . $path . ' contiene demasiados elementos.');
         if (is_array($schema['items'] ?? null)) {
             foreach ($value as $index => $item) ixtla_insights_validate_schema_value($item, $schema['items'], $path . '[' . $index . ']');

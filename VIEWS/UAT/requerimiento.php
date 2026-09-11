@@ -12,7 +12,7 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/UAT/plantilla.css">
     <link rel="stylesheet" href="/CSS/UAT/home.css">
     <link rel="stylesheet" href="/CSS/UAT/stepper.css">
-    <link rel="stylesheet" href="/CSS/UAT/requerimiento copy.css">
+    <link rel="stylesheet" href="/CSS/UAT/requerimiento copy.css?v=geo-status-rule-1">
     <link rel="stylesheet" href="/CSS/UAT/components.css">
     <link rel="stylesheet" href="/CSS/UAT/requerimientoCoemntariosSection copy.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -460,7 +460,13 @@ ix_require_session();
                     <!-- Panel: Geolocalización -->
                     <section class="exp-pane exp-geo-pane" role="tabpanel" data-tab="geolocalizacion">
                         <div class="exp-geo-empty" data-geo-empty>
-                            No hay una geolocalización registrada para este requerimiento.
+                            <p data-geo-empty-message>No hay una geolocalización registrada para este requerimiento.</p>
+                            <p class="exp-geo-rule" data-geo-create-rule hidden>
+                                La ubicación sólo puede agregarse durante Solicitud, Revisión o Asignación.
+                            </p>
+                            <button class="exp-geo-create" type="button" data-geo-create hidden>
+                                Agregar mi ubicación actual
+                            </button>
                         </div>
 
                         <div class="exp-geo-content" data-geo-content hidden>
@@ -954,7 +960,7 @@ ix_require_session();
     <script src="/JS/UAT/requerimientoView.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/JS/UAT/ui/geolocationMap.js"></script>
-    <script src="/JS/UAT/ui/requerimientoGeolocalizacion.js"></script>
+    <script src="/JS/UAT/ui/requerimientoGeolocalizacion.js?v=geo-status-rule-1"></script>
     <script src="/JS/UAT/ui/requerimientoDetalle.js"></script>
     <script src="/JS/UAT/ui/requerimientoPlaneacion.js"></script>
     <script src="/JS/UAT/ui/requerimientoExpediente.js"></script>

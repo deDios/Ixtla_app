@@ -1,4 +1,5 @@
 const DASHBOARD_STORAGE_KEY = "ixtla_insights_dashboard_session_v1";
+const EXPECTED_CONTRACT_VERSION = 8;
 
 function readTemporaryDashboardWidgets() {
   try {
@@ -289,6 +290,17 @@ function insightsResponseError(response, payload, url, clientRequestId) {
   });
 }
 
+function assertInsightsCompatibility(response, url, requestId) {
+  const rawVersion = clean(response.headers.get("X-Ixtla-Insights-Version"));
+  if (rawVersion === "" || Number(rawVersion) === EXPECTED_CONTRACT_VERSION) return;
+  throw new InsightsRequestError(409, "La interfaz y el servicio de Insights tienen versiones distintas. Recarga la página; si continúa, completa la publicación UAT.", {
+    requestId,
+    endpointVersion: rawVersion,
+    url: clean(response.url) || url,
+    endpointHandled: true,
+  });
+}
+
 async function fetchInsightsJson(url, options = {}) {
   const clientRequestId = clean(options.requestId) || createInsightsRequestId();
   const { requestId: _requestId, ...fetchOptions } = options;
@@ -308,6 +320,7 @@ async function fetchInsightsJson(url, options = {}) {
   if (!response.ok || !payload || payload.ok !== true) {
     throw insightsResponseError(response, payload, url, clientRequestId);
   }
+  assertInsightsCompatibility(response, url, clean(payload?.request_id) || clientRequestId);
   return payload;
 }
 
@@ -2321,6 +2334,7 @@ export function mountIxtlaInsights(options = {}) {
         attempt,
       });
     }
+    assertInsightsCompatibility(response, config.apiUrl, responseDebug.requestId);
     return payload;
   }
 
@@ -2531,6 +2545,8 @@ export function mountIxtlaInsights(options = {}) {
     const number = (value) => Number(value || 0).toLocaleString("es-MX");
     const counts = report?.counts || {};
     const trend = report?.trend || {};
+    const trendPeriodLabel = clean(report?.trend_period_label) || "Últimos 30 días";
+    const averagePeriodLabel = clean(report?.average_weekly_period_label) || trendPeriodLabel;
     const top = Array.isArray(report?.top_tramites) ? report.top_tramites : [];
     const topText = top.length
       ? top.map((item, index) => `${index + 1}. ${clean(item?.name) || "Sin nombre"} (${number(item?.value)})`).join("\n")
@@ -2548,7 +2564,7 @@ export function mountIxtlaInsights(options = {}) {
       "KPIs",
       `• Total: ${number(counts.total)}`,
       `• Activos: ${number(counts.active)}`,
-      `• Promedio semanal de requerimientos creados (últimos 30 días): ${Number(report?.average_weekly || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 })}`,
+      `• Promedio semanal de requerimientos creados (${averagePeriodLabel.toLocaleLowerCase("es-MX")}): ${Number(report?.average_weekly || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 })}`,
       `• Finalizados: ${number(counts.finalized)}`,
       `• Pausados: ${number(counts.paused)} · Cancelados: ${number(counts.cancelled)}`,
       `• Sin asignar: ${number(counts.unassigned)}`,
@@ -2556,7 +2572,7 @@ export function mountIxtlaInsights(options = {}) {
       "Mayor incidencia por trámite",
       topText,
       "",
-      `Tendencia de carga (últimos 30 días): ${trendText}`,
+      `Tendencia de carga (${trendPeriodLabel.toLocaleLowerCase("es-MX")}): ${trendText}`,
       "Puedes pedirme folios recientes, detalles de un requerimiento, filtros por estatus, departamento o responsable, o un reporte más amplio.",
     ].join("\n");
   }

@@ -70,6 +70,36 @@ function geo_nullable_string(array $in, string $key, int $maxLength): ?string {
   return $value;
 }
 
+/** La ubicación sólo puede capturarse o corregirse durante las etapas iniciales. */
+function geo_status_allows_location_changes(int $status): bool {
+  return in_array($status, [0, 1, 2], true);
+}
+
+function geo_require_requirement_location_status(mysqli $con, int $requerimientoId): array {
+  $stmt = $con->prepare('SELECT id, estatus FROM requerimiento WHERE id=? LIMIT 1');
+  if (!$stmt) geo_json(500, ['ok' => false, 'error' => 'No se pudo validar el requerimiento']);
+  $stmt->bind_param('i', $requerimientoId);
+  if (!$stmt->execute()) geo_json(500, ['ok' => false, 'error' => 'No se pudo validar el requerimiento']);
+  $row = $stmt->get_result()->fetch_assoc() ?: null;
+  $stmt->close();
+  if (!$row) geo_json(404, ['ok' => false, 'error' => 'Requerimiento no encontrado']);
+  if (!geo_status_allows_location_changes((int)$row['estatus'])) {
+    geo_json(409, ['ok' => false, 'error' => 'La geolocalización sólo puede agregarse o corregirse en Solicitud, Revisión o Asignación']);
+  }
+  return ['id' => (int)$row['id'], 'estatus' => (int)$row['estatus']];
+}
+
+function geo_require_location_status_by_geo_id(mysqli $con, int $geoId): void {
+  $stmt = $con->prepare('SELECT rg.requerimiento_id FROM requerimiento_geolocalizacion rg WHERE rg.id=? LIMIT 1');
+  if (!$stmt) geo_json(500, ['ok' => false, 'error' => 'No se pudo validar la geolocalización']);
+  $stmt->bind_param('i', $geoId);
+  if (!$stmt->execute()) geo_json(500, ['ok' => false, 'error' => 'No se pudo validar la geolocalización']);
+  $row = $stmt->get_result()->fetch_assoc() ?: null;
+  $stmt->close();
+  if (!$row) geo_json(404, ['ok' => false, 'error' => 'Geolocalización no encontrada']);
+  geo_require_requirement_location_status($con, (int)$row['requerimiento_id']);
+}
+
 function geo_cast_row(array $row): array {
   foreach (['id', 'requerimiento_id', 'validada', 'status', 'updated_by'] as $key) {
     if (array_key_exists($key, $row)) $row[$key] = $row[$key] === null ? null : (int)$row[$key];

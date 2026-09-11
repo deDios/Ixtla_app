@@ -13,6 +13,14 @@ $hasChange = false;
 foreach ($allowed as $key) if (array_key_exists($key, $in)) { $hasChange = true; break; }
 if (!$hasChange) geo_json(422, ['ok' => false, 'error' => 'No hay campos para actualizar']);
 
+$locationFields = ['latitud', 'longitud', 'precision_metros', 'presicion_metros', 'direccion', 'cp_colonia_geo'];
+foreach ($locationFields as $key) {
+  if (array_key_exists($key, $in)) {
+    geo_require_location_status_by_geo_id($con, $id);
+    break;
+  }
+}
+
 $parts = []; $types = ''; $params = [];
 if (array_key_exists('latitud', $in)) {
   $value = filter_var($in['latitud'], FILTER_VALIDATE_FLOAT);

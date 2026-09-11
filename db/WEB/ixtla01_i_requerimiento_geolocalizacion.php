@@ -16,12 +16,7 @@ if ($latitud === false || $latitud < -90 || $latitud > 90) geo_json(422, ['ok' =
 if ($longitud === false || $longitud < -180 || $longitud > 180) geo_json(422, ['ok' => false, 'error' => 'longitud debe estar entre -180 y 180']);
 if ($precision === false || ($precision !== null && ($precision < 0 || $precision > 100000))) geo_json(422, ['ok' => false, 'error' => 'precision_metros no es válida']);
 
-$check = $con->prepare('SELECT id FROM requerimiento WHERE id=? LIMIT 1');
-if (!$check) geo_json(500, ['ok' => false, 'error' => 'No se pudo validar el requerimiento']);
-$check->bind_param('i', $requerimientoId);
-if (!$check->execute()) geo_json(500, ['ok' => false, 'error' => 'No se pudo validar el requerimiento']);
-if (!$check->get_result()->fetch_assoc()) geo_json(404, ['ok' => false, 'error' => 'Requerimiento no encontrado']);
-$check->close();
+geo_require_requirement_location_status($con, $requerimientoId);
 
 $stmt = $con->prepare('INSERT INTO requerimiento_geolocalizacion (requerimiento_id, latitud, longitud, precision_metros, direccion, cp_colonia_geo, validada, status) VALUES (?, ?, ?, ?, ?, ?, 0, 1)');
 if (!$stmt) geo_json(500, ['ok' => false, 'error' => 'No se pudo preparar el registro de geolocalización']);

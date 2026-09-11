@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/contracts.php';
+
 /**
  * Decide si una pregunta depende de los datos internos de Ixtla.
  * Las palabras interrogativas no son senales de datos por si mismas.
@@ -401,7 +403,7 @@ function ixtla_insights_apply_default_period(
             return $arguments;
         }
         $arguments['period'] = ixtla_insights_question_requested_period($question)
-            ?? (in_array((string) ($arguments['period'] ?? ''), ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true) ? (string) $arguments['period'] : 'all');
+            ?? (in_array((string) ($arguments['period'] ?? ''), array_keys(ixtla_insights_data_contract()['periods']), true) ? (string) $arguments['period'] : 'all');
     }
     if (in_array($toolName, ['get_requirements_overview', 'search_requirements', 'get_priority_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions'], true)) {
         $normalizedQuestion = ixtla_insights_normalize_match_text($question);
@@ -645,7 +647,7 @@ function ixtla_insights_prepare_tool_arguments(
 
         if (!ixtla_insights_question_has_explicit_period($question)) {
             $previousPeriod = (string) ($previousFilters['period'] ?? $analyticsContext['period'] ?? '');
-            if (in_array($previousPeriod, ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true)) {
+            if (in_array($previousPeriod, array_keys(ixtla_insights_data_contract()['periods']), true)) {
                 $arguments['period'] = $previousPeriod;
             }
             foreach (['date_field', 'date_from', 'date_to'] as $key) {
@@ -704,7 +706,7 @@ function ixtla_insights_prepare_tool_arguments(
     // en un seguimiento debe conservarse el periodo heredado.
     if ($reusesPrevious && !ixtla_insights_question_has_explicit_period($question)) {
         $previousPeriod = (string) ($previousFilters['period'] ?? $analyticsContext['period'] ?? '');
-        if (in_array($previousPeriod, ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true)) {
+        if (in_array($previousPeriod, array_keys(ixtla_insights_data_contract()['periods']), true)) {
             $arguments['period'] = $previousPeriod;
         }
     }

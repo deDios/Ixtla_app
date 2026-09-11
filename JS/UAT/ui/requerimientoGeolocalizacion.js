@@ -5,6 +5,7 @@
   const HOST =
     "https://ixtlahuacan-fvasgmddcxd3gbc3.mexicocentral-01.azurewebsites.net";
   const ENDPOINT = `${HOST}/db/WEB/ixtla01_c_requerimiento_geolocalizacion.php`;
+  const CREATE_ENDPOINT = "/db/WEB/ixtla01_i_requerimiento_geolocalizacion.php";
   const UPDATE_ENDPOINT = "/db/WEB/ixtla01_u_requerimiento_geolocalizacion.php";
   const DEPARTMENTS_ENDPOINT = `${HOST}/db/WEB/ixtla01_c_departamento.php`;
   const STORAGE_KEY = "ixtla_uat_geolocalizaciones_pendientes";
@@ -16,6 +17,17 @@
   let departmentsPromise = null;
   let validationTrigger = null;
   let validationTargetValue = 1;
+  const LOCATION_EDITABLE_STATUSES = new Set([0, 1, 2]);
+
+  function requirementStatus(req) {
+    const value = req?.estatus_code ?? req?.estatus ?? req?.raw?.estatus;
+    const status = Number(value);
+    return Number.isInteger(status) ? status : null;
+  }
+
+  function canAddGeolocation(req) {
+    return LOCATION_EDITABLE_STATUSES.has(requirementStatus(req));
+  }
 
   function readSession() {
     try {
@@ -221,6 +233,107 @@
     if (element) element.textContent = value || "—";
   }
 
+  function updateCreationControl(pane, req, hasRecord) {
+    if (!pane) return;
+    const button = $("[data-geo-create]", pane);
+    const rule = $("[data-geo-create-rule]", pane);
+    const allowed = !hasRecord && canAddGeolocation(req);
+    if (button) {
+      button.hidden = !allowed;
+      button.disabled = false;
+      button.textContent = "Agregar mi ubicación actual";
+    }
+    if (rule) rule.hidden = hasRecord || allowed;
+  }
+
+  function currentBrowserPosition() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Este navegador no permite obtener la ubicación."));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0,
+      });
+    });
+  }
+
+  async function reverseGeocode(latitud, longitud) {
+    const params = new URLSearchParams({
+      format: "jsonv2",
+      lat: String(latitud),
+      lon: String(longitud),
+      addressdetails: "1",
+      zoom: "18",
+      layer: "address",
+      "accept-language": "es",
+    });
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) return {};
+      const result = await response.json();
+      return {
+        direccion: String(result?.display_name || "").trim() || null,
+        cp_colonia_geo: String(result?.address?.postcode || "").trim() || null,
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  async function createGeolocation(button) {
+    const req = currentRequirement;
+    const requirementId = Number(req?.id);
+    if (!Number.isInteger(requirementId) || requirementId < 1) return;
+    if (!canAddGeolocation(req)) {
+      updateCreationControl($('.exp-geo-pane[data-tab="geolocalizacion"]'), req, false);
+      window.gcToast?.("La ubicación sólo puede agregarse en Solicitud, Revisión o Asignación.", "warning");
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Obteniendo ubicación…";
+    try {
+      const position = await currentBrowserPosition();
+      const latitud = Number(position.coords.latitude);
+      const longitud = Number(position.coords.longitude);
+      const address = await reverseGeocode(latitud, longitud);
+      button.textContent = "Guardando ubicación…";
+      const response = await fetch(CREATE_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          requerimiento_id: requirementId,
+          latitud,
+          longitud,
+          precision_metros: Number(position.coords.accuracy) || null,
+          direccion: address.direccion || null,
+          cp_colonia_geo: address.cp_colonia_geo || null,
+        }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.ok === false) throw new Error(json?.error || `HTTP ${response.status}`);
+      window.gcToast?.("Geolocalización agregada correctamente.", "success");
+      await render(req);
+    } catch (error) {
+      const messages = {
+        1: "No autorizaste el acceso a tu ubicación.",
+        2: "El dispositivo no pudo determinar la ubicación.",
+        3: "La solicitud de ubicación tardó demasiado.",
+      };
+      const message = messages[error?.code] || error?.message || "No se pudo agregar la geolocalización.";
+      window.gcToast?.(message, "danger");
+      button.disabled = false;
+      button.textContent = "Agregar mi ubicación actual";
+    }
+  }
+
   function renderMap(pane, lat, lng, precision) {
     const element = $("[data-geo-map]", pane);
     if (!element || !window.IxtlaGeolocationMap) return;
@@ -259,11 +372,13 @@
     if (!record || !hasCoordinates) {
       if (empty) empty.hidden = false;
       if (content) content.hidden = true;
+      updateCreationControl(pane, req, false);
       return;
     }
 
     if (empty) empty.hidden = true;
     if (content) content.hidden = false;
+    updateCreationControl(pane, req, true);
 
     const validated = Number(record.validada) === 1 || record.validada === true;
     const status = $("[data-geo-status]", pane);
@@ -387,6 +502,12 @@
   }
 
   document.addEventListener("click", async (event) => {
+    const createButton = event.target.closest("[data-geo-create]");
+    if (createButton) {
+      await createGeolocation(createButton);
+      return;
+    }
+
     const button = event.target.closest("[data-geo-validate]");
     if (button) {
       if (!currentRecord || !currentRequirement) return;

@@ -216,6 +216,8 @@ while ($toolCalls !== [] && $remainingToolCalls > 0) {
             );
             try {
                 $result = ixtla_insights_execute_tool((string) $toolCall['name'], $arguments);
+                $stateUpdates = is_array($result['_state_updates'] ?? null) ? $result['_state_updates'] : [];
+                unset($result['_state_updates']);
                 if (isset($result['query_id'])) {
                     $lastResultQuery = [
                         'tool' => (string) $toolCall['name'],
@@ -227,17 +229,31 @@ while ($toolCalls !== [] && $remainingToolCalls > 0) {
                         'filters' => is_array($result['filters'] ?? null) ? $result['filters'] : [],
                     ];
                 }
-                ixtla_insights_conversation_apply_tool((string) $toolCall['name'], $arguments, $result);
+                if ($stateUpdates !== []) {
+                    foreach ($stateUpdates as $stateUpdate) {
+                        if (!is_array($stateUpdate)) continue;
+                        ixtla_insights_conversation_apply_tool(
+                            (string) ($stateUpdate['tool'] ?? ''),
+                            is_array($stateUpdate['arguments'] ?? null) ? $stateUpdate['arguments'] : [],
+                            is_array($stateUpdate['result'] ?? null) ? $stateUpdate['result'] : []
+                        );
+                    }
+                } else {
+                    ixtla_insights_conversation_apply_tool((string) $toolCall['name'], $arguments, $result);
+                }
                 consola_debug('gpt_probe.tool_completed', ['tool' => (string) $toolCall['name']]);
-                $outcome = 'success';
+                $outcome = in_array(($result['outcome'] ?? ''), ['success', 'partial', 'no_matches', 'query_failed'], true)
+                    ? (string) $result['outcome']
+                    : 'success';
                 if ((array_key_exists('total_matching', $result) && (int) $result['total_matching'] === 0)
                     || (array_key_exists('requirement', $result) && $result['requirement'] === null)) {
                     $outcome = 'no_matches';
                 }
-                $output = ['ok' => true, 'outcome' => $outcome, 'data' => $result];
+                $toolSucceeded = $outcome !== 'query_failed';
+                $output = ['ok' => $toolSucceeded, 'outcome' => $outcome, 'data' => $result];
                 $toolEvidence[] = [
                     'tool' => (string) $toolCall['name'],
-                    'ok' => true,
+                    'ok' => $toolSucceeded,
                     'outcome' => $outcome,
                     'data' => $result,
                 ];

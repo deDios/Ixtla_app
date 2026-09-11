@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/contracts.php';
+require_once __DIR__ . '/tool_guidance.php';
+
 /**
  * Perfil del dominio de Ixtla Insights.
  *
@@ -14,9 +17,11 @@ declare(strict_types=1);
  */
 function ixtla_insights_domain_profile(): array
 {
+    $contract = ixtla_insights_data_contract();
     return [
-        'version' => 20,
-        'domain' => 'requerimientos_y_retroalimentaciones',
+        'version' => $contract['profile_version'],
+        'contract_version' => $contract['version'],
+        'domain' => $contract['domain'],
         'assistant' => [
             'name' => 'Ixtla Insights',
             'role' => 'asistente general y analítico de requerimientos municipales y sus retroalimentaciones ciudadanas',
@@ -72,13 +77,7 @@ function ixtla_insights_domain_profile(): array
                 'closed_count' => 'Requerimientos finalizados',
                 'paused_cancelled_count' => 'Requerimientos pausados/cancelados',
             ],
-            'periods' => [
-                'all' => 'Todo el historial disponible',
-                'this_week' => 'Semana en curso',
-                'last_7' => 'Últimos 7 días',
-                'last_30' => 'Últimos 30 días',
-                'this_month' => 'Mes en curso',
-            ],
+            'periods' => $contract['periods'],
             'statuses' => [
                 'labels' => [
                     0 => 'Solicitud',
@@ -89,33 +88,13 @@ function ixtla_insights_domain_profile(): array
                     5 => 'Cancelado',
                     6 => 'Finalizado',
                 ],
-                'groups' => [
-                    'active' => [0, 1, 2, 3],
-                    'paused' => [4],
-                    'cancelled' => [5],
-                    'finalized' => [6],
-                    'paused_or_cancelled' => [4, 5],
-                    'closed' => [6],
-                ],
+                'groups' => $contract['status_groups'],
             ],
             'fallbacks' => [
                 'unknown_status' => 'Sin estatus',
             ],
         ],
-        'tool_guidance' => [
-            'multi_filter_rule' => 'Cuando haya varios departamentos usa una sola llamada con department_ids o department_names. Antes de consultar, convierte la solicitud en filtros concretos de periodo, departamentos, tramites, responsables y estatus.',
-            'pagination_rule' => 'Si search_requirements devuelve has_more, indica que la lista es parcial. Usa next_cursor solamente para continuar la misma consulta y no presentes returned como si fuera total_matching.',
-            'large_result_rule' => 'El summary de search_requirements se calcula sobre todas las coincidencias aunque items contenga solo una pagina. Basa los conteos y conclusiones generales en total_matching y summary. Cuando has_more sea true, indica solamente que la lista mostrada es parcial y cuantos resultados totales existen. No menciones funciones internas, comandos de consola, endpoints ni mecanismos de exportacion.',
-            'dataset_first' => 'Para KPIs, comparaciones de 30 días, variación, días pico y principales trámites usa get_requirements_overview; para listas usa search_requirements; para requerimientos importantes, prioritarios, críticos, urgentes o que deben atenderse primero usa get_priority_requirements; para comparar dos periodos o dos grupos usa compare_requirement_sets y consulta ambos universos completos, nunca una muestra o pagina previa; para conteos y rankings de una sola dimensión usa aggregate_requirements. Para una tendencia con varias líneas o una matriz usa aggregate_requirement_dimensions: group_by date y series_by para las líneas; dos categorías distintas para una matriz. Para comparar los orígenes usa group_by channel y para consultar uno filtra por channel_ids; para un folio usa get_requirement_detail o get_requirement_summary. Si necesitas buscar primero cuál folio coincide, después llama get_requirement_detail con ese folio antes de redactar su información; no declares que la descripción no está disponible basándote solamente en search_requirements.',
-            'catalog_rule' => 'Para estatus, departamentos, trámites o empleados asignados usa list_requirement_catalog.',
-            'activity_rule' => 'Para saber qué comentaron usa get_requirement_comments; para avances usa get_requirement_processes; para trabajo pendiente usa get_requirement_tasks; para saber qué ha sucedido usa get_requirement_activity. Para datos del ciudadano, solicitante o contacto de un folio concreto usa get_requirement_contact y presenta solamente los campos disponibles.',
-            'feedback_rule' => 'Para un resumen de retroalimentaciones usa get_feedback_overview; para conteos, rankings o comparaciones por estado de retro, calificacion, departamento, tramite, responsable, canal o estado del requerimiento usa aggregate_feedback; para saber cuales son y mostrar folios usa search_feedback. Para preguntas como que dicen los ciudadanos, motivos de retros malas o buenas, quejas, felicitaciones, temas recurrentes o ejemplos de comentarios usa analyze_feedback_comments con los filtros solicitados; Malo usa rating_ids [1], desfavorables [1,2], favorables [3,4]. Distingue hechos textuales de tu resumen e indica sample_size frente a total_comments_matching cuando no se analizaron todos. Para una retro concreta, su comentario o los datos de su ciudadano usa get_feedback_detail y presenta todos los campos disponibles. No uses herramientas de requerimientos para afirmar calificaciones o respuestas ciudadanas.',
-            'feedback_filter_rule' => 'En herramientas de retro, status_ids se refiere al estado de la retroalimentacion y requirement_status_ids al estado del requerimiento. Usa date_field created_at para retros creadas o invitaciones y date_field updated_at para retros contestadas o respondidas; updated_at solo admite estado Contestada. period, date_from y date_to se aplican al campo de fecha seleccionado. Usa channel_ids 1 para Portal ciudadano y 2 para Portal de empleados. Usa assignee_state assigned o unassigned para presencia de responsable. Para nombres de departamentos, tramites o responsables, resuelvelos primero con list_requirement_catalog cuando sea necesario.',
-            'feedback_pagination_rule' => 'search_feedback devuelve total_matching, returned, page y has_more. Si has_more es verdadero, aclara que la lista es parcial; para continuar incrementa page y conserva exactamente los mismos filtros.',
-            'dataset_analytic_fallback' => 'Si no hay una herramienta exacta, combina herramientas compatibles sin exceder el límite configurado por turno y responde solo con su evidencia. Si ninguna combinación obtiene el dato solicitado, identifica la capacidad faltante en lugar de presentar una ausencia de resultados.',
-            'evidence_rule' => 'Responde unicamente con resultados autorizados. Al dar una lista, muestra folio, estatus, tramite, responsable y fecha de creacion cuando sea relevante. Muestra fecha de cierre solamente si el estatus actual es Finalizado. Al dar un agregado, indica periodo y alcance. Nunca reemplaces una busqueda sin resultados por una conclusion basada en memoria.',
-            'risk_and_folios' => 'Para analizar carga operativa usa overview con el periodo solicitado. Para folios que requieren seguimiento usa search con el mismo periodo y criterios disponibles como estatus, asignación, antigüedad o actividad. No uses vencimientos ni fecha_limite. No contradigas el resultado de un resumen con una lista posterior: ambos deben compartir periodo y filtros.',
-        ],
+        'tool_guidance' => ixtla_insights_tool_guidance(),
         'conversation_rules' => [
             'Para reportes extensos usa Markdown simple y consistente: un titulo principal, subtitulos breves, listas para metricas y una tabla solo cuando compares folios con las mismas columnas. Evita repetir cifras, parrafos demasiado largos, HTML y bloques de codigo.',
             'En un seguimiento reutiliza selected_departments y last_filters del contexto estructurado. Los filtros expresos de la pregunta actual tienen precedencia sobre el contexto anterior.',

@@ -54,7 +54,7 @@ function ixtla_visual_plan_normalize(array $plan): array
     $allowed = [
         'domain' => ['', 'requerimientos', 'retroalimentaciones'],
         'chart' => ['', 'bar', 'line', 'area', 'donut', 'table', 'matrix', 'kpi'],
-        'period' => ['', 'all', 'this_week', 'last_7', 'last_30', 'this_month'],
+        'period' => ['', ...array_keys(ixtla_insights_data_contract()['periods'])],
         'date_field' => ['', 'created_at', 'closed_at', 'updated_at'],
         'comparison' => ['', 'previous_period'],
         'date_grain' => ['', 'day', 'week', 'month'],

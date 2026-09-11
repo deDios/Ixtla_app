@@ -1,4 +1,4 @@
-import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=dashboard-assistant-1";
+import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=data-contract-8";
 
 const STORAGE_KEY = "ixtla_insights_dashboard_session_v1";
 const PERIOD_LABELS = {
@@ -663,7 +663,7 @@ confirmDialog.addEventListener("close", () => {
 
 render();
 mountIxtlaInsights({
-  frontendBuild: "dashboard-assistant-1",
+  frontendBuild: "data-contract-8",
   simpleMode: true,
   dashboardUrl: "/VIEWS/UAT/insightsDashboard.php",
   context: {

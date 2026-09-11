@@ -1220,18 +1220,15 @@ function initRetroMap() {
   const el = $(SEL.retroMap);
   if (!el || State.retroMap || typeof L === "undefined") return;
 
-  State.retroMap = L.map("retro-map", { zoomControl: true }).setView(
-    [20.55, -103.2],
-    12,
-  );
+  State.retroMap = L.map(el, {
+    zoomControl: true,
+    attributionControl: true,
+  }).setView([20.55, -103.2], 12);
 
-  L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    {
-      maxZoom: 18,
-      attribution: "© OpenStreetMap, © CARTO",
-    },
-  ).addTo(State.retroMap);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(State.retroMap);
 
   State.retroBubbleLayer = L.layerGroup().addTo(State.retroMap);
 }

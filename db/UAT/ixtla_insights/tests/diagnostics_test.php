@@ -56,8 +56,11 @@ $usageSummary = ixtla_insights_usage_summary([
 expect_diagnostic($usageSummary === ['provider_requests' => 2, 'input_tokens' => 200, 'output_tokens' => 70, 'reasoning_tokens' => 14, 'cached_input_tokens' => 20, 'total_tokens' => 270], 'El resumen de uso debe acumular todas las respuestas del proveedor.');
 
 $domainProfile = ixtla_insights_domain_profile();
+$dataContract = ixtla_insights_data_contract();
 expect_diagnostic(($domainProfile['domain'] ?? null) === 'requerimientos_y_retroalimentaciones', 'El perfil UAT debe describir requerimientos y retroalimentaciones.');
-expect_diagnostic((int) ($domainProfile['version'] ?? 0) >= 20, 'El perfil de dominio debe identificar el contrato temporal vigente.');
+expect_diagnostic(($domainProfile['version'] ?? null) === ($dataContract['profile_version'] ?? null), 'El perfil debe usar la version declarada por el contrato compartido.');
+expect_diagnostic(($domainProfile['contract_version'] ?? null) === ($dataContract['version'] ?? null), 'El perfil debe publicar la version del contrato compartido.');
+expect_diagnostic(ixtla_insights_tool_guidance() === ($domainProfile['tool_guidance'] ?? null), 'La guia de herramientas debe estar separada y componerse sin duplicar reglas.');
 $domainPrompt = ixtla_insights_domain_developer_prompt();
 expect_diagnostic(str_contains($domainPrompt, 'Un requerimiento es un caso individual'), 'El prompt debe explicar qué es un requerimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'No confundas los conceptos'), 'El prompt debe distinguir requerimiento, trámite, proceso, tarea y comentario.');
@@ -81,8 +84,10 @@ expect_diagnostic(ixtla_insights_domain_status_ids('active') === [0, 1, 2, 3], '
 expect_diagnostic(ixtla_insights_domain_status_ids('paused') === [4], 'El perfil debe separar los requerimientos pausados.');
 expect_diagnostic(ixtla_insights_domain_status_ids('cancelled') === [5], 'El perfil debe separar los requerimientos cancelados.');
 expect_diagnostic(ixtla_insights_domain_status_ids('finalized') === [6], 'El perfil debe separar los requerimientos finalizados.');
-expect_diagnostic(ixtla_insights_snapshot_date_basis('created_at') === 'Fecha de creacion del requerimiento', 'El snapshot debe describir la base temporal de creacion.');
-expect_diagnostic(ixtla_insights_snapshot_date_basis('closed_at') === 'Fecha de cierre valida de requerimientos en estatus Finalizado', 'El snapshot debe describir la base temporal de cierre.');
+expect_diagnostic(ixtla_insights_snapshot_date_basis('created_at') === $dataContract['dates']['created_at']['label'], 'El snapshot debe describir la base temporal de creacion desde el contrato.');
+expect_diagnostic(ixtla_insights_snapshot_date_basis('closed_at') === $dataContract['dates']['closed_at']['label'], 'El snapshot debe describir la base temporal de cierre desde el contrato.');
+expect_diagnostic(($dataContract['dates']['started_at']['source_field'] ?? null) === 'fecha_limite' && ($dataContract['dates']['started_at']['deadline'] ?? true) === false, 'La fecha de inicio no debe habilitar vencimientos ni SLA.');
+expect_diagnostic(($dataContract['operational_attention']['deadline_enabled'] ?? true) === false, 'La atencion operativa no debe usar fechas de vencimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'Solo Contestada significa que existe una respuesta ciudadana'), 'El perfil debe distinguir los estados de retroalimentacion.');
 expect_diagnostic(str_contains($domainPrompt, '1 Malo, 2 Regular, 3 Bueno y 4 Excelente'), 'El perfil debe definir la escala de retroalimentacion.');
 expect_diagnostic(str_contains($domainPrompt, 'created_at es la fecha de creacion del registro de retroalimentacion'), 'El perfil debe permitir periodos por fecha de creacion de la retro.');
@@ -141,7 +146,7 @@ expect_diagnostic(ixtla_insights_question_intent('dame la info del ciudadano', t
 expect_diagnostic(ixtla_insights_question_intent('cual es su telefono', true) === 'dataset', 'El telefono debe reutilizar el contexto del requerimiento anterior.');
 
 $chatToolNames = array_column(ixtla_insights_tool_definitions(), 'name');
-expect_diagnostic($chatToolNames === ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'get_feedback_detail', 'analyze_feedback_comments', 'get_requirements_overview', 'search_requirements', 'get_priority_requirements', 'aggregate_requirements', 'compare_requirement_sets', 'aggregate_requirement_dimensions', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
+expect_diagnostic($chatToolNames === ['run_analysis_plan', 'get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'get_feedback_detail', 'analyze_feedback_comments', 'get_requirements_overview', 'search_requirements', 'get_priority_requirements', 'aggregate_requirements', 'compare_requirement_sets', 'aggregate_requirement_dimensions', 'list_requirement_catalog', 'get_requirement_detail', 'get_requirement_summary', 'get_requirement_contact', 'get_requirement_comments', 'get_requirement_tasks', 'get_requirement_processes', 'get_requirement_activity'], 'El chat debe exponer exclusivamente herramientas vigentes y acotadas.');
 expect_diagnostic(ixtla_insights_question_intent('Cuáles son los requerimientos más importantes?') === 'dataset', 'La importancia operativa debe activar una consulta de datos.');
 expect_diagnostic(ixtla_insights_question_intent('Qué casos debo atender primero?') === 'dataset', 'La solicitud de atención prioritaria debe activar una consulta de datos.');
 $priorityTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_priority_requirements'))[0] ?? [];
@@ -160,6 +165,7 @@ expect_diagnostic(in_array('right', $comparisonTool['parameters']['required'] ??
 expect_diagnostic(($comparisonTool['parameters']['properties']['left']['required'] ?? []) === ($comparisonTool['parameters']['properties']['right']['required'] ?? []), 'Ambos universos deben usar el mismo contrato de filtros autorizados.');
 expect_diagnostic(str_contains($domainPrompt, 'nunca una muestra o pagina previa'), 'El perfil debe prohibir comparaciones generales basadas en muestras.');
 $snapshotOverviewTool = array_values(array_filter(ixtla_insights_tool_definitions(), static fn (array $tool): bool => ($tool['name'] ?? '') === 'get_requirements_overview'))[0] ?? [];
+expect_diagnostic(($snapshotOverviewTool['parameters']['properties']['period']['enum'] ?? []) === array_keys($dataContract['periods']), 'Las herramientas deben aceptar exactamente los periodos del contrato compartido.');
 expect_diagnostic(($snapshotOverviewTool['parameters']['required'] ?? []) === ['refresh', 'period', 'date_field', 'date_from', 'date_to'], 'El resumen debe aceptar periodos y rangos personalizados explícitos.');
 expect_diagnostic(str_contains((string) ($snapshotOverviewTool['description'] ?? ''), 'días pico'), 'El resumen debe anunciar la comparación y los picos diarios que puede calcular.');
 
@@ -184,7 +190,8 @@ $dimensionAggregateTool = array_values(array_filter(ixtla_insights_tool_definiti
 expect_diagnostic(($dimensionAggregateTool['parameters']['properties']['series_limit']['maximum'] ?? null) === 7, 'Las visualizaciones multidimensionales deben limitar el numero de series.');
 expect_diagnostic(($dimensionAggregateTool['parameters']['properties']['date_grain']['enum'] ?? []) === ['day', 'week', 'month'], 'Las series temporales deben declarar su granularidad permitida.');
 $emptySnapshot = ixtla_insights_snapshot_assemble('test-scope', ['mode' => 'self', 'label' => 'Prueba'], []);
-expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === 7, 'El snapshot semántico debe invalidar caches de esquemas anteriores.');
+expect_diagnostic(($emptySnapshot['schema_version'] ?? null) === ($dataContract['snapshot']['schema_version'] ?? null), 'El snapshot semántico debe usar la version compartida e invalidar caches anteriores.');
+expect_diagnostic(($emptySnapshot['contract_version'] ?? null) === ($dataContract['version'] ?? null), 'El snapshot debe declarar el contrato que gobierna sus datos.');
 expect_diagnostic(count($emptySnapshot['catalogs']['statuses'] ?? []) === 7, 'El catalogo debe listar todos los estatus aunque no existan filas en alguno.');
 $cursor = ixtla_insights_snapshot_cursor_encode(50);
 expect_diagnostic(ixtla_insights_snapshot_cursor_offset($cursor) === 50, 'El cursor debe conservar de forma segura el desplazamiento de la consulta.');

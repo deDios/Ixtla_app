@@ -115,6 +115,6 @@ ix_require_session(['login_url' => '/VIEWS/UAT/login.php']);
     </form>
   </dialog>
 
-  <script type="module" src="/JS/UAT/insights/dashboard.js?v=dashboard-assistant-1"></script>
+  <script type="module" src="/JS/UAT/insights/dashboard.js?v=data-contract-8"></script>
 </body>
 </html>

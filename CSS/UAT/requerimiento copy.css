@@ -141,6 +141,37 @@
   background: #f8fafc;
 }
 
+.exp-view .exp-geo-empty p {
+  margin: 0;
+}
+
+.exp-view .exp-geo-rule {
+  margin-top: 8px;
+  font-size: .9rem;
+}
+
+.exp-view .exp-geo-create {
+  min-height: 40px;
+  margin-top: 16px;
+  padding: 9px 16px;
+  border: 1px solid #6f8778;
+  border-radius: 999px;
+  color: #fff;
+  background: #82978a;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.exp-view .exp-geo-create:hover {
+  background: #6f8778;
+}
+
+.exp-view .exp-geo-create:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
 .exp-view .exp-geo-status {
   display: inline-flex;
   align-items: center;
