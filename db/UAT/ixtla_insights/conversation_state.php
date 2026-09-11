@@ -109,7 +109,7 @@ function ixtla_insights_conversation_apply_tool(string $name, array $arguments, 
     if (isset($arguments['date_grain'])) {
         $context['date_grain'] = $arguments['date_grain'];
     }
-    $filterKeys = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'channel_ids', 'assignee_state', 'date_field', 'date_from', 'date_to', 'sort'];
+    $filterKeys = ['period', 'department_id', 'department_ids', 'department_names', 'assignee_id', 'assignee_ids', 'tramite_ids', 'status_ids', 'rating_ids', 'requirement_status_ids', 'channel_ids', 'assignee_state', 'date_field', 'date_from', 'date_to', 'sort', 'page'];
     $filters = [];
     foreach ($filterKeys as $filterKey) {
         if (array_key_exists($filterKey, $arguments)) $filters[$filterKey] = $arguments[$filterKey];

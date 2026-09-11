@@ -84,6 +84,12 @@ if (!$curr) {
 
 $prevEstatus   = (int)$curr["estatus"];
 $prevAsignadoA = isset($curr["asignado_a"]) ? (int)$curr["asignado_a"] : null;
+$effectiveEstatus = $estatus !== null ? $estatus : $prevEstatus;
+if (!in_array($effectiveEstatus, [0, 1, 2, 3, 4, 5, 6], true)) {
+  $con->close();
+  http_response_code(400);
+  die(json_encode(["ok" => false, "error" => "estatus debe estar entre 0 y 6"]));
+}
 $departamentosSensibles = [9, 10, 12];
 $actorDepartamentoId = null;
 if ($updated_by !== null && $updated_by > 0) {
@@ -208,13 +214,21 @@ if ($asignado_a !== null) {
   $st->close();
 }
 
-/* Logica de cerrado_en */
-$set_cierre_automatico = false;
-if ($estatus !== null) {
-  if (in_array($estatus, [2, 3], true) && $cerrado_en === null && !$clear_cerrado) {
-    $set_cierre_automatico = true;
-  }
+/* Solo Finalizado puede tener fecha de cierre. La fecha almacenada como
+ * fecha_limite sigue representando el inicio de atencion. */
+$hasCierreInput = array_key_exists('cerrado_en', $in) && $cerrado_en !== null;
+if ($effectiveEstatus !== 6 && $hasCierreInput) {
+  $con->close();
+  http_response_code(409);
+  die(json_encode(["ok" => false, "error" => "cerrado_en solo aplica al estatus Finalizado"]));
 }
+if ($effectiveEstatus !== 6) {
+  $clear_cerrado = true;
+}
+$set_cierre_automatico = $effectiveEstatus === 6
+  && $prevEstatus !== 6
+  && !$hasCierreInput
+  && !$clear_cerrado;
 
 /* Armado del UPDATE */
 $sql = "UPDATE requerimiento SET

@@ -103,15 +103,13 @@ function ixtla_insights_dataset_operational_snapshot(array $arguments): array
 }
 
 /**
- * Compound diagnosis for operational decisions. Deadline metrics include only
- * active requirements with a registered due date. Scope and soft-delete rules
- * are inherited from ixtla_insights_dataset_scope().
+ * Compound diagnosis for operational decisions without deadline assumptions.
+ * Scope and soft-delete rules are inherited from the shared dataset scope.
  */
 function ixtla_insights_dataset_operational_risk_snapshot(array $arguments): array
 {
     $period = ixtla_insights_dataset_risk_period($arguments['period'] ?? 'this_month');
     $topLimit = min(10, max(1, (int) ($arguments['top_tramites_limit'] ?? 5)));
-    $dueWindowDays = min(30, max(1, (int) ($arguments['due_window_days'] ?? 7)));
     $connection = ixtla_insights_dataset_connection();
     try {
         $scope = ixtla_insights_dataset_scope($connection);
@@ -126,13 +124,10 @@ function ixtla_insights_dataset_operational_risk_snapshot(array $arguments): arr
             . 'SUM(CASE WHEN r.estatus = 4 THEN 1 ELSE 0 END) AS paused, '
             . 'SUM(CASE WHEN r.estatus = 5 THEN 1 ELSE 0 END) AS cancelled, '
             . 'SUM(CASE WHEN r.estatus = 6 THEN 1 ELSE 0 END) AS finalized, '
-            . 'SUM(CASE WHEN ' . $activeCondition . ' AND r.asignado_a IS NULL THEN 1 ELSE 0 END) AS unassigned, '
-            . 'SUM(CASE WHEN ' . $activeCondition . ' AND r.fecha_limite IS NOT NULL AND DATE(r.fecha_limite) < CURDATE() THEN 1 ELSE 0 END) AS overdue, '
-            . 'SUM(CASE WHEN ' . $activeCondition . ' AND r.fecha_limite IS NOT NULL AND DATE(r.fecha_limite) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY) THEN 1 ELSE 0 END) AS due_soon, '
-            . 'SUM(CASE WHEN ' . $activeCondition . ' AND r.fecha_limite IS NULL THEN 1 ELSE 0 END) AS without_due_date '
+            . 'SUM(CASE WHEN ' . $activeCondition . ' AND r.asignado_a IS NULL THEN 1 ELSE 0 END) AS unassigned '
             . 'FROM requerimiento r' . $whereSql,
-            'i' . $scope['types'],
-            [$dueWindowDays, ...$scope['params']]
+            $scope['types'],
+            $scope['params']
         )[0] ?? [];
 
         return [
@@ -141,13 +136,6 @@ function ixtla_insights_dataset_operational_risk_snapshot(array $arguments): arr
             'period' => ['field' => 'created_at', 'preset' => $period],
             'period_label' => ixtla_insights_domain_period_label($period),
             'counts' => ixtla_insights_dataset_counts($summary, ['total', 'active', 'paused', 'cancelled', 'finalized', 'unassigned']),
-            'deadline_risk' => [
-                'overdue' => (int) ($summary['overdue'] ?? 0),
-                'due_within_days' => $dueWindowDays,
-                'due_soon' => (int) ($summary['due_soon'] ?? 0),
-                'without_due_date' => (int) ($summary['without_due_date'] ?? 0),
-                'definition' => 'Only active requirements with a registered due date are included.',
-            ],
             'top_tramites' => ixtla_insights_dataset_top_tramites($connection, $scope, $where, $topLimit),
         ];
     } finally {
@@ -300,7 +288,7 @@ function ixtla_insights_dataset_period_comparison(array $arguments): array
     if (!in_array($metric, ['total', 'open_count', 'closed_count'], true)) {
         throw new InvalidArgumentException('La métrica de comparación no está disponible.');
     }
-    if (!in_array($period, ['last_7', 'last_30', 'this_month'], true)) {
+    if (!in_array($period, ['this_week', 'last_7', 'last_30', 'this_month'], true)) {
         throw new InvalidArgumentException('El periodo de comparación no está disponible.');
     }
     $connection = ixtla_insights_dataset_connection();
@@ -308,15 +296,16 @@ function ixtla_insights_dataset_period_comparison(array $arguments): array
         $scope = ixtla_insights_dataset_scope($connection);
         $currentWhere = $scope['where'];
         $previousWhere = $scope['where'];
-        $field = $metric === 'closed_count' ? 'r.cerrado_en' : 'r.created_at';
+        $field = 'r.created_at';
         if ($metric === 'open_count') {
-            $currentWhere[] = 'r.estatus NOT IN (5, 6)';
-            $previousWhere[] = 'r.estatus NOT IN (5, 6)';
+            $activeCondition = ixtla_insights_dataset_active_status_condition();
+            $currentWhere[] = $activeCondition;
+            $previousWhere[] = $activeCondition;
         } elseif ($metric === 'closed_count') {
             $currentWhere[] = 'r.estatus = 6';
             $previousWhere[] = 'r.estatus = 6';
         }
-        ixtla_insights_dataset_period_clause_for_field($period, $metric === 'closed_count' ? 'closed_at' : 'created_at', $currentWhere);
+        ixtla_insights_dataset_period_clause_for_field($period, 'created_at', $currentWhere);
         ixtla_insights_dataset_previous_period_clause($period, $field, $previousWhere);
         $current = ixtla_insights_dataset_scalar($connection, 'SELECT COUNT(*) FROM requerimiento r WHERE ' . implode(' AND ', $currentWhere), $scope['types'], $scope['params']);
         $previous = ixtla_insights_dataset_scalar($connection, 'SELECT COUNT(*) FROM requerimiento r WHERE ' . implode(' AND ', $previousWhere), $scope['types'], $scope['params']);
@@ -509,18 +498,10 @@ function ixtla_insights_dataset_safe_records(array $arguments): array
         } elseif ($spec['assignee_state'] === 'unassigned') {
             $where[] = 'r.asignado_a IS NULL';
         }
-        if ($spec['deadline_state'] !== 'any') {
-            $where[] = ixtla_insights_dataset_active_status_condition();
-            $where[] = match ($spec['deadline_state']) {
-                'overdue' => 'r.fecha_limite IS NOT NULL AND DATE(r.fecha_limite) < CURDATE()',
-                'due_soon' => 'r.fecha_limite IS NOT NULL AND DATE(r.fecha_limite) BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)',
-                'without_due_date' => 'r.fecha_limite IS NULL',
-            };
-        }
         $orderBy = $spec['sort'] === 'oldest' ? 'r.created_at ASC, r.id ASC' : 'r.created_at DESC, r.id DESC';
         $rows = ixtla_insights_dataset_rows(
             $connection,
-            'SELECT r.id, r.folio, r.created_at, r.fecha_limite, r.estatus AS status_id, '
+            'SELECT r.id, r.folio, r.created_at, r.estatus AS status_id, '
             . 'd.nombre AS department, t.nombre AS tramite, '
             . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin asignar') AS assignee "
             . 'FROM requerimiento r JOIN departamento d ON d.id = r.departamento_id '
@@ -541,7 +522,6 @@ function ixtla_insights_dataset_safe_records(array $arguments): array
                 'status' => ixtla_insights_domain_status_label((int) $row['status_id']),
                 'assignee' => (string) $row['assignee'],
                 'created_at' => (string) $row['created_at'],
-                'due_at' => $row['fecha_limite'] === null ? null : (string) $row['fecha_limite'],
             ], $rows),
             'privacy' => 'No incluye asunto, descripcion ni datos de contacto ciudadanos.',
         ];
@@ -560,17 +540,15 @@ function ixtla_insights_dataset_safe_records_spec(array $arguments): array
         throw new InvalidArgumentException('Los filtros de estatus no son validos.');
     }
     $assigneeState = strtolower(trim((string) ($arguments['assignee_state'] ?? 'any')));
-    $deadlineState = strtolower(trim((string) ($arguments['deadline_state'] ?? 'any')));
     $sort = strtolower(trim((string) ($arguments['sort'] ?? 'newest')));
     $limit = min(25, max(1, (int) ($arguments['limit'] ?? 10)));
     if (!in_array($assigneeState, ['any', 'assigned', 'unassigned'], true)
-        || !in_array($deadlineState, ['any', 'overdue', 'due_soon', 'without_due_date'], true)
         || !in_array($sort, ['newest', 'oldest'], true)) {
         throw new InvalidArgumentException('Los filtros de registros no son validos.');
     }
     return [
         'period' => $period, 'department' => $department, 'status_ids' => $statusIds,
-        'assignee_state' => $assigneeState, 'deadline_state' => $deadlineState, 'sort' => $sort, 'limit' => $limit,
+        'assignee_state' => $assigneeState, 'sort' => $sort, 'limit' => $limit,
     ];
 }
 
@@ -646,7 +624,7 @@ function ixtla_insights_dataset_analytics_query(array $arguments): array
         $where = $scope['where'];
         $metric = $spec['metric'];
         $metricWhere = match ($metric) {
-            'open_count' => 'r.estatus NOT IN (5, 6)',
+            'open_count' => ixtla_insights_dataset_active_status_condition(),
             'closed_count' => 'r.estatus = 6',
             'paused_cancelled_count' => 'r.estatus IN (4, 5)',
             default => null,
@@ -799,7 +777,7 @@ function ixtla_insights_dataset_analytics_spec(array $arguments): array
     $field = strtolower(trim((string) ($period['field'] ?? '')));
     $preset = strtolower(trim((string) ($period['preset'] ?? '')));
     if (!in_array($field, ['created_at', 'closed_at'], true)
-        || !in_array($preset, ['all', 'last_7', 'last_30', 'this_month'], true)) {
+        || !in_array($preset, ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true)) {
         throw new InvalidArgumentException('El periodo solicitado no es válido.');
     }
     $sort = strtolower(trim((string) ($ranking['sort'] ?? 'desc')));
@@ -819,6 +797,7 @@ function ixtla_insights_dataset_period_clause_for_field(string $preset, string $
 {
     $column = $field === 'closed_at' ? 'r.cerrado_en' : 'r.created_at';
     match ($preset) {
+        'this_week' => $where[] = $column . ' >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)',
         'last_7' => $where[] = $column . ' >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)',
         'last_30' => $where[] = $column . ' >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)',
         'this_month' => $where[] = $column . " >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
@@ -829,6 +808,7 @@ function ixtla_insights_dataset_period_clause_for_field(string $preset, string $
 function ixtla_insights_dataset_previous_period_clause(string $period, string $field, array &$where): void
 {
     match ($period) {
+        'this_week' => $where[] = $field . ' >= DATE_SUB(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY) AND ' . $field . ' < DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)',
         'last_7' => $where[] = $field . ' >= DATE_SUB(CURDATE(), INTERVAL 13 DAY) AND ' . $field . ' < DATE_SUB(CURDATE(), INTERVAL 6 DAY)',
         'last_30' => $where[] = $field . ' >= DATE_SUB(CURDATE(), INTERVAL 59 DAY) AND ' . $field . ' < DATE_SUB(CURDATE(), INTERVAL 29 DAY)',
         'this_month' => $where[] = $field . " >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01') AND " . $field . " < DATE_FORMAT(CURDATE(), '%Y-%m-01')",
@@ -891,7 +871,7 @@ function ixtla_insights_dataset_top_tramites(mysqli $connection, array $scope, a
 function ixtla_insights_dataset_risk_period(mixed $period): string
 {
     $value = strtolower(trim((string) $period));
-    if (!in_array($value, ['last_7', 'last_30', 'this_month'], true)) {
+    if (!in_array($value, ['this_week', 'last_7', 'last_30', 'this_month'], true)) {
         throw new InvalidArgumentException('El periodo del diagnóstico no está disponible.');
     }
     return $value;
@@ -900,7 +880,7 @@ function ixtla_insights_dataset_risk_period(mixed $period): string
 function ixtla_insights_dataset_period(mixed $period): string
 {
     $value = strtolower(trim((string) $period));
-    return in_array($value, ['all', 'last_7', 'last_30', 'this_month'], true) ? $value : 'all';
+    return in_array($value, ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true) ? $value : 'all';
 }
 
 function ixtla_insights_dataset_scalar(mysqli $connection, string $sql, string $types, array $params): int

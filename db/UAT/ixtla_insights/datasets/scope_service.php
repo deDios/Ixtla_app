@@ -174,6 +174,7 @@ function ixtla_insights_dataset_team_ids(mysqli $connection, int $managerId): ar
 function ixtla_insights_dataset_period_clause(string $period, array &$where): void
 {
     match ($period) {
+        'this_week' => $where[] = 'r.created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)',
         'last_7' => $where[] = 'r.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)',
         'last_30' => $where[] = 'r.created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)',
         'this_month' => $where[] = "r.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",

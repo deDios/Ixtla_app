@@ -660,7 +660,6 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
         . 'No inventes cifras, no afirmes haber consultado una base de datos y no generes SQL. '
         . 'Resuelve dudas sobre las capacidades del asistente y pide una aclaración breve cuando una pregunta sea ambigua. '
         . 'Solo puedes proponer widgets ' . implode(', ', $catalog['widget_kinds']) . '; métricas ' . implode(', ', $catalog['metrics']) . '. '
-        . 'Los indicadores kpi también pueden usar promedio_semanal o tiempo_resolucion; esas dos métricas no se usan en gráficas. '
         . 'Dimensiones permitidas: ' . implode(', ', $catalog['dimensions']) . '. Para rankings usa limit y sort. '
         . 'Para lineas con varias categorias usa dimension fecha y coloca estatus, tramite o departamento en series_dimension. Para una matriz usa dos categorias distintas en dimension y series_dimension. '
         . 'Cuando el usuario pida uno o varios departamentos, debes usar un filtro departamento por cada nombre y únicamente los nombres exactos del catálogo autorizado. '
@@ -671,7 +670,7 @@ function ixtla_insights_call_openai(array $config, string $question, array $hist
 
     $systemPrompt .= ' Para la metrica pausados_cancelados no uses dimension estatus, porque el estatus ya esta definido por la metrica.';
     $systemPrompt .= ' Para una solicitud de visualizacion debes validar antes de crear widget: tipo de grafica (kind), metrica, dimension, periodo y alcance. '
-        . 'El periodo debe ser all, last_7, last_30 o this_month; el alcance debe ser all o selected. '
+        . 'El periodo debe ser all, this_week, last_7, last_30 o this_month; el alcance debe ser all o selected. '
         . 'Si falta cualquiera de esos datos, actions debe ser [] y answer debe hacer una sola pregunta breve por el siguiente dato faltante. '
         . 'Cuando hagas una pregunta de seguimiento, usa suggestions para ofrecer de dos a cuatro respuestas breves y relevantes. '
         . 'No asumas todos los departamentos: pregunta si el alcance es todos o departamentos especificos. '

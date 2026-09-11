@@ -9,7 +9,7 @@ function ixtla_insights_question_intent(string $question, bool $hasDatasetContex
 {
     $normalized = ixtla_insights_normalize_match_text($question);
     $hasRequirementReference = preg_match(
-        '/\b(requerimiento|requerimientos|retroalimentacion|retroalimentaciones|retro|retros|encuesta|encuestas|calificacion|calificaciones|satisfaccion|favorable|favorables|desfavorable|desfavorables|contestado|contestadas|folio|folios|tramite|tramites|departamento|departamentos|solicitante|solicitantes|ciudadano|ciudadana|ciudadanos|ciudadanas|contacto|contactos|responsable|responsables|asignado|asignados|asignada|asignadas)\b/',
+        '/\b(requerimiento|requerimientos|retroalimentacion|retroalimentaciones|retro|retros|encuesta|encuestas|calificacion|calificaciones|satisfaccion|favorable|favorables|desfavorable|desfavorables|contestado|contestadas|cerrado|cerrados|cerrada|cerradas|finalizado|finalizados|finalizada|finalizadas|folio|folios|tramite|tramites|departamento|departamentos|solicitante|solicitantes|ciudadano|ciudadana|ciudadanos|ciudadanas|contacto|contactos|responsable|responsables|asignado|asignados|asignada|asignadas)\b/',
         $normalized
     ) === 1;
     $hasExplicitFolio = preg_match('/\breq[-\s]?\d+\b/i', $question) === 1;
@@ -81,12 +81,65 @@ function ixtla_insights_question_requested_period(string $question): ?string
 /** Resuelve un mes mencionado a un rango ISO; sin año usa su ocurrencia más reciente. */
 function ixtla_insights_temporal_date_field(string $normalized): string
 {
-    if (preg_match('/\b(creado|creados|creada|creadas|registrado|registrados|registrada|registradas|ingresado|ingresados)\b/', $normalized) === 1) {
-        return 'created_at';
-    }
-    return preg_match('/\b(cerrado|cerrados|cerrada|cerradas|cerraron|cierre|cierres|finalizado|finalizados|finalizada|finalizadas)\b/', $normalized) === 1
+    return preg_match('/\b(fecha\s+de\s+cierre|fecha\s+de\s+finalizacion|por\s+fecha\s+de\s+cierre|por\s+fecha\s+de\s+finalizacion|tiempo\s+de\s+cierre|tiempo\s+de\s+resolucion|closed_at|cerrado_en)\b/', $normalized) === 1
         ? 'closed_at'
         : 'created_at';
+}
+
+function ixtla_insights_question_has_requirement_date_basis(string $normalized): bool
+{
+    return preg_match('/\b(fecha\s+de\s+creacion|creado|creados|creada|creadas|registrado|registrados|registrada|registradas|ingresado|ingresados|fecha\s+de\s+cierre|fecha\s+de\s+finalizacion|por\s+fecha\s+de\s+cierre|por\s+fecha\s+de\s+finalizacion|tiempo\s+de\s+cierre|tiempo\s+de\s+resolucion|closed_at|cerrado_en)\b/', $normalized) === 1;
+}
+
+/** Selecciona la fecha de retro respetando intención explícita y negaciones. */
+function ixtla_insights_feedback_temporal_date_field(string $normalized): string
+{
+    if (preg_match('/\b(fecha\s+de\s+creacion|creada|creadas|creado|creados|invitacion|invitaciones|generada|generadas)\b/', $normalized) === 1) {
+        return 'created_at';
+    }
+    if (preg_match('/\b(no|sin)\s+(?:fue(?:ron)?\s+)?(?:contestada|contestadas|contestado|contestados|respondida|respondidas|respondido|respondidos)\b/', $normalized) === 1) {
+        return 'created_at';
+    }
+    return preg_match('/\b(contestada|contestadas|contestado|contestados|respondida|respondidas|respondido|respondidos|fecha\s+de\s+respuesta|respuestas\s+recibidas)\b/', $normalized) === 1
+        ? 'updated_at'
+        : 'created_at';
+}
+
+/** Indica si la pregunta actual eligió explícitamente una base temporal de retro. */
+function ixtla_insights_question_has_feedback_date_basis(string $normalized): bool
+{
+    return preg_match('/\b(fecha\s+de\s+creacion|creada|creadas|creado|creados|invitacion|invitaciones|generada|generadas|contestada|contestadas|contestado|contestados|respondida|respondidas|respondido|respondidos|fecha\s+de\s+respuesta|respuestas\s+recibidas)\b/', $normalized) === 1;
+}
+
+/** Traduce el estado de retro mencionado sin mezclarlo con el del requerimiento. */
+function ixtla_insights_question_requested_feedback_statuses(string $question): ?array
+{
+    $normalized = ixtla_insights_normalize_match_text($question);
+    if (preg_match('/\b(todos los estados de retro|cualquier estado de retro|todas las retros)\b/', $normalized) === 1) return [];
+    $statuses = [];
+    $negativeAnswered = preg_match('/\b(no|sin)\s+(?:fue(?:ron)?\s+)?(?:contestada|contestadas|contestado|contestados|respondida|respondidas|respondido|respondidos)\b/', $normalized) === 1;
+    if ($negativeAnswered || preg_match('/\b(no contestada|no contestadas|no contestado|no contestados|pendiente|pendientes)\b/', $normalized) === 1) {
+        $statuses[] = 1;
+    }
+    if (preg_match('/\b(caducada|caducadas|caducado|caducados)\b/', $normalized) === 1) {
+        $statuses[] = 0;
+    }
+    if (!$negativeAnswered && preg_match('/\b(contestada|contestadas|contestado|contestados|respondida|respondidas|respondido|respondidos)\b/', $normalized) === 1) {
+        $statuses[] = 2;
+    }
+    if (preg_match('/\b(inhabilitada|inhabilitadas|inhabilitado|inhabilitados)\b/', $normalized) === 1) {
+        $statuses[] = 3;
+    }
+    if ($statuses === []) return null;
+    return array_values(array_unique($statuses));
+}
+
+function ixtla_insights_question_requests_feedback_response_rate(string $question): bool
+{
+    return preg_match(
+        '/\b(tasa|porcentaje|indice|nivel)\s+(?:general\s+|elegible\s+)?de\s+(?:respuesta|respuestas)\b/',
+        ixtla_insights_normalize_match_text($question)
+    ) === 1;
 }
 
 function ixtla_insights_temporal_quantity(string $value): int
@@ -317,7 +370,12 @@ function ixtla_insights_question_requires_finalized_status(string $question): bo
  * Impone el periodo general para consultas sin referencia temporal. La regla
  * vive en servidor para no depender de que el modelo elija correctamente all.
  */
-function ixtla_insights_apply_default_period(string $toolName, array $arguments, string $question): array
+function ixtla_insights_apply_default_period(
+    string $toolName,
+    array $arguments,
+    string $question,
+    bool $hasPreviousContext = false
+): array
 {
     if (in_array($toolName, ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'analyze_feedback_comments'], true)) {
         foreach (['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids'] as $listKey) {
@@ -325,6 +383,14 @@ function ixtla_insights_apply_default_period(string $toolName, array $arguments,
         }
         $arguments['assignee_state'] = in_array((string) ($arguments['assignee_state'] ?? ''), ['any', 'assigned', 'unassigned'], true)
             ? (string) $arguments['assignee_state'] : 'any';
+        $normalizedQuestion = ixtla_insights_normalize_match_text($question);
+        $currentDateField = (string) ($arguments['date_field'] ?? '');
+        $arguments['date_field'] = $hasPreviousContext
+            && ixtla_insights_question_reuses_previous_result($question)
+            && !ixtla_insights_question_has_feedback_date_basis($normalizedQuestion)
+            && in_array($currentDateField, ['created_at', 'updated_at'], true)
+                ? $currentDateField
+                : ixtla_insights_feedback_temporal_date_field($normalizedQuestion);
         $arguments['date_from'] = isset($arguments['date_from']) && is_string($arguments['date_from']) ? $arguments['date_from'] : null;
         $arguments['date_to'] = isset($arguments['date_to']) && is_string($arguments['date_to']) ? $arguments['date_to'] : null;
         $requestedRange = ixtla_insights_question_requested_date_range($question);
@@ -338,9 +404,15 @@ function ixtla_insights_apply_default_period(string $toolName, array $arguments,
             ?? (in_array((string) ($arguments['period'] ?? ''), ['all', 'this_week', 'last_7', 'last_30', 'this_month'], true) ? (string) $arguments['period'] : 'all');
     }
     if (in_array($toolName, ['get_requirements_overview', 'search_requirements', 'get_priority_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions'], true)) {
-        $arguments['date_field'] = in_array((string) ($arguments['date_field'] ?? ''), ['created_at', 'closed_at'], true)
-            ? (string) $arguments['date_field']
-            : 'created_at';
+        $normalizedQuestion = ixtla_insights_normalize_match_text($question);
+        $currentDateField = (string) ($arguments['date_field'] ?? '');
+        $isShortFollowup = preg_match('/^(y|ahora|tambien|lo mismo)\b/', $normalizedQuestion) === 1;
+        $arguments['date_field'] = $hasPreviousContext
+            && $isShortFollowup
+            && !ixtla_insights_question_has_requirement_date_basis($normalizedQuestion)
+            && in_array($currentDateField, ['created_at', 'closed_at'], true)
+                ? $currentDateField
+                : ixtla_insights_temporal_date_field($normalizedQuestion);
         $arguments['date_from'] = isset($arguments['date_from']) && is_string($arguments['date_from']) ? $arguments['date_from'] : null;
         $arguments['date_to'] = isset($arguments['date_to']) && is_string($arguments['date_to']) ? $arguments['date_to'] : null;
         if (in_array($toolName, ['search_requirements', 'get_priority_requirements', 'aggregate_requirements', 'aggregate_requirement_dimensions'], true)) {
@@ -355,7 +427,8 @@ function ixtla_insights_apply_default_period(string $toolName, array $arguments,
         }
         $requestedRange = ixtla_insights_question_requested_date_range($question);
         if ($requestedRange !== null) {
-            $arguments = array_replace($arguments, $requestedRange);
+            $arguments['date_from'] = $requestedRange['date_from'];
+            $arguments['date_to'] = $requestedRange['date_to'];
             $arguments['period'] = 'all';
             return $arguments;
         }
@@ -502,9 +575,29 @@ function ixtla_insights_prepare_tool_arguments(
         if (($arguments['assignee_state'] ?? 'any') === 'any' && isset($previousFilters['assignee_state'])) {
             $arguments['assignee_state'] = $previousFilters['assignee_state'];
         }
+        if (!ixtla_insights_question_has_feedback_date_basis($normalizedQuestion)
+            && in_array((string) ($previousFilters['date_field'] ?? ''), ['created_at', 'updated_at'], true)) {
+            $arguments['date_field'] = $previousFilters['date_field'];
+        }
         if (!ixtla_insights_question_has_explicit_period($question)) {
             foreach (['period', 'date_from', 'date_to'] as $key) {
                 if (array_key_exists($key, $previousFilters)) $arguments[$key] = $previousFilters[$key];
+            }
+        }
+    }
+
+    if (in_array($toolName, ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'analyze_feedback_comments'], true)) {
+        if (ixtla_insights_question_requests_feedback_response_rate($question)) {
+            $arguments['date_field'] = 'created_at';
+            $arguments['status_ids'] = [];
+        } else {
+            $requestedFeedbackStatuses = ixtla_insights_question_requested_feedback_statuses($question);
+            if ($requestedFeedbackStatuses !== null) {
+                $arguments['status_ids'] = $requestedFeedbackStatuses;
+                if ($arguments['date_field'] === 'updated_at'
+                    && ($requestedFeedbackStatuses === [] || array_diff($requestedFeedbackStatuses, [2]) !== [])) {
+                    $arguments['date_field'] = 'created_at';
+                }
             }
         }
     }
@@ -542,6 +635,12 @@ function ixtla_insights_prepare_tool_arguments(
             && isset($previousFilters['assignee_state'])
             && $previousFilters['assignee_state'] !== 'any') {
             $arguments['assignee_state'] = $previousFilters['assignee_state'];
+        }
+
+        if (preg_match('/^(y|ahora|tambien|lo mismo)\b/', $normalizedQuestion) === 1
+            && !ixtla_insights_question_has_requirement_date_basis($normalizedQuestion)
+            && in_array((string) ($previousFilters['date_field'] ?? ''), ['created_at', 'closed_at'], true)) {
+            $arguments['date_field'] = $previousFilters['date_field'];
         }
 
         if (!ixtla_insights_question_has_explicit_period($question)) {
@@ -583,7 +682,23 @@ function ixtla_insights_prepare_tool_arguments(
         if ($toolName === 'aggregate_requirements') $arguments['sort'] = 'asc';
     }
 
-    $arguments = ixtla_insights_apply_default_period($toolName, $arguments, $question);
+    $arguments = ixtla_insights_apply_default_period($toolName, $arguments, $question, $previousFilters !== []);
+
+    // La base temporal debe corresponder al conjunto completo de estados
+    // solicitado. updated_at solo representa correctamente a Contestada;
+    // cualquier mezcla o estado distinto debe trabajar sobre la cohorte creada.
+    if (in_array($toolName, ['get_feedback_overview', 'aggregate_feedback', 'search_feedback', 'analyze_feedback_comments'], true)) {
+        if (ixtla_insights_question_requests_feedback_response_rate($question)) {
+            $arguments['date_field'] = 'created_at';
+            $arguments['status_ids'] = [];
+        } else {
+            $requestedFeedbackStatuses = ixtla_insights_question_requested_feedback_statuses($question);
+            if ($requestedFeedbackStatuses !== null
+                && ($requestedFeedbackStatuses === [] || array_diff($requestedFeedbackStatuses, [2]) !== [])) {
+                $arguments['date_field'] = 'created_at';
+            }
+        }
+    }
 
     // apply_default_period usa todo el historial para preguntas independientes;
     // en un seguimiento debe conservarse el periodo heredado.

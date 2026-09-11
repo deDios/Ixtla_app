@@ -19,13 +19,39 @@ function ixtla_insights_retro_rating_label(?int $rating): string
         ?? 'Sin calificacion';
 }
 
-/** @return array{where:list<string>,types:string,params:list<mixed>,scope:array} */
+function ixtla_insights_retro_date_field(mixed $value): string
+{
+    $field = strtolower(trim((string) $value));
+    if ($field === '') return 'created_at';
+    if (!in_array($field, ['created_at', 'updated_at'], true)) {
+        throw new InvalidArgumentException('El campo de fecha de retroalimentaciones no es valido.');
+    }
+    return $field;
+}
+
+function ixtla_insights_retro_date_basis(string $dateField): string
+{
+    return $dateField === 'updated_at'
+        ? 'Fecha de respuesta o ultima actualizacion de retroalimentaciones contestadas'
+        : 'Fecha de creacion de la retroalimentacion';
+}
+
+/** @return array{where:list<string>,types:string,params:list<mixed>,scope:array,date_field:string,date_column:string} */
 function ixtla_insights_retro_query(array $arguments, mysqli $connection): array
 {
     $scope = ixtla_insights_dataset_scope($connection);
     $where = $scope['where'];
     $types = $scope['types'];
     $params = $scope['params'];
+    $dateField = ixtla_insights_retro_date_field($arguments['date_field'] ?? 'created_at');
+    $dateColumn = $dateField === 'updated_at' ? 'rc.updated_at' : 'rc.created_at';
+    $requestedStatusIds = array_values(array_unique(array_map(
+        'intval',
+        is_array($arguments['status_ids'] ?? null) ? $arguments['status_ids'] : []
+    )));
+    if ($dateField === 'updated_at' && $requestedStatusIds !== [] && array_diff($requestedStatusIds, [2]) !== []) {
+        throw new InvalidArgumentException('La fecha de respuesta solo aplica a retroalimentaciones contestadas.');
+    }
 
     foreach ([['status_ids', 'rc.status'], ['rating_ids', 'rc.calificacion'], ['department_ids', 'r.departamento_id'], ['tramite_ids', 'r.tramite_id'], ['requirement_status_ids', 'r.estatus'], ['channel_ids', 'r.canal'], ['assignee_ids', 'r.asignado_a']] as [$key, $column]) {
         $values = array_values(array_unique(array_filter(array_map('intval', is_array($arguments[$key] ?? null) ? $arguments[$key] : []), static fn (int $value): bool => $value >= 0)));
@@ -38,22 +64,23 @@ function ixtla_insights_retro_query(array $arguments, mysqli $connection): array
     $assigneeState = (string) ($arguments['assignee_state'] ?? 'any');
     if ($assigneeState === 'assigned') $where[] = 'r.asignado_a IS NOT NULL';
     if ($assigneeState === 'unassigned') $where[] = 'r.asignado_a IS NULL';
+    if ($dateField === 'updated_at' && $requestedStatusIds === []) $where[] = 'rc.status = 2';
 
     $period = (string) ($arguments['period'] ?? 'all');
     match ($period) {
-        'this_week' => $where[] = 'rc.created_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)',
-        'last_7' => $where[] = 'rc.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)',
-        'last_30' => $where[] = 'rc.created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)',
-        'this_month' => $where[] = "rc.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+        'this_week' => $where[] = $dateColumn . ' >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)',
+        'last_7' => $where[] = $dateColumn . ' >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)',
+        'last_30' => $where[] = $dateColumn . ' >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)',
+        'this_month' => $where[] = $dateColumn . " >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
         'all' => null,
         default => throw new InvalidArgumentException('El periodo de retroalimentaciones no es valido.'),
     };
     $dateFrom = trim((string) ($arguments['date_from'] ?? ''));
     $dateTo = trim((string) ($arguments['date_to'] ?? ''));
-    if ($dateFrom !== '') { $where[] = 'rc.created_at >= ?'; $types .= 's'; $params[] = $dateFrom . ' 00:00:00'; }
-    if ($dateTo !== '') { $where[] = 'rc.created_at < DATE_ADD(?, INTERVAL 1 DAY)'; $types .= 's'; $params[] = $dateTo; }
+    if ($dateFrom !== '') { $where[] = $dateColumn . ' >= ?'; $types .= 's'; $params[] = $dateFrom . ' 00:00:00'; }
+    if ($dateTo !== '') { $where[] = $dateColumn . ' < DATE_ADD(?, INTERVAL 1 DAY)'; $types .= 's'; $params[] = $dateTo; }
 
-    return ['where' => $where, 'types' => $types, 'params' => $params, 'scope' => $scope];
+    return ['where' => $where, 'types' => $types, 'params' => $params, 'scope' => $scope, 'date_field' => $dateField, 'date_column' => $dateColumn];
 }
 
 function ixtla_insights_retro_overview(array $arguments): array
@@ -82,7 +109,7 @@ function ixtla_insights_retro_overview(array $arguments): array
         return [
             'scope' => (string) $query['scope']['label'],
             'period' => (string) ($arguments['period'] ?? 'all'),
-            'date_basis' => 'Fecha de creacion de la retroalimentacion',
+            'date_basis' => ixtla_insights_retro_date_basis($query['date_field']),
             'total' => $total,
             'unique_requirements' => (int) ($row['unique_requirements'] ?? 0),
             'status_counts' => [
@@ -91,15 +118,17 @@ function ixtla_insights_retro_overview(array $arguments): array
                 'answered' => $answered,
                 'disabled' => (int) ($row['disabled'] ?? 0),
             ],
-            'response_rate_percent' => $total > 0 ? round(($answered / $total) * 100, 2) : 0.0,
-            'eligible_response_rate_percent' => $eligible > 0 ? round(($answered / $eligible) * 100, 2) : 0.0,
+            'response_rate_percent' => $query['date_field'] === 'updated_at' ? null : ($total > 0 ? round(($answered / $total) * 100, 2) : 0.0),
+            'eligible_response_rate_percent' => $query['date_field'] === 'updated_at' ? null : ($eligible > 0 ? round(($answered / $eligible) * 100, 2) : 0.0),
             'eligible_invitations' => $eligible,
             'rated_responses' => $rated,
             'average_rating' => $row['average_rating'] === null ? null : (float) $row['average_rating'],
             'favorable_ratings' => (int) ($row['favorable'] ?? 0),
             'unfavorable_ratings' => (int) ($row['unfavorable'] ?? 0),
             'favorable_rating_percent' => $rated > 0 ? round(((int) ($row['favorable'] ?? 0) / $rated) * 100, 2) : 0.0,
-            'business_note' => 'La tasa general usa contestadas entre todas las retros filtradas. La tasa elegible usa contestadas entre No contestadas y Contestadas. Favorable agrupa Bueno y Excelente; desfavorable agrupa Malo y Regular.',
+            'business_note' => $query['date_field'] === 'updated_at'
+                ? 'El periodo selecciona respuestas recibidas usando la ultima actualizacion disponible de registros Contestados. Las tasas de respuesta no aplican a este conjunto porque no incluye la cohorte completa de invitaciones.'
+                : 'La tasa general usa contestadas entre todas las retros filtradas. La tasa elegible usa contestadas entre No contestadas y Contestadas. Favorable agrupa Bueno y Excelente; desfavorable agrupa Malo y Regular.',
         ];
     } finally {
         $connection->close();
@@ -124,6 +153,9 @@ function ixtla_insights_retro_aggregate(array $arguments): array
     $connection = ixtla_insights_dataset_connection();
     try {
         $query = ixtla_insights_retro_query($arguments, $connection);
+        if ($groupBy === 'date') {
+            $groups['date'] = ['expr' => 'DATE(' . $query['date_column'] . ')', 'label' => 'DATE(' . $query['date_column'] . ')'];
+        }
         $group = $groups[$groupBy];
         $sql = 'SELECT ' . $group['expr'] . ' group_id, ' . $group['label'] . ' group_label, COUNT(*) value '
             . 'FROM retro_ciudadana rc JOIN requerimiento r ON r.id = rc.requerimiento_id '
@@ -136,7 +168,7 @@ function ixtla_insights_retro_aggregate(array $arguments): array
         return [
             'scope' => (string) $query['scope']['label'],
             'group_by' => $groupBy,
-            'date_basis' => 'Fecha de creacion de la retroalimentacion',
+            'date_basis' => ixtla_insights_retro_date_basis($query['date_field']),
             'items' => array_map(static function (array $row) use ($groupBy): array {
                 $id = $row['group_id'] === null ? null : ($groupBy === 'date' ? (string) $row['group_id'] : (int) $row['group_id']);
                 $label = match ($groupBy) {
@@ -166,15 +198,15 @@ function ixtla_insights_retro_search(array $arguments): array
             'SELECT COUNT(*) FROM retro_ciudadana rc JOIN requerimiento r ON r.id = rc.requerimiento_id WHERE ' . implode(' AND ', $query['where']),
             $query['types'], $query['params']);
         $sql = 'SELECT rc.id, r.id requerimiento_id, r.folio, rc.status, rc.calificacion, r.estatus requirement_status, r.canal channel_id, '
-            . 'd.nombre department, t.nombre tramite, '
+            . 'rc.created_at, rc.updated_at, d.nombre department, t.nombre tramite, '
             . "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin responsable') assignee "
             . 'FROM retro_ciudadana rc JOIN requerimiento r ON r.id = rc.requerimiento_id '
             . 'JOIN departamento d ON d.id = r.departamento_id JOIN tramite t ON t.id = r.tramite_id LEFT JOIN empleado e ON e.id = r.asignado_a '
-            . 'WHERE ' . implode(' AND ', $query['where']) . ' ORDER BY rc.id DESC LIMIT ? OFFSET ?';
+            . 'WHERE ' . implode(' AND ', $query['where']) . ' ORDER BY ' . $query['date_column'] . ' DESC, rc.id DESC LIMIT ? OFFSET ?';
         $rows = ixtla_insights_dataset_rows($connection, $sql, $query['types'] . 'ii', [...$query['params'], $limit, $offset]);
         return [
             'scope' => (string) $query['scope']['label'],
-            'date_basis' => 'Fecha de creacion de la retroalimentacion',
+            'date_basis' => ixtla_insights_retro_date_basis($query['date_field']),
             'returned' => count($rows),
             'total_matching' => $total,
             'page' => $page,
@@ -191,6 +223,7 @@ function ixtla_insights_retro_search(array $arguments): array
                 'requirement_status' => ixtla_insights_domain_status_label((int) $row['requirement_status']),
                 'channel' => ixtla_insights_domain_channel_label((int) $row['channel_id']),
                 'assignee' => (string) $row['assignee'],
+                'selected_at' => (string) ($query['date_field'] === 'updated_at' ? $row['updated_at'] : $row['created_at']),
             ], $rows),
             'privacy' => 'La lista no incluye telefono, nombre ciudadano, enlace ni comentario libre.',
         ];
@@ -219,18 +252,18 @@ function ixtla_insights_retro_comment_sample(array $arguments): array
         );
         $rows = ixtla_insights_dataset_rows(
             $connection,
-            'SELECT rc.id, r.id requirement_id, r.folio, rc.calificacion, rc.comentario, rc.created_at, '
+            'SELECT rc.id, r.id requirement_id, r.folio, rc.calificacion, rc.comentario, rc.created_at, rc.updated_at, '
             . 'd.nombre department, t.nombre tramite '
             . 'FROM retro_ciudadana rc JOIN requerimiento r ON r.id = rc.requerimiento_id '
             . 'JOIN departamento d ON d.id = r.departamento_id JOIN tramite t ON t.id = r.tramite_id'
-            . $where . ' ORDER BY rc.created_at DESC, rc.id DESC LIMIT ?',
+            . $where . ' ORDER BY ' . $query['date_column'] . ' DESC, rc.id DESC LIMIT ?',
             $query['types'] . 'i',
             [...$query['params'], $limit]
         );
         return [
             'scope' => (string) $query['scope']['label'],
             'period' => (string) ($arguments['period'] ?? 'all'),
-            'date_basis' => 'Fecha de creacion de la retroalimentacion',
+            'date_basis' => ixtla_insights_retro_date_basis($query['date_field']),
             'total_comments_matching' => $total,
             'sample_size' => count($rows),
             'is_sample' => count($rows) < $total,
@@ -242,6 +275,7 @@ function ixtla_insights_retro_comment_sample(array $arguments): array
                 'rating_label' => ixtla_insights_retro_rating_label((int) $row['calificacion']),
                 'comment' => ixtla_insights_activity_safe_text((string) $row['comentario'], 1000),
                 'created_at' => (string) $row['created_at'],
+                'selected_at' => (string) ($query['date_field'] === 'updated_at' ? $row['updated_at'] : $row['created_at']),
                 'department' => (string) $row['department'],
                 'tramite' => (string) $row['tramite'],
             ], $rows),

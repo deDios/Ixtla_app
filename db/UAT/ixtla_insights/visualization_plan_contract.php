@@ -9,6 +9,7 @@ function ixtla_visual_plan_title(string $domain, string $chart, string $metric, 
         'total' => 'Requerimientos',
         'abiertos' => 'Requerimientos abiertos',
         'finalizados' => 'Requerimientos finalizados',
+        'cerrados' => 'Requerimientos cerrados',
         'pausados_cancelados' => 'Requerimientos pausados o cancelados',
         'pausados' => 'Requerimientos pausados',
         'cancelados' => 'Requerimientos cancelados',
@@ -53,16 +54,22 @@ function ixtla_visual_plan_normalize(array $plan): array
     $allowed = [
         'domain' => ['', 'requerimientos', 'retroalimentaciones'],
         'chart' => ['', 'bar', 'line', 'area', 'donut', 'table', 'matrix', 'kpi'],
-        'period' => ['', 'all', 'last_7', 'last_30', 'this_month'],
+        'period' => ['', 'all', 'this_week', 'last_7', 'last_30', 'this_month'],
+        'date_field' => ['', 'created_at', 'closed_at', 'updated_at'],
         'comparison' => ['', 'previous_period'],
         'date_grain' => ['', 'day', 'week', 'month'],
     ];
     foreach ($allowed as $key => $values) if (!in_array((string) ($plan[$key] ?? ''), $values, true)) $plan[$key] = '';
     $domain = (string) $plan['domain'];
+    $dateField = (string) ($plan['date_field'] ?? '');
+    $dateField = $domain === 'retroalimentaciones'
+        ? (in_array($dateField, ['created_at', 'updated_at'], true) ? $dateField : 'created_at')
+        : (in_array($dateField, ['created_at', 'closed_at'], true) ? $dateField : 'created_at');
     $metric = (string) ($plan['metric'] ?? '');
+    if ($domain === 'retroalimentaciones' && $metric === 'tasa_respuesta') $dateField = 'created_at';
     $dimension = (string) ($plan['dimension'] ?? '');
     $seriesDimension = (string) ($plan['series_dimension'] ?? '');
-    $requirementMetrics = ['total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados'];
+    $requirementMetrics = ['total', 'abiertos', 'finalizados', 'cerrados', 'pausados_cancelados', 'pausados', 'cancelados'];
     $feedbackMetrics = ['retro_total', 'tasa_respuesta', 'promedio_calificacion'];
     if ($domain === 'retroalimentaciones' && !in_array($metric, $feedbackMetrics, true)) $metric = 'retro_total';
     if ($domain === 'requerimientos' && !in_array($metric, $requirementMetrics, true)) $metric = 'total';
@@ -112,7 +119,7 @@ function ixtla_visual_plan_normalize(array $plan): array
     foreach (is_array($plan['alternatives'] ?? null) ? $plan['alternatives'] : [] as $alternative) {
         if (!is_array($alternative)) continue;
         $candidate = ixtla_visual_plan_normalize(array_merge($plan, $alternative, [
-            'alternatives' => [], 'metric' => $metric, 'period' => $plan['period'] ?? '',
+            'alternatives' => [], 'metric' => $metric, 'period' => $plan['period'] ?? '', 'date_field' => $dateField,
             'comparison' => $plan['comparison'] ?? '', 'filters' => $plan['filters'] ?? [],
         ]));
         if ($candidate['chart'] === '' || $candidate['domain'] === ''
@@ -128,7 +135,7 @@ function ixtla_visual_plan_normalize(array $plan): array
         'intent' => in_array((string) ($plan['intent'] ?? ''), ['create', 'edit', 'clarify', 'not_visualization'], true) ? $plan['intent'] : 'clarify',
         'domain' => $domain, 'chart' => $chart, 'metric' => $metric, 'dimension' => $dimension,
         'series_dimension' => $seriesDimension, 'date_grain' => $dateGrain, 'series_limit' => $seriesLimit,
-        'period' => (string) ($plan['period'] ?? ''), 'comparison' => (string) ($plan['comparison'] ?? ''), 'filters' => array_slice($filters, 0, 5),
+        'period' => (string) ($plan['period'] ?? ''), 'date_field' => $dateField, 'comparison' => (string) ($plan['comparison'] ?? ''), 'filters' => array_slice($filters, 0, 5),
         'limit' => min(50, max(1, (int) ($plan['limit'] ?? 10))),
         'title' => $domain === '' ? '' : ixtla_insights_truncate(ixtla_visual_plan_title($domain, $chart, $metric, $dimension, $seriesDimension), 100),
         'reason' => $domain === '' ? '' : ixtla_insights_truncate(ixtla_visual_plan_reason($chart, $dimension, $seriesDimension), 220),

@@ -38,6 +38,17 @@ $comentario   = isset($in['comentario']) ? $in['comentario'] : null;
 $calificacion = isset($in['calificacion']) ? (int)$in['calificacion'] : null;
 $link         = isset($in['link']) ? $in['link'] : null;
 
+if ($status !== null && !in_array($status, [0, 1, 2, 3], true)) {
+    http_response_code(400);
+    echo json_encode(["ok" => false, "error" => "status de retroalimentacion no valido"]);
+    exit;
+}
+if ($calificacion !== null && !in_array($calificacion, [1, 2, 3, 4], true)) {
+    http_response_code(400);
+    echo json_encode(["ok" => false, "error" => "calificacion debe estar entre 1 y 4"]);
+    exit;
+}
+
 $stmt = $con->prepare($sql);
 $stmt->bind_param("isisi", $status, $comentario, $calificacion, $link, $id);
 

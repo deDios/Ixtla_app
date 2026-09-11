@@ -135,11 +135,6 @@ const MEASUREMENT_CHOICES = [
     action: { type: "visualization_measurement", metric: "pausados_cancelados" },
   },
   {
-    label: "Tiempos de resolución",
-    description: "Indicador promedio en días de los requerimientos finalizados.",
-    action: { type: "visualization_kpi", metric: "tiempo_resolucion" },
-  },
-  {
     label: "Indicadores clave",
     description: "Agrega KPIs operativos al dashboard.",
     action: { type: "visualization_kpi_kit" },
@@ -154,11 +149,9 @@ const SEPARATION_CHOICES = [
 ];
 const KPI_CHOICES = [
   { label: "Total de requerimientos", description: "Todos los requerimientos del alcance autorizado.", action: { type: "visualization_kpi", metric: "total" } },
-  { label: "Requerimientos abiertos", description: "En solicitud, revisión, asignación, proceso o pausa.", action: { type: "visualization_kpi", metric: "abiertos" } },
+  { label: "Requerimientos abiertos", description: "En solicitud, revisión, asignación o proceso.", action: { type: "visualization_kpi", metric: "abiertos" } },
   { label: "Requerimientos finalizados", description: "Con estatus finalizado.", action: { type: "visualization_kpi", metric: "finalizados" } },
   { label: "Requerimientos pausados/cancelados", description: "Con estatus pausado o cancelado.", action: { type: "visualization_kpi", metric: "pausados_cancelados" } },
-  { label: "Promedio semanal", description: "Promedio de requerimientos creados por semana.", action: { type: "visualization_kpi", metric: "promedio_semanal" } },
-  { label: "Tiempo de resolución", description: "Promedio de días entre creación y cierre finalizado.", action: { type: "visualization_kpi", metric: "tiempo_resolucion" } },
 ];
 const DEPARTMENT_SCOPE_CHOICES = [
   {
@@ -173,12 +166,14 @@ const DEPARTMENT_SCOPE_CHOICES = [
   },
 ];
 const PERIOD_CHOICES = [
+  { label: "Esta semana", description: "Desde el lunes de la semana actual.", action: { type: "visualization_period", period: "this_week" } },
   { label: "Últimos 7 días", description: "Incluye hoy y los seis días anteriores.", action: { type: "visualization_period", period: "last_7" } },
   { label: "Últimos 30 días", description: "Incluye hoy y los 29 días anteriores.", action: { type: "visualization_period", period: "last_30" } },
   { label: "Este mes", description: "Desde el primer día del mes actual.", action: { type: "visualization_period", period: "this_month" } },
   { label: "Todo el historial", description: "No limita los requerimientos por fecha.", action: { type: "visualization_period", period: "all" } },
 ];
 const PERIOD_LABELS = {
+  this_week: "Esta semana",
   last_7: "Últimos 7 días",
   last_30: "Últimos 30 días",
   this_month: "Este mes",
@@ -200,7 +195,6 @@ const CHART_LABELS = {
   table: "Tabla",
   matrix: "Matriz",
   kpi: "Indicador",
-  funnel: "Embudo",
 };
 const METRIC_LABELS = {
   total: "Total",
@@ -210,8 +204,6 @@ const METRIC_LABELS = {
   pausados: "Pausados",
   cancelados: "Cancelados",
   cerrados: "Cerrados",
-  promedio_semanal: "Promedio semanal",
-  tiempo_resolucion: "Tiempo de resolución",
   retro_total: "Retroalimentaciones",
   tasa_respuesta: "Tasa de respuesta",
   promedio_calificacion: "Promedio de calificación",
@@ -341,7 +333,6 @@ function widgetTitle(chart, metric, dimension, domain = "requerimientos", series
     return `${subject} por ${group}`;
   }
   if (dimension === "fecha") return `Tendencia de ${subject.toLocaleLowerCase("es-MX")}${seriesDimension ? ` por ${seriesGroup}` : ""}`;
-  if (chart === "funnel") return "Embudo de requerimientos por estatus";
   return `${subject} por ${group}`;
 }
 
@@ -363,6 +354,10 @@ function normalizeVisualizationSpec(spec = {}) {
   const originalChart = clean(normalized.chart);
   const originalDimension = clean(normalized.dimension);
   normalized.domain = normalized.domain === "retroalimentaciones" ? "retroalimentaciones" : "requerimientos";
+  normalized.date_field = normalized.domain === "retroalimentaciones"
+    ? (["created_at", "updated_at"].includes(clean(normalized.date_field)) ? clean(normalized.date_field) : "created_at")
+    : (["created_at", "closed_at"].includes(clean(normalized.date_field)) ? clean(normalized.date_field) : "created_at");
+  if (normalized.domain === "retroalimentaciones" && normalized.metric === "tasa_respuesta") normalized.date_field = "created_at";
   normalized.dimension = clean(normalized.dimension) || (normalized.domain === "retroalimentaciones" ? "calificacion" : "tramite");
   normalized.chart = originalChart || (normalized.dimension === "fecha" ? "line" : "bar");
   normalized.series_dimension = clean(normalized.series_dimension);
@@ -872,14 +867,29 @@ export function mountIxtlaInsights(options = {}) {
     else if (domain === "requerimientos" || refersToPrevious) metric = "total";
 
     let period = "";
-    if (/\beste mes\b/.test(text)) period = "this_month";
+    if (/\besta semana\b/.test(text)) period = "this_week";
+    else if (/\beste mes\b/.test(text)) period = "this_month";
     else if (/\bultim[oa]s? 7 dias\b/.test(text)) period = "last_7";
     else if (/\bultim[oa]s? 30 dias\b/.test(text)) period = "last_30";
     else if (/\btodo el historial|historico|todos los datos\b/.test(text)) period = "all";
     if (!period && refersToPrevious) period = clean(lastResultQuery?.filters?.period);
+    let dateField = "";
+    if (domain === "retroalimentaciones") {
+      const asksCreationDate = /\b(fecha de creacion|cread[oa]s?|invitaciones?|generad[oa]s?)\b/.test(text);
+      const asksUnanswered = /\b(?:no|sin) (?:fueron? )?(?:contestad[oa]s?|respondid[oa]s?)\b/.test(text);
+      const asksAnswered = /\b(contestad[oa]s?|respondid[oa]s?|fecha de respuesta|respuestas recibidas)\b/.test(text);
+      const asksOtherFeedbackStatus = /\b(caducad[oa]s?|inhabilitad[oa]s?|pendientes?)\b/.test(text);
+      if (asksCreationDate || asksUnanswered || (asksAnswered && asksOtherFeedbackStatus)) dateField = "created_at";
+      else if (asksAnswered) dateField = "updated_at";
+    } else if (/\b(fecha de cierre|fecha de finalizacion|por fecha de cierre|por fecha de finalizacion|tiempo de cierre|tiempo de resolucion)\b/.test(text)) {
+      dateField = "closed_at";
+    } else if (/\b(fecha de creacion|cread[oa]s?|registrad[oa]s?|ingresad[oa]s?)\b/.test(text)) {
+      dateField = "created_at";
+    }
+    if (!dateField && refersToPrevious) dateField = clean(lastVisualizationSpec?.date_field || lastResultQuery?.filters?.date_field);
     const comparison = /\b(periodo anterior|contra (?:el )?periodo anterior)\b/.test(text) ? "previous_period" : "";
 
-    return { text, refersToPrevious, domain, chart, dimension, seriesDimension, metric, period, comparison };
+    return { text, refersToPrevious, domain, chart, dimension, seriesDimension, metric, period, dateField, comparison };
   }
 
   function isDirectVisualizationRequest(question, proposal = {}) {
@@ -919,6 +929,7 @@ export function mountIxtlaInsights(options = {}) {
       chart,
       filters: Array.isArray(previousSpec?.filters) ? previousSpec.filters.map((filter) => ({ ...filter })) : (hasUsefulContext && Array.isArray(lastResultQuery?.filters?.filters) ? lastResultQuery.filters.filters : []),
       period: parsed.period || clean(previousSpec?.period) || (direct ? "all" : ""),
+      date_field: parsed.dateField || clean(previousSpec?.date_field),
       comparison: parsed.comparison || clean(previousSpec?.comparison),
     });
     if (pendingVisualization.comparison === "previous_period" && pendingVisualization.period === "all") pendingVisualization.period = "";
@@ -951,7 +962,8 @@ export function mountIxtlaInsights(options = {}) {
       else return false;
       return true;
     }
-    const period = /\beste mes\b/.test(text) ? "this_month"
+    const period = /\besta semana\b/.test(text) ? "this_week"
+      : /\beste mes\b/.test(text) ? "this_month"
       : /\bultim[oa]s? 7 dias\b/.test(text) ? "last_7"
         : /\bultim[oa]s? 30 dias\b/.test(text) ? "last_30"
           : /\btodo el historial|historico|todos los datos\b/.test(text) ? "all" : "";
@@ -997,7 +1009,7 @@ export function mountIxtlaInsights(options = {}) {
       plan.needs_clarification = false;
       if (plan.intent === "clarify") plan.intent = "create";
     }
-    const hasExplicitRequirementMetric = /\b(abiertos?|activos?|pendientes?|finalizados?|cerrados?|pausados?|cancelados?|tiempo de resolucion|promedio semanal)\b/.test(normalizedQuestion);
+    const hasExplicitRequirementMetric = /\b(abiertos?|activos?|pendientes?|finalizados?|cerrados?|pausados?|cancelados?)\b/.test(normalizedQuestion);
     const canUseDefaultTotal = inferredDomain === "requerimientos" && clean(plan.chart) && clean(plan.dimension) && !hasExplicitRequirementMetric;
     if ((inferredDomain && !clean(plan.metric)) || canUseDefaultTotal) {
       plan.metric = inferredDomain === "retroalimentaciones" ? "retro_total" : "total";
@@ -1030,6 +1042,7 @@ export function mountIxtlaInsights(options = {}) {
       date_grain: clean(plan.date_grain),
       series_limit: Math.min(7, Math.max(1, Number(plan.series_limit) || 5)),
       period: clean(plan.period) || (direct ? "all" : ""),
+      date_field: clean(plan.date_field),
       comparison: clean(plan.comparison),
       filters: Array.isArray(plan.filters) ? plan.filters.map((filter) => ({ ...filter })) : [],
       limit: Math.min(50, Math.max(1, Number(plan.limit) || 10)),
@@ -1086,7 +1099,7 @@ export function mountIxtlaInsights(options = {}) {
   }
 
   function recommendedChart(request = pendingVisualization) {
-    if (request?.chart === "kpi" || ["promedio_semanal", "tiempo_resolucion"].includes(request?.metric)) return "kpi";
+    if (request?.chart === "kpi") return "kpi";
     if (request?.dimension === "fecha" || request?.goal === "request_trend") return "line";
     if (["departamento", "tramite"].includes(request?.dimension)) return "bar";
     return "bar";
@@ -1112,9 +1125,7 @@ export function mountIxtlaInsights(options = {}) {
       ? ["fecha"]
       : chart === "matrix"
         ? ["estatus", "tramite", "departamento"]
-      : chart === "funnel"
-        ? ["estatus"]
-        : ["estatus", "tramite", "departamento", "fecha"];
+      : ["estatus", "tramite", "departamento", "fecha"];
     const prefix = CHART_LABELS[chart] || "Gráfica";
     return dimensions
       .filter((dimension) => catalogValues("dimensions", Object.keys(DIMENSION_LABELS)).includes(dimension))
@@ -1160,6 +1171,7 @@ export function mountIxtlaInsights(options = {}) {
       date_grain: clean(widget?.date_grain),
       series_limit: Math.min(7, Math.max(1, Number(widget?.series_limit) || 5)),
       period,
+      date_field: clean(widget?.date_field),
       scope,
       filters: Array.isArray(widget?.filters)
         ? widget.filters.filter((filter) => ["departamento", "tramite", "estatus"].includes(clean(filter?.field)) && clean(filter?.value)).slice(0, 3)
@@ -1188,7 +1200,7 @@ export function mountIxtlaInsights(options = {}) {
     if (spec.domain === "retroalimentaciones") {
       const common = {
         status_ids: idsFor("estado_retro"), rating_ids: idsFor("calificacion"), department_ids: departmentIds, tramite_ids: tramiteIds, requirement_status_ids: requirementStatusIds,
-        channel_ids: [], assignee_ids: [], assignee_state: "any", period, date_from: dateFrom, date_to: dateTo,
+        channel_ids: [], assignee_ids: [], assignee_state: "any", period, date_field: spec.date_field === "updated_at" ? "updated_at" : "created_at", date_from: dateFrom, date_to: dateTo,
       };
       if (spec.chart === "kpi" || ["tasa_respuesta", "promedio_calificacion"].includes(spec.metric)) {
         return { tool: "get_feedback_overview", arguments: common };
@@ -1202,10 +1214,10 @@ export function mountIxtlaInsights(options = {}) {
     const requirementCommon = {
       period, department_id: 0, department_ids: departmentIds, department_names: departmentNames, assignee_id: 0, assignee_ids: [],
       tramite_ids: tramiteIds, status_ids: requirementStatusIds.length ? requirementStatusIds : metricStatusIds, channel_ids: [], assignee_state: "any",
-      date_field: "created_at", date_from: dateFrom, date_to: dateTo,
+      date_field: spec.date_field === "closed_at" ? "closed_at" : "created_at", date_from: dateFrom, date_to: dateTo,
     };
     if (spec.chart === "kpi" && !filters.length && !metricStatusIds.length) {
-      return { tool: "get_requirements_overview", arguments: { refresh: false, period, date_field: "created_at", date_from: dateFrom, date_to: dateTo } };
+      return { tool: "get_requirements_overview", arguments: { refresh: false, period, date_field: requirementCommon.date_field, date_from: dateFrom, date_to: dateTo } };
     }
     if (spec.series_dimension && ["line", "area", "matrix"].includes(spec.chart)) {
       return {
@@ -1298,7 +1310,11 @@ export function mountIxtlaInsights(options = {}) {
     const end = new Date();
     end.setHours(12, 0, 0, 0);
     let start = new Date(end);
-    if (period === "last_7") {
+    if (period === "this_week") {
+      const weekday = (end.getDay() + 6) % 7;
+      end.setDate(end.getDate() - weekday - 1);
+      start = new Date(end); start.setDate(start.getDate() - 6);
+    } else if (period === "last_7") {
       end.setDate(end.getDate() - 7);
       start = new Date(end); start.setDate(start.getDate() - 6);
     } else if (period === "last_30") {
@@ -1675,7 +1691,6 @@ export function mountIxtlaInsights(options = {}) {
     }
     if (!requiresDimension(request.chart)) request.dimension = "estatus";
     if ((request.chart === "line" || request.chart === "area") && !request.dimension) request.dimension = "fecha";
-    if (request.chart === "funnel") request.dimension = "estatus";
     if (requiresDimension(request.chart) && !request.dimension) {
       addMessage("¿Cómo deseas agrupar los requerimientos?");
       renderWorkflowQuestions(dimensionChoices(request.chart));
@@ -1704,6 +1719,7 @@ export function mountIxtlaInsights(options = {}) {
       series_limit: Math.min(7, Math.max(1, Number(request.series_limit) || 5)),
       filters: Array.isArray(request.filters) ? request.filters : [],
       period: PERIOD_LABELS[request.period] ? request.period : "all",
+      date_field: clean(request.date_field),
       comparison: request.comparison === "previous_period" ? "previous_period" : "",
       sort: dimension === "fecha" ? "chronological" : "desc",
       limit: request.chart === "kpi" ? 1 : Math.min(50, Math.max(1, Number(request.limit) || 10)),
@@ -1942,6 +1958,7 @@ export function mountIxtlaInsights(options = {}) {
       dimension: "estatus",
       filters,
       period: PERIOD_LABELS[period] ? period : "all",
+      date_field: "created_at",
       sort: "desc",
       limit: 1,
       domain: "requerimientos",
@@ -1955,6 +1972,7 @@ export function mountIxtlaInsights(options = {}) {
       dimension: "estatus",
       filters,
       period: spec.period,
+      date_field: spec.date_field,
       title: spec.title,
       reviewSpec: spec,
     };
@@ -2030,12 +2048,6 @@ export function mountIxtlaInsights(options = {}) {
     pendingVisualization.question = `Crear una visualización de ${METRIC_LABELS[metric].toLocaleLowerCase("es-MX")}`;
     queueDraftPersist();
     addMessage(`Medición: ${METRIC_LABELS[metric]}`, "user");
-    if (["promedio_semanal", "tiempo_resolucion"].includes(metric)) {
-      pendingVisualization.chart = "kpi";
-      pendingVisualization.dimension = "fecha";
-      finalizeVisualization();
-      return;
-    }
     addMessage("¿Cómo deseas separar la información?");
     renderWorkflowQuestions(separationChoices(metric));
   }

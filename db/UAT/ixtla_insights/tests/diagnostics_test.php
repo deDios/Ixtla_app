@@ -47,7 +47,7 @@ expect_diagnostic($usageSummary === ['provider_requests' => 2, 'input_tokens' =>
 
 $domainProfile = ixtla_insights_domain_profile();
 expect_diagnostic(($domainProfile['domain'] ?? null) === 'requerimientos_y_retroalimentaciones', 'El perfil UAT debe describir requerimientos y retroalimentaciones.');
-expect_diagnostic((int) ($domainProfile['version'] ?? 0) >= 3, 'El perfil de dominio debe estar versionado e incluir los conceptos de negocio vigentes.');
+expect_diagnostic((int) ($domainProfile['version'] ?? 0) >= 20, 'El perfil de dominio debe identificar el contrato temporal vigente.');
 $domainPrompt = ixtla_insights_domain_developer_prompt();
 expect_diagnostic(str_contains($domainPrompt, 'Un requerimiento es un caso individual'), 'El prompt debe explicar qué es un requerimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'No confundas los conceptos'), 'El prompt debe distinguir requerimiento, trámite, proceso, tarea y comentario.');
@@ -55,7 +55,7 @@ expect_diagnostic(str_contains($domainPrompt, 'canal 1 significa Portal ciudadan
 expect_diagnostic(str_contains($domainPrompt, 'departamento de Presidencia revisa si el requerimiento es viable'), 'El prompt debe explicar la etapa de Revisión.');
 expect_diagnostic(str_contains($domainPrompt, 'todas esas tareas están en estatus Hecho'), 'El prompt debe explicar la condición para finalizar un requerimiento.');
 expect_diagnostic(str_contains($domainPrompt, 'realizar cálculos derivados'), 'El asistente debe calcular indicadores derivados desde resultados autorizados.');
-expect_diagnostic(str_contains($domainPrompt, 'no afirmes que fecha y estatus están separados'), 'El asistente debe cruzar fecha y estatus en una misma consulta.');
+expect_diagnostic(str_contains($domainPrompt, 'una fecha de cierre por sí sola no define el estado'), 'El asistente debe cruzar fecha y estatus en una misma consulta.');
 expect_diagnostic(str_contains($domainPrompt, 'get_requirement_comments'), 'El perfil debe orientar consultas de actividad bajo demanda.');
 expect_diagnostic(str_contains($domainPrompt, 'alcance autorizado se resuelve en el servidor'), 'El perfil debe preservar el límite de autorización del servidor.');
 expect_diagnostic(str_contains($domainPrompt, 'cero coincidencias significa que no se encontraron registros'), 'El perfil debe distinguir una consulta vacia de una capacidad faltante.');
@@ -68,10 +68,15 @@ expect_diagnostic(ixtla_insights_domain_status_label(6) === 'Finalizado', 'El pe
 expect_diagnostic(ixtla_insights_domain_channel_label(1) === 'Portal ciudadano', 'El perfil debe traducir el canal ciudadano.');
 expect_diagnostic(ixtla_insights_domain_channel_label(2) === 'Portal de empleados', 'El perfil debe traducir el canal capturado por empleados.');
 expect_diagnostic(ixtla_insights_domain_status_ids('active') === [0, 1, 2, 3], 'El perfil debe definir los estados activos.');
+expect_diagnostic(ixtla_insights_domain_status_ids('paused') === [4], 'El perfil debe separar los requerimientos pausados.');
+expect_diagnostic(ixtla_insights_domain_status_ids('cancelled') === [5], 'El perfil debe separar los requerimientos cancelados.');
+expect_diagnostic(ixtla_insights_domain_status_ids('finalized') === [6], 'El perfil debe separar los requerimientos finalizados.');
+expect_diagnostic(ixtla_insights_snapshot_date_basis('created_at') === 'Fecha de creacion del requerimiento', 'El snapshot debe describir la base temporal de creacion.');
+expect_diagnostic(ixtla_insights_snapshot_date_basis('closed_at') === 'Fecha de cierre valida de requerimientos en estatus Finalizado', 'El snapshot debe describir la base temporal de cierre.');
 expect_diagnostic(str_contains($domainPrompt, 'Solo Contestada significa que existe una respuesta ciudadana'), 'El perfil debe distinguir los estados de retroalimentacion.');
 expect_diagnostic(str_contains($domainPrompt, '1 Malo, 2 Regular, 3 Bueno y 4 Excelente'), 'El perfil debe definir la escala de retroalimentacion.');
-expect_diagnostic(str_contains($domainPrompt, 'created_at es la fecha de creacion de la retroalimentacion'), 'El perfil debe permitir periodos por fecha de creacion de la retro.');
-expect_diagnostic(str_contains($domainPrompt, 'updated_at no es una fecha confiable de respuesta'), 'El perfil no debe presentar actualizaciones como fechas de respuesta.');
+expect_diagnostic(str_contains($domainPrompt, 'created_at es la fecha de creacion del registro de retroalimentacion'), 'El perfil debe permitir periodos por fecha de creacion de la retro.');
+expect_diagnostic(str_contains($domainPrompt, 'puede usarse como aproximacion disponible de la fecha de respuesta'), 'El perfil debe explicar el límite de updated_at como aproximación de respuesta.');
 $feedbackTools = array_column(ixtla_insights_tool_definitions(), 'name');
 expect_diagnostic(in_array('get_feedback_overview', $feedbackTools, true), 'Debe existir el resumen de retroalimentaciones.');
 expect_diagnostic(in_array('aggregate_feedback', $feedbackTools, true), 'Debe existir la agregacion de retroalimentaciones.');
@@ -85,7 +90,15 @@ expect_diagnostic(ixtla_insights_retro_rating_label(4) === 'Excelente', 'El modu
 expect_diagnostic(ixtla_insights_question_intent('Cuantas retroalimentaciones estan contestadas?') === 'dataset', 'Las preguntas de retroalimentacion deben consultar datos.');
 expect_diagnostic(ixtla_insights_question_requested_period('Cuantas retros tenemos este mes?') === 'this_month', 'Las retros deben reconocer el periodo del mes actual.');
 expect_diagnostic(ixtla_insights_dataset_active_status_condition() === 'r.estatus IN (0, 1, 2, 3)', 'Los datasets deben construir el filtro activo desde el perfil.');
+expect_diagnostic(ixtla_insights_dataset_period('this_week') === 'this_week', 'El periodo legacy debe conservar la semana en curso.');
+$thisWeekWhere = [];
+ixtla_insights_dataset_period_clause('this_week', $thisWeekWhere);
+expect_diagnostic(count($thisWeekWhere) === 1 && str_contains($thisWeekWhere[0], 'WEEKDAY'), 'El helper SQL base debe aplicar la semana en curso.');
+$previousWeekWhere = [];
+ixtla_insights_dataset_previous_period_clause('this_week', 'r.created_at', $previousWeekWhere);
+expect_diagnostic(count($previousWeekWhere) === 1 && str_contains($previousWeekWhere[0], 'INTERVAL 7 DAY'), 'La comparación debe definir la semana calendario anterior.');
 expect_diagnostic(ixtla_insights_dataset_risk_period('last_30') === 'last_30', 'Los paquetes compuestos deben admitir periodos comparables.');
+expect_diagnostic(ixtla_insights_dataset_risk_period('this_week') === 'this_week', 'Los paquetes compuestos deben admitir la semana en curso.');
 try {
     ixtla_insights_dataset_risk_period('all');
     expect_diagnostic(false, 'Los paquetes compuestos no deben aceptar historial ilimitado.');
@@ -269,6 +282,7 @@ expect_diagnostic(is_string($toolContract) && !str_contains(mb_strtolower($toolC
 expect_diagnostic(is_string($toolContract) && !str_contains(mb_strtolower($toolContract), 'deadline'), 'El contrato publico de herramientas no debe exponer fecha_limite ni filtros de vencimiento.');
 expect_diagnostic(is_string($toolContract) && str_contains($toolContract, 'no devuelve filas, folios ni fechas individuales'), 'La herramienta de agregacion debe declarar que no entrega detalles individuales.');
 expect_diagnostic(is_string($toolContract) && str_contains($toolContract, 'fecha de cierre solo aparece si el estatus actual es Finalizado'), 'Las herramientas deben documentar la regla publica de fecha de cierre.');
+expect_diagnostic(is_string($toolContract) && str_contains($toolContract, 'devuelve date_basis'), 'El contrato debe explicar la base temporal del resumen y agregado.');
 
 $contextWithoutDuplicateSummary = ixtla_insights_conversation_context_text([
     'summary' => 'Ultima pregunta y respuesta duplicadas',
@@ -444,8 +458,12 @@ foreach ($temporalCases as $temporalQuestion => $expectedRange) {
     );
 }
 expect_diagnostic(
-    (ixtla_insights_question_requested_date_range('finalizados el mes anterior', $temporalReference)['date_field'] ?? null) === 'closed_at',
-    'Un periodo de finalizados debe aplicarse sobre la fecha de cierre.'
+    (ixtla_insights_question_requested_date_range('finalizados el mes anterior', $temporalReference)['date_field'] ?? null) === 'created_at',
+    'Un periodo general de finalizados debe aplicarse sobre la fecha de creacion.'
+);
+expect_diagnostic(
+    (ixtla_insights_question_requested_date_range('finalizados por fecha de cierre el mes anterior', $temporalReference)['date_field'] ?? null) === 'closed_at',
+    'La fecha de cierre debe usarse cuando el usuario la pide explicitamente.'
 );
 expect_diagnostic(
     (ixtla_insights_question_requested_date_range('creados el mes anterior que siguen finalizados', $temporalReference)['date_field'] ?? null) === 'created_at',
@@ -504,7 +522,84 @@ expect_diagnostic(($nextPageArguments['department_names'] ?? []) === ['Ecologia'
 $julyRange = ixtla_insights_question_requested_date_range('¿Qué porcentaje de los creados en julio de 2026 está finalizado?');
 expect_diagnostic($julyRange === ['date_field' => 'created_at', 'date_from' => '2026-07-01', 'date_to' => '2026-07-31'], 'Un mes explícito debe convertirse en un rango completo sobre fecha de creación.');
 $closedJulyRange = ixtla_insights_question_requested_date_range('¿Cuántos fueron cerrados durante julio de 2026?');
-expect_diagnostic(($closedJulyRange['date_field'] ?? null) === 'closed_at', 'Las preguntas de cierres deben filtrar por fecha de cierre.');
+expect_diagnostic(($closedJulyRange['date_field'] ?? null) === 'created_at', 'Los finalizados de un periodo deben usar fecha de creación por defecto.');
+$closedByCloseDateRange = ixtla_insights_question_requested_date_range('¿Cuántos fueron cerrados por fecha de cierre durante julio de 2026?');
+expect_diagnostic(($closedByCloseDateRange['date_field'] ?? null) === 'closed_at', 'La fecha de cierre debe requerir una solicitud explícita.');
+expect_diagnostic(ixtla_insights_question_intent('Cuantos cerrados este mes?') === 'dataset', 'Una consulta breve de cerrados debe activar herramientas de datos.');
+$generalClosedArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    ['period' => 'this_month', 'status_ids' => [], 'date_field' => 'closed_at'],
+    'Cuantos requerimientos cerrados este mes?',
+    []
+);
+expect_diagnostic(($generalClosedArguments['date_field'] ?? null) === 'created_at', 'El servidor debe imponer creación para cerrados por periodo sin petición explícita de cierre.');
+expect_diagnostic(($generalClosedArguments['status_ids'] ?? []) === [6], 'Los cerrados por periodo deben limitarse al estatus Finalizado.');
+$explicitCloseArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    ['period' => 'this_month', 'status_ids' => [], 'date_field' => 'created_at'],
+    'Cuantos requerimientos cerrados por fecha de cierre este mes?',
+    []
+);
+expect_diagnostic(($explicitCloseArguments['date_field'] ?? null) === 'closed_at', 'El servidor debe imponer cierre cuando se pide esa fecha explícitamente.');
+$closeDateFollowUpArguments = ixtla_insights_prepare_tool_arguments(
+    'search_requirements',
+    ['period' => 'all', 'status_ids' => [], 'date_field' => 'created_at'],
+    'Y del mes anterior?',
+    ['last_filters' => ['period' => 'this_month', 'status_ids' => [6], 'date_field' => 'closed_at']]
+);
+expect_diagnostic(($closeDateFollowUpArguments['date_field'] ?? null) === 'closed_at', 'Un seguimiento temporal debe conservar una base explícita de fecha de cierre.');
+
+expect_diagnostic(ixtla_insights_feedback_temporal_date_field(ixtla_insights_normalize_match_text('retros no contestadas esta semana')) === 'created_at', 'Una negación de respuesta no debe elegir updated_at.');
+expect_diagnostic(ixtla_insights_feedback_temporal_date_field(ixtla_insights_normalize_match_text('retros creadas este mes que ya están contestadas')) === 'created_at', 'La creación explícita debe tener precedencia sobre el estado Contestada.');
+expect_diagnostic(ixtla_insights_feedback_temporal_date_field(ixtla_insights_normalize_match_text('retros contestadas esta semana')) === 'updated_at', 'Las respuestas recibidas deben usar updated_at.');
+$answeredFeedbackArguments = ixtla_insights_prepare_tool_arguments(
+    'search_feedback',
+    ['status_ids' => [], 'period' => 'all', 'date_field' => 'created_at', 'page' => 1],
+    'Que retros fueron contestadas esta semana?',
+    []
+);
+expect_diagnostic(($answeredFeedbackArguments['date_field'] ?? null) === 'updated_at', 'Las retros contestadas deben usar la fecha de respuesta disponible.');
+expect_diagnostic(($answeredFeedbackArguments['status_ids'] ?? []) === [2], 'Las retros contestadas deben forzar estado Contestada.');
+$pendingFeedbackArguments = ixtla_insights_prepare_tool_arguments(
+    'search_feedback',
+    ['status_ids' => [], 'period' => 'all', 'date_field' => 'updated_at', 'page' => 1],
+    'Que retros no fueron contestadas esta semana?',
+    []
+);
+expect_diagnostic(($pendingFeedbackArguments['date_field'] ?? null) === 'created_at', 'Las retros no contestadas deben usar fecha de creación.');
+expect_diagnostic(($pendingFeedbackArguments['status_ids'] ?? []) === [1], 'Las retros no contestadas deben forzar estado No contestada.');
+$continuedFeedbackArguments = ixtla_insights_prepare_tool_arguments(
+    'search_feedback',
+    ['status_ids' => [], 'period' => 'all', 'date_field' => 'created_at', 'page' => 1],
+    'Muestrame los siguientes',
+    ['last_filters' => ['status_ids' => [2], 'period' => 'this_month', 'date_field' => 'updated_at', 'page' => 1]]
+);
+expect_diagnostic(($continuedFeedbackArguments['date_field'] ?? null) === 'updated_at', 'La paginación de respuestas debe conservar la base temporal.');
+expect_diagnostic(($continuedFeedbackArguments['page'] ?? null) === 2, 'La paginación de retros debe avanzar una página.');
+$previousMonthFeedbackArguments = ixtla_insights_prepare_tool_arguments(
+    'search_feedback',
+    ['status_ids' => [], 'period' => 'all', 'date_field' => 'created_at', 'page' => 1],
+    'Y del mes anterior?',
+    ['last_filters' => ['status_ids' => [2], 'period' => 'this_month', 'date_field' => 'updated_at', 'page' => 1]]
+);
+expect_diagnostic(($previousMonthFeedbackArguments['date_field'] ?? null) === 'updated_at', 'Un cambio de periodo debe conservar la base temporal de respuestas.');
+expect_diagnostic(($previousMonthFeedbackArguments['status_ids'] ?? []) === [2], 'Un cambio de periodo debe conservar el estado Contestada.');
+$responseRateArguments = ixtla_insights_prepare_tool_arguments(
+    'get_feedback_overview',
+    ['status_ids' => [2], 'period' => 'all', 'date_field' => 'updated_at'],
+    'Y cual es la tasa de respuesta?',
+    ['last_filters' => ['status_ids' => [2], 'period' => 'this_month', 'date_field' => 'updated_at']]
+);
+expect_diagnostic(($responseRateArguments['date_field'] ?? null) === 'created_at', 'La tasa de respuesta debe usar la cohorte por fecha de creación.');
+expect_diagnostic(($responseRateArguments['status_ids'] ?? null) === [], 'La tasa de respuesta no debe heredar un filtro exclusivo de Contestadas.');
+$mixedFeedbackArguments = ixtla_insights_prepare_tool_arguments(
+    'search_feedback',
+    ['status_ids' => [], 'period' => 'all', 'date_field' => 'updated_at'],
+    'Muestrame contestadas e inhabilitadas este mes',
+    []
+);
+expect_diagnostic(($mixedFeedbackArguments['date_field'] ?? null) === 'created_at', 'Un filtro mixto de estados no debe usar la fecha exclusiva de respuestas.');
+expect_diagnostic(($mixedFeedbackArguments['status_ids'] ?? []) === [2, 3], 'Un filtro mixto debe conservar todos los estados de retro solicitados.');
 expect_diagnostic(ixtla_insights_question_requires_finalized_status('Dame los requerimientos cerrados en julio'), 'Una consulta de cerrados debe exigir el estatus Finalizado.');
 expect_diagnostic(ixtla_insights_question_requires_finalized_status('Cuantos requerimientos estan finalizados?'), 'Una consulta de finalizados debe exigir el estatus Finalizado.');
 expect_diagnostic(!ixtla_insights_question_requires_finalized_status('Dame los requerimientos no finalizados'), 'Una consulta negativa no debe convertirse en una busqueda de finalizados.');

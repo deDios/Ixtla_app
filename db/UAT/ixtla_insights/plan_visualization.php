@@ -27,17 +27,18 @@ if ($apiKey === '' || $providerUrl === '' || $model === '') {
 $schema = [
     'type' => 'object',
     'additionalProperties' => false,
-    'required' => ['intent', 'domain', 'chart', 'metric', 'dimension', 'series_dimension', 'date_grain', 'series_limit', 'period', 'comparison', 'filters', 'limit', 'title', 'reason', 'alternatives', 'needs_clarification', 'clarification_question'],
+    'required' => ['intent', 'domain', 'chart', 'metric', 'dimension', 'series_dimension', 'date_grain', 'series_limit', 'period', 'date_field', 'comparison', 'filters', 'limit', 'title', 'reason', 'alternatives', 'needs_clarification', 'clarification_question'],
     'properties' => [
         'intent' => ['type' => 'string', 'enum' => ['create', 'edit', 'clarify', 'not_visualization']],
         'domain' => ['type' => 'string', 'enum' => ['', 'requerimientos', 'retroalimentaciones']],
         'chart' => ['type' => 'string', 'enum' => ['', 'bar', 'line', 'area', 'donut', 'table', 'matrix', 'kpi']],
-        'metric' => ['type' => 'string', 'enum' => ['', 'total', 'abiertos', 'finalizados', 'pausados_cancelados', 'pausados', 'cancelados', 'retro_total', 'tasa_respuesta', 'promedio_calificacion']],
+        'metric' => ['type' => 'string', 'enum' => ['', 'total', 'abiertos', 'finalizados', 'cerrados', 'pausados_cancelados', 'pausados', 'cancelados', 'retro_total', 'tasa_respuesta', 'promedio_calificacion']],
         'dimension' => ['type' => 'string', 'enum' => ['', 'estatus', 'tramite', 'departamento', 'fecha', 'calificacion', 'estado_retro']],
         'series_dimension' => ['type' => 'string', 'enum' => ['', 'estatus', 'tramite', 'departamento']],
         'date_grain' => ['type' => 'string', 'enum' => ['', 'day', 'week', 'month']],
         'series_limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 7],
-        'period' => ['type' => 'string', 'enum' => ['', 'all', 'last_7', 'last_30', 'this_month']],
+        'period' => ['type' => 'string', 'enum' => ['', 'all', 'this_week', 'last_7', 'last_30', 'this_month']],
+        'date_field' => ['type' => 'string', 'enum' => ['', 'created_at', 'closed_at', 'updated_at']],
         'comparison' => ['type' => 'string', 'enum' => ['', 'previous_period']],
         'filters' => [
             'type' => 'array', 'maxItems' => 5,
@@ -88,6 +89,7 @@ $developerPrompt = 'Eres el planificador de visualizaciones de Ixtla Insights. C
     . 'Usa como maximo 5 series normalmente y 7 solo para los siete estatus. Usa month para historiales largos, week para varios meses y day para periodos cortos. '
     . 'Explica reason con lenguaje sencillo: que podra entender el usuario gracias a ese formato, sin tecnicismos. '
     . 'Retroalimentaciones usa retro_total con calificacion o estado_retro; tasa_respuesta y promedio_calificacion son KPI. '
+    . 'Usa date_field created_at para invitaciones o retros creadas y updated_at para respuestas o retros contestadas. La tasa de respuesta siempre usa created_at porque necesita la cohorte completa de invitaciones. En requerimientos usa created_at por defecto y closed_at solo cuando se pida expresamente fecha de cierre, fecha de finalizacion o tiempo de resolucion. '
     . 'Si el usuario pide comparar contra el periodo anterior usa comparison previous_period. '
     . 'Solo si falta el tema o dominio y no existe plan anterior, marca needs_clarification y formula una sola pregunta breve. '
     . 'Cuando la solicitud tenga un tema claro, devuelve 2 o 3 alternatives distintas pero compatibles (por ejemplo barras, linea multiserie, tabla o matriz) y explica en reason cuando conviene cada una. No repitas el plan principal ni inventes dimensiones. '

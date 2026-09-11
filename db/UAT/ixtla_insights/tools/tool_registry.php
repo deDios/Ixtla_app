@@ -38,20 +38,21 @@ function ixtla_insights_tool_definitions(): array
         'assignee_ids' => ['type' => 'array', 'maxItems' => 50, 'items' => ['type' => 'integer', 'minimum' => 1]],
         'assignee_state' => ['type' => 'string', 'enum' => ['any', 'assigned', 'unassigned']],
         'period' => ['type' => 'string', 'enum' => ['all', 'this_week', 'last_7', 'last_30', 'this_month']],
+        'date_field' => ['type' => 'string', 'enum' => ['created_at', 'updated_at']],
         'date_from' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
         'date_to' => ['type' => ['string', 'null'], 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
     ];
-    $retroRequired = ['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids', 'assignee_state', 'period', 'date_from', 'date_to'];
+    $retroRequired = ['status_ids', 'rating_ids', 'department_ids', 'tramite_ids', 'requirement_status_ids', 'channel_ids', 'assignee_ids', 'assignee_state', 'period', 'date_field', 'date_from', 'date_to'];
 
     return [
         [
             'type' => 'function', 'name' => 'get_feedback_overview', 'strict' => true,
-            'description' => 'Obtiene total de registros, requerimientos unicos, conteos por estado, tasas de respuesta general y elegible, promedio, respuestas favorables y desfavorables. period y rangos se aplican a la fecha de creacion de la retroalimentacion.',
+            'description' => 'Obtiene total de registros, requerimientos unicos, conteos por estado, tasas de respuesta general y elegible, promedio, respuestas favorables y desfavorables. Usa date_field created_at para retros creadas o invitaciones y updated_at para respuestas recibidas; updated_at solo admite estado Contestada y las tasas dejan de ser comparables con la cohorte completa de invitaciones.',
             'parameters' => ['type' => 'object', 'additionalProperties' => false, 'required' => $retroRequired, 'properties' => $retroFilters],
         ],
         [
             'type' => 'function', 'name' => 'aggregate_feedback', 'strict' => true,
-            'description' => 'Agrupa retroalimentaciones por estado, calificacion, departamento o tramite. Usala para conteos, comparaciones, distribuciones y rankings; nunca infieras satisfaccion a partir del estatus Finalizado del requerimiento.',
+            'description' => 'Agrupa retroalimentaciones por estado, calificacion, departamento, tramite, responsable, canal, estado del requerimiento o fecha. Usa date_field created_at para invitaciones y updated_at para respuestas recibidas; si agrupas por fecha se usa la misma base temporal seleccionada.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false, 'required' => [...$retroRequired, 'group_by', 'limit'],
                 'properties' => array_merge($retroFilters, [
@@ -62,7 +63,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'search_feedback', 'strict' => true,
-            'description' => 'Lista retroalimentaciones autorizadas con paginacion, total de coincidencias, folio, estado, calificacion, departamento, tramite, responsable, canal y estado del requerimiento. No devuelve telefono, ciudadano, enlace ni comentario libre.',
+            'description' => 'Lista retroalimentaciones autorizadas con paginacion, total de coincidencias, folio, estado, calificacion, departamento, tramite, responsable, canal y estado del requerimiento. Usa date_field created_at para invitaciones y updated_at para respuestas recibidas; updated_at solo admite Contestadas. No devuelve telefono, ciudadano, enlace ni comentario libre.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false, 'required' => [...$retroRequired, 'limit', 'page'],
                 'properties' => array_merge($retroFilters, [
@@ -85,7 +86,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'analyze_feedback_comments', 'strict' => true,
-            'description' => 'Obtiene una muestra reciente y sanitizada de comentarios de retroalimentaciones autorizadas para responder que dicen los ciudadanos, resumir motivos, detectar temas recurrentes y mostrar ejemplos. Permite filtrar por calificacion, periodo, departamento, tramite, estatus del requerimiento, canal y responsable. No devuelve datos personales; para el contacto de un folio concreto usa get_feedback_detail.',
+            'description' => 'Obtiene una muestra reciente y sanitizada de comentarios de retroalimentaciones autorizadas para responder que dicen los ciudadanos, resumir motivos, detectar temas recurrentes y mostrar ejemplos. Usa date_field created_at para invitaciones y updated_at para respuestas recibidas; el orden reciente sigue la misma base temporal. No devuelve datos personales; para el contacto de un folio concreto usa get_feedback_detail.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false, 'required' => [...$retroRequired, 'limit'],
                 'properties' => array_merge($retroFilters, [
@@ -95,7 +96,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'get_requirements_overview', 'strict' => true,
-            'description' => 'Obtiene KPIs y distribuciones del alcance autorizado. Incluye comparación de 30 días, distribución diaria, días pico y trámites principales. Admite date_field, date_from y date_to para un mes o rango personalizado. Si no hay rango ni periodo explícito, usa all; no la uses para localizar un folio.',
+            'description' => 'Obtiene KPIs y distribuciones del alcance autorizado. Incluye comparación de 30 días, distribución diaria, días pico y trámites principales. Admite date_field, date_from y date_to para un mes o rango personalizado y devuelve date_basis para explicar si el resultado usa creación o cierre. Si no hay rango ni periodo explícito, usa all; no la uses para localizar un folio.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false, 'required' => ['refresh', 'period', 'date_field', 'date_from', 'date_to'],
                 'properties' => [
@@ -134,7 +135,7 @@ function ixtla_insights_tool_definitions(): array
         ],
         [
             'type' => 'function', 'name' => 'aggregate_requirements', 'strict' => true,
-            'description' => 'Devuelve conteos agrupados por estatus, departamento, tramite, empleado asignado, canal de origen o fecha; no devuelve filas, folios ni fechas individuales. Usa group_by channel para comparar Portal ciudadano contra Portal de empleados. channel_ids [1] filtra Portal ciudadano y [2] Portal de empleados. Usala para conteos, rankings y tendencias. Admite rangos personalizados mediante date_field, date_from y date_to.',
+            'description' => 'Devuelve conteos agrupados por estatus, departamento, tramite, empleado asignado, canal de origen o fecha; no devuelve filas, folios ni fechas individuales. Usa group_by channel para comparar Portal ciudadano contra Portal de empleados. channel_ids [1] filtra Portal ciudadano y [2] Portal de empleados. Usala para conteos, rankings y tendencias. Admite rangos personalizados mediante date_field, date_from y date_to y devuelve date_basis para identificar la fecha analitica seleccionada.',
             'parameters' => [
                 'type' => 'object', 'additionalProperties' => false,
                 'required' => [...$filterRequired, 'group_by', 'sort', 'limit'],

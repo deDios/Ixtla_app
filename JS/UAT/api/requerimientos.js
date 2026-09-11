@@ -123,8 +123,18 @@ export const ESTATUS = {
   5: { key: "cancelado", label: "Cancelado", badge: "badge--error" },
   6: { key: "finalizado", label: "Finalizado", badge: "badge--success" },
 };
+export function isFinalizado(r) {
+  return Number(r?.estatus) === 6;
+}
+export function isCancelado(r) {
+  return Number(r?.estatus) === 5;
+}
+export function hasFechaCierre(r) {
+  return Boolean(String(r?.cerrado_en ?? "").trim());
+}
+/** Compatibilidad: en métricas, cerrado significa exclusivamente Finalizado. */
 export function isCerrado(r) {
-  return r?.estatus === 6 || r?.estatus === 5 || !!r?.cerrado_en;
+  return isFinalizado(r);
 }
 
 /* ============================== Empleados API ============================ */
@@ -574,7 +584,7 @@ export async function cancelarReq(id, { updated_by = null } = {}) {
   const opts = {
     updated_by,
     autoFechas: false, // no auto fechas para cancelado
-    clear_cerrado: false, // si quieres que cancelado NO borre cerrado_en, se queda así
+    clear_cerrado: true,
   };
   return setEstatusReq(id, 5, opts);
 }

@@ -235,7 +235,7 @@ function ixtla_insights_snapshot_assemble(string $scopeKey, array $scope, array 
 function ixtla_insights_snapshot_semantics(): array
 {
     return [
-        'record_inclusion' => 'Solo registros operativos activos en el sistema.',
+        'record_inclusion' => 'Registros operativos del alcance autorizado; las metricas de abiertos limitan el universo a Solicitud, Revision, Asignacion y En proceso.',
         'created_at' => 'Fecha de registro del requerimiento; se usa para carga y entradas.',
         'started_at' => 'Fecha de inicio de atencion cuando existe; no representa vencimiento ni SLA.',
         'closed_at' => 'Fecha de cierre valida unicamente para requerimientos en estatus Finalizado.',
@@ -522,6 +522,13 @@ function ixtla_insights_snapshot_result_summary(array $records): array
     return ['unassigned' => $unassigned, ...$dimensions];
 }
 
+function ixtla_insights_snapshot_date_basis(string $dateField): string
+{
+    return $dateField === 'closed_at'
+        ? 'Fecha de cierre valida de requerimientos en estatus Finalizado'
+        : 'Fecha de creacion del requerimiento';
+}
+
 /** Resumen calculado desde el snapshot, sin consultar la fuente operacional. */
 function ixtla_insights_snapshot_overview(array $arguments = []): array
 {
@@ -532,9 +539,10 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
     }
     // Aplica el mismo periodo que las listas y agregados, para que un KPI de
     // carga y los folios que la sustentan pertenezcan al mismo universo.
+    $dateField = (string) ($arguments['date_field'] ?? 'created_at');
     $records = ixtla_insights_snapshot_filter($snapshot, [
         'period' => $period,
-        'date_field' => $arguments['date_field'] ?? 'created_at',
+        'date_field' => $dateField,
         'date_from' => $arguments['date_from'] ?? null,
         'date_to' => $arguments['date_to'] ?? null,
     ]);
@@ -561,12 +569,16 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
         $byTramite[$tramiteKey]['value']++;
     }
     foreach ($allRecords as $record) {
-        $createdAtUnix = (int) ($record['created_at_unix'] ?? 0);
-        if ($createdAtUnix >= $currentCutoff) {
+        $recordDateUnix = $dateField === 'closed_at'
+            ? (int) ($record['closed_at_unix'] ?? 0)
+            : (int) ($record['created_at_unix'] ?? 0);
+        if ($recordDateUnix >= $currentCutoff) {
             $currentThirtyDays++;
-            $createdDate = (string) ($record['created_date'] ?? '');
-            if ($createdDate !== '') $dailyCurrentThirtyDays[$createdDate] = ($dailyCurrentThirtyDays[$createdDate] ?? 0) + 1;
-        } elseif ($createdAtUnix >= $previousCutoff && $createdAtUnix < $currentCutoff) {
+            $recordDate = $dateField === 'closed_at'
+                ? (string) ($record['closed_date'] ?? '')
+                : (string) ($record['created_date'] ?? '');
+            if ($recordDate !== '') $dailyCurrentThirtyDays[$recordDate] = ($dailyCurrentThirtyDays[$recordDate] ?? 0) + 1;
+        } elseif ($recordDateUnix >= $previousCutoff && $recordDateUnix < $currentCutoff) {
             $previousThirtyDays++;
         }
     }
@@ -583,6 +595,8 @@ function ixtla_insights_snapshot_overview(array $arguments = []): array
         'expires_at_unix' => $snapshot['expires_at_unix'],
         'scope' => $snapshot['scope'],
         'period' => $period,
+        'date_field' => $dateField,
+        'date_basis' => ixtla_insights_snapshot_date_basis($dateField),
         'total_records' => count($records),
         'semantics' => $snapshot['semantics'] ?? [],
         'data_quality' => $snapshot['data_quality'] ?? [],
@@ -723,6 +737,7 @@ function ixtla_insights_snapshot_aggregate(array $arguments): array
     $filterArguments = $arguments;
     unset($filterArguments['limit'], $filterArguments['group_by'], $filterArguments['sort']);
     $records = ixtla_insights_snapshot_filter($snapshot, $filterArguments);
+    $dateField = (string) ($filterArguments['date_field'] ?? 'created_at');
     if ($groupBy === 'date' && (string) ($filterArguments['date_field'] ?? 'created_at') === 'closed_at') {
         $fieldMap['date'] = ['id' => 'closed_date', 'label' => 'closed_date'];
     }
@@ -741,6 +756,8 @@ function ixtla_insights_snapshot_aggregate(array $arguments): array
         'schema_version' => $snapshot['schema_version'],
         'generated_at' => $snapshot['generated_at'],
         'scope' => $snapshot['scope'],
+        'date_field' => $dateField,
+        'date_basis' => ixtla_insights_snapshot_date_basis($dateField),
         'semantics' => $snapshot['semantics'] ?? [],
         'data_quality' => $snapshot['data_quality'] ?? [],
         'group_by' => $groupBy,
@@ -926,6 +943,8 @@ function ixtla_insights_snapshot_aggregate_dimensions(array $arguments): array
         'schema_version' => $snapshot['schema_version'],
         'generated_at' => $snapshot['generated_at'],
         'scope' => $snapshot['scope'],
+        'date_field' => $dateField,
+        'date_basis' => ixtla_insights_snapshot_date_basis($dateField),
         'semantics' => $snapshot['semantics'] ?? [],
         'data_quality' => $snapshot['data_quality'] ?? [],
         'group_by' => $groupBy,

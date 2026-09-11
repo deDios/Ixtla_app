@@ -29,6 +29,10 @@ expect_endpoint_contract(is_string($bootstrapSource) && str_contains($bootstrapS
 $previewSource = file_get_contents(dirname(__DIR__) . '/dataset_preview.php');
 expect_endpoint_contract(is_string($previewSource) && !str_contains($previewSource, "array_column(ixtla_insights_tool_definitions()"), 'La preview no debe exponer todas las herramientas del chat.');
 expect_endpoint_contract(!str_contains((string) $previewSource, "'get_requirement_contact'"), 'La preview no debe permitir herramientas de contacto o detalle.');
+$requirementUpdateSource = file_get_contents(dirname(__DIR__, 3) . '/WEB/ixtla01_upd_requerimiento.php');
+expect_endpoint_contract(is_string($requirementUpdateSource) && str_contains($requirementUpdateSource, 'cerrado_en solo aplica al estatus Finalizado'), 'El endpoint operativo debe impedir fechas de cierre en estados no finalizados.');
+$retroUpdateSource = file_get_contents(dirname(__DIR__, 3) . '/WEB/ixtla01_u_retro.php');
+expect_endpoint_contract(is_string($retroUpdateSource) && str_contains($retroUpdateSource, 'status de retroalimentacion no valido'), 'El endpoint de retro debe validar su catalogo de estados.');
 
 $aggregateArguments = [
     'period' => 'all', 'department_id' => 0, 'department_ids' => [], 'department_names' => [],
@@ -58,15 +62,23 @@ try {
 $feedbackArguments = [
     'status_ids' => [], 'rating_ids' => [], 'department_ids' => [], 'tramite_ids' => [],
     'requirement_status_ids' => [], 'channel_ids' => [], 'assignee_ids' => [], 'assignee_state' => 'any',
-    'period' => 'last_30', 'date_from' => null, 'date_to' => null, 'group_by' => 'rating', 'limit' => 10,
+    'period' => 'last_30', 'date_field' => 'created_at', 'date_from' => null, 'date_to' => null, 'group_by' => 'rating', 'limit' => 10,
 ];
+ixtla_insights_validate_tool_arguments('aggregate_feedback', $feedbackArguments);
+$feedbackArguments['date_field'] = 'updated_at';
+$feedbackArguments['status_ids'] = [2];
 ixtla_insights_validate_tool_arguments('aggregate_feedback', $feedbackArguments);
 
 $catalog = ixtla_insights_catalog();
-expect_endpoint_contract(($catalog['version'] ?? 0) >= 5, 'El catalogo debe reflejar el contrato multidimensional actual.');
+expect_endpoint_contract(($catalog['version'] ?? 0) >= 7, 'El catalogo debe reflejar el contrato temporal y visual actual.');
+expect_endpoint_contract(in_array('this_week', $catalog['periods'] ?? [], true), 'El catalogo debe publicar la semana en curso.');
 expect_endpoint_contract(in_array('retroalimentaciones', $catalog['domains'] ?? [], true), 'El catalogo debe declarar retroalimentaciones.');
 expect_endpoint_contract(in_array('promedio_calificacion', $catalog['metrics'] ?? [], true), 'El catalogo debe declarar las metricas de retroalimentacion.');
 expect_endpoint_contract(in_array('matrix', $catalog['widget_kinds'] ?? [], true), 'El catalogo debe declarar matrices.');
 expect_endpoint_contract(in_array('estatus', $catalog['series_dimensions'] ?? [], true), 'El catalogo debe declarar dimensiones de serie.');
+expect_endpoint_contract(in_array('cerrados', $catalog['metrics'] ?? [], true), 'El catalogo debe conservar cerrados como alias de Finalizado.');
+expect_endpoint_contract(!in_array('funnel', $catalog['widget_kinds'] ?? [], true), 'El catalogo no debe anunciar un formato que el planificador no ejecuta.');
+expect_endpoint_contract(!in_array('promedio_semanal', $catalog['metrics'] ?? [], true) && !in_array('tiempo_resolucion', $catalog['metrics'] ?? [], true), 'El catalogo no debe anunciar metricas sin calculo en el snapshot vigente.');
+expect_endpoint_contract(ixtla_insights_is_fixed_status_metric('cerrados'), 'Cerrados debe usar el estado Finalizado fijo.');
 
 echo "OK endpoint contracts\n";

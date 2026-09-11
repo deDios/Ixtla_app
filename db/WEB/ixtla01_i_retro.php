@@ -27,6 +27,16 @@ if (!$requerimiento_id) {
     echo json_encode(["ok" => false, "error" => "requerimiento_id es requerido"]);
     exit;
 }
+if (!in_array($status, [0, 1, 2, 3], true)) {
+    http_response_code(400);
+    echo json_encode(["ok" => false, "error" => "status de retroalimentacion no valido"]);
+    exit;
+}
+if ($calificacion !== null && !in_array($calificacion, [1, 2, 3, 4], true)) {
+    http_response_code(400);
+    echo json_encode(["ok" => false, "error" => "calificacion debe estar entre 1 y 4"]);
+    exit;
+}
 
 $con = conectar();
 $sql = "INSERT INTO retro_ciudadana (requerimiento_id, status, comentario, calificacion, link) VALUES (?, ?, ?, ?, ?)";
