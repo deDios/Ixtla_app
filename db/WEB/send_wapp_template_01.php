@@ -11,8 +11,19 @@ header("Access-Control-Max-Age: 86400");
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
 
 
-const WHATSAPP_TOKEN = 'EAAJkMnC6uM0BPt4PJyZBBLzp47PMRhRlKa6zvbvIH5fIPWLwfGysAeTbR0XVqN2SPP2ImmerKXE3kvQos9IJZA4IM8oyENM1MgB0iIbTHZAB1UFeGJs6K35EmFZA4zHHUt788Q2zntuFC84PeyzTgeMO0tVbSpQCBHeizsueV4eXDtZBzUtkMDxZBiWLMUvAZDZD';
-const WHATSAPP_PHONE_NUMBER_ID = '782524058283433'; 
+$token = trim((string) getenv('WHATSAPP_ACCESS_TOKEN'));
+$phoneNumberId = trim((string) getenv('WHATSAPP_PHONE_NUMBER_ID'));
+
+if ($token === '' || $phoneNumberId === '') {
+  http_response_code(500);
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode([
+    'ok' => false,
+    'success' => false,
+    'error' => 'Faltan las variables de entorno WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID.',
+  ], JSON_UNESCAPED_UNICODE);
+  exit;
+}
 
 header("Content-Type: application/json; charset=utf-8");
 
@@ -27,13 +38,6 @@ $params   = $input["params"] ?? [];
 
 
 $errors = [];
-
-if (!WHATSAPP_TOKEN) {
-  $errors[] = "Falta WHATSAPP_TOKEN (define la constante en el archivo).";
-}
-if (!WHATSAPP_PHONE_NUMBER_ID) {
-  $errors[] = "Falta WHATSAPP_PHONE_NUMBER_ID (define la constante en el archivo).";
-}
 
 // Validaciones de entrada
 if (!$to)       $errors[] = "El campo 'to' es obligatorio (formato E.164, solo dígitos).";
@@ -81,11 +85,11 @@ if (!empty($bodyParams)) {
 }
 
 // Llamada a la API de WhatsApp
-$url = "https://graph.facebook.com/v20.0/" . WHATSAPP_PHONE_NUMBER_ID . "/messages";
+$url = "https://graph.facebook.com/v20.0/" . $phoneNumberId . "/messages";
 $ch = curl_init($url);
 curl_setopt_array($ch, [
   CURLOPT_HTTPHEADER => [
-    "Authorization: Bearer " . WHATSAPP_TOKEN,
+    "Authorization: Bearer " . $token,
     "Content-Type: application/json",
     "Accept: application/json"
   ],

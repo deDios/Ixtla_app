@@ -38,8 +38,19 @@ if (($_SERVER["REQUEST_METHOD"] ?? "") === "OPTIONS") {
 /* =========================
  * Config 
  * ========================= */
-const WA_ACCESS_TOKEN = 'EAAJkMnC6uM0BPt4PJyZBBLzp47PMRhRlKa6zvbvIH5fIPWLwfGysAeTbR0XVqN2SPP2ImmerKXE3kvQos9IJZA4IM8oyENM1MgB0iIbTHZAB1UFeGJs6K35EmFZA4zHHUt788Q2zntuFC84PeyzTgeMO0tVbSpQCBHeizsueV4eXDtZBzUtkMDxZBiWLMUvAZDZD';
-const WA_PHONE_NUMBER_ID = '782524058283433'; 
+$token = trim((string) getenv('WHATSAPP_ACCESS_TOKEN'));
+$phoneNumberId = trim((string) getenv('WHATSAPP_PHONE_NUMBER_ID'));
+
+if ($token === '' || $phoneNumberId === '') {
+  http_response_code(500);
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode([
+    'ok' => false,
+    'success' => false,
+    'error' => 'Faltan las variables de entorno WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID.',
+  ], JSON_UNESCAPED_UNICODE);
+  exit;
+}
 const WA_TEMPLATE_NAME    = "event_08";
 
 /* =========================
@@ -64,8 +75,8 @@ function sendJSON(int $status, array $payload): void {
   exit;
 }
 
-function waEndpoint(): string {
-  return "https://graph.facebook.com/v20.0/" . WA_PHONE_NUMBER_ID . "/messages";
+function waEndpoint(string $phoneNumberId): string {
+  return "https://graph.facebook.com/v20.0/" . $phoneNumberId . "/messages";
 }
 
 /* =========================
@@ -84,14 +95,6 @@ if (is_string($params)) {
 }
 
 $errors = [];
-
-// Validar config
-if (WA_PHONE_NUMBER_ID === "REEMPLAZA_PHONE_NUMBER_ID" || trim(WA_PHONE_NUMBER_ID) === "") {
-  $errors[] = "Config: WA_PHONE_NUMBER_ID no configurado.";
-}
-if (WA_ACCESS_TOKEN === "REEMPLAZA_ACCESS_TOKEN" || trim(WA_ACCESS_TOKEN) === "") {
-  $errors[] = "Config: WA_ACCESS_TOKEN no configurado.";
-}
 
 // Sanitizar teléfono
 $to = onlyDigits($toRaw);
@@ -152,12 +155,12 @@ $payload = [
 ];
 
 // cURL
-$ch = curl_init(waEndpoint());
+$ch = curl_init(waEndpoint($phoneNumberId));
 curl_setopt_array($ch, [
   CURLOPT_RETURNTRANSFER => true,
   CURLOPT_POST => true,
   CURLOPT_HTTPHEADER => [
-    "Authorization: Bearer " . trim(WA_ACCESS_TOKEN),
+    "Authorization: Bearer " . $token,
     "Content-Type: application/json",
     "Accept: application/json",
   ],

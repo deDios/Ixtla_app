@@ -5,9 +5,20 @@
 //  A) {"to":"52XXXXXXXXXX","text":"Hola!"}
 //  B) {"to":"52XXXXXXXXXX","type":"text","text":{"body":"Hola!","preview_url":false}, "reply_to":"wamid...."}
 
-// === Configuración (reemplaza por la tuya) ===
-const WHATSAPP_TOKEN = 'EAAJkMnC6uM0BPt4PJyZBBLzp47PMRhRlKa6zvbvIH5fIPWLwfGysAeTbR0XVqN2SPP2ImmerKXE3kvQos9IJZA4IM8oyENM1MgB0iIbTHZAB1UFeGJs6K35EmFZA4zHHUt788Q2zntuFC84PeyzTgeMO0tVbSpQCBHeizsueV4eXDtZBzUtkMDxZBiWLMUvAZDZD';
-const WHATSAPP_PHONE_NUMBER_ID = '782524058283433'; 
+// === Configuración del entorno (UAT / producción) ===
+$token = trim((string) getenv('WHATSAPP_ACCESS_TOKEN'));
+$phoneNumberId = trim((string) getenv('WHATSAPP_PHONE_NUMBER_ID'));
+
+if ($token === '' || $phoneNumberId === '') {
+  http_response_code(500);
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode([
+    'ok' => false,
+    'success' => false,
+    'error' => 'Faltan las variables de entorno WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID.',
+  ], JSON_UNESCAPED_UNICODE);
+  exit;
+}
 
 // ----------------- utilidades -----------------
 function json_out($code, $arr) {
@@ -48,9 +59,6 @@ if (is_string($text)) {
 $reply_to = $in['reply_to'] ?? null;
 
 // Validaciones mínimas
-if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
-  json_out(500, ["success"=>false,"error"=>"Faltan credenciales del WhatsApp API"]);
-}
 
 $to_e164 = to_e164($to);
 if (!$to_e164) {
@@ -81,12 +89,12 @@ if (!empty($reply_to)) {
 }
 
 // ----------------- llamada a Graph -----------------
-$url = "https://graph.facebook.com/v20.0/".WHATSAPP_PHONE_NUMBER_ID."/messages";
+$url = "https://graph.facebook.com/v20.0/".$phoneNumberId."/messages";
 
 $ch = curl_init($url);
 curl_setopt_array($ch, [
   CURLOPT_HTTPHEADER => [
-    "Authorization: Bearer ".WHATSAPP_TOKEN,
+    "Authorization: Bearer ".$token,
     "Content-Type: application/json",
     "Accept: application/json",
   ],

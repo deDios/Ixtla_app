@@ -10,22 +10,33 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 header("Access-Control-Max-Age: 86400");
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
 
-// Pega tus credenciales reales:
-const TOKEN = 'EAAJkMnC6uM0BPt4PJyZBBLzp47PMRhRlKa6zvbvIH5fIPWLwfGysAeTbR0XVqN2SPP2ImmerKXE3kvQos9IJZA4IM8oyENM1MgB0iIbTHZAB1UFeGJs6K35EmFZA4zHHUt788Q2zntuFC84PeyzTgeMO0tVbSpQCBHeizsueV4eXDtZBzUtkMDxZBiWLMUvAZDZD';
-const PHONE_NUMBER_ID = '782524058283433';
+// variables de ent.
+$token = trim((string) getenv('WHATSAPP_ACCESS_TOKEN'));
+$phoneNumberId = trim((string) getenv('WHATSAPP_PHONE_NUMBER_ID'));
+
+if ($token === '' || $phoneNumberId === '') {
+  http_response_code(500);
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode([
+    'ok' => false,
+    'success' => false,
+    'error' => 'Faltan las variables de entorno WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID.',
+  ], JSON_UNESCAPED_UNICODE);
+  exit;
+}
 
 
 $in=json_decode(file_get_contents('php://input'),true)?:[];
 $wamid=$in['wa_message_id']??null;
 if(!$wamid){ http_response_code(400); die(json_encode(["ok"=>false,"error"=>"Falta wa_message_id"])); }
 
-$url="https://graph.facebook.com/v20.0/".PHONE_NUMBER_ID."/messages";
+$url="https://graph.facebook.com/v20.0/".$phoneNumberId."/messages";
 $payload=["messaging_product"=>"whatsapp","status"=>"read","message_id"=>$wamid];
 
 $ch=curl_init($url);
 curl_setopt_array($ch,[
   CURLOPT_HTTPHEADER=>[
-    "Authorization: Bearer ".TOKEN,
+    "Authorization: Bearer ".$token,
     "Content-Type: application/json"
   ],
   CURLOPT_POST=>true,
