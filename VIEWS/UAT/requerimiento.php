@@ -13,7 +13,7 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/UAT/home.css">
     <link rel="stylesheet" href="/CSS/UAT/stepper.css">
     <link rel="stylesheet" href="/CSS/UAT/requerimiento copy.css?v=geo-status-rule-1">
-    <link rel="stylesheet" href="/CSS/UAT/components.css">
+    <link rel="stylesheet" href="/CSS/UAT/components.css?v=geo-pin-anchor-1">
     <link rel="stylesheet" href="/CSS/UAT/requerimientoCoemntariosSection copy.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="icon" href="/favicon.ico">

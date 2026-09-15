@@ -1743,7 +1743,7 @@
   position: relative;
   width: 34px !important;
   height: 46px !important;
-  margin: 0 !important;
+  /* Leaflet calcula los márgenes a partir de iconAnchor; no sobrescribirlos. */
   background: transparent;
   border: 0;
   filter: drop-shadow(0 3px 3px rgba(15, 23, 42, .28));
@@ -1754,19 +1754,22 @@
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: 28px;
-  height: 28px;
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
   border: 3px solid #fff;
   border-radius: 50% 50% 50% 0;
   background: #82978a;
-  transform: translateX(-50%) rotate(-45deg);
+  /* La punta coincide con iconAnchor: centro inferior del icono (17, 46). */
+  transform-origin: 0 100%;
+  transform: rotate(-45deg);
 }
 
 .ix-geo-map-marker span {
   position: absolute;
   z-index: 1;
   left: 50%;
-  bottom: 15px;
+  bottom: 19.5px;
   width: 9px;
   height: 9px;
   border-radius: 50%;

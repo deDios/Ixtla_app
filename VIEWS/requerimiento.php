@@ -13,7 +13,7 @@ ix_require_session();
     <link rel="stylesheet" href="/CSS/home.css">
     <link rel="stylesheet" href="/CSS/stepper.css">
     <link rel="stylesheet" href="/CSS/requerimiento copy.css">
-    <link rel="stylesheet" href="/CSS/components.css">
+    <link rel="stylesheet" href="/CSS/components.css?v=geo-pin-anchor-1">
     <link rel="stylesheet" href="/CSS/requerimientoCoemntariosSection copy.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="icon" href="/favicon.ico">
