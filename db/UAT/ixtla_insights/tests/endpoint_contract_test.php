@@ -28,6 +28,9 @@ $bootstrapSource = file_get_contents(dirname(__DIR__) . '/bootstrap.php');
 expect_endpoint_contract(is_string($bootstrapSource) && str_contains($bootstrapSource, "'response_mode' => 'json'"), 'Los endpoints deben responder 401 JSON en lugar de redirigir al login.');
 $healthSource = file_get_contents(dirname(__DIR__) . '/health.php');
 expect_endpoint_contract(is_string($healthSource) && str_contains($healthSource, "'contract_version'"), 'El health UAT debe publicar la version del contrato para diagnosticar despliegues.');
+$probeSource = file_get_contents(dirname(__DIR__) . '/gpt_probe.php');
+expect_endpoint_contract(is_string($probeSource) && str_contains($probeSource, "'grounding' =>") && str_contains($probeSource, "'evidence' =>"), 'El endpoint del agente debe devolver validacion y procedencia estructuradas.');
+expect_endpoint_contract(str_contains((string) $probeSource, 'ixtla_insights_probe_result_context'), 'El endpoint debe producir contexto reutilizable para cualquier resultado analitico.');
 $previewSource = file_get_contents(dirname(__DIR__) . '/dataset_preview.php');
 expect_endpoint_contract(is_string($previewSource) && !str_contains($previewSource, "array_column(ixtla_insights_tool_definitions()"), 'La preview no debe exponer todas las herramientas del chat.');
 expect_endpoint_contract(!str_contains((string) $previewSource, "'get_requirement_contact'"), 'La preview no debe permitir herramientas de contacto o detalle.');
@@ -104,6 +107,10 @@ expect_endpoint_contract(str_contains((string) $welcomeSource, "'trend_period_la
 $chatSource = file_get_contents(dirname(__DIR__, 4) . '/JS/UAT/insights/chat.js');
 expect_endpoint_contract(is_string($chatSource) && str_contains($chatSource, 'trend_period_label'), 'La vista UAT debe mostrar el periodo entregado por el welcome report.');
 expect_endpoint_contract(str_contains((string) $chatSource, 'EXPECTED_CONTRACT_VERSION = 8'), 'La vista UAT debe rechazar endpoints de una version incompatible.');
+expect_endpoint_contract(str_contains((string) $chatSource, 'source_context') && str_contains((string) $chatSource, 'payload?.evidence'), 'El chat debe conservar procedencia al convertir una respuesta en visualizacion.');
+$dashboardSource = file_get_contents(dirname(__DIR__, 4) . '/JS/UAT/insights/dashboard.js');
+expect_endpoint_contract(is_string($dashboardSource) && str_contains($dashboardSource, 'source_context?.date_basis'), 'El dashboard debe mostrar la base temporal heredada de la consulta.');
+expect_endpoint_contract(str_contains((string) $dashboardSource, '/JS/UAT/insights/chat.js?v=data-contract-8-agent-1'), 'El dashboard debe cargar el chat de la misma revision que la vista principal.');
 ixtla_insights_validate_tool_arguments('run_analysis_plan', [
     'steps' => [
         ['id' => 'resumen', 'tool' => 'get_requirements_overview', 'arguments' => []],

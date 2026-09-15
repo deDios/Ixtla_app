@@ -72,6 +72,8 @@ ixtla_insights_json([
     'answer' => $answer,
     'usage' => $probeResult['usage'],
     'result_query' => $probeResult['result_query'] ?? null,
+    'grounding' => $probeResult['grounding'] ?? null,
+    'evidence' => $probeResult['evidence'] ?? null,
     'suggestions' => [],
 ]);
 
@@ -218,17 +220,12 @@ while ($toolCalls !== [] && $remainingToolCalls > 0) {
                 $result = ixtla_insights_execute_tool((string) $toolCall['name'], $arguments);
                 $stateUpdates = is_array($result['_state_updates'] ?? null) ? $result['_state_updates'] : [];
                 unset($result['_state_updates']);
-                if (isset($result['query_id'])) {
-                    $lastResultQuery = [
-                        'tool' => (string) $toolCall['name'],
-                        'query_id' => (string) $result['query_id'],
-                        'total_matching' => (int) ($result['total_matching'] ?? 0),
-                        'returned' => (int) ($result['returned'] ?? 0),
-                        'has_more' => (bool) ($result['has_more'] ?? false),
-                        'expires_at_unix' => (int) ($result['query_expires_at_unix'] ?? 0),
-                        'filters' => is_array($result['filters'] ?? null) ? $result['filters'] : [],
-                    ];
-                }
+                $lastResultQuery = ixtla_insights_probe_result_context(
+                    (string) $toolCall['name'],
+                    $arguments,
+                    $result,
+                    $stateUpdates
+                );
                 if ($stateUpdates !== []) {
                     foreach ($stateUpdates as $stateUpdate) {
                         if (!is_array($stateUpdate)) continue;
@@ -251,12 +248,33 @@ while ($toolCalls !== [] && $remainingToolCalls > 0) {
                 }
                 $toolSucceeded = $outcome !== 'query_failed';
                 $output = ['ok' => $toolSucceeded, 'outcome' => $outcome, 'data' => $result];
-                $toolEvidence[] = [
-                    'tool' => (string) $toolCall['name'],
-                    'ok' => $toolSucceeded,
-                    'outcome' => $outcome,
-                    'data' => $result,
-                ];
+                if ((string) $toolCall['name'] === 'run_analysis_plan' && is_array($result['sections'] ?? null)) {
+                    $planSteps = is_array($arguments['steps'] ?? null) ? $arguments['steps'] : [];
+                    foreach ($result['sections'] as $section) {
+                        if (!is_array($section)) continue;
+                        $sectionId = (string) ($section['id'] ?? '');
+                        $matchingStep = array_values(array_filter(
+                            $planSteps,
+                            static fn (mixed $step): bool => is_array($step) && (string) ($step['id'] ?? '') === $sectionId
+                        ))[0] ?? [];
+                        $sectionOutcome = (string) ($section['outcome'] ?? 'query_failed');
+                        $toolEvidence[] = [
+                            'tool' => (string) ($section['tool'] ?? ''),
+                            'ok' => $sectionOutcome !== 'query_failed',
+                            'outcome' => $sectionOutcome,
+                            'arguments' => is_array($matchingStep['arguments'] ?? null) ? $matchingStep['arguments'] : [],
+                            'data' => is_array($section['data'] ?? null) ? $section['data'] : [],
+                        ];
+                    }
+                } else {
+                    $toolEvidence[] = [
+                        'tool' => (string) $toolCall['name'],
+                        'ok' => $toolSucceeded,
+                        'outcome' => $outcome,
+                        'arguments' => $arguments,
+                        'data' => $result,
+                    ];
+                }
             } catch (Throwable $error) {
                 ixtla_insights_log_error('gpt_probe_tool', $error, ['tool' => (string) $toolCall['name']]);
                 $output = [
@@ -268,6 +286,7 @@ while ($toolCalls !== [] && $remainingToolCalls > 0) {
                     'tool' => (string) $toolCall['name'],
                     'ok' => false,
                     'outcome' => 'query_failed',
+                    'arguments' => $arguments,
                 ];
             }
             $outputs[] = [
@@ -305,9 +324,67 @@ while ($toolCalls !== [] && $remainingToolCalls > 0) {
             'tool_results' => count($toolEvidence),
         ]);
         $answer = 'No pude validar la respuesta contra los datos autorizados. Reformula la pregunta o solicita un resultado más específico.';
+    } else {
+        consola_debug('gpt_probe.answer_grounded', [
+            'claims' => count(is_array($grounding['claims'] ?? null) ? $grounding['claims'] : []),
+            'evidence_sources' => count(is_array($grounding['evidence']['sources'] ?? null) ? $grounding['evidence']['sources'] : []),
+            'tool_results' => count($toolEvidence),
+        ]);
     }
 
-    return ['answer' => $answer, 'usage' => $usage, 'result_query' => $lastResultQuery];
+    return [
+        'answer' => $answer,
+        'usage' => $usage,
+        'result_query' => $lastResultQuery,
+        'grounding' => [
+            'version' => 1,
+            'ok' => (bool) $grounding['ok'],
+            'reason' => (string) $grounding['reason'],
+            'claims' => is_array($grounding['claims'] ?? null) ? $grounding['claims'] : [],
+        ],
+        'evidence' => $grounding['evidence'] ?? ixtla_insights_grounding_manifest($toolEvidence),
+    ];
+}
+
+/** Contexto seguro que el chat y el dashboard pueden reutilizar. */
+function ixtla_insights_probe_result_context(string $tool, array $arguments, array $result, array $stateUpdates = []): array
+{
+    $filters = is_array($result['filters'] ?? null) ? $result['filters'] : $arguments;
+    $sourceResult = $result;
+    if ($tool === 'run_analysis_plan' && $stateUpdates !== []) {
+        $updates = array_values(array_filter($stateUpdates, 'is_array'));
+        $selected = $updates[0] ?? [];
+        $queryId = trim((string) ($result['query_id'] ?? ''));
+        if ($queryId !== '') {
+            foreach ($updates as $update) {
+                if ((string) ($update['result']['query_id'] ?? '') === $queryId) {
+                    $selected = $update;
+                    break;
+                }
+            }
+        }
+        if (is_array($selected['arguments'] ?? null)) $filters = $selected['arguments'];
+        if (is_array($selected['result'] ?? null)) $sourceResult = $selected['result'];
+    }
+
+    $context = [
+        'context_version' => 1,
+        'tool' => $tool,
+        'outcome' => (string) ($result['outcome'] ?? 'success'),
+        'filters' => $filters,
+        'scope' => is_string($sourceResult['scope'] ?? null)
+            ? (string) $sourceResult['scope']
+            : (string) (($sourceResult['scope']['label'] ?? '')),
+        'date_basis' => (string) ($sourceResult['date_basis'] ?? ''),
+        'generated_at' => (string) ($sourceResult['generated_at'] ?? ''),
+    ];
+    foreach (['query_id', 'total_matching', 'returned', 'has_more', 'schema_version', 'contract_version'] as $key) {
+        $valueSource = array_key_exists($key, $result) ? $result : $sourceResult;
+        if (array_key_exists($key, $valueSource) && (is_scalar($valueSource[$key]) || $valueSource[$key] === null)) $context[$key] = $valueSource[$key];
+    }
+    if (isset($result['query_expires_at_unix'])) $context['expires_at_unix'] = (int) $result['query_expires_at_unix'];
+    if ($tool === 'run_analysis_plan' && is_array($result['coverage'] ?? null)) $context['coverage'] = $result['coverage'];
+    return $context;
 }
 
 function ixtla_insights_probe_tool_calls(array $response, ?int $limit = null): array

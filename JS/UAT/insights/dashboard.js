@@ -1,4 +1,4 @@
-import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=data-contract-8";
+import { mountIxtlaInsights } from "/JS/UAT/insights/chat.js?v=data-contract-8-agent-1";
 
 const STORAGE_KEY = "ixtla_insights_dashboard_session_v1";
 const PERIOD_LABELS = {
@@ -509,7 +509,14 @@ function createCard(widget, index) {
   const kind = document.createElement("p"); kind.textContent = preview.chart === "kpi" ? "Indicador" : "Visualización";
   const title = document.createElement("h2"); title.textContent = clean(preview.title || spec.title) || "Gráfica de requerimientos";
   const period = document.createElement("div"); period.className = "ixtla-dashboard-card__period";
-  period.textContent = `${PERIOD_LABELS[spec.period] || PERIOD_LABELS.all} · ${clean(preview.scopeLabel || spec.scopeLabel) || "Vista autorizada"}`;
+  const periodParts = [
+    PERIOD_LABELS[spec.period] || PERIOD_LABELS.all,
+    clean(preview.scopeLabel || spec.scopeLabel) || "Vista autorizada",
+  ];
+  const sourceDateBasis = clean(spec.source_context?.date_basis);
+  const sourceDateField = clean(spec.source_context?.filters?.date_field);
+  if (sourceDateBasis && (!sourceDateField || sourceDateField === clean(spec.date_field))) periodParts.push(sourceDateBasis);
+  period.textContent = periodParts.join(" · ");
   heading.append(kind, title, period);
   const tools = document.createElement("div"); tools.className = "ixtla-dashboard-card__tools";
   const visibility = document.createElement("span"); visibility.className = "ixtla-dashboard-card__visibility"; visibility.textContent = visibilityFor(spec);

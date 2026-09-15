@@ -1,5 +1,17 @@
 const DASHBOARD_STORAGE_KEY = "ixtla_insights_dashboard_session_v1";
 const EXPECTED_CONTRACT_VERSION = 8;
+const VISUALIZABLE_RESULT_TOOLS = new Set([
+  "get_requirements_overview",
+  "search_requirements",
+  "get_priority_requirements",
+  "aggregate_requirements",
+  "compare_requirement_sets",
+  "aggregate_requirement_dimensions",
+  "get_feedback_overview",
+  "aggregate_feedback",
+  "search_feedback",
+  "run_analysis_plan",
+]);
 
 function readTemporaryDashboardWidgets() {
   try {
@@ -450,6 +462,20 @@ export function mountIxtlaInsights(options = {}) {
   const history = [];
   let lastResultQuery = null;
 
+  function reusableResultContext() {
+    if (!lastResultQuery || typeof lastResultQuery !== "object") return null;
+    return {
+      tool: clean(lastResultQuery.tool),
+      query_id: clean(lastResultQuery.query_id),
+      outcome: clean(lastResultQuery.outcome),
+      generated_at: clean(lastResultQuery.generated_at),
+      date_basis: clean(lastResultQuery.date_basis),
+      filters: lastResultQuery.filters && typeof lastResultQuery.filters === "object"
+        ? JSON.parse(JSON.stringify(lastResultQuery.filters))
+        : {},
+    };
+  }
+
   const root = document.createElement("div");
   root.className = "ixtla-insights";
   root.innerHTML = `
@@ -671,32 +697,38 @@ export function mountIxtlaInsights(options = {}) {
     messages.scrollTop = messages.scrollHeight;
   }
 
-  function reportEvidenceLabel(resultQuery) {
+  function reportEvidenceLabel(resultQuery, evidence = null) {
     const total = Number(resultQuery?.total_matching);
     const returned = Number(resultQuery?.returned);
+    const sources = Array.isArray(evidence?.sources) ? evidence.sources : [];
+    const sourceText = sources.length > 1 ? ` Se verificaron ${sources.length} fuentes de datos autorizadas.` : "";
+    const period = PERIOD_LABELS[clean(resultQuery?.filters?.period)] || "";
+    const periodText = period ? ` Periodo: ${period}.` : "";
+    const basisText = clean(resultQuery?.date_basis) ? ` Base temporal: ${clean(resultQuery.date_basis)}.` : "";
     if (Number.isFinite(total) && total >= 0) {
       if (Number.isFinite(returned) && returned >= 0 && returned < total) {
-        return `Datos consultados: ${total.toLocaleString("es-MX")} resultado(s); la lista mostrada puede ser parcial.`;
+        return `Datos consultados: ${total.toLocaleString("es-MX")} resultado(s); la lista mostrada puede ser parcial.${periodText}${basisText}${sourceText}`;
       }
-      return `Datos consultados: ${total.toLocaleString("es-MX")} resultado(s) dentro de tu alcance autorizado.`;
+      return `Datos consultados: ${total.toLocaleString("es-MX")} resultado(s) dentro de tu alcance autorizado.${periodText}${basisText}${sourceText}`;
     }
-    return "Datos consultados dentro de tu alcance autorizado.";
+    return `Datos consultados dentro de tu alcance autorizado.${periodText}${basisText}${sourceText}`;
   }
 
-  function renderReportEvidence(resultQuery) {
+  function renderReportEvidence(resultQuery, evidence = null) {
     if (!resultQuery || typeof resultQuery !== "object") return;
     const details = document.createElement("details");
     details.className = "ixtla-insights-evidence";
     const summary = document.createElement("summary");
     summary.textContent = "Ver datos y alcance de esta respuesta";
     const body = document.createElement("p");
-    body.textContent = reportEvidenceLabel(resultQuery);
+    body.textContent = reportEvidenceLabel(resultQuery, evidence);
     details.append(summary, body);
     messages.appendChild(details);
     messages.scrollTop = messages.scrollHeight;
   }
 
   function reportFollowUps(prompt, resultQuery) {
+    if (!VISUALIZABLE_RESULT_TOOLS.has(clean(resultQuery?.tool))) return [];
     const text = normalizedVisualizationText(prompt);
     const followUps = [];
     const isTrend = /\b(tendencia|evolucion|dia|semana|mes)\b/.test(text);
@@ -885,6 +917,7 @@ export function mountIxtlaInsights(options = {}) {
     else if (/\bultim[oa]s? 7 dias\b/.test(text)) period = "last_7";
     else if (/\bultim[oa]s? 30 dias\b/.test(text)) period = "last_30";
     else if (/\btodo el historial|historico|todos los datos\b/.test(text)) period = "all";
+    const hasExplicitPeriod = period !== "";
     if (!period && refersToPrevious) period = clean(lastResultQuery?.filters?.period);
     let dateField = "";
     if (domain === "retroalimentaciones") {
@@ -899,10 +932,11 @@ export function mountIxtlaInsights(options = {}) {
     } else if (/\b(fecha de creacion|cread[oa]s?|registrad[oa]s?|ingresad[oa]s?)\b/.test(text)) {
       dateField = "created_at";
     }
+    const hasExplicitDateField = dateField !== "";
     if (!dateField && refersToPrevious) dateField = clean(lastVisualizationSpec?.date_field || lastResultQuery?.filters?.date_field);
     const comparison = /\b(periodo anterior|contra (?:el )?periodo anterior)\b/.test(text) ? "previous_period" : "";
 
-    return { text, refersToPrevious, domain, chart, dimension, seriesDimension, metric, period, dateField, comparison };
+    return { text, refersToPrevious, domain, chart, dimension, seriesDimension, metric, period, dateField, comparison, hasExplicitPeriod, hasExplicitDateField };
   }
 
   function isDirectVisualizationRequest(question, proposal = {}) {
@@ -944,6 +978,8 @@ export function mountIxtlaInsights(options = {}) {
       period: parsed.period || clean(previousSpec?.period) || (direct ? "all" : ""),
       date_field: parsed.dateField || clean(previousSpec?.date_field),
       comparison: parsed.comparison || clean(previousSpec?.comparison),
+      source_context: hasUsefulContext ? reusableResultContext() : null,
+      inherit_source_dates: hasUsefulContext && !parsed.hasExplicitPeriod,
     });
     if (pendingVisualization.comparison === "previous_period" && pendingVisualization.period === "all") pendingVisualization.period = "";
     addMessage(`Entendí que quieres visualizar ${METRIC_LABELS[metric]?.toLocaleLowerCase("es-MX") || "los resultados"}. ${visualizationRecommendation(pendingVisualization)}`);
@@ -1016,6 +1052,7 @@ export function mountIxtlaInsights(options = {}) {
     if (!plan || plan.intent === "not_visualization") return false;
     let inferredDomain = clean(plan.domain);
     const normalizedQuestion = normalizedVisualizationText(question);
+    const usesPreviousResult = /\b(reporte anterior|resultado anterior|resultados anteriores|mismo periodo|mismos filtros|los mismos datos|esta informacion|estos resultados)\b/.test(normalizedQuestion);
     if (!inferredDomain && clean(plan.chart) && ["departamento", "tramite", "estatus", "fecha"].includes(clean(plan.dimension))) {
       inferredDomain = "requerimientos";
       plan.domain = inferredDomain;
@@ -1044,6 +1081,12 @@ export function mountIxtlaInsights(options = {}) {
     const dimension = clean(plan.dimension) || (domain === "retroalimentaciones" ? "calificacion" : "tramite");
     const chart = clean(plan.chart) || (dimension === "fecha" ? "line" : "bar");
     const direct = isDirectVisualizationRequest(question, { domain, metric, dimension, chart });
+    const sourceContext = usesPreviousResult ? reusableResultContext() : null;
+    const sourceFilters = sourceContext?.filters && typeof sourceContext.filters === "object" ? sourceContext.filters : {};
+    const hasExplicitPeriod = /\b(esta semana|este mes|ultim[oa]s? (?:7|30) dias|todo el historial|historico|todos los datos)\b/.test(normalizedQuestion);
+    const hasExplicitDateField = /\b(fecha de (?:creacion|respuesta|cierre|finalizacion)|por fecha de (?:cierre|finalizacion))\b/.test(normalizedQuestion);
+    const inheritedPeriod = sourceContext && !hasExplicitPeriod ? clean(sourceFilters.period) : "";
+    const inheritedDateField = sourceContext && !hasExplicitDateField ? clean(sourceFilters.date_field) : "";
     pendingVisualization = normalizeVisualizationSpec({
       mode: "structured_visualization",
       question,
@@ -1054,12 +1097,14 @@ export function mountIxtlaInsights(options = {}) {
       series_dimension: clean(plan.series_dimension),
       date_grain: clean(plan.date_grain),
       series_limit: Math.min(7, Math.max(1, Number(plan.series_limit) || 5)),
-      period: clean(plan.period) || (direct ? "all" : ""),
-      date_field: clean(plan.date_field),
+      period: inheritedPeriod || clean(plan.period) || (direct ? "all" : ""),
+      date_field: inheritedDateField || clean(plan.date_field),
       comparison: clean(plan.comparison),
       filters: Array.isArray(plan.filters) ? plan.filters.map((filter) => ({ ...filter })) : [],
       limit: Math.min(50, Math.max(1, Number(plan.limit) || 10)),
       plannerReason: clean(plan.reason),
+      source_context: sourceContext,
+      inherit_source_dates: Boolean(sourceContext) && !hasExplicitPeriod,
     });
     const alternatives = Array.isArray(plan.alternatives) ? plan.alternatives.map((alternative) => normalizeVisualizationSpec({
       ...pendingVisualization,
@@ -1198,22 +1243,41 @@ export function mountIxtlaInsights(options = {}) {
 
   function previewToolRequest(spec, dateRange = null) {
     const period = dateRange ? "all" : (PERIOD_LABELS[spec.period] ? spec.period : "all");
-    const dateFrom = clean(dateRange?.date_from) || null;
-    const dateTo = clean(dateRange?.date_to) || null;
+    const sourceFilters = spec.source_context?.filters && typeof spec.source_context.filters === "object"
+      ? spec.source_context.filters
+      : {};
+    const inheritedDateFrom = spec.inherit_source_dates === false ? "" : sourceFilters.date_from;
+    const inheritedDateTo = spec.inherit_source_dates === false ? "" : sourceFilters.date_to;
+    const dateFrom = clean(dateRange?.date_from || spec.date_from || inheritedDateFrom) || null;
+    const dateTo = clean(dateRange?.date_to || spec.date_to || inheritedDateTo) || null;
     const filters = Array.isArray(spec.filters) ? spec.filters : [];
+    const sourceIds = (key) => Array.isArray(sourceFilters[key])
+      ? [...new Set(sourceFilters[key].map(Number).filter((value) => Number.isInteger(value) && value >= 0))]
+      : [];
     const idsFor = (field) => [...new Set(filters
       .filter((filter) => clean(filter?.field) === field && Number.isInteger(Number(filter?.id)))
       .map((filter) => Number(filter.id)))];
-    const departmentIds = idsFor("departamento");
-    const departmentNames = filters
+    const departmentIds = idsFor("departamento").length ? idsFor("departamento") : sourceIds("department_ids");
+    const selectedDepartmentNames = filters
       .filter((filter) => clean(filter?.field) === "departamento" && !Number.isInteger(Number(filter?.id)))
       .map((filter) => clean(filter?.value)).filter(Boolean);
-    const tramiteIds = idsFor("tramite");
-    const requirementStatusIds = idsFor("estatus");
+    const departmentNames = selectedDepartmentNames.length
+      ? selectedDepartmentNames
+      : (Array.isArray(sourceFilters.department_names) ? sourceFilters.department_names.map(clean).filter(Boolean) : []);
+    const tramiteIds = idsFor("tramite").length ? idsFor("tramite") : sourceIds("tramite_ids");
+    const requirementStatusIds = idsFor("estatus").length ? idsFor("estatus") : sourceIds("status_ids");
     if (spec.domain === "retroalimentaciones") {
+      const retroRequirementStatusIds = idsFor("estatus").length ? idsFor("estatus") : sourceIds("requirement_status_ids");
       const common = {
-        status_ids: idsFor("estado_retro"), rating_ids: idsFor("calificacion"), department_ids: departmentIds, tramite_ids: tramiteIds, requirement_status_ids: requirementStatusIds,
-        channel_ids: [], assignee_ids: [], assignee_state: "any", period, date_field: spec.date_field === "updated_at" ? "updated_at" : "created_at", date_from: dateFrom, date_to: dateTo,
+        status_ids: idsFor("estado_retro").length ? idsFor("estado_retro") : sourceIds("status_ids"),
+        rating_ids: idsFor("calificacion").length ? idsFor("calificacion") : sourceIds("rating_ids"),
+        department_ids: departmentIds,
+        tramite_ids: tramiteIds,
+        requirement_status_ids: retroRequirementStatusIds,
+        channel_ids: sourceIds("channel_ids"),
+        assignee_ids: sourceIds("assignee_ids"),
+        assignee_state: ["assigned", "unassigned"].includes(clean(sourceFilters.assignee_state)) ? clean(sourceFilters.assignee_state) : "any",
+        period, date_field: spec.date_field === "updated_at" ? "updated_at" : "created_at", date_from: dateFrom, date_to: dateTo,
       };
       if (spec.chart === "kpi" || ["tasa_respuesta", "promedio_calificacion"].includes(spec.metric)) {
         return { tool: "get_feedback_overview", arguments: common };
@@ -1224,12 +1288,19 @@ export function mountIxtlaInsights(options = {}) {
     const groupMap = { estatus: "status", departamento: "department", tramite: "tramite", fecha: "date" };
     const statusMap = { abiertos: [0, 1, 2, 3], finalizados: [6], cerrados: [6], pausados_cancelados: [4, 5], pausados: [4], cancelados: [5] };
     const metricStatusIds = statusMap[spec.metric] || [];
+    const hasExplicitDepartmentFilter = idsFor("departamento").length > 0 || selectedDepartmentNames.length > 0;
+    const inheritedDepartmentId = hasExplicitDepartmentFilter ? 0 : Math.max(0, Number(sourceFilters.department_id) || 0);
     const requirementCommon = {
-      period, department_id: 0, department_ids: departmentIds, department_names: departmentNames, assignee_id: 0, assignee_ids: [],
-      tramite_ids: tramiteIds, status_ids: requirementStatusIds.length ? requirementStatusIds : metricStatusIds, channel_ids: [], assignee_state: "any",
+      period, department_id: inheritedDepartmentId, department_ids: departmentIds, department_names: departmentNames,
+      assignee_id: Math.max(0, Number(sourceFilters.assignee_id) || 0), assignee_ids: sourceIds("assignee_ids"),
+      tramite_ids: tramiteIds, status_ids: requirementStatusIds.length ? requirementStatusIds : metricStatusIds, channel_ids: sourceIds("channel_ids"),
+      assignee_state: ["assigned", "unassigned"].includes(clean(sourceFilters.assignee_state)) ? clean(sourceFilters.assignee_state) : "any",
       date_field: spec.date_field === "closed_at" ? "closed_at" : "created_at", date_from: dateFrom, date_to: dateTo,
     };
-    if (spec.chart === "kpi" && !filters.length && !metricStatusIds.length) {
+    const hasRequirementFilters = inheritedDepartmentId > 0 || departmentIds.length > 0 || departmentNames.length > 0
+      || tramiteIds.length > 0 || requirementCommon.status_ids.length > 0 || requirementCommon.channel_ids.length > 0
+      || requirementCommon.assignee_id > 0 || requirementCommon.assignee_ids.length > 0 || requirementCommon.assignee_state !== "any";
+    if (spec.chart === "kpi" && !hasRequirementFilters && !metricStatusIds.length) {
       return { tool: "get_requirements_overview", arguments: { refresh: false, period, date_field: requirementCommon.date_field, date_from: dateFrom, date_to: dateTo } };
     }
     if (spec.series_dimension && ["line", "area", "matrix"].includes(spec.chart)) {
@@ -2416,10 +2487,10 @@ export function mountIxtlaInsights(options = {}) {
       const payload = await requestRemoteAnswer(prompt);
       const answer = clean(payload.answer) || "No pude generar una respuesta para esa consulta.";
       addMessage(answer);
-      if (clean(payload?.result_query?.query_id)) {
+      if (payload?.result_query && typeof payload.result_query === "object") {
         lastResultQuery = payload.result_query;
       }
-      renderReportEvidence(payload?.result_query);
+      renderReportEvidence(payload?.result_query, payload?.evidence);
       if (!config.simpleMode) renderReport(payload.report);
       history.push({ role: "user", content: prompt }, { role: "assistant", content: answer });
       const suggestions = Array.isArray(payload.suggestions)

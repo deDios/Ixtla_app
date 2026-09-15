@@ -24,6 +24,28 @@ expect_diagnostic(ixtla_insights_validate_grounded_answer('Se encontraron 12 cas
 expect_diagnostic(ixtla_insights_validate_grounded_answer('Se encontraron 99 casos.', [
     ['ok' => true, 'data' => ['total_matching' => 12]],
 ])['ok'] === false, 'Una cifra ausente de la evidencia debe rechazarse.');
+expect_diagnostic(ixtla_insights_validate_grounded_answer('Se encontraron 5 casos.', [
+    ['tool' => 'search_requirements', 'ok' => true, 'arguments' => ['period' => 'all'], 'data' => ['total_matching' => 5]],
+])['ok'] === true, 'Las metricas de un solo digito tambien deben validarse.');
+expect_diagnostic(ixtla_insights_validate_grounded_answer('Se encontraron 12 casos.', [
+    ['tool' => 'search_requirements', 'ok' => true, 'data' => ['total_matching' => 120]],
+])['ok'] === false, 'Una cifra no debe validarse por aparecer como subcadena de otra.');
+expect_diagnostic(ixtla_insights_validate_grounded_answer('Se encontraron 5 casos.', [
+    ['tool' => 'search_requirements', 'ok' => true, 'data' => ['created_at' => '2026-09-05 10:30:00']],
+])['ok'] === false, 'Los componentes de una fecha no deben validar una metrica inventada.');
+expect_diagnostic(ixtla_insights_validate_grounded_answer('Se encontraron 2 casos.', [
+    ['tool' => 'search_requirements', 'ok' => true, 'arguments' => ['status_ids' => [2]], 'data' => ['total_matching' => 5, 'items' => [['id' => 2]]]],
+])['ok'] === false, 'Los filtros e identificadores no deben validar una metrica inventada.');
+expect_diagnostic(ixtla_insights_validate_grounded_answer('Se encontraron 30 casos.', [
+    ['tool' => 'search_requirements', 'ok' => true, 'data' => ['period' => 'last_30', 'total_matching' => 5]],
+])['ok'] === false, 'El periodo de consulta no debe validar una metrica inventada.');
+expect_diagnostic(ixtla_insights_validate_grounded_answer('El folio 2 esta incluido.', [
+    ['tool' => 'search_requirements', 'ok' => true, 'data' => ['total_matching' => 1, 'items' => [['folio' => 2]]]],
+])['ok'] === true, 'Un folio debe poder validarse como identificador cuando la respuesta lo presenta como tal.');
+$formattedGrounding = ixtla_insights_validate_grounded_answer('Se encontraron 1,234 casos.', [
+    ['tool' => 'search_requirements', 'ok' => true, 'data' => ['total_matching' => 1234]],
+]);
+expect_diagnostic($formattedGrounding['ok'] === true && ($formattedGrounding['claims'][0]['sources'][0]['evidence_id'] ?? null) === 'e1', 'Cada cifra debe conservar la referencia exacta a su evidencia.');
 expect_diagnostic(ixtla_insights_validate_grounded_answer('No hay coincidencias.', [
     ['ok' => true, 'data' => ['total_matching' => 4]],
 ])['ok'] === false, 'Una conclusión de cero debe contradecir un resultado positivo.');
@@ -102,6 +124,57 @@ expect_diagnostic(str_contains($domainPrompt, 'motivos de retros malas o buenas'
 expect_diagnostic(str_contains($domainPrompt, 'todos los datos ciudadanos que entregue get_feedback_detail'), 'El detalle individual de retro debe permitir datos ciudadanos autorizados.');
 expect_diagnostic(ixtla_insights_retro_status_label(2) === 'Contestada', 'El modulo debe traducir el estado de retroalimentacion.');
 expect_diagnostic(ixtla_insights_retro_rating_label(4) === 'Excelente', 'El modulo debe traducir la escala de calificacion.');
+$retroScopeFixture = ['where' => ['r.status = 1'], 'types' => 'i', 'params' => [77], 'label' => 'Fixture autorizado'];
+$answeredRetroSpec = ixtla_insights_retro_query_spec([
+    'status_ids' => [], 'period' => 'this_week', 'date_field' => 'updated_at',
+    'date_from' => '2026-08-01', 'date_to' => '2026-08-31',
+], $retroScopeFixture);
+expect_diagnostic($answeredRetroSpec['date_column'] === 'rc.updated_at', 'Las retros contestadas deben filtrar por updated_at.');
+expect_diagnostic(in_array('rc.status = 2', $answeredRetroSpec['where'], true), 'updated_at debe forzar exclusivamente el estado Contestada.');
+expect_diagnostic(count(array_filter($answeredRetroSpec['where'], static fn (string $clause): bool => str_contains($clause, 'rc.updated_at'))) === 3, 'Periodo y rango personalizado deben usar la misma columna de respuesta.');
+expect_diagnostic($answeredRetroSpec['types'] === 'iss' && $answeredRetroSpec['params'] === [77, '2026-08-01 00:00:00', '2026-08-31'], 'El filtro de respuesta debe conservar orden y tipos de parametros preparados.');
+$createdRetroSpec = ixtla_insights_retro_query_spec(['status_ids' => [1], 'period' => 'last_30', 'date_field' => 'created_at'], $retroScopeFixture);
+expect_diagnostic($createdRetroSpec['date_column'] === 'rc.created_at' && !in_array('rc.status = 2', $createdRetroSpec['where'], true), 'La cohorte creada no debe forzar el estado Contestada.');
+expect_diagnostic(ixtla_insights_retro_group_spec('date', 'rc.updated_at')['expr'] === 'DATE(rc.updated_at)', 'La agrupacion temporal debe usar la misma base de respuesta seleccionada.');
+try {
+    ixtla_insights_retro_query_spec(['status_ids' => [1, 2], 'period' => 'all', 'date_field' => 'updated_at'], $retroScopeFixture);
+    expect_diagnostic(false, 'updated_at no debe aceptar una mezcla de estados.');
+} catch (InvalidArgumentException) {
+    // Expected.
+}
+$planAggregateArguments = [
+    'period' => 'last_30', 'department_id' => 0, 'department_ids' => [], 'department_names' => [],
+    'assignee_id' => 0, 'assignee_ids' => [], 'tramite_ids' => [], 'status_ids' => [], 'channel_ids' => [],
+    'assignee_state' => 'any', 'date_field' => 'closed_at', 'date_from' => null, 'date_to' => null,
+    'group_by' => 'status', 'sort' => 'desc', 'limit' => 10,
+];
+$preparedPlan = ixtla_insights_prepare_tool_arguments('run_analysis_plan', ['steps' => [
+    ['id' => 'resumen', 'tool' => 'get_requirements_overview', 'arguments' => [
+        'refresh' => false, 'period' => 'last_30', 'date_field' => 'closed_at', 'date_from' => null, 'date_to' => null,
+    ]],
+    ['id' => 'estatus', 'tool' => 'aggregate_requirements', 'arguments' => $planAggregateArguments],
+]], 'Dame un diagnostico de requerimientos de este mes', []);
+expect_diagnostic(($preparedPlan['steps'][0]['arguments']['period'] ?? null) === 'this_month' && ($preparedPlan['steps'][1]['arguments']['period'] ?? null) === 'this_month', 'Cada paso compuesto debe pasar por la normalizacion temporal del router.');
+expect_diagnostic(($preparedPlan['steps'][0]['arguments']['date_field'] ?? null) === 'created_at' && ($preparedPlan['steps'][1]['arguments']['date_field'] ?? null) === 'created_at', 'El plan compuesto debe imponer una base temporal coherente.');
+ixtla_insights_validate_analysis_plan_steps($preparedPlan['steps']);
+try {
+    ixtla_insights_validate_analysis_plan_steps([
+        ['id' => 'a', 'tool' => 'get_requirements_overview', 'arguments' => ['period' => 'this_month']],
+        ['id' => 'b', 'tool' => 'get_requirements_overview', 'arguments' => ['period' => 'this_month']],
+    ]);
+    expect_diagnostic(false, 'El plan debe rechazar operaciones duplicadas antes de consultar datos.');
+} catch (InvalidArgumentException) {
+    // Expected.
+}
+try {
+    ixtla_insights_validate_analysis_plan_steps([
+        ['id' => 'a', 'tool' => 'get_requirements_overview', 'arguments' => ['period' => 'this_month']],
+        ['id' => 'b', 'tool' => 'aggregate_requirements', 'arguments' => ['period' => 'last_30']],
+    ]);
+    expect_diagnostic(false, 'El plan debe rechazar periodos contradictorios dentro del mismo dominio.');
+} catch (InvalidArgumentException) {
+    // Expected.
+}
 expect_diagnostic(ixtla_insights_question_intent('Cuantas retroalimentaciones estan contestadas?') === 'dataset', 'Las preguntas de retroalimentacion deben consultar datos.');
 expect_diagnostic(ixtla_insights_question_requested_period('Cuantas retros tenemos este mes?') === 'this_month', 'Las retros deben reconocer el periodo del mes actual.');
 expect_diagnostic(ixtla_insights_dataset_active_status_condition() === 'r.estatus IN (0, 1, 2, 3)', 'Los datasets deben construir el filtro activo desde el perfil.');

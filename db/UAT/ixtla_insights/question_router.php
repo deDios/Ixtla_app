@@ -551,6 +551,26 @@ function ixtla_insights_prepare_tool_arguments(
     string $question,
     array $analyticsContext = []
 ): array {
+    // Los pasos de un plan compuesto deben recibir exactamente la misma
+    // normalizacion temporal y conversacional que una llamada individual.
+    if ($toolName === 'run_analysis_plan') {
+        $steps = is_array($arguments['steps'] ?? null) ? $arguments['steps'] : [];
+        foreach ($steps as $index => $step) {
+            if (!is_array($step)) continue;
+            $childTool = trim((string) ($step['tool'] ?? ''));
+            $childArguments = is_array($step['arguments'] ?? null) ? $step['arguments'] : [];
+            if ($childTool === '' || $childTool === 'run_analysis_plan') continue;
+            $steps[$index]['arguments'] = ixtla_insights_prepare_tool_arguments(
+                $childTool,
+                $childArguments,
+                $question,
+                $analyticsContext
+            );
+        }
+        $arguments['steps'] = $steps;
+        return $arguments;
+    }
+
     $reusesPrevious = ixtla_insights_question_reuses_previous_result($question);
     $normalizedQuestion = ixtla_insights_normalize_match_text($question);
     $previousFilters = is_array($analyticsContext['last_filters'] ?? null)

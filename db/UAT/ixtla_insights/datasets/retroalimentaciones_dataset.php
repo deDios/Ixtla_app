@@ -40,9 +40,20 @@ function ixtla_insights_retro_date_basis(string $dateField): string
 function ixtla_insights_retro_query(array $arguments, mysqli $connection): array
 {
     $scope = ixtla_insights_dataset_scope($connection);
-    $where = $scope['where'];
-    $types = $scope['types'];
-    $params = $scope['params'];
+    return ixtla_insights_retro_query_spec($arguments, $scope);
+}
+
+/**
+ * Construye el filtro sin abrir conexiones. Mantener esta parte pura permite
+ * probar periodos, campos de fecha y estados sin depender de una base UAT.
+ *
+ * @return array{where:list<string>,types:string,params:list<mixed>,scope:array,date_field:string,date_column:string}
+ */
+function ixtla_insights_retro_query_spec(array $arguments, array $scope): array
+{
+    $where = is_array($scope['where'] ?? null) ? array_values($scope['where']) : [];
+    $types = (string) ($scope['types'] ?? '');
+    $params = is_array($scope['params'] ?? null) ? array_values($scope['params']) : [];
     $dateField = ixtla_insights_retro_date_field($arguments['date_field'] ?? 'created_at');
     $dateColumn = $dateField === 'updated_at' ? 'rc.updated_at' : 'rc.created_at';
     $requestedStatusIds = array_values(array_unique(array_map(
@@ -135,9 +146,12 @@ function ixtla_insights_retro_overview(array $arguments): array
     }
 }
 
-function ixtla_insights_retro_aggregate(array $arguments): array
+/** @return array{expr:string,label:string} */
+function ixtla_insights_retro_group_spec(string $groupBy, string $dateColumn = 'rc.created_at'): array
 {
-    $groupBy = (string) ($arguments['group_by'] ?? 'status');
+    if (!in_array($dateColumn, ['rc.created_at', 'rc.updated_at'], true)) {
+        throw new InvalidArgumentException('La fecha de agrupacion de retroalimentaciones no es valida.');
+    }
     $groups = [
         'status' => ['expr' => 'rc.status', 'label' => 'rc.status'],
         'rating' => ['expr' => 'rc.calificacion', 'label' => 'rc.calificacion'],
@@ -146,17 +160,20 @@ function ixtla_insights_retro_aggregate(array $arguments): array
         'assignee' => ['expr' => 'r.asignado_a', 'label' => "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellidos, ''))), ''), 'Sin responsable')"],
         'channel' => ['expr' => 'r.canal', 'label' => 'r.canal'],
         'requirement_status' => ['expr' => 'r.estatus', 'label' => 'r.estatus'],
-        'date' => ['expr' => 'DATE(rc.created_at)', 'label' => 'DATE(rc.created_at)'],
+        'date' => ['expr' => 'DATE(' . $dateColumn . ')', 'label' => 'DATE(' . $dateColumn . ')'],
     ];
     if (!isset($groups[$groupBy])) throw new InvalidArgumentException('La agrupacion de retroalimentaciones no es valida.');
+    return $groups[$groupBy];
+}
+
+function ixtla_insights_retro_aggregate(array $arguments): array
+{
+    $groupBy = (string) ($arguments['group_by'] ?? 'status');
     $limit = min(50, max(1, (int) ($arguments['limit'] ?? 20)));
     $connection = ixtla_insights_dataset_connection();
     try {
         $query = ixtla_insights_retro_query($arguments, $connection);
-        if ($groupBy === 'date') {
-            $groups['date'] = ['expr' => 'DATE(' . $query['date_column'] . ')', 'label' => 'DATE(' . $query['date_column'] . ')'];
-        }
-        $group = $groups[$groupBy];
+        $group = ixtla_insights_retro_group_spec($groupBy, $query['date_column']);
         $sql = 'SELECT ' . $group['expr'] . ' group_id, ' . $group['label'] . ' group_label, COUNT(*) value '
             . 'FROM retro_ciudadana rc JOIN requerimiento r ON r.id = rc.requerimiento_id '
             . 'JOIN departamento d ON d.id = r.departamento_id JOIN tramite t ON t.id = r.tramite_id LEFT JOIN empleado e ON e.id = r.asignado_a '
