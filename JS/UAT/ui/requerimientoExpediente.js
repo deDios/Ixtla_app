@@ -331,7 +331,74 @@
     `;
   }
 
-  function buildDocumentHtml() {
+  function printableMapTiles(lat, lng) {
+    const zoom = 15;
+    const width = 560;
+    const height = 280;
+    const tilesPerAxis = 2 ** zoom;
+    const worldPixels = tilesPerAxis * 256;
+    const latitudeRadians = (lat * Math.PI) / 180;
+    const sine = Math.max(-0.9999, Math.min(0.9999, Math.sin(latitudeRadians)));
+    const centerX = ((lng + 180) / 360) * worldPixels;
+    const centerY = (0.5 - Math.log((1 + sine) / (1 - sine)) / (4 * Math.PI)) * worldPixels;
+    const left = centerX - width / 2;
+    const top = centerY - height / 2;
+    const images = [];
+
+    for (let tileY = Math.floor(top / 256); tileY <= Math.floor((top + height - 1) / 256); tileY++) {
+      if (tileY < 0 || tileY >= tilesPerAxis) continue;
+      for (let tileX = Math.floor(left / 256); tileX <= Math.floor((left + width - 1) / 256); tileX++) {
+        const wrappedX = ((tileX % tilesPerAxis) + tilesPerAxis) % tilesPerAxis;
+        images.push(`<img class="geo-map-tile" src="https://tile.openstreetmap.org/${zoom}/${wrappedX}/${tileY}.png" alt="" style="left:${Math.round(tileX * 256 - left)}px;top:${Math.round(tileY * 256 - top)}px">`);
+      }
+    }
+    return images.join("");
+  }
+
+  function renderGeolocationSection(record, queryFailed = false) {
+    if (queryFailed) {
+      return '<section class="section"><h2 class="section-title">Geolocalización</h2><p>No se pudo verificar la geolocalización registrada al generar este expediente.</p></section>';
+    }
+    if (!record || record.latitud == null || record.longitud == null) return "";
+    const lat = Number(record.latitud);
+    const lng = Number(record.longitud);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return "";
+
+    const latitude = lat.toFixed(6);
+    const longitude = lng.toFixed(6);
+    const precision = Number(record.precision_metros ?? record.presicion_metros);
+    const capturedAt = record.captured_at || record.created_at;
+    const capturedDate = capturedAt && !Number.isNaN(Date.parse(capturedAt))
+      ? new Date(capturedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })
+      : "No disponible";
+    const status = Number(record.validada) === 1 || record.validada === true
+      ? "Validada"
+      : "Pendiente de validación";
+    const mapUrl = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`;
+    const rows = [
+      { label: "Estado", value: status },
+      { label: "Coordenadas", value: `${latitude}, ${longitude}` },
+      { label: "Dirección aproximada", value: record.direccion || "No disponible" },
+      { label: "Precisión registrada", value: Number.isFinite(precision) && precision > 0 ? `${Math.round(precision)} m` : "No disponible" },
+      { label: "Capturada el", value: capturedDate },
+    ];
+
+    return `
+      <section class="section geo-section">
+        <h2 class="section-title">Geolocalización</h2>
+        <table><tbody>${rows.map((row) => `<tr><th>${escapeHtml(row.label)}</th><td>${escapeHtml(row.value)}</td></tr>`).join("")}</tbody></table>
+        <div class="geo-map" role="img" aria-label="Mapa de la ubicación registrada">
+          <span class="geo-map-fallback">Mapa de la ubicación registrada</span>
+          ${printableMapTiles(lat, lng)}
+          <span class="geo-map-pin" aria-hidden="true"></span>
+          <span class="geo-map-attribution">© OpenStreetMap contributors · openstreetmap.org/copyright</span>
+        </div>
+        <p class="small">Ubicación registrada: <a href="${escapeHtml(mapUrl)}">${escapeHtml(mapUrl)}</a></p>
+      </section>
+    `;
+  }
+
+  function buildDocumentHtml(geolocation = null, geoQueryFailed = false) {
     const header = getHeaderInfo();
     const contacto = collectGridRowsByTab("contacto");
     const detalles = collectGridRowsByTab("detalles");
@@ -355,6 +422,7 @@
       detalles
     );
     const planeacionSection = renderPlaneacionSection(planeacion);
+    const geolocationSection = renderGeolocationSection(geolocation, geoQueryFailed);
     // const evidenciasSection = renderEvidenciasSection(evidencias);
 
     return `
@@ -473,6 +541,52 @@
       font-size: 11px;
       color: #6b7280;
     }
+    .geo-map {
+      position: relative;
+      width: 560px;
+      max-width: 100%;
+      height: 280px;
+      overflow: hidden;
+      margin: 8px 0 4px;
+      border: 1px solid #d1d5db;
+      background: #edf2f3;
+    }
+    .geo-map-tile {
+      position: absolute;
+      width: 256px;
+      height: 256px;
+      max-width: none;
+    }
+    .geo-map-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #52616b;
+      font-size: 12px;
+    }
+    .geo-map-pin {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      transform: translate(-50%, -50%);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      background: #cf3947;
+      box-shadow: 0 1px 5px #374151;
+    }
+    .geo-map-attribution {
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+      padding: 2px 4px;
+      background: rgba(255, 255, 255, .9);
+      font-size: 9px;
+      color: #111827;
+    }
+    .geo-section a { overflow-wrap: anywhere; }
 
     @page {
       margin: 20mm;
@@ -496,6 +610,7 @@
   ${contactoSection}
   ${detallesSection}
   ${planeacionSection}
+  ${geolocationSection}
   <!-- Evidencias removidas del expediente -->
 
   <div class="footer-note">
@@ -511,23 +626,9 @@
    *  Impresión
    * ========================= */
 
-  function openPrintWindow(html) {
+  function openPrintWindow(html, win) {
     const safeHtml = String(html || "");
     log("[ReqExpediente] Longitud HTML:", safeHtml.length);
-
-    const win = window.open("", "_blank");
-
-    if (!win) {
-      // ❌ sin fallback de cambiar window.location
-      warn(
-        "[ReqExpediente] Popup bloqueado; expediente no se pudo abrir en nueva pestaña."
-      );
-      toast(
-        "Tu navegador bloqueó la ventana del expediente. Por favor permite ventanas emergentes para Ixtla App.",
-        "warning"
-      );
-      return;
-    }
 
     try {
       win.document.open();
@@ -550,17 +651,28 @@
       }
     }
 
-    setTimeout(() => {
-      try {
-        win.focus();
-        win.print();
-      } catch (e) {
-        err("Error al enviar a impresión:", e);
-      }
-    }, 400);
+    const images = Array.from(win.document.querySelectorAll(".geo-map-tile"));
+    const imageSettled = Promise.all(images.map((image) => new Promise((resolve) => {
+      if (image.complete) { resolve(); return; }
+      image.addEventListener("load", resolve, { once: true });
+      image.addEventListener("error", resolve, { once: true });
+    })));
+    // La impresión no debe quedar bloqueada si el servidor de teselas tarda.
+    Promise.race([imageSettled, new Promise((resolve) => setTimeout(resolve, 6000))])
+      .then(() => {
+        setTimeout(() => {
+          try {
+            if (win.closed) return;
+            win.focus();
+            win.print();
+          } catch (e) {
+            err("Error al enviar a impresión:", e);
+          }
+        }, 300);
+      });
   }
 
-  function onGenerateExpedienteClick() {
+  async function onGenerateExpedienteClick() {
     const req = getReqFromGlobal();
     if (!req) {
       warn(
@@ -568,13 +680,35 @@
       );
     }
 
+    // Abrir durante el click evita que el navegador bloquee la ventana después
+    // de esperar la consulta de geolocalización.
+    const win = window.open("", "_blank");
+    if (!win) {
+      warn("Popup bloqueado; expediente no se pudo abrir en nueva pestaña.");
+      toast("Tu navegador bloqueó la ventana del expediente. Por favor permite ventanas emergentes para Ixtla App.", "warning");
+      return;
+    }
+    win.document.body.textContent = "Preparando expediente…";
+
     try {
-      const html = buildDocumentHtml();
+      let geolocation = null;
+      let geoQueryFailed = false;
+      if (Number.isInteger(Number(req?.id)) && Number(req.id) > 0 && window.IxtlaRequirementGeolocation?.getPersistedRecord) {
+        try {
+          geolocation = await window.IxtlaRequirementGeolocation.getPersistedRecord(req);
+        } catch (error) {
+          warn("No se pudo verificar la geolocalización para el expediente:", error);
+          geoQueryFailed = true;
+        }
+      }
+      if (win.closed) return;
+      const html = buildDocumentHtml(geolocation, geoQueryFailed);
       log("buildDocumentHtml() OK, longitud:", html ? html.length : 0);
-      openPrintWindow(html);
+      openPrintWindow(html, win);
     } catch (e) {
       err("Error generando expediente:", e);
       toast("Ocurrió un error al generar el expediente.", "error");
+      if (!win.closed) win.document.body.textContent = "Ocurrió un error al generar el expediente.";
     }
   }
 

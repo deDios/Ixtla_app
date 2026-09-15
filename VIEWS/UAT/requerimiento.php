@@ -960,10 +960,10 @@ ix_require_session();
     <script src="/JS/UAT/requerimientoView.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/JS/UAT/ui/geolocationMap.js"></script>
-    <script src="/JS/UAT/ui/requerimientoGeolocalizacion.js?v=geo-status-rule-1"></script>
+    <script src="/JS/UAT/ui/requerimientoGeolocalizacion.js?v=geo-expediente-1"></script>
     <script src="/JS/UAT/ui/requerimientoDetalle.js"></script>
     <script src="/JS/UAT/ui/requerimientoPlaneacion.js"></script>
-    <script src="/JS/UAT/ui/requerimientoExpediente.js"></script>
+    <script src="/JS/UAT/ui/requerimientoExpediente.js?v=geo-expediente-1"></script>
 
     <script type="module" src="/JS/UAT/api/media.js"></script>
     <script type="module" src="/JS/UAT/api/mediaRequerimientos.js"></script>

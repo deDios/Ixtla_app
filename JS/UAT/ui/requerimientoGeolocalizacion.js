@@ -200,24 +200,43 @@
       .sort((a, b) => Date.parse(b?.created_at || 0) - Date.parse(a?.created_at || 0))[0];
   }
 
-  async function fetchRecord(req) {
+  async function readServerRecord(req, signal = undefined) {
     const id = Number(req?.id);
-    if (!Number.isFinite(id) || id < 1) return findLocalRecord(req);
+    if (!Number.isInteger(id) || id < 1) return null;
+    const response = await fetch(
+      `${ENDPOINT}?requerimiento_id=${encodeURIComponent(id)}`,
+      { method: "GET", headers: { Accept: "application/json" }, credentials: "omit", signal },
+    );
+    const json = await response.json().catch(() => null);
+    if (!response.ok || json?.ok === false) {
+      throw new Error(json?.error || `HTTP ${response.status}`);
+    }
+    return Array.isArray(json?.data) ? json.data[0] || null : json?.data || null;
+  }
+
+  async function fetchRecord(req) {
+    if (!Number.isInteger(Number(req?.id)) || Number(req.id) < 1) return findLocalRecord(req);
     try {
-      const response = await fetch(
-        `${ENDPOINT}?requerimiento_id=${encodeURIComponent(id)}`,
-        { method: "GET", headers: { Accept: "application/json" }, credentials: "omit" },
-      );
-      const json = await response.json().catch(() => null);
-      if (!response.ok || json?.ok === false) {
-        throw new Error(json?.error || `HTTP ${response.status}`);
-      }
-      return Array.isArray(json?.data) ? json.data[0] || null : json?.data || null;
+      return await readServerRecord(req);
     } catch (error) {
       console.warn("[ReqGeolocalizacion] No se pudo consultar el endpoint:", error);
       return findLocalRecord(req);
     }
   }
+
+  // El expediente utiliza sólo el registro persistido y activo; una ubicación
+  // de demostración o pendiente en localStorage no debe aparecer como oficial.
+  window.IxtlaRequirementGeolocation = {
+    async getPersistedRecord(req) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        return await readServerRecord(req, controller.signal);
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+  };
 
   function formatDate(value) {
     const date = new Date(value);
